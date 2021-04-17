@@ -22,6 +22,8 @@ function start() {
 
   mkdir -p "$POSTGRES_DATA_DIR"
 
+  cleanup #prune any old Postgres container
+
   id=$(docker run \
     -d \
     -p $POSTGRES_PORT:$POSTGRES_PORT \
@@ -42,6 +44,10 @@ function start() {
   fi
 }
 
+function cleanup() {
+  docker container prune --force --filter "label=name=$CONTAINER_NAME" > /dev/null
+}
+
 function stop() {
   local id
   local exitCode
@@ -57,7 +63,7 @@ function stop() {
   exitCode=$? 
 
   if [ $exitCode -eq 0 ]; then
-    docker container prune --force --filter "label=name=$CONTAINER_NAME" > /dev/null
+    cleanup
     echo "Postgres container stopped"
     exit 0
   else
@@ -96,16 +102,20 @@ case "$1" in
   status)
     status
     ;;
+  cleanup)
+    cleanup
+    ;;
   *)
     echo "
 Command '$1' not supported. Please use:
 
   $> $(basename $0) start|stop|reset|status
 
-  * start  = Start Postgres
-  * stop   = Stop Postgres
-  * reset  = Erase data and restart Postgres
-  * status = Check if Postgres is running
+  * start   = Start Postgres
+  * stop    = Stop Postgres
+  * reset   = Erase data and restart Postgres
+  * status  = Check if Postgres is running
+  * cleanup = Prune remaining postgres container
 "
 esac
 
