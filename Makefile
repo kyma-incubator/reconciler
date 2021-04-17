@@ -31,5 +31,15 @@ build-linux-arm:
 build-darwin:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/cfgmgt-darwin $(FLAGS) ./cmd
 
+.PHONY: test
+test:
+	go test -race -coverprofile=cover.out ./...
+	@echo "Total test coverage: $$(go tool cover -func=cover.out | grep total | awk '{print $$3}')"
+	@rm cover.out
+
+.PHONY: clean
+clean:
+	rm -rf bin
+
 .PHONY: all
-all: resolve build lint 
+all: resolve build test lint 

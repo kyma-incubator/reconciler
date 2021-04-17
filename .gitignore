@@ -1,0 +1,7 @@
+bin/*
+
+# General
+.DS_Store
+*.swp
+._*
+Thumbs.db
