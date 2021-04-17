@@ -36,12 +36,18 @@ type PostgresConnectionFactory struct {
 }
 
 func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
+	sslMode := "disabled"
+	if pcf.SslMode {
+		sslMode = "enabled"
+	}
+
 	db, err := sql.Open(
 		"postgres",
-		fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", pcf.User, pcf.Password, pcf.Database))
+		fmt.Sprintf("user=%s password=%s dbname=%s sslmode=%s", pcf.User, pcf.Password, pcf.Database, sslMode))
 	if err != nil {
 		return nil, err
 	}
+
 	return &PostgresConnection{
 		db: db,
 	}, nil
