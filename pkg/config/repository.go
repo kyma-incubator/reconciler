@@ -1,7 +1,22 @@
 package config
 
-import "github.com/kyma-incubator/reconciler/pkg/db"
+import (
+	"database/sql"
+
+	"github.com/kyma-incubator/reconciler/pkg/db"
+)
 
 type ConfigEntryRepository struct {
-	Factor db.ConnectionFactory
+	db *sql.DB
+}
+
+func NewConfigEntryRepository(dbFac db.ConnectionFactory) (*ConfigEntryRepository, error) {
+	db, err := dbFac.NewConnection()
+	return &ConfigEntryRepository{
+		db: db,
+	}, err
+}
+
+func (cer *ConfigEntryRepository) Close() error {
+	return cer.db.Close()
 }

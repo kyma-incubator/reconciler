@@ -10,7 +10,7 @@ type DataType string
 
 type KeyEntity struct {
 	Key       string
-	Version   int
+	Version   int64
 	DataType  DataType
 	Encrypted bool
 	Created   int64
@@ -21,8 +21,8 @@ type KeyEntity struct {
 
 type ValueEntity struct {
 	Key        string
-	KeyVersion int
-	Version    int
+	KeyVersion int64
+	Version    int64
 	Bucket     string
 	Value      string
 	Created    int64
