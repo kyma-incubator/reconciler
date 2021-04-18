@@ -33,11 +33,15 @@ func NewCmd(o *cli.Options) *cobra.Command {
 			o.Logger.Error(fmt.Sprintf("Configuration file '%s' not found", configFile))
 			return
 		}
+		//read configuration
+		viper.SetEnvPrefix("RECONF_") //TODO: stay with this name?
+		viper.AutomaticEnv()
 
 		viper.SetConfigFile(configFile)
-		viper.AutomaticEnv()
-		if err := viper.ReadInConfig(); err != nil {
+		if err := viper.ReadInConfig(); err == nil {
 			o.Logger.Debug(fmt.Sprintf("Using configuration file '%s'", viper.ConfigFileUsed()))
+		} else {
+			o.Logger.Error(fmt.Sprintf("Failed to read configuration file '%s': %s", configFile, err))
 		}
 	})
 
