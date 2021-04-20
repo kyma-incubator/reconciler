@@ -4,7 +4,7 @@
 CREATE TABLE config_keys (
 	"key" text NOT NULL,
 	"version" SERIAL UNIQUE,
-	"datatype" varchar(255) NOT NULL,
+	"data_type" varchar(255) NOT NULL,
 	"encrypted" boolean DEFAULT FALSE,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
 	"user" varchar(255) NOT NULL,
