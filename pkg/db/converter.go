@@ -10,9 +10,21 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
+const (
+	dbTag         string = "db"
+	dbTagReadOnly string = "readOnly"
+	dbTagNoNull   string = "notNull"
+)
+
+type column struct {
+	name     string
+	readOnly bool
+	notNull  bool
+	value    interface{}
+}
+
 type StructTableConverter struct {
-	columns []string
-	values  []interface{}
+	columns []*column
 }
 
 func NewStructTableConverter(obj interface{}) (*StructTableConverter, error) {
@@ -20,61 +32,137 @@ func NewStructTableConverter(obj interface{}) (*StructTableConverter, error) {
 	if kind != reflect.Struct {
 		return nil, fmt.Errorf("StructTableConverter accepts only structs but provided object was '%s'", kind)
 	}
-	colNames, colValues := columnNameValues(obj)
+	cols, err := structToColumns(obj)
+	if err != nil {
+		return nil, err
+	}
 	return &StructTableConverter{
-		columns: colNames,
-		values:  colValues,
+		columns: cols,
 	}, nil
 }
 
-//Convert the fields of a struct to their corresponding table column names inclusive the field value
-func structData(obj interface{}) map[string]interface{} {
+func structToColumns(obj interface{}) ([]*column, error) {
 	fields := structs.Fields(obj)
-	result := make(map[string]interface{}, len(fields))
+	result := []*column{}
 	for _, field := range fields {
-		result[strcase.ToSnake(field.Name())] = field.Value()
+		col := &column{
+			name:     strcase.ToSnake(field.Name()),
+			readOnly: hasTag(field, dbTagReadOnly),
+			notNull:  hasTag(field, dbTagNoNull),
+			value:    field.Value(),
+		}
+		if col.notNull {
+			switch field.Kind() {
+			case reflect.String:
+				if field.Value().(string) == "" {
+					return nil, fmt.Errorf("Field '%s' is tagged with 'notNull' and cannot be empty", field.Name())
+				}
+			case reflect.Int64:
+				if field.Value().(int64) == 0 {
+					return nil, fmt.Errorf("Field '%s' is tagged with 'notNull' and cannot be 0", field.Name())
+				}
+			case reflect.Bool:
+				//nothing to check
+			default:
+				return nil, fmt.Errorf("Field '%s' has type '%s' - this type is not supported yet", field.Name(), field.Kind())
+			}
+		}
+		result = append(result, col)
+	}
+	return result, nil
+}
+
+func hasTag(field *structs.Field, tag string) bool {
+	tags := strings.Split(field.Tag(dbTag), ",")
+	for _, t := range tags {
+		if tag == strings.TrimSpace(t) {
+			return true
+		}
+	}
+	return false
+}
+
+//ColumnNamesCsv returns the CSV string of the column names
+func (tc *StructTableConverter) ColumnNamesCsv(onlyWriteable bool) string {
+	var buffer bytes.Buffer
+	for _, col := range tc.columns {
+		if onlyWriteable && col.readOnly {
+			continue
+		}
+		if buffer.Len() > 0 {
+			buffer.WriteString(", ")
+		}
+		buffer.WriteString(col.name)
+	}
+	return buffer.String()
+}
+
+func (tc *StructTableConverter) columnValuesCsvRenderer(onlyWriteable, placeholder bool) string {
+	var buffer bytes.Buffer
+	var placeholderIdx int
+	for _, col := range tc.columns {
+		if onlyWriteable && col.readOnly {
+			continue
+		}
+		if buffer.Len() > 0 {
+			buffer.WriteString(", ")
+		}
+		if placeholder {
+			placeholderIdx++
+			buffer.WriteString(fmt.Sprintf("$%d", placeholderIdx))
+		} else {
+			buffer.WriteString(tc.serializeValue(col.value))
+		}
+
+	}
+	return buffer.String()
+}
+
+func (tc *StructTableConverter) ColumnValues(onlyWriteable bool) []interface{} {
+	result := []interface{}{}
+	for _, col := range tc.columns {
+		if onlyWriteable && col.readOnly {
+			continue
+		}
+		result = append(result, col.value)
 	}
 	return result
 }
 
-func columnNameValues(obj interface{}) ([]string, []interface{}) {
-	structData := structData(obj)
-	columnNames := []string{}
-	columnValues := []interface{}{}
-	for k, v := range structData {
-		columnNames = append(columnNames, k)
-		columnValues = append(columnValues, v)
-	}
-	return columnNames, columnValues
+func (tc *StructTableConverter) ColumnValuesCsv(onlyWriteable bool) string {
+	return tc.columnValuesCsvRenderer(onlyWriteable, false)
 }
 
-//ColumnNamesCsv returns the CSV string of the column names
-func (tc *StructTableConverter) ColumnNamesCsv() string {
-	return strings.Join(tc.columns, ", ")
+func (tc *StructTableConverter) ColumnValuesPlaceholderCsv(onlyWriteable bool) string {
+	return tc.columnValuesCsvRenderer(onlyWriteable, true)
 }
 
-//ColumnValuesCsv returns the CSV string of the column values
-func (tc *StructTableConverter) ColumnValuesCsv() string {
+func (tc *StructTableConverter) columnEntriesCsvRenderer(onlyWriteable, placeholder bool) string {
 	var buffer bytes.Buffer
-	for _, value := range tc.values {
+	var placeholderIdx int
+	for _, col := range tc.columns {
+		if onlyWriteable && col.readOnly {
+			continue
+		}
 		if buffer.Len() > 0 {
 			buffer.WriteString(", ")
 		}
-		buffer.WriteString(tc.serializeValue(value))
+		if placeholder {
+			placeholderIdx++
+			buffer.WriteString(fmt.Sprintf("%s=$%d", col.name, placeholderIdx))
+		} else {
+			buffer.WriteString(fmt.Sprintf("%s=%s", col.name, tc.serializeValue(col.value)))
+		}
 	}
 	return buffer.String()
 }
 
-//ColumnEntryCsv returns the CSV strings of the column names-values pairs (e.g. col1=val1,col2=val2,...)
-func (tc *StructTableConverter) ColumnEntriesCsv() string {
-	var buffer bytes.Buffer
-	for idx, colName := range tc.columns {
-		if buffer.Len() > 0 {
-			buffer.WriteString(", ")
-		}
-		buffer.WriteString(fmt.Sprintf("%s=%s", colName, tc.serializeValue(tc.values[idx])))
-	}
-	return buffer.String()
+func (tc *StructTableConverter) ColumnEntriesCsv(onlyWriteable bool) string {
+	return tc.columnEntriesCsvRenderer(onlyWriteable, false)
+}
+
+func (tc *StructTableConverter) ColumnEntriesPlaceholderCsv(onlyWriteable bool) string {
+	return tc.columnEntriesCsvRenderer(onlyWriteable, true)
 }
 
 func (tc *StructTableConverter) serializeValue(value interface{}) string {

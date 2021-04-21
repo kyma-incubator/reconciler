@@ -1,20 +1,36 @@
 #!/bin/bash
 
-CONTAINER_NAME=postgres
-POSTGRES_DATA_DIR=$(pwd)/tmp/postgres
-POSTGRES_PORT=5432
+# Get current working directory
+cd "$(dirname $0)" > /dev/null || return
+readonly CWD=$(pwd)
+cd - > /dev/null || return
 
+# Script configuration
+readonly CONTAINER_NAME=postgres
+readonly POSTGRES_DATA_DIR=$CWD/tmp/postgres
+readonly POSTGRES_PORT=5432
+readonly POSTGRES_USER=kyma
+readonly POSTGRES_PASSWORD=kyma
+readonly POSTGRES_DB=kyma
+readonly POSTGRES_START_DELAY=3
+readonly MIGRATE_PATH=$CWD/../configs/db/migrate
+
+# Get Postress container ID
 function containerId() {
   docker ps --filter "name=$CONTAINER_NAME" --format "{{.ID}}"
 }
 
+# Print to STDERR
 function error() {
   >&2 echo "$1"
 }
 
+# Start Postgres container
 function start() { 
+  local waitForPg=$1
   local id
   local exitCode
+
   if [ -n "$(containerId)" ]; then
     echo "Postgres container already running"
     exit 0
@@ -30,24 +46,50 @@ function start() {
     --name "$CONTAINER_NAME" \
     -l "name=$CONTAINER_NAME" \
     -v "$POSTGRES_DATA_DIR":/var/lib/postgresql/data \
-    -e POSTGRES_PASSWORD=kyma \
-    -e POSTGRES_USER=kyma \
-    -e POSTGRES_DB=kyma \
-    postgres)
+    -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+    -e POSTGRES_USER=$POSTGRES_USER \
+    -e POSTGRES_DB=$POSTGRES_DB \
+    postgres)$
   exitCode=$?
 
   if [ $exitCode -eq 0 ]; then
     echo "Postgres container started (listening on port $POSTGRES_PORT)"
+    echo "Waiting for Postgres to be ready"
+    if [ -z "$waitForPg" ]; then
+      sleep $POSTGRES_START_DELAY
+    else
+      sleep "$waitForPg"
+    fi
+    
+    migrate
   else
     error "Failed to start Postgres container (code: $exitCode)"
     exit $exitCode
   fi
 }
 
+# Migrate database schema
+function migrate() {
+  local postgresDSN="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:$POSTGRES_PORT/$POSTGRES_DB?sslmode=disable"
+  migrateCmd=$(which migrate)
+  if [ $? -eq 0 ]; then
+    echo -n "Migrating database: "
+    $migrateCmd -database "$postgresDSN" -path "$MIGRATE_PATH" up
+  else
+    error "DB migration requires the 'migrate' tool, please install it and try again.
+
+See https://github.com/golang-migrate/migrate/tree/master/cmd/migrate
+"
+    exit 1
+  fi
+}
+
+# Purge any old Posgres container
 function cleanup() {
   docker container prune --force --filter "label=name=$CONTAINER_NAME" > /dev/null
 }
 
+# Stop Postgres container
 function stop() {
   local id
   local exitCode
@@ -71,13 +113,15 @@ function stop() {
   fi
 }
 
+# Delete Postgres data directory
 function reset() {
   stop
   rm -rf "$POSTGRES_DATA_DIR"
   mkdir -p "$POSTGRES_DATA_DIR"
-  start
+  start 30 #start with a waitFor period of 30 sec (DB-creation on FS can take longer for the first time)
 }
 
+# Check whether Postgres container is running
 function status() {
   if [ -n "$(containerId)" ]; then
     echo "Postgres is running"
@@ -105,6 +149,9 @@ case "$1" in
   cleanup)
     cleanup
     ;;
+  migrate)
+    migrate
+    ;;
   *)
     echo "
 Command '$1' not supported. Please use:
@@ -116,6 +163,7 @@ Command '$1' not supported. Please use:
   * reset   = Erase data and restart Postgres
   * status  = Check if Postgres is running
   * cleanup = Prune remaining postgres container
+  * migrate = Migrate DB to latest schema
 "
 esac
 
