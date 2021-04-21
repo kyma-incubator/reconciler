@@ -6,7 +6,7 @@ CREATE TABLE config_keys (
 	"key" text NOT NULL,
 	"data_type" varchar(255) NOT NULL,
 	"encrypted" boolean DEFAULT FALSE,
-	"user" varchar(255) NOT NULL,
+	"username" varchar(255) NOT NULL,
 	"trigger" text,
 	"validator" text,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
@@ -20,7 +20,7 @@ CREATE TABLE config_values (
 	"key_version" integer NOT NULL,
 	"bucket" text NOT NULL,
 	"value" text NULL,
-	"user" varchar(255) NOT NULL,
+	"username" varchar(255) NOT NULL,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
 	CONSTRAINT config_values_pk PRIMARY KEY ("bucket", "key", "version"),
 	FOREIGN KEY ("key", "key_version") REFERENCES config_keys ("key", "version")

@@ -16,11 +16,24 @@ func TestEntryRepository(t *testing.T) {
 		Debug:    true,
 	})
 	require.NoError(t, err)
-	err = ceRepo.CreateKey(&KeyEntity{
-		Key:       "testKey",
-		DataType:  String,
-		Encrypted: true,
-		User:      "abc",
+
+	t.Run("Validate data model", func(t *testing.T) {
+		keyEntity := &KeyEntity{}
+		_, err = ceRepo.CreateKey(keyEntity)
+		require.True(t, db.IsIncompleteEntityError(err))
+
+		keyEntity.Key = "testKey"
+		_, err = ceRepo.CreateKey(keyEntity)
+		require.True(t, db.IsIncompleteEntityError(err))
+
+		keyEntity.Username = "testUser"
+		_, err = ceRepo.CreateKey(keyEntity)
+		require.True(t, db.IsIncompleteEntityError(err))
+
+		keyEntity.DataType = String
+		entity, err := ceRepo.CreateKey(keyEntity)
+		require.NoError(t, err)
+		require.NotEmpty(t, entity)
 	})
-	require.Error(t, err, "Kyma model incomplete")
+
 }
