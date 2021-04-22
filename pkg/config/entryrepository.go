@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-
 	"github.com/kyma-incubator/reconciler/pkg/db"
 )
 
@@ -35,31 +33,27 @@ func (cer *ConfigEntryRepository) GetKeys(key string) ([]*KeyEntity, error) {
 }
 
 func (cer *ConfigEntryRepository) GetLatestKey(key string) (*KeyEntity, error) {
-	entity := &KeyEntity{}
-	colHdlr, err := db.NewColumnHandler(entity)
+	q, err := db.NewQuery(cer.conn, &KeyEntity{})
 	if err != nil {
 		return nil, err
 	}
-	row := cer.conn.QueryRow(
-		fmt.Sprintf("SELECT %s FROM %s WHERE %s=$1 ORDER BY VERSION DESC",
-			colHdlr.ColumnNamesCsv(false), tblKeys, "key"),
-		key)
-
-	return entity, colHdlr.Synchronize(row, entity)
+	entity, err := q.Select().Where("key=$1", key).OrderBy("version desc").GetOne()
+	if err != nil {
+		return nil, err
+	}
+	return entity.(*KeyEntity), nil
 }
 
 func (cer *ConfigEntryRepository) GetKey(key string, version int64) (*KeyEntity, error) {
-	entity := &KeyEntity{}
-	colHdlr, err := db.NewColumnHandler(entity)
+	q, err := db.NewQuery(cer.conn, &KeyEntity{})
 	if err != nil {
 		return nil, err
 	}
-	row := cer.conn.QueryRow(
-		fmt.Sprintf("SELECT %s FROM %s WHERE %s=$1 AND %s=$2",
-			colHdlr.ColumnNamesCsv(false), tblKeys, "key", "version"),
-		key, version)
-
-	return entity, colHdlr.Synchronize(row, entity)
+	entity, err := q.Select().Where("key=$1 AND version=$2", key, version).GetOne()
+	if err != nil {
+		return nil, err
+	}
+	return entity.(*KeyEntity), nil
 }
 
 func (cer *ConfigEntryRepository) CreateKey(key *KeyEntity) (*KeyEntity, error) {
@@ -72,14 +66,11 @@ func (cer *ConfigEntryRepository) CreateKey(key *KeyEntity) (*KeyEntity, error) 
 }
 
 func (cer *ConfigEntryRepository) DeleteKey(key *KeyEntity) (int64, error) {
-	res, err := cer.conn.Exec(
-		fmt.Sprintf("DELETE FROM %s WHERE key = '$1'",
-			tblKeys), key.Key)
-	if err == nil {
-		return res.RowsAffected()
-	} else {
+	q, err := db.NewQuery(cer.conn, key)
+	if err != nil {
 		return 0, err
 	}
+	return q.Delete().Where("key=$1 AND version=$2", key.Key, key.Version).Exec()
 }
 
 func (cer *ConfigEntryRepository) GetValue(bucket, key string, version int64) (*ValueEntity, error) {

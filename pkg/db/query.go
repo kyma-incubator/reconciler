@@ -12,6 +12,34 @@ type Query struct {
 	buffer        bytes.Buffer
 }
 
+func NewQuery(conn Connection, entity DatabaseEntity) (*Query, error) {
+	columnHandler, err := NewColumnHandler(entity)
+	if err != nil {
+		return nil, err
+	}
+	return &Query{
+		conn:          conn,
+		entity:        entity,
+		columnHandler: columnHandler,
+	}, nil
+}
+
+func (q *Query) Select() *Select {
+	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
+	return &Select{q, []interface{}{}}
+}
+
+func (q *Query) Insert() *Insert {
+	q.buffer.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING %s",
+		q.entity.Table(), q.columnHandler.ColumnNamesCsv(true), q.columnHandler.ColumnValuesPlaceholderCsv(true), q.columnHandler.ColumnNamesCsv(false)))
+	return &Insert{q}
+}
+
+func (q *Query) Delete() *Delete {
+	q.buffer.WriteString(fmt.Sprintf("DELETE FROM %s", q.entity.Table()))
+	return &Delete{q, []interface{}{}}
+}
+
 type Select struct {
 	*Query
 	args []interface{}
@@ -23,12 +51,12 @@ func (s *Select) Where(sqlWhere string, args ...interface{}) *Select {
 	return s
 }
 
-func (s *Select) Group(sqlGroup string) *Select {
+func (s *Select) GroupBy(sqlGroup string) *Select {
 	s.buffer.WriteString(fmt.Sprintf(" GROUP BY %s", sqlGroup))
 	return s
 }
 
-func (s *Select) Order(sqlOrder string) *Select {
+func (s *Select) OrderBy(sqlOrder string) *Select {
 	s.buffer.WriteString(fmt.Sprintf(" ORDER BY %s", sqlOrder))
 	return s
 }
@@ -70,25 +98,22 @@ func (i *Insert) Exec() error {
 	return i.columnHandler.Synchronize(row, i.entity)
 }
 
-func NewQuery(conn Connection, entity DatabaseEntity) (*Query, error) {
-	columnHandler, err := NewColumnHandler(entity)
-	if err != nil {
-		return nil, err
+type Delete struct {
+	*Query
+	args []interface{}
+}
+
+func (d *Delete) Where(sqlWhere string, args ...interface{}) *Delete {
+	d.buffer.WriteString(fmt.Sprintf(" WHERE %s", sqlWhere))
+	d.args = append(d.args, args...)
+	return d
+}
+
+func (d *Delete) Exec() (int64, error) {
+	res, err := d.conn.Exec(d.buffer.String(), d.args...)
+	if err == nil {
+		return res.RowsAffected()
+	} else {
+		return 0, err
 	}
-	return &Query{
-		conn:          conn,
-		entity:        entity,
-		columnHandler: columnHandler,
-	}, nil
-}
-
-func (q *Query) Select() *Select {
-	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
-	return &Select{q, []interface{}{}}
-}
-
-func (q *Query) Insert() *Insert {
-	q.buffer.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING %s",
-		q.entity.Table(), q.columnHandler.ColumnNamesCsv(true), q.columnHandler.ColumnValuesPlaceholderCsv(true), q.columnHandler.ColumnNamesCsv(false)))
-	return &Insert{q}
 }
