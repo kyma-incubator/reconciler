@@ -20,7 +20,7 @@ func (cer *ConfigEntryRepository) GetKeys(key string) ([]*KeyEntity, error) {
 	if err != nil {
 		return nil, err
 	}
-	entities, err := q.Select().Where("key=$1", key).GetMany()
+	entities, err := q.Select().Where("key=$1", key).OrderBy("version ASC").GetMany()
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (cer *ConfigEntryRepository) GetLatestKey(key string) (*KeyEntity, error) {
 	if err != nil {
 		return nil, err
 	}
-	entity, err := q.Select().Where("key=$1", key).OrderBy("version desc").GetOne()
+	entity, err := q.Select().Where("key=$1", key).OrderBy("version DESC").GetOne()
 	if err != nil {
 		return nil, err
 	}

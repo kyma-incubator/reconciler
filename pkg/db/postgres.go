@@ -30,11 +30,11 @@ func newPostgresConnection(db *sql.DB, debug bool) (*PostgresConnection, error) 
 	}, nil
 }
 
-func (pc *PostgresConnection) QueryRow(query string, args ...interface{}) *sql.Row {
+func (pc *PostgresConnection) QueryRow(query string, args ...interface{}) DataRow {
 	pc.logger.Debug(fmt.Sprintf("Postgres QueryRow(): %s | %v", query, args))
 	return pc.db.QueryRow(query, args...)
 }
-func (pc *PostgresConnection) Query(query string, args ...interface{}) (*sql.Rows, error) {
+func (pc *PostgresConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	pc.logger.Debug(fmt.Sprintf("Postgres Query(): %s | %v", query, args))
 	return pc.db.Query(query, args...)
 }

@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/stretchr/testify/require"
@@ -17,42 +19,48 @@ func TestEntryRepository(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	t.Run("Validate and crate entity", func(t *testing.T) {
+	//add test data
+	keyId := fmt.Sprintf("testKey%d", time.Now().UnixNano())
+	keyVersions := []int64{}
+
+	t.Run("Validate entity and create test data", func(t *testing.T) {
 		keyEntity := &KeyEntity{}
 		_, err = ceRepo.CreateKey(keyEntity)
 		require.True(t, db.IsIncompleteEntityError(err))
 
-		keyEntity.Key = "testKey"
+		keyEntity.Key = keyId
 		_, err = ceRepo.CreateKey(keyEntity)
 		require.True(t, db.IsIncompleteEntityError(err))
 
-		keyEntity.Username = "testUser"
+		keyEntity.Username = "abc"
 		_, err = ceRepo.CreateKey(keyEntity)
 		require.True(t, db.IsIncompleteEntityError(err))
 
-		keyEntity.DataType = String
-		entity, err := ceRepo.CreateKey(keyEntity)
-		require.NoError(t, err)
-		require.NotEmpty(t, entity)
+		for _, dt := range []DataType{String, Boolean, Integer} {
+			keyEntity.DataType = dt
+			entity, err := ceRepo.CreateKey(keyEntity)
+			require.NoError(t, err)
+			keyVersions = append(keyVersions, entity.Version)
+		}
 	})
 
 	t.Run("Get all keys", func(t *testing.T) {
-		var err error
-		_, err = ceRepo.CreateKey(&KeyEntity{
-			Key:      "testKey1",
-			Username: "abc",
-			DataType: String,
-		})
+		entities, err := ceRepo.GetKeys(keyId)
 		require.NoError(t, err)
-		_, err = ceRepo.CreateKey(&KeyEntity{
-			Key:      "testKey1",
-			Username: "abc",
-			DataType: Integer,
-		})
-		require.NoError(t, err)
-		entities, err := ceRepo.GetKeys("testKey1")
-		require.NoError(t, err)
-		require.NotEmpty(t, entities)
+		require.Equal(t, 3, len(entities))
+		//ordered by version ASC:
+		require.True(t, entities[0].Version < entities[1].Version && entities[1].Version < entities[2].Version)
 	})
 
+	t.Run("Get latest keys", func(t *testing.T) {
+		entity, err := ceRepo.GetLatestKey(keyId)
+		require.NoError(t, err)
+		require.Equal(t, keyVersions[len(keyVersions)-1], entity.Version)
+	})
+
+	t.Run("Get key", func(t *testing.T) {
+		entity, err := ceRepo.GetKey(keyId, keyVersions[1])
+		require.NoError(t, err)
+		require.Equal(t, keyVersions[1], entity.Version)
+	})
 }

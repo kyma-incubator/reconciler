@@ -8,44 +8,60 @@ import (
 )
 
 type EntitySynchronizer struct {
-	Struct         *structs.Struct
-	ValueConverter map[string]func(interface{}) (interface{}, error)
+	structs       *structs.Struct
+	converterFcts map[string]func(rawValue interface{}) (interface{}, error)
 }
 
-func (sd *EntitySynchronizer) Sync(rawData map[string]interface{}) error {
-	for _, field := range sd.Struct.Fields() {
+func NewEntitySynchronizer(entity interface{}) *EntitySynchronizer {
+	return &EntitySynchronizer{
+		structs:       structs.New(entity),
+		converterFcts: make(map[string]func(rawValue interface{}) (interface{}, error)),
+	}
+}
+
+func (es *EntitySynchronizer) AddConverter(field string, convFct func(rawValue interface{}) (interface{}, error)) {
+	es.converterFcts[field] = convFct
+}
+
+func (es *EntitySynchronizer) Sync(rawData map[string]interface{}) error {
+	for _, field := range es.structs.Fields() {
 		rawValue, ok := rawData[field.Name()]
 		if !ok {
 			return fmt.Errorf("No value in database found for field '%s'", field.Name())
 		}
 
 		//check if a value converter function was defined for this field
-		if valueConverterFct, ok := sd.ValueConverter[field.Name()]; ok {
-			value, err := valueConverterFct(rawValue)
+		if converterFct, ok := es.converterFcts[field.Name()]; ok {
+			value, err := converterFct(rawValue)
 			if err != nil {
 				return err
 			}
-			field.Set(value)
+			if err := field.Set(value); err != nil {
+				return err
+			}
 			continue
 		}
 
-		//use default value conversion
-		var err error
-		switch field.Kind() {
-		case reflect.Int64:
-			err = field.Set(rawValue.(int64))
-		case reflect.Bool:
-			err = field.Set(rawValue.(bool))
-		case reflect.String:
-			err = field.Set(rawValue.(string))
-		default:
-			err = fmt.Errorf("Cannot synchronize field '%s' because type '%s' is not supported (value was '%s')",
-				field.Name(), field.Kind(), rawValue)
-		}
-		if err != nil {
+		//set value without conversion
+		if err := es.setFieldValue(field, rawValue); err != nil {
 			return err
 		}
 	}
-
 	return nil
+}
+
+func (es *EntitySynchronizer) setFieldValue(field *structs.Field, rawValue interface{}) error {
+	var err error
+	switch field.Kind() {
+	case reflect.Int64:
+		err = field.Set(rawValue.(int64))
+	case reflect.Bool:
+		err = field.Set(rawValue.(bool))
+	case reflect.String:
+		err = field.Set(rawValue.(string))
+	default:
+		err = fmt.Errorf("Cannot synchronize field '%s' because type '%s' is not supported (value was '%s')",
+			field.Name(), field.Kind(), rawValue)
+	}
+	return err
 }

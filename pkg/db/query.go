@@ -24,6 +24,10 @@ func NewQuery(conn Connection, entity DatabaseEntity) (*Query, error) {
 	}, nil
 }
 
+func (q *Query) reset() {
+	q.buffer = bytes.Buffer{}
+}
+
 func (q *Query) Select() *Select {
 	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
 	return &Select{q, []interface{}{}}
@@ -62,11 +66,13 @@ func (s *Select) OrderBy(sqlOrder string) *Select {
 }
 
 func (s *Select) GetOne() (DatabaseEntity, error) {
+	defer s.reset()
 	row := s.conn.QueryRow(s.buffer.String(), s.args...)
 	return s.entity, s.columnHandler.Synchronize(row, s.entity)
 }
 
 func (s *Select) GetMany() ([]DatabaseEntity, error) {
+	defer s.reset()
 	rows, err := s.conn.Query(s.buffer.String(), s.args...)
 	if err != nil {
 		return nil, err
@@ -91,6 +97,7 @@ type Insert struct {
 }
 
 func (i *Insert) Exec() error {
+	defer i.reset()
 	if err := i.columnHandler.Validate(); err != nil {
 		return err
 	}
@@ -110,6 +117,7 @@ func (d *Delete) Where(sqlWhere string, args ...interface{}) *Delete {
 }
 
 func (d *Delete) Exec() (int64, error) {
+	defer d.reset()
 	res, err := d.conn.Exec(d.buffer.String(), d.args...)
 	if err == nil {
 		return res.RowsAffected()

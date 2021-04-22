@@ -94,12 +94,14 @@ func (tc *ColumnHandler) Validate() error {
 			case reflect.Bool:
 				//nothing to check
 			default:
-				return fmt.Errorf("Field '%s' has type '%s' - this type is not supported yet", col.field.Name(), col.field.Kind())
+				return fmt.Errorf("Field '%s' has type '%s' - this type is not supported yet",
+					col.field.Name(), col.field.Kind())
 			}
 		}
 	}
 	if len(invalidFields) > 0 {
-		return newIncompleteEntityError("The fields '%s' are tagged with '%s' and cannot be undefined", strings.Join(invalidFields, "', '"), dbTagNoNull)
+		return newIncompleteEntityError("The fields '%s' are tagged with '%s' and cannot be undefined",
+			strings.Join(invalidFields, "', '"), dbTagNoNull)
 	}
 	return nil
 }
