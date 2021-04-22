@@ -9,9 +9,11 @@ import (
 )
 
 const (
-	String  DataType = "string"
-	Integer DataType = "integer"
-	Boolean DataType = "boolean"
+	String    DataType = "string"
+	Integer   DataType = "integer"
+	Boolean   DataType = "boolean"
+	tblKeys   string   = "config_keys"
+	tlbValues string   = "config_values"
 )
 
 type DataType string
@@ -32,7 +34,11 @@ func (ke *KeyEntity) String() string {
 		ke.Key, ke.Version, ke.DataType, ke.Encrypted, ke.Username, ke.Created)
 }
 
-func (ke *KeyEntity) Synchronizer() *db.StructSynchronizer {
+func (ke *KeyEntity) New() db.DatabaseEntity {
+	return &KeyEntity{}
+}
+
+func (ke *KeyEntity) Synchronizer() *db.EntitySynchronizer {
 	//register custom value converter
 	valConvs := make(map[string]func(interface{}) (interface{}, error))
 
@@ -57,23 +63,50 @@ func (ke *KeyEntity) Synchronizer() *db.StructSynchronizer {
 		return value, nil
 	}
 
-	return &db.StructSynchronizer{
+	return &db.EntitySynchronizer{
 		Struct:         structs.New(&ke),
 		ValueConverter: valConvs,
 	}
 }
 
+func (ke *KeyEntity) Table() string {
+	return tblKeys
+}
+
 type ValueEntity struct {
-	Key        string `db:"notNull"`
-	KeyVersion int64  `db:"notNull"`
-	Version    int64  `db:"readOnly"`
-	Bucket     string `db:"notNull"`
-	Value      string `db:"notNull"`
-	Created    int64  `db:"readOnly"`
-	Username   string `db:"notNull"`
+	Key        string    `db:"notNull"`
+	KeyVersion int64     `db:"notNull"`
+	Version    int64     `db:"readOnly"`
+	Bucket     string    `db:"notNull"`
+	Value      string    `db:"notNull"`
+	Created    time.Time `db:"readOnly"`
+	Username   string    `db:"notNull"`
 }
 
 func (ve *ValueEntity) String() string {
-	return fmt.Sprintf("%s=%s: KeyVersion=%d,Bucket=%s,User=%s,CreatedOn=%d",
+	return fmt.Sprintf("%s=%s: KeyVersion=%d,Bucket=%s,User=%s,CreatedOn=%s",
 		ve.Key, ve.Value, ve.KeyVersion, ve.Bucket, ve.Username, ve.Created)
+}
+
+func (ke *ValueEntity) New() db.DatabaseEntity {
+	return &ValueEntity{}
+}
+
+func (ke *ValueEntity) Synchronizer() *db.EntitySynchronizer {
+	//register custom value converter
+	valConvs := make(map[string]func(interface{}) (interface{}, error))
+
+	//convert for Created field
+	valConvs["Created"] = func(value interface{}) (interface{}, error) {
+		return value, nil
+	}
+
+	return &db.EntitySynchronizer{
+		Struct:         structs.New(&ke),
+		ValueConverter: valConvs,
+	}
+}
+
+func (ke *ValueEntity) Table() string {
+	return tlbValues
 }

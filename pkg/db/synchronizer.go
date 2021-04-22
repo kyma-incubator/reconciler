@@ -7,14 +7,14 @@ import (
 	"github.com/fatih/structs"
 )
 
-type StructSynchronizer struct {
+type EntitySynchronizer struct {
 	Struct         *structs.Struct
 	ValueConverter map[string]func(interface{}) (interface{}, error)
 }
 
-func (sd *StructSynchronizer) Sync(data map[string]interface{}) error {
+func (sd *EntitySynchronizer) Sync(rawData map[string]interface{}) error {
 	for _, field := range sd.Struct.Fields() {
-		rawValue, ok := data[field.Name()]
+		rawValue, ok := rawData[field.Name()]
 		if !ok {
 			return fmt.Errorf("No value in database found for field '%s'", field.Name())
 		}

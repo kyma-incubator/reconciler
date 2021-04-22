@@ -17,7 +17,7 @@ func TestEntryRepository(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	t.Run("Validate data model", func(t *testing.T) {
+	t.Run("Validate and crate entity", func(t *testing.T) {
 		keyEntity := &KeyEntity{}
 		_, err = ceRepo.CreateKey(keyEntity)
 		require.True(t, db.IsIncompleteEntityError(err))
@@ -34,6 +34,25 @@ func TestEntryRepository(t *testing.T) {
 		entity, err := ceRepo.CreateKey(keyEntity)
 		require.NoError(t, err)
 		require.NotEmpty(t, entity)
+	})
+
+	t.Run("Get all keys", func(t *testing.T) {
+		var err error
+		_, err = ceRepo.CreateKey(&KeyEntity{
+			Key:      "testKey1",
+			Username: "abc",
+			DataType: String,
+		})
+		require.NoError(t, err)
+		_, err = ceRepo.CreateKey(&KeyEntity{
+			Key:      "testKey1",
+			Username: "abc",
+			DataType: Integer,
+		})
+		require.NoError(t, err)
+		entities, err := ceRepo.GetKeys("testKey1")
+		require.NoError(t, err)
+		require.NotEmpty(t, entities)
 	})
 
 }

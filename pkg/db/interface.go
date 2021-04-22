@@ -14,3 +14,15 @@ type Connection interface {
 type ConnectionFactory interface {
 	NewConnection() (Connection, error)
 }
+
+type DatabaseEntity interface {
+	Table() string
+	Synchronizer() *EntitySynchronizer
+	New() DatabaseEntity
+}
+
+//DataRow introduces a interface which is implemented by sql.Row and sql.Rows
+//to make both usable for retrieving raw data
+type DataRow interface {
+	Scan(dest ...interface{}) error
+}

@@ -16,16 +16,6 @@ const (
 	dbTagNoNull   string = "notNull"
 )
 
-//DataRow introduces a interface which is implemented by sql.Row and sql.Rows
-//to make both usable for retrieving raw data
-type DataRow interface {
-	Scan(dest ...interface{}) error
-}
-
-type DatabaseEntity interface {
-	Synchronizer() *StructSynchronizer
-}
-
 type IncompleteEntityError struct {
 	errorMsg string
 }
@@ -129,6 +119,17 @@ func (tc *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 	return buffer.String()
 }
 
+func (tc *ColumnHandler) ColumnValues(onlyWriteable bool) []interface{} {
+	result := []interface{}{}
+	for _, col := range tc.columns {
+		if onlyWriteable && col.readOnly {
+			continue
+		}
+		result = append(result, col.field.Value())
+	}
+	return result
+}
+
 func (tc *ColumnHandler) columnValuesCsvRenderer(onlyWriteable, placeholder bool) string {
 	var buffer bytes.Buffer
 	var placeholderIdx int
@@ -148,17 +149,6 @@ func (tc *ColumnHandler) columnValuesCsvRenderer(onlyWriteable, placeholder bool
 
 	}
 	return buffer.String()
-}
-
-func (tc *ColumnHandler) ColumnValues(onlyWriteable bool) []interface{} {
-	result := []interface{}{}
-	for _, col := range tc.columns {
-		if onlyWriteable && col.readOnly {
-			continue
-		}
-		result = append(result, col.field.Value())
-	}
-	return result
 }
 
 func (tc *ColumnHandler) ColumnValuesCsv(onlyWriteable bool) string {
