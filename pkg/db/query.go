@@ -3,6 +3,8 @@ package db
 import (
 	"bytes"
 	"fmt"
+	"sort"
+	"strings"
 )
 
 type Query struct {
@@ -30,7 +32,7 @@ func (q *Query) reset() {
 
 func (q *Query) Select() *Select {
 	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
-	return &Select{q, []interface{}{}}
+	return &Select{q, []interface{}{}, nil}
 }
 
 func (q *Query) Insert() *Insert {
@@ -41,37 +43,76 @@ func (q *Query) Insert() *Insert {
 
 func (q *Query) Delete() *Delete {
 	q.buffer.WriteString(fmt.Sprintf("DELETE FROM %s", q.entity.Table()))
-	return &Delete{q, []interface{}{}}
+	return &Delete{q, []interface{}{}, nil}
 }
 
 type Select struct {
 	*Query
 	args []interface{}
+	err  error
 }
 
-func (s *Select) Where(sqlWhere string, args ...interface{}) *Select {
-	s.buffer.WriteString(fmt.Sprintf(" WHERE %s", sqlWhere))
-	s.args = append(s.args, args...)
+func (s *Select) Where(args map[string]interface{}) *Select {
+	s.args, s.err = addWhereCondition(args, &s.buffer, s.columnHandler)
 	return s
 }
 
-func (s *Select) GroupBy(sqlGroup string) *Select {
-	s.buffer.WriteString(fmt.Sprintf(" GROUP BY %s", sqlGroup))
+func (s *Select) GroupBy(args []string) *Select {
+	if len(args) == 0 {
+		return s
+	}
+	s.buffer.WriteString(" GROUP BY")
+	grouping := []string{}
+	for _, field := range args {
+		col, err := s.columnHandler.ColumnName(field)
+		if err != nil {
+			s.err = err
+			return s
+		}
+		grouping = append(grouping, fmt.Sprintf(" %s", col))
+	}
+	s.buffer.WriteString(strings.Join(grouping, ", "))
 	return s
 }
 
-func (s *Select) OrderBy(sqlOrder string) *Select {
-	s.buffer.WriteString(fmt.Sprintf(" ORDER BY %s", sqlOrder))
+func (s *Select) OrderBy(args map[string]string) *Select {
+	if len(args) == 0 {
+		return s
+	}
+	s.buffer.WriteString(" ORDER BY")
+	ordering := []string{}
+
+	keys := make([]string, 0, len(args))
+	for key := range args {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, field := range keys {
+		col, err := s.columnHandler.ColumnName(field)
+		if err != nil {
+			s.err = err
+			return s
+		}
+		ordering = append(ordering, fmt.Sprintf(" %s %s", col, args[field]))
+	}
+	s.buffer.WriteString(strings.Join(ordering, ", "))
 	return s
 }
 
 func (s *Select) GetOne() (DatabaseEntity, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
 	defer s.reset()
 	row := s.conn.QueryRow(s.buffer.String(), s.args...)
 	return s.entity, s.columnHandler.Synchronize(row, s.entity)
 }
 
 func (s *Select) GetMany() ([]DatabaseEntity, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
 	defer s.reset()
 	rows, err := s.conn.Query(s.buffer.String(), s.args...)
 	if err != nil {
@@ -108,15 +149,18 @@ func (i *Insert) Exec() error {
 type Delete struct {
 	*Query
 	args []interface{}
+	err  error
 }
 
-func (d *Delete) Where(sqlWhere string, args ...interface{}) *Delete {
-	d.buffer.WriteString(fmt.Sprintf(" WHERE %s", sqlWhere))
-	d.args = append(d.args, args...)
+func (d *Delete) Where(args map[string]interface{}) *Delete {
+	d.args, d.err = addWhereCondition(args, &d.buffer, d.columnHandler)
 	return d
 }
 
 func (d *Delete) Exec() (int64, error) {
+	if d.err != nil {
+		return 0, d.err
+	}
 	defer d.reset()
 	res, err := d.conn.Exec(d.buffer.String(), d.args...)
 	if err == nil {
@@ -124,4 +168,30 @@ func (d *Delete) Exec() (int64, error) {
 	} else {
 		return 0, err
 	}
+}
+
+func addWhereCondition(whereCond map[string]interface{}, buffer *bytes.Buffer, columnHandler *ColumnHandler) ([]interface{}, error) {
+	var args []interface{}
+	buffer.WriteString(" WHERE")
+	var plcHdrIdx int
+
+	keys := make([]string, 0, len(whereCond))
+	for key := range whereCond {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, columnName := range keys {
+		col, err := columnHandler.ColumnName(columnName)
+		if err != nil {
+			return args, err
+		}
+		if plcHdrIdx > 0 {
+			buffer.WriteString(" AND")
+		}
+		plcHdrIdx++
+		buffer.WriteString(fmt.Sprintf(" %s=$%d", col, plcHdrIdx))
+		args = append(args, whereCond[columnName])
+	}
+	return args, nil
 }

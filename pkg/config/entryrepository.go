@@ -16,11 +16,15 @@ func NewConfigEntryRepository(dbFac db.ConnectionFactory) (*ConfigEntryRepositor
 }
 
 func (cer *ConfigEntryRepository) GetKeys(key string) ([]*KeyEntity, error) {
-	q, err := db.NewQuery(cer.conn, &KeyEntity{})
+	entity := &KeyEntity{}
+	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
 		return nil, err
 	}
-	entities, err := q.Select().Where("key=$1", key).OrderBy("version ASC").GetMany()
+	entities, err := q.Select().
+		Where(map[string]interface{}{"Key": key}).
+		OrderBy(map[string]string{"Version": "ASC"}).
+		GetMany()
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +41,10 @@ func (cer *ConfigEntryRepository) GetLatestKey(key string) (*KeyEntity, error) {
 	if err != nil {
 		return nil, err
 	}
-	entity, err := q.Select().Where("key=$1", key).OrderBy("version DESC").GetOne()
+	entity, err := q.Select().
+		Where(map[string]interface{}{"Key": key}).
+		OrderBy(map[string]string{"Version": "DESC"}).
+		GetOne()
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +56,9 @@ func (cer *ConfigEntryRepository) GetKey(key string, version int64) (*KeyEntity,
 	if err != nil {
 		return nil, err
 	}
-	entity, err := q.Select().Where("key=$1 AND version=$2", key, version).GetOne()
+	entity, err := q.Select().
+		Where(map[string]interface{}{"Key": key, "Version": version}).
+		GetOne()
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +79,9 @@ func (cer *ConfigEntryRepository) DeleteKey(key *KeyEntity) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return q.Delete().Where("key=$1 AND version=$2", key.Key, key.Version).Exec()
+	return q.Delete().
+		Where(map[string]interface{}{"Key": key.Key, "Version": key.Version}).
+		Exec()
 }
 
 func (cer *ConfigEntryRepository) GetValue(bucket, key string, version int64) (*ValueEntity, error) {

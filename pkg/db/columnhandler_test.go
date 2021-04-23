@@ -42,6 +42,15 @@ func TestColumnHandler(t *testing.T) {
 		require.ElementsMatch(t, []interface{}{"testString", int64(123456789)}, stc.ColumnValues(true))
 	})
 
+	t.Run("Get column name", func(t *testing.T) {
+		colNameInt64, err := stc.ColumnName("Int64")
+		require.NoError(t, err)
+		require.Equal(t, "int_64", colNameInt64)
+		colNameStr, err := stc.ColumnName("String")
+		require.NoError(t, err)
+		require.Equal(t, "string", colNameStr)
+	})
+
 	t.Run("Get column names as CSV", func(t *testing.T) {
 		require.ElementsMatch(t, []string{"string", "bool", "int_64"}, splitAndTrimCsv(stc.ColumnNamesCsv(false)))
 		require.ElementsMatch(t, []string{"string", "int_64"}, splitAndTrimCsv(stc.ColumnNamesCsv(true)))

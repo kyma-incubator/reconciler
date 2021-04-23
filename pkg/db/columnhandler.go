@@ -44,7 +44,8 @@ type column struct {
 }
 
 type ColumnHandler struct {
-	columns []*column
+	columns     []*column
+	columnNames map[string]string
 }
 
 func NewColumnHandler(entity interface{}) (*ColumnHandler, error) {
@@ -55,8 +56,11 @@ func NewColumnHandler(entity interface{}) (*ColumnHandler, error) {
 	if kind != reflect.Struct {
 		return nil, fmt.Errorf("ColumnHandler accepts only structs but provided object was '%s'", kind)
 	}
-	stc := &ColumnHandler{}
-	for _, field := range structs.Fields(entity) {
+	fields := structs.Fields(entity)
+	stc := &ColumnHandler{
+		columnNames: make(map[string]string, len(fields)),
+	}
+	for _, field := range fields {
 		col := &column{
 			name:     strcase.ToSnake(field.Name()),
 			readOnly: hasTag(field, dbTagReadOnly),
@@ -64,6 +68,7 @@ func NewColumnHandler(entity interface{}) (*ColumnHandler, error) {
 			field:    field,
 		}
 		stc.columns = append(stc.columns, col)
+		stc.columnNames[field.Name()] = col.name
 	}
 	return stc, nil
 }
@@ -104,6 +109,13 @@ func (tc *ColumnHandler) Validate() error {
 			strings.Join(invalidFields, "', '"), dbTagNoNull)
 	}
 	return nil
+}
+
+func (tc *ColumnHandler) ColumnName(field string) (string, error) {
+	if colName, ok := tc.columnNames[field]; ok {
+		return colName, nil
+	}
+	return "", fmt.Errorf("Entity has no field '%s' cannot resolve column name", field)
 }
 
 //ColumnNamesCsv returns the CSV string of the column names
