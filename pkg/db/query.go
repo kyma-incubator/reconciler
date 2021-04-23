@@ -61,7 +61,8 @@ func (s *Select) GroupBy(args []string) *Select {
 	if len(args) == 0 {
 		return s
 	}
-	s.buffer.WriteString(" GROUP BY")
+
+	//get groupings
 	grouping := []string{}
 	for _, field := range args {
 		col, err := s.columnHandler.ColumnName(field)
@@ -71,6 +72,9 @@ func (s *Select) GroupBy(args []string) *Select {
 		}
 		grouping = append(grouping, fmt.Sprintf(" %s", col))
 	}
+
+	//render group condition
+	s.buffer.WriteString(" GROUP BY")
 	s.buffer.WriteString(strings.Join(grouping, ", "))
 	return s
 }
@@ -79,16 +83,17 @@ func (s *Select) OrderBy(args map[string]string) *Select {
 	if len(args) == 0 {
 		return s
 	}
-	s.buffer.WriteString(" ORDER BY")
-	ordering := []string{}
 
-	keys := make([]string, 0, len(args))
-	for key := range args {
-		keys = append(keys, key)
+	//get sorted list of fields
+	fields := make([]string, 0, len(args))
+	for field := range args {
+		fields = append(fields, field)
 	}
-	sort.Strings(keys)
+	sort.Strings(fields)
 
-	for _, field := range keys {
+	//get orderings
+	ordering := []string{}
+	for _, field := range fields {
 		col, err := s.columnHandler.ColumnName(field)
 		if err != nil {
 			s.err = err
@@ -96,6 +101,9 @@ func (s *Select) OrderBy(args map[string]string) *Select {
 		}
 		ordering = append(ordering, fmt.Sprintf(" %s %s", col, args[field]))
 	}
+
+	//render order condition
+	s.buffer.WriteString(" ORDER BY")
 	s.buffer.WriteString(strings.Join(ordering, ", "))
 	return s
 }
@@ -113,11 +121,16 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
+
 	defer s.reset()
+
+	//get results
 	rows, err := s.conn.Query(s.buffer.String(), s.args...)
 	if err != nil {
 		return nil, err
 	}
+
+	//create entities
 	result := []DatabaseEntity{}
 	for rows.Next() {
 		entity := s.entity.New()
@@ -172,17 +185,19 @@ func (d *Delete) Exec() (int64, error) {
 
 func addWhereCondition(whereCond map[string]interface{}, buffer *bytes.Buffer, columnHandler *ColumnHandler) ([]interface{}, error) {
 	var args []interface{}
-	buffer.WriteString(" WHERE")
 	var plcHdrIdx int
 
-	keys := make([]string, 0, len(whereCond))
-	for key := range whereCond {
-		keys = append(keys, key)
+	//get sort list of fields
+	fields := make([]string, 0, len(whereCond))
+	for field := range whereCond {
+		fields = append(fields, field)
 	}
-	sort.Strings(keys)
+	sort.Strings(fields)
 
-	for _, columnName := range keys {
-		col, err := columnHandler.ColumnName(columnName)
+	//render WHERE condition
+	buffer.WriteString(" WHERE")
+	for _, field := range fields {
+		col, err := columnHandler.ColumnName(field)
 		if err != nil {
 			return args, err
 		}
@@ -191,7 +206,7 @@ func addWhereCondition(whereCond map[string]interface{}, buffer *bytes.Buffer, c
 		}
 		plcHdrIdx++
 		buffer.WriteString(fmt.Sprintf(" %s=$%d", col, plcHdrIdx))
-		args = append(args, whereCond[columnName])
+		args = append(args, whereCond[field])
 	}
 	return args, nil
 }
