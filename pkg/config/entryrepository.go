@@ -1,7 +1,10 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/pkg/errors"
 )
 
 type ConfigEntryRepository struct {
@@ -15,7 +18,7 @@ func NewConfigEntryRepository(dbFac db.ConnectionFactory) (*ConfigEntryRepositor
 	}, err
 }
 
-func (cer *ConfigEntryRepository) GetKeys(key string) ([]*KeyEntity, error) {
+func (cer *ConfigEntryRepository) Keys(key string) ([]*KeyEntity, error) {
 	entity := &KeyEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
@@ -36,7 +39,7 @@ func (cer *ConfigEntryRepository) GetKeys(key string) ([]*KeyEntity, error) {
 	return result, nil
 }
 
-func (cer *ConfigEntryRepository) GetLatestKey(key string) (*KeyEntity, error) {
+func (cer *ConfigEntryRepository) LatestKey(key string) (*KeyEntity, error) {
 	q, err := db.NewQuery(cer.conn, &KeyEntity{})
 	if err != nil {
 		return nil, err
@@ -51,7 +54,7 @@ func (cer *ConfigEntryRepository) GetLatestKey(key string) (*KeyEntity, error) {
 	return entity.(*KeyEntity), nil
 }
 
-func (cer *ConfigEntryRepository) GetKey(key string, version int64) (*KeyEntity, error) {
+func (cer *ConfigEntryRepository) Key(key string, version int64) (*KeyEntity, error) {
 	q, err := db.NewQuery(cer.conn, &KeyEntity{})
 	if err != nil {
 		return nil, err
@@ -70,30 +73,151 @@ func (cer *ConfigEntryRepository) CreateKey(key *KeyEntity) (*KeyEntity, error) 
 	if err != nil {
 		return nil, err
 	}
-	//TODO: check latest key if it's equal with current key
+	//TODO create only if not equal!
 	return key, q.Insert().Exec()
 }
 
-func (cer *ConfigEntryRepository) DeleteKey(key *KeyEntity) (int64, error) {
-	q, err := db.NewQuery(cer.conn, key)
-	if err != nil {
-		return 0, err
+func (cer *ConfigEntryRepository) DeleteKey(key *KeyEntity) error {
+	//bundle DB operations
+	dbOps := func() error {
+		if err := cer.deleteValuesByKey(key); err != nil {
+			return err
+		}
+		//delete all values mapped to the key
+		qKey, err := db.NewQuery(cer.conn, key)
+		if err != nil {
+			return err
+		}
+		deleted, err := qKey.Delete().
+			Where(map[string]interface{}{"Key": key.Key, "Version": key.Version}).
+			Exec()
+		if deleted > 1 {
+			return fmt.Errorf(
+				"Data inconsistency detected when deleting key '%s'. Expected max 1 deletion but deleted '%d' entities",
+				key, deleted)
+		}
+		return err
 	}
-	return q.Delete().
-		Where(map[string]interface{}{"Key": key.Key, "Version": key.Version}).
+
+	//run db-operations transactional
+	tx, err := cer.conn.Begin()
+	if err != nil {
+		return err
+	}
+	if err := dbOps(); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", tx.Rollback()))
+	}
+	return tx.Commit()
+}
+
+func (cer *ConfigEntryRepository) Values(bucket, key string) ([]*ValueEntity, error) {
+	entity := &ValueEntity{}
+	q, err := db.NewQuery(cer.conn, entity)
+	if err != nil {
+		return nil, err
+	}
+	entities, err := q.Select().
+		Where(map[string]interface{}{"Bucket": bucket, "Key": key}).
+		OrderBy(map[string]string{"Version": "ASC"}).
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+	//cast to specific entity
+	result := []*ValueEntity{}
+	for _, entity := range entities {
+		result = append(result, entity.(*ValueEntity))
+	}
+	return result, nil
+}
+
+func (cer *ConfigEntryRepository) LatestValue(bucket, key string) (*ValueEntity, error) {
+	q, err := db.NewQuery(cer.conn, &ValueEntity{})
+	if err != nil {
+		return nil, err
+	}
+	entity, err := q.Select().
+		Where(map[string]interface{}{"Key": key, "Bucket": bucket}).
+		OrderBy(map[string]string{"Version": "DESC"}).
+		GetOne()
+	if err != nil {
+		return nil, err
+	}
+	return entity.(*ValueEntity), nil
+}
+
+func (cer *ConfigEntryRepository) Value(bucket, key string, version int64) (*ValueEntity, error) {
+	q, err := db.NewQuery(cer.conn, &ValueEntity{})
+	if err != nil {
+		return nil, err
+	}
+	entity, err := q.Select().
+		Where(map[string]interface{}{"Bucket": bucket, "Key": key, "Version": version}).
+		GetOne()
+	if err != nil {
+		return nil, err
+	}
+	return entity.(*ValueEntity), nil
+}
+
+func (cer *ConfigEntryRepository) CreateValue(value *ValueEntity) (*ValueEntity, error) {
+	q, err := db.NewQuery(cer.conn, value)
+	if err != nil {
+		return nil, err
+	}
+	return value, q.Insert().Exec()
+}
+
+func (cer *ConfigEntryRepository) deleteValuesByKey(key *KeyEntity) error {
+	q, err := db.NewQuery(cer.conn, &ValueEntity{})
+	if err != nil {
+		return err
+	}
+	_, err = q.Delete().
+		Where(map[string]interface{}{"Key": key.Key, "KeyVersion": key.Version}).
 		Exec()
+	return err
 }
 
-func (cer *ConfigEntryRepository) GetValue(bucket, key string, version int64) (*ValueEntity, error) {
-	return nil, nil
+func (cer *ConfigEntryRepository) Buckets() ([]string, error) {
+	result := []string{}
+	entity := &ValueEntity{}
+
+	colHdlr, err := db.NewColumnHandler(entity)
+	if err != nil {
+		return result, err
+	}
+
+	colName, err := colHdlr.ColumnName("Bucket")
+	if err != nil {
+		return result, err
+	}
+
+	rows, err := cer.conn.Query(fmt.Sprintf("SELECT %s FROM %s GROUP BY %s ORDER BY bucket ASC", colName, entity.Table(), colName))
+	if err != nil {
+		return result, err
+	}
+
+	for rows.Next() {
+		var bucket string
+		if err := rows.Scan(&bucket); err != nil {
+			return result, err
+		}
+		result = append(result, bucket)
+	}
+
+	return result, nil
 }
 
-func (cer *ConfigEntryRepository) CreateValue(key *ValueEntity) error {
-	return nil
-}
-
-func (cer *ConfigEntryRepository) DeleteValue(key *ValueEntity) error {
-	return nil
+func (cer *ConfigEntryRepository) DeleteBucket(bucket string) error {
+	q, err := db.NewQuery(cer.conn, &ValueEntity{})
+	if err != nil {
+		return err
+	}
+	_, err = q.Delete().
+		Where(map[string]interface{}{"Bucket": bucket}).
+		Exec()
+	return err
 }
 
 func (cer *ConfigEntryRepository) Close() error {

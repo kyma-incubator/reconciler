@@ -22,7 +22,10 @@ func newPostgresConnection(db *sql.DB, debug bool) (*PostgresConnection, error) 
 			return nil, err
 		}
 	} else {
-		logger = zap.NewNop()
+		logger, err = zap.NewProduction()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &PostgresConnection{
 		db:     db,
@@ -36,11 +39,19 @@ func (pc *PostgresConnection) QueryRow(query string, args ...interface{}) DataRo
 }
 func (pc *PostgresConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	pc.logger.Debug(fmt.Sprintf("Postgres Query(): %s | %v", query, args))
-	return pc.db.Query(query, args...)
+	rows, err := pc.db.Query(query, args...)
+	if err != nil {
+		pc.logger.Error(fmt.Sprintf("Postgres Query() error: %s", err))
+	}
+	return rows, err
 }
 func (pc *PostgresConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
 	pc.logger.Debug(fmt.Sprintf("Postgres Exec(): %s | %v", query, args))
-	return pc.db.Exec(query, args...)
+	result, err := pc.db.Exec(query, args...)
+	if err != nil {
+		pc.logger.Error(fmt.Sprintf("Postgres Exec() error: %s", err))
+	}
+	return result, err
 }
 func (pc *PostgresConnection) Begin() (*sql.Tx, error) {
 	pc.logger.Debug("Postgres Begin()")
