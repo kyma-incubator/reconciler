@@ -92,7 +92,7 @@ func TestEntryRepositoryValues(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, keyEntity)
-	bucketName := "testBucket"
+	bucketNames := []string{"testBucket", "anotherTestBucket"}
 
 	valueVersions := []int64{}
 	t.Run("Validate entity and create test data", func(t *testing.T) {
@@ -100,7 +100,7 @@ func TestEntryRepositoryValues(t *testing.T) {
 		_, err = ceRepo.CreateValue(valueEntity)
 		require.True(t, db.IsIncompleteEntityError(err))
 
-		valueEntity.Bucket = bucketName
+		valueEntity.Bucket = bucketNames[0]
 		_, err = ceRepo.CreateValue(valueEntity)
 		require.True(t, db.IsIncompleteEntityError(err))
 
@@ -125,7 +125,7 @@ func TestEntryRepositoryValues(t *testing.T) {
 	})
 
 	t.Run("Get all values", func(t *testing.T) {
-		entities, err := ceRepo.Values(bucketName, keyEntity.Key)
+		entities, err := ceRepo.Values(bucketNames[0], keyEntity.Key)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(entities))
 		//ordered by version ASC:
@@ -133,13 +133,13 @@ func TestEntryRepositoryValues(t *testing.T) {
 	})
 
 	t.Run("Get latest value", func(t *testing.T) {
-		entity, err := ceRepo.LatestValue(bucketName, keyEntity.Key)
+		entity, err := ceRepo.LatestValue(bucketNames[0], keyEntity.Key)
 		require.NoError(t, err)
 		require.Equal(t, valueVersions[len(valueVersions)-1], entity.Version)
 	})
 
 	t.Run("Get value", func(t *testing.T) {
-		entity, err := ceRepo.Value(bucketName, keyEntity.Key, valueVersions[1])
+		entity, err := ceRepo.Value(bucketNames[0], keyEntity.Key, valueVersions[1])
 		require.NoError(t, err)
 		require.Equal(t, valueVersions[1], entity.Version)
 	})
@@ -149,7 +149,7 @@ func TestEntryRepositoryValues(t *testing.T) {
 			Key:        keyEntity.Key,
 			KeyVersion: keyEntity.Version,
 			Username:   "xyz123",
-			Bucket:     "anotherBucket",
+			Bucket:     "anotherTestBucket",
 			Value:      "another value",
 		}
 		_, err := ceRepo.CreateValue(valueEntity)
@@ -161,15 +161,31 @@ func TestEntryRepositoryValues(t *testing.T) {
 		require.True(t, len(buckets) >= 2)
 
 		//check that expected bucket were returned
-		bucketNames := []string{}
+		bucketNamesGot := []string{}
 		for _, bucket := range buckets {
-			bucketNames = append(bucketNames, bucket.Bucket)
+			bucketNamesGot = append(bucketNamesGot, bucket.Bucket)
 		}
-		for _, bucketNameExpected := range []string{"anotherBucket", bucketName} {
-			require.Contains(t, bucketNames, bucketNameExpected)
+		for _, bucketNameExpected := range bucketNames {
+			require.Contains(t, bucketNamesGot, bucketNameExpected)
 		}
 
 	})
 
-	//TODO: delete bucket
+	t.Run("Delete bucket", func(t *testing.T) {
+		for _, bucketName := range bucketNames {
+			err := ceRepo.DeleteBucket(&BucketEntity{
+				Bucket: bucketName,
+			})
+			require.NoError(t, err)
+		}
+		buckets, err := ceRepo.Buckets()
+		require.NoError(t, err)
+		bucketNamesGot := []string{}
+		for _, bucket := range buckets {
+			bucketNamesGot = append(bucketNamesGot, bucket.Bucket)
+		}
+		for _, bucketNameNotExpected := range bucketNames {
+			require.NotContains(t, bucketNamesGot, bucketNameNotExpected)
+		}
+	})
 }

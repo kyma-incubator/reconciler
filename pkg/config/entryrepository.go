@@ -237,13 +237,13 @@ func (cer *ConfigEntryRepository) bucketNames() ([]string, error) {
 	return bucketNames, nil
 }
 
-func (cer *ConfigEntryRepository) DeleteBucket(bucket string) error {
-	q, err := db.NewQuery(cer.conn, &ValueEntity{})
+func (cer *ConfigEntryRepository) DeleteBucket(bucket *BucketEntity) error {
+	q, err := db.NewQuery(cer.conn, bucket)
 	if err != nil {
 		return err
 	}
 	_, err = q.Delete().
-		Where(map[string]interface{}{"Bucket": bucket}).
+		Where(map[string]interface{}{"Bucket": bucket.Bucket}).
 		Exec()
 	return err
 }
