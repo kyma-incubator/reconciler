@@ -44,8 +44,9 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
 
 	//register commands
-	getCommand := getCmd.NewCmd()
-	getCommand.AddCommand(getBucketCmd.NewCmd(o))
+	getCmdOpts := getCmd.NewOptions(o)
+	getCommand := getCmd.NewCmd(getCmdOpts)
+	getCommand.AddCommand(getBucketCmd.NewCmd(getCmdOpts))
 	cmd.AddCommand(getCommand)
 
 	return cmd
