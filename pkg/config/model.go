@@ -78,18 +78,45 @@ func (ve *ValueEntity) String() string {
 		ve.Key, ve.Value, ve.KeyVersion, ve.Bucket, ve.Username, ve.Created)
 }
 
-func (ke *ValueEntity) New() db.DatabaseEntity {
+func (ve *ValueEntity) New() db.DatabaseEntity {
 	return &ValueEntity{}
 }
 
-func (ke *ValueEntity) Synchronizer() *db.EntitySynchronizer {
-	syncer := db.NewEntitySynchronizer(&ke)
+func (ve *ValueEntity) Synchronizer() *db.EntitySynchronizer {
+	syncer := db.NewEntitySynchronizer(&ve)
 	syncer.AddConverter("Created", func(value interface{}) (interface{}, error) {
 		return value, nil
 	})
 	return syncer
 }
 
-func (ke *ValueEntity) Table() string {
+func (ve *ValueEntity) Table() string {
+	return tlbValues
+}
+
+type BucketEntity struct {
+	Bucket   string    `db:"notNull"`
+	Created  time.Time `db:"readOnly"`
+	Username string    `db:"notNull"`
+}
+
+func (b *BucketEntity) String() string {
+	return fmt.Sprintf("Bucket=%s,User=%s,CreatedOn=%s",
+		b.Bucket, b.Username, b.Created)
+}
+
+func (b *BucketEntity) New() db.DatabaseEntity {
+	return &BucketEntity{}
+}
+
+func (b *BucketEntity) Synchronizer() *db.EntitySynchronizer {
+	syncer := db.NewEntitySynchronizer(&b)
+	syncer.AddConverter("Created", func(value interface{}) (interface{}, error) {
+		return value, nil
+	})
+	return syncer
+}
+
+func (b *BucketEntity) Table() string {
 	return tlbValues
 }

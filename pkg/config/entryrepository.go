@@ -47,6 +47,7 @@ func (cer *ConfigEntryRepository) LatestKey(key string) (*KeyEntity, error) {
 	entity, err := q.Select().
 		Where(map[string]interface{}{"Key": key}).
 		OrderBy(map[string]string{"Version": "DESC"}).
+		Limit(1).
 		GetOne()
 	if err != nil {
 		return nil, err
@@ -139,6 +140,7 @@ func (cer *ConfigEntryRepository) LatestValue(bucket, key string) (*ValueEntity,
 	entity, err := q.Select().
 		Where(map[string]interface{}{"Key": key, "Bucket": bucket}).
 		OrderBy(map[string]string{"Version": "DESC"}).
+		Limit(1).
 		GetOne()
 	if err != nil {
 		return nil, err
@@ -179,34 +181,60 @@ func (cer *ConfigEntryRepository) deleteValuesByKey(key *KeyEntity) error {
 	return err
 }
 
-func (cer *ConfigEntryRepository) Buckets() ([]string, error) {
-	result := []string{}
-	entity := &ValueEntity{}
+func (cer *ConfigEntryRepository) Buckets() ([]*BucketEntity, error) {
+	bucketNames, err := cer.bucketNames()
+	if err != nil {
+		return nil, err
+	}
+
+	buckets := []*BucketEntity{}
+	for _, bucketName := range bucketNames {
+		q, err := db.NewQuery(cer.conn, &BucketEntity{})
+		if err != nil {
+			return nil, err
+		}
+		entity, err := q.Select().
+			Where(map[string]interface{}{"Bucket": bucketName}).
+			OrderBy(map[string]string{"Created": "ASC"}).
+			Limit(1).
+			GetOne()
+		if err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, entity.(*BucketEntity))
+	}
+
+	return buckets, nil
+}
+
+func (cer *ConfigEntryRepository) bucketNames() ([]string, error) {
+	entity := &BucketEntity{}
 
 	colHdlr, err := db.NewColumnHandler(entity)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
 	colName, err := colHdlr.ColumnName("Bucket")
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
-	rows, err := cer.conn.Query(fmt.Sprintf("SELECT %s FROM %s GROUP BY %s ORDER BY bucket ASC", colName, entity.Table(), colName))
+	rows, err := cer.conn.Query(fmt.Sprintf("SELECT %s FROM %s GROUP BY %s ORDER BY %s ASC", colName, entity.Table(), colName, colName))
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 
+	bucketNames := []string{}
 	for rows.Next() {
 		var bucket string
 		if err := rows.Scan(&bucket); err != nil {
-			return result, err
+			return bucketNames, err
 		}
-		result = append(result, bucket)
+		bucketNames = append(bucketNames, bucket)
 	}
 
-	return result, nil
+	return bucketNames, nil
 }
 
 func (cer *ConfigEntryRepository) DeleteBucket(bucket string) error {

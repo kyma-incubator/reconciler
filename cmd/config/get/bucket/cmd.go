@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/kyma-incubator/reconciler/internal/cli"
-	"github.com/kyma-incubator/reconciler/pkg/config"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +11,7 @@ import (
 func NewCmd(o *cli.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bucket",
-		Short: "Get configuration entry bucket(s).",
+		Short: "Get configuration entry buckets.",
 		Long:  `Get available buckets and their containing configuration entries.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return Run(o)
@@ -21,18 +21,12 @@ func NewCmd(o *cli.Options) *cobra.Command {
 }
 
 func Run(o *cli.Options) error {
-
-	pgConnFac := &db.PostgresConnectionFactory{
-		Host:     "localhost",
-		Database: "kyma",
-		User:     "kyma",
-		Password: "kyma",
-		SslMode:  false,
-	}
-	cfgRepo, err := config.NewConfigEntryRepository(pgConnFac)
+	buckets, err := o.Repository().Buckets()
 	if err != nil {
-		panic(err)
+		return err
 	}
-
-	return cfgRepo.Close()
+	for _, bucket := range buckets {
+		fmt.Println(bucket)
+	}
+	return nil
 }

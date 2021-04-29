@@ -108,6 +108,11 @@ func (s *Select) OrderBy(args map[string]string) *Select {
 	return s
 }
 
+func (s *Select) Limit(limit int) *Select {
+	s.buffer.WriteString(fmt.Sprintf(" LIMIT %d", limit))
+	return s
+}
+
 func (s *Select) GetOne() (DatabaseEntity, error) {
 	if s.err != nil {
 		return nil, s.err

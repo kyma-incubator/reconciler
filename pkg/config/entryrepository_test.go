@@ -9,15 +9,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEntryRepositoryKeys(t *testing.T) {
+func newRepo(t *testing.T) *ConfigEntryRepository {
 	ceRepo, err := NewConfigEntryRepository(&db.PostgresConnectionFactory{
 		Host:     "localhost",
+		Port:     5432,
+		Database: "kyma",
 		User:     "kyma",
 		Password: "kyma",
-		Database: "kyma",
 		Debug:    true,
 	})
 	require.NoError(t, err)
+	return ceRepo
+}
+func TestEntryRepositoryKeys(t *testing.T) {
+	var err error
+	ceRepo := newRepo(t)
 
 	//add test data
 	keyID := fmt.Sprintf("testKey%d", time.Now().UnixNano())
@@ -76,14 +82,8 @@ func TestEntryRepositoryKeys(t *testing.T) {
 }
 
 func TestEntryRepositoryValues(t *testing.T) {
-	ceRepo, err := NewConfigEntryRepository(&db.PostgresConnectionFactory{
-		Host:     "localhost",
-		User:     "kyma",
-		Password: "kyma",
-		Database: "kyma",
-		Debug:    true,
-	})
-	require.NoError(t, err)
+	var err error
+	ceRepo := newRepo(t)
 
 	keyEntity, err := ceRepo.CreateKey(&KeyEntity{
 		Key:      fmt.Sprintf("testKey%d", time.Now().UnixNano()),
@@ -156,9 +156,19 @@ func TestEntryRepositoryValues(t *testing.T) {
 		require.NoError(t, err)
 		buckets, err := ceRepo.Buckets()
 		require.NoError(t, err)
+
 		//at least the buckets created during this test run have to exist:
 		require.True(t, len(buckets) >= 2)
-		require.Contains(t, []string{"anotherBucket", bucketName}, valueEntity.Bucket)
+
+		//check that expected bucket were returned
+		bucketNames := []string{}
+		for _, bucket := range buckets {
+			bucketNames = append(bucketNames, bucket.Bucket)
+		}
+		for _, bucketNameExpected := range []string{"anotherBucket", bucketName} {
+			require.Contains(t, bucketNames, bucketNameExpected)
+		}
+
 	})
 
 	//TODO: delete bucket

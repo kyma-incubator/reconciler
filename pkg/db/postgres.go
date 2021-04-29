@@ -64,6 +64,7 @@ func (pc *PostgresConnection) Close() error {
 
 type PostgresConnectionFactory struct {
 	Host     string
+	Port     int
 	Database string
 	User     string
 	Password string
@@ -79,7 +80,8 @@ func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
 
 	db, err := sql.Open(
 		"postgres",
-		fmt.Sprintf("user=%s password=%s dbname=%s sslmode=%s", pcf.User, pcf.Password, pcf.Database, sslMode))
+		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+			pcf.Host, pcf.Port, pcf.User, pcf.Password, pcf.Database, sslMode))
 
 	if err == nil {
 		err = db.Ping()
