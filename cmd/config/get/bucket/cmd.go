@@ -6,23 +6,25 @@ import (
 
 	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
 	"github.com/kyma-incubator/reconciler/internal/cli"
+	"github.com/kyma-incubator/reconciler/pkg/config"
 	"github.com/spf13/cobra"
 )
 
 //NewCmd creates a new apply command
 func NewCmd(o *getCmd.Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "bucket",
-		Short: "Get configuration entry buckets.",
-		Long:  `Get available buckets and their containing configuration entries.`,
+		Use:     "bucket",
+		Aliases: []string{"buckets", "bu"},
+		Short:   "Get configuration buckets.",
+		Long:    `List configuration buckets or get a bucket inclusive its containing configuration entries.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return Run(o)
+			return Run(o, args)
 		},
 	}
 	return cmd
 }
 
-func Run(o *getCmd.Options) error {
+func Run(o *getCmd.Options, bucketFilter []string) error {
 	if err := o.Validate(); err != nil {
 		return err
 	}
@@ -31,6 +33,11 @@ func Run(o *getCmd.Options) error {
 	if err != nil {
 		return err
 	}
+
+	return render(o, buckets)
+}
+
+func render(o *getCmd.Options, buckets []*config.BucketEntity) error {
 
 	//print formatted output
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
@@ -46,7 +53,5 @@ func Run(o *getCmd.Options) error {
 			return err
 		}
 	}
-	formatter.Output(os.Stdout)
-
-	return nil
+	return formatter.Output(os.Stdout)
 }
