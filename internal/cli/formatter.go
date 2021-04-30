@@ -1,20 +1,23 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v3"
 )
 
-var SupportedOutputFormats = []string{"table", "json", "yaml"}
+var SupportedOutputFormats = []string{"table", "json", "json_pretty", "yaml"}
 
 type OutputFormatter struct {
 	header []string
-	data   [][]string
+	data   [][]interface{}
 	format string
 }
 
@@ -40,7 +43,7 @@ func (of *OutputFormatter) Header(header ...string) error {
 	return nil
 }
 
-func (of *OutputFormatter) AddRow(data ...string) error {
+func (of *OutputFormatter) AddRow(data ...interface{}) error {
 	if of.header != nil {
 		if err := of.headerColumnCheck(len(data), len(of.header)); err != nil {
 			return err
@@ -61,7 +64,11 @@ func (of *OutputFormatter) Output(writer io.Writer) error {
 	var err error
 	switch of.format {
 	case "table":
-		of.tableOutput(writer)
+		err = of.tableOutput(writer)
+	case "json_pretty":
+		err = of.marshal(writer, func(data interface{}) ([]byte, error) {
+			return json.MarshalIndent(data, "", "  ")
+		})
 	case "json":
 		err = of.marshal(writer, json.Marshal)
 	case "yaml":
@@ -84,22 +91,74 @@ func (of *OutputFormatter) marshal(writer io.Writer, marshalFct func(interface{}
 	return nil
 }
 
-func (of *OutputFormatter) tableOutput(writer io.Writer) {
+func (of *OutputFormatter) tableOutput(writer io.Writer) error {
 	table := tablewriter.NewWriter(writer)
 	table.SetHeader(of.header)
 	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
 	table.SetCenterSeparator("|")
-	table.AppendBulk(of.data)
+	dataStr, err := of.dataAsStringSlice()
+	if err != nil {
+		return err
+	}
+	table.AppendBulk(dataStr)
 	table.Render()
+	return nil
 }
 
-func (of *OutputFormatter) serializeableData() ([]map[string]string, error) {
+func (of *OutputFormatter) dataAsStringSlice() ([][]string, error) {
+	result := [][]string{}
+	for _, dataRow := range of.data {
+		resultRow := []string{}
+		for _, dataField := range dataRow {
+			var data string
+			switch reflect.TypeOf(dataField).Kind() {
+			case reflect.Slice:
+				strSlice, ok := dataField.([]string)
+				if ok {
+					data = strings.Join(strSlice, ", ")
+				} else {
+					var buffer bytes.Buffer
+					s := reflect.ValueOf(dataField)
+					for i := 0; i < s.Len(); i++ {
+						if buffer.Len() > 0 {
+							buffer.WriteRune(',')
+						}
+						buffer.WriteString(fmt.Sprintf("%v", s.Index(i).Interface()))
+					}
+					data = buffer.String()
+				}
+			case reflect.Map:
+				mapConverted := dataField.(map[string]interface{})
+				keys := []string{}
+				for k := range mapConverted {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				var buffer bytes.Buffer
+				for _, key := range keys {
+					if buffer.Len() > 0 {
+						buffer.WriteString("\n")
+					}
+					buffer.WriteString(fmt.Sprintf("%s=%v", key, mapConverted[key]))
+				}
+				data = buffer.String()
+			default:
+				data = dataField.(string)
+			}
+			resultRow = append(resultRow, data)
+		}
+		result = append(result, resultRow)
+	}
+	return result, nil
+}
+
+func (of *OutputFormatter) serializeableData() ([]map[string]interface{}, error) {
 	if len(of.header) == 0 {
 		return nil, fmt.Errorf("No headers defined: cannot convert data to map")
 	}
-	data := []map[string]string{}
+	data := []map[string]interface{}{}
 	for _, dataRow := range of.data {
-		dataTuple := make(map[string]string)
+		dataTuple := make(map[string]interface{})
 		for idxCol, hdr := range of.header {
 			dataTuple[hdr] = dataRow[idxCol]
 		}
