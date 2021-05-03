@@ -6,6 +6,7 @@ import (
 
 	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
 	getBucketCmd "github.com/kyma-incubator/reconciler/cmd/config/get/bucket"
+	getKeyCmd "github.com/kyma-incubator/reconciler/cmd/config/get/key"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/spf13/cobra"
@@ -47,6 +48,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	getCmdOpts := getCmd.NewOptions(o)
 	getCommand := getCmd.NewCmd(getCmdOpts)
 	getCommand.AddCommand(getBucketCmd.NewCmd(getCmdOpts))
+	getCommand.AddCommand(getKeyCmd.NewCmd(getCmdOpts))
 	cmd.AddCommand(getCommand)
 
 	return cmd

@@ -18,6 +18,45 @@ func NewConfigEntryRepository(dbFac db.ConnectionFactory) (*ConfigEntryRepositor
 	}, err
 }
 
+func (cer *ConfigEntryRepository) Keys() ([]*KeyEntity, error) {
+	entity := &KeyEntity{}
+	q, err := db.NewQuery(cer.conn, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	//get fields used in sub-query
+	colHdlr, err := db.NewColumnHandler(entity)
+	if err != nil {
+		return nil, err
+	}
+	colNameVersion, err := colHdlr.ColumnName("Version")
+	if err != nil {
+		return nil, err
+	}
+	colNameKey, err := colHdlr.ColumnName("Key")
+	if err != nil {
+		return nil, err
+	}
+
+	//query all keys
+	entities, err := q.Select().
+		WhereIn("Version", fmt.Sprintf("SELECT MAX(%s) FROM %s GROUP BY %s",
+			colNameVersion, entity.Table(), colNameKey)).
+		OrderBy(map[string]string{"Key": "ASC"}).
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	//cast to specific entity
+	result := []*KeyEntity{}
+	for _, entity := range entities {
+		result = append(result, entity.(*KeyEntity))
+	}
+	return result, nil
+}
+
 func (cer *ConfigEntryRepository) KeyHistory(key string) ([]*KeyEntity, error) {
 	entity := &KeyEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
@@ -89,14 +128,9 @@ func (cer *ConfigEntryRepository) DeleteKey(key *KeyEntity) error {
 		if err != nil {
 			return err
 		}
-		deleted, err := qKey.Delete().
-			Where(map[string]interface{}{"Key": key.Key, "Version": key.Version}).
+		_, err = qKey.Delete().
+			Where(map[string]interface{}{"Key": key.Key}).
 			Exec()
-		if deleted > 1 {
-			return fmt.Errorf(
-				"Data inconsistency detected when deleting key '%s'. Expected max 1 deletion but deleted '%d' entities",
-				key, deleted)
-		}
 		return err
 	}
 
@@ -111,7 +145,7 @@ func (cer *ConfigEntryRepository) DeleteKey(key *KeyEntity) error {
 	return tx.Commit()
 }
 
-func (cer *ConfigEntryRepository) Values(bucket string) ([]*ValueEntity, error) {
+func (cer *ConfigEntryRepository) ValuesByBucket(bucket *BucketEntity) ([]*ValueEntity, error) {
 	entity := &ValueEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
@@ -123,24 +157,71 @@ func (cer *ConfigEntryRepository) Values(bucket string) ([]*ValueEntity, error) 
 	if err != nil {
 		return nil, err
 	}
-	colNameVersion, err := colHdlr.ColumnName("Version")
+	colVersion, err := colHdlr.ColumnName("Version")
 	if err != nil {
 		return nil, err
 	}
-	colNameKey, err := colHdlr.ColumnName("Key")
+	colKey, err := colHdlr.ColumnName("Key")
 	if err != nil {
 		return nil, err
 	}
-	colNameBucket, err := colHdlr.ColumnName("Bucket")
+	colBucket, err := colHdlr.ColumnName("Bucket")
 	if err != nil {
 		return nil, err
 	}
 
-	//query all values in bucket
+	//query all values in bucket (return only the latest value-entry per key)
 	entities, err := q.Select().
 		WhereIn("Version", fmt.Sprintf("SELECT MAX(%s) FROM %s WHERE %s=$1 GROUP BY %s",
-			colNameVersion, entity.Table(), colNameBucket, colNameKey), bucket).
+			colVersion, entity.Table(), colBucket, colKey), bucket.Bucket).
 		OrderBy(map[string]string{"Key": "ASC"}).
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	//cast to specific entity
+	result := []*ValueEntity{}
+	for _, entity := range entities {
+		result = append(result, entity.(*ValueEntity))
+	}
+	return result, nil
+}
+
+func (cer *ConfigEntryRepository) ValuesByKey(key *KeyEntity) ([]*ValueEntity, error) {
+	entity := &ValueEntity{}
+	q, err := db.NewQuery(cer.conn, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	//get fields used in sub-query
+	colHdlr, err := db.NewColumnHandler(entity)
+	if err != nil {
+		return nil, err
+	}
+	colBucket, err := colHdlr.ColumnName("Bucket")
+	if err != nil {
+		return nil, err
+	}
+	colVersion, err := colHdlr.ColumnName("Version")
+	if err != nil {
+		return nil, err
+	}
+	colKey, err := colHdlr.ColumnName("Key")
+	if err != nil {
+		return nil, err
+	}
+	colKeyVersion, err := colHdlr.ColumnName("KeyVersion")
+	if err != nil {
+		return nil, err
+	}
+
+	//query all values in bucket (return only the latest value-entry per key)
+	entities, err := q.Select().
+		WhereIn("Version", fmt.Sprintf("SELECT MAX(%s) FROM %s WHERE %s=$1 AND %s=$2 GROUP BY %s, %s",
+			colVersion, entity.Table(), colKey, colKeyVersion, colKey, colBucket), key.Key, key.Version).
+		OrderBy(map[string]string{"Bucket": "ASC"}).
 		GetMany()
 	if err != nil {
 		return nil, err
@@ -219,7 +300,7 @@ func (cer *ConfigEntryRepository) deleteValuesByKey(key *KeyEntity) error {
 		return err
 	}
 	_, err = q.Delete().
-		Where(map[string]interface{}{"Key": key.Key, "KeyVersion": key.Version}).
+		Where(map[string]interface{}{"Key": key.Key}).
 		Exec()
 	return err
 }

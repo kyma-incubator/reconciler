@@ -144,7 +144,7 @@ func (of *OutputFormatter) dataAsStringSlice() ([][]string, error) {
 				}
 				data = buffer.String()
 			default:
-				data = dataField.(string)
+				data = fmt.Sprintf("%v", dataField)
 			}
 			resultRow = append(resultRow, data)
 		}

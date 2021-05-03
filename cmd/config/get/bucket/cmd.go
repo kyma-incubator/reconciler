@@ -40,7 +40,7 @@ func Run(o *getCmd.Options, bucketFilter []string) error {
 	//if filter is defined, show buckets with content
 	if len(bucketFilter) > 0 {
 		filteredBuckets := filterBuckets(allBuckets, bucketFilter)
-		return renderBucketsWithContent(o, filteredBuckets)
+		return renderBucketsWithValues(o, filteredBuckets)
 	}
 
 	//otherwise show just the bucket itself
@@ -82,7 +82,7 @@ func renderBuckets(o *getCmd.Options, buckets []*config.BucketEntity) error {
 	return formatter.Output(os.Stdout)
 }
 
-func renderBucketsWithContent(o *getCmd.Options, buckets []*config.BucketEntity) error {
+func renderBucketsWithValues(o *getCmd.Options, buckets []*config.BucketEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err
@@ -92,16 +92,16 @@ func renderBucketsWithContent(o *getCmd.Options, buckets []*config.BucketEntity)
 		return err
 	}
 	for _, bucket := range buckets {
-		values, err := o.Repository().Values(bucket.Bucket)
+		values, err := o.Repository().ValuesByBucket(bucket)
 		if err != nil {
 			return err
 		}
 		var kvPairs bytes.Buffer
-		for idx, value := range values {
+		for _, value := range values {
 			if kvPairs.Len() > 0 {
 				kvPairs.WriteString("\n")
 			}
-			kvPairs.WriteString(fmt.Sprintf("%d. %s=%s", idx+1, value.Key, value.Value))
+			kvPairs.WriteString(fmt.Sprintf("%s=%s", value.Key, value.Value))
 		}
 		if err := formatter.AddRow(bucket.Bucket, bucket.Username, bucket.Created.Format(time.RFC822Z), kvPairs.String()); err != nil {
 			return err
