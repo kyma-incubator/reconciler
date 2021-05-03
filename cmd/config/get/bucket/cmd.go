@@ -15,7 +15,7 @@ import (
 func NewCmd(o *getCmd.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "bucket",
-		Aliases: []string{"buckets", "bu"},
+		Aliases: []string{"buckets", "b"},
 		Short:   "Get configuration buckets.",
 		Long:    `List configuration buckets or get a bucket inclusive its containing configuration entries.`,
 		RunE: func(cmd *cobra.Command, args []string) error {

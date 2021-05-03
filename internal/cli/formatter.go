@@ -129,20 +129,16 @@ func (of *OutputFormatter) dataAsStringSlice() ([][]string, error) {
 					data = buffer.String()
 				}
 			case reflect.Map:
-				mapConverted := dataField.(map[string]interface{})
-				keys := []string{}
-				for k := range mapConverted {
-					keys = append(keys, k)
-				}
-				sort.Strings(keys)
-				var buffer bytes.Buffer
-				for _, key := range keys {
-					if buffer.Len() > 0 {
-						buffer.WriteString("\n")
+				mapCasted, ok := dataField.(map[string]interface{})
+				if ok {
+					data = of.serializeMap(mapCasted)
+				} else {
+					mapSlicesCasted, ok := dataField.(map[string][]interface{})
+					if !ok {
+						return nil, fmt.Errorf("Cannot serialize data from map of type '%v'", dataField)
 					}
-					buffer.WriteString(fmt.Sprintf("%s=%v", key, mapConverted[key]))
+					data = of.serializeMapWithSlices(mapSlicesCasted)
 				}
-				data = buffer.String()
 			default:
 				data = fmt.Sprintf("%v", dataField)
 			}
@@ -151,6 +147,41 @@ func (of *OutputFormatter) dataAsStringSlice() ([][]string, error) {
 		result = append(result, resultRow)
 	}
 	return result, nil
+}
+
+func (of *OutputFormatter) serializeMap(data map[string]interface{}) string {
+	keys := []string{}
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var buffer bytes.Buffer
+	for _, key := range keys {
+		if buffer.Len() > 0 {
+			buffer.WriteString("\n")
+		}
+		buffer.WriteString(fmt.Sprintf("%s=%v", key, data[key]))
+	}
+	return buffer.String()
+}
+
+func (of *OutputFormatter) serializeMapWithSlices(data map[string][]interface{}) string {
+	keys := []string{}
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var buffer bytes.Buffer
+	for _, key := range keys {
+		if buffer.Len() > 0 {
+			buffer.WriteString("\n")
+		}
+		buffer.WriteString(fmt.Sprintf("%s: ", key))
+		for _, payload := range data[key] {
+			buffer.WriteString(fmt.Sprintf("%v", payload))
+		}
+	}
+	return buffer.String()
 }
 
 func (of *OutputFormatter) serializeableData() ([]map[string]interface{}, error) {

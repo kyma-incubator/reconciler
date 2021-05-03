@@ -15,7 +15,7 @@ import (
 func NewCmd(o *getCmd.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "key",
-		Aliases: []string{"buckets", "bu"},
+		Aliases: []string{"keys", "k"},
 		Short:   "Get configuration key.",
 		Long:    `List configuration keys or get a key.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
