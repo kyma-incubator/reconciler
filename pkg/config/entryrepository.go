@@ -18,7 +18,7 @@ func NewConfigEntryRepository(dbFac db.ConnectionFactory) (*ConfigEntryRepositor
 	}, err
 }
 
-func (cer *ConfigEntryRepository) Keys(key string) ([]*KeyEntity, error) {
+func (cer *ConfigEntryRepository) KeyHistory(key string) ([]*KeyEntity, error) {
 	entity := &KeyEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
@@ -111,7 +111,49 @@ func (cer *ConfigEntryRepository) DeleteKey(key *KeyEntity) error {
 	return tx.Commit()
 }
 
-func (cer *ConfigEntryRepository) Values(bucket, key string) ([]*ValueEntity, error) {
+func (cer *ConfigEntryRepository) Values(bucket string) ([]*ValueEntity, error) {
+	entity := &ValueEntity{}
+	q, err := db.NewQuery(cer.conn, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	//get fields used in sub-query
+	colHdlr, err := db.NewColumnHandler(entity)
+	if err != nil {
+		return nil, err
+	}
+	colNameVersion, err := colHdlr.ColumnName("Version")
+	if err != nil {
+		return nil, err
+	}
+	colNameKey, err := colHdlr.ColumnName("Key")
+	if err != nil {
+		return nil, err
+	}
+	colNameBucket, err := colHdlr.ColumnName("Bucket")
+	if err != nil {
+		return nil, err
+	}
+
+	//query all values in bucket
+	entities, err := q.Select().
+		WhereIn("Version", fmt.Sprintf("SELECT MAX(%s) FROM %s WHERE %s=$1 GROUP BY %s",
+			colNameVersion, entity.Table(), colNameBucket, colNameKey), bucket).
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	//cast to specific entity
+	result := []*ValueEntity{}
+	for _, entity := range entities {
+		result = append(result, entity.(*ValueEntity))
+	}
+	return result, nil
+}
+
+func (cer *ConfigEntryRepository) ValueHistory(bucket, key string) ([]*ValueEntity, error) {
 	entity := &ValueEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {

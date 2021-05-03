@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,6 +29,15 @@ func TestQuery(t *testing.T) {
 		require.Equal(t, []interface{}{"col1Value", true}, conn.args)
 	})
 
+	t.Run("Select In", func(t *testing.T) {
+		subQ := "SELECT col FROM table WHERE y=z"
+		_, err := q.Select().
+			WhereIn("Col1", subQ).
+			GetOne()
+		require.NoError(t, err)
+		require.Equal(t, fmt.Sprintf("SELECT col_1, col_2, col_3 FROM mockTable WHERE col_1 IN (%s)", subQ), conn.query)
+	})
+
 	t.Run("Delete", func(t *testing.T) {
 		affected, err := q.Delete().
 			Where(map[string]interface{}{"Col1": "col1Value", "Col2": true}).
@@ -36,5 +46,15 @@ func TestQuery(t *testing.T) {
 		require.Equal(t, MockRowsAffected, affected)
 		require.Equal(t, "DELETE FROM mockTable WHERE col_1=$1 AND col_2=$2", conn.query)
 		require.Equal(t, []interface{}{"col1Value", true}, conn.args)
+	})
+
+	t.Run("Delete In", func(t *testing.T) {
+		subQ := "SELECT col FROM table WHERE y=z"
+		affected, err := q.Delete().
+			WhereIn("Col1", subQ).
+			Exec()
+		require.NoError(t, err)
+		require.Equal(t, MockRowsAffected, affected)
+		require.Equal(t, fmt.Sprintf("DELETE FROM mockTable WHERE col_1 IN (%s)", subQ), conn.query)
 	})
 }

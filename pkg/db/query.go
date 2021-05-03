@@ -26,6 +26,10 @@ func NewQuery(conn Connection, entity DatabaseEntity) (*Query, error) {
 	}, nil
 }
 
+func (q Query) String() string {
+	return q.buffer.String()
+}
+
 func (q *Query) reset() {
 	q.buffer = bytes.Buffer{}
 }
@@ -54,6 +58,12 @@ type Select struct {
 
 func (s *Select) Where(args map[string]interface{}) *Select {
 	s.args, s.err = addWhereCondition(args, &s.buffer, s.columnHandler)
+	return s
+}
+
+func (s *Select) WhereIn(field, subQuery string, args ...interface{}) *Select {
+	s.err = addWhereInCondition(field, subQuery, &s.buffer, s.columnHandler)
+	s.args = args
 	return s
 }
 
@@ -183,9 +193,14 @@ func (d *Delete) Exec() (int64, error) {
 	res, err := d.conn.Exec(d.buffer.String(), d.args...)
 	if err == nil {
 		return res.RowsAffected()
-	} else {
-		return 0, err
 	}
+	return 0, err
+}
+
+func (d *Delete) WhereIn(field, subQuery string, args ...interface{}) *Delete {
+	d.err = addWhereInCondition(field, subQuery, &d.buffer, d.columnHandler)
+	d.args = args
+	return d
 }
 
 func addWhereCondition(whereCond map[string]interface{}, buffer *bytes.Buffer, columnHandler *ColumnHandler) ([]interface{}, error) {
@@ -214,4 +229,13 @@ func addWhereCondition(whereCond map[string]interface{}, buffer *bytes.Buffer, c
 		args = append(args, whereCond[field])
 	}
 	return args, nil
+}
+
+func addWhereInCondition(field, subQuery string, buffer *bytes.Buffer, columnHandler *ColumnHandler) error {
+	colName, err := columnHandler.ColumnName(field)
+	if err != nil {
+		return err
+	}
+	buffer.WriteString(fmt.Sprintf(" WHERE %s IN (%s)", colName, subQuery))
+	return nil
 }

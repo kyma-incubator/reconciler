@@ -51,7 +51,7 @@ func TestEntryRepositoryKeys(t *testing.T) {
 	})
 
 	t.Run("Get all keys", func(t *testing.T) {
-		entities, err := ceRepo.Keys(keyID)
+		entities, err := ceRepo.KeyHistory(keyID)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(entities))
 		//ordered by version ASC:
@@ -75,7 +75,7 @@ func TestEntryRepositoryKeys(t *testing.T) {
 		require.NoError(t, err)
 		err = ceRepo.DeleteKey(entity)
 		require.NoError(t, err)
-		entities, err := ceRepo.Keys(keyID)
+		entities, err := ceRepo.KeyHistory(keyID)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(entities)) //ensure just 2 entities were left
 	})
@@ -124,8 +124,8 @@ func TestEntryRepositoryValues(t *testing.T) {
 		}
 	})
 
-	t.Run("Get all values", func(t *testing.T) {
-		entities, err := ceRepo.Values(bucketNames[0], keyEntity.Key)
+	t.Run("Get value history", func(t *testing.T) {
+		entities, err := ceRepo.ValueHistory(bucketNames[0], keyEntity.Key)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(entities))
 		//ordered by version ASC:
@@ -142,6 +142,13 @@ func TestEntryRepositoryValues(t *testing.T) {
 		entity, err := ceRepo.Value(bucketNames[0], keyEntity.Key, valueVersions[1])
 		require.NoError(t, err)
 		require.Equal(t, valueVersions[1], entity.Version)
+	})
+
+	t.Run("Get values in bucket", func(t *testing.T) {
+		entities, err := ceRepo.Values(bucketNames[0])
+		require.NoError(t, err)
+		require.Equal(t, 1, len(entities))
+		require.Equal(t, valueVersions[len(valueVersions)-1], entities[0].Version)
 	})
 
 	t.Run("Get buckets", func(t *testing.T) {
