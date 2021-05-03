@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"bytes"
-	"fmt"
 	"os"
 	"sort"
 	"time"
@@ -96,14 +94,14 @@ func renderKeysWithValues(o *getCmd.Options, keys []*config.KeyEntity) error {
 		if err != nil {
 			return err
 		}
-		var kvPairs bytes.Buffer
+		kvPairs := make(map[string][]interface{}, len(values))
 		for _, value := range values {
-			if kvPairs.Len() > 0 {
-				kvPairs.WriteString("\n")
+			if _, ok := kvPairs[value.Bucket]; !ok {
+				kvPairs[value.Bucket] = []interface{}{}
 			}
-			kvPairs.WriteString(fmt.Sprintf("%s:%s", value.Bucket, value.Value))
+			kvPairs[value.Bucket] = append(kvPairs[value.Bucket], value.Value)
 		}
-		if err := formatter.AddRow(key.Key, key.DataType, key.Encrypted, key.Username, key.Created.Format(time.RFC822Z), kvPairs.String()); err != nil {
+		if err := formatter.AddRow(key.Key, key.DataType, key.Encrypted, key.Username, key.Created.Format(time.RFC822Z), kvPairs); err != nil {
 			return err
 		}
 	}

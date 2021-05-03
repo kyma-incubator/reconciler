@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"bytes"
-	"fmt"
 	"os"
 	"sort"
 	"time"
@@ -96,14 +94,11 @@ func renderBucketsWithValues(o *getCmd.Options, buckets []*config.BucketEntity) 
 		if err != nil {
 			return err
 		}
-		var kvPairs bytes.Buffer
+		kvPairs := make(map[string]interface{}, len(values))
 		for _, value := range values {
-			if kvPairs.Len() > 0 {
-				kvPairs.WriteString("\n")
-			}
-			kvPairs.WriteString(fmt.Sprintf("%s=%s", value.Key, value.Value))
+			kvPairs[value.Key] = value.Value
 		}
-		if err := formatter.AddRow(bucket.Bucket, bucket.Username, bucket.Created.Format(time.RFC822Z), kvPairs.String()); err != nil {
+		if err := formatter.AddRow(bucket.Bucket, bucket.Username, bucket.Created.Format(time.RFC822Z), kvPairs); err != nil {
 			return err
 		}
 	}
