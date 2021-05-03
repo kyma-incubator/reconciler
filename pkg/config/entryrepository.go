@@ -140,6 +140,7 @@ func (cer *ConfigEntryRepository) Values(bucket string) ([]*ValueEntity, error) 
 	entities, err := q.Select().
 		WhereIn("Version", fmt.Sprintf("SELECT MAX(%s) FROM %s WHERE %s=$1 GROUP BY %s",
 			colNameVersion, entity.Table(), colNameBucket, colNameKey), bucket).
+		OrderBy(map[string]string{"Key": "ASC"}).
 		GetMany()
 	if err != nil {
 		return nil, err

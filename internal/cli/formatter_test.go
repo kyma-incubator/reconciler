@@ -22,7 +22,7 @@ func TestFormatter(t *testing.T) {
 
 func render(t *testing.T, of *OutputFormatter) string {
 	var err error
-	err = of.Header("c1", "c2", "c3")
+	err = of.Header("C1", "c2", "C3") //will be converted to lower-case for JSON/YAML format or upper-case for TABLE format
 	require.NoError(t, err)
 
 	err = of.AddRow("1.1", map[string]interface{}{"key2.1a": "val2.1a", "key2.1b": 3}, []string{"3.1a", "3.1b", "3.1c"})

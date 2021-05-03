@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/iancoleman/strcase"
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v3"
 )
@@ -160,7 +161,7 @@ func (of *OutputFormatter) serializeableData() ([]map[string]interface{}, error)
 	for _, dataRow := range of.data {
 		dataTuple := make(map[string]interface{})
 		for idxCol, hdr := range of.header {
-			dataTuple[hdr] = dataRow[idxCol]
+			dataTuple[strcase.ToLowerCamel(hdr)] = dataRow[idxCol]
 		}
 		data = append(data, dataTuple)
 	}

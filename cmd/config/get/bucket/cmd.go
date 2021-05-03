@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"bytes"
+	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
@@ -29,27 +32,78 @@ func Run(o *getCmd.Options, bucketFilter []string) error {
 		return err
 	}
 
-	buckets, err := o.Repository().Buckets()
+	allBuckets, err := o.Repository().Buckets()
 	if err != nil {
 		return err
 	}
 
-	return render(o, buckets)
+	//if filter is defined, show buckets with content
+	if len(bucketFilter) > 0 {
+		filteredBuckets := filterBuckets(allBuckets, bucketFilter)
+		return renderBucketsWithContent(o, filteredBuckets)
+	}
+
+	//otherwise show just the bucket itself
+	return renderBuckets(o, allBuckets)
 }
 
-func render(o *getCmd.Options, buckets []*config.BucketEntity) error {
+func filterBuckets(allBuckets []*config.BucketEntity, bucketFilter []string) []*config.BucketEntity {
+	//to improve speed, use map from bucket-name to bucket-entity
+	bucketByName := make(map[string]*config.BucketEntity, len(bucketFilter))
+	for _, bucket := range allBuckets {
+		bucketByName[bucket.Bucket] = bucket
+	}
 
-	//print formatted output
+	//filter buckets
+	filteredBuckets := []*config.BucketEntity{}
+	sort.Strings(bucketFilter) //ensure the filtered buckets are added to result in alphabetical order
+	for _, filter := range bucketFilter {
+		if bucket, ok := bucketByName[filter]; ok {
+			filteredBuckets = append(filteredBuckets, bucket)
+		}
+	}
+	return filteredBuckets
+}
+
+func renderBuckets(o *getCmd.Options, buckets []*config.BucketEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err
 	}
 
-	if err := formatter.Header("Bucket", "Created by", "Created at"); err != nil {
+	if err := formatter.Header("Bucket", "Created by", "Created at (UTC)"); err != nil {
 		return err
 	}
 	for _, bucket := range buckets {
 		if err := formatter.AddRow(bucket.Bucket, bucket.Username, bucket.Created.Format(time.RFC822Z)); err != nil {
+			return err
+		}
+	}
+	return formatter.Output(os.Stdout)
+}
+
+func renderBucketsWithContent(o *getCmd.Options, buckets []*config.BucketEntity) error {
+	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
+	if err != nil {
+		return err
+	}
+
+	if err := formatter.Header("Bucket", "Created by", "Created at (UTC)", "Content"); err != nil {
+		return err
+	}
+	for _, bucket := range buckets {
+		values, err := o.Repository().Values(bucket.Bucket)
+		if err != nil {
+			return err
+		}
+		var kvPairs bytes.Buffer
+		for idx, value := range values {
+			if kvPairs.Len() > 0 {
+				kvPairs.WriteString("\n")
+			}
+			kvPairs.WriteString(fmt.Sprintf("%d. %s=%s", idx+1, value.Key, value.Value))
+		}
+		if err := formatter.AddRow(bucket.Bucket, bucket.Username, bucket.Created.Format(time.RFC822Z), kvPairs.String()); err != nil {
 			return err
 		}
 	}
