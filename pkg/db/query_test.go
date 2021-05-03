@@ -49,9 +49,9 @@ func TestQuery(t *testing.T) {
 	})
 
 	t.Run("Delete In", func(t *testing.T) {
-		subQ := "SELECT col FROM table WHERE y=z"
+		subQ := "SELECT col FROM table WHERE y=$1"
 		affected, err := q.Delete().
-			WhereIn("Col1", subQ).
+			WhereIn("Col1", subQ, "abc").
 			Exec()
 		require.NoError(t, err)
 		require.Equal(t, MockRowsAffected, affected)
