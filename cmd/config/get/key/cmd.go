@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"os"
-	"sort"
 	"time"
 
 	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
@@ -22,6 +21,7 @@ func NewCmd(o *getCmd.Options) *cobra.Command {
 			return Run(o, args)
 		},
 	}
+	cmd.Flags().BoolVar(&o.History, "history", false, "Show history of a configuration key")
 	return cmd
 }
 
@@ -30,37 +30,27 @@ func Run(o *getCmd.Options, keyFilter []string) error {
 		return err
 	}
 
-	allKeys, err := o.Repository().Keys()
+	keysProcessor, err := newKeysProcessor(o.Repository())
 	if err != nil {
 		return err
 	}
 
-	//if filter is defined, show buckets with content
+	keysProcessor.filter(keyFilter)
+	if o.History {
+		keysProcessor.withHistory()
+	}
+	keys, err := keysProcessor.get()
+	if err != nil {
+		return err
+	}
+
 	if len(keyFilter) > 0 {
-		filteredKeys := filterKeys(allKeys, keyFilter)
-		return renderKeysWithValues(o, filteredKeys)
+		// render with values if particular keys were selected by user
+		return renderKeysWithValues(o, keys)
 	}
 
-	//otherwise show just the bucket itself
-	return renderKeys(o, allKeys)
-}
-
-func filterKeys(allKeys []*config.KeyEntity, keyFilter []string) []*config.KeyEntity {
-	//to improve speed, use map from bucket-name to bucket-entity
-	keyByName := make(map[string]*config.KeyEntity, len(keyFilter))
-	for _, key := range allKeys {
-		keyByName[key.Key] = key
-	}
-
-	//filter keys
-	filteredKeys := []*config.KeyEntity{}
-	sort.Strings(keyFilter) //ensure the filtered keys are added to result in alphabetical order
-	for _, filter := range keyFilter {
-		if key, ok := keyByName[filter]; ok {
-			filteredKeys = append(filteredKeys, key)
-		}
-	}
-	return filteredKeys
+	// render all keys (without values)
+	return renderKeys(o, keys)
 }
 
 func renderKeys(o *getCmd.Options, keys []*config.KeyEntity) error {
@@ -69,11 +59,13 @@ func renderKeys(o *getCmd.Options, keys []*config.KeyEntity) error {
 		return err
 	}
 
-	if err := formatter.Header("Key", "Data Type", "Encrypted", "Created by", "Created at (UTC)", "Validation", "Trigger"); err != nil {
+	if err := formatter.Header("Key", "Data Type", "Encrypted", "Created by",
+		"Created at (UTC)", "Validation", "Trigger", "Version"); err != nil {
 		return err
 	}
 	for _, key := range keys {
-		if err := formatter.AddRow(key.Key, key.DataType, key.Encrypted, key.Username, key.Created.Format(time.RFC822Z), key.Validator, key.Trigger); err != nil {
+		if err := formatter.AddRow(key.Key, key.DataType, key.Encrypted, key.Username,
+			key.Created.Format(time.RFC822Z), key.Validator, key.Trigger, key.Version); err != nil {
 			return err
 		}
 	}
@@ -86,7 +78,8 @@ func renderKeysWithValues(o *getCmd.Options, keys []*config.KeyEntity) error {
 		return err
 	}
 
-	if err := formatter.Header("Key", "Data Type", "Encrypted", "Created by", "Created at (UTC)", "Values"); err != nil {
+	if err := formatter.Header("Key", "Data Type", "Encrypted", "Created by",
+		"Created at (UTC)", "Validation", "Trigger", "Version", "Values"); err != nil {
 		return err
 	}
 	for _, key := range keys {
@@ -101,7 +94,8 @@ func renderKeysWithValues(o *getCmd.Options, keys []*config.KeyEntity) error {
 			}
 			kvPairs[value.Bucket] = append(kvPairs[value.Bucket], value.Value)
 		}
-		if err := formatter.AddRow(key.Key, key.DataType, key.Encrypted, key.Username, key.Created.Format(time.RFC822Z), kvPairs); err != nil {
+		if err := formatter.AddRow(key.Key, key.DataType, key.Encrypted, key.Username,
+			key.Created.Format(time.RFC822Z), key.Validator, key.Trigger, key.Version, kvPairs); err != nil {
 			return err
 		}
 	}

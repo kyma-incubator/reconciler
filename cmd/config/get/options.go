@@ -10,10 +10,11 @@ import (
 type Options struct {
 	*cli.Options
 	OutputFormat string
+	History      bool
 }
 
 func NewOptions(o *cli.Options) *Options {
-	return &Options{o, ""}
+	return &Options{o, "", false}
 }
 
 func (o *Options) Validate() error {

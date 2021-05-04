@@ -107,7 +107,7 @@ func TestEntryRepositoryKeys(t *testing.T) {
 		for _, keyID := range keyIDs {
 			keyEntity, err := ceRepo.LatestKey(keyID)
 			require.NoError(t, err)
-			err = ceRepo.DeleteKey(keyEntity)
+			err = ceRepo.DeleteKey(keyEntity.Key)
 			require.NoError(t, err)
 			keyEntities, err := ceRepo.KeyHistory(keyID)
 			require.NoError(t, err)
@@ -259,9 +259,7 @@ func TestEntryRepositoryValues(t *testing.T) {
 
 	t.Run("Delete bucket(s)", func(t *testing.T) {
 		for _, bucketName := range bucketNames {
-			err := ceRepo.DeleteBucket(&BucketEntity{
-				Bucket: bucketName,
-			})
+			err := ceRepo.DeleteBucket(bucketName)
 			require.NoError(t, err)
 		}
 		bucketEntities, err := ceRepo.Buckets()

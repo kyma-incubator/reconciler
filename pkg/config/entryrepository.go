@@ -117,19 +117,19 @@ func (cer *ConfigEntryRepository) CreateKey(key *KeyEntity) (*KeyEntity, error) 
 	return key, q.Insert().Exec()
 }
 
-func (cer *ConfigEntryRepository) DeleteKey(key *KeyEntity) error {
+func (cer *ConfigEntryRepository) DeleteKey(key string) error {
 	//bundle DB operations
 	dbOps := func() error {
 		if err := cer.deleteValuesByKey(key); err != nil {
 			return err
 		}
 		//delete all values mapped to the key
-		qKey, err := db.NewQuery(cer.conn, key)
+		qKey, err := db.NewQuery(cer.conn, &KeyEntity{})
 		if err != nil {
 			return err
 		}
 		_, err = qKey.Delete().
-			Where(map[string]interface{}{"Key": key.Key}).
+			Where(map[string]interface{}{"Key": key}).
 			Exec()
 		return err
 	}
@@ -294,13 +294,13 @@ func (cer *ConfigEntryRepository) CreateValue(value *ValueEntity) (*ValueEntity,
 	return value, q.Insert().Exec()
 }
 
-func (cer *ConfigEntryRepository) deleteValuesByKey(key *KeyEntity) error {
+func (cer *ConfigEntryRepository) deleteValuesByKey(key string) error {
 	q, err := db.NewQuery(cer.conn, &ValueEntity{})
 	if err != nil {
 		return err
 	}
 	_, err = q.Delete().
-		Where(map[string]interface{}{"Key": key.Key}).
+		Where(map[string]interface{}{"Key": key}).
 		Exec()
 	return err
 }
@@ -361,13 +361,13 @@ func (cer *ConfigEntryRepository) bucketNames() ([]string, error) {
 	return bucketNames, nil
 }
 
-func (cer *ConfigEntryRepository) DeleteBucket(bucket *BucketEntity) error {
-	q, err := db.NewQuery(cer.conn, bucket)
+func (cer *ConfigEntryRepository) DeleteBucket(bucket string) error {
+	q, err := db.NewQuery(cer.conn, &BucketEntity{})
 	if err != nil {
 		return err
 	}
 	_, err = q.Delete().
-		Where(map[string]interface{}{"Bucket": bucket.Bucket}).
+		Where(map[string]interface{}{"Bucket": bucket}).
 		Exec()
 	return err
 }
