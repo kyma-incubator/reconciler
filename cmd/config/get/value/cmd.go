@@ -21,12 +21,12 @@ func NewCmd(o *Options) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&o.History, "history", false, "Show history of configuration value")
 	cmd.Flags().StringVar(&o.Key, "key", "", "Key name")
-	cmd.Flags().Int64Var(&o.KeyVersion, "keyVersion", 0, "Key version")
+	cmd.Flags().Int64Var(&o.KeyVersion, "key-version", 0, "Key version")
 
 	if err := cobra.MarkFlagRequired(cmd.Flags(), "key"); err != nil {
 		panic(err) //would be an obvious bug and has to lead to a panic
 	}
-	if err := cobra.MarkFlagRequired(cmd.Flags(), "keyVersion"); err != nil {
+	if err := cobra.MarkFlagRequired(cmd.Flags(), "key-version"); err != nil {
 		panic(err) //would be an obvious bug and has to lead to a panic
 	}
 

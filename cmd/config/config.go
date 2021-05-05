@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	createCmd "github.com/kyma-incubator/reconciler/cmd/config/create"
+	createKeyCmd "github.com/kyma-incubator/reconciler/cmd/config/create/key"
 	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
 	getBucketCmd "github.com/kyma-incubator/reconciler/cmd/config/get/bucket"
 	getKeyCmd "github.com/kyma-incubator/reconciler/cmd/config/get/key"
@@ -45,12 +47,17 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&o.NonInteractive, "non-interactive", false, "Enables the non-interactive shell mode")
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
 
-	//register commands
-	getCommand := getCmd.NewCmd(o)
-	getCommand.AddCommand(getBucketCmd.NewCmd(o))
-	getCommand.AddCommand(getKeyCmd.NewCmd(getKeyCmd.NewOptions(o)))
-	getCommand.AddCommand(getValueCmd.NewCmd(getValueCmd.NewOptions(o)))
-	cmd.AddCommand(getCommand)
+	//register get commands
+	getCmd := getCmd.NewCmd(o)
+	cmd.AddCommand(getCmd)
+	getCmd.AddCommand(getBucketCmd.NewCmd(o))
+	getCmd.AddCommand(getKeyCmd.NewCmd(getKeyCmd.NewOptions(o)))
+	getCmd.AddCommand(getValueCmd.NewCmd(getValueCmd.NewOptions(o)))
+
+	//register create commands
+	createCmd := createCmd.NewCmd(o)
+	cmd.AddCommand(createCmd)
+	createCmd.AddCommand(createKeyCmd.NewCmd(createKeyCmd.NewOptions(o)))
 
 	return cmd
 }

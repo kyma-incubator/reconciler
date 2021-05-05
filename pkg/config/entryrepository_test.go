@@ -97,10 +97,24 @@ func TestEntryRepositoryKeys(t *testing.T) {
 		require.Equal(t, key1Versions[2], keyEntity.Version)
 	})
 
+	t.Run("Get non-existing latest keys", func(t *testing.T) {
+		_, err := ceRepo.LatestKey("Idontexist")
+		require.Error(t, err)
+		require.IsType(t, &EntityNotFoundError{}, err)
+		require.True(t, IsNotFoundError(err))
+	})
+
 	t.Run("Get key with version", func(t *testing.T) {
 		keyEntity, err := ceRepo.Key(keyIDs[0], key1Versions[1])
 		require.NoError(t, err)
 		require.Equal(t, key1Versions[1], keyEntity.Version)
+	})
+
+	t.Run("Get non-existing key with keys", func(t *testing.T) {
+		_, err := ceRepo.Key("Idontexist", -5)
+		require.Error(t, err)
+		require.IsType(t, &EntityNotFoundError{}, err)
+		require.True(t, IsNotFoundError(err))
 	})
 
 	t.Run("Delete key(s)", func(t *testing.T) {
@@ -193,10 +207,24 @@ func TestEntryRepositoryValues(t *testing.T) {
 		require.Equal(t, value1Versions[2], valueEntity.Version)
 	})
 
+	t.Run("Get non-existing latest value", func(t *testing.T) {
+		_, err := ceRepo.LatestValue("Idontexist", "Idontexisttoo")
+		require.Error(t, err)
+		require.IsType(t, &EntityNotFoundError{}, err)
+		require.True(t, IsNotFoundError(err))
+	})
+
 	t.Run("Get value with version", func(t *testing.T) {
 		valueEntity, err := ceRepo.Value(bucketNames[0], keyEntity.Key, value1Versions[1])
 		require.NoError(t, err)
 		require.Equal(t, value1Versions[1], valueEntity.Version)
+	})
+
+	t.Run("Get non-existing value with version", func(t *testing.T) {
+		_, err := ceRepo.Value("Idontexist", "Idontexisttoo", -1)
+		require.Error(t, err)
+		require.IsType(t, &EntityNotFoundError{}, err)
+		require.True(t, IsNotFoundError(err))
 	})
 
 	t.Run("Get values by bucket", func(t *testing.T) {

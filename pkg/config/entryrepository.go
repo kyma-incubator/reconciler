@@ -1,11 +1,32 @@
 package config
 
 import (
+	"bytes"
+	"database/sql"
 	"fmt"
+	"reflect"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/pkg/errors"
 )
+
+type EntityNotFoundError struct {
+	entity     db.DatabaseEntity
+	identifier map[string]interface{}
+}
+
+func (e *EntityNotFoundError) Error() string {
+	var idents bytes.Buffer
+	if e.identifier != nil {
+		for k, v := range e.identifier {
+			if idents.Len() > 0 {
+				idents.WriteRune(',')
+			}
+			idents.WriteString(fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+	return fmt.Sprintf("Entity of type '%s' with identifier '%v' not found", reflect.TypeOf(e.entity), idents.String())
+}
 
 type ConfigEntryRepository struct {
 	conn db.Connection
@@ -16,6 +37,21 @@ func NewConfigEntryRepository(dbFac db.ConnectionFactory) (*ConfigEntryRepositor
 	return &ConfigEntryRepository{
 		conn: conn,
 	}, err
+}
+
+func IsNotFoundError(err error) bool {
+	return reflect.TypeOf(err) == reflect.TypeOf(&EntityNotFoundError{})
+}
+
+func (cer *ConfigEntryRepository) handleNotFoundError(err error, entity db.DatabaseEntity,
+	identifier map[string]interface{}) error {
+	if err == sql.ErrNoRows {
+		return &EntityNotFoundError{
+			entity:     entity,
+			identifier: identifier,
+		}
+	}
+	return err
 }
 
 func (cer *ConfigEntryRepository) Keys() ([]*KeyEntity, error) {
@@ -83,13 +119,14 @@ func (cer *ConfigEntryRepository) LatestKey(key string) (*KeyEntity, error) {
 	if err != nil {
 		return nil, err
 	}
+	whereCond := map[string]interface{}{"Key": key}
 	entity, err := q.Select().
-		Where(map[string]interface{}{"Key": key}).
+		Where(whereCond).
 		OrderBy(map[string]string{"Version": "DESC"}).
 		Limit(1).
 		GetOne()
 	if err != nil {
-		return nil, err
+		return nil, cer.handleNotFoundError(err, &KeyEntity{}, whereCond)
 	}
 	return entity.(*KeyEntity), nil
 }
@@ -99,11 +136,12 @@ func (cer *ConfigEntryRepository) Key(key string, version int64) (*KeyEntity, er
 	if err != nil {
 		return nil, err
 	}
+	whereCond := map[string]interface{}{"Key": key, "Version": version}
 	entity, err := q.Select().
-		Where(map[string]interface{}{"Key": key, "Version": version}).
+		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, err
+		return nil, cer.handleNotFoundError(err, &KeyEntity{}, whereCond)
 	}
 	return entity.(*KeyEntity), nil
 }
@@ -261,13 +299,14 @@ func (cer *ConfigEntryRepository) LatestValue(bucket, key string) (*ValueEntity,
 	if err != nil {
 		return nil, err
 	}
+	whereCond := map[string]interface{}{"Key": key, "Bucket": bucket}
 	entity, err := q.Select().
-		Where(map[string]interface{}{"Key": key, "Bucket": bucket}).
+		Where(whereCond).
 		OrderBy(map[string]string{"Version": "DESC"}).
 		Limit(1).
 		GetOne()
 	if err != nil {
-		return nil, err
+		return nil, cer.handleNotFoundError(err, &ValueEntity{}, whereCond)
 	}
 	return entity.(*ValueEntity), nil
 }
@@ -277,11 +316,12 @@ func (cer *ConfigEntryRepository) Value(bucket, key string, version int64) (*Val
 	if err != nil {
 		return nil, err
 	}
+	whereCond := map[string]interface{}{"Bucket": bucket, "Key": key, "Version": version}
 	entity, err := q.Select().
-		Where(map[string]interface{}{"Bucket": bucket, "Key": key, "Version": version}).
+		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, err
+		return nil, cer.handleNotFoundError(err, &ValueEntity{}, whereCond)
 	}
 	return entity.(*ValueEntity), nil
 }
@@ -317,13 +357,14 @@ func (cer *ConfigEntryRepository) Buckets() ([]*BucketEntity, error) {
 		if err != nil {
 			return nil, err
 		}
+		whereCond := map[string]interface{}{"Bucket": bucketName}
 		entity, err := q.Select().
-			Where(map[string]interface{}{"Bucket": bucketName}).
+			Where(whereCond).
 			OrderBy(map[string]string{"Created": "ASC"}).
 			Limit(1).
 			GetOne()
 		if err != nil {
-			return nil, err
+			return nil, cer.handleNotFoundError(err, &BucketEntity{}, whereCond)
 		}
 		buckets = append(buckets, entity.(*BucketEntity))
 	}
