@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/kyma-incubator/reconciler/pkg/config"
@@ -16,6 +17,7 @@ var repoMutex sync.Mutex
 type Options struct {
 	Verbose           bool
 	NonInteractive    bool
+	OutputFormat      string
 	connectionFactory db.ConnectionFactory
 	logger            *zap.Logger
 	repository        *config.ConfigEntryRepository
@@ -97,4 +99,13 @@ func (o *Options) initRepository() *config.ConfigEntryRepository {
 	repoMutex.Unlock()
 
 	return o.repository
+}
+
+func (o *Options) Validate() error {
+	for _, supportedFormat := range SupportedOutputFormats {
+		if supportedFormat == o.OutputFormat {
+			return nil
+		}
+	}
+	return fmt.Errorf("Output format '%s' not supported - choose between '%s'", o.OutputFormat, strings.Join(SupportedOutputFormats, "', '"))
 }

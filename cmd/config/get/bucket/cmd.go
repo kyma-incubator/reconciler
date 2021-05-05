@@ -5,17 +5,15 @@ import (
 	"sort"
 	"time"
 
-	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/config"
 	"github.com/spf13/cobra"
 )
 
-//NewCmd creates a new apply command
-func NewCmd(o *getCmd.Options) *cobra.Command {
+func NewCmd(o *cli.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "bucket",
-		Aliases: []string{"buckets", "b"},
+		Aliases: []string{"buckets", "bu"},
 		Short:   "Get configuration buckets.",
 		Long:    `List configuration buckets or get a bucket inclusive its containing configuration entries.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -25,7 +23,7 @@ func NewCmd(o *getCmd.Options) *cobra.Command {
 	return cmd
 }
 
-func Run(o *getCmd.Options, bucketFilter []string) error {
+func Run(o *cli.Options, bucketFilter []string) error {
 	if err := o.Validate(); err != nil {
 		return err
 	}
@@ -63,7 +61,7 @@ func filterBuckets(allBuckets []*config.BucketEntity, bucketFilter []string) []*
 	return filteredBuckets
 }
 
-func renderBuckets(o *getCmd.Options, buckets []*config.BucketEntity) error {
+func renderBuckets(o *cli.Options, buckets []*config.BucketEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err
@@ -80,7 +78,7 @@ func renderBuckets(o *getCmd.Options, buckets []*config.BucketEntity) error {
 	return formatter.Output(os.Stdout)
 }
 
-func renderBucketsWithValues(o *getCmd.Options, buckets []*config.BucketEntity) error {
+func renderBucketsWithValues(o *cli.Options, buckets []*config.BucketEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err

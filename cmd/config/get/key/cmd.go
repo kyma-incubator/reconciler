@@ -4,17 +4,15 @@ import (
 	"os"
 	"time"
 
-	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/config"
 	"github.com/spf13/cobra"
 )
 
-//NewCmd creates a new apply command
-func NewCmd(o *getCmd.Options) *cobra.Command {
+func NewCmd(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "key",
-		Aliases: []string{"keys", "k"},
+		Aliases: []string{"keys", "ke"},
 		Short:   "Get configuration key.",
 		Long:    `List configuration keys or get a key.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -25,21 +23,21 @@ func NewCmd(o *getCmd.Options) *cobra.Command {
 	return cmd
 }
 
-func Run(o *getCmd.Options, keyFilter []string) error {
+func Run(o *Options, keyFilter []string) error {
 	if err := o.Validate(); err != nil {
 		return err
 	}
 
-	keysProcessor, err := newKeysProcessor(o.Repository())
+	keyProcessor, err := newKeyProcessor(o.Repository())
 	if err != nil {
 		return err
 	}
 
-	keysProcessor.filter(keyFilter)
+	keyProcessor.filter(keyFilter)
 	if o.History {
-		keysProcessor.withHistory()
+		keyProcessor.withHistory()
 	}
-	keys, err := keysProcessor.get()
+	keys, err := keyProcessor.get()
 	if err != nil {
 		return err
 	}
@@ -53,7 +51,7 @@ func Run(o *getCmd.Options, keyFilter []string) error {
 	return renderKeys(o, keys)
 }
 
-func renderKeys(o *getCmd.Options, keys []*config.KeyEntity) error {
+func renderKeys(o *Options, keys []*config.KeyEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err
@@ -72,7 +70,7 @@ func renderKeys(o *getCmd.Options, keys []*config.KeyEntity) error {
 	return formatter.Output(os.Stdout)
 }
 
-func renderKeysWithValues(o *getCmd.Options, keys []*config.KeyEntity) error {
+func renderKeysWithValues(o *Options, keys []*config.KeyEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err

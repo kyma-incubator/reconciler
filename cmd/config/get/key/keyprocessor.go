@@ -6,47 +6,47 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/config"
 )
 
-type keysProcessor struct {
+type keyProcessor struct {
 	repo *config.ConfigEntryRepository
 	keys []*config.KeyEntity
 	err  error
 }
 
-func newKeysProcessor(repo *config.ConfigEntryRepository) (*keysProcessor, error) {
+func newKeyProcessor(repo *config.ConfigEntryRepository) (*keyProcessor, error) {
 	var err error
-	keyEntityProcessor := &keysProcessor{
+	keyProcessor := &keyProcessor{
 		repo: repo,
 	}
-	keyEntityProcessor.keys, err = repo.Keys()
-	return keyEntityProcessor, err
+	keyProcessor.keys, err = repo.Keys()
+	return keyProcessor, err
 }
 
-func (kl *keysProcessor) get() ([]*config.KeyEntity, error) {
-	return kl.keys, kl.err
+func (k *keyProcessor) get() ([]*config.KeyEntity, error) {
+	return k.keys, k.err
 }
 
-func (kl *keysProcessor) withHistory() *keysProcessor {
+func (k *keyProcessor) withHistory() *keyProcessor {
 	keysHistory := []*config.KeyEntity{}
 	var keyHistory []*config.KeyEntity
-	for _, key := range kl.keys {
-		keyHistory, kl.err = kl.repo.KeyHistory(key.Key)
-		if kl.err != nil {
-			return kl
+	for _, key := range k.keys {
+		keyHistory, k.err = k.repo.KeyHistory(key.Key)
+		if k.err != nil {
+			return k
 		}
 		keysHistory = append(keysHistory, keyHistory...)
 	}
-	kl.keys = keysHistory
-	return kl
+	k.keys = keysHistory
+	return k
 }
 
-func (kl *keysProcessor) filter(keyFilter []string) *keysProcessor {
+func (k *keyProcessor) filter(keyFilter []string) *keyProcessor {
 	if len(keyFilter) == 0 {
-		return kl
+		return k
 	}
 
 	//to improve speed, use map from bucket-name to bucket-entity
 	keyByName := make(map[string]*config.KeyEntity, len(keyFilter))
-	for _, key := range kl.keys {
+	for _, key := range k.keys {
 		keyByName[key.Key] = key
 	}
 
@@ -59,6 +59,6 @@ func (kl *keysProcessor) filter(keyFilter []string) *keysProcessor {
 		}
 	}
 
-	kl.keys = filteredKeys
-	return kl
+	k.keys = filteredKeys
+	return k
 }

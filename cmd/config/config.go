@@ -7,6 +7,7 @@ import (
 	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
 	getBucketCmd "github.com/kyma-incubator/reconciler/cmd/config/get/bucket"
 	getKeyCmd "github.com/kyma-incubator/reconciler/cmd/config/get/key"
+	getValueCmd "github.com/kyma-incubator/reconciler/cmd/config/get/value"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/spf13/cobra"
@@ -45,10 +46,10 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
 
 	//register commands
-	getCmdOpts := getCmd.NewOptions(o)
-	getCommand := getCmd.NewCmd(getCmdOpts)
-	getCommand.AddCommand(getBucketCmd.NewCmd(getCmdOpts))
-	getCommand.AddCommand(getKeyCmd.NewCmd(getCmdOpts))
+	getCommand := getCmd.NewCmd(o)
+	getCommand.AddCommand(getBucketCmd.NewCmd(o))
+	getCommand.AddCommand(getKeyCmd.NewCmd(getKeyCmd.NewOptions(o)))
+	getCommand.AddCommand(getValueCmd.NewCmd(getValueCmd.NewOptions(o)))
 	cmd.AddCommand(getCommand)
 
 	return cmd
