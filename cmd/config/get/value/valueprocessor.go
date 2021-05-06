@@ -27,12 +27,12 @@ func (v *valueProcessor) withHistory() *valueProcessor {
 	valuesHistory := []*config.ValueEntity{}
 	var valueHistory []*config.ValueEntity
 	for _, value := range v.values {
-		valuesHistory, v.err = v.repo.ValueHistory(value.Bucket, value.Key)
+		valueHistory, v.err = v.repo.ValueHistory(value.Bucket, value.Key)
 		if v.err != nil {
 			return v
 		}
 		valuesHistory = append(valuesHistory, valueHistory...)
 	}
-	v.values = valueHistory
+	v.values = valuesHistory
 	return v
 }

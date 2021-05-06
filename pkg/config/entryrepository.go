@@ -7,7 +7,9 @@ import (
 	"reflect"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 type EntityNotFoundError struct {
@@ -29,13 +31,19 @@ func (e *EntityNotFoundError) Error() string {
 }
 
 type ConfigEntryRepository struct {
-	conn db.Connection
+	conn   db.Connection
+	logger *zap.Logger
 }
 
-func NewConfigEntryRepository(dbFac db.ConnectionFactory) (*ConfigEntryRepository, error) {
+func NewConfigEntryRepository(dbFac db.ConnectionFactory, debug bool) (*ConfigEntryRepository, error) {
+	logger, err := logger.NewLogger(debug)
+	if err != nil {
+		return nil, err
+	}
 	conn, err := dbFac.NewConnection()
 	return &ConfigEntryRepository{
-		conn: conn,
+		conn:   conn,
+		logger: logger,
 	}, err
 }
 
@@ -151,7 +159,14 @@ func (cer *ConfigEntryRepository) CreateKey(key *KeyEntity) (*KeyEntity, error) 
 	if err != nil {
 		return nil, err
 	}
-	//TODO create only if not equal!
+	existingKey, err := cer.LatestKey(key.Key)
+	if err != nil && !IsNotFoundError(err) {
+		return nil, err
+	}
+	if existingKey != nil && existingKey.Equal(key) {
+		cer.logger.Debug(fmt.Sprintf("No differences found for key '%s': not creating new database entity", key.Key))
+		return existingKey, nil
+	}
 	return key, q.Insert().Exec()
 }
 
@@ -330,6 +345,14 @@ func (cer *ConfigEntryRepository) CreateValue(value *ValueEntity) (*ValueEntity,
 	q, err := db.NewQuery(cer.conn, value)
 	if err != nil {
 		return nil, err
+	}
+	existingValue, err := cer.LatestValue(value.Bucket, value.Key)
+	if err != nil && !IsNotFoundError(err) {
+		return nil, err
+	}
+	if existingValue != nil && existingValue.Equal(value) {
+		cer.logger.Debug(fmt.Sprintf("No differences found for value of key '%s': not creating new database entity", value.Key))
+		return existingValue, nil
 	}
 	return value, q.Insert().Exec()
 }

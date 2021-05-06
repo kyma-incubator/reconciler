@@ -20,9 +20,9 @@ func TestColumnHandler(t *testing.T) {
 			Bool:  true,
 			Int64: 123456789,
 		}
-		stc, err := NewColumnHandler(testStruct)
+		colHdr, err := NewColumnHandler(testStruct)
 		require.NoError(t, err)
-		require.True(t, IsIncompleteEntityError(stc.Validate()))
+		require.True(t, IsIncompleteEntityError(colHdr.Validate()))
 	})
 
 	//valid model
@@ -31,49 +31,49 @@ func TestColumnHandler(t *testing.T) {
 		Bool:   true,
 		Int64:  123456789,
 	}
-	stc, err := NewColumnHandler(testStruct)
+	colHdr, err := NewColumnHandler(testStruct)
 	require.NoError(t, err)
-	require.NoError(t, stc.Validate())
+	require.NoError(t, colHdr.Validate())
 
 	t.Run("Get values", func(t *testing.T) {
 		//check internal state
-		require.Equal(t, 3, len(stc.columns))
-		require.ElementsMatch(t, []interface{}{"testString", true, int64(123456789)}, stc.ColumnValues(false))
-		require.ElementsMatch(t, []interface{}{"testString", int64(123456789)}, stc.ColumnValues(true))
+		require.Equal(t, 3, len(colHdr.columns))
+		require.ElementsMatch(t, []interface{}{"testString", true, int64(123456789)}, colHdr.ColumnValues(false))
+		require.ElementsMatch(t, []interface{}{"testString", int64(123456789)}, colHdr.ColumnValues(true))
 	})
 
 	t.Run("Get column name", func(t *testing.T) {
-		colNameInt64, err := stc.ColumnName("Int64")
+		colNameInt64, err := colHdr.ColumnName("Int64")
 		require.NoError(t, err)
 		require.Equal(t, "int_64", colNameInt64)
-		colNameStr, err := stc.ColumnName("String")
+		colNameStr, err := colHdr.ColumnName("String")
 		require.NoError(t, err)
 		require.Equal(t, "string", colNameStr)
 	})
 
 	t.Run("Get column names as CSV", func(t *testing.T) {
-		require.ElementsMatch(t, []string{"string", "bool", "int_64"}, splitAndTrimCsv(stc.ColumnNamesCsv(false)))
-		require.ElementsMatch(t, []string{"string", "int_64"}, splitAndTrimCsv(stc.ColumnNamesCsv(true)))
+		require.ElementsMatch(t, []string{"string", "bool", "int_64"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(false)))
+		require.ElementsMatch(t, []string{"string", "int_64"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(true)))
 	})
 
 	t.Run("Get column values as CSV", func(t *testing.T) {
-		require.ElementsMatch(t, []string{"'testString'", "true", "123456789"}, splitAndTrimCsv(stc.ColumnValuesCsv(false)))
-		require.ElementsMatch(t, []string{"'testString'", "123456789"}, splitAndTrimCsv(stc.ColumnValuesCsv(true)))
+		require.ElementsMatch(t, []string{"'testString'", "true", "123456789"}, splitAndTrimCsv(colHdr.ColumnValuesCsv(false)))
+		require.ElementsMatch(t, []string{"'testString'", "123456789"}, splitAndTrimCsv(colHdr.ColumnValuesCsv(true)))
 	})
 
 	t.Run("Get column values as placeholder CSV", func(t *testing.T) {
-		require.Equal(t, "$1, $2, $3", stc.ColumnValuesPlaceholderCsv(false))
-		require.Equal(t, "$1, $2", stc.ColumnValuesPlaceholderCsv(true))
+		require.Equal(t, "$1, $2, $3", colHdr.ColumnValuesPlaceholderCsv(false))
+		require.Equal(t, "$1, $2", colHdr.ColumnValuesPlaceholderCsv(true))
 	})
 	t.Run("Get column entries as CSV", func(t *testing.T) {
-		require.ElementsMatch(t, []string{"string='testString'", "bool=true", "int_64=123456789"}, splitAndTrimCsv(stc.ColumnEntriesCsv(false)))
-		require.ElementsMatch(t, []string{"string='testString'", "int_64=123456789"}, splitAndTrimCsv(stc.ColumnEntriesCsv(true)))
+		require.ElementsMatch(t, []string{"string='testString'", "bool=true", "int_64=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(false)))
+		require.ElementsMatch(t, []string{"string='testString'", "int_64=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(true)))
 	})
 
 	t.Run("Get column entries as placeholder CSV", func(t *testing.T) {
-		rwKeyValuePairsCsv := stc.ColumnEntriesPlaceholderCsv(false)
+		rwKeyValuePairsCsv := colHdr.ColumnEntriesPlaceholderCsv(false)
 		require.Regexp(t, regexp.MustCompile(`((string|bool|int_64)=\$[1-3](, )?){3}`), rwKeyValuePairsCsv)
-		roKeyValuePairs := stc.ColumnEntriesPlaceholderCsv(true)
+		roKeyValuePairs := colHdr.ColumnEntriesPlaceholderCsv(true)
 		require.Regexp(t, regexp.MustCompile(`((string|int_64)=\$[1-2](, )?){2}`), roKeyValuePairs)
 	})
 }

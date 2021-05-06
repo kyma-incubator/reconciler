@@ -20,6 +20,7 @@ type DatabaseEntity interface {
 	Table() string
 	Synchronizer() *EntitySynchronizer
 	New() DatabaseEntity
+	Equal(other DatabaseEntity) bool
 }
 
 //DataRow introduces a interface which is implemented by sql.Row and sql.Rows

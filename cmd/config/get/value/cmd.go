@@ -34,10 +34,6 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options, valueFilter []string) error {
-	if err := o.Validate(); err != nil {
-		return err
-	}
-
 	key, err := o.Repository().Key(o.Key, o.KeyVersion)
 	if err != nil {
 		return err

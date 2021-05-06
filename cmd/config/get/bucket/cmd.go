@@ -24,10 +24,6 @@ func NewCmd(o *cli.Options) *cobra.Command {
 }
 
 func Run(o *cli.Options, bucketFilter []string) error {
-	if err := o.Validate(); err != nil {
-		return err
-	}
-
 	allBuckets, err := o.Repository().Buckets()
 	if err != nil {
 		return err

@@ -17,7 +17,7 @@ func newRepo(t *testing.T) *ConfigEntryRepository {
 		User:     "kyma",
 		Password: "kyma",
 		Debug:    true,
-	})
+	}, true)
 	require.NoError(t, err)
 	return ceRepo
 }
@@ -95,6 +95,14 @@ func TestEntryRepositoryKeys(t *testing.T) {
 		keyEntity, err := ceRepo.LatestKey(keyIDs[0])
 		require.NoError(t, err)
 		require.Equal(t, key1Versions[2], keyEntity.Version)
+	})
+
+	t.Run("Create existing key", func(t *testing.T) {
+		keyEntity, err := ceRepo.LatestKey(keyIDs[0])
+		require.NoError(t, err)
+		sameEntity, err := ceRepo.CreateKey(keyEntity)
+		require.NoError(t, err)
+		require.Equal(t, keyEntity, sameEntity) //ensure no new entity was created
 	})
 
 	t.Run("Get non-existing latest keys", func(t *testing.T) {
@@ -205,6 +213,14 @@ func TestEntryRepositoryValues(t *testing.T) {
 		valueEntity, err := ceRepo.LatestValue(bucketNames[0], keyEntity.Key)
 		require.NoError(t, err)
 		require.Equal(t, value1Versions[2], valueEntity.Version)
+	})
+
+	t.Run("Create existing value", func(t *testing.T) {
+		valueEntity, err := ceRepo.LatestValue(bucketNames[0], keyEntity.Key)
+		require.NoError(t, err)
+		sameEntity, err := ceRepo.CreateValue(valueEntity)
+		require.NoError(t, err)
+		require.Equal(t, valueEntity, sameEntity) //ensure no new entity was created
 	})
 
 	t.Run("Get non-existing latest value", func(t *testing.T) {

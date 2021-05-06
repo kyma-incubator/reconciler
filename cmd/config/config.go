@@ -25,9 +25,18 @@ func NewCmd(o *cli.Options) *cobra.Command {
 		Short: "Manage Kyma reconciler configuration.",
 		Long:  "Administrative CLI tool for the Kyma reconciler configuration management.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			//validate given user input
+			if err := o.Validate(); err != nil {
+				return err
+			}
+
 			//init db connection factory if cmd (or sub-cmd) has a run-method
 			dbConnFact, err := initDbConnectionFactory()
+			if err != nil {
+				return err
+			}
 			o.Init(dbConnFact)
+
 			return err
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {

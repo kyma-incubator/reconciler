@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
@@ -14,18 +15,9 @@ type PostgresConnection struct {
 }
 
 func newPostgresConnection(db *sql.DB, debug bool) (*PostgresConnection, error) {
-	var logger *zap.Logger
-	var err error
-	if debug {
-		logger, err = zap.NewDevelopment()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		logger, err = zap.NewProduction()
-		if err != nil {
-			return nil, err
-		}
+	logger, err := logger.NewLogger(debug)
+	if err != nil {
+		return nil, err
 	}
 	return &PostgresConnection{
 		db:     db,

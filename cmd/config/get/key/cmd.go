@@ -24,10 +24,6 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options, keyFilter []string) error {
-	if err := o.Validate(); err != nil {
-		return err
-	}
-
 	keyProcessor, err := newKeyProcessor(o.Repository())
 	if err != nil {
 		return err

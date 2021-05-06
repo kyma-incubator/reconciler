@@ -80,6 +80,10 @@ func (fake *MockDbEntity) Table() string {
 	return "mockTable"
 }
 
+func (fake *MockDbEntity) Equal(other DatabaseEntity) bool {
+	return false
+}
+
 func (fake *MockDbEntity) Synchronizer() *EntitySynchronizer {
 	syncer := NewEntitySynchronizer(&fake)
 	syncer.AddConverter("Col1", func(value interface{}) (interface{}, error) {

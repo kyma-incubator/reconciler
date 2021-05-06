@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -16,6 +17,19 @@ const (
 )
 
 type DataType string
+
+func NewDataType(dataType string) (DataType, error) {
+	switch strings.ToLower(dataType) {
+	case "string":
+		return String, nil
+	case "integer":
+		return Integer, nil
+	case "boolean":
+		return Boolean, nil
+	default:
+		return "", fmt.Errorf("DataType '%s' is not supported", dataType)
+	}
+}
 
 type KeyEntity struct {
 	Key       string   `db:"notNull"`
@@ -40,18 +54,7 @@ func (ke *KeyEntity) New() db.DatabaseEntity {
 func (ke *KeyEntity) Synchronizer() *db.EntitySynchronizer {
 	syncer := db.NewEntitySynchronizer(&ke)
 	syncer.AddConverter("DataType", func(value interface{}) (interface{}, error) {
-		var dataType DataType
-		switch value.(string) {
-		case "integer":
-			dataType = Integer
-		case "string":
-			dataType = String
-		case "boolean":
-			dataType = Boolean
-		default:
-			return nil, fmt.Errorf("Value '%s' is not a valid DataType - data inconsistency detected!", value)
-		}
-		return dataType, nil
+		return NewDataType(value.(string))
 	})
 	syncer.AddConverter("Created", func(value interface{}) (interface{}, error) {
 		return value, nil
@@ -61,6 +64,21 @@ func (ke *KeyEntity) Synchronizer() *db.EntitySynchronizer {
 
 func (ke *KeyEntity) Table() string {
 	return tblKeys
+}
+
+func (ke *KeyEntity) Equal(other db.DatabaseEntity) bool {
+	if other == nil {
+		return false
+	}
+	otherKey, ok := other.(*KeyEntity)
+	if ok {
+		return ke.Key == otherKey.Key &&
+			ke.DataType == otherKey.DataType &&
+			ke.Encrypted == otherKey.Encrypted &&
+			ke.Validator == otherKey.Validator &&
+			ke.Trigger == otherKey.Trigger
+	}
+	return false
 }
 
 type ValueEntity struct {
@@ -94,10 +112,24 @@ func (ve *ValueEntity) Table() string {
 	return tlbValues
 }
 
+func (ve *ValueEntity) Equal(other db.DatabaseEntity) bool {
+	if other == nil {
+		return false
+	}
+	otherValue, ok := other.(*ValueEntity)
+	if ok {
+		return ve.Bucket == otherValue.Bucket &&
+			ve.Key == otherValue.Key &&
+			ve.KeyVersion == otherValue.KeyVersion &&
+			ve.Value == otherValue.Value
+	}
+	return false
+}
+
 type BucketEntity struct {
-	Bucket   string    `db:"notNull"`
+	Bucket   string    `db:"readOnly"`
 	Created  time.Time `db:"readOnly"`
-	Username string    `db:"notNull"`
+	Username string    `db:"readOnly"`
 }
 
 func (b *BucketEntity) String() string {
@@ -119,4 +151,15 @@ func (b *BucketEntity) Synchronizer() *db.EntitySynchronizer {
 
 func (b *BucketEntity) Table() string {
 	return tlbValues
+}
+
+func (b *BucketEntity) Equal(other db.DatabaseEntity) bool {
+	if other == nil {
+		return false
+	}
+	otherBucket, ok := other.(*BucketEntity)
+	if ok {
+		return b.Bucket == otherBucket.Bucket
+	}
+	return false
 }

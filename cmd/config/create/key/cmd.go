@@ -18,31 +18,61 @@ func NewCmd(o *Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&o.DataType, "data-type", "", fmt.Sprintf("Define data-type of the key (supported types are %s, %s, %s)",
+	cmd.Flags().StringVar(&o.DataType, "data-type", "string", fmt.Sprintf("Define data-type of the key (supported types are %s, %s, %s)",
 		config.String, config.Integer, config.Boolean))
-
-	if err := cobra.MarkFlagRequired(cmd.Flags(), "data-type"); err != nil {
-		panic(err) //would be an obvious bug and has to lead to a panic
-	}
+	cmd.Flags().BoolVar(&o.Encrypted, "encrypted", true, "Key values have to be encrypted")
+	cmd.Flags().StringVar(&o.Validator, "validator", "", "Validator logic executed when setting a new value")
+	cmd.Flags().StringVar(&o.Trigger, "trigger", "", "Trigger function executed when a value was added/changed")
 
 	return cmd
 }
 
 func Run(o *Options, keys []string) error {
-	if err := o.Validate(); err != nil {
-		return err
-	}
-
+	var newKey *config.KeyEntity
 	for _, key := range keys {
-		_, err := o.Repository().LatestKey(key)
-		if err == nil {
-			//update
+		existingKey, err := o.Repository().LatestKey(key)
+		if err == nil { //key found: update it
+			newKey, err = updateKey(o, existingKey)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Key '%s' updated (version: %d)\n", newKey.Key, newKey.Version)
+		} else if config.IsNotFoundError(err) { //key doesn't exist: create it
+			newKey, err = createKey(o, key)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Key '%s' created\n", newKey.Key)
+		} else { //got unexpected error
+			return err
 		}
-		if config.IsNotFoundError(err) {
-			//create
-		}
-		return err
 	}
-
 	return nil
+}
+
+func updateKey(o *Options, existingKey *config.KeyEntity) (*config.KeyEntity, error) {
+	dt, err := config.NewDataType(o.DataType)
+	if err != nil {
+		return nil, err
+	}
+	existingKey.DataType = dt
+	existingKey.Encrypted = o.Encrypted
+	existingKey.Trigger = o.Trigger
+	existingKey.Validator = o.Validator
+	return o.Repository().CreateKey(existingKey)
+}
+
+func createKey(o *Options, key string) (*config.KeyEntity, error) {
+	dt, err := config.NewDataType(o.DataType)
+	if err != nil {
+		return nil, err
+	}
+	return o.Repository().CreateKey(&config.KeyEntity{
+		Key:       key,
+		DataType:  dt,
+		Encrypted: o.Encrypted,
+		Validator: o.Validator,
+		Trigger:   o.Trigger,
+		Username:  "!TODO!", //FIXME
+	})
 }

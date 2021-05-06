@@ -92,7 +92,7 @@ func (o *Options) initRepository() *config.ConfigEntryRepository {
 	if o.connectionFactory == nil {
 		o.Logger().Error("Failed to create configuration entry repository because connection factory is undefined")
 	}
-	o.repository, err = config.NewConfigEntryRepository(o.connectionFactory)
+	o.repository, err = config.NewConfigEntryRepository(o.connectionFactory, o.Verbose)
 	if err != nil {
 		o.Logger().Error(fmt.Sprintf("Failed to create configuration entry repository: %s", err))
 	}
