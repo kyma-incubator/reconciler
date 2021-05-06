@@ -31,7 +31,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 			}
 
 			//init db connection factory if cmd (or sub-cmd) has a run-method
-			dbConnFact, err := initDbConnectionFactory()
+			dbConnFact, err := initDbConnectionFactory(o)
 			if err != nil {
 				return err
 			}
@@ -92,7 +92,7 @@ func initViper(o *cli.Options) func() {
 	}
 }
 
-func initDbConnectionFactory() (db.ConnectionFactory, error) {
+func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
 	dbDriver := viper.GetString("config.db.driver")
 	if dbDriver == "" {
 		return nil, fmt.Errorf("No database driver defined")
@@ -107,6 +107,7 @@ func initDbConnectionFactory() (db.ConnectionFactory, error) {
 			User:     viper.GetString("config.db.postgres.user"),
 			Password: viper.GetString("config.db.postgres.password"),
 			SslMode:  viper.GetBool("config.db.postgres.sslMode"),
+			Debug:    o.Verbose,
 		}, nil
 	default:
 		return nil, fmt.Errorf("Database driver '%s' not supported yet", dbDriver)
