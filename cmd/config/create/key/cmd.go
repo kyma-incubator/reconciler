@@ -28,38 +28,14 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options, keys []string) error {
-	var newKey *config.KeyEntity
 	for _, key := range keys {
-		existingKey, err := o.Repository().LatestKey(key)
-		if err == nil { //key found: update it
-			newKey, err = updateKey(o, existingKey)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Key '%s' updated (version: %d)\n", newKey.Key, newKey.Version)
-		} else if config.IsNotFoundError(err) { //key doesn't exist: create it
-			newKey, err = createKey(o, key)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Key '%s' created\n", newKey.Key)
-		} else { //got unexpected error
+		newKey, err := createKey(o, key)
+		if err != nil {
 			return err
 		}
+		fmt.Printf("Key '%s' created\n", newKey.Key)
 	}
 	return nil
-}
-
-func updateKey(o *Options, existingKey *config.KeyEntity) (*config.KeyEntity, error) {
-	dt, err := config.NewDataType(o.DataType)
-	if err != nil {
-		return nil, err
-	}
-	existingKey.DataType = dt
-	existingKey.Encrypted = o.Encrypted
-	existingKey.Trigger = o.Trigger
-	existingKey.Validator = o.Validator
-	return o.Repository().CreateKey(existingKey)
 }
 
 func createKey(o *Options, key string) (*config.KeyEntity, error) {
