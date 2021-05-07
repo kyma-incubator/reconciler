@@ -5,4 +5,4 @@ If you change the DDL for Postgres, please reflect the changes also in the SQLit
 
 `$reconciler/pkg/config/test/configuration-management.sql`
 
-**Thanks you! :)**
+**Thank you! :)**
