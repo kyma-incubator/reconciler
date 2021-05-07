@@ -188,13 +188,16 @@ func (cer *EntryRepository) DeleteKey(key string) error {
 	}
 
 	//run db-operations transactional
+	cer.logger.Debug("Begin transactional DB context")
 	tx, err := cer.conn.Begin()
 	if err != nil {
 		return err
 	}
 	if err := dbOps(); err != nil {
+		cer.logger.Debug("Rollback transactional DB context")
 		return errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", tx.Rollback()))
 	}
+	cer.logger.Debug("Commit transactional DB context")
 	return tx.Commit()
 }
 
