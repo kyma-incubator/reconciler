@@ -54,14 +54,36 @@ func (es *EntitySynchronizer) setFieldValue(field *structs.Field, rawValue inter
 	var err error
 	switch field.Kind() {
 	case reflect.Int64:
-		err = field.Set(rawValue.(int64))
+		int64Value, ok := rawValue.(int64)
+		if !ok {
+			return es.fireCastError(reflect.Int64, field, rawValue)
+		}
+		err = field.Set(int64Value)
 	case reflect.Bool:
-		err = field.Set(rawValue.(bool))
+		//some DBs handle booleans als integer values (0/1)
+		boolValue, ok := rawValue.(bool)
+		if !ok {
+			int64Value, ok := rawValue.(int64)
+			if !ok {
+				return es.fireCastError(reflect.Bool, field, rawValue)
+			}
+			boolValue = (int64Value > 0)
+		}
+		err = field.Set(boolValue)
 	case reflect.String:
-		err = field.Set(rawValue.(string))
+		stringValue, ok := rawValue.(string)
+		if !ok {
+			return es.fireCastError(reflect.String, field, rawValue)
+		}
+		err = field.Set(stringValue)
 	default:
 		err = fmt.Errorf("Cannot synchronize field '%s' because type '%s' is not supported (value was '%s')",
 			field.Name(), field.Kind(), rawValue)
 	}
 	return err
+}
+
+func (es *EntitySynchronizer) fireCastError(kind reflect.Kind, field *structs.Field, rawValue interface{}) error {
+	return fmt.Errorf("Failed to convert value from DB to %s: got '%v' as value for entity field '%s'",
+		kind.String(), rawValue, field.Name())
 }

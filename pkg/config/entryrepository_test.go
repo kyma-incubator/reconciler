@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io/ioutil"
 	"testing"
 	"time"
 
@@ -9,18 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newRepo(t *testing.T) *EntryRepository {
-	ceRepo, err := NewEntryRepository(&db.PostgresConnectionFactory{
-		Host:     "localhost",
-		Port:     5432,
-		Database: "kyma",
-		User:     "kyma",
-		Password: "kyma",
-		Debug:    true,
-	}, true)
-	require.NoError(t, err)
-	return ceRepo
-}
+const database = "sqlite" //supported DB types are 'postgres' and 'sqlite'
+
 func TestEntryRepositoryKeys(t *testing.T) {
 	var err error
 	ceRepo := newRepo(t)
@@ -316,4 +307,49 @@ func TestEntryRepositoryValues(t *testing.T) {
 			require.NotContains(t, bucketNamesGot, bucketNameNotExpected)
 		}
 	})
+}
+
+func newRepo(t *testing.T) *EntryRepository {
+	ceRepo, err := NewEntryRepository(newConnectionFactory(), true)
+	require.NoError(t, err)
+	return ceRepo
+}
+
+func newConnectionFactory() db.ConnectionFactory {
+	switch database {
+	case "postgres":
+		return &db.PostgresConnectionFactory{
+			Host:     "localhost",
+			Port:     5432,
+			Database: "kyma",
+			User:     "kyma",
+			Password: "kyma",
+			Debug:    true,
+		}
+	case "sqlite":
+		conFac := &db.SqliteConnectionFactory{
+			File:  "./test/entryrepository-test.db",
+			Debug: true,
+		}
+		//get connection
+		conn, err := conFac.NewConnection()
+		if err != nil {
+			panic(err)
+		}
+
+		//read DDL (test-table structure)
+		ddl, err := ioutil.ReadFile("./test/configuration-management.sql")
+		if err != nil {
+			panic(err)
+		}
+
+		//populate DB schema
+		_, err = conn.Exec(string(ddl))
+		if err != nil {
+			panic(err)
+		}
+		return conFac
+	default:
+		panic(fmt.Sprintf("DB type '%s' not supported", database))
+	}
 }

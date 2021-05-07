@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -56,9 +57,7 @@ func (ke *KeyEntity) Synchronizer() *db.EntitySynchronizer {
 	syncer.AddConverter("DataType", func(value interface{}) (interface{}, error) {
 		return NewDataType(value.(string))
 	})
-	syncer.AddConverter("Created", func(value interface{}) (interface{}, error) {
-		return value, nil
-	})
+	syncer.AddConverter("Created", createdToTime)
 	return syncer
 }
 
@@ -102,9 +101,7 @@ func (ve *ValueEntity) New() db.DatabaseEntity {
 
 func (ve *ValueEntity) Synchronizer() *db.EntitySynchronizer {
 	syncer := db.NewEntitySynchronizer(&ve)
-	syncer.AddConverter("Created", func(value interface{}) (interface{}, error) {
-		return value, nil
-	})
+	syncer.AddConverter("Created", createdToTime)
 	return syncer
 }
 
@@ -143,9 +140,7 @@ func (b *BucketEntity) New() db.DatabaseEntity {
 
 func (b *BucketEntity) Synchronizer() *db.EntitySynchronizer {
 	syncer := db.NewEntitySynchronizer(&b)
-	syncer.AddConverter("Created", func(value interface{}) (interface{}, error) {
-		return value, nil
-	})
+	syncer.AddConverter("Created", createdToTime)
 	return syncer
 }
 
@@ -162,4 +157,16 @@ func (b *BucketEntity) Equal(other db.DatabaseEntity) bool {
 		return b.Bucket == otherBucket.Bucket
 	}
 	return false
+}
+
+func createdToTime(value interface{}) (interface{}, error) {
+	if reflect.TypeOf(value).Kind() == reflect.String {
+		layout := "2006-02-01 15:04:05"
+		return time.Parse(layout, value.(string))
+	}
+	if time, ok := value.(time.Time); ok {
+		return time, nil
+	}
+	return nil, fmt.Errorf("Failed to convert value '%s' (kind: %s) for field 'Created' to Time struct",
+		value, reflect.TypeOf(value).Kind())
 }
