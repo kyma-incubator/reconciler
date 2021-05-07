@@ -6,6 +6,7 @@ import (
 
 	createCmd "github.com/kyma-incubator/reconciler/cmd/config/create"
 	createKeyCmd "github.com/kyma-incubator/reconciler/cmd/config/create/key"
+	createValueCmd "github.com/kyma-incubator/reconciler/cmd/config/create/value"
 	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
 	getBucketCmd "github.com/kyma-incubator/reconciler/cmd/config/get/bucket"
 	getKeyCmd "github.com/kyma-incubator/reconciler/cmd/config/get/key"
@@ -67,6 +68,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	createCmd := createCmd.NewCmd(o)
 	cmd.AddCommand(createCmd)
 	createCmd.AddCommand(createKeyCmd.NewCmd(createKeyCmd.NewOptions(o)))
+	createCmd.AddCommand(createValueCmd.NewCmd(createValueCmd.NewOptions(o)))
 
 	return cmd
 }

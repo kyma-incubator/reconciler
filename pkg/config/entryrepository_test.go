@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newRepo(t *testing.T) *ConfigEntryRepository {
-	ceRepo, err := NewConfigEntryRepository(&db.PostgresConnectionFactory{
+func newRepo(t *testing.T) *EntryRepository {
+	ceRepo, err := NewEntryRepository(&db.PostgresConnectionFactory{
 		Host:     "localhost",
 		Port:     5432,
 		Database: "kyma",
