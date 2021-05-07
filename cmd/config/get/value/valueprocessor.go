@@ -5,12 +5,12 @@ import (
 )
 
 type valueProcessor struct {
-	repo   *config.ConfigEntryRepository
+	repo   *config.EntryRepository
 	values []*config.ValueEntity
 	err    error
 }
 
-func newValueProcessor(repo *config.ConfigEntryRepository, key *config.KeyEntity) (*valueProcessor, error) {
+func newValueProcessor(repo *config.EntryRepository, key *config.KeyEntity) (*valueProcessor, error) {
 	var err error
 	valueProcessor := &valueProcessor{
 		repo: repo,
