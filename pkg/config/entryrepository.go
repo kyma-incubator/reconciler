@@ -139,6 +139,21 @@ func (cer *EntryRepository) LatestKey(key string) (*KeyEntity, error) {
 	return entity.(*KeyEntity), nil
 }
 
+func (cer *EntryRepository) KeyByVersion(version int64) (*KeyEntity, error) {
+	q, err := db.NewQuery(cer.conn, &KeyEntity{})
+	if err != nil {
+		return nil, err
+	}
+	whereCond := map[string]interface{}{"Version": version}
+	entity, err := q.Select().
+		Where(whereCond).
+		GetOne()
+	if err != nil {
+		return nil, cer.handleNotFoundError(err, &KeyEntity{}, whereCond)
+	}
+	return entity.(*KeyEntity), nil
+}
+
 func (cer *EntryRepository) Key(key string, version int64) (*KeyEntity, error) {
 	q, err := db.NewQuery(cer.conn, &KeyEntity{})
 	if err != nil {

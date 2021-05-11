@@ -102,8 +102,14 @@ func TestEntryRepositoryKeys(t *testing.T) {
 		require.True(t, IsNotFoundError(err))
 	})
 
-	t.Run("Get key with version", func(t *testing.T) {
+	t.Run("Get key by id and version", func(t *testing.T) {
 		keyEntity, err := ceRepo.Key(keyIDs[0], key1Versions[1])
+		require.NoError(t, err)
+		require.Equal(t, key1Versions[1], keyEntity.Version)
+	})
+
+	t.Run("Get key by version", func(t *testing.T) {
+		keyEntity, err := ceRepo.KeyByVersion(key1Versions[1])
 		require.NoError(t, err)
 		require.Equal(t, key1Versions[1], keyEntity.Version)
 	})

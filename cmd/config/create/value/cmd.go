@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/config"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -31,20 +30,14 @@ func NewCmd(o *Options) *cobra.Command {
 	if err := cobra.MarkFlagRequired(cmd.Flags(), "bucket"); err != nil {
 		panic(err) //would be an obvious bug and has to lead to a panic
 	}
-	if err := cobra.MarkFlagRequired(cmd.Flags(), "key"); err != nil {
-		panic(err) //would be an obvious bug and has to lead to a panic
-	}
-	if err := cobra.MarkFlagRequired(cmd.Flags(), "key-version"); err != nil {
-		panic(err) //would be an obvious bug and has to lead to a panic
-	}
 
 	return cmd
 }
 
 func Run(o *Options, val string) error {
-	key, err := o.Repository().Key(o.Key, o.KeyVersion)
+	key, err := getKey(o)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed to retrieve key '%s' (version %d)", o.Key, o.KeyVersion))
+		return err
 	}
 	value, err := o.Repository().CreateValue(&config.ValueEntity{
 		Bucket:     o.Bucket,
@@ -59,4 +52,17 @@ func Run(o *Options, val string) error {
 
 	fmt.Printf("Value '%s' created (bucket: %s / key: %s - version %d)\n", value.Value, value.Bucket, value.Key, value.KeyVersion)
 	return nil
+}
+
+func getKey(o *Options) (*config.KeyEntity, error) {
+	if o.Key != "" && o.KeyVersion > 0 {
+		return o.Repository().Key(o.Key, o.KeyVersion)
+	}
+	if o.KeyVersion > 0 {
+		return o.Repository().KeyByVersion(o.KeyVersion)
+	}
+	if o.Key != "" {
+		return o.Repository().LatestKey(o.Key)
+	}
+	return nil, fmt.Errorf("Cannot resolve key: please provide either key, key-version or both")
 }
