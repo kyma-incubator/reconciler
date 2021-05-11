@@ -19,6 +19,9 @@ func NewOptions(o *cli.Options) *Options {
 }
 
 func (o *Options) Validate() error {
+	if err := o.Options.Validate(); err != nil {
+		return err
+	}
 	if o.Bucket == "" {
 		return fmt.Errorf("Bucket has to be specified")
 	}
