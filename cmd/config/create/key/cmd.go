@@ -24,6 +24,10 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().StringVar(&o.Validator, "validator", "", "Validator logic executed when setting a new value")
 	cmd.Flags().StringVar(&o.Trigger, "trigger", "", "Trigger function executed when a value was added/changed")
 
+	if err := cobra.MarkFlagRequired(cmd.Flags(), "data-type"); err != nil {
+		panic(err) //would be an obvious bug and has to lead to a panic
+	}
+
 	return cmd
 }
 
