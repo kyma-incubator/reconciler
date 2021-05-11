@@ -17,7 +17,11 @@ import (
 	"github.com/spf13/viper"
 )
 
-var configFile string
+const (
+	envVarPrefix = "RECONCILER" //TBC: stay with this name?
+)
+
+var defaultConfigFile string
 
 func NewCmd(o *cli.Options) *cobra.Command {
 
@@ -52,7 +56,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	cobra.OnInitialize(initViper(o))
 
 	//set options
-	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "reconiler.yaml", `Path to the configuration file.`)
+	cmd.PersistentFlags().StringVarP(&defaultConfigFile, "config", "c", "reconciler.yaml", `Path to the configuration file.`)
 	cmd.PersistentFlags().BoolVarP(&o.Verbose, "verbose", "v", false, "Show detailed information about the executed command actions.")
 	cmd.PersistentFlags().BoolVar(&o.NonInteractive, "non-interactive", false, "Enables the non-interactive shell mode")
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
@@ -76,26 +80,35 @@ func NewCmd(o *cli.Options) *cobra.Command {
 func initViper(o *cli.Options) func() {
 	return func() {
 		//read configuration from ENV vars
-		viper.SetEnvPrefix("RECONF_") //TODO: stay with this name?
+		viper.SetEnvPrefix(envVarPrefix)
 		viper.AutomaticEnv()
 
 		//read configuration from config file
-		if _, err := os.Stat(configFile); os.IsNotExist(err) {
-			o.Logger().Error(fmt.Sprintf("Configuration file '%s' not found", configFile))
-		} else {
-			viper.SetConfigFile(configFile)
-			if err := viper.ReadInConfig(); err == nil {
-				o.Logger().Debug(fmt.Sprintf("Using configuration file '%s'", viper.ConfigFileUsed()))
-			} else {
-				o.Logger().Error(fmt.Sprintf("Failed to read configuration file '%s': %s", configFile, err))
-			}
+		cfgFile := getConfigFile()
+		if !fileExists(cfgFile) {
+			o.Logger().Warn(fmt.Sprintf("Configuration file '%s' not found", cfgFile))
+			return
 		}
 
+		viper.SetConfigFile(cfgFile)
+		if err := viper.ReadInConfig(); err == nil {
+			o.Logger().Debug(fmt.Sprintf("Using configuration file '%s'", viper.ConfigFileUsed()))
+		} else {
+			o.Logger().Error(fmt.Sprintf("Failed to read configuration file '%s': %s", cfgFile, err))
+		}
 	}
 }
 
+func getConfigFile() string {
+	configFileEnv := viper.GetString("config")
+	if fileExists(configFileEnv) {
+		return configFileEnv
+	}
+	return defaultConfigFile
+}
+
 func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
-	dbDriver := viper.GetString("config.db.driver")
+	dbDriver := viper.GetString("configManagement.db.driver")
 	if dbDriver == "" {
 		return nil, fmt.Errorf("No database driver defined")
 	}
@@ -103,15 +116,20 @@ func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
 	switch dbDriver {
 	case "postgres":
 		return &db.PostgresConnectionFactory{
-			Host:     viper.GetString("config.db.postgres.host"),
-			Port:     viper.GetInt("config.db.postgres.port"),
-			Database: viper.GetString("config.db.postgres.database"),
-			User:     viper.GetString("config.db.postgres.user"),
-			Password: viper.GetString("config.db.postgres.password"),
-			SslMode:  viper.GetBool("config.db.postgres.sslMode"),
+			Host:     viper.GetString("configManagement.db.postgres.host"),
+			Port:     viper.GetInt("configManagement.db.postgres.port"),
+			Database: viper.GetString("configManagement.db.postgres.database"),
+			User:     viper.GetString("configManagement.db.postgres.user"),
+			Password: viper.GetString("configManagement.db.postgres.password"),
+			SslMode:  viper.GetBool("configManagement.db.postgres.sslMode"),
 			Debug:    o.Verbose,
 		}, nil
 	default:
 		return nil, fmt.Errorf("Database driver '%s' not supported yet", dbDriver)
 	}
+}
+
+func fileExists(file string) bool {
+	_, err := os.Stat(file)
+	return !os.IsNotExist(err)
 }

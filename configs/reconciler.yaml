@@ -1,4 +1,4 @@
-config:
+configManagement:
   db:
     driver: postgres
     postgres:
