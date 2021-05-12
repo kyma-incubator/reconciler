@@ -64,7 +64,7 @@ fmt.Sprintf("foo=%s | x=%d | y=%t", foo, x, y)
 `)
 		_, err := goInt.EvalBool()
 		require.Error(t, err)
-		require.Equal(t, (&NoBooleanResultError{Result: "xyz"}).Error(), err.Error())
+		require.True(t, IsNoBooleanResultError(err))
 	})
 
 	t.Run("Invalid binding", func(t *testing.T) {
@@ -84,7 +84,7 @@ os.GetEnv("ABC")
 `)
 		_, err := goInt.Eval()
 		require.Error(t, err)
-		require.Equal(t, (&BlockedImportError{BlockedImport: `import "os"`}).Error(), err.Error())
+		require.True(t, IsBlockedImportError(err))
 	})
 
 	t.Run("Block denied import (multi line)", func(t *testing.T) {
@@ -97,7 +97,7 @@ os.GetEnv("ABC")
 `)
 		_, err := goInt.Eval()
 		require.Error(t, err)
-		require.Equal(t, (&BlockedImportError{BlockedImport: `import (`}).Error(), err.Error())
+		require.True(t, IsBlockedImportError(err))
 	})
 
 }

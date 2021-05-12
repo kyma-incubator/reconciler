@@ -134,10 +134,18 @@ func (e *BlockedImportError) Error() string {
 	return fmt.Sprintf("Blocking import statement '%s': only these packages are allowed '%s'", e.BlockedImport, allowedPackages)
 }
 
+func IsBlockedImportError(err error) bool {
+	return reflect.TypeOf(err) == reflect.TypeOf(&BlockedImportError{})
+}
+
 type NoBooleanResultError struct {
 	Result interface{}
 }
 
 func (e *NoBooleanResultError) Error() string {
 	return fmt.Sprintf("Result '%v' cannot be casted to boolean", e.Result)
+}
+
+func IsNoBooleanResultError(err error) bool {
+	return reflect.TypeOf(err) == reflect.TypeOf(&NoBooleanResultError{})
 }

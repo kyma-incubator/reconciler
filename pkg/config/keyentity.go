@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -11,11 +12,9 @@ import (
 )
 
 const (
-	String    DataType = "string"
-	Integer   DataType = "integer"
-	Boolean   DataType = "boolean"
-	tblKeys   string   = "config_keys"
-	tlbValues string   = "config_values"
+	String  DataType = "string"
+	Integer DataType = "integer"
+	Boolean DataType = "boolean"
 )
 
 type DataType string
@@ -51,7 +50,7 @@ func (ke *KeyEntity) Validate(value string) error {
 	//ensure data type
 	switch ke.DataType {
 	case Boolean:
-		typedValue, err = strconv.ParseBool(value)
+		typedValue, err = strconv.ParseBool(strings.ToLower(value))
 		if err != nil {
 			return ke.fireParseError(value)
 		}
@@ -60,6 +59,8 @@ func (ke *KeyEntity) Validate(value string) error {
 		if err != nil {
 			return ke.fireParseError(value)
 		}
+	default:
+		typedValue = value
 	}
 
 	//run validator logic for value
@@ -71,7 +72,12 @@ func (ke *KeyEntity) Validate(value string) error {
 			return err
 		}
 		if !result {
-			return fmt.Errorf("Validation defined in key '%s' failed for value '%s'", ke.Key, value)
+			return ValidatorError{
+				Key:       ke.Key,
+				Value:     value,
+				Validator: ke.Validator,
+				Result:    result,
+			}
 		}
 	}
 
@@ -117,4 +123,19 @@ func (ke *KeyEntity) Equal(other db.DatabaseEntity) bool {
 			ke.Trigger == otherKey.Trigger
 	}
 	return false
+}
+
+type ValidatorError struct {
+	Validator string
+	Result    interface{}
+	Key       string
+	Value     string
+}
+
+func (err ValidatorError) Error() string {
+	return fmt.Sprintf("Validation defined in key '%s' failed for value '%s':\n%s = %v", err.Key, err.Value, err.Validator, err.Result)
+}
+
+func IsValidatorError(err error) bool {
+	return reflect.TypeOf(err) == reflect.TypeOf(&ValidatorError{})
 }

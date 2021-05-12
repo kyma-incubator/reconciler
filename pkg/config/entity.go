@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+const (
+	tblKeys   string = "config_keys"
+	tlbValues string = "config_values"
+)
+
 //convertTimestampToTime is converting the value of timestamp db-column to a Time instance
 func convertTimestampToTime(value interface{}) (interface{}, error) {
 	if reflect.TypeOf(value).Kind() == reflect.String {
