@@ -7,12 +7,12 @@ import (
 )
 
 type keyProcessor struct {
-	repo *config.EntryRepository
+	repo *config.KeyValueRepository
 	keys []*config.KeyEntity
 	err  error
 }
 
-func newKeyProcessor(repo *config.EntryRepository) (*keyProcessor, error) {
+func newKeyProcessor(repo *config.KeyValueRepository) (*keyProcessor, error) {
 	var err error
 	keyProcessor := &keyProcessor{
 		repo: repo,

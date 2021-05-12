@@ -20,7 +20,7 @@ type Options struct {
 	OutputFormat      string
 	connectionFactory db.ConnectionFactory
 	logger            *zap.Logger
-	repository        *config.EntryRepository
+	repository        *config.KeyValueRepository
 }
 
 func (o *Options) Init(dbConnFact db.ConnectionFactory) {
@@ -78,21 +78,21 @@ func (o *Options) initLogger() *zap.Logger {
 	return o.logger
 }
 
-func (o *Options) Repository() *config.EntryRepository {
+func (o *Options) Repository() *config.KeyValueRepository {
 	if o.repository != nil {
 		return o.repository
 	}
 	return o.initRepository()
 }
 
-func (o *Options) initRepository() *config.EntryRepository {
+func (o *Options) initRepository() *config.KeyValueRepository {
 	var err error
 
 	repoMutex.Lock()
 	if o.connectionFactory == nil {
 		o.Logger().Error("Failed to create configuration entry repository because connection factory is undefined")
 	}
-	o.repository, err = config.NewEntryRepository(o.connectionFactory, o.Verbose)
+	o.repository, err = config.NewKeyValueRepository(o.connectionFactory, o.Verbose)
 	if err != nil {
 		o.Logger().Error(fmt.Sprintf("Failed to create configuration entry repository: %s", err))
 	}

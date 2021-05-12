@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEntryRepositoryKeys(t *testing.T) {
+func TestKeyValueRepositoryKeys(t *testing.T) {
 	var err error
 	ceRepo := newRepo(t)
 
@@ -134,7 +134,7 @@ func TestEntryRepositoryKeys(t *testing.T) {
 	})
 }
 
-func TestEntryRepositoryValues(t *testing.T) {
+func TestConfigConfigRepositoryValues(t *testing.T) {
 	var err error
 	ceRepo := newRepo(t)
 
@@ -314,10 +314,10 @@ func TestEntryRepositoryValues(t *testing.T) {
 	})
 }
 
-func newRepo(t *testing.T) *EntryRepository {
+func newRepo(t *testing.T) *KeyValueRepository {
 	connFact, err := newConnectionFactory()
 	require.NoError(t, err)
-	ceRepo, err := NewEntryRepository(connFact, true)
+	ceRepo, err := NewKeyValueRepository(connFact, true)
 	require.NoError(t, err)
 	return ceRepo
 }

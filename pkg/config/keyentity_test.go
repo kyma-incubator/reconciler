@@ -25,7 +25,7 @@ func TestKeyEntity(t *testing.T) {
 		}
 		err := key.Validate("abc")
 		require.Error(t, err)
-		require.True(t, IsValidatorError(err))
+		require.True(t, IsInvalidValueError(err))
 	})
 
 	t.Run("Validate valid integer", func(t *testing.T) {
@@ -46,7 +46,7 @@ func TestKeyEntity(t *testing.T) {
 		}
 		err := key.Validate("abc")
 		require.Error(t, err)
-		require.True(t, IsValidatorError(err))
+		require.False(t, IsInvalidValueError(err)) //is code error
 	})
 
 	t.Run("Validate valid boolean", func(t *testing.T) {
@@ -67,6 +67,6 @@ func TestKeyEntity(t *testing.T) {
 		}
 		err := key.Validate("TRUEE")
 		require.Error(t, err)
-		require.True(t, IsValidatorError(err))
+		require.False(t, IsInvalidValueError(err)) //is code error
 	})
 }

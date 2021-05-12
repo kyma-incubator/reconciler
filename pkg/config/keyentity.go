@@ -72,7 +72,7 @@ func (ke *KeyEntity) Validate(value string) error {
 			return err
 		}
 		if !result {
-			return ValidatorError{
+			return &InvalidValueError{
 				Key:       ke.Key,
 				Value:     value,
 				Validator: ke.Validator,
@@ -125,17 +125,17 @@ func (ke *KeyEntity) Equal(other db.DatabaseEntity) bool {
 	return false
 }
 
-type ValidatorError struct {
+type InvalidValueError struct {
 	Validator string
 	Result    interface{}
 	Key       string
 	Value     string
 }
 
-func (err ValidatorError) Error() string {
+func (err InvalidValueError) Error() string {
 	return fmt.Sprintf("Validation defined in key '%s' failed for value '%s':\n%s = %v", err.Key, err.Value, err.Validator, err.Result)
 }
 
-func IsValidatorError(err error) bool {
-	return reflect.TypeOf(err) == reflect.TypeOf(&ValidatorError{})
+func IsInvalidValueError(err error) bool {
+	return reflect.TypeOf(err) == reflect.TypeOf(&InvalidValueError{})
 }

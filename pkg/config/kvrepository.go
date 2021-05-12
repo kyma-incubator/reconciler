@@ -1,68 +1,25 @@
 package config
 
 import (
-	"bytes"
-	"database/sql"
 	"fmt"
-	"reflect"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
-type EntityNotFoundError struct {
-	entity     db.DatabaseEntity
-	identifier map[string]interface{}
+type KeyValueRepository struct {
+	*Repository
 }
 
-func (e *EntityNotFoundError) Error() string {
-	var idents bytes.Buffer
-	if e.identifier != nil {
-		for k, v := range e.identifier {
-			if idents.Len() > 0 {
-				idents.WriteRune(',')
-			}
-			idents.WriteString(fmt.Sprintf("%s=%v", k, v))
-		}
-	}
-	return fmt.Sprintf("Entity of type '%T' with identifier '%v' not found", e.entity, idents.String())
-}
-
-type EntryRepository struct {
-	conn   db.Connection
-	logger *zap.Logger
-}
-
-func NewEntryRepository(dbFac db.ConnectionFactory, debug bool) (*EntryRepository, error) {
-	logger, err := logger.NewLogger(debug)
+func NewKeyValueRepository(dbFac db.ConnectionFactory, debug bool) (*KeyValueRepository, error) {
+	repo, err := NewRepository(dbFac, debug)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := dbFac.NewConnection()
-	return &EntryRepository{
-		conn:   conn,
-		logger: logger,
-	}, err
+	return &KeyValueRepository{repo}, nil
 }
 
-func IsNotFoundError(err error) bool {
-	return reflect.TypeOf(err) == reflect.TypeOf(&EntityNotFoundError{})
-}
-
-func (cer *EntryRepository) handleNotFoundError(err error, entity db.DatabaseEntity,
-	identifier map[string]interface{}) error {
-	if err == sql.ErrNoRows {
-		return &EntityNotFoundError{
-			entity:     entity,
-			identifier: identifier,
-		}
-	}
-	return err
-}
-
-func (cer *EntryRepository) Keys() ([]*KeyEntity, error) {
+func (cer *KeyValueRepository) Keys() ([]*KeyEntity, error) {
 	entity := &KeyEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
@@ -101,7 +58,7 @@ func (cer *EntryRepository) Keys() ([]*KeyEntity, error) {
 	return result, nil
 }
 
-func (cer *EntryRepository) KeyHistory(key string) ([]*KeyEntity, error) {
+func (cer *KeyValueRepository) KeyHistory(key string) ([]*KeyEntity, error) {
 	entity := &KeyEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
@@ -122,7 +79,7 @@ func (cer *EntryRepository) KeyHistory(key string) ([]*KeyEntity, error) {
 	return result, nil
 }
 
-func (cer *EntryRepository) LatestKey(key string) (*KeyEntity, error) {
+func (cer *KeyValueRepository) LatestKey(key string) (*KeyEntity, error) {
 	q, err := db.NewQuery(cer.conn, &KeyEntity{})
 	if err != nil {
 		return nil, err
@@ -139,7 +96,7 @@ func (cer *EntryRepository) LatestKey(key string) (*KeyEntity, error) {
 	return entity.(*KeyEntity), nil
 }
 
-func (cer *EntryRepository) KeyByVersion(version int64) (*KeyEntity, error) {
+func (cer *KeyValueRepository) KeyByVersion(version int64) (*KeyEntity, error) {
 	q, err := db.NewQuery(cer.conn, &KeyEntity{})
 	if err != nil {
 		return nil, err
@@ -154,7 +111,7 @@ func (cer *EntryRepository) KeyByVersion(version int64) (*KeyEntity, error) {
 	return entity.(*KeyEntity), nil
 }
 
-func (cer *EntryRepository) Key(key string, version int64) (*KeyEntity, error) {
+func (cer *KeyValueRepository) Key(key string, version int64) (*KeyEntity, error) {
 	q, err := db.NewQuery(cer.conn, &KeyEntity{})
 	if err != nil {
 		return nil, err
@@ -169,7 +126,7 @@ func (cer *EntryRepository) Key(key string, version int64) (*KeyEntity, error) {
 	return entity.(*KeyEntity), nil
 }
 
-func (cer *EntryRepository) CreateKey(key *KeyEntity) (*KeyEntity, error) {
+func (cer *KeyValueRepository) CreateKey(key *KeyEntity) (*KeyEntity, error) {
 	q, err := db.NewQuery(cer.conn, key)
 	if err != nil {
 		return nil, err
@@ -185,7 +142,7 @@ func (cer *EntryRepository) CreateKey(key *KeyEntity) (*KeyEntity, error) {
 	return key, q.Insert().Exec()
 }
 
-func (cer *EntryRepository) DeleteKey(key string) error {
+func (cer *KeyValueRepository) DeleteKey(key string) error {
 	//bundle DB operations
 	dbOps := func() error {
 		if err := cer.deleteValuesByKey(key); err != nil {
@@ -216,7 +173,7 @@ func (cer *EntryRepository) DeleteKey(key string) error {
 	return tx.Commit()
 }
 
-func (cer *EntryRepository) ValuesByBucket(bucket *BucketEntity) ([]*ValueEntity, error) {
+func (cer *KeyValueRepository) ValuesByBucket(bucket *BucketEntity) ([]*ValueEntity, error) {
 	entity := &ValueEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
@@ -259,7 +216,7 @@ func (cer *EntryRepository) ValuesByBucket(bucket *BucketEntity) ([]*ValueEntity
 	return result, nil
 }
 
-func (cer *EntryRepository) ValuesByKey(key *KeyEntity) ([]*ValueEntity, error) {
+func (cer *KeyValueRepository) ValuesByKey(key *KeyEntity) ([]*ValueEntity, error) {
 	entity := &ValueEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
@@ -306,7 +263,7 @@ func (cer *EntryRepository) ValuesByKey(key *KeyEntity) ([]*ValueEntity, error) 
 	return result, nil
 }
 
-func (cer *EntryRepository) ValueHistory(bucket, key string) ([]*ValueEntity, error) {
+func (cer *KeyValueRepository) ValueHistory(bucket, key string) ([]*ValueEntity, error) {
 	entity := &ValueEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
@@ -327,7 +284,7 @@ func (cer *EntryRepository) ValueHistory(bucket, key string) ([]*ValueEntity, er
 	return result, nil
 }
 
-func (cer *EntryRepository) LatestValue(bucket, key string) (*ValueEntity, error) {
+func (cer *KeyValueRepository) LatestValue(bucket, key string) (*ValueEntity, error) {
 	q, err := db.NewQuery(cer.conn, &ValueEntity{})
 	if err != nil {
 		return nil, err
@@ -344,7 +301,7 @@ func (cer *EntryRepository) LatestValue(bucket, key string) (*ValueEntity, error
 	return entity.(*ValueEntity), nil
 }
 
-func (cer *EntryRepository) Value(bucket, key string, version int64) (*ValueEntity, error) {
+func (cer *KeyValueRepository) Value(bucket, key string, version int64) (*ValueEntity, error) {
 	q, err := db.NewQuery(cer.conn, &ValueEntity{})
 	if err != nil {
 		return nil, err
@@ -359,7 +316,7 @@ func (cer *EntryRepository) Value(bucket, key string, version int64) (*ValueEnti
 	return entity.(*ValueEntity), nil
 }
 
-func (cer *EntryRepository) CreateValue(value *ValueEntity) (*ValueEntity, error) {
+func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, error) {
 	q, err := db.NewQuery(cer.conn, value)
 	if err != nil {
 		return nil, err
@@ -375,7 +332,7 @@ func (cer *EntryRepository) CreateValue(value *ValueEntity) (*ValueEntity, error
 	return value, q.Insert().Exec()
 }
 
-func (cer *EntryRepository) deleteValuesByKey(key string) error {
+func (cer *KeyValueRepository) deleteValuesByKey(key string) error {
 	q, err := db.NewQuery(cer.conn, &ValueEntity{})
 	if err != nil {
 		return err
@@ -386,7 +343,7 @@ func (cer *EntryRepository) deleteValuesByKey(key string) error {
 	return err
 }
 
-func (cer *EntryRepository) Buckets() ([]*BucketEntity, error) {
+func (cer *KeyValueRepository) Buckets() ([]*BucketEntity, error) {
 	bucketNames, err := cer.bucketNames()
 	if err != nil {
 		return nil, err
@@ -413,7 +370,7 @@ func (cer *EntryRepository) Buckets() ([]*BucketEntity, error) {
 	return buckets, nil
 }
 
-func (cer *EntryRepository) bucketNames() ([]string, error) {
+func (cer *KeyValueRepository) bucketNames() ([]string, error) {
 	entity := &BucketEntity{}
 
 	colHdlr, err := db.NewColumnHandler(entity)
@@ -443,7 +400,7 @@ func (cer *EntryRepository) bucketNames() ([]string, error) {
 	return bucketNames, nil
 }
 
-func (cer *EntryRepository) DeleteBucket(bucket string) error {
+func (cer *KeyValueRepository) DeleteBucket(bucket string) error {
 	q, err := db.NewQuery(cer.conn, &BucketEntity{})
 	if err != nil {
 		return err
@@ -454,6 +411,6 @@ func (cer *EntryRepository) DeleteBucket(bucket string) error {
 	return err
 }
 
-func (cer *EntryRepository) Close() error {
+func (cer *KeyValueRepository) Close() error {
 	return cer.conn.Close()
 }
