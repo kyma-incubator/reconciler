@@ -39,6 +39,11 @@ func Run(o *Options, val string) error {
 	if err != nil {
 		return err
 	}
+
+	if err := key.Validate(val); err != nil {
+		return err
+	}
+
 	value, err := o.Repository().CreateValue(&config.ValueEntity{
 		Bucket:     o.Bucket,
 		Key:        key.Key,

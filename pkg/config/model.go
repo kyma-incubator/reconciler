@@ -3,10 +3,12 @@ package config
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/interpreter"
 )
 
 const (
@@ -41,6 +43,44 @@ type KeyEntity struct {
 	Username  string    `db:"notNull"`
 	Validator string
 	Trigger   string
+}
+
+func (ke *KeyEntity) Validate(value string) error {
+	var typedValue interface{}
+	var err error
+
+	//ensure data type
+	switch ke.DataType {
+	case Boolean:
+		typedValue, err = strconv.ParseBool(value)
+		if err != nil {
+			return ke.fireParseError(value)
+		}
+	case Integer:
+		typedValue, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return ke.fireParseError(value)
+		}
+	}
+
+	//run validator logic for value
+	if ke.Validator != "" {
+		interp := interpreter.NewGolangInterpreter(ke.Validator).WithBindings(
+			map[string]interface{}{"it": typedValue, "value": typedValue})
+		result, err := interp.EvalBool()
+		if err != nil {
+			return err
+		}
+		if !result {
+			return fmt.Errorf("Validation defined in key '%s' failed for value '%s'", ke.Key, value)
+		}
+	}
+
+	return nil
+}
+
+func (ke *KeyEntity) fireParseError(value string) error {
+	return fmt.Errorf("Key '%s' expects a value of type %s: provide value was '%s'", ke.Key, ke.DataType, value)
 }
 
 func (ke *KeyEntity) String() string {
