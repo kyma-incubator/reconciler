@@ -33,7 +33,7 @@ func (ve *ValueEntity) Synchronizer() *db.EntitySynchronizer {
 }
 
 func (ve *ValueEntity) Table() string {
-	return tlbValues
+	return tblValues
 }
 
 func (ve *ValueEntity) Equal(other db.DatabaseEntity) bool {

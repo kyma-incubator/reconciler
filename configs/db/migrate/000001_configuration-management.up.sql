@@ -26,3 +26,24 @@ CREATE TABLE config_values (
 	FOREIGN KEY ("key", "key_version") REFERENCES config_keys ("key", "version")
 );
 
+--DDL for configuration cache-entry entities:
+CREATE TABLE config_cache (
+	"cache_id" text NOT NULL,
+	"cluster" text NOT NULL,
+	"buckets" text NOT NULL, --additional information just for better traceability
+	"cache" text NOT NULL,
+	"checksum" text NOT NULL,
+	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+	CONSTRAINT config_cache_pk PRIMARY KEY ("cache_id", "cluster")
+);
+
+--DDL for configuration cache-dependency entities:
+CREATE TABLE config_cachedeps (
+	"bucket" text NOT NULL,
+	"key" text NOT NULL,
+	"cache_id" text NOT NULL,
+	"cluster" text NOT NULL,
+	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+	CONSTRAINT config_cachedep_pk PRIMARY KEY ("bucket", "key", "cache_id", "cluster"),
+	FOREIGN KEY ("cache_id", "cluster") REFERENCES config_cache ("cache_id", "cluster") ON DELETE CASCADE
+);

@@ -29,7 +29,7 @@ func (b *BucketEntity) Synchronizer() *db.EntitySynchronizer {
 }
 
 func (b *BucketEntity) Table() string {
-	return tlbValues
+	return tblValues
 }
 
 func (b *BucketEntity) Equal(other db.DatabaseEntity) bool {

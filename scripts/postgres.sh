@@ -6,23 +6,31 @@ readonly CWD=$(pwd)
 cd - > /dev/null || return
 
 # Script configuration
-readonly CONTAINER_NAME=postgres
-readonly POSTGRES_DATA_DIR=$CWD/tmp/postgres
+readonly CONTAINER_NAME="postgres"
+readonly POSTGRES_DATA_DIR="${CWD}/tmp/postgres"
 readonly POSTGRES_PORT=5432
-readonly POSTGRES_USER=kyma
-readonly POSTGRES_PASSWORD=kyma
-readonly POSTGRES_DB=kyma
+readonly POSTGRES_USER="kyma"
+readonly POSTGRES_PASSWORD="kyma"
+readonly POSTGRES_DB="kyma"
 readonly POSTGRES_START_DELAY=3
-readonly MIGRATE_PATH=$CWD/../configs/db/migrate
+readonly MIGRATE_PATH="${CWD}/../configs/db/migrate"
 
 # Get Postress container ID
 function containerId() {
   docker ps --filter "name=$CONTAINER_NAME" --format "{{.ID}}"
 }
 
-# Print to STDERR
+# Print to STDERR and exit
 function error() {
-  >&2 echo "$1"
+  local msg="$1"
+  local exitCode="$2"
+
+  >&2 echo "$msg"
+
+  if [ -z "$exitCode" ]; then
+    exitCode="1"
+  fi
+  exit $exitCode
 }
 
 # Start Postgres container
@@ -63,8 +71,7 @@ function start() {
     
     migrate
   else
-    error "Failed to start Postgres container (code: $exitCode)"
-    exit $exitCode
+    error "Failed to start Postgres container (code: $exitCode)" $exitCode
   fi
 }
 
@@ -80,7 +87,6 @@ function migrate() {
 
 See https://github.com/golang-migrate/migrate/tree/master/cmd/migrate
 "
-    exit 1
   fi
 }
 
@@ -107,7 +113,6 @@ function stop() {
   if [ $exitCode -eq 0 ]; then
     cleanup
     echo "Postgres container stopped"
-    exit 0
   else
     error "Failed to stop Postgres container (code: $exitCode, containerId: $id)"
   fi
@@ -156,7 +161,7 @@ case "$1" in
     echo "
 Command '$1' not supported. Please use:
 
-  $> $(basename $0) start|stop|reset|status
+  $> $(basename $0) start|stop|reset|status|cleanup|migrate
 
   * start   = Start Postgres
   * stop    = Stop Postgres

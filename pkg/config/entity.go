@@ -7,8 +7,10 @@ import (
 )
 
 const (
-	tblKeys   string = "config_keys"
-	tlbValues string = "config_values"
+	tblKeys      string = "config_keys"
+	tblValues    string = "config_values"
+	tblCache     string = "config_cache"
+	tblCacheDeps string = "config_cachedeps"
 )
 
 //convertTimestampToTime is converting the value of timestamp db-column to a Time instance
