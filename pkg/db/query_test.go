@@ -9,13 +9,15 @@ import (
 
 func TestQuery(t *testing.T) {
 	conn := &MockConnection{}
-	q, err := NewQuery(conn, &MockDbEntity{})
+	q, err := NewQuery(conn, &MockDbEntity{
+		Col1: "dummy",
+	})
 	require.NoError(t, err)
 
 	t.Run("Insert", func(t *testing.T) {
 		err = q.Insert().Exec()
 		require.NoError(t, err)
-		require.Equal(t, "INSERT INTO mockTable (col_1, col_2, col_3) VALUES ($1, $2, $3) RETURNING col_1, col_2, col_3", conn.query)
+		require.Equal(t, "INSERT INTO mockTable (col_1, col_3) VALUES ($1, $2) RETURNING col_1, col_2, col_3", conn.query)
 	})
 
 	t.Run("Select", func(t *testing.T) {

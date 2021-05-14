@@ -26,10 +26,10 @@ func (ve *ValueEntity) New() db.DatabaseEntity {
 	return &ValueEntity{}
 }
 
-func (ve *ValueEntity) Synchronizer() *db.EntitySynchronizer {
-	syncer := db.NewEntitySynchronizer(&ve)
-	syncer.AddConverter("Created", convertTimestampToTime)
-	return syncer
+func (ve *ValueEntity) Marshaller() *db.EntityMarshaller {
+	marshaller := db.NewEntityMarshaller(&ve)
+	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
+	return marshaller
 }
 
 func (ve *ValueEntity) Table() string {

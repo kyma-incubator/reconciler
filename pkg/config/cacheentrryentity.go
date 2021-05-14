@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/md5"
 	"fmt"
 	"time"
 
@@ -11,8 +12,8 @@ type CacheEntryEntity struct {
 	CacheID  string    `db:"notNull"`
 	Cluster  string    `db:"notNull"`
 	Buckets  string    `db:"notNull"`
-	Cache    string    `db:"notNull"`
-	Checksum string    `db:"notNull"`
+	Data     string    `db:"notNull"`
+	checksum string    `db:"notNull"`
 	Created  time.Time `db:"readOnly"`
 }
 
@@ -25,10 +26,23 @@ func (ce *CacheEntryEntity) New() db.DatabaseEntity {
 	return &CacheEntryEntity{}
 }
 
-func (ce *CacheEntryEntity) Synchronizer() *db.EntitySynchronizer {
-	syncer := db.NewEntitySynchronizer(&ce)
-	syncer.AddConverter("Created", convertTimestampToTime)
-	return syncer
+func (ce *CacheEntryEntity) Checksum() string {
+	if ce.checksum == "" && ce.Data != "" {
+		md5 := md5.Sum([]byte(ce.Data)) //nolint - MD5 is used for change detection, not for encryption
+		ce.checksum = fmt.Sprintf("%x", md5)
+	}
+	return ce.checksum
+}
+
+func (ce *CacheEntryEntity) Marshaller() *db.EntityMarshaller {
+	marshaller := db.NewEntityMarshaller(&ce)
+	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
+	marshaller.AddMarshaller("checksum", func(value interface{}) (interface{}, error) {
+		//ensure checksum is created before entity got stored
+		ce.Checksum()
+		return ce.checksum, nil
+	})
+	return marshaller
 }
 
 func (ce *CacheEntryEntity) Table() string {
@@ -39,10 +53,11 @@ func (ce *CacheEntryEntity) Equal(other db.DatabaseEntity) bool {
 	if other == nil {
 		return false
 	}
-	otherValue, ok := other.(*CacheEntryEntity)
+	otherEntry, ok := other.(*CacheEntryEntity)
 	if ok {
-		return ce.CacheID == otherValue.CacheID &&
-			ce.Cluster == otherValue.Cluster
+		return ce.CacheID == otherEntry.CacheID &&
+			ce.Cluster == otherEntry.Cluster &&
+			ce.Checksum() == otherEntry.Checksum()
 	}
 	return false
 }

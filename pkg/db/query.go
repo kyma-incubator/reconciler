@@ -129,7 +129,7 @@ func (s *Select) GetOne() (DatabaseEntity, error) {
 	}
 	defer s.reset()
 	row := s.conn.QueryRow(s.buffer.String(), s.args...)
-	return s.entity, s.columnHandler.Synchronize(row, s.entity)
+	return s.entity, s.columnHandler.Unmarshal(row, s.entity)
 }
 
 func (s *Select) GetMany() ([]DatabaseEntity, error) {
@@ -149,11 +149,11 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	result := []DatabaseEntity{}
 	for rows.Next() {
 		entity := s.entity.New()
-		stc, err := NewColumnHandler(entity)
+		colHdlr, err := NewColumnHandler(entity)
 		if err != nil {
 			return result, err
 		}
-		if err := stc.Synchronize(rows, entity); err != nil {
+		if err := colHdlr.Unmarshal(rows, entity); err != nil {
 			return result, err
 		}
 		result = append(result, entity)
@@ -171,7 +171,7 @@ func (i *Insert) Exec() error {
 		return err
 	}
 	row := i.conn.QueryRow(i.buffer.String(), i.columnHandler.ColumnValues(true)...)
-	return i.columnHandler.Synchronize(row, i.entity)
+	return i.columnHandler.Unmarshal(row, i.entity)
 }
 
 type Delete struct {

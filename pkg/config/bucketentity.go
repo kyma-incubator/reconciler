@@ -22,10 +22,10 @@ func (b *BucketEntity) New() db.DatabaseEntity {
 	return &BucketEntity{}
 }
 
-func (b *BucketEntity) Synchronizer() *db.EntitySynchronizer {
-	syncer := db.NewEntitySynchronizer(&b)
-	syncer.AddConverter("Created", convertTimestampToTime)
-	return syncer
+func (b *BucketEntity) Marshaller() *db.EntityMarshaller {
+	marshaller := db.NewEntityMarshaller(&b)
+	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
+	return marshaller
 }
 
 func (b *BucketEntity) Table() string {

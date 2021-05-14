@@ -24,10 +24,10 @@ func (cde *CacheDependencyEntity) New() db.DatabaseEntity {
 	return &CacheDependencyEntity{}
 }
 
-func (cde *CacheDependencyEntity) Synchronizer() *db.EntitySynchronizer {
-	syncer := db.NewEntitySynchronizer(&cde)
-	syncer.AddConverter("Created", convertTimestampToTime)
-	return syncer
+func (cde *CacheDependencyEntity) Marshaller() *db.EntityMarshaller {
+	marshaller := db.NewEntityMarshaller(&cde)
+	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
+	return marshaller
 }
 
 func (cde *CacheDependencyEntity) Table() string {
@@ -38,12 +38,12 @@ func (cde *CacheDependencyEntity) Equal(other db.DatabaseEntity) bool {
 	if other == nil {
 		return false
 	}
-	otherValue, ok := other.(*CacheDependencyEntity)
+	otherDep, ok := other.(*CacheDependencyEntity)
 	if ok {
-		return cde.Bucket == otherValue.Bucket &&
-			cde.Key == otherValue.Key &&
-			cde.CacheID == otherValue.CacheID &&
-			cde.Cluster == otherValue.Cluster
+		return cde.Bucket == otherDep.Bucket &&
+			cde.Key == otherDep.Key &&
+			cde.CacheID == otherDep.CacheID &&
+			cde.Cluster == otherDep.Cluster
 	}
 	return false
 }

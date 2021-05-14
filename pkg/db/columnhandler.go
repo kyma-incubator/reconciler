@@ -45,32 +45,36 @@ type column struct {
 
 type ColumnHandler struct {
 	columns     []*column
-	columnNames map[string]string
+	columnNames map[string]string //cache for column names (to increase lookup speed)
 }
 
-func NewColumnHandler(entity interface{}) (*ColumnHandler, error) {
-	kind := reflect.ValueOf(entity).Kind()
-	if kind == reflect.Ptr {
-		kind = reflect.ValueOf(entity).Elem().Kind()
-	}
-	if kind != reflect.Struct {
-		return nil, fmt.Errorf("ColumnHandler accepts only structs but provided object was '%s'", kind)
-	}
+func NewColumnHandler(entity DatabaseEntity) (*ColumnHandler, error) {
+	//create column handler instance
 	fields := structs.Fields(entity)
-	stc := &ColumnHandler{
+	colHdlr := &ColumnHandler{
 		columnNames: make(map[string]string, len(fields)),
 	}
+
+	//get marshalled values of entity fields
+	marshalledValues, err := entity.Marshaller().Marshal()
+	if err != nil {
+		return colHdlr, err
+	}
+
+	//add columns to column handler instance
 	for _, field := range fields {
 		col := &column{
 			name:     strcase.ToSnake(field.Name()),
 			readOnly: hasTag(field, dbTagReadOnly),
 			notNull:  hasTag(field, dbTagNoNull),
 			field:    field,
+			value:    marshalledValues[field.Name()],
 		}
-		stc.columns = append(stc.columns, col)
-		stc.columnNames[field.Name()] = col.name
+		colHdlr.columns = append(colHdlr.columns, col)
+		colHdlr.columnNames[field.Name()] = col.name
 	}
-	return stc, nil
+
+	return colHdlr, nil
 }
 
 func hasTag(field *structs.Field, tag string) bool {
@@ -83,17 +87,21 @@ func hasTag(field *structs.Field, tag string) bool {
 	return false
 }
 
-func (tc *ColumnHandler) Validate() error {
+func (ch *ColumnHandler) Validate() error {
 	invalidFields := []string{}
-	for _, col := range tc.columns {
+	for _, col := range ch.columns {
 		if col.notNull {
 			switch col.field.Kind() {
 			case reflect.String:
-				if fmt.Sprintf("%s", col.field.Value()) == "" {
+				if fmt.Sprintf("%s", col.value) == "" {
 					invalidFields = append(invalidFields, col.field.Name())
 				}
-			case reflect.Int64:
-				if col.field.Value().(int64) == 0 {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				if col.value.(int64) == 0 {
+					invalidFields = append(invalidFields, col.field.Name())
+				}
+			case reflect.Float32, reflect.Float64:
+				if col.value.(float64) == 0 {
 					invalidFields = append(invalidFields, col.field.Name())
 				}
 			case reflect.Bool:
@@ -111,17 +119,17 @@ func (tc *ColumnHandler) Validate() error {
 	return nil
 }
 
-func (tc *ColumnHandler) ColumnName(field string) (string, error) {
-	if colName, ok := tc.columnNames[field]; ok {
+func (ch *ColumnHandler) ColumnName(field string) (string, error) {
+	if colName, ok := ch.columnNames[field]; ok {
 		return colName, nil
 	}
 	return "", fmt.Errorf("Entity has no field '%s' cannot resolve column name", field)
 }
 
 //ColumnNamesCsv returns the CSV string of the column names
-func (tc *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
+func (ch *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 	var buffer bytes.Buffer
-	for _, col := range tc.columns {
+	for _, col := range ch.columns {
 		if onlyWriteable && col.readOnly {
 			continue
 		}
@@ -133,21 +141,21 @@ func (tc *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 	return buffer.String()
 }
 
-func (tc *ColumnHandler) ColumnValues(onlyWriteable bool) []interface{} {
+func (ch *ColumnHandler) ColumnValues(onlyWriteable bool) []interface{} {
 	result := []interface{}{}
-	for _, col := range tc.columns {
+	for _, col := range ch.columns {
 		if onlyWriteable && col.readOnly {
 			continue
 		}
-		result = append(result, col.field.Value())
+		result = append(result, col.value)
 	}
 	return result
 }
 
-func (tc *ColumnHandler) columnValuesCsvRenderer(onlyWriteable, placeholder bool) string {
+func (ch *ColumnHandler) columnValuesCsvRenderer(onlyWriteable, placeholder bool) string {
 	var buffer bytes.Buffer
 	var placeholderIdx int
-	for _, col := range tc.columns {
+	for _, col := range ch.columns {
 		if onlyWriteable && col.readOnly {
 			continue
 		}
@@ -158,25 +166,25 @@ func (tc *ColumnHandler) columnValuesCsvRenderer(onlyWriteable, placeholder bool
 			placeholderIdx++
 			buffer.WriteString(fmt.Sprintf("$%d", placeholderIdx))
 		} else {
-			buffer.WriteString(tc.serializeValue(col.field.Value()))
+			buffer.WriteString(ch.serializeValue(col.value))
 		}
 
 	}
 	return buffer.String()
 }
 
-func (tc *ColumnHandler) ColumnValuesCsv(onlyWriteable bool) string {
-	return tc.columnValuesCsvRenderer(onlyWriteable, false)
+func (ch *ColumnHandler) ColumnValuesCsv(onlyWriteable bool) string {
+	return ch.columnValuesCsvRenderer(onlyWriteable, false)
 }
 
-func (tc *ColumnHandler) ColumnValuesPlaceholderCsv(onlyWriteable bool) string {
-	return tc.columnValuesCsvRenderer(onlyWriteable, true)
+func (ch *ColumnHandler) ColumnValuesPlaceholderCsv(onlyWriteable bool) string {
+	return ch.columnValuesCsvRenderer(onlyWriteable, true)
 }
 
-func (tc *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder bool) string {
+func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder bool) string {
 	var buffer bytes.Buffer
 	var placeholderIdx int
-	for _, col := range tc.columns {
+	for _, col := range ch.columns {
 		if onlyWriteable && col.readOnly {
 			continue
 		}
@@ -187,42 +195,44 @@ func (tc *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder boo
 			placeholderIdx++
 			buffer.WriteString(fmt.Sprintf("%s=$%d", col.name, placeholderIdx))
 		} else {
-			buffer.WriteString(fmt.Sprintf("%s=%s", col.name, tc.serializeValue(col.field.Value())))
+			buffer.WriteString(fmt.Sprintf("%s=%s", col.name, ch.serializeValue(col.value)))
 		}
 	}
 	return buffer.String()
 }
 
-func (tc *ColumnHandler) ColumnEntriesCsv(onlyWriteable bool) string {
-	return tc.columnEntriesCsvRenderer(onlyWriteable, false)
+func (ch *ColumnHandler) ColumnEntriesCsv(onlyWriteable bool) string {
+	return ch.columnEntriesCsvRenderer(onlyWriteable, false)
 }
 
-func (tc *ColumnHandler) ColumnEntriesPlaceholderCsv(onlyWriteable bool) string {
-	return tc.columnEntriesCsvRenderer(onlyWriteable, true)
+func (ch *ColumnHandler) ColumnEntriesPlaceholderCsv(onlyWriteable bool) string {
+	return ch.columnEntriesCsvRenderer(onlyWriteable, true)
 }
 
-func (tc *ColumnHandler) serializeValue(value interface{}) string {
+func (ch *ColumnHandler) serializeValue(value interface{}) string {
 	switch reflect.ValueOf(value).Kind() {
 	case reflect.Bool:
 		return fmt.Sprintf("%t", value)
-	case reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return fmt.Sprintf("%d", value)
+	case reflect.Float32, reflect.Float64:
+		return fmt.Sprintf("%f", value)
 	default:
-		return fmt.Sprintf("'%s'", value)
+		return fmt.Sprintf("'%v'", value)
 	}
 }
 
-func (tc *ColumnHandler) Synchronize(row DataRow, entity DatabaseEntity) error {
+func (ch *ColumnHandler) Unmarshal(row DataRow, entity DatabaseEntity) error {
 	colVals := []interface{}{}
-	for _, col := range tc.columns {
+	for _, col := range ch.columns {
 		colVals = append(colVals, &col.value)
 	}
 	if err := row.Scan(colVals...); err != nil {
 		return err
 	}
-	entityData := make(map[string]interface{}, len(tc.columns))
-	for _, col := range tc.columns {
+	entityData := make(map[string]interface{}, len(ch.columns))
+	for _, col := range ch.columns {
 		entityData[col.field.Name()] = col.value
 	}
-	return entity.Synchronizer().Sync(entityData)
+	return entity.Marshaller().Unmarshal(entityData)
 }

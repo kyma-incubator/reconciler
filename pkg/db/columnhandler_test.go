@@ -8,17 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type simpleStruct struct {
-	String string `db:"notNull"`
-	Bool   bool   `db:"readOnly"`
-	Int64  int64
-}
-
 func TestColumnHandler(t *testing.T) {
 	t.Run("Validate model", func(t *testing.T) {
-		testStruct := simpleStruct{
-			Bool:  true,
-			Int64: 123456789,
+		testStruct := &MockDbEntity{
+			Col2: true,
+			Col3: 123456789,
 		}
 		colHdr, err := NewColumnHandler(testStruct)
 		require.NoError(t, err)
@@ -26,10 +20,10 @@ func TestColumnHandler(t *testing.T) {
 	})
 
 	//valid model
-	testStruct := simpleStruct{
-		String: "testString",
-		Bool:   true,
-		Int64:  123456789,
+	testStruct := &MockDbEntity{
+		Col1: "testString",
+		Col2: true,
+		Col3: 123456789,
 	}
 	colHdr, err := NewColumnHandler(testStruct)
 	require.NoError(t, err)
@@ -38,22 +32,22 @@ func TestColumnHandler(t *testing.T) {
 	t.Run("Get values", func(t *testing.T) {
 		//check internal state
 		require.Equal(t, 3, len(colHdr.columns))
-		require.ElementsMatch(t, []interface{}{"testString", true, int64(123456789)}, colHdr.ColumnValues(false))
-		require.ElementsMatch(t, []interface{}{"testString", int64(123456789)}, colHdr.ColumnValues(true))
+		require.ElementsMatch(t, []interface{}{"testString", true, 123456789}, colHdr.ColumnValues(false))
+		require.ElementsMatch(t, []interface{}{"testString", 123456789}, colHdr.ColumnValues(true))
 	})
 
 	t.Run("Get column name", func(t *testing.T) {
-		colNameInt64, err := colHdr.ColumnName("Int64")
+		colNameInt64, err := colHdr.ColumnName("Col1")
 		require.NoError(t, err)
-		require.Equal(t, "int_64", colNameInt64)
-		colNameStr, err := colHdr.ColumnName("String")
+		require.Equal(t, "col_1", colNameInt64)
+		colNameStr, err := colHdr.ColumnName("Col2")
 		require.NoError(t, err)
-		require.Equal(t, "string", colNameStr)
+		require.Equal(t, "col_2", colNameStr)
 	})
 
 	t.Run("Get column names as CSV", func(t *testing.T) {
-		require.ElementsMatch(t, []string{"string", "bool", "int_64"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(false)))
-		require.ElementsMatch(t, []string{"string", "int_64"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(true)))
+		require.ElementsMatch(t, []string{"col_1", "col_2", "col_3"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(false)))
+		require.ElementsMatch(t, []string{"col_1", "col_3"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(true)))
 	})
 
 	t.Run("Get column values as CSV", func(t *testing.T) {
@@ -66,15 +60,15 @@ func TestColumnHandler(t *testing.T) {
 		require.Equal(t, "$1, $2", colHdr.ColumnValuesPlaceholderCsv(true))
 	})
 	t.Run("Get column entries as CSV", func(t *testing.T) {
-		require.ElementsMatch(t, []string{"string='testString'", "bool=true", "int_64=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(false)))
-		require.ElementsMatch(t, []string{"string='testString'", "int_64=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(true)))
+		require.ElementsMatch(t, []string{"col_1='testString'", "col_2=true", "col_3=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(false)))
+		require.ElementsMatch(t, []string{"col_1='testString'", "col_3=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(true)))
 	})
 
 	t.Run("Get column entries as placeholder CSV", func(t *testing.T) {
 		rwKeyValuePairsCsv := colHdr.ColumnEntriesPlaceholderCsv(false)
-		require.Regexp(t, regexp.MustCompile(`((string|bool|int_64)=\$[1-3](, )?){3}`), rwKeyValuePairsCsv)
+		require.Regexp(t, regexp.MustCompile(`((col_1|col_2|col_3)=\$[1-3](, )?){3}`), rwKeyValuePairsCsv)
 		roKeyValuePairs := colHdr.ColumnEntriesPlaceholderCsv(true)
-		require.Regexp(t, regexp.MustCompile(`((string|int_64)=\$[1-2](, )?){2}`), roKeyValuePairs)
+		require.Regexp(t, regexp.MustCompile(`((col_1|col_3)=\$[1-2](, )?){2}`), roKeyValuePairs)
 	})
 }
 

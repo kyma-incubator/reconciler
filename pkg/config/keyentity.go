@@ -97,13 +97,13 @@ func (ke *KeyEntity) New() db.DatabaseEntity {
 	return &KeyEntity{}
 }
 
-func (ke *KeyEntity) Synchronizer() *db.EntitySynchronizer {
-	syncer := db.NewEntitySynchronizer(&ke)
-	syncer.AddConverter("DataType", func(value interface{}) (interface{}, error) {
+func (ke *KeyEntity) Marshaller() *db.EntityMarshaller {
+	marshaller := db.NewEntityMarshaller(&ke)
+	marshaller.AddUnmarshaller("DataType", func(value interface{}) (interface{}, error) {
 		return NewDataType(value.(string))
 	})
-	syncer.AddConverter("Created", convertTimestampToTime)
-	return syncer
+	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
+	return marshaller
 }
 
 func (ke *KeyEntity) Table() string {

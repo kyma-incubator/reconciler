@@ -10,8 +10,8 @@ const (
 )
 
 type MockDbEntity struct {
-	Col1 string
-	Col2 bool
+	Col1 string `db:"notNull"`
+	Col2 bool   `db:"readOnly"`
 	Col3 int
 }
 
@@ -84,15 +84,15 @@ func (fake *MockDbEntity) Equal(other DatabaseEntity) bool {
 	return false
 }
 
-func (fake *MockDbEntity) Synchronizer() *EntitySynchronizer {
-	syncer := NewEntitySynchronizer(&fake)
-	syncer.AddConverter("Col1", func(value interface{}) (interface{}, error) {
+func (fake *MockDbEntity) Marshaller() *EntityMarshaller {
+	syncer := NewEntityMarshaller(&fake)
+	syncer.AddUnmarshaller("Col1", func(value interface{}) (interface{}, error) {
 		return "col1", nil
 	})
-	syncer.AddConverter("Col2", func(value interface{}) (interface{}, error) {
+	syncer.AddUnmarshaller("Col2", func(value interface{}) (interface{}, error) {
 		return true, nil
 	})
-	syncer.AddConverter("Col3", func(value interface{}) (interface{}, error) {
+	syncer.AddUnmarshaller("Col3", func(value interface{}) (interface{}, error) {
 		return 3, nil
 	})
 	return syncer

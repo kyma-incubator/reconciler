@@ -31,7 +31,7 @@ CREATE TABLE config_cache (
 	"cache_id" text NOT NULL,
 	"cluster" text NOT NULL,
 	"buckets" text NOT NULL, --additional information just for better traceability
-	"cache" text NOT NULL,
+	"data" text NOT NULL,
 	"checksum" text NOT NULL,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
 	CONSTRAINT config_cache_pk PRIMARY KEY ("cache_id", "cluster")

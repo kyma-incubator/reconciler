@@ -18,7 +18,7 @@ type ConnectionFactory interface {
 
 type DatabaseEntity interface {
 	Table() string
-	Synchronizer() *EntitySynchronizer
+	Marshaller() *EntityMarshaller
 	New() DatabaseEntity
 	Equal(other DatabaseEntity) bool
 }
