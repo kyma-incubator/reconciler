@@ -16,16 +16,25 @@ type EntityMarshaller struct {
 func NewEntityMarshaller(entity interface{}) *EntityMarshaller {
 	return &EntityMarshaller{
 		structs:       structs.New(entity),
+		marshalFcts:   make(map[string]func(value interface{}) (interface{}, error)),
 		unmarshalFcts: make(map[string]func(value interface{}) (interface{}, error)),
 	}
 }
 
 func (es *EntityMarshaller) AddMarshaller(field string, fct func(value interface{}) (interface{}, error)) {
+	es.ensureFieldExist(field)
 	es.marshalFcts[field] = fct
 }
 
 func (es *EntityMarshaller) AddUnmarshaller(field string, fct func(value interface{}) (interface{}, error)) {
+	es.ensureFieldExist(field)
 	es.unmarshalFcts[field] = fct
+}
+
+func (es *EntityMarshaller) ensureFieldExist(field string) {
+	if _, ok := es.structs.FieldOk(field); !ok {
+		panic(fmt.Sprintf("Failure in Marshaller: the entity '%s' has not field '%s'", es.structs.Name(), field))
+	}
 }
 
 func (es *EntityMarshaller) Marshal() (map[string]interface{}, error) {

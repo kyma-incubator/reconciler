@@ -9,28 +9,29 @@ import (
 )
 
 type CacheEntryEntity struct {
-	CacheID  string    `db:"notNull"`
+	ID       int64     `db:"readOnly"`
+	Label    string    `db:"notNull"`
 	Cluster  string    `db:"notNull"`
 	Buckets  string    `db:"notNull"`
 	Data     string    `db:"notNull"`
-	checksum string    `db:"notNull"`
+	Checksum string    `db:"notNull"`
 	Created  time.Time `db:"readOnly"`
 }
 
 func (ce *CacheEntryEntity) String() string {
-	return fmt.Sprintf("CacheID=%s,Cluster=%s,Buckets=%s,CreatedOn=%s",
-		ce.CacheID, ce.Cluster, ce.Buckets, ce.Created)
+	return fmt.Sprintf("Label=%s,Cluster=%s,Buckets=%s,CreatedOn=%s",
+		ce.Label, ce.Cluster, ce.Buckets, ce.Created)
 }
 
 func (ce *CacheEntryEntity) New() db.DatabaseEntity {
 	return &CacheEntryEntity{}
 }
 
-func (ce *CacheEntryEntity) Checksum() string {
-	if ce.checksum == "" && ce.Data != "" {
-		ce.checksum = ce.md5()
+func (ce *CacheEntryEntity) checksum() string {
+	if ce.Checksum == "" && ce.Data != "" {
+		ce.Checksum = ce.md5()
 	}
-	return ce.checksum
+	return ce.Checksum
 }
 
 func (ce *CacheEntryEntity) md5() string {
@@ -41,7 +42,7 @@ func (ce *CacheEntryEntity) md5() string {
 func (ce *CacheEntryEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&ce)
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
-	marshaller.AddMarshaller("checksum", func(value interface{}) (interface{}, error) {
+	marshaller.AddMarshaller("Checksum", func(value interface{}) (interface{}, error) {
 		//ensure checksum is updated before entity got stored
 		return ce.md5(), nil
 	})
@@ -58,9 +59,9 @@ func (ce *CacheEntryEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherEntry, ok := other.(*CacheEntryEntity)
 	if ok {
-		return ce.CacheID == otherEntry.CacheID &&
+		return ce.Label == otherEntry.Label &&
 			ce.Cluster == otherEntry.Cluster &&
-			ce.Checksum() == otherEntry.Checksum()
+			ce.checksum() == otherEntry.checksum()
 	}
 	return false
 }

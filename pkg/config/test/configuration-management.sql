@@ -26,3 +26,27 @@ CREATE TABLE config_values (
 	FOREIGN KEY ("key", "key_version") REFERENCES config_keys ("key", "version")
 );
 
+--DDL for configuration cache-entry entities:
+CREATE TABLE config_cache (
+	"id" integer PRIMARY KEY AUTOINCREMENT, --just another unique identifer for a cache entry
+	"label" text NOT NULL,
+	"cluster" text NOT NULL,
+	"buckets" text NOT NULL, --additional information just for better traceability
+	"data" text NOT NULL,
+	"checksum" text NOT NULL,
+	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT config_cache_pk UNIQUE ("label", "cluster")
+);
+
+--DDL for configuration cache-dependency entities:
+CREATE TABLE config_cachedeps (
+	"id" integer PRIMARY KEY AUTOINCREMENT, --just another unique identifer for a cache entry
+	"bucket" text NOT NULL,
+	"key" text NOT NULL,
+	"label" text NOT NULL,
+	"cluster" text NOT NULL,
+	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT config_cachedep_pk UNIQUE ("bucket", "key", "label", "cluster"),
+	FOREIGN KEY ("label", "cluster") REFERENCES config_cache ("label", "cluster") ON DELETE CASCADE
+);
+

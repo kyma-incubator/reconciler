@@ -2,18 +2,16 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"testing"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
 
 func TestKeyValueRepositoryKeys(t *testing.T) {
 	var err error
-	ceRepo := newRepo(t)
+	ceRepo := newKeyValueRepo(t)
 
 	//add test data
 	ts := time.Now().UnixNano()
@@ -136,7 +134,7 @@ func TestKeyValueRepositoryKeys(t *testing.T) {
 
 func TestConfigConfigRepositoryValues(t *testing.T) {
 	var err error
-	ceRepo := newRepo(t)
+	ceRepo := newKeyValueRepo(t)
 
 	//create test key
 	keyEntity, err := ceRepo.CreateKey(&KeyEntity{
@@ -314,55 +312,10 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	})
 }
 
-func newRepo(t *testing.T) *KeyValueRepository {
+func newKeyValueRepo(t *testing.T) *KeyValueRepository {
 	connFact, err := newConnectionFactory()
 	require.NoError(t, err)
 	ceRepo, err := NewKeyValueRepository(connFact, true)
 	require.NoError(t, err)
 	return ceRepo
-}
-
-func newConnectionFactory() (db.ConnectionFactory, error) {
-	viper.SetConfigFile("test/reconciler-test.yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, err
-	}
-	dbToUse := viper.GetString("configManagement.db.driver")
-	switch dbToUse {
-	case "postgres":
-		return &db.PostgresConnectionFactory{
-			Host:     viper.GetString("configManagement.db.postgres.host"),
-			Port:     viper.GetInt("configManagement.db.postgres.port"),
-			Database: viper.GetString("configManagement.db.postgres.database"),
-			User:     viper.GetString("configManagement.db.postgres.user"),
-			Password: viper.GetString("configManagement.db.postgres.password"),
-			SslMode:  viper.GetBool("configManagement.db.postgres.sslMode"),
-			Debug:    true,
-		}, nil
-	case "sqlite":
-		conFac := &db.SqliteConnectionFactory{
-			File:  viper.GetString("configManagement.db.sqlite.file"),
-			Debug: true,
-		}
-		//get connection
-		conn, err := conFac.NewConnection()
-		if err != nil {
-			panic(err)
-		}
-
-		//read DDL (test-table structure)
-		ddl, err := ioutil.ReadFile("./test/configuration-management.sql")
-		if err != nil {
-			panic(err)
-		}
-
-		//populate DB schema
-		_, err = conn.Exec(string(ddl))
-		if err != nil {
-			panic(err)
-		}
-		return conFac, nil
-	default:
-		panic(fmt.Sprintf("DB type '%s' not supported", dbToUse))
-	}
 }
