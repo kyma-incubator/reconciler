@@ -28,19 +28,22 @@ func (ce *CacheEntryEntity) New() db.DatabaseEntity {
 
 func (ce *CacheEntryEntity) Checksum() string {
 	if ce.checksum == "" && ce.Data != "" {
-		md5 := md5.Sum([]byte(ce.Data)) //nolint - MD5 is used for change detection, not for encryption
-		ce.checksum = fmt.Sprintf("%x", md5)
+		ce.checksum = ce.md5()
 	}
 	return ce.checksum
+}
+
+func (ce *CacheEntryEntity) md5() string {
+	md5 := md5.Sum([]byte(ce.Data)) //nolint - MD5 is used for change detection, not for encryption
+	return fmt.Sprintf("%x", md5)
 }
 
 func (ce *CacheEntryEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&ce)
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	marshaller.AddMarshaller("checksum", func(value interface{}) (interface{}, error) {
-		//ensure checksum is created before entity got stored
-		ce.Checksum()
-		return ce.checksum, nil
+		//ensure checksum is updated before entity got stored
+		return ce.md5(), nil
 	})
 	return marshaller
 }
