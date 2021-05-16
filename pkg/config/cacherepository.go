@@ -33,6 +33,21 @@ func (cr *CacheRepository) Get(label, cluster string) (*CacheEntryEntity, error)
 	return entity.(*CacheEntryEntity), nil
 }
 
+func (cr *CacheRepository) GetByID(id int64) (*CacheEntryEntity, error) {
+	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+	if err != nil {
+		return nil, err
+	}
+	whereCond := map[string]interface{}{"ID": id}
+	entity, err := q.Select().
+		Where(whereCond).
+		GetOne()
+	if err != nil {
+		return nil, cr.handleNotFoundError(err, &CacheEntryEntity{}, whereCond)
+	}
+	return entity.(*CacheEntryEntity), nil
+}
+
 func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity) (*CacheEntryEntity, error) {
 	q, err := db.NewQuery(cr.conn, cacheEntry)
 	if err != nil {
@@ -49,24 +64,41 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity) (*CacheEntryEntity,
 			return inCache, nil
 		}
 		cr.logger.Debug(fmt.Sprintf("Existing cache entry '%s' is outdated and will be invalidated", inCache))
-		if err := cr.invalidate(inCache); err != nil {
+		if err := cr.InvalidateByID(inCache.ID); err != nil {
 			return cacheEntry, err
 		}
 	}
 	return cacheEntry, q.Insert().Exec()
 }
 
-func (cr *CacheRepository) invalidate(cacheEntry *CacheEntryEntity) error {
-	q, err := db.NewQuery(cr.conn, cacheEntry)
+func (cr *CacheRepository) Invalidate(label, cluster string) error {
+	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
 	if err != nil {
 		return err
 	}
 	deleted, err := q.Delete().
-		Where(map[string]interface{}{"ID": cacheEntry.ID}).
+		Where(map[string]interface{}{"Label": label, "Cluster": cluster}).
 		Exec()
 	if err == nil && deleted != 1 {
-		cr.logger.Info(fmt.Sprintf("Invalidating cache entry '%s' returned unexpected amount of deleted entries: got '%d' but expected 1",
-			cacheEntry, deleted))
+		cr.logger.Info(fmt.Sprintf("Invalidating cache entry with label '%s' and cluster '%s' returned "+
+			"unexpected amount of deleted entries: got '%d' but expected 1",
+			label, cluster, deleted))
+	}
+	return err
+}
+
+func (cr *CacheRepository) InvalidateByID(id int64) error {
+	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+	if err != nil {
+		return err
+	}
+	deleted, err := q.Delete().
+		Where(map[string]interface{}{"ID": id}).
+		Exec()
+	if err == nil && deleted != 1 {
+		cr.logger.Info(fmt.Sprintf("Invalidating cache entry with id '%d' returned "+
+			"unexpected amount of deleted entries: got '%d' but expected 1",
+			id, deleted))
 	}
 	return err
 }
