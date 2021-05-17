@@ -29,6 +29,7 @@ func (ve *ValueEntity) New() db.DatabaseEntity {
 func (ve *ValueEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&ve)
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
+	marshaller.AddMarshaller("Bucket", requireValidBucketName)
 	return marshaller
 }
 

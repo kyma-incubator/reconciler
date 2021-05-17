@@ -16,7 +16,7 @@ func TestColumnHandler(t *testing.T) {
 		}
 		colHdr, err := NewColumnHandler(testStruct)
 		require.NoError(t, err)
-		require.True(t, IsIncompleteEntityError(colHdr.Validate()))
+		require.True(t, IsInvalidEntityError(colHdr.Validate()))
 	})
 
 	//valid model

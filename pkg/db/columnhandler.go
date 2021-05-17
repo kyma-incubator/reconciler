@@ -16,22 +16,22 @@ const (
 	dbTagNoNull   string = "notNull"
 )
 
-type IncompleteEntityError struct {
+type InvalidEntityError struct {
 	errorMsg string
 }
 
-func (e *IncompleteEntityError) Error() string {
+func (e *InvalidEntityError) Error() string {
 	return e.errorMsg
 }
 
-func newIncompleteEntityError(err string, args ...interface{}) *IncompleteEntityError {
-	return &IncompleteEntityError{
+func newInvalidEntityError(err string, args ...interface{}) *InvalidEntityError {
+	return &InvalidEntityError{
 		errorMsg: fmt.Sprintf(err, args...),
 	}
 }
 
-func IsIncompleteEntityError(err error) bool {
-	_, ok := err.(*IncompleteEntityError)
+func IsInvalidEntityError(err error) bool {
+	_, ok := err.(*InvalidEntityError)
 	return ok
 }
 
@@ -58,7 +58,7 @@ func NewColumnHandler(entity DatabaseEntity) (*ColumnHandler, error) {
 	//get marshalled values of entity fields
 	marshalledValues, err := entity.Marshaller().Marshal()
 	if err != nil {
-		return colHdlr, err
+		return colHdlr, newInvalidEntityError(fmt.Sprintf("Failed to marshal values of entity '%s': %s", entity, err.Error()))
 	}
 
 	//add columns to column handler instance
@@ -113,7 +113,7 @@ func (ch *ColumnHandler) Validate() error {
 		}
 	}
 	if len(invalidFields) > 0 {
-		return newIncompleteEntityError("The fields '%s' are tagged with '%s' and cannot be undefined",
+		return newInvalidEntityError("The fields '%s' are tagged with '%s' and cannot be undefined",
 			strings.Join(invalidFields, "', '"), dbTagNoNull)
 	}
 	return nil

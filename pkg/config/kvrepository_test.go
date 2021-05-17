@@ -22,15 +22,15 @@ func TestKeyValueRepositoryKeys(t *testing.T) {
 	t.Run("Validate entity and create first test key", func(t *testing.T) {
 		keyEntity := &KeyEntity{}
 		_, err = ceRepo.CreateKey(keyEntity)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		keyEntity.Key = keyIDs[0]
 		_, err = ceRepo.CreateKey(keyEntity)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		keyEntity.Username = "abc"
 		_, err = ceRepo.CreateKey(keyEntity)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		//create first test key in 3 versions
 		for _, dt := range []DataType{String, Boolean, Integer} {
@@ -145,7 +145,7 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, keyEntity)
 
-	bucketNames := []string{"testBucket1", "testBucket2"} //contains the bucket names used for the created test value entities
+	bucketNames := []string{"test_bucket1", "test_bucket2"} //contains the bucket names used for the created test value entities
 
 	value1Versions := []int64{} //contains the three versions of the first test value
 	value2Versions := []int64{} //contains the three versions of the second test value
@@ -153,23 +153,23 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	t.Run("Validate entity and create test data", func(t *testing.T) {
 		valueEntity := &ValueEntity{}
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		valueEntity.Key = keyEntity.Key
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		valueEntity.KeyVersion = keyEntity.Version
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		valueEntity.Username = "testUsername"
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		valueEntity.Bucket = bucketNames[0]
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		//create the first test value (added to bucket 'bucketNames[0]') in 3 versions
 		for _, value := range []string{"entity1-value1", "entity1-value2", "entity1-value3"} {

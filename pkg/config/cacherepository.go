@@ -18,6 +18,23 @@ func NewCacheRepository(dbFac db.ConnectionFactory, debug bool) (*CacheRepositor
 	return &CacheRepository{repo}, nil
 }
 
+func (cr *CacheRepository) All() ([]*CacheEntryEntity, error) {
+	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+	if err != nil {
+		return nil, err
+	}
+	entities, err := q.Select().
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+	result := []*CacheEntryEntity{}
+	for _, entity := range entities {
+		result = append(result, entity.(*CacheEntryEntity))
+	}
+	return result, nil
+}
+
 func (cr *CacheRepository) Get(label, cluster string) (*CacheEntryEntity, error) {
 	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
 	if err != nil {

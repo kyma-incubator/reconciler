@@ -25,3 +25,10 @@ func convertTimestampToTime(value interface{}) (interface{}, error) {
 	return nil, fmt.Errorf("Failed to convert value '%s' (kind: %s) for field 'Created' to Time struct",
 		value, reflect.TypeOf(value).Kind())
 }
+
+func requireValidBucketName(value interface{}) (interface{}, error) {
+	if err := ValidateBucketName(fmt.Sprintf("%s", value)); err != nil {
+		return value, err
+	}
+	return value, nil
+}

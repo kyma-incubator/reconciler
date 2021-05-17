@@ -19,15 +19,15 @@ func TestCacheRepository(t *testing.T) {
 			Label: "cacheentry1",
 		}
 		cacheEntry1, err = repo.Add(cacheEntry1)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		cacheEntry1.Cluster = "abc"
 		cacheEntry1, err = repo.Add(cacheEntry1)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		cacheEntry1.Buckets = "default,dev,abc"
 		cacheEntry1, err = repo.Add(cacheEntry1)
-		require.True(t, db.IsIncompleteEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err))
 
 		//create entry1
 		cacheEntry1.Data = "The cached data goes here" //m5d: a3daa753769a78e732d763d143235d87
@@ -49,6 +49,12 @@ func TestCacheRepository(t *testing.T) {
 		require.Equal(t, "3bb77817db259eed817165ef8d891e61", cacheEntry2.checksum())
 		require.True(t, cacheEntries[0].ID < cacheEntry2.ID) //ID is an incremental counter
 		cacheEntries = append(cacheEntries, cacheEntry2)
+	})
+
+	t.Run("Get cache entries", func(t *testing.T) {
+		entries, err := repo.All()
+		require.NoError(t, err)
+		require.ElementsMatch(t, cacheEntries, entries)
 	})
 
 	t.Run("Creating cache entry twice", func(t *testing.T) {
