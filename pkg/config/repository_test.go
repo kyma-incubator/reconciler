@@ -3,13 +3,14 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"path"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/spf13/viper"
 )
 
 func newConnectionFactory() (db.ConnectionFactory, error) {
-	viper.SetConfigFile("test/reconciler-test.yaml")
+	viper.SetConfigFile(path.Join("test", "reconciler-test.yaml"))
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
 	}
@@ -37,7 +38,7 @@ func newConnectionFactory() (db.ConnectionFactory, error) {
 		}
 
 		//read DDL (test-table structure)
-		ddl, err := ioutil.ReadFile("./test/configuration-management.sql")
+		ddl, err := ioutil.ReadFile(path.Join("test", "configuration-management.sql"))
 		if err != nil {
 			panic(err)
 		}

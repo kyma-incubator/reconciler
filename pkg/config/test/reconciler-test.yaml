@@ -9,4 +9,4 @@ configManagement:
       password: kyma
       useSsl: false
     sqlite:
-      file: "./test/entryrepository-test.db"
+      file: "./test/repository-test.db"

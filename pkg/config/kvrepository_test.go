@@ -145,7 +145,7 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, keyEntity)
 
-	bucketNames := []string{"test_bucket1", "test_bucket2"} //contains the bucket names used for the created test value entities
+	bucketNames := []string{"test-bucket1", "test-bucket2"} //contains the bucket names used for the created test value entities
 
 	value1Versions := []int64{} //contains the three versions of the first test value
 	value2Versions := []int64{} //contains the three versions of the second test value

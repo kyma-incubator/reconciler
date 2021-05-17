@@ -12,16 +12,23 @@ const DefaultBucket = "default"
 
 var DefaultMergeSequence = []string{DefaultBucket, "landscape", "customer", "cluster", "feature"}
 
-var bucketPattern = regexp.MustCompile(fmt.Sprintf(`^(%s|([a-z0-9]+(_[a-z0-9]+)+))$`, DefaultBucket))
+var bucketPattern = regexp.MustCompile(fmt.Sprintf(`^(%s|([a-z0-9]+(-[a-z0-9]+)+))$`, DefaultBucket))
 
 type BucketMerger struct {
-	KeyValueRepository KeyValueRepository
+	KeyValueRepository *KeyValueRepository
 }
 
 func (bm *BucketMerger) Merge(buckets map[string]string) (map[string]interface{}, error) {
 	result := map[string]interface{}{}
 	//TODO: add support for cluster specific merge sequences: new DB entity required
 	for _, bucket := range DefaultMergeSequence {
+		if bucket != DefaultBucket {
+			subBucket, ok := buckets[bucket]
+			if !ok {
+				continue
+			}
+			bucket = fmt.Sprintf("%s-%s", bucket, subBucket)
+		}
 		values, err := bm.KeyValueRepository.ValuesByBucket(bucket)
 		if err != nil {
 			return result, err
@@ -30,7 +37,7 @@ func (bm *BucketMerger) Merge(buckets map[string]string) (map[string]interface{}
 		if err != nil {
 			return result, err
 		}
-		if err := mergo.Merge(result, valueMap); err != nil {
+		if err := mergo.MergeWithOverwrite(&result, valueMap); err != nil {
 			return result, errors.Wrap(err, fmt.Sprintf("Failed to merge value entries of bucket '%s'", bucket))
 		}
 	}

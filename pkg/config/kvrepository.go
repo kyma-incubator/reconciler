@@ -317,10 +317,6 @@ func (cer *KeyValueRepository) Value(bucket, key string, version int64) (*ValueE
 }
 
 func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, error) {
-	q, err := db.NewQuery(cer.conn, value)
-	if err != nil {
-		return nil, err
-	}
 	existingValue, err := cer.LatestValue(value.Bucket, value.Key)
 	if err != nil && !IsNotFoundError(err) {
 		return nil, err
@@ -329,7 +325,47 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 		cer.logger.Debug(fmt.Sprintf("No differences found for value of key '%s': not creating new database entity", value.Key))
 		return existingValue, nil
 	}
-	return value, q.Insert().Exec()
+
+	//insert operation
+	dbOps := func() (*ValueEntity, error) {
+		//add value entity
+		q, err := db.NewQuery(cer.conn, value)
+		if err != nil {
+			return nil, err
+		}
+		valueEntity, err := value, q.Insert().Exec()
+		if err != nil {
+			return valueEntity, err
+		}
+		//compare data type of value-entity with value type of key-entity
+		keyEntity, err := cer.Key(valueEntity.Key, valueEntity.KeyVersion)
+		if err != nil {
+			return valueEntity, errors.Wrap(err, fmt.Sprintf("Failed to retrieve key entity for value entity '%s'", valueEntity))
+		}
+		if valueEntity.DataType != keyEntity.DataType {
+			return valueEntity, fmt.Errorf("Data type of value entity (%s) is differnet to data type of key entity (%s)",
+				valueEntity.DataType, keyEntity.DataType)
+		}
+		//done
+		return valueEntity, nil
+	}
+
+	//run db-operation transactional
+	cer.logger.Debug("Begin transactional DB context")
+	tx, err := cer.conn.Begin()
+	if err != nil {
+		return nil, err
+	}
+	valueEntity, err := dbOps()
+	if err != nil {
+		cer.logger.Debug("Rollback transactional DB context")
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
+		}
+		return nil, err
+	}
+	cer.logger.Debug("Commit transactional DB context")
+	return valueEntity, tx.Commit()
 }
 
 func (cer *KeyValueRepository) deleteValuesByKey(key string) error {
