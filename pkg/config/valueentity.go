@@ -13,6 +13,7 @@ type ValueEntity struct {
 	Version    int64     `db:"readOnly"`
 	Bucket     string    `db:"notNull"`
 	Value      string    `db:"notNull"`
+	DataType   DataType  `db:"notNull"`
 	Created    time.Time `db:"readOnly"`
 	Username   string    `db:"notNull"`
 }
@@ -28,6 +29,7 @@ func (ve *ValueEntity) New() db.DatabaseEntity {
 
 func (ve *ValueEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&ve)
+	marshaller.AddUnmarshaller("DataType", convertStringToDataType)
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	marshaller.AddMarshaller("Bucket", requireValidBucketName)
 	return marshaller
@@ -49,4 +51,8 @@ func (ve *ValueEntity) Equal(other db.DatabaseEntity) bool {
 			ve.Value == otherValue.Value
 	}
 	return false
+}
+
+func (ve *ValueEntity) Get() (interface{}, error) {
+	return ve.DataType.Get(ve.Value)
 }

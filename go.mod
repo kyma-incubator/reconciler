@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/fatih/structs v1.1.0
 	github.com/iancoleman/strcase v0.1.3
+	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-sqlite3 v1.14.7 // indirect
 	github.com/olekukonko/tablewriter v0.0.5

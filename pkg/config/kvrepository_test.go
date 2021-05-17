@@ -171,6 +171,10 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 		_, err = ceRepo.CreateValue(valueEntity)
 		require.True(t, db.IsInvalidEntityError(err))
 
+		valueEntity.DataType = String
+		_, err = ceRepo.CreateValue(valueEntity)
+		require.True(t, db.IsInvalidEntityError(err))
+
 		//create the first test value (added to bucket 'bucketNames[0]') in 3 versions
 		for _, value := range []string{"entity1-value1", "entity1-value2", "entity1-value3"} {
 			valueEntity.Value = value
@@ -184,6 +188,7 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 			Key:        keyEntity.Key,
 			KeyVersion: keyEntity.Version,
 			Bucket:     bucketNames[1],
+			DataType:   String,
 			Username:   "testUsername2",
 		}
 		for _, value := range []string{"entity2-value1", "entity2-value2", "entity2-value3"} {
@@ -242,7 +247,7 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, len(bucketEntities))
 		for _, bucketEntity := range bucketEntities {
-			valueEntities, err := ceRepo.ValuesByBucket(bucketEntity)
+			valueEntities, err := ceRepo.ValuesByBucket(bucketEntity.Bucket)
 			require.NoError(t, err)
 			require.Equal(t, 1, len(valueEntities))
 			//for each bucket the latest value has to be returned
@@ -274,6 +279,7 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 			KeyVersion: keyEntity.Version,
 			Username:   "xyz123",
 			Bucket:     bucketNames[1],
+			DataType:   String,
 			Value:      "another value",
 		}
 		_, err := ceRepo.CreateValue(valueEntity)

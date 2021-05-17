@@ -35,3 +35,7 @@ func requireValidBucketName(value interface{}) (interface{}, error) {
 	}
 	return value, nil
 }
+
+func convertStringToDataType(value interface{}) (interface{}, error) {
+	return NewDataType(value.(string))
+}

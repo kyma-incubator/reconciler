@@ -19,6 +19,7 @@ CREATE TABLE config_values (
 	"key" text NOT NULL,
 	"key_version" integer NOT NULL,
 	"bucket" text NOT NULL,
+	"data_type" varchar(255) NOT NULL,
 	"value" text NULL,
 	"username" varchar(255) NOT NULL,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

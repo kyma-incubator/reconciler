@@ -173,7 +173,7 @@ func (cer *KeyValueRepository) DeleteKey(key string) error {
 	return tx.Commit()
 }
 
-func (cer *KeyValueRepository) ValuesByBucket(bucket *BucketEntity) ([]*ValueEntity, error) {
+func (cer *KeyValueRepository) ValuesByBucket(bucket string) ([]*ValueEntity, error) {
 	entity := &ValueEntity{}
 	q, err := db.NewQuery(cer.conn, entity)
 	if err != nil {
@@ -201,7 +201,7 @@ func (cer *KeyValueRepository) ValuesByBucket(bucket *BucketEntity) ([]*ValueEnt
 	//query all values in bucket (return only the latest value-entry per key)
 	entities, err := q.Select().
 		WhereIn("Version", fmt.Sprintf("SELECT MAX(%s) FROM %s WHERE %s=$1 GROUP BY %s",
-			colVersion, entity.Table(), colBucket, colKey), bucket.Bucket).
+			colVersion, entity.Table(), colBucket, colKey), bucket).
 		OrderBy(map[string]string{"Key": "ASC"}).
 		GetMany()
 	if err != nil {

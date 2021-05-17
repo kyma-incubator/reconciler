@@ -84,7 +84,7 @@ func renderBucketsWithValues(o *cli.Options, buckets []*config.BucketEntity) err
 		return err
 	}
 	for _, bucket := range buckets {
-		values, err := o.Repository().ValuesByBucket(bucket)
+		values, err := o.Repository().ValuesByBucket(bucket.Bucket)
 		if err != nil {
 			return err
 		}
