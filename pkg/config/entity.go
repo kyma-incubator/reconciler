@@ -27,8 +27,11 @@ func convertTimestampToTime(value interface{}) (interface{}, error) {
 }
 
 func requireValidBucketName(value interface{}) (interface{}, error) {
-	if err := ValidateBucketName(fmt.Sprintf("%s", value)); err != nil {
-		return value, err
+	bucketName := fmt.Sprintf("%s", value)
+	if bucketName != "" {
+		if err := ValidateBucketName(bucketName); err != nil {
+			return value, err
+		}
 	}
 	return value, nil
 }
