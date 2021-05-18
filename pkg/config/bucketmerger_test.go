@@ -47,10 +47,12 @@ func TestBucketMerger(t *testing.T) {
 		}
 		result, err := bm.Merge(bucketGroups)
 		require.NoError(t, err)
+		values, err := result.GetAll()
+		require.NoError(t, err)
 
 		exectedMap, err := loadYaml(t, "expected-allbuckets.yaml")
 		require.NoError(t, err)
-		require.Equal(t, exectedMap, result)
+		require.Equal(t, exectedMap, values)
 	})
 
 	t.Run("Merge few buckets (some are undefined or non-existing)", func(t *testing.T) {
@@ -66,10 +68,12 @@ func TestBucketMerger(t *testing.T) {
 		}
 		result, err := bm.Merge(bucketGroups)
 		require.NoError(t, err)
+		values, err := result.GetAll()
+		require.NoError(t, err)
 
 		expectedMap, err := loadYaml(t, "expected-fewbuckets.yaml")
 		require.NoError(t, err)
-		require.Equal(t, expectedMap, result)
+		require.Equal(t, expectedMap, values)
 	})
 }
 

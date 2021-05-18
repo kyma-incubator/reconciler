@@ -18,8 +18,8 @@ type BucketMerger struct {
 	KeyValueRepository *KeyValueRepository
 }
 
-func (bm *BucketMerger) Merge(buckets map[string]string) (map[string]interface{}, error) {
-	result := map[string]interface{}{}
+func (bm *BucketMerger) Merge(buckets map[string]string) (*BucketMergeResult, error) {
+	result := map[string]*ValueEntity{}
 	for _, bucket := range DefaultMergeSequence { //TODO: add support for cluster specific merge sequences: new DB entity required
 		if bucket != DefaultBucket {
 			subBucket, ok := buckets[bucket]
@@ -30,30 +30,22 @@ func (bm *BucketMerger) Merge(buckets map[string]string) (map[string]interface{}
 		}
 		values, err := bm.KeyValueRepository.ValuesByBucket(bucket)
 		if err != nil {
-			return result, err
+			return nil, err
 		}
-		valueMap, err := bm.valueMap(values)
-		if err != nil {
-			return result, err
-		}
+		valueMap := bm.valueMap(values)
 		if err := mergo.MergeWithOverwrite(&result, valueMap); err != nil {
-			return result, errors.Wrap(err, fmt.Sprintf("Failed to merge value entries of bucket '%s'", bucket))
+			return nil, errors.Wrap(err, fmt.Sprintf("Failed to merge value entries of bucket '%s'", bucket))
 		}
 	}
-	return result, nil
+	return &BucketMergeResult{result: result}, nil
 }
 
-func (bm *BucketMerger) valueMap(values []*ValueEntity) (map[string]interface{}, error) {
-	result := make(map[string]interface{}, len(values))
+func (bm *BucketMerger) valueMap(values []*ValueEntity) map[string]*ValueEntity {
+	result := make(map[string]*ValueEntity, len(values))
 	for _, value := range values {
-		typedValue, err := value.Get()
-		if err != nil {
-			return result, errors.Wrap(err,
-				fmt.Sprintf("Potential data inconsistency detected: failed to get typed value of value-entity %s", value))
-		}
-		result[value.Key] = typedValue
+		result[value.Key] = value
 	}
-	return result, nil
+	return result
 }
 
 func ValidateBucketName(bucket string) error {
@@ -61,4 +53,41 @@ func ValidateBucketName(bucket string) error {
 		return nil
 	}
 	return fmt.Errorf("Bucket name '%s' is invalid: bucket name has to match the pattern '%s'", bucket, bucketPattern)
+}
+
+type BucketMergeResult struct {
+	result map[string]*ValueEntity
+}
+
+func (mr *BucketMergeResult) Values() map[string]*ValueEntity {
+	return mr.result
+}
+
+func (mr *BucketMergeResult) Value(value string) (*ValueEntity, error) {
+	valueEntity, ok := mr.result[value]
+	if !ok {
+		return nil, fmt.Errorf("Merge result does not contain the value '%s'", value)
+	}
+	return valueEntity, nil
+}
+
+func (mr *BucketMergeResult) Get(value string) (interface{}, error) {
+	valueEntity, ok := mr.result[value]
+	if !ok {
+		return nil, fmt.Errorf("Merge result does not contain the value '%s'", value)
+	}
+	return valueEntity.Get()
+}
+
+func (mr *BucketMergeResult) GetAll() (map[string]interface{}, error) {
+	result := make(map[string]interface{}, len(mr.result))
+	for key, value := range mr.result {
+		typedValue, err := value.Get()
+		if err != nil {
+			return result, errors.Wrap(err,
+				fmt.Sprintf("Potential data inconsistency detected: failed to get typed value of value-entity %s", value))
+		}
+		result[key] = typedValue
+	}
+	return result, nil
 }
