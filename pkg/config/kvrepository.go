@@ -148,6 +148,7 @@ func (cer *KeyValueRepository) DeleteKey(key string) error {
 		if err := cer.deleteValuesByKey(key); err != nil {
 			return err
 		}
+
 		//delete all values mapped to the key
 		qKey, err := db.NewQuery(cer.conn, &KeyEntity{})
 		if err != nil {
@@ -166,8 +167,11 @@ func (cer *KeyValueRepository) DeleteKey(key string) error {
 		return err
 	}
 	if err := dbOps(); err != nil {
-		cer.logger.Debug("Rollback transactional DB context")
-		return errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", tx.Rollback()))
+		cer.logger.Info("Rollback transactional DB context")
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", tx.Rollback()))
+		}
+		return err
 	}
 	cer.logger.Debug("Commit transactional DB context")
 	return tx.Commit()
@@ -328,6 +332,7 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 
 	//insert operation
 	dbOps := func() (*ValueEntity, error) {
+
 		//add value entity
 		q, err := db.NewQuery(cer.conn, value)
 		if err != nil {
@@ -337,15 +342,19 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 		if err != nil {
 			return valueEntity, err
 		}
+
 		//compare data type of value-entity with value type of key-entity
 		keyEntity, err := cer.Key(valueEntity.Key, valueEntity.KeyVersion)
 		if err != nil {
 			return valueEntity, errors.Wrap(err, fmt.Sprintf("Failed to retrieve key entity for value entity '%s'", valueEntity))
 		}
 		if valueEntity.DataType != keyEntity.DataType {
-			return valueEntity, fmt.Errorf("Data type of value entity (%s) is differnet to data type of key entity (%s)",
+			return valueEntity, fmt.Errorf("Data type of value entity (%s) is different to data type of key entity (%s)",
 				valueEntity.DataType, keyEntity.DataType)
 		}
+
+		//TODO: INVALIDATE all cache entries which have the existing value entry as dependency!
+
 		//done
 		return valueEntity, nil
 	}
@@ -358,9 +367,9 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 	}
 	valueEntity, err := dbOps()
 	if err != nil {
-		cer.logger.Debug("Rollback transactional DB context")
+		cer.logger.Info("Rollback transactional DB context")
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
+			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
 		}
 		return nil, err
 	}
@@ -373,6 +382,9 @@ func (cer *KeyValueRepository) deleteValuesByKey(key string) error {
 	if err != nil {
 		return err
 	}
+
+	//TODO: INVALIDATE all cache entries which have these value entries as dependency!
+
 	_, err = q.Delete().
 		Where(map[string]interface{}{"Key": key}).
 		Exec()
@@ -441,6 +453,9 @@ func (cer *KeyValueRepository) DeleteBucket(bucket string) error {
 	if err != nil {
 		return err
 	}
+
+	//TODO: INVALIDATE all cache entries which have these value entries as dependency!
+
 	_, err = q.Delete().
 		Where(map[string]interface{}{"Bucket": bucket}).
 		Exec()

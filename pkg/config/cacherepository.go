@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/pkg/errors"
 )
 
 type CacheRepository struct {
@@ -65,16 +66,14 @@ func (cr *CacheRepository) GetByID(id int64) (*CacheEntryEntity, error) {
 	return entity.(*CacheEntryEntity), nil
 }
 
-func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity) (*CacheEntryEntity, error) {
-	q, err := db.NewQuery(cr.conn, cacheEntry)
-	if err != nil {
-		return nil, err
-	}
+func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueEntity) (*CacheEntryEntity, error) {
+	//Get exiting cache entry
 	inCache, err := cr.Get(cacheEntry.Label, cacheEntry.Cluster)
 	if err != nil && !IsNotFoundError(err) {
 		return nil, err
 	}
 	if inCache != nil {
+		//check if the existing cache entry is still valid otherwise invalidate it
 		if inCache.Equal(cacheEntry) {
 			cr.logger.Debug(fmt.Sprintf("No differences found for cache entry '%s' (cluster '%s'): not creating new database entity",
 				cacheEntry.Label, cacheEntry.Cluster))
@@ -85,7 +84,56 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity) (*CacheEntryEntity,
 			return cacheEntry, err
 		}
 	}
-	return cacheEntry, q.Insert().Exec()
+
+	//create new cache entry and track its dependencies
+	dbOps := func() (*CacheEntryEntity, error) {
+		q, err := db.NewQuery(cr.conn, cacheEntry)
+		if err != nil {
+			return cacheEntry, err
+		}
+		if err := q.Insert().Exec(); err != nil {
+			return cacheEntry, err
+		}
+		if err := cr.createCacheDeps(cacheEntry, cacheDeps); err != nil {
+			return cacheEntry, err
+		}
+		return cacheEntry, err
+	}
+
+	//run db-operations transactional
+	cr.logger.Debug("Begin transactional DB context")
+	tx, err := cr.conn.Begin()
+	if err != nil {
+		return nil, err
+	}
+	cacheEntityEntry, err := dbOps()
+	if err != nil {
+		cr.logger.Info("Rollback transactional DB context")
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
+		}
+		return cacheEntityEntry, err
+	}
+	cr.logger.Debug("Commit transactional DB context")
+	return cacheEntityEntry, tx.Commit()
+}
+
+func (cr *CacheRepository) createCacheDeps(cacheEntry *CacheEntryEntity, cacheDeps []*ValueEntity) error {
+	for _, value := range cacheDeps {
+		q, err := db.NewQuery(cr.conn, &CacheDependencyEntity{
+			Bucket:  value.Bucket,
+			Key:     value.Key,
+			Label:   cacheEntry.Label,
+			Cluster: cacheEntry.Cluster,
+		})
+		if err != nil {
+			return err
+		}
+		if err := q.Insert().Exec(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (cr *CacheRepository) Invalidate(label, cluster string) error {

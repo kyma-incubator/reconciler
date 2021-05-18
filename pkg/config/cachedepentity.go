@@ -10,14 +10,14 @@ import (
 type CacheDependencyEntity struct {
 	Bucket  string    `db:"notNull"`
 	Key     string    `db:"notNull"`
-	CacheID string    `db:"notNull"`
+	Label   string    `db:"notNull"`
 	Cluster string    `db:"notNull"`
 	Created time.Time `db:"readOnly"`
 }
 
 func (cde *CacheDependencyEntity) String() string {
-	return fmt.Sprintf("Bucket=%s,Key=%s,CacheID=%s,Cluster=%s,CreatedOn=%s",
-		cde.Bucket, cde.Key, cde.CacheID, cde.Cluster, cde.Created)
+	return fmt.Sprintf("Bucket=%s,Key=%s,Label=%s,Cluster=%s,CreatedOn=%s",
+		cde.Bucket, cde.Key, cde.Label, cde.Cluster, cde.Created)
 }
 
 func (cde *CacheDependencyEntity) New() db.DatabaseEntity {
@@ -42,7 +42,7 @@ func (cde *CacheDependencyEntity) Equal(other db.DatabaseEntity) bool {
 	if ok {
 		return cde.Bucket == otherDep.Bucket &&
 			cde.Key == otherDep.Key &&
-			cde.CacheID == otherDep.CacheID &&
+			cde.Label == otherDep.Label &&
 			cde.Cluster == otherDep.Cluster
 	}
 	return false

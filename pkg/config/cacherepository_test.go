@@ -18,20 +18,20 @@ func TestCacheRepository(t *testing.T) {
 		cacheEntry1 := &CacheEntryEntity{
 			Label: "cacheentry1",
 		}
-		cacheEntry1, err = repo.Add(cacheEntry1)
+		cacheEntry1, err = repo.Add(cacheEntry1, nil)
 		require.True(t, db.IsInvalidEntityError(err))
 
 		cacheEntry1.Cluster = "abc"
-		cacheEntry1, err = repo.Add(cacheEntry1)
+		cacheEntry1, err = repo.Add(cacheEntry1, nil)
 		require.True(t, db.IsInvalidEntityError(err))
 
 		cacheEntry1.Buckets = "default,dev,abc"
-		cacheEntry1, err = repo.Add(cacheEntry1)
+		cacheEntry1, err = repo.Add(cacheEntry1, nil)
 		require.True(t, db.IsInvalidEntityError(err))
 
 		//create entry1
 		cacheEntry1.Data = "The cached data goes here" //m5d: a3daa753769a78e732d763d143235d87
-		cacheEntry1, err = repo.Add(cacheEntry1)
+		cacheEntry1, err = repo.Add(cacheEntry1, nil)
 		require.NoError(t, err)
 		require.Equal(t, "a3daa753769a78e732d763d143235d87", cacheEntry1.checksum())
 		require.True(t, cacheEntry1.ID > 0)
@@ -44,7 +44,7 @@ func TestCacheRepository(t *testing.T) {
 			Data:    "The second cached data goes here", //md5: 3bb77817db259eed817165ef8d891e61
 			Buckets: "default,dev,xyz",
 		}
-		cacheEntry2, err = repo.Add(cacheEntry2)
+		cacheEntry2, err = repo.Add(cacheEntry2, nil)
 		require.NoError(t, err)
 		require.Equal(t, "3bb77817db259eed817165ef8d891e61", cacheEntry2.checksum())
 		require.True(t, cacheEntries[0].ID < cacheEntry2.ID) //ID is an incremental counter
@@ -62,7 +62,7 @@ func TestCacheRepository(t *testing.T) {
 			Label:   "cacheentry1",
 			Cluster: "abc",
 			Data:    "The cached data goes here",
-		})
+		}, nil)
 		require.NoError(t, err)
 		require.Equal(t, "a3daa753769a78e732d763d143235d87", cacheEntry.checksum())
 		require.Equal(t, cacheEntries[0].ID, cacheEntry.ID)
@@ -92,7 +92,7 @@ func TestCacheRepository(t *testing.T) {
 			Cluster: "abc",
 			Buckets: "default,dev,abc",
 			Data:    "This is the updated cache entry", //md5: 38776bd2eb877254ff1350e1f088b1fd
-		})
+		}, nil)
 		require.NoError(t, err)
 		require.Equal(t, "38776bd2eb877254ff1350e1f088b1fd", cacheEntry.checksum())
 		require.True(t, cacheEntries[0].ID < cacheEntry.ID) //ID is an incremental counter

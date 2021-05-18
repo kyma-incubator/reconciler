@@ -28,7 +28,7 @@ func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) 
 	}, err
 }
 
-func (cer *Repository) handleNotFoundError(err error, entity db.DatabaseEntity,
+func (r *Repository) handleNotFoundError(err error, entity db.DatabaseEntity,
 	identifier map[string]interface{}) error {
 	if err == sql.ErrNoRows {
 		return &EntityNotFoundError{
