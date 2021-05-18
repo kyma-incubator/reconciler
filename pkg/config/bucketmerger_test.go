@@ -44,9 +44,9 @@ func TestBucketMerger(t *testing.T) {
 		bm := &BucketMerger{
 			KeyValueRepository: kvRepo,
 		}
-		_, err := bm.Merge(bucketGroups)
+		result, err := bm.Merge(bucketGroups)
 		require.NoError(t, err)
-		//require.Equal(t, loadYaml(t, "expected.yaml"), result) FIXME
+		require.Equal(t, loadYaml(t, "expected.yaml"), result)
 	})
 
 }
@@ -59,9 +59,9 @@ func initRepo(t *testing.T, kvRepo *KeyValueRepository, buckets map[string]strin
 				continue
 			}
 			bucket = fmt.Sprintf("%s-%s", bucket, subBucket)
-			kvMap := loadYaml(t, fmt.Sprintf("%s.yaml", bucket))
-			importKVMap(t, kvRepo, bucket, kvMap)
 		}
+		kvMap := loadYaml(t, fmt.Sprintf("%s.yaml", bucket))
+		importKVMap(t, kvRepo, bucket, kvMap)
 	}
 }
 

@@ -20,8 +20,7 @@ type BucketMerger struct {
 
 func (bm *BucketMerger) Merge(buckets map[string]string) (map[string]interface{}, error) {
 	result := map[string]interface{}{}
-	//TODO: add support for cluster specific merge sequences: new DB entity required
-	for _, bucket := range DefaultMergeSequence {
+	for _, bucket := range DefaultMergeSequence { //TODO: add support for cluster specific merge sequences: new DB entity required
 		if bucket != DefaultBucket {
 			subBucket, ok := buckets[bucket]
 			if !ok {
