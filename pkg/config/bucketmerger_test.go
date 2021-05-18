@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 
@@ -32,7 +33,7 @@ func TestBucketMerger(t *testing.T) {
 		require.Error(t, ValidateBucketName("-abc-abc"))
 	})
 
-	t.Run("Merge buckets (all attributes provided)", func(t *testing.T) {
+	t.Run("Merge buckets", func(t *testing.T) {
 		bucketGroups := map[string]string{
 			"landscape": "unittest",
 			"customer":  "testcustomer",
@@ -46,32 +47,64 @@ func TestBucketMerger(t *testing.T) {
 		}
 		result, err := bm.Merge(bucketGroups)
 		require.NoError(t, err)
-		require.Equal(t, loadYaml(t, "expected.yaml"), result)
+
+		exectedMap, err := loadYaml(t, "expected-allbuckets.yaml")
+		require.NoError(t, err)
+		require.Equal(t, exectedMap, result)
 	})
 
+	t.Run("Merge few buckets (some are undefined or non-existing)", func(t *testing.T) {
+		bucketGroups := map[string]string{
+			"landscape": "unittest",
+			"customer":  "dontexist",
+			"feature":   "testfeature",
+		}
+		kvRepo := newKeyValueRepo(t)
+		initRepo(t, kvRepo, bucketGroups)
+		bm := &BucketMerger{
+			KeyValueRepository: kvRepo,
+		}
+		result, err := bm.Merge(bucketGroups)
+		require.NoError(t, err)
+
+		expectedMap, err := loadYaml(t, "expected-fewbuckets.yaml")
+		require.NoError(t, err)
+		require.Equal(t, expectedMap, result)
+	})
 }
 
 func initRepo(t *testing.T, kvRepo *KeyValueRepository, buckets map[string]string) {
 	for _, bucket := range DefaultMergeSequence {
 		if bucket != DefaultBucket {
 			subBucket, ok := buckets[bucket]
-			if !ok { //bucket not in buckets map - ignore it
+			if !ok { //bucket not listed in buckets map - don't try to import it (file won't exist ;) )
 				continue
 			}
 			bucket = fmt.Sprintf("%s-%s", bucket, subBucket)
 		}
-		kvMap := loadYaml(t, fmt.Sprintf("%s.yaml", bucket))
-		importKVMap(t, kvRepo, bucket, kvMap)
+		kvMap, err := loadYaml(t, fmt.Sprintf("%s.yaml", bucket))
+		if err == nil {
+			importKVMap(t, kvRepo, bucket, kvMap)
+		}
 	}
 }
 
-func loadYaml(t *testing.T, bucketFile string) map[string]interface{} {
+func fileExists(file string) bool {
+	_, err := os.Stat(file)
+	return !os.IsNotExist(err)
+}
+
+func loadYaml(t *testing.T, bucketFile string) (map[string]interface{}, error) {
+	filePath := path.Join("test", "merger", bucketFile)
+	if !fileExists(filePath) {
+		return nil, fmt.Errorf("File not found: %s", filePath)
+	}
 	result := map[string]interface{}{}
-	yamlData, err := ioutil.ReadFile(path.Join("test", "merger", bucketFile))
+	yamlData, err := ioutil.ReadFile(filePath)
 	require.NoError(t, err)
 	err = yaml.Unmarshal(yamlData, result)
 	require.NoError(t, err)
-	return result
+	return result, nil
 }
 
 func importKVMap(t *testing.T, kvRepo *KeyValueRepository, bucket string, data map[string]interface{}) {

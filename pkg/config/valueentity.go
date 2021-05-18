@@ -19,8 +19,8 @@ type ValueEntity struct {
 }
 
 func (ve *ValueEntity) String() string {
-	return fmt.Sprintf("%s=%s: KeyVersion=%d,Bucket=%s,User=%s,CreatedOn=%s",
-		ve.Key, ve.Value, ve.KeyVersion, ve.Bucket, ve.Username, ve.Created)
+	return fmt.Sprintf("%s=%s (v%d): KeyVersion=%d,Bucket=%s,DataType=%s,User=%s,CreatedOn=%s",
+		ve.Key, ve.Value, ve.Version, ve.KeyVersion, ve.Bucket, ve.DataType, ve.Username, ve.Created)
 }
 
 func (ve *ValueEntity) New() db.DatabaseEntity {
