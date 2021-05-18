@@ -12,15 +12,14 @@ type CacheEntryEntity struct {
 	ID       int64     `db:"readOnly"`
 	Label    string    `db:"notNull"`
 	Cluster  string    `db:"notNull"`
-	Buckets  string    `db:"notNull"`
 	Data     string    `db:"notNull"`
 	Checksum string    `db:"notNull"`
 	Created  time.Time `db:"readOnly"`
 }
 
 func (ce *CacheEntryEntity) String() string {
-	return fmt.Sprintf("Label=%s,Cluster=%s,Buckets=%s,CreatedOn=%s",
-		ce.Label, ce.Cluster, ce.Buckets, ce.Created)
+	return fmt.Sprintf("Label=%s,Cluster=%s,Checksum=%s,CreatedOn=%s",
+		ce.Label, ce.Cluster, ce.checksum(), ce.Created)
 }
 
 func (ce *CacheEntryEntity) New() db.DatabaseEntity {

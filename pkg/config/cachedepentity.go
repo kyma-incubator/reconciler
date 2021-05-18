@@ -12,6 +12,7 @@ type CacheDependencyEntity struct {
 	Key     string    `db:"notNull"`
 	Label   string    `db:"notNull"`
 	Cluster string    `db:"notNull"`
+	CacheID int64     `db:"notNull"`
 	Created time.Time `db:"readOnly"`
 }
 

@@ -32,7 +32,6 @@ CREATE TABLE config_cache (
 	"id" SERIAL UNIQUE, --just another unique identifer for a cache-entry
 	"label" text NOT NULL,
 	"cluster" text NOT NULL,
-	"buckets" text NOT NULL, --additional information just for better traceability
 	"data" text NOT NULL,
 	"checksum" text NOT NULL,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
@@ -46,6 +45,7 @@ CREATE TABLE config_cachedeps (
 	"key" text NOT NULL,
 	"label" text NOT NULL,
 	"cluster" text NOT NULL,
+	"cache_id" integer NOT NULL,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
 	CONSTRAINT config_cachedep_pk PRIMARY KEY ("bucket", "key", "label", "cluster"),
 	FOREIGN KEY ("label", "cluster") REFERENCES config_cache ("label", "cluster") ON DELETE CASCADE

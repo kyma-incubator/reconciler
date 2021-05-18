@@ -10,6 +10,18 @@ import (
 func TestCacheRepository(t *testing.T) {
 	repo := newCacheRepo(t)
 
+	var cacheDeps []*ValueEntity = []*ValueEntity{
+		&ValueEntity{
+			Key:        "depKey1",
+			KeyVersion: 1,
+			Bucket:     "depBucket1",
+		},
+		&ValueEntity{
+			Key:        "depKey2",
+			KeyVersion: 2,
+			Bucket:     "depBucket2",
+		},
+	}
 	var cacheEntries []*CacheEntryEntity
 
 	t.Run("Creating cache entries", func(t *testing.T) {
@@ -18,20 +30,19 @@ func TestCacheRepository(t *testing.T) {
 		cacheEntry1 := &CacheEntryEntity{
 			Label: "cacheentry1",
 		}
-		cacheEntry1, err = repo.Add(cacheEntry1, nil)
+		cacheEntry1, err = repo.Add(cacheEntry1, cacheDeps)
 		require.True(t, db.IsInvalidEntityError(err))
 
 		cacheEntry1.Cluster = "abc"
-		cacheEntry1, err = repo.Add(cacheEntry1, nil)
+		cacheEntry1, err = repo.Add(cacheEntry1, cacheDeps)
 		require.True(t, db.IsInvalidEntityError(err))
 
-		cacheEntry1.Buckets = "default,dev,abc"
-		cacheEntry1, err = repo.Add(cacheEntry1, nil)
+		cacheEntry1, err = repo.Add(cacheEntry1, cacheDeps)
 		require.True(t, db.IsInvalidEntityError(err))
 
 		//create entry1
 		cacheEntry1.Data = "The cached data goes here" //m5d: a3daa753769a78e732d763d143235d87
-		cacheEntry1, err = repo.Add(cacheEntry1, nil)
+		cacheEntry1, err = repo.Add(cacheEntry1, cacheDeps)
 		require.NoError(t, err)
 		require.Equal(t, "a3daa753769a78e732d763d143235d87", cacheEntry1.checksum())
 		require.True(t, cacheEntry1.ID > 0)
@@ -42,9 +53,8 @@ func TestCacheRepository(t *testing.T) {
 			Label:   "cacheentry2",
 			Cluster: "xyz",
 			Data:    "The second cached data goes here", //md5: 3bb77817db259eed817165ef8d891e61
-			Buckets: "default,dev,xyz",
 		}
-		cacheEntry2, err = repo.Add(cacheEntry2, nil)
+		cacheEntry2, err = repo.Add(cacheEntry2, cacheDeps)
 		require.NoError(t, err)
 		require.Equal(t, "3bb77817db259eed817165ef8d891e61", cacheEntry2.checksum())
 		require.True(t, cacheEntries[0].ID < cacheEntry2.ID) //ID is an incremental counter
@@ -90,7 +100,6 @@ func TestCacheRepository(t *testing.T) {
 		cacheEntry, err := repo.Add(&CacheEntryEntity{
 			Label:   "cacheentry1",
 			Cluster: "abc",
-			Buckets: "default,dev,abc",
 			Data:    "This is the updated cache entry", //md5: 38776bd2eb877254ff1350e1f088b1fd
 		}, nil)
 		require.NoError(t, err)

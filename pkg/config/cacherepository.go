@@ -125,6 +125,7 @@ func (cr *CacheRepository) createCacheDeps(cacheEntry *CacheEntryEntity, cacheDe
 			Key:     value.Key,
 			Label:   cacheEntry.Label,
 			Cluster: cacheEntry.Cluster,
+			CacheID: cacheEntry.ID,
 		})
 		if err != nil {
 			return err
