@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	createCmd "github.com/kyma-incubator/reconciler/cmd/config/create"
 	createKeyCmd "github.com/kyma-incubator/reconciler/cmd/config/create/key"
@@ -13,6 +12,7 @@ import (
 	getValueCmd "github.com/kyma-incubator/reconciler/cmd/config/get/value"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -85,7 +85,7 @@ func initViper(o *cli.Options) func() {
 
 		//read configuration from config file
 		cfgFile := getConfigFile()
-		if !fileExists(cfgFile) {
+		if !file.FileExists(cfgFile) {
 			o.Logger().Warn(fmt.Sprintf("Configuration file '%s' not found", cfgFile))
 			return
 		}
@@ -101,7 +101,7 @@ func initViper(o *cli.Options) func() {
 
 func getConfigFile() string {
 	configFileEnv := viper.GetString("config")
-	if fileExists(configFileEnv) {
+	if file.FileExists(configFileEnv) {
 		return configFileEnv
 	}
 	return defaultConfigFile
@@ -127,9 +127,4 @@ func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
 	default:
 		return nil, fmt.Errorf("Database driver '%s' not supported yet", dbDriver)
 	}
-}
-
-func fileExists(file string) bool {
-	stats, err := os.Stat(file)
-	return !os.IsNotExist(err) && !stats.IsDir()
 }

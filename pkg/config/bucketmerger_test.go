@@ -3,10 +3,10 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path"
 	"testing"
 
+	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -93,14 +93,9 @@ func initRepo(t *testing.T, kvRepo *KeyValueRepository, buckets map[string]strin
 	}
 }
 
-func fileExists(file string) bool {
-	stats, err := os.Stat(file)
-	return !os.IsNotExist(err) && !stats.IsDir()
-}
-
 func loadYaml(t *testing.T, bucketFile string) (map[string]interface{}, error) {
 	filePath := path.Join("test", "merger", bucketFile)
-	if !fileExists(filePath) {
+	if !file.FileExists(filePath) {
 		return nil, fmt.Errorf("File not found: %s", filePath)
 	}
 	result := map[string]interface{}{}
