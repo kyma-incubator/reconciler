@@ -35,8 +35,8 @@ func (ce *CacheEntryEntity) checksum() string {
 }
 
 func (ce *CacheEntryEntity) md5() string {
-	md5 := md5.Sum([]byte(ce.Data)) //nolint - MD5 is used for change detection, not for encryption
-	return fmt.Sprintf("%x", md5)
+	chksum := md5.Sum([]byte(ce.Data)) //nolint - MD5 is used for change detection, not for encryption
+	return fmt.Sprintf("%x", chksum)
 }
 
 func (ce *CacheEntryEntity) Marshaller() *db.EntityMarshaller {
