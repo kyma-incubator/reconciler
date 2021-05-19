@@ -7,7 +7,10 @@ import (
 	"sync"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+
+	//add SQlite driver:
 	_ "github.com/mattn/go-sqlite3"
+
 	"go.uber.org/zap"
 )
 

@@ -5,7 +5,10 @@ import (
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+
+	//add Postgres driver:
 	_ "github.com/lib/pq"
+
 	"go.uber.org/zap"
 )
 

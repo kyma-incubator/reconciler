@@ -6,7 +6,7 @@ import (
 
 const (
 	MockRowsAffected = int64(999)
-	MockLastInsertId = int64(111)
+	MockLastInsertID = int64(111)
 )
 
 type MockDbEntity struct {
@@ -39,7 +39,7 @@ type MockResult struct {
 }
 
 func (r *MockResult) LastInsertId() (int64, error) {
-	return MockLastInsertId, nil
+	return MockLastInsertID, nil
 }
 
 func (r *MockResult) RowsAffected() (int64, error) {
