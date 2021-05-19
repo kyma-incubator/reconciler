@@ -14,6 +14,7 @@ import (
 type Repository struct {
 	conn   db.Connection
 	logger *zap.Logger
+	cache  *cacheDependencyManager
 }
 
 func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
@@ -22,10 +23,18 @@ func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) 
 		return nil, err
 	}
 	conn, err := dbFac.NewConnection()
+	if err != nil {
+		return nil, err
+	}
+	cacheDepMgr, err := newCacheDependencyManager(conn, debug)
+	if err != nil {
+		return nil, err
+	}
 	return &Repository{
 		conn:   conn,
 		logger: logger,
-	}, err
+		cache:  cacheDepMgr,
+	}, nil
 }
 
 func (r *Repository) handleNotFoundError(err error, entity db.DatabaseEntity,

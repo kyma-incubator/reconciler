@@ -175,6 +175,8 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 		_, err = ceRepo.CreateValue(valueEntity)
 		require.True(t, db.IsInvalidEntityError(err))
 
+		//TODO: add test with different DAtaType as defined in key! => check rollback
+
 		//create the first test value (added to bucket 'bucketNames[0]') in 3 versions
 		for _, value := range []string{"entity1-value1", "entity1-value2", "entity1-value3"} {
 			valueEntity.Value = value
@@ -319,7 +321,7 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 }
 
 func newKeyValueRepo(t *testing.T) *KeyValueRepository {
-	connFact, err := newConnectionFactory()
+	connFact, err := newTestConnectionFactory()
 	require.NoError(t, err)
 	ceRepo, err := NewKeyValueRepository(connFact, true)
 	require.NoError(t, err)

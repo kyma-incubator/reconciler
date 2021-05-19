@@ -11,12 +11,12 @@ func TestCacheRepository(t *testing.T) {
 	repo := newCacheRepo(t)
 
 	var cacheDeps []*ValueEntity = []*ValueEntity{
-		&ValueEntity{
+		{
 			Key:        "depKey1",
 			KeyVersion: 1,
 			Bucket:     "depBucket1",
 		},
-		&ValueEntity{
+		{
 			Key:        "depKey2",
 			KeyVersion: 2,
 			Bucket:     "depBucket2",
@@ -132,7 +132,7 @@ func TestCacheRepository(t *testing.T) {
 }
 
 func newCacheRepo(t *testing.T) *CacheRepository {
-	connFact, err := newConnectionFactory()
+	connFact, err := newTestConnectionFactory()
 	require.NoError(t, err)
 	ceRepo, err := NewCacheRepository(connFact, true)
 	require.NoError(t, err)

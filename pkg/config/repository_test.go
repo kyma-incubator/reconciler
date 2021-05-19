@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func newConnectionFactory() (db.ConnectionFactory, error) {
+func newTestConnectionFactory() (db.ConnectionFactory, error) {
 	viper.SetConfigFile(path.Join("test", "reconciler-test.yaml"))
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err

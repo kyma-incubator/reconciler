@@ -1,4 +1,5 @@
 bin/*
+cover.out
 
 # General
 .DS_Store

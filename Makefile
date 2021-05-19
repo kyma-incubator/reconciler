@@ -13,7 +13,7 @@ resolve:
 	go mod tidy
 
 .PHONY: lint
-validate:
+lint:
 	./scripts/lint.sh
 
 .PHONY: build

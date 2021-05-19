@@ -94,7 +94,7 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueE
 		if err := q.Insert().Exec(); err != nil {
 			return cacheEntry, err
 		}
-		if err := cr.createCacheDeps(cacheEntry, cacheDeps); err != nil {
+		if err := cr.cache.Record(cacheEntry, cacheDeps).Exec(false); err != nil {
 			return cacheEntry, err
 		}
 		return cacheEntry, err
@@ -116,25 +116,6 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueE
 	}
 	cr.logger.Debug("Commit transactional DB context")
 	return cacheEntityEntry, tx.Commit()
-}
-
-func (cr *CacheRepository) createCacheDeps(cacheEntry *CacheEntryEntity, cacheDeps []*ValueEntity) error {
-	for _, value := range cacheDeps {
-		q, err := db.NewQuery(cr.conn, &CacheDependencyEntity{
-			Bucket:  value.Bucket,
-			Key:     value.Key,
-			Label:   cacheEntry.Label,
-			Cluster: cacheEntry.Cluster,
-			CacheID: cacheEntry.ID,
-		})
-		if err != nil {
-			return err
-		}
-		if err := q.Insert().Exec(); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (cr *CacheRepository) Invalidate(label, cluster string) error {

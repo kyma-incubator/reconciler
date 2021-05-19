@@ -207,6 +207,10 @@ func addWhereCondition(whereCond map[string]interface{}, buffer *bytes.Buffer, c
 	var args []interface{}
 	var plcHdrIdx int
 
+	if len(whereCond) == 0 {
+		return args, nil
+	}
+
 	//get sort list of fields
 	fields := make([]string, 0, len(whereCond))
 	for field := range whereCond {
