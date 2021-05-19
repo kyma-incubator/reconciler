@@ -130,6 +130,6 @@ func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
 }
 
 func fileExists(file string) bool {
-	_, err := os.Stat(file)
-	return !os.IsNotExist(err)
+	stats, err := os.Stat(file)
+	return !os.IsNotExist(err) && !stats.IsDir()
 }

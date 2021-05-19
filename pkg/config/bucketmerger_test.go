@@ -94,8 +94,8 @@ func initRepo(t *testing.T, kvRepo *KeyValueRepository, buckets map[string]strin
 }
 
 func fileExists(file string) bool {
-	_, err := os.Stat(file)
-	return !os.IsNotExist(err)
+	stats, err := os.Stat(file)
+	return !os.IsNotExist(err) && !stats.IsDir()
 }
 
 func loadYaml(t *testing.T, bucketFile string) (map[string]interface{}, error) {
