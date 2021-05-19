@@ -91,7 +91,7 @@ func (es *EntityMarshaller) setFieldValue(field *structs.Field, value interface{
 		}
 		err = field.Set(int64Value)
 	case reflect.Bool:
-		//some DBs handle booleans als integer values (0/1)
+		//some DBs handle booleans as integer values (0/1)
 		boolValue, ok := value.(bool)
 		if !ok {
 			int64Value, ok := value.(int64)
