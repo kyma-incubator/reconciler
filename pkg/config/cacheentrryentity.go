@@ -1,6 +1,7 @@
 package config
 
 import (
+	//nolint - ignore blacklisted import as we use md5 lib just for change detection and not for encryption
 	"crypto/md5"
 	"fmt"
 	"time"
