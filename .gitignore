@@ -5,3 +5,4 @@ bin/*
 *.swp
 ._*
 Thumbs.db
+cover.out
