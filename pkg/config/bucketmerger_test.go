@@ -95,7 +95,7 @@ func initRepo(t *testing.T, kvRepo *KeyValueRepository, buckets map[string]strin
 
 func loadYaml(t *testing.T, bucketFile string) (map[string]interface{}, error) {
 	filePath := path.Join("test", "merger", bucketFile)
-	if !file.FileExists(filePath) {
+	if !file.Exists(filePath) {
 		return nil, fmt.Errorf("File not found: %s", filePath)
 	}
 	result := map[string]interface{}{}

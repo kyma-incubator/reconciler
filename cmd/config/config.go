@@ -85,7 +85,7 @@ func initViper(o *cli.Options) func() {
 
 		//read configuration from config file
 		cfgFile := getConfigFile()
-		if !file.FileExists(cfgFile) {
+		if !file.Exists(cfgFile) {
 			o.Logger().Warn(fmt.Sprintf("Configuration file '%s' not found", cfgFile))
 			return
 		}
@@ -101,7 +101,7 @@ func initViper(o *cli.Options) func() {
 
 func getConfigFile() string {
 	configFileEnv := viper.GetString("config")
-	if file.FileExists(configFileEnv) {
+	if file.Exists(configFileEnv) {
 		return configFileEnv
 	}
 	return defaultConfigFile
