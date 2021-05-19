@@ -59,6 +59,7 @@ func TestColumnHandler(t *testing.T) {
 		require.Equal(t, "$1, $2, $3", colHdr.ColumnValuesPlaceholderCsv(false))
 		require.Equal(t, "$1, $2", colHdr.ColumnValuesPlaceholderCsv(true))
 	})
+
 	t.Run("Get column entries as CSV", func(t *testing.T) {
 		require.ElementsMatch(t, []string{"col_1='testString'", "col_2=true", "col_3=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(false)))
 		require.ElementsMatch(t, []string{"col_1='testString'", "col_3=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(true)))

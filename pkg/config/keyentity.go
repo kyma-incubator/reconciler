@@ -49,8 +49,8 @@ func (ke *KeyEntity) Validate(value string) error {
 }
 
 func (ke *KeyEntity) String() string {
-	return fmt.Sprintf("%s (v%d): Type=%s,Encrypted=%t,User=%s,CreatedOn=%s",
-		ke.Key, ke.Version, ke.DataType, ke.Encrypted, ke.Username, ke.Created)
+	return fmt.Sprintf("KeyEntity [Key=%s,Version=%d,DataType=%s,Encrypted=%t,User=%s]",
+		ke.Key, ke.Version, ke.DataType, ke.Encrypted, ke.Username)
 }
 
 func (ke *KeyEntity) New() db.DatabaseEntity {

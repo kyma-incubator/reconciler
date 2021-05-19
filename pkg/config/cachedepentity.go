@@ -17,8 +17,8 @@ type CacheDependencyEntity struct {
 }
 
 func (cde *CacheDependencyEntity) String() string {
-	return fmt.Sprintf("Bucket=%s,Key=%s,Label=%s,Cluster=%s,CreatedOn=%s",
-		cde.Bucket, cde.Key, cde.Label, cde.Cluster, cde.Created)
+	return fmt.Sprintf("CacheDependencyEntity [Bucket=%s,Key=%s,Label=%s,Cluster=%s,CacheID=%d]",
+		cde.Bucket, cde.Key, cde.Label, cde.Cluster, cde.CacheID)
 }
 
 func (cde *CacheDependencyEntity) New() db.DatabaseEntity {

@@ -12,7 +12,6 @@ import (
 
 type cacheDependencyManager struct {
 	conn   db.Connection
-	err    error
 	logger *zap.Logger
 }
 
@@ -24,14 +23,12 @@ type record struct {
 
 type invalidate struct {
 	*cacheDependencyManager
-	columnHandler *db.ColumnHandler
-	selector      map[string]interface{}
+	selector map[string]interface{}
 }
 
 type get struct {
 	*cacheDependencyManager
-	columnHandler *db.ColumnHandler
-	selector      map[string]interface{}
+	selector map[string]interface{}
 }
 
 func newCacheDependencyManager(conn db.Connection, debug bool) (*cacheDependencyManager, error) {
@@ -71,11 +68,6 @@ func (cdm *cacheDependencyManager) Record(cacheEntry *CacheEntryEntity, cacheDep
 }
 
 func (r *record) Exec(newTx bool) error {
-	//abort if anything went wrong before
-	if r.err != nil {
-		return r.err
-	}
-
 	dbOps := func() error {
 		//track deps in DB
 		for _, value := range r.cacheDeps {
@@ -103,13 +95,8 @@ func (r *record) Exec(newTx bool) error {
 }
 
 func (cdm *cacheDependencyManager) Invalidate() *invalidate {
-	columnHandler, err := db.NewColumnHandler(&CacheDependencyEntity{})
-	if err != nil {
-		cdm.err = err
-	}
 	return &invalidate{
 		cdm,
-		columnHandler,
 		make(map[string]interface{}),
 	}
 }
@@ -135,47 +122,42 @@ func (i *invalidate) WithCacheID(cacheID int64) *invalidate {
 }
 
 func (i *invalidate) with(colName string, colValue interface{}) *invalidate {
-	colName, err := i.columnHandler.ColumnName(colName)
-	if err == nil {
-		i.selector[colName] = colValue
-	} else {
-		i.err = err
-	}
+	i.selector[colName] = colValue
 	return i
 }
 
 func (i *invalidate) Exec(newTx bool) error {
 	dbOps := func() error {
-		//abort if anything went wrong before
-		if i.err != nil {
-			return i.err
-		}
-
 		//get cache dependencies
 		depQuery, err := db.NewQuery(i.conn, &CacheDependencyEntity{})
 		if err != nil {
 			return err
 		}
+
+		if len(i.selector) == 0 {
+			i.logger.Info("No cache-dependency selector defined: this will invalidate all cache entries")
+		}
+
 		deps, err := depQuery.Select().Where(i.selector).GetMany()
 		if err != nil {
 			return err
 		}
-		i.logger.Debug(fmt.Sprintf("Found %d cache dependencies for selector '%s'", len(deps), i.selector))
+		i.logger.Debug(fmt.Sprintf("Found %d cache dependencies for selector '%v'", len(deps), i.selector))
 
 		//get cache-entry IDs to invalidate
 		cacheEntityIdsCSV, uniqueIds := i.cacheIDsCSV(deps)
-		i.logger.Debug(fmt.Sprintf("Identified %d cache entities which match selector '%s': %s", uniqueIds, i.selector, cacheEntityIdsCSV))
+		i.logger.Debug(fmt.Sprintf("Identified %d cache entities which match selector '%v': %s", uniqueIds, i.selector, cacheEntityIdsCSV))
 
 		//drop all cache entities
 		cacheQuery, err := db.NewQuery(i.conn, &CacheEntryEntity{})
 		if err != nil {
 			return err
 		}
-		deletedEntries, err := cacheQuery.Delete().WhereIn("CacheID", cacheEntityIdsCSV).Exec()
+		deletedEntries, err := cacheQuery.Delete().WhereIn("ID", cacheEntityIdsCSV).Exec()
 		if err != nil {
 			return err
 		}
-		i.logger.Debug(fmt.Sprintf("Deleted %d cache entries matching selector '%s'", deletedEntries, i.selector))
+		i.logger.Debug(fmt.Sprintf("Deleted %d cache entries matching selector '%v'", deletedEntries, i.selector))
 
 		//drop all cache dependencies of the dropped cache entities
 		cacheDepQuery, err := db.NewQuery(i.conn, &CacheDependencyEntity{})
@@ -186,7 +168,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		if err != nil {
 			return err
 		}
-		i.logger.Debug(fmt.Sprintf("Deleted %d cache dependencies matching selector '%s'", deletedDeps, i.selector))
+		i.logger.Debug(fmt.Sprintf("Deleted %d cache dependencies matching selector '%v'", deletedDeps, i.selector))
 
 		return nil
 	}
@@ -210,19 +192,14 @@ func (i *invalidate) cacheIDsCSV(deps []db.DatabaseEntity) (string, int) {
 		if buffer.Len() > 0 {
 			buffer.WriteRune(',')
 		}
-		buffer.WriteByte(byte(depEntity.CacheID))
+		buffer.WriteString(fmt.Sprintf("%d", depEntity.CacheID))
 	}
 	return buffer.String(), len(deduplicate)
 }
 
 func (cdm *cacheDependencyManager) Get() *get {
-	columnHandler, err := db.NewColumnHandler(&CacheDependencyEntity{})
-	if err != nil {
-		cdm.err = err
-	}
 	return &get{
 		cdm,
-		columnHandler,
 		make(map[string]interface{}),
 	}
 }
@@ -248,12 +225,7 @@ func (c *get) WithCacheID(cacheID int64) *get {
 }
 
 func (c *get) with(colName string, colValue interface{}) *get {
-	colName, err := c.columnHandler.ColumnName(colName)
-	if err == nil {
-		c.selector[colName] = colValue
-	} else {
-		c.err = err
-	}
+	c.selector[colName] = colValue
 	return c
 }
 

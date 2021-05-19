@@ -26,6 +26,7 @@ func NewDataType(dataType string) (DataType, error) {
 		return "", fmt.Errorf("DataType '%s' is not supported", dataType)
 	}
 }
+
 func (dt DataType) Get(value string) (interface{}, error) {
 	var err error
 	var typedValue interface{}

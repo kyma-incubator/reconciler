@@ -19,8 +19,8 @@ type CacheEntryEntity struct {
 }
 
 func (ce *CacheEntryEntity) String() string {
-	return fmt.Sprintf("Label=%s,Cluster=%s,Checksum=%s,CreatedOn=%s",
-		ce.Label, ce.Cluster, ce.checksum(), ce.Created)
+	return fmt.Sprintf("CacheEntryEntity [ID=%d,Label=%s,Cluster=%s,Checksum=%s]",
+		ce.ID, ce.Label, ce.Cluster, ce.checksum())
 }
 
 func (ce *CacheEntryEntity) New() db.DatabaseEntity {

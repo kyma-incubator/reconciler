@@ -13,7 +13,7 @@ import (
 const (
 	dbTag         string = "db"
 	dbTagReadOnly string = "readOnly"
-	dbTagNoNull   string = "notNull"
+	dbTagNotNull  string = "notNull"
 )
 
 type InvalidEntityError struct {
@@ -44,6 +44,7 @@ type column struct {
 }
 
 type ColumnHandler struct {
+	entity      DatabaseEntity
 	columns     []*column
 	columnNames map[string]string //cache for column names (to increase lookup speed)
 }
@@ -52,6 +53,7 @@ func NewColumnHandler(entity DatabaseEntity) (*ColumnHandler, error) {
 	//create column handler instance
 	fields := structs.Fields(entity)
 	colHdlr := &ColumnHandler{
+		entity:      entity,
 		columnNames: make(map[string]string, len(fields)),
 	}
 
@@ -66,7 +68,7 @@ func NewColumnHandler(entity DatabaseEntity) (*ColumnHandler, error) {
 		col := &column{
 			name:     strcase.ToSnake(field.Name()),
 			readOnly: hasTag(field, dbTagReadOnly),
-			notNull:  hasTag(field, dbTagNoNull),
+			notNull:  hasTag(field, dbTagNotNull),
 			field:    field,
 			value:    marshalledValues[field.Name()],
 		}
@@ -107,14 +109,14 @@ func (ch *ColumnHandler) Validate() error {
 			case reflect.Bool:
 				//nothing to check
 			default:
-				return fmt.Errorf("Field '%s' has type '%s' - this type is not supported yet",
-					col.field.Name(), col.field.Kind())
+				return fmt.Errorf("Field '%s' of entity '%s' has type '%s' - this type is not supported yet",
+					col.field.Name(), ch.entity, col.field.Kind())
 			}
 		}
 	}
 	if len(invalidFields) > 0 {
-		return newInvalidEntityError("The fields '%s' are tagged with '%s' and cannot be undefined",
-			strings.Join(invalidFields, "', '"), dbTagNoNull)
+		return newInvalidEntityError("The fields '%s' of entity '%s' are tagged with '%s' and cannot be undefined",
+			strings.Join(invalidFields, "', '"), ch.entity, dbTagNotNull)
 	}
 	return nil
 }
@@ -123,7 +125,7 @@ func (ch *ColumnHandler) ColumnName(field string) (string, error) {
 	if colName, ok := ch.columnNames[field]; ok {
 		return colName, nil
 	}
-	return "", fmt.Errorf("Entity has no field '%s' cannot resolve column name", field)
+	return "", fmt.Errorf("Entity '%s' has no field '%s': cannot resolve column name", ch.entity, field)
 }
 
 //ColumnNamesCsv returns the CSV string of the column names

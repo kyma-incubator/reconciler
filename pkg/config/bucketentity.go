@@ -14,8 +14,8 @@ type BucketEntity struct {
 }
 
 func (b *BucketEntity) String() string {
-	return fmt.Sprintf("Bucket=%s,User=%s,CreatedOn=%s",
-		b.Bucket, b.Username, b.Created)
+	return fmt.Sprintf("BucketEntity [Bucket=%s,User=%s]",
+		b.Bucket, b.Username)
 }
 
 func (b *BucketEntity) New() db.DatabaseEntity {
