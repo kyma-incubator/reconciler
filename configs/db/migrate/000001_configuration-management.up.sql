@@ -50,3 +50,5 @@ CREATE TABLE config_cachedeps (
 	CONSTRAINT config_cachedep_pk PRIMARY KEY ("bucket", "key", "label", "cluster"),
 	FOREIGN KEY ("label", "cluster") REFERENCES config_cache ("label", "cluster") ON DELETE CASCADE
 );
+
+CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
