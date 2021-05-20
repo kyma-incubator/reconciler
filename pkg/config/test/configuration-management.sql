@@ -49,5 +49,6 @@ CREATE TABLE config_cachedeps (
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT config_cachedep_pk UNIQUE ("bucket", "key", "label", "cluster"),
 	FOREIGN KEY ("label", "cluster") REFERENCES config_cache ("label", "cluster") ON DELETE CASCADE
+	FOREIGN KEY ("cache_id") REFERENCES config_cache ("id") ON DELETE CASCADE
 );
 

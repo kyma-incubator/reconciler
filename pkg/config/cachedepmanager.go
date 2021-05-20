@@ -6,7 +6,6 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -43,20 +42,10 @@ func newCacheDependencyManager(conn db.Connection, debug bool) (*cacheDependency
 }
 
 func (cdm *cacheDependencyManager) transactional(desc string, dbOps func() error) error {
-	cdm.logger.Debug("Beginning DB transaction")
-	tx, err := cdm.conn.Begin()
-	if err != nil {
-		return err
+	if err := db.Transaction(cdm.conn, dbOps, cdm.logger); err != nil {
+		return fmt.Errorf("Failed to execute database transaction '%s': %s", desc, err)
 	}
-	if err := dbOps(); err != nil {
-		cdm.logger.Debug("Rollback of DB transaction")
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return errors.Wrap(err, fmt.Sprintf("Rollback of database transaction '%s' failed: %s", desc, rollbackErr))
-		}
-		return err
-	}
-	cdm.logger.Debug("Committing DB transaction")
-	return tx.Commit()
+	return nil
 }
 
 func (cdm *cacheDependencyManager) Record(cacheEntry *CacheEntryEntity, cacheDeps []*ValueEntity) *record {
@@ -144,9 +133,13 @@ func (i *invalidate) Exec(newTx bool) error {
 		}
 		i.logger.Debug(fmt.Sprintf("Found %d cache dependencies for selector '%v'", len(deps), i.selector))
 
+		if len(deps) == 0 { //not deps found - nothing to invalidate
+			return nil
+		}
+
 		//get cache-entry IDs to invalidate
-		cacheEntityIdsCSV, uniqueIds := i.cacheIDsCSV(deps)
-		i.logger.Debug(fmt.Sprintf("Identified %d cache entities which match selector '%v': %s", uniqueIds, i.selector, cacheEntityIdsCSV))
+		cacheEntityIdsCSV, cntUniqueIds := i.cacheIDsCSV(deps)
+		i.logger.Debug(fmt.Sprintf("Identified %d cache entities which match selector '%v': %s", cntUniqueIds, i.selector, cacheEntityIdsCSV))
 
 		//drop all cache entities
 		cacheQuery, err := db.NewQuery(i.conn, &CacheEntryEntity{})

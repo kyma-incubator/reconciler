@@ -160,21 +160,7 @@ func (cer *KeyValueRepository) DeleteKey(key string) error {
 		return err
 	}
 
-	//run db-operations transactional
-	cer.logger.Debug("Begin transactional DB context")
-	tx, err := cer.conn.Begin()
-	if err != nil {
-		return err
-	}
-	if err := dbOps(); err != nil {
-		cer.logger.Info("Rollback transactional DB context")
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", tx.Rollback()))
-		}
-		return err
-	}
-	cer.logger.Debug("Commit transactional DB context")
-	return tx.Commit()
+	return cer.transactional(dbOps)
 }
 
 func (cer *KeyValueRepository) ValuesByBucket(bucket string) ([]*ValueEntity, error) {
@@ -331,7 +317,7 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 	}
 
 	//insert operation
-	dbOps := func() (*ValueEntity, error) {
+	dbOps := func() (interface{}, error) {
 
 		//add value entity
 		q, err := db.NewQuery(cer.conn, value)
@@ -353,28 +339,22 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 				valueEntity.DataType, keyEntity.DataType)
 		}
 
-		//TODO: INVALIDATE all cache entries which have the existing value entry as dependency!
+		//new value provided - invalidate caches which were using the old value
+		if err := cer.cache.Invalidate().WithBucket(value.Bucket).WithKey(value.Key).Exec(false); err != nil {
+			return valueEntity, err
+		}
 
 		//done
 		return valueEntity, nil
 	}
 
-	//run db-operation transactional
-	cer.logger.Debug("Begin transactional DB context")
-	tx, err := cer.conn.Begin()
-	if err != nil {
-		return nil, err
+	result, err := cer.transactionalResult(dbOps)
+	var valueEntity *ValueEntity
+	if result != nil {
+		valueEntity = result.(*ValueEntity)
 	}
-	valueEntity, err := dbOps()
-	if err != nil {
-		cer.logger.Info("Rollback transactional DB context")
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
-		}
-		return nil, err
-	}
-	cer.logger.Debug("Commit transactional DB context")
-	return valueEntity, tx.Commit()
+
+	return valueEntity, err
 }
 
 func (cer *KeyValueRepository) deleteValuesByKey(key string) error {
@@ -383,7 +363,9 @@ func (cer *KeyValueRepository) deleteValuesByKey(key string) error {
 		return err
 	}
 
-	//TODO: INVALIDATE all cache entries which have these value entries as dependency!
+	if err := cer.cache.Invalidate().WithKey(key).Exec(false); err != nil {
+		return err
+	}
 
 	_, err = q.Delete().
 		Where(map[string]interface{}{"Key": key}).

@@ -37,6 +37,14 @@ func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) 
 	}, nil
 }
 
+func (r *Repository) transactionalResult(dbOps func() (interface{}, error)) (interface{}, error) {
+	return db.TransactionResult(r.conn, dbOps, r.logger)
+}
+
+func (r *Repository) transactional(dbOps func() error) error {
+	return db.Transaction(r.conn, dbOps, r.logger)
+}
+
 func (r *Repository) handleNotFoundError(err error, entity db.DatabaseEntity,
 	identifier map[string]interface{}) error {
 	if err == sql.ErrNoRows {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/pkg/errors"
 )
 
 type CacheRepository struct {
@@ -86,7 +85,7 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueE
 	}
 
 	//create new cache entry and track its dependencies
-	dbOps := func() (*CacheEntryEntity, error) {
+	dbOps := func() (interface{}, error) {
 		q, err := db.NewQuery(cr.conn, cacheEntry)
 		if err != nil {
 			return cacheEntry, err
@@ -100,22 +99,12 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueE
 		return cacheEntry, err
 	}
 
-	//run db-operations transactional
-	cr.logger.Debug("Begin transactional DB context")
-	tx, err := cr.conn.Begin()
-	if err != nil {
-		return nil, err
+	var cacheEntryEntity *CacheEntryEntity
+	result, err := cr.transactionalResult(dbOps)
+	if result != nil {
+		cacheEntryEntity = result.(*CacheEntryEntity)
 	}
-	cacheEntityEntry, err := dbOps()
-	if err != nil {
-		cr.logger.Info("Rollback transactional DB context")
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
-		}
-		return cacheEntityEntry, err
-	}
-	cr.logger.Debug("Commit transactional DB context")
-	return cacheEntityEntry, tx.Commit()
+	return cacheEntryEntity, err
 }
 
 func (cr *CacheRepository) Invalidate(label, cluster string) error {
