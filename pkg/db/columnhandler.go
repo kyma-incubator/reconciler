@@ -98,11 +98,15 @@ func (ch *ColumnHandler) Validate() error {
 				if fmt.Sprintf("%s", col.value) == "" {
 					invalidFields = append(invalidFields, col.field.Name())
 				}
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			case reflect.Int:
+				if col.value.(int) == 0 {
+					invalidFields = append(invalidFields, col.field.Name())
+				}
+			case reflect.Int64:
 				if col.value.(int64) == 0 {
 					invalidFields = append(invalidFields, col.field.Name())
 				}
-			case reflect.Float32, reflect.Float64:
+			case reflect.Float64:
 				if col.value.(float64) == 0 {
 					invalidFields = append(invalidFields, col.field.Name())
 				}

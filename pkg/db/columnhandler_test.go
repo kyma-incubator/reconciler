@@ -10,13 +10,36 @@ import (
 
 func TestColumnHandler(t *testing.T) {
 	t.Run("Validate model", func(t *testing.T) {
-		testStruct := &MockDbEntity{
-			Col2: true,
-			Col3: 123456789,
+		validate := func(t *testing.T, testStruct *validateMe, expectValid bool) {
+			colHdr, err := NewColumnHandler(testStruct)
+			require.NoError(t, err)
+			err = colHdr.Validate()
+			if expectValid {
+				require.NoError(t, err, "Validation has to be successful")
+			} else {
+				require.Error(t, err)
+				require.True(t, IsInvalidEntityError(colHdr.Validate()), "Validation has to fail with InvalidEntityError")
+			}
 		}
-		colHdr, err := NewColumnHandler(testStruct)
-		require.NoError(t, err)
-		require.True(t, IsInvalidEntityError(colHdr.Validate()))
+
+		testStruct := &validateMe{}
+		validate(t, testStruct, false)
+
+		//invalid
+		testStruct.I = 123
+		validate(t, testStruct, false)
+
+		//invalid
+		testStruct.I64 = 123
+		validate(t, testStruct, false)
+
+		//invalid
+		testStruct.F64 = 123.5
+		validate(t, testStruct, false)
+
+		//valid
+		testStruct.S = "now I'm valid"
+		validate(t, testStruct, true)
 	})
 
 	//valid model
@@ -79,4 +102,33 @@ func splitAndTrimCsv(csv string) []string {
 		result = append(result, strings.TrimSpace(token))
 	}
 	return result
+}
+
+//mock DB entity used to test the validation logic
+type validateMe struct {
+	S   string  `db:"notNull"`
+	B   bool    `db:"notNull"`
+	I   int     `db:"notNull"`
+	I64 int64   `db:"notNull"`
+	F64 float64 `db:"notNull"`
+}
+
+func (fake *validateMe) String() string {
+	return "I'm just used for testing the validation"
+}
+
+func (fake *validateMe) New() DatabaseEntity {
+	return &validateMe{}
+}
+
+func (fake *validateMe) Table() string {
+	return "validateMe"
+}
+
+func (fake *validateMe) Equal(other DatabaseEntity) bool {
+	return false
+}
+
+func (fake *validateMe) Marshaller() *EntityMarshaller {
+	return NewEntityMarshaller(&fake)
 }
