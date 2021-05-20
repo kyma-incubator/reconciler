@@ -56,10 +56,16 @@ func TestEntityMarshaller(t *testing.T) {
 
 	t.Run("Test unmarshalling with failure", func(t *testing.T) {
 		marshaller := NewEntityMarshaller(&MockDbEntity{})
-		marshaller.AddUnmarshaller("Col1", func(value interface{}) (interface{}, error) {
+		marshaller.AddUnmarshaller("Col2", func(value interface{}) (interface{}, error) {
 			return nil, fmt.Errorf("I don't like the value")
 		})
 		err := marshaller.Unmarshal(map[string]interface{}{"Col1": "bar", "Col2": false, "Col3": 123})
 		require.EqualError(t, err, "I don't like the value")
+	})
+
+	t.Run("Test unmarshalling with invalid data type", func(t *testing.T) {
+		marshaller := NewEntityMarshaller(&MockDbEntity{})
+		err := marshaller.Unmarshal(map[string]interface{}{"Col1": "bar", "Col2": 123, "Col3": "abc"})
+		require.Error(t, err)
 	})
 }
