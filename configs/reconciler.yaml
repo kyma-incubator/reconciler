@@ -1,0 +1,10 @@
+configManagement:
+  db:
+    driver: postgres
+    postgres:
+      host: "localhost"
+      database: "kyma"
+      port: 5432
+      user: kyma
+      password: kyma
+      useSsl: false

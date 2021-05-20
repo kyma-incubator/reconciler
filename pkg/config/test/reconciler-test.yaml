@@ -1,0 +1,12 @@
+configManagement:
+  db:
+    driver: sqlite
+    postgres:
+      host: "localhost"
+      database: "kyma"
+      port: 5432
+      user: kyma
+      password: kyma
+      useSsl: false
+    sqlite:
+      file: "./test/repository-test.db"

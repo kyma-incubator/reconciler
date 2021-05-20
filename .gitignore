@@ -1,0 +1,9 @@
+bin/*
+cover.out
+
+# General
+.DS_Store
+*.swp
+._*
+Thumbs.db
+cover.out
