@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/pkg/errors"
 )
 
 type KeyValueRepository struct {
@@ -316,9 +315,25 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 		return existingValue, nil
 	}
 
+	//validate value with metadata defined in key before storing it
+	key, err := cer.Key(value.Key, value.KeyVersion)
+	if err != nil {
+		return nil, err //provided key doesn't exist
+	}
+
+	if value.DataType == "" { //verify data-type is properly defined
+		value.DataType = key.DataType
+	} else if value.DataType != key.DataType {
+		return nil, fmt.Errorf("Configured data type '%s' is not allowed: key defines the data type '%s'",
+			value.DataType, key.DataType)
+	}
+
+	if err := key.Validate(value.Value); err != nil {
+		return nil, err //provided value is invalid
+	}
+
 	//insert operation
 	dbOps := func() (interface{}, error) {
-
 		//add value entity
 		q, err := db.NewQuery(cer.conn, value)
 		if err != nil {
@@ -327,16 +342,6 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 		valueEntity, err := value, q.Insert().Exec()
 		if err != nil {
 			return valueEntity, err
-		}
-
-		//compare data type of value-entity with value type of key-entity
-		keyEntity, err := cer.Key(valueEntity.Key, valueEntity.KeyVersion)
-		if err != nil {
-			return valueEntity, errors.Wrap(err, fmt.Sprintf("Failed to retrieve key entity for value entity '%s'", valueEntity))
-		}
-		if valueEntity.DataType != keyEntity.DataType {
-			return valueEntity, fmt.Errorf("Data type of value entity (%s) is different to data type of key entity (%s)",
-				valueEntity.DataType, keyEntity.DataType)
 		}
 
 		//new value provided - invalidate caches which were using the old value
