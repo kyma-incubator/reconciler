@@ -84,12 +84,24 @@ func (es *EntityMarshaller) Unmarshal(rawData map[string]interface{}) error {
 func (es *EntityMarshaller) setFieldValue(field *structs.Field, value interface{}) error {
 	var err error
 	switch field.Kind() {
+	case reflect.Int:
+		intValue, ok := value.(int)
+		if !ok {
+			return es.fireCastError(reflect.Int, field, value)
+		}
+		err = field.Set(intValue)
 	case reflect.Int64:
 		int64Value, ok := value.(int64)
 		if !ok {
 			return es.fireCastError(reflect.Int64, field, value)
 		}
 		err = field.Set(int64Value)
+	case reflect.Float64:
+		float64Value, ok := value.(float64)
+		if !ok {
+			return es.fireCastError(reflect.Float64, field, value)
+		}
+		err = field.Set(float64Value)
 	case reflect.Bool:
 		//some DBs handle booleans as integer values (0/1)
 		boolValue, ok := value.(bool)
@@ -108,7 +120,7 @@ func (es *EntityMarshaller) setFieldValue(field *structs.Field, value interface{
 		}
 		err = field.Set(stringValue)
 	default:
-		err = fmt.Errorf("Cannot synchronize field '%s' because type '%s' is not supported (value was '%s')",
+		err = fmt.Errorf("Cannot synchronize field '%s' because type '%s' is not supported (value was '%v')",
 			field.Name(), field.Kind(), value)
 	}
 	return err

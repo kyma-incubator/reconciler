@@ -66,6 +66,10 @@ func (cr *CacheRepository) GetByID(id int64) (*CacheEntryEntity, error) {
 }
 
 func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueEntity) (*CacheEntryEntity, error) {
+	if len(cacheDeps) == 0 {
+		return nil, fmt.Errorf("No cache dependencies were provided for cache entry '%s'", cacheEntry)
+	}
+
 	//Get exiting cache entry
 	inCache, err := cr.Get(cacheEntry.Label, cacheEntry.Cluster)
 	if err != nil && !IsNotFoundError(err) {
@@ -108,33 +112,9 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueE
 }
 
 func (cr *CacheRepository) Invalidate(label, cluster string) error {
-	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
-	if err != nil {
-		return err
-	}
-	deleted, err := q.Delete().
-		Where(map[string]interface{}{"Label": label, "Cluster": cluster}).
-		Exec()
-	if err == nil && deleted != 1 {
-		cr.logger.Info(fmt.Sprintf("Invalidating cache entry with label '%s' and cluster '%s' returned "+
-			"unexpected amount of deleted entries: got '%d' but expected 1",
-			label, cluster, deleted))
-	}
-	return err
+	return cr.cache.Invalidate().WithLabel(label).WithCluster(cluster).Exec(true)
 }
 
 func (cr *CacheRepository) InvalidateByID(id int64) error {
-	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
-	if err != nil {
-		return err
-	}
-	deleted, err := q.Delete().
-		Where(map[string]interface{}{"ID": id}).
-		Exec()
-	if err == nil && deleted != 1 {
-		cr.logger.Info(fmt.Sprintf("Invalidating cache entry with id '%d' returned "+
-			"unexpected amount of deleted entries: got '%d' but expected 1",
-			id, deleted))
-	}
-	return err
+	return cr.cache.Invalidate().WithCacheID(id).Exec(true)
 }

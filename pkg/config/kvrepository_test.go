@@ -247,18 +247,18 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	t.Run("Get values by bucket", func(t *testing.T) {
 		bucketEntities, err := ceRepo.Buckets()
 		require.NoError(t, err)
-		require.Equal(t, 2, len(bucketEntities))
-		for _, bucketEntity := range bucketEntities {
-			valueEntities, err := ceRepo.ValuesByBucket(bucketEntity.Bucket)
+		require.True(t, len(bucketEntities) >= 2)
+		for _, bucketName := range bucketNames {
+			valueEntities, err := ceRepo.ValuesByBucket(bucketName)
 			require.NoError(t, err)
 			require.Equal(t, 1, len(valueEntities))
 			//for each bucket the latest value has to be returned
-			if bucketEntity.Bucket == bucketNames[0] {
+			if bucketName == bucketNames[0] {
 				require.Equal(t, value1Versions[2], valueEntities[0].Version)
-			} else if bucketEntity.Bucket == bucketNames[1] {
+			} else if bucketName == bucketNames[1] {
 				require.Equal(t, value2Versions[2], valueEntities[0].Version)
 			} else {
-				require.Fail(t, "Unexpected state: bucket name '%s' unknown", bucketEntity.Bucket)
+				require.Fail(t, "Unexpected state: bucket name '%s' unknown", bucketName)
 			}
 		}
 	})

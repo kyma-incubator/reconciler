@@ -12,14 +12,12 @@ func TestCacheRepository(t *testing.T) {
 
 	var cacheDeps []*ValueEntity = []*ValueEntity{
 		{
-			Key:        "depKey1",
-			KeyVersion: 1,
-			Bucket:     "depBucket1",
+			Key:    "depKey1",
+			Bucket: "depBucket1",
 		},
 		{
-			Key:        "depKey2",
-			KeyVersion: 2,
-			Bucket:     "depBucket2",
+			Key:    "depKey2",
+			Bucket: "depBucket2",
 		},
 	}
 	var cacheEntries []*CacheEntryEntity
@@ -72,7 +70,7 @@ func TestCacheRepository(t *testing.T) {
 			Label:   "cacheentry1",
 			Cluster: "abc",
 			Data:    "The cached data goes here",
-		}, nil)
+		}, cacheDeps)
 		require.NoError(t, err)
 		require.Equal(t, "a3daa753769a78e732d763d143235d87", cacheEntry.checksum())
 		require.Equal(t, cacheEntries[0].ID, cacheEntry.ID)
@@ -101,7 +99,7 @@ func TestCacheRepository(t *testing.T) {
 			Label:   "cacheentry1",
 			Cluster: "abc",
 			Data:    "This is the updated cache entry", //md5: 38776bd2eb877254ff1350e1f088b1fd
-		}, nil)
+		}, cacheDeps)
 		require.NoError(t, err)
 		require.Equal(t, "38776bd2eb877254ff1350e1f088b1fd", cacheEntry.checksum())
 		require.True(t, cacheEntries[0].ID < cacheEntry.ID) //ID is an incremental counter
