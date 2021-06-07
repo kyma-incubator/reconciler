@@ -48,6 +48,7 @@ func Run(o *Options, val string) error {
 		Bucket:     o.Bucket,
 		Key:        key.Key,
 		KeyVersion: key.Version,
+		DataType:   key.DataType,
 		Value:      val,
 		Username:   "!TODO!", //FIXME
 	})
