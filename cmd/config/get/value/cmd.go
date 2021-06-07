@@ -57,12 +57,12 @@ func renderValues(o *Options, values []*config.ValueEntity) error {
 		return err
 	}
 
-	if err := formatter.Header("Bucket", "Value", "Created by",
+	if err := formatter.Header("Bucket", "Value", "Data Type", "Created by",
 		"Created at (UTC)", "Version"); err != nil {
 		return err
 	}
 	for _, value := range values {
-		if err := formatter.AddRow(value.Bucket, value.Value, value.Username,
+		if err := formatter.AddRow(value.Bucket, value.Value, value.DataType, value.Username,
 			value.Created.Format(time.RFC822Z), value.Version); err != nil {
 			return err
 		}
