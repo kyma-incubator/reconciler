@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	envVarPrefix = "RECONCILER" //TBC: stay with this name?
+	envVarPrefix = "RECONCILER"
 )
 
 var defaultConfigFile string
