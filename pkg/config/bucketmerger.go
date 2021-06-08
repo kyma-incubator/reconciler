@@ -59,6 +59,14 @@ type BucketMergeResult struct {
 	result map[string]*ValueEntity
 }
 
+func (mr *BucketMergeResult) ValuesList() []*ValueEntity {
+	result := []*ValueEntity{}
+	for _, v := range mr.result {
+		result = append(result, v)
+	}
+	return result
+}
+
 func (mr *BucketMergeResult) Values() map[string]*ValueEntity {
 	return mr.result
 }
@@ -90,4 +98,8 @@ func (mr *BucketMergeResult) GetAll() (map[string]interface{}, error) {
 		result[key] = typedValue
 	}
 	return result, nil
+}
+
+func (mr *BucketMergeResult) Len() int {
+	return len(mr.result)
 }

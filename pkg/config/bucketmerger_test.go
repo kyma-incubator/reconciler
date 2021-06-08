@@ -34,6 +34,7 @@ func TestBucketMerger(t *testing.T) {
 	})
 
 	t.Run("Merge buckets", func(t *testing.T) {
+		//prepare test setup
 		bucketGroups := map[string]string{
 			"landscape": "unittest",
 			"customer":  "testcustomer",
@@ -42,6 +43,9 @@ func TestBucketMerger(t *testing.T) {
 		}
 		kvRepo := newKeyValueRepo(t)
 		initRepo(t, kvRepo, bucketGroups)
+		defer cleanup(t, kvRepo)
+
+		//run test logic
 		bm := &BucketMerger{
 			KeyValueRepository: kvRepo,
 		}
@@ -56,6 +60,7 @@ func TestBucketMerger(t *testing.T) {
 	})
 
 	t.Run("Merge few buckets (some are undefined or non-existing)", func(t *testing.T) {
+		//prepare test setup
 		bucketGroups := map[string]string{
 			"landscape": "unittest",
 			"customer":  "dontexist",
@@ -63,6 +68,9 @@ func TestBucketMerger(t *testing.T) {
 		}
 		kvRepo := newKeyValueRepo(t)
 		initRepo(t, kvRepo, bucketGroups)
+		defer cleanup(t, kvRepo)
+
+		//run test logic
 		bm := &BucketMerger{
 			KeyValueRepository: kvRepo,
 		}
@@ -90,6 +98,15 @@ func initRepo(t *testing.T, kvRepo *KeyValueRepository, buckets map[string]strin
 		if err == nil {
 			importKVMap(t, kvRepo, bucket, kvMap)
 		}
+	}
+}
+
+func cleanup(t *testing.T, kvRepo *KeyValueRepository) {
+	buckets, err := kvRepo.Buckets()
+	require.NoError(t, err)
+	for _, bucket := range buckets {
+		err := kvRepo.DeleteBucket(bucket.Bucket)
+		require.NoError(t, err)
 	}
 }
 

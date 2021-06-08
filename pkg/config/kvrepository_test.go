@@ -153,29 +153,27 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	t.Run("Validate entity and create test data", func(t *testing.T) {
 		valueEntity := &ValueEntity{}
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsInvalidEntityError(err))
+		require.True(t, IsNotFoundError(err)) //key not found
 
 		valueEntity.Key = keyEntity.Key
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsInvalidEntityError(err))
+		require.True(t, IsNotFoundError(err)) //key not found
 
 		valueEntity.KeyVersion = keyEntity.Version
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsInvalidEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err)) //notNull field detected
 
 		valueEntity.Username = "testUsername"
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsInvalidEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err)) //notNull field detected
 
 		valueEntity.Bucket = bucketNames[0]
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsInvalidEntityError(err))
+		require.True(t, db.IsInvalidEntityError(err)) //notNull field detected
 
 		valueEntity.DataType = String
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, db.IsInvalidEntityError(err))
-
-		//TODO: add test with different DAtaType as defined in key! => check rollback
+		require.True(t, db.IsInvalidEntityError(err)) //notNull field detected
 
 		//create the first test value (added to bucket 'bucketNames[0]') in 3 versions
 		for _, value := range []string{"entity1-value1", "entity1-value2", "entity1-value3"} {
@@ -247,7 +245,7 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	t.Run("Get values by bucket", func(t *testing.T) {
 		bucketEntities, err := ceRepo.Buckets()
 		require.NoError(t, err)
-		require.True(t, len(bucketEntities) >= 2)
+		require.Len(t, bucketEntities, 2)
 		for _, bucketName := range bucketNames {
 			valueEntities, err := ceRepo.ValuesByBucket(bucketName)
 			require.NoError(t, err)
