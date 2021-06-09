@@ -38,7 +38,7 @@ func TestCacheRepository(t *testing.T) {
 		cacheEntry1, err = repo.Add(cacheEntry1, cacheDeps)
 		require.True(t, db.IsInvalidEntityError(err))
 
-		//create entry1
+		//create entry1 (has cache dependencies)
 		cacheEntry1.Data = "The cached data goes here" //m5d: a3daa753769a78e732d763d143235d87
 		cacheEntry1, err = repo.Add(cacheEntry1, cacheDeps)
 		require.NoError(t, err)
@@ -46,7 +46,7 @@ func TestCacheRepository(t *testing.T) {
 		require.True(t, cacheEntry1.ID > 0)
 		cacheEntries = append(cacheEntries, cacheEntry1)
 
-		//create entry2
+		//create entry2 (has cache dependencies)
 		cacheEntry2 := &CacheEntryEntity{
 			Label:   "cacheentry2",
 			Cluster: "xyz",
@@ -57,6 +57,18 @@ func TestCacheRepository(t *testing.T) {
 		require.Equal(t, "3bb77817db259eed817165ef8d891e61", cacheEntry2.checksum())
 		require.True(t, cacheEntries[0].ID < cacheEntry2.ID) //ID is an incremental counter
 		cacheEntries = append(cacheEntries, cacheEntry2)
+
+		//create entry3 (has NO cache dependencies)
+		cacheEntry3 := &CacheEntryEntity{
+			Label:   "cacheentry3",
+			Cluster: "foo",
+			Data:    "The third cached data goes here", //md5: dbdb486dafb60e21872b71ea14a0659c
+		}
+		cacheEntry3, err = repo.Add(cacheEntry3, nil)
+		require.NoError(t, err)
+		require.Equal(t, "dbdb486dafb60e21872b71ea14a0659c", cacheEntry3.checksum())
+		require.True(t, cacheEntries[1].ID < cacheEntry3.ID) //ID is an incremental counter
+		cacheEntries = append(cacheEntries, cacheEntry3)
 	})
 
 	t.Run("Get cache entries", func(t *testing.T) {
@@ -106,7 +118,7 @@ func TestCacheRepository(t *testing.T) {
 		cacheEntries[0] = cacheEntry                        //replace first cache entry with the new created entry (caused by the update)
 	})
 
-	t.Run("Invalidate cache entry by label and cluster", func(t *testing.T) {
+	t.Run("Invalidate cache entry by label and cluster (deleted by deps)", func(t *testing.T) {
 		//delete first entry
 		entry1, err := repo.Get(cacheEntries[0].Label, cacheEntries[0].Cluster) //ensure entry exists
 		require.NotEmpty(t, entry1)
@@ -117,9 +129,20 @@ func TestCacheRepository(t *testing.T) {
 		require.True(t, IsNotFoundError(err))
 	})
 
-	t.Run("Invalidate cache entry by id", func(t *testing.T) {
+	t.Run("Invalidate cache entry by id (deleted by deps)", func(t *testing.T) {
 		//delete second entry
 		entry2, err := repo.GetByID(cacheEntries[1].ID) //ensure entry exists
+		require.NotEmpty(t, entry2)
+		require.NoError(t, err)
+		err = repo.InvalidateByID(entry2.ID) //invalidate it
+		require.NoError(t, err)
+		_, err = repo.GetByID(entry2.ID)
+		require.True(t, IsNotFoundError(err)) //ensure entry2 no longer exist
+	})
+
+	t.Run("Invalidate cache entry by id (deleted without deps)", func(t *testing.T) {
+		//delete second entry
+		entry2, err := repo.GetByID(cacheEntries[2].ID) //ensure entry exists
 		require.NotEmpty(t, entry2)
 		require.NoError(t, err)
 		err = repo.InvalidateByID(entry2.ID) //invalidate it

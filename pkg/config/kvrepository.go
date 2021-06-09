@@ -345,7 +345,7 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 		}
 
 		//new value provided - invalidate caches which were using the old value
-		if err := cer.cache.Invalidate().WithBucket(value.Bucket).WithKey(value.Key).Exec(false); err != nil {
+		if err := cer.cacheDep.Invalidate().WithBucket(value.Bucket).WithKey(value.Key).Exec(false); err != nil {
 			return valueEntity, err
 		}
 
@@ -364,15 +364,16 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 
 func (cer *KeyValueRepository) deleteValuesByKey(key string) error {
 	dbOps := func() error {
+		//delete all cache entities which were using a value of this key
+		if err := cer.cacheDep.Invalidate().WithKey(key).Exec(false); err != nil {
+			return err
+		}
+
+		//delete the key
 		q, err := db.NewQuery(cer.conn, &ValueEntity{})
 		if err != nil {
 			return err
 		}
-
-		if err := cer.cache.Invalidate().WithKey(key).Exec(false); err != nil {
-			return err
-		}
-
 		_, err = q.Delete().
 			Where(map[string]interface{}{"Key": key}).
 			Exec()
@@ -440,15 +441,16 @@ func (cer *KeyValueRepository) bucketNames() ([]string, error) {
 
 func (cer *KeyValueRepository) DeleteBucket(bucket string) error {
 	dbOps := func() error {
+		//invalidate all cache entities which were using values from this bucket
+		if err := cer.cacheDep.Invalidate().WithBucket(bucket).Exec(false); err != nil {
+			return err
+		}
+
+		//delete the bucket
 		q, err := db.NewQuery(cer.conn, &BucketEntity{})
 		if err != nil {
 			return err
 		}
-
-		if err := cer.cache.Invalidate().WithBucket(bucket).Exec(false); err != nil {
-			return err
-		}
-
 		_, err = q.Delete().
 			Where(map[string]interface{}{"Bucket": bucket}).
 			Exec()
