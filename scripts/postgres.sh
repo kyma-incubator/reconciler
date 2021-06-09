@@ -13,7 +13,7 @@ readonly POSTGRES_USER="kyma"
 readonly POSTGRES_PASSWORD="kyma"
 readonly POSTGRES_DB="kyma"
 readonly POSTGRES_START_DELAY=3
-readonly MIGRATE_PATH="${CWD}/../configs/db/migrate"
+readonly MIGRATE_PATH="${CWD}/../configs/db/postgres"
 
 # Get Postress container ID
 function containerId() {
