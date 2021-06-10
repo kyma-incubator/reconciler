@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"reflect"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -75,5 +74,6 @@ func (e *EntityNotFoundError) Error() string {
 }
 
 func IsNotFoundError(err error) bool {
-	return reflect.TypeOf(err) == reflect.TypeOf(&EntityNotFoundError{})
+	_, ok := err.(*EntityNotFoundError)
+	return ok
 }

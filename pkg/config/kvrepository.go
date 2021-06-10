@@ -324,8 +324,10 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 	if value.DataType == "" { //verify data-type is properly defined
 		value.DataType = key.DataType
 	} else if value.DataType != key.DataType {
-		return nil, fmt.Errorf("Configured data type '%s' is not allowed: key defines the data type '%s'",
-			value.DataType, key.DataType)
+		return nil, &InvalidDataTypeError{
+			Key:             key,
+			InvalidDataType: value.DataType,
+		}
 	}
 
 	if err := key.Validate(value.Value); err != nil {
@@ -461,4 +463,19 @@ func (cer *KeyValueRepository) DeleteBucket(bucket string) error {
 
 func (cer *KeyValueRepository) Close() error {
 	return cer.conn.Close()
+}
+
+type InvalidDataTypeError struct {
+	Key             *KeyEntity
+	InvalidDataType DataType
+}
+
+func (e *InvalidDataTypeError) Error() string {
+	return fmt.Sprintf("Configured data type '%s' is not allowed: key '%s' defines the data type '%s'",
+		e.InvalidDataType, e.Key, e.Key.DataType)
+}
+
+func IsInvalidDataTypeError(err error) bool {
+	_, ok := err.(*InvalidDataTypeError)
+	return ok
 }
