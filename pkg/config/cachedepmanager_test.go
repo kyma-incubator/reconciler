@@ -9,7 +9,7 @@ import (
 
 func TestCacheDependencyManager(t *testing.T) {
 	cacheRepo := newCacheRepo(t)
-	cacheDepMgr := cacheRepo.cache
+	cacheDepMgr := cacheRepo.cacheDep
 
 	t.Run("Create dependencies", func(t *testing.T) {
 		withTestData(t, cacheRepo, func(t *testing.T, testEntries []*CacheEntryEntity, testDeps []*CacheDependencyEntity) {
@@ -157,7 +157,7 @@ func withTestData(t *testing.T, cacheRepo *CacheRepository, testFct func(*testin
 	expectedDeps = append(expectedDeps, deps2...)
 
 	testFct(t, []*CacheEntryEntity{entity1, entity2}, expectedDeps)
-	require.NoError(t, cacheRepo.cache.Invalidate().Exec(true))
+	require.NoError(t, cacheRepo.cacheDep.Invalidate().Exec(true))
 }
 
 func importCacheEntry1(t *testing.T, cacheRepo *CacheRepository) (*CacheEntryEntity, []*CacheDependencyEntity) {

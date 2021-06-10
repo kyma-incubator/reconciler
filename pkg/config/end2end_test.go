@@ -49,14 +49,14 @@ func TestConfigurationManagement(t *testing.T) {
 	require.NotEmpty(t, newCacheEntry)
 
 	//Apply some sanity checks
-	cacheDeps, err := cacheRepo.cache.Get().Exec()
+	cacheDeps, err := cacheRepo.cacheDep.Get().Exec()
 	require.NoError(t, err)
 	require.Len(t, cacheDeps, values.Len())
 
 	err = cacheRepo.Invalidate(newCacheEntry.Label, newCacheEntry.Cluster)
 	require.NoError(t, err)
 
-	cacheDepsNew, err := cacheRepo.cache.Get().Exec()
+	cacheDepsNew, err := cacheRepo.cacheDep.Get().Exec()
 	require.NoError(t, err)
 	require.Len(t, cacheDepsNew, 0)
 

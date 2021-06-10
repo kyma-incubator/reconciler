@@ -66,10 +66,6 @@ func (cr *CacheRepository) GetByID(id int64) (*CacheEntryEntity, error) {
 }
 
 func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueEntity) (*CacheEntryEntity, error) {
-	if len(cacheDeps) == 0 {
-		return nil, fmt.Errorf("No cache dependencies were provided for cache entry '%s'", cacheEntry)
-	}
-
 	//Get exiting cache entry
 	inCache, err := cr.Get(cacheEntry.Label, cacheEntry.Cluster)
 	if err != nil && !IsNotFoundError(err) {
@@ -97,7 +93,7 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueE
 		if err := q.Insert().Exec(); err != nil {
 			return cacheEntry, err
 		}
-		if err := cr.cache.Record(cacheEntry, cacheDeps).Exec(false); err != nil {
+		if err := cr.cacheDep.Record(cacheEntry, cacheDeps).Exec(false); err != nil {
 			return cacheEntry, err
 		}
 		return cacheEntry, err
@@ -112,9 +108,45 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueE
 }
 
 func (cr *CacheRepository) Invalidate(label, cluster string) error {
-	return cr.cache.Invalidate().WithLabel(label).WithCluster(cluster).Exec(true)
+	dbOps := func() error {
+		//invalidate the cache entity and drop all tracked dependencies
+		if err := cr.cacheDep.Invalidate().WithLabel(label).WithCluster(cluster).Exec(false); err != nil {
+			return err
+		}
+
+		//as cache dependencies are optional we cannot rely that the previous
+		//invalidation dropped the cache entity: delete the entity also explicitly
+		q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+		if err != nil {
+			return err
+		}
+		deleted, err := q.Delete().
+			Where(map[string]interface{}{"Label": label, "Cluster": cluster}).
+			Exec()
+		cr.logger.Debug(fmt.Sprintf("Deleted %d cache entries which had no dependencies", deleted))
+		return err
+	}
+	return cr.transactional(dbOps)
 }
 
 func (cr *CacheRepository) InvalidateByID(id int64) error {
-	return cr.cache.Invalidate().WithCacheID(id).Exec(true)
+	dbOps := func() error {
+		//invalidate the cache entity and drop all tracked dependencies
+		if err := cr.cacheDep.Invalidate().WithCacheID(id).Exec(false); err != nil {
+			return err
+		}
+
+		//as cache dependencies are optional we cannot rely that the previous
+		//invalidation dropped the cache entity: delete the entity also explicitly
+		q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+		if err != nil {
+			return err
+		}
+		deleted, err := q.Delete().
+			Where(map[string]interface{}{"ID": id}).
+			Exec()
+		cr.logger.Debug(fmt.Sprintf("Deleted %d cache entries which had no dependencies", deleted))
+		return err
+	}
+	return cr.transactional(dbOps)
 }
