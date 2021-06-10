@@ -200,6 +200,20 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("Create value with invalid data type", func(t *testing.T) {
+		valueEntity := &ValueEntity{
+			Key:        keyEntity.Key,
+			KeyVersion: keyEntity.Version,
+			Bucket:     bucketNames[0],
+			DataType:   Boolean,
+			Username:   "testUsername2",
+			Value:      "abc",
+		}
+		_, err = ceRepo.CreateValue(valueEntity)
+		require.IsType(t, &InvalidDataTypeError{}, err)
+		require.True(t, IsInvalidDataTypeError(err))
+	})
+
 	t.Run("Get value history", func(t *testing.T) {
 		valueEntities, err := ceRepo.ValueHistory(bucketNames[0], keyEntity.Key)
 		require.NoError(t, err)

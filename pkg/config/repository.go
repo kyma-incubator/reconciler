@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"reflect"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -12,9 +11,9 @@ import (
 )
 
 type Repository struct {
-	conn   db.Connection
-	logger *zap.Logger
-	cache  *cacheDependencyManager
+	conn     db.Connection
+	logger   *zap.Logger
+	cacheDep *cacheDependencyManager
 }
 
 func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
@@ -31,9 +30,9 @@ func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) 
 		return nil, err
 	}
 	return &Repository{
-		conn:   conn,
-		logger: logger,
-		cache:  cacheDepMgr,
+		conn:     conn,
+		logger:   logger,
+		cacheDep: cacheDepMgr,
 	}, nil
 }
 
@@ -75,5 +74,6 @@ func (e *EntityNotFoundError) Error() string {
 }
 
 func IsNotFoundError(err error) bool {
-	return reflect.TypeOf(err) == reflect.TypeOf(&EntityNotFoundError{})
+	_, ok := err.(*EntityNotFoundError)
+	return ok
 }

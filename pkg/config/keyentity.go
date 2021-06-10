@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -95,5 +94,6 @@ func (err InvalidValueError) Error() string {
 }
 
 func IsInvalidValueError(err error) bool {
-	return reflect.TypeOf(err) == reflect.TypeOf(&InvalidValueError{})
+	_, ok := err.(*InvalidValueError)
+	return ok
 }
