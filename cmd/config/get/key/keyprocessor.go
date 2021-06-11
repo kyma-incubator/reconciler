@@ -8,12 +8,12 @@ import (
 )
 
 type keyProcessor struct {
-	repo *kv.KeyValueRepository
+	repo *kv.Repository
 	keys []*model.KeyEntity
 	err  error
 }
 
-func newKeyProcessor(repo *kv.KeyValueRepository) (*keyProcessor, error) {
+func newKeyProcessor(repo *kv.Repository) (*keyProcessor, error) {
 	var err error
 	keyProcessor := &keyProcessor{
 		repo: repo,
