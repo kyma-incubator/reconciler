@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCacheRepository(t *testing.T) {
+func TestRepository(t *testing.T) {
 	repo := newCacheRepo(t)
 
 	var cacheDeps []*model.ValueEntity = []*model.ValueEntity{
@@ -154,10 +154,10 @@ func TestCacheRepository(t *testing.T) {
 	})
 }
 
-func newCacheRepo(t *testing.T) *CacheRepository {
+func newCacheRepo(t *testing.T) *Repository {
 	connFact, err := db.NewTestConnectionFactory()
 	require.NoError(t, err)
-	ceRepo, err := NewCacheRepository(connFact, true)
+	ceRepo, err := NewRepository(connFact, true)
 	require.NoError(t, err)
 	return ceRepo
 }

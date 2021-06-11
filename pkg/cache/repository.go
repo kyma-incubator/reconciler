@@ -8,19 +8,19 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 )
 
-type CacheRepository struct {
+type Repository struct {
 	*repository.Repository
 }
 
-func NewCacheRepository(dbFac db.ConnectionFactory, debug bool) (*CacheRepository, error) {
+func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
 	repo, err := repository.NewRepository(dbFac, debug)
 	if err != nil {
 		return nil, err
 	}
-	return &CacheRepository{repo}, nil
+	return &Repository{repo}, nil
 }
 
-func (cr *CacheRepository) All() ([]*model.CacheEntryEntity, error) {
+func (cr *Repository) All() ([]*model.CacheEntryEntity, error) {
 	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (cr *CacheRepository) All() ([]*model.CacheEntryEntity, error) {
 	return result, nil
 }
 
-func (cr *CacheRepository) Get(label, cluster string) (*model.CacheEntryEntity, error) {
+func (cr *Repository) Get(label, cluster string) (*model.CacheEntryEntity, error) {
 	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (cr *CacheRepository) Get(label, cluster string) (*model.CacheEntryEntity, 
 	return entity.(*model.CacheEntryEntity), nil
 }
 
-func (cr *CacheRepository) GetByID(id int64) (*model.CacheEntryEntity, error) {
+func (cr *Repository) GetByID(id int64) (*model.CacheEntryEntity, error) {
 	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (cr *CacheRepository) GetByID(id int64) (*model.CacheEntryEntity, error) {
 	return entity.(*model.CacheEntryEntity), nil
 }
 
-func (cr *CacheRepository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity) (*model.CacheEntryEntity, error) {
+func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity) (*model.CacheEntryEntity, error) {
 	//Get exiting cache entry
 	inCache, err := cr.Get(cacheEntry.Label, cacheEntry.Cluster)
 	if err != nil && !repository.IsNotFoundError(err) {
@@ -109,7 +109,7 @@ func (cr *CacheRepository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*
 	return cacheEntryEntity, err
 }
 
-func (cr *CacheRepository) Invalidate(label, cluster string) error {
+func (cr *Repository) Invalidate(label, cluster string) error {
 	dbOps := func() error {
 		//invalidate the cache entity and drop all tracked dependencies
 		if err := cr.CacheDep.Invalidate().WithLabel(label).WithCluster(cluster).Exec(false); err != nil {
@@ -131,7 +131,7 @@ func (cr *CacheRepository) Invalidate(label, cluster string) error {
 	return cr.Transactional(dbOps)
 }
 
-func (cr *CacheRepository) InvalidateByID(id int64) error {
+func (cr *Repository) InvalidateByID(id int64) error {
 	dbOps := func() error {
 		//invalidate the cache entity and drop all tracked dependencies
 		if err := cr.CacheDep.Invalidate().WithCacheID(id).Exec(false); err != nil {

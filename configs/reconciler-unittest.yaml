@@ -10,3 +10,4 @@ configManagement:
       useSsl: false
     sqlite:
       file: "test/repository-test.db"
+      createFile: true

@@ -8,18 +8,18 @@ import (
 	"github.com/pkg/errors"
 )
 
-type BucketMerger struct {
+type bucketMerger struct {
 	result map[string]*model.ValueEntity
 }
 
-func (bm *BucketMerger) Add(bucket string, values []*model.ValueEntity) error {
+func (bm *bucketMerger) Add(bucket string, values []*model.ValueEntity) error {
 	if err := mergo.MergeWithOverwrite(&bm.result, bm.keyValueMap(values)); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to merge value entries of bucket '%s'", bucket))
 	}
 	return nil
 }
 
-func (bm *BucketMerger) keyValueMap(values []*model.ValueEntity) map[string]*model.ValueEntity {
+func (bm *bucketMerger) keyValueMap(values []*model.ValueEntity) map[string]*model.ValueEntity {
 	result := make(map[string]*model.ValueEntity, len(values))
 	for _, value := range values {
 		result[value.Key] = value
@@ -27,7 +27,7 @@ func (bm *BucketMerger) keyValueMap(values []*model.ValueEntity) map[string]*mod
 	return result
 }
 
-func (bm *BucketMerger) ValuesList() []*model.ValueEntity {
+func (bm *bucketMerger) ValuesList() []*model.ValueEntity {
 	result := []*model.ValueEntity{}
 	for _, v := range bm.result {
 		result = append(result, v)
@@ -35,11 +35,11 @@ func (bm *BucketMerger) ValuesList() []*model.ValueEntity {
 	return result
 }
 
-func (bm *BucketMerger) Values() map[string]*model.ValueEntity {
+func (bm *bucketMerger) Values() map[string]*model.ValueEntity {
 	return bm.result
 }
 
-func (bm *BucketMerger) Value(value string) (*model.ValueEntity, error) {
+func (bm *bucketMerger) Value(value string) (*model.ValueEntity, error) {
 	valueEntity, ok := bm.result[value]
 	if !ok {
 		return nil, fmt.Errorf("Merge result does not contain the value '%s'", value)
@@ -47,7 +47,7 @@ func (bm *BucketMerger) Value(value string) (*model.ValueEntity, error) {
 	return valueEntity, nil
 }
 
-func (bm *BucketMerger) Get(value string) (interface{}, error) {
+func (bm *bucketMerger) Get(value string) (interface{}, error) {
 	valueEntity, ok := bm.result[value]
 	if !ok {
 		return nil, fmt.Errorf("Merge result does not contain the value '%s'", value)
@@ -55,7 +55,7 @@ func (bm *BucketMerger) Get(value string) (interface{}, error) {
 	return valueEntity.Get()
 }
 
-func (bm *BucketMerger) GetAll() (map[string]interface{}, error) {
+func (bm *bucketMerger) GetAll() (map[string]interface{}, error) {
 	result := make(map[string]interface{}, len(bm.result))
 	for key, value := range bm.result {
 		typedValue, err := value.Get()
@@ -68,6 +68,6 @@ func (bm *BucketMerger) GetAll() (map[string]interface{}, error) {
 	return result, nil
 }
 
-func (bm *BucketMerger) Len() int {
+func (bm *bucketMerger) Len() int {
 	return len(bm.result)
 }

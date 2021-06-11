@@ -10,7 +10,7 @@ import (
 func TestBucketMerger(t *testing.T) {
 
 	t.Run("Merge buckets", func(t *testing.T) {
-		bm := &BucketMerger{}
+		bm := &bucketMerger{}
 
 		err := bm.Add("bucket1", []*model.ValueEntity{
 			{
