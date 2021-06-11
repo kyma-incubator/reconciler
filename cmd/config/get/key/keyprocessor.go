@@ -3,16 +3,17 @@ package cmd
 import (
 	"sort"
 
-	"github.com/kyma-incubator/reconciler/pkg/config"
+	"github.com/kyma-incubator/reconciler/pkg/kv"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 )
 
 type keyProcessor struct {
-	repo *config.KeyValueRepository
-	keys []*config.KeyEntity
+	repo *kv.KeyValueRepository
+	keys []*model.KeyEntity
 	err  error
 }
 
-func newKeyProcessor(repo *config.KeyValueRepository) (*keyProcessor, error) {
+func newKeyProcessor(repo *kv.KeyValueRepository) (*keyProcessor, error) {
 	var err error
 	keyProcessor := &keyProcessor{
 		repo: repo,
@@ -21,13 +22,13 @@ func newKeyProcessor(repo *config.KeyValueRepository) (*keyProcessor, error) {
 	return keyProcessor, err
 }
 
-func (k *keyProcessor) get() ([]*config.KeyEntity, error) {
+func (k *keyProcessor) get() ([]*model.KeyEntity, error) {
 	return k.keys, k.err
 }
 
 func (k *keyProcessor) withHistory() *keyProcessor {
-	keysHistory := []*config.KeyEntity{}
-	var keyHistory []*config.KeyEntity
+	keysHistory := []*model.KeyEntity{}
+	var keyHistory []*model.KeyEntity
 	for _, key := range k.keys {
 		keyHistory, k.err = k.repo.KeyHistory(key.Key)
 		if k.err != nil {
@@ -45,13 +46,13 @@ func (k *keyProcessor) filter(keyFilter []string) *keyProcessor {
 	}
 
 	//to improve speed, use map from bucket-name to bucket-entity
-	keyByName := make(map[string]*config.KeyEntity, len(keyFilter))
+	keyByName := make(map[string]*model.KeyEntity, len(keyFilter))
 	for _, key := range k.keys {
 		keyByName[key.Key] = key
 	}
 
 	//filter keys
-	filteredKeys := []*config.KeyEntity{}
+	filteredKeys := []*model.KeyEntity{}
 	sort.Strings(keyFilter) //ensure the filtered keys are added to result in alphabetical order
 	for _, filter := range keyFilter {
 		if key, ok := keyByName[filter]; ok {

@@ -52,3 +52,13 @@ CREATE TABLE config_cachedeps (
 );
 
 CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
+
+--DDL for cluster metadata:
+CREATE TABLE cluster_metadata (
+	"id" SERIAL UNIQUE, --just another unique identifer for a metadata-entry
+	"cluster" text NOT NULL,
+	"key" text NOT NULL,
+	"value" text NOT NULL,
+	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+	CONSTRAINT cluster_metadata_pk PRIMARY KEY ("cluster", "key")
+);

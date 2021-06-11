@@ -1,4 +1,4 @@
-package config
+package kv
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +22,7 @@ func TestKeyValueRepositoryKeys(t *testing.T) {
 	key2Versions := []int64{}                                                         //contains the three versions of the second test key
 
 	t.Run("Validate entity and create first test key", func(t *testing.T) {
-		keyEntity := &KeyEntity{}
+		keyEntity := &model.KeyEntity{}
 		_, err = ceRepo.CreateKey(keyEntity)
 		require.True(t, db.IsInvalidEntityError(err))
 
@@ -33,7 +35,7 @@ func TestKeyValueRepositoryKeys(t *testing.T) {
 		require.True(t, db.IsInvalidEntityError(err))
 
 		//create first test key in 3 versions
-		for _, dt := range []DataType{String, Boolean, Integer} {
+		for _, dt := range []model.DataType{model.String, model.Boolean, model.Integer} {
 			keyEntity.DataType = dt
 			entity, err := ceRepo.CreateKey(keyEntity)
 			require.NoError(t, err)
@@ -41,11 +43,11 @@ func TestKeyValueRepositoryKeys(t *testing.T) {
 		}
 
 		//create second key in 3 versions
-		key2Entity := &KeyEntity{
+		key2Entity := &model.KeyEntity{
 			Key:      keyIDs[1],
 			Username: "xyz",
 		}
-		for _, dt := range []DataType{String, Boolean, Integer} {
+		for _, dt := range []model.DataType{model.String, model.Boolean, model.Integer} {
 			key2Entity.DataType = dt
 			_, err := ceRepo.CreateKey(key2Entity)
 			require.NoError(t, err)
@@ -60,7 +62,7 @@ func TestKeyValueRepositoryKeys(t *testing.T) {
 		require.True(t, len(keyEntities) >= 2)
 
 		//ensure that previously created test keys are part of the result
-		keysByName := make(map[string]*KeyEntity, len(keyEntities))
+		keysByName := make(map[string]*model.KeyEntity, len(keyEntities))
 		for _, keyEntity := range keyEntities {
 			keysByName[keyEntity.Key] = keyEntity
 		}
@@ -96,8 +98,8 @@ func TestKeyValueRepositoryKeys(t *testing.T) {
 	t.Run("Get non-existing latest keys", func(t *testing.T) {
 		_, err := ceRepo.LatestKey("Idontexist")
 		require.Error(t, err)
-		require.IsType(t, &EntityNotFoundError{}, err)
-		require.True(t, IsNotFoundError(err))
+		require.IsType(t, &repository.EntityNotFoundError{}, err)
+		require.True(t, repository.IsNotFoundError(err))
 	})
 
 	t.Run("Get key by id and version", func(t *testing.T) {
@@ -115,8 +117,8 @@ func TestKeyValueRepositoryKeys(t *testing.T) {
 	t.Run("Get non-existing key with keys", func(t *testing.T) {
 		_, err := ceRepo.Key("Idontexist", -5)
 		require.Error(t, err)
-		require.IsType(t, &EntityNotFoundError{}, err)
-		require.True(t, IsNotFoundError(err))
+		require.IsType(t, &repository.EntityNotFoundError{}, err)
+		require.True(t, repository.IsNotFoundError(err))
 	})
 
 	t.Run("Delete key(s)", func(t *testing.T) {
@@ -137,9 +139,9 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	ceRepo := newKeyValueRepo(t)
 
 	//create test key
-	keyEntity, err := ceRepo.CreateKey(&KeyEntity{
+	keyEntity, err := ceRepo.CreateKey(&model.KeyEntity{
 		Key:      fmt.Sprintf("testKey%d", time.Now().UnixNano()),
-		DataType: String,
+		DataType: model.String,
 		Username: "testUsername",
 	})
 	require.NoError(t, err)
@@ -151,13 +153,13 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	value2Versions := []int64{} //contains the three versions of the second test value
 
 	t.Run("Validate entity and create test data", func(t *testing.T) {
-		valueEntity := &ValueEntity{}
+		valueEntity := &model.ValueEntity{}
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, IsNotFoundError(err)) //key not found
+		require.True(t, repository.IsNotFoundError(err)) //key not found
 
 		valueEntity.Key = keyEntity.Key
 		_, err = ceRepo.CreateValue(valueEntity)
-		require.True(t, IsNotFoundError(err)) //key not found
+		require.True(t, repository.IsNotFoundError(err)) //key not found
 
 		valueEntity.KeyVersion = keyEntity.Version
 		_, err = ceRepo.CreateValue(valueEntity)
@@ -171,7 +173,7 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 		_, err = ceRepo.CreateValue(valueEntity)
 		require.True(t, db.IsInvalidEntityError(err)) //notNull field detected
 
-		valueEntity.DataType = String
+		valueEntity.DataType = model.String
 		_, err = ceRepo.CreateValue(valueEntity)
 		require.True(t, db.IsInvalidEntityError(err)) //notNull field detected
 
@@ -184,11 +186,11 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 		}
 
 		//create the second test value (added to bucket 'bucketNames[1]') in 3 versions
-		value2Entity := &ValueEntity{
+		value2Entity := &model.ValueEntity{
 			Key:        keyEntity.Key,
 			KeyVersion: keyEntity.Version,
 			Bucket:     bucketNames[1],
-			DataType:   String,
+			DataType:   model.String,
 			Username:   "testUsername2",
 		}
 		for _, value := range []string{"entity2-value1", "entity2-value2", "entity2-value3"} {
@@ -201,11 +203,11 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	})
 
 	t.Run("Create value with invalid data type", func(t *testing.T) {
-		valueEntity := &ValueEntity{
+		valueEntity := &model.ValueEntity{
 			Key:        keyEntity.Key,
 			KeyVersion: keyEntity.Version,
 			Bucket:     bucketNames[0],
-			DataType:   Boolean,
+			DataType:   model.Boolean,
 			Username:   "testUsername2",
 			Value:      "abc",
 		}
@@ -239,8 +241,8 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	t.Run("Get non-existing latest value", func(t *testing.T) {
 		_, err := ceRepo.LatestValue("Idontexist", "Idontexisttoo")
 		require.Error(t, err)
-		require.IsType(t, &EntityNotFoundError{}, err)
-		require.True(t, IsNotFoundError(err))
+		require.IsType(t, &repository.EntityNotFoundError{}, err)
+		require.True(t, repository.IsNotFoundError(err))
 	})
 
 	t.Run("Get value with version", func(t *testing.T) {
@@ -252,8 +254,20 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 	t.Run("Get non-existing value with version", func(t *testing.T) {
 		_, err := ceRepo.Value("Idontexist", "Idontexisttoo", -1)
 		require.Error(t, err)
-		require.IsType(t, &EntityNotFoundError{}, err)
-		require.True(t, IsNotFoundError(err))
+		require.IsType(t, &repository.EntityNotFoundError{}, err)
+		require.True(t, repository.IsNotFoundError(err))
+	})
+
+	t.Run("Get values by key", func(t *testing.T) {
+		valueEntities, err := ceRepo.ValuesByKey(keyEntity)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(valueEntities))
+
+		//we expect the latest versions of both test values (as they are both in different buckets)
+		expectedVersions := []int64{value1Versions[2], value2Versions[2]}
+		for _, valueEntity := range valueEntities {
+			require.Contains(t, expectedVersions, valueEntity.Version)
+		}
 	})
 
 	t.Run("Get values by bucket", func(t *testing.T) {
@@ -275,25 +289,13 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 		}
 	})
 
-	t.Run("Get values by key", func(t *testing.T) {
-		valueEntities, err := ceRepo.ValuesByKey(keyEntity)
-		require.NoError(t, err)
-		require.Equal(t, 2, len(valueEntities))
-
-		//we expect the latest versions of both test values (as they are both in different buckets)
-		expectedVersions := []int64{value1Versions[2], value2Versions[2]}
-		for _, valueEntity := range valueEntities {
-			require.Contains(t, expectedVersions, valueEntity.Version)
-		}
-	})
-
 	t.Run("Get buckets", func(t *testing.T) {
-		valueEntity := &ValueEntity{ //create second bucket
+		valueEntity := &model.ValueEntity{ //create second bucket
 			Key:        keyEntity.Key,
 			KeyVersion: keyEntity.Version,
 			Username:   "xyz123",
 			Bucket:     bucketNames[1],
-			DataType:   String,
+			DataType:   model.String,
 			Value:      "another value",
 		}
 		_, err := ceRepo.CreateValue(valueEntity)
@@ -302,7 +304,7 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 		require.NoError(t, err)
 
 		//at least the buckets created during this test run have to exist:
-		require.True(t, len(bucketEnitities) >= 2)
+		require.Len(t, bucketEnitities, len(bucketNames))
 
 		//check that expected bucket were returned
 		bucketNamesGot := []string{}
@@ -315,25 +317,27 @@ func TestConfigConfigRepositoryValues(t *testing.T) {
 
 	})
 
-	t.Run("Delete bucket(s)", func(t *testing.T) {
-		for _, bucketName := range bucketNames {
-			err := ceRepo.DeleteBucket(bucketName)
-			require.NoError(t, err)
-		}
+	t.Run("Delete value (this will delete bucketNames[0])", func(t *testing.T) {
+		values, err := ceRepo.ValuesByBucket(bucketNames[0])
+		require.NoError(t, err)
+		require.Len(t, values, 1)
+		require.NoError(t, ceRepo.DeleteValue(values[0].Key, values[0].Bucket))
+		values, err = ceRepo.ValuesByBucket(bucketNames[0])
+		require.NoError(t, err)
+		require.Empty(t, values)
+	})
+
+	t.Run("Delete bucket (this will delete bucketNames[1])", func(t *testing.T) {
+		err := ceRepo.DeleteBucket(bucketNames[1])
+		require.NoError(t, err)
 		bucketEntities, err := ceRepo.Buckets()
 		require.NoError(t, err)
-		bucketNamesGot := []string{}
-		for _, bucketEntity := range bucketEntities {
-			bucketNamesGot = append(bucketNamesGot, bucketEntity.Bucket)
-		}
-		for _, bucketNameNotExpected := range bucketNames {
-			require.NotContains(t, bucketNamesGot, bucketNameNotExpected)
-		}
+		require.Empty(t, bucketEntities)
 	})
 }
 
 func newKeyValueRepo(t *testing.T) *KeyValueRepository {
-	connFact, err := newTestConnectionFactory()
+	connFact, err := db.NewTestConnectionFactory()
 	require.NoError(t, err)
 	ceRepo, err := NewKeyValueRepository(connFact, true)
 	require.NoError(t, err)

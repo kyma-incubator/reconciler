@@ -1,4 +1,4 @@
-package config
+package repository
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"go.uber.org/zap"
 )
 
@@ -16,8 +17,8 @@ type cacheDependencyManager struct {
 
 type record struct {
 	*cacheDependencyManager
-	cacheEntry *CacheEntryEntity
-	cacheDeps  []*ValueEntity
+	cacheEntry *model.CacheEntryEntity
+	cacheDeps  []*model.ValueEntity
 }
 
 type invalidate struct {
@@ -48,7 +49,7 @@ func (cdm *cacheDependencyManager) transactional(desc string, dbOps func() error
 	return nil
 }
 
-func (cdm *cacheDependencyManager) Record(cacheEntry *CacheEntryEntity, cacheDeps []*ValueEntity) *record {
+func (cdm *cacheDependencyManager) Record(cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity) *record {
 	return &record{
 		cdm,
 		cacheEntry,
@@ -60,7 +61,7 @@ func (r *record) Exec(newTx bool) error {
 	dbOps := func() error {
 		//track deps in DB
 		for _, value := range r.cacheDeps {
-			q, err := db.NewQuery(r.conn, &CacheDependencyEntity{
+			q, err := db.NewQuery(r.conn, &model.CacheDependencyEntity{
 				Bucket:  value.Bucket,
 				Key:     value.Key,
 				Label:   r.cacheEntry.Label,
@@ -118,7 +119,7 @@ func (i *invalidate) with(colName string, colValue interface{}) *invalidate {
 func (i *invalidate) Exec(newTx bool) error {
 	dbOps := func() error {
 		//get cache dependencies
-		depQuery, err := db.NewQuery(i.conn, &CacheDependencyEntity{})
+		depQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{})
 		if err != nil {
 			return err
 		}
@@ -142,7 +143,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		i.logger.Debug(fmt.Sprintf("Identified %d cache entities which match selector '%v': %s", cntUniqueIds, i.selector, cacheEntityIdsCSV))
 
 		//drop all cache entities
-		cacheQuery, err := db.NewQuery(i.conn, &CacheEntryEntity{})
+		cacheQuery, err := db.NewQuery(i.conn, &model.CacheEntryEntity{})
 		if err != nil {
 			return err
 		}
@@ -153,7 +154,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		i.logger.Debug(fmt.Sprintf("Deleted %d cache entries matching selector '%v'", deletedEntries, i.selector))
 
 		//drop all cache dependencies of the dropped cache entities
-		cacheDepQuery, err := db.NewQuery(i.conn, &CacheDependencyEntity{})
+		cacheDepQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{})
 		if err != nil {
 			return err
 		}
@@ -176,7 +177,7 @@ func (i *invalidate) cacheIDsCSV(deps []db.DatabaseEntity) (string, int) {
 	deduplicate := make(map[int64]interface{}, len(deps))
 	var buffer bytes.Buffer
 	for _, dep := range deps {
-		depEntity := dep.(*CacheDependencyEntity)
+		depEntity := dep.(*model.CacheDependencyEntity)
 		if _, ok := deduplicate[depEntity.CacheID]; ok {
 			continue
 		}
@@ -222,8 +223,8 @@ func (c *get) with(colName string, colValue interface{}) *get {
 	return c
 }
 
-func (c *get) Exec() ([]*CacheDependencyEntity, error) {
-	cntQuery, err := db.NewQuery(c.conn, &CacheDependencyEntity{})
+func (c *get) Exec() ([]*model.CacheDependencyEntity, error) {
+	cntQuery, err := db.NewQuery(c.conn, &model.CacheDependencyEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -231,9 +232,9 @@ func (c *get) Exec() ([]*CacheDependencyEntity, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := []*CacheDependencyEntity{}
+	result := []*model.CacheDependencyEntity{}
 	for _, dep := range deps {
-		result = append(result, dep.(*CacheDependencyEntity))
+		result = append(result, dep.(*model.CacheDependencyEntity))
 	}
 	return result, nil
 }

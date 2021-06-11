@@ -1,25 +1,27 @@
-package config
+package cache
 
 import (
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
 )
 
 type CacheRepository struct {
-	*Repository
+	*repository.Repository
 }
 
 func NewCacheRepository(dbFac db.ConnectionFactory, debug bool) (*CacheRepository, error) {
-	repo, err := NewRepository(dbFac, debug)
+	repo, err := repository.NewRepository(dbFac, debug)
 	if err != nil {
 		return nil, err
 	}
 	return &CacheRepository{repo}, nil
 }
 
-func (cr *CacheRepository) All() ([]*CacheEntryEntity, error) {
-	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+func (cr *CacheRepository) All() ([]*model.CacheEntryEntity, error) {
+	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -28,15 +30,15 @@ func (cr *CacheRepository) All() ([]*CacheEntryEntity, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := []*CacheEntryEntity{}
+	result := []*model.CacheEntryEntity{}
 	for _, entity := range entities {
-		result = append(result, entity.(*CacheEntryEntity))
+		result = append(result, entity.(*model.CacheEntryEntity))
 	}
 	return result, nil
 }
 
-func (cr *CacheRepository) Get(label, cluster string) (*CacheEntryEntity, error) {
-	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+func (cr *CacheRepository) Get(label, cluster string) (*model.CacheEntryEntity, error) {
+	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -45,13 +47,13 @@ func (cr *CacheRepository) Get(label, cluster string) (*CacheEntryEntity, error)
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cr.handleNotFoundError(err, &CacheEntryEntity{}, whereCond)
+		return nil, cr.HandleNotFoundError(err, &model.CacheEntryEntity{}, whereCond)
 	}
-	return entity.(*CacheEntryEntity), nil
+	return entity.(*model.CacheEntryEntity), nil
 }
 
-func (cr *CacheRepository) GetByID(id int64) (*CacheEntryEntity, error) {
-	q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+func (cr *CacheRepository) GetByID(id int64) (*model.CacheEntryEntity, error) {
+	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -60,25 +62,25 @@ func (cr *CacheRepository) GetByID(id int64) (*CacheEntryEntity, error) {
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cr.handleNotFoundError(err, &CacheEntryEntity{}, whereCond)
+		return nil, cr.HandleNotFoundError(err, &model.CacheEntryEntity{}, whereCond)
 	}
-	return entity.(*CacheEntryEntity), nil
+	return entity.(*model.CacheEntryEntity), nil
 }
 
-func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueEntity) (*CacheEntryEntity, error) {
+func (cr *CacheRepository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity) (*model.CacheEntryEntity, error) {
 	//Get exiting cache entry
 	inCache, err := cr.Get(cacheEntry.Label, cacheEntry.Cluster)
-	if err != nil && !IsNotFoundError(err) {
+	if err != nil && !repository.IsNotFoundError(err) {
 		return nil, err
 	}
 	if inCache != nil {
 		//check if the existing cache entry is still valid otherwise invalidate it
 		if inCache.Equal(cacheEntry) {
-			cr.logger.Debug(fmt.Sprintf("No differences found for cache entry '%s' (cluster '%s'): not creating new database entity",
+			cr.Logger.Debug(fmt.Sprintf("No differences found for cache entry '%s' (cluster '%s'): not creating new database entity",
 				cacheEntry.Label, cacheEntry.Cluster))
 			return inCache, nil
 		}
-		cr.logger.Debug(fmt.Sprintf("Existing cache entry '%s' is outdated and will be invalidated", inCache))
+		cr.Logger.Debug(fmt.Sprintf("Existing cache entry '%s' is outdated and will be invalidated", inCache))
 		if err := cr.InvalidateByID(inCache.ID); err != nil {
 			return cacheEntry, err
 		}
@@ -86,23 +88,23 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueE
 
 	//create new cache entry and track its dependencies
 	dbOps := func() (interface{}, error) {
-		q, err := db.NewQuery(cr.conn, cacheEntry)
+		q, err := db.NewQuery(cr.Conn, cacheEntry)
 		if err != nil {
 			return cacheEntry, err
 		}
 		if err := q.Insert().Exec(); err != nil {
 			return cacheEntry, err
 		}
-		if err := cr.cacheDep.Record(cacheEntry, cacheDeps).Exec(false); err != nil {
+		if err := cr.CacheDep.Record(cacheEntry, cacheDeps).Exec(false); err != nil {
 			return cacheEntry, err
 		}
 		return cacheEntry, err
 	}
 
-	var cacheEntryEntity *CacheEntryEntity
-	result, err := cr.transactionalResult(dbOps)
+	var cacheEntryEntity *model.CacheEntryEntity
+	result, err := cr.TransactionalResult(dbOps)
 	if result != nil {
-		cacheEntryEntity = result.(*CacheEntryEntity)
+		cacheEntryEntity = result.(*model.CacheEntryEntity)
 	}
 	return cacheEntryEntity, err
 }
@@ -110,43 +112,43 @@ func (cr *CacheRepository) Add(cacheEntry *CacheEntryEntity, cacheDeps []*ValueE
 func (cr *CacheRepository) Invalidate(label, cluster string) error {
 	dbOps := func() error {
 		//invalidate the cache entity and drop all tracked dependencies
-		if err := cr.cacheDep.Invalidate().WithLabel(label).WithCluster(cluster).Exec(false); err != nil {
+		if err := cr.CacheDep.Invalidate().WithLabel(label).WithCluster(cluster).Exec(false); err != nil {
 			return err
 		}
 
 		//as cache dependencies are optional we cannot rely that the previous
 		//invalidation dropped the cache entity: delete the entity also explicitly
-		q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+		q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
 		if err != nil {
 			return err
 		}
 		deleted, err := q.Delete().
 			Where(map[string]interface{}{"Label": label, "Cluster": cluster}).
 			Exec()
-		cr.logger.Debug(fmt.Sprintf("Deleted %d cache entries which had no dependencies", deleted))
+		cr.Logger.Debug(fmt.Sprintf("Deleted %d cache entries which had no dependencies", deleted))
 		return err
 	}
-	return cr.transactional(dbOps)
+	return cr.Transactional(dbOps)
 }
 
 func (cr *CacheRepository) InvalidateByID(id int64) error {
 	dbOps := func() error {
 		//invalidate the cache entity and drop all tracked dependencies
-		if err := cr.cacheDep.Invalidate().WithCacheID(id).Exec(false); err != nil {
+		if err := cr.CacheDep.Invalidate().WithCacheID(id).Exec(false); err != nil {
 			return err
 		}
 
 		//as cache dependencies are optional we cannot rely that the previous
 		//invalidation dropped the cache entity: delete the entity also explicitly
-		q, err := db.NewQuery(cr.conn, &CacheEntryEntity{})
+		q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
 		if err != nil {
 			return err
 		}
 		deleted, err := q.Delete().
 			Where(map[string]interface{}{"ID": id}).
 			Exec()
-		cr.logger.Debug(fmt.Sprintf("Deleted %d cache entries which had no dependencies", deleted))
+		cr.Logger.Debug(fmt.Sprintf("Deleted %d cache entries which had no dependencies", deleted))
 		return err
 	}
-	return cr.transactional(dbOps)
+	return cr.Transactional(dbOps)
 }

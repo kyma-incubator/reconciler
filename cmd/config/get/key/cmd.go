@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
-	"github.com/kyma-incubator/reconciler/pkg/config"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/spf13/cobra"
 )
 
@@ -47,7 +47,7 @@ func Run(o *Options, keyFilter []string) error {
 	return renderKeys(o, keys)
 }
 
-func renderKeys(o *Options, keys []*config.KeyEntity) error {
+func renderKeys(o *Options, keys []*model.KeyEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func renderKeys(o *Options, keys []*config.KeyEntity) error {
 	return formatter.Output(os.Stdout)
 }
 
-func renderKeysWithValues(o *Options, keys []*config.KeyEntity) error {
+func renderKeysWithValues(o *Options, keys []*model.KeyEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err
