@@ -58,6 +58,9 @@ func (cdm *cacheDependencyManager) Record(cacheEntry *model.CacheEntryEntity, ca
 }
 
 func (r *record) Exec(newTx bool) error {
+	if r.cacheEntry.ID <= 0 {
+		return fmt.Errorf("Cache entry '%s' has no ID: indicates that cache entity is not persisted in database", r.cacheEntry)
+	}
 	dbOps := func() error {
 		//track deps in DB
 		for _, value := range r.cacheDeps {

@@ -7,3 +7,6 @@ cover.out
 ._*
 Thumbs.db
 cover.out
+
+# Ingore sqlite db files
+*.db
