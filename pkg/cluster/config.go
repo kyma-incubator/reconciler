@@ -8,11 +8,15 @@ import (
 var defaultBucketPrecedence = []string{model.DefaultBucket, "profile", "customer", "cluster", "feature"}
 
 type Configuration struct {
-	Cluster      string
+	cluster      string
 	bucketMerger *bucketMerger
 }
 
 type Configurer struct {
 	kvRepository *kv.Repository
 	inventory    *Inventory
+}
+
+func (c *Configurer) Get(cluster string) *Configuration {
+	panic("not implemented yet")
 }

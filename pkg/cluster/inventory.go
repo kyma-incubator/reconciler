@@ -14,13 +14,13 @@ type Inventory struct {
 }
 
 func (ci *Inventory) Get(cluster string) *Cluster {
-	return nil
+	panic("not implemented yet")
 }
 
 func (ci *Inventory) Add(cluster *Cluster) error {
-	return nil
+	panic("not implemented yet")
 }
 
 func (ci *Inventory) Delete(cluster string) error {
-	return nil
+	panic("not implemented yet")
 }
