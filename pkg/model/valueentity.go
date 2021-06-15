@@ -1,4 +1,4 @@
-package config
+package model
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 )
+
+const tblValues string = "config_values"
 
 type ValueEntity struct {
 	Key        string    `db:"notNull"`
@@ -55,4 +57,18 @@ func (ve *ValueEntity) Equal(other db.DatabaseEntity) bool {
 
 func (ve *ValueEntity) Get() (interface{}, error) {
 	return ve.DataType.Get(ve.Value)
+}
+
+func convertStringToDataType(value interface{}) (interface{}, error) {
+	return NewDataType(value.(string))
+}
+
+func requireValidBucketName(value interface{}) (interface{}, error) {
+	bucketName := fmt.Sprintf("%s", value)
+	if bucketName != "" {
+		if err := ValidateBucketName(bucketName); err != nil {
+			return value, err
+		}
+	}
+	return value, nil
 }

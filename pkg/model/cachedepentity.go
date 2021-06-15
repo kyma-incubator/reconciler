@@ -1,4 +1,4 @@
-package config
+package model
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 )
+
+const tblCacheDeps string = "config_cachedeps"
 
 type CacheDependencyEntity struct {
 	Bucket  string    `db:"notNull"`

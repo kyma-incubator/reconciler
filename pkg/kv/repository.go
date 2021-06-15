@@ -1,26 +1,28 @@
-package config
+package kv
 
 import (
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
 )
 
-type KeyValueRepository struct {
-	*Repository
+type Repository struct {
+	*repository.Repository
 }
 
-func NewKeyValueRepository(dbFac db.ConnectionFactory, debug bool) (*KeyValueRepository, error) {
-	repo, err := NewRepository(dbFac, debug)
+func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
+	repo, err := repository.NewRepository(dbFac, debug)
 	if err != nil {
 		return nil, err
 	}
-	return &KeyValueRepository{repo}, nil
+	return &Repository{repo}, nil
 }
 
-func (cer *KeyValueRepository) Keys() ([]*KeyEntity, error) {
-	entity := &KeyEntity{}
-	q, err := db.NewQuery(cer.conn, entity)
+func (cer *Repository) Keys() ([]*model.KeyEntity, error) {
+	entity := &model.KeyEntity{}
+	q, err := db.NewQuery(cer.Conn, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -50,16 +52,16 @@ func (cer *KeyValueRepository) Keys() ([]*KeyEntity, error) {
 	}
 
 	//cast to specific entity
-	result := []*KeyEntity{}
+	result := []*model.KeyEntity{}
 	for _, entity := range entities {
-		result = append(result, entity.(*KeyEntity))
+		result = append(result, entity.(*model.KeyEntity))
 	}
 	return result, nil
 }
 
-func (cer *KeyValueRepository) KeyHistory(key string) ([]*KeyEntity, error) {
-	entity := &KeyEntity{}
-	q, err := db.NewQuery(cer.conn, entity)
+func (cer *Repository) KeyHistory(key string) ([]*model.KeyEntity, error) {
+	entity := &model.KeyEntity{}
+	q, err := db.NewQuery(cer.Conn, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -71,15 +73,15 @@ func (cer *KeyValueRepository) KeyHistory(key string) ([]*KeyEntity, error) {
 		return nil, err
 	}
 	//cast to specific entity
-	result := []*KeyEntity{}
+	result := []*model.KeyEntity{}
 	for _, entity := range entities {
-		result = append(result, entity.(*KeyEntity))
+		result = append(result, entity.(*model.KeyEntity))
 	}
 	return result, nil
 }
 
-func (cer *KeyValueRepository) LatestKey(key string) (*KeyEntity, error) {
-	q, err := db.NewQuery(cer.conn, &KeyEntity{})
+func (cer *Repository) LatestKey(key string) (*model.KeyEntity, error) {
+	q, err := db.NewQuery(cer.Conn, &model.KeyEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -90,13 +92,13 @@ func (cer *KeyValueRepository) LatestKey(key string) (*KeyEntity, error) {
 		Limit(1).
 		GetOne()
 	if err != nil {
-		return nil, cer.handleNotFoundError(err, &KeyEntity{}, whereCond)
+		return nil, cer.HandleNotFoundError(err, &model.KeyEntity{}, whereCond)
 	}
-	return entity.(*KeyEntity), nil
+	return entity.(*model.KeyEntity), nil
 }
 
-func (cer *KeyValueRepository) KeyByVersion(version int64) (*KeyEntity, error) {
-	q, err := db.NewQuery(cer.conn, &KeyEntity{})
+func (cer *Repository) KeyByVersion(version int64) (*model.KeyEntity, error) {
+	q, err := db.NewQuery(cer.Conn, &model.KeyEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -105,13 +107,13 @@ func (cer *KeyValueRepository) KeyByVersion(version int64) (*KeyEntity, error) {
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cer.handleNotFoundError(err, &KeyEntity{}, whereCond)
+		return nil, cer.HandleNotFoundError(err, &model.KeyEntity{}, whereCond)
 	}
-	return entity.(*KeyEntity), nil
+	return entity.(*model.KeyEntity), nil
 }
 
-func (cer *KeyValueRepository) Key(key string, version int64) (*KeyEntity, error) {
-	q, err := db.NewQuery(cer.conn, &KeyEntity{})
+func (cer *Repository) Key(key string, version int64) (*model.KeyEntity, error) {
+	q, err := db.NewQuery(cer.Conn, &model.KeyEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -120,37 +122,37 @@ func (cer *KeyValueRepository) Key(key string, version int64) (*KeyEntity, error
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cer.handleNotFoundError(err, &KeyEntity{}, whereCond)
+		return nil, cer.HandleNotFoundError(err, &model.KeyEntity{}, whereCond)
 	}
-	return entity.(*KeyEntity), nil
+	return entity.(*model.KeyEntity), nil
 }
 
-func (cer *KeyValueRepository) CreateKey(key *KeyEntity) (*KeyEntity, error) {
-	q, err := db.NewQuery(cer.conn, key)
+func (cer *Repository) CreateKey(key *model.KeyEntity) (*model.KeyEntity, error) {
+	q, err := db.NewQuery(cer.Conn, key)
 	if err != nil {
 		return nil, err
 	}
 	existingKey, err := cer.LatestKey(key.Key)
-	if err != nil && !IsNotFoundError(err) {
+	if err != nil && !repository.IsNotFoundError(err) {
 		return nil, err
 	}
 	if existingKey != nil && existingKey.Equal(key) {
-		cer.logger.Debug(fmt.Sprintf("No differences found for key '%s': not creating new database entity", key.Key))
+		cer.Logger.Debug(fmt.Sprintf("No differences found for key '%s': not creating new database entity", key.Key))
 		return existingKey, nil
 	}
 	return key, q.Insert().Exec()
 }
 
-func (cer *KeyValueRepository) DeleteKey(key string) error {
+func (cer *Repository) DeleteKey(key string) error {
 	//bundle DB operations
 	dbOps := func() error {
 		//delete all cache entities which were using a value of this key
-		if err := cer.cacheDep.Invalidate().WithKey(key).Exec(false); err != nil {
+		if err := cer.CacheDep.Invalidate().WithKey(key).Exec(false); err != nil {
 			return err
 		}
 
 		//delete the values mapped to this key
-		q, err := db.NewQuery(cer.conn, &ValueEntity{})
+		q, err := db.NewQuery(cer.Conn, &model.ValueEntity{})
 		if err != nil {
 			return err
 		}
@@ -162,7 +164,7 @@ func (cer *KeyValueRepository) DeleteKey(key string) error {
 		}
 
 		//delete the key
-		qKey, err := db.NewQuery(cer.conn, &KeyEntity{})
+		qKey, err := db.NewQuery(cer.Conn, &model.KeyEntity{})
 		if err != nil {
 			return err
 		}
@@ -172,12 +174,12 @@ func (cer *KeyValueRepository) DeleteKey(key string) error {
 		return err
 	}
 
-	return cer.transactional(dbOps)
+	return cer.Transactional(dbOps)
 }
 
-func (cer *KeyValueRepository) ValuesByBucket(bucket string) ([]*ValueEntity, error) {
-	entity := &ValueEntity{}
-	q, err := db.NewQuery(cer.conn, entity)
+func (cer *Repository) ValuesByBucket(bucket string) ([]*model.ValueEntity, error) {
+	entity := &model.ValueEntity{}
+	q, err := db.NewQuery(cer.Conn, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -211,16 +213,16 @@ func (cer *KeyValueRepository) ValuesByBucket(bucket string) ([]*ValueEntity, er
 	}
 
 	//cast to specific entity
-	result := []*ValueEntity{}
+	result := []*model.ValueEntity{}
 	for _, entity := range entities {
-		result = append(result, entity.(*ValueEntity))
+		result = append(result, entity.(*model.ValueEntity))
 	}
 	return result, nil
 }
 
-func (cer *KeyValueRepository) ValuesByKey(key *KeyEntity) ([]*ValueEntity, error) {
-	entity := &ValueEntity{}
-	q, err := db.NewQuery(cer.conn, entity)
+func (cer *Repository) ValuesByKey(key *model.KeyEntity) ([]*model.ValueEntity, error) {
+	entity := &model.ValueEntity{}
+	q, err := db.NewQuery(cer.Conn, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -258,16 +260,16 @@ func (cer *KeyValueRepository) ValuesByKey(key *KeyEntity) ([]*ValueEntity, erro
 	}
 
 	//cast to specific entity
-	result := []*ValueEntity{}
+	result := []*model.ValueEntity{}
 	for _, entity := range entities {
-		result = append(result, entity.(*ValueEntity))
+		result = append(result, entity.(*model.ValueEntity))
 	}
 	return result, nil
 }
 
-func (cer *KeyValueRepository) ValueHistory(bucket, key string) ([]*ValueEntity, error) {
-	entity := &ValueEntity{}
-	q, err := db.NewQuery(cer.conn, entity)
+func (cer *Repository) ValueHistory(bucket, key string) ([]*model.ValueEntity, error) {
+	entity := &model.ValueEntity{}
+	q, err := db.NewQuery(cer.Conn, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -279,15 +281,15 @@ func (cer *KeyValueRepository) ValueHistory(bucket, key string) ([]*ValueEntity,
 		return nil, err
 	}
 	//cast to specific entity
-	result := []*ValueEntity{}
+	result := []*model.ValueEntity{}
 	for _, entity := range entities {
-		result = append(result, entity.(*ValueEntity))
+		result = append(result, entity.(*model.ValueEntity))
 	}
 	return result, nil
 }
 
-func (cer *KeyValueRepository) LatestValue(bucket, key string) (*ValueEntity, error) {
-	q, err := db.NewQuery(cer.conn, &ValueEntity{})
+func (cer *Repository) LatestValue(bucket, key string) (*model.ValueEntity, error) {
+	q, err := db.NewQuery(cer.Conn, &model.ValueEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -298,13 +300,13 @@ func (cer *KeyValueRepository) LatestValue(bucket, key string) (*ValueEntity, er
 		Limit(1).
 		GetOne()
 	if err != nil {
-		return nil, cer.handleNotFoundError(err, &ValueEntity{}, whereCond)
+		return nil, cer.HandleNotFoundError(err, &model.ValueEntity{}, whereCond)
 	}
-	return entity.(*ValueEntity), nil
+	return entity.(*model.ValueEntity), nil
 }
 
-func (cer *KeyValueRepository) Value(bucket, key string, version int64) (*ValueEntity, error) {
-	q, err := db.NewQuery(cer.conn, &ValueEntity{})
+func (cer *Repository) Value(bucket, key string, version int64) (*model.ValueEntity, error) {
+	q, err := db.NewQuery(cer.Conn, &model.ValueEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -313,18 +315,18 @@ func (cer *KeyValueRepository) Value(bucket, key string, version int64) (*ValueE
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cer.handleNotFoundError(err, &ValueEntity{}, whereCond)
+		return nil, cer.HandleNotFoundError(err, &model.ValueEntity{}, whereCond)
 	}
-	return entity.(*ValueEntity), nil
+	return entity.(*model.ValueEntity), nil
 }
 
-func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, error) {
+func (cer *Repository) CreateValue(value *model.ValueEntity) (*model.ValueEntity, error) {
 	existingValue, err := cer.LatestValue(value.Bucket, value.Key)
-	if err != nil && !IsNotFoundError(err) {
+	if err != nil && !repository.IsNotFoundError(err) {
 		return nil, err
 	}
 	if existingValue != nil && existingValue.Equal(value) {
-		cer.logger.Debug(fmt.Sprintf("No differences found for value of key '%s': not creating new database entity", value.Key))
+		cer.Logger.Debug(fmt.Sprintf("No differences found for value of key '%s': not creating new database entity", value.Key))
 		return existingValue, nil
 	}
 
@@ -350,7 +352,7 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 	//insert operation
 	dbOps := func() (interface{}, error) {
 		//add value entity
-		q, err := db.NewQuery(cer.conn, value)
+		q, err := db.NewQuery(cer.Conn, value)
 		if err != nil {
 			return nil, err
 		}
@@ -360,7 +362,7 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 		}
 
 		//new value provided - invalidate caches which were using the old value
-		if err := cer.cacheDep.Invalidate().WithBucket(value.Bucket).WithKey(value.Key).Exec(false); err != nil {
+		if err := cer.CacheDep.Invalidate().WithBucket(value.Bucket).WithKey(value.Key).Exec(false); err != nil {
 			return valueEntity, err
 		}
 
@@ -368,24 +370,46 @@ func (cer *KeyValueRepository) CreateValue(value *ValueEntity) (*ValueEntity, er
 		return valueEntity, nil
 	}
 
-	result, err := cer.transactionalResult(dbOps)
-	var valueEntity *ValueEntity
+	result, err := cer.TransactionalResult(dbOps)
+	var valueEntity *model.ValueEntity
 	if result != nil {
-		valueEntity = result.(*ValueEntity)
+		valueEntity = result.(*model.ValueEntity)
 	}
 
 	return valueEntity, err
 }
 
-func (cer *KeyValueRepository) Buckets() ([]*BucketEntity, error) {
+func (cer *Repository) DeleteValue(key, bucket string) error {
+	//bundle DB operations
+	dbOps := func() error {
+		//delete all cache entities which were using a value of this key in this bucket
+		if err := cer.CacheDep.Invalidate().WithKey(key).WithBucket(bucket).Exec(false); err != nil {
+			return err
+		}
+
+		//delete the values mapped to this key in this bucket
+		q, err := db.NewQuery(cer.Conn, &model.ValueEntity{})
+		if err != nil {
+			return err
+		}
+		_, err = q.Delete().
+			Where(map[string]interface{}{"Key": key, "Bucket": bucket}).
+			Exec()
+		return err
+	}
+
+	return cer.Transactional(dbOps)
+}
+
+func (cer *Repository) Buckets() ([]*model.BucketEntity, error) {
 	bucketNames, err := cer.bucketNames()
 	if err != nil {
 		return nil, err
 	}
 
-	buckets := []*BucketEntity{}
+	buckets := []*model.BucketEntity{}
 	for _, bucketName := range bucketNames {
-		q, err := db.NewQuery(cer.conn, &BucketEntity{})
+		q, err := db.NewQuery(cer.Conn, &model.BucketEntity{})
 		if err != nil {
 			return nil, err
 		}
@@ -396,16 +420,16 @@ func (cer *KeyValueRepository) Buckets() ([]*BucketEntity, error) {
 			Limit(1).
 			GetOne()
 		if err != nil {
-			return nil, cer.handleNotFoundError(err, &BucketEntity{}, whereCond)
+			return nil, cer.HandleNotFoundError(err, &model.BucketEntity{}, whereCond)
 		}
-		buckets = append(buckets, entity.(*BucketEntity))
+		buckets = append(buckets, entity.(*model.BucketEntity))
 	}
 
 	return buckets, nil
 }
 
-func (cer *KeyValueRepository) bucketNames() ([]string, error) {
-	entity := &BucketEntity{}
+func (cer *Repository) bucketNames() ([]string, error) {
+	entity := &model.BucketEntity{}
 
 	colHdlr, err := db.NewColumnHandler(entity)
 	if err != nil {
@@ -417,7 +441,7 @@ func (cer *KeyValueRepository) bucketNames() ([]string, error) {
 		return nil, err
 	}
 
-	rows, err := cer.conn.Query(fmt.Sprintf("SELECT %s FROM %s GROUP BY %s ORDER BY %s ASC", colName, entity.Table(), colName, colName))
+	rows, err := cer.Conn.Query(fmt.Sprintf("SELECT %s FROM %s GROUP BY %s ORDER BY %s ASC", colName, entity.Table(), colName, colName))
 	if err != nil {
 		return nil, err
 	}
@@ -434,15 +458,15 @@ func (cer *KeyValueRepository) bucketNames() ([]string, error) {
 	return bucketNames, nil
 }
 
-func (cer *KeyValueRepository) DeleteBucket(bucket string) error {
+func (cer *Repository) DeleteBucket(bucket string) error {
 	dbOps := func() error {
 		//invalidate all cache entities which were using values from this bucket
-		if err := cer.cacheDep.Invalidate().WithBucket(bucket).Exec(false); err != nil {
+		if err := cer.CacheDep.Invalidate().WithBucket(bucket).Exec(false); err != nil {
 			return err
 		}
 
 		//delete the bucket
-		q, err := db.NewQuery(cer.conn, &BucketEntity{})
+		q, err := db.NewQuery(cer.Conn, &model.BucketEntity{})
 		if err != nil {
 			return err
 		}
@@ -451,16 +475,16 @@ func (cer *KeyValueRepository) DeleteBucket(bucket string) error {
 			Exec()
 		return err
 	}
-	return cer.transactional(dbOps)
+	return cer.Transactional(dbOps)
 }
 
-func (cer *KeyValueRepository) Close() error {
-	return cer.conn.Close()
+func (cer *Repository) Close() error {
+	return cer.Conn.Close()
 }
 
 type InvalidDataTypeError struct {
-	Key             *KeyEntity
-	InvalidDataType DataType
+	Key             *model.KeyEntity
+	InvalidDataType model.DataType
 }
 
 func (e *InvalidDataTypeError) Error() string {

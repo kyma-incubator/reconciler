@@ -1,4 +1,4 @@
-package config
+package repository
 
 import (
 	"bytes"
@@ -11,9 +11,9 @@ import (
 )
 
 type Repository struct {
-	conn     db.Connection
-	logger   *zap.Logger
-	cacheDep *cacheDependencyManager
+	Conn     db.Connection
+	Logger   *zap.Logger
+	CacheDep *cacheDependencyManager
 }
 
 func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
@@ -30,21 +30,21 @@ func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) 
 		return nil, err
 	}
 	return &Repository{
-		conn:     conn,
-		logger:   logger,
-		cacheDep: cacheDepMgr,
+		Conn:     conn,
+		Logger:   logger,
+		CacheDep: cacheDepMgr,
 	}, nil
 }
 
-func (r *Repository) transactionalResult(dbOps func() (interface{}, error)) (interface{}, error) {
-	return db.TransactionResult(r.conn, dbOps, r.logger)
+func (r *Repository) TransactionalResult(dbOps func() (interface{}, error)) (interface{}, error) {
+	return db.TransactionResult(r.Conn, dbOps, r.Logger)
 }
 
-func (r *Repository) transactional(dbOps func() error) error {
-	return db.Transaction(r.conn, dbOps, r.logger)
+func (r *Repository) Transactional(dbOps func() error) error {
+	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *Repository) handleNotFoundError(err error, entity db.DatabaseEntity,
+func (r *Repository) HandleNotFoundError(err error, entity db.DatabaseEntity,
 	identifier map[string]interface{}) error {
 	if err == sql.ErrNoRows {
 		return &EntityNotFoundError{

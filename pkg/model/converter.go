@@ -1,16 +1,9 @@
-package config
+package model
 
 import (
 	"fmt"
 	"reflect"
 	"time"
-)
-
-const (
-	tblKeys      string = "config_keys"
-	tblValues    string = "config_values"
-	tblCache     string = "config_cache"
-	tblCacheDeps string = "config_cachedeps"
 )
 
 //convertTimestampToTime is converting the value of timestamp db-column to a Time instance
@@ -24,18 +17,4 @@ func convertTimestampToTime(value interface{}) (interface{}, error) {
 	}
 	return nil, fmt.Errorf("Failed to convert value '%s' (kind: %s) for field 'Created' to Time struct",
 		value, reflect.TypeOf(value).Kind())
-}
-
-func requireValidBucketName(value interface{}) (interface{}, error) {
-	bucketName := fmt.Sprintf("%s", value)
-	if bucketName != "" {
-		if err := ValidateBucketName(bucketName); err != nil {
-			return value, err
-		}
-	}
-	return value, nil
-}
-
-func convertStringToDataType(value interface{}) (interface{}, error) {
-	return NewDataType(value.(string))
 }

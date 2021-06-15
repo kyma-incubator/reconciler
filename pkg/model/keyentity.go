@@ -1,4 +1,4 @@
-package config
+package model
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/interpreter"
 )
+
+const tblKeys string = "config_keys"
 
 type KeyEntity struct {
 	Key       string   `db:"notNull"`
