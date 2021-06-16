@@ -10,3 +10,6 @@ cover.out
 
 # Ignore sqlite db files
 *.db
+
+# Ingore work-in-progress marked files
+*.wip.*

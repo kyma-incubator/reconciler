@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
-	"github.com/kyma-incubator/reconciler/pkg/config"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/spf13/cobra"
 )
 
@@ -39,15 +39,15 @@ func Run(o *cli.Options, bucketFilter []string) error {
 	return renderBuckets(o, allBuckets)
 }
 
-func filterBuckets(allBuckets []*config.BucketEntity, bucketFilter []string) []*config.BucketEntity {
+func filterBuckets(allBuckets []*model.BucketEntity, bucketFilter []string) []*model.BucketEntity {
 	//to improve speed, use map from bucket-name to bucket-entity
-	bucketByName := make(map[string]*config.BucketEntity, len(bucketFilter))
+	bucketByName := make(map[string]*model.BucketEntity, len(bucketFilter))
 	for _, bucket := range allBuckets {
 		bucketByName[bucket.Bucket] = bucket
 	}
 
 	//filter buckets
-	filteredBuckets := []*config.BucketEntity{}
+	filteredBuckets := []*model.BucketEntity{}
 	sort.Strings(bucketFilter) //ensure the filtered buckets are added to result in alphabetical order
 	for _, filter := range bucketFilter {
 		if bucket, ok := bucketByName[filter]; ok {
@@ -57,7 +57,7 @@ func filterBuckets(allBuckets []*config.BucketEntity, bucketFilter []string) []*
 	return filteredBuckets
 }
 
-func renderBuckets(o *cli.Options, buckets []*config.BucketEntity) error {
+func renderBuckets(o *cli.Options, buckets []*model.BucketEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func renderBuckets(o *cli.Options, buckets []*config.BucketEntity) error {
 	return formatter.Output(os.Stdout)
 }
 
-func renderBucketsWithValues(o *cli.Options, buckets []*config.BucketEntity) error {
+func renderBucketsWithValues(o *cli.Options, buckets []*model.BucketEntity) error {
 	formatter, err := cli.NewOutputFormatter(o.OutputFormat)
 	if err != nil {
 		return err

@@ -1,4 +1,4 @@
-package config
+package model
 
 import (
 	//nolint - ignore blacklisted import as we use md5 lib just for change detection and not for encryption
@@ -8,6 +8,8 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 )
+
+const tblCache string = "config_cache"
 
 type CacheEntryEntity struct {
 	ID       int64     `db:"readOnly"`
@@ -20,14 +22,14 @@ type CacheEntryEntity struct {
 
 func (ce *CacheEntryEntity) String() string {
 	return fmt.Sprintf("CacheEntryEntity [ID=%d,Label=%s,Cluster=%s,Checksum=%s]",
-		ce.ID, ce.Label, ce.Cluster, ce.checksum())
+		ce.ID, ce.Label, ce.Cluster, ce.NewChecksum())
 }
 
 func (ce *CacheEntryEntity) New() db.DatabaseEntity {
 	return &CacheEntryEntity{}
 }
 
-func (ce *CacheEntryEntity) checksum() string {
+func (ce *CacheEntryEntity) NewChecksum() string {
 	if ce.Checksum == "" && ce.Data != "" {
 		ce.Checksum = ce.md5()
 	}
@@ -61,7 +63,7 @@ func (ce *CacheEntryEntity) Equal(other db.DatabaseEntity) bool {
 	if ok {
 		return ce.Label == otherEntry.Label &&
 			ce.Cluster == otherEntry.Cluster &&
-			ce.checksum() == otherEntry.checksum()
+			ce.NewChecksum() == otherEntry.NewChecksum()
 	}
 	return false
 }

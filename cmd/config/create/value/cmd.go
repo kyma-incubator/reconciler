@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kyma-incubator/reconciler/pkg/config"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +40,7 @@ func Run(o *Options, val string) error {
 		return err
 	}
 
-	value, err := o.Repository().CreateValue(&config.ValueEntity{
+	value, err := o.Repository().CreateValue(&model.ValueEntity{
 		Bucket:     o.Bucket,
 		Key:        key.Key,
 		KeyVersion: key.Version,
@@ -56,7 +56,7 @@ func Run(o *Options, val string) error {
 	return nil
 }
 
-func getKey(o *Options) (*config.KeyEntity, error) {
+func getKey(o *Options) (*model.KeyEntity, error) {
 	if o.Key != "" && o.KeyVersion > 0 {
 		return o.Repository().Key(o.Key, o.KeyVersion)
 	}

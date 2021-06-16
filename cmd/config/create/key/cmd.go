@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/kyma-incubator/reconciler/pkg/config"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +19,7 @@ func NewCmd(o *Options) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&o.DataType, "data-type", "string", fmt.Sprintf("Define data-type of the key (supported types are %s, %s, %s)",
-		config.String, config.Integer, config.Boolean))
+		model.String, model.Integer, model.Boolean))
 	cmd.Flags().BoolVar(&o.Encrypted, "encrypted", true, "Key values have to be encrypted")
 	cmd.Flags().StringVar(&o.Validator, "validator", "", "Validator logic executed when setting a new value")
 	cmd.Flags().StringVar(&o.Trigger, "trigger", "", "Trigger function executed when a value was added/changed")
@@ -42,12 +42,12 @@ func Run(o *Options, keys []string) error {
 	return nil
 }
 
-func createKey(o *Options, key string) (*config.KeyEntity, error) {
-	dt, err := config.NewDataType(o.DataType)
+func createKey(o *Options, key string) (*model.KeyEntity, error) {
+	dt, err := model.NewDataType(o.DataType)
 	if err != nil {
 		return nil, err
 	}
-	return o.Repository().CreateKey(&config.KeyEntity{
+	return o.Repository().CreateKey(&model.KeyEntity{
 		Key:       key,
 		DataType:  dt,
 		Encrypted: o.Encrypted,
