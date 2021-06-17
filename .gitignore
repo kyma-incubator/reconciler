@@ -56,7 +56,6 @@ bin/*
 # Vendor
 vendor/
 
-Thumbs.db
 cover.out
 *.swp
 
