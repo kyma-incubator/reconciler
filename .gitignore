@@ -59,5 +59,8 @@ vendor/
 cover.out
 *.swp
 
-# Ingore sqlite db files
+# Ignore sqlite db files
 *.db
+
+# Ingore work-in-progress marked files
+*.wip.*
