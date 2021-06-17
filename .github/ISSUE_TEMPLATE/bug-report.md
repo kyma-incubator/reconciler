@@ -21,7 +21,7 @@ Describe where it appears, when it occurred, and what it affects.  -->
 
 **Actual result**
 
-<!-- Describe what happens instead. -->
+<!-- Describe what happened instead. -->
 
 **Steps to reproduce**
 
