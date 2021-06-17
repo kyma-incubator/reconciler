@@ -17,7 +17,7 @@ Describe where it appears, when it occurred, and what it affects.  -->
 
 **Expected result**
 
-<!-- Describe what you expect to happen. -->
+<!-- Describe what you expected to happen. -->
 
 **Actual result**
 
