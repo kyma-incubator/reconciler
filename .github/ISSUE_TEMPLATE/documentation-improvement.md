@@ -21,7 +21,7 @@ about: Suggest an improvement or report a bug in the documentation
 
 **Reasons**
 
-<!-- Explain why we should improve the document. -->
+<!-- Explain why this would improve the document. -->
 
 **Assignees**
 
