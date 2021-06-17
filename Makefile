@@ -43,3 +43,6 @@ clean:
 
 .PHONY: all
 all: resolve build test lint 
+
+.PHONY: release
+release: all
