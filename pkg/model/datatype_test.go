@@ -15,7 +15,7 @@ func TestDataType(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, dt, Integer)
 
-		dt, err = NewDataType("boolean")
+		dt, err = NewDataType("BooLEan")
 		require.NoError(t, err)
 		require.Equal(t, dt, Boolean)
 
