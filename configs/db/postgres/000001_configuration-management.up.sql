@@ -55,7 +55,7 @@ CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
 
 --DDL for clusters:
 CREATE TABLE clusters (
-	"id" SERIAL UNIQUE, --just another unique identifer for a property-entry
+	"id" SERIAL UNIQUE, --just another unique identifer for a cluster-entry
 	"cluster" text NOT NULL,
 	"status" text NOT NULL,
 	"component_list" text NOT NULL,
