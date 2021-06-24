@@ -1,5 +1,6 @@
 {
   "runtimeInput": {
+    "runtimeID": "",
     "name": "",
     "description": "",
     "labels": {
@@ -11,7 +12,6 @@
   "kymaConfig": {
     "version": "",
     "profile": "",
-    "conflictStrategy": "",
     "components": [
       {
         "component": "",
@@ -31,11 +31,11 @@
     ]
   },
   "metdata": {
-    "runtimeID": "",
     "globalAccountID": "",
     "subAccountID": "",
     "serviceID": "",
     "servicePlanID": "",
-    "shootName": ""
+    "shootName": "",
+    "instanceID": ""
   }
 }
