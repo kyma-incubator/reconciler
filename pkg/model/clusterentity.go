@@ -28,7 +28,7 @@ func (c *ClusterEntity) New() db.DatabaseEntity {
 
 func (c *ClusterEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
-	marshaller.AddUnmarshaller("ClusterState", func(value interface{}) (interface{}, error) {
+	marshaller.AddUnmarshaller("Status", func(value interface{}) (interface{}, error) {
 		return NewClusterStatus(value.(string))
 	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
