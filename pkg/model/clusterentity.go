@@ -45,7 +45,7 @@ func (c *ClusterEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherClProp, ok := other.(*ClusterEntity)
 	if ok {
-		return c.Cluster == otherClProp.Cluster && c.Status == otherClProp.Status
+		return c.Cluster == otherClProp.Cluster
 	}
 	return false
 }
