@@ -137,6 +137,7 @@ func (ci *Inventory) Delete(cluster string) error {
 	return nil
 }
 
+// TODO
 //func (ci *Inventory) Update(fields []string, clusterName string) error {
 //	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{
 //		Name: clusterName,

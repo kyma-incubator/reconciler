@@ -55,12 +55,51 @@ CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
 
 --DDL for clusters:
 CREATE TABLE clusters (
-	"id" integer PRIMARY KEY AUTOINCREMENT, --just another unique identifer for a cluster-entry
-	"cluster" text NOT NULL,
-	"status" text NOT NULL,
-	"component_list" text NOT NULL,
-	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT clusters_pk UNIQUE ("cluster")
+      "id" SERIAL UNIQUE, --just another unique identifer for a cluster-entry
+      "cluster" text NOT NULL,
+      "status" text NOT NULL,
+      "runtime_name" text,
+      "runtime_description" text,
+      "kyma_version" text,
+      "kyma_profile" text,
+      "global_account_id" text,
+      "sub_account_id"    text,
+      "service_id"       text,
+      "service_plan_id"   text,
+      "shoot_name"       text,
+      "instance_id"      text,
+      "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+      CONSTRAINT clusters_pk PRIMARY KEY ("cluster")
 );
 
 CREATE INDEX clusters_idx_status ON clusters ("status");
+
+CREATE TABLE components (
+    "id" SERIAL UNIQUE, --just another unique identifer for a cluster-entry
+    "cluster" text NOT NULL,
+    "component" text ,
+    "namespace" text ,
+    "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+    CONSTRAINT fk_cluster FOREIGN KEY(cluster) REFERENCES clusters(cluster) ON DELETE CASCADE,
+    CONSTRAINT components_pk PRIMARY KEY (cluster, component)
+);
+
+CREATE TABLE component_configurations (
+      "id" SERIAL UNIQUE, --just another unique identifer for a cluster-entry
+      "cluster" text NOT NULL,
+      "component" text NOT NULL,
+      "key" text ,
+      "value" text ,
+      "secret" boolean ,
+      "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+      CONSTRAINT fk_cluster_component FOREIGN KEY(cluster, component) REFERENCES components(cluster, component) ON DELETE CASCADE
+);
+
+CREATE TABLE cluster_administrators
+(
+    "id" SERIAL UNIQUE, --just another unique identifer for a cluster-entry
+    cluster text NOT NULL,
+    user_id text NOT NULL,
+    "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+    CONSTRAINT fk_cluster FOREIGN KEY(cluster) REFERENCES clusters(cluster) ON DELETE CASCADE
+);
