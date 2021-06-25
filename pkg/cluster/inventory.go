@@ -4,6 +4,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"strings"
 	"time"
 )
 
@@ -135,6 +136,26 @@ func (ci *Inventory) Delete(cluster string) error {
 		return err
 	}
 	return nil
+}
+
+func (ci *Inventory) GetByStatuses(statuses []model.ClusterStatus) ([]*model.ClusterEntity, error) {
+	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{})
+	if err != nil {
+		return nil, err
+	}
+	var values []string
+	for _, status := range statuses {
+		values = append(values, "'"+string(status)+"'")
+	}
+	entities, err := q.Select().WhereIn("Status", strings.Join(values, ","), nil).GetMany()
+	if err != nil {
+		return nil, err
+	}
+	result := []*model.ClusterEntity{}
+	for _, entity := range entities {
+		result = append(result, entity.(*model.ClusterEntity))
+	}
+	return result, nil
 }
 
 // TODO
