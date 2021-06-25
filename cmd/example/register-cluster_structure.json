@@ -1,6 +1,6 @@
 {
+  "runtimeID": "",
   "runtimeInput": {
-    "runtimeID": "",
     "name": "",
     "description": "",
     "labels": {
@@ -30,7 +30,7 @@
       ""
     ]
   },
-  "metdata": {
+  "metadata": {
     "globalAccountID": "",
     "subAccountID": "",
     "serviceID": "",
