@@ -50,6 +50,13 @@ func (q *Query) Delete() *Delete {
 	return &Delete{q, []interface{}{}, nil}
 }
 
+func (q *Query) Update(fields []string) *Update {
+	q.columnHandler.ColumnNamesCsv(true)
+	q.columnHandler.abc(&fields, true)
+	//q.buffer.WriteString(fmt.Sprintf("UPDATE %s SET %s", q.entity.Table(), q.columnHandler.abc(fields,true)))
+	return &Update{q}
+}
+
 type Select struct {
 	*Query
 	args []interface{}
@@ -180,6 +187,10 @@ type Delete struct {
 	err  error
 }
 
+type Update struct {
+	*Query
+}
+
 func (d *Delete) Where(args map[string]interface{}) *Delete {
 	d.args, d.err = addWhereCondition(args, &d.buffer, d.columnHandler)
 	return d
@@ -195,6 +206,15 @@ func (d *Delete) Exec() (int64, error) {
 		return res.RowsAffected()
 	}
 	return 0, err
+}
+
+func (d *Update) Exec() error {
+	defer d.reset()
+	if err := d.columnHandler.Validate(); err != nil {
+		return err
+	}
+	row := d.conn.QueryRow(d.buffer.String(), d.columnHandler.ColumnValues(true)...)
+	return d.columnHandler.Unmarshal(row, d.entity)
 }
 
 func (d *Delete) WhereIn(field, subQuery string, args ...interface{}) *Delete {

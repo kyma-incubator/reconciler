@@ -1,20 +1,11 @@
 package cluster
 
 import (
-	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"time"
 )
-
-const tblCache string = "cluster"
-
-// TODO
-type Cluster struct {
-	ID          int64 `db:"readOnly"`
-	Name        string
-	KymaVersion string
-	State       string
-}
 
 type Inventory struct {
 	*repository.Repository
@@ -28,39 +19,8 @@ func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Inventory, error) {
 	return &Inventory{repo}, nil
 }
 
-func (ce *Cluster) String() string {
-	return fmt.Sprintf("Cluster [Name=%d,KymaVersion=%s,State=%s]",
-		ce.Name, ce.KymaVersion, ce.State)
-}
-
-func (ce *Cluster) New() db.DatabaseEntity {
-	return &Cluster{}
-}
-
-func (ce *Cluster) Table() string {
-	return tblCache
-}
-
-func (ce *Cluster) Equal(other db.DatabaseEntity) bool {
-	if other == nil {
-		return false
-	}
-	otherEntry, ok := other.(*Cluster)
-	if ok {
-		return ce.Name == otherEntry.Name &&
-			ce.KymaVersion == otherEntry.KymaVersion &&
-			ce.State == otherEntry.State
-	}
-	return false
-}
-
-func (ce *Cluster) Marshaller() *db.EntityMarshaller {
-	marshaller := db.NewEntityMarshaller(&ce)
-	return marshaller
-}
-
-func (ci *Inventory) All() ([]*Cluster, error) {
-	q, err := db.NewQuery(ci.Conn, &Cluster{})
+func (ci *Inventory) All() ([]*model.ClusterEntity, error) {
+	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -68,15 +28,15 @@ func (ci *Inventory) All() ([]*Cluster, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := []*Cluster{}
+	result := []*model.ClusterEntity{}
 	for _, entity := range entities {
-		result = append(result, entity.(*Cluster))
+		result = append(result, entity.(*model.ClusterEntity))
 	}
 	return result, nil
 }
 
-func (ci *Inventory) Get(clusterName string) (*Cluster, error) {
-	q, err := db.NewQuery(ci.Conn, &Cluster{})
+func (ci *Inventory) Get(clusterName string) (*model.ClusterEntity, error) {
+	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{})
 	if err != nil {
 		return nil, err
 	}
@@ -84,14 +44,24 @@ func (ci *Inventory) Get(clusterName string) (*Cluster, error) {
 	if err != nil {
 		return nil, err
 	}
-	return entity.(*Cluster), nil
+	return entity.(*model.ClusterEntity), nil
 }
 
-func (ci *Inventory) Add(cluster *Cluster) error {
-	q, err := db.NewQuery(ci.Conn, &Cluster{
-		Name:        cluster.Name,
-		KymaVersion: cluster.KymaVersion,
-		State:       cluster.State,
+func (ci *Inventory) Add(cluster *model.Cluster) error {
+	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{
+		Cluster:            cluster.Cluster,
+		Status:             model.Installing,
+		RuntimeName:        cluster.RuntimeInput.Name,
+		RuntimeDescription: cluster.RuntimeInput.Description,
+		KymaVersion:        cluster.KymaConfig.Version,
+		KymaProfile:        cluster.KymaConfig.Profile,
+		GlobalAccountID:    cluster.Metadata.GlobalAccountID,
+		SubAccountID:       cluster.Metadata.SubAccountID,
+		ServiceID:          cluster.Metadata.ServiceID,
+		ServicePlanID:      cluster.Metadata.ServicePlanID,
+		ShootName:          cluster.Metadata.ShootName,
+		InstanceID:         cluster.Metadata.InstanceID,
+		Created:            time.Time{},
 	})
 	if err != nil {
 		return err
@@ -100,32 +70,84 @@ func (ci *Inventory) Add(cluster *Cluster) error {
 	if err != nil {
 		return err
 	}
+
+	if cluster.KymaConfig.Administrators != nil {
+		for _, admin := range cluster.KymaConfig.Administrators {
+			q, err := db.NewQuery(ci.Conn, &model.ClusterAdministratorEntity{
+				Cluster: cluster.Cluster,
+				UserId:  admin,
+				Created: time.Time{},
+			})
+			if err != nil {
+				return err
+			}
+			err = q.Insert().Exec()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, component := range cluster.KymaConfig.Components {
+		q, err = db.NewQuery(ci.Conn, &model.ComponentEntity{
+			Cluster:   cluster.Cluster,
+			Component: component.Component,
+			Namespace: component.Namespace,
+			Created:   time.Time{},
+		})
+		if err != nil {
+			return err
+		}
+		err = q.Insert().Exec()
+		if err != nil {
+			return err
+		}
+
+		for _, config := range component.Configuration {
+			q, err = db.NewQuery(ci.Conn, &model.ComponentConfigurationEntity{
+				Cluster:   cluster.Cluster,
+				Component: component.Component,
+				Key:       config.Key,
+				Value:     config.Value,
+				Secret:    config.Secret,
+				Created:   time.Time{},
+			})
+			if err != nil {
+				return err
+			}
+			err = q.Insert().Exec()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
-func (ci *Inventory) Delete(clusterName string) error {
-	q, err := db.NewQuery(ci.Conn, &Cluster{})
+func (ci *Inventory) Delete(cluster string) error {
+	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{})
 	if err != nil {
 		return err
 	}
-	_, err = q.Delete().Where(map[string]interface{}{"Name": clusterName}).Exec()
+	_, err = q.Delete().Where(map[string]interface{}{"Cluster": cluster}).Exec()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (ci *Inventory) Update(fields []string, clusterName string) error {
-	q, err := db.NewQuery(ci.Conn, &Cluster{
-		Name: clusterName,
-	})
-	if err != nil {
-		return err
-	}
-	err = q.Update(fields).Exec()
-
-	if err != nil {
-		return err
-	}
-	return nil
-}
+//func (ci *Inventory) Update(fields []string, clusterName string) error {
+//	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{
+//		Name: clusterName,
+//	})
+//	if err != nil {
+//		return err
+//	}
+//	err = q.Update(fields).Exec()
+//
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}

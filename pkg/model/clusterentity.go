@@ -10,11 +10,20 @@ import (
 const tblCluster string = "clusters"
 
 type ClusterEntity struct {
-	ID             string        `db:"notNull"`
-	Cluster        string        `db:"notNull"`
-	Status         ClusterStatus `db:"notNull"`
-	ComponentsList string        `db:"notNull"`
-	Created        time.Time     `db:"readOnly"`
+	ID                 int64         `db:"readOnly" db:"notNull"`
+	Cluster            string        `db:"notNull"`
+	Status             ClusterStatus `db:"notNull"`
+	RuntimeName        string
+	RuntimeDescription string
+	KymaVersion        string
+	KymaProfile        string
+	GlobalAccountID    string
+	SubAccountID       string
+	ServiceID          string
+	ServicePlanID      string
+	ShootName          string
+	InstanceID         string
+	Created            time.Time
 }
 
 func (c *ClusterEntity) String() string {
