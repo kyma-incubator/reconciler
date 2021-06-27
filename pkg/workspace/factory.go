@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/kyma-incubator/hydroform/parallel-install/pkg/git"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/kyma-incubator/reconciler/pkg/git"
 	"github.com/pkg/errors"
 )
 
