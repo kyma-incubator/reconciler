@@ -2,12 +2,18 @@ module github.com/kyma-incubator/reconciler
 
 go 1.16
 
+replace (
+	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
+	github.com/docker/docker => github.com/moby/moby v20.10.6+incompatible
+)
+
 require (
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/fatih/structs v1.1.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
+	github.com/kyma-incubator/hydroform/parallel-install v0.0.0-20210625122243-0a06b9446e40
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/olekukonko/tablewriter v0.0.5
@@ -16,6 +22,6 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/traefik/yaegi v0.9.17
-	go.uber.org/zap v1.10.0
+	go.uber.org/zap v1.16.0
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 )
