@@ -21,15 +21,15 @@ build: build-linux build-darwin build-linux-arm
 
 .PHONY: build-linux
 build-linux:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./bin/configmgt-linux $(FLAGS) ./cmd
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./bin/reconciler-linux $(FLAGS) ./cmd
 
 .PHONY: build-linux-arm
 build-linux-arm:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o ./bin/configmgt-arm $(FLAGS) ./cmd
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o ./bin/reconciler-arm $(FLAGS) ./cmd
 
 .PHONY: build-darwin
 build-darwin:
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/configmgt-darwin $(FLAGS) ./cmd
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/reconciler-darwin $(FLAGS) ./cmd
 
 .PHONY: test
 test:
