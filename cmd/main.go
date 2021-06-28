@@ -19,7 +19,6 @@ const (
 )
 
 var DefaultConfigFile string
-var viperInitialized bool
 
 func main() {
 	o := &cli.Options{}
@@ -74,9 +73,6 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 
 func initViper(o *cli.Options) func() {
 	return func() {
-		if viperInitialized { //no need to initialize it multiple times
-			return
-		}
 		//read configuration from ENV vars
 		viper.SetEnvPrefix(envVarPrefix)
 		viper.AutomaticEnv()
@@ -94,7 +90,6 @@ func initViper(o *cli.Options) func() {
 		} else {
 			o.Logger().Error(fmt.Sprintf("Failed to read configuration file '%s': %s", cfgFile, err))
 		}
-		viperInitialized = true
 	}
 }
 
