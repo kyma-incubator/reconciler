@@ -13,7 +13,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 		"Manage Kyma reconciler service",
 		"Administrative CLI tool for the Kyma reconciler service")
 
-	//register start commands
 	cmd.AddCommand(startCmd.NewCmd(startCmd.NewOptions(o)))
+
 	return cmd
 }

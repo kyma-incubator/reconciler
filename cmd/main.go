@@ -17,9 +17,9 @@ func main() {
 		"Kyma reconciler CLI",
 		"Command line tool to administrate the Kyma reconciler system")
 
-	//register get commands
 	cmd.AddCommand(cfgCmd.NewCmd(o))
 	cmd.AddCommand(svcCmd.NewCmd(o))
+
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
