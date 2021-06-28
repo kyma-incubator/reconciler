@@ -10,16 +10,18 @@ import (
 const tblConfiguration string = "configurations"
 
 type ConfigurationEntity struct {
-	ID          string `db:"notNull"`
-	ClusterID   string `db:"notNull"`
-	KymaVersion string
-	KymaProfile string
-	Created     time.Time
+	ID             int64 `db:"readOnly" db:"notNull"`
+	ClusterID      int64 `db:"notNull"`
+	KymaVersion    string
+	KymaProfile    string
+	Components     string
+	Administrators string
+	Created        time.Time
 }
 
 func (c *ConfigurationEntity) String() string {
-	return fmt.Sprintf("ConfigurationEntity [ID=%s,ClusterID=%s,KymaVersion=%s,KymaProfile=%s]",
-		c.ID, c.ClusterID, c.KymaVersion, c.KymaProfile)
+	return fmt.Sprintf("ConfigurationEntity [ID=%s,ClusterID=%s,KymaVersion=%s,KymaProfile=%s,Components=%s,Administrators=%s]",
+		c.ID, c.ClusterID, c.KymaVersion, c.KymaProfile, c.Components, c.Administrators)
 }
 
 func (c *ConfigurationEntity) New() db.DatabaseEntity {
@@ -28,12 +30,6 @@ func (c *ConfigurationEntity) New() db.DatabaseEntity {
 
 func (c *ConfigurationEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
-	marshaller.AddUnmarshaller("ID", func(value interface{}) (interface{}, error) {
-		return string(value.([]uint8)), nil
-	})
-	marshaller.AddUnmarshaller("ClusterID", func(value interface{}) (interface{}, error) {
-		return string(value.([]uint8)), nil
-	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	return marshaller
 }
@@ -48,7 +44,7 @@ func (c *ConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherClProp, ok := other.(*ConfigurationEntity)
 	if ok {
-		return c.ID == otherClProp.ID && c.ClusterID == otherClProp.ClusterID && c.KymaVersion == otherClProp.KymaVersion && c.KymaProfile == otherClProp.KymaProfile
+		return c.ID == otherClProp.ID && c.ClusterID == otherClProp.ClusterID && c.KymaVersion == otherClProp.KymaVersion && c.KymaProfile == otherClProp.KymaProfile && c.Administrators == otherClProp.Administrators
 	}
 	return false
 }

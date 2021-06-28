@@ -10,9 +10,9 @@ import (
 const tblStatuses string = "statuses"
 
 type StatusEntity struct {
-	ID              string `db:"db:"notNull"`
-	ConfigurationID string `db:"notNull"`
-	Status          string `db:"notNull"`
+	ID              int64         `db:"readOnly" db:"notNull"`
+	ConfigurationID int64         `db:"notNull"`
+	Status          ClusterStatus `db:"notNull"`
 	Created         time.Time
 }
 
@@ -28,12 +28,6 @@ func (c *StatusEntity) New() db.DatabaseEntity {
 
 func (c *StatusEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
-	marshaller.AddUnmarshaller("ID", func(value interface{}) (interface{}, error) {
-		return string(value.([]uint8)), nil
-	})
-	marshaller.AddUnmarshaller("ConfigurationID", func(value interface{}) (interface{}, error) {
-		return string(value.([]uint8)), nil
-	})
 	marshaller.AddUnmarshaller("Status", func(value interface{}) (interface{}, error) {
 		return NewClusterStatus(value.(string))
 	})

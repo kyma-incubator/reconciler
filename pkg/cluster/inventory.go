@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	uuid "github.com/google/uuid"
+	"encoding/json"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
@@ -48,131 +48,108 @@ func (ci *Inventory) Get(clusterName string) (*model.ClusterEntity, error) {
 	return entity.(*model.ClusterEntity), nil
 }
 
-func (ci *Inventory) Add(cluster *model.Cluster) error {
-	clusterID := uuid.New().String()
-	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{
-		ID:                 clusterID,
+func (ci *Inventory) Add(cluster *model.Cluster) (*model.ClusterEntity, error) {
+	metadata, err := json.Marshal(cluster.Metadata)
+	if err != nil {
+		return nil, err
+	}
+	clusterEntity := &model.ClusterEntity{
 		Cluster:            cluster.Cluster,
 		RuntimeName:        cluster.RuntimeInput.Name,
 		RuntimeDescription: cluster.RuntimeInput.Description,
-		GlobalAccountID:    cluster.Metadata.GlobalAccountID,
-		SubAccountID:       cluster.Metadata.SubAccountID,
-		ServiceID:          cluster.Metadata.ServiceID,
-		ServicePlanID:      cluster.Metadata.ServicePlanID,
-		ShootName:          cluster.Metadata.ShootName,
-		InstanceID:         cluster.Metadata.InstanceID,
+		Metadata:           string(metadata),
 		Created:            time.Time{},
-	})
+	}
+
+	q, err := db.NewQuery(ci.Conn, clusterEntity)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = q.Insert().Exec()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	configurationID := uuid.New().String()
-	q, err = db.NewQuery(ci.Conn, &model.ConfigurationEntity{
-		ID:          configurationID,
-		ClusterID:   clusterID,
-		KymaVersion: cluster.KymaConfig.Version,
-		KymaProfile: cluster.KymaConfig.Profile,
-		Created:     time.Time{},
-	})
+	components, err := json.Marshal(cluster.KymaConfig.Components)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	administrators, err := json.Marshal(cluster.KymaConfig.Administrators)
+	if err != nil {
+		return nil, err
+	}
+	configurationEntity := &model.ConfigurationEntity{
+		ClusterID:      clusterEntity.ID,
+		KymaVersion:    cluster.KymaConfig.Version,
+		KymaProfile:    cluster.KymaConfig.Profile,
+		Components:     string(components),
+		Administrators: string(administrators),
+		Created:        time.Time{},
+	}
+
+	q, err = db.NewQuery(ci.Conn, configurationEntity)
+	if err != nil {
+		return nil, err
 	}
 	err = q.Insert().Exec()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if cluster.KymaConfig.Administrators != nil {
-		for _, admin := range cluster.KymaConfig.Administrators {
-			q, err := db.NewQuery(ci.Conn, &model.ClusterAdministratorEntity{
-				ID:              uuid.New().String(),
-				ConfigurationID: configurationID,
-				UserId:          admin,
-				Created:         time.Time{},
-			})
-			if err != nil {
-				return err
-			}
-			err = q.Insert().Exec()
-			if err != nil {
-				return err
-			}
-		}
+	q, err = db.NewQuery(ci.Conn, &model.StatusEntity{
+		ConfigurationID: configurationEntity.ID,
+		Status:          model.ReconcilePending,
+		Created:         time.Time{},
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = q.Insert().Exec()
+	if err != nil {
+		return nil, err
 	}
 
-	for _, component := range cluster.KymaConfig.Components {
-		componentID := uuid.New().String()
-		q, err = db.NewQuery(ci.Conn, &model.ComponentEntity{
-			ID:              componentID,
-			ConfigurationID: configurationID,
-			Component:       component.Component,
-			Namespace:       component.Namespace,
-			Created:         time.Time{},
-		})
-		if err != nil {
-			return err
-		}
-		err = q.Insert().Exec()
-		if err != nil {
-			return err
-		}
-
-		for _, config := range component.Configuration {
-			q, err = db.NewQuery(ci.Conn, &model.ComponentConfigurationEntity{
-				ID:          uuid.New().String(),
-				ComponentID: componentID,
-				Key:         config.Key,
-				Value:       config.Value,
-				Secret:      config.Secret,
-				Created:     time.Time{},
-			})
-			if err != nil {
-				return err
-			}
-			err = q.Insert().Exec()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return clusterEntity, nil
 }
 
+//TODO do we have to delete entries in DB or just set the state to deleted
 func (ci *Inventory) Delete(cluster string) error {
 	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{})
 	if err != nil {
 		return err
 	}
-	_, err = q.Delete().Where(map[string]interface{}{"Cluster": cluster}).Exec()
+	_, err = q.Delete().Where(map[string]interface{}{"ID": cluster}).Exec()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-//TODO
-//func (ci *Inventory) GetByStatuses(statuses []model.ClusterStatus) ([]*model.ClusterEntity, error) {
-//	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{})
-//	if err != nil {
-//		return nil, err
-//	}
-//	var values []string
-//	for _, status := range statuses {
-//		values = append(values, "'"+string(status)+"'")
-//	}
-//	entities, err := q.Select().WhereIn("Status", strings.Join(values, ","), nil).GetMany()
-//	if err != nil {
-//		return nil, err
-//	}
-//	result := []*model.ClusterEntity{}
-//	for _, entity := range entities {
-//		result = append(result, entity.(*model.ClusterEntity))
-//	}
-//	return result, nil
-//}
+func (ci *Inventory) GetClusterStatus(clusterId int) (*model.StatusEntity, error) {
+	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{})
+	if err != nil {
+		return nil, err
+	}
+	cluster, err := q.Select().Where(map[string]interface{}{"ID": clusterId}).GetOne()
+	if err != nil {
+		return nil, err
+	}
+	q, err = db.NewQuery(ci.Conn, &model.ConfigurationEntity{})
+	config, err := q.Select().
+		Where(map[string]interface{}{"ClusterID": cluster.(*model.ClusterEntity).ID}).
+		OrderBy(map[string]string{"ID": "DESC"}).
+		GetOne()
+	if err != nil {
+		return nil, err
+	}
+
+	q, err = db.NewQuery(ci.Conn, &model.StatusEntity{})
+	status, err := q.Select().
+		Where(map[string]interface{}{"ConfigurationID": config.(*model.ConfigurationEntity).ID}).
+		OrderBy(map[string]string{"ID": "DESC"}).
+		GetOne()
+	if err != nil {
+		return nil, err
+	}
+	return status.(*model.StatusEntity), nil
+}

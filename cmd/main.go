@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -35,7 +36,8 @@ func main() {
 	}
 	router := mux.NewRouter()
 	router.HandleFunc("/clusters", registerNewCluster).Methods("POST")
-	router.HandleFunc("/clusters/{runtimeId}", deleteCluster).Methods("DELETE")
+	router.HandleFunc("/clusters/{clusterId}", deleteCluster).Methods("DELETE")
+	router.HandleFunc("/clusters/{clusterId}/status", getClusterStatus).Methods("GET")
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -64,15 +66,40 @@ func registerNewCluster(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Print(err)
 	}
-	err = ceRepo.Add(&clusterRequest)
+	clusterEntity, err := ceRepo.Add(&clusterRequest)
 	if err != nil {
 		fmt.Print(err)
 	}
+	url := fmt.Sprintf("%s%s/%d/%s", r.Host, r.URL.RequestURI(), clusterEntity.ID, "status")
+	json.NewEncoder(w).Encode(url)
+}
+
+func getClusterStatus(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	clusterId, err := strconv.Atoi(vars["clusterId"])
+	if err != nil {
+		fmt.Print(err)
+	}
+
+	configDir := path.Join("configs")
+	connFac, err := db.NewConnectionFactory(path.Join(configDir, "reconciler.yaml"), "configManagement")
+	if err != nil {
+		fmt.Print(err)
+	}
+	ceRepo, err := cluster.NewRepository(connFac, true)
+	if err != nil {
+		fmt.Print(err)
+	}
+	status, err := ceRepo.GetClusterStatus(clusterId)
+	if err != nil {
+		fmt.Print(err)
+	}
+	json.NewEncoder(w).Encode(status.Status)
 }
 
 func deleteCluster(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	runtimeId := vars["runtimeId"]
+	runtimeId := vars["clusterId"]
 
 	configDir := path.Join("configs")
 	connFac, err := db.NewConnectionFactory(path.Join(configDir, "reconciler.yaml"), "configManagement")
@@ -87,5 +114,4 @@ func deleteCluster(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Print(err)
 	}
-
 }

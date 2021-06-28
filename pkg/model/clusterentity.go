@@ -10,16 +10,11 @@ import (
 const tblCluster string = "clusters"
 
 type ClusterEntity struct {
-	ID                 string `db:"notNull"`
+	ID                 int64  `db:"readOnly" db:"notNull"`
 	Cluster            string `db:"notNull"`
 	RuntimeName        string
 	RuntimeDescription string
-	GlobalAccountID    string
-	SubAccountID       string
-	ServiceID          string
-	ServicePlanID      string
-	ShootName          string
-	InstanceID         string
+	Metadata           string
 	Created            time.Time
 }
 
@@ -34,9 +29,6 @@ func (c *ClusterEntity) New() db.DatabaseEntity {
 
 func (c *ClusterEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
-	marshaller.AddUnmarshaller("ID", func(value interface{}) (interface{}, error) {
-		return string(value.([]uint8)), nil
-	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	return marshaller
 }

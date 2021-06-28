@@ -55,60 +55,29 @@ CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
 
 --DDL for clusters:
 CREATE TABLE clusters (
-     id uuid PRIMARY KEY CHECK (id <> '00000000-0000-0000-0000-000000000000'),
+    "id" SERIAL UNIQUE,
 	"cluster" text NOT NULL,
 	"runtime_name" text,
 	"runtime_description" text,
-    "global_account_id" text,
-    "sub_account_id"    text,
-    "service_id"       text,
-    "service_plan_id"   text,
-    "shoot_name"       text,
-    "instance_id"      text,
+    "metadata" text,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 
 CREATE TABLE configurations (
-     id uuid PRIMARY KEY CHECK (id <> '00000000-0000-0000-0000-000000000000'),
-    "cluster_id" uuid NOT NULL,
+    "id" SERIAL UNIQUE,
+    "cluster_id" int NOT NULL,
     "kyma_version" text,
     "kyma_profile" text,
+    "components" text,
+    "administrators" text,
     "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
     CONSTRAINT fk_clusters FOREIGN KEY(cluster_id) REFERENCES clusters(id) ON DELETE CASCADE
 );
 
-CREATE TABLE components (
-      "id" uuid PRIMARY KEY CHECK (id <> '00000000-0000-0000-0000-000000000000'),
-      "configuration_id" uuid NOT NULL,
-      "component" text ,
-      "namespace" text ,
-      "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-      CONSTRAINT fk_configurations FOREIGN KEY(configuration_id) REFERENCES configurations(id) ON DELETE CASCADE
-);
-
-CREATE TABLE component_configurations (
-    "id" uuid PRIMARY KEY CHECK (id <> '00000000-0000-0000-0000-000000000000'),
-    "component_id" uuid NOT NULL,
-    "key" text ,
-    "value" text ,
-    "secret" boolean ,
-    "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-    CONSTRAINT fk_components FOREIGN KEY(component_id) REFERENCES components(id) ON DELETE CASCADE
-);
-
-CREATE TABLE cluster_administrators
-(
-    "id" uuid PRIMARY KEY CHECK (id <> '00000000-0000-0000-0000-000000000000'),
-    "configuration_id" uuid NOT NULL,
-    user_id text NOT NULL,
-    "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-    CONSTRAINT fk_configurations FOREIGN KEY(configuration_id) REFERENCES configurations(id) ON DELETE CASCADE
-);
-
 CREATE TABLE statuses
 (
-    "id" uuid PRIMARY KEY CHECK (id <> '00000000-0000-0000-0000-000000000000'),
-    "configuration_id" uuid NOT NULL,
+    "id" SERIAL UNIQUE,
+    "configuration_id" int NOT NULL,
     "status" text NOT NULL,
     "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
     CONSTRAINT fk_configurations FOREIGN KEY(configuration_id) REFERENCES configurations(id) ON DELETE CASCADE
