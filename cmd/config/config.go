@@ -13,11 +13,11 @@ import (
 )
 
 func NewCmd(o *cli.Options) *cobra.Command {
-	cmd := cli.NewRootCommand(
-		o,
-		"config",
-		"Manage Kyma reconciler configuration",
-		"Administrative CLI tool for the Kyma reconciler configuration management")
+	cmd := &cobra.Command{
+		Use:   "config",
+		Short: "Manage Kyma reconciler configuration",
+		Long:  "Administrative CLI tool for the Kyma reconciler configuration management",
+	}
 
 	//register get commands
 	getCmd := getCmd.NewCmd(o)

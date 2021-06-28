@@ -7,11 +7,11 @@ import (
 )
 
 func NewCmd(o *cli.Options) *cobra.Command {
-	cmd := cli.NewRootCommand(
-		o,
-		"service",
-		"Manage Kyma reconciler service",
-		"Administrative CLI tool for the Kyma reconciler service")
+	cmd := &cobra.Command{
+		Use:   "service",
+		Short: "Manage Kyma reconciler service",
+		Long:  "Administrative CLI tool for the Kyma reconciler service",
+	}
 
 	cmd.AddCommand(startCmd.NewCmd(startCmd.NewOptions(o)))
 
