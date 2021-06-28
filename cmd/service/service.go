@@ -7,7 +7,7 @@ import (
 )
 
 func NewCmd(o *cli.Options) *cobra.Command {
-	cmd := cli.NewCommand(
+	cmd := cli.NewRootCommand(
 		o,
 		"service",
 		"Manage Kyma reconciler service",

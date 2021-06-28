@@ -16,7 +16,7 @@ const (
 var DefaultConfigFile string
 var viperInitialized bool
 
-func NewCommand(o *Options, name, shortDesc, longDesc string) *cobra.Command {
+func NewRootCommand(o *Options, name, shortDesc, longDesc string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   name,
 		Short: shortDesc,

@@ -22,10 +22,6 @@ func NewOptions(o *cli.Options) *Options {
 }
 
 func (o *Options) Validate() error {
-	fmt.Println("Validating SERVICE options")
-	if err := o.Options.Validate(); err != nil {
-		return err
-	}
 	if o.Port <= 0 || o.Port > 65535 {
 		return fmt.Errorf("Port %d is out of range 1-65535", o.Port)
 	}

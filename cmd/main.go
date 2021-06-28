@@ -11,7 +11,7 @@ import (
 
 func main() {
 	o := &cli.Options{}
-	cmd := cli.NewCommand(
+	cmd := cli.NewRootCommand(
 		o,
 		filepath.Base(os.Args[0]),
 		"Kyma reconciler CLI",
