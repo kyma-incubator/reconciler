@@ -16,5 +16,5 @@ The reconciler unit tests include also expensive test suites. Expensive means th
 
 By default, expensive test suites are disabled. To enable them, before you execute the test suits, apply one of the following options:
 
-* Set the environment variable `RECONCILER_EXPENSIVE_TESTS=true` 
-* In the GO code execute the function `test.EnableExpensiveTests()`
+* Set the environment variable `RECONCILER_EXPENSIVE_TESTS=true`
+* In the GO code, execute the function `test.EnableExpensiveTests()`
