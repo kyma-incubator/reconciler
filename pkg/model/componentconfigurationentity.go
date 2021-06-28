@@ -10,18 +10,17 @@ import (
 const tblComponentConfiguration string = "component_configurations"
 
 type ComponentConfigurationEntity struct {
-	ID        int64  `db:"readOnly" db:"notNull"`
-	Cluster   string `db:"notNull"`
-	Component string `db:"notNull"`
-	Key       string `db:"notNull"`
-	Value     string `db:"notNull"`
-	Secret    bool   `db:"notNull"`
-	Created   time.Time
+	ID          string `db:"notNull"`
+	ComponentID string `db:"notNull"`
+	Key         string `db:"notNull"`
+	Value       string `db:"notNull"`
+	Secret      bool   `db:"notNull"`
+	Created     time.Time
 }
 
 func (c *ComponentConfigurationEntity) String() string {
-	return fmt.Sprintf("ComponentConfigurationEntity [Cluster=%s,Component=%s,Key=%s,Value=%s,Secret=%t]",
-		c.Cluster, c.Component, c.Key, c.Value, c.Secret)
+	return fmt.Sprintf("ComponentConfigurationEntity [ComponentID=%s,Key=%s,Value=%s,Secret=%t]",
+		c.ComponentID, c.Key, c.Value, c.Secret)
 }
 
 func (c *ComponentConfigurationEntity) New() db.DatabaseEntity {
@@ -30,6 +29,12 @@ func (c *ComponentConfigurationEntity) New() db.DatabaseEntity {
 
 func (c *ComponentConfigurationEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
+	marshaller.AddUnmarshaller("ID", func(value interface{}) (interface{}, error) {
+		return string(value.([]uint8)), nil
+	})
+	marshaller.AddUnmarshaller("ComponentID", func(value interface{}) (interface{}, error) {
+		return string(value.([]uint8)), nil
+	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	return marshaller
 }
@@ -44,7 +49,7 @@ func (c *ComponentConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherClProp, ok := other.(*ComponentConfigurationEntity)
 	if ok {
-		return c.Cluster == otherClProp.Cluster && c.Component == otherClProp.Component && c.Key == otherClProp.Key && c.Value == otherClProp.Value && c.Secret == otherClProp.Secret
+		return c.ComponentID == otherClProp.ComponentID && c.Key == otherClProp.Key && c.Value == otherClProp.Value && c.Secret == otherClProp.Secret
 	}
 	return false
 }

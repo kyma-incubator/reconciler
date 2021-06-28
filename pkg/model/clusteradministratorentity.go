@@ -10,16 +10,16 @@ import (
 const tblClusterAdministrators string = "cluster_administrators"
 
 type ClusterAdministratorEntity struct {
-	ID      int64  `db:"readOnly" db:"notNull"`
-	Cluster string `db:"notNull"`
-	UserId  string `db:"notNull"`
-	Created time.Time
+	ID              string `db:"notNull"`
+	ConfigurationID string `db:"notNull"`
+	UserId          string `db:"notNull"`
+	Created         time.Time
 }
 
 func (c *ClusterAdministratorEntity) String() string {
 
-	return fmt.Sprintf("ClusterAdministratorEntity [Cluster=%s,UserId=%s]",
-		c.Cluster, c.UserId)
+	return fmt.Sprintf("ClusterAdministratorEntity [ConfigurationID=%s,UserId=%s]",
+		c.ConfigurationID, c.UserId)
 }
 
 func (c *ClusterAdministratorEntity) New() db.DatabaseEntity {
@@ -28,6 +28,12 @@ func (c *ClusterAdministratorEntity) New() db.DatabaseEntity {
 
 func (c *ClusterAdministratorEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
+	marshaller.AddUnmarshaller("ID", func(value interface{}) (interface{}, error) {
+		return string(value.([]uint8)), nil
+	})
+	marshaller.AddUnmarshaller("ConfigurationID", func(value interface{}) (interface{}, error) {
+		return string(value.([]uint8)), nil
+	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	return marshaller
 }
@@ -42,7 +48,7 @@ func (c *ClusterAdministratorEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherClProp, ok := other.(*ClusterAdministratorEntity)
 	if ok {
-		return c.Cluster == otherClProp.Cluster && c.UserId == otherClProp.UserId
+		return c.ConfigurationID == otherClProp.ConfigurationID && c.UserId == otherClProp.UserId
 	}
 	return false
 }

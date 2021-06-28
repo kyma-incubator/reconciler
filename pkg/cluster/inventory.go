@@ -1,10 +1,10 @@
 package cluster
 
 import (
+	uuid "github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
-	"strings"
 	"time"
 )
 
@@ -49,13 +49,12 @@ func (ci *Inventory) Get(clusterName string) (*model.ClusterEntity, error) {
 }
 
 func (ci *Inventory) Add(cluster *model.Cluster) error {
+	clusterID := uuid.New().String()
 	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{
+		ID:                 clusterID,
 		Cluster:            cluster.Cluster,
-		Status:             model.Installing,
 		RuntimeName:        cluster.RuntimeInput.Name,
 		RuntimeDescription: cluster.RuntimeInput.Description,
-		KymaVersion:        cluster.KymaConfig.Version,
-		KymaProfile:        cluster.KymaConfig.Profile,
 		GlobalAccountID:    cluster.Metadata.GlobalAccountID,
 		SubAccountID:       cluster.Metadata.SubAccountID,
 		ServiceID:          cluster.Metadata.ServiceID,
@@ -72,12 +71,29 @@ func (ci *Inventory) Add(cluster *model.Cluster) error {
 		return err
 	}
 
+	configurationID := uuid.New().String()
+	q, err = db.NewQuery(ci.Conn, &model.ConfigurationEntity{
+		ID:          configurationID,
+		ClusterID:   clusterID,
+		KymaVersion: cluster.KymaConfig.Version,
+		KymaProfile: cluster.KymaConfig.Profile,
+		Created:     time.Time{},
+	})
+	if err != nil {
+		return err
+	}
+	err = q.Insert().Exec()
+	if err != nil {
+		return err
+	}
+
 	if cluster.KymaConfig.Administrators != nil {
 		for _, admin := range cluster.KymaConfig.Administrators {
 			q, err := db.NewQuery(ci.Conn, &model.ClusterAdministratorEntity{
-				Cluster: cluster.Cluster,
-				UserId:  admin,
-				Created: time.Time{},
+				ID:              uuid.New().String(),
+				ConfigurationID: configurationID,
+				UserId:          admin,
+				Created:         time.Time{},
 			})
 			if err != nil {
 				return err
@@ -90,11 +106,13 @@ func (ci *Inventory) Add(cluster *model.Cluster) error {
 	}
 
 	for _, component := range cluster.KymaConfig.Components {
+		componentID := uuid.New().String()
 		q, err = db.NewQuery(ci.Conn, &model.ComponentEntity{
-			Cluster:   cluster.Cluster,
-			Component: component.Component,
-			Namespace: component.Namespace,
-			Created:   time.Time{},
+			ID:              componentID,
+			ConfigurationID: configurationID,
+			Component:       component.Component,
+			Namespace:       component.Namespace,
+			Created:         time.Time{},
 		})
 		if err != nil {
 			return err
@@ -106,12 +124,12 @@ func (ci *Inventory) Add(cluster *model.Cluster) error {
 
 		for _, config := range component.Configuration {
 			q, err = db.NewQuery(ci.Conn, &model.ComponentConfigurationEntity{
-				Cluster:   cluster.Cluster,
-				Component: component.Component,
-				Key:       config.Key,
-				Value:     config.Value,
-				Secret:    config.Secret,
-				Created:   time.Time{},
+				ID:          uuid.New().String(),
+				ComponentID: componentID,
+				Key:         config.Key,
+				Value:       config.Value,
+				Secret:      config.Secret,
+				Created:     time.Time{},
 			})
 			if err != nil {
 				return err
@@ -138,38 +156,23 @@ func (ci *Inventory) Delete(cluster string) error {
 	return nil
 }
 
-func (ci *Inventory) GetByStatuses(statuses []model.ClusterStatus) ([]*model.ClusterEntity, error) {
-	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{})
-	if err != nil {
-		return nil, err
-	}
-	var values []string
-	for _, status := range statuses {
-		values = append(values, "'"+string(status)+"'")
-	}
-	entities, err := q.Select().WhereIn("Status", strings.Join(values, ","), nil).GetMany()
-	if err != nil {
-		return nil, err
-	}
-	result := []*model.ClusterEntity{}
-	for _, entity := range entities {
-		result = append(result, entity.(*model.ClusterEntity))
-	}
-	return result, nil
-}
-
-// TODO
-//func (ci *Inventory) Update(fields []string, clusterName string) error {
-//	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{
-//		Name: clusterName,
-//	})
+//TODO
+//func (ci *Inventory) GetByStatuses(statuses []model.ClusterStatus) ([]*model.ClusterEntity, error) {
+//	q, err := db.NewQuery(ci.Conn, &model.ClusterEntity{})
 //	if err != nil {
-//		return err
+//		return nil, err
 //	}
-//	err = q.Update(fields).Exec()
-//
+//	var values []string
+//	for _, status := range statuses {
+//		values = append(values, "'"+string(status)+"'")
+//	}
+//	entities, err := q.Select().WhereIn("Status", strings.Join(values, ","), nil).GetMany()
 //	if err != nil {
-//		return err
+//		return nil, err
 //	}
-//	return nil
+//	result := []*model.ClusterEntity{}
+//	for _, entity := range entities {
+//		result = append(result, entity.(*model.ClusterEntity))
+//	}
+//	return result, nil
 //}

@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/fatih/structs v1.1.0
+	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12

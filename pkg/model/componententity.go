@@ -10,16 +10,16 @@ import (
 const tblComponent string = "components"
 
 type ComponentEntity struct {
-	ID        int64  `db:"readOnly" db:"notNull"`
-	Cluster   string `db:"notNull"`
-	Component string `db:"notNull"`
-	Namespace string `db:"notNull"`
-	Created   time.Time
+	ID              string `db:"notNull"`
+	ConfigurationID string `db:"notNull"`
+	Component       string `db:"notNull"`
+	Namespace       string `db:"notNull"`
+	Created         time.Time
 }
 
 func (c *ComponentEntity) String() string {
-	return fmt.Sprintf("ComponentEntity [Cluster=%s,Component=%s,Namespace=%s]",
-		c.Cluster, c.Component, c.Namespace)
+	return fmt.Sprintf("ComponentEntity [ConfigurationID=%s,Component=%s,Namespace=%s]",
+		c.ConfigurationID, c.Component, c.Namespace)
 }
 
 func (c *ComponentEntity) New() db.DatabaseEntity {
@@ -28,6 +28,12 @@ func (c *ComponentEntity) New() db.DatabaseEntity {
 
 func (c *ComponentEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
+	marshaller.AddUnmarshaller("ID", func(value interface{}) (interface{}, error) {
+		return string(value.([]uint8)), nil
+	})
+	marshaller.AddUnmarshaller("ConfigurationID", func(value interface{}) (interface{}, error) {
+		return string(value.([]uint8)), nil
+	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	return marshaller
 }
@@ -42,7 +48,7 @@ func (c *ComponentEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherClProp, ok := other.(*ComponentEntity)
 	if ok {
-		return c.Cluster == otherClProp.Cluster && c.Component == otherClProp.Component && c.Namespace == otherClProp.Namespace
+		return c.ConfigurationID == otherClProp.ConfigurationID && c.Component == otherClProp.Component && c.Namespace == otherClProp.Namespace
 	}
 	return false
 }

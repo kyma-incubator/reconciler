@@ -10,13 +10,10 @@ import (
 const tblCluster string = "clusters"
 
 type ClusterEntity struct {
-	ID                 int64         `db:"readOnly" db:"notNull"`
-	Cluster            string        `db:"notNull"`
-	Status             ClusterStatus `db:"notNull"`
+	ID                 string `db:"notNull"`
+	Cluster            string `db:"notNull"`
 	RuntimeName        string
 	RuntimeDescription string
-	KymaVersion        string
-	KymaProfile        string
 	GlobalAccountID    string
 	SubAccountID       string
 	ServiceID          string
@@ -27,8 +24,8 @@ type ClusterEntity struct {
 }
 
 func (c *ClusterEntity) String() string {
-	return fmt.Sprintf("ClusterEntity [Cluster=%s,Status=%s]",
-		c.Cluster, c.Status)
+	return fmt.Sprintf("ClusterEntity [Cluster=%s]",
+		c.Cluster)
 }
 
 func (c *ClusterEntity) New() db.DatabaseEntity {
@@ -37,8 +34,8 @@ func (c *ClusterEntity) New() db.DatabaseEntity {
 
 func (c *ClusterEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
-	marshaller.AddUnmarshaller("Status", func(value interface{}) (interface{}, error) {
-		return NewClusterStatus(value.(string))
+	marshaller.AddUnmarshaller("ID", func(value interface{}) (interface{}, error) {
+		return string(value.([]uint8)), nil
 	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	return marshaller

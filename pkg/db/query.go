@@ -188,11 +188,6 @@ type Delete struct {
 	err  error
 }
 
-//TODO
-//type Update struct {
-//	*Query
-//}
-
 func (d *Delete) Where(args map[string]interface{}) *Delete {
 	d.args, d.err = addWhereCondition(args, &d.buffer, d.columnHandler)
 	return d
