@@ -211,5 +211,5 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 }
 
 func (i *DefaultInventory) ClustersToReconcile() ([]*ClusterState, error) {
-	return nil, nil
+	return nil, fmt.Errorf("Method not implemented yet")
 }
