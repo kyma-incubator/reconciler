@@ -102,7 +102,7 @@ func getConfigFile() string {
 }
 
 func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
-	dbDriver := viper.GetString("configManagement.db.driver")
+	dbDriver := viper.GetString("db.driver")
 	if dbDriver == "" {
 		return nil, fmt.Errorf("No database driver defined")
 	}
@@ -110,12 +110,12 @@ func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
 	switch dbDriver {
 	case "postgres":
 		return &db.PostgresConnectionFactory{
-			Host:     viper.GetString("configManagement.db.postgres.host"),
-			Port:     viper.GetInt("configManagement.db.postgres.port"),
-			Database: viper.GetString("configManagement.db.postgres.database"),
-			User:     viper.GetString("configManagement.db.postgres.user"),
-			Password: viper.GetString("configManagement.db.postgres.password"),
-			SslMode:  viper.GetBool("configManagement.db.postgres.sslMode"),
+			Host:     viper.GetString("db.postgres.host"),
+			Port:     viper.GetInt("db.postgres.port"),
+			Database: viper.GetString("db.postgres.database"),
+			User:     viper.GetString("db.postgres.user"),
+			Password: viper.GetString("db.postgres.password"),
+			SslMode:  viper.GetBool("db.postgres.sslMode"),
 			Debug:    o.Verbose,
 		}, nil
 	default:
