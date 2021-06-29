@@ -35,7 +35,7 @@ func Run(o *Options) error {
 	//start server
 	var err error
 	addr := fmt.Sprintf(":%d", o.Port)
-	if o.SslSupport() {
+	if o.SSLSupport() {
 		err = http.ListenAndServeTLS(addr, o.SSLCrt, o.SSLKey, nil)
 	} else {
 		err = http.ListenAndServe(addr, nil)

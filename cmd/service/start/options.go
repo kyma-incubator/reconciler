@@ -43,6 +43,6 @@ func (o *Options) Validate() error {
 	return nil
 }
 
-func (o *Options) SslSupport() bool {
+func (o *Options) SSLSupport() bool {
 	return o.SSLCrt != "" && o.SSLKey != ""
 }
