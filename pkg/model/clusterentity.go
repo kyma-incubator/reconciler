@@ -7,20 +7,20 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 )
 
-const tblCluster string = "clusters"
+const tblCluster string = "inventory_clusters"
 
 type ClusterEntity struct {
-	ID                 int64  `db:"readOnly" db:"notNull"`
-	Cluster            string `db:"notNull"`
-	RuntimeName        string
-	RuntimeDescription string
-	Metadata           string
-	Created            time.Time
+	Version            int64     `db:"readOnly"`
+	Cluster            string    `db:"notNull"`
+	RuntimeName        string    `db:"notNull"`
+	RuntimeDescription string    `db:"notNull"`
+	Metadata           string    `db:"notNull"`
+	Created            time.Time `db:"readOnly"`
 }
 
 func (c *ClusterEntity) String() string {
-	return fmt.Sprintf("ClusterEntity [Cluster=%s]",
-		c.Cluster)
+	return fmt.Sprintf("ClusterEntity [Cluster=%s,Version=%d]",
+		c.Cluster, c.Version)
 }
 
 func (c *ClusterEntity) New() db.DatabaseEntity {

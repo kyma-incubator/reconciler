@@ -53,53 +53,34 @@ CREATE TABLE config_cachedeps (
 
 CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
 
---DDL for clusters:
-CREATE TABLE clusters (
-      "id" SERIAL UNIQUE, --just another unique identifer for a cluster-entry
-      "cluster" text NOT NULL,
-      "status" text NOT NULL,
-      "runtime_name" text,
-      "runtime_description" text,
-      "kyma_version" text,
-      "kyma_profile" text,
-      "global_account_id" text,
-      "sub_account_id"    text,
-      "service_id"       text,
-      "service_plan_id"   text,
-      "shoot_name"       text,
-      "instance_id"      text,
-      "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-      CONSTRAINT clusters_pk PRIMARY KEY ("cluster")
+--DDL for cluster inventory:
+CREATE TABLE inventory_clusters (
+    "version" integer PRIMARY KEY AUTOINCREMENT,
+	"cluster" text NOT NULL,
+	"runtime_name" text,
+	"runtime_description" text,
+    "metadata" text,
+	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT inventory_clusters_pk UNIQUE ("cluster", "version")
 );
 
-CREATE INDEX clusters_idx_status ON clusters ("status");
-
-CREATE TABLE components (
-    "id" SERIAL UNIQUE, --just another unique identifer for a cluster-entry
-    "cluster" text NOT NULL,
-    "component" text ,
-    "namespace" text ,
-    "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-    CONSTRAINT fk_cluster FOREIGN KEY(cluster) REFERENCES clusters(cluster) ON DELETE CASCADE,
-    CONSTRAINT components_pk PRIMARY KEY (cluster, component)
+CREATE TABLE inventory_cluster_configs (
+    "version" integer PRIMARY KEY AUTOINCREMENT,
+	"cluster" text  NOT NULL,
+    "cluster_version" int NOT NULL,
+    "kyma_version" text  NOT NULL,
+    "kyma_profile" text,
+    "components" text,
+    "administrators" text,
+    "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT inventory_cluster_configs_pk UNIQUE ("cluster", "cluster_version", "version"),
+    FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON DELETE CASCADE
 );
 
-CREATE TABLE component_configurations (
-      "id" SERIAL UNIQUE, --just another unique identifer for a cluster-entry
-      "cluster" text NOT NULL,
-      "component" text NOT NULL,
-      "key" text ,
-      "value" text ,
-      "secret" boolean ,
-      "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-      CONSTRAINT fk_cluster_component FOREIGN KEY(cluster, component) REFERENCES components(cluster, component) ON DELETE CASCADE
-);
-
-CREATE TABLE cluster_administrators
-(
-    "id" SERIAL UNIQUE, --just another unique identifer for a cluster-entry
-    cluster text NOT NULL,
-    user_id text NOT NULL,
-    "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-    CONSTRAINT fk_cluster FOREIGN KEY(cluster) REFERENCES clusters(cluster) ON DELETE CASCADE
+CREATE TABLE inventory_cluster_config_statuses (
+    "id" integer PRIMARY KEY AUTOINCREMENT,
+    "config_version" int NOT NULL,
+    "status" text NOT NULL,
+    "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY("config_version") REFERENCES inventory_cluster_configs("version") ON DELETE CASCADE
 );

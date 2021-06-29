@@ -53,32 +53,34 @@ CREATE TABLE config_cachedeps (
 
 CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
 
---DDL for clusters:
-CREATE TABLE clusters (
-    "id" SERIAL UNIQUE,
+--DDL for cluster inventory:
+CREATE TABLE inventory_clusters (
+    "version" SERIAL UNIQUE,
 	"cluster" text NOT NULL,
 	"runtime_name" text,
 	"runtime_description" text,
     "metadata" text,
-	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
+	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+	CONSTRAINT inventory_clusters_pk PRIMARY KEY ("cluster", "version")
 );
 
-CREATE TABLE configurations (
-    "id" SERIAL UNIQUE,
-    "cluster_id" int NOT NULL,
-    "kyma_version" text,
+CREATE TABLE inventory_cluster_configs (
+    "version" SERIAL UNIQUE,
+	"cluster" text  NOT NULL,
+    "cluster_version" int NOT NULL,
+    "kyma_version" text  NOT NULL,
     "kyma_profile" text,
     "components" text,
     "administrators" text,
     "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-    CONSTRAINT fk_clusters FOREIGN KEY(cluster_id) REFERENCES clusters(id) ON DELETE CASCADE
+	CONSTRAINT inventory_cluster_configs_pk PRIMARY KEY ("cluster", "cluster_version", "version"),
+    FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON DELETE CASCADE
 );
 
-CREATE TABLE statuses
-(
+CREATE TABLE inventory_cluster_config_statuses (
     "id" SERIAL UNIQUE,
-    "configuration_id" int NOT NULL,
+    "config_version" int NOT NULL,
     "status" text NOT NULL,
     "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-    CONSTRAINT fk_configurations FOREIGN KEY(configuration_id) REFERENCES configurations(id) ON DELETE CASCADE
+    FOREIGN KEY("config_version") REFERENCES inventory_cluster_configs("version") ON DELETE CASCADE
 );

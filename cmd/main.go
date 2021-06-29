@@ -3,15 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
 	"sync"
+
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 
 	"github.com/gorilla/mux"
 	cmd "github.com/kyma-incubator/reconciler/cmd/config"
@@ -62,7 +63,7 @@ func registerNewCluster(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Print(err)
 	}
-	ceRepo, err := cluster.NewRepository(connFac, true)
+	ceRepo, err := cluster.NewInventory(connFac, true)
 	if err != nil {
 		fmt.Print(err)
 	}
