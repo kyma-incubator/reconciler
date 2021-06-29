@@ -14,6 +14,9 @@ func NewCmd(o *Options) *cobra.Command {
 		Short:   "Create a configuration key.",
 		Long:    `Create a new entity or version of a configuration key.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Validate(); err != nil {
+				return err
+			}
 			return Run(o, args)
 		},
 	}
