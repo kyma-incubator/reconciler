@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	cfgCmd "github.com/kyma-incubator/reconciler/cmd/config"
 	svcCmd "github.com/kyma-incubator/reconciler/cmd/service"
@@ -78,9 +79,9 @@ func initViper(o *cli.Options) func() {
 		viper.AutomaticEnv()
 
 		//read configuration from config file
-		cfgFile := getConfigFile()
-		if !file.Exists(cfgFile) {
-			o.Logger().Warn(fmt.Sprintf("Configuration file '%s' not found", cfgFile))
+		cfgFile, err := getConfigFile()
+		if err != nil {
+			o.Logger().Warn(err.Error())
 			return
 		}
 
@@ -93,12 +94,15 @@ func initViper(o *cli.Options) func() {
 	}
 }
 
-func getConfigFile() string {
-	configFileEnv := viper.GetString("config")
-	if file.Exists(configFileEnv) {
-		return configFileEnv
+func getConfigFile() (string, error) {
+	configFile := strings.TrimSpace(viper.GetString("config"))
+	if configFile == "" {
+		configFile = DefaultConfigFile
 	}
-	return DefaultConfigFile
+	if !file.Exists(configFile) {
+		return "", fmt.Errorf("No configuration file found: set environment variable $%s_CONFIG or define it as CLI parameter", envVarPrefix)
+	}
+	return configFile, nil
 }
 
 func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
