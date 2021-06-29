@@ -12,10 +12,10 @@ import (
 )
 
 type Inventory interface {
-	AddOrUpgrade(cluster *Cluster) (*ClusterState, error)
+	CreateOrUpdate(cluster *Cluster) (*ClusterState, error)
 	UpdateStatus(clusterState *ClusterState) error
 	Delete(cluster string) error
-	Get(clusterVersion, configVersion int64) (*ClusterState, error)
+	Get(cluster string, configVersion int64) (*ClusterState, error)
 	ClustersToReconcile() ([]*ClusterState, error)
 }
 
@@ -32,7 +32,7 @@ func NewInventory(dbFac db.ConnectionFactory, debug bool) (Inventory, error) {
 	return &DefaultInventory{repo, 0}, nil
 }
 
-func (i *DefaultInventory) AddOrUpgrade(cluster *Cluster) (*ClusterState, error) {
+func (i *DefaultInventory) CreateOrUpdate(cluster *Cluster) (*ClusterState, error) {
 	dbOps := func() (interface{}, error) {
 		clusterEntity, err := i.createCluster(cluster)
 		if err != nil {
@@ -139,16 +139,16 @@ func (i *DefaultInventory) Delete(cluster string) error {
 	return fmt.Errorf("Method not supported yet")
 }
 
-func (i *DefaultInventory) Get(clusterVersion, configVersion int64) (*ClusterState, error) {
+func (i *DefaultInventory) Get(cluster string, configVersion int64) (*ClusterState, error) {
 	statusEntity, err := i.latestStatus(configVersion)
 	if err != nil {
 		return nil, err
 	}
-	configEntity, err := i.config(clusterVersion, configVersion)
+	configEntity, err := i.config(cluster, statusEntity.ConfigVersion)
 	if err != nil {
 		return nil, err
 	}
-	clusterEntity, err := i.cluster(clusterVersion)
+	clusterEntity, err := i.cluster(configEntity.ClusterVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -175,21 +175,20 @@ func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStat
 	return statusEntity.(*model.ClusterStatusEntity), nil
 }
 
-func (i *DefaultInventory) config(clusterVersion, configVersion int64) (*model.ClusterConfigurationEntity, error) {
+func (i *DefaultInventory) config(cluster string, configVersion int64) (*model.ClusterConfigurationEntity, error) {
 	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
 	if err != nil {
 		return nil, err
 	}
 	configEntity, err := q.Select().
 		Where(map[string]interface{}{
-			"Version":        configVersion,
-			"ClusterVersion": clusterVersion,
+			"Version": configVersion,
+			"Cluster": cluster,
 		}).
 		GetOne()
 	if err != nil {
 		return nil, errors.Wrap(err,
-			fmt.Sprintf("No cluster configuration found using configVersion '%d' and clusterVersion '%d'",
-				configVersion, clusterVersion))
+			fmt.Sprintf("Cluster configuration '%d' does not exist for cluster '%s' ", configVersion, cluster))
 	}
 	return configEntity.(*model.ClusterConfigurationEntity), nil
 }

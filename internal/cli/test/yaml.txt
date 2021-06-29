@@ -1,15 +1,15 @@
 - c1: "1.1"
   c2:
-      key2.1a: val2.1a
-      key2.1b: 3
+    key2.1a: val2.1a
+    key2.1b: 3
   c3:
     - 3.1a
     - 3.1b
     - 3.1c
 - c1: "1.2"
   c2:
-      key2.2a: true
-      key2.2b:
+    key2.2a: true
+    key2.2b:
         - test
   c3:
     - 9
