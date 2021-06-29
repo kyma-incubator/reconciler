@@ -7,7 +7,7 @@ import (
 
 func NewTestConnectionFactory() (ConnectionFactory, error) {
 	configDir := path.Join("..", "..", "configs")
-	connFac, err := NewConnectionFactory(path.Join(configDir, "reconciler-unittest.yaml"), "configManagement")
+	connFac, err := NewConnectionFactory(path.Join(configDir, "reconciler-unittest.yaml"))
 	if err != nil {
 		return connFac, err
 	}
