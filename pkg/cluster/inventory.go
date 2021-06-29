@@ -12,11 +12,11 @@ import (
 )
 
 type Inventory interface {
-	CreateOrUpdate(cluster *Cluster) (*ClusterState, error)
-	UpdateStatus(clusterState *ClusterState) error
+	CreateOrUpdate(cluster *Cluster) (*State, error)
+	UpdateStatus(State *State) error
 	Delete(cluster string) error
-	Get(cluster string, configVersion int64) (*ClusterState, error)
-	ClustersToReconcile() ([]*ClusterState, error)
+	Get(cluster string, configVersion int64) (*State, error)
+	ClustersToReconcile() ([]*State, error)
 }
 
 type DefaultInventory struct {
@@ -32,7 +32,7 @@ func NewInventory(dbFac db.ConnectionFactory, debug bool) (Inventory, error) {
 	return &DefaultInventory{repo, 0}, nil
 }
 
-func (i *DefaultInventory) CreateOrUpdate(cluster *Cluster) (*ClusterState, error) {
+func (i *DefaultInventory) CreateOrUpdate(cluster *Cluster) (*State, error) {
 	dbOps := func() (interface{}, error) {
 		clusterEntity, err := i.createCluster(cluster)
 		if err != nil {
@@ -46,17 +46,17 @@ func (i *DefaultInventory) CreateOrUpdate(cluster *Cluster) (*ClusterState, erro
 		if err != nil {
 			return nil, err
 		}
-		return &ClusterState{
+		return &State{
 			Cluster:       clusterEntity,
 			Configuration: clusterConfigurationEntity,
 			Status:        clusterStatusEntity,
 		}, nil
 	}
-	clusterState, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+	stateEntity, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
 	if err != nil {
 		return nil, err
 	}
-	return clusterState.(*ClusterState), nil
+	return stateEntity.(*State), nil
 }
 
 func (i *DefaultInventory) createCluster(cluster *Cluster) (*model.ClusterEntity, error) {
@@ -125,7 +125,7 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 	return statusEntity, nil
 }
 
-func (i *DefaultInventory) UpdateStatus(clusterState *ClusterState) error {
+func (i *DefaultInventory) UpdateStatus(State *State) error {
 	configEntity := &model.ClusterConfigurationEntity{}
 	q, err := db.NewQuery(i.Conn, configEntity)
 	if err != nil {
@@ -139,7 +139,7 @@ func (i *DefaultInventory) Delete(cluster string) error {
 	return fmt.Errorf("Method not supported yet")
 }
 
-func (i *DefaultInventory) Get(cluster string, configVersion int64) (*ClusterState, error) {
+func (i *DefaultInventory) Get(cluster string, configVersion int64) (*State, error) {
 	statusEntity, err := i.latestStatus(configVersion)
 	if err != nil {
 		return nil, err
@@ -152,7 +152,7 @@ func (i *DefaultInventory) Get(cluster string, configVersion int64) (*ClusterSta
 	if err != nil {
 		return nil, err
 	}
-	return &ClusterState{
+	return &State{
 		Cluster:       clusterEntity,
 		Configuration: configEntity,
 		Status:        statusEntity,
@@ -210,6 +210,6 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 	return clusterEntity.(*model.ClusterEntity), nil
 }
 
-func (i *DefaultInventory) ClustersToReconcile() ([]*ClusterState, error) {
+func (i *DefaultInventory) ClustersToReconcile() ([]*State, error) {
 	return nil, fmt.Errorf("Method not implemented yet")
 }
