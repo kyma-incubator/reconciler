@@ -50,6 +50,14 @@ func (q *Query) Delete() *Delete {
 	return &Delete{q, []interface{}{}, nil}
 }
 
+//TODO
+//func (q *Query) Update(fields []string) *Update {
+//	q.columnHandler.ColumnNamesCsv(true)
+//	q.columnHandler.abc(&fields, true)
+//	//q.buffer.WriteString(fmt.Sprintf("UPDATE %s SET %s", q.entity.Table(), q.columnHandler.abc(fields,true)))
+//	return &Update{q}
+//}
+
 type Select struct {
 	*Query
 	args []interface{}
@@ -196,6 +204,16 @@ func (d *Delete) Exec() (int64, error) {
 	}
 	return 0, err
 }
+
+//TODO
+//func (d *Update) Exec() error {
+//	defer d.reset()
+//	if err := d.columnHandler.Validate(); err != nil {
+//		return err
+//	}
+//	row := d.conn.QueryRow(d.buffer.String(), d.columnHandler.ColumnValues(true)...)
+//	return d.columnHandler.Unmarshal(row, d.entity)
+//}
 
 func (d *Delete) WhereIn(field, subQuery string, args ...interface{}) *Delete {
 	d.err = addWhereInCondition(field, subQuery, &d.buffer, d.columnHandler)

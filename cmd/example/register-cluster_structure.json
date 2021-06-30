@@ -1,0 +1,41 @@
+{
+  "runtimeID": "",
+  "runtimeInput": {
+    "name": "",
+    "description": "",
+    "labels": {
+      "scenarios": [
+        ""
+      ]
+    }
+  },
+  "kymaConfig": {
+    "version": "",
+    "profile": "",
+    "components": [
+      {
+        "component": "",
+        "namespace": "",
+        "sourceURL": "",
+        "configuration": [
+          {
+            "key": "",
+            "value": "",
+            "secret": false
+          }
+        ]
+      }
+    ],
+    "administrators": [
+      ""
+    ]
+  },
+  "metadata": {
+    "globalAccountID": "",
+    "subAccountID": "",
+    "serviceID": "",
+    "servicePlanID": "",
+    "shootName": "",
+    "instanceID": ""
+  }
+}
