@@ -53,12 +53,34 @@ CREATE TABLE config_cachedeps (
 
 CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
 
---DDL for cluster properties:
-CREATE TABLE cluster_props (
-	"id" integer PRIMARY KEY AUTOINCREMENT, --just another unique identifer for a property-entry
+--DDL for cluster inventory:
+CREATE TABLE inventory_clusters (
+    "version" integer PRIMARY KEY AUTOINCREMENT,
 	"cluster" text NOT NULL,
-	"key" text NOT NULL,
-	"value" text NOT NULL,
+	"runtime_name" text,
+	"runtime_description" text,
+    "metadata" text,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT cluster_metadata_pk UNIQUE ("cluster", "key")
+	CONSTRAINT inventory_clusters_pk UNIQUE ("cluster", "version")
+);
+
+CREATE TABLE inventory_cluster_configs (
+    "version" integer PRIMARY KEY AUTOINCREMENT,
+	"cluster" text  NOT NULL,
+    "cluster_version" int NOT NULL,
+    "kyma_version" text  NOT NULL,
+    "kyma_profile" text,
+    "components" text,
+    "administrators" text,
+    "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT inventory_cluster_configs_pk UNIQUE ("cluster", "cluster_version", "version"),
+    FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON DELETE CASCADE
+);
+
+CREATE TABLE inventory_cluster_config_statuses (
+    "id" integer PRIMARY KEY AUTOINCREMENT,
+    "config_version" int NOT NULL,
+    "status" text NOT NULL,
+    "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY("config_version") REFERENCES inventory_cluster_configs("version") ON DELETE CASCADE
 );

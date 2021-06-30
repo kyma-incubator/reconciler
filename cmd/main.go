@@ -35,6 +35,7 @@ func main() {
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+
 }
 
 func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {

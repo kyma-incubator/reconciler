@@ -147,6 +147,39 @@ func (ch *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 	return buffer.String()
 }
 
+// TODO
+//func (ch *ColumnHandler) ColumnForUpdate(f *[]string, onlyWriteable bool) string {
+//	var buffer bytes.Buffer
+//	var fields [1]string
+//	fields[0] = "Name"
+//	for _, field := range fields {
+//		column := getColumn(field, ch, onlyWriteable)
+//		if column == nil {
+//			continue
+//		}
+//		if buffer.Len() > 0 {
+//			buffer.WriteString(", ")
+//		}
+//		//buffer.WriteString(column.name)
+//		buffer.WriteString("=")
+//		//buffer.WriteString(column.value.(string))
+//
+//	}
+//	return buffer.String()
+//}
+//
+//func getColumn(field string, ch *ColumnHandler, onlyWriteable bool) *column {
+//	for _, col := range ch.columns {
+//		if onlyWriteable && col.readOnly {
+//			continue
+//		}
+//		if col.field.Name() == field {
+//			return col
+//		}
+//	}
+//	return nil
+//}
+
 func (ch *ColumnHandler) ColumnValues(onlyWriteable bool) []interface{} {
 	result := []interface{}{}
 	for _, col := range ch.columns {
