@@ -1,5 +1,7 @@
 package cluster
 
+import "github.com/kyma-incubator/reconciler/pkg/keb"
+
 type MockInventory struct {
 	ClustersToReconcileResult []*State
 	GetResult                 *State
@@ -8,7 +10,7 @@ type MockInventory struct {
 	UpdateStatusResult        error
 }
 
-func (i *MockInventory) CreateOrUpdate(cluster *Cluster) (*State, error) {
+func (i *MockInventory) CreateOrUpdate(cluster *keb.Cluster) (*State, error) {
 	return i.CreateOrUpdateResult, nil
 }
 

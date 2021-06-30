@@ -20,7 +20,7 @@ func NewTestConnectionFactory() (ConnectionFactory, error) {
 		}
 
 		//read DDL (test-table structure)
-		ddl, err := ioutil.ReadFile(path.Join(configDir, "db", "sqlite", "configuration-management.sql"))
+		ddl, err := ioutil.ReadFile(path.Join(configDir, "db", "sqlite", "reconciler.sql"))
 		if err != nil {
 			panic(err)
 		}

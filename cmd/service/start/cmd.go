@@ -6,11 +6,17 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+)
+
+const (
+	paramContractVersion = "contractVersion"
+	paramCluster         = "cluster"
+	paramConfigVersion   = "configVersion"
 )
 
 func NewCmd(o *Options) *cobra.Command {
@@ -35,15 +41,18 @@ func Run(o *Options) error {
 
 	//routing
 	router := mux.NewRouter()
-	router.HandleFunc("/clusters",
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdate)).
 		Methods("PUT", "POST")
 
-	router.HandleFunc("/clusters/{cluster}",
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramCluster),
 		callHandler(o, delete)).
 		Methods("DELETE")
 
-	router.HandleFunc("/clusters/{cluster}/configs/{configVersion}/status",
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramCluster, paramConfigVersion),
 		callHandler(o, get)).
 		Methods("GET")
 
@@ -67,51 +76,84 @@ func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *
 }
 
 func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
-	reqBody, _ := ioutil.ReadAll(r.Body)
-	var clusterPayload cluster.Cluster
-	if err := json.Unmarshal(reqBody, &clusterPayload); err != nil {
-		sendError(w)
-	}
-	clusterState, err := o.Inventory().CreateOrUpdate(&clusterPayload)
+	params := newParam(r)
+	contractV, err := params.int64(paramContractVersion)
 	if err != nil {
-		sendError(w)
+		sendError(w, errors.Wrap(err, "Contract version undefined"))
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		sendError(w, errors.Wrap(err, "Failed to read received JSON payload"))
+	}
+	clusterPayload, err := keb.NewModelFactory(contractV).Cluster(reqBody)
+	if err != nil {
+		sendError(w, errors.Wrap(err, "Failed to unmarshal JSON payload"))
+	}
+	clusterState, err := o.Inventory().CreateOrUpdate(contractV, clusterPayload)
+	if err != nil {
+		sendError(w, errors.Wrap(err, "Failed to create or update cluster entity"))
 	}
 	url := fmt.Sprintf("%s%s/%s/configs/%d/status", r.Host, r.URL.RequestURI(), clusterState.Cluster.Cluster, clusterState.Configuration.Version)
 	if err := json.NewEncoder(w).Encode(url); err != nil {
-		sendError(w)
+		sendError(w, errors.Wrap(err, "Failed to generate progress URL response"))
 	}
 }
 
 func get(o *Options, w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	cluster := strings.TrimSpace(vars["cluster"])
-	if cluster == "" {
-		sendError(w)
-	}
-	configVersion, err := strconv.ParseInt(vars["configVersion"], 10, 64)
+	params := newParam(r)
+	cluster, err := params.string("cluster")
 	if err != nil {
-		sendError(w)
+		sendError(w, err)
+	}
+	configVersion, err := params.int64("configVersion")
+	if err != nil {
+		sendError(w, err)
 	}
 	clusterState, err := o.Inventory().Get(cluster, configVersion)
 	if err != nil {
-		sendError(w)
+		sendError(w, errors.Wrap(err, "Cloud not retrieve cluster state"))
 	}
 	if err := json.NewEncoder(w).Encode(clusterState.Status.Status); err != nil {
-		sendError(w)
+		sendError(w, errors.Wrap(err, "Failed to encode cluster status response"))
 	}
 }
 
 func delete(o *Options, w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	cluster := strings.TrimSpace(vars["cluster"])
-	if cluster == "" {
-		sendError(w)
+	params := newParam(r)
+	cluster, err := params.string("cluster")
+	if err != nil {
+		sendError(w, err)
 	}
 	if err := o.Inventory().Delete(cluster); err != nil {
-		sendError(w)
+		sendError(w, errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", cluster)))
 	}
 }
 
-func sendError(w http.ResponseWriter) {
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+func sendError(w http.ResponseWriter, err error) {
+	http.Error(w, fmt.Sprintf("%s\n\n%s", http.StatusText(http.StatusInternalServerError), err.Error()), http.StatusInternalServerError)
+}
+
+type param struct {
+	params map[string]string
+}
+
+func newParam(r *http.Request) *param {
+	return &param{
+		params: mux.Vars(r),
+	}
+}
+func (p *param) string(name string) (string, error) {
+	result, ok := p.params[name]
+	if !ok {
+		return "", fmt.Errorf("Parameter '%s' undefined", name)
+	}
+	return result, nil
+}
+
+func (p *param) int64(name string) (int64, error) {
+	strResult, err := p.string(name)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(strResult, 10, 64)
 }

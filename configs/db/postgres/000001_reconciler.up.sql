@@ -55,32 +55,33 @@ CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
 
 --DDL for cluster inventory:
 CREATE TABLE inventory_clusters (
-    "version" SERIAL UNIQUE,
+	"version" SERIAL UNIQUE, --can also be used as unique identifier for a cluster
 	"cluster" text NOT NULL,
-	"runtime_name" text,
-	"runtime_description" text,
-    "metadata" text,
+	"runtime" text NOT NULL,
+	"metadata" text NOT NULL,
+	"contract" int NOT NULL,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
 	CONSTRAINT inventory_clusters_pk PRIMARY KEY ("cluster", "version")
 );
 
 CREATE TABLE inventory_cluster_configs (
-    "version" SERIAL UNIQUE,
+	"version" SERIAL UNIQUE, --can also be used as unique identifier for a cluster config
 	"cluster" text  NOT NULL,
-    "cluster_version" int NOT NULL,
-    "kyma_version" text  NOT NULL,
-    "kyma_profile" text,
-    "components" text,
-    "administrators" text,
-    "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+	"cluster_version" int NOT NULL,
+	"kyma_version" text  NOT NULL,
+	"kyma_profile" text,
+	"components" text,
+	"administrators" text,
+	"contract" int NOT NULL,
+	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
 	CONSTRAINT inventory_cluster_configs_pk PRIMARY KEY ("cluster", "cluster_version", "version"),
-    FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON DELETE CASCADE
+	FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON DELETE CASCADE
 );
 
 CREATE TABLE inventory_cluster_config_statuses (
-    "id" SERIAL UNIQUE,
-    "config_version" int NOT NULL,
-    "status" text NOT NULL,
-    "created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-    FOREIGN KEY("config_version") REFERENCES inventory_cluster_configs("version") ON DELETE CASCADE
+	"id" SERIAL UNIQUE,
+	"config_version" int NOT NULL,
+	"status" text NOT NULL,
+	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+	FOREIGN KEY("config_version") REFERENCES inventory_cluster_configs("version") ON DELETE CASCADE
 );

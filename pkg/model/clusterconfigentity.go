@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 )
 
 const tblConfiguration string = "inventory_cluster_configs"
@@ -17,6 +18,7 @@ type ClusterConfigurationEntity struct {
 	KymaProfile    string `db:"notNull"`
 	Components     string `db:"notNull"`
 	Administrators string
+	Contract       int64     `db:"notNull"`
 	Created        time.Time `db:"readOnly"`
 }
 
@@ -50,4 +52,12 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 			c.ClusterVersion == otherClProp.ClusterVersion
 	}
 	return false
+}
+
+func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Components, error) {
+	return keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
+}
+
+func (c *ClusterConfigurationEntity) GetAdministrators() ([]string, error) {
+	return keb.NewModelFactory(c.Contract).Administrators([]byte(c.Administrators))
 }

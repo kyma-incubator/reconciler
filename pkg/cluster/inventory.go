@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/pkg/errors"
 )
 
 type Inventory interface {
-	CreateOrUpdate(cluster *Cluster) (*State, error)
+	CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error)
 	UpdateStatus(State *State) error
 	Delete(cluster string) error
 	Get(cluster string, configVersion int64) (*State, error)
@@ -32,13 +33,13 @@ func NewInventory(dbFac db.ConnectionFactory, debug bool) (Inventory, error) {
 	return &DefaultInventory{repo, 0}, nil
 }
 
-func (i *DefaultInventory) CreateOrUpdate(cluster *Cluster) (*State, error) {
+func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
 	dbOps := func() (interface{}, error) {
-		clusterEntity, err := i.createCluster(cluster)
+		clusterEntity, err := i.createCluster(contractVersion, cluster)
 		if err != nil {
 			return nil, err
 		}
-		clusterConfigurationEntity, err := i.createConfiguration(cluster, clusterEntity)
+		clusterConfigurationEntity, err := i.createConfiguration(contractVersion, cluster, clusterEntity)
 		if err != nil {
 			return nil, err
 		}
@@ -59,16 +60,20 @@ func (i *DefaultInventory) CreateOrUpdate(cluster *Cluster) (*State, error) {
 	return stateEntity.(*State), nil
 }
 
-func (i *DefaultInventory) createCluster(cluster *Cluster) (*model.ClusterEntity, error) {
+func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity, error) {
 	metadata, err := json.Marshal(cluster.Metadata)
 	if err != nil {
 		return nil, err
 	}
+	runtime, err := json.Marshal(cluster.RuntimeInput)
+	if err != nil {
+		return nil, err
+	}
 	clusterEntity := &model.ClusterEntity{
-		Cluster:            cluster.Cluster,
-		RuntimeName:        cluster.RuntimeInput.Name,
-		RuntimeDescription: cluster.RuntimeInput.Description,
-		Metadata:           string(metadata),
+		Cluster:  cluster.Cluster,
+		Runtime:  string(runtime),
+		Metadata: string(metadata),
+		Contract: contractVersion,
 	}
 	q, err := db.NewQuery(i.Conn, clusterEntity)
 	if err != nil {
@@ -81,7 +86,7 @@ func (i *DefaultInventory) createCluster(cluster *Cluster) (*model.ClusterEntity
 	return clusterEntity, nil
 }
 
-func (i *DefaultInventory) createConfiguration(cluster *Cluster, clusterEntity *model.ClusterEntity) (*model.ClusterConfigurationEntity, error) {
+func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *keb.Cluster, clusterEntity *model.ClusterEntity) (*model.ClusterConfigurationEntity, error) {
 	components, err := json.Marshal(cluster.KymaConfig.Components)
 	if err != nil {
 		return nil, err
@@ -97,6 +102,7 @@ func (i *DefaultInventory) createConfiguration(cluster *Cluster, clusterEntity *
 		KymaProfile:    cluster.KymaConfig.Profile,
 		Components:     string(components),
 		Administrators: string(administrators),
+		Contract:       contractVersion,
 	}
 	q, err := db.NewQuery(i.Conn, configEntity)
 	if err != nil {
@@ -140,11 +146,31 @@ func (i *DefaultInventory) Delete(cluster string) error {
 }
 
 func (i *DefaultInventory) Get(cluster string, configVersion int64) (*State, error) {
+	configEntity, err := i.config(cluster, configVersion)
+	if err != nil {
+		return nil, err
+	}
 	statusEntity, err := i.latestStatus(configVersion)
 	if err != nil {
 		return nil, err
 	}
-	configEntity, err := i.config(cluster, statusEntity.ConfigVersion)
+	clusterEntity, err := i.cluster(configEntity.ClusterVersion)
+	if err != nil {
+		return nil, err
+	}
+	return &State{
+		Cluster:       clusterEntity,
+		Configuration: configEntity,
+		Status:        statusEntity,
+	}, nil
+}
+
+func (i *DefaultInventory) GetLatest(cluster string) (*State, error) {
+	configEntity, err := i.latestConfig(cluster)
+	if err != nil {
+		return nil, err
+	}
+	statusEntity, err := i.latestStatus(configEntity.Version)
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +199,22 @@ func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStat
 			fmt.Sprintf("No status entities found for cluster configuration with version '%d'", configVersion))
 	}
 	return statusEntity.(*model.ClusterStatusEntity), nil
+}
+
+func (i *DefaultInventory) latestConfig(cluster string) (*model.ClusterConfigurationEntity, error) {
+	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
+	if err != nil {
+		return nil, err
+	}
+	configEntity, err := q.Select().
+		Where(map[string]interface{}{"Cluster": cluster}).
+		OrderBy(map[string]string{"Version": "desc"}).
+		GetOne()
+	if err != nil {
+		return nil, errors.Wrap(err,
+			fmt.Sprintf("Failed t retrieve latest configuration for cluster '%s'", cluster))
+	}
+	return configEntity.(*model.ClusterConfigurationEntity), nil
 }
 
 func (i *DefaultInventory) config(cluster string, configVersion int64) (*model.ClusterConfigurationEntity, error) {
