@@ -107,7 +107,7 @@ func TestInventory(t *testing.T) {
 		require.True(t, repository.IsNotFoundError(err))
 	})
 
-	t.Run("Get clusters with paricular status", func(t *testing.T) {
+	t.Run("Get clusters with particular status", func(t *testing.T) {
 		// //create for each cluster-status a new cluster
 		for idx, clusterStatus := range clusterStatuses {
 			expectedCluster := newCluster(t, int64(idx+100), 1)
