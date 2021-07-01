@@ -151,8 +151,10 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 
 func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity, status model.Status) (*model.ClusterStatusEntity, error) {
 	newStatusEntity := &model.ClusterStatusEntity{
-		ConfigVersion: configEntity.Version,
-		Status:        status,
+		Cluster:        configEntity.Cluster,
+		ClusterVersion: configEntity.ClusterVersion,
+		ConfigVersion:  configEntity.Version,
+		Status:         status,
 	}
 
 	//check if a new version is required
@@ -388,7 +390,15 @@ func (i *DefaultInventory) clustersByStatus(statuses ...model.Status) ([]*State,
 	if err != nil {
 		return nil, err
 	}
-	configIDColName, err := statusColHandler.ColumnName("ID")
+	idColName, err := statusColHandler.ColumnName("ID")
+	if err != nil {
+		return nil, err
+	}
+	clusterColName, err := statusColHandler.ColumnName("Cluster")
+	if err != nil {
+		return nil, err
+	}
+	clusterVersionColName, err := statusColHandler.ColumnName("ClusterVersion")
 	if err != nil {
 		return nil, err
 	}
@@ -406,19 +416,23 @@ func (i *DefaultInventory) clustersByStatus(statuses ...model.Status) ([]*State,
 	if err != nil {
 		return nil, err
 	}
+
+	/*
+		SELECT * FROM inventory_cluster_config_statuses
+		WHERE cluster_version IN (SELECT MAX(cluster_version) FROM inventory_cluster_config_statuses GROUP BY cluster)
+		GROUP BY cluster
+		HAVING MAX(config_version) AND MAX(id) AND  status IN ('reconcile_pending','reconcile_failed')
+	*/
 	clusterConfigs, err := q.Select().
 		WhereIn("Version",
-			fmt.Sprintf(`SELECT %s FROM 
-				(
-					SELECT %s, MAX(%s)
-					FROM %s 
-					GROUP BY %s 
-					HAVING %s IN ('%s')
-				)`,
-				configVersionColName, configVersionColName, configIDColName,
-				clusterStatus.Table(),
-				configVersionColName,
-				statusColName, strings.Join(i.stausesToStrings(statuses), "','"))).
+			fmt.Sprintf(`SELECT %s FROM %s
+				WHERE %s IN (SELECT MAX(%s) FROM %s GROUP BY %s)
+				GROUP BY %s
+				HAVING MAX(%s) AND MAX(%s) AND %s IN ('%s')`,
+				configVersionColName, clusterStatus.Table(),
+				clusterVersionColName, clusterVersionColName, clusterStatus.Table(), clusterColName,
+				clusterColName,
+				configVersionColName, idColName, statusColName, strings.Join(i.stausesToStrings(statuses), "','"))).
 		Where(map[string]interface{}{
 			"Deleted": false,
 		}).

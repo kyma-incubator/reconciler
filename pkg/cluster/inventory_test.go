@@ -113,16 +113,38 @@ func TestInventory(t *testing.T) {
 			expectedCluster := newCluster(t, int64(idx+100), 1)
 			clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
 			require.NoError(t, err)
+			//add another status to verify that SQL query works correctly
+			_, err = inventory.UpdateStatus(clusterState, model.ReconcileFailed)
+			require.NoError(t, err)
+			//add expected status
 			_, err = inventory.UpdateStatus(clusterState, clusterStatus)
 			require.NoError(t, err)
 		}
-		statesReconcile, err := inventory.ClustersToReconcile() //TODO: check particular states and cluster IDs
+
+		//check clusters to reconcile
+		statesReconcile, err := inventory.ClustersToReconcile()
 		require.NoError(t, err)
-		require.Len(t, statesReconcile, 2) //TODO: check particular states and cluster IDs
+		require.Len(t, statesReconcile, 2)
+		require.ElementsMatch(t,
+			listStatuses(statesReconcile),
+			[]model.Status{model.ReconcilePending, model.ReconcileFailed})
+
+		//check clusters which are not ready
 		statesNotReady, err := inventory.ClustersNotReady()
 		require.NoError(t, err)
-		require.Len(t, statesNotReady, 3) //TODO: check particular states and cluster IDs
+		require.Len(t, statesNotReady, 3)
+		require.ElementsMatch(t,
+			listStatuses(statesNotReady),
+			[]model.Status{model.Reconciling, model.ReconcileFailed, model.Error})
 	})
+}
+
+func listStatuses(states []*State) []model.Status {
+	result := []model.Status{}
+	for _, state := range states {
+		result = append(result, state.Status.Status)
+	}
+	return result
 }
 
 func newInventory(t *testing.T) Inventory {

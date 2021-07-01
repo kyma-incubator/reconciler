@@ -67,9 +67,9 @@ CREATE TABLE inventory_clusters (
 
 CREATE TABLE inventory_cluster_configs (
 	"version" SERIAL UNIQUE, --can also be used as unique identifier for a cluster config
-	"cluster" text  NOT NULL,
+	"cluster" text NOT NULL,
 	"cluster_version" int NOT NULL,
-	"kyma_version" text  NOT NULL,
+	"kyma_version" text NOT NULL,
 	"kyma_profile" text,
 	"components" text,
 	"administrators" text,
@@ -82,8 +82,10 @@ CREATE TABLE inventory_cluster_configs (
 
 CREATE TABLE inventory_cluster_config_statuses (
 	"id" SERIAL UNIQUE,
+	"cluster" text NOT NULL,
+	"cluster_version" text NOT NULL,
 	"config_version" int NOT NULL,
 	"status" text NOT NULL,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-	FOREIGN KEY("config_version") REFERENCES inventory_cluster_configs("version") ON DELETE CASCADE
+	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON DELETE CASCADE
 );
