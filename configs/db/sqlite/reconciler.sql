@@ -24,7 +24,7 @@ CREATE TABLE config_values (
 	"username" varchar(255) NOT NULL,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT config_values_pk UNIQUE ("bucket", "key", "version"),
-	FOREIGN KEY ("key", "key_version") REFERENCES config_keys ("key", "version")
+	FOREIGN KEY ("key", "key_version") REFERENCES config_keys ("key", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 --DDL for configuration cache-entry entities:
@@ -75,7 +75,7 @@ CREATE TABLE inventory_cluster_configs (
 	"contract" int NOT NULL,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT inventory_cluster_configs_pk UNIQUE ("cluster", "cluster_version", "version"),
-	FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON DELETE CASCADE
+	FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE inventory_cluster_config_statuses (

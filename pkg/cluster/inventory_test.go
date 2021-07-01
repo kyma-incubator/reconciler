@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var clusterJSONFile = filepath.Join(".", "test", "cluster.json")
+
 func TestInventory(t *testing.T) {
 	t.Run("Create a cluster", func(t *testing.T) {
 		clusterModel := newCluster(t)
@@ -37,7 +39,7 @@ func newInventory(t *testing.T) Inventory {
 
 func newCluster(t *testing.T) *keb.Cluster {
 	cluster := &keb.Cluster{}
-	data, err := ioutil.ReadFile(filepath.Join(".", "test", "cluster.json"))
+	data, err := ioutil.ReadFile(clusterJSONFile)
 	require.NoError(t, err)
 	err = json.Unmarshal(data, cluster)
 	require.NoError(t, err)

@@ -9,7 +9,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
-	"github.com/pkg/errors"
 )
 
 type Inventory interface {
@@ -18,6 +17,7 @@ type Inventory interface {
 	Delete(cluster string) error
 	Get(cluster string, configVersion int64) (*State, error)
 	ClustersToReconcile() ([]*State, error)
+	ClustersNotReady() ([]*State, error)
 }
 
 type DefaultInventory struct {
@@ -69,13 +69,25 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	if err != nil {
 		return nil, err
 	}
-	clusterEntity := &model.ClusterEntity{
+
+	newClusterEntity := &model.ClusterEntity{
 		Cluster:  cluster.Cluster,
 		Runtime:  string(runtime),
 		Metadata: string(metadata),
 		Contract: contractVersion,
 	}
-	q, err := db.NewQuery(i.Conn, clusterEntity)
+
+	//check if a new version is required
+	oldClusterEntity, err := i.latestCluster(cluster.Cluster)
+	if err == nil && oldClusterEntity.Equal(newClusterEntity) { //reuse existing cluster entity
+		return oldClusterEntity, nil
+	} else if !repository.IsNotFoundError(err) {
+		//unexpected error
+		return nil, err
+	}
+
+	//create new version
+	q, err := db.NewQuery(i.Conn, newClusterEntity)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +95,8 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	if err != nil {
 		return nil, err
 	}
-	return clusterEntity, nil
+
+	return newClusterEntity, nil
 }
 
 func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *keb.Cluster, clusterEntity *model.ClusterEntity) (*model.ClusterConfigurationEntity, error) {
@@ -95,7 +108,7 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	if err != nil {
 		return nil, err
 	}
-	configEntity := &model.ClusterConfigurationEntity{
+	newConfigEntity := &model.ClusterConfigurationEntity{
 		Cluster:        clusterEntity.Cluster,
 		ClusterVersion: clusterEntity.Version,
 		KymaVersion:    cluster.KymaConfig.Version,
@@ -104,7 +117,18 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 		Administrators: string(administrators),
 		Contract:       contractVersion,
 	}
-	q, err := db.NewQuery(i.Conn, configEntity)
+
+	//check if a new version is required
+	oldConfigEntity, err := i.latestConfig(clusterEntity.Version)
+	if err == nil && oldConfigEntity.Equal(newConfigEntity) { //reuse existing config entity
+		return oldConfigEntity, nil
+	} else if !repository.IsNotFoundError(err) {
+		//unexpected error
+		return nil, err
+	}
+
+	//create new version
+	q, err := db.NewQuery(i.Conn, newConfigEntity)
 	if err != nil {
 		return nil, err
 	}
@@ -112,15 +136,27 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	if err != nil {
 		return nil, err
 	}
-	return configEntity, nil
+
+	return newConfigEntity, nil
 }
 
 func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity) (*model.ClusterStatusEntity, error) {
-	statusEntity := &model.ClusterStatusEntity{
+	newStatusEntity := &model.ClusterStatusEntity{
 		ConfigVersion: configEntity.Version,
 		Status:        model.ReconcilePending,
 	}
-	q, err := db.NewQuery(i.Conn, statusEntity)
+
+	//check if a new version is required
+	oldStatusEntity, err := i.latestStatus(configEntity.Version)
+	if err == nil && oldStatusEntity.Equal(newStatusEntity) { //reuse existing status entity
+		return oldStatusEntity, nil
+	} else if !repository.IsNotFoundError(err) {
+		//unexpected error
+		return nil, err
+	}
+
+	//create new status
+	q, err := db.NewQuery(i.Conn, newStatusEntity)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +164,8 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 	if err != nil {
 		return nil, err
 	}
-	return statusEntity, nil
+
+	return newStatusEntity, nil
 }
 
 func (i *DefaultInventory) UpdateStatus(State *State) error {
@@ -141,8 +178,44 @@ func (i *DefaultInventory) UpdateStatus(State *State) error {
 }
 
 func (i *DefaultInventory) Delete(cluster string) error {
-	//TBC: do we delete a cluster in the DB or flag it as deleted?
-	return fmt.Errorf("Method not supported yet")
+	dbOps := func() error {
+		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), cluster)
+		updateSQLTpl := "UPDATE %s SET %s=$1 WHERE %s=$2"
+
+		//update name of all cluster entities
+		clusterEntity := &model.ClusterEntity{}
+		clusterColHandler, err := db.NewColumnHandler(clusterEntity)
+		if err != nil {
+			return err
+		}
+		clusterColName, err := clusterColHandler.ColumnName("Cluster")
+		if err != nil {
+			return err
+		}
+		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterColName)
+		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, cluster); err != nil {
+			return err
+		}
+
+		//update cluster-name of all referenced cluster-config entities
+		configEntity := &model.ClusterConfigurationEntity{}
+		configColHandler, err := db.NewColumnHandler(configEntity)
+		if err != nil {
+			return err
+		}
+		configColumnName, err := configColHandler.ColumnName("Cluster")
+		if err != nil {
+			return err
+		}
+		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configColumnName, configColumnName)
+		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, cluster); err != nil {
+			return err
+		}
+
+		//done
+		return nil
+	}
+	return db.Transaction(i.Conn, dbOps, i.Logger)
 }
 
 func (i *DefaultInventory) Get(cluster string, configVersion int64) (*State, error) {
@@ -166,7 +239,11 @@ func (i *DefaultInventory) Get(cluster string, configVersion int64) (*State, err
 }
 
 func (i *DefaultInventory) GetLatest(cluster string) (*State, error) {
-	configEntity, err := i.latestConfig(cluster)
+	clusterEntity, err := i.latestCluster(cluster)
+	if err != nil {
+		return nil, err
+	}
+	configEntity, err := i.latestConfig(clusterEntity.Version)
 	if err != nil {
 		return nil, err
 	}
@@ -174,10 +251,7 @@ func (i *DefaultInventory) GetLatest(cluster string) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	clusterEntity, err := i.cluster(configEntity.ClusterVersion)
-	if err != nil {
-		return nil, err
-	}
+
 	return &State{
 		Cluster:       clusterEntity,
 		Configuration: configEntity,
@@ -190,31 +264,17 @@ func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStat
 	if err != nil {
 		return nil, err
 	}
+	whereCond := map[string]interface{}{
+		"ConfigVersion": configVersion,
+	}
 	statusEntity, err := q.Select().
-		Where(map[string]interface{}{"ConfigVersion": configVersion}).
+		Where(whereCond).
 		OrderBy(map[string]string{"ID": "desc"}).
 		GetOne()
 	if err != nil {
-		return nil, errors.Wrap(err,
-			fmt.Sprintf("No status entities found for cluster configuration with version '%d'", configVersion))
+		return nil, i.NewNotFoundError(err, statusEntity, whereCond)
 	}
 	return statusEntity.(*model.ClusterStatusEntity), nil
-}
-
-func (i *DefaultInventory) latestConfig(cluster string) (*model.ClusterConfigurationEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
-	if err != nil {
-		return nil, err
-	}
-	configEntity, err := q.Select().
-		Where(map[string]interface{}{"Cluster": cluster}).
-		OrderBy(map[string]string{"Version": "desc"}).
-		GetOne()
-	if err != nil {
-		return nil, errors.Wrap(err,
-			fmt.Sprintf("Failed t retrieve latest configuration for cluster '%s'", cluster))
-	}
-	return configEntity.(*model.ClusterConfigurationEntity), nil
 }
 
 func (i *DefaultInventory) config(cluster string, configVersion int64) (*model.ClusterConfigurationEntity, error) {
@@ -222,15 +282,33 @@ func (i *DefaultInventory) config(cluster string, configVersion int64) (*model.C
 	if err != nil {
 		return nil, err
 	}
+	whereCond := map[string]interface{}{
+		"Version": configVersion,
+		"Cluster": cluster,
+	}
 	configEntity, err := q.Select().
-		Where(map[string]interface{}{
-			"Version": configVersion,
-			"Cluster": cluster,
-		}).
+		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, errors.Wrap(err,
-			fmt.Sprintf("Cluster configuration '%d' does not exist for cluster '%s' ", configVersion, cluster))
+		return nil, i.NewNotFoundError(err, configEntity, whereCond)
+	}
+	return configEntity.(*model.ClusterConfigurationEntity), nil
+}
+
+func (i *DefaultInventory) latestConfig(clusterVersion int64) (*model.ClusterConfigurationEntity, error) {
+	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
+	if err != nil {
+		return nil, err
+	}
+	whereCond := map[string]interface{}{
+		"ClusterVersion": clusterVersion,
+	}
+	configEntity, err := q.Select().
+		Where(whereCond).
+		OrderBy(map[string]string{"Version": "desc"}).
+		GetOne()
+	if err != nil {
+		return nil, i.NewNotFoundError(err, configEntity, whereCond)
 	}
 	return configEntity.(*model.ClusterConfigurationEntity), nil
 }
@@ -240,18 +318,42 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 	if err != nil {
 		return nil, err
 	}
+	whereCond := map[string]interface{}{
+		"Version": clusterVersion,
+	}
 	clusterEntity, err := q.Select().
-		Where(map[string]interface{}{
-			"Version": clusterVersion,
+		Where(whereCond).
+		GetOne()
+	if err != nil {
+		return nil, i.NewNotFoundError(err, clusterEntity, whereCond)
+	}
+	return clusterEntity.(*model.ClusterEntity), nil
+}
+
+func (i *DefaultInventory) latestCluster(cluster string) (*model.ClusterEntity, error) {
+	q, err := db.NewQuery(i.Conn, &model.ClusterEntity{})
+	if err != nil {
+		return nil, err
+	}
+	whereCond := map[string]interface{}{
+		"Cluster": cluster,
+	}
+	clusterEntity, err := q.Select().
+		Where(whereCond).
+		OrderBy(map[string]string{
+			"Version": "desc",
 		}).
 		GetOne()
 	if err != nil {
-		return nil, errors.Wrap(err,
-			fmt.Sprintf("No cluster found using lusterVersion '%d'", clusterVersion))
+		return nil, i.NewNotFoundError(err, clusterEntity, whereCond)
 	}
 	return clusterEntity.(*model.ClusterEntity), nil
 }
 
 func (i *DefaultInventory) ClustersToReconcile() ([]*State, error) {
+	return nil, fmt.Errorf("Method not implemented yet")
+}
+
+func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	return nil, fmt.Errorf("Method not implemented yet")
 }

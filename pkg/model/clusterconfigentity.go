@@ -47,9 +47,13 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherClProp, ok := other.(*ClusterConfigurationEntity)
 	if ok {
-		return c.Version == otherClProp.Version &&
-			c.Cluster == otherClProp.Cluster &&
-			c.ClusterVersion == otherClProp.ClusterVersion
+		return c.Cluster == otherClProp.Cluster &&
+			c.ClusterVersion == otherClProp.ClusterVersion &&
+			c.KymaVersion == otherClProp.KymaVersion &&
+			c.KymaProfile == otherClProp.KymaProfile &&
+			c.Components == otherClProp.Components &&
+			c.Administrators == otherClProp.Administrators &&
+			c.Contract == otherClProp.Contract
 	}
 	return false
 }

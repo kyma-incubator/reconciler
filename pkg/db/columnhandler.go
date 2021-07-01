@@ -220,7 +220,7 @@ func (ch *ColumnHandler) ColumnValuesPlaceholderCsv(onlyWriteable bool) string {
 	return ch.columnValuesCsvRenderer(onlyWriteable, true)
 }
 
-func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder bool) string {
+func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder bool) (string, int) {
 	var buffer bytes.Buffer
 	var placeholderIdx int
 	for _, col := range ch.columns {
@@ -237,14 +237,14 @@ func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder boo
 			buffer.WriteString(fmt.Sprintf("%s=%s", col.name, ch.serializeValue(col.value)))
 		}
 	}
-	return buffer.String()
+	return buffer.String(), placeholderIdx
 }
 
-func (ch *ColumnHandler) ColumnEntriesCsv(onlyWriteable bool) string {
+func (ch *ColumnHandler) ColumnEntriesCsv(onlyWriteable bool) (string, int) {
 	return ch.columnEntriesCsvRenderer(onlyWriteable, false)
 }
 
-func (ch *ColumnHandler) ColumnEntriesPlaceholderCsv(onlyWriteable bool) string {
+func (ch *ColumnHandler) ColumnEntriesPlaceholderCsv(onlyWriteable bool) (string, int) {
 	return ch.columnEntriesCsvRenderer(onlyWriteable, true)
 }
 

@@ -4,6 +4,7 @@ import "github.com/kyma-incubator/reconciler/pkg/keb"
 
 type MockInventory struct {
 	ClustersToReconcileResult []*State
+	ClustersNotReadyResult    []*State
 	GetResult                 *State
 	CreateOrUpdateResult      *State
 	DeleteResult              error
@@ -28,4 +29,8 @@ func (i *MockInventory) Get(cluster string, configVersion int64) (*State, error)
 
 func (i *MockInventory) ClustersToReconcile() ([]*State, error) {
 	return i.ClustersToReconcileResult, nil
+}
+
+func (i *MockInventory) ClustersNotReady() ([]*State, error) {
+	return i.ClustersNotReadyResult, nil
 }
