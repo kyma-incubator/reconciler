@@ -10,10 +10,10 @@ import (
 const tblStatuses string = "inventory_cluster_config_statuses"
 
 type ClusterStatusEntity struct {
-	ID            int64         `db:"readOnly"`
-	ConfigVersion int64         `db:"notNull"`
-	Status        ClusterStatus `db:"notNull"`
-	Created       time.Time     `db:"readOnly"`
+	ID            int64     `db:"readOnly"`
+	ConfigVersion int64     `db:"notNull"`
+	Status        Status    `db:"notNull"`
+	Created       time.Time `db:"readOnly"`
 }
 
 func (c *ClusterStatusEntity) String() string {
@@ -28,7 +28,11 @@ func (c *ClusterStatusEntity) New() db.DatabaseEntity {
 func (c *ClusterStatusEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
 	marshaller.AddUnmarshaller("Status", func(value interface{}) (interface{}, error) {
-		return NewClusterStatus(value.(string))
+		clusterStatus, err := NewClusterStatus(Status(value.(string)))
+		if err == nil {
+			return clusterStatus.Status, nil
+		}
+		return "", err
 	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	return marshaller
@@ -47,4 +51,8 @@ func (c *ClusterStatusEntity) Equal(other db.DatabaseEntity) bool {
 		return c.ConfigVersion == otherClProp.ConfigVersion && c.Status == otherClProp.Status
 	}
 	return false
+}
+
+func (c *ClusterStatusEntity) GetClusterStatus() (*ClusterStatus, error) {
+	return NewClusterStatus(c.Status)
 }

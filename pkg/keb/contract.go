@@ -1,4 +1,4 @@
-package cluster
+package keb
 
 type Cluster struct {
 	Cluster      string       `json:"runtimeID"`

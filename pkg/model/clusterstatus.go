@@ -2,32 +2,47 @@ package model
 
 import (
 	"fmt"
-	"strings"
 )
+
+type Status string
 
 const (
-	ReconcilePending ClusterStatus = "reconcile_pending"
-	ReconcileFailed  ClusterStatus = "reconcile_failed"
-	Reconciling      ClusterStatus = "reconciling"
-	Error            ClusterStatus = "error"
-	Ready            ClusterStatus = "ready"
+	ReconcilePending Status = "reconcile_pending"
+	ReconcileFailed  Status = "reconcile_failed"
+	Reconciling      Status = "reconciling"
+	Error            Status = "error"
+	Ready            Status = "ready"
 )
 
-type ClusterStatus string
+type ClusterStatus struct {
+	ID     float64 //required for monitoring metrics, has to be unique!
+	Status Status
+}
 
-func NewClusterStatus(clusterStatus string) (ClusterStatus, error) {
-	switch strings.ToLower(clusterStatus) {
-	case string(ReconcilePending):
-		return ReconcilePending, nil
-	case string(ReconcileFailed):
-		return ReconcileFailed, nil
-	case string(Ready):
-		return Ready, nil
-	case string(Reconciling):
-		return Reconciling, nil
-	case string(Error):
-		return Error, nil
+func (s *ClusterStatus) String() string {
+	return string(s.Status)
+}
+
+func NewClusterStatus(status Status) (*ClusterStatus, error) {
+	clusterStatus := &ClusterStatus{}
+	switch status {
+	case Error:
+		clusterStatus.Status = Error
+		clusterStatus.ID = 0
+	case Ready:
+		clusterStatus.Status = Ready
+		clusterStatus.ID = 1
+	case ReconcilePending:
+		clusterStatus.Status = ReconcilePending
+		clusterStatus.ID = 2
+	case Reconciling:
+		clusterStatus.Status = Reconciling
+		clusterStatus.ID = 3
+	case ReconcileFailed:
+		clusterStatus.Status = ReconcileFailed
+		clusterStatus.ID = 4
 	default:
-		return "", fmt.Errorf("ClusterStatus '%s' is unknown", clusterStatus)
+		return clusterStatus, fmt.Errorf("ClusterStatus '%s' is unknown", status)
 	}
+	return clusterStatus, nil
 }

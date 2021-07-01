@@ -47,7 +47,7 @@ func (cr *Repository) Get(label, cluster string) (*model.CacheEntryEntity, error
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cr.HandleNotFoundError(err, &model.CacheEntryEntity{}, whereCond)
+		return nil, cr.NewNotFoundError(err, &model.CacheEntryEntity{}, whereCond)
 	}
 	return entity.(*model.CacheEntryEntity), nil
 }
@@ -62,7 +62,7 @@ func (cr *Repository) GetByID(id int64) (*model.CacheEntryEntity, error) {
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cr.HandleNotFoundError(err, &model.CacheEntryEntity{}, whereCond)
+		return nil, cr.NewNotFoundError(err, &model.CacheEntryEntity{}, whereCond)
 	}
 	return entity.(*model.CacheEntryEntity), nil
 }
