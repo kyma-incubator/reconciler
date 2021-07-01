@@ -13,7 +13,7 @@ const (
 
 // ReconciliationStatusCollector provides the following metrics:
 // - reconciler_reconciliation_status{"cluster_id", "runtime_id", "global_account_id", "configuration_id"}
-// These gauges show the status of the operation.
+// These gauges show the status of the reconciliation.
 // The value of the gauge could be:
 // 0 - Error
 // 1 - Ready
