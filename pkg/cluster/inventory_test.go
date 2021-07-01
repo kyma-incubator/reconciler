@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -9,24 +10,127 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	maxVersion = 5
 )
 
 var clusterJSONFile = filepath.Join(".", "test", "cluster.json")
 
 func TestInventory(t *testing.T) {
+	inventory := newInventory(t)
+
 	t.Run("Create a cluster", func(t *testing.T) {
-		clusterModel := newCluster(t)
-		state, err := newInventory(t).CreateOrUpdate(1, clusterModel)
+		//create new entry
+		expectedCluster := newCluster(t, 1, 1)
+		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
 		require.NoError(t, err)
-		compareState(t, state, clusterModel)
+		compareState(t, clusterState, expectedCluster)
+		//DB entities have to have ID 1
+		require.Equal(t, int64(1), clusterState.Cluster.Version)
+		require.Equal(t, int64(1), clusterState.Configuration.Version)
+		require.Equal(t, int64(1), clusterState.Status.ID)
+
+		//create same entry again (no new version should be created)
+		clusterStateNew, err := inventory.CreateOrUpdate(1, expectedCluster)
+		require.NoError(t, err)
+		compareState(t, clusterStateNew, expectedCluster)
+		//DB entities have to have again ID 1
+		require.Equal(t, int64(1), clusterStateNew.Cluster.Version)
+		require.Equal(t, int64(1), clusterStateNew.Configuration.Version)
+		require.Equal(t, int64(1), clusterStateNew.Status.ID)
 	})
-	t.Run("Update a cluster", func(t *testing.T) {})
-	t.Run("Get specific cluster", func(t *testing.T) {})
-	t.Run("Get latest cluster", func(t *testing.T) {})
-	t.Run("Update cluster status", func(t *testing.T) {})
-	t.Run("Delete a cluster", func(t *testing.T) {})
-	t.Run("Get clusters to reconcile", func(t *testing.T) {})
+
+	t.Run("Update a cluster", func(t *testing.T) {
+		//update a cluster multiple times (will create multiple versions of it)
+		for i := int64(2); i <= maxVersion; i++ { //"i" reflects also the expected DB ID
+			expectedCluster := newCluster(t, 1, i)
+			clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
+			require.NoError(t, err)
+			compareState(t, clusterState, expectedCluster)
+			//DB entities have to have an incremented DB ID
+			require.Equal(t, i, clusterState.Cluster.Version)
+			require.Equal(t, i, clusterState.Configuration.Version)
+			require.Equal(t, i, clusterState.Status.ID)
+		}
+	})
+
+	t.Run("Get specific cluster", func(t *testing.T) {
+		expectedVersion := int64(4)
+		expectedCluster := newCluster(t, 1, expectedVersion)
+
+		clusterState, err := inventory.Get(expectedCluster.Cluster, expectedVersion)
+		require.NoError(t, err)
+		compareState(t, clusterState, expectedCluster)
+	})
+
+	t.Run("Get latest cluster", func(t *testing.T) {
+		expectedCluster := newCluster(t, 1, maxVersion)
+
+		clusterState, err := inventory.GetLatest(expectedCluster.Cluster)
+		require.NoError(t, err)
+		compareState(t, clusterState, expectedCluster)
+	})
+
+	t.Run("Update cluster status", func(t *testing.T) {
+		cluster := newCluster(t, 1, maxVersion)
+		clusterState, err := inventory.GetLatest(cluster.Cluster)
+		require.NoError(t, err)
+		require.Equal(t, clusterState.Status.Status, model.ReconcilePending)
+		oldStatusID := clusterState.Status.ID
+		//update status with same status (should NOT cause a status change)
+		newState, err := inventory.UpdateStatus(clusterState, model.ReconcilePending)
+		require.NoError(t, err)
+		require.Equal(t, newState.Status.Status, model.ReconcilePending)
+		require.Equal(t, oldStatusID, newState.Status.ID)
+		//update status with new status (has to cause a status change)
+		newState2, err := inventory.UpdateStatus(clusterState, model.Reconciling)
+		require.NoError(t, err)
+		require.Equal(t, newState2.Status.Status, model.Reconciling)
+		require.True(t, oldStatusID < newState2.Status.ID)
+	})
+
+	t.Run("Delete a cluster", func(t *testing.T) {
+		//create new cluster
+		expectedCluster := newCluster(t, 2, 1)
+		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
+		require.NoError(t, err)
+		compareState(t, clusterState, expectedCluster)
+		//get new cluster
+		_, err = inventory.GetLatest(expectedCluster.Cluster)
+		require.NoError(t, err)
+		//delete new cluster
+		require.NoError(t, inventory.Delete(expectedCluster.Cluster))
+		//cluster is missing
+		_, err = inventory.GetLatest(expectedCluster.Cluster)
+		require.Error(t, err)
+		require.True(t, repository.IsNotFoundError(err))
+	})
+
+	t.Run("Get clusters to reconcile", func(t *testing.T) {
+		//create further cluster entries
+		// clusterModel := newCluster(t)
+		// for _, clusterName := range []string{"dummyCluster1", "dummyCluster2"} {
+		// 	clusterModel.Cluster = clusterName
+		// 	state, err := inventory.CreateOrUpdate(1, clusterModel)
+		// 	require.NoError(t, err)
+		// 	compareState(t, state, clusterModel)
+		// }
+	})
+
+	t.Run("Get clusters which are not ready", func(t *testing.T) {
+		//create further cluster entries
+		// clusterModel := newCluster(t)
+		// for _, clusterName := range []string{"dummyCluster1", "dummyCluster2"} {
+		// 	clusterModel.Cluster = clusterName
+		// 	state, err := inventory.CreateOrUpdate(1, clusterModel)
+		// 	require.NoError(t, err)
+		// 	compareState(t, state, clusterModel)
+		// }
+	})
 }
 
 func newInventory(t *testing.T) Inventory {
@@ -37,12 +141,19 @@ func newInventory(t *testing.T) Inventory {
 	return inventory
 }
 
-func newCluster(t *testing.T) *keb.Cluster {
+func newCluster(t *testing.T, clusterID, clusterVersion int64) *keb.Cluster {
 	cluster := &keb.Cluster{}
 	data, err := ioutil.ReadFile(clusterJSONFile)
 	require.NoError(t, err)
 	err = json.Unmarshal(data, cluster)
 	require.NoError(t, err)
+
+	cluster.Cluster = fmt.Sprintf("cluster%d", clusterID)
+	cluster.RuntimeInput.Name = fmt.Sprintf("runtimeName%d", clusterVersion)
+	cluster.Metadata.GlobalAccountID = fmt.Sprintf("globalAccountId%d", clusterVersion)
+	cluster.KymaConfig.Profile = fmt.Sprintf("kymaProfile%d", clusterVersion)
+	cluster.KymaConfig.Version = fmt.Sprintf("kymaVersion%d", clusterVersion)
+
 	return cluster
 }
 

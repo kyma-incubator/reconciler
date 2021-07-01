@@ -6,6 +6,7 @@ type MockInventory struct {
 	ClustersToReconcileResult []*State
 	ClustersNotReadyResult    []*State
 	GetResult                 *State
+	GetLatestResult           *State
 	CreateOrUpdateResult      *State
 	DeleteResult              error
 	UpdateStatusResult        error
@@ -25,6 +26,10 @@ func (i *MockInventory) Delete(cluster string) error {
 
 func (i *MockInventory) Get(cluster string, configVersion int64) (*State, error) {
 	return i.GetResult, nil
+}
+
+func (i *MockInventory) GetLatest(cluster string) (*State, error) {
+	return i.GetLatestResult, nil
 }
 
 func (i *MockInventory) ClustersToReconcile() ([]*State, error) {

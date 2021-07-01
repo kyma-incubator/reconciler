@@ -13,9 +13,10 @@ import (
 
 type Inventory interface {
 	CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error)
-	UpdateStatus(State *State) error
+	UpdateStatus(State *State, status model.Status) (*State, error)
 	Delete(cluster string) error
 	Get(cluster string, configVersion int64) (*State, error)
+	GetLatest(cluster string) (*State, error)
 	ClustersToReconcile() ([]*State, error)
 	ClustersNotReady() ([]*State, error)
 }
@@ -43,7 +44,7 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 		if err != nil {
 			return nil, err
 		}
-		clusterStatusEntity, err := i.createStatus(clusterConfigurationEntity)
+		clusterStatusEntity, err := i.createStatus(clusterConfigurationEntity, model.ReconcilePending)
 		if err != nil {
 			return nil, err
 		}
@@ -79,8 +80,11 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 
 	//check if a new version is required
 	oldClusterEntity, err := i.latestCluster(cluster.Cluster)
-	if err == nil && oldClusterEntity.Equal(newClusterEntity) { //reuse existing cluster entity
-		return oldClusterEntity, nil
+	if err == nil {
+		if oldClusterEntity.Equal(newClusterEntity) { //reuse existing cluster entity
+			i.Logger.Debug(fmt.Sprintf("No differences found for cluster '%s': not creating new database entity", cluster.Cluster))
+			return oldClusterEntity, nil
+		}
 	} else if !repository.IsNotFoundError(err) {
 		//unexpected error
 		return nil, err
@@ -120,8 +124,12 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 
 	//check if a new version is required
 	oldConfigEntity, err := i.latestConfig(clusterEntity.Version)
-	if err == nil && oldConfigEntity.Equal(newConfigEntity) { //reuse existing config entity
-		return oldConfigEntity, nil
+	if err == nil {
+		if oldConfigEntity.Equal(newConfigEntity) { //reuse existing config entity
+			i.Logger.Debug(
+				fmt.Sprintf("No differences found for configuration of cluster '%s': not creating new database entity", cluster.Cluster))
+			return oldConfigEntity, nil
+		}
 	} else if !repository.IsNotFoundError(err) {
 		//unexpected error
 		return nil, err
@@ -140,16 +148,20 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	return newConfigEntity, nil
 }
 
-func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity) (*model.ClusterStatusEntity, error) {
+func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity, status model.Status) (*model.ClusterStatusEntity, error) {
 	newStatusEntity := &model.ClusterStatusEntity{
 		ConfigVersion: configEntity.Version,
-		Status:        model.ReconcilePending,
+		Status:        status,
 	}
 
 	//check if a new version is required
 	oldStatusEntity, err := i.latestStatus(configEntity.Version)
-	if err == nil && oldStatusEntity.Equal(newStatusEntity) { //reuse existing status entity
-		return oldStatusEntity, nil
+	if err == nil {
+		if oldStatusEntity.Equal(newStatusEntity) { //reuse existing status entity
+			i.Logger.Debug(
+				fmt.Sprintf("No differences found for status of cluster '%s': not creating new database entity", configEntity.Cluster))
+			return oldStatusEntity, nil
+		}
 	} else if !repository.IsNotFoundError(err) {
 		//unexpected error
 		return nil, err
@@ -168,13 +180,13 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 	return newStatusEntity, nil
 }
 
-func (i *DefaultInventory) UpdateStatus(State *State) error {
-	configEntity := &model.ClusterConfigurationEntity{}
-	q, err := db.NewQuery(i.Conn, configEntity)
+func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*State, error) {
+	newStatus, err := i.createStatus(state.Configuration, status)
 	if err != nil {
-		return err
+		return state, err
 	}
-	return q.Insert().Exec()
+	state.Status = newStatus
+	return state, nil
 }
 
 func (i *DefaultInventory) Delete(cluster string) error {
