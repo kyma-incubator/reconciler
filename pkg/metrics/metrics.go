@@ -8,5 +8,6 @@ import (
 
 func RegisterAll(inventory cluster.Inventory, logger *zap.Logger) {
 	reconciliationWaitingCollector := NewReconciliationWaitingCollector(inventory, logger)
-	prometheus.MustRegister(reconciliationWaitingCollector)
+	reconciliationNotReadyCollector := NewReconciliationNotReadyCollector(inventory, logger)
+	prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector)
 }
