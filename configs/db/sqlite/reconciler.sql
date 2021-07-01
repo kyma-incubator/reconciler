@@ -60,6 +60,7 @@ CREATE TABLE inventory_clusters (
 	"runtime" text NOT NULL,
 	"metadata" text NOT NULL,
 	"contract" int NOT NULL,
+	"deleted" boolean DEFAULT FALSE,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT inventory_clusters_pk UNIQUE ("cluster", "version")
 );
@@ -73,6 +74,7 @@ CREATE TABLE inventory_cluster_configs (
 	"components" text,
 	"administrators" text,
 	"contract" int NOT NULL,
+	"deleted" boolean DEFAULT FALSE,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT inventory_cluster_configs_pk UNIQUE ("cluster", "cluster_version", "version"),
 	FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON UPDATE CASCADE ON DELETE CASCADE

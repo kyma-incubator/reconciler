@@ -3,6 +3,7 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -192,7 +193,7 @@ func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*Sta
 func (i *DefaultInventory) Delete(cluster string) error {
 	dbOps := func() error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), cluster)
-		updateSQLTpl := "UPDATE %s SET %s=$1 WHERE %s=$2"
+		updateSQLTpl := "UPDATE %s SET %s=$1, %s=1 WHERE %s=$2"
 
 		//update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
@@ -204,7 +205,11 @@ func (i *DefaultInventory) Delete(cluster string) error {
 		if err != nil {
 			return err
 		}
-		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterColName)
+		clusterDelColName, err := clusterColHandler.ColumnName("Deleted")
+		if err != nil {
+			return err
+		}
+		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterDelColName, clusterColName)
 		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, cluster); err != nil {
 			return err
 		}
@@ -215,11 +220,15 @@ func (i *DefaultInventory) Delete(cluster string) error {
 		if err != nil {
 			return err
 		}
-		configColumnName, err := configColHandler.ColumnName("Cluster")
+		configClusterColName, err := configColHandler.ColumnName("Cluster")
 		if err != nil {
 			return err
 		}
-		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configColumnName, configColumnName)
+		configDelColName, err := configColHandler.ColumnName("Deleted")
+		if err != nil {
+			return err
+		}
+		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configClusterColName, configDelColName, configClusterColName)
 		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, cluster); err != nil {
 			return err
 		}
@@ -332,6 +341,7 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 	}
 	whereCond := map[string]interface{}{
 		"Version": clusterVersion,
+		"Deleted": false,
 	}
 	clusterEntity, err := q.Select().
 		Where(whereCond).
@@ -349,6 +359,7 @@ func (i *DefaultInventory) latestCluster(cluster string) (*model.ClusterEntity, 
 	}
 	whereCond := map[string]interface{}{
 		"Cluster": cluster,
+		"Deleted": false,
 	}
 	clusterEntity, err := q.Select().
 		Where(whereCond).
@@ -363,9 +374,77 @@ func (i *DefaultInventory) latestCluster(cluster string) (*model.ClusterEntity, 
 }
 
 func (i *DefaultInventory) ClustersToReconcile() ([]*State, error) {
-	return nil, fmt.Errorf("Method not implemented yet")
+	return i.clustersByStatus(model.ReconcilePending, model.ReconcileFailed)
 }
 
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
-	return nil, fmt.Errorf("Method not implemented yet")
+	return i.clustersByStatus(model.Reconciling, model.ReconcileFailed, model.Error)
+}
+
+func (i *DefaultInventory) clustersByStatus(statuses ...model.Status) ([]*State, error) {
+	//get DDL for sub-query
+	clusterStatus := &model.ClusterStatusEntity{}
+	statusColHandler, err := db.NewColumnHandler(clusterStatus)
+	if err != nil {
+		return nil, err
+	}
+	configIDColName, err := statusColHandler.ColumnName("ID")
+	if err != nil {
+		return nil, err
+	}
+	configVersionColName, err := statusColHandler.ColumnName("ConfigVersion")
+	if err != nil {
+		return nil, err
+	}
+	statusColName, err := statusColHandler.ColumnName("Status")
+	if err != nil {
+		return nil, err
+	}
+
+	//get cluster configurations of all "not-ready" clusters
+	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
+	if err != nil {
+		return nil, err
+	}
+	clusterConfigs, err := q.Select().
+		WhereIn("Version",
+			fmt.Sprintf(`SELECT %s FROM 
+				(
+					SELECT %s, MAX(%s)
+					FROM %s 
+					GROUP BY %s 
+					HAVING %s IN ('%s')
+				)`,
+				configVersionColName, configVersionColName, configIDColName,
+				clusterStatus.Table(),
+				configVersionColName,
+				statusColName, strings.Join(i.stausesToStrings(statuses), "','"))).
+		Where(map[string]interface{}{
+			"Deleted": false,
+		}).
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	//retreive clusters which require a reconciliation
+	result := []*State{}
+	for _, clusterConfig := range clusterConfigs {
+		clusterConfigEntity := clusterConfig.(*model.ClusterConfigurationEntity)
+		state, err := i.Get(clusterConfigEntity.Cluster, clusterConfigEntity.Version)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, state)
+	}
+
+	return result, nil
+}
+
+func (i *DefaultInventory) stausesToStrings(statuses []model.Status) []string {
+	result := []string{}
+	for _, status := range statuses {
+		result = append(result, string(status))
+	}
+	return result
 }

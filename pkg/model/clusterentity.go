@@ -16,6 +16,7 @@ type ClusterEntity struct {
 	Runtime  string    `db:"notNull"`
 	Metadata string    `db:"notNull"`
 	Contract int64     `db:"notNull"`
+	Deleted  bool      `db:"notNull"`
 	Created  time.Time `db:"readOnly"`
 }
 

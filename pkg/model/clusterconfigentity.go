@@ -19,6 +19,7 @@ type ClusterConfigurationEntity struct {
 	Components     string `db:"notNull"`
 	Administrators string
 	Contract       int64     `db:"notNull"`
+	Deleted        bool      `db:"notNull"`
 	Created        time.Time `db:"readOnly"`
 }
 

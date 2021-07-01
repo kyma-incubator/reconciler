@@ -19,6 +19,7 @@ const (
 )
 
 var clusterJSONFile = filepath.Join(".", "test", "cluster.json")
+var clusterStatuses = []model.Status{model.Error, model.Ready, model.ReconcileFailed, model.ReconcilePending, model.Reconciling}
 
 func TestInventory(t *testing.T) {
 	inventory := newInventory(t)
@@ -94,42 +95,33 @@ func TestInventory(t *testing.T) {
 	})
 
 	t.Run("Delete a cluster", func(t *testing.T) {
-		//create new cluster
-		expectedCluster := newCluster(t, 2, 1)
-		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
+		//get existing cluster
+		expectedCluster := newCluster(t, 1, 1)
+		_, err := inventory.GetLatest(expectedCluster.Cluster)
 		require.NoError(t, err)
-		compareState(t, clusterState, expectedCluster)
-		//get new cluster
-		_, err = inventory.GetLatest(expectedCluster.Cluster)
-		require.NoError(t, err)
-		//delete new cluster
+		//delete cluster
 		require.NoError(t, inventory.Delete(expectedCluster.Cluster))
-		//cluster is missing
+		//cluster is now missing
 		_, err = inventory.GetLatest(expectedCluster.Cluster)
 		require.Error(t, err)
 		require.True(t, repository.IsNotFoundError(err))
 	})
 
-	t.Run("Get clusters to reconcile", func(t *testing.T) {
-		//create further cluster entries
-		// clusterModel := newCluster(t)
-		// for _, clusterName := range []string{"dummyCluster1", "dummyCluster2"} {
-		// 	clusterModel.Cluster = clusterName
-		// 	state, err := inventory.CreateOrUpdate(1, clusterModel)
-		// 	require.NoError(t, err)
-		// 	compareState(t, state, clusterModel)
-		// }
-	})
-
-	t.Run("Get clusters which are not ready", func(t *testing.T) {
-		//create further cluster entries
-		// clusterModel := newCluster(t)
-		// for _, clusterName := range []string{"dummyCluster1", "dummyCluster2"} {
-		// 	clusterModel.Cluster = clusterName
-		// 	state, err := inventory.CreateOrUpdate(1, clusterModel)
-		// 	require.NoError(t, err)
-		// 	compareState(t, state, clusterModel)
-		// }
+	t.Run("Get clusters with paricular status", func(t *testing.T) {
+		// //create for each cluster-status a new cluster
+		for idx, clusterStatus := range clusterStatuses {
+			expectedCluster := newCluster(t, int64(idx+100), 1)
+			clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
+			require.NoError(t, err)
+			_, err = inventory.UpdateStatus(clusterState, clusterStatus)
+			require.NoError(t, err)
+		}
+		statesReconcile, err := inventory.ClustersToReconcile() //TODO: check particular states and cluster IDs
+		require.NoError(t, err)
+		require.Len(t, statesReconcile, 2) //TODO: check particular states and cluster IDs
+		statesNotReady, err := inventory.ClustersNotReady()
+		require.NoError(t, err)
+		require.Len(t, statesNotReady, 3) //TODO: check particular states and cluster IDs
 	})
 }
 
