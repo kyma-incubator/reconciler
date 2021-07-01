@@ -4,18 +4,11 @@ import (
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
 	prometheusSubsystem = "reconciler"
-
-	statusError            float64 = 0
-	statusReady            float64 = 1
-	statusReconcilePending float64 = 2
-	statusReconciling      float64 = 3
-	statusReconcileFailed  float64 = 4
 )
 
 // ReconciliationStatusCollector provides the following metrics:
@@ -50,24 +43,14 @@ func (c *ReconciliationStatusCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *ReconciliationStatusCollector) OnClusterStateUpdate(state *cluster.State) error {
-
-	var resultValue float64
-	switch state.Status.Status {
-	case model.Error:
-		resultValue = statusError
-	case model.Ready:
-		resultValue = statusReady
-	case model.ReconcilePending:
-		resultValue = statusReconcilePending
-	case model.Reconciling:
-		resultValue = statusReconciling
-	case model.ReconcileFailed:
-		resultValue = statusReconcileFailed
+	status, err := state.Status.GetClusterStatus()
+	if err != nil {
+		return err
 	}
 
 	c.reconciliationStatusGauge.
-		WithLabelValues(state.Cluster.Cluster, state.Cluster.RuntimeName, fmt.Sprintf("%d", state.Cluster.Version), fmt.Sprintf("%d", state.Configuration.Version)).
-		Set(resultValue)
+		WithLabelValues(state.Cluster.Cluster, state.Cluster.Runtime, fmt.Sprintf("%d", state.Cluster.Version), fmt.Sprintf("%d", state.Configuration.Version)).
+		Set(status.ID)
 
 	return nil
 }
