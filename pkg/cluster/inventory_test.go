@@ -139,6 +139,75 @@ func TestInventory(t *testing.T) {
 	})
 }
 
+func TestInventoryMultiplePendingClusterConfigs(t *testing.T) {
+	inventory := newInventory(t)
+	//create cluster1, version1, status: Ready
+	cluster1v1 := newCluster(t, int64(1), 1)
+	cluster1State1a, err := inventory.CreateOrUpdate(1, cluster1v1)
+	require.NoError(t, err)
+	require.Equal(t, model.ReconcilePending, cluster1State1a.Status.Status)
+	cluster1State1b, err := inventory.UpdateStatus(cluster1State1a, model.Ready)
+	require.NoError(t, err)
+	require.Equal(t, model.Ready, cluster1State1b.Status.Status)
+
+	//create cluster1, version2, status: ReconcileFailed
+	cluster1v2 := newCluster(t, int64(1), 2)
+	cluster1State2a, err := inventory.CreateOrUpdate(1, cluster1v2)
+	require.NoError(t, err)
+	require.Equal(t, model.ReconcilePending, cluster1State2a.Status.Status)
+	cluster1State2b, err := inventory.UpdateStatus(cluster1State2a, model.ReconcileFailed)
+	require.NoError(t, err)
+	require.Equal(t, model.ReconcileFailed, cluster1State2b.Status.Status)
+
+	//create cluster1, version3, status: ReconcilePending
+	cluster1v3 := newCluster(t, int64(1), 3)
+	expectedCluster1State3, err := inventory.CreateOrUpdate(1, cluster1v3) //<- EXPECTED STATE
+	require.NoError(t, err)
+	require.Equal(t, model.ReconcilePending, expectedCluster1State3.Status.Status)
+
+	//create cluster2, version1, status: Error
+	cluster2v1 := newCluster(t, int64(2), 1)
+	cluster2State1a, err := inventory.CreateOrUpdate(1, cluster2v1)
+	require.NoError(t, err)
+	require.Equal(t, model.ReconcilePending, cluster2State1a.Status.Status)
+	cluster2State1b, err := inventory.UpdateStatus(cluster2State1a, model.Error)
+	require.NoError(t, err)
+	require.Equal(t, model.Error, cluster2State1b.Status.Status)
+
+	//create cluster2, version2, status: ReconcileFailed
+	cluster2v2 := newCluster(t, int64(2), 2)
+	cluster2State2a, err := inventory.CreateOrUpdate(1, cluster2v2)
+	require.NoError(t, err)
+	require.Equal(t, model.ReconcilePending, cluster2State2a.Status.Status)
+	expectedCluster2State2b, err := inventory.UpdateStatus(cluster2State2a, model.ReconcileFailed) //<- EXPECTED STATE
+	require.NoError(t, err)
+	require.Equal(t, model.ReconcileFailed, expectedCluster2State2b.Status.Status)
+
+	//create cluster3, version1, status: ReconcilePending
+	cluster3v1 := newCluster(t, int64(3), 1)
+	cluster3State1a, err := inventory.CreateOrUpdate(1, cluster3v1)
+	require.NoError(t, err)
+	require.Equal(t, model.ReconcilePending, cluster3State1a.Status.Status)
+	cluster3State1b, err := inventory.UpdateStatus(cluster3State1a, model.Ready)
+	require.NoError(t, err)
+	require.Equal(t, model.Ready, cluster3State1b.Status.Status)
+	expectedCluster3State1c, err := inventory.UpdateStatus(cluster3State1b, model.Error) //<- EXPECTED STATE
+	require.NoError(t, err)
+	require.Equal(t, model.Error, expectedCluster3State1c.Status.Status)
+
+	//get clusters to reconcile
+	statesReconcile, err := inventory.ClustersToReconcile()
+	require.NoError(t, err)
+	require.Len(t, statesReconcile, 2)
+	require.ElementsMatch(t, []*State{expectedCluster1State3, expectedCluster2State2b}, statesReconcile)
+
+	//get clusters in not ready state
+	statesNotReady, err := inventory.ClustersNotReady()
+	require.NoError(t, err)
+	require.Len(t, statesNotReady, 2)
+	require.ElementsMatch(t, []*State{expectedCluster2State2b, expectedCluster3State1c}, statesNotReady)
+}
+
 func listStatuses(states []*State) []model.Status {
 	result := []model.Status{}
 	for _, state := range states {
