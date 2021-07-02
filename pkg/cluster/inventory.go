@@ -195,7 +195,7 @@ func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*Sta
 func (i *DefaultInventory) Delete(cluster string) error {
 	dbOps := func() error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), cluster)
-		updateSQLTpl := "UPDATE %s SET %s=$1, %s=1 WHERE %s=$2"
+		updateSQLTpl := "UPDATE %s SET %s=$1, %s='TRUE' WHERE %s=$2 OR %s=$3" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
 
 		//update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
@@ -211,8 +211,8 @@ func (i *DefaultInventory) Delete(cluster string) error {
 		if err != nil {
 			return err
 		}
-		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterDelColName, clusterColName)
-		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, cluster); err != nil {
+		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterDelColName, clusterColName, clusterColName)
+		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, cluster, newClusterName); err != nil {
 			return err
 		}
 
@@ -230,8 +230,8 @@ func (i *DefaultInventory) Delete(cluster string) error {
 		if err != nil {
 			return err
 		}
-		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configClusterColName, configDelColName, configClusterColName)
-		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, cluster); err != nil {
+		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configClusterColName, configDelColName, configClusterColName, configClusterColName)
+		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, cluster, newClusterName); err != nil {
 			return err
 		}
 
@@ -418,25 +418,22 @@ func (i *DefaultInventory) clustersByStatus(statuses ...model.Status) ([]*State,
 	}
 
 	/*
-		SELECT * FROM inventory_cluster_config_statuses
-		WHERE cluster_version IN (
-			SELECT MAX(cluster_version) FROM inventory_cluster_config_statuses GROUP BY cluster
-		)
-		GROUP BY cluster
-		HAVING MAX(config_version) AND MAX(id) AND status IN ('xxx', 'yyy')
+		select config_version from inventory_cluster_config_statuses where id in (
+			select maxid from (
+				select max(cluster_version) as maxcfg, max(id) as maxid from inventory_cluster_config_statuses group by cluster
+			) as maxid
+		) and status in ('xxx', 'yyy')
 	*/
 	clusterConfigs, err := q.Select().
 		WhereIn("Version",
-			fmt.Sprintf(`SELECT %s FROM %s
-				WHERE %s IN (
-					SELECT MAX(%s) FROM %s GROUP BY %s
-				)
-				GROUP BY %s
-				HAVING MAX(%s) AND MAX(%s) AND %s IN ('%s')`,
-				configVersionColName, clusterStatus.Table(),
-				clusterVersionColName, clusterVersionColName, clusterStatus.Table(), clusterColName,
-				clusterColName,
-				configVersionColName, idColName, statusColName, strings.Join(i.stausesToStrings(statuses), "','"))).
+			fmt.Sprintf(`SELECT %s FROM %s WHERE %s IN (
+							SELECT maxid FROM (
+								SELECT MAX(%s) AS maxcfg, MAX(%s) AS maxid FROM %s GROUP BY %s
+							) AS maxid
+						) AND %s IN ('%s')`,
+				configVersionColName, clusterStatus.Table(), idColName,
+				clusterVersionColName, idColName, clusterStatus.Table(), clusterColName,
+				statusColName, strings.Join(i.stausesToStrings(statuses), "','"))).
 		Where(map[string]interface{}{
 			"Deleted": false,
 		}).

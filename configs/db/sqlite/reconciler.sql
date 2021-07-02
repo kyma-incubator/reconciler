@@ -87,5 +87,5 @@ CREATE TABLE inventory_cluster_config_statuses (
 	"config_version" int NOT NULL,
 	"status" text NOT NULL,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON DELETE CASCADE
+	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );

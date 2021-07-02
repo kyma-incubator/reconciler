@@ -83,9 +83,9 @@ CREATE TABLE inventory_cluster_configs (
 CREATE TABLE inventory_cluster_config_statuses (
 	"id" SERIAL UNIQUE,
 	"cluster" text NOT NULL,
-	"cluster_version" text NOT NULL,
+	"cluster_version" int NOT NULL,
 	"config_version" int NOT NULL,
 	"status" text NOT NULL,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON DELETE CASCADE
+	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
