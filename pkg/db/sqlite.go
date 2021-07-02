@@ -34,6 +34,7 @@ func (sc *SqliteConnection) QueryRow(query string, args ...interface{}) DataRow 
 	sc.logger.Debug(fmt.Sprintf("Sqlite3 QueryRow(): %s | %v", query, args))
 	return sc.db.QueryRow(query, args...)
 }
+
 func (sc *SqliteConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	sc.logger.Debug(fmt.Sprintf("Sqlite3 Query(): %s | %v", query, args))
 	rows, err := sc.db.Query(query, args...)
@@ -42,6 +43,7 @@ func (sc *SqliteConnection) Query(query string, args ...interface{}) (DataRows, 
 	}
 	return rows, err
 }
+
 func (sc *SqliteConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
 	sc.logger.Debug(fmt.Sprintf("Sqlite3 Exec(): %s | %v", query, args))
 	result, err := sc.db.Exec(query, args...)
@@ -50,13 +52,19 @@ func (sc *SqliteConnection) Exec(query string, args ...interface{}) (sql.Result,
 	}
 	return result, err
 }
+
 func (sc *SqliteConnection) Begin() (*sql.Tx, error) {
 	sc.logger.Debug("Sqlite3 Begin()")
 	return sc.db.Begin()
 }
+
 func (sc *SqliteConnection) Close() error {
 	sc.logger.Debug("Sqlite3 Close()")
 	return sc.db.Close()
+}
+
+func (sc *SqliteConnection) Type() DBType {
+	return SQLite
 }
 
 type SqliteConnectionFactory struct {

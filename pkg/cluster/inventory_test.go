@@ -121,7 +121,7 @@ func TestInventory(t *testing.T) {
 		}()
 
 		//check clusters to reconcile
-		statesReconcile, err := inventory.ClustersToReconcile()
+		statesReconcile, err := inventory.ClustersToReconcile(0)
 		require.NoError(t, err)
 		require.Len(t, statesReconcile, 2)
 		require.ElementsMatch(t,
@@ -172,7 +172,7 @@ func TestInventory(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, model.Error, cluster2State1b.Status.Status)
 
-		//create cluster3, version1, status: ReconcilePending
+		//create cluster3, version1, status: Error
 		cluster3v1 := newCluster(t, int64(3), 1)
 		cluster3State1a, err := inventory.CreateOrUpdate(1, cluster3v1)
 		require.NoError(t, err)
@@ -201,7 +201,7 @@ func TestInventory(t *testing.T) {
 		}()
 
 		//get clusters to reconcile
-		statesReconcile, err := inventory.ClustersToReconcile()
+		statesReconcile, err := inventory.ClustersToReconcile(0)
 		require.NoError(t, err)
 		require.Len(t, statesReconcile, 2)
 		require.ElementsMatch(t, []*State{expectedCluster1State3, expectedCluster2State2b}, statesReconcile)

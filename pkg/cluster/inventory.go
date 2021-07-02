@@ -18,13 +18,13 @@ type Inventory interface {
 	Delete(cluster string) error
 	Get(cluster string, configVersion int64) (*State, error)
 	GetLatest(cluster string) (*State, error)
-	ClustersToReconcile() ([]*State, error)
+	Changes(cluster string, offset time.Duration) ([]*State, error)
+	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
 }
 
 type DefaultInventory struct {
 	*repository.Repository
-	reconcileInterval time.Duration
 }
 
 func NewInventory(dbFac db.ConnectionFactory, debug bool) (Inventory, error) {
@@ -32,7 +32,7 @@ func NewInventory(dbFac db.ConnectionFactory, debug bool) (Inventory, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DefaultInventory{repo, 0}, nil
+	return &DefaultInventory{repo}, nil
 }
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
@@ -375,15 +375,15 @@ func (i *DefaultInventory) latestCluster(cluster string) (*model.ClusterEntity, 
 	return clusterEntity.(*model.ClusterEntity), nil
 }
 
-func (i *DefaultInventory) ClustersToReconcile() ([]*State, error) {
-	return i.clustersByStatus(model.ReconcilePending, model.ReconcileFailed)
+func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
+	return i.filterClusters(reconcileInterval, model.ReconcilePending, model.ReconcileFailed)
 }
 
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
-	return i.clustersByStatus(model.Reconciling, model.ReconcileFailed, model.Error)
+	return i.filterClusters(0, model.Reconciling, model.ReconcileFailed, model.Error)
 }
 
-func (i *DefaultInventory) clustersByStatus(statuses ...model.Status) ([]*State, error) {
+func (i *DefaultInventory) filterClusters(reconcileInterval time.Duration, statuses ...model.Status) ([]*State, error) {
 	//get DDL for sub-query
 	clusterStatus := &model.ClusterStatusEntity{}
 	statusColHandler, err := db.NewColumnHandler(clusterStatus)
@@ -410,6 +410,10 @@ func (i *DefaultInventory) clustersByStatus(statuses ...model.Status) ([]*State,
 	if err != nil {
 		return nil, err
 	}
+	createdColName, err := statusColHandler.ColumnName("Created")
+	if err != nil {
+		return nil, err
+	}
 
 	//get cluster configurations of all "not-ready" clusters
 	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
@@ -422,18 +426,40 @@ func (i *DefaultInventory) clustersByStatus(statuses ...model.Status) ([]*State,
 			select maxid from (
 				select max(cluster_version) as maxcfg, max(id) as maxid from inventory_cluster_config_statuses group by cluster
 			) as maxid
-		) and status in ('xxx', 'yyy')
+		) and (status in ('xxx', 'yyy') or (status = 'ready' AND created >=  NOW() - INTERVAL '12345 SECOND'))
 	*/
+	statusFilter := fmt.Sprintf("%s IN ('%s')", statusColName, strings.Join(i.stausesToStrings(statuses), "','"))
+	if reconcileInterval.Seconds() > 0 {
+		switch i.Conn.Type() {
+		case db.Postgres:
+			statusFilter = fmt.Sprintf(`(
+				%s
+				OR (
+					%s = '%s' AND %s >= NOW() - INTERVAL '%.0f SECOND')
+				)`,
+				statusFilter, statusColName, model.Ready, createdColName, reconcileInterval.Seconds())
+		case db.SQLite:
+			statusFilter = fmt.Sprintf(`(
+				%s
+				OR (
+					%s = '%s' AND %s >= DATETIME('now', '-%.0f SECONDS'))
+				)`,
+				statusFilter, statusColName, model.Ready, createdColName, reconcileInterval.Seconds())
+		default:
+			return nil, fmt.Errorf("Database type '%s' is not supported by this method", i.Conn.Type())
+		}
+	}
+
 	clusterConfigs, err := q.Select().
 		WhereIn("Version",
 			fmt.Sprintf(`SELECT %s FROM %s WHERE %s IN (
 							SELECT maxid FROM (
 								SELECT MAX(%s) AS maxcfg, MAX(%s) AS maxid FROM %s GROUP BY %s
 							) AS maxid
-						) AND %s IN ('%s')`,
+						) AND %s`,
 				configVersionColName, clusterStatus.Table(), idColName,
 				clusterVersionColName, idColName, clusterStatus.Table(), clusterColName,
-				statusColName, strings.Join(i.stausesToStrings(statuses), "','"))).
+				statusFilter)).
 		Where(map[string]interface{}{
 			"Deleted": false,
 		}).
@@ -462,4 +488,8 @@ func (i *DefaultInventory) stausesToStrings(statuses []model.Status) []string {
 		result = append(result, string(status))
 	}
 	return result
+}
+
+func (i *DefaultInventory) Changes(cluster string, offset time.Duration) ([]*State, error) {
+	return nil, fmt.Errorf("Not implemented yet")
 }
