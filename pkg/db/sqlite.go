@@ -63,7 +63,7 @@ func (sc *SqliteConnection) Close() error {
 	return sc.db.Close()
 }
 
-func (sc *SqliteConnection) Type() DBType {
+func (sc *SqliteConnection) Type() Type {
 	return SQLite
 }
 

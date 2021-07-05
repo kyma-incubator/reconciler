@@ -61,7 +61,7 @@ func (pc *PostgresConnection) Close() error {
 	return pc.db.Close()
 }
 
-func (sc *PostgresConnection) Type() DBType {
+func (sc *PostgresConnection) Type() Type {
 	return Postgres
 }
 
