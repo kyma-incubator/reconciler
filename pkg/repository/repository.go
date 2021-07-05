@@ -74,6 +74,9 @@ func (e *EntityNotFoundError) Error() string {
 }
 
 func IsNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
 	_, ok := err.(*EntityNotFoundError)
 	return ok
 }
