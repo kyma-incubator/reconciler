@@ -34,7 +34,12 @@ func (c *ReconciliationWaitingCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements the prometheus.Collector interface.
 func (c *ReconciliationWaitingCollector) Collect(ch chan<- prometheus.Metric) {
-	clusters, err := c.inventory.ClustersToReconcile()
+	if c.inventory == nil {
+		c.logger.Error("unable to register metric: inventory is nil")
+		return
+	}
+
+	clusters, err := c.inventory.ClustersToReconcile(0)
 	if err != nil {
 		c.logger.Error(err.Error())
 		return
