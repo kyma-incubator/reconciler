@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/fatih/structs"
 )
@@ -103,14 +104,18 @@ func (es *EntityMarshaller) setFieldValue(field *structs.Field, value interface{
 		}
 		err = field.Set(float64Value)
 	case reflect.Bool:
-		//some DBs handle booleans as integer values (0/1)
-		boolValue, ok := value.(bool)
-		if !ok {
-			int64Value, ok := value.(int64)
-			if !ok {
-				return es.fireCastError(reflect.Bool, field, value)
-			}
-			boolValue = (int64Value > 0)
+		var boolValue bool
+		switch strings.ToLower(fmt.Sprintf("%v", value)) {
+		case "true":
+			boolValue = true
+		case "1":
+			boolValue = true
+		case "false":
+			boolValue = false
+		case "0":
+			boolValue = false
+		default:
+			return es.fireCastError(reflect.Bool, field, value)
 		}
 		err = field.Set(boolValue)
 	case reflect.String:

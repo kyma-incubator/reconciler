@@ -3,6 +3,7 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -13,16 +14,17 @@ import (
 
 type Inventory interface {
 	CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error)
-	UpdateStatus(State *State) error
+	UpdateStatus(State *State, status model.Status) (*State, error)
 	Delete(cluster string) error
 	Get(cluster string, configVersion int64) (*State, error)
-	ClustersToReconcile() ([]*State, error)
+	GetLatest(cluster string) (*State, error)
+	Changes(cluster string, offset time.Duration) ([]*State, error)
+	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
 }
 
 type DefaultInventory struct {
 	*repository.Repository
-	reconcileInterval time.Duration
 }
 
 func NewInventory(dbFac db.ConnectionFactory, debug bool) (Inventory, error) {
@@ -30,7 +32,7 @@ func NewInventory(dbFac db.ConnectionFactory, debug bool) (Inventory, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DefaultInventory{repo, 0}, nil
+	return &DefaultInventory{repo}, nil
 }
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
@@ -43,7 +45,7 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 		if err != nil {
 			return nil, err
 		}
-		clusterStatusEntity, err := i.createStatus(clusterConfigurationEntity)
+		clusterStatusEntity, err := i.createStatus(clusterConfigurationEntity, model.ReconcilePending)
 		if err != nil {
 			return nil, err
 		}
@@ -79,8 +81,11 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 
 	//check if a new version is required
 	oldClusterEntity, err := i.latestCluster(cluster.Cluster)
-	if err == nil && oldClusterEntity.Equal(newClusterEntity) { //reuse existing cluster entity
-		return oldClusterEntity, nil
+	if err == nil {
+		if oldClusterEntity.Equal(newClusterEntity) { //reuse existing cluster entity
+			i.Logger.Debug(fmt.Sprintf("No differences found for cluster '%s': not creating new database entity", cluster.Cluster))
+			return oldClusterEntity, nil
+		}
 	} else if !repository.IsNotFoundError(err) {
 		//unexpected error
 		return nil, err
@@ -120,8 +125,12 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 
 	//check if a new version is required
 	oldConfigEntity, err := i.latestConfig(clusterEntity.Version)
-	if err == nil && oldConfigEntity.Equal(newConfigEntity) { //reuse existing config entity
-		return oldConfigEntity, nil
+	if err == nil {
+		if oldConfigEntity.Equal(newConfigEntity) { //reuse existing config entity
+			i.Logger.Debug(
+				fmt.Sprintf("No differences found for configuration of cluster '%s': not creating new database entity", cluster.Cluster))
+			return oldConfigEntity, nil
+		}
 	} else if !repository.IsNotFoundError(err) {
 		//unexpected error
 		return nil, err
@@ -140,16 +149,22 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	return newConfigEntity, nil
 }
 
-func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity) (*model.ClusterStatusEntity, error) {
+func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity, status model.Status) (*model.ClusterStatusEntity, error) {
 	newStatusEntity := &model.ClusterStatusEntity{
-		ConfigVersion: configEntity.Version,
-		Status:        model.ReconcilePending,
+		Cluster:        configEntity.Cluster,
+		ClusterVersion: configEntity.ClusterVersion,
+		ConfigVersion:  configEntity.Version,
+		Status:         status,
 	}
 
 	//check if a new version is required
 	oldStatusEntity, err := i.latestStatus(configEntity.Version)
-	if err == nil && oldStatusEntity.Equal(newStatusEntity) { //reuse existing status entity
-		return oldStatusEntity, nil
+	if err == nil {
+		if oldStatusEntity.Equal(newStatusEntity) { //reuse existing status entity
+			i.Logger.Debug(
+				fmt.Sprintf("No differences found for status of cluster '%s': not creating new database entity", configEntity.Cluster))
+			return oldStatusEntity, nil
+		}
 	} else if !repository.IsNotFoundError(err) {
 		//unexpected error
 		return nil, err
@@ -168,19 +183,19 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 	return newStatusEntity, nil
 }
 
-func (i *DefaultInventory) UpdateStatus(State *State) error {
-	configEntity := &model.ClusterConfigurationEntity{}
-	q, err := db.NewQuery(i.Conn, configEntity)
+func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*State, error) {
+	newStatus, err := i.createStatus(state.Configuration, status)
 	if err != nil {
-		return err
+		return state, err
 	}
-	return q.Insert().Exec()
+	state.Status = newStatus
+	return state, nil
 }
 
 func (i *DefaultInventory) Delete(cluster string) error {
 	dbOps := func() error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), cluster)
-		updateSQLTpl := "UPDATE %s SET %s=$1 WHERE %s=$2"
+		updateSQLTpl := "UPDATE %s SET %s=$1, %s='TRUE' WHERE %s=$2 OR %s=$3" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
 
 		//update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
@@ -192,8 +207,12 @@ func (i *DefaultInventory) Delete(cluster string) error {
 		if err != nil {
 			return err
 		}
-		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterColName)
-		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, cluster); err != nil {
+		clusterDelColName, err := clusterColHandler.ColumnName("Deleted")
+		if err != nil {
+			return err
+		}
+		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterDelColName, clusterColName, clusterColName)
+		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, cluster, newClusterName); err != nil {
 			return err
 		}
 
@@ -203,12 +222,16 @@ func (i *DefaultInventory) Delete(cluster string) error {
 		if err != nil {
 			return err
 		}
-		configColumnName, err := configColHandler.ColumnName("Cluster")
+		configClusterColName, err := configColHandler.ColumnName("Cluster")
 		if err != nil {
 			return err
 		}
-		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configColumnName, configColumnName)
-		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, cluster); err != nil {
+		configDelColName, err := configColHandler.ColumnName("Deleted")
+		if err != nil {
+			return err
+		}
+		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configClusterColName, configDelColName, configClusterColName, configClusterColName)
+		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, cluster, newClusterName); err != nil {
 			return err
 		}
 
@@ -320,6 +343,7 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 	}
 	whereCond := map[string]interface{}{
 		"Version": clusterVersion,
+		"Deleted": false,
 	}
 	clusterEntity, err := q.Select().
 		Where(whereCond).
@@ -337,6 +361,7 @@ func (i *DefaultInventory) latestCluster(cluster string) (*model.ClusterEntity, 
 	}
 	whereCond := map[string]interface{}{
 		"Cluster": cluster,
+		"Deleted": false,
 	}
 	clusterEntity, err := q.Select().
 		Where(whereCond).
@@ -350,10 +375,121 @@ func (i *DefaultInventory) latestCluster(cluster string) (*model.ClusterEntity, 
 	return clusterEntity.(*model.ClusterEntity), nil
 }
 
-func (i *DefaultInventory) ClustersToReconcile() ([]*State, error) {
-	return nil, fmt.Errorf("Method not implemented yet")
+func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
+	return i.filterClusters(reconcileInterval, model.ReconcilePending, model.ReconcileFailed)
 }
 
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
-	return nil, fmt.Errorf("Method not implemented yet")
+	return i.filterClusters(0, model.Reconciling, model.ReconcileFailed, model.Error)
+}
+
+func (i *DefaultInventory) filterClusters(reconcileInterval time.Duration, statuses ...model.Status) ([]*State, error) {
+	//get DDL for sub-query
+	clusterStatus := &model.ClusterStatusEntity{}
+	statusColHandler, err := db.NewColumnHandler(clusterStatus)
+	if err != nil {
+		return nil, err
+	}
+	idColName, err := statusColHandler.ColumnName("ID")
+	if err != nil {
+		return nil, err
+	}
+	clusterColName, err := statusColHandler.ColumnName("Cluster")
+	if err != nil {
+		return nil, err
+	}
+	clusterVersionColName, err := statusColHandler.ColumnName("ClusterVersion")
+	if err != nil {
+		return nil, err
+	}
+	configVersionColName, err := statusColHandler.ColumnName("ConfigVersion")
+	if err != nil {
+		return nil, err
+	}
+	statusColName, err := statusColHandler.ColumnName("Status")
+	if err != nil {
+		return nil, err
+	}
+	createdColName, err := statusColHandler.ColumnName("Created")
+	if err != nil {
+		return nil, err
+	}
+
+	//get cluster configurations of all "not-ready" clusters
+	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
+	if err != nil {
+		return nil, err
+	}
+
+	/*
+		select config_version from inventory_cluster_config_statuses where id in (
+			select maxid from (
+				select max(cluster_version) as maxcfg, max(id) as maxid from inventory_cluster_config_statuses group by cluster
+			) as maxid
+		) and (status in ('xxx', 'yyy') or (status = 'ready' AND created >=  NOW() - INTERVAL '12345 SECOND'))
+	*/
+	statusFilter := fmt.Sprintf("%s IN ('%s')", statusColName, strings.Join(i.stausesToStrings(statuses), "','"))
+	if reconcileInterval.Seconds() > 0 {
+		switch i.Conn.Type() {
+		case db.Postgres:
+			statusFilter = fmt.Sprintf(`(
+				%s
+				OR (
+					%s = '%s' AND %s >= NOW() - INTERVAL '%.0f SECOND')
+				)`,
+				statusFilter, statusColName, model.Ready, createdColName, reconcileInterval.Seconds())
+		case db.SQLite:
+			statusFilter = fmt.Sprintf(`(
+				%s
+				OR (
+					%s = '%s' AND %s >= DATETIME('now', '-%.0f SECONDS'))
+				)`,
+				statusFilter, statusColName, model.Ready, createdColName, reconcileInterval.Seconds())
+		default:
+			return nil, fmt.Errorf("Database type '%s' is not supported by this method", i.Conn.Type())
+		}
+	}
+
+	clusterConfigs, err := q.Select().
+		WhereIn("Version",
+			fmt.Sprintf(`SELECT %s FROM %s WHERE %s IN (
+							SELECT maxid FROM (
+								SELECT MAX(%s) AS maxcfg, MAX(%s) AS maxid FROM %s GROUP BY %s
+							) AS maxid
+						) AND %s`,
+				configVersionColName, clusterStatus.Table(), idColName,
+				clusterVersionColName, idColName, clusterStatus.Table(), clusterColName,
+				statusFilter)).
+		Where(map[string]interface{}{
+			"Deleted": false,
+		}).
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	//retreive clusters which require a reconciliation
+	result := []*State{}
+	for _, clusterConfig := range clusterConfigs {
+		clusterConfigEntity := clusterConfig.(*model.ClusterConfigurationEntity)
+		state, err := i.Get(clusterConfigEntity.Cluster, clusterConfigEntity.Version)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, state)
+	}
+
+	return result, nil
+}
+
+func (i *DefaultInventory) stausesToStrings(statuses []model.Status) []string {
+	result := []string{}
+	for _, status := range statuses {
+		result = append(result, string(status))
+	}
+	return result
+}
+
+func (i *DefaultInventory) Changes(cluster string, offset time.Duration) ([]*State, error) {
+	return nil, fmt.Errorf("Not implemented yet")
 }

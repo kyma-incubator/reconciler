@@ -2,6 +2,14 @@ package db
 
 import "database/sql"
 
+type Type string
+
+const (
+	Postgres Type = "postgres"
+	SQLite   Type = "sqlite"
+	Mock     Type = "mock"
+)
+
 //Introducing our own interface to be able to add logging capabilities
 //and make testing simpler (allows injection of mocks)
 type Connection interface {
@@ -10,6 +18,7 @@ type Connection interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Begin() (*sql.Tx, error)
 	Close() error
+	Type() Type
 }
 
 type ConnectionFactory interface {

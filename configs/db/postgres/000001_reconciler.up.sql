@@ -60,19 +60,21 @@ CREATE TABLE inventory_clusters (
 	"runtime" text NOT NULL,
 	"metadata" text NOT NULL,
 	"contract" int NOT NULL,
+	"deleted" boolean DEFAULT FALSE,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
 	CONSTRAINT inventory_clusters_pk PRIMARY KEY ("cluster", "version")
 );
 
 CREATE TABLE inventory_cluster_configs (
 	"version" SERIAL UNIQUE, --can also be used as unique identifier for a cluster config
-	"cluster" text  NOT NULL,
+	"cluster" text NOT NULL,
 	"cluster_version" int NOT NULL,
-	"kyma_version" text  NOT NULL,
+	"kyma_version" text NOT NULL,
 	"kyma_profile" text,
 	"components" text,
 	"administrators" text,
 	"contract" int NOT NULL,
+	"deleted" boolean DEFAULT FALSE,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
 	CONSTRAINT inventory_cluster_configs_pk PRIMARY KEY ("cluster", "cluster_version", "version"),
 	FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON UPDATE CASCADE ON DELETE CASCADE
@@ -80,8 +82,10 @@ CREATE TABLE inventory_cluster_configs (
 
 CREATE TABLE inventory_cluster_config_statuses (
 	"id" SERIAL UNIQUE,
+	"cluster" text NOT NULL,
+	"cluster_version" int NOT NULL,
 	"config_version" int NOT NULL,
 	"status" text NOT NULL,
 	"created" TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-	FOREIGN KEY("config_version") REFERENCES inventory_cluster_configs("version") ON DELETE CASCADE
+	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
