@@ -72,7 +72,7 @@ func (c *MockConnection) Close() error {
 	return nil
 }
 
-func (sc *MockConnection) Type() Type {
+func (c *MockConnection) Type() Type {
 	return Mock
 }
 
