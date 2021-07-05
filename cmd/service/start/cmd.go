@@ -14,8 +14,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -89,6 +91,10 @@ func startServer(o *Options) *http.Server {
 		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramCluster, paramConfigVersion),
 		callHandler(o, get)).
 		Methods("GET")
+
+	//metrics endpoint
+	metrics.RegisterAll(o.Inventory(), o.Logger())
+	router.Handle("/metrics", promhttp.Handler())
 
 	//start server
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", o.Port), Handler: router}
