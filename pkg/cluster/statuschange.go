@@ -12,5 +12,5 @@ type StatusChange struct {
 
 func (s *StatusChange) String() string {
 	return fmt.Sprintf("StatusChange [Status=%s,Duration=%s]",
-		s.Status, s.Duration)
+		*s.Status, s.Duration)
 }
