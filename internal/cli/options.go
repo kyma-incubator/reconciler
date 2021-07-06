@@ -92,11 +92,11 @@ func (o *Options) initRepository() *kv.Repository {
 
 	repoMutex.Lock()
 	if o.connectionFactory == nil {
-		o.Logger().Error("Failed to create configuration entry repository because connection factory is undefined")
+		o.Logger().Fatal("Failed to create configuration entry repository because connection factory is undefined")
 	}
 	o.repository, err = kv.NewRepository(o.connectionFactory, o.Verbose)
 	if err != nil {
-		o.Logger().Error(fmt.Sprintf("Failed to create configuration entry repository: %s", err))
+		o.Logger().Fatal(fmt.Sprintf("Failed to create configuration entry repository: %s", err))
 	}
 	repoMutex.Unlock()
 
@@ -115,11 +115,11 @@ func (o *Options) initInventory() cluster.Inventory {
 
 	repoMutex.Lock()
 	if o.connectionFactory == nil {
-		o.Logger().Error("Failed to create cluster inventory because connection factory is undefined")
+		o.Logger().Fatal("Failed to create cluster inventory because connection factory is undefined")
 	}
 	o.inventory, err = cluster.NewInventory(o.connectionFactory, o.Verbose)
 	if err != nil {
-		o.Logger().Error(fmt.Sprintf("Failed to create cluster inventory: %s", err))
+		o.Logger().Fatal(fmt.Sprintf("Failed to create cluster inventory: %s", err))
 	}
 	repoMutex.Unlock()
 

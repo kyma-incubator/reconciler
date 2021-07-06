@@ -1,9 +1,9 @@
 package cluster
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -376,14 +376,26 @@ func (i *DefaultInventory) latestCluster(cluster string) (*model.ClusterEntity, 
 }
 
 func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
-	return i.filterClusters(reconcileInterval, model.ReconcilePending, model.ReconcileFailed)
+	filters := []statusSQLFilter{}
+	if reconcileInterval > 0 {
+		filters = append(filters, &reconcileIntervalFilter{
+			reconcileInterval: reconcileInterval,
+		})
+	}
+	filters = append(filters, &statusFilter{
+		allowedStatuses: []model.Status{model.ReconcilePending, model.ReconcileFailed},
+	})
+	return i.filterClusters(filters...)
 }
 
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
-	return i.filterClusters(0, model.Reconciling, model.ReconcileFailed, model.Error)
+	statusFilter := &statusFilter{
+		allowedStatuses: []model.Status{model.Reconciling, model.ReconcileFailed, model.Error},
+	}
+	return i.filterClusters(statusFilter)
 }
 
-func (i *DefaultInventory) filterClusters(reconcileInterval time.Duration, statuses ...model.Status) ([]*State, error) {
+func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State, error) {
 	//get DDL for sub-query
 	clusterStatus := &model.ClusterStatusEntity{}
 	statusColHandler, err := db.NewColumnHandler(clusterStatus)
@@ -406,14 +418,6 @@ func (i *DefaultInventory) filterClusters(reconcileInterval time.Duration, statu
 	if err != nil {
 		return nil, err
 	}
-	statusColName, err := statusColHandler.ColumnName("Status")
-	if err != nil {
-		return nil, err
-	}
-	createdColName, err := statusColHandler.ColumnName("Created")
-	if err != nil {
-		return nil, err
-	}
 
 	//get cluster configurations of all "not-ready" clusters
 	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
@@ -428,26 +432,21 @@ func (i *DefaultInventory) filterClusters(reconcileInterval time.Duration, statu
 			) as maxid
 		) and (status in ('xxx', 'yyy') or (status = 'ready' AND created >=  NOW() - INTERVAL '12345 SECOND'))
 	*/
-	statusFilter := fmt.Sprintf("%s IN ('%s')", statusColName, strings.Join(i.stausesToStrings(statuses), "','"))
-	if reconcileInterval.Seconds() > 0 {
-		switch i.Conn.Type() {
-		case db.Postgres:
-			statusFilter = fmt.Sprintf(`(
-				%s
-				OR (
-					%s = '%s' AND %s >= NOW() - INTERVAL '%.0f SECOND')
-				)`,
-				statusFilter, statusColName, model.Ready, createdColName, reconcileInterval.Seconds())
-		case db.SQLite:
-			statusFilter = fmt.Sprintf(`(
-				%s
-				OR (
-					%s = '%s' AND %s >= DATETIME('now', '-%.0f SECONDS'))
-				)`,
-				statusFilter, statusColName, model.Ready, createdColName, reconcileInterval.Seconds())
-		default:
-			return nil, fmt.Errorf("Database type '%s' is not supported by this method", i.Conn.Type())
+	var sqlFilterStmt bytes.Buffer
+	if len(filters) == 0 {
+		sqlFilterStmt.WriteString("1=1") //if no filters are provided, use 1=1 as placeholder to ensure valid SQL query
+	}
+	for _, filter := range filters {
+		sqlCond, err := filter.Filter(i.Conn.Type(), statusColHandler)
+		if err != nil {
+			return nil, err
 		}
+		if sqlFilterStmt.Len() > 0 {
+			sqlFilterStmt.WriteString(" OR ")
+		}
+		sqlFilterStmt.WriteRune('(')
+		sqlFilterStmt.WriteString(sqlCond)
+		sqlFilterStmt.WriteRune(')')
 	}
 
 	clusterConfigs, err := q.Select().
@@ -456,10 +455,10 @@ func (i *DefaultInventory) filterClusters(reconcileInterval time.Duration, statu
 							SELECT maxid FROM (
 								SELECT MAX(%s) AS maxcfg, MAX(%s) AS maxid FROM %s GROUP BY %s
 							) AS maxid
-						) AND %s`,
+						) AND (%s)`,
 				configVersionColName, clusterStatus.Table(), idColName,
 				clusterVersionColName, idColName, clusterStatus.Table(), clusterColName,
-				statusFilter)).
+				sqlFilterStmt.String())).
 		Where(map[string]interface{}{
 			"Deleted": false,
 		}).
@@ -480,14 +479,6 @@ func (i *DefaultInventory) filterClusters(reconcileInterval time.Duration, statu
 	}
 
 	return result, nil
-}
-
-func (i *DefaultInventory) stausesToStrings(statuses []model.Status) []string {
-	result := []string{}
-	for _, status := range statuses {
-		result = append(result, string(status))
-	}
-	return result
 }
 
 func (i *DefaultInventory) Changes(cluster string, offset time.Duration) ([]*State, error) {
