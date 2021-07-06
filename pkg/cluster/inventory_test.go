@@ -215,6 +215,7 @@ func TestInventory(t *testing.T) {
 	})
 
 	t.Run("Get status changes", func(t *testing.T) {
+		inventory := newInventory(t)
 		expectedStatuses := append(clusterStatuses, model.ReconcilePending)
 		newCluster := newCluster(t, 1, 1)
 		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
