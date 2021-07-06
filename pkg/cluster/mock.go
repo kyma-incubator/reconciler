@@ -14,7 +14,7 @@ type MockInventory struct {
 	CreateOrUpdateResult      *State
 	DeleteResult              error
 	UpdateStatusResult        error
-	ChangesResult             []*State
+	ChangesResult             []*StatusChange
 }
 
 func (i *MockInventory) CreateOrUpdate(cluster *keb.Cluster) (*State, error) {
@@ -45,6 +45,6 @@ func (i *MockInventory) ClustersNotReady() ([]*State, error) {
 	return i.ClustersNotReadyResult, nil
 }
 
-func (i *MockInventory) Changes(cluster string, offset time.Duration) ([]*State, error) {
+func (i *MockInventory) StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error) {
 	return i.ChangesResult, nil
 }
