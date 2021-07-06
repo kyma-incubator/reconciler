@@ -25,6 +25,7 @@ const (
 	paramContractVersion = "contractVersion"
 	paramCluster         = "cluster"
 	paramConfigVersion   = "configVersion"
+	paramOffset          = "offset"
 )
 
 func NewCmd(o *Options) *cobra.Command {
@@ -90,6 +91,11 @@ func startServer(o *Options) *http.Server {
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramCluster, paramConfigVersion),
 		callHandler(o, get)).
+		Methods("GET")
+
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges/{%s}", paramContractVersion, paramCluster, paramOffset),
+		callHandler(o, statusChanges)).
 		Methods("GET")
 
 	//metrics endpoint
@@ -185,6 +191,36 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 	//respond
 	if err := json.NewEncoder(w).Encode(response(clusterState)); err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode cluster status response"))
+		return
+	}
+}
+
+func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := newParam(r)
+	cluster, err := params.string("cluster")
+	if err != nil {
+		sendError(w, http.StatusBadRequest, err)
+		return
+	}
+	offset, err := params.string("offset")
+	if err != nil {
+		sendError(w, http.StatusBadRequest, err)
+		return
+	}
+	duration, err := time.ParseDuration(offset)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, err)
+		return
+	}
+	changes, err := o.Inventory().StatusChanges(cluster, duration)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster statusChanges"))
+		return
+	}
+	//respond
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(changes); err != nil {
+		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode cluster statusChanges response"))
 		return
 	}
 }

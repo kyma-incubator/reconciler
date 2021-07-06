@@ -18,7 +18,7 @@ type Inventory interface {
 	Delete(cluster string) error
 	Get(cluster string, configVersion int64) (*State, error)
 	GetLatest(cluster string) (*State, error)
-	Changes(cluster string, offset time.Duration) ([]*State, error)
+	StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
 }
@@ -481,6 +481,46 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	return result, nil
 }
 
-func (i *DefaultInventory) Changes(cluster string, offset time.Duration) ([]*State, error) {
-	return nil, fmt.Errorf("Not implemented yet")
+func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error) {
+	statusColHandler, err := db.NewColumnHandler(&model.ClusterStatusEntity{})
+	if err != nil {
+		return nil, err
+	}
+	statusColName, err := statusColHandler.ColumnName("Status")
+	if err != nil {
+		return nil, err
+	}
+	createdColName, err := statusColHandler.ColumnName("Created")
+	if err != nil {
+		return nil, err
+	}
+
+	filter := createdIntervalFilter{
+		interval: offset,
+		cluster:  cluster,
+	}
+	sqlCond, err := filter.Filter(i.Conn.Type(), statusColHandler)
+
+	rows, err := i.Conn.Query(fmt.Sprintf("SELECT %s, %s FROM %s WHERE %s ORDER BY %s DESC", statusColName, createdColName, (&model.ClusterStatusEntity{}).Table(), sqlCond, createdColName))
+	var statusChanges []*StatusChange
+	var createdPrevStatus time.Time
+	var createdCurrStatus time.Time
+	for rows.Next() {
+		var status *model.Status
+		if err := rows.Scan(&status, &createdCurrStatus); err != nil {
+			return nil, err
+		}
+		var duration string
+		if createdPrevStatus.IsZero() {
+			duration = time.Now().Sub(createdCurrStatus).String()
+		} else {
+			duration = createdPrevStatus.Sub(createdCurrStatus).String()
+		}
+		statusChanges = append(statusChanges, &StatusChange{
+			Status:   status,
+			Duration: duration,
+		})
+		createdPrevStatus = createdCurrStatus
+	}
+	return statusChanges, nil
 }
