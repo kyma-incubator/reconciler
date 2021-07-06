@@ -236,7 +236,7 @@ func TestInventory(t *testing.T) {
 
 		require.Len(t, changes, 6)
 		require.ElementsMatch(t,
-			listStatusesFromStatusChanges(changes),
+			listStatusesForStatusChanges(changes),
 			expectedStatuses)
 	})
 }
@@ -249,7 +249,7 @@ func listStatuses(states []*State) []model.Status {
 	return result
 }
 
-func listStatusesFromStatusChanges(states []*StatusChange) []model.Status {
+func listStatusesForStatusChanges(states []*StatusChange) []model.Status {
 	result := []model.Status{}
 	for _, state := range states {
 		result = append(result, *state.Status)
