@@ -183,7 +183,7 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//respond
-       w.Header().Set("content-type", "application/json")
+	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(response(clusterState)); err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode cluster status response"))
 		return
