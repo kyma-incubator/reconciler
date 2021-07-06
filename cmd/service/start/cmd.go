@@ -146,23 +146,20 @@ func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to read received JSON payload"))
 		return
 	}
-	clusterPayload, err := keb.NewModelFactory(contractV).Cluster(reqBody)
+	clusterModel, err := keb.NewModelFactory(contractV).Cluster(reqBody)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Failed to unmarshal JSON payload"))
 		return
 	}
-	clusterState, err := o.Inventory().CreateOrUpdate(contractV, clusterPayload)
+	clusterState, err := o.Inventory().CreateOrUpdate(contractV, clusterModel)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to create or update cluster entity"))
 		return
 	}
 	//respond status URL
-	response := response(clusterState)
-	response["statusUrl"] = fmt.Sprintf("%s%s/%s/configs/%d/status", r.Host, r.URL.RequestURI(), clusterState.Cluster.Cluster, clusterState.Configuration.Version)
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to generate progress URL response"))
-		return
-	}
+	payload := responsePayload(clusterState)
+	payload["statusUrl"] = fmt.Sprintf("%s%s/%s/configs/%d/status", r.Host, r.URL.RequestURI(), clusterState.Cluster.Cluster, clusterState.Configuration.Version)
+	sendResponse(w, payload)
 }
 
 func get(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -182,12 +179,7 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster state"))
 		return
 	}
-	//respond
-	w.Header().Set("content-type", "application/json")
-	if err := json.NewEncoder(w).Encode(response(clusterState)); err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode cluster status response"))
-		return
-	}
+	sendResponse(w, responsePayload(clusterState))
 }
 
 func delete(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -207,7 +199,7 @@ func delete(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func response(clusterState *cluster.State) map[string]interface{} {
+func responsePayload(clusterState *cluster.State) map[string]interface{} {
 	return map[string]interface{}{
 		"cluster":              clusterState.Cluster.Cluster,
 		"clusterVersion":       clusterState.Cluster.Version,
@@ -218,6 +210,13 @@ func response(clusterState *cluster.State) map[string]interface{} {
 
 func sendError(w http.ResponseWriter, httpCode int, err error) {
 	http.Error(w, fmt.Sprintf("%s\n\n%s", http.StatusText(httpCode), err.Error()), httpCode)
+}
+
+func sendResponse(w http.ResponseWriter, payload map[string]interface{}) {
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode response payload to JSON"))
+	}
 }
 
 type param struct {
