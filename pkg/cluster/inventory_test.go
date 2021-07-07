@@ -219,6 +219,7 @@ func TestInventory(t *testing.T) {
 		expectedStatuses := append(clusterStatuses, model.ReconcilePending)
 		newCluster := newCluster(t, 1, 1)
 		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
+		require.NoError(t, err)
 		// //create for each cluster-status a new cluster
 		for _, clusterStatus := range clusterStatuses {
 			//add expected status

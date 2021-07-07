@@ -500,8 +500,13 @@ func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) (
 		cluster:  cluster,
 	}
 	sqlCond, err := filter.Filter(i.Conn.Type(), statusColHandler)
-
+	if err != nil {
+		return nil, err
+	}
 	rows, err := i.Conn.Query(fmt.Sprintf("SELECT %s, %s FROM %s WHERE %s ORDER BY %s DESC", statusColName, createdColName, (&model.ClusterStatusEntity{}).Table(), sqlCond, createdColName))
+	if err != nil {
+		return nil, err
+	}
 	var statusChanges []*StatusChange
 	var createdPrevStatus time.Time
 	var createdCurrStatus time.Time
@@ -512,7 +517,7 @@ func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) (
 		}
 		var duration string
 		if createdPrevStatus.IsZero() {
-			duration = time.Now().Sub(createdCurrStatus).String()
+			duration = time.Since(createdCurrStatus).String()
 		} else {
 			duration = createdPrevStatus.Sub(createdCurrStatus).String()
 		}
