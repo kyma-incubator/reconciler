@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -212,12 +213,48 @@ func TestInventory(t *testing.T) {
 		require.Len(t, statesNotReady, 2)
 		require.ElementsMatch(t, []*State{expectedCluster2State2b, expectedCluster3State1c}, statesNotReady)
 	})
+
+	t.Run("Get status changes", func(t *testing.T) {
+		inventory := newInventory(t)
+		expectedStatuses := append(clusterStatuses, model.ReconcilePending)
+		newCluster := newCluster(t, 1, 1)
+		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
+		require.NoError(t, err)
+		// //create for each cluster-status a new cluster
+		for _, clusterStatus := range clusterStatuses {
+			//add expected status
+			_, err = inventory.UpdateStatus(clusterState, clusterStatus)
+			require.NoError(t, err)
+		}
+
+		defer func() {
+			//cleanup
+			require.NoError(t, inventory.Delete(newCluster.Cluster))
+		}()
+		duration, err := time.ParseDuration("10h")
+		require.NoError(t, err)
+		changes, err := inventory.StatusChanges("cluster1", duration)
+		require.NoError(t, err)
+
+		require.Len(t, changes, 6)
+		require.ElementsMatch(t,
+			listStatusesForStatusChanges(changes),
+			expectedStatuses)
+	})
 }
 
 func listStatuses(states []*State) []model.Status {
 	result := []model.Status{}
 	for _, state := range states {
 		result = append(result, state.Status.Status)
+	}
+	return result
+}
+
+func listStatusesForStatusChanges(states []*StatusChange) []model.Status {
+	result := []model.Status{}
+	for _, state := range states {
+		result = append(result, *state.Status)
 	}
 	return result
 }
