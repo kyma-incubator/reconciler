@@ -36,7 +36,7 @@ func Run(o *Options, valueFilter []string) error {
 		return err
 	}
 
-	valueProcessor, err := newValueProcessor(o.Repository(), key)
+	valueProcessor, err := newValueProcessor(o.ObjectRegistry.KVRepository(), key)
 	if err != nil {
 		return err
 	}
@@ -75,13 +75,13 @@ func renderValues(o *Options, values []*model.ValueEntity) error {
 
 func getKey(o *Options) (*model.KeyEntity, error) {
 	if o.Key != "" && o.KeyVersion > 0 {
-		return o.Repository().Key(o.Key, o.KeyVersion)
+		return o.ObjectRegistry.KVRepository().Key(o.Key, o.KeyVersion)
 	}
 	if o.KeyVersion > 0 {
-		return o.Repository().KeyByVersion(o.KeyVersion)
+		return o.ObjectRegistry.KVRepository().KeyByVersion(o.KeyVersion)
 	}
 	if o.Key != "" {
-		return o.Repository().LatestKey(o.Key)
+		return o.ObjectRegistry.KVRepository().LatestKey(o.Key)
 	}
 	return nil, fmt.Errorf("Cannot resolve key: please provide either key, key-version or both")
 }

@@ -9,6 +9,7 @@ import (
 	cfgCmd "github.com/kyma-incubator/reconciler/cmd/config"
 	svcCmd "github.com/kyma-incubator/reconciler/cmd/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
+	"github.com/kyma-incubator/reconciler/pkg/app"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/cobra"
@@ -47,19 +48,11 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 			if err := o.Validate(); err != nil {
 				return err
 			}
-
-			//init db connection factory if cmd (or sub-cmd) has a run-method
-			dbConnFact, err := initDbConnectionFactory(o)
-			if err != nil {
-				return err
-			}
-			o.Init(dbConnFact)
-
-			return err
+			return initObjectRegistry(o)
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			//close db connection factory after cmd (or sub-cmd) was executed
-			return o.Close()
+			//shutdown object context
+			return o.ObjectRegistry.Close()
 		},
 		SilenceErrors: false,
 		SilenceUsage:  true,
@@ -70,6 +63,16 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&o.NonInteractive, "non-interactive", false, "Enables the non-interactive shell mode")
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
 	return cmd
+}
+
+func initObjectRegistry(o *cli.Options) error {
+	//init object registry
+	dbConnFact, err := initDbConnectionFactory(o)
+	if err != nil {
+		return err
+	}
+	o.ObjectRegistry, err = app.NewObjectRegistry(dbConnFact, o.Verbose)
+	return err
 }
 
 func initViper(o *cli.Options) func() {
