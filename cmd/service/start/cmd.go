@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -44,6 +43,11 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options) error {
+	//TODO: start application
+	return startWebserver(o)
+}
+
+func startWebserver(o *Options) error {
 	//routing
 	router := mux.NewRouter()
 	router.HandleFunc(
@@ -88,8 +92,8 @@ func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *
 }
 
 func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := newParam(r)
-	contractV, err := params.int64(paramContractVersion)
+	params := server.NewParams(r)
+	contractV, err := params.Int64(paramContractVersion)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Contract version undefined"))
 		return
@@ -116,13 +120,13 @@ func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func get(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := newParam(r)
-	cluster, err := params.string("cluster")
+	params := server.NewParams(r)
+	cluster, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	configVersion, err := params.int64("configVersion")
+	configVersion, err := params.Int64("configVersion")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -136,13 +140,13 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := newParam(r)
-	cluster, err := params.string("cluster")
+	params := server.NewParams(r)
+	cluster, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	offset, err := params.string("offset")
+	offset, err := params.String("offset")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -166,8 +170,8 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func delete(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := newParam(r)
-	cluster, err := params.string("cluster")
+	params := server.NewParams(r)
+	cluster, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -200,29 +204,4 @@ func sendResponse(w http.ResponseWriter, payload map[string]interface{}) {
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode response payload to JSON"))
 	}
-}
-
-type param struct {
-	params map[string]string
-}
-
-func newParam(r *http.Request) *param {
-	return &param{
-		params: mux.Vars(r),
-	}
-}
-func (p *param) string(name string) (string, error) {
-	result, ok := p.params[name]
-	if !ok {
-		return "", fmt.Errorf("Parameter '%s' undefined", name)
-	}
-	return result, nil
-}
-
-func (p *param) int64(name string) (int64, error) {
-	strResult, err := p.string(name)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.ParseInt(strResult, 10, 64)
 }
