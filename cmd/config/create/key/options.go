@@ -19,9 +19,6 @@ func NewOptions(o *cli.Options) *Options {
 }
 
 func (o *Options) Validate() error {
-	if err := o.Options.Validate(); err != nil {
-		return err
-	}
 	if o.DataType == "" {
 		return fmt.Errorf("Data type has to be specified")
 	}

@@ -15,6 +15,9 @@ func NewCmd(o *Options) *cobra.Command {
 		Short:   "Create a configuration value.",
 		Long:    `Create a new entity or version of a configuration value.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Validate(); err != nil {
+				return err
+			}
 			if len(args) != 1 {
 				return fmt.Errorf("One value has to provided for key '%s' (version %d): '%s'",
 					o.Key, o.KeyVersion, strings.Join(args, "', '"))

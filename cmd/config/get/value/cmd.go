@@ -17,6 +17,9 @@ func NewCmd(o *Options) *cobra.Command {
 		Short:   "Get configuration value.",
 		Long:    `List configuration values or get a value.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := o.Validate(); err != nil {
+				return err
+			}
 			return Run(o, args)
 		},
 	}

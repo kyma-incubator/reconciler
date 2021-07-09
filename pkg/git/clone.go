@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -13,14 +14,14 @@ var defaultCloner repoCloner = &remoteRepoCloner{}
 // CloneRepo clones the repository in the given URL to the given dstPath and checks out the given revision.
 // revision can be 'main', a release version (e.g. 1.4.1), a commit hash (e.g. 34edf09a).
 func CloneRepo(url, dstPath, rev string) error {
+	if rev == "" {
+		return fmt.Errorf("Revision cannot be empty")
+	}
 	repo, err := defaultCloner.Clone(url, dstPath, true)
 	if err != nil {
 		return errors.Wrapf(err, "Error downloading repository (%s)", url)
 	}
-	if rev != "" {
-		return checkout(repo, rev)
-	}
-	return nil
+	return checkout(repo, rev)
 }
 
 type repoCloner interface {

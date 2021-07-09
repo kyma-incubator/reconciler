@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"go.uber.org/zap"
@@ -21,6 +22,7 @@ type Options struct {
 	connectionFactory db.ConnectionFactory
 	logger            *zap.Logger
 	repository        *kv.Repository
+	inventory         cluster.Inventory
 }
 
 func (o *Options) Init(dbConnFact db.ConnectionFactory) {
@@ -90,15 +92,38 @@ func (o *Options) initRepository() *kv.Repository {
 
 	repoMutex.Lock()
 	if o.connectionFactory == nil {
-		o.Logger().Error("Failed to create configuration entry repository because connection factory is undefined")
+		o.Logger().Fatal("Failed to create configuration entry repository because connection factory is undefined")
 	}
 	o.repository, err = kv.NewRepository(o.connectionFactory, o.Verbose)
 	if err != nil {
-		o.Logger().Error(fmt.Sprintf("Failed to create configuration entry repository: %s", err))
+		o.Logger().Fatal(fmt.Sprintf("Failed to create configuration entry repository: %s", err))
 	}
 	repoMutex.Unlock()
 
 	return o.repository
+}
+
+func (o *Options) Inventory() cluster.Inventory {
+	if o.inventory != nil {
+		return o.inventory
+	}
+	return o.initInventory()
+}
+
+func (o *Options) initInventory() cluster.Inventory {
+	var err error
+
+	repoMutex.Lock()
+	if o.connectionFactory == nil {
+		o.Logger().Fatal("Failed to create cluster inventory because connection factory is undefined")
+	}
+	o.inventory, err = cluster.NewInventory(o.connectionFactory, o.Verbose)
+	if err != nil {
+		o.Logger().Fatal(fmt.Sprintf("Failed to create cluster inventory: %s", err))
+	}
+	repoMutex.Unlock()
+
+	return o.inventory
 }
 
 func (o *Options) Validate() error {

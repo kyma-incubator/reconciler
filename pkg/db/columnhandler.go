@@ -147,6 +147,39 @@ func (ch *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 	return buffer.String()
 }
 
+// TODO
+//func (ch *ColumnHandler) ColumnForUpdate(f *[]string, onlyWriteable bool) string {
+//	var buffer bytes.Buffer
+//	var fields [1]string
+//	fields[0] = "Name"
+//	for _, field := range fields {
+//		column := getColumn(field, ch, onlyWriteable)
+//		if column == nil {
+//			continue
+//		}
+//		if buffer.Len() > 0 {
+//			buffer.WriteString(", ")
+//		}
+//		//buffer.WriteString(column.name)
+//		buffer.WriteString("=")
+//		//buffer.WriteString(column.value.(string))
+//
+//	}
+//	return buffer.String()
+//}
+//
+//func getColumn(field string, ch *ColumnHandler, onlyWriteable bool) *column {
+//	for _, col := range ch.columns {
+//		if onlyWriteable && col.readOnly {
+//			continue
+//		}
+//		if col.field.Name() == field {
+//			return col
+//		}
+//	}
+//	return nil
+//}
+
 func (ch *ColumnHandler) ColumnValues(onlyWriteable bool) []interface{} {
 	result := []interface{}{}
 	for _, col := range ch.columns {
@@ -187,7 +220,7 @@ func (ch *ColumnHandler) ColumnValuesPlaceholderCsv(onlyWriteable bool) string {
 	return ch.columnValuesCsvRenderer(onlyWriteable, true)
 }
 
-func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder bool) string {
+func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder bool) (string, int) {
 	var buffer bytes.Buffer
 	var placeholderIdx int
 	for _, col := range ch.columns {
@@ -204,14 +237,14 @@ func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder boo
 			buffer.WriteString(fmt.Sprintf("%s=%s", col.name, ch.serializeValue(col.value)))
 		}
 	}
-	return buffer.String()
+	return buffer.String(), placeholderIdx
 }
 
-func (ch *ColumnHandler) ColumnEntriesCsv(onlyWriteable bool) string {
+func (ch *ColumnHandler) ColumnEntriesCsv(onlyWriteable bool) (string, int) {
 	return ch.columnEntriesCsvRenderer(onlyWriteable, false)
 }
 
-func (ch *ColumnHandler) ColumnEntriesPlaceholderCsv(onlyWriteable bool) string {
+func (ch *ColumnHandler) ColumnEntriesPlaceholderCsv(onlyWriteable bool) (string, int) {
 	return ch.columnEntriesCsvRenderer(onlyWriteable, true)
 }
 

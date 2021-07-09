@@ -8,26 +8,26 @@ import (
 	"github.com/spf13/viper"
 )
 
-func NewConnectionFactory(configFile, configSection string) (ConnectionFactory, error) {
+func NewConnectionFactory(configFile string) (ConnectionFactory, error) {
 	viper.SetConfigFile(configFile)
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
 	}
-	dbToUse := viper.GetString(fmt.Sprintf("%s.db.driver", configSection))
+	dbToUse := viper.GetString("db.driver")
 	switch dbToUse {
 	case "postgres":
 		return &PostgresConnectionFactory{
-			Host:     viper.GetString(fmt.Sprintf("%s.db.postgres.host", configSection)),
-			Port:     viper.GetInt(fmt.Sprintf("%s.db.postgres.port", configSection)),
-			Database: viper.GetString(fmt.Sprintf("%s.db.postgres.database", configSection)),
-			User:     viper.GetString(fmt.Sprintf("%s.db.postgres.user", configSection)),
-			Password: viper.GetString(fmt.Sprintf("%s.db.postgres.password", configSection)),
-			SslMode:  viper.GetBool(fmt.Sprintf("%s.db.postgres.sslMode", configSection)),
+			Host:     viper.GetString("db.postgres.host"),
+			Port:     viper.GetInt("db.postgres.port"),
+			Database: viper.GetString("db.postgres.database"),
+			User:     viper.GetString("db.postgres.user"),
+			Password: viper.GetString("db.postgres.password"),
+			SslMode:  viper.GetBool("db.postgres.sslMode"),
 			Debug:    true,
 		}, nil
 	case "sqlite":
-		dbFile := viper.GetString(fmt.Sprintf("%s.db.sqlite.file", configSection))
-		if viper.GetBool(fmt.Sprintf("%s.db.sqlite.createFile", configSection)) {
+		dbFile := viper.GetString("db.sqlite.file")
+		if viper.GetBool("db.sqlite.createFile") {
 			dbFileDir := filepath.Dir(dbFile)
 			if _, err := os.Stat(dbFileDir); os.IsNotExist(err) {
 				if err := os.MkdirAll(dbFileDir, 0700); err != nil {

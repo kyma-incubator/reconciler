@@ -84,15 +84,20 @@ func TestColumnHandler(t *testing.T) {
 	})
 
 	t.Run("Get column entries as CSV", func(t *testing.T) {
-		require.ElementsMatch(t, []string{"col_1='testString'", "col_2=true", "col_3=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(false)))
-		require.ElementsMatch(t, []string{"col_1='testString'", "col_3=123456789"}, splitAndTrimCsv(colHdr.ColumnEntriesCsv(true)))
+		rwKVPairsCsv, _ := colHdr.ColumnEntriesCsv(false)
+		require.ElementsMatch(t, []string{"col_1='testString'", "col_2=true", "col_3=123456789"}, splitAndTrimCsv(rwKVPairsCsv))
+
+		roKVPairsCsv, _ := colHdr.ColumnEntriesCsv(true)
+		require.ElementsMatch(t, []string{"col_1='testString'", "col_3=123456789"}, splitAndTrimCsv(roKVPairsCsv))
 	})
 
 	t.Run("Get column entries as placeholder CSV", func(t *testing.T) {
-		rwKeyValuePairsCsv := colHdr.ColumnEntriesPlaceholderCsv(false)
+		rwKeyValuePairsCsv, plcHdrCnt := colHdr.ColumnEntriesPlaceholderCsv(false)
 		require.Regexp(t, regexp.MustCompile(`((col_1|col_2|col_3)=\$[1-3](, )?){3}`), rwKeyValuePairsCsv)
-		roKeyValuePairs := colHdr.ColumnEntriesPlaceholderCsv(true)
+		require.Equal(t, 3, plcHdrCnt)
+		roKeyValuePairs, plcHdrCnt := colHdr.ColumnEntriesPlaceholderCsv(true)
 		require.Regexp(t, regexp.MustCompile(`((col_1|col_3)=\$[1-2](, )?){2}`), roKeyValuePairs)
+		require.Equal(t, 2, plcHdrCnt)
 	})
 }
 

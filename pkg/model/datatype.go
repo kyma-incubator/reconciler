@@ -16,11 +16,11 @@ type DataType string
 
 func NewDataType(dataType string) (DataType, error) {
 	switch strings.ToLower(dataType) {
-	case "string":
+	case string(String):
 		return String, nil
-	case "integer":
+	case string(Integer):
 		return Integer, nil
-	case "boolean":
+	case string(Boolean):
 		return Boolean, nil
 	default:
 		return "", fmt.Errorf("DataType '%s' is not supported", dataType)

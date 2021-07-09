@@ -51,21 +51,29 @@ func (c *MockConnection) QueryRow(query string, args ...interface{}) DataRow {
 	c.args = args
 	return &MockDataRow{}
 }
+
 func (c *MockConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	c.query = query
 	c.args = args
 	return &MockDataRows{}, nil
 }
+
 func (c *MockConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
 	c.query = query
 	c.args = args
 	return &MockResult{}, nil
 }
+
 func (c *MockConnection) Begin() (*sql.Tx, error) {
 	return nil, nil
 }
+
 func (c *MockConnection) Close() error {
 	return nil
+}
+
+func (c *MockConnection) Type() Type {
+	return Mock
 }
 
 func (fake *MockDbEntity) String() string {

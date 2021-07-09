@@ -92,7 +92,7 @@ func (cer *Repository) LatestKey(key string) (*model.KeyEntity, error) {
 		Limit(1).
 		GetOne()
 	if err != nil {
-		return nil, cer.HandleNotFoundError(err, &model.KeyEntity{}, whereCond)
+		return nil, cer.NewNotFoundError(err, &model.KeyEntity{}, whereCond)
 	}
 	return entity.(*model.KeyEntity), nil
 }
@@ -107,7 +107,7 @@ func (cer *Repository) KeyByVersion(version int64) (*model.KeyEntity, error) {
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cer.HandleNotFoundError(err, &model.KeyEntity{}, whereCond)
+		return nil, cer.NewNotFoundError(err, &model.KeyEntity{}, whereCond)
 	}
 	return entity.(*model.KeyEntity), nil
 }
@@ -122,7 +122,7 @@ func (cer *Repository) Key(key string, version int64) (*model.KeyEntity, error) 
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cer.HandleNotFoundError(err, &model.KeyEntity{}, whereCond)
+		return nil, cer.NewNotFoundError(err, &model.KeyEntity{}, whereCond)
 	}
 	return entity.(*model.KeyEntity), nil
 }
@@ -300,7 +300,7 @@ func (cer *Repository) LatestValue(bucket, key string) (*model.ValueEntity, erro
 		Limit(1).
 		GetOne()
 	if err != nil {
-		return nil, cer.HandleNotFoundError(err, &model.ValueEntity{}, whereCond)
+		return nil, cer.NewNotFoundError(err, &model.ValueEntity{}, whereCond)
 	}
 	return entity.(*model.ValueEntity), nil
 }
@@ -315,7 +315,7 @@ func (cer *Repository) Value(bucket, key string, version int64) (*model.ValueEnt
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, cer.HandleNotFoundError(err, &model.ValueEntity{}, whereCond)
+		return nil, cer.NewNotFoundError(err, &model.ValueEntity{}, whereCond)
 	}
 	return entity.(*model.ValueEntity), nil
 }
@@ -420,7 +420,7 @@ func (cer *Repository) Buckets() ([]*model.BucketEntity, error) {
 			Limit(1).
 			GetOne()
 		if err != nil {
-			return nil, cer.HandleNotFoundError(err, &model.BucketEntity{}, whereCond)
+			return nil, cer.NewNotFoundError(err, &model.BucketEntity{}, whereCond)
 		}
 		buckets = append(buckets, entity.(*model.BucketEntity))
 	}
