@@ -12,6 +12,7 @@ type Query struct {
 	entity        DatabaseEntity
 	columnHandler *ColumnHandler
 	buffer        bytes.Buffer
+	whereClause   bool
 }
 
 func NewQuery(conn Connection, entity DatabaseEntity) (*Query, error) {
@@ -30,10 +31,6 @@ func (q Query) String() string {
 	return q.buffer.String()
 }
 
-func (q *Query) reset() {
-	q.buffer = bytes.Buffer{}
-}
-
 func (q *Query) Select() *Select {
 	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
 	return &Select{q, []interface{}{}, nil}
@@ -50,14 +47,71 @@ func (q *Query) Delete() *Delete {
 	return &Delete{q, []interface{}{}, nil}
 }
 
-//TODO
-//func (q *Query) Update(fields []string) *Update {
-//	q.columnHandler.ColumnNamesCsv(true)
-//	q.columnHandler.abc(&fields, true)
-//	//q.buffer.WriteString(fmt.Sprintf("UPDATE %s SET %s", q.entity.Table(), q.columnHandler.abc(fields,true)))
-//	return &Update{q}
-//}
+func (q *Query) Update() *Update {
+	colEntriesCsv, plcHdrCnt := q.columnHandler.columnEntriesCsvRenderer(true, true)
+	q.buffer.WriteString(fmt.Sprintf("UPDATE %s SET %s",
+		q.entity.Table(), colEntriesCsv))
+	return &Update{q, []interface{}{}, plcHdrCnt, nil}
+}
 
+// helper functions:
+func (q *Query) reset() {
+	q.buffer = bytes.Buffer{}
+	q.whereClause = false
+}
+
+func (q *Query) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset int) ([]interface{}, error) {
+	var args []interface{}
+	var plcHdrIdx int
+
+	if len(whereCond) == 0 {
+		return args, nil
+	}
+
+	//get sort list of fields
+	fields := make([]string, 0, len(whereCond))
+	for field := range whereCond {
+		fields = append(fields, field)
+	}
+	sort.Strings(fields)
+
+	//render WHERE condition
+	q.addWhere()
+	for _, field := range fields {
+		col, err := q.columnHandler.ColumnName(field)
+		if err != nil {
+			return args, err
+		}
+		if plcHdrIdx > 0 {
+			q.buffer.WriteString(" AND")
+		}
+		plcHdrIdx++
+		q.buffer.WriteString(fmt.Sprintf(" %s=$%d", col, plcHdrIdx+plcHdrOffset))
+		args = append(args, whereCond[field])
+	}
+	return args, nil
+}
+
+func (q *Query) addWhereInCondition(field, subQuery string) error {
+	colName, err := q.columnHandler.ColumnName(field)
+	if err != nil {
+		return err
+	}
+	q.addWhere()
+	q.buffer.WriteString(fmt.Sprintf(" %s IN (%s)", colName, subQuery))
+	return nil
+}
+
+func (q *Query) addWhere() {
+	if q.whereClause {
+		q.buffer.WriteString(" AND")
+	} else {
+		q.buffer.WriteString(" WHERE")
+		q.whereClause = true
+	}
+}
+
+// SELECT:
 type Select struct {
 	*Query
 	args []interface{}
@@ -65,12 +119,12 @@ type Select struct {
 }
 
 func (s *Select) Where(args map[string]interface{}) *Select {
-	s.args, s.err = addWhereCondition(args, &s.buffer, s.columnHandler)
+	s.args, s.err = s.addWhereCondition(args, 0)
 	return s
 }
 
 func (s *Select) WhereIn(field, subQuery string, args ...interface{}) *Select {
-	s.err = addWhereInCondition(field, subQuery, &s.buffer, s.columnHandler)
+	s.err = s.addWhereInCondition(field, subQuery)
 	s.args = args
 	return s
 }
@@ -169,6 +223,7 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	return result, nil
 }
 
+// INSERT:
 type Insert struct {
 	*Query
 }
@@ -182,6 +237,7 @@ func (i *Insert) Exec() error {
 	return i.columnHandler.Unmarshal(row, i.entity)
 }
 
+// DELETE:
 type Delete struct {
 	*Query
 	args []interface{}
@@ -189,7 +245,7 @@ type Delete struct {
 }
 
 func (d *Delete) Where(args map[string]interface{}) *Delete {
-	d.args, d.err = addWhereCondition(args, &d.buffer, d.columnHandler)
+	d.args, d.err = d.addWhereCondition(args, 0)
 	return d
 }
 
@@ -205,59 +261,34 @@ func (d *Delete) Exec() (int64, error) {
 	return 0, err
 }
 
-//TODO
-//func (d *Update) Exec() error {
-//	defer d.reset()
-//	if err := d.columnHandler.Validate(); err != nil {
-//		return err
-//	}
-//	row := d.conn.QueryRow(d.buffer.String(), d.columnHandler.ColumnValues(true)...)
-//	return d.columnHandler.Unmarshal(row, d.entity)
-//}
-
 func (d *Delete) WhereIn(field, subQuery string, args ...interface{}) *Delete {
-	d.err = addWhereInCondition(field, subQuery, &d.buffer, d.columnHandler)
+	d.err = d.addWhereInCondition(field, subQuery)
 	d.args = args
 	return d
 }
 
-func addWhereCondition(whereCond map[string]interface{}, buffer *bytes.Buffer, columnHandler *ColumnHandler) ([]interface{}, error) {
-	var args []interface{}
-	var plcHdrIdx int
-
-	if len(whereCond) == 0 {
-		return args, nil
-	}
-
-	//get sort list of fields
-	fields := make([]string, 0, len(whereCond))
-	for field := range whereCond {
-		fields = append(fields, field)
-	}
-	sort.Strings(fields)
-
-	//render WHERE condition
-	buffer.WriteString(" WHERE")
-	for _, field := range fields {
-		col, err := columnHandler.ColumnName(field)
-		if err != nil {
-			return args, err
-		}
-		if plcHdrIdx > 0 {
-			buffer.WriteString(" AND")
-		}
-		plcHdrIdx++
-		buffer.WriteString(fmt.Sprintf(" %s=$%d", col, plcHdrIdx))
-		args = append(args, whereCond[field])
-	}
-	return args, nil
+// UPDATE:
+type Update struct {
+	*Query
+	args              []interface{}
+	placeholderOffset int
+	err               error
 }
 
-func addWhereInCondition(field, subQuery string, buffer *bytes.Buffer, columnHandler *ColumnHandler) error {
-	colName, err := columnHandler.ColumnName(field)
-	if err != nil {
+func (u *Update) Where(args map[string]interface{}) *Update {
+	u.args, u.err = u.addWhereCondition(args, u.placeholderOffset)
+	return u
+}
+
+func (u *Update) Exec() error {
+	defer u.reset()
+	if err := u.columnHandler.Validate(); err != nil {
 		return err
 	}
-	buffer.WriteString(fmt.Sprintf(" WHERE %s IN (%s)", colName, subQuery))
-	return nil
+
+	//finalize query by appending RETURNING
+	u.buffer.WriteString(fmt.Sprintf(" RETURNING %s", u.columnHandler.ColumnNamesCsv(false)))
+
+	row := u.conn.QueryRow(u.buffer.String(), u.columnHandler.ColumnValues(true)...)
+	return u.columnHandler.Unmarshal(row, u.entity)
 }

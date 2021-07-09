@@ -44,7 +44,7 @@ func (r *Repository) Transactional(dbOps func() error) error {
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *Repository) HandleNotFoundError(err error, entity db.DatabaseEntity,
+func (r *Repository) NewNotFoundError(err error, entity db.DatabaseEntity,
 	identifier map[string]interface{}) error {
 	if err == sql.ErrNoRows {
 		return &EntityNotFoundError{
@@ -74,6 +74,9 @@ func (e *EntityNotFoundError) Error() string {
 }
 
 func IsNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
 	_, ok := err.(*EntityNotFoundError)
 	return ok
 }

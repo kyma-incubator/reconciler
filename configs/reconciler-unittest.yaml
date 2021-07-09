@@ -8,5 +8,5 @@ db:
     password: kyma
     useSsl: false
   sqlite:
-    file: "test/repository-test.db"
+    file: "test/unittest.db"
     createFile: true

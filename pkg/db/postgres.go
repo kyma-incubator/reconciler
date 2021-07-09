@@ -32,6 +32,7 @@ func (pc *PostgresConnection) QueryRow(query string, args ...interface{}) DataRo
 	pc.logger.Debug(fmt.Sprintf("Postgres QueryRow(): %s | %v", query, args))
 	return pc.db.QueryRow(query, args...)
 }
+
 func (pc *PostgresConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	pc.logger.Debug(fmt.Sprintf("Postgres Query(): %s | %v", query, args))
 	rows, err := pc.db.Query(query, args...)
@@ -40,6 +41,7 @@ func (pc *PostgresConnection) Query(query string, args ...interface{}) (DataRows
 	}
 	return rows, err
 }
+
 func (pc *PostgresConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
 	pc.logger.Debug(fmt.Sprintf("Postgres Exec(): %s | %v", query, args))
 	result, err := pc.db.Exec(query, args...)
@@ -48,13 +50,19 @@ func (pc *PostgresConnection) Exec(query string, args ...interface{}) (sql.Resul
 	}
 	return result, err
 }
+
 func (pc *PostgresConnection) Begin() (*sql.Tx, error) {
 	pc.logger.Debug("Postgres Begin()")
 	return pc.db.Begin()
 }
+
 func (pc *PostgresConnection) Close() error {
 	pc.logger.Debug("Postgres Close()")
 	return pc.db.Close()
+}
+
+func (pc *PostgresConnection) Type() Type {
+	return Postgres
 }
 
 type PostgresConnectionFactory struct {
