@@ -1,13 +1,10 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"os/signal"
 	"strconv"
 	"time"
 
@@ -16,6 +13,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
@@ -46,36 +44,6 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options) error {
-	//listen on os events
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-
-	//create context
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		oscall := <-c
-		if oscall == os.Interrupt {
-			cancel()
-		}
-	}()
-
-	//run webserver within context
-	var err error
-	if err = runServer(ctx, o); err != nil {
-		o.Logger().Error(fmt.Sprintf("Failed to run webserver: %s", err))
-	}
-	return err
-}
-
-func runServer(ctx context.Context, o *Options) error {
-	o.Logger().Info(fmt.Sprintf("Webserver starting and listening on port %d", o.Port))
-	srv := startServer(o)
-	<-ctx.Done()
-	o.Logger().Info("Webserver stopping")
-	return stopServer(o, srv)
-}
-
-func startServer(o *Options) *http.Server {
 	//routing
 	router := mux.NewRouter()
 	router.HandleFunc(
@@ -102,36 +70,15 @@ func startServer(o *Options) *http.Server {
 	metrics.RegisterAll(o.ObjectRegistry.Inventory(), o.Logger())
 	router.Handle("/metrics", promhttp.Handler())
 
-	//start server
-	srv := &http.Server{Addr: fmt.Sprintf(":%d", o.Port), Handler: router}
-	go func() {
-		var err error
-		if o.SSLSupport() {
-			err = srv.ListenAndServeTLS(o.SSLCrt, o.SSLKey)
-		} else {
-			err = srv.ListenAndServe()
-		}
-		if err != nil && err != http.ErrServerClosed {
-			o.Logger().Error(fmt.Sprintf("Webserver startup failed: %s", err))
-		}
-	}()
-	return srv
-}
-
-func stopServer(o *Options, srv *http.Server) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer func() {
-		cancel()
-	}()
-
-	err := srv.Shutdown(ctx)
-
-	if err == nil {
-		o.Logger().Info("Webserver gracefully stopped")
-	} else {
-		o.Logger().Error(fmt.Sprintf("Webserver shutdown failed: %s", err))
+	//start server process
+	srv := &server.Webserver{
+		Logger:     o.Logger(),
+		Port:       o.Port,
+		SSLCrtFile: o.SSLCrt,
+		SSLKeyFile: o.SSLKey,
+		Router:     router,
 	}
-	return err
+	return srv.Start() //blocking call
 }
 
 func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
