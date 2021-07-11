@@ -50,7 +50,7 @@ func TestProvider(t *testing.T) {
 		require.Equal(t, expected, got)
 	})
 
-	t.Run("Test overrides handling", func(t *testing.T) {
+	t.Run("Test overrides processing", func(t *testing.T) {
 		builder, err := prov.overrides([]*keb.Components{
 			{
 				Component: "test-component",
@@ -114,7 +114,7 @@ func TestProvider(t *testing.T) {
 		require.Equal(t, expCompList, compList)
 	})
 
-	t.Run("Test component list", func(t *testing.T) {
+	t.Run("Test render manifest", func(t *testing.T) {
 		if !test.RunExpensiveTests() {
 			return
 		}
