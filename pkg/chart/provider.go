@@ -2,61 +2,60 @@ package chart
 
 import (
 	"fmt"
-	"time"
+	"strings"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/deployment"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/overrides"
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/pkg/errors"
-)
-
-const (
-	defaultWorkersCount  = 4
-	defaultCancelTimeout = 2 * time.Minute
-	defaultQuitTimeout   = 3 * time.Minute
+	"go.uber.org/zap"
 )
 
 type Provider struct {
-	Debug bool
+	debug     bool
+	wsFactory *workspace.Factory
+	logger    *zap.Logger
 }
 
-type Options struct {
-	WorkersCount  int
-	CancelTimeout time.Duration
-	QuitTimeout   time.Duration
-}
-
-func (o *Options) validate() error {
-	if o.WorkersCount <= 0 {
-		return fmt.Errorf("WorkersCount cannot be < 0")
+func NewProvider(wsFactory *workspace.Factory, debug bool) (*Provider, error) {
+	logger, err := log.NewLogger(debug)
+	if err != nil {
+		return nil, err
 	}
-	if o.WorkersCount == 0 {
-		o.WorkersCount = defaultWorkersCount
-	}
-	if o.CancelTimeout.Microseconds() == int64(0) {
-		o.CancelTimeout = defaultCancelTimeout
-	}
-	if o.QuitTimeout.Microseconds() == int64(0) {
-		o.QuitTimeout = defaultQuitTimeout
-	}
-	return nil
+	return &Provider{
+		debug:     debug,
+		wsFactory: wsFactory,
+		logger:    logger,
+	}, nil
 }
 
 func (p *Provider) loggerAdapter() (*HydroformLoggerAdapter, error) {
-	logger, err := log.NewLogger(p.Debug)
+	logger, err := log.NewLogger(p.debug)
 	if err != nil {
 		return nil, err
 	}
 	return NewHydroformLoggerAdapter(logger), nil
 }
 
-func (p *Provider) Manifests(cluster *model.ClusterPropertyEntity /* << fix me */, ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
+func (p *Provider) Manifests(state *cluster.State, opts *Options) ([]*components.Manifest, error) {
+	//TODO: add caching check here
+	return p.renderManifests(state, opts)
+}
+
+func (p *Provider) renderManifests(state *cluster.State, opts *Options) ([]*components.Manifest, error) {
 	if err := opts.validate(); err != nil {
-		return nil, errors.Wrap(err, "Invalid options provided")
+		return nil, errors.Wrap(err, "Invalid provider options defined")
+	}
+
+	p.logger.Debug(fmt.Sprintf("Getting workspace for Kyma '%s'", state.Configuration.KymaVersion))
+	ws, err := p.wsFactory.Get(state.Configuration.KymaVersion)
+	if err != nil {
+		return nil, err
 	}
 
 	logger, err := p.loggerAdapter()
@@ -64,7 +63,11 @@ func (p *Provider) Manifests(cluster *model.ClusterPropertyEntity /* << fix me *
 		return nil, err
 	}
 
-	compList, err := config.NewComponentList(ws.ComponentFile)
+	kebComps, err := state.Configuration.GetComponents()
+	if err != nil {
+		return nil, err
+	}
+	compList, err := p.componentList(ws, kebComps)
 	if err != nil {
 		return nil, err
 	}
@@ -82,15 +85,17 @@ func (p *Provider) Manifests(cluster *model.ClusterPropertyEntity /* << fix me *
 		ResourcePath:                  ws.ResourceDir,
 		InstallationResourcePath:      ws.InstallationResourceDir,
 
-		//FIXME:
-		// KubeconfigSource: config.KubeconfigSource{
-		// 	Path:    cluster.KubeConfig, //FIXME
-		// 	Content: "",
-		// },
-		// Version: cluster.Version, //FIXME
+		KubeconfigSource: config.KubeconfigSource{
+			Path:    "", //FIXME when kubconfig is available in cluster entity
+			Content: "",
+		},
+		Version: state.Configuration.KymaVersion,
 	}
 
-	builder := &overrides.Builder{} //TODO: merge config from cluster model
+	builder, err := p.overrides(kebComps)
+	if err != nil {
+		return nil, err
+	}
 
 	templating, err := deployment.NewTemplating(cfg, builder)
 	if err != nil {
@@ -98,4 +103,70 @@ func (p *Provider) Manifests(cluster *model.ClusterPropertyEntity /* << fix me *
 	}
 
 	return templating.Render()
+}
+
+//componentList will read the component list from the workspace and align the namespaces with the values retrieved from KEB
+func (p *Provider) componentList(ws *workspace.Workspace, kebComps []*keb.Components) (*config.ComponentList, error) {
+	compList, err := config.NewComponentList(ws.ComponentFile)
+	if err != nil {
+		return nil, err
+	}
+	kebCompsMap := p.kebComponentMap(kebComps)
+	for idx, comp := range compList.Prerequisites {
+		if kebComp, ok := kebCompsMap[comp.Name]; ok {
+			if kebComp.Namespace != "" {
+				p.logger.Debug(
+					fmt.Sprintf("Updating namespace of prerequisite-component '%s' with namespace provided by KEB: '%s' => '%s'",
+						comp.Name, comp.Namespace, kebComp.Namespace))
+				compList.Prerequisites[idx].Namespace = kebComp.Namespace
+			}
+		}
+	}
+	for idx, comp := range compList.Components {
+		if kebComp, ok := kebCompsMap[comp.Name]; ok {
+			if kebComp.Namespace != "" {
+				p.logger.Debug(
+					fmt.Sprintf("Updating namespace of component '%s' with namespace provided by KEB: '%s' => '%s'",
+						comp.Name, comp.Namespace, kebComp.Namespace))
+				compList.Components[idx].Namespace = kebComp.Namespace
+			}
+		}
+	}
+	return compList, nil
+}
+
+func (p *Provider) kebComponentMap(kebComps []*keb.Components) map[string]*keb.Components {
+	result := make(map[string]*keb.Components, len(kebComps))
+	for _, kebComp := range kebComps {
+		result[kebComp.Component] = kebComp
+	}
+	return result
+}
+
+func (p *Provider) overrides(kebComps []*keb.Components) (*overrides.Builder, error) {
+	overrides := &overrides.Builder{}
+	for _, kebComp := range kebComps {
+		for _, kebCompConf := range kebComp.Configuration {
+			if err := overrides.AddOverrides(kebComp.Component, p.kebConfToMap(kebCompConf)); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return overrides, nil
+}
+
+func (p *Provider) kebConfToMap(kebConf keb.Configuration) map[string]interface{} {
+	result := make(map[string]interface{})
+	tokens := strings.Split(kebConf.Key, ".")
+	lastNestedMap := result
+	for depth, token := range tokens {
+		switch depth {
+		case len(tokens) - 1: //last token reached, stop nesting
+			lastNestedMap[token] = kebConf.Value
+		default:
+			lastNestedMap[token] = make(map[string]interface{})
+			lastNestedMap = lastNestedMap[token].(map[string]interface{})
+		}
+	}
+	return result
 }
