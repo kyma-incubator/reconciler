@@ -48,3 +48,11 @@ func (i *MockInventory) ClustersNotReady() ([]*State, error) {
 func (i *MockInventory) StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error) {
 	return i.ChangesResult, nil
 }
+
+type MockKubeconfigProvider struct {
+	KubeconfigResult string
+}
+
+func (kp *MockKubeconfigProvider) Get() (string, error) {
+	return kp.KubeconfigResult, nil
+}

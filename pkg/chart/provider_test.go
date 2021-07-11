@@ -2,13 +2,22 @@ package chart
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"path/filepath"
 	"testing"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	componentListFile         string = filepath.Join("test", "unittest-complist.yaml")
+	componentListExpectedFile string = filepath.Join("test", "unittest-complist-expected.yaml")
 )
 
 func TestProvider(t *testing.T) {
@@ -82,7 +91,7 @@ func TestProvider(t *testing.T) {
 
 	t.Run("Test component list", func(t *testing.T) {
 		compList, err := prov.componentList(&workspace.Workspace{
-			ComponentFile: filepath.Join(".", "test", "components.yaml"),
+			ComponentFile: componentListFile,
 		}, []*keb.Components{
 			{
 				Component: "component-2",
@@ -95,9 +104,45 @@ func TestProvider(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		expCompList, err := config.NewComponentList(filepath.Join(".", "test", "components-expected.yaml"))
+		expCompList, err := config.NewComponentList(componentListExpectedFile)
 		require.NoError(t, err)
 
 		require.Equal(t, expCompList, compList)
 	})
+
+	t.Run("Test component list", func(t *testing.T) {
+		if !test.RunExpensiveTests() {
+			return
+		}
+		kubeCfg, err := ioutil.ReadFile(filepath.Join("test", "unittest-kubeconfig.yaml"))
+		require.NoError(t, err)
+
+		manifests, err := prov.renderManifests(
+			&cluster.State{
+				Cluster: &model.ClusterEntity{
+					Version:  1,
+					Cluster:  "cluster1",
+					Contract: 1,
+				},
+				Configuration: &model.ClusterConfigurationEntity{
+					Version:     1,
+					KymaVersion: "1.20.0",
+					KymaProfile: "production",
+					Contract:    1,
+				},
+				Status: &model.ClusterStatusEntity{},
+				Kubeconfig: &cluster.MockKubeconfigProvider{
+					KubeconfigResult: string(kubeCfg),
+				},
+			},
+			&workspace.Workspace{
+				ComponentFile:           filepath.Join("test", "unittest-kyma", "components.yaml"),
+				ResourceDir:             filepath.Join("test", "unittest-kyma", "resources"),
+				InstallationResourceDir: filepath.Join("test", "unittest-kyma", "installation"),
+			},
+			&Options{})
+		require.NoError(t, err)
+		require.NotEmpty(t, manifests)
+	})
+
 }

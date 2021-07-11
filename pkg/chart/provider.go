@@ -44,25 +44,27 @@ func (p *Provider) loggerAdapter() (*HydroformLoggerAdapter, error) {
 
 func (p *Provider) Manifests(state *cluster.State, opts *Options) ([]*components.Manifest, error) {
 	//TODO: add caching check here
-	return p.renderManifests(state, opts)
-}
-
-func (p *Provider) renderManifests(state *cluster.State, opts *Options) ([]*components.Manifest, error) {
-	if err := opts.validate(); err != nil {
-		return nil, errors.Wrap(err, "Invalid provider options defined")
-	}
-
 	p.logger.Debug(fmt.Sprintf("Getting workspace for Kyma '%s'", state.Configuration.KymaVersion))
 	ws, err := p.wsFactory.Get(state.Configuration.KymaVersion)
 	if err != nil {
 		return nil, err
 	}
 
+	return p.renderManifests(state, ws, opts)
+}
+
+func (p *Provider) renderManifests(state *cluster.State, ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
+	if err := opts.validate(); err != nil {
+		return nil, errors.Wrap(err, "Invalid provider options defined")
+	}
+
+	//get logger
 	logger, err := p.loggerAdapter()
 	if err != nil {
 		return nil, err
 	}
 
+	//get component list
 	kebComps, err := state.Configuration.GetComponents()
 	if err != nil {
 		return nil, err
@@ -72,6 +74,19 @@ func (p *Provider) renderManifests(state *cluster.State, opts *Options) ([]*comp
 		return nil, err
 	}
 
+	//get overrides
+	builder, err := p.overrides(kebComps)
+	if err != nil {
+		return nil, err
+	}
+
+	//get kubeconfig
+	kubeCfg, err := state.Kubeconfig.Get()
+	if err != nil {
+		return nil, err
+	}
+
+	//get templating instance
 	cfg := &config.Config{
 		WorkersCount:                  opts.WorkersCount,
 		CancelTimeout:                 opts.CancelTimeout,
@@ -84,19 +99,14 @@ func (p *Provider) renderManifests(state *cluster.State, opts *Options) ([]*comp
 		ComponentList:                 compList,
 		ResourcePath:                  ws.ResourceDir,
 		InstallationResourcePath:      ws.InstallationResourceDir,
-
+		Profile:                       state.Configuration.KymaProfile,
+		Verbose:                       p.debug,
 		KubeconfigSource: config.KubeconfigSource{
-			Path:    "", //FIXME when kubconfig is available in cluster entity
-			Content: "",
+			Path:    "",
+			Content: kubeCfg,
 		},
 		Version: state.Configuration.KymaVersion,
 	}
-
-	builder, err := p.overrides(kebComps)
-	if err != nil {
-		return nil, err
-	}
-
 	templating, err := deployment.NewTemplating(cfg, builder)
 	if err != nil {
 		return nil, err
