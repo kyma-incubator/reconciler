@@ -3,16 +3,20 @@ package chart
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -114,8 +118,10 @@ func TestProvider(t *testing.T) {
 		if !test.RunExpensiveTests() {
 			return
 		}
-		kubeCfg, err := ioutil.ReadFile(filepath.Join("test", "unittest-kubeconfig.yaml"))
-		require.NoError(t, err)
+
+		if !file.Exists(os.Getenv("KUBECONFIG")) {
+			require.FailNow(t, "Please set env-var KUBECONFIG before executing this test case")
+		}
 
 		manifests, err := prov.renderManifests(
 			&cluster.State{
@@ -126,14 +132,24 @@ func TestProvider(t *testing.T) {
 				},
 				Configuration: &model.ClusterConfigurationEntity{
 					Version:     1,
-					KymaVersion: "1.20.0",
-					KymaProfile: "production",
+					KymaVersion: "2.0.0",
+					KymaProfile: "testProfile",
 					Contract:    1,
+					Components: `[
+					{
+						"component": "component-1",
+						"namespace": "different-namespace",
+						"configuration": [
+						  {
+							"key": "dummy.config",
+							"value": "overwritten by unittest"
+						  }
+						]
+					  }
+					]`,
 				},
-				Status: &model.ClusterStatusEntity{},
-				Kubeconfig: &cluster.MockKubeconfigProvider{
-					KubeconfigResult: string(kubeCfg),
-				},
+				Status:     &model.ClusterStatusEntity{},
+				Kubeconfig: &cluster.MockKubeconfigProvider{},
 			},
 			&workspace.Workspace{
 				ComponentFile:           filepath.Join("test", "unittest-kyma", "components.yaml"),
@@ -142,7 +158,28 @@ func TestProvider(t *testing.T) {
 			},
 			&Options{})
 		require.NoError(t, err)
-		require.NotEmpty(t, manifests)
+
+		for _, manifest := range manifests {
+			var exp, got interface{}
+			if manifest.Type == components.CRD {
+				exp = expected(t, filepath.Join("test", "unittest-kyma", "installation", "crds", "component-1", "crd.yaml"))
+				got = map[string]interface{}{}
+				require.NoError(t, yaml.Unmarshal([]byte(manifest.Manifest), got))
+			} else {
+				exp = expected(t, filepath.Join("test", "unittest-kyma", "resources", "component-1", "configmap-expected.yaml"))
+				got = map[string]interface{}{}
+				require.NoError(t, yaml.Unmarshal([]byte(manifest.Manifest), got))
+			}
+			require.Equal(t, exp, got)
+		}
 	})
 
+}
+
+func expected(t *testing.T, file string) map[string]interface{} {
+	data, err := ioutil.ReadFile(file)
+	require.NoError(t, err)
+	expected := map[string]interface{}{}
+	require.NoError(t, yaml.Unmarshal(data, expected))
+	return expected
 }
