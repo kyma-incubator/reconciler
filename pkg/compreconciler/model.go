@@ -1,7 +1,8 @@
 package compreconciler
 
 type ReconciliationModel struct {
-	Manifest    string `json:...`
-	Version     string `json:...`
-	CallbackURL string `json:...`
+	Manifest    string `json:"manifest"`
+	KubeConfig  string `json:"kubeConfig"`
+	Version     string `json:"version"`
+	CallbackURL string `json:"callbackURL"`
 }
