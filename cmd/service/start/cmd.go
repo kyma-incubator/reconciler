@@ -1,14 +1,10 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"os/signal"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,6 +12,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
@@ -46,36 +43,11 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options) error {
-	//listen on os events
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-
-	//create context
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		oscall := <-c
-		if oscall == os.Interrupt {
-			cancel()
-		}
-	}()
-
-	//run webserver within context
-	var err error
-	if err = runServer(ctx, o); err != nil {
-		o.Logger().Error(fmt.Sprintf("Failed to run webserver: %s", err))
-	}
-	return err
+	//TODO: start application
+	return startWebserver(o)
 }
 
-func runServer(ctx context.Context, o *Options) error {
-	o.Logger().Info(fmt.Sprintf("Webserver starting and listening on port %d", o.Port))
-	srv := startServer(o)
-	<-ctx.Done()
-	o.Logger().Info("Webserver stopping")
-	return stopServer(o, srv)
-}
-
-func startServer(o *Options) *http.Server {
+func startWebserver(o *Options) error {
 	//routing
 	router := mux.NewRouter()
 	router.HandleFunc(
@@ -99,39 +71,18 @@ func startServer(o *Options) *http.Server {
 		Methods("GET")
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Inventory(), o.Logger())
+	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
 	router.Handle("/metrics", promhttp.Handler())
 
-	//start server
-	srv := &http.Server{Addr: fmt.Sprintf(":%d", o.Port), Handler: router}
-	go func() {
-		var err error
-		if o.SSLSupport() {
-			err = srv.ListenAndServeTLS(o.SSLCrt, o.SSLKey)
-		} else {
-			err = srv.ListenAndServe()
-		}
-		if err != nil && err != http.ErrServerClosed {
-			o.Logger().Error(fmt.Sprintf("Webserver startup failed: %s", err))
-		}
-	}()
-	return srv
-}
-
-func stopServer(o *Options, srv *http.Server) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer func() {
-		cancel()
-	}()
-
-	err := srv.Shutdown(ctx)
-
-	if err == nil {
-		o.Logger().Info("Webserver gracefully stopped")
-	} else {
-		o.Logger().Error(fmt.Sprintf("Webserver shutdown failed: %s", err))
+	//start server process
+	srv := &server.Webserver{
+		Logger:     o.Logger(),
+		Port:       o.Port,
+		SSLCrtFile: o.SSLCrt,
+		SSLKeyFile: o.SSLKey,
+		Router:     router,
 	}
-	return err
+	return srv.Start() //blocking call
 }
 
 func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -141,8 +92,8 @@ func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *
 }
 
 func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := newParam(r)
-	contractV, err := params.int64(paramContractVersion)
+	params := server.NewParams(r)
+	contractV, err := params.Int64(paramContractVersion)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Contract version undefined"))
 		return
@@ -157,7 +108,7 @@ func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Failed to unmarshal JSON payload"))
 		return
 	}
-	clusterState, err := o.Inventory().CreateOrUpdate(contractV, clusterModel)
+	clusterState, err := o.Registry.Inventory().CreateOrUpdate(contractV, clusterModel)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to create or update cluster entity"))
 		return
@@ -169,18 +120,18 @@ func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func get(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := newParam(r)
-	cluster, err := params.string("cluster")
+	params := server.NewParams(r)
+	cluster, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	configVersion, err := params.int64("configVersion")
+	configVersion, err := params.Int64("configVersion")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	clusterState, err := o.Inventory().Get(cluster, configVersion)
+	clusterState, err := o.Registry.Inventory().Get(cluster, configVersion)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster state"))
 		return
@@ -189,13 +140,13 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := newParam(r)
-	cluster, err := params.string("cluster")
+	params := server.NewParams(r)
+	cluster, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	offset, err := params.string("offset")
+	offset, err := params.String("offset")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -205,7 +156,7 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	changes, err := o.Inventory().StatusChanges(cluster, duration)
+	changes, err := o.Registry.Inventory().StatusChanges(cluster, duration)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster statusChanges"))
 		return
@@ -219,17 +170,17 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func delete(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := newParam(r)
-	cluster, err := params.string("cluster")
+	params := server.NewParams(r)
+	cluster, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	if _, err := o.Inventory().GetLatest(cluster); repository.IsNotFoundError(err) {
+	if _, err := o.Registry.Inventory().GetLatest(cluster); repository.IsNotFoundError(err) {
 		sendError(w, http.StatusNotFound, errors.Wrap(err, fmt.Sprintf("Deletion impossible: cluster '%s' not found", cluster)))
 		return
 	}
-	if err := o.Inventory().Delete(cluster); err != nil {
+	if err := o.Registry.Inventory().Delete(cluster); err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", cluster)))
 		return
 	}
@@ -253,29 +204,4 @@ func sendResponse(w http.ResponseWriter, payload map[string]interface{}) {
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode response payload to JSON"))
 	}
-}
-
-type param struct {
-	params map[string]string
-}
-
-func newParam(r *http.Request) *param {
-	return &param{
-		params: mux.Vars(r),
-	}
-}
-func (p *param) string(name string) (string, error) {
-	result, ok := p.params[name]
-	if !ok {
-		return "", fmt.Errorf("Parameter '%s' undefined", name)
-	}
-	return result, nil
-}
-
-func (p *param) int64(name string) (int64, error) {
-	strResult, err := p.string(name)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.ParseInt(strResult, 10, 64)
 }
