@@ -48,11 +48,11 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 			if err := o.Validate(); err != nil {
 				return err
 			}
-			return initObjectRegistry(o)
+			return initApplicationRegistry(o)
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			//shutdown object context
-			return o.ObjectRegistry.Close()
+			return o.Registry.Close()
 		},
 		SilenceErrors: false,
 		SilenceUsage:  true,
@@ -65,13 +65,13 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 	return cmd
 }
 
-func initObjectRegistry(o *cli.Options) error {
+func initApplicationRegistry(o *cli.Options) error {
 	//init object registry
 	dbConnFact, err := initDbConnectionFactory(o)
 	if err != nil {
 		return err
 	}
-	o.ObjectRegistry, err = app.NewObjectRegistry(dbConnFact, o.Verbose)
+	o.Registry, err = app.NewApplicationRegistry(dbConnFact, o.Verbose)
 	return err
 }
 

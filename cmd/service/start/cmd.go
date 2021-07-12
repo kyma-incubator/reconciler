@@ -71,7 +71,7 @@ func startWebserver(o *Options) error {
 		Methods("GET")
 
 	//metrics endpoint
-	metrics.RegisterAll(o.ObjectRegistry.Inventory(), o.Logger())
+	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
 	router.Handle("/metrics", promhttp.Handler())
 
 	//start server process
@@ -108,7 +108,7 @@ func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Failed to unmarshal JSON payload"))
 		return
 	}
-	clusterState, err := o.ObjectRegistry.Inventory().CreateOrUpdate(contractV, clusterModel)
+	clusterState, err := o.Registry.Inventory().CreateOrUpdate(contractV, clusterModel)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to create or update cluster entity"))
 		return
@@ -131,7 +131,7 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	clusterState, err := o.ObjectRegistry.Inventory().Get(cluster, configVersion)
+	clusterState, err := o.Registry.Inventory().Get(cluster, configVersion)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster state"))
 		return
@@ -156,7 +156,7 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	changes, err := o.ObjectRegistry.Inventory().StatusChanges(cluster, duration)
+	changes, err := o.Registry.Inventory().StatusChanges(cluster, duration)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster statusChanges"))
 		return
@@ -176,11 +176,11 @@ func delete(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	if _, err := o.ObjectRegistry.Inventory().GetLatest(cluster); repository.IsNotFoundError(err) {
+	if _, err := o.Registry.Inventory().GetLatest(cluster); repository.IsNotFoundError(err) {
 		sendError(w, http.StatusNotFound, errors.Wrap(err, fmt.Sprintf("Deletion impossible: cluster '%s' not found", cluster)))
 		return
 	}
-	if err := o.ObjectRegistry.Inventory().Delete(cluster); err != nil {
+	if err := o.Registry.Inventory().Delete(cluster); err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", cluster)))
 		return
 	}

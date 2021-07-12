@@ -24,7 +24,7 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options, keyFilter []string) error {
-	keyProcessor, err := newKeyProcessor(o.ObjectRegistry.KVRepository())
+	keyProcessor, err := newKeyProcessor(o.Registry.KVRepository())
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func renderKeysWithValues(o *Options, keys []*model.KeyEntity) error {
 		return err
 	}
 	for _, key := range keys {
-		values, err := o.ObjectRegistry.KVRepository().ValuesByKey(key)
+		values, err := o.Registry.KVRepository().ValuesByKey(key)
 		if err != nil {
 			return err
 		}

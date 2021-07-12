@@ -14,7 +14,7 @@ type Options struct {
 	NonInteractive bool
 	OutputFormat   string
 	logger         *zap.Logger
-	ObjectRegistry *app.ObjectRegistry //will be initialized during CLI bootstrap in main.go
+	Registry       *app.ApplicationRegistry //will be initialized during CLI bootstrap in main.go
 }
 
 func (o *Options) String() string {

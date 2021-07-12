@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type ObjectRegistry struct {
+type ApplicationRegistry struct {
 	debug             bool
 	logger            *zap.Logger
 	connectionFactory db.ConnectionFactory
@@ -19,8 +19,8 @@ type ObjectRegistry struct {
 	initialized       bool
 }
 
-func NewObjectRegistry(cf db.ConnectionFactory, debug bool) (*ObjectRegistry, error) {
-	or := &ObjectRegistry{
+func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*ApplicationRegistry, error) {
+	or := &ApplicationRegistry{
 		debug:             debug,
 		connectionFactory: cf,
 	}
@@ -30,7 +30,7 @@ func NewObjectRegistry(cf db.ConnectionFactory, debug bool) (*ObjectRegistry, er
 	return or, nil
 }
 
-func (or *ObjectRegistry) init() error {
+func (or *ApplicationRegistry) init() error {
 	if or.initialized {
 		return nil
 	}
@@ -48,7 +48,7 @@ func (or *ObjectRegistry) init() error {
 	return nil
 }
 
-func (or *ObjectRegistry) Close() error {
+func (or *ApplicationRegistry) Close() error {
 	if !or.initialized {
 		return nil
 	}
@@ -58,19 +58,19 @@ func (or *ObjectRegistry) Close() error {
 	return nil
 }
 
-func (or *ObjectRegistry) Logger() *zap.Logger {
+func (or *ApplicationRegistry) Logger() *zap.Logger {
 	return or.logger
 }
 
-func (or *ObjectRegistry) Inventory() cluster.Inventory {
+func (or *ApplicationRegistry) Inventory() cluster.Inventory {
 	return or.inventory
 }
 
-func (or *ObjectRegistry) KVRepository() *kv.Repository {
+func (or *ApplicationRegistry) KVRepository() *kv.Repository {
 	return or.kvRepository
 }
 
-func (or *ObjectRegistry) initRepository() (*kv.Repository, error) {
+func (or *ApplicationRegistry) initRepository() (*kv.Repository, error) {
 	var err error
 
 	var repository *kv.Repository
@@ -86,7 +86,7 @@ func (or *ObjectRegistry) initRepository() (*kv.Repository, error) {
 	return repository, nil
 }
 
-func (or *ObjectRegistry) initInventory() (cluster.Inventory, error) {
+func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 	var err error
 
 	if or.connectionFactory == nil {

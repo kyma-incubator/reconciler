@@ -43,7 +43,7 @@ func Run(o *Options, val string) error {
 		return err
 	}
 
-	value, err := o.ObjectRegistry.KVRepository().CreateValue(&model.ValueEntity{
+	value, err := o.Registry.KVRepository().CreateValue(&model.ValueEntity{
 		Bucket:     o.Bucket,
 		Key:        key.Key,
 		KeyVersion: key.Version,
@@ -61,13 +61,13 @@ func Run(o *Options, val string) error {
 
 func getKey(o *Options) (*model.KeyEntity, error) {
 	if o.Key != "" && o.KeyVersion > 0 {
-		return o.ObjectRegistry.KVRepository().Key(o.Key, o.KeyVersion)
+		return o.Registry.KVRepository().Key(o.Key, o.KeyVersion)
 	}
 	if o.KeyVersion > 0 {
-		return o.ObjectRegistry.KVRepository().KeyByVersion(o.KeyVersion)
+		return o.Registry.KVRepository().KeyByVersion(o.KeyVersion)
 	}
 	if o.Key != "" {
-		return o.ObjectRegistry.KVRepository().LatestKey(o.Key)
+		return o.Registry.KVRepository().LatestKey(o.Key)
 	}
 	return nil, fmt.Errorf("Cannot resolve key: please provide either key, key-version or both")
 }

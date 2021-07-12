@@ -13,7 +13,7 @@ func NewTestOptions() (*Options, error) {
 	cliOptions := &Options{
 		Verbose: true,
 	}
-	if cliOptions.ObjectRegistry, err = app.NewObjectRegistry(dbConnFac, true); err != nil {
+	if cliOptions.Registry, err = app.NewApplicationRegistry(dbConnFac, true); err != nil {
 		return nil, err
 	}
 	return cliOptions, nil
