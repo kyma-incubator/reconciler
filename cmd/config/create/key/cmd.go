@@ -50,7 +50,7 @@ func createKey(o *Options, key string) (*model.KeyEntity, error) {
 	if err != nil {
 		return nil, err
 	}
-	return o.Repository().CreateKey(&model.KeyEntity{
+	return o.Registry.KVRepository().CreateKey(&model.KeyEntity{
 		Key:       key,
 		DataType:  dt,
 		Encrypted: o.Encrypted,
