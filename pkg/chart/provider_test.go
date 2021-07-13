@@ -28,7 +28,7 @@ func TestProvider(t *testing.T) {
 	prov, err := NewProvider(wsFactory, true)
 	require.NoError(t, err)
 
-	t.Run("Convert KEB configuration to a map", func(t *testing.T) {
+	t.Run("Convert dot-notated configuration keys to a nested map", func(t *testing.T) {
 		got := prov.nestedConfMap("this.is.a.test", "the test value")
 		expected := make(map[string]interface{})
 		err := json.Unmarshal([]byte(`{

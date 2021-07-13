@@ -109,24 +109,24 @@ func (p *Provider) componentList(ws *workspace.Workspace, comps []*Component) (*
 	if err != nil {
 		return nil, err
 	}
-	kebCompsMap := p.comps(comps)
-	for idx, comp := range compList.Prerequisites {
-		if kebComp, ok := kebCompsMap[comp.Name]; ok {
-			if kebComp.namespace != "" {
+	compsMap := p.comps(comps)
+	for idx, clComp := range compList.Prerequisites {
+		if comp, ok := compsMap[clComp.Name]; ok {
+			if comp.namespace != "" {
 				p.logger.Debug(
 					fmt.Sprintf("Updating namespace of prerequisite-component '%s' with namespace provided by KEB: '%s' => '%s'",
-						comp.Name, comp.Namespace, kebComp.namespace))
-				compList.Prerequisites[idx].Namespace = kebComp.namespace
+						clComp.Name, clComp.Namespace, comp.namespace))
+				compList.Prerequisites[idx].Namespace = comp.namespace
 			}
 		}
 	}
-	for idx, comp := range compList.Components {
-		if kebComp, ok := kebCompsMap[comp.Name]; ok {
-			if kebComp.namespace != "" {
+	for idx, clComp := range compList.Components {
+		if comp, ok := compsMap[clComp.Name]; ok {
+			if comp.namespace != "" {
 				p.logger.Debug(
 					fmt.Sprintf("Updating namespace of component '%s' with namespace provided by KEB: '%s' => '%s'",
-						comp.Name, comp.Namespace, kebComp.namespace))
-				compList.Components[idx].Namespace = kebComp.namespace
+						clComp.Name, clComp.Namespace, comp.namespace))
+				compList.Components[idx].Namespace = comp.namespace
 			}
 		}
 	}
