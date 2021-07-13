@@ -6,6 +6,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"io/ioutil"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"net/http"
 	"os"
@@ -44,6 +46,31 @@ func (crr *Run) run(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	// TODO render menifest by ChartProvider
+
+	kubeConfigPath := "/tmp/kubeconfig-" + uuid.New().String()
+	manifestPath := "/tmp/manifest-" + uuid.New().String()
+	if err := ioutil.WriteFile(kubeConfigPath, []byte(reconModel.KubeConfig), 0644); err != nil {
+		log.Println(err)
+		return err
+	}
+	if err := ioutil.WriteFile(manifestPath, []byte(reconModel.Manifest), 0644); err != nil {
+		log.Println(err)
+		return err
+	}
+
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	crr.kubeClient = clientset
+
 	//trigger reconciliation
 	statusUpdater := newStatusUpdater(intervalReconciliationInSec, reconModel.CallbackURL, crr.maxRetries)
 	statusUpdater.start()
@@ -53,7 +80,7 @@ func (crr *Run) run(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 	}
-	if err := crr.apply(reconModel); err != nil {
+	if err := crr.apply(kubeConfigPath, manifestPath); err != nil {
 		statusUpdater.failed()
 		return err
 	}
@@ -70,23 +97,14 @@ func reconciliationModelForVersion(contactVersion string) *ReconciliationModel {
 	return &ReconciliationModel{}
 }
 
-func (r *Run) apply(model *ReconciliationModel) error {
-	name := uuid.New()
-	if err := ioutil.WriteFile("/tmp/kubeconfig-"+name.String(), []byte(model.KubeConfig), 0644); err != nil {
-		log.Println(err)
-		return err
-	}
-	if err := ioutil.WriteFile("/tmp/manifest-"+name.String(), []byte(model.Manifest), 0644); err != nil {
-		log.Println(err)
-		return err
-	}
+func (r *Run) apply(kubeConfigPath, manifest string) error {
 	command := "kubectl"
 	env, ok := os.LookupEnv(KubectlPath)
 	if ok {
 		command = env
 	}
-	args := []string{command, "apply", "-f", "/tmp/manifest-" + name.String()}
-	args = append(args, fmt.Sprintf("--kubeconfig=%s", "/tmp/kubeconfig-"+name.String()))
+	args := []string{command, "apply", "-f", manifest}
+	args = append(args, fmt.Sprintf("--kubeconfig=%s", kubeConfigPath))
 	stout, err := exec.Command(args[0], args[1:]...).CombinedOutput()
 	if err != nil {
 		log.Println(err)

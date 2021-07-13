@@ -2,11 +2,11 @@ package compreconciler
 
 import (
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/pkg/server"
-	"k8s.io/client-go/dynamic"
 )
 
 const (
@@ -16,11 +16,11 @@ const (
 )
 
 type Action interface {
-	Run(version string, kubeClient *dynamic.Interface, status *StatusUpdater) error
+	Run(version string, kubeClient *kubernetes.Clientset, status *StatusUpdater) error
 }
 
 type ComponentReconciler struct {
-	kubeClient *dynamic.Interface
+	kubeClient *kubernetes.Clientset
 	manifest   string
 }
 
