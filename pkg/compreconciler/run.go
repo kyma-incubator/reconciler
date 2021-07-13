@@ -72,7 +72,7 @@ func (r *Run) apply(model *ReconciliationModel) error {
 	if err := ioutil.WriteFile("manifest-"+name.String(), []byte(model.Manifest), 0644); err != nil {
 		return err
 	}
-	args := []string{"kubectl", "apply", "-f", "manifest-" + name.String()}
+	args := []string{"./kubectl", "apply", "-f", "manifest-" + name.String()}
 	args = append(args, fmt.Sprintf("--kubeconfig=%s", "kubeconfig-"+name.String()))
 	_, err := exec.Command(args[0], args[1:]...).CombinedOutput()
 	if err != nil {
