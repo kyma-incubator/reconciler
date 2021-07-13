@@ -6,8 +6,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"os/exec"
+)
+
+const (
+	KubectlPath = "KUBECTL_PATH"
 )
 
 type Run struct {
@@ -66,17 +72,26 @@ func reconciliationModelForVersion(contactVersion string) *ReconciliationModel {
 
 func (r *Run) apply(model *ReconciliationModel) error {
 	name := uuid.New()
-	if err := ioutil.WriteFile("kubeconfig-"+name.String(), []byte(model.KubeConfig), 0644); err != nil {
+	if err := ioutil.WriteFile("/tmp/kubeconfig-"+name.String(), []byte(model.KubeConfig), 0644); err != nil {
+		log.Println(err)
 		return err
 	}
-	if err := ioutil.WriteFile("manifest-"+name.String(), []byte(model.Manifest), 0644); err != nil {
+	if err := ioutil.WriteFile("/tmp/manifest-"+name.String(), []byte(model.Manifest), 0644); err != nil {
+		log.Println(err)
 		return err
 	}
-	args := []string{"./kubectl", "apply", "-f", "manifest-" + name.String()}
-	args = append(args, fmt.Sprintf("--kubeconfig=%s", "kubeconfig-"+name.String()))
-	_, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+	command := "kubectl"
+	env, ok := os.LookupEnv(KubectlPath)
+	if ok {
+		command = env
+	}
+	args := []string{command, "apply", "-f", "/tmp/manifest-" + name.String()}
+	args = append(args, fmt.Sprintf("--kubeconfig=%s", "/tmp/kubeconfig-"+name.String()))
+	stout, err := exec.Command(args[0], args[1:]...).CombinedOutput()
 	if err != nil {
+		log.Println(err)
 		return err
 	}
+	log.Println("kubectl apply output: " + string(stout))
 	return nil
 }
