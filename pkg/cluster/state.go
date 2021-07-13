@@ -10,7 +10,6 @@ type State struct {
 	Cluster       *model.ClusterEntity
 	Configuration *model.ClusterConfigurationEntity
 	Status        *model.ClusterStatusEntity
-	Kubeconfig    KubeconfigProvider
 }
 
 func (s *State) String() string {

@@ -9,10 +9,7 @@ import (
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
-	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
@@ -32,10 +29,7 @@ func TestProvider(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Convert KEB configuration to a map", func(t *testing.T) {
-		got := prov.kebConfToMap(keb.Configuration{
-			Key:   "this.is.a.test",
-			Value: "the test value",
-		})
+		got := prov.nestedConfMap("this.is.a.test", "the test value")
 		expected := make(map[string]interface{})
 		err := json.Unmarshal([]byte(`{
 			"this":{
@@ -51,23 +45,13 @@ func TestProvider(t *testing.T) {
 	})
 
 	t.Run("Test overrides processing", func(t *testing.T) {
-		builder, err := prov.overrides([]*keb.Components{
+		builder, err := prov.overrides([]*Component{
 			{
-				Component: "test-component",
-				Configuration: []keb.Configuration{
-					{
-						Key:   "test.key1.subkey1",
-						Value: "test value 1",
-					},
-					{
-						Key:   "test.key1.subkey2",
-						Value: "test value 2",
-					},
-					{
-						Key:   "test.key2.subkey1",
-						Value: "test value 3",
-					},
-				},
+				name: "test-component",
+				configuration: map[string]interface{}{
+					"test.key1.subkey1": "test value 1",
+					"test.key1.subkey2": "test value 2",
+					"test.key2.subkey1": "test value 3"},
 			},
 		})
 		require.NoError(t, err)
@@ -96,14 +80,14 @@ func TestProvider(t *testing.T) {
 	t.Run("Test component list", func(t *testing.T) {
 		compList, err := prov.componentList(&workspace.Workspace{
 			ComponentFile: componentListFile,
-		}, []*keb.Components{
+		}, []*Component{
 			{
-				Component: "component-2",
-				Namespace: "differentns-component-2",
+				name:      "component-2",
+				namespace: "differentns-component-2",
 			},
 			{
-				Component: "component-3",
-				Namespace: "differentns-component-3",
+				name:      "component-3",
+				namespace: "differentns-component-3",
 			},
 		})
 		require.NoError(t, err)
@@ -123,34 +107,20 @@ func TestProvider(t *testing.T) {
 			require.FailNow(t, "Please set env-var KUBECONFIG before executing this test case")
 		}
 
-		manifests, err := prov.renderManifests(
-			&cluster.State{
-				Cluster: &model.ClusterEntity{
-					Version:  1,
-					Cluster:  "cluster1",
-					Contract: 1,
+		kubeCfg, err := ioutil.ReadFile(os.Getenv("KUBECONFIG"))
+		require.NoError(t, err)
+		compSet := NewComponentSet(string(kubeCfg), "2.0.0", "testProfile", []*Component{
+			{
+				name:      "component-1",
+				namespace: "different-namespace",
+				configuration: map[string]interface{}{
+					"dummy.config": "overwritten by unittest",
 				},
-				Configuration: &model.ClusterConfigurationEntity{
-					Version:     1,
-					KymaVersion: "2.0.0",
-					KymaProfile: "testProfile",
-					Contract:    1,
-					Components: `[
-					{
-						"component": "component-1",
-						"namespace": "different-namespace",
-						"configuration": [
-						  {
-							"key": "dummy.config",
-							"value": "overwritten by unittest"
-						  }
-						]
-					  }
-					]`,
-				},
-				Status:     &model.ClusterStatusEntity{},
-				Kubeconfig: &cluster.MockKubeconfigProvider{},
 			},
+		})
+
+		manifests, err := prov.renderManifests(
+			compSet,
 			&workspace.Workspace{
 				ComponentFile:           filepath.Join("test", "unittest-kyma", "components.yaml"),
 				ResourceDir:             filepath.Join("test", "unittest-kyma", "resources"),
