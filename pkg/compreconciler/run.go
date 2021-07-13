@@ -8,14 +8,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os/exec"
-	"time"
 )
 
 type Run struct {
 	*ComponentReconciler
-	preInstallAction  Action
-	postInstallAction Action
-	maxRetries        int
+	preInstallAction            Action
+	postInstallAction           Action
+	maxRetries                  int
+	intervalReconciliationInSec int
 }
 
 func (crr *Run) run(w http.ResponseWriter, r *http.Request) error {
@@ -39,7 +39,7 @@ func (crr *Run) run(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	//trigger reconciliation
-	statusUpdater := newStatusUpdater(30*time.Second, reconModel.CallbackURL, crr.maxRetries) //TODO: make interval configurable
+	statusUpdater := newStatusUpdater(intervalReconciliationInSec, reconModel.CallbackURL, crr.maxRetries)
 	statusUpdater.start()
 	if crr.preInstallAction != nil {
 		if err := crr.preInstallAction.Run(reconModel.Version, crr.kubeClient, statusUpdater); err != nil {

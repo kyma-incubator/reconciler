@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	paramContractVersion = "version"
-	maxRetries           = 5
+	paramContractVersion        = "version"
+	maxRetries                  = 5
+	intervalReconciliationInSec = 5 // TODO before merge, change to 30
 )
 
 type Action interface {
@@ -38,10 +39,12 @@ func (r *ComponentReconciler) Reconcile(preInstallAction, postInstallAction Acti
 				preInstallAction,
 				postInstallAction,
 				maxRetries,
+				intervalReconciliationInSec,
 			}).run(w, req)
 		}).
 		Methods("PUT", "POST")
 	server := server.Webserver{
+		Port:   8080,
 		Router: router,
 	}
 	return server.Start()
