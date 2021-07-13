@@ -1,36 +1,29 @@
-FROM eu.gcr.io/kyma-project/external/golang:1.16.3-alpine as builder
+# Build image
+FROM golang:1.16.4-alpine3.12 AS build
 
-ENV BASE_APP_DIR /go/src/github.com/kyma-incubator/reconciler
-WORKDIR ${BASE_APP_DIR}
+ENV SRC_DIR=/go/src/github.com/kyma-incubator/reconciler
+ADD . $SRC_DIR
 
-ENV GO111MODULES=on
+RUN mkdir /user && \
+    echo 'appuser:x:2000:2000:appuser:/:' > /user/passwd && \
+    echo 'appuser:x:2000:' > /user/group
 
-COPY ./go.mod ${BASE_APP_DIR}/go.mod
-COPY ./go.sum ${BASE_APP_DIR}/go.sum
+WORKDIR $SRC_DIR
 
-# Run go mod download first to take advantage of Docker caching
-RUN apk add build-base
-RUN apk add git && go mod download
-RUN apk add curl
+RUN CGO_ENABLED=0 go build -o /bin/reconciler ./cmd/main.go
 
-COPY ./cmd/ ${BASE_APP_DIR}/cmd
-COPY ./configs/ ${BASE_APP_DIR}/cmd/configs
-COPY ./pkg/ ${BASE_APP_DIR}/pkg/
-COPY ./internal/ ${BASE_APP_DIR}/internal/
-COPY ./lib/ ${BASE_APP_DIR}/lib
+# Get latest CA certs
+FROM alpine:latest as certs
+RUN apk --update add ca-certificates
 
-RUN apk add -U --no-cache ca-certificates && update-ca-certificates
+# Final image
+FROM scratch
+LABEL source=git@github.com:kyma-incubator/reconciler.git
 
-RUN go build -v -o main ./cmd/
-RUN mkdir /app && mv ./main /app/main &&
-# Add kubectl
-RUN mv ./lib/kubectl /app/kubectl && chmod +x /app/kubectl
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=build /bin/reconciler /bin/reconciler
 
-FROM eu.gcr.io/kyma-project/external/alpine:3.13.5
+COPY --from=build /user/group /user/passwd /etc/
+USER appuser:appuser
 
-WORKDIR /app
-
-COPY --from=builder /app /app
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-CMD ["/app/main","service","start"]
+CMD ["/bin/reconciler"]
