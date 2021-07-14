@@ -1,0 +1,26 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+    labels:
+        origin: kyma
+    name: kyma-project
+spec:
+    group: kyma.project.io
+    names:
+        kind: Kyma
+        plural: kymas
+        singular: kyma
+    scope: Namespaced
+    validation:
+        openAPIV3Schema:
+            properties:
+                spec:
+                    properties:
+                        version:
+                            type: string
+                    required:
+                        - version
+            required:
+                - spec
+    version: v1alpha1
+
