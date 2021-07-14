@@ -82,7 +82,8 @@ func (su *StatusUpdater) start() error {
 	return nil
 }
 
-//stopStatusUpdates checks if further updates have to be send to reconciler-controller
+//stopStatusUpdates checks if no further updates should be send to reconciler-controller
+//(either because an end-state or the retry-timeout was reached)
 func (su *StatusUpdater) stopStatusUpdates(lastReqError error) bool {
 	if time.Since(su.lastUpdate) > su.retryTimeout {
 		return true
