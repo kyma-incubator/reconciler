@@ -11,6 +11,7 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/chart"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -22,13 +23,7 @@ const (
 )
 
 type runner struct {
-	// chartProvider     *chart.Provider
-	preInstallAction  Action
-	installAction     Action
-	postInstallAction Action
-	maxRetries        int
-	interval          time.Duration
-	debug             bool
+	*ComponentReconciler
 }
 
 type kubeClient struct {
@@ -95,7 +90,7 @@ func (r *runner) model(req *http.Request) (*Reconciliation, error) {
 
 func (r *runner) kubeClient(model *Reconciliation) (*kubeClient, error) {
 	kubeConfigPath := "/tmp/kubeconfig-" + uuid.New().String()
-	if err := ioutil.WriteFile(kubeConfigPath, []byte(model.KubeConfig), 0600); err != nil {
+	if err := ioutil.WriteFile(kubeConfigPath, []byte(model.Kubeconfig), 0600); err != nil {
 		return nil, err
 	}
 
@@ -144,10 +139,17 @@ func (r *runner) modelForVersion(contactVersion string) *Reconciliation {
 }
 
 func (r *runner) install(model *Reconciliation, client *kubeClient) error {
-	//todo render charts HERE!!
+	manifests, err := r.chartProvider.Manifests(r.newChartComponentSet(model), &chart.Options{})
+	if err != nil {
+		return err
+	}
+
+	if len(manifests) != 1 { //just an assertion - can in current implementation not occur
+		return fmt.Errorf("Reconciliation can only process 1 manifest but got %d", len(manifests))
+	}
 
 	manifestPath := "/tmp/manifest-" + uuid.New().String()
-	if err := ioutil.WriteFile(manifestPath, []byte{}, 0600); err != nil {
+	if err := ioutil.WriteFile(manifestPath, []byte(manifests[0].Manifest), 0600); err != nil {
 		return err
 	}
 
@@ -156,6 +158,20 @@ func (r *runner) install(model *Reconciliation, client *kubeClient) error {
 		return fmt.Errorf("Cannot find kubectl cmd, please set env-var '%s'", envVarKubectlPath)
 	}
 	args := []string{fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "apply", "-f", manifestPath}
-	_, err := exec.Command(command, args...).CombinedOutput()
+	_, err = exec.Command(command, args...).CombinedOutput()
 	return err
+}
+
+func (r *runner) newChartComponentSet(model *Reconciliation) *chart.ComponentSet {
+	comp := chart.NewComponent(model.Component, model.Namespace, r.configMap(model))
+	compSet := chart.NewComponentSet(model.Kubeconfig, model.Version, model.Profile, []*chart.Component{comp})
+	return compSet
+}
+
+func (r *runner) configMap(model *Reconciliation) map[string]interface{} {
+	result := make(map[string]interface{}, len(model.Configuration))
+	for _, comp := range model.Configuration {
+		result[comp.Key] = comp.Value
+	}
+	return result
 }

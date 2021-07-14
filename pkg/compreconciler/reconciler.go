@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/gorilla/mux"
+	"github.com/kyma-incubator/reconciler/pkg/chart"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 )
 
@@ -29,8 +30,8 @@ type ComponentReconciler struct {
 	installAction     Action
 	postInstallAction Action
 	interval          time.Duration
-	//chartProvider     *chart.Provider
-	maxRetries int
+	chartProvider     *chart.Provider
+	maxRetries        int
 }
 
 type serverOpts struct {
@@ -39,8 +40,10 @@ type serverOpts struct {
 	sslKeyFile string
 }
 
-func NewComponentReconciler() *ComponentReconciler {
-	return &ComponentReconciler{}
+func NewComponentReconciler(chartProvider *chart.Provider) *ComponentReconciler {
+	return &ComponentReconciler{
+		chartProvider: chartProvider,
+	}
 }
 
 func (r *ComponentReconciler) validate() {
@@ -68,20 +71,18 @@ func (r *ComponentReconciler) WithServerConfiguration(port int, sslCrtFile, sslK
 	return r
 }
 
-func (r *ComponentReconciler) WithPreInstallAction(port int, sslCrtFile, sslKeyFile string) *ComponentReconciler {
-	r.serverOpts.port = port
-	r.serverOpts.sslCrtFile = sslCrtFile
-	r.serverOpts.sslKeyFile = sslKeyFile
+func (r *ComponentReconciler) WithPreInstallAction(preInstallAction Action) *ComponentReconciler {
+	r.preInstallAction = preInstallAction
 	return r
 }
 
-func (r *ComponentReconciler) WithInstallAction(port int, sslCrtFile, sslKeyFile string) *ComponentReconciler {
-	r.serverOpts.port = port
+func (r *ComponentReconciler) WithInstallAction(installAction Action) *ComponentReconciler {
+	r.installAction = installAction
 	return r
 }
 
-func (r *ComponentReconciler) WithPostInstallAction(port int, sslCrtFile, sslKeyFile string) *ComponentReconciler {
-	r.serverOpts.port = port
+func (r *ComponentReconciler) WithPostInstallAction(postInstallAction Action) *ComponentReconciler {
+	r.postInstallAction = postInstallAction
 	return r
 }
 
@@ -98,14 +99,7 @@ func (r *ComponentReconciler) Start() error {
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/run", paramContractVersion),
 		func(w http.ResponseWriter, req *http.Request) {
-			err := (&runner{
-				preInstallAction:  r.preInstallAction,
-				installAction:     r.installAction,
-				postInstallAction: r.postInstallAction,
-				maxRetries:        r.maxRetries,
-				interval:          r.interval,
-				debug:             r.debug,
-			}).Run(w, req)
+			err := (&runner{r}).Run(w, req)
 			if err != nil {
 				sendError(w, 500, err)
 			}

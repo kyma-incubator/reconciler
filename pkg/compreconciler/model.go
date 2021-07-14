@@ -4,8 +4,9 @@ type Reconciliation struct {
 	Component     string          `json:"component"`
 	Namespace     string          `json:"namespace"`
 	Version       string          `json:"version"`
+	Profile       string          `json:"profile"`
 	Configuration []Configuration `json:"configuration"`
-	KubeConfig    string          `json:"kubeConfig"`
+	Kubeconfig    string          `json:"kubeconfig"`
 	CallbackURL   string          `json:"callbackURL"`
 }
 
