@@ -19,7 +19,7 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().IntVar(&o.Port, "port", 8080, "Webserver port")
 	cmd.Flags().StringVar(&o.SSLCrt, "crt", "", "Path to SSL certificate file")
 	cmd.Flags().StringVar(&o.SSLKey, "key", "", "Path to SSL key file")
-	cmd.Flags().StringVar(&o.Workspace, "workspace", ".", "Path to SSL key file")
+	cmd.Flags().StringVar(&o.Workspace, "workspace", ".", "Workspace directory used to cache Kyma sources")
 	return cmd
 }
 
