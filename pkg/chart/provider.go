@@ -109,7 +109,7 @@ func (p *Provider) componentList(ws *workspace.Workspace, comps []*Component) (*
 	if err != nil {
 		return nil, err
 	}
-	compsMap := p.comps(comps)
+	compsMap := p.componentMap(comps)
 	for idx, clComp := range compList.Prerequisites {
 		if comp, ok := compsMap[clComp.Name]; ok {
 			if comp.namespace != "" {
@@ -133,7 +133,7 @@ func (p *Provider) componentList(ws *workspace.Workspace, comps []*Component) (*
 	return compList, nil
 }
 
-func (p *Provider) comps(comps []*Component) map[string]*Component {
+func (p *Provider) componentMap(comps []*Component) map[string]*Component {
 	result := make(map[string]*Component, len(comps))
 	for _, comp := range comps {
 		result[comp.name] = comp

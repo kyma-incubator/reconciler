@@ -22,6 +22,8 @@ var (
 )
 
 func TestProvider(t *testing.T) {
+	t.Parallel()
+
 	wsFactory := &workspace.Factory{
 		StorageDir: "./test",
 	}
