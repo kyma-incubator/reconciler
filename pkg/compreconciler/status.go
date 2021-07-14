@@ -3,10 +3,13 @@ package compreconciler
 import (
 	"bytes"
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/carlescere/scheduler"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type Status string
@@ -36,26 +39,35 @@ func newStatusUpdater(interval int, callbackURL string, maxFailures int) *Status
 	}
 }
 
-func (su *StatusUpdater) start() {
+func (su *StatusUpdater) start() error {
 	task := func() {
-		log.Println("Send status to scheduler, used callback")
+		log, err := logger.NewLogger(true)
+		if err != nil {
+			log = zap.NewNop()
+		}
 		requestBody, err := json.Marshal(map[string]string{
 			"status": string(su.status),
 		})
 		if err != nil {
-			log.Println(err)
+			log.Error(err.Error())
 		}
 		resp, err := http.Post(su.callbackURL, "application/json", bytes.NewBuffer(requestBody))
 		if err != nil {
-			log.Println(err)
+			log.Error(fmt.Sprintf("Status update request failed: %s", err))
+			dumpResp, err := httputil.DumpResponse(resp, true)
+			if err == nil {
+				log.Error(fmt.Sprintf("Failed to dump response: %s", err))
+			} else {
+				log.Info(fmt.Sprintf("Response is: %s", string(dumpResp)))
+			}
 		}
-		log.Println(resp)
 	}
 	job, err := scheduler.Every(su.interval).Seconds().Run(task)
 	if err != nil {
-		log.Println(err)
+		return err
 	}
 	su.job = job
+	return nil
 }
 
 func (su *StatusUpdater) stop() {
