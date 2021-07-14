@@ -1,0 +1,8 @@
+---
+# Source: component-1/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: component-1
+data:
+  dummyConfig: "overwritten by unittest"

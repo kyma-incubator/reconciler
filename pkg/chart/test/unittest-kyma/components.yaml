@@ -1,0 +1,4 @@
+---
+defaultNamespace: kyma-system
+components:
+  - name: "component-1"
