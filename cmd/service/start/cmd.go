@@ -66,6 +66,11 @@ func startWebserver(o *Options) error {
 		Methods("GET")
 
 	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramCluster),
+		callHandler(o, getLatest)).
+		Methods("GET")
+
+	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges/{%s}", paramContractVersion, paramCluster, paramOffset),
 		callHandler(o, statusChanges)).
 		Methods("GET")
@@ -132,6 +137,21 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	clusterState, err := o.Registry.Inventory().Get(cluster, configVersion)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster state"))
+		return
+	}
+	sendResponse(w, responsePayload(clusterState))
+}
+
+func getLatest(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	cluster, err := params.String("cluster")
+	if err != nil {
+		sendError(w, http.StatusBadRequest, err)
+		return
+	}
+	clusterState, err := o.Registry.Inventory().GetLatest(cluster)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster state"))
 		return
