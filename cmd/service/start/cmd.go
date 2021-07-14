@@ -153,7 +153,7 @@ func getLatest(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 	clusterState, err := o.Registry.Inventory().GetLatest(cluster)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster state"))
+		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Could not retrieve cluster state"))
 		return
 	}
 	sendResponse(w, responsePayload(clusterState))
