@@ -19,7 +19,7 @@ const (
 )
 
 type Action interface {
-	Run(version string, kubeClient *kubernetes.Clientset, status *StatusUpdater) error
+	Run(version string, kubeClient *kubernetes.Clientset) error
 }
 
 type ComponentReconciler struct {
@@ -29,7 +29,8 @@ type ComponentReconciler struct {
 	installAction     Action
 	postInstallAction Action
 	interval          time.Duration
-	maxRetries        int
+	//chartProvider     *chart.Provider
+	maxRetries int
 }
 
 type serverOpts struct {

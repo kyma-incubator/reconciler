@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"time"
 
 	"github.com/carlescere/scheduler"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -22,20 +23,20 @@ const (
 )
 
 type StatusUpdater struct {
-	job          *scheduler.Job
-	maxFailures  int
-	interval     int
-	callbackURL  string
-	status       Status
-	failureCount int
+	job          *scheduler.Job //trigger for http-calls to reconciler-controller
+	interval     time.Duration  //interval for sending the latest status to reconciler-controller
+	callbackURL  string         //URL of the reconciler-controller
+	status       Status         //current status
+	lastUpdate   time.Time      //time when the last status update was successfully send to reconciler-controller
+	retryTimeout time.Duration  //timeout until the status updater will stop retrying to send updates to the reconciler
 }
 
-func newStatusUpdater(interval int, callbackURL string, maxFailures int) *StatusUpdater {
+func newStatusUpdater(interval time.Duration, callbackURL string, retryTimeout time.Duration) *StatusUpdater {
 	return &StatusUpdater{
-		callbackURL: callbackURL,
-		interval:    interval,
-		status:      Running,
-		maxFailures: maxFailures,
+		callbackURL:  callbackURL,
+		interval:     interval,
+		status:       Running,
+		retryTimeout: retryTimeout,
 	}
 }
 
@@ -45,15 +46,20 @@ func (su *StatusUpdater) start() error {
 		if err != nil {
 			log = zap.NewNop()
 		}
+
 		requestBody, err := json.Marshal(map[string]string{
 			"status": string(su.status),
 		})
 		if err != nil {
 			log.Error(err.Error())
 		}
+
 		resp, err := http.Post(su.callbackURL, "application/json", bytes.NewBuffer(requestBody))
-		if err != nil {
+		if err == nil {
+			su.lastUpdate = time.Now()
+		} else {
 			log.Error(fmt.Sprintf("Status update request failed: %s", err))
+			//dump request
 			dumpResp, err := httputil.DumpResponse(resp, true)
 			if err == nil {
 				log.Error(fmt.Sprintf("Failed to dump response: %s", err))
@@ -61,34 +67,48 @@ func (su *StatusUpdater) start() error {
 				log.Info(fmt.Sprintf("Response is: %s", string(dumpResp)))
 			}
 		}
+
+		if su.stopStatusUpdates(err) {
+			su.job.Quit <- true
+		}
 	}
-	job, err := scheduler.Every(su.interval).Seconds().Run(task)
+
+	job, err := scheduler.Every(int(su.interval.Seconds())).Seconds().Run(task)
 	if err != nil {
 		return err
 	}
 	su.job = job
+
 	return nil
 }
 
-func (su *StatusUpdater) stop() {
-	su.job.Quit <- true
-	//important: the scheduler has to response with a valid response-code (e.g. 500/400 errors should lead to a retry of the call)
+//stopStatusUpdates checks if further updates have to be send to reconciler-controller
+func (su *StatusUpdater) stopStatusUpdates(lastReqError error) bool {
+	if time.Since(su.lastUpdate) > su.retryTimeout {
+		return true
+	}
+	return lastReqError == nil && (su.status == Error || su.status == Success)
 }
 
-func (su *StatusUpdater) success() {
+func (su *StatusUpdater) Running() bool {
+	if su.job != nil {
+		return su.job.IsRunning()
+	}
+	return false
+}
+
+func (su *StatusUpdater) CurentStatus() Status {
+	return su.status
+}
+
+func (su *StatusUpdater) Success() {
 	su.status = Success
 }
 
-func (su *StatusUpdater) error() {
+func (su *StatusUpdater) Error() {
 	su.status = Error
 }
 
-func (su *StatusUpdater) failed() {
-	su.failureCount++
-	if su.failureCount > su.maxFailures {
-		su.error()
-		su.stop()
-	} else {
-		su.status = Failed
-	}
+func (su *StatusUpdater) Failed() {
+	su.status = Failed
 }

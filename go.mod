@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
+	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/carlescere/scheduler v0.0.0-20170109141437-ee74d2f83d82
 	github.com/fatih/structs v1.1.0
 	github.com/go-git/go-git/v5 v5.4.2
