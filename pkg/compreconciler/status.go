@@ -177,7 +177,7 @@ func podIsReady(su *StatusUpdater, object K8SObject, log *zap.Logger) bool {
 	if err != nil {
 		log.Error(err.Error())
 	}
-	return pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodSucceeded
+	return pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodRunning
 }
 
 func daemonSetIsReady(su *StatusUpdater, object K8SObject, log *zap.Logger) bool {
