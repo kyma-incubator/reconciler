@@ -1,10 +1,16 @@
 package compreconciler
 
-type ReconciliationModel struct {
-	Manifest string `json:"manifest"` // TODO remove
-	//ChartName    string `json:"chartName"`  // TODO uncomment
-	//Configuration    string `json:"configuration"`  // TODO uncomment
-	KubeConfig  string `json:"kubeConfig"`
-	Version     string `json:"version"`
-	CallbackURL string `json:"callbackURL"`
+type Reconciliation struct {
+	Component     string          `json:"component"`
+	Namespace     string          `json:"namespace"`
+	Version       string          `json:"version"`
+	Profile       string          `json:"profile"`
+	Configuration []Configuration `json:"configuration"`
+	Kubeconfig    string          `json:"kubeconfig"`
+	CallbackURL   string          `json:"callbackURL"`
+}
+
+type Configuration struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
