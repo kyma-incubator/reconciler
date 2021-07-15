@@ -1,7 +1,7 @@
 --CONFIGURATION MANAGEMENT
 
 --DDL for configuration key entities:
-CREATE TABLE config_keys (
+CREATE TABLE IF NOT EXISTS config_keys (
 	"version" integer PRIMARY KEY AUTOINCREMENT,
 	"key" text NOT NULL,
 	"data_type" varchar(255) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE config_keys (
 );
 
 --DDL for configuration value entities:
-CREATE TABLE config_values (
+CREATE TABLE IF NOT EXISTS config_values (
 	"version" integer PRIMARY KEY AUTOINCREMENT,
 	"key" text NOT NULL,
 	"key_version" integer NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE config_values (
 );
 
 --DDL for configuration cache-entry entities:
-CREATE TABLE config_cache (
+CREATE TABLE IF NOT EXISTS config_cache (
 	"id" integer PRIMARY KEY AUTOINCREMENT, --just another unique identifer for a cache entry
 	"label" text NOT NULL,
 	"cluster" text NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE config_cache (
 );
 
 --DDL for configuration cache-dependency entities:
-CREATE TABLE config_cachedeps (
+CREATE TABLE IF NOT EXISTS config_cachedeps (
 	"id" integer PRIMARY KEY AUTOINCREMENT, --just another unique identifer for a cache entry
 	"bucket" text NOT NULL,
 	"key" text NOT NULL,
@@ -51,10 +51,10 @@ CREATE TABLE config_cachedeps (
 	FOREIGN KEY ("label", "cluster") REFERENCES config_cache ("label", "cluster") ON DELETE CASCADE
 );
 
-CREATE INDEX config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
+CREATE INDEX IF NOT EXISTS config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
 
 --DDL for cluster inventory:
-CREATE TABLE inventory_clusters (
+CREATE TABLE IF NOT EXISTS inventory_clusters (
 	"version" integer PRIMARY KEY AUTOINCREMENT, --can also be used as unique identifier for a cluster
 	"cluster" text NOT NULL,
 	"runtime" text NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE inventory_clusters (
 	CONSTRAINT inventory_clusters_pk UNIQUE ("cluster", "version")
 );
 
-CREATE TABLE inventory_cluster_configs (
+CREATE TABLE IF NOT EXISTS inventory_cluster_configs (
 	"version" integer PRIMARY KEY AUTOINCREMENT, --can also be used as unique identifier for a cluster config
 	"cluster" text NOT NULL,
 	"cluster_version" int NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE inventory_cluster_configs (
 	FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE inventory_cluster_config_statuses (
+CREATE TABLE IF NOT EXISTS nventory_cluster_config_statuses (
 	"id" integer PRIMARY KEY AUTOINCREMENT,
 	"cluster" text NOT NULL,
 	"cluster_version" int NOT NULL,

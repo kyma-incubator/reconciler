@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"io/ioutil"
 	"path"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
@@ -13,33 +12,11 @@ func NewTestConnectionFactory() (ConnectionFactory, error) {
 	if err != nil {
 		return nil, err
 	}
-	connFac, err := NewConnectionFactory(path.Join(configDir, "reconciler-unittest.yaml"))
+	connFac, err := NewConnectionFactory(path.Join(configDir, "reconciler-unittest.yaml"), true)
 	if err != nil {
-		return connFac, err
+		return nil, err
 	}
-
-	if _, ok := connFac.(*SqliteConnectionFactory); ok {
-		//get connection
-		conn, err := connFac.NewConnection()
-		if err != nil {
-			panic(err)
-		}
-
-		//read DDL (test-table structure)
-		ddl, err := ioutil.ReadFile(path.Join(configDir, "db", "sqlite", "reconciler.sql"))
-		if err != nil {
-			panic(err)
-		}
-
-		//populate DB schema
-		_, err = conn.Exec(string(ddl))
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	return connFac, nil
-
+	return connFac, connFac.Init()
 }
 
 func resolveConfigsDir() (string, error) {

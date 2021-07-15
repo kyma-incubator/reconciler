@@ -33,7 +33,7 @@ build-linux-arm:
 
 .PHONY: build-darwin
 build-darwin:
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/reconciler-darwin $(FLAGS) ./cmd
+	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o ./bin/reconciler-darwin $(FLAGS) ./cmd
 
 .PHONY: docker-build
 docker-build:
