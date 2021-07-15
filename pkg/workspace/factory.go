@@ -30,17 +30,21 @@ type Factory struct {
 	RepositoryURL string
 }
 
+func (f *Factory) defaultStorageDir() string {
+	//define work dir, priority: "$HOME", "cwd()", "."
+	baseDir, err := os.UserHomeDir()
+	if err != nil {
+		baseDir, err = os.Getwd()
+		if err != nil {
+			baseDir = "."
+		}
+	}
+	return filepath.Join(baseDir, ".kyma", "reconciler", "versions")
+}
+
 func (f *Factory) versionDir(version string) string {
 	if f.StorageDir == "" {
-		//define work dir, priority: "$HOME", "cwd()", "."
-		baseDir, err := os.UserHomeDir()
-		if err != nil {
-			baseDir, err = os.Getwd()
-			if err != nil {
-				baseDir = "."
-			}
-		}
-		f.StorageDir = filepath.Join(baseDir, ".kyma", "reconciler", "versions")
+		f.StorageDir = f.defaultStorageDir()
 	}
 
 	versionDir := filepath.Join(f.StorageDir, version) //add Kyma version as subdirectory

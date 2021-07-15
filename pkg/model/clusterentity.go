@@ -54,9 +54,15 @@ func (c *ClusterEntity) Equal(other db.DatabaseEntity) bool {
 }
 
 func (c *ClusterEntity) GetRuntime() (*keb.RuntimeInput, error) {
+	if c.Runtime == "" {
+		return &keb.RuntimeInput{}, nil
+	}
 	return keb.NewModelFactory(c.Contract).Runtime([]byte(c.Runtime))
 }
 
 func (c *ClusterEntity) GetMetadata() (*keb.Metadata, error) {
+	if c.Metadata == "" {
+		return &keb.Metadata{}, nil
+	}
 	return keb.NewModelFactory(c.Contract).Metadata([]byte(c.Metadata))
 }
