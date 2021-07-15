@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"os/signal"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -28,20 +26,7 @@ func (s *Webserver) logger() *zap.Logger {
 	return s.Logger
 }
 
-func (s *Webserver) Start() error {
-	//listen on os events
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-
-	//create context
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		oscall := <-c
-		if oscall == os.Interrupt {
-			cancel()
-		}
-	}()
-
+func (s *Webserver) Start(ctx context.Context) error {
 	//run webserver within context
 	return s.runServer(ctx)
 }
