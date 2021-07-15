@@ -14,7 +14,7 @@ import (
 
 const (
 	paramContractVersion = "version"
-	defaultServerPort    = 5
+	defaultServerPort    = 8080
 	defaultMaxRetries    = 5
 	defaultInterval      = 30 * time.Second
 )
@@ -53,14 +53,14 @@ func (r *ComponentReconciler) validate() {
 	if r.maxRetries <= 0 {
 		r.maxRetries = defaultMaxRetries
 	}
+	if r.serverOpts.port <= 0 {
+		r.serverOpts.port = defaultServerPort
+	}
 }
 
 func (r *ComponentReconciler) Configure(interval time.Duration, maxRetries int) *ComponentReconciler {
 	r.interval = interval
 	r.maxRetries = maxRetries
-	if r.serverOpts.port <= 0 {
-		r.serverOpts.port = defaultServerPort
-	}
 	return r
 }
 

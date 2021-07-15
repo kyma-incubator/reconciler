@@ -28,5 +28,5 @@ func Run(o *Options) error {
 	if err := chartProvider.ChangeWorkspace(o.Workspace); err != nil {
 		return err
 	}
-	return compreconciler.NewComponentReconciler(chartProvider).Start()
+	return compreconciler.NewComponentReconciler(chartProvider).WithServerConfiguration(o.Port, o.SSLCrt, o.SSLKey).Start()
 }
