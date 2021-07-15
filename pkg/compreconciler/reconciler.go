@@ -1,6 +1,7 @@
 package compreconciler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -91,7 +92,7 @@ func (r *ComponentReconciler) Debug() *ComponentReconciler {
 	return r
 }
 
-func (r *ComponentReconciler) Start() error {
+func (r *ComponentReconciler) Start(ctx context.Context) error {
 	r.validate()
 
 	//create webserver
@@ -106,14 +107,14 @@ func (r *ComponentReconciler) Start() error {
 		}).
 		Methods("PUT", "POST")
 
-	server := server.Webserver{
+	srv := server.Webserver{
 		Port:       r.serverOpts.port,
 		SSLCrtFile: r.serverOpts.sslCrtFile,
 		SSLKeyFile: r.serverOpts.sslKeyFile,
 		Router:     router,
 	}
 
-	return server.Start()
+	return srv.Start(ctx)
 }
 
 func sendError(w http.ResponseWriter, httpCode int, err error) {
