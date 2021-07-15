@@ -36,7 +36,7 @@ loop:
 				w.logger.Error(fmt.Sprintf("Error while fetching clusters to reconcile from inventory: %s", err))
 			}
 
-			if clusters == nil || len(clusters) == 0 {
+			if len(clusters) == 0 {
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}

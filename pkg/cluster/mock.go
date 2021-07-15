@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 )
 
 type MockInventory struct {
@@ -13,16 +14,16 @@ type MockInventory struct {
 	GetLatestResult           *State
 	CreateOrUpdateResult      *State
 	DeleteResult              error
-	UpdateStatusResult        error
+	UpdateStatusResult        *State
 	ChangesResult             []*StatusChange
 }
 
-func (i *MockInventory) CreateOrUpdate(cluster *keb.Cluster) (*State, error) {
+func (i *MockInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
 	return i.CreateOrUpdateResult, nil
 }
 
-func (i *MockInventory) UpdateStatus(State *State) error {
-	return i.UpdateStatusResult
+func (i *MockInventory) UpdateStatus(State *State, status model.Status) (*State, error) {
+	return i.UpdateStatusResult, nil
 }
 
 func (i *MockInventory) Delete(cluster string) error {
@@ -37,7 +38,7 @@ func (i *MockInventory) GetLatest(cluster string) (*State, error) {
 	return i.GetLatestResult, nil
 }
 
-func (i *MockInventory) ClustersToReconcile() ([]*State, error) {
+func (i *MockInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
 	return i.ClustersToReconcileResult, nil
 }
 
