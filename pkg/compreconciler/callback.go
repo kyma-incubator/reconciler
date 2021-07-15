@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"go.uber.org/zap"
 	"net/http"
 	"net/http/httputil"
@@ -27,7 +27,7 @@ type RemoteCallbackHandler struct {
 }
 
 func NewRemoteCallbackHandler(callbackURL string, debug bool) (CallbackHandler, error) {
-	logger, err := logger.NewLogger(debug)
+	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ type LocalCallbackHandler struct {
 }
 
 func NewLocalCallbackHandler(callbackFct func(status Status) error, debug bool) (CallbackHandler, error) {
-	logger, err := logger.NewLogger(debug)
+	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func NewLocalCallbackHandler(callbackFct func(status Status) error, debug bool) 
 }
 
 func (cb *LocalCallbackHandler) Callback(status Status) error {
-	err := cb.Callback(status)
+	err := cb.callbackFct(status)
 	if err != nil {
 		cb.logger.Info(fmt.Sprintf("Calling local callback function failed: %s", err))
 	}
