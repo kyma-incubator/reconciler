@@ -16,11 +16,10 @@ import (
 type Status string
 
 const (
-	NotStarted Status = "notstarted"
-	Failed     Status = "failed"
-	Error      Status = "error"
-	Running    Status = "running"
-	Success    Status = "success"
+	Failed  Status = "failed"
+	Error   Status = "error"
+	Running Status = "running"
+	Success Status = "success"
 )
 
 type StatusUpdater struct {
@@ -36,7 +35,7 @@ func newStatusUpdater(interval time.Duration, callbackURL string, retryTimeout t
 	return &StatusUpdater{
 		callbackURL:  callbackURL,
 		interval:     interval,
-		status:       NotStarted,
+		status:       Running,
 		retryTimeout: retryTimeout,
 	}
 }
@@ -79,7 +78,6 @@ func (su *StatusUpdater) start() error {
 		return err
 	}
 	su.job = job
-	su.status = Running
 
 	return nil
 }
