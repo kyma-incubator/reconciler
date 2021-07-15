@@ -116,6 +116,7 @@ func (su *StatusUpdater) start() error {
 		if err != nil {
 			log.Error(err.Error())
 		}
+
 		resp, err := http.Post(su.callbackURL, "application/json", bytes.NewBuffer(requestBody))
 		if err == nil {
 			su.lastUpdate = time.Now()
@@ -135,7 +136,7 @@ func (su *StatusUpdater) start() error {
 		}
 	}
 
-	job, err := scheduler.Every(int(5)).Seconds().Run(task)
+	job, err := scheduler.Every(int(su.interval.Seconds())).Seconds().Run(task)
 	if err != nil {
 		return err
 	}

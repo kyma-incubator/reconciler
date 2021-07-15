@@ -107,7 +107,7 @@ func (r *ComponentReconciler) Start() error {
 		Methods("PUT", "POST")
 
 	server := server.Webserver{
-		Port:       8080,
+		Port:       r.serverOpts.port,
 		SSLCrtFile: r.serverOpts.sslCrtFile,
 		SSLKeyFile: r.serverOpts.sslKeyFile,
 		Router:     router,

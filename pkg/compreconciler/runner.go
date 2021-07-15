@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -139,27 +140,28 @@ func (r *runner) modelForVersion(contactVersion string) *Reconciliation {
 }
 
 func (r *runner) install(model *Reconciliation, client *kubeClient, statusUpdater *StatusUpdater) error {
-	//manifests, err := r.chartProvider.Manifests(r.newChartComponentSet(model), &chart.Options{})
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if len(manifests) != 1 { //just an assertion - can in current implementation not occur
-	//	return fmt.Errorf("Reconciliation can only process 1 manifest but got %d", len(manifests))
-	//}
-	man := "apiVersion: v1\nkind: Service\nmetadata:\n  name: my-nginx-svc\n  labels:\n    app: nginx\nspec:\n  type: LoadBalancer\n  ports:\n  - port: 80\n  selector:\n    app: nginx\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: my-nginx\n  labels:\n    app: nginx\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: nginx\n  template:\n    metadata:\n      labels:\n        app: nginx\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:1.14.2\n        ports:\n        - containerPort: 80"
-	manifestPath := "/tmp/manifest-" + uuid.New().String()
-	if err := ioutil.WriteFile(manifestPath, []byte(man), 0600); err != nil {
+	manifests, err := r.chartProvider.Manifests(r.newChartComponentSet(model), &chart.Options{})
+	if err != nil {
 		return err
 	}
 
-	command := "kubectl"
-	//if !ok {
-	//	return fmt.Errorf("Cannot find kubectl cmd, please set env-var '%s'", envVarKubectlPath)
-	//}
+	if len(manifests) != 1 { //just an assertion - can in current implementation not occur
+		return fmt.Errorf("Reconciliation can only process 1 manifest but got %d", len(manifests))
+	}
+
+	manifestPath := "/tmp/manifest-" + uuid.New().String()
+	if err := ioutil.WriteFile(manifestPath, []byte(manifests[0].Manifest), 0600); err != nil {
+		return err
+	}
+
+	command, ok := os.LookupEnv(envVarKubectlPath)
+	if !ok {
+		return fmt.Errorf("Cannot find kubectl cmd, please set env-var '%s'", envVarKubectlPath)
+	}
 	args := []string{fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "apply", "-f", manifestPath}
-	_, err := exec.Command(command, args...).CombinedOutput()
+	_, err = exec.Command(command, args...).CombinedOutput()
 	if err != nil {
+		statusUpdater.status = Failed
 		return err
 	}
 
