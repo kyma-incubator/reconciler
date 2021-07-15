@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -37,18 +37,18 @@ func (r *runner) Run(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 
-	statusUpdater := newStatusUpdater(r.interval, model.CallbackURL, statusUpdateRetryTimeout)
-	if err := statusUpdater.start(); err != nil {
-		return err
-	}
-
 	kubeClient, err := r.kubeClient(model)
 	if err != nil {
 		return err
 	}
 
+	statusUpdater := newStatusUpdater(r.interval, model.CallbackURL, statusUpdateRetryTimeout, kubeClient.clientSet)
+	if err := statusUpdater.start(); err != nil {
+		return err
+	}
+
 	retryable := func() error {
-		err := r.reconcile(kubeClient, model)
+		err := r.reconcile(kubeClient, model, statusUpdater)
 		if err != nil {
 			statusUpdater.Failed()
 		}
@@ -110,14 +110,14 @@ func (r *runner) kubeClient(model *Reconciliation) (*kubeClient, error) {
 	}, nil
 }
 
-func (r *runner) reconcile(kubeClient *kubeClient, model *Reconciliation) error {
+func (r *runner) reconcile(kubeClient *kubeClient, model *Reconciliation, statusUpdater *StatusUpdater) error {
 	if r.preInstallAction != nil {
 		if err := r.preInstallAction.Run(model.Version, kubeClient.clientSet); err != nil {
 			return err
 		}
 	}
 	if r.installAction == nil {
-		if err := r.install(model, kubeClient); err != nil {
+		if err := r.install(model, kubeClient, statusUpdater); err != nil {
 			return err
 		}
 	} else {
@@ -138,28 +138,48 @@ func (r *runner) modelForVersion(contactVersion string) *Reconciliation {
 	return &Reconciliation{} //change this function if different contract versions have to be supported
 }
 
-func (r *runner) install(model *Reconciliation, client *kubeClient) error {
-	manifests, err := r.chartProvider.Manifests(r.newChartComponentSet(model), &chart.Options{})
+func (r *runner) install(model *Reconciliation, client *kubeClient, statusUpdater *StatusUpdater) error {
+	//manifests, err := r.chartProvider.Manifests(r.newChartComponentSet(model), &chart.Options{})
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//if len(manifests) != 1 { //just an assertion - can in current implementation not occur
+	//	return fmt.Errorf("Reconciliation can only process 1 manifest but got %d", len(manifests))
+	//}
+	man := "apiVersion: v1\nkind: Service\nmetadata:\n  name: my-nginx-svc\n  labels:\n    app: nginx\nspec:\n  type: LoadBalancer\n  ports:\n  - port: 80\n  selector:\n    app: nginx\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: my-nginx\n  labels:\n    app: nginx\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: nginx\n  template:\n    metadata:\n      labels:\n        app: nginx\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:1.14.2\n        ports:\n        - containerPort: 80"
+	manifestPath := "/tmp/manifest-" + uuid.New().String()
+	if err := ioutil.WriteFile(manifestPath, []byte(man), 0600); err != nil {
+		return err
+	}
+
+	command := "kubectl"
+	//if !ok {
+	//	return fmt.Errorf("Cannot find kubectl cmd, please set env-var '%s'", envVarKubectlPath)
+	//}
+	args := []string{fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "apply", "-f", manifestPath}
+	_, err := exec.Command(command, args...).CombinedOutput()
 	if err != nil {
 		return err
 	}
 
-	if len(manifests) != 1 { //just an assertion - can in current implementation not occur
-		return fmt.Errorf("Reconciliation can only process 1 manifest but got %d", len(manifests))
-	}
-
-	manifestPath := "/tmp/manifest-" + uuid.New().String()
-	if err := ioutil.WriteFile(manifestPath, []byte(manifests[0].Manifest), 0600); err != nil {
+	args2 := []string{command, "get", "-f", manifestPath, fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "-oyaml", "-o=jsonpath='{.items[*].metadata.name} {.items[*].metadata.namespace} {.items[*].kind}'"}
+	stout, err := exec.Command(args2[0], args2[1:]...).CombinedOutput()
+	if err != nil {
 		return err
 	}
-
-	command, ok := os.LookupEnv(envVarKubectlPath)
-	if !ok {
-		return fmt.Errorf("Cannot find kubectl cmd, please set env-var '%s'", envVarKubectlPath)
+	split := strings.Split(strings.TrimSuffix(string(stout), "'"), " ")
+	quantityObjects := len(split) / 3
+	statusUpdater.createdObjects = make([]K8SObject, 0, quantityObjects)
+	for i := 0; i < quantityObjects; i++ {
+		statusUpdater.createdObjects = append(statusUpdater.createdObjects, K8SObject{
+			Name:      split[i],
+			Namespace: split[i+quantityObjects],
+			Kind:      split[i+(2*quantityObjects)],
+		})
 	}
-	args := []string{fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "apply", "-f", manifestPath}
-	_, err = exec.Command(command, args...).CombinedOutput()
-	return err
+	return nil
+
 }
 
 func (r *runner) newChartComponentSet(model *Reconciliation) *chart.ComponentSet {

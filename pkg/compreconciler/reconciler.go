@@ -14,7 +14,7 @@ import (
 
 const (
 	paramContractVersion = "version"
-	defaultServerPort    = 5
+	defaultServerPort    = 8080
 	defaultMaxRetries    = 5
 	defaultInterval      = 30 * time.Second
 )
@@ -107,7 +107,7 @@ func (r *ComponentReconciler) Start() error {
 		Methods("PUT", "POST")
 
 	server := server.Webserver{
-		Port:       r.serverOpts.port,
+		Port:       8080,
 		SSLCrtFile: r.serverOpts.sslCrtFile,
 		SSLKeyFile: r.serverOpts.sslKeyFile,
 		Router:     router,
