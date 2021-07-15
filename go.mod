@@ -3,7 +3,6 @@ module github.com/kyma-incubator/reconciler
 go 1.16
 
 replace (
-	github.com/containerd/containerd => github.com/containerd/containerd v1.4.4
 	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
 	github.com/docker/docker => github.com/moby/moby v20.10.6+incompatible
 )
@@ -32,5 +31,4 @@ require (
 	go.uber.org/zap v1.16.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 	k8s.io/client-go v0.20.2
-
 )

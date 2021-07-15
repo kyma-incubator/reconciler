@@ -75,6 +75,11 @@ type PostgresConnectionFactory struct {
 	Debug    bool
 }
 
+func (pcf *PostgresConnectionFactory) Init() error {
+	//no init action required for postgres
+	return nil
+}
+
 func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
 	sslMode := "disable"
 	if pcf.SslMode {
