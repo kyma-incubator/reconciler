@@ -23,7 +23,7 @@ RUN apk --update add ca-certificates
 # Final image
 FROM scratch
 LABEL source=git@github.com:kyma-incubator/reconciler.git
-ENV KUBECTL_PATH=$KUBECTL_PATH
+ENV KUBECTL_PATH=/bin/kubectl
 
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /bin/reconciler /bin/reconciler
