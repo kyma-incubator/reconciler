@@ -30,5 +30,6 @@ require (
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.16.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
-	k8s.io/client-go v0.20.2
+	k8s.io/client-go v0.21.2
+
 )
