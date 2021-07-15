@@ -165,7 +165,7 @@ func (r *runner) install(model *Reconciliation, client *kubeClient, statusUpdate
 		return err
 	}
 
-	args = []string{fmt.Sprintf("get -f %s", manifestPath), fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "-oyaml", "-o=jsonpath='{.items[*].metadata.name} {.items[*].metadata.namespace} {.items[*].kind}'"}
+	args = []string{"get", fmt.Sprintf("-f %s", manifestPath), fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "-oyaml", "-o=jsonpath='{.items[*].metadata.name} {.items[*].metadata.namespace} {.items[*].kind}'"}
 	getCommandStout, err := exec.Command(command, args...).CombinedOutput()
 	if err != nil {
 		return err
