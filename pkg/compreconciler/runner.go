@@ -165,12 +165,12 @@ func (r *runner) install(model *Reconciliation, client *kubeClient, statusUpdate
 		return err
 	}
 
-	args2 := []string{command, "get", "-f", manifestPath, fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "-oyaml", "-o=jsonpath='{.items[*].metadata.name} {.items[*].metadata.namespace} {.items[*].kind}'"}
-	stout, err := exec.Command(args2[0], args2[1:]...).CombinedOutput()
+	args = []string{fmt.Sprintf("get -f %s", manifestPath), fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "-oyaml", "-o=jsonpath='{.items[*].metadata.name} {.items[*].metadata.namespace} {.items[*].kind}'"}
+	getCommandStout, err := exec.Command(command, args...).CombinedOutput()
 	if err != nil {
 		return err
 	}
-	split := strings.Split(strings.TrimSuffix(string(stout), "'"), " ")
+	split := strings.Split(strings.TrimSuffix(string(getCommandStout), "'"), " ")
 	quantityObjects := len(split) / 3
 	statusUpdater.createdObjects = make([]K8SObject, 0, quantityObjects)
 	for i := 0; i < quantityObjects; i++ {
