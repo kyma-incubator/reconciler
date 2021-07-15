@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS inventory_cluster_configs (
 	FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS nventory_cluster_config_statuses (
+CREATE TABLE IF NOT EXISTS inventory_cluster_config_statuses (
 	"id" integer PRIMARY KEY AUTOINCREMENT,
 	"cluster" text NOT NULL,
 	"cluster_version" int NOT NULL,
