@@ -1,16 +1,10 @@
 package compreconciler
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httputil"
+	"context"
 	"time"
 
 	"github.com/carlescere/scheduler"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"go.uber.org/zap"
 )
 
 type Status string
@@ -23,61 +17,47 @@ const (
 )
 
 type StatusUpdater struct {
-	job          *scheduler.Job //trigger for http-calls to reconciler-controller
-	interval     time.Duration  //interval for sending the latest status to reconciler-controller
-	callbackURL  string         //URL of the reconciler-controller
-	status       Status         //current status
-	lastUpdate   time.Time      //time when the last status update was successfully send to reconciler-controller
-	retryTimeout time.Duration  //timeout until the status updater will stop retrying to send updates to the reconciler
+	job          *scheduler.Job  //trigger for http-calls to reconciler-controller
+	interval     time.Duration   //interval for sending the latest status to reconciler-controller
+	callback     CallbackHandler //URL of the reconciler-controller
+	status       Status          //current status
+	lastUpdate   time.Time       //time when the last status update was successfully send to reconciler-controller
+	retryTimeout time.Duration   //timeout until the status updater will stop retrying to send updates to the reconciler
 }
 
-func newStatusUpdater(interval time.Duration, callbackURL string, retryTimeout time.Duration) *StatusUpdater {
+func newStatusUpdater(interval time.Duration, callback CallbackHandler, retryTimeout time.Duration) *StatusUpdater {
 	return &StatusUpdater{
-		callbackURL:  callbackURL,
 		interval:     interval,
+		callback:     callback,
 		status:       Running,
 		retryTimeout: retryTimeout,
 	}
 }
 
-func (su *StatusUpdater) start() error {
+func (su *StatusUpdater) Start(ctx context.Context) error {
+	//trigger callback with status update in a defined interval
+	stopUpdating := make(chan bool)
 	task := func() {
-		log, err := logger.NewLogger(true)
-		if err != nil {
-			log = zap.NewNop()
-		}
-
-		requestBody, err := json.Marshal(map[string]string{
-			"status": string(su.status),
-		})
-		if err != nil {
-			log.Error(err.Error())
-		}
-
-		resp, err := http.Post(su.callbackURL, "application/json", bytes.NewBuffer(requestBody))
-		if err == nil {
-			su.lastUpdate = time.Now()
-		} else {
-			log.Error(fmt.Sprintf("Status update request failed: %s", err))
-			//dump request
-			dumpResp, err := httputil.DumpResponse(resp, true)
-			if err == nil {
-				log.Error(fmt.Sprintf("Failed to dump response: %s", err))
-			} else {
-				log.Info(fmt.Sprintf("Response is: %s", string(dumpResp)))
-			}
-		}
-
+		err := su.callback.Callback(su.status)
 		if su.stopStatusUpdates(err) {
-			su.job.Quit <- true
+			stopUpdating <- true
 		}
 	}
-
 	job, err := scheduler.Every(int(su.interval.Seconds())).Seconds().Run(task)
 	if err != nil {
 		return err
 	}
 	su.job = job
+
+	//stop updating either when receiving the stopUpdating-event or if context gets closed
+	go func() {
+		select {
+		case <-stopUpdating:
+			su.Stop()
+		case <-ctx.Done():
+			su.Stop()
+		}
+	}()
 
 	return nil
 }
@@ -91,7 +71,7 @@ func (su *StatusUpdater) stopStatusUpdates(lastReqError error) bool {
 	return lastReqError == nil && (su.status == Error || su.status == Success)
 }
 
-func (su *StatusUpdater) Running() bool {
+func (su *StatusUpdater) IsRunning() bool {
 	if su.job != nil {
 		return su.job.IsRunning()
 	}
@@ -112,4 +92,10 @@ func (su *StatusUpdater) Error() {
 
 func (su *StatusUpdater) Failed() {
 	su.status = Failed
+}
+
+func (su *StatusUpdater) Stop() {
+	if su.IsRunning() {
+		su.job.Quit <- true
+	}
 }

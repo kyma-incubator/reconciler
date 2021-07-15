@@ -1,10 +1,9 @@
 package compreconciler
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/chart"
-	"github.com/kyma-incubator/reconciler/pkg/server"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -31,14 +29,8 @@ type kubeClient struct {
 	kubeConfigPath string
 }
 
-func (r *runner) Run(w http.ResponseWriter, req *http.Request) error {
-	model, err := r.model(req)
-	if err != nil {
-		return err
-	}
-
-	statusUpdater := newStatusUpdater(r.interval, model.CallbackURL, statusUpdateRetryTimeout)
-	if err := statusUpdater.start(); err != nil {
+func (r *runner) Run(ctx context.Context, model *Reconciliation, statusUpdater *StatusUpdater) error {
+	if err := statusUpdater.Start(ctx); err != nil {
 		return err
 	}
 
@@ -55,7 +47,11 @@ func (r *runner) Run(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 
-	err = retry.Do(retryable, retry.Attempts(uint(r.maxRetries)), retry.LastErrorOnly(true))
+	//retry the reconciliation in case of an error
+	err = retry.Do(retryable,
+		retry.Attempts(uint(r.maxRetries)),
+		retry.LastErrorOnly(true),
+		retry.Context(ctx))
 
 	if err == nil {
 		statusUpdater.Success()
@@ -64,28 +60,6 @@ func (r *runner) Run(w http.ResponseWriter, req *http.Request) error {
 	}
 
 	return err
-}
-
-func (r *runner) model(req *http.Request) (*Reconciliation, error) {
-	params := server.NewParams(req)
-	contactVersion, err := params.String(paramContractVersion)
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := ioutil.ReadAll(req.Body)
-	defer req.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	var model = r.modelForVersion(contactVersion)
-	err = json.Unmarshal(b, model)
-	if err != nil {
-		return nil, err
-	}
-
-	return model, err
 }
 
 func (r *runner) kubeClient(model *Reconciliation) (*kubeClient, error) {
@@ -132,10 +106,6 @@ func (r *runner) reconcile(kubeClient *kubeClient, model *Reconciliation) error 
 		}
 	}
 	return nil
-}
-
-func (r *runner) modelForVersion(contactVersion string) *Reconciliation {
-	return &Reconciliation{} //change this function if different contract versions have to be supported
 }
 
 func (r *runner) install(model *Reconciliation, client *kubeClient) error {

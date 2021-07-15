@@ -7,7 +7,10 @@ type Reconciliation struct {
 	Profile       string          `json:"profile"`
 	Configuration []Configuration `json:"configuration"`
 	Kubeconfig    string          `json:"kubeconfig"`
-	CallbackURL   string          `json:"callbackURL"`
+	//CallbackURL is mandatory when component-reconciler runs in separate process
+	CallbackURL string `json:"callbackURL"`
+	//CallbackFct has to be set when component-reconciler runs embedded
+	CallbackFct func(status Status) error
 }
 
 type Configuration struct {
