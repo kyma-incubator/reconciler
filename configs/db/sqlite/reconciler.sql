@@ -59,6 +59,7 @@ CREATE TABLE inventory_clusters (
 	"cluster" text NOT NULL,
 	"runtime" text NOT NULL,
 	"metadata" text NOT NULL,
+	"kubeconfig" text NOT NULL,
 	"contract" int NOT NULL,
 	"deleted" boolean DEFAULT FALSE,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

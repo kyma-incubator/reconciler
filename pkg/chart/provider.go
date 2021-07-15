@@ -2,12 +2,14 @@ package chart
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/deployment"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/overrides"
+	file "github.com/kyma-incubator/reconciler/pkg/files"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/pkg/errors"
@@ -21,6 +23,9 @@ type Provider struct {
 }
 
 func NewProvider(wsFactory *workspace.Factory, debug bool) (*Provider, error) {
+	if wsFactory == nil {
+		return nil, fmt.Errorf("Workspace factory cannot be nil")
+	}
 	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
@@ -30,6 +35,16 @@ func NewProvider(wsFactory *workspace.Factory, debug bool) (*Provider, error) {
 		wsFactory: wsFactory,
 		logger:    logger,
 	}, nil
+}
+
+func (p *Provider) ChangeWorkspace(wsDir string) error {
+	if !file.DirExists(wsDir) {
+		if err := os.MkdirAll(wsDir, 0755); err != nil {
+			return err
+		}
+	}
+	p.wsFactory.StorageDir = wsDir
+	return nil
 }
 
 func (p *Provider) loggerAdapter() (*HydroformLoggerAdapter, error) {

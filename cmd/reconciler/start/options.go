@@ -9,13 +9,14 @@ import (
 
 type Options struct {
 	*cli.Options
-	Port   int
-	SSLCrt string
-	SSLKey string
+	Port      int
+	SSLCrt    string
+	SSLKey    string
+	Workspace string
 }
 
 func NewOptions(o *cli.Options) *Options {
-	return &Options{o, 0, "", ""}
+	return &Options{o, 0, "", "", "."}
 }
 
 func (o *Options) Validate() error {

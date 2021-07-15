@@ -11,13 +11,14 @@ import (
 const tblCluster string = "inventory_clusters"
 
 type ClusterEntity struct {
-	Version  int64     `db:"readOnly"`
-	Cluster  string    `db:"notNull"`
-	Runtime  string    `db:"notNull"`
-	Metadata string    `db:"notNull"`
-	Contract int64     `db:"notNull"`
-	Deleted  bool      `db:"notNull"`
-	Created  time.Time `db:"readOnly"`
+	Version    int64     `db:"readOnly"`
+	Cluster    string    `db:"notNull"`
+	Runtime    string    `db:"notNull"`
+	Metadata   string    `db:"notNull"`
+	Kubeconfig string    `db:"notNull"`
+	Contract   int64     `db:"notNull"`
+	Deleted    bool      `db:"notNull"`
+	Created    time.Time `db:"readOnly"`
 }
 
 func (c *ClusterEntity) String() string {
