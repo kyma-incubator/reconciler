@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -37,18 +38,18 @@ func (r *runner) Run(w http.ResponseWriter, req *http.Request) error {
 		return err
 	}
 
-	statusUpdater := newStatusUpdater(r.interval, model.CallbackURL, statusUpdateRetryTimeout)
-	if err := statusUpdater.start(); err != nil {
-		return err
-	}
-
 	kubeClient, err := r.kubeClient(model)
 	if err != nil {
 		return err
 	}
 
+	statusUpdater := newStatusUpdater(r.interval, model.CallbackURL, statusUpdateRetryTimeout, kubeClient.clientSet)
+	if err := statusUpdater.start(); err != nil {
+		return err
+	}
+
 	retryable := func() error {
-		err := r.reconcile(kubeClient, model)
+		err := r.reconcile(kubeClient, model, statusUpdater)
 		if err != nil {
 			statusUpdater.Failed()
 		}
@@ -110,14 +111,14 @@ func (r *runner) kubeClient(model *Reconciliation) (*kubeClient, error) {
 	}, nil
 }
 
-func (r *runner) reconcile(kubeClient *kubeClient, model *Reconciliation) error {
+func (r *runner) reconcile(kubeClient *kubeClient, model *Reconciliation, statusUpdater *StatusUpdater) error {
 	if r.preInstallAction != nil {
 		if err := r.preInstallAction.Run(model.Version, kubeClient.clientSet); err != nil {
 			return err
 		}
 	}
 	if r.installAction == nil {
-		if err := r.install(model, kubeClient); err != nil {
+		if err := r.install(model, kubeClient, statusUpdater); err != nil {
 			return err
 		}
 	} else {
@@ -138,7 +139,7 @@ func (r *runner) modelForVersion(contactVersion string) *Reconciliation {
 	return &Reconciliation{} //change this function if different contract versions have to be supported
 }
 
-func (r *runner) install(model *Reconciliation, client *kubeClient) error {
+func (r *runner) install(model *Reconciliation, client *kubeClient, statusUpdater *StatusUpdater) error {
 	manifests, err := r.chartProvider.Manifests(r.newChartComponentSet(model), &chart.Options{})
 	if err != nil {
 		return err
@@ -159,7 +160,28 @@ func (r *runner) install(model *Reconciliation, client *kubeClient) error {
 	}
 	args := []string{fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "apply", "-f", manifestPath}
 	_, err = exec.Command(command, args...).CombinedOutput()
-	return err
+	if err != nil {
+		statusUpdater.status = Failed
+		return err
+	}
+
+	args = []string{"get", fmt.Sprintf("-f %s", manifestPath), fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "-oyaml", "-o=jsonpath='{.items[*].metadata.name} {.items[*].metadata.namespace} {.items[*].kind}'"}
+	getCommandStout, err := exec.Command(command, args...).CombinedOutput()
+	if err != nil {
+		return err
+	}
+	split := strings.Split(strings.TrimSuffix(string(getCommandStout), "'"), " ")
+	quantityObjects := len(split) / 3
+	statusUpdater.createdObjects = make([]K8SObject, 0, quantityObjects)
+	for i := 0; i < quantityObjects; i++ {
+		statusUpdater.createdObjects = append(statusUpdater.createdObjects, K8SObject{
+			Name:      split[i],
+			Namespace: split[i+quantityObjects],
+			Kind:      split[i+(2*quantityObjects)],
+		})
+	}
+	return nil
+
 }
 
 func (r *runner) newChartComponentSet(model *Reconciliation) *chart.ComponentSet {
