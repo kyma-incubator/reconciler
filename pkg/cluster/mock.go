@@ -1,11 +1,16 @@
 package cluster
 
 import (
+	"io/ioutil"
+	"os"
 	"time"
 
+	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 )
+
+const envVarKubeconfig = "KUBECONFIG"
 
 type MockInventory struct {
 	ClustersToReconcileResult []*State
@@ -48,4 +53,19 @@ func (i *MockInventory) ClustersNotReady() ([]*State, error) {
 
 func (i *MockInventory) StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error) {
 	return i.ChangesResult, nil
+}
+
+type MockKubeconfigProvider struct {
+	KubeconfigResult string
+}
+
+func (kp *MockKubeconfigProvider) Get() (string, error) {
+	if kp.KubeconfigResult == "" && file.Exists(os.Getenv(envVarKubeconfig)) {
+		kubeCfg, err := ioutil.ReadFile(os.Getenv(envVarKubeconfig))
+		if err != nil {
+			return "", err
+		}
+		return string(kubeCfg), nil
+	}
+	return kp.KubeconfigResult, nil
 }

@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: component-1
+data:
+  dummyConfig: "{{ .Values.dummy.config }}"

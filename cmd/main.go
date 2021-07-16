@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	cfgCmd "github.com/kyma-incubator/reconciler/cmd/config"
+	clrCmd "github.com/kyma-incubator/reconciler/cmd/reconciler"
 	svcCmd "github.com/kyma-incubator/reconciler/cmd/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/app"
@@ -32,6 +33,7 @@ func main() {
 
 	cmd.AddCommand(cfgCmd.NewCmd(o))
 	cmd.AddCommand(svcCmd.NewCmd(o))
+	cmd.AddCommand(clrCmd.NewCmd(o))
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
@@ -66,8 +68,7 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 }
 
 func initApplicationRegistry(o *cli.Options) error {
-	//init object registry
-	dbConnFact, err := initDbConnectionFactory(o)
+	dbConnFact, err := db.NewConnectionFactory(viper.ConfigFileUsed(), o.Verbose)
 	if err != nil {
 		return err
 	}
@@ -106,26 +107,4 @@ func getConfigFile() (string, error) {
 		return "", fmt.Errorf("No configuration file found: set environment variable $%s_CONFIG or define it as CLI parameter", envVarPrefix)
 	}
 	return configFile, nil
-}
-
-func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
-	dbDriver := viper.GetString("db.driver")
-	if dbDriver == "" {
-		return nil, fmt.Errorf("No database driver defined")
-	}
-
-	switch dbDriver {
-	case "postgres":
-		return &db.PostgresConnectionFactory{
-			Host:     viper.GetString("db.postgres.host"),
-			Port:     viper.GetInt("db.postgres.port"),
-			Database: viper.GetString("db.postgres.database"),
-			User:     viper.GetString("db.postgres.user"),
-			Password: viper.GetString("db.postgres.password"),
-			SslMode:  viper.GetBool("db.postgres.sslMode"),
-			Debug:    o.Verbose,
-		}, nil
-	default:
-		return nil, fmt.Errorf("Database driver '%s' not supported yet", dbDriver)
-	}
 }

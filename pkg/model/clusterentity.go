@@ -11,13 +11,14 @@ import (
 const tblCluster string = "inventory_clusters"
 
 type ClusterEntity struct {
-	Version  int64     `db:"readOnly"`
-	Cluster  string    `db:"notNull"`
-	Runtime  string    `db:"notNull"`
-	Metadata string    `db:"notNull"`
-	Contract int64     `db:"notNull"`
-	Deleted  bool      `db:"notNull"`
-	Created  time.Time `db:"readOnly"`
+	Version    int64     `db:"readOnly"`
+	Cluster    string    `db:"notNull"`
+	Runtime    string    `db:"notNull"`
+	Metadata   string    `db:"notNull"`
+	Kubeconfig string    `db:"notNull"`
+	Contract   int64     `db:"notNull"`
+	Deleted    bool      `db:"notNull"`
+	Created    time.Time `db:"readOnly"`
 }
 
 func (c *ClusterEntity) String() string {
@@ -54,9 +55,15 @@ func (c *ClusterEntity) Equal(other db.DatabaseEntity) bool {
 }
 
 func (c *ClusterEntity) GetRuntime() (*keb.RuntimeInput, error) {
+	if c.Runtime == "" {
+		return &keb.RuntimeInput{}, nil
+	}
 	return keb.NewModelFactory(c.Contract).Runtime([]byte(c.Runtime))
 }
 
 func (c *ClusterEntity) GetMetadata() (*keb.Metadata, error) {
+	if c.Metadata == "" {
+		return &keb.Metadata{}, nil
+	}
 	return keb.NewModelFactory(c.Contract).Metadata([]byte(c.Metadata))
 }
