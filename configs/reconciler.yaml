@@ -7,3 +7,7 @@ db:
     user: kyma
     password: kyma
     useSsl: false
+  sqlite:
+    file: "reconciler.db"
+    deploySchema: true
+    resetDatabase: false
