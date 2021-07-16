@@ -3,63 +3,78 @@ package compreconciler
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
 
-type statusUpdate struct {
-	time   time.Time
-	status Status
+//testCallbackHandler is using an  envvar to track status changes (hack to achieve a stateless callback logic)
+type testCallbackHandler struct {
+}
+
+func (cb *testCallbackHandler) Callback(status Status) error {
+	return os.Setenv("_testCallbackHandlerStatuses", fmt.Sprintf("%s,%s", os.Getenv("_testCallbackHandlerStatuses"), status))
+}
+
+func (cb *testCallbackHandler) Statuses() []Status {
+	statuses := strings.Split(os.Getenv("_testCallbackHandlerStatuses"), ",")
+	var result []Status
+	for _, status := range statuses {
+		result = append(result, Status(status))
+	}
+	return result
+}
+
+func (cb *testCallbackHandler) LatestStatus() Status {
+	statuses := strings.Split(os.Getenv("_testCallbackHandlerStatuses"), ",")
+	return Status(statuses[len(statuses)-1])
 }
 
 func TestStatusUpdater(t *testing.T) {
-	if !test.RunExpensiveTests() {
-		return
-	}
-
 	t.Parallel()
 
 	t.Run("Test status updater without timeout", func(t *testing.T) {
-		ctx, _ := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(context.Background())
 
-		callMe := make(chan Status, 10)
-		defer close(callMe)
+		callbackHdlr := &testCallbackHandler{}
 
-		lch, err := newLocalCallbackHandler(func(status Status) error {
-			callMe <- status
-			return nil
-		}, true)
-		require.NoError(t, err)
-
-		statusUpdater := newStatusUpdater(ctx, 1*time.Second, lch, uint(1), true)
+		statusUpdater := newStatusUpdater(ctx, 1*time.Second, callbackHdlr, uint(1), true)
 
 		require.NoError(t, statusUpdater.Start())
+		require.Equal(t, statusUpdater.CurrentStatus(), Running)
 		time.Sleep(2 * time.Second)
 
-		statusUpdater.Failed()
+		err := statusUpdater.Failed()
+		require.NoError(t, err)
+		require.Equal(t, statusUpdater.CurrentStatus(), Failed)
 		time.Sleep(2 * time.Second)
 
-		statusUpdater.Success()
+		err = statusUpdater.Success()
+		require.NoError(t, err)
+		require.Equal(t, statusUpdater.CurrentStatus(), Success)
 		time.Sleep(2 * time.Second)
+		cancel()
 
-		for status := range callMe {
-			fmt.Println(status)
-		}
+		//check fired status updates
+		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 4) //anything > 3 is sufficient to ensure the statusUpdaters works
+		require.Equal(t, callbackHdlr.LatestStatus(), Success)
 	})
 
 	t.Run("Test status updater with timeout", func(t *testing.T) {
-		ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
 
-		lch, err := newLocalCallbackHandler(func(status Status) error {
-			return nil
-		}, true)
-		require.NoError(t, err)
+		callbackHdlr := &testCallbackHandler{}
 
-		statusUpdater := newStatusUpdater(ctx, 1*time.Second, lch, uint(1), true)
+		statusUpdater := newStatusUpdater(ctx, 1*time.Second, callbackHdlr, uint(1), true)
 
 		require.NoError(t, statusUpdater.Start())
-		time.Sleep(4 * time.Second) //wait longer than timeout to force closed context
+		require.Equal(t, statusUpdater.CurrentStatus(), Running)
+		time.Sleep(4 * time.Second) //wait longer than timeout to simulate expired context
+
+		//check fired status updates
+		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the statusUpdaters worked
 	})
 }

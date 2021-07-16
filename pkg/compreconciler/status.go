@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/avast/retry-go"
-	logger "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"go.uber.org/zap"
 	"time"
 
@@ -18,7 +18,6 @@ const (
 	Error   Status = "error"
 	Running Status = "running"
 	Success Status = "success"
-	Stopped Status = "stopped"
 )
 
 type StatusUpdater struct {
@@ -42,20 +41,24 @@ func newStatusUpdater(ctx context.Context, interval time.Duration,
 	}
 }
 func (su *StatusUpdater) logger() *zap.Logger {
-	logger, err := logger.NewLogger(su.debug)
+	log, err := logger.NewLogger(su.debug)
 	if err != nil {
-		logger = zap.NewNop()
+		log = zap.NewNop()
 	}
-	return logger
+	return log
 }
 
 func (su *StatusUpdater) updateWithInterval(status Status) error {
-	su.stop() //ensure scheduler-job is stopped before starting a new update routine
+	su.stopJob() //ensure previous scheduler-job is stopped before starting a new update routine
 
 	task := func() {
 		err := su.callback.Callback(status)
-		su.logger().Warn(fmt.Sprintf(
-			"Interval-callback with status-update ('%s') to reconciler-controller failed: %s", status, err))
+		if err == nil {
+			su.logger().Debug(fmt.Sprintf("Interval-callback with status-update ('%s') finished successfully", status))
+		} else {
+			su.logger().Warn(fmt.Sprintf(
+				"Interval-callback with status-update ('%s') to reconciler-controller failed: %s", status, err))
+		}
 	}
 
 	var err error
@@ -64,13 +67,15 @@ func (su *StatusUpdater) updateWithInterval(status Status) error {
 }
 
 func (su *StatusUpdater) updateWithRetry(status Status) error {
-	su.stop() //ensure scheduler-job is stopped before starting a new update routine
+	su.stopJob() //ensure scheduler-job is stopped before starting a new update routine
 
 	go func(ctx context.Context, s Status, retries uint) {
 		err := retry.Do(
 			func() error {
 				err := su.callback.Callback(s)
-				if err != nil {
+				if err == nil {
+					su.logger().Debug(fmt.Sprintf("Retry-callback with status-update ('%s') finished successfully", status))
+				} else {
 					su.logger().Warn(fmt.Sprintf(
 						"Retry-callback with status-update ('%s') to reconciler-controller failed: %s", status, err))
 				}
@@ -81,7 +86,7 @@ func (su *StatusUpdater) updateWithRetry(status Status) error {
 			retry.LastErrorOnly(false))
 		if err != nil {
 			su.logger().Error(
-				fmt.Sprintf(" Reached max-retries for retry-callback with status-update ('%s'): %s", status, err))
+				fmt.Sprintf("Reached max-retries for retry-callback with status-update ('%s'): %s", status, err))
 		}
 	}(su.ctx, status, su.maxRetries)
 
@@ -93,18 +98,23 @@ func (su *StatusUpdater) CurrentStatus() Status {
 }
 
 func (su *StatusUpdater) Start() error {
-	go func() { // watch parent context: if it gets closed, stop the status updater
-		<-su.ctx.Done()
-		su.stop()
-	}()
-	return su.Running()
+	err := su.Running()
+
+	if err == nil { //cronjob is not supporting parent context: watch for context event and stop job
+		go func(shutdownFct func()) {
+			<-su.ctx.Done()
+			su.logger().Info("Execution context closing: shutdown status updater")
+			shutdownFct()
+		}(su.stopJob)
+	}
+
+	return err
 }
 
-func (su *StatusUpdater) stop() {
+func (su *StatusUpdater) stopJob() {
 	if su.job != nil {
 		su.job.Quit <- true
 	}
-	su.status = Stopped
 }
 
 func (su *StatusUpdater) Running() error {
