@@ -8,8 +8,6 @@ import (
 )
 
 func TestExpensive(t *testing.T) {
-	require.False(t, RunExpensiveTests())
-
 	os.Setenv(EnvExpensiveTests, "false")
 	require.False(t, RunExpensiveTests())
 

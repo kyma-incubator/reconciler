@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	paramContractVersion = "version"
-	defaultServerPort    = 8080
-	defaultMaxRetries    = 5
-	defaultInterval      = 30 * time.Second
+	paramContractVersion  = "version"
+	defaultServerPort     = 8080
+	defaultMaxRetries     = 5
+	defaultUpdateInterval = 30 * time.Second
 )
 
 type Action interface {
@@ -31,8 +31,8 @@ type ComponentReconciler struct {
 	preInstallAction  Action
 	installAction     Action
 	postInstallAction Action
-	interval          time.Duration
 	chartProvider     *chart.Provider
+	updateInterval    time.Duration
 	maxRetries        int
 }
 
@@ -49,8 +49,8 @@ func NewComponentReconciler(chartProvider *chart.Provider) *ComponentReconciler 
 }
 
 func (r *ComponentReconciler) validate() {
-	if r.interval <= 0 {
-		r.interval = defaultInterval
+	if r.updateInterval <= 0 {
+		r.updateInterval = defaultUpdateInterval
 	}
 	if r.maxRetries <= 0 {
 		r.maxRetries = defaultMaxRetries
@@ -60,8 +60,8 @@ func (r *ComponentReconciler) validate() {
 	}
 }
 
-func (r *ComponentReconciler) Configure(interval time.Duration, maxRetries int) *ComponentReconciler {
-	r.interval = interval
+func (r *ComponentReconciler) Configure(updateInterval time.Duration, maxRetries int) *ComponentReconciler {
+	r.updateInterval = updateInterval
 	r.maxRetries = maxRetries
 	return r
 }
@@ -93,7 +93,18 @@ func (r *ComponentReconciler) Debug() *ComponentReconciler {
 	return r
 }
 
-func (r *ComponentReconciler) Start(ctx context.Context) error {
+func (r *ComponentReconciler) StartLocal(ctx context.Context, model *Reconciliation) error {
+	r.validate()
+
+	localCbh, err := newLocalCallbackHandler(model.CallbackFct, r.debug)
+	if err != nil {
+		return err
+	}
+
+	return r.start(ctx, model, localCbh)
+}
+
+func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
 	r.validate()
 
 	//create webserver
@@ -106,15 +117,12 @@ func (r *ComponentReconciler) Start(ctx context.Context) error {
 				r.sendError(w, err)
 			}
 
-			remoteCbh, err := NewRemoteCallbackHandler(model.CallbackURL, r.debug)
+			remoteCbh, err := newRemoteCallbackHandler(model.CallbackURL, r.debug)
 			if err != nil {
 				r.sendError(w, err)
 			}
 
-			statusUpdater := newStatusUpdater(r.interval, remoteCbh, statusUpdateRetryTimeout)
-
-			err = (&runner{r}).Run(ctx, model, statusUpdater)
-			if err != nil {
+			if err := r.start(ctx, model, remoteCbh); err != nil {
 				r.sendError(w, err)
 			}
 		}).
@@ -128,6 +136,13 @@ func (r *ComponentReconciler) Start(ctx context.Context) error {
 	}
 
 	return srv.Start(ctx) //blocking until ctx gets closed
+}
+
+func (r *ComponentReconciler) start(ctx context.Context, model *Reconciliation, cbh CallbackHandler) error {
+	//TODO: run in context with max 30min lifetime
+	//TODO: assign to worker pool
+	statusUpdater := newStatusUpdater(ctx, r.updateInterval, cbh, uint(r.maxRetries), r.debug)
+	return (&runner{r}).Run(ctx, model, statusUpdater)
 }
 
 func (r *ComponentReconciler) sendError(w http.ResponseWriter, err error) {

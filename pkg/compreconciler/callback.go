@@ -14,28 +14,21 @@ type CallbackHandler interface {
 	Callback(status Status) error
 }
 
-type defaultCallbackHandler struct {
-	logger *zap.Logger
-}
-
-type CallbackHandlerFactory struct {
-}
-
 type RemoteCallbackHandler struct {
-	*defaultCallbackHandler
+	logger      *zap.Logger
+	debug       bool
 	callbackURL string
 }
 
-func NewRemoteCallbackHandler(callbackURL string, debug bool) (CallbackHandler, error) {
+func newRemoteCallbackHandler(callbackURL string, debug bool) (CallbackHandler, error) {
 	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
 	return &RemoteCallbackHandler{
-		&defaultCallbackHandler{
-			logger: logger,
-		},
-		callbackURL,
+		logger:      logger,
+		debug:       debug,
+		callbackURL: callbackURL,
 	}, nil
 }
 
@@ -44,46 +37,57 @@ func (cb *RemoteCallbackHandler) Callback(status Status) error {
 		"status": string(status),
 	})
 	if err != nil {
-		cb.logger.Error(err.Error())
+		return err
 	}
 
 	resp, err := http.Post(cb.callbackURL, "application/json", bytes.NewBuffer(requestBody))
+
+	//dump request
+	if cb.debug {
+		dumpResp, dumpErr := httputil.DumpResponse(resp, true)
+		if err == nil {
+			cb.logger.Debug(fmt.Sprintf("Response dump: %s", string(dumpResp)))
+		} else {
+			cb.logger.Error(fmt.Sprintf("Failed to dump response: %s", dumpErr))
+		}
+	}
+
 	if err != nil {
 		cb.logger.Error(fmt.Sprintf("Status update request failed: %s", err))
-		//dump request
-		dumpResp, err := httputil.DumpResponse(resp, true)
-		if err == nil {
-			cb.logger.Error(fmt.Sprintf("Failed to dump response: %s", err))
-		} else {
-			cb.logger.Info(fmt.Sprintf("Response is: %s", string(dumpResp)))
-		}
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		msg := fmt.Sprintf("Status update request (status '%s')  failed with '%d' HTTP response code",
+			status,
+			resp.StatusCode)
+		cb.logger.Info(msg)
+		return fmt.Errorf(msg)
 	}
 
 	return nil
 }
 
 type LocalCallbackHandler struct {
-	*defaultCallbackHandler
+	logger      *zap.Logger
 	callbackFct func(status Status) error
 }
 
-func NewLocalCallbackHandler(callbackFct func(status Status) error, debug bool) (CallbackHandler, error) {
+func newLocalCallbackHandler(callbackFct func(status Status) error, debug bool) (CallbackHandler, error) {
 	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
 	return &LocalCallbackHandler{
-		&defaultCallbackHandler{
-			logger: logger,
-		},
-		callbackFct,
+		logger:      logger,
+		callbackFct: callbackFct,
 	}, nil
 }
 
 func (cb *LocalCallbackHandler) Callback(status Status) error {
 	err := cb.callbackFct(status)
 	if err != nil {
-		cb.logger.Info(fmt.Sprintf("Calling local callback function failed: %s", err))
+		cb.logger.Error(fmt.Sprintf("Calling local callback function failed: %s", err))
 	}
 	return err
 }

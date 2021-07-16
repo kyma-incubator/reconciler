@@ -30,7 +30,7 @@ type kubeClient struct {
 }
 
 func (r *runner) Run(ctx context.Context, model *Reconciliation, statusUpdater *StatusUpdater) error {
-	if err := statusUpdater.Start(ctx); err != nil {
+	if err := statusUpdater.Start(); err != nil {
 		return err
 	}
 

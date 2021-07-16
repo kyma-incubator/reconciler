@@ -48,7 +48,7 @@ func TestReconciler(t *testing.T) {
 			installAction:     act,
 			postInstallAction: postAct,
 			debug:             true,
-			interval:          987 * time.Second,
+			updateInterval:    987 * time.Second,
 			maxRetries:        123,
 			chartProvider:     chartProvider,
 			serverOpts: serverOpts{

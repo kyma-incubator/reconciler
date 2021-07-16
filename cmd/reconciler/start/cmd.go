@@ -26,9 +26,13 @@ func NewCmd(o *Options) *cobra.Command {
 
 func Run(o *Options) error {
 	ctx := cli.NewContext()
+
 	chartProvider := o.Registry.ChartProvider()
 	if err := chartProvider.ChangeWorkspace(o.Workspace); err != nil {
 		return err
 	}
-	return compreconciler.NewComponentReconciler(chartProvider).WithServerConfiguration(o.Port, o.SSLCrt, o.SSLKey).Start(ctx)
+
+	return compreconciler.NewComponentReconciler(chartProvider).
+		WithServerConfiguration(o.Port, o.SSLCrt, o.SSLKey).
+		StartRemote(ctx)
 }
