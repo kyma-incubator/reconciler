@@ -3,6 +3,7 @@ package compreconciler
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	"time"
 )
 
-//testCallbackHandler is using an  envvar to track status changes (hack to achieve a stateless callback logic)
+//testCallbackHandler is tracking fired status-updates in an env-var (allows a stateless callback implementation)
 type testCallbackHandler struct {
 }
 
@@ -33,10 +34,15 @@ func (cb *testCallbackHandler) LatestStatus() Status {
 }
 
 func TestStatusUpdater(t *testing.T) {
+	if !test.RunExpensiveTests() {
+		return
+	}
+
 	t.Parallel()
 
 	t.Run("Test status updater without timeout", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		callbackHdlr := &testCallbackHandler{}
 
@@ -55,7 +61,6 @@ func TestStatusUpdater(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, statusUpdater.CurrentStatus(), Success)
 		time.Sleep(2 * time.Second)
-		cancel()
 
 		//check fired status updates
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 4) //anything > 3 is sufficient to ensure the statusUpdaters works
