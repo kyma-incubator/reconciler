@@ -162,7 +162,7 @@ func (r *ComponentReconciler) sendError(w http.ResponseWriter, err error) {
 
 func (r *ComponentReconciler) model(req *http.Request) (*Reconciliation, error) {
 	params := server.NewParams(req)
-	contactVersion, err := params.String(paramContractVersion)
+	contractVersion, err := params.String(paramContractVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,10 @@ func (r *ComponentReconciler) model(req *http.Request) (*Reconciliation, error) 
 		return nil, err
 	}
 
-	var model = r.modelForVersion(contactVersion)
+	model, err := r.modelForVersion(contractVersion)
+	if err != nil {
+		return nil, err
+	}
 	err = json.Unmarshal(b, model)
 	if err != nil {
 		return nil, err
@@ -181,6 +184,9 @@ func (r *ComponentReconciler) model(req *http.Request) (*Reconciliation, error) 
 	return model, err
 }
 
-func (r *ComponentReconciler) modelForVersion(contactVersion string) *Reconciliation {
-	return &Reconciliation{} //change this function if different contract versions have to be supported
+func (r *ComponentReconciler) modelForVersion(contractVersion string) (*Reconciliation, error) {
+	if contractVersion == "" {
+		return nil, fmt.Errorf("contract version cannot be empty")
+	}
+	return &Reconciliation{}, nil //change this function if different contract versions have to be supported
 }
