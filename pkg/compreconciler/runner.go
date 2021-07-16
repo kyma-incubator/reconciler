@@ -3,14 +3,15 @@ package compreconciler
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+
 	"github.com/avast/retry-go"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/chart"
-	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"os/exec"
 )
 
 const (

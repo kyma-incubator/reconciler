@@ -3,9 +3,10 @@ package compreconciler
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/avast/retry-go"
 	"go.uber.org/zap"
-	"time"
 
 	"github.com/carlescere/scheduler"
 )

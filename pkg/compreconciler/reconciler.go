@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"io/ioutil"
-	"k8s.io/client-go/kubernetes"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/pkg/chart"

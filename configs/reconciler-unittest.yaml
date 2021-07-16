@@ -9,4 +9,5 @@ db:
     useSsl: false
   sqlite:
     file: "test/unittest.db"
-    createFile: true
+    deploySchema: true
+    resetDatabase: true
