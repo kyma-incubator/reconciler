@@ -3,21 +3,18 @@ package compreconciler
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"time"
-
 	"github.com/avast/retry-go"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/chart"
+	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
+	"os/exec"
 )
 
 const (
-	envVarKubectlPath        = "KUBECTL_PATH"
-	statusUpdateRetryTimeout = 30 * time.Minute
+	envVarKubectlPath = "KUBECTL_PATH"
 )
 
 type runner struct {
@@ -29,40 +26,59 @@ type kubeClient struct {
 	kubeConfigPath string
 }
 
-func (r *runner) Run(ctx context.Context, model *Reconciliation, statusUpdater *StatusUpdater) error {
-	if err := statusUpdater.Start(); err != nil {
-		return err
-	}
-
+func (r *runner) Run(ctx context.Context, model *Reconciliation, callback CallbackHandler) error {
 	kubeClient, err := r.kubeClient(model)
 	if err != nil {
 		return err
 	}
 
-	retryable := func() error {
-		err := r.reconcile(kubeClient, model)
-		if err != nil {
-			statusUpdater.Failed()
+	statusUpdater := newStatusUpdater(ctx, r.updateInterval, callback, uint(r.maxRetries), r.debug)
+
+	retryable := func(statusUpdater *StatusUpdater) func() error {
+		return func() error {
+			if err := statusUpdater.Running(); err != nil {
+				return err
+			}
+			err := r.reconcile(kubeClient, model)
+			if err != nil {
+				if err := statusUpdater.Failed(); err != nil {
+					return err
+				}
+			}
+			return err
 		}
-		return err
-	}
+	}(statusUpdater)
 
 	//retry the reconciliation in case of an error
 	err = retry.Do(retryable,
 		retry.Attempts(uint(r.maxRetries)),
-		retry.LastErrorOnly(true),
+		retry.Delay(r.retryDelay),
+		retry.LastErrorOnly(false),
 		retry.Context(ctx))
 
 	if err == nil {
-		statusUpdater.Success()
+		r.logger().Info(
+			fmt.Sprintf("Reconciliation of component '%s' for version '%s' finished successfully",
+				model.Component, model.Version))
+		if err := statusUpdater.Success(); err != nil {
+			return err
+		}
 	} else {
-		statusUpdater.Error()
+		r.logger().Warn(
+			fmt.Sprintf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
+				model.Component, model.Version))
+		if err := statusUpdater.Error(); err != nil {
+			return err
+		}
 	}
 
 	return err
 }
 
 func (r *runner) kubeClient(model *Reconciliation) (*kubeClient, error) {
+	if model.Kubeconfig == "" {
+		return nil, fmt.Errorf("kubeconfig is missing in reconciliation model")
+	}
 	kubeConfigPath := "/tmp/kubeconfig-" + uuid.New().String()
 	if err := ioutil.WriteFile(kubeConfigPath, []byte(model.Kubeconfig), 0600); err != nil {
 		return nil, err
@@ -87,29 +103,39 @@ func (r *runner) kubeClient(model *Reconciliation) (*kubeClient, error) {
 func (r *runner) reconcile(kubeClient *kubeClient, model *Reconciliation) error {
 	if r.preInstallAction != nil {
 		if err := r.preInstallAction.Run(model.Version, kubeClient.clientSet); err != nil {
+			r.logger().Warn(
+				fmt.Sprintf("Pre-installation action of version '%s' failed: %s", model.Version, err))
 			return err
 		}
 	}
+
 	if r.installAction == nil {
 		if err := r.install(model, kubeClient); err != nil {
+			r.logger().Warn(
+				fmt.Sprintf("Default-installation of version '%s' failed: %s", model.Version, err))
 			return err
 		}
 	} else {
 		if err := r.installAction.Run(model.Version, kubeClient.clientSet); err != nil {
+			r.logger().Warn(
+				fmt.Sprintf("Installation action of version '%s' failed: %s", model.Version, err))
 			return err
 		}
 	}
 
 	if r.postInstallAction != nil {
 		if err := r.postInstallAction.Run(model.Version, kubeClient.clientSet); err != nil {
+			r.logger().Warn(
+				fmt.Sprintf("Post-installation action of version '%s' failed: %s", model.Version, err))
 			return err
 		}
 	}
+
 	return nil
 }
 
 func (r *runner) install(model *Reconciliation, client *kubeClient) error {
-	manifests, err := r.chartProvider.Manifests(r.newChartComponentSet(model), &chart.Options{})
+	manifests, err := r.chartProvider.Manifests(r.newComponentSet(model), &chart.Options{})
 	if err != nil {
 		return err
 	}
@@ -132,7 +158,7 @@ func (r *runner) install(model *Reconciliation, client *kubeClient) error {
 	return err
 }
 
-func (r *runner) newChartComponentSet(model *Reconciliation) *chart.ComponentSet {
+func (r *runner) newComponentSet(model *Reconciliation) *chart.ComponentSet {
 	comp := chart.NewComponent(model.Component, model.Namespace, r.configMap(model))
 	compSet := chart.NewComponentSet(model.Kubeconfig, model.Version, model.Profile, []*chart.Component{comp})
 	return compSet

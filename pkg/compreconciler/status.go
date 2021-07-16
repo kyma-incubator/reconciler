@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/avast/retry-go"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"go.uber.org/zap"
 	"time"
 
@@ -14,10 +13,11 @@ import (
 type Status string
 
 const (
-	Failed  Status = "failed"
-	Error   Status = "error"
-	Running Status = "running"
-	Success Status = "success"
+	NotStarted Status = "notstarted"
+	Failed     Status = "failed"
+	Error      Status = "error"
+	Running    Status = "running"
+	Success    Status = "success"
 )
 
 type StatusUpdater struct {
@@ -38,14 +38,12 @@ func newStatusUpdater(ctx context.Context, interval time.Duration,
 		callback:   callback,
 		maxRetries: maxRetries,
 		debug:      debug,
+		status:     NotStarted,
 	}
 }
+
 func (su *StatusUpdater) logger() *zap.Logger {
-	log, err := logger.NewLogger(su.debug)
-	if err != nil {
-		log = zap.NewNop()
-	}
-	return log
+	return newLogger(su.debug)
 }
 
 func (su *StatusUpdater) updateWithInterval(status Status) error {
@@ -86,7 +84,7 @@ func (su *StatusUpdater) updateWithRetry(status Status) error {
 			retry.LastErrorOnly(false))
 		if err != nil {
 			su.logger().Error(
-				fmt.Sprintf("Reached max-retries for retry-callback with status-update ('%s'): %s", status, err))
+				fmt.Sprintf("Retry-callback with status-update ('%s') failed: %s", status, err))
 		}
 	}(su.ctx, status, su.maxRetries)
 
@@ -97,18 +95,12 @@ func (su *StatusUpdater) CurrentStatus() Status {
 	return su.status
 }
 
-func (su *StatusUpdater) Start() error {
-	err := su.Running()
-
-	if err == nil { //cronjob is not supporting parent context: watch for context event and stop job
-		go func(shutdownFct func()) {
-			<-su.ctx.Done()
-			su.logger().Info("Execution context closing: shutdown status updater")
-			shutdownFct()
-		}(su.stopJob)
-	}
-
-	return err
+func (su *StatusUpdater) Start() {
+	go func(shutdownFct func()) {
+		<-su.ctx.Done()
+		su.logger().Info("Execution context closing: shutdown status updater")
+		shutdownFct()
+	}(su.stopJob)
 }
 
 func (su *StatusUpdater) stopJob() {
@@ -121,7 +113,7 @@ func (su *StatusUpdater) Running() error {
 	if err := su.statusChangeAllowed(Running); err != nil {
 		return err
 	}
-	err := su.updateWithInterval(Running)
+	err := su.updateWithInterval(Running) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
 	if err == nil {
 		su.status = Running
 	}
@@ -132,7 +124,7 @@ func (su *StatusUpdater) Success() error {
 	if err := su.statusChangeAllowed(Success); err != nil {
 		return err
 	}
-	err := su.updateWithRetry(Success)
+	err := su.updateWithRetry(Success) //Success is a final status: use retry because heartbeat-requests are no longer needed
 	if err == nil {
 		su.status = Success
 	}
@@ -143,7 +135,7 @@ func (su *StatusUpdater) Error() error {
 	if err := su.statusChangeAllowed(Error); err != nil {
 		return err
 	}
-	err := su.updateWithRetry(Error)
+	err := su.updateWithRetry(Error) //Error is a final status: use retry because heartbeat-requests are no longer needed
 	if err == nil {
 		su.status = Error
 	}
@@ -155,7 +147,7 @@ func (su *StatusUpdater) Failed() error {
 	if err := su.statusChangeAllowed(Failed); err != nil {
 		return err
 	}
-	err := su.updateWithInterval(Failed)
+	err := su.updateWithInterval(Failed) //Failed is an interim status: use interval to send heartbeat-request to reconciler-controller
 	if err == nil {
 		su.status = Failed
 	}

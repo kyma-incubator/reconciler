@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"net/http"
@@ -19,6 +20,7 @@ const (
 	defaultServerPort     = 8080
 	defaultMaxRetries     = 5
 	defaultUpdateInterval = 30 * time.Second
+	defaultRetryDelay     = 30 * time.Second
 )
 
 type Action interface {
@@ -34,6 +36,7 @@ type ComponentReconciler struct {
 	chartProvider     *chart.Provider
 	updateInterval    time.Duration
 	maxRetries        int
+	retryDelay        time.Duration
 }
 
 type serverOpts struct {
@@ -48,6 +51,10 @@ func NewComponentReconciler(chartProvider *chart.Provider) *ComponentReconciler 
 	}
 }
 
+func (r *ComponentReconciler) logger() *zap.Logger {
+	return newLogger(r.debug)
+}
+
 func (r *ComponentReconciler) validate() {
 	if r.updateInterval <= 0 {
 		r.updateInterval = defaultUpdateInterval
@@ -58,11 +65,15 @@ func (r *ComponentReconciler) validate() {
 	if r.serverOpts.port <= 0 {
 		r.serverOpts.port = defaultServerPort
 	}
+	if r.retryDelay <= 0 {
+		r.retryDelay = defaultRetryDelay
+	}
 }
 
-func (r *ComponentReconciler) Configure(updateInterval time.Duration, maxRetries int) *ComponentReconciler {
+func (r *ComponentReconciler) Configure(updateInterval time.Duration, maxRetries int, retryDelay time.Duration) *ComponentReconciler {
 	r.updateInterval = updateInterval
 	r.maxRetries = maxRetries
+	r.retryDelay = retryDelay
 	return r
 }
 
@@ -141,8 +152,7 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
 func (r *ComponentReconciler) start(ctx context.Context, model *Reconciliation, cbh CallbackHandler) error {
 	//TODO: run in context with max 30min lifetime
 	//TODO: assign to worker pool
-	statusUpdater := newStatusUpdater(ctx, r.updateInterval, cbh, uint(r.maxRetries), r.debug)
-	return (&runner{r}).Run(ctx, model, statusUpdater)
+	return (&runner{r}).Run(ctx, model, cbh)
 }
 
 func (r *ComponentReconciler) sendError(w http.ResponseWriter, err error) {
@@ -158,7 +168,6 @@ func (r *ComponentReconciler) model(req *http.Request) (*Reconciliation, error) 
 	}
 
 	b, err := ioutil.ReadAll(req.Body)
-	defer req.Body.Close()
 	if err != nil {
 		return nil, err
 	}

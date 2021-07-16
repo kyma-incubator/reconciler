@@ -47,18 +47,17 @@ func TestStatusUpdater(t *testing.T) {
 		callbackHdlr := &testCallbackHandler{}
 
 		statusUpdater := newStatusUpdater(ctx, 1*time.Second, callbackHdlr, uint(1), true)
+		require.Equal(t, statusUpdater.CurrentStatus(), NotStarted)
 
-		require.NoError(t, statusUpdater.Start())
+		require.NoError(t, statusUpdater.Running())
 		require.Equal(t, statusUpdater.CurrentStatus(), Running)
 		time.Sleep(2 * time.Second)
 
-		err := statusUpdater.Failed()
-		require.NoError(t, err)
+		require.NoError(t, statusUpdater.Failed())
 		require.Equal(t, statusUpdater.CurrentStatus(), Failed)
 		time.Sleep(2 * time.Second)
 
-		err = statusUpdater.Success()
-		require.NoError(t, err)
+		require.NoError(t, statusUpdater.Success())
 		require.Equal(t, statusUpdater.CurrentStatus(), Success)
 		time.Sleep(2 * time.Second)
 
@@ -74,8 +73,9 @@ func TestStatusUpdater(t *testing.T) {
 		callbackHdlr := &testCallbackHandler{}
 
 		statusUpdater := newStatusUpdater(ctx, 1*time.Second, callbackHdlr, uint(1), true)
+		require.Equal(t, statusUpdater.CurrentStatus(), NotStarted)
 
-		require.NoError(t, statusUpdater.Start())
+		require.NoError(t, statusUpdater.Running())
 		require.Equal(t, statusUpdater.CurrentStatus(), Running)
 		time.Sleep(4 * time.Second) //wait longer than timeout to simulate expired context
 

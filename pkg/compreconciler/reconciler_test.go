@@ -1,6 +1,7 @@
 package compreconciler
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
 	"testing"
@@ -15,6 +16,9 @@ type DummyAction struct {
 }
 
 func (da *DummyAction) Run(version string, kubeClient *kubernetes.Clientset) error {
+	if kubeClient != nil {
+		return fmt.Errorf("kubeClient is not expected in this test case")
+	}
 	da.receivedVersion = version
 	return nil
 }
@@ -36,7 +40,7 @@ func TestReconciler(t *testing.T) {
 		postAct := &DummyAction{
 			"123",
 		}
-		recon.Configure(987*time.Second, 123).
+		recon.Configure(987*time.Second, 123, 321*time.Second).
 			Debug().
 			WithPreInstallAction(preAct).
 			WithInstallAction(act).
@@ -50,6 +54,7 @@ func TestReconciler(t *testing.T) {
 			debug:             true,
 			updateInterval:    987 * time.Second,
 			maxRetries:        123,
+			retryDelay:        321 * time.Second,
 			chartProvider:     chartProvider,
 			serverOpts: serverOpts{
 				port:       9999,
