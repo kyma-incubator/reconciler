@@ -39,7 +39,23 @@ func TestKubernetesClient(t *testing.T) {
 		// 3 resource deployed
 		resources, err := kubeClient.DeployedResources(string(manifest))
 		require.NoError(t, err)
-		require.Len(t, resources, 3)
+		require.ElementsMatch(t, []resource{
+			{
+				kind:      "Deployment",
+				name:      "unittest-deployment",
+				namespace: "unittest",
+			},
+			{
+				kind:      "Pod",
+				name:      "unittest-pod",
+				namespace: "unittest",
+			},
+			{
+				kind:      "Namespace",
+				name:      "unittest",
+				namespace: "",
+			},
+		}, resources)
 
 		//delete
 		require.NoError(t, kubeClient.Delete(string(manifest)))
