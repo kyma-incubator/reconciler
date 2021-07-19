@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 const (
@@ -28,15 +29,12 @@ type Client interface {
 	Clientset() (*kubernetes.Clientset, error)
 }
 
-func Kubeclt() (string, error) {
-	kubecltCmd, ok := os.LookupEnv(envVarKubectlPath)
-	if !ok {
-		return "", fmt.Errorf("cannot find kubectl cmd, please set env-var '%s'", envVarKubectlPath)
+func NewClient(kubeconfig string) (Client, error) {
+	kubectlCmd, err := kubectl()
+	if err != nil {
+		return nil, err
 	}
-	return kubecltCmd, nil
-}
 
-func NewKubectlClient(kubectlCmd, kubeconfig string) (Client, error) {
 	kubeconfigFile := "/tmp/kubeconfig-" + uuid.New().String()
 	if err := ioutil.WriteFile(kubeconfigFile, []byte(kubeconfig), 0600); err != nil {
 		return nil, err
@@ -52,6 +50,20 @@ type kubectlClient struct {
 	kubecltCmd     string
 	kubeconfigFile string
 	manifestFile   string
+}
+
+func kubectl() (string, error) {
+	//try lookup using which
+	whichLookup, err := exec.Command("which", "kubectl").CombinedOutput()
+	if err == nil {
+		return strings.TrimSpace(string(whichLookup)), nil
+	}
+	//fallback to env-var
+	envLookup, ok := os.LookupEnv(envVarKubectlPath)
+	if !ok {
+		return "", fmt.Errorf("cannot find kubectl cmd, please set env-var '%s'", envVarKubectlPath)
+	}
+	return envLookup, nil
 }
 
 func (kc *kubectlClient) getManifestFile(manifest string) (string, error) {
@@ -72,7 +84,7 @@ func (kc *kubectlClient) Deploy(manifest string) error {
 	}
 	//call kubectl apply
 	args := []string{fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "apply", "-f", manifestFile}
-	_, err = exec.Command(os.Getenv(envVarKubectlPath), args...).CombinedOutput()
+	_, err = exec.Command(kc.kubecltCmd, args...).CombinedOutput()
 	return err
 }
 
@@ -122,7 +134,7 @@ func (kc *kubectlClient) Delete(manifest string) error {
 	}
 	//call kubectl delete
 	args := []string{fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "delete", "-f", manifestFile}
-	_, err = exec.Command(os.Getenv(envVarKubectlPath), args...).CombinedOutput()
+	_, err = exec.Command(kc.kubecltCmd, args...).CombinedOutput()
 	return err
 }
 

@@ -56,16 +56,8 @@ func (r *runner) Run(ctx context.Context, model *Reconciliation, callback Callba
 	return err
 }
 
-func (r *runner) newKubeClient(model *Reconciliation) (Client, error) {
-	kubectl, err := Kubeclt()
-	if err != nil {
-		return nil, err
-	}
-	return NewKubectlClient(kubectl, model.Kubeconfig)
-}
-
 func (r *runner) reconcile(model *Reconciliation) error {
-	kubeClient, err := r.newKubeClient(model)
+	kubeClient, err := NewClient(model.Kubeconfig)
 	if err != nil {
 		return err
 	}

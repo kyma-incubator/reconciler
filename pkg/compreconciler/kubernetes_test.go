@@ -14,10 +14,6 @@ func TestKubernetesClient(t *testing.T) {
 		return
 	}
 
-	//find kubectl binary
-	kubectl, err := Kubeclt()
-	require.NoError(t, err)
-
 	//read kubeconfig
 	if os.Getenv("KUBECONFIG") == "" {
 		require.FailNow(t, "Please set env-var 'KUBECONFIG' before running this test case")
@@ -30,7 +26,7 @@ func TestKubernetesClient(t *testing.T) {
 	require.NoError(t, err)
 
 	//create client
-	kubeClient, err := NewKubectlClient(kubectl, string(kubeconfig))
+	kubeClient, err := NewClient(string(kubeconfig))
 
 	t.Run("Deploy and delete resources", func(t *testing.T) {
 		//deploy
