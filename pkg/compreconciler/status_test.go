@@ -75,8 +75,6 @@ func TestStatusUpdater(t *testing.T) {
 		statusUpdater := newStatusUpdater(ctx, 1*time.Second, callbackHdlr, uint(1), true)
 		require.Equal(t, statusUpdater.CurrentStatus(), NotStarted)
 
-		//statusUpdater.Start() //TODO: fix watching stop-event caused by timeout - currently race-condition
-
 		require.NoError(t, statusUpdater.Running())
 		require.Equal(t, statusUpdater.CurrentStatus(), Running)
 		time.Sleep(4 * time.Second) //wait longer than timeout to simulate expired context
