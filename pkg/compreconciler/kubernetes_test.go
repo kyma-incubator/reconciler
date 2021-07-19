@@ -61,4 +61,9 @@ func TestKubernetesClient(t *testing.T) {
 		require.NoError(t, kubeClient.Delete(string(manifest)))
 	})
 
+	t.Run("Get Clientset", func(t *testing.T) {
+		_, err := kubeClient.Clientset()
+		require.NoError(t, err)
+	})
+
 }
