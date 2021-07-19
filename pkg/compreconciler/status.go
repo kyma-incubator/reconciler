@@ -3,6 +3,7 @@ package compreconciler
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -44,7 +45,7 @@ func newStatusUpdater(ctx context.Context, interval time.Duration,
 }
 
 func (su *StatusUpdater) logger() *zap.Logger {
-	return newLogger(su.debug)
+	return logger.NewOptionalLogger(su.debug)
 }
 
 func (su *StatusUpdater) updateWithInterval(status Status) error {

@@ -26,3 +26,11 @@ func NewLogger(debug bool) (*zap.Logger, error) {
 	}
 	return cfg.Build()
 }
+
+func NewOptionalLogger(debug bool) *zap.Logger {
+	logger, err := NewLogger(debug)
+	if err != nil {
+		return zap.NewNop()
+	}
+	return logger
+}

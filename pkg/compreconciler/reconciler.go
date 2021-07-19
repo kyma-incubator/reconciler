@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -53,7 +54,7 @@ func NewComponentReconciler(chartProvider *chart.Provider) *ComponentReconciler 
 }
 
 func (r *ComponentReconciler) logger() *zap.Logger {
-	return newLogger(r.debug)
+	return logger.NewOptionalLogger(r.debug)
 }
 
 func (r *ComponentReconciler) validate() {

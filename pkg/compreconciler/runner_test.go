@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/chart"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
@@ -27,7 +28,7 @@ type TestAction struct {
 }
 
 func (a *TestAction) logger() *zap.Logger {
-	return newLogger(true)
+	return logger.NewOptionalLogger(true)
 }
 
 func (a *TestAction) Run(version string, kubeClient *kubernetes.Clientset) error {
@@ -59,32 +60,46 @@ func TestRunner(t *testing.T) {
 		return
 	}
 
-	//create install actions
-	preAct := &TestAction{
-		name:  "pre-install",
-		delay: 1 * time.Second,
-	}
-	instAct := &TestAction{
-		name:  "install",
-		delay: 1 * time.Second,
-	}
-	postAct := &TestAction{
-		name:  "post-install",
-		delay: 1 * time.Second,
-	}
+	t.Run("Run with pre-, post- and custom install-action", func(t *testing.T) {
+		//create install actions
+		preAct := &TestAction{
+			name:  "pre-install",
+			delay: 1 * time.Second,
+		}
+		instAct := &TestAction{
+			name:  "install",
+			delay: 1 * time.Second,
+		}
+		postAct := &TestAction{
+			name:  "post-install",
+			delay: 1 * time.Second,
+		}
 
-	runner := newRunner(t, preAct, instAct, postAct)
-	model := newModel(t)
-	callback := newCallbackHandler(t)
+		runner := newRunner(t, preAct, instAct, postAct)
+		model := newModel(t)
+		callback := newCallbackHandler(t)
 
-	//successful run
-	err := runner.Run(context.Background(), model, callback)
-	require.NoError(t, err)
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.NoError(t, err)
 
-	//all actions have to be executed
-	require.Equal(t, kymaVersion, preAct.receivedVersion)
-	require.Equal(t, kymaVersion, instAct.receivedVersion)
-	require.Equal(t, kymaVersion, postAct.receivedVersion)
+		//all actions have to be executed
+		require.Equal(t, kymaVersion, preAct.receivedVersion)
+		require.Equal(t, kymaVersion, instAct.receivedVersion)
+		require.Equal(t, kymaVersion, postAct.receivedVersion)
+	})
+
+	t.Run("Run with pre- and post-action but default install-action", func(t *testing.T) {
+		//TODO
+	})
+
+	t.Run("Run with permanently failing install-action", func(t *testing.T) {
+		//TODO
+	})
+
+	t.Run("Run with exceeded timeout", func(t *testing.T) {
+		//TODO
+	})
 }
 
 func newRunner(t *testing.T, preAct, instAct, postAct Action) *runner {

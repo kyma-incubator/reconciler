@@ -6,9 +6,9 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/chart"
+	k8s "github.com/kyma-incubator/reconciler/pkg/kubernetes"
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"os/exec"
 	"strings"
@@ -22,6 +22,7 @@ type runner struct {
 	*ComponentReconciler
 }
 
+//TODO: drop this struct after switching to Go k8s-client.. clientSet should be used directly!
 type kubeClient struct {
 	clientSet      *kubernetes.Clientset
 	kubeConfigPath string
@@ -76,18 +77,15 @@ func (r *runner) kubeClient(model *Reconciliation) (*kubeClient, error) {
 	if model.Kubeconfig == "" {
 		return nil, fmt.Errorf("kubeconfig is missing in reconciliation model")
 	}
+
+	clientSet, err := (&k8s.ClientBuilder{}).WithString(model.Kubeconfig).Build()
+	if err != nil {
+		return nil, err
+	}
+
+	//TODO: drop this block after switching to K8s Go-client.. only clientSet should be returned!
 	kubeConfigPath := "/tmp/kubeconfig-" + uuid.New().String()
 	if err := ioutil.WriteFile(kubeConfigPath, []byte(model.Kubeconfig), 0600); err != nil {
-		return nil, err
-	}
-
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-	if err != nil {
-		return nil, err
-	}
-
-	clientSet, err := kubernetes.NewForConfig(config)
-	if err != nil {
 		return nil, err
 	}
 
@@ -143,7 +141,7 @@ func (r *runner) install(model *Reconciliation, client *kubeClient) error {
 		return err
 	}
 
-	manifestFile, err := r.renderManifestFile(model)
+	manifestFile, err := r.renderManifestFile(model) //TODO: use manifest-string directly instead of a file
 	if err != nil {
 		return err
 	}
@@ -164,6 +162,7 @@ func (r *runner) renderManifestFile(model *Reconciliation) (string, error) {
 		return "", fmt.Errorf("reconciliation can only process 1 manifest but got %d", len(manifests))
 	}
 
+	//TODO: drop this block after switching to Go k8s-client... manifest-string should be returned instead!
 	manifestFile := "/tmp/manifest-" + uuid.New().String()
 	if err := ioutil.WriteFile(manifestFile, []byte(manifests[0].Manifest), 0600); err != nil {
 		return "", err
@@ -172,6 +171,7 @@ func (r *runner) renderManifestFile(model *Reconciliation) (string, error) {
 	return manifestFile, nil
 }
 
+//TODO: drop me after switching to Go ks8-client
 func (r *runner) kubectlCmd() (string, error) {
 	command, ok := os.LookupEnv(envVarKubectlPath)
 	if !ok {
@@ -180,6 +180,7 @@ func (r *runner) kubectlCmd() (string, error) {
 	return command, nil
 }
 
+//TODO: refactor this method after switching to Go k8s-client: deploy manifest string using Go k8s-client
 func (r *runner) deployManifest(client *kubeClient, command, manifestFile string) error {
 	args := []string{fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "apply", "-f", manifestFile}
 	_, err := exec.Command(command, args...).CombinedOutput()
@@ -198,18 +199,23 @@ func (r *runner) trackProgress(client *kubeClient, command, manifestFile string)
 	split := strings.Split(strings.TrimSuffix(string(getCommandStout), "'"), " ")
 	quantityObjects := len(split) / 3
 
-	k8sObjects := make([]*k8sObject, 0, quantityObjects)
-	for i := 0; i < quantityObjects; i++ {
-		k8sObjects = append(k8sObjects, &k8sObject{
-			name:      split[i],
-			namespace: split[i+quantityObjects],
-			kind:      split[i+(2*quantityObjects)],
-		})
+	pt, err := NewProgressTracker(client.clientSet, r.debug, ProgressTrackerConfig{})
+	if err != nil {
+		return err
 	}
-
-	//wait until all resources are deployed (or timeout is reached)
-	newProgressTracker(k8sObjects, client.clientSet, r.debug) //TODO: block until progress is ready OR timeout reached
-	return nil
+	//register Kubernetes resources the progress tracker has to watch
+	for i := 0; i < quantityObjects; i++ {
+		watchable, err := NewWatchableResource(split[i+(2*quantityObjects)]) //convert "kind" to watchable
+		if err != nil {
+			return err
+		}
+		pt.AddResource(
+			watchable,
+			split[i+quantityObjects], //namespace
+			split[i],                 //name
+		)
+	}
+	return pt.Watch() //blocking call
 }
 
 func (r *runner) newComponentSet(model *Reconciliation) *chart.ComponentSet {
