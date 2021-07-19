@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-const envVarKubeconfig = "KUBECONFIG"
+const EnvVarKubeconfig = "KUBECONFIG"
 
 type ClientBuilder struct {
 	kubeconfig []byte
@@ -31,11 +31,12 @@ func (cb *ClientBuilder) Build() (*kubernetes.Clientset, error) {
 		return nil, cb.err
 	}
 	if len(cb.kubeconfig) == 0 {
-		if os.Getenv(envVarKubeconfig) == "" {
+		kubeconfigPath := os.Getenv(EnvVarKubeconfig)
+		if kubeconfigPath == "" {
 			return nil, fmt.Errorf("kubeconfig undefined: please provide it as file, string or set env-var %s",
-				envVarKubeconfig)
+				EnvVarKubeconfig)
 		}
-		cb.kubeconfig, cb.err = cb.loadFile(os.Getenv(envVarKubeconfig))
+		cb.kubeconfig, cb.err = cb.loadFile(kubeconfigPath)
 	}
 	config, err := clientcmd.RESTConfigFromKubeConfig(cb.kubeconfig)
 	if err != nil {

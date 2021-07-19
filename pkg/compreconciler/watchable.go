@@ -16,16 +16,16 @@ const (
 type WatchableResource string
 
 func NewWatchableResource(kind string) (WatchableResource, error) {
-	switch strings.Title(strings.ToLower(kind)) {
-	case string(Deployment):
+	switch strings.ToLower(kind) {
+	case strings.ToLower(string(Deployment)):
 		return Deployment, nil
-	case string(Pod):
+	case strings.ToLower(string(Pod)):
 		return Pod, nil
-	case string(DaemonSet):
+	case strings.ToLower(string(DaemonSet)):
 		return DaemonSet, nil
-	case string(StatefulSet):
+	case strings.ToLower(string(StatefulSet)):
 		return StatefulSet, nil
-	case string(Job):
+	case strings.ToLower(string(Job)):
 		return Job, nil
 	default:
 		return "", fmt.Errorf("WatchableResource '%s' is not supported", kind)
