@@ -51,8 +51,8 @@ test:
 	@rm cover.out
 
 .PHONY: test-all
-test-ext: export RECONCILER_EXPENSIVE_TESTS = 1
-test-ext: test
+test-all: export RECONCILER_EXPENSIVE_TESTS = 1
+test-all: test
 
 .PHONY: clean
 clean:
