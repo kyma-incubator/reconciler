@@ -82,6 +82,7 @@ func (pt *ProgressTracker) Watch() error {
 			}
 			if ready {
 				readyCheck.Stop()
+				return nil
 			}
 		case <-timeout:
 			err := fmt.Errorf("progress tracker reached timeout (%.0f secs): stop checking resource installation state",
@@ -116,14 +117,17 @@ func (pt *ProgressTracker) isReady() (bool, error) {
 		case Job:
 			componentIsReady, err = pt.jobIsReady(object)
 		}
+		pt.logger.Debug(fmt.Sprintf("%s resource '%s:%s' is ready: %t", object.kind, object.name, object.namespace, componentIsReady))
 		if err != nil {
 			pt.logger.Error(fmt.Sprintf("Failed to measure progress of %v: %s", object, err))
 			return false, err
 		}
 		if !componentIsReady { //at least one component is not ready
+			pt.logger.Debug("Installation is still ongoing")
 			return false, nil
 		}
 	}
+	pt.logger.Debug("Installation finished successfully")
 	return componentIsReady, nil
 }
 

@@ -22,14 +22,14 @@ type resource struct {
 	namespace string
 }
 
-type Client interface {
+type kubernetesClient interface {
 	Deploy(manifest string) error
 	DeployedResources(manifest string) ([]resource, error)
 	Delete(manifest string) error
 	Clientset() (*kubernetes.Clientset, error)
 }
 
-func NewClient(kubeconfig string) (Client, error) {
+func newKubernetesClient(kubeconfig string) (kubernetesClient, error) {
 	kubectlCmd, err := kubectl()
 	if err != nil {
 		return nil, err

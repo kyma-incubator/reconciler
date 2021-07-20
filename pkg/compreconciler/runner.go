@@ -57,7 +57,7 @@ func (r *runner) Run(ctx context.Context, model *Reconciliation, callback Callba
 }
 
 func (r *runner) reconcile(model *Reconciliation) error {
-	kubeClient, err := NewClient(model.Kubeconfig)
+	kubeClient, err := newKubernetesClient(model.Kubeconfig)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (r *runner) reconcile(model *Reconciliation) error {
 	return nil
 }
 
-func (r *runner) install(model *Reconciliation, kubeClient Client) error {
+func (r *runner) install(model *Reconciliation, kubeClient kubernetesClient) error {
 	manifest, err := r.renderManifest(model)
 	if err != nil {
 		return err
@@ -126,7 +126,7 @@ func (r *runner) renderManifest(model *Reconciliation) (string, error) {
 	return manifests[0].Manifest, nil
 }
 
-func (r *runner) trackProgress(manifest string, kubeClient Client) error {
+func (r *runner) trackProgress(manifest string, kubeClient kubernetesClient) error {
 	clientSet, err := kubeClient.Clientset()
 	if err != nil {
 		return err
@@ -144,7 +144,9 @@ func (r *runner) trackProgress(manifest string, kubeClient Client) error {
 	for _, resource := range resources {
 		watchable, err := NewWatchableResource(resource.kind) //convert "kind" to watchable
 		if err != nil {
-			return err
+			pt.logger.Debug(fmt.Sprintf("Ignoring non-watchable resource '%s' (%s:%s)",
+				resource.kind, resource.name, resource.namespace))
+			continue //not watchable resource: ignore it
 		}
 		pt.AddResource(
 			watchable,

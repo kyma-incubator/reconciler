@@ -4,15 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/chart"
-	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
-	"os"
 	"testing"
 	"time"
 )
@@ -120,18 +117,10 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action) *runner {
 }
 
 func newModel(t *testing.T) *Reconciliation {
-	//create model
-	kubecfgFile := os.Getenv("KUBECONFIG")
-	if !file.Exists(kubecfgFile) {
-		require.FailNow(t, "Please set env-var KUBECONFIG before executing this test case")
-	}
-	kubecfg, err := ioutil.ReadFile(kubecfgFile)
-	require.NoError(t, err)
-
 	return &Reconciliation{
 		Component:  "UnittestComponent",
 		Version:    kymaVersion,
-		Kubeconfig: string(kubecfg),
+		Kubeconfig: readKubeconfig(t),
 	}
 }
 

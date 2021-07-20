@@ -3,9 +3,7 @@ package compreconciler
 import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
-	"os"
-	"path/filepath"
+	"k8s.io/client-go/kubernetes"
 	"testing"
 )
 
@@ -14,26 +12,23 @@ func TestKubernetesClient(t *testing.T) {
 		return
 	}
 
-	//read kubeconfig
-	if os.Getenv("KUBECONFIG") == "" {
-		require.FailNow(t, "Please set env-var 'KUBECONFIG' before running this test case")
-	}
-	kubeconfig, err := ioutil.ReadFile(os.Getenv("KUBECONFIG"))
-	require.NoError(t, err)
-
-	//read the manifest
-	manifest, err := ioutil.ReadFile(filepath.Join("test", "deployment.yaml"))
-	require.NoError(t, err)
-
 	//create client
-	kubeClient, err := NewClient(string(kubeconfig))
+	kubeClient, err := newKubernetesClient(readKubeconfig(t))
+	require.NoError(t, err)
 
 	t.Run("Deploy and delete resources", func(t *testing.T) {
+		manifest := readManifest(t)
 		//deploy
-		require.NoError(t, kubeClient.Deploy(string(manifest)))
+		t.Log("Deploying test resources")
+		require.NoError(t, kubeClient.Deploy(manifest))
+		//cleanup
+		defer func() {
+			t.Log("Cleanup test resources")
+			require.NoError(t, kubeClient.Delete(manifest))
+		}()
 
-		// 3 resource deployed
-		resources, err := kubeClient.DeployedResources(string(manifest))
+		// 6 resource deployed
+		resources, err := kubeClient.DeployedResources(manifest)
 		require.NoError(t, err)
 		require.ElementsMatch(t, []resource{
 			{
@@ -47,19 +42,32 @@ func TestKubernetesClient(t *testing.T) {
 				namespace: "unittest",
 			},
 			{
+				kind:      "StatefulSet",
+				name:      "unittest-statefulset",
+				namespace: "unittest",
+			},
+			{
+				kind:      "DaemonSet",
+				name:      "unittest-daemonset",
+				namespace: "unittest",
+			},
+			{
+				kind:      "Job",
+				name:      "unittest-job",
+				namespace: "unittest",
+			},
+			{
 				kind:      "Namespace",
 				name:      "unittest",
 				namespace: "",
 			},
 		}, resources)
-
-		//delete
-		require.NoError(t, kubeClient.Delete(string(manifest)))
 	})
 
 	t.Run("Get Clientset", func(t *testing.T) {
-		_, err := kubeClient.Clientset()
+		clientSet, err := kubeClient.Clientset()
 		require.NoError(t, err)
+		require.IsType(t, &kubernetes.Clientset{}, clientSet)
 	})
 
 }
