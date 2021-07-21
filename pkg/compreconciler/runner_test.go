@@ -14,7 +14,15 @@ import (
 	"time"
 )
 
-const kymaVersion = "1.2.3"
+const (
+	kymaVersion   = "1.24.0"
+	kymaComponent = "cluster-users"
+)
+
+var wsf = &workspace.Factory{
+	StorageDir: "./test",
+	Debug:      true,
+}
 
 type TestAction struct {
 	name            string
@@ -57,6 +65,11 @@ func TestRunner(t *testing.T) {
 		return
 	}
 
+	//cleanup relicts from previous run
+	require.NoError(t, wsf.Delete(kymaVersion))
+	//cleanup at the end of the run
+	defer require.NoError(t, wsf.Delete(kymaVersion))
+
 	t.Run("Run with pre-, post- and custom install-action", func(t *testing.T) {
 		//create install actions
 		preAct := &TestAction{
@@ -87,7 +100,27 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with pre- and post-action but default install-action", func(t *testing.T) {
-		//TODO
+		//create install actions
+		preAct := &TestAction{
+			name:  "pre-install",
+			delay: 1 * time.Second,
+		}
+		postAct := &TestAction{
+			name:  "post-install",
+			delay: 1 * time.Second,
+		}
+
+		runner := newRunner(t, preAct, nil, postAct)
+		model := newModel(t)
+		callback := newCallbackHandler(t)
+
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.NoError(t, err)
+
+		//all actions have to be executed
+		require.Equal(t, kymaVersion, preAct.receivedVersion)
+		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
 	t.Run("Run with permanently failing install-action", func(t *testing.T) {
@@ -100,9 +133,7 @@ func TestRunner(t *testing.T) {
 }
 
 func newRunner(t *testing.T, preAct, instAct, postAct Action) *runner {
-	chartProvider, err := chart.NewProvider(&workspace.Factory{
-		StorageDir: "./test",
-	}, true)
+	chartProvider, err := chart.NewProvider(wsf, true)
 	require.NoError(t, err)
 
 	recon := NewComponentReconciler(chartProvider).
@@ -118,7 +149,7 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action) *runner {
 
 func newModel(t *testing.T) *Reconciliation {
 	return &Reconciliation{
-		Component:  "UnittestComponent",
+		Component:  kymaComponent,
 		Version:    kymaVersion,
 		Kubeconfig: readKubeconfig(t),
 	}

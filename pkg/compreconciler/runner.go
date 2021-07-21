@@ -1,10 +1,13 @@
 package compreconciler
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/avast/retry-go"
+	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/chart"
+	"github.com/pkg/errors"
 )
 
 type runner struct {
@@ -108,6 +111,7 @@ func (r *runner) install(model *Reconciliation, kubeClient kubernetesClient) err
 	}
 
 	if err := kubeClient.Deploy(manifest); err != nil {
+		r.logger().Warn(fmt.Sprintf("Failed to deploy manifests on target cluster: %s", err))
 		return err
 	}
 
@@ -115,15 +119,26 @@ func (r *runner) install(model *Reconciliation, kubeClient kubernetesClient) err
 }
 
 func (r *runner) renderManifest(model *Reconciliation) (string, error) {
-	manifests, err := r.chartProvider.Manifests(r.newComponentSet(model), &chart.Options{})
+	manifests, err := r.chartProvider.Manifests(r.newComponentSet(model), model.InstallCRD, &chart.Options{})
 	if err != nil {
-		return "", err
+		msg := fmt.Sprintf("Failed to render manifest for component '%s'", model.Component)
+		r.logger().Warn(msg)
+		return "", errors.Wrap(err, msg)
 	}
 
-	if len(manifests) != 1 { //just an assertion - can in current implementation not occur
-		return "", fmt.Errorf("reconciliation can only process 1 manifest but got %d", len(manifests))
+	var buffer bytes.Buffer
+	r.logger().Debug(fmt.Sprintf("Rendering of component '%s' returned %d manifests", model.Component, len(manifests)))
+	for _, manifest := range manifests {
+		if !model.InstallCRD && manifest.Type == components.CRD {
+			r.logger().Error(fmt.Sprintf("Illegal state detected! "+
+				"No CRDs were requested but chartProvider returned CRD manifest: '%s'", manifest.Name))
+		}
+		buffer.WriteString("---\n")
+		buffer.WriteString(fmt.Sprintf("# Manifest of %s '%s'\n", manifest.Type, model.Component))
+		buffer.WriteString(manifest.Manifest)
+		buffer.WriteString("\n")
 	}
-	return manifests[0].Manifest, nil
+	return buffer.String(), nil
 }
 
 func (r *runner) trackProgress(manifest string, kubeClient kubernetesClient) error {
@@ -154,6 +169,7 @@ func (r *runner) trackProgress(manifest string, kubeClient kubernetesClient) err
 			resource.name,
 		)
 	}
+	r.logger().Debug("Start watching installation progress")
 	return pt.Watch() //blocking call
 }
 

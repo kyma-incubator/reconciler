@@ -3,6 +3,7 @@ package compreconciler
 type Reconciliation struct {
 	Component     string          `json:"component"`
 	Namespace     string          `json:"namespace"`
+	InstallCRD    bool            `json:"installCRD"`
 	Version       string          `json:"version"`
 	Profile       string          `json:"profile"`
 	Configuration []Configuration `json:"configuration"`

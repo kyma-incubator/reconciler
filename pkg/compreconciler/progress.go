@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	defaultInterval = 30 * time.Second
-	defaultTimeout  = 20 * time.Minute
+	defaultInterval = 20 * time.Second
+	defaultTimeout  = 10 * time.Minute
 )
 
 type k8sObject struct {
@@ -31,9 +31,15 @@ type ProgressTrackerConfig struct {
 	timeout  time.Duration
 }
 
-func (ptc ProgressTrackerConfig) validate() error {
+func (ptc *ProgressTrackerConfig) validate() error {
+	if ptc.interval < 0 {
+		return fmt.Errorf("progress tracker status-check interval cannot be < 0")
+	}
 	if ptc.interval == 0 {
 		ptc.interval = defaultInterval
+	}
+	if ptc.timeout < 0 {
+		return fmt.Errorf("progress tracker timeout cannot be < 0")
 	}
 	if ptc.timeout == 0 {
 		ptc.timeout = defaultTimeout
@@ -57,10 +63,12 @@ func NewProgressTracker(client *kubernetes.Clientset, debug bool, config Progres
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
+
 	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
+
 	return &ProgressTracker{
 		client:   client,
 		interval: config.interval,
@@ -70,6 +78,22 @@ func NewProgressTracker(client *kubernetes.Clientset, debug bool, config Progres
 }
 
 func (pt *ProgressTracker) Watch() error {
+	if len(pt.objects) == 0 { //check if any watchable resources were added
+		pt.logger.Debug("No watchable resources defined: installation treated as successfully finished")
+		return nil
+	}
+
+	//initial installation status check
+	ready, err := pt.isReady()
+	if err == nil {
+		pt.logger.Warn(fmt.Sprintf("Failed to run initial Kubernetes resource installation status: %s", err))
+		if ready {
+			//we are already done
+			return nil
+		}
+	}
+
+	//start verifying the installation status in an interval
 	readyCheck := time.NewTicker(pt.interval)
 	timeout := time.After(pt.timeout)
 	for {
@@ -77,7 +101,7 @@ func (pt *ProgressTracker) Watch() error {
 		case <-readyCheck.C:
 			ready, err := pt.isReady()
 			if err != nil {
-				pt.logger.Warn(fmt.Sprintf("Failed to check Kubernetes resouce progress but will "+
+				pt.logger.Warn(fmt.Sprintf("Failed to check Kubernetes resource installation progress but will "+
 					"retry until timeout is reached: %s", err))
 			}
 			if ready {
@@ -119,7 +143,7 @@ func (pt *ProgressTracker) isReady() (bool, error) {
 		}
 		pt.logger.Debug(fmt.Sprintf("%s resource '%s:%s' is ready: %t", object.kind, object.name, object.namespace, componentIsReady))
 		if err != nil {
-			pt.logger.Error(fmt.Sprintf("Failed to measure progress of %v: %s", object, err))
+			pt.logger.Error(fmt.Sprintf("Failed to retrieve installation progress of %v: %s", object, err))
 			return false, err
 		}
 		if !componentIsReady { //at least one component is not ready

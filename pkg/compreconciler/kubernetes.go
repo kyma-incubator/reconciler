@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	k8s "github.com/kyma-incubator/reconciler/pkg/kubernetes"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"os"
@@ -70,7 +71,7 @@ func (kc *kubectlClient) getManifestFile(manifest string) (string, error) {
 	if kc.manifestFile == "" {
 		kc.manifestFile = "/tmp/manifest-" + uuid.New().String()
 		if err := ioutil.WriteFile(kc.manifestFile, []byte(manifest), 0600); err != nil {
-			return "", err
+			return "", errors.Wrap(err, fmt.Sprintf("failed to store manifests in a file"))
 		}
 	}
 	return kc.manifestFile, nil
@@ -84,7 +85,10 @@ func (kc *kubectlClient) Deploy(manifest string) error {
 	}
 	//call kubectl apply
 	args := []string{fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "apply", "-f", manifestFile}
-	_, err = exec.Command(kc.kubecltCmd, args...).CombinedOutput()
+	output, err := exec.Command(kc.kubecltCmd, args...).CombinedOutput()
+	if err != nil {
+		err = errors.Wrap(err, fmt.Sprintf("Exeuction of kubeclt command with args '%s' failed: %s", strings.Join(args, " "), output))
+	}
 	return err
 }
 
