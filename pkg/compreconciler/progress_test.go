@@ -15,7 +15,7 @@ func TestProgressTracker(t *testing.T) {
 
 	//deploy different resources
 	manifest := readManifest(t)
-	kubeClient, err := newKubernetesClient(readKubeconfig(t))
+	kubeClient, err := newKubernetesClient(test.ReadKubeconfig(t))
 	require.NoError(t, err)
 
 	//ensure old resources are deleted before running the test

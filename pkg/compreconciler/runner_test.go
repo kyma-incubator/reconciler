@@ -153,7 +153,7 @@ func newModel(t *testing.T) *Reconciliation {
 	return &Reconciliation{
 		Component:  kymaComponent,
 		Version:    kymaVersion,
-		Kubeconfig: readKubeconfig(t),
+		Kubeconfig: test.ReadKubeconfig(t),
 	}
 }
 

@@ -2,13 +2,12 @@ package chart
 
 import (
 	"encoding/json"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
-	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -73,13 +72,11 @@ func TestProvider(t *testing.T) {
 	})
 
 	t.Run("Test render manifest", func(t *testing.T) {
-		if !file.Exists(os.Getenv("KUBECONFIG")) {
-			require.FailNow(t, "Please set env-var KUBECONFIG before executing this test case")
+		if !test.RunExpensiveTests() {
+			return
 		}
 
-		kubeCfg, err := ioutil.ReadFile(os.Getenv("KUBECONFIG"))
-		require.NoError(t, err)
-		compSet := NewComponentSet(string(kubeCfg), "2.0.0", "testProfile", []*Component{
+		compSet := NewComponentSet(test.ReadKubeconfig(t), "2.0.0", "testProfile", []*Component{
 			{
 				name:      "component-1",
 				namespace: "different-namespace",
