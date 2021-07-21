@@ -35,7 +35,7 @@ func TestProgressTracker(t *testing.T) {
 	// get progress tracker
 	clientSet, err := (&kubernetes.ClientBuilder{}).Build()
 	require.NoError(t, err)
-	//depending on the network bandwith, the timeout could be too low
+	//depending on the network bandwidth, the timeout could be too low
 	pt, err := NewProgressTracker(clientSet, true,
 		ProgressTrackerConfig{interval: 1 * time.Second, timeout: 20 * time.Second})
 	require.NoError(t, err)
