@@ -85,7 +85,7 @@ func (kc *kubectlClient) Deploy(manifest string) error {
 	}
 	//call kubectl apply
 	args := []string{fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "apply", "-f", manifestFile}
-	//nolint:G204 //arguments for cmd call not allowed: replace command-call with Go k8s-client
+	//nolint:gosec //arguments for cmd call not allowed: replace command-call with Go k8s-client
 	output, err := exec.Command(kc.kubectlCmd, args...).CombinedOutput()
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("Exeuction of kubeclt command with args '%s' failed: %s", strings.Join(args, " "), output))
@@ -100,7 +100,7 @@ func (kc *kubectlClient) DeployedResources(manifest string) ([]resource, error) 
 	}
 
 	args := []string{"get", "-f", manifestFile, fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "-ojson"}
-	//nolint:G204 //arguments for cmd call not allowed: replace command-call with Go k8s-client
+	//nolint:gosec //arguments for cmd call not allowed: replace command-call with Go k8s-client
 	getCommandStout, err := exec.Command(kc.kubectlCmd, args...).CombinedOutput()
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (kc *kubectlClient) Delete(manifest string) error {
 	}
 	//call kubectl delete
 	args := []string{fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "delete", "-f", manifestFile}
-	//nolint:G204 //arguments for cmd call not allowed: replace command-call with Go k8s-client
+	//nolint:gosec //arguments for cmd call not allowed: replace command-call with Go k8s-client
 	_, err = exec.Command(kc.kubectlCmd, args...).CombinedOutput()
 	return err
 }
