@@ -42,13 +42,13 @@ func newKubernetesClient(kubeconfig string) (kubernetesClient, error) {
 	}
 
 	return &kubectlClient{
-		kubecltCmd:     kubectlCmd,
+		kubectlCmd:     kubectlCmd,
 		kubeconfigFile: kubeconfigFile,
 	}, nil
 }
 
 type kubectlClient struct {
-	kubecltCmd     string
+	kubectlCmd     string
 	kubeconfigFile string
 	manifestFile   string
 }
@@ -71,7 +71,7 @@ func (kc *kubectlClient) getManifestFile(manifest string) (string, error) {
 	if kc.manifestFile == "" {
 		kc.manifestFile = "/tmp/manifest-" + uuid.New().String()
 		if err := ioutil.WriteFile(kc.manifestFile, []byte(manifest), 0600); err != nil {
-			return "", errors.Wrap(err, fmt.Sprintf("failed to store manifests in a file"))
+			return "", errors.Wrap(err, "failed to store manifests in a file")
 		}
 	}
 	return kc.manifestFile, nil
@@ -85,7 +85,8 @@ func (kc *kubectlClient) Deploy(manifest string) error {
 	}
 	//call kubectl apply
 	args := []string{fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "apply", "-f", manifestFile}
-	output, err := exec.Command(fmt.Sprint(kc.kubecltCmd), args...).CombinedOutput()
+	//nolint:G204 //arguments for cmd call not allowed: replace command-call with Go k8s-client
+	output, err := exec.Command(kc.kubectlCmd, args...).CombinedOutput()
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("Exeuction of kubeclt command with args '%s' failed: %s", strings.Join(args, " "), output))
 	}
@@ -99,7 +100,8 @@ func (kc *kubectlClient) DeployedResources(manifest string) ([]resource, error) 
 	}
 
 	args := []string{"get", "-f", manifestFile, fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "-ojson"}
-	getCommandStout, err := exec.Command(fmt.Sprint(kc.kubecltCmd), args...).CombinedOutput()
+	//nolint:G204 //arguments for cmd call not allowed: replace command-call with Go k8s-client
+	getCommandStout, err := exec.Command(kc.kubectlCmd, args...).CombinedOutput()
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +140,8 @@ func (kc *kubectlClient) Delete(manifest string) error {
 	}
 	//call kubectl delete
 	args := []string{fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "delete", "-f", manifestFile}
-	_, err = exec.Command(fmt.Sprint(kc.kubecltCmd), args...).CombinedOutput()
+	//nolint:G204 //arguments for cmd call not allowed: replace command-call with Go k8s-client
+	_, err = exec.Command(kc.kubectlCmd, args...).CombinedOutput()
 	return err
 }
 
