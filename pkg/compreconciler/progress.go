@@ -85,12 +85,12 @@ func (pt *ProgressTracker) Watch() error {
 
 	//initial installation status check
 	ready, err := pt.isReady()
-	if err == nil {
-		pt.logger.Warn(fmt.Sprintf("Failed to run initial Kubernetes resource installation status: %s", err))
-		if ready {
-			//we are already done
-			return nil
-		}
+	if err != nil {
+		pt.logger.Warn(fmt.Sprintf("Failed to run initial Kubernetes resource installation status: %v", err))
+	}
+	if ready {
+		//we are already done
+		return nil
 	}
 
 	//start verifying the installation status in an interval
@@ -163,7 +163,7 @@ func (pt *ProgressTracker) deploymentIsReady(object *k8sObject) (bool, error) {
 	}
 	objectIsReady := true
 	for _, condition := range deployment.Status.Conditions {
-		objectIsReady = condition.Status == "True"
+		objectIsReady = condition.Status == v1.ConditionTrue
 	}
 	return objectIsReady, nil
 }
@@ -176,7 +176,7 @@ func (pt *ProgressTracker) statefulSetIsReady(object *k8sObject) (bool, error) {
 	}
 	objectIsReady := true
 	for _, condition := range statefulSet.Status.Conditions {
-		objectIsReady = condition.Status == "True"
+		objectIsReady = condition.Status == v1.ConditionTrue
 	}
 	return objectIsReady, nil
 }
@@ -199,7 +199,7 @@ func (pt *ProgressTracker) daemonSetIsReady(object *k8sObject) (bool, error) {
 	}
 	objectIsReady := true
 	for _, condition := range daemonSet.Status.Conditions {
-		objectIsReady = condition.Status == "True"
+		objectIsReady = condition.Status == v1.ConditionTrue
 	}
 	return objectIsReady, nil
 }
@@ -212,7 +212,7 @@ func (pt *ProgressTracker) jobIsReady(object *k8sObject) (bool, error) {
 	}
 	objectIsReady := true
 	for _, condition := range job.Status.Conditions {
-		objectIsReady = condition.Status == "True"
+		objectIsReady = condition.Status == v1.ConditionTrue
 	}
 	return objectIsReady, nil
 }

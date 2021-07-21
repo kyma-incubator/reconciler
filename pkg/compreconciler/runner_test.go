@@ -101,7 +101,7 @@ func TestRunner(t *testing.T) {
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
-	t.Run("Run with pre- and post-action but default install-action", func(t *testing.T) {
+	t.Run("Run with pre- and post-action but default install-action (without CRDs)", func(t *testing.T) {
 		//create install actions
 		preAct := &TestAction{
 			name:  "pre-install",
@@ -125,13 +125,30 @@ func TestRunner(t *testing.T) {
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
+	t.Run("Run with pre- and post-action but default install-action (with CRDs)", func(t *testing.T) {
+		//TODO
+	})
+
+	t.Run("Run without pre- and post-action", func(t *testing.T) {
+		//TODO
+	})
+
+	t.Run("Run with permanently failing pre-action", func(t *testing.T) {
+		//TODO
+	})
+
 	t.Run("Run with permanently failing install-action", func(t *testing.T) {
+		//TODO
+	})
+
+	t.Run("Run with permanently failing post-action", func(t *testing.T) {
 		//TODO
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
 		//TODO
 	})
+
 }
 
 func newRunner(t *testing.T, preAct, instAct, postAct Action) *runner {
