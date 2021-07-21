@@ -68,7 +68,9 @@ func TestRunner(t *testing.T) {
 	//cleanup relicts from previous run
 	require.NoError(t, wsf.Delete(kymaVersion))
 	//cleanup at the end of the run
-	defer require.NoError(t, wsf.Delete(kymaVersion))
+	defer func() {
+		require.NoError(t, wsf.Delete(kymaVersion))
+	}()
 
 	t.Run("Run with pre-, post- and custom install-action", func(t *testing.T) {
 		//create install actions
