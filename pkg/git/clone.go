@@ -15,11 +15,11 @@ var defaultCloner repoCloner = &remoteRepoCloner{}
 // revision can be 'main', a release version (e.g. 1.4.1), a commit hash (e.g. 34edf09a).
 func CloneRepo(url, dstPath, rev string) error {
 	if rev == "" {
-		return fmt.Errorf("Revision cannot be empty")
+		return fmt.Errorf("GIT revision cannot be empty")
 	}
 	repo, err := defaultCloner.Clone(url, dstPath, true)
 	if err != nil {
-		return errors.Wrapf(err, "Error downloading repository (%s)", url)
+		return errors.Wrapf(err, "error downloading Git repository (%s)", url)
 	}
 	return checkout(repo, rev)
 }
@@ -42,18 +42,18 @@ func (rc *remoteRepoCloner) Clone(url, path string, autoCheckout bool) (*git.Rep
 func checkout(repo *git.Repository, rev string) error {
 	w, err := repo.Worktree()
 	if err != nil {
-		return errors.Wrap(err, "Error getting the worktree")
+		return errors.Wrap(err, "error getting the GIT worktree")
 	}
 
 	hash, err := repo.ResolveRevision(plumbing.Revision(rev))
 	if err != nil {
-		return err
+		return errors.Wrap(err, fmt.Sprintf("failed to resolve GIT revision '%s'", rev))
 	}
 	err = w.Checkout(&git.CheckoutOptions{
 		Hash: *hash,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Error checking out revision")
+		return errors.Wrap(err, "Error checking out GIT revision")
 	}
 	return nil
 }

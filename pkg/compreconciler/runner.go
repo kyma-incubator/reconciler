@@ -1,190 +1,179 @@
 package compreconciler
 
 import (
-	"encoding/json"
+	"bytes"
+	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"os/exec"
-	"strings"
-	"time"
-
 	"github.com/avast/retry-go"
-	"github.com/google/uuid"
+	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/chart"
-	"github.com/kyma-incubator/reconciler/pkg/server"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-)
-
-const (
-	envVarKubectlPath        = "KUBECTL_PATH"
-	statusUpdateRetryTimeout = 30 * time.Minute
+	"github.com/pkg/errors"
 )
 
 type runner struct {
 	*ComponentReconciler
 }
 
-type kubeClient struct {
-	clientSet      *kubernetes.Clientset
-	kubeConfigPath string
-}
+func (r *runner) Run(ctx context.Context, model *Reconciliation, callback CallbackHandler) error {
+	statusUpdater := newStatusUpdater(ctx, r.updateInterval, callback, uint(r.maxRetries), r.debug)
 
-func (r *runner) Run(w http.ResponseWriter, req *http.Request) error {
-	model, err := r.model(req)
-	if err != nil {
-		return err
-	}
-
-	kubeClient, err := r.kubeClient(model)
-	if err != nil {
-		return err
-	}
-
-	statusUpdater := newStatusUpdater(r.interval, model.CallbackURL, statusUpdateRetryTimeout, kubeClient.clientSet)
-	if err := statusUpdater.start(); err != nil {
-		return err
-	}
-
-	retryable := func() error {
-		err := r.reconcile(kubeClient, model, statusUpdater)
-		if err != nil {
-			statusUpdater.Failed()
+	retryable := func(statusUpdater *StatusUpdater) func() error {
+		return func() error {
+			if err := statusUpdater.Running(); err != nil {
+				return err
+			}
+			err := r.reconcile(model)
+			if err != nil {
+				if err := statusUpdater.Failed(); err != nil {
+					return err
+				}
+			}
+			return err
 		}
-		return err
-	}
+	}(statusUpdater)
 
-	err = retry.Do(retryable, retry.Attempts(uint(r.maxRetries)), retry.LastErrorOnly(true))
+	//retry the reconciliation in case of an error
+	err := retry.Do(retryable,
+		retry.Attempts(uint(r.maxRetries)),
+		retry.Delay(r.retryDelay),
+		retry.LastErrorOnly(false),
+		retry.Context(ctx))
 
+	logger := r.logger()
 	if err == nil {
-		statusUpdater.Success()
+		logger.Info(
+			fmt.Sprintf("Reconciliation of component '%s' for version '%s' finished successfully",
+				model.Component, model.Version))
+		if err := statusUpdater.Success(); err != nil {
+			return err
+		}
 	} else {
-		statusUpdater.Error()
+		logger.Warn(
+			fmt.Sprintf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
+				model.Component, model.Version))
+		if err := statusUpdater.Error(); err != nil {
+			return err
+		}
 	}
 
 	return err
 }
 
-func (r *runner) model(req *http.Request) (*Reconciliation, error) {
-	params := server.NewParams(req)
-	contactVersion, err := params.String(paramContractVersion)
+func (r *runner) reconcile(model *Reconciliation) error {
+	kubeClient, err := newKubernetesClient(model.Kubeconfig)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	b, err := ioutil.ReadAll(req.Body)
-	defer req.Body.Close()
+	clientSet, err := kubeClient.Clientset()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var model = r.modelForVersion(contactVersion)
-	err = json.Unmarshal(b, model)
-	if err != nil {
-		return nil, err
-	}
-
-	return model, err
-}
-
-func (r *runner) kubeClient(model *Reconciliation) (*kubeClient, error) {
-	kubeConfigPath := "/tmp/kubeconfig-" + uuid.New().String()
-	if err := ioutil.WriteFile(kubeConfigPath, []byte(model.Kubeconfig), 0600); err != nil {
-		return nil, err
-	}
-
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-	if err != nil {
-		return nil, err
-	}
-
-	clientSet, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &kubeClient{
-		clientSet:      clientSet,
-		kubeConfigPath: kubeConfigPath,
-	}, nil
-}
-
-func (r *runner) reconcile(kubeClient *kubeClient, model *Reconciliation, statusUpdater *StatusUpdater) error {
+	logger := r.logger()
 	if r.preInstallAction != nil {
-		if err := r.preInstallAction.Run(model.Version, kubeClient.clientSet); err != nil {
+		if err := r.preInstallAction.Run(model.Version, clientSet); err != nil {
+			logger.Warn(
+				fmt.Sprintf("Pre-installation action of version '%s' failed: %s", model.Version, err))
 			return err
 		}
 	}
+
 	if r.installAction == nil {
-		if err := r.install(model, kubeClient, statusUpdater); err != nil {
+		if err := r.install(model, kubeClient); err != nil {
+			logger.Warn(
+				fmt.Sprintf("Default-installation of version '%s' failed: %s", model.Version, err))
 			return err
 		}
 	} else {
-		if err := r.installAction.Run(model.Version, kubeClient.clientSet); err != nil {
+		if err := r.installAction.Run(model.Version, clientSet); err != nil {
+			logger.Warn(
+				fmt.Sprintf("Installation action of version '%s' failed: %s", model.Version, err))
 			return err
 		}
 	}
 
 	if r.postInstallAction != nil {
-		if err := r.postInstallAction.Run(model.Version, kubeClient.clientSet); err != nil {
+		if err := r.postInstallAction.Run(model.Version, clientSet); err != nil {
+			logger.Warn(
+				fmt.Sprintf("Post-installation action of version '%s' failed: %s", model.Version, err))
 			return err
 		}
 	}
+
 	return nil
 }
 
-func (r *runner) modelForVersion(contactVersion string) *Reconciliation {
-	return &Reconciliation{} //change this function if different contract versions have to be supported
+func (r *runner) install(model *Reconciliation, kubeClient kubernetesClient) error {
+	manifest, err := r.renderManifest(model)
+	if err != nil {
+		return err
+	}
+
+	if err := kubeClient.Deploy(manifest); err != nil {
+		r.logger().Warn(fmt.Sprintf("Failed to deploy manifests on target cluster: %s", err))
+		return err
+	}
+
+	return r.trackProgress(manifest, kubeClient) //blocking call
 }
 
-func (r *runner) install(model *Reconciliation, client *kubeClient, statusUpdater *StatusUpdater) error {
-	manifests, err := r.chartProvider.Manifests(r.newChartComponentSet(model), &chart.Options{})
+func (r *runner) renderManifest(model *Reconciliation) (string, error) {
+	manifests, err := r.chartProvider.Manifests(r.newComponentSet(model), model.InstallCRD, &chart.Options{})
 	if err != nil {
-		return err
+		msg := fmt.Sprintf("Failed to render manifest for component '%s'", model.Component)
+		r.logger().Warn(msg)
+		return "", errors.Wrap(err, msg)
 	}
 
-	if len(manifests) != 1 { //just an assertion - can in current implementation not occur
-		return fmt.Errorf("Reconciliation can only process 1 manifest but got %d", len(manifests))
+	var buffer bytes.Buffer
+	r.logger().Debug(fmt.Sprintf("Rendering of component '%s' returned %d manifests", model.Component, len(manifests)))
+	for _, manifest := range manifests {
+		if !model.InstallCRD && manifest.Type == components.CRD {
+			r.logger().Error(fmt.Sprintf("Illegal state detected! "+
+				"No CRDs were requested but chartProvider returned CRD manifest: '%s'", manifest.Name))
+		}
+		buffer.WriteString("---\n")
+		buffer.WriteString(fmt.Sprintf("# Manifest of %s '%s'\n", manifest.Type, model.Component))
+		buffer.WriteString(manifest.Manifest)
+		buffer.WriteString("\n")
 	}
-
-	manifestPath := "/tmp/manifest-" + uuid.New().String()
-	if err := ioutil.WriteFile(manifestPath, []byte(manifests[0].Manifest), 0600); err != nil {
-		return err
-	}
-
-	command, ok := os.LookupEnv(envVarKubectlPath)
-	if !ok {
-		return fmt.Errorf("Cannot find kubectl cmd, please set env-var '%s'", envVarKubectlPath)
-	}
-	args := []string{fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "apply", "-f", manifestPath}
-	_, err = exec.Command(command, args...).CombinedOutput()
-	if err != nil {
-		statusUpdater.status = Failed
-		return err
-	}
-
-	args = []string{"get", fmt.Sprintf("-f %s", manifestPath), fmt.Sprintf("--kubeconfig=%s", client.kubeConfigPath), "-oyaml", "-o=jsonpath='{.items[*].metadata.name} {.items[*].metadata.namespace} {.items[*].kind}'"}
-	getCommandStout, err := exec.Command(command, args...).CombinedOutput()
-	if err != nil {
-		return err
-	}
-	split := strings.Split(strings.TrimSuffix(string(getCommandStout), "'"), " ")
-	quantityObjects := len(split) / 3
-	statusUpdater.createdObjects = make([]K8SObject, 0, quantityObjects)
-	for i := 0; i < quantityObjects; i++ {
-		statusUpdater.createdObjects = append(statusUpdater.createdObjects, K8SObject{
-			Name:      split[i],
-			Namespace: split[i+quantityObjects],
-			Kind:      split[i+(2*quantityObjects)],
-		})
-	}
-	return nil
-
+	return buffer.String(), nil
 }
 
-func (r *runner) newChartComponentSet(model *Reconciliation) *chart.ComponentSet {
+func (r *runner) trackProgress(manifest string, kubeClient kubernetesClient) error {
+	clientSet, err := kubeClient.Clientset()
+	if err != nil {
+		return err
+	}
+	//get resources defined in manifest
+	pt, err := NewProgressTracker(clientSet, r.debug, ProgressTrackerConfig{})
+	if err != nil {
+		return err
+	}
+	//watch progress of installed resources
+	resources, err := kubeClient.DeployedResources(manifest)
+	if err != nil {
+		return err
+	}
+	for _, resource := range resources {
+		watchable, err := NewWatchableResource(resource.kind) //convert "kind" to watchable
+		if err != nil {
+			pt.logger.Debug(fmt.Sprintf("Ignoring non-watchable resource '%s' (%s:%s)",
+				resource.kind, resource.name, resource.namespace))
+			continue //not watchable resource: ignore it
+		}
+		pt.AddResource(
+			watchable,
+			resource.namespace,
+			resource.name,
+		)
+	}
+	r.logger().Debug("Start watching installation progress")
+	return pt.Watch() //blocking call
+}
+
+func (r *runner) newComponentSet(model *Reconciliation) *chart.ComponentSet {
 	comp := chart.NewComponent(model.Component, model.Namespace, r.configMap(model))
 	compSet := chart.NewComponentSet(model.Kubeconfig, model.Version, model.Profile, []*chart.Component{comp})
 	return compSet

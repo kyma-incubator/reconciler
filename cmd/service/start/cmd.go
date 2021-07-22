@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
@@ -43,11 +45,12 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options) error {
-	//TODO: start application
-	return startWebserver(o)
+	ctx := cli.NewContext()
+	//run webserver within context
+	return startWebserver(ctx, o)
 }
 
-func startWebserver(o *Options) error {
+func startWebserver(ctx context.Context, o *Options) error {
 	//routing
 	router := mux.NewRouter()
 	router.HandleFunc(
@@ -87,7 +90,7 @@ func startWebserver(o *Options) error {
 		SSLKeyFile: o.SSLKey,
 		Router:     router,
 	}
-	return srv.Start() //blocking call
+	return srv.Start(ctx) //blocking call
 }
 
 func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -126,7 +129,7 @@ func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func get(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	cluster, err := params.String("cluster")
+	cl, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -136,7 +139,7 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	clusterState, err := o.Registry.Inventory().Get(cluster, configVersion)
+	clusterState, err := o.Registry.Inventory().Get(cl, configVersion)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster state"))
 		return
@@ -146,12 +149,12 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func getLatest(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	cluster, err := params.String("cluster")
+	cl, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	clusterState, err := o.Registry.Inventory().GetLatest(cluster)
+	clusterState, err := o.Registry.Inventory().GetLatest(cl)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Could not retrieve cluster state"))
 		return
@@ -161,7 +164,7 @@ func getLatest(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	cluster, err := params.String("cluster")
+	cl, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -176,7 +179,7 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	changes, err := o.Registry.Inventory().StatusChanges(cluster, duration)
+	changes, err := o.Registry.Inventory().StatusChanges(cl, duration)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster statusChanges"))
 		return
@@ -191,17 +194,17 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func delete(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	cluster, err := params.String("cluster")
+	cl, err := params.String("cluster")
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	if _, err := o.Registry.Inventory().GetLatest(cluster); repository.IsNotFoundError(err) {
-		sendError(w, http.StatusNotFound, errors.Wrap(err, fmt.Sprintf("Deletion impossible: cluster '%s' not found", cluster)))
+	if _, err := o.Registry.Inventory().GetLatest(cl); repository.IsNotFoundError(err) {
+		sendError(w, http.StatusNotFound, errors.Wrap(err, fmt.Sprintf("Deletion impossible: cluster '%s' not found", cl)))
 		return
 	}
-	if err := o.Registry.Inventory().Delete(cluster); err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", cluster)))
+	if err := o.Registry.Inventory().Delete(cl); err != nil {
+		sendError(w, http.StatusInternalServerError, errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", cl)))
 		return
 	}
 }
