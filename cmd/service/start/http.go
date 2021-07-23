@@ -18,7 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func startWebserver(o *Options, ctx context.Context) error {
+func startWebserver(ctx context.Context, o *Options) error {
 	//routing
 	router := mux.NewRouter()
 	router.HandleFunc(

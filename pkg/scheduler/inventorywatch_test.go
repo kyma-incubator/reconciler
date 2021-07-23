@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -19,10 +20,13 @@ func TestInventoryWatch(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.TODO())
 	defer cancelFn()
 
-	inventoryWatch, err := NewInventoryWatch(inventory, nil)
+	inventoryWatch, err := NewInventoryWatch(inventory, true, &InventoryWatchConfig{WatchInterval: 500 * time.Millisecond})
 	require.NoError(t, err)
 
-	go inventoryWatch.Run(ctx, queue)
+	go func(ctx context.Context, queue chan cluster.State) {
+		err := inventoryWatch.Run(ctx, queue)
+		require.NoError(t, err)
+	}(ctx, queue)
 	clusterState := <-queue
 
 	require.NotEmpty(t, clusterState)
@@ -34,7 +38,7 @@ func TestInventoryWatch_ShouldStopOnCtxClose(t *testing.T) {
 	queue := make(chan cluster.State, 1)
 	ctx, cancelFn := context.WithCancel(context.TODO())
 
-	inventoryWatch, err := NewInventoryWatch(inventory, nil)
+	inventoryWatch, err := NewInventoryWatch(inventory, true, &InventoryWatchConfig{WatchInterval: 500 * time.Millisecond})
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup

@@ -6,15 +6,20 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 )
 
-func startScheduler(o *Options, ctx context.Context) error {
+func startScheduler(ctx context.Context, o *Options) error {
 	inventoryWatch, err := scheduler.NewInventoryWatch(
 		o.Registry.Inventory(),
-		o.Registry.Logger())
+		o.Verbose,
+		&scheduler.InventoryWatchConfig{
+			WatchInterval:            o.WatchInterval,
+			ClusterReconcileInterval: o.ClusterReconcileInterval,
+		},
+	)
 	if err != nil {
 		return err
 	}
 
-	scheduler, err := scheduler.NewRemoteScheduler(inventoryWatch)
+	scheduler, err := scheduler.NewRemoteScheduler(inventoryWatch, o.Workers, o.Verbose)
 	if err != nil {
 		return err
 	}
