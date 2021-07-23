@@ -91,7 +91,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, instAct, postAct, 0, 0)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
 		//successful run
@@ -116,7 +116,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 0, 0)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
 		//successful run
@@ -164,7 +164,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 0, 0)
-		model := newModel(t, clusterUsersComponent, kymaVersion, true, "default")
+		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
 		callback := newCallbackHandler(t)
 
 		//successful run
@@ -208,7 +208,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, instAct, nil, 0, 0)
-		model := newModel(t, clusterUsersComponent, kymaVersion, true, "default")
+		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
 		callback := newCallbackHandler(t)
 
 		//successful run
@@ -229,7 +229,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, nil, 0, 0)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
 		//successful run
@@ -250,7 +250,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, install, nil, 0, 0)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
 		//successful run
@@ -271,7 +271,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, postAct, nil, 0, 0)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
 		//successful run
@@ -284,7 +284,7 @@ func TestRunner(t *testing.T) {
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
 		runner := newRunner(t, nil, nil, nil, 1, 2)
-		model := newModel(t, fakeComponent, fakeKymaVersion, false, "default")
+		model := newModel(t, fakeComponent, fakeKymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
 		//successful run
