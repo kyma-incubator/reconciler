@@ -39,6 +39,8 @@ type ComponentReconciler struct {
 	updateInterval    time.Duration
 	maxRetries        int
 	retryDelay        time.Duration
+	interval          time.Duration
+	timeout           time.Duration
 }
 
 type serverOpts struct {
@@ -98,6 +100,12 @@ func (r *ComponentReconciler) WithInstallAction(installAction Action) *Component
 
 func (r *ComponentReconciler) WithPostInstallAction(postInstallAction Action) *ComponentReconciler {
 	r.postInstallAction = postInstallAction
+	return r
+}
+
+func (r *ComponentReconciler) WithProgressTrackerConfig(interval, timeout time.Duration) *ComponentReconciler {
+	r.interval = interval
+	r.timeout = timeout
 	return r
 }
 

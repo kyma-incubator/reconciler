@@ -73,7 +73,7 @@ func (p *Provider) Manifests(compSet *ComponentSet, includeCRD bool, opts *Optio
 		result = append(result, manifests...)
 	}
 	if includeCRD {
-		crds, err := p.renderCrds(ws, opts)
+		crds, err := p.renderCrds(compSet, ws, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -87,8 +87,8 @@ func (p *Provider) renderManifests(compSet *ComponentSet, ws *workspace.Workspac
 	return p.render(compSet, false, ws, opts)
 }
 
-func (p *Provider) renderCrds(ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
-	return p.render(&ComponentSet{}, true, ws, opts)
+func (p *Provider) renderCrds(compSet *ComponentSet, ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
+	return p.render(compSet, true, ws, opts)
 }
 
 func (p *Provider) render(compSet *ComponentSet, renderCrds bool, ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
