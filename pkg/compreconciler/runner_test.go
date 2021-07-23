@@ -15,8 +15,11 @@ import (
 )
 
 const (
-	kymaVersion   = "1.24.0"
-	kymaComponent = "cluster-users"
+	kymaVersion           = "1.24.0"
+	fakeKymaVersion       = "0.0.0"
+	clusterUsersComponent = "cluster-users"
+	apiGatewayComponent   = "api-gateway"
+	fakeComponent         = "component-1"
 )
 
 var wsf = &workspace.Factory{
@@ -87,8 +90,8 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, instAct, postAct)
-		model := newModel(t)
+		runner := newRunner(t, preAct, instAct, postAct, 0, 0)
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
 		callback := newCallbackHandler(t)
 
 		//successful run
@@ -101,7 +104,7 @@ func TestRunner(t *testing.T) {
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
-	t.Run("Run with pre- and post-action but default install-action (without CRDs)", func(t *testing.T) {
+	t.Run("Run with pre- and post-action but default install-action (without CRDs) for cluster-users component", func(t *testing.T) {
 		//create install actions
 		preAct := &TestAction{
 			name:  "pre-install",
@@ -112,8 +115,8 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct)
-		model := newModel(t)
+		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
 		callback := newCallbackHandler(t)
 
 		//successful run
@@ -125,33 +128,173 @@ func TestRunner(t *testing.T) {
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
-	t.Run("Run with pre- and post-action but default install-action (with CRDs)", func(t *testing.T) {
-		//TODO
+	t.Run("Run with pre- and post-action but default install-action (without CRDs) for api-gateway component", func(t *testing.T) {
+		//create install actions
+		preAct := &TestAction{
+			name:  "pre-install",
+			delay: 1 * time.Second,
+		}
+		postAct := &TestAction{
+			name:  "post-install",
+			delay: 1 * time.Second,
+		}
+
+		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		model := newModel(t, apiGatewayComponent, kymaVersion, false, "default")
+		callback := newCallbackHandler(t)
+
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.NoError(t, err)
+
+		//all actions have to be executed
+		require.Equal(t, kymaVersion, preAct.receivedVersion)
+		require.Equal(t, kymaVersion, postAct.receivedVersion)
+	})
+
+	t.Run("Run with pre- and post-action but default install-action (with CRDs) for cluster-users component", func(t *testing.T) {
+		//create install actions
+		preAct := &TestAction{
+			name:  "pre-install",
+			delay: 1 * time.Second,
+		}
+		postAct := &TestAction{
+			name:  "post-install",
+			delay: 1 * time.Second,
+		}
+
+		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		model := newModel(t, clusterUsersComponent, kymaVersion, true, "default")
+		callback := newCallbackHandler(t)
+
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.NoError(t, err)
+
+		//all actions have to be executed
+		require.Equal(t, kymaVersion, preAct.receivedVersion)
+		require.Equal(t, kymaVersion, postAct.receivedVersion)
+	})
+
+	t.Run("Run with pre- and post-action but default install-action (with CRDs) for api-gateway component", func(t *testing.T) {
+		//create install actions
+		preAct := &TestAction{
+			name:  "pre-install",
+			delay: 1 * time.Second,
+		}
+		postAct := &TestAction{
+			name:  "post-install",
+			delay: 1 * time.Second,
+		}
+
+		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		model := newModel(t, apiGatewayComponent, kymaVersion, true, "default")
+		callback := newCallbackHandler(t)
+
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.NoError(t, err)
+
+		//all actions have to be executed
+		require.Equal(t, kymaVersion, preAct.receivedVersion)
+		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
 	t.Run("Run without pre- and post-action", func(t *testing.T) {
-		//TODO
+		//create install actions
+		instAct := &TestAction{
+			name:  "install",
+			delay: 1 * time.Second,
+		}
+
+		runner := newRunner(t, nil, instAct, nil, 0, 0)
+		model := newModel(t, clusterUsersComponent, kymaVersion, true, "default")
+		callback := newCallbackHandler(t)
+
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.NoError(t, err)
+
+		//install action has to be executed
+		require.Equal(t, kymaVersion, instAct.receivedVersion)
 	})
 
 	t.Run("Run with permanently failing pre-action", func(t *testing.T) {
-		//TODO
+		//create install actions
+		preAct := &TestAction{
+			name:       "pre-install",
+			delay:      1 * time.Second,
+			failAlways: true,
+			fail:       true,
+		}
+
+		runner := newRunner(t, preAct, nil, nil, 0, 0)
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
+		callback := newCallbackHandler(t)
+
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.Error(t, err)
+
+		//pre-install action have to be executed
+		require.Equal(t, kymaVersion, preAct.receivedVersion)
 	})
 
 	t.Run("Run with permanently failing install-action", func(t *testing.T) {
-		//TODO
+		//create install actions
+		install := &TestAction{
+			name:       "install",
+			delay:      1 * time.Second,
+			failAlways: true,
+			fail:       true,
+		}
+
+		runner := newRunner(t, nil, install, nil, 0, 0)
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
+		callback := newCallbackHandler(t)
+
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.Error(t, err)
+
+		//install action have to be executed
+		require.Equal(t, kymaVersion, install.receivedVersion)
 	})
 
 	t.Run("Run with permanently failing post-action", func(t *testing.T) {
-		//TODO
+		//create install actions
+		postAct := &TestAction{
+			name:       "pre-install",
+			delay:      1 * time.Second,
+			failAlways: true,
+			fail:       true,
+		}
+
+		runner := newRunner(t, nil, postAct, nil, 0, 0)
+		model := newModel(t, clusterUsersComponent, kymaVersion, false, "default")
+		callback := newCallbackHandler(t)
+
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.Error(t, err)
+
+		//pre-install action have to be executed
+		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
-		//TODO
+		runner := newRunner(t, nil, nil, nil, 1, 2)
+		model := newModel(t, fakeComponent, fakeKymaVersion, false, "default")
+		callback := newCallbackHandler(t)
+
+		//successful run
+		err := runner.Run(context.Background(), model, callback)
+		require.Error(t, err)
 	})
 
 }
 
-func newRunner(t *testing.T, preAct, instAct, postAct Action) *runner {
+func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
 	chartProvider, err := chart.NewProvider(wsf, true)
 	require.NoError(t, err)
 
@@ -160,17 +303,20 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action) *runner {
 		Configure(1*time.Second, 3, 1*time.Second).
 		WithPreInstallAction(preAct).
 		WithInstallAction(instAct).
-		WithPostInstallAction(postAct)
+		WithPostInstallAction(postAct).
+		WithProgressTrackerConfig(interval, timeout)
 	require.NoError(t, err)
 
 	return &runner{recon}
 }
 
-func newModel(t *testing.T) *Reconciliation {
+func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, namespace string) *Reconciliation {
 	return &Reconciliation{
+		InstallCRD: installCRD,
 		Component:  kymaComponent,
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
+		Namespace:  namespace,
 	}
 }
 
