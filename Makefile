@@ -50,6 +50,10 @@ test:
 	@echo "Total test coverage: $$(go tool cover -func=cover.out | grep total | awk '{print $$3}')"
 	@rm cover.out
 
+.PHONY: test-all
+test-all: export RECONCILER_EXPENSIVE_TESTS = 1
+test-all: test
+
 .PHONY: clean
 clean:
 	rm -rf bin

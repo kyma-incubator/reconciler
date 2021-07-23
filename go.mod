@@ -10,14 +10,13 @@ replace (
 require (
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/carlescere/scheduler v0.0.0-20170109141437-ee74d2f83d82
 	github.com/fatih/structs v1.1.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
-	github.com/kyma-incubator/hydroform/parallel-install v0.0.0-20210625122243-0a06b9446e40
+	github.com/kyma-incubator/hydroform/parallel-install v0.0.0-20210721145627-d414c11beeca
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mitchellh/mapstructure v1.4.1

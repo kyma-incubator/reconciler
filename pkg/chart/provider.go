@@ -55,30 +55,49 @@ func (p *Provider) loggerAdapter() (*HydroformLoggerAdapter, error) {
 	return NewHydroformLoggerAdapter(logger), nil
 }
 
-func (p *Provider) Manifests(compSet *ComponentSet, opts *Options) ([]*components.Manifest, error) {
+func (p *Provider) Manifests(compSet *ComponentSet, includeCRD bool, opts *Options) ([]*components.Manifest, error) {
 	//TODO: add caching check here
 	p.logger.Debug(fmt.Sprintf("Getting workspace for Kyma '%s'", compSet.version))
 	ws, err := p.wsFactory.Get(compSet.version)
 	if err != nil {
+		p.logger.Warn(fmt.Sprintf("Failed to retrieve workspace for Kyma '%s': %s", compSet.version, err))
 		return nil, err
 	}
 
-	return p.renderManifests(compSet, ws, opts)
+	var result []*components.Manifest
+	if len(compSet.components) > 0 {
+		manifests, err := p.renderManifests(compSet, ws, opts)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, manifests...)
+	}
+	if includeCRD {
+		crds, err := p.renderCrds(ws, opts)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, crds...)
+	}
+
+	return result, nil
 }
 
 func (p *Provider) renderManifests(compSet *ComponentSet, ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
+	return p.render(compSet, false, ws, opts)
+}
+
+func (p *Provider) renderCrds(ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
+	return p.render(&ComponentSet{}, true, ws, opts)
+}
+
+func (p *Provider) render(compSet *ComponentSet, renderCrds bool, ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
 	if err := opts.validate(); err != nil {
 		return nil, errors.Wrap(err, "Invalid provider options defined")
 	}
 
 	//get logger
 	logger, err := p.loggerAdapter()
-	if err != nil {
-		return nil, err
-	}
-
-	//get component list
-	compList, err := p.componentList(ws, compSet.components)
 	if err != nil {
 		return nil, err
 	}
@@ -99,11 +118,10 @@ func (p *Provider) renderManifests(compSet *ComponentSet, ws *workspace.Workspac
 		BackoffMaxElapsedTimeSeconds:  45,
 		Log:                           logger,
 		HelmMaxRevisionHistory:        10,
-		ComponentList:                 compList,
+		ComponentList:                 p.componentList(compSet.components),
 		ResourcePath:                  ws.ResourceDir,
 		InstallationResourcePath:      ws.InstallationResourceDir,
 		Profile:                       compSet.profile,
-		Verbose:                       p.debug,
 		KubeconfigSource: config.KubeconfigSource{
 			Path:    "",
 			Content: compSet.kubeconfig,
@@ -115,57 +133,34 @@ func (p *Provider) renderManifests(compSet *ComponentSet, ws *workspace.Workspac
 		return nil, err
 	}
 
-	return templating.Render()
+	return templating.Render(renderCrds)
 }
 
-//componentList will read the component list from the workspace and align the namespaces with the values retrieved from KEB
-func (p *Provider) componentList(ws *workspace.Workspace, comps []*Component) (*config.ComponentList, error) {
-	compList, err := config.NewComponentList(ws.ComponentFile)
-	if err != nil {
-		return nil, err
-	}
-	compsMap := p.componentMap(comps)
-	for idx, clComp := range compList.Prerequisites {
-		if comp, ok := compsMap[clComp.Name]; ok {
-			if comp.namespace != "" {
-				p.logger.Debug(
-					fmt.Sprintf("Updating namespace of prerequisite-component '%s' with namespace provided by KEB: '%s' => '%s'",
-						clComp.Name, clComp.Namespace, comp.namespace))
-				compList.Prerequisites[idx].Namespace = comp.namespace
-			}
-		}
-	}
-	for idx, clComp := range compList.Components {
-		if comp, ok := compsMap[clComp.Name]; ok {
-			if comp.namespace != "" {
-				p.logger.Debug(
-					fmt.Sprintf("Updating namespace of component '%s' with namespace provided by KEB: '%s' => '%s'",
-						clComp.Name, clComp.Namespace, comp.namespace))
-				compList.Components[idx].Namespace = comp.namespace
-			}
-		}
-	}
-	return compList, nil
-}
-
-func (p *Provider) componentMap(comps []*Component) map[string]*Component {
-	result := make(map[string]*Component, len(comps))
+//componentList will create a new component list using the components provided by KEB
+func (p *Provider) componentList(comps []*Component) *config.ComponentList {
+	compList := &config.ComponentList{}
 	for _, comp := range comps {
-		result[comp.name] = comp
+		p.logger.Debug(
+			fmt.Sprintf("Adding component '%s' with namespace '%s' to rendering scope",
+				comp.name, comp.namespace))
+		compList.Components = append(compList.Components, config.ComponentDefinition{
+			Name:      comp.name,
+			Namespace: comp.namespace,
+		})
 	}
-	return result
+	return compList
 }
 
 func (p *Provider) overrides(comps []*Component) (*overrides.Builder, error) {
-	overrides := &overrides.Builder{}
+	overrideBuilder := &overrides.Builder{}
 	for _, comp := range comps {
 		for key, value := range comp.configuration {
-			if err := overrides.AddOverrides(comp.name, p.nestedConfMap(key, value)); err != nil {
+			if err := overrideBuilder.AddOverrides(comp.name, p.nestedConfMap(key, value)); err != nil {
 				return nil, err
 			}
 		}
 	}
-	return overrides, nil
+	return overrideBuilder, nil
 }
 
 //nestedConfMap converts a key with dot-notation into a nested map (e.g. a.b.c=value become [a:[b:[c:value]]])

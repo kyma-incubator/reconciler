@@ -2,23 +2,15 @@ package chart
 
 import (
 	"encoding/json"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
-	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
-	file "github.com/kyma-incubator/reconciler/pkg/files"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
-)
-
-var (
-	componentListFile         string = filepath.Join("test", "unittest-complist.yaml")
-	componentListExpectedFile string = filepath.Join("test", "unittest-complist-expected.yaml")
 )
 
 func TestProvider(t *testing.T) {
@@ -79,39 +71,12 @@ func TestProvider(t *testing.T) {
 		require.Equal(t, expected, overridesMap)
 	})
 
-	t.Run("Test component list", func(t *testing.T) {
-		compList, err := prov.componentList(&workspace.Workspace{
-			ComponentFile: componentListFile,
-		}, []*Component{
-			{
-				name:      "component-2",
-				namespace: "differentns-component-2",
-			},
-			{
-				name:      "component-3",
-				namespace: "differentns-component-3",
-			},
-		})
-		require.NoError(t, err)
-
-		expCompList, err := config.NewComponentList(componentListExpectedFile)
-		require.NoError(t, err)
-
-		require.Equal(t, expCompList, compList)
-	})
-
 	t.Run("Test render manifest", func(t *testing.T) {
 		if !test.RunExpensiveTests() {
 			return
 		}
 
-		if !file.Exists(os.Getenv("KUBECONFIG")) {
-			require.FailNow(t, "Please set env-var KUBECONFIG before executing this test case")
-		}
-
-		kubeCfg, err := ioutil.ReadFile(os.Getenv("KUBECONFIG"))
-		require.NoError(t, err)
-		compSet := NewComponentSet(string(kubeCfg), "2.0.0", "testProfile", []*Component{
+		compSet := NewComponentSet(test.ReadKubeconfig(t), "2.0.0", "testProfile", []*Component{
 			{
 				name:      "component-1",
 				namespace: "different-namespace",

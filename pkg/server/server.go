@@ -27,11 +27,6 @@ func (s *Webserver) logger() *zap.Logger {
 }
 
 func (s *Webserver) Start(ctx context.Context) error {
-	//run webserver within context
-	return s.runServer(ctx)
-}
-
-func (s *Webserver) runServer(ctx context.Context) error {
 	s.logger().Info(fmt.Sprintf("Webserver starting and listening on port %d", s.Port))
 	s.startServer(s.Router)
 	<-ctx.Done()
