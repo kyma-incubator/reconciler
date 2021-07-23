@@ -66,7 +66,7 @@ type DefaultInventoryWatcher struct {
 
 func (w *DefaultInventoryWatcher) Run(ctx context.Context, queue InventoryQueue) error {
 	ticker := time.NewTicker(w.config.WatchInterval)
-	w.logger.Debug(fmt.Sprintf("Start watching cluster inventory with an watch-interval for %.0f secs", w.config.WatchInterval.Seconds()))
+	w.logger.Debug(fmt.Sprintf("Start watching cluster inventory with an watch-interval of %.1f secs", w.config.WatchInterval.Seconds()))
 	w.processClustersToReconcile(queue)
 	for {
 		select {
@@ -88,6 +88,7 @@ func (w *DefaultInventoryWatcher) processClustersToReconcile(queue InventoryQueu
 		return
 	}
 
+	w.logger.Debug(fmt.Sprintf("Inventory watcher found %d clusters which require a reconciliation", len(clusters)))
 	for _, cluster := range clusters {
 		if cluster == nil {
 			w.logger.Debug("Nil cluster state when processing the list of clusters to reconcile")
