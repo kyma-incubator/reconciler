@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"context"
-	"os"
-	"os/signal"
-
+	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/spf13/cobra"
 )
 
@@ -33,29 +30,11 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options) error {
-	var err error
-	//listen on os events
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	ctx := cli.NewContext()
 
-	//create context
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		oscall := <-c
-		if oscall == os.Interrupt {
-			cancel()
-		}
-	}()
-
-	err = startWebserver(o, ctx)
-	if err != nil {
+	if err := startWebserver(o, ctx); err != nil {
 		return err
 	}
 
-	err = startScheduler(o, ctx)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return startScheduler(o, ctx)
 }
