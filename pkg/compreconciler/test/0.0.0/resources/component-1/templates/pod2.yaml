@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dummy-pod2
+  namespace: default
+spec:
+  containers:
+    - name: dummy-pod2
+      image: debian
+      command: ["/bin/sh"]
+      args: ["-c", "echo Sleep expired > /dev/termination-log"]
