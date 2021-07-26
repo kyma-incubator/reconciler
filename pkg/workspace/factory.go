@@ -2,13 +2,15 @@ package workspace
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"sync"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/git"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -25,44 +27,60 @@ type Workspace struct {
 }
 
 type Factory struct {
-	mutex         sync.Mutex
+	Debug         bool
 	StorageDir    string
 	RepositoryURL string
+	mutex         sync.Mutex
+	logger        *zap.Logger
+	workspaceDir  string
 }
 
-func (f *Factory) versionDir(version string) string {
-	if f.StorageDir == "" {
-		//define work dir, priority: "$HOME", "cwd()", "."
-		baseDir, err := os.UserHomeDir()
-		if err != nil {
-			baseDir, err = os.Getwd()
-			if err != nil {
-				baseDir = "."
-			}
-		}
-		f.StorageDir = filepath.Join(baseDir, ".kyma", "reconciler", "versions")
+func (f *Factory) validate(version string) error {
+	var err error
+	f.logger, err = logger.NewLogger(f.Debug)
+	if err != nil {
+		return err
 	}
+	if f.StorageDir == "" {
+		f.StorageDir = f.defaultStorageDir()
+	}
+	if f.RepositoryURL == "" {
+		f.RepositoryURL = defaultRepositoryURL
+	}
+	f.workspaceDir = filepath.Join(f.StorageDir, version) //add Kyma version as subdirectory
+	return nil
+}
 
-	versionDir := filepath.Join(f.StorageDir, version) //add Kyma version as subdirectory
-
-	return versionDir
+func (f *Factory) defaultStorageDir() string {
+	//define work dir, priority: "$HOME", "cwd()", "."
+	baseDir, err := os.UserHomeDir()
+	if err != nil {
+		baseDir, err = os.Getwd()
+		if err != nil {
+			baseDir = "."
+		}
+	}
+	return filepath.Join(baseDir, ".kyma", "reconciler", "versions")
 }
 
 func (f *Factory) Get(version string) (*Workspace, error) {
-	versionDir := f.versionDir(version)
+	if err := f.validate(version); err != nil {
+		return nil, err
+	}
 
 	//ensure Kyma sources are available
-	if !file.DirExists(versionDir) {
-		if err := f.clone(version, versionDir); err != nil {
+	if !file.DirExists(f.workspaceDir) {
+		f.logger.Info(fmt.Sprintf("Creating new workspace directory '%s' ", f.workspaceDir))
+		if err := f.clone(version, f.workspaceDir); err != nil {
 			return nil, err
 		}
 	}
 
 	//return workspace
 	return &Workspace{
-		ComponentFile:           filepath.Join(versionDir, componentFile),
-		ResourceDir:             filepath.Join(versionDir, resDir),
-		InstallationResourceDir: filepath.Join(versionDir, instResDir),
+		ComponentFile:           filepath.Join(f.workspaceDir, componentFile),
+		ResourceDir:             filepath.Join(f.workspaceDir, resDir),
+		InstallationResourceDir: filepath.Join(f.workspaceDir, instResDir),
 	}, nil
 }
 
@@ -75,15 +93,16 @@ func (f *Factory) clone(version, dstDir string) error {
 		return nil
 	}
 
-	repoURL := f.RepositoryURL
-	if repoURL == "" {
-		repoURL = defaultRepositoryURL
-	}
-
 	//clone sources
-	if err := git.CloneRepo(repoURL, dstDir, version); err != nil {
-		if removeErr := os.RemoveAll(dstDir); removeErr != nil { //git failed, cleanup incomplete clones
-			return errors.Wrap(err, removeErr.Error())
+	f.logger.Info(
+		fmt.Sprintf("Start cloning repository '%s' with revision '%s' into workspace '%s'",
+			f.RepositoryURL, version, dstDir))
+	if err := git.CloneRepo(f.RepositoryURL, dstDir, version); err != nil {
+		f.logger.Warn(
+			fmt.Sprintf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
+				dstDir, f.RepositoryURL, version))
+		if removeErr := f.Delete(version); removeErr != nil {
+			err = errors.Wrap(err, removeErr.Error())
 		}
 		return err
 	}
@@ -91,14 +110,26 @@ func (f *Factory) clone(version, dstDir string) error {
 	for _, dir := range []string{resDir, instResDir} {
 		reqDir := filepath.Join(dstDir, dir)
 		if !file.DirExists(reqDir) {
-			return fmt.Errorf("Required resource directory '%s' is missing in Kyma version '%s'", reqDir, version)
+			return fmt.Errorf("required resource directory '%s' is missing in Kyma version '%s'", reqDir, version)
 		}
 	}
 	reqFile := filepath.Join(dstDir, componentFile)
 	if !file.Exists(reqFile) {
-		return fmt.Errorf("Required component file '%s' is missing in Kyma version '%s'", reqFile, version)
+		return fmt.Errorf("required component file '%s' is missing in Kyma version '%s'", reqFile, version)
 	}
 
 	//clone ready for use
 	return nil
+}
+
+func (f *Factory) Delete(version string) error {
+	if err := f.validate(version); err != nil {
+		return err
+	}
+	f.logger.Debug(fmt.Sprintf("Deleting workspace '%s'", f.workspaceDir))
+	err := os.RemoveAll(f.workspaceDir)
+	if err != nil {
+		f.logger.Warn(fmt.Sprintf("Failed to delete workspace '%s': %s", f.workspaceDir, err))
+	}
+	return err
 }

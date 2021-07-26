@@ -24,7 +24,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 }
 
 func Run(o *cli.Options, bucketFilter []string) error {
-	allBuckets, err := o.Repository().Buckets()
+	allBuckets, err := o.Registry.KVRepository().Buckets()
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func renderBucketsWithValues(o *cli.Options, buckets []*model.BucketEntity) erro
 		return err
 	}
 	for _, bucket := range buckets {
-		values, err := o.Repository().ValuesByBucket(bucket.Bucket)
+		values, err := o.Registry.KVRepository().ValuesByBucket(bucket.Bucket)
 		if err != nil {
 			return err
 		}

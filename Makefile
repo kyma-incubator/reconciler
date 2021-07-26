@@ -1,3 +1,7 @@
+APP_NAME = reconciler
+IMG_NAME := $(DOCKER_PUSH_REPOSITORY)$(DOCKER_PUSH_DIRECTORY)/$(APP_NAME)
+TAG := $(DOCKER_TAG)
+
 ifndef VERSION
 	VERSION = ${shell git describe --tags --always}
 endif
@@ -31,18 +35,31 @@ build-linux-arm:
 build-darwin:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/reconciler-darwin $(FLAGS) ./cmd
 
+.PHONY: docker-build
+docker-build:
+	docker build -t $(APP_NAME):latest .
+
+.PHONY: docker-push
+docker-push:
+	docker tag $(APP_NAME) $(IMG_NAME):$(TAG)
+	docker push $(IMG_NAME):$(TAG)
+
 .PHONY: test
 test:
 	go test -race -coverprofile=cover.out ./...
 	@echo "Total test coverage: $$(go tool cover -func=cover.out | grep total | awk '{print $$3}')"
 	@rm cover.out
 
+.PHONY: test-all
+test-all: export RECONCILER_EXPENSIVE_TESTS = 1
+test-all: test
+
 .PHONY: clean
 clean:
 	rm -rf bin
 
 .PHONY: all
-all: resolve build test lint 
+all: resolve build test lint docker-build docker-push
 
 .PHONY: release
 release: all

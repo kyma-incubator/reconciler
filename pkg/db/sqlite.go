@@ -3,8 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"os"
-	"sync"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 
@@ -68,23 +68,39 @@ func (sc *SqliteConnection) Type() Type {
 }
 
 type SqliteConnectionFactory struct {
-	File         string
-	Debug        bool
-	fileResetted bool
-	mutex        sync.Mutex
+	File       string
+	Debug      bool
+	Reset      bool
+	SchemaFile string
+}
+
+func (scf *SqliteConnectionFactory) Init() error {
+	if scf.Reset {
+		if err := scf.resetFile(); err != nil {
+			return err
+		}
+	}
+	if scf.SchemaFile != "" {
+		//read DDL (test-table structure)
+		ddl, err := ioutil.ReadFile(scf.SchemaFile)
+		if err != nil {
+			return err
+		}
+
+		//get connection
+		conn, err := scf.NewConnection()
+		if err != nil {
+			return err
+		}
+
+		//populate DB schema
+		_, err = conn.Exec(string(ddl))
+		return err
+	}
+	return nil
 }
 
 func (scf *SqliteConnectionFactory) NewConnection() (Connection, error) {
-	//ensure file is new when first connection is created
-	scf.mutex.Lock()
-	if !scf.fileResetted {
-		if err := scf.resetFile(); err != nil {
-			return nil, err
-		}
-		scf.fileResetted = true
-	}
-	scf.mutex.Unlock()
-
 	db, err := sql.Open("sqlite3", scf.File) //establish connection
 	if err != nil {
 		return nil, err

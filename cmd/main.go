@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	cfgCmd "github.com/kyma-incubator/reconciler/cmd/config"
+	clrCmd "github.com/kyma-incubator/reconciler/cmd/reconciler"
 	svcCmd "github.com/kyma-incubator/reconciler/cmd/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
+	"github.com/kyma-incubator/reconciler/pkg/app"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/cobra"
@@ -31,6 +33,7 @@ func main() {
 
 	cmd.AddCommand(cfgCmd.NewCmd(o))
 	cmd.AddCommand(svcCmd.NewCmd(o))
+	cmd.AddCommand(clrCmd.NewCmd(o))
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
@@ -47,19 +50,11 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 			if err := o.Validate(); err != nil {
 				return err
 			}
-
-			//init db connection factory if cmd (or sub-cmd) has a run-method
-			dbConnFact, err := initDbConnectionFactory(o)
-			if err != nil {
-				return err
-			}
-			o.Init(dbConnFact)
-
-			return err
+			return initApplicationRegistry(o)
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			//close db connection factory after cmd (or sub-cmd) was executed
-			return o.Close()
+			//shutdown object context
+			return o.Registry.Close()
 		},
 		SilenceErrors: false,
 		SilenceUsage:  true,
@@ -70,6 +65,15 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&o.NonInteractive, "non-interactive", false, "Enables the non-interactive shell mode")
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
 	return cmd
+}
+
+func initApplicationRegistry(o *cli.Options) error {
+	dbConnFact, err := db.NewConnectionFactory(viper.ConfigFileUsed(), o.Verbose)
+	if err != nil {
+		return err
+	}
+	o.Registry, err = app.NewApplicationRegistry(dbConnFact, o.Verbose)
+	return err
 }
 
 func initViper(o *cli.Options) func() {
@@ -103,26 +107,4 @@ func getConfigFile() (string, error) {
 		return "", fmt.Errorf("No configuration file found: set environment variable $%s_CONFIG or define it as CLI parameter", envVarPrefix)
 	}
 	return configFile, nil
-}
-
-func initDbConnectionFactory(o *cli.Options) (db.ConnectionFactory, error) {
-	dbDriver := viper.GetString("db.driver")
-	if dbDriver == "" {
-		return nil, fmt.Errorf("No database driver defined")
-	}
-
-	switch dbDriver {
-	case "postgres":
-		return &db.PostgresConnectionFactory{
-			Host:     viper.GetString("db.postgres.host"),
-			Port:     viper.GetInt("db.postgres.port"),
-			Database: viper.GetString("db.postgres.database"),
-			User:     viper.GetString("db.postgres.user"),
-			Password: viper.GetString("db.postgres.password"),
-			SslMode:  viper.GetBool("db.postgres.sslMode"),
-			Debug:    o.Verbose,
-		}, nil
-	default:
-		return nil, fmt.Errorf("Database driver '%s' not supported yet", dbDriver)
-	}
 }

@@ -22,6 +22,7 @@ type Connection interface {
 }
 
 type ConnectionFactory interface {
+	Init() error
 	NewConnection() (Connection, error)
 }
 

@@ -60,9 +60,15 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 }
 
 func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Components, error) {
+	if c.Components == "" {
+		return []*keb.Components{}, nil
+	}
 	return keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
 }
 
 func (c *ClusterConfigurationEntity) GetAdministrators() ([]string, error) {
+	if c.Administrators == "" {
+		return []string{}, nil
+	}
 	return keb.NewModelFactory(c.Contract).Administrators([]byte(c.Administrators))
 }

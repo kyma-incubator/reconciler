@@ -73,10 +73,11 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	}
 
 	newClusterEntity := &model.ClusterEntity{
-		Cluster:  cluster.Cluster,
-		Runtime:  string(runtime),
-		Metadata: string(metadata),
-		Contract: contractVersion,
+		Cluster:    cluster.Cluster,
+		Runtime:    string(runtime),
+		Metadata:   string(metadata),
+		Kubeconfig: "fixme", //TODO: use correct model field as soon as kubeconfig is provided
+		Contract:   contractVersion,
 	}
 
 	//check if a new version is required
