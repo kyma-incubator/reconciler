@@ -71,7 +71,7 @@ func (kc *kubectlClient) Deploy(manifest string) error {
 		return err
 	}
 	//call kubectl apply
-	args := []string{fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "apply", "-f", manifestFile}
+	args := []string{fmt.Sprintf("--kubeconfig=%s", kc.kubeconfigFile), "apply", "-f", manifestFile, "--validate=false"} // TODO remove --validate=false after fix issue  https://github.com/kyma-project/kyma/issues/11738
 	//nolint:gosec //arguments for cmd call not allowed: replace command-call with Go k8s-client
 	output, err := exec.Command(kc.kubectlCmd, args...).CombinedOutput()
 	if err != nil {
@@ -92,7 +92,11 @@ func (kc *kubectlClient) DeployedResources(manifest string) ([]resource, error) 
 	if err != nil {
 		return nil, err
 	}
-
+	resourcesText := string(getCommandStout)
+	if strings.HasPrefix(resourcesText, "Warning") {
+		index := strings.Index(resourcesText, "{")
+		getCommandStout = []byte(resourcesText[index:])
+	}
 	//marshal json result
 	resources := make(map[string]interface{})
 	err = json.Unmarshal(getCommandStout, &resources)

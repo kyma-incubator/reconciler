@@ -147,7 +147,10 @@ func (r *runner) trackProgress(manifest string, kubeClient kubernetesClient) err
 		return err
 	}
 	//get resources defined in manifest
-	pt, err := NewProgressTracker(clientSet, r.debug, ProgressTrackerConfig{})
+	pt, err := NewProgressTracker(clientSet, r.debug, ProgressTrackerConfig{
+		timeout:  r.timeout,
+		interval: r.interval,
+	})
 	if err != nil {
 		return err
 	}

@@ -161,11 +161,12 @@ func (pt *ProgressTracker) deploymentIsReady(object *k8sObject) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	objectIsReady := true
 	for _, condition := range deployment.Status.Conditions {
-		objectIsReady = condition.Status == v1.ConditionTrue
+		if condition.Status != v1.ConditionTrue {
+			return false, nil
+		}
 	}
-	return objectIsReady, nil
+	return true, err
 }
 
 func (pt *ProgressTracker) statefulSetIsReady(object *k8sObject) (bool, error) {
@@ -174,11 +175,12 @@ func (pt *ProgressTracker) statefulSetIsReady(object *k8sObject) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	objectIsReady := true
 	for _, condition := range statefulSet.Status.Conditions {
-		objectIsReady = condition.Status == v1.ConditionTrue
+		if condition.Status != v1.ConditionTrue {
+			return false, nil
+		}
 	}
-	return objectIsReady, nil
+	return true, err
 }
 
 func (pt *ProgressTracker) podIsReady(object *k8sObject) (bool, error) {
@@ -187,8 +189,12 @@ func (pt *ProgressTracker) podIsReady(object *k8sObject) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	objectIsReady := pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodRunning
-	return objectIsReady, nil
+	for _, condition := range pod.Status.Conditions {
+		if condition.Status != v1.ConditionTrue {
+			return false, nil
+		}
+	}
+	return true, err
 }
 
 func (pt *ProgressTracker) daemonSetIsReady(object *k8sObject) (bool, error) {
@@ -197,11 +203,12 @@ func (pt *ProgressTracker) daemonSetIsReady(object *k8sObject) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	objectIsReady := true
 	for _, condition := range daemonSet.Status.Conditions {
-		objectIsReady = condition.Status == v1.ConditionTrue
+		if condition.Status != v1.ConditionTrue {
+			return false, nil
+		}
 	}
-	return objectIsReady, nil
+	return true, err
 }
 
 func (pt *ProgressTracker) jobIsReady(object *k8sObject) (bool, error) {
@@ -210,9 +217,10 @@ func (pt *ProgressTracker) jobIsReady(object *k8sObject) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	objectIsReady := true
 	for _, condition := range job.Status.Conditions {
-		objectIsReady = condition.Status == v1.ConditionTrue
+		if condition.Status != v1.ConditionTrue {
+			return false, nil
+		}
 	}
-	return objectIsReady, nil
+	return true, err
 }
