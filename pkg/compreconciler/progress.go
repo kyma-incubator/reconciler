@@ -3,17 +3,18 @@ package compreconciler
 import (
 	"context"
 	"fmt"
+	"time"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"time"
 )
 
 const (
-	defaultInterval = 20 * time.Second
-	defaultTimeout  = 10 * time.Minute
+	defaultProgressInterval = 20 * time.Second
+	defaultProgressTimeout  = 10 * time.Minute
 )
 
 type k8sObject struct {
@@ -36,13 +37,13 @@ func (ptc *ProgressTrackerConfig) validate() error {
 		return fmt.Errorf("progress tracker status-check interval cannot be < 0")
 	}
 	if ptc.interval == 0 {
-		ptc.interval = defaultInterval
+		ptc.interval = defaultProgressInterval
 	}
 	if ptc.timeout < 0 {
 		return fmt.Errorf("progress tracker timeout cannot be < 0")
 	}
 	if ptc.timeout == 0 {
-		ptc.timeout = defaultTimeout
+		ptc.timeout = defaultProgressTimeout
 	}
 	if ptc.timeout <= ptc.interval {
 		return fmt.Errorf("progress tracker will never run because configured timeout "+
@@ -86,10 +87,11 @@ func (pt *ProgressTracker) Watch() error {
 	//initial installation status check
 	ready, err := pt.isReady()
 	if err != nil {
-		pt.logger.Warn(fmt.Sprintf("Failed to run initial Kubernetes resource installation status: %v", err))
+		pt.logger.Warn(fmt.Sprintf("Failed to verify initial Kubernetes resource installation status: %v", err))
 	}
 	if ready {
 		//we are already done
+		pt.logger.Debug("Watchable resources are already installed")
 		return nil
 	}
 

@@ -3,6 +3,9 @@ package compreconciler
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/chart"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -10,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
-	"testing"
-	"time"
 )
 
 const (
@@ -90,7 +91,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, instAct, postAct, 0, 0)
+		runner := newRunner(t, preAct, instAct, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
@@ -115,7 +116,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
@@ -139,7 +140,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, apiGatewayComponent, kymaVersion, false, "default")
 		callback := newCallbackHandler(t)
 
@@ -163,7 +164,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
 		callback := newCallbackHandler(t)
 
@@ -187,7 +188,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, apiGatewayComponent, kymaVersion, true, "default")
 		callback := newCallbackHandler(t)
 
@@ -207,7 +208,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, nil, instAct, nil, 0, 0)
+		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
 		callback := newCallbackHandler(t)
 
@@ -228,7 +229,7 @@ func TestRunner(t *testing.T) {
 			fail:       true,
 		}
 
-		runner := newRunner(t, preAct, nil, nil, 0, 0)
+		runner := newRunner(t, preAct, nil, nil, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
@@ -249,7 +250,7 @@ func TestRunner(t *testing.T) {
 			fail:       true,
 		}
 
-		runner := newRunner(t, nil, install, nil, 0, 0)
+		runner := newRunner(t, nil, install, nil, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
@@ -263,14 +264,18 @@ func TestRunner(t *testing.T) {
 
 	t.Run("Run with permanently failing post-action", func(t *testing.T) {
 		//create install actions
+		install := &TestAction{
+			name:  "install",
+			delay: 1 * time.Second,
+		}
 		postAct := &TestAction{
-			name:       "pre-install",
+			name:       "post-install",
 			delay:      1 * time.Second,
 			failAlways: true,
 			fail:       true,
 		}
 
-		runner := newRunner(t, nil, postAct, nil, 0, 0)
+		runner := newRunner(t, nil, install, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
@@ -283,7 +288,7 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
-		runner := newRunner(t, nil, nil, nil, 1, 2)
+		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Millisecond)
 		model := newModel(t, fakeComponent, fakeKymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
@@ -300,7 +305,9 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 
 	recon := NewComponentReconciler(chartProvider).
 		Debug().
-		Configure(1*time.Second, 3, 1*time.Second).
+		WithRetry(3, 1*time.Second).
+		WithWorkers(5, timeout).
+		WithStatusUpdaterConfig(interval, 3, 1*time.Second).
 		WithPreInstallAction(preAct).
 		WithInstallAction(instAct).
 		WithPostInstallAction(postAct).

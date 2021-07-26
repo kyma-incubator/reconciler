@@ -3,8 +3,9 @@ package compreconciler
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 
 	"github.com/avast/retry-go"
 	"go.uber.org/zap"
@@ -20,27 +21,61 @@ const (
 	Success    Status = "success"
 )
 
+const (
+	defaultStatusUpdaterInterval   = 30 * time.Second
+	defaultStatusUpdaterMaxRetries = 5
+	defaultStatusUpdaterRetryDelay = 30 * time.Second
+)
+
+type StatusUpdaterConfig struct {
+	Interval   time.Duration
+	MaxRetries int
+	RetryDelay time.Duration
+}
+
+func (su *StatusUpdaterConfig) validate() error {
+	if su.Interval < 0 {
+		return fmt.Errorf("status update interval cannot be < 0 but was %.1f secs", su.Interval.Seconds())
+	}
+	if su.Interval == 0 {
+		su.Interval = defaultStatusUpdaterInterval
+	}
+	if su.MaxRetries < 0 {
+		return fmt.Errorf("retries cannot be < 0 but was %d", su.MaxRetries)
+	}
+	if su.MaxRetries == 0 {
+		su.MaxRetries = defaultStatusUpdaterMaxRetries
+	}
+	if su.RetryDelay < 0 {
+		return fmt.Errorf("retry delay cannot be < 0 but was %.1f", su.RetryDelay.Seconds())
+	}
+	if su.RetryDelay == 0 {
+		su.RetryDelay = defaultStatusUpdaterRetryDelay
+	}
+	return nil
+}
+
 type StatusUpdater struct {
 	ctx             context.Context
 	restartInterval chan bool       //trigger for callback-handler to inform reconciler-controller
-	interval        time.Duration   //interval for sending the latest status to reconciler-controller
 	callback        CallbackHandler //callback-handler which trigger the callback logic to inform reconciler-controller
 	status          Status          //current status
-	maxRetries      uint
 	debug           bool
+	config          StatusUpdaterConfig
 }
 
-func newStatusUpdater(ctx context.Context, interval time.Duration,
-	callback CallbackHandler, maxRetries uint, debug bool) *StatusUpdater {
+func newStatusUpdater(ctx context.Context, callback CallbackHandler, debug bool, config StatusUpdaterConfig) (*StatusUpdater, error) {
+	if err := config.validate(); err != nil {
+		return nil, err
+	}
 	return &StatusUpdater{
 		ctx:             ctx,
-		interval:        interval,
+		config:          config,
 		restartInterval: make(chan bool),
 		callback:        callback,
-		maxRetries:      maxRetries,
 		debug:           debug,
 		status:          NotStarted,
-	}
+	}, nil
 }
 
 func (su *StatusUpdater) logger() *zap.Logger {
@@ -60,7 +95,7 @@ func (su *StatusUpdater) updateWithInterval(status Status) {
 		}
 	}
 
-	go func(status Status) {
+	go func(status Status, interval time.Duration) {
 		su.logger().Debug(fmt.Sprintf("Starting new interval loop for status '%s'", status))
 		task(status)
 		for {
@@ -71,12 +106,12 @@ func (su *StatusUpdater) updateWithInterval(status Status) {
 			case <-su.ctx.Done():
 				su.logger().Debug(fmt.Sprintf("Stopping interval loop for status '%s' because context was closed", status))
 				return
-			case <-time.NewTicker(su.interval).C:
+			case <-time.NewTicker(interval).C:
 				su.logger().Debug(fmt.Sprintf("Interval loop for status '%s' executes callback", status))
 				task(status)
 			}
 		}
-	}(status)
+	}(status, su.config.Interval)
 
 	su.status = status
 }
@@ -84,7 +119,7 @@ func (su *StatusUpdater) updateWithInterval(status Status) {
 func (su *StatusUpdater) updateWithRetry(status Status) {
 	su.stopJob() //ensure previous interval-loop is stopped before starting a new loop
 
-	go func(ctx context.Context, s Status, retries uint) {
+	go func(ctx context.Context, s Status, retries int, delay time.Duration) {
 		err := retry.Do(
 			func() error {
 				err := su.callback.Callback(s)
@@ -97,13 +132,14 @@ func (su *StatusUpdater) updateWithRetry(status Status) {
 				return err
 			},
 			retry.Context(ctx),
-			retry.Attempts(retries),
+			retry.Attempts(uint(retries)),
+			retry.Delay(delay),
 			retry.LastErrorOnly(false))
 		if err != nil {
 			su.logger().Error(
 				fmt.Sprintf("Retry-callback with status-update ('%s') failed: %s", status, err))
 		}
-	}(su.ctx, status, su.maxRetries)
+	}(su.ctx, status, su.config.MaxRetries, su.config.RetryDelay)
 
 	su.status = status
 }

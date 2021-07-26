@@ -2,10 +2,11 @@ package compreconciler
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/chart"
 	"github.com/kyma-incubator/reconciler/pkg/workspace"
@@ -40,27 +41,40 @@ func TestReconciler(t *testing.T) {
 		postAct := &DummyAction{
 			"123",
 		}
-		recon.Configure(987*time.Second, 123, 321*time.Second).
+		recon.WithRetry(111, 222*time.Second).
 			Debug().
 			WithPreInstallAction(preAct).
 			WithInstallAction(act).
 			WithPostInstallAction(postAct).
-			WithServerConfiguration(9999, "sslCrtFile", "sslKeyFile")
+			WithServerConfig(9999, "sslCrtFile", "sslKeyFile").
+			WithStatusUpdaterConfig(333*time.Second, 444, 555*time.Second).
+			WithProgressTrackerConfig(666*time.Second, 777*time.Second).
+			WithWorkers(888, 999*time.Second)
 
 		require.Equal(t, &ComponentReconciler{
+			maxRetries:        111,
+			retryDelay:        222 * time.Second,
+			debug:             true,
 			preInstallAction:  preAct,
 			installAction:     act,
 			postInstallAction: postAct,
-			debug:             true,
-			updateInterval:    987 * time.Second,
-			maxRetries:        123,
-			retryDelay:        321 * time.Second,
-			chartProvider:     chartProvider,
-			serverOpts: serverOpts{
+			serverConfig: serverConfig{
 				port:       9999,
 				sslCrtFile: "sslCrtFile",
 				sslKeyFile: "sslKeyFile",
 			},
+			statusUpdaterConfig: statusUpdaterConfig{
+				interval:   333 * time.Second,
+				maxRetries: 444,
+				retryDelay: 555 * time.Second,
+			},
+			progressTrackerConfig: progressTrackerConfig{
+				interval: 666 * time.Second,
+				timeout:  777 * time.Second,
+			},
+			timeout:       999 * time.Second,
+			workers:       888,
+			chartProvider: chartProvider,
 		}, recon)
 	})
 

@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	paramContractVersion  = "version"
-	defaultServerPort     = 8080
-	defaultMaxRetries     = 5
-	defaultUpdateInterval = 30 * time.Second
-	defaultRetryDelay     = 30 * time.Second
+	paramContractVersion = "version"
+	defaultServerPort    = 8080
+	defaultMaxRetries    = 5
+	defaultInterval      = 30 * time.Second
+	defaultRetryDelay    = 30 * time.Second
+	defaultTimeout       = 10 * time.Minute
 )
 
 type Action interface {
@@ -31,20 +32,35 @@ type Action interface {
 }
 
 type ComponentReconciler struct {
-	debug             bool
-	serverOpts        serverOpts
+	debug                 bool
+	serverConfig          serverConfig
+	statusUpdaterConfig   statusUpdaterConfig
+	progressTrackerConfig progressTrackerConfig
+	chartProvider         *chart.Provider
+	//actions:
 	preInstallAction  Action
 	installAction     Action
 	postInstallAction Action
-	chartProvider     *chart.Provider
-	updateInterval    time.Duration
-	maxRetries        int
-	retryDelay        time.Duration
-	interval          time.Duration
-	timeout           time.Duration
+	//retry:
+	maxRetries int
+	retryDelay time.Duration
+	//worker pool:
+	timeout time.Duration
+	workers int
 }
 
-type serverOpts struct {
+type statusUpdaterConfig struct {
+	interval   time.Duration
+	maxRetries int
+	retryDelay time.Duration
+}
+
+type progressTrackerConfig struct {
+	interval time.Duration
+	timeout  time.Duration
+}
+
+type serverConfig struct {
 	port       int
 	sslCrtFile string
 	sslKeyFile string
@@ -61,31 +77,44 @@ func (r *ComponentReconciler) logger() *zap.Logger {
 }
 
 func (r *ComponentReconciler) validate() {
-	if r.updateInterval <= 0 {
-		r.updateInterval = defaultUpdateInterval
+	if r.serverConfig.port <= 0 {
+		r.serverConfig.port = defaultServerPort
+	}
+	if r.statusUpdaterConfig.interval <= 0 {
+		r.statusUpdaterConfig.interval = defaultInterval
+	}
+	if r.statusUpdaterConfig.retryDelay <= 0 {
+		r.statusUpdaterConfig.retryDelay = defaultRetryDelay
+	}
+	if r.statusUpdaterConfig.maxRetries <= 0 {
+		r.statusUpdaterConfig.maxRetries = defaultMaxRetries
+	}
+	if r.progressTrackerConfig.interval <= 0 {
+		r.progressTrackerConfig.interval = defaultInterval
+	}
+	if r.progressTrackerConfig.timeout <= 0 {
+		r.progressTrackerConfig.timeout = defaultTimeout
 	}
 	if r.maxRetries <= 0 {
 		r.maxRetries = defaultMaxRetries
 	}
-	if r.serverOpts.port <= 0 {
-		r.serverOpts.port = defaultServerPort
-	}
 	if r.retryDelay <= 0 {
 		r.retryDelay = defaultRetryDelay
 	}
+	if r.timeout <= 0 {
+		r.timeout = defaultTimeout
+	}
 }
 
-func (r *ComponentReconciler) Configure(updateInterval time.Duration, maxRetries int, retryDelay time.Duration) *ComponentReconciler {
-	r.updateInterval = updateInterval
+func (r *ComponentReconciler) WithRetry(maxRetries int, retryDelay time.Duration) *ComponentReconciler {
 	r.maxRetries = maxRetries
 	r.retryDelay = retryDelay
 	return r
 }
 
-func (r *ComponentReconciler) WithServerConfiguration(port int, sslCrtFile, sslKeyFile string) *ComponentReconciler {
-	r.serverOpts.port = port
-	r.serverOpts.sslCrtFile = sslCrtFile
-	r.serverOpts.sslKeyFile = sslKeyFile
+func (r *ComponentReconciler) WithWorkers(workers int, timeout time.Duration) *ComponentReconciler {
+	r.workers = workers
+	r.timeout = timeout
 	return r
 }
 
@@ -104,9 +133,23 @@ func (r *ComponentReconciler) WithPostInstallAction(postInstallAction Action) *C
 	return r
 }
 
+func (r *ComponentReconciler) WithStatusUpdaterConfig(interval time.Duration, maxRetries int, retryDelay time.Duration) *ComponentReconciler {
+	r.statusUpdaterConfig.interval = interval
+	r.statusUpdaterConfig.maxRetries = maxRetries
+	r.statusUpdaterConfig.retryDelay = retryDelay
+	return r
+}
+
+func (r *ComponentReconciler) WithServerConfig(port int, sslCrtFile, sslKeyFile string) *ComponentReconciler {
+	r.serverConfig.port = port
+	r.serverConfig.sslCrtFile = sslCrtFile
+	r.serverConfig.sslKeyFile = sslKeyFile
+	return r
+}
+
 func (r *ComponentReconciler) WithProgressTrackerConfig(interval, timeout time.Duration) *ComponentReconciler {
-	r.interval = interval
-	r.timeout = timeout
+	r.progressTrackerConfig.interval = interval
+	r.progressTrackerConfig.timeout = timeout
 	return r
 }
 
@@ -150,10 +193,15 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
 		}).
 		Methods("PUT", "POST")
 
+	//start worker pool
+	//TODO
+
+	//start webserver
+	r.logger().Debug(fmt.Sprintf("Starting webserver on port %d", r.serverConfig.port))
 	srv := server.Webserver{
-		Port:       r.serverOpts.port,
-		SSLCrtFile: r.serverOpts.sslCrtFile,
-		SSLKeyFile: r.serverOpts.sslKeyFile,
+		Port:       r.serverConfig.port,
+		SSLCrtFile: r.serverConfig.sslCrtFile,
+		SSLKeyFile: r.serverConfig.sslKeyFile,
 		Router:     router,
 	}
 

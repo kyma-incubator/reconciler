@@ -15,7 +15,14 @@ type runner struct {
 }
 
 func (r *runner) Run(ctx context.Context, model *Reconciliation, callback CallbackHandler) error {
-	statusUpdater := newStatusUpdater(ctx, r.updateInterval, callback, uint(r.maxRetries), r.debug)
+	statusUpdater, err := newStatusUpdater(ctx, callback, r.debug, StatusUpdaterConfig{
+		Interval:   r.statusUpdaterConfig.interval,
+		MaxRetries: r.statusUpdaterConfig.maxRetries,
+		RetryDelay: r.statusUpdaterConfig.retryDelay,
+	})
+	if err != nil {
+		return err
+	}
 
 	retryable := func(statusUpdater *StatusUpdater) func() error {
 		return func() error {
@@ -33,7 +40,7 @@ func (r *runner) Run(ctx context.Context, model *Reconciliation, callback Callba
 	}(statusUpdater)
 
 	//retry the reconciliation in case of an error
-	err := retry.Do(retryable,
+	err = retry.Do(retryable,
 		retry.Attempts(uint(r.maxRetries)),
 		retry.Delay(r.retryDelay),
 		retry.LastErrorOnly(false),
@@ -148,8 +155,8 @@ func (r *runner) trackProgress(manifest string, kubeClient kubernetesClient) err
 	}
 	//get resources defined in manifest
 	pt, err := NewProgressTracker(clientSet, r.debug, ProgressTrackerConfig{
-		timeout:  r.timeout,
-		interval: r.interval,
+		timeout:  r.progressTrackerConfig.timeout,
+		interval: r.progressTrackerConfig.interval,
 	})
 	if err != nil {
 		return err

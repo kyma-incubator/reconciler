@@ -46,7 +46,12 @@ func TestStatusUpdater(t *testing.T) {
 
 		callbackHdlr := &testCallbackHandler{}
 
-		statusUpdater := newStatusUpdater(ctx, 1*time.Second, callbackHdlr, uint(1), true)
+		statusUpdater, err := newStatusUpdater(ctx, callbackHdlr, true, StatusUpdaterConfig{
+			Interval:   1 * time.Second,
+			MaxRetries: 1,
+			RetryDelay: 1 * time.Second,
+		})
+		require.NoError(t, err)
 		require.Equal(t, statusUpdater.CurrentStatus(), NotStarted)
 
 		require.NoError(t, statusUpdater.Running())
@@ -72,7 +77,12 @@ func TestStatusUpdater(t *testing.T) {
 
 		callbackHdlr := &testCallbackHandler{}
 
-		statusUpdater := newStatusUpdater(ctx, 1*time.Second, callbackHdlr, uint(1), true)
+		statusUpdater, err := newStatusUpdater(ctx, callbackHdlr, true, StatusUpdaterConfig{
+			Interval:   1 * time.Second,
+			MaxRetries: 1,
+			RetryDelay: 1 * time.Second,
+		})
+		require.NoError(t, err)
 		require.Equal(t, statusUpdater.CurrentStatus(), NotStarted)
 
 		require.NoError(t, statusUpdater.Running())
