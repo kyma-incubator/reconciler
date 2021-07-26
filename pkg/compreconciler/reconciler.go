@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"

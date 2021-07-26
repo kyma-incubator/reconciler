@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/ssl"
@@ -9,13 +10,23 @@ import (
 
 type Options struct {
 	*cli.Options
-	Port   int
-	SSLCrt string
-	SSLKey string
+	Port                     int
+	SSLCrt                   string
+	SSLKey                   string
+	Workers                  int
+	WatchInterval            time.Duration
+	ClusterReconcileInterval time.Duration
 }
 
 func NewOptions(o *cli.Options) *Options {
-	return &Options{o, 0, "", ""}
+	return &Options{o,
+		0,               //Port
+		"",              //SSLCrt
+		"",              //SSLKEy
+		0,               //Workers
+		0 * time.Second, //WatchInterval
+		0 * time.Second, //ClusterReconcileInterval
+	}
 }
 
 func (o *Options) Validate() error {
