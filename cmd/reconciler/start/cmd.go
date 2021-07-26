@@ -33,6 +33,6 @@ func Run(o *Options) error {
 	}
 
 	return compreconciler.NewComponentReconciler(chartProvider).
-		WithServerConfiguration(o.Port, o.SSLCrt, o.SSLKey).
+		WithServerConfig(o.Port, o.SSLCrt, o.SSLKey).
 		StartRemote(ctx)
 }
