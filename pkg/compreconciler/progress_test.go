@@ -1,6 +1,7 @@
 package compreconciler
 
 import (
+	"context"
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,7 @@ func TestProgressTracker(t *testing.T) {
 	clientSet, err := (&kubernetes.ClientBuilder{}).Build()
 	require.NoError(t, err)
 	//depending on the network bandwidth, the timeout could be too low
-	pt, err := NewProgressTracker(clientSet, true,
+	pt, err := NewProgressTracker(context.TODO(), clientSet, true,
 		ProgressTrackerConfig{interval: 1 * time.Second, timeout: 20 * time.Second})
 	require.NoError(t, err)
 

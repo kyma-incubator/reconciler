@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/panjf2000/ants/v2"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -25,6 +26,7 @@ const (
 	defaultInterval      = 30 * time.Second
 	defaultRetryDelay    = 30 * time.Second
 	defaultTimeout       = 10 * time.Minute
+	defaultWorkers       = 100
 )
 
 type Action interface {
@@ -101,6 +103,9 @@ func (r *ComponentReconciler) validate() {
 	if r.retryDelay <= 0 {
 		r.retryDelay = defaultRetryDelay
 	}
+	if r.workers <= 0 {
+		r.workers = defaultWorkers
+	}
 	if r.timeout <= 0 {
 		r.timeout = defaultTimeout
 	}
@@ -166,11 +171,20 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *Reconciliat
 		return err
 	}
 
-	return r.start(ctx, model, localCbh)
+	runnerFct := r.newRunnerFct(ctx, model, localCbh)
+	return runnerFct()
 }
 
 func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
 	r.validate()
+
+	//start worker pool
+	r.logger().Debug(fmt.Sprintf("Starting worker pool with %d workers", r.workers))
+	workerPool, err := ants.NewPool(r.workers, ants.WithNonblocking(true))
+	if err != nil {
+		return err
+	}
+	defer workerPool.Release()
 
 	//create webserver
 	router := mux.NewRouter()
@@ -180,21 +194,29 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
 			model, err := r.model(req)
 			if err != nil {
 				r.sendError(w, err)
+				return
 			}
 
+			//assign runner to worker
 			remoteCbh, err := newRemoteCallbackHandler(model.CallbackURL, r.debug)
 			if err != nil {
 				r.sendError(w, err)
+				return
 			}
 
-			if err := r.start(ctx, model, remoteCbh); err != nil {
+			err = workerPool.Submit(func() {
+				runnerFct := r.newRunnerFct(ctx, model, remoteCbh)
+				if errRunner := runnerFct(); err != nil {
+					r.sendError(w, errRunner)
+					return
+				}
+			})
+			if err != nil {
 				r.sendError(w, err)
+				return
 			}
 		}).
 		Methods("PUT", "POST")
-
-	//start worker pool
-	//TODO
 
 	//start webserver
 	r.logger().Debug(fmt.Sprintf("Starting webserver on port %d", r.serverConfig.port))
@@ -208,10 +230,12 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
 	return srv.Start(ctx) //blocking until ctx gets closed
 }
 
-func (r *ComponentReconciler) start(ctx context.Context, model *Reconciliation, cbh CallbackHandler) error {
-	//TODO: run in context with max 30min lifetime
-	//TODO: assign to worker pool
-	return (&runner{r}).Run(ctx, model, cbh)
+func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *Reconciliation, callback CallbackHandler) func() error {
+	return func() error {
+		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
+		defer cancel()
+		return (&runner{r}).Run(timeoutCtx, model, callback)
+	}
 }
 
 func (r *ComponentReconciler) sendError(w http.ResponseWriter, err error) {

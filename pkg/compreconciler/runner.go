@@ -29,7 +29,7 @@ func (r *runner) Run(ctx context.Context, model *Reconciliation, callback Callba
 			if err := statusUpdater.Running(); err != nil {
 				return err
 			}
-			err := r.reconcile(model)
+			err := r.reconcile(ctx, model)
 			if err != nil {
 				if err := statusUpdater.Failed(); err != nil {
 					return err
@@ -66,7 +66,7 @@ func (r *runner) Run(ctx context.Context, model *Reconciliation, callback Callba
 	return err
 }
 
-func (r *runner) reconcile(model *Reconciliation) error {
+func (r *runner) reconcile(ctx context.Context, model *Reconciliation) error {
 	kubeClient, err := newKubernetesClient(model.Kubeconfig)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func (r *runner) reconcile(model *Reconciliation) error {
 	}
 
 	if r.installAction == nil {
-		if err := r.install(model, kubeClient); err != nil {
+		if err := r.install(ctx, model, kubeClient); err != nil {
 			logger.Warn(
 				fmt.Sprintf("Default-installation of version '%s' failed: %s", model.Version, err))
 			return err
@@ -111,7 +111,7 @@ func (r *runner) reconcile(model *Reconciliation) error {
 	return nil
 }
 
-func (r *runner) install(model *Reconciliation, kubeClient kubernetesClient) error {
+func (r *runner) install(ctx context.Context, model *Reconciliation, kubeClient kubernetesClient) error {
 	manifest, err := r.renderManifest(model)
 	if err != nil {
 		return err
@@ -122,7 +122,7 @@ func (r *runner) install(model *Reconciliation, kubeClient kubernetesClient) err
 		return err
 	}
 
-	return r.trackProgress(manifest, kubeClient) //blocking call
+	return r.trackProgress(ctx, manifest, kubeClient) //blocking call
 }
 
 func (r *runner) renderManifest(model *Reconciliation) (string, error) {
@@ -148,13 +148,13 @@ func (r *runner) renderManifest(model *Reconciliation) (string, error) {
 	return buffer.String(), nil
 }
 
-func (r *runner) trackProgress(manifest string, kubeClient kubernetesClient) error {
+func (r *runner) trackProgress(ctx context.Context, manifest string, kubeClient kubernetesClient) error {
 	clientSet, err := kubeClient.Clientset()
 	if err != nil {
 		return err
 	}
 	//get resources defined in manifest
-	pt, err := NewProgressTracker(clientSet, r.debug, ProgressTrackerConfig{
+	pt, err := NewProgressTracker(ctx, clientSet, r.debug, ProgressTrackerConfig{
 		timeout:  r.progressTrackerConfig.timeout,
 		interval: r.progressTrackerConfig.interval,
 	})

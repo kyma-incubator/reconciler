@@ -233,11 +233,11 @@ func TestRunner(t *testing.T) {
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
-		//successful run
+		//failing run
 		err := runner.Run(context.Background(), model, callback)
 		require.Error(t, err)
 
-		//pre-install action have to be executed
+		//pre-install action has to be executed
 		require.Equal(t, kymaVersion, preAct.receivedVersion)
 	})
 
@@ -254,11 +254,11 @@ func TestRunner(t *testing.T) {
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
-		//successful run
+		//failing run
 		err := runner.Run(context.Background(), model, callback)
 		require.Error(t, err)
 
-		//install action have to be executed
+		//install action has to be executed
 		require.Equal(t, kymaVersion, install.receivedVersion)
 	})
 
@@ -279,21 +279,24 @@ func TestRunner(t *testing.T) {
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
-		//successful run
+		//failing run
 		err := runner.Run(context.Background(), model, callback)
 		require.Error(t, err)
 
-		//pre-install action have to be executed
+		//install and post-install action have to be executed
+		require.Equal(t, kymaVersion, install.receivedVersion)
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
-		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Millisecond)
+		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Second)
 		model := newModel(t, fakeComponent, fakeKymaVersion, false, "")
 		callback := newCallbackHandler(t)
 
-		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		//failing run
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		err := runner.Run(ctx, model, callback)
 		require.Error(t, err)
 	})
 

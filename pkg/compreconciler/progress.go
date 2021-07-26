@@ -53,6 +53,7 @@ func (ptc *ProgressTrackerConfig) validate() error {
 }
 
 type ProgressTracker struct {
+	ctx      context.Context
 	objects  []*k8sObject
 	client   *kubernetes.Clientset
 	interval time.Duration
@@ -60,7 +61,7 @@ type ProgressTracker struct {
 	logger   *zap.Logger
 }
 
-func NewProgressTracker(client *kubernetes.Clientset, debug bool, config ProgressTrackerConfig) (*ProgressTracker, error) {
+func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug bool, config ProgressTrackerConfig) (*ProgressTracker, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
@@ -71,6 +72,7 @@ func NewProgressTracker(client *kubernetes.Clientset, debug bool, config Progres
 	}
 
 	return &ProgressTracker{
+		ctx:      ctx,
 		client:   client,
 		interval: config.interval,
 		timeout:  config.timeout,
@@ -110,6 +112,9 @@ func (pt *ProgressTracker) Watch() error {
 				readyCheck.Stop()
 				return nil
 			}
+		case <-pt.ctx.Done():
+			pt.logger.Debug("Stopping progress tracker because parent context got closed")
+			return fmt.Errorf("progress tracker interrupted: running installation treated as non-successfully installed")
 		case <-timeout:
 			err := fmt.Errorf("progress tracker reached timeout (%.0f secs): stop checking resource installation state",
 				pt.timeout.Seconds())

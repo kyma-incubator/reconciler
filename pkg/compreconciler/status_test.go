@@ -91,5 +91,7 @@ func TestStatusUpdater(t *testing.T) {
 
 		//check fired status updates
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the statusUpdaters worked
+
+		require.Error(t, statusUpdater.Failed()) //status changes have to fail after status-updater was interrupted
 	})
 }
