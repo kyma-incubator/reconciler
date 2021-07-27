@@ -199,6 +199,10 @@ func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*Sta
 		return state, err
 	}
 	state.Status = newStatus
+	err = i.metricsCollector.OnClusterStateUpdate(state)
+	if err != nil {
+		return state, err
+	}
 	return state, nil
 }
 
