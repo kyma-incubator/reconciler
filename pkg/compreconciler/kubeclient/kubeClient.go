@@ -103,10 +103,7 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		ResourceVersion: restMapping.Resource.Version,
 	}
 
-	patcher, err := newPatcher(info, helper)
-	if err != nil {
-		return metadata, err
-	}
+	patcher := newPatcher(info, helper)
 
 	// Get the modified configuration of the object. Embed the result
 	// as an annotation in the modified configuration, so that it will appear
