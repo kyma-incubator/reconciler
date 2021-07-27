@@ -64,7 +64,10 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 	if err != nil {
 		return nil, err
 	}
-	i.metricsCollector.OnClusterStateUpdate(stateEntity.(*State))
+	err = i.metricsCollector.OnClusterStateUpdate(stateEntity.(*State))
+	if err != nil {
+		return nil, err
+	}
 	return stateEntity.(*State), nil
 }
 
