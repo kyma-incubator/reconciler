@@ -40,8 +40,6 @@ func TestProgressTracker(t *testing.T) {
 		require.NoError(t, kubeClient.Delete(manifest))
 	}()
 
-	t.Parallel()
-
 	t.Run("Test progress tracking with timeout", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
