@@ -6,7 +6,7 @@ import (
 	b64 "encoding/base64"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/kyma-incubator/reconciler/pkg/compreconciler/kubeClient"
+	"github.com/kyma-incubator/reconciler/pkg/compreconciler/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/compreconciler/types"
 	"github.com/pkg/errors"
 	"io"
@@ -20,7 +20,7 @@ import (
 )
 
 type goClient struct {
-	kubeClient kubeClient.KubeClient
+	kubeClient kubeclient.KubeClient
 
 	kubectlCmd     string
 	kubeconfigFile string
@@ -42,7 +42,7 @@ func newGoClient(kubeconfig string) (kubernetesClient, error) {
 	}
 
 	base64kubeConfig := b64.StdEncoding.EncodeToString([]byte(kubeconfig))
-	client, err := kubeClient.NewKubeClient(base64kubeConfig)
+	client, err := kubeclient.NewKubeClient(base64kubeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (g goClient) Deploy(manifest string) (results []string, resources []types.M
 				}
 
 				json, err := yamlToJson.YAMLToJSON(dataBytes)
-				toUnstructured, err := kubeClient.ToUnstructured(json)
+				toUnstructured, err := kubeclient.ToUnstructured(json)
 				if err == nil {
 					resource, err := g.kubeClient.Apply(&toUnstructured)
 					if err == nil {
