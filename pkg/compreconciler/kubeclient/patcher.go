@@ -33,7 +33,7 @@ const (
 	triesBeforeBackOff = 1
 )
 
-func newPatcher(info *resource.Info, helper *resource.Helper) (*Patcher, error) {
+func newPatcher(info *resource.Info, helper *resource.Helper) *Patcher {
 	var openapiSchema openapi.Resources
 
 	return &Patcher{
@@ -47,7 +47,7 @@ func newPatcher(info *resource.Info, helper *resource.Helper) (*Patcher, error) 
 		GracePeriod:   -1,
 		OpenapiSchema: openapiSchema,
 		Retries:       0,
-	}, nil
+	}
 }
 
 type Patcher struct {

@@ -70,6 +70,9 @@ func (g goClient) Deploy(manifest string) (results []string, resources []types.M
 				}
 
 				json, err := yamlToJson.YAMLToJSON(dataBytes)
+				if err != nil {
+					continue
+				}
 				toUnstructured, err := kubeclient.ToUnstructured(json)
 				if err == nil {
 					resource, err := g.kubeClient.Apply(&toUnstructured)
@@ -79,23 +82,6 @@ func (g goClient) Deploy(manifest string) (results []string, resources []types.M
 					}
 					results = append(results, err.Error())
 				}
-
-				// Get obj and dr
-				//obj, dr, err := buildDynamicResourceClient(kubeClient, dataBytes)
-				//if err != nil {
-				//	result = append(result, err.Error())
-				//	continue
-				//}
-				//
-				//// Create or Update
-				//_, err = dr.Patch(ctx, obj.GetName(), types.ApplyPatchType, dataBytes, metav1.PatchOptions{
-				//	FieldManager: "kubectl-golang",
-				//})
-				//if err != nil {
-				//	result = append(result, err.Error())
-				//} else {
-				//	result = append(result, obj.GetName()+" patched.")
-				//}
 			}
 		case err, ok := <-chanErr:
 			if !ok {
