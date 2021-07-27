@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	e "github.com/kyma-incubator/reconciler/pkg/error"
+	"sync"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -64,6 +65,7 @@ type StatusUpdater struct {
 	debug           bool
 	ctxClosed       bool //indicate whether the process was interrupted from outside
 	config          StatusUpdaterConfig
+	m               sync.Mutex
 }
 
 func newStatusUpdater(ctx context.Context, callback CallbackHandler, debug bool, config StatusUpdaterConfig) (*StatusUpdater, error) {
@@ -78,6 +80,18 @@ func newStatusUpdater(ctx context.Context, callback CallbackHandler, debug bool,
 		debug:           debug,
 		status:          NotStarted,
 	}, nil
+}
+
+func (su *StatusUpdater) closeContext() {
+	su.m.Lock()
+	defer su.m.Unlock()
+	su.ctxClosed = true
+}
+
+func (su *StatusUpdater) isContextClosed() bool {
+	su.m.Lock()
+	defer su.m.Unlock()
+	return su.ctxClosed
 }
 
 func (su *StatusUpdater) logger() *zap.Logger {
@@ -107,7 +121,7 @@ func (su *StatusUpdater) updateWithInterval(status Status) {
 				return
 			case <-su.ctx.Done():
 				su.logger().Debug(fmt.Sprintf("Stopping interval loop for status '%s' because context was closed", status))
-				su.ctxClosed = true
+				su.closeContext()
 				return
 			case <-time.NewTicker(interval).C:
 				su.logger().Debug(fmt.Sprintf("Interval loop for status '%s' executes callback", status))
@@ -191,7 +205,7 @@ func (su *StatusUpdater) Failed() error {
 }
 
 func (su *StatusUpdater) statusChangeAllowed(status Status) error {
-	if su.ctxClosed {
+	if su.isContextClosed() {
 		return &e.ContextClosedError{
 			Message: fmt.Sprintf("Cannot change status to '%s' because context of status updater is closed", status),
 		}

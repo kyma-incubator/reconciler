@@ -42,20 +42,6 @@ func TestProgressTracker(t *testing.T) {
 
 	t.Parallel()
 
-	t.Run("Test progress tracking", func(t *testing.T) {
-		// get progress tracker
-		pt, err := NewProgressTracker(context.TODO(), clientSet, true,
-			ProgressTrackerConfig{interval: 1 * time.Second, timeout: 35 * time.Second})
-		require.NoError(t, err)
-
-		addWatchable(t, manifest, pt, kubeClient)
-
-		//depending on bandwidth, the installation should be finished latest after 30sec
-		startTime := time.Now()
-		require.NoError(t, pt.Watch())
-		require.WithinDuration(t, startTime, time.Now(), 30*time.Second)
-	})
-
 	t.Run("Test progress tracking with timeout", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
@@ -69,6 +55,20 @@ func TestProgressTracker(t *testing.T) {
 		err = pt.Watch()
 		require.Error(t, err)
 		require.IsType(t, &e.ContextClosedError{}, err)
+	})
+
+	t.Run("Test progress tracking", func(t *testing.T) {
+		// get progress tracker
+		pt, err := NewProgressTracker(context.TODO(), clientSet, true,
+			ProgressTrackerConfig{interval: 1 * time.Second, timeout: 35 * time.Second})
+		require.NoError(t, err)
+
+		addWatchable(t, manifest, pt, kubeClient)
+
+		//depending on bandwidth, the installation should be finished latest after 30sec
+		startTime := time.Now()
+		require.NoError(t, pt.Watch())
+		require.WithinDuration(t, startTime, time.Now(), 30*time.Second)
 	})
 }
 
