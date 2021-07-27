@@ -3,6 +3,7 @@ package workspace
 import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
@@ -100,9 +101,9 @@ func (f *Factory) clone(version, dstDir string) error {
 		f.logger.Warn(
 			fmt.Sprintf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 				dstDir, f.RepositoryURL, version))
-		//if removeErr := f.Delete(version); removeErr != nil {
-		//	err = errors.Wrap(err, removeErr.Error())
-		//}
+		if removeErr := f.Delete(version); removeErr != nil {
+			err = errors.Wrap(err, removeErr.Error())
+		}
 		return err
 	}
 	//ensure expected files exist

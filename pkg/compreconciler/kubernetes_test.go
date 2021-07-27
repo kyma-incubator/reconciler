@@ -10,7 +10,7 @@ import (
 
 func TestKubernetesClient(t *testing.T) {
 	if !test.RunExpensiveTests() {
-		//return
+		return
 	}
 
 	//create client
