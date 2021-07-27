@@ -30,7 +30,7 @@ func (s *Webserver) Start(ctx context.Context) error {
 	s.logger().Info(fmt.Sprintf("Webserver starting and listening on port %d", s.Port))
 	s.startServer(s.Router)
 	<-ctx.Done()
-	s.logger().Info("Webserver stopping")
+	s.logger().Info("Webserver stopping (context got closed)")
 	return s.stopServer()
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -35,6 +36,7 @@ type Action interface {
 
 type ComponentReconciler struct {
 	debug                 bool
+	dependencies          []string
 	serverConfig          serverConfig
 	statusUpdaterConfig   statusUpdaterConfig
 	progressTrackerConfig progressTrackerConfig
@@ -147,6 +149,11 @@ func (r *ComponentReconciler) validate() error {
 	return nil
 }
 
+func (r *ComponentReconciler) WithDependencies(components ...string) *ComponentReconciler {
+	r.dependencies = components
+	return r
+}
+
 func (r *ComponentReconciler) WithRetry(maxRetries int, retryDelay time.Duration) *ComponentReconciler {
 	r.maxRetries = maxRetries
 	r.retryDelay = retryDelay
@@ -219,58 +226,103 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
 	}
 
 	//start worker pool
-	r.logger().Debug(fmt.Sprintf("Starting worker pool with %d workers", r.workers))
+	r.logger().Info(fmt.Sprintf("Starting worker pool with %d workers", r.workers))
 	workerPool, err := ants.NewPool(r.workers, ants.WithNonblocking(true))
 	if err != nil {
 		return err
 	}
-	defer workerPool.Release()
 
-	//create webserver
-	router := mux.NewRouter()
-	router.HandleFunc(
-		fmt.Sprintf("/v{%s}/run", paramContractVersion),
-		func(w http.ResponseWriter, req *http.Request) {
-			model, err := r.model(req)
-			if err != nil {
-				r.sendError(w, err)
-				return
-			}
-
-			//assign runner to worker
-			remoteCbh, err := newRemoteCallbackHandler(model.CallbackURL, r.debug)
-			if err != nil {
-				r.sendError(w, err)
-				return
-			}
-
-			err = workerPool.Submit(func() {
-				runnerFct := r.newRunnerFct(ctx, model, remoteCbh)
-				if errRunner := runnerFct(); err != nil {
-					r.sendError(w, errRunner)
-					return
-				}
-			})
-			if err != nil {
-				r.sendError(w, err)
-				return
-			}
-		}).
-		Methods("PUT", "POST")
+	defer func() { //shutdown worker pool when stopping webserver
+		r.logger().Info("Shutting down worker pool")
+		workerPool.Release()
+	}()
 
 	//start webserver
-	r.logger().Debug(fmt.Sprintf("Starting webserver on port %d", r.serverConfig.port))
 	srv := server.Webserver{
+		Logger:     r.logger(),
 		Port:       r.serverConfig.port,
 		SSLCrtFile: r.serverConfig.sslCrtFile,
 		SSLKeyFile: r.serverConfig.sslKeyFile,
-		Router:     router,
+		Router:     r.newRouter(ctx, workerPool),
 	}
 
 	return srv.Start(ctx) //blocking until ctx gets closed
 }
 
+func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Pool) *mux.Router {
+	router := mux.NewRouter()
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/run", paramContractVersion),
+		func(w http.ResponseWriter, req *http.Request) {
+			r.logger().Debug("Start processing request")
+			model, err := r.model(req)
+			if err != nil {
+				r.logger().Warn(fmt.Sprintf("Unmarshalling of model failed: %s", err))
+				r.sendResponse(w, http.StatusInternalServerError, err)
+				return
+			}
+			r.logger().Debug(fmt.Sprintf("Model unmarshalled: %s", model))
+
+			depMissing := r.dependenciesMissing(model)
+			if len(depMissing) > 0 {
+				r.logger().Debug(fmt.Sprintf("Found missing component dependencies: %s", strings.Join(depMissing, ", ")))
+				r.sendResponse(w, http.StatusPreconditionRequired, HttpMissingDependenciesResponse{
+					Dependencies: struct {
+						Required []string
+						Missing  []string
+					}{Required: r.dependencies, Missing: depMissing},
+				})
+				return
+			}
+			//assign runner to worker
+			remoteCbh, err := newRemoteCallbackHandler(model.CallbackURL, r.debug)
+			if err != nil {
+				r.logger().Warn(fmt.Sprintf("Could not create remote callback handler: %s", err))
+				r.sendResponse(w, http.StatusInternalServerError, err)
+				return
+			}
+
+			err = workerPool.Submit(func() {
+				r.logger().Debug(fmt.Sprintf("Runner for model '%s' is assigned to worker", model))
+				runnerFct := r.newRunnerFct(ctx, model, remoteCbh)
+				if errRunner := runnerFct(); errRunner != nil {
+					r.logger().Warn(
+						fmt.Sprintf("Runner failed for model '%s': %v", model, errRunner))
+					return
+				}
+			})
+			if err != nil {
+				r.logger().Warn(fmt.Sprintf("Runner for model '%s' could not be assigned to worker: %s", model, err))
+				r.sendResponse(w, http.StatusInternalServerError, err)
+				return
+			}
+
+			r.sendResponse(w, http.StatusOK, nil)
+		}).
+		Methods("PUT", "POST")
+	return router
+}
+
+func (r *ComponentReconciler) dependenciesMissing(model *Reconciliation) []string {
+	var missing []string
+	for _, compDep := range r.dependencies {
+		found := false
+		for _, compReady := range model.ComponentsReady {
+			if compReady == compDep { //check if required component is part of the components which are ready
+				found = true
+				break
+			}
+		}
+		if !found {
+			missing = append(missing, compDep)
+		}
+	}
+	return missing
+}
+
 func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *Reconciliation, callback CallbackHandler) func() error {
+	r.logger().Debug(
+		fmt.Sprintf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds()))
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 		defer cancel()
@@ -278,9 +330,20 @@ func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *Reconcili
 	}
 }
 
-func (r *ComponentReconciler) sendError(w http.ResponseWriter, err error) {
-	httpCode := 500
-	http.Error(w, fmt.Sprintf("%s\n\n%s", http.StatusText(httpCode), err.Error()), httpCode)
+func (r *ComponentReconciler) sendResponse(w http.ResponseWriter, httpCode int, response interface{}) {
+	if err, ok := response.(error); ok { //convert to error response
+		response = HttpErrorResponse{
+			Error: err,
+		}
+	}
+	w.WriteHeader(httpCode)
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		r.logger().Warn(fmt.Sprintf("Failed to encode response payload to JSON: %s", err))
+		//send error response
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to encode response payload to JSON", http.StatusInternalServerError)
+	}
 }
 
 func (r *ComponentReconciler) model(req *http.Request) (*Reconciliation, error) {
