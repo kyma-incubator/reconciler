@@ -29,9 +29,10 @@ func TestReconciler(t *testing.T) {
 		StorageDir: "./test",
 	}, true)
 	require.NoError(t, err)
-	recon := NewComponentReconciler(chartProvider)
 
-	t.Run("Verify fluent interface", func(t *testing.T) {
+	t.Run("Verify fluent configuration interface", func(t *testing.T) {
+		recon := NewComponentReconciler(chartProvider)
+
 		preAct := &DummyAction{
 			"123",
 		}
@@ -78,4 +79,9 @@ func TestReconciler(t *testing.T) {
 		}, recon)
 	})
 
+	//t.Run("Verify worker pool setup", func(t *testing.T) {
+	//	recon := NewComponentReconciler(chartProvider)
+	//	err := recon.StartRemote(context.Background())
+	//	require.NoError(t, err)
+	//})
 }

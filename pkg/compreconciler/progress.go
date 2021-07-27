@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	e "github.com/kyma-incubator/reconciler/pkg/error"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -114,7 +115,9 @@ func (pt *ProgressTracker) Watch() error {
 			}
 		case <-pt.ctx.Done():
 			pt.logger.Debug("Stopping progress tracker because parent context got closed")
-			return fmt.Errorf("progress tracker interrupted: running installation treated as non-successfully installed")
+			return &e.ContextClosedError{
+				Message: "Progress tracker interrupted: running installation treated as non-successfully installed",
+			}
 		case <-timeout:
 			err := fmt.Errorf("progress tracker reached timeout (%.0f secs): stop checking resource installation state",
 				pt.timeout.Seconds())

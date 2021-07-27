@@ -78,37 +78,73 @@ func (r *ComponentReconciler) logger() *zap.Logger {
 	return logger.NewOptionalLogger(r.debug)
 }
 
-func (r *ComponentReconciler) validate() {
-	if r.serverConfig.port <= 0 {
+func (r *ComponentReconciler) validate() error {
+	if r.serverConfig.port < 0 {
+		return fmt.Errorf("server port cannot be < 0 (got %d)", r.serverConfig.port)
+	}
+	if r.serverConfig.port == 0 {
 		r.serverConfig.port = defaultServerPort
 	}
-	if r.statusUpdaterConfig.interval <= 0 {
+	if r.statusUpdaterConfig.interval < 0 {
+		return fmt.Errorf("status updater interval cannot be < 0 (got %.1f secs)",
+			r.statusUpdaterConfig.interval.Seconds())
+	}
+	if r.statusUpdaterConfig.interval == 0 {
 		r.statusUpdaterConfig.interval = defaultInterval
 	}
-	if r.statusUpdaterConfig.retryDelay <= 0 {
+	if r.statusUpdaterConfig.retryDelay < 0 {
+		return fmt.Errorf("status updater retry-delay cannot be < 0 (got %.1f secs)",
+			r.statusUpdaterConfig.retryDelay.Seconds())
+	}
+	if r.statusUpdaterConfig.retryDelay == 0 {
 		r.statusUpdaterConfig.retryDelay = defaultRetryDelay
 	}
-	if r.statusUpdaterConfig.maxRetries <= 0 {
+	if r.statusUpdaterConfig.maxRetries < 0 {
+		return fmt.Errorf("status updater max-retries cannot be < 0 (got %d)",
+			r.statusUpdaterConfig.maxRetries)
+	}
+	if r.statusUpdaterConfig.maxRetries == 0 {
 		r.statusUpdaterConfig.maxRetries = defaultMaxRetries
 	}
-	if r.progressTrackerConfig.interval <= 0 {
+	if r.progressTrackerConfig.interval < 0 {
+		return fmt.Errorf("progress tracker interval cannot be < 0 (got %.1f secs)",
+			r.progressTrackerConfig.interval.Seconds())
+	}
+	if r.progressTrackerConfig.interval == 0 {
 		r.progressTrackerConfig.interval = defaultInterval
 	}
-	if r.progressTrackerConfig.timeout <= 0 {
+	if r.progressTrackerConfig.timeout < 0 {
+		return fmt.Errorf("progress tracker timeout cannot be < 0 (got %.1f secs)",
+			r.progressTrackerConfig.timeout.Seconds())
+	}
+	if r.progressTrackerConfig.timeout == 0 {
 		r.progressTrackerConfig.timeout = defaultTimeout
 	}
-	if r.maxRetries <= 0 {
+	if r.maxRetries < 0 {
+		return fmt.Errorf("max-retries cannot be < 0 (got %d)", r.maxRetries)
+	}
+	if r.maxRetries == 0 {
 		r.maxRetries = defaultMaxRetries
 	}
-	if r.retryDelay <= 0 {
+	if r.retryDelay < 0 {
+		return fmt.Errorf("retry-delay cannot be < 0 (got %.1f secs", r.retryDelay.Seconds())
+	}
+	if r.retryDelay == 0 {
 		r.retryDelay = defaultRetryDelay
 	}
-	if r.workers <= 0 {
+	if r.workers < 0 {
+		return fmt.Errorf("workers count cannot be < 0 (got %d)", r.workers)
+	}
+	if r.workers == 0 {
 		r.workers = defaultWorkers
 	}
-	if r.timeout <= 0 {
+	if r.timeout < 0 {
+		return fmt.Errorf("timeout cannot be < 0 (got %.1f secs)", r.timeout.Seconds())
+	}
+	if r.timeout == 0 {
 		r.timeout = defaultTimeout
 	}
+	return nil
 }
 
 func (r *ComponentReconciler) WithRetry(maxRetries int, retryDelay time.Duration) *ComponentReconciler {
@@ -164,7 +200,9 @@ func (r *ComponentReconciler) Debug() *ComponentReconciler {
 }
 
 func (r *ComponentReconciler) StartLocal(ctx context.Context, model *Reconciliation) error {
-	r.validate()
+	if err := r.validate(); err != nil {
+		return err
+	}
 
 	localCbh, err := newLocalCallbackHandler(model.CallbackFct, r.debug)
 	if err != nil {
@@ -176,7 +214,9 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *Reconciliat
 }
 
 func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
-	r.validate()
+	if err := r.validate(); err != nil {
+		return err
+	}
 
 	//start worker pool
 	r.logger().Debug(fmt.Sprintf("Starting worker pool with %d workers", r.workers))

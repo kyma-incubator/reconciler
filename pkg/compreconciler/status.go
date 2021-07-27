@@ -3,6 +3,7 @@ package compreconciler
 import (
 	"context"
 	"fmt"
+	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -61,7 +62,7 @@ type StatusUpdater struct {
 	callback        CallbackHandler //callback-handler which trigger the callback logic to inform reconciler-controller
 	status          Status          //current status
 	debug           bool
-	interrupted     bool //indicate whether the process was interrupted from outside
+	ctxClosed       bool //indicate whether the process was interrupted from outside
 	config          StatusUpdaterConfig
 }
 
@@ -106,7 +107,7 @@ func (su *StatusUpdater) updateWithInterval(status Status) {
 				return
 			case <-su.ctx.Done():
 				su.logger().Debug(fmt.Sprintf("Stopping interval loop for status '%s' because context was closed", status))
-				su.interrupted = true
+				su.ctxClosed = true
 				return
 			case <-time.NewTicker(interval).C:
 				su.logger().Debug(fmt.Sprintf("Interval loop for status '%s' executes callback", status))
@@ -190,8 +191,10 @@ func (su *StatusUpdater) Failed() error {
 }
 
 func (su *StatusUpdater) statusChangeAllowed(status Status) error {
-	if su.interrupted {
-		return fmt.Errorf("cannot change status to '%s' because status updater was interrupted", status)
+	if su.ctxClosed {
+		return &e.ContextClosedError{
+			Message: fmt.Sprintf("Cannot change status to '%s' because context of status updater is closed", status),
+		}
 	}
 	if su.status == Error || su.status == Success {
 		return fmt.Errorf("cannot switch in '%s' status because we are already in final status '%s'", status, su.status)

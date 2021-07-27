@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 )
 
 type CallbackHandler interface {
@@ -21,10 +22,16 @@ type RemoteCallbackHandler struct {
 }
 
 func newRemoteCallbackHandler(callbackURL string, debug bool) (CallbackHandler, error) {
+	//create logger
 	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
+	//validate URL
+	if _, err := url.ParseRequestURI(callbackURL); err != nil {
+		return nil, err
+	}
+	//return new remote callback
 	return &RemoteCallbackHandler{
 		logger:      logger,
 		debug:       debug,

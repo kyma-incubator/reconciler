@@ -3,6 +3,7 @@ package compreconciler
 import (
 	"context"
 	"fmt"
+	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -92,6 +93,9 @@ func TestStatusUpdater(t *testing.T) {
 		//check fired status updates
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the statusUpdaters worked
 
-		require.Error(t, statusUpdater.Failed()) //status changes have to fail after status-updater was interrupted
+		err = statusUpdater.Failed()
+		require.Error(t, err)
+		require.IsType(t, &e.ContextClosedError{}, err) //status changes have to fail after status-updater was interrupted
 	})
+
 }

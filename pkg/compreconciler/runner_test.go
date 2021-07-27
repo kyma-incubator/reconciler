@@ -3,6 +3,7 @@ package compreconciler
 import (
 	"context"
 	"fmt"
+	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"testing"
 	"time"
 
@@ -298,6 +299,7 @@ func TestRunner(t *testing.T) {
 		defer cancel()
 		err := runner.Run(ctx, model, callback)
 		require.Error(t, err)
+		require.IsType(t, &e.ContextClosedError{}, err)
 	})
 
 }
