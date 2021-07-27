@@ -7,6 +7,7 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/chart"
+	"github.com/kyma-incubator/reconciler/pkg/compreconciler/types"
 	"github.com/pkg/errors"
 )
 
@@ -60,12 +61,12 @@ func (r *runner) Run(ctx context.Context, model *Reconciliation, callback Callba
 }
 
 func (r *runner) reconcile(model *Reconciliation) error {
-	kubeClient, err := newKubernetesClient(model.Kubeconfig)
+	goClient, err := newKubernetesClient(model.Kubeconfig)
 	if err != nil {
 		return err
 	}
 
-	clientSet, err := kubeClient.Clientset()
+	clientSet, err := goClient.Clientset()
 	if err != nil {
 		return err
 	}
@@ -80,7 +81,7 @@ func (r *runner) reconcile(model *Reconciliation) error {
 	}
 
 	if r.installAction == nil {
-		if err := r.install(model, kubeClient); err != nil {
+		if err := r.install(model, goClient); err != nil {
 			logger.Warn(
 				fmt.Sprintf("Default-installation of version '%s' failed: %s", model.Version, err))
 			return err
@@ -104,18 +105,20 @@ func (r *runner) reconcile(model *Reconciliation) error {
 	return nil
 }
 
-func (r *runner) install(model *Reconciliation, kubeClient kubernetesClient) error {
+func (r *runner) install(model *Reconciliation, goClient kubernetesClient) error {
 	manifest, err := r.renderManifest(model)
 	if err != nil {
 		return err
 	}
 
-	if err := kubeClient.Deploy(manifest); err != nil {
-		r.logger().Warn(fmt.Sprintf("Failed to deploy manifests on target cluster: %s", err))
+	results, resources, err := goClient.Deploy(manifest)
+
+	if err != nil {
+		r.logger().Warn(fmt.Sprintf("Failed to deploy manifests on target cluster: %s", results))
 		return err
 	}
 
-	return r.trackProgress(manifest, kubeClient) //blocking call
+	return r.trackProgress(goClient, resources) //blocking call
 }
 
 func (r *runner) renderManifest(model *Reconciliation) (string, error) {
@@ -141,7 +144,7 @@ func (r *runner) renderManifest(model *Reconciliation) (string, error) {
 	return buffer.String(), nil
 }
 
-func (r *runner) trackProgress(manifest string, kubeClient kubernetesClient) error {
+func (r *runner) trackProgress(kubeClient kubernetesClient, resources []types.Metadata) error {
 	clientSet, err := kubeClient.Clientset()
 	if err != nil {
 		return err
@@ -155,21 +158,17 @@ func (r *runner) trackProgress(manifest string, kubeClient kubernetesClient) err
 		return err
 	}
 	//watch progress of installed resources
-	resources, err := kubeClient.DeployedResources(manifest)
-	if err != nil {
-		return err
-	}
 	for _, resource := range resources {
-		watchable, err := NewWatchableResource(resource.kind) //convert "kind" to watchable
+		watchable, err := NewWatchableResource(resource.Kind) //convert "kind" to watchable
 		if err != nil {
 			pt.logger.Debug(fmt.Sprintf("Ignoring non-watchable resource '%s' (%s:%s)",
-				resource.kind, resource.name, resource.namespace))
+				resource.Kind, resource.Name, resource.Namespace))
 			continue //not watchable resource: ignore it
 		}
 		pt.AddResource(
 			watchable,
-			resource.namespace,
-			resource.name,
+			resource.Namespace,
+			resource.Name,
 		)
 	}
 	r.logger().Debug("Start watching installation progress")

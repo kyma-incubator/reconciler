@@ -23,7 +23,7 @@ const (
 )
 
 var wsf = &workspace.Factory{
-	StorageDir: "./test",
+	StorageDir: "/tmp",
 	Debug:      true,
 }
 
@@ -65,7 +65,7 @@ func (a *TestAction) Run(version string, kubeClient *kubernetes.Clientset) error
 
 func TestRunner(t *testing.T) {
 	if !test.RunExpensiveTests() {
-		return
+		//return
 	}
 
 	//cleanup relicts from previous run

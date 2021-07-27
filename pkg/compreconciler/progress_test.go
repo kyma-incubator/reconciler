@@ -26,7 +26,8 @@ func TestProgressTracker(t *testing.T) {
 
 	//install resources
 	t.Log("Deploying test resources")
-	require.NoError(t, kubeClient.Deploy(manifest))
+	_, resources, err := kubeClient.Deploy(manifest)
+	require.NoError(t, err)
 	defer func() {
 		t.Log("Cleanup test resources")
 		require.NoError(t, kubeClient.Delete(manifest))
@@ -40,15 +41,11 @@ func TestProgressTracker(t *testing.T) {
 		ProgressTrackerConfig{interval: 1 * time.Second, timeout: 20 * time.Second})
 	require.NoError(t, err)
 
-	//watch created resources
-	resources, err := kubeClient.DeployedResources(manifest)
-	require.NoError(t, err)
-
 	var cntWatchable int
 	for _, resource := range resources {
-		watchable, err := NewWatchableResource(resource.kind)
+		watchable, err := NewWatchableResource(resource.Kind)
 		if err == nil {
-			pt.AddResource(watchable, resource.namespace, resource.name)
+			pt.AddResource(watchable, resource.Namespace, resource.Name)
 			cntWatchable++
 		}
 	}

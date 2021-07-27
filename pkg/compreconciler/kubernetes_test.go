@@ -1,6 +1,7 @@
 package compreconciler
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/compreconciler/types"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
@@ -9,7 +10,7 @@ import (
 
 func TestKubernetesClient(t *testing.T) {
 	if !test.RunExpensiveTests() {
-		return
+		//return
 	}
 
 	//create client
@@ -20,46 +21,45 @@ func TestKubernetesClient(t *testing.T) {
 		manifest := readManifest(t)
 		//deploy
 		t.Log("Deploying test resources")
-		require.NoError(t, kubeClient.Deploy(manifest))
+		_, resources, err := kubeClient.Deploy(manifest)
+		require.NoError(t, err)
 		//cleanup
 		defer func() {
 			t.Log("Cleanup test resources")
 			require.NoError(t, kubeClient.Delete(manifest))
 		}()
 
-		// 6 resource deployed
-		resources, err := kubeClient.DeployedResources(manifest)
 		require.NoError(t, err)
-		require.ElementsMatch(t, []resource{
+		require.ElementsMatch(t, []types.Metadata{
 			{
-				kind:      "Deployment",
-				name:      "unittest-deployment",
-				namespace: "unittest",
+				Kind:      "Deployment",
+				Name:      "unittest-deployment",
+				Namespace: "unittest",
 			},
 			{
-				kind:      "Pod",
-				name:      "unittest-pod",
-				namespace: "unittest",
+				Kind:      "Pod",
+				Name:      "unittest-pod",
+				Namespace: "unittest",
 			},
 			{
-				kind:      "StatefulSet",
-				name:      "unittest-statefulset",
-				namespace: "unittest",
+				Kind:      "StatefulSet",
+				Name:      "unittest-statefulset",
+				Namespace: "unittest",
 			},
 			{
-				kind:      "DaemonSet",
-				name:      "unittest-daemonset",
-				namespace: "unittest",
+				Kind:      "DaemonSet",
+				Name:      "unittest-daemonset",
+				Namespace: "unittest",
 			},
 			{
-				kind:      "Job",
-				name:      "unittest-job",
-				namespace: "unittest",
+				Kind:      "Job",
+				Name:      "unittest-job",
+				Namespace: "unittest",
 			},
 			{
-				kind:      "Namespace",
-				name:      "unittest",
-				namespace: "",
+				Kind:      "Namespace",
+				Name:      "unittest",
+				Namespace: "",
 			},
 		}, resources)
 	})

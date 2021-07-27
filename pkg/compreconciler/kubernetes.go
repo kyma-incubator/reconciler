@@ -1,22 +1,16 @@
 package compreconciler
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/compreconciler/types"
 	"k8s.io/client-go/kubernetes"
 )
 
-type resource struct {
-	kind      string
-	name      string
-	namespace string
-}
-
 type kubernetesClient interface {
-	Deploy(manifest string) error
-	DeployedResources(manifest string) ([]resource, error)
+	Deploy(manifest string) ([]string, []types.Metadata, error)
 	Delete(manifest string) error
 	Clientset() (*kubernetes.Clientset, error)
 }
 
 func newKubernetesClient(kubeconfig string) (kubernetesClient, error) {
-	return newKubectlClient(kubeconfig)
+	return newGoClient(kubeconfig)
 }

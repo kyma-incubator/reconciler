@@ -15,6 +15,6 @@ func convertTimestampToTime(value interface{}) (interface{}, error) {
 	if time, ok := value.(time.Time); ok {
 		return time, nil
 	}
-	return nil, fmt.Errorf("Failed to convert value '%s' (kind: %s) for field 'Created' to Time struct",
+	return nil, fmt.Errorf("Failed to convert value '%s' (kind: %s) for field 'Created' to Time types",
 		value, reflect.TypeOf(value).Kind())
 }
