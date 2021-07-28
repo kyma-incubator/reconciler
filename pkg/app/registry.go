@@ -2,10 +2,12 @@ package app
 
 import (
 	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"go.uber.org/zap"
 )
 
@@ -91,7 +93,8 @@ func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 	if or.connectionFactory == nil {
 		or.logger.Fatal("Failed to create cluster inventory because connection factory is undefined")
 	}
-	or.inventory, err = cluster.NewInventory(or.connectionFactory, or.debug)
+	collector := metrics.NewReconciliationStatusCollector()
+	or.inventory, err = cluster.NewInventory(or.connectionFactory, or.debug, collector)
 	if err != nil {
 		or.logger.Error(fmt.Sprintf("Failed to create cluster inventory: %s", err))
 		return nil, err

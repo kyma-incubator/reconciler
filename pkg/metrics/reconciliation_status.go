@@ -25,13 +25,15 @@ type ReconciliationStatusCollector struct {
 }
 
 func NewReconciliationStatusCollector() *ReconciliationStatusCollector {
-	return &ReconciliationStatusCollector{
+	collector := &ReconciliationStatusCollector{
 		reconciliationStatusGauge: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "reconciliation_status",
 			Help:      "Status of the reconciliation",
 		}, []string{"cluster_id", "runtime_id", "cluster_version", "configuration_version"}),
 	}
+	prometheus.MustRegister(collector)
+	return collector
 }
 
 func (c *ReconciliationStatusCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -48,8 +50,13 @@ func (c *ReconciliationStatusCollector) OnClusterStateUpdate(state *cluster.Stat
 		return err
 	}
 
+	runtime, err := state.Cluster.GetRuntime()
+	if err != nil {
+		return err
+	}
+
 	c.reconciliationStatusGauge.
-		WithLabelValues(state.Cluster.Cluster, state.Cluster.Runtime, fmt.Sprintf("%d", state.Cluster.Version), fmt.Sprintf("%d", state.Configuration.Version)).
+		WithLabelValues(state.Cluster.Cluster, runtime.Name, fmt.Sprintf("%d", state.Cluster.Version), fmt.Sprintf("%d", state.Configuration.Version)).
 		Set(status.ID)
 
 	return nil
