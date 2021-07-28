@@ -16,6 +16,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const workerTimeout = 10 * time.Second
+
 type DummyAction struct {
 	receivedVersion string
 }
@@ -102,25 +104,30 @@ func TestReconcilerEnd2End(t *testing.T) {
 		return
 	}
 
+	//create runtime context which is cancelled at the end of the method
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		time.Sleep(1 * time.Second) //give some time for graceful shutdown
+	}()
+
+	//start reconciler
+	go func() {
+		recon, err := NewComponentReconciler("./test", true)
+		require.NoError(t, err)
+
+		err = recon.WithWorkers(2, workerTimeout).
+			WithServerConfig(9999, "", "").
+			WithDependencies("abc", "xyz").
+			WithRetry(1, 1*time.Second).
+			WithStatusUpdaterConfig(1*time.Second, 1, 1*time.Second).
+			WithProgressTrackerConfig(1*time.Second, workerTimeout).
+			StartRemote(ctx)
+		require.NoError(t, err)
+	}()
+
 	t.Run("Missing dependencies", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer func() {
-			cancel()
-			time.Sleep(1 * time.Second) //give some time for graceful shutdown
-		}()
-
-		go func() {
-			recon, err := NewComponentReconciler("./test", true)
-			require.NoError(t, err)
-
-			err = recon.WithWorkers(2, 30*time.Second).
-				WithServerConfig(9999, "", "").
-				WithDependencies("abc", "xyz").
-				StartRemote(ctx)
-			require.NoError(t, err)
-		}()
-
-		//send request with which does not include all required dependencies
+		//send request with which does not include all required dependencies: process fails before model gets processed
 		body := post(t, "http://localhost:9999/v1/run", reconciler.Reconciliation{
 			ComponentsReady: []string{"abc", "def"},
 			Component:       "unittest-component",
@@ -128,8 +135,8 @@ func TestReconcilerEnd2End(t *testing.T) {
 			Version:         "1.2.3",
 			Profile:         "unittest",
 			Configuration:   nil,
-			Kubeconfig:      "",
-			CallbackURL:     "",
+			Kubeconfig:      "xyz",
+			CallbackURL:     "https://fake.url/",
 			InstallCRD:      false,
 		}, http.StatusPreconditionRequired)
 
@@ -139,6 +146,43 @@ func TestReconcilerEnd2End(t *testing.T) {
 		require.NoError(t, json.Unmarshal(body, resp))
 		require.Equal(t, []string{"abc", "xyz"}, resp.Dependencies.Required)
 		require.Equal(t, []string{"xyz"}, resp.Dependencies.Missing)
+	})
+
+	t.Run("Invalid request", func(t *testing.T) {
+		//send request with which does not include all mandatory model fields
+		body := post(t, "http://localhost:9999/v1/run", reconciler.Reconciliation{
+			ComponentsReady: []string{"abc", "xyz"},
+			Component:       "unittest-component",
+			Namespace:       "unittest",
+			Version:         "1.2.3",
+			Profile:         "unittest",
+			Configuration:   nil,
+			Kubeconfig:      "",
+			CallbackURL:     "",
+			InstallCRD:      false,
+		}, http.StatusBadRequest)
+
+		//convert body to HTTP response model
+		t.Logf("Body received: %s", string(body))
+		resp := &reconciler.HTTPErrorResponse{}
+		require.NoError(t, json.Unmarshal(body, resp))
+	})
+
+	t.Run("Happy path", func(t *testing.T) {
+		//send request with which does not include all required dependencies
+		body := post(t, "http://localhost:9999/v1/run", reconciler.Reconciliation{
+			ComponentsReady: []string{"abc", "xyz"},
+			Component:       "component-1",
+			Namespace:       "default",
+			Version:         "0.0.0",
+			Profile:         "",
+			Configuration:   nil,
+			Kubeconfig:      test.ReadKubeconfig(t),
+			CallbackURL:     "https://httpbin.org/post",
+			InstallCRD:      false,
+		}, http.StatusOK)
+		t.Logf("Body received: %s", string(body))
+		time.Sleep(workerTimeout) //just let it run until worker timeout occurs
 	})
 }
 
