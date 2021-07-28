@@ -1,4 +1,4 @@
-package compreconciler
+package progress
 
 import (
 	"context"
@@ -18,51 +18,51 @@ const (
 	defaultProgressTimeout  = 10 * time.Minute
 )
 
-type k8sObject struct {
+type resource struct {
 	kind      WatchableResource
 	name      string
 	namespace string
 }
 
-func (o *k8sObject) String() string {
+func (o *resource) String() string {
 	return fmt.Sprintf("%s [namespace:%s|name:%s]", o.kind, o.namespace, o.name)
 }
 
-type ProgressTrackerConfig struct {
-	interval time.Duration
-	timeout  time.Duration
+type Config struct {
+	Interval time.Duration
+	Timeout  time.Duration
 }
 
-func (ptc *ProgressTrackerConfig) validate() error {
-	if ptc.interval < 0 {
+func (ptc *Config) validate() error {
+	if ptc.Interval < 0 {
 		return fmt.Errorf("progress tracker status-check interval cannot be < 0")
 	}
-	if ptc.interval == 0 {
-		ptc.interval = defaultProgressInterval
+	if ptc.Interval == 0 {
+		ptc.Interval = defaultProgressInterval
 	}
-	if ptc.timeout < 0 {
+	if ptc.Timeout < 0 {
 		return fmt.Errorf("progress tracker timeout cannot be < 0")
 	}
-	if ptc.timeout == 0 {
-		ptc.timeout = defaultProgressTimeout
+	if ptc.Timeout == 0 {
+		ptc.Timeout = defaultProgressTimeout
 	}
-	if ptc.timeout <= ptc.interval {
+	if ptc.Timeout <= ptc.Interval {
 		return fmt.Errorf("progress tracker will never run because configured timeout "+
-			"is <= as the check interval :%.0f secs <= %.0f secs", ptc.timeout.Seconds(), ptc.interval.Seconds())
+			"is <= as the check interval :%.0f secs <= %.0f secs", ptc.Timeout.Seconds(), ptc.Interval.Seconds())
 	}
 	return nil
 }
 
 type ProgressTracker struct {
 	ctx      context.Context
-	objects  []*k8sObject
+	objects  []*resource
 	client   *kubernetes.Clientset
 	interval time.Duration
 	timeout  time.Duration
 	logger   *zap.Logger
 }
 
-func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug bool, config ProgressTrackerConfig) (*ProgressTracker, error) {
+func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug bool, config Config) (*ProgressTracker, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
@@ -75,8 +75,8 @@ func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug
 	return &ProgressTracker{
 		ctx:      ctx,
 		client:   client,
-		interval: config.interval,
-		timeout:  config.timeout,
+		interval: config.Interval,
+		timeout:  config.Timeout,
 		logger:   logger,
 	}, nil
 }
@@ -128,7 +128,7 @@ func (pt *ProgressTracker) Watch() error {
 }
 
 func (pt *ProgressTracker) AddResource(kind WatchableResource, namespace, name string) {
-	pt.objects = append(pt.objects, &k8sObject{
+	pt.objects = append(pt.objects, &resource{
 		kind:      kind,
 		namespace: namespace,
 		name:      name,
@@ -165,7 +165,7 @@ func (pt *ProgressTracker) isReady() (bool, error) {
 	return componentIsReady, nil
 }
 
-func (pt *ProgressTracker) deploymentIsReady(object *k8sObject) (bool, error) {
+func (pt *ProgressTracker) deploymentIsReady(object *resource) (bool, error) {
 	deploymentsClient := pt.client.AppsV1().Deployments(object.namespace)
 	deployment, err := deploymentsClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {
@@ -179,7 +179,7 @@ func (pt *ProgressTracker) deploymentIsReady(object *k8sObject) (bool, error) {
 	return true, err
 }
 
-func (pt *ProgressTracker) statefulSetIsReady(object *k8sObject) (bool, error) {
+func (pt *ProgressTracker) statefulSetIsReady(object *resource) (bool, error) {
 	statefulSetClient := pt.client.AppsV1().StatefulSets(object.namespace)
 	statefulSet, err := statefulSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {
@@ -193,7 +193,7 @@ func (pt *ProgressTracker) statefulSetIsReady(object *k8sObject) (bool, error) {
 	return true, err
 }
 
-func (pt *ProgressTracker) podIsReady(object *k8sObject) (bool, error) {
+func (pt *ProgressTracker) podIsReady(object *resource) (bool, error) {
 	podsClient := pt.client.CoreV1().Pods(object.namespace)
 	pod, err := podsClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {
@@ -207,7 +207,7 @@ func (pt *ProgressTracker) podIsReady(object *k8sObject) (bool, error) {
 	return true, err
 }
 
-func (pt *ProgressTracker) daemonSetIsReady(object *k8sObject) (bool, error) {
+func (pt *ProgressTracker) daemonSetIsReady(object *resource) (bool, error) {
 	daemonSetClient := pt.client.AppsV1().DaemonSets(object.namespace)
 	daemonSet, err := daemonSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {
@@ -221,7 +221,7 @@ func (pt *ProgressTracker) daemonSetIsReady(object *k8sObject) (bool, error) {
 	return true, err
 }
 
-func (pt *ProgressTracker) jobIsReady(object *k8sObject) (bool, error) {
+func (pt *ProgressTracker) jobIsReady(object *resource) (bool, error) {
 	jobClient := pt.client.BatchV1().Jobs(object.namespace)
 	job, err := jobClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {

@@ -1,9 +1,11 @@
-package compreconciler
+package service
 
 import (
 	"context"
 	"fmt"
 	e "github.com/kyma-incubator/reconciler/pkg/error"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"testing"
 	"time"
 
@@ -322,8 +324,8 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 	return &runner{recon}
 }
 
-func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, namespace string) *Reconciliation {
-	return &Reconciliation{
+func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, namespace string) *reconciler.Reconciliation {
+	return &reconciler.Reconciliation{
 		InstallCRD: installCRD,
 		Component:  kymaComponent,
 		Version:    kymaVersion,
@@ -332,8 +334,8 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 	}
 }
 
-func newCallbackHandler(t *testing.T) CallbackHandler {
-	callbackHdlr, err := newLocalCallbackHandler(func(status Status) error {
+func newCallbackHandler(t *testing.T) callback.CallbackHandler {
+	callbackHdlr, err := callback.NewLocalCallbackHandler(func(status reconciler.Status) error {
 		return nil
 	}, true)
 	require.NoError(t, err)

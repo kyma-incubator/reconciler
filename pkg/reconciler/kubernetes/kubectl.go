@@ -1,4 +1,4 @@
-package compreconciler
+package kubernetes
 
 import (
 	"encoding/json"
@@ -23,7 +23,7 @@ type kubectlClient struct {
 	manifestFile   string
 }
 
-func newKubectlClient(kubeconfig string) (kubernetesClient, error) {
+func newKubectlClient(kubeconfig string) (KubernetesClient, error) {
 	kubectlCmd, err := kubectl()
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (kc *kubectlClient) Deploy(manifest string) error {
 	return err
 }
 
-func (kc *kubectlClient) DeployedResources(manifest string) ([]resource, error) {
+func (kc *kubectlClient) DeployedResources(manifest string) ([]Resource, error) {
 	manifestFile, err := kc.getManifestFile(manifest)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (kc *kubectlClient) DeployedResources(manifest string) ([]resource, error) 
 	}
 
 	//extract resources
-	var result []resource
+	var result []Resource
 	for _, item := range resources["items"].([]interface{}) {
 		res := item.(map[string]interface{})
 		metadata := res["metadata"].(map[string]interface{})
@@ -113,10 +113,10 @@ func (kc *kubectlClient) DeployedResources(manifest string) ([]resource, error) 
 		if !ok {
 			namespace = ""
 		}
-		result = append(result, resource{
-			kind:      res["kind"].(string),
-			name:      metadata["name"].(string),
-			namespace: namespace.(string),
+		result = append(result, Resource{
+			Kind:      res["kind"].(string),
+			Name:      metadata["name"].(string),
+			Namespace: namespace.(string),
 		})
 	}
 

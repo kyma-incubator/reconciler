@@ -1,10 +1,11 @@
-package compreconciler
+package callback
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"go.uber.org/zap"
 	"net/http"
 	"net/http/httputil"
@@ -12,7 +13,7 @@ import (
 )
 
 type CallbackHandler interface {
-	Callback(status Status) error
+	Callback(status reconciler.Status) error
 }
 
 type RemoteCallbackHandler struct {
@@ -21,7 +22,7 @@ type RemoteCallbackHandler struct {
 	callbackURL string
 }
 
-func newRemoteCallbackHandler(callbackURL string, debug bool) (CallbackHandler, error) {
+func NewRemoteCallbackHandler(callbackURL string, debug bool) (CallbackHandler, error) {
 	//create logger
 	logger, err := log.NewLogger(debug)
 	if err != nil {
@@ -39,7 +40,7 @@ func newRemoteCallbackHandler(callbackURL string, debug bool) (CallbackHandler, 
 	}, nil
 }
 
-func (cb *RemoteCallbackHandler) Callback(status Status) error {
+func (cb *RemoteCallbackHandler) Callback(status reconciler.Status) error {
 	requestBody, err := json.Marshal(map[string]string{
 		"status": string(status),
 	})
@@ -77,10 +78,10 @@ func (cb *RemoteCallbackHandler) Callback(status Status) error {
 
 type LocalCallbackHandler struct {
 	logger      *zap.Logger
-	callbackFct func(status Status) error
+	callbackFct func(status reconciler.Status) error
 }
 
-func newLocalCallbackHandler(callbackFct func(status Status) error, debug bool) (CallbackHandler, error) {
+func NewLocalCallbackHandler(callbackFct func(status reconciler.Status) error, debug bool) (CallbackHandler, error) {
 	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
@@ -91,7 +92,7 @@ func newLocalCallbackHandler(callbackFct func(status Status) error, debug bool) 
 	}, nil
 }
 
-func (cb *LocalCallbackHandler) Callback(status Status) error {
+func (cb *LocalCallbackHandler) Callback(status reconciler.Status) error {
 	err := cb.callbackFct(status)
 	if err != nil {
 		cb.logger.Error(fmt.Sprintf("Calling local callback function failed: %s", err))

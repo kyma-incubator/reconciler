@@ -1,6 +1,8 @@
-package compreconciler
+package reconciler
 
-import "fmt"
+import (
+	"fmt"
+)
 
 //Reconciliation is the model for incoming reconciliation requests
 type Reconciliation struct {
@@ -28,6 +30,16 @@ type Configuration struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
+
+type Status string
+
+const (
+	NotStarted Status = "notstarted"
+	Failed     Status = "failed"
+	Error      Status = "error"
+	Running    Status = "running"
+	Success    Status = "success"
+)
 
 //HttpErrorResponse is the model used for general error responses
 type HttpErrorResponse struct {

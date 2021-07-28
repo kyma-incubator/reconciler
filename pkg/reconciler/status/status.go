@@ -1,26 +1,18 @@
-package compreconciler
+package status
 
 import (
 	"context"
 	"fmt"
+	"github.com/avast/retry-go"
 	e "github.com/kyma-incubator/reconciler/pkg/error"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	cb "github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"sync"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 
-	"github.com/avast/retry-go"
 	"go.uber.org/zap"
-)
-
-type Status string
-
-const (
-	NotStarted Status = "notstarted"
-	Failed     Status = "failed"
-	Error      Status = "error"
-	Running    Status = "running"
-	Success    Status = "success"
 )
 
 const (
@@ -29,13 +21,13 @@ const (
 	defaultStatusUpdaterRetryDelay = 30 * time.Second
 )
 
-type StatusUpdaterConfig struct {
+type Config struct {
 	Interval   time.Duration
 	MaxRetries int
 	RetryDelay time.Duration
 }
 
-func (su *StatusUpdaterConfig) validate() error {
+func (su *Config) validate() error {
 	if su.Interval < 0 {
 		return fmt.Errorf("status update interval cannot be < 0 but was %.1f secs", su.Interval.Seconds())
 	}
@@ -57,51 +49,51 @@ func (su *StatusUpdaterConfig) validate() error {
 	return nil
 }
 
-type StatusUpdater struct {
+type Updater struct {
 	ctx             context.Context
-	restartInterval chan bool       //trigger for callback-handler to inform reconciler-controller
-	callback        CallbackHandler //callback-handler which trigger the callback logic to inform reconciler-controller
-	status          Status          //current status
+	restartInterval chan bool          //trigger for callback-handler to inform reconciler-controller
+	callback        cb.CallbackHandler //callback-handler which trigger the callback logic to inform reconciler-controller
+	status          reconciler.Status  //current status
 	debug           bool
 	ctxClosed       bool //indicate whether the process was interrupted from outside
-	config          StatusUpdaterConfig
+	config          Config
 	m               sync.Mutex
 }
 
-func newStatusUpdater(ctx context.Context, callback CallbackHandler, debug bool, config StatusUpdaterConfig) (*StatusUpdater, error) {
+func NewStatusUpdater(ctx context.Context, callback cb.CallbackHandler, debug bool, config Config) (*Updater, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
-	return &StatusUpdater{
+	return &Updater{
 		ctx:             ctx,
 		config:          config,
 		restartInterval: make(chan bool),
 		callback:        callback,
 		debug:           debug,
-		status:          NotStarted,
+		status:          reconciler.NotStarted,
 	}, nil
 }
 
-func (su *StatusUpdater) closeContext() {
+func (su *Updater) closeContext() {
 	su.m.Lock()
 	defer su.m.Unlock()
 	su.ctxClosed = true
 }
 
-func (su *StatusUpdater) isContextClosed() bool {
+func (su *Updater) isContextClosed() bool {
 	su.m.Lock()
 	defer su.m.Unlock()
 	return su.ctxClosed
 }
 
-func (su *StatusUpdater) logger() *zap.Logger {
+func (su *Updater) logger() *zap.Logger {
 	return logger.NewOptionalLogger(su.debug)
 }
 
-func (su *StatusUpdater) updateWithInterval(status Status) {
+func (su *Updater) updateWithInterval(status reconciler.Status) {
 	su.stopJob() //ensure previous interval-loop is stopped before starting a new loop
 
-	task := func(status Status) {
+	task := func(status reconciler.Status) {
 		err := su.callback.Callback(status)
 		if err == nil {
 			su.logger().Debug(fmt.Sprintf("Interval-callback with status-update ('%s') finished successfully", status))
@@ -111,7 +103,7 @@ func (su *StatusUpdater) updateWithInterval(status Status) {
 		}
 	}
 
-	go func(status Status, interval time.Duration) {
+	go func(status reconciler.Status, interval time.Duration) {
 		su.logger().Debug(fmt.Sprintf("Starting new interval loop for status '%s'", status))
 		task(status)
 		for {
@@ -133,10 +125,10 @@ func (su *StatusUpdater) updateWithInterval(status Status) {
 	su.status = status
 }
 
-func (su *StatusUpdater) updateWithRetry(status Status) {
+func (su *Updater) updateWithRetry(status reconciler.Status) {
 	su.stopJob() //ensure previous interval-loop is stopped before starting a new loop
 
-	go func(ctx context.Context, s Status, retries int, delay time.Duration) {
+	go func(ctx context.Context, s reconciler.Status, retries int, delay time.Duration) {
 		err := retry.Do(
 			func() error {
 				err := su.callback.Callback(s)
@@ -161,56 +153,56 @@ func (su *StatusUpdater) updateWithRetry(status Status) {
 	su.status = status
 }
 
-func (su *StatusUpdater) CurrentStatus() Status {
+func (su *Updater) CurrentStatus() reconciler.Status {
 	return su.status
 }
 
-func (su *StatusUpdater) stopJob() {
-	if su.status == Running || su.status == Failed {
+func (su *Updater) stopJob() {
+	if su.status == reconciler.Running || su.status == reconciler.Failed {
 		su.restartInterval <- true
 	}
 }
 
-func (su *StatusUpdater) Running() error {
-	if err := su.statusChangeAllowed(Running); err != nil {
+func (su *Updater) Running() error {
+	if err := su.statusChangeAllowed(reconciler.Running); err != nil {
 		return err
 	}
-	su.updateWithInterval(Running) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
+	su.updateWithInterval(reconciler.Running) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
 	return nil
 }
 
-func (su *StatusUpdater) Success() error {
-	if err := su.statusChangeAllowed(Success); err != nil {
+func (su *Updater) Success() error {
+	if err := su.statusChangeAllowed(reconciler.Success); err != nil {
 		return err
 	}
-	su.updateWithRetry(Success) //Success is a final status: use retry because heartbeat-requests are no longer needed
+	su.updateWithRetry(reconciler.Success) //Success is a final status: use retry because heartbeat-requests are no longer needed
 	return nil
 }
 
-func (su *StatusUpdater) Error() error {
-	if err := su.statusChangeAllowed(Error); err != nil {
+func (su *Updater) Error() error {
+	if err := su.statusChangeAllowed(reconciler.Error); err != nil {
 		return err
 	}
-	su.updateWithRetry(Error) //Error is a final status: use retry because heartbeat-requests are no longer needed
+	su.updateWithRetry(reconciler.Error) //Error is a final status: use retry because heartbeat-requests are no longer needed
 	return nil
 }
 
 //Failed will send interval updates the reconcile-controller with status 'failed'
-func (su *StatusUpdater) Failed() error {
-	if err := su.statusChangeAllowed(Failed); err != nil {
+func (su *Updater) Failed() error {
+	if err := su.statusChangeAllowed(reconciler.Failed); err != nil {
 		return err
 	}
-	su.updateWithInterval(Failed) //Failed is an interim status: use interval to send heartbeat-request to reconciler-controller
+	su.updateWithInterval(reconciler.Failed) //Failed is an interim status: use interval to send heartbeat-request to reconciler-controller
 	return nil
 }
 
-func (su *StatusUpdater) statusChangeAllowed(status Status) error {
+func (su *Updater) statusChangeAllowed(status reconciler.Status) error {
 	if su.isContextClosed() {
 		return &e.ContextClosedError{
 			Message: fmt.Sprintf("Cannot change status to '%s' because context of status updater is closed", status),
 		}
 	}
-	if su.status == Error || su.status == Success {
+	if su.status == reconciler.Error || su.status == reconciler.Success {
 		return fmt.Errorf("cannot switch in '%s' status because we are already in final status '%s'", status, su.status)
 	}
 	return nil

@@ -1,10 +1,11 @@
-package compreconciler
+package service
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"io/ioutil"
 	"net/http"
@@ -86,13 +87,13 @@ func TestReconciler(t *testing.T) {
 
 	t.Run("Filter missing component dependencies", func(t *testing.T) {
 		recon := NewComponentReconciler(chartProvider).WithDependencies("a", "b")
-		require.ElementsMatch(t, []string{"a", "b"}, recon.dependenciesMissing(&Reconciliation{
+		require.ElementsMatch(t, []string{"a", "b"}, recon.dependenciesMissing(&reconciler.Reconciliation{
 			ComponentsReady: []string{"x", "y", "z"},
 		}))
-		require.ElementsMatch(t, []string{"b"}, recon.dependenciesMissing(&Reconciliation{
+		require.ElementsMatch(t, []string{"b"}, recon.dependenciesMissing(&reconciler.Reconciliation{
 			ComponentsReady: []string{"a", "y", "z"},
 		}))
-		require.ElementsMatch(t, []string{}, recon.dependenciesMissing(&Reconciliation{
+		require.ElementsMatch(t, []string{}, recon.dependenciesMissing(&reconciler.Reconciliation{
 			ComponentsReady: []string{"a", "b", "z"},
 		}))
 	})
@@ -121,7 +122,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 		}()
 
 		//send request with which does not include all required dependencies
-		body := post(t, "http://localhost:9999/v1/run", Reconciliation{
+		body := post(t, "http://localhost:9999/v1/run", reconciler.Reconciliation{
 			ComponentsReady: []string{"abc", "def"},
 			Component:       "unittest-component",
 			Namespace:       "unittest",
@@ -135,7 +136,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 		//convert body to HTTP response model
 		t.Logf("Body received: %s", string(body))
-		resp := &HttpMissingDependenciesResponse{}
+		resp := &reconciler.HttpMissingDependenciesResponse{}
 		require.NoError(t, json.Unmarshal(body, resp))
 		require.Equal(t, []string{"abc", "xyz"}, resp.Dependencies.Required)
 		require.Equal(t, []string{"xyz"}, resp.Dependencies.Missing)

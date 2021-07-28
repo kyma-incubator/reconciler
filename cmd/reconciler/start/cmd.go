@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/kyma-incubator/reconciler/internal/cli"
-	"github.com/kyma-incubator/reconciler/pkg/compreconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +32,7 @@ func Run(o *Options) error {
 		return err
 	}
 
-	return compreconciler.NewComponentReconciler(chartProvider).
+	return service.NewComponentReconciler(chartProvider).
 		WithServerConfig(o.Port, o.SSLCrt, o.SSLKey).
 		StartRemote(ctx)
 }

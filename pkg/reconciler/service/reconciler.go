@@ -1,9 +1,11 @@
-package compreconciler
+package service
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/panjf2000/ants/v2"
 	"io/ioutil"
 	"net/http"
@@ -206,12 +208,12 @@ func (r *ComponentReconciler) Debug() *ComponentReconciler {
 	return r
 }
 
-func (r *ComponentReconciler) StartLocal(ctx context.Context, model *Reconciliation) error {
+func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.Reconciliation) error {
 	if err := r.validate(); err != nil {
 		return err
 	}
 
-	localCbh, err := newLocalCallbackHandler(model.CallbackFct, r.debug)
+	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFct, r.debug)
 	if err != nil {
 		return err
 	}
@@ -266,7 +268,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			depMissing := r.dependenciesMissing(model)
 			if len(depMissing) > 0 {
 				r.logger().Debug(fmt.Sprintf("Found missing component dependencies: %s", strings.Join(depMissing, ", ")))
-				r.sendResponse(w, http.StatusPreconditionRequired, HttpMissingDependenciesResponse{
+				r.sendResponse(w, http.StatusPreconditionRequired, reconciler.HttpMissingDependenciesResponse{
 					Dependencies: struct {
 						Required []string
 						Missing  []string
@@ -275,7 +277,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 				return
 			}
 			//assign runner to worker
-			remoteCbh, err := newRemoteCallbackHandler(model.CallbackURL, r.debug)
+			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.debug)
 			if err != nil {
 				r.logger().Warn(fmt.Sprintf("Could not create remote callback handler: %s", err))
 				r.sendResponse(w, http.StatusInternalServerError, err)
@@ -303,7 +305,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 	return router
 }
 
-func (r *ComponentReconciler) dependenciesMissing(model *Reconciliation) []string {
+func (r *ComponentReconciler) dependenciesMissing(model *reconciler.Reconciliation) []string {
 	var missing []string
 	for _, compDep := range r.dependencies {
 		found := false
@@ -320,7 +322,7 @@ func (r *ComponentReconciler) dependenciesMissing(model *Reconciliation) []strin
 	return missing
 }
 
-func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *Reconciliation, callback CallbackHandler) func() error {
+func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconciler.Reconciliation, callback callback.CallbackHandler) func() error {
 	r.logger().Debug(
 		fmt.Sprintf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds()))
 	return func() error {
@@ -332,7 +334,7 @@ func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *Reconcili
 
 func (r *ComponentReconciler) sendResponse(w http.ResponseWriter, httpCode int, response interface{}) {
 	if err, ok := response.(error); ok { //convert to error response
-		response = HttpErrorResponse{
+		response = reconciler.HttpErrorResponse{
 			Error: err,
 		}
 	}
@@ -346,7 +348,7 @@ func (r *ComponentReconciler) sendResponse(w http.ResponseWriter, httpCode int, 
 	}
 }
 
-func (r *ComponentReconciler) model(req *http.Request) (*Reconciliation, error) {
+func (r *ComponentReconciler) model(req *http.Request) (*reconciler.Reconciliation, error) {
 	params := server.NewParams(req)
 	contractVersion, err := params.String(paramContractVersion)
 	if err != nil {
@@ -370,9 +372,9 @@ func (r *ComponentReconciler) model(req *http.Request) (*Reconciliation, error) 
 	return model, err
 }
 
-func (r *ComponentReconciler) modelForVersion(contractVersion string) (*Reconciliation, error) {
+func (r *ComponentReconciler) modelForVersion(contractVersion string) (*reconciler.Reconciliation, error) {
 	if contractVersion == "" {
 		return nil, fmt.Errorf("contract version cannot be empty")
 	}
-	return &Reconciliation{}, nil //change this function if different contract versions have to be supported
+	return &reconciler.Reconciliation{}, nil //change this function if different contract versions have to be supported
 }
