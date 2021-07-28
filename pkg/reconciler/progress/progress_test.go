@@ -73,7 +73,7 @@ func TestProgressTracker(t *testing.T) {
 	})
 }
 
-func addWatchable(t *testing.T, manifest string, pt *ProgressTracker, kubeClient k8s.KubernetesClient) {
+func addWatchable(t *testing.T, manifest string, pt *Tracker, kubeClient k8s.Client) {
 	//watch created resources
 	resources, err := kubeClient.DeployedResources(manifest)
 	require.NoError(t, err)

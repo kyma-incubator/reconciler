@@ -19,7 +19,7 @@ type runner struct {
 	*ComponentReconciler
 }
 
-func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.CallbackHandler) error {
+func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {
 	statusUpdater, err := status.NewStatusUpdater(ctx, callback, r.debug, status.Config{
 		Interval:   r.statusUpdaterConfig.interval,
 		MaxRetries: r.statusUpdaterConfig.maxRetries,
@@ -116,7 +116,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	return nil
 }
 
-func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, kubeClient kubernetes.KubernetesClient) error {
+func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
 	manifest, err := r.renderManifest(model)
 	if err != nil {
 		return err
@@ -153,7 +153,7 @@ func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error
 	return buffer.String(), nil
 }
 
-func (r *runner) trackProgress(ctx context.Context, manifest string, kubeClient kubernetes.KubernetesClient) error {
+func (r *runner) trackProgress(ctx context.Context, manifest string, kubeClient kubernetes.Client) error {
 	clientSet, err := kubeClient.Clientset()
 	if err != nil {
 		return err

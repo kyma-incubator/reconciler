@@ -327,7 +327,7 @@ func (r *ComponentReconciler) dependenciesMissing(model *reconciler.Reconciliati
 	return missing
 }
 
-func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconciler.Reconciliation, callback callback.CallbackHandler) func() error {
+func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {
 	r.logger().Debug(
 		fmt.Sprintf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds()))
 	return func() error {

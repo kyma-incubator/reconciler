@@ -53,7 +53,7 @@ func (ptc *Config) validate() error {
 	return nil
 }
 
-type ProgressTracker struct {
+type Tracker struct {
 	ctx      context.Context
 	objects  []*resource
 	client   *kubernetes.Clientset
@@ -62,7 +62,7 @@ type ProgressTracker struct {
 	logger   *zap.Logger
 }
 
-func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug bool, config Config) (*ProgressTracker, error) {
+func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug bool, config Config) (*Tracker, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug
 		return nil, err
 	}
 
-	return &ProgressTracker{
+	return &Tracker{
 		ctx:      ctx,
 		client:   client,
 		interval: config.Interval,
@@ -81,7 +81,7 @@ func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug
 	}, nil
 }
 
-func (pt *ProgressTracker) Watch() error {
+func (pt *Tracker) Watch() error {
 	if len(pt.objects) == 0 { //check if any watchable resources were added
 		pt.logger.Debug("No watchable resources defined: installation treated as successfully finished")
 		return nil
@@ -127,7 +127,7 @@ func (pt *ProgressTracker) Watch() error {
 	}
 }
 
-func (pt *ProgressTracker) AddResource(kind WatchableResource, namespace, name string) {
+func (pt *Tracker) AddResource(kind WatchableResource, namespace, name string) {
 	pt.objects = append(pt.objects, &resource{
 		kind:      kind,
 		namespace: namespace,
@@ -135,7 +135,7 @@ func (pt *ProgressTracker) AddResource(kind WatchableResource, namespace, name s
 	})
 }
 
-func (pt *ProgressTracker) isReady() (bool, error) {
+func (pt *Tracker) isReady() (bool, error) {
 	var err error
 	componentIsReady := true
 	for _, object := range pt.objects {
@@ -165,7 +165,7 @@ func (pt *ProgressTracker) isReady() (bool, error) {
 	return componentIsReady, nil
 }
 
-func (pt *ProgressTracker) deploymentIsReady(object *resource) (bool, error) {
+func (pt *Tracker) deploymentIsReady(object *resource) (bool, error) {
 	deploymentsClient := pt.client.AppsV1().Deployments(object.namespace)
 	deployment, err := deploymentsClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {
@@ -179,7 +179,7 @@ func (pt *ProgressTracker) deploymentIsReady(object *resource) (bool, error) {
 	return true, err
 }
 
-func (pt *ProgressTracker) statefulSetIsReady(object *resource) (bool, error) {
+func (pt *Tracker) statefulSetIsReady(object *resource) (bool, error) {
 	statefulSetClient := pt.client.AppsV1().StatefulSets(object.namespace)
 	statefulSet, err := statefulSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {
@@ -193,7 +193,7 @@ func (pt *ProgressTracker) statefulSetIsReady(object *resource) (bool, error) {
 	return true, err
 }
 
-func (pt *ProgressTracker) podIsReady(object *resource) (bool, error) {
+func (pt *Tracker) podIsReady(object *resource) (bool, error) {
 	podsClient := pt.client.CoreV1().Pods(object.namespace)
 	pod, err := podsClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {
@@ -207,7 +207,7 @@ func (pt *ProgressTracker) podIsReady(object *resource) (bool, error) {
 	return true, err
 }
 
-func (pt *ProgressTracker) daemonSetIsReady(object *resource) (bool, error) {
+func (pt *Tracker) daemonSetIsReady(object *resource) (bool, error) {
 	daemonSetClient := pt.client.AppsV1().DaemonSets(object.namespace)
 	daemonSet, err := daemonSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {
@@ -221,7 +221,7 @@ func (pt *ProgressTracker) daemonSetIsReady(object *resource) (bool, error) {
 	return true, err
 }
 
-func (pt *ProgressTracker) jobIsReady(object *resource) (bool, error) {
+func (pt *Tracker) jobIsReady(object *resource) (bool, error) {
 	jobClient := pt.client.BatchV1().Jobs(object.namespace)
 	job, err := jobClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {

@@ -51,16 +51,16 @@ func (su *Config) validate() error {
 
 type Updater struct {
 	ctx             context.Context
-	restartInterval chan bool          //trigger for callback-handler to inform reconciler-controller
-	callback        cb.CallbackHandler //callback-handler which trigger the callback logic to inform reconciler-controller
-	status          reconciler.Status  //current status
+	restartInterval chan bool         //trigger for callback-handler to inform reconciler-controller
+	callback        cb.Handler        //callback-handler which trigger the callback logic to inform reconciler-controller
+	status          reconciler.Status //current status
 	debug           bool
 	ctxClosed       bool //indicate whether the process was interrupted from outside
 	config          Config
 	m               sync.Mutex
 }
 
-func NewStatusUpdater(ctx context.Context, callback cb.CallbackHandler, debug bool, config Config) (*Updater, error) {
+func NewStatusUpdater(ctx context.Context, callback cb.Handler, debug bool, config Config) (*Updater, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}

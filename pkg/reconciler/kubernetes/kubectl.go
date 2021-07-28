@@ -23,7 +23,7 @@ type kubectlClient struct {
 	manifestFile   string
 }
 
-func newKubectlClient(kubeconfig string) (KubernetesClient, error) {
+func newKubectlClient(kubeconfig string) (Client, error) {
 	kubectlCmd, err := kubectl()
 	if err != nil {
 		return nil, err

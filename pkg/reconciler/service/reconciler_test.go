@@ -129,7 +129,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			Profile:         "unittest",
 			Configuration:   nil,
 			Kubeconfig:      "",
-			CallbackURL:     "https://httpbin.org/post",
+			CallbackURL:     "",
 			InstallCRD:      false,
 		}, http.StatusPreconditionRequired)
 
@@ -142,14 +142,15 @@ func TestReconcilerEnd2End(t *testing.T) {
 	})
 }
 
-func post(t *testing.T, url string, payload interface{}, expectedHttpCode int) []byte {
+func post(t *testing.T, url string, payload interface{}, expectedHTTPCode int) []byte {
 	jsonPayload, err := json.Marshal(payload)
 	require.NoError(t, err)
 
+	//nolint:gosec //in test cases is a dynamic URL acceptable
 	resp, err := http.Post(url, "application/json",
 		bytes.NewBuffer(jsonPayload))
 	require.NoError(t, err)
-	require.Equal(t, expectedHttpCode, resp.StatusCode)
+	require.Equal(t, expectedHTTPCode, resp.StatusCode)
 
 	//read body
 	defer func() {
