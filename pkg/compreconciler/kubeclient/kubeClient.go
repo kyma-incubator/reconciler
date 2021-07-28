@@ -1,3 +1,5 @@
+// solution from https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/client.go
+
 package kubeclient
 
 import (
@@ -58,7 +60,6 @@ func NewKubeClient(base64kubeConfig string) (*KubeClient, error) {
 	}, nil
 }
 
-// Apply a given manifest.
 func (kube *KubeClient) Apply(u *unstructured.Unstructured) (types.Metadata, error) {
 	return kube.ApplyWithNamespaceOverride(u, "")
 }

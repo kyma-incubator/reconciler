@@ -1,3 +1,5 @@
+// solution from https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/unstructured.go
+
 package kubeclient
 
 import (
