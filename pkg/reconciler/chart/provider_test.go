@@ -2,15 +2,15 @@ package chart
 
 import (
 	"encoding/json"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/kyma-incubator/reconciler/pkg/test"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
-	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 func TestProvider(t *testing.T) {

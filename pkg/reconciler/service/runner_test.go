@@ -6,13 +6,12 @@ import (
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
+	workspace2 "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"testing"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/chart"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
@@ -26,7 +25,7 @@ const (
 	fakeComponent         = "component-1"
 )
 
-var wsf = &workspace.Factory{
+var wsf = &workspace2.Factory{
 	StorageDir: "./test",
 	Debug:      true,
 }
@@ -307,19 +306,16 @@ func TestRunner(t *testing.T) {
 }
 
 func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
-	chartProvider, err := chart.NewProvider(wsf, true)
+	recon, err := NewComponentReconciler("./test", true)
 	require.NoError(t, err)
 
-	recon := NewComponentReconciler(chartProvider).
-		Debug().
-		WithRetry(3, 1*time.Second).
+	recon.WithRetry(3, 1*time.Second).
 		WithWorkers(5, timeout).
 		WithStatusUpdaterConfig(interval, 3, 1*time.Second).
 		WithPreInstallAction(preAct).
 		WithInstallAction(instAct).
 		WithPostInstallAction(postAct).
 		WithProgressTrackerConfig(interval, timeout)
-	require.NoError(t, err)
 
 	return &runner{recon}
 }

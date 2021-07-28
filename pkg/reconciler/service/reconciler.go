@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/panjf2000/ants/v2"
 	"io/ioutil"
 	"net/http"
@@ -18,7 +20,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/gorilla/mux"
-	"github.com/kyma-incubator/reconciler/pkg/chart"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 )
 
@@ -72,10 +73,19 @@ type serverConfig struct {
 	sslKeyFile string
 }
 
-func NewComponentReconciler(chartProvider *chart.Provider) *ComponentReconciler {
-	return &ComponentReconciler{
-		chartProvider: chartProvider,
+func NewComponentReconciler(workspaceDir string, debug bool) (*ComponentReconciler, error) {
+	wsf := &workspace.Factory{
+		Debug:      debug,
+		StorageDir: workspaceDir,
 	}
+	chartProvider, err := chart.NewProvider(wsf, debug)
+	if err != nil {
+		return nil, err
+	}
+	return &ComponentReconciler{
+		debug:         debug,
+		chartProvider: chartProvider,
+	}, nil
 }
 
 func (r *ComponentReconciler) logger() *zap.Logger {
@@ -200,11 +210,6 @@ func (r *ComponentReconciler) WithServerConfig(port int, sslCrtFile, sslKeyFile 
 func (r *ComponentReconciler) WithProgressTrackerConfig(interval, timeout time.Duration) *ComponentReconciler {
 	r.progressTrackerConfig.interval = interval
 	r.progressTrackerConfig.timeout = timeout
-	return r
-}
-
-func (r *ComponentReconciler) Debug() *ComponentReconciler {
-	r.debug = true
 	return r
 }
 
