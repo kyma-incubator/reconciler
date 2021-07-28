@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/panjf2000/ants/v2"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 
