@@ -135,7 +135,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 		//convert body to HTTP response model
 		t.Logf("Body received: %s", string(body))
-		resp := &reconciler.HttpMissingDependenciesResponse{}
+		resp := &reconciler.HTTPMissingDependenciesResponse{}
 		require.NoError(t, json.Unmarshal(body, resp))
 		require.Equal(t, []string{"abc", "xyz"}, resp.Dependencies.Required)
 		require.Equal(t, []string{"xyz"}, resp.Dependencies.Missing)

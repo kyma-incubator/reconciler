@@ -273,7 +273,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			depMissing := r.dependenciesMissing(model)
 			if len(depMissing) > 0 {
 				r.logger().Debug(fmt.Sprintf("Found missing component dependencies: %s", strings.Join(depMissing, ", ")))
-				r.sendResponse(w, http.StatusPreconditionRequired, reconciler.HttpMissingDependenciesResponse{
+				r.sendResponse(w, http.StatusPreconditionRequired, reconciler.HTTPMissingDependenciesResponse{
 					Dependencies: struct {
 						Required []string
 						Missing  []string
@@ -339,7 +339,7 @@ func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconcile
 
 func (r *ComponentReconciler) sendResponse(w http.ResponseWriter, httpCode int, response interface{}) {
 	if err, ok := response.(error); ok { //convert to error response
-		response = reconciler.HttpErrorResponse{
+		response = reconciler.HTTPErrorResponse{
 			Error: err,
 		}
 	}

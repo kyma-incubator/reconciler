@@ -41,13 +41,13 @@ const (
 	Success    Status = "success"
 )
 
-//HttpErrorResponse is the model used for general error responses
-type HttpErrorResponse struct {
+//HTTPErrorResponse is the model used for general error responses
+type HTTPErrorResponse struct {
 	Error error
 }
 
-//HttpMissingDependenciesResponse is the model used for missing dependency responses
-type HttpMissingDependenciesResponse struct {
+//HTTPMissingDependenciesResponse is the model used for missing dependency responses
+type HTTPMissingDependenciesResponse struct {
 	Dependencies struct {
 		Required []string
 		Missing  []string
