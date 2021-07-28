@@ -2,15 +2,16 @@ package workspace
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	file "github.com/kyma-incubator/reconciler/pkg/files"
-	"github.com/kyma-incubator/reconciler/pkg/git"
 )
 
 const (

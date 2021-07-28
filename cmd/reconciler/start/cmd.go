@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/kyma-incubator/reconciler/internal/cli"
-	"github.com/kyma-incubator/reconciler/pkg/compreconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/spf13/cobra"
 )
 
@@ -27,12 +27,9 @@ func NewCmd(o *Options) *cobra.Command {
 func Run(o *Options) error {
 	ctx := cli.NewContext()
 
-	chartProvider := o.Registry.ChartProvider()
-	if err := chartProvider.ChangeWorkspace(o.Workspace); err != nil {
+	recon, err := service.NewComponentReconciler(o.Workspace, o.Verbose)
+	if err != nil {
 		return err
 	}
-
-	return compreconciler.NewComponentReconciler(chartProvider).
-		WithServerConfiguration(o.Port, o.SSLCrt, o.SSLKey).
-		StartRemote(ctx)
+	return recon.WithServerConfig(o.Port, o.SSLCrt, o.SSLKey).StartRemote(ctx)
 }

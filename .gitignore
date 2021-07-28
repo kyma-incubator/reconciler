@@ -64,6 +64,7 @@ cover.out
 
 # Ingore work-in-progress marked files
 *.wip.*
+*.wip
 
 # Ignore coverage output file
 coverage.out

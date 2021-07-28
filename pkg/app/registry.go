@@ -3,12 +3,11 @@ package app
 import (
 	"fmt"
 
-	"github.com/kyma-incubator/reconciler/pkg/chart"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/workspace"
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"go.uber.org/zap"
 )
 
@@ -18,8 +17,6 @@ type ApplicationRegistry struct {
 	connectionFactory db.ConnectionFactory
 	inventory         cluster.Inventory
 	kvRepository      *kv.Repository
-	workspaceFactory  *workspace.Factory
-	chartProvider     *chart.Provider
 	initialized       bool
 }
 
@@ -48,10 +45,6 @@ func (or *ApplicationRegistry) init() error {
 	if or.kvRepository, err = or.initRepository(); err != nil {
 		return err
 	}
-	or.workspaceFactory = &workspace.Factory{}
-	if or.chartProvider, err = or.initChartProvider(); err != nil {
-		return err
-	}
 	or.initialized = true
 	return nil
 }
@@ -78,14 +71,6 @@ func (or *ApplicationRegistry) KVRepository() *kv.Repository {
 	return or.kvRepository
 }
 
-func (or *ApplicationRegistry) WorkspaceFactory() *workspace.Factory {
-	return or.workspaceFactory
-}
-
-func (or *ApplicationRegistry) ChartProvider() *chart.Provider {
-	return or.chartProvider
-}
-
 func (or *ApplicationRegistry) initRepository() (*kv.Repository, error) {
 	var err error
 
@@ -108,22 +93,12 @@ func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 	if or.connectionFactory == nil {
 		or.logger.Fatal("Failed to create cluster inventory because connection factory is undefined")
 	}
-	or.inventory, err = cluster.NewInventory(or.connectionFactory, or.debug)
+	collector := metrics.NewReconciliationStatusCollector()
+	or.inventory, err = cluster.NewInventory(or.connectionFactory, or.debug, collector)
 	if err != nil {
 		or.logger.Error(fmt.Sprintf("Failed to create cluster inventory: %s", err))
 		return nil, err
 	}
 
 	return or.inventory, nil
-}
-
-func (or *ApplicationRegistry) initChartProvider() (*chart.Provider, error) {
-	var err error
-
-	or.chartProvider, err = chart.NewProvider(or.workspaceFactory, or.debug)
-	if err != nil {
-		return nil, err
-	}
-
-	return or.chartProvider, nil
 }

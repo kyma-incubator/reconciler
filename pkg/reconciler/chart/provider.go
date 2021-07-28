@@ -2,6 +2,7 @@ package chart
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"os"
 	"strings"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/overrides"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )

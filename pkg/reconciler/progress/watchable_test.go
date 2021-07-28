@@ -1,4 +1,4 @@
-package compreconciler
+package progress
 
 import (
 	"github.com/stretchr/testify/require"

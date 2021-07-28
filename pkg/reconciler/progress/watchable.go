@@ -1,4 +1,4 @@
-package compreconciler
+package progress
 
 import (
 	"fmt"

@@ -25,14 +25,19 @@ type Inventory interface {
 
 type DefaultInventory struct {
 	*repository.Repository
+	metricsCollector
 }
 
-func NewInventory(dbFac db.ConnectionFactory, debug bool) (Inventory, error) {
+type metricsCollector interface {
+	OnClusterStateUpdate(state *State) error
+}
+
+func NewInventory(dbFac db.ConnectionFactory, debug bool, collector metricsCollector) (Inventory, error) {
 	repo, err := repository.NewRepository(dbFac, debug)
 	if err != nil {
 		return nil, err
 	}
-	return &DefaultInventory{repo}, nil
+	return &DefaultInventory{repo, collector}, nil
 }
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
@@ -56,6 +61,10 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 		}, nil
 	}
 	stateEntity, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+	if err != nil {
+		return nil, err
+	}
+	err = i.metricsCollector.OnClusterStateUpdate(stateEntity.(*State))
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +199,10 @@ func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*Sta
 		return state, err
 	}
 	state.Status = newStatus
+	err = i.metricsCollector.OnClusterStateUpdate(state)
+	if err != nil {
+		return state, err
+	}
 	return state, nil
 }
 
