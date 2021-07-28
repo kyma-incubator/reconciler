@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/panjf2000/ants/v2"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 
@@ -214,6 +215,11 @@ func (r *ComponentReconciler) WithProgressTrackerConfig(interval, timeout time.D
 }
 
 func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.Reconciliation) error {
+	//ensure model is valid
+	if err := model.Validate(); err != nil {
+		return err
+	}
+	//ensure reconciler is properly configured
 	if err := r.validate(); err != nil {
 		return err
 	}
@@ -262,6 +268,8 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 		fmt.Sprintf("/v{%s}/run", paramContractVersion),
 		func(w http.ResponseWriter, req *http.Request) {
 			r.logger().Debug("Start processing request")
+
+			//marshal model
 			model, err := r.model(req)
 			if err != nil {
 				r.logger().Warn(fmt.Sprintf("Unmarshalling of model failed: %s", err))
@@ -270,6 +278,13 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			}
 			r.logger().Debug(fmt.Sprintf("Model unmarshalled: %s", model))
 
+			//validate model
+			if err := model.Validate(); err != nil {
+				r.sendResponse(w, http.StatusBadRequest, err)
+				return
+			}
+
+			//check whether all dependencies are fulfilled
 			depMissing := r.dependenciesMissing(model)
 			if len(depMissing) > 0 {
 				r.logger().Debug(fmt.Sprintf("Found missing component dependencies: %s", strings.Join(depMissing, ", ")))
@@ -281,7 +296,8 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 				})
 				return
 			}
-			//assign runner to worker
+
+			//create callback handler
 			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.debug)
 			if err != nil {
 				r.logger().Warn(fmt.Sprintf("Could not create remote callback handler: %s", err))
@@ -289,6 +305,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 				return
 			}
 
+			//assign runner to worker
 			err = workerPool.Submit(func() {
 				r.logger().Debug(fmt.Sprintf("Runner for model '%s' is assigned to worker", model))
 				runnerFct := r.newRunnerFct(ctx, model, remoteCbh)
@@ -298,12 +315,16 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 					return
 				}
 			})
+
+			//check if execution of worker was successful
 			if err != nil {
 				r.logger().Warn(fmt.Sprintf("Runner for model '%s' could not be assigned to worker: %s", model, err))
 				r.sendResponse(w, http.StatusInternalServerError, err)
 				return
 			}
 
+			//done
+			r.logger().Debug("Request successfully processed")
 			r.sendResponse(w, http.StatusOK, nil)
 		}).
 		Methods("PUT", "POST")
@@ -340,7 +361,7 @@ func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconcile
 func (r *ComponentReconciler) sendResponse(w http.ResponseWriter, httpCode int, response interface{}) {
 	if err, ok := response.(error); ok { //convert to error response
 		response = reconciler.HTTPErrorResponse{
-			Error: err,
+			Error: err.Error(),
 		}
 	}
 	w.WriteHeader(httpCode)
