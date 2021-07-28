@@ -1,18 +1,16 @@
-package compreconciler
+package callback
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"go.uber.org/zap"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 )
-
-type CallbackHandler interface {
-	Callback(status Status) error
-}
 
 type RemoteCallbackHandler struct {
 	logger      *zap.Logger
@@ -20,11 +18,21 @@ type RemoteCallbackHandler struct {
 	callbackURL string
 }
 
-func newRemoteCallbackHandler(callbackURL string, debug bool) (CallbackHandler, error) {
+func NewRemoteCallbackHandler(callbackURL string, debug bool) (Handler, error) {
+	//create logger
 	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
+
+	//validate URL
+	if callbackURL != "" { //empty URLs are allowed (used in some test cases)
+		if _, err := url.ParseRequestURI(callbackURL); err != nil {
+			return nil, err
+		}
+	}
+
+	//return new remote callback
 	return &RemoteCallbackHandler{
 		logger:      logger,
 		debug:       debug,
@@ -32,7 +40,12 @@ func newRemoteCallbackHandler(callbackURL string, debug bool) (CallbackHandler, 
 	}, nil
 }
 
-func (cb *RemoteCallbackHandler) Callback(status Status) error {
+func (cb *RemoteCallbackHandler) Callback(status reconciler.Status) error {
+	if cb.callbackURL == "" { //test cases often don't provide a callback URL
+		cb.logger.Warn("Empty callback-URL provided: remote callback not executed")
+		return nil
+	}
+
 	requestBody, err := json.Marshal(map[string]string{
 		"status": string(status),
 	})
@@ -66,28 +79,4 @@ func (cb *RemoteCallbackHandler) Callback(status Status) error {
 	}
 
 	return nil
-}
-
-type LocalCallbackHandler struct {
-	logger      *zap.Logger
-	callbackFct func(status Status) error
-}
-
-func newLocalCallbackHandler(callbackFct func(status Status) error, debug bool) (CallbackHandler, error) {
-	logger, err := log.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
-	return &LocalCallbackHandler{
-		logger:      logger,
-		callbackFct: callbackFct,
-	}, nil
-}
-
-func (cb *LocalCallbackHandler) Callback(status Status) error {
-	err := cb.callbackFct(status)
-	if err != nil {
-		cb.logger.Error(fmt.Sprintf("Calling local callback function failed: %s", err))
-	}
-	return err
 }

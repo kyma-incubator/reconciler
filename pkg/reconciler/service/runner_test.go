@@ -1,28 +1,31 @@
-package compreconciler
+package service
 
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/chart"
+	e "github.com/kyma-incubator/reconciler/pkg/error"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
+	workspace2 "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/kyma-incubator/reconciler/pkg/workspace"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
-	"testing"
-	"time"
 )
 
 const (
-	kymaVersion           = "1.24.0"
+	kymaVersion           = "1.24.0" //if changed: please update also ./test/.gitignore file!
 	fakeKymaVersion       = "0.0.0"
 	clusterUsersComponent = "cluster-users"
 	apiGatewayComponent   = "api-gateway"
 	fakeComponent         = "component-1"
 )
 
-var wsf = &workspace.Factory{
+var wsf = &workspace2.Factory{
 	StorageDir: "./test",
 	Debug:      true,
 }
@@ -90,12 +93,12 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, instAct, postAct, 0, 0)
+		runner := newRunner(t, preAct, instAct, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		err := runner.Run(context.Background(), model, cbh)
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -115,12 +118,12 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		err := runner.Run(context.Background(), model, cbh)
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -139,12 +142,12 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, apiGatewayComponent, kymaVersion, false, "default")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		err := runner.Run(context.Background(), model, cbh)
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -163,12 +166,12 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		err := runner.Run(context.Background(), model, cbh)
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -187,12 +190,12 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 0, 0)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, apiGatewayComponent, kymaVersion, true, "default")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		err := runner.Run(context.Background(), model, cbh)
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -207,12 +210,12 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, nil, instAct, nil, 0, 0)
+		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		err := runner.Run(context.Background(), model, cbh)
 		require.NoError(t, err)
 
 		//install action has to be executed
@@ -228,15 +231,15 @@ func TestRunner(t *testing.T) {
 			fail:       true,
 		}
 
-		runner := newRunner(t, preAct, nil, nil, 0, 0)
+		runner := newRunner(t, preAct, nil, nil, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
-		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		//failing run
+		err := runner.Run(context.Background(), model, cbh)
 		require.Error(t, err)
 
-		//pre-install action have to be executed
+		//pre-install action has to be executed
 		require.Equal(t, kymaVersion, preAct.receivedVersion)
 	})
 
@@ -249,69 +252,76 @@ func TestRunner(t *testing.T) {
 			fail:       true,
 		}
 
-		runner := newRunner(t, nil, install, nil, 0, 0)
+		runner := newRunner(t, nil, install, nil, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
-		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		//failing run
+		err := runner.Run(context.Background(), model, cbh)
 		require.Error(t, err)
 
-		//install action have to be executed
+		//install action has to be executed
 		require.Equal(t, kymaVersion, install.receivedVersion)
 	})
 
 	t.Run("Run with permanently failing post-action", func(t *testing.T) {
 		//create install actions
+		install := &TestAction{
+			name:  "install",
+			delay: 1 * time.Second,
+		}
 		postAct := &TestAction{
-			name:       "pre-install",
+			name:       "post-install",
 			delay:      1 * time.Second,
 			failAlways: true,
 			fail:       true,
 		}
 
-		runner := newRunner(t, nil, postAct, nil, 0, 0)
+		runner := newRunner(t, nil, install, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
-		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		//failing run
+		err := runner.Run(context.Background(), model, cbh)
 		require.Error(t, err)
 
-		//pre-install action have to be executed
+		//install and post-install action have to be executed
+		require.Equal(t, kymaVersion, install.receivedVersion)
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
-		runner := newRunner(t, nil, nil, nil, 1, 2)
+		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Second)
 		model := newModel(t, fakeComponent, fakeKymaVersion, false, "")
-		callback := newCallbackHandler(t)
+		cbh := newCallbackHandler(t)
 
-		//successful run
-		err := runner.Run(context.Background(), model, callback)
+		//failing run
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		err := runner.Run(ctx, model, cbh)
 		require.Error(t, err)
+		require.IsType(t, &e.ContextClosedError{}, err)
 	})
 
 }
 
 func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
-	chartProvider, err := chart.NewProvider(wsf, true)
+	recon, err := NewComponentReconciler("./test", true)
 	require.NoError(t, err)
 
-	recon := NewComponentReconciler(chartProvider).
-		Debug().
-		Configure(1*time.Second, 3, 1*time.Second).
+	recon.WithRetry(3, 1*time.Second).
+		WithWorkers(5, timeout).
+		WithStatusUpdaterConfig(interval, 3, 1*time.Second).
 		WithPreInstallAction(preAct).
 		WithInstallAction(instAct).
 		WithPostInstallAction(postAct).
 		WithProgressTrackerConfig(interval, timeout)
-	require.NoError(t, err)
 
 	return &runner{recon}
 }
 
-func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, namespace string) *Reconciliation {
-	return &Reconciliation{
+func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, namespace string) *reconciler.Reconciliation {
+	return &reconciler.Reconciliation{
 		InstallCRD: installCRD,
 		Component:  kymaComponent,
 		Version:    kymaVersion,
@@ -320,8 +330,8 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 	}
 }
 
-func newCallbackHandler(t *testing.T) CallbackHandler {
-	callbackHdlr, err := newLocalCallbackHandler(func(status Status) error {
+func newCallbackHandler(t *testing.T) callback.Handler {
+	callbackHdlr, err := callback.NewLocalCallbackHandler(func(status reconciler.Status) error {
 		return nil
 	}, true)
 	require.NoError(t, err)
