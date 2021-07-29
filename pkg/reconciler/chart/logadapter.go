@@ -21,23 +21,23 @@ func (l *HydroformLoggerAdapter) Info(args ...interface{}) {
 	l.logger.Info(args)
 }
 func (l *HydroformLoggerAdapter) Infof(template string, args ...interface{}) {
-	l.logger.Info(template, args)
+	l.logger.Infof(template, args...)
 }
 func (l *HydroformLoggerAdapter) Warn(args ...interface{}) {
 	l.logger.Warn(args)
 }
 func (l *HydroformLoggerAdapter) Warnf(template string, args ...interface{}) {
-	l.logger.Warn(template, args)
+	l.logger.Warnf(template, args...)
 }
 func (l *HydroformLoggerAdapter) Error(args ...interface{}) {
 	l.logger.Error(args)
 }
 func (l *HydroformLoggerAdapter) Errorf(template string, args ...interface{}) {
-	l.logger.Error(template, args)
+	l.logger.Errorf(template, args...)
 }
 func (l *HydroformLoggerAdapter) Fatal(args ...interface{}) {
 	l.logger.Fatal(args)
 }
 func (l *HydroformLoggerAdapter) Fatalf(template string, args ...interface{}) {
-	l.logger.Fatal(template, args)
+	l.logger.Fatalf(template, args...)
 }

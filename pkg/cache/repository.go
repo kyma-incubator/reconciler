@@ -74,11 +74,11 @@ func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model
 	if inCache != nil {
 		//check if the existing cache entry is still valid otherwise invalidate it
 		if inCache.Equal(cacheEntry) {
-			cr.Logger.Debug("No differences found for cache entry '%s' (cluster '%s'): not creating new database entity",
+			cr.Logger.Debugf("No differences found for cache entry '%s' (cluster '%s'): not creating new database entity",
 				cacheEntry.Label, cacheEntry.Cluster)
 			return inCache, nil
 		}
-		cr.Logger.Debug("Existing cache entry '%s' is outdated and will be invalidated", inCache)
+		cr.Logger.Debugf("Existing cache entry '%s' is outdated and will be invalidated", inCache)
 		if err := cr.InvalidateByID(inCache.ID); err != nil {
 			return cacheEntry, err
 		}
@@ -123,7 +123,7 @@ func (cr *Repository) Invalidate(label, cluster string) error {
 		deleted, err := q.Delete().
 			Where(map[string]interface{}{"Label": label, "Cluster": cluster}).
 			Exec()
-		cr.Logger.Debug("Deleted %d cache entries which had no dependencies", deleted)
+		cr.Logger.Debugf("Deleted %d cache entries which had no dependencies", deleted)
 		return err
 	}
 	return cr.Transactional(dbOps)
@@ -145,7 +145,7 @@ func (cr *Repository) InvalidateByID(id int64) error {
 		deleted, err := q.Delete().
 			Where(map[string]interface{}{"ID": id}).
 			Exec()
-		cr.Logger.Debug("Deleted %d cache entries which had no dependencies", deleted)
+		cr.Logger.Debugf("Deleted %d cache entries which had no dependencies", deleted)
 		return err
 	}
 	return cr.Transactional(dbOps)

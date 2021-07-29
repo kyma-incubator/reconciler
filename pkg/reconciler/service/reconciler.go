@@ -272,7 +272,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			//marshal model
 			model, err := r.model(req)
 			if err != nil {
-				r.logger().Warn("Unmarshalling of model failed: %s", err)
+				r.logger().Warnf("Unmarshalling of model failed: %s", err)
 				r.sendResponse(w, http.StatusInternalServerError, err)
 				return
 			}

@@ -60,14 +60,14 @@ func (cb *RemoteCallbackHandler) Callback(status reconciler.Status) error {
 	if cb.debug {
 		dumpResp, dumpErr := httputil.DumpResponse(resp, true)
 		if err == nil {
-			cb.logger.Debug("Response dump: %s", string(dumpResp))
+			cb.logger.Debugf("Response dump: %s", string(dumpResp))
 		} else {
-			cb.logger.Error("Failed to dump response: %s", dumpErr)
+			cb.logger.Errorf("Failed to dump response: %s", dumpErr)
 		}
 	}
 
 	if err != nil {
-		cb.logger.Error("Status update request failed: %s", err)
+		cb.logger.Errorf("Status update request failed: %s", err)
 		return err
 	}
 

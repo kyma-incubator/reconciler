@@ -54,13 +54,13 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 
 	logger := r.logger()
 	if err == nil {
-		logger.Info("Reconciliation of component '%s' for version '%s' finished successfully",
+		logger.Infof("Reconciliation of component '%s' for version '%s' finished successfully",
 			model.Component, model.Version)
 		if err := statusUpdater.Success(); err != nil {
 			return err
 		}
 	} else {
-		logger.Warn("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
+		logger.Warnf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			model.Component, model.Version)
 		if err := statusUpdater.Error(); err != nil {
 			return err
@@ -84,26 +84,26 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	logger := r.logger()
 	if r.preInstallAction != nil {
 		if err := r.preInstallAction.Run(model.Version, clientSet); err != nil {
-			logger.Warn("Pre-installation action of version '%s' failed: %s", model.Version, err)
+			logger.Warnf("Pre-installation action of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	}
 
 	if r.installAction == nil {
 		if err := r.install(ctx, model, kubeClient); err != nil {
-			logger.Warn("Default-installation of version '%s' failed: %s", model.Version, err)
+			logger.Warnf("Default-installation of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	} else {
 		if err := r.installAction.Run(model.Version, clientSet); err != nil {
-			logger.Warn("Installation action of version '%s' failed: %s", model.Version, err)
+			logger.Warnf("Installation action of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	}
 
 	if r.postInstallAction != nil {
 		if err := r.postInstallAction.Run(model.Version, clientSet); err != nil {
-			logger.Warn("Post-installation action of version '%s' failed: %s", model.Version, err)
+			logger.Warnf("Post-installation action of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	}

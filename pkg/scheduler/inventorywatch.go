@@ -66,7 +66,7 @@ type DefaultInventoryWatcher struct {
 
 func (w *DefaultInventoryWatcher) Run(ctx context.Context, queue InventoryQueue) error {
 	ticker := time.NewTicker(w.config.WatchInterval)
-	w.logger.Debug("Start watching cluster inventory with an watch-interval of %.1f secs", w.config.WatchInterval.Seconds())
+	w.logger.Debugf("Start watching cluster inventory with an watch-interval of %.1f secs", w.config.WatchInterval.Seconds())
 	w.processClustersToReconcile(queue)
 	for {
 		select {
@@ -82,18 +82,18 @@ func (w *DefaultInventoryWatcher) Run(ctx context.Context, queue InventoryQueue)
 func (w *DefaultInventoryWatcher) processClustersToReconcile(queue InventoryQueue) {
 	clusterStates, err := w.inventory.ClustersToReconcile(w.config.ClusterReconcileInterval)
 	if err != nil {
-		w.logger.Error("Error while fetching clusters to reconcile from inventory (using reconcile interval of %.0f secs): %s",
+		w.logger.Errorf("Error while fetching clusters to reconcile from inventory (using reconcile interval of %.0f secs): %s",
 			w.config.ClusterReconcileInterval.Seconds(), err)
 		return
 	}
 
-	w.logger.Debug("Inventory watcher found %d clusters which require a reconciliation", len(clusterStates))
+	w.logger.Debugf("Inventory watcher found %d clusters which require a reconciliation", len(clusterStates))
 	for _, clusterState := range clusterStates {
 		if clusterState == nil {
 			w.logger.Debug("Nil cluster state when processing the list of clusters to reconcile")
 			continue
 		}
-		w.logger.Debug("Adding cluster '%s' to reconciliation queue", clusterState.Cluster.Cluster)
+		w.logger.Debugf("Adding cluster '%s' to reconciliation queue", clusterState.Cluster.Cluster)
 		queue <- *clusterState
 	}
 }

@@ -25,7 +25,7 @@ func NewLocalCallbackHandler(callbackFct func(status reconciler.Status) error, d
 func (cb *LocalCallbackHandler) Callback(status reconciler.Status) error {
 	err := cb.callbackFct(status)
 	if err != nil {
-		cb.logger.Error("Calling local callback function failed: %s", err)
+		cb.logger.Errorf("Calling local callback function failed: %s", err)
 	}
 	return err
 }

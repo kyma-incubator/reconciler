@@ -58,10 +58,10 @@ func (p *Provider) loggerAdapter() (*HydroformLoggerAdapter, error) {
 
 func (p *Provider) Manifests(compSet *ComponentSet, includeCRD bool, opts *Options) ([]*components.Manifest, error) {
 	//TODO: add caching check here
-	p.logger.Debug("Getting workspace for Kyma '%s'", compSet.version)
+	p.logger.Debugf("Getting workspace for Kyma '%s'", compSet.version)
 	ws, err := p.wsFactory.Get(compSet.version)
 	if err != nil {
-		p.logger.Warn("Failed to retrieve workspace for Kyma '%s': %s", compSet.version, err)
+		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s': %s", compSet.version, err)
 		return nil, err
 	}
 
@@ -141,7 +141,7 @@ func (p *Provider) render(compSet *ComponentSet, renderCrds bool, ws *workspace.
 func (p *Provider) componentList(comps []*Component) *config.ComponentList {
 	compList := &config.ComponentList{}
 	for _, comp := range comps {
-		p.logger.Debug("Adding component '%s' with namespace '%s' to rendering scope",
+		p.logger.Debugf("Adding component '%s' with namespace '%s' to rendering scope",
 			comp.name, comp.namespace)
 		compList.Components = append(compList.Components, config.ComponentDefinition{
 			Name:      comp.name,

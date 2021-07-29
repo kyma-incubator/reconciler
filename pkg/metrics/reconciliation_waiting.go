@@ -45,7 +45,7 @@ func (c *ReconciliationWaitingCollector) Collect(ch chan<- prometheus.Metric) {
 
 	m, err := prometheus.NewConstMetric(c.waitingClustersDesc, prometheus.GaugeValue, float64(len(clusters)))
 	if err != nil {
-		c.logger.Error("unable to register metric %s", err.Error())
+		c.logger.Errorf("unable to register metric %s", err.Error())
 		return
 	}
 

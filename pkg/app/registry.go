@@ -78,7 +78,7 @@ func (or *ApplicationRegistry) initRepository() (*kv.Repository, error) {
 	}
 	repository, err = kv.NewRepository(or.connectionFactory, or.debug)
 	if err != nil {
-		or.logger.Error("Failed to create configuration entry repository: %s", err)
+		or.logger.Errorf("Failed to create configuration entry repository: %s", err)
 		return nil, err
 	}
 
