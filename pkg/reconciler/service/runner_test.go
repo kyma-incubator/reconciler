@@ -9,7 +9,7 @@ import (
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
-	workspace2 "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	ws "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -26,7 +26,7 @@ const (
 	fakeComponent         = "component-1"
 )
 
-var wsf = &workspace2.Factory{
+var wsf = &ws.Factory{
 	StorageDir: "./test",
 	Debug:      true,
 }

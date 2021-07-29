@@ -1,12 +1,13 @@
 package kubernetes
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
-	"k8s.io/client-go/kubernetes"
 	"path/filepath"
 	"testing"
+
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes"
 )
 
 func TestKubernetesClient(t *testing.T) {
@@ -15,24 +16,22 @@ func TestKubernetesClient(t *testing.T) {
 	}
 
 	//create client
-	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t))
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), true)
 	require.NoError(t, err)
 
 	t.Run("Deploy and delete resources", func(t *testing.T) {
 		manifest := readManifest(t)
 		//deploy
 		t.Log("Deploying test resources")
-		require.NoError(t, kubeClient.Deploy(manifest))
+		resources, err := kubeClient.Deploy(manifest)
+		require.NoError(t, err)
 		//cleanup
 		defer func() {
 			t.Log("Cleanup test resources")
 			require.NoError(t, kubeClient.Delete(manifest))
 		}()
 
-		// 6 resource deployed
-		resources, err := kubeClient.DeployedResources(manifest)
-		require.NoError(t, err)
-		require.ElementsMatch(t, []Resource{
+		require.ElementsMatch(t, []*Resource{
 			{
 				Kind:      "Deployment",
 				Name:      "unittest-deployment",

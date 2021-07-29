@@ -71,7 +71,7 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 }
 
 func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation) error {
-	kubeClient, err := kubernetes.NewKubernetesClient(model.Kubeconfig)
+	kubeClient, err := kubernetes.NewKubernetesClient(model.Kubeconfig, r.debug)
 	if err != nil {
 		return err
 	}
@@ -117,12 +117,14 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 		return err
 	}
 
-	if err := kubeClient.Deploy(manifest); err != nil {
+	resources, err := kubeClient.Deploy(manifest)
+
+	if err != nil {
 		r.logger().Warnf("Failed to deploy manifests on target cluster: %s", err)
 		return err
 	}
 
-	return r.trackProgress(ctx, manifest, kubeClient) //blocking call
+	return r.trackProgress(ctx, kubeClient, resources) //blocking call
 }
 
 func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error) {
@@ -148,7 +150,7 @@ func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error
 	return buffer.String(), nil
 }
 
-func (r *runner) trackProgress(ctx context.Context, manifest string, kubeClient kubernetes.Client) error {
+func (r *runner) trackProgress(ctx context.Context, kubeClient kubernetes.Client, resources []*kubernetes.Resource) error {
 	clientSet, err := kubeClient.Clientset()
 	if err != nil {
 		return err
@@ -162,10 +164,6 @@ func (r *runner) trackProgress(ctx context.Context, manifest string, kubeClient 
 		return err
 	}
 	//watch progress of installed resources
-	resources, err := kubeClient.DeployedResources(manifest)
-	if err != nil {
-		return err
-	}
 	for _, resource := range resources {
 		watchable, err := progress.NewWatchableResource(resource.Kind) //convert "kind" to watchable
 		if err != nil {

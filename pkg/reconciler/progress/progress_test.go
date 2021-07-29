@@ -19,7 +19,7 @@ func TestProgressTracker(t *testing.T) {
 	}
 
 	//create Kubernetes client
-	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t))
+	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), true)
 	require.NoError(t, err)
 
 	//get client set
@@ -37,7 +37,9 @@ func TestProgressTracker(t *testing.T) {
 
 	//install test resources
 	t.Log("Deploying test resources")
-	require.NoError(t, kubeClient.Deploy(manifest))
+	resources, err := kubeClient.Deploy(manifest)
+	require.NoError(t, err)
+	require.Len(t, resources, 6)
 	defer func() {
 		t.Log("Cleanup test resources")
 		require.NoError(t, kubeClient.Delete(manifest))
@@ -51,7 +53,7 @@ func TestProgressTracker(t *testing.T) {
 			Config{Interval: 1 * time.Second, Timeout: 2 * time.Second})
 		require.NoError(t, err)
 
-		addWatchable(t, manifest, pt, kubeClient)
+		addWatchable(t, resources, pt)
 
 		err = pt.Watch()
 		require.Error(t, err)
@@ -64,7 +66,7 @@ func TestProgressTracker(t *testing.T) {
 			Config{Interval: 1 * time.Second, Timeout: 35 * time.Second})
 		require.NoError(t, err)
 
-		addWatchable(t, manifest, pt, kubeClient)
+		addWatchable(t, resources, pt)
 
 		//depending on bandwidth, the installation should be finished latest after 30sec
 		startTime := time.Now()
@@ -73,11 +75,7 @@ func TestProgressTracker(t *testing.T) {
 	})
 }
 
-func addWatchable(t *testing.T, manifest string, pt *Tracker, kubeClient k8s.Client) {
-	//watch created resources
-	resources, err := kubeClient.DeployedResources(manifest)
-	require.NoError(t, err)
-
+func addWatchable(t *testing.T, resources []*k8s.Resource, pt *Tracker) {
 	var cntWatchable int
 	for _, resource := range resources {
 		watchable, err := NewWatchableResource(resource.Kind)
