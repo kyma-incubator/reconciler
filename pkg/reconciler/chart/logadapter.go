@@ -18,25 +18,25 @@ type HydroformLoggerAdapter struct {
 }
 
 func (l *HydroformLoggerAdapter) Info(args ...interface{}) {
-	l.logger.Info("%v", args)
+	l.logger.Info(args)
 }
 func (l *HydroformLoggerAdapter) Infof(template string, args ...interface{}) {
 	l.logger.Info(template, args)
 }
 func (l *HydroformLoggerAdapter) Warn(args ...interface{}) {
-	l.logger.Warn("%v", args)
+	l.logger.Warn(args)
 }
 func (l *HydroformLoggerAdapter) Warnf(template string, args ...interface{}) {
 	l.logger.Warn(template, args)
 }
 func (l *HydroformLoggerAdapter) Error(args ...interface{}) {
-	l.logger.Error("%v", args)
+	l.logger.Error(args)
 }
 func (l *HydroformLoggerAdapter) Errorf(template string, args ...interface{}) {
 	l.logger.Error(template, args)
 }
 func (l *HydroformLoggerAdapter) Fatal(args ...interface{}) {
-	l.logger.Fatal("%v", args)
+	l.logger.Fatal(args)
 }
 func (l *HydroformLoggerAdapter) Fatalf(template string, args ...interface{}) {
 	l.logger.Fatal(template, args)

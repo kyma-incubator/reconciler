@@ -91,9 +91,9 @@ func initViper(o *cli.Options) func() {
 
 		viper.SetConfigFile(cfgFile)
 		if err := viper.ReadInConfig(); err == nil {
-			o.Logger().Debug("Using configuration file '%s'", viper.ConfigFileUsed())
+			o.Logger().Debugf("Using configuration file '%s'", viper.ConfigFileUsed())
 		} else {
-			o.Logger().Error("Failed to read configuration file '%s': %s", cfgFile, err)
+			o.Logger().Errorf("Failed to read configuration file '%s': %s", cfgFile, err)
 		}
 	}
 }

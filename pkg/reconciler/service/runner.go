@@ -118,7 +118,7 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 	}
 
 	if err := kubeClient.Deploy(manifest); err != nil {
-		r.logger().Warn("Failed to deploy manifests on target cluster: %s", err)
+		r.logger().Warnf("Failed to deploy manifests on target cluster: %s", err)
 		return err
 	}
 
@@ -134,10 +134,10 @@ func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error
 	}
 
 	var buffer bytes.Buffer
-	r.logger().Debug("Rendering of component '%s' returned %d manifests", model.Component, len(manifests))
+	r.logger().Debugf("Rendering of component '%s' returned %d manifests", model.Component, len(manifests))
 	for _, manifest := range manifests {
 		if !model.InstallCRD && manifest.Type == components.CRD {
-			r.logger().Error("Illegal state detected! "+
+			r.logger().Errorf("Illegal state detected! "+
 				"No CRDs were requested but chartProvider returned CRD manifest: '%s'", manifest.Name)
 		}
 		buffer.WriteString("---\n")
@@ -169,7 +169,7 @@ func (r *runner) trackProgress(ctx context.Context, manifest string, kubeClient 
 	for _, resource := range resources {
 		watchable, err := progress.NewWatchableResource(resource.Kind) //convert "kind" to watchable
 		if err != nil {
-			r.logger().Debug("Ignoring non-watchable resource: %s", resource)
+			r.logger().Debugf("Ignoring non-watchable resource: %s", resource)
 			continue //not watchable resource: ignore it
 		}
 		pt.AddResource(

@@ -27,7 +27,7 @@ func (s *Webserver) logger() *zap.SugaredLogger {
 }
 
 func (s *Webserver) Start(ctx context.Context) error {
-	s.logger().Info("Webserver starting and listening on port %d", s.Port)
+	s.logger().Infof("Webserver starting and listening on port %d", s.Port)
 	s.startServer(s.Router)
 	<-ctx.Done()
 	s.logger().Info("Webserver stopping (context got closed)")
@@ -45,7 +45,7 @@ func (s *Webserver) startServer(router *mux.Router) {
 			err = s.server.ListenAndServe()
 		}
 		if err != nil && err != http.ErrServerClosed {
-			s.logger().Error("Webserver startup failed: %s", err)
+			s.logger().Errorf("Webserver startup failed: %s", err)
 		}
 	}()
 }
@@ -61,7 +61,7 @@ func (s *Webserver) stopServer() error {
 	if err == nil {
 		s.logger().Info("Webserver gracefully stopped")
 	} else {
-		s.logger().Error("Webserver shutdown failed: %s", err)
+		s.logger().Errorf("Webserver shutdown failed: %s", err)
 	}
 	return err
 }

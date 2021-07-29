@@ -239,7 +239,7 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
 	}
 
 	//start worker pool
-	r.logger().Info("Starting worker pool with %d workers", r.workers)
+	r.logger().Infof("Starting worker pool with %d workers", r.workers)
 	workerPool, err := ants.NewPool(r.workers, ants.WithNonblocking(true))
 	if err != nil {
 		return err
@@ -276,7 +276,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 				r.sendResponse(w, http.StatusInternalServerError, err)
 				return
 			}
-			r.logger().Debug("Model unmarshalled: %s", model)
+			r.logger().Debugf("Model unmarshalled: %s", model)
 
 			//validate model
 			if err := model.Validate(); err != nil {
@@ -287,7 +287,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			//check whether all dependencies are fulfilled
 			depMissing := r.dependenciesMissing(model)
 			if len(depMissing) > 0 {
-				r.logger().Debug("Found missing component dependencies: %s", strings.Join(depMissing, ", "))
+				r.logger().Debugf("Found missing component dependencies: %s", strings.Join(depMissing, ", "))
 				r.sendResponse(w, http.StatusPreconditionRequired, reconciler.HTTPMissingDependenciesResponse{
 					Dependencies: struct {
 						Required []string
@@ -300,24 +300,24 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			//create callback handler
 			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.debug)
 			if err != nil {
-				r.logger().Warn("Could not create remote callback handler: %s", err)
+				r.logger().Warnf("Could not create remote callback handler: %s", err)
 				r.sendResponse(w, http.StatusInternalServerError, err)
 				return
 			}
 
 			//assign runner to worker
 			err = workerPool.Submit(func() {
-				r.logger().Debug("Runner for model '%s' is assigned to worker", model)
+				r.logger().Debugf("Runner for model '%s' is assigned to worker", model)
 				runnerFct := r.newRunnerFct(ctx, model, remoteCbh)
 				if errRunner := runnerFct(); errRunner != nil {
-					r.logger().Warn("Runner failed for model '%s': %v", model, errRunner)
+					r.logger().Warnf("Runner failed for model '%s': %v", model, errRunner)
 					return
 				}
 			})
 
 			//check if execution of worker was successful
 			if err != nil {
-				r.logger().Warn("Runner for model '%s' could not be assigned to worker: %s", model, err)
+				r.logger().Warnf("Runner for model '%s' could not be assigned to worker: %s", model, err)
 				r.sendResponse(w, http.StatusInternalServerError, err)
 				return
 			}
@@ -348,7 +348,7 @@ func (r *ComponentReconciler) dependenciesMissing(model *reconciler.Reconciliati
 }
 
 func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {
-	r.logger().Debug("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds())
+	r.logger().Debugf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds())
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 		defer cancel()
@@ -365,7 +365,7 @@ func (r *ComponentReconciler) sendResponse(w http.ResponseWriter, httpCode int, 
 	w.WriteHeader(httpCode)
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		r.logger().Warn("Failed to encode response payload to JSON: %s", err)
+		r.logger().Warnf("Failed to encode response payload to JSON: %s", err)
 		//send error response
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, "Failed to encode response payload to JSON", http.StatusInternalServerError)

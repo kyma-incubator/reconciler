@@ -48,11 +48,11 @@ func (a *TestAction) Run(version string, kubeClient *kubernetes.Clientset) error
 		return fmt.Errorf("kubeClient is expected but was nil")
 	}
 
-	a.logger().Debug("Action '%s': received version '%s'", a.name, version)
+	a.logger().Debugf("Action '%s': received version '%s'", a.name, version)
 	a.receivedVersion = version
 
 	if a.delay > 0 {
-		a.logger().Debug("Action '%s': simulating delay of %v secs", a.name, a.delay.Seconds())
+		a.logger().Debugf("Action '%s': simulating delay of %v secs", a.name, a.delay.Seconds())
 		time.Sleep(a.delay)
 	}
 
@@ -60,7 +60,7 @@ func (a *TestAction) Run(version string, kubeClient *kubernetes.Clientset) error
 		if !a.failAlways {
 			a.fail = false //in next retry it won't fail again
 		}
-		a.logger().Debug("Action '%s': simulating error", a.name)
+		a.logger().Debugf("Action '%s': simulating error", a.name)
 		return fmt.Errorf("action '%s' is failing", a.name)
 	}
 

@@ -94,7 +94,7 @@ func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 	collector := metrics.NewReconciliationStatusCollector()
 	or.inventory, err = cluster.NewInventory(or.connectionFactory, or.debug, collector)
 	if err != nil {
-		or.logger.Error("Failed to create cluster inventory: %s", err)
+		or.logger.Errorf("Failed to create cluster inventory: %s", err)
 		return nil, err
 	}
 
