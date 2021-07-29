@@ -51,12 +51,12 @@ func (su *Config) validate() error {
 
 type Updater struct {
 	ctx             context.Context
-	restartInterval chan bool         //trigger for callback-handler to inform reconciler-controller
-	callback        cb.Handler        //callback-handler which trigger the callback logic to inform reconciler-controller
-	status          reconciler.Status //current status
+	ctxClosed       bool //indicate whether the process was interrupted by parent context
 	debug           bool
-	ctxClosed       bool //indicate whether the process was interrupted from outside
 	config          Config
+	status          reconciler.Status //current status
+	callback        cb.Handler        //callback-handler which trigger the callback logic to inform reconciler-controller
+	restartInterval chan bool         //trigger for callback-handler to inform reconciler-controller
 	m               sync.Mutex
 }
 
