@@ -53,7 +53,7 @@ func TestProgressTracker(t *testing.T) {
 			Config{Interval: 1 * time.Second, Timeout: 2 * time.Second})
 		require.NoError(t, err)
 
-		addWatchable(t, resources, pt, kubeClient)
+		addWatchable(t, resources, pt)
 
 		err = pt.Watch()
 		require.Error(t, err)
@@ -66,7 +66,7 @@ func TestProgressTracker(t *testing.T) {
 			Config{Interval: 1 * time.Second, Timeout: 35 * time.Second})
 		require.NoError(t, err)
 
-		addWatchable(t, resources, pt, kubeClient)
+		addWatchable(t, resources, pt)
 
 		//depending on bandwidth, the installation should be finished latest after 30sec
 		startTime := time.Now()
@@ -75,7 +75,7 @@ func TestProgressTracker(t *testing.T) {
 	})
 }
 
-func addWatchable(t *testing.T, resources []*k8s.Resource, pt *Tracker, kubeClient k8s.Client) {
+func addWatchable(t *testing.T, resources []*k8s.Resource, pt *Tracker) {
 	var cntWatchable int
 	for _, resource := range resources {
 		watchable, err := NewWatchableResource(resource.Kind)

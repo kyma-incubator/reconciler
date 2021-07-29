@@ -118,7 +118,7 @@ func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInte
 			//add deploy resource to result
 			g.logger.Debug(fmt.Sprintf("Kubernetes resource '%v' successfully deployed", resource))
 			deployedResources = append(deployedResources, resource)
-		case err, _ := <-chanErr:
+		case err := <-chanErr:
 			//stop processing in any error case
 			return deployedResources, err
 		}
