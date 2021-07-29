@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"fmt"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -40,9 +41,14 @@ func (cb *ClientBuilder) Build() (*kubernetes.Clientset, error) {
 	}
 	config, err := clientcmd.RESTConfigFromKubeConfig(cb.kubeconfig)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err,
+			fmt.Sprintf("failed to create Kubernetes client configuration using provided kubeconfig: %s", cb.kubeconfig))
 	}
-	return kubernetes.NewForConfig(config)
+	clientSet, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create Kubernetes clientset by using provided REST-configuration")
+	}
+	return clientSet, err
 }
 
 func (cb *ClientBuilder) loadFile(filePath string) ([]byte, error) {
