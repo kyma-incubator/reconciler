@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func TransactionResult(conn Connection, dbOps func() (interface{}, error), logger *zap.Logger) (interface{}, error) {
+func TransactionResult(conn Connection, dbOps func() (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
 	log := func(msg string) {
 		if logger != nil {
 			logger.Debug(msg)
@@ -32,7 +32,7 @@ func TransactionResult(conn Connection, dbOps func() (interface{}, error), logge
 	return result, tx.Commit()
 }
 
-func Transaction(conn Connection, dbOps func() error, logger *zap.Logger) error {
+func Transaction(conn Connection, dbOps func() error, logger *zap.SugaredLogger) error {
 	dbOpsAdapter := func() (interface{}, error) {
 		return nil, dbOps()
 	}

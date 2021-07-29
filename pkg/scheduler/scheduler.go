@@ -20,7 +20,7 @@ type Scheduler interface {
 type RemoteScheduler struct {
 	inventoryWatch InventoryWatcher
 	poolSize       int
-	logger         *zap.Logger
+	logger         *zap.SugaredLogger
 }
 
 func NewRemoteScheduler(inventoryWatch InventoryWatcher, workers int, debug bool) (Scheduler, error) {
@@ -52,7 +52,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 
 	queue := make(chan cluster.State, rs.poolSize)
 
-	rs.logger.Debug("Starting worker pool with capacity %d workers")
+	rs.logger.Debugf("Starting worker pool with capacity %d workers")
 	workersPool, err := ants.NewPoolWithFunc(rs.poolSize, func(i interface{}) {
 		rs.Worker(i.(cluster.State))
 	})
@@ -62,7 +62,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 
 	go func(ctx context.Context, queue chan cluster.State) {
 		if err := rs.inventoryWatch.Run(ctx, queue); err != nil {
-			rs.logger.Error(fmt.Sprintf("Failed to run inventory watch: %s", err))
+			rs.logger.Errorf("Failed to run inventory watch: %s", err)
 		}
 	}(ctx, queue)
 
@@ -71,7 +71,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 		case cluster := <-queue:
 			go func(workersPool *ants.PoolWithFunc) {
 				if err := workersPool.Invoke(cluster); err != nil {
-					rs.logger.Error(fmt.Sprintf("Failed to pass cluster to cluster-pool worker: %s", err))
+					rs.logger.Errorf("Failed to pass cluster to cluster-pool worker: %s", err)
 				}
 			}(workersPool)
 		case <-ctx.Done():

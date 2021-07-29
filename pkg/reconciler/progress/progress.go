@@ -59,7 +59,7 @@ type Tracker struct {
 	client   *kubernetes.Clientset
 	interval time.Duration
 	timeout  time.Duration
-	logger   *zap.Logger
+	logger   *zap.SugaredLogger
 }
 
 func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug bool, config Config) (*Tracker, error) {
@@ -90,7 +90,7 @@ func (pt *Tracker) Watch() error {
 	//initial installation status check
 	ready, err := pt.isReady()
 	if err != nil {
-		pt.logger.Warn(fmt.Sprintf("Failed to verify initial Kubernetes resource installation status: %v", err))
+		pt.logger.Warnf("Failed to verify initial Kubernetes resource installation status: %v", err)
 	}
 	if ready {
 		//we are already done
@@ -106,8 +106,8 @@ func (pt *Tracker) Watch() error {
 		case <-readyCheck.C:
 			ready, err := pt.isReady()
 			if err != nil {
-				pt.logger.Warn(fmt.Sprintf("Failed to check Kubernetes resource installation progress but will "+
-					"retry until timeout is reached: %s", err))
+				pt.logger.Warnf("Failed to check Kubernetes resource installation progress but will "+
+					"retry until timeout is reached: %s", err)
 			}
 			if ready {
 				readyCheck.Stop()
@@ -151,9 +151,9 @@ func (pt *Tracker) isReady() (bool, error) {
 		case Job:
 			componentIsReady, err = pt.jobIsReady(object)
 		}
-		pt.logger.Debug(fmt.Sprintf("%s resource '%s:%s' is ready: %t", object.kind, object.name, object.namespace, componentIsReady))
+		pt.logger.Debugf("%s resource '%s:%s' is ready: %t", object.kind, object.name, object.namespace, componentIsReady)
 		if err != nil {
-			pt.logger.Error(fmt.Sprintf("Failed to retrieve installation progress of %v: %s", object, err))
+			pt.logger.Errorf("Failed to retrieve installation progress of %v: %s", object, err)
 			return false, err
 		}
 		if !componentIsReady { //at least one component is not ready

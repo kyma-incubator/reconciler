@@ -16,8 +16,10 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
+	github.com/jonboulle/clockwork v0.1.0
 	github.com/kyma-incubator/hydroform/parallel-install v0.0.0-20210721145627-d414c11beeca
 	github.com/lib/pq v1.10.0
+	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/olekukonko/tablewriter v0.0.5
@@ -32,5 +34,9 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
+	k8s.io/cli-runtime v0.20.2
 	k8s.io/client-go v0.20.2
+	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
+	k8s.io/kubectl v0.20.2
+	sigs.k8s.io/yaml v1.2.0
 )

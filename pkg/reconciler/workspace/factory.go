@@ -19,6 +19,7 @@ const (
 	resDir               = "resources"
 	instResDir           = "installation/resources"
 	componentFile        = "installation/resources/components.yaml"
+	successFile          = "success.yaml"
 )
 
 type Workspace struct {
@@ -32,7 +33,7 @@ type Factory struct {
 	StorageDir    string
 	RepositoryURL string
 	mutex         sync.Mutex
-	logger        *zap.Logger
+	logger        *zap.SugaredLogger
 	workspaceDir  string
 }
 
@@ -69,9 +70,10 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 		return nil, err
 	}
 
+	sFile := filepath.Join(f.workspaceDir, successFile)
 	//ensure Kyma sources are available
-	if !file.DirExists(f.workspaceDir) {
-		f.logger.Info(fmt.Sprintf("Creating new workspace directory '%s' ", f.workspaceDir))
+	if !file.Exists(sFile) {
+		f.logger.Infof("Creating new workspace directory '%s' ", f.workspaceDir)
 		if err := f.clone(version, f.workspaceDir); err != nil {
 			return nil, err
 		}
@@ -89,19 +91,25 @@ func (f *Factory) clone(version, dstDir string) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
-	if file.DirExists(dstDir) {
+	sFile := filepath.Join(dstDir, successFile)
+	if file.Exists(sFile) {
 		//race condition protection: it could happen that a previous go-routing was also triggering the clone of the Kyma version
 		return nil
 	}
+	if file.DirExists(dstDir) {
+		//if workspace exists but there is no success file, it is probably corrupted, so delete it
+		f.logger.Warnf("Deleting workspace '%s' because GIT clone does not contain all the required files", dstDir)
+		if err := os.RemoveAll(dstDir); err != nil {
+			return err
+		}
+	}
 
 	//clone sources
-	f.logger.Info(
-		fmt.Sprintf("Start cloning repository '%s' with revision '%s' into workspace '%s'",
-			f.RepositoryURL, version, dstDir))
+	f.logger.Infof("Start cloning repository '%s' with revision '%s' into workspace '%s'",
+		f.RepositoryURL, version, dstDir)
 	if err := git.CloneRepo(f.RepositoryURL, dstDir, version); err != nil {
-		f.logger.Warn(
-			fmt.Sprintf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
-				dstDir, f.RepositoryURL, version))
+		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
+			dstDir, f.RepositoryURL, version)
 		if removeErr := f.Delete(version); removeErr != nil {
 			err = errors.Wrap(err, removeErr.Error())
 		}
@@ -119,6 +127,13 @@ func (f *Factory) clone(version, dstDir string) error {
 		return fmt.Errorf("required component file '%s' is missing in Kyma version '%s'", reqFile, version)
 	}
 
+	//create a marker file to flag success
+	file, err := os.Create(sFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
 	//clone ready for use
 	return nil
 }
@@ -127,10 +142,10 @@ func (f *Factory) Delete(version string) error {
 	if err := f.validate(version); err != nil {
 		return err
 	}
-	f.logger.Debug(fmt.Sprintf("Deleting workspace '%s'", f.workspaceDir))
+	f.logger.Debugf("Deleting workspace '%s'", f.workspaceDir)
 	err := os.RemoveAll(f.workspaceDir)
 	if err != nil {
-		f.logger.Warn(fmt.Sprintf("Failed to delete workspace '%s': %s", f.workspaceDir, err))
+		f.logger.Warnf("Failed to delete workspace '%s': %s", f.workspaceDir, err)
 	}
 	return err
 }
