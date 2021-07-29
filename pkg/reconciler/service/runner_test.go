@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	workspace2 "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"testing"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -38,7 +39,7 @@ type TestAction struct {
 	failAlways      bool
 }
 
-func (a *TestAction) logger() *zap.Logger {
+func (a *TestAction) logger() *zap.SugaredLogger {
 	return logger.NewOptionalLogger(true)
 }
 
@@ -47,11 +48,11 @@ func (a *TestAction) Run(version string, kubeClient *kubernetes.Clientset) error
 		return fmt.Errorf("kubeClient is expected but was nil")
 	}
 
-	a.logger().Debug(fmt.Sprintf("Action '%s': received version '%s'", a.name, version))
+	a.logger().Debugf("Action '%s': received version '%s'", a.name, version)
 	a.receivedVersion = version
 
 	if a.delay > 0 {
-		a.logger().Debug(fmt.Sprintf("Action '%s': simulating delay of %v secs", a.name, a.delay.Seconds()))
+		a.logger().Debugf("Action '%s': simulating delay of %v secs", a.name, a.delay.Seconds())
 		time.Sleep(a.delay)
 	}
 
@@ -59,8 +60,8 @@ func (a *TestAction) Run(version string, kubeClient *kubernetes.Clientset) error
 		if !a.failAlways {
 			a.fail = false //in next retry it won't fail again
 		}
-		a.logger().Debug(fmt.Sprintf("Action '%s': simulating error", a.name))
-		return fmt.Errorf(fmt.Sprintf("action '%s' is failing", a.name))
+		a.logger().Debugf("Action '%s': simulating error", a.name)
+		return fmt.Errorf("action '%s' is failing", a.name)
 	}
 
 	return nil

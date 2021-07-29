@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -53,16 +54,14 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 
 	logger := r.logger()
 	if err == nil {
-		logger.Info(
-			fmt.Sprintf("Reconciliation of component '%s' for version '%s' finished successfully",
-				model.Component, model.Version))
+		logger.Infof("Reconciliation of component '%s' for version '%s' finished successfully",
+			model.Component, model.Version)
 		if err := statusUpdater.Success(); err != nil {
 			return err
 		}
 	} else {
-		logger.Warn(
-			fmt.Sprintf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
-				model.Component, model.Version))
+		logger.Warnf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
+			model.Component, model.Version)
 		if err := statusUpdater.Error(); err != nil {
 			return err
 		}
@@ -85,30 +84,26 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	logger := r.logger()
 	if r.preInstallAction != nil {
 		if err := r.preInstallAction.Run(model.Version, clientSet); err != nil {
-			logger.Warn(
-				fmt.Sprintf("Pre-installation action of version '%s' failed: %s", model.Version, err))
+			logger.Warnf("Pre-installation action of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	}
 
 	if r.installAction == nil {
 		if err := r.install(ctx, model, kubeClient); err != nil {
-			logger.Warn(
-				fmt.Sprintf("Default-installation of version '%s' failed: %s", model.Version, err))
+			logger.Warnf("Default-installation of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	} else {
 		if err := r.installAction.Run(model.Version, clientSet); err != nil {
-			logger.Warn(
-				fmt.Sprintf("Installation action of version '%s' failed: %s", model.Version, err))
+			logger.Warnf("Installation action of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	}
 
 	if r.postInstallAction != nil {
 		if err := r.postInstallAction.Run(model.Version, clientSet); err != nil {
-			logger.Warn(
-				fmt.Sprintf("Post-installation action of version '%s' failed: %s", model.Version, err))
+			logger.Warnf("Post-installation action of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	}
@@ -123,7 +118,7 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 	}
 
 	if err := kubeClient.Deploy(manifest); err != nil {
-		r.logger().Warn(fmt.Sprintf("Failed to deploy manifests on target cluster: %s", err))
+		r.logger().Warnf("Failed to deploy manifests on target cluster: %s", err)
 		return err
 	}
 
@@ -139,11 +134,11 @@ func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error
 	}
 
 	var buffer bytes.Buffer
-	r.logger().Debug(fmt.Sprintf("Rendering of component '%s' returned %d manifests", model.Component, len(manifests)))
+	r.logger().Debugf("Rendering of component '%s' returned %d manifests", model.Component, len(manifests))
 	for _, manifest := range manifests {
 		if !model.InstallCRD && manifest.Type == components.CRD {
-			r.logger().Error(fmt.Sprintf("Illegal state detected! "+
-				"No CRDs were requested but chartProvider returned CRD manifest: '%s'", manifest.Name))
+			r.logger().Errorf("Illegal state detected! "+
+				"No CRDs were requested but chartProvider returned CRD manifest: '%s'", manifest.Name)
 		}
 		buffer.WriteString("---\n")
 		buffer.WriteString(fmt.Sprintf("# Manifest of %s '%s'\n", manifest.Type, model.Component))
@@ -174,7 +169,7 @@ func (r *runner) trackProgress(ctx context.Context, manifest string, kubeClient 
 	for _, resource := range resources {
 		watchable, err := progress.NewWatchableResource(resource.Kind) //convert "kind" to watchable
 		if err != nil {
-			r.logger().Debug(fmt.Sprintf("Ignoring non-watchable resource: %s", resource))
+			r.logger().Debugf("Ignoring non-watchable resource: %s", resource)
 			continue //not watchable resource: ignore it
 		}
 		pt.AddResource(

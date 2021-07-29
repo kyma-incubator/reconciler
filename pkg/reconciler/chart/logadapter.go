@@ -1,13 +1,11 @@
 package chart
 
 import (
-	"fmt"
-
 	"go.uber.org/zap"
 )
 
 //NewHydroformLoggerAdapter adapts a ZAP logger to a Hydrofrom compatible logger
-func NewHydroformLoggerAdapter(logger *zap.Logger) *HydroformLoggerAdapter {
+func NewHydroformLoggerAdapter(logger *zap.SugaredLogger) *HydroformLoggerAdapter {
 	return &HydroformLoggerAdapter{
 		logger: logger,
 	}
@@ -16,30 +14,30 @@ func NewHydroformLoggerAdapter(logger *zap.Logger) *HydroformLoggerAdapter {
 //HydroformLoggerAdapter is implementing the logger interface of Hydroform
 //to make it compatible with the ZAP logger API.
 type HydroformLoggerAdapter struct {
-	logger *zap.Logger
+	logger *zap.SugaredLogger
 }
 
 func (l *HydroformLoggerAdapter) Info(args ...interface{}) {
-	l.logger.Info(fmt.Sprintf("%v", args))
+	l.logger.Info(args)
 }
 func (l *HydroformLoggerAdapter) Infof(template string, args ...interface{}) {
-	l.logger.Info(fmt.Sprintf(template, args...))
+	l.logger.Infof(template, args...)
 }
 func (l *HydroformLoggerAdapter) Warn(args ...interface{}) {
-	l.logger.Warn(fmt.Sprintf("%v", args...))
+	l.logger.Warn(args)
 }
 func (l *HydroformLoggerAdapter) Warnf(template string, args ...interface{}) {
-	l.logger.Warn(fmt.Sprintf(template, args...))
+	l.logger.Warnf(template, args...)
 }
 func (l *HydroformLoggerAdapter) Error(args ...interface{}) {
-	l.logger.Error(fmt.Sprintf("%v", args))
+	l.logger.Error(args)
 }
 func (l *HydroformLoggerAdapter) Errorf(template string, args ...interface{}) {
-	l.logger.Error(fmt.Sprintf(template, args...))
+	l.logger.Errorf(template, args...)
 }
 func (l *HydroformLoggerAdapter) Fatal(args ...interface{}) {
-	l.logger.Fatal(fmt.Sprintf("%v", args))
+	l.logger.Fatal(args)
 }
 func (l *HydroformLoggerAdapter) Fatalf(template string, args ...interface{}) {
-	l.logger.Fatal(fmt.Sprintf(template, args...))
+	l.logger.Fatalf(template, args...)
 }

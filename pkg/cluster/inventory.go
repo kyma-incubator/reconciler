@@ -93,7 +93,7 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	oldClusterEntity, err := i.latestCluster(cluster.Cluster)
 	if err == nil {
 		if oldClusterEntity.Equal(newClusterEntity) { //reuse existing cluster entity
-			i.Logger.Debug(fmt.Sprintf("No differences found for cluster '%s': not creating new database entity", cluster.Cluster))
+			i.Logger.Debugf("No differences found for cluster '%s': not creating new database entity", cluster.Cluster)
 			return oldClusterEntity, nil
 		}
 	} else if !repository.IsNotFoundError(err) {
@@ -137,8 +137,7 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	oldConfigEntity, err := i.latestConfig(clusterEntity.Version)
 	if err == nil {
 		if oldConfigEntity.Equal(newConfigEntity) { //reuse existing config entity
-			i.Logger.Debug(
-				fmt.Sprintf("No differences found for configuration of cluster '%s': not creating new database entity", cluster.Cluster))
+			i.Logger.Debugf("No differences found for configuration of cluster '%s': not creating new database entity", cluster.Cluster)
 			return oldConfigEntity, nil
 		}
 	} else if !repository.IsNotFoundError(err) {
@@ -171,8 +170,7 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 	oldStatusEntity, err := i.latestStatus(configEntity.Version)
 	if err == nil {
 		if oldStatusEntity.Equal(newStatusEntity) { //reuse existing status entity
-			i.Logger.Debug(
-				fmt.Sprintf("No differences found for status of cluster '%s': not creating new database entity", configEntity.Cluster))
+			i.Logger.Debugf("No differences found for status of cluster '%s': not creating new database entity", configEntity.Cluster)
 			return oldStatusEntity, nil
 		}
 	} else if !repository.IsNotFoundError(err) {

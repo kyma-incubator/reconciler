@@ -13,7 +13,7 @@ type Options struct {
 	Verbose        bool
 	NonInteractive bool
 	OutputFormat   string
-	logger         *zap.Logger
+	logger         *zap.SugaredLogger
 	Registry       *app.ApplicationRegistry //will be initialized during CLI bootstrap in main.go
 }
 
@@ -31,7 +31,7 @@ func (o *Options) Validate() error {
 	return fmt.Errorf("Output format '%s' not supported - choose between '%s'", o.OutputFormat, strings.Join(SupportedOutputFormats, "', '"))
 }
 
-func (o *Options) Logger() *zap.Logger {
+func (o *Options) Logger() *zap.SugaredLogger {
 	if o.logger == nil {
 		logger, err := logger.NewLogger(o.Verbose)
 		if err != nil {
