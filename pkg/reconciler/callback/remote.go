@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"go.uber.org/zap"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"go.uber.org/zap"
 )
 
 type RemoteCallbackHandler struct {
-	logger      *zap.Logger
+	logger      *zap.SugaredLogger
 	debug       bool
 	callbackURL string
 }
@@ -59,14 +60,14 @@ func (cb *RemoteCallbackHandler) Callback(status reconciler.Status) error {
 	if cb.debug {
 		dumpResp, dumpErr := httputil.DumpResponse(resp, true)
 		if err == nil {
-			cb.logger.Debug(fmt.Sprintf("Response dump: %s", string(dumpResp)))
+			cb.logger.Debugf("Response dump: %s", string(dumpResp))
 		} else {
-			cb.logger.Error(fmt.Sprintf("Failed to dump response: %s", dumpErr))
+			cb.logger.Errorf("Failed to dump response: %s", dumpErr)
 		}
 	}
 
 	if err != nil {
-		cb.logger.Error(fmt.Sprintf("Status update request failed: %s", err))
+		cb.logger.Errorf("Status update request failed: %s", err)
 		return err
 	}
 
