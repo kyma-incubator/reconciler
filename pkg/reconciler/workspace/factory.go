@@ -33,7 +33,7 @@ type Factory struct {
 	StorageDir    string
 	RepositoryURL string
 	mutex         sync.Mutex
-	logger        *zap.Logger
+	logger        *zap.SugaredLogger
 	workspaceDir  string
 }
 
@@ -73,7 +73,7 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 	sFile := filepath.Join(f.workspaceDir, successFile)
 	//ensure Kyma sources are available
 	if !file.Exists(sFile) {
-		f.logger.Info(fmt.Sprintf("Creating new workspace directory '%s' ", f.workspaceDir))
+		f.logger.Info("Creating new workspace directory '%s' ", f.workspaceDir)
 		if err := f.clone(version, f.workspaceDir); err != nil {
 			return nil, err
 		}
@@ -98,22 +98,18 @@ func (f *Factory) clone(version, dstDir string) error {
 	}
 	if file.DirExists(dstDir) {
 		//if workspace exists but there is no success file, it is probably corrupted, so delete it
-		f.logger.Warn(
-			fmt.Sprintf("Deleting workspace '%s' because GIT clone does not contain all the required files",
-				dstDir))
+		f.logger.Warn("Deleting workspace '%s' because GIT clone does not contain all the required files", dstDir)
 		if err := os.RemoveAll(dstDir); err != nil {
 			return err
 		}
 	}
 
 	//clone sources
-	f.logger.Info(
-		fmt.Sprintf("Start cloning repository '%s' with revision '%s' into workspace '%s'",
-			f.RepositoryURL, version, dstDir))
+	f.logger.Info("Start cloning repository '%s' with revision '%s' into workspace '%s'",
+		f.RepositoryURL, version, dstDir)
 	if err := git.CloneRepo(f.RepositoryURL, dstDir, version); err != nil {
-		f.logger.Warn(
-			fmt.Sprintf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
-				dstDir, f.RepositoryURL, version))
+		f.logger.Warn("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
+			dstDir, f.RepositoryURL, version)
 		if removeErr := f.Delete(version); removeErr != nil {
 			err = errors.Wrap(err, removeErr.Error())
 		}
@@ -146,10 +142,10 @@ func (f *Factory) Delete(version string) error {
 	if err := f.validate(version); err != nil {
 		return err
 	}
-	f.logger.Debug(fmt.Sprintf("Deleting workspace '%s'", f.workspaceDir))
+	f.logger.Debug("Deleting workspace '%s'", f.workspaceDir)
 	err := os.RemoveAll(f.workspaceDir)
 	if err != nil {
-		f.logger.Warn(fmt.Sprintf("Failed to delete workspace '%s': %s", f.workspaceDir, err))
+		f.logger.Warn("Failed to delete workspace '%s': %s", f.workspaceDir, err)
 	}
 	return err
 }

@@ -2,9 +2,10 @@ package chart
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"os"
 	"strings"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
@@ -19,7 +20,7 @@ import (
 type Provider struct {
 	debug     bool
 	wsFactory *workspace.Factory
-	logger    *zap.Logger
+	logger    *zap.SugaredLogger
 }
 
 func NewProvider(wsFactory *workspace.Factory, debug bool) (*Provider, error) {
@@ -57,10 +58,10 @@ func (p *Provider) loggerAdapter() (*HydroformLoggerAdapter, error) {
 
 func (p *Provider) Manifests(compSet *ComponentSet, includeCRD bool, opts *Options) ([]*components.Manifest, error) {
 	//TODO: add caching check here
-	p.logger.Debug(fmt.Sprintf("Getting workspace for Kyma '%s'", compSet.version))
+	p.logger.Debug("Getting workspace for Kyma '%s'", compSet.version)
 	ws, err := p.wsFactory.Get(compSet.version)
 	if err != nil {
-		p.logger.Warn(fmt.Sprintf("Failed to retrieve workspace for Kyma '%s': %s", compSet.version, err))
+		p.logger.Warn("Failed to retrieve workspace for Kyma '%s': %s", compSet.version, err)
 		return nil, err
 	}
 
@@ -140,9 +141,8 @@ func (p *Provider) render(compSet *ComponentSet, renderCrds bool, ws *workspace.
 func (p *Provider) componentList(comps []*Component) *config.ComponentList {
 	compList := &config.ComponentList{}
 	for _, comp := range comps {
-		p.logger.Debug(
-			fmt.Sprintf("Adding component '%s' with namespace '%s' to rendering scope",
-				comp.name, comp.namespace))
+		p.logger.Debug("Adding component '%s' with namespace '%s' to rendering scope",
+			comp.name, comp.namespace)
 		compList.Components = append(compList.Components, config.ComponentDefinition{
 			Name:      comp.name,
 			Namespace: comp.namespace,

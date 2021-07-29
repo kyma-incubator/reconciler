@@ -1,8 +1,6 @@
 package app
 
 import (
-	"fmt"
-
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/kv"
@@ -13,7 +11,7 @@ import (
 
 type ApplicationRegistry struct {
 	debug             bool
-	logger            *zap.Logger
+	logger            *zap.SugaredLogger
 	connectionFactory db.ConnectionFactory
 	inventory         cluster.Inventory
 	kvRepository      *kv.Repository
@@ -59,7 +57,7 @@ func (or *ApplicationRegistry) Close() error {
 	return nil
 }
 
-func (or *ApplicationRegistry) Logger() *zap.Logger {
+func (or *ApplicationRegistry) Logger() *zap.SugaredLogger {
 	return or.logger
 }
 
@@ -80,7 +78,7 @@ func (or *ApplicationRegistry) initRepository() (*kv.Repository, error) {
 	}
 	repository, err = kv.NewRepository(or.connectionFactory, or.debug)
 	if err != nil {
-		or.logger.Error(fmt.Sprintf("Failed to create configuration entry repository: %s", err))
+		or.logger.Error("Failed to create configuration entry repository: %s", err)
 		return nil, err
 	}
 
@@ -96,7 +94,7 @@ func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 	collector := metrics.NewReconciliationStatusCollector()
 	or.inventory, err = cluster.NewInventory(or.connectionFactory, or.debug, collector)
 	if err != nil {
-		or.logger.Error(fmt.Sprintf("Failed to create cluster inventory: %s", err))
+		or.logger.Error("Failed to create cluster inventory: %s", err)
 		return nil, err
 	}
 

@@ -1,8 +1,6 @@
 package metrics
 
 import (
-	"fmt"
-
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
@@ -12,12 +10,12 @@ import (
 // - reconciler_reconciliation_waiting_total - total number of clusters waiting to be reconciled
 type ReconciliationWaitingCollector struct {
 	inventory cluster.Inventory
-	logger    *zap.Logger
+	logger    *zap.SugaredLogger
 
 	waitingClustersDesc *prometheus.Desc
 }
 
-func NewReconciliationWaitingCollector(inventory cluster.Inventory, logger *zap.Logger) *ReconciliationWaitingCollector {
+func NewReconciliationWaitingCollector(inventory cluster.Inventory, logger *zap.SugaredLogger) *ReconciliationWaitingCollector {
 	return &ReconciliationWaitingCollector{
 		inventory: inventory,
 		logger:    logger,
@@ -47,7 +45,7 @@ func (c *ReconciliationWaitingCollector) Collect(ch chan<- prometheus.Metric) {
 
 	m, err := prometheus.NewConstMetric(c.waitingClustersDesc, prometheus.GaugeValue, float64(len(clusters)))
 	if err != nil {
-		c.logger.Error(fmt.Sprintf("unable to register metric %s", err.Error()))
+		c.logger.Error("unable to register metric %s", err.Error())
 		return
 	}
 

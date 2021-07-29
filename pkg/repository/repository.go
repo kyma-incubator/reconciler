@@ -12,7 +12,7 @@ import (
 
 type Repository struct {
 	Conn     db.Connection
-	Logger   *zap.Logger
+	Logger   *zap.SugaredLogger
 	CacheDep *cacheDependencyManager
 }
 

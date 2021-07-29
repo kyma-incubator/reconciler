@@ -3,12 +3,13 @@ package status
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/avast/retry-go"
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	cb "github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
-	"sync"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 
@@ -86,7 +87,7 @@ func (su *Updater) isContextClosed() bool {
 	return su.ctxClosed
 }
 
-func (su *Updater) logger() *zap.Logger {
+func (su *Updater) logger() *zap.SugaredLogger {
 	return logger.NewOptionalLogger(su.debug)
 }
 
@@ -96,27 +97,26 @@ func (su *Updater) updateWithInterval(status reconciler.Status) {
 	task := func(status reconciler.Status) {
 		err := su.callback.Callback(status)
 		if err == nil {
-			su.logger().Debug(fmt.Sprintf("Interval-callback with status-update ('%s') finished successfully", status))
+			su.logger().Debug("Interval-callback with status-update ('%s') finished successfully", status)
 		} else {
-			su.logger().Warn(fmt.Sprintf(
-				"Interval-callback with status-update ('%s') to reconciler-controller failed: %s", status, err))
+			su.logger().Warn("Interval-callback with status-update ('%s') to reconciler-controller failed: %s", status, err)
 		}
 	}
 
 	go func(status reconciler.Status, interval time.Duration) {
-		su.logger().Debug(fmt.Sprintf("Starting new interval loop for status '%s'", status))
+		su.logger().Debug("Starting new interval loop for status '%s'", status)
 		task(status)
 		for {
 			select {
 			case <-su.restartInterval:
-				su.logger().Debug(fmt.Sprintf("Stop running interval loop for status '%s'", status))
+				su.logger().Debug("Stop running interval loop for status '%s'", status)
 				return
 			case <-su.ctx.Done():
-				su.logger().Debug(fmt.Sprintf("Stopping interval loop for status '%s' because context was closed", status))
+				su.logger().Debug("Stopping interval loop for status '%s' because context was closed", status)
 				su.closeContext()
 				return
 			case <-time.NewTicker(interval).C:
-				su.logger().Debug(fmt.Sprintf("Interval loop for status '%s' executes callback", status))
+				su.logger().Debug("Interval loop for status '%s' executes callback", status)
 				task(status)
 			}
 		}
@@ -133,10 +133,9 @@ func (su *Updater) updateWithRetry(status reconciler.Status) {
 			func() error {
 				err := su.callback.Callback(s)
 				if err == nil {
-					su.logger().Debug(fmt.Sprintf("Retry-callback with status-update ('%s') finished successfully", status))
+					su.logger().Debug("Retry-callback with status-update ('%s') finished successfully", status)
 				} else {
-					su.logger().Warn(fmt.Sprintf(
-						"Retry-callback with status-update ('%s') to reconciler-controller failed: %s", status, err))
+					su.logger().Warn("Retry-callback with status-update ('%s') to reconciler-controller failed: %s", status, err)
 				}
 				return err
 			},
@@ -145,8 +144,7 @@ func (su *Updater) updateWithRetry(status reconciler.Status) {
 			retry.Delay(delay),
 			retry.LastErrorOnly(false))
 		if err != nil {
-			su.logger().Error(
-				fmt.Sprintf("Retry-callback with status-update ('%s') failed: %s", status, err))
+			su.logger().Error("Retry-callback with status-update ('%s') failed: %s", status, err)
 		}
 	}(su.ctx, status, su.config.MaxRetries, su.config.RetryDelay)
 

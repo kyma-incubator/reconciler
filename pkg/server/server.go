@@ -11,7 +11,7 @@ import (
 )
 
 type Webserver struct {
-	Logger     *zap.Logger
+	Logger     *zap.SugaredLogger
 	Port       int
 	SSLCrtFile string
 	SSLKeyFile string
@@ -19,15 +19,15 @@ type Webserver struct {
 	server     *http.Server
 }
 
-func (s *Webserver) logger() *zap.Logger {
+func (s *Webserver) logger() *zap.SugaredLogger {
 	if s.Logger == nil {
-		s.Logger = zap.NewNop()
+		s.Logger = zap.NewNop().Sugar()
 	}
 	return s.Logger
 }
 
 func (s *Webserver) Start(ctx context.Context) error {
-	s.logger().Info(fmt.Sprintf("Webserver starting and listening on port %d", s.Port))
+	s.logger().Info("Webserver starting and listening on port %d", s.Port)
 	s.startServer(s.Router)
 	<-ctx.Done()
 	s.logger().Info("Webserver stopping (context got closed)")
@@ -45,7 +45,7 @@ func (s *Webserver) startServer(router *mux.Router) {
 			err = s.server.ListenAndServe()
 		}
 		if err != nil && err != http.ErrServerClosed {
-			s.logger().Error(fmt.Sprintf("Webserver startup failed: %s", err))
+			s.logger().Error("Webserver startup failed: %s", err)
 		}
 	}()
 }
@@ -61,7 +61,7 @@ func (s *Webserver) stopServer() error {
 	if err == nil {
 		s.logger().Info("Webserver gracefully stopped")
 	} else {
-		s.logger().Error(fmt.Sprintf("Webserver shutdown failed: %s", err))
+		s.logger().Error("Webserver shutdown failed: %s", err)
 	}
 	return err
 }

@@ -5,9 +5,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func NewLogger(debug bool) (*zap.Logger, error) {
+func NewLogger(debug bool) (*zap.SugaredLogger, error) {
 	if debug {
-		return zap.NewDevelopment()
+		logger, err := zap.NewDevelopment()
+		return logger.Sugar(), err
 	}
 	cfg := zap.Config{
 		Encoding:         "console",
@@ -24,13 +25,14 @@ func NewLogger(debug bool) (*zap.Logger, error) {
 			EncodeCaller: zapcore.ShortCallerEncoder,
 		},
 	}
-	return cfg.Build()
+	logger, err := cfg.Build()
+	return logger.Sugar(), err
 }
 
-func NewOptionalLogger(debug bool) *zap.Logger {
+func NewOptionalLogger(debug bool) *zap.SugaredLogger {
 	logger, err := NewLogger(debug)
 	if err != nil {
-		return zap.NewNop()
+		return zap.NewNop().Sugar()
 	}
 	return logger
 }

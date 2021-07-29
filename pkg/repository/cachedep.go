@@ -12,7 +12,7 @@ import (
 
 type cacheDependencyManager struct {
 	conn   db.Connection
-	logger *zap.Logger
+	logger *zap.SugaredLogger
 }
 
 type record struct {
@@ -135,7 +135,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		if err != nil {
 			return err
 		}
-		i.logger.Debug(fmt.Sprintf("Found %d cache dependencies for selector '%v'", len(deps), i.selector))
+		i.logger.Debug("Found %d cache dependencies for selector '%v'", len(deps), i.selector)
 
 		if len(deps) == 0 { //not deps found - nothing to invalidate
 			return nil
@@ -143,7 +143,7 @@ func (i *invalidate) Exec(newTx bool) error {
 
 		//get cache-entry IDs to invalidate
 		cacheEntityIdsCSV, cntUniqueIds := i.cacheIDsCSV(deps)
-		i.logger.Debug(fmt.Sprintf("Identified %d cache entities which match selector '%v': %s", cntUniqueIds, i.selector, cacheEntityIdsCSV))
+		i.logger.Debug("Identified %d cache entities which match selector '%v': %s", cntUniqueIds, i.selector, cacheEntityIdsCSV)
 
 		//drop all cache entities
 		cacheQuery, err := db.NewQuery(i.conn, &model.CacheEntryEntity{})
@@ -154,7 +154,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		if err != nil {
 			return err
 		}
-		i.logger.Debug(fmt.Sprintf("Deleted %d cache entries matching selector '%v'", deletedEntries, i.selector))
+		i.logger.Debug("Deleted %d cache entries matching selector '%v'", deletedEntries, i.selector)
 
 		//drop all cache dependencies of the dropped cache entities
 		cacheDepQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{})
@@ -165,7 +165,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		if err != nil {
 			return err
 		}
-		i.logger.Debug(fmt.Sprintf("Deleted %d cache dependencies matching selector '%v'", deletedDeps, i.selector))
+		i.logger.Debug("Deleted %d cache dependencies matching selector '%v'", deletedDeps, i.selector)
 
 		return nil
 	}
