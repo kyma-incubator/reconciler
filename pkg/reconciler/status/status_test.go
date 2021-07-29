@@ -92,6 +92,8 @@ func TestStatusUpdater(t *testing.T) {
 
 		time.Sleep(3 * time.Second) //wait longer than timeout to simulate expired context
 
+		require.True(t, statusUpdater.ctxClosed) //verify that status-updater received timeout
+
 		//check fired status updates
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the statusUpdaters worked
 
