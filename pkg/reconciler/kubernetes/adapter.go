@@ -5,13 +5,14 @@ import (
 	"bytes"
 	b64 "encoding/base64"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"go.uber.org/zap"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -65,7 +66,7 @@ func newKubeClientAdapter(kubeconfig string, debug bool) (Client, error) {
 	}, nil
 }
 
-func (g *kubeClientAdapter) Deploy(manifest string) ([]*Resource, error) {
+func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInterceptor) ([]*Resource, error) {
 	var deployedResources []*Resource
 
 	chanMes, chanErr := g.readYaml([]byte(manifest))
@@ -81,7 +82,7 @@ func (g *kubeClientAdapter) Deploy(manifest string) ([]*Resource, error) {
 			//convert YAML to JSON
 			jsonData, err := yamlToJson.YAMLToJSON(yamlData)
 			if err != nil {
-				g.logger.Warn(fmt.Sprintf("Failed to convert manifest YAML to JSON: %s", err))
+				g.logger.Error(fmt.Sprintf("Failed to convert manifest YAML to JSON: %s", err))
 				g.logger.Debug(fmt.Sprintf("Used YAML data: %s", string(yamlData)))
 				return deployedResources, err
 			}
@@ -91,18 +92,26 @@ func (g *kubeClientAdapter) Deploy(manifest string) ([]*Resource, error) {
 				continue
 			}
 
-			//get unstructured entity from JSON
+			//get unstructured entity from JSON and intercept
 			unstruct, err := ToUnstructured(jsonData)
 			if err != nil {
-				g.logger.Warn(fmt.Sprintf("Failed to convert JSON to Kubernetes unstructured entity: %s", err))
+				g.logger.Error(fmt.Sprintf("Failed to convert JSON to Kubernetes unstructured entity: %s", err))
 				g.logger.Debug(fmt.Sprintf("Used JSON data: %s", string(jsonData)))
 				return deployedResources, err
+			}
+
+			//intercept unstructured entity before deploying it
+			for _, interceptor := range interceptors {
+				if err := interceptor.Intercept(&unstruct); err != nil {
+					g.logger.Error(fmt.Sprintf("Failed to intercept Kubernetes unstructured entity: %s", err))
+					return deployedResources, err
+				}
 			}
 
 			//deploy unstructured entity
 			resource, err := g.kubeClient.Apply(&unstruct)
 			if err != nil {
-				g.logger.Warn(fmt.Sprintf("Failed to apply Kubernetes unstructured entity: %s", err))
+				g.logger.Error(fmt.Sprintf("Failed to apply Kubernetes unstructured entity: %s", err))
 				return deployedResources, err
 			}
 
