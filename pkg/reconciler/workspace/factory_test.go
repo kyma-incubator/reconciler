@@ -1,9 +1,11 @@
 package workspace
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/test"
+	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/kyma-incubator/reconciler/pkg/test"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/stretchr/testify/require"
@@ -54,6 +56,20 @@ func TestWorkspaceFactory(t *testing.T) {
 		require.True(t, file.DirExists(ws.ResourceDir))
 		require.Equal(t, filepath.Join(workspaceDir, instResDir), ws.InstallationResourceDir)
 		require.True(t, file.DirExists(ws.InstallationResourceDir))
+
+		//delete success file
+		err = os.Remove(filepath.Join(workspaceDir, successFile))
+		require.NoError(t, err)
+
+		//trigger re-cloning
+		ws, err = wsf.Get(version)
+		require.NoError(t, err)
+
+		//check again all the required files including success file
+		require.True(t, file.Exists(ws.ComponentFile))
+		require.True(t, file.DirExists(ws.ResourceDir))
+		require.True(t, file.DirExists(ws.InstallationResourceDir))
+		require.True(t, file.Exists(filepath.Join(workspaceDir, successFile)))
 	})
 
 }
