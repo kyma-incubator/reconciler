@@ -204,7 +204,7 @@ func (pt *Tracker) podIsReady(object *resource) (bool, error) {
 			return false, nil
 		}
 	}
-	return true, err
+	return pod.Status.Phase == v1.PodRunning, nil
 }
 
 func (pt *Tracker) daemonSetIsReady(object *resource) (bool, error) {
