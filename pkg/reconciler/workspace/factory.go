@@ -19,6 +19,7 @@ const (
 	resDir               = "resources"
 	instResDir           = "installation/resources"
 	componentFile        = "installation/resources/components.yaml"
+	successFile          = "success.yaml"
 )
 
 type Workspace struct {
@@ -69,8 +70,9 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 		return nil, err
 	}
 
+	sFile := filepath.Join(f.workspaceDir, successFile)
 	//ensure Kyma sources are available
-	if !file.DirExists(f.workspaceDir) {
+	if !file.Exists(sFile) {
 		f.logger.Info(fmt.Sprintf("Creating new workspace directory '%s' ", f.workspaceDir))
 		if err := f.clone(version, f.workspaceDir); err != nil {
 			return nil, err
@@ -89,9 +91,19 @@ func (f *Factory) clone(version, dstDir string) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
-	if file.DirExists(dstDir) {
+	sFile := filepath.Join(dstDir, successFile)
+	if file.Exists(sFile) {
 		//race condition protection: it could happen that a previous go-routing was also triggering the clone of the Kyma version
 		return nil
+	}
+	if file.DirExists(dstDir) {
+		//if workspace exists but there is no success file, it is probably corrupted, so delete it
+		f.logger.Warn(
+			fmt.Sprintf("Deleting workspace '%s' because GIT clone does not contain all the required files",
+				dstDir))
+		if err := os.RemoveAll(dstDir); err != nil {
+			return err
+		}
 	}
 
 	//clone sources
@@ -118,6 +130,13 @@ func (f *Factory) clone(version, dstDir string) error {
 	if !file.Exists(reqFile) {
 		return fmt.Errorf("required component file '%s' is missing in Kyma version '%s'", reqFile, version)
 	}
+
+	//create a marker file to flag success
+	file, err := os.Create(sFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
 	//clone ready for use
 	return nil
