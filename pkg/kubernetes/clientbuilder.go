@@ -46,7 +46,7 @@ func (cb *ClientBuilder) Build() (*kubernetes.Clientset, error) {
 	}
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create Kubernetes client by using provided REST-configuration")
+		return nil, errors.Wrap(err, "failed to create Kubernetes clientset by using provided REST-configuration")
 	}
 	return clientSet, err
 }
