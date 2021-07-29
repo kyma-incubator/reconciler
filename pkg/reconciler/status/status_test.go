@@ -69,7 +69,7 @@ func TestStatusUpdater(t *testing.T) {
 		time.Sleep(2 * time.Second)
 
 		//check fired status updates
-		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 4) //anything > 3 is sufficient to ensure the statusUpdaters works
+		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 4) //anything >= 4 is sufficient to ensure the statusUpdaters works
 		require.Equal(t, callbackHdlr.LatestStatus(), reconciler.Success)
 	})
 
@@ -89,7 +89,8 @@ func TestStatusUpdater(t *testing.T) {
 
 		require.NoError(t, statusUpdater.Running())
 		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Running)
-		time.Sleep(4 * time.Second) //wait longer than timeout to simulate expired context
+
+		time.Sleep(3 * time.Second) //wait longer than timeout to simulate expired context
 
 		//check fired status updates
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the statusUpdaters worked

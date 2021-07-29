@@ -128,7 +128,7 @@ func (su *Updater) updateWithInterval(status reconciler.Status) {
 func (su *Updater) updateWithRetry(status reconciler.Status) {
 	su.stopJob() //ensure previous interval-loop is stopped before starting a new loop
 
-	go func(ctx context.Context, s reconciler.Status, retries int, delay time.Duration) {
+	go func(s reconciler.Status, retries int, delay time.Duration) {
 		err := retry.Do(
 			func() error {
 				err := su.callback.Callback(s)
@@ -139,14 +139,13 @@ func (su *Updater) updateWithRetry(status reconciler.Status) {
 				}
 				return err
 			},
-			retry.Context(ctx),
 			retry.Attempts(uint(retries)),
 			retry.Delay(delay),
 			retry.LastErrorOnly(false))
 		if err != nil {
 			su.logger().Errorf("Retry-callback with status-update ('%s') failed: %s", status, err)
 		}
-	}(su.ctx, status, su.config.MaxRetries, su.config.RetryDelay)
+	}(status, su.config.MaxRetries, su.config.RetryDelay)
 
 	su.status = status
 }
