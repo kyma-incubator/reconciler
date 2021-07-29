@@ -70,17 +70,9 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 		return nil, err
 	}
 
-	//ensure Kyma sources are successfully cloned
-	if !file.Exists(successFile) {
-		//if workspace already exists, it is probably corrupted, so delete it
-		if file.DirExists(f.workspaceDir) {
-			f.logger.Warn(
-				fmt.Sprintf("Deleting workspace '%s' because GIT clone does not contain all the required files",
-					f.workspaceDir))
-			if err := os.RemoveAll(f.workspaceDir); err != nil {
-				return nil, err
-			}
-		}
+	sFile := filepath.Join(f.workspaceDir, successFile)
+	//ensure Kyma sources are available
+	if !file.Exists(sFile) {
 		f.logger.Info(fmt.Sprintf("Creating new workspace directory '%s' ", f.workspaceDir))
 		if err := f.clone(version, f.workspaceDir); err != nil {
 			return nil, err
@@ -99,9 +91,19 @@ func (f *Factory) clone(version, dstDir string) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
-	if file.DirExists(dstDir) {
+	sFile := filepath.Join(dstDir, successFile)
+	if file.Exists(sFile) {
 		//race condition protection: it could happen that a previous go-routing was also triggering the clone of the Kyma version
 		return nil
+	}
+	if file.DirExists(dstDir) {
+		//if workspace exists but there is no success file, it is probably corrupted, so delete it
+		f.logger.Warn(
+			fmt.Sprintf("Deleting workspace '%s' because GIT clone does not contain all the required files",
+				dstDir))
+		if err := os.RemoveAll(dstDir); err != nil {
+			return err
+		}
 	}
 
 	//clone sources
@@ -130,8 +132,7 @@ func (f *Factory) clone(version, dstDir string) error {
 	}
 
 	//create a marker file to flag success
-	successFile := filepath.Join(dstDir, successFile)
-	file, err := os.Create(successFile)
+	file, err := os.Create(sFile)
 	if err != nil {
 		return err
 	}
