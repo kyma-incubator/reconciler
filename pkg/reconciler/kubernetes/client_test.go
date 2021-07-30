@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -24,7 +23,7 @@ func TestKubernetesClient(t *testing.T) {
 		manifest := readManifest(t)
 		//deploy
 		t.Log("Deploying test resources")
-		resources, err := kubeClient.Deploy(manifest, &service.LabelInterceptor{})
+		resources, err := kubeClient.Deploy(manifest)
 		require.NoError(t, err)
 		//cleanup
 		defer func() {
