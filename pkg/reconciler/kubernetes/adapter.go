@@ -163,7 +163,6 @@ func syncReadYaml(data []byte) (results [][]byte, err error) {
 	var (
 		multidocReader = utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(data)))
 	)
-
 	for {
 		buf, err := multidocReader.Read()
 		if err != nil {
@@ -174,5 +173,4 @@ func syncReadYaml(data []byte) (results [][]byte, err error) {
 		}
 		results = append(results, buf)
 	}
-	return results, err
 }
