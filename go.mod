@@ -3,6 +3,7 @@ module github.com/kyma-incubator/reconciler
 go 1.16
 
 replace (
+	github.com/containerd/containerd => github.com/containerd/containerd v1.4.8
 	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
 	github.com/docker/docker => github.com/moby/moby v20.10.6+incompatible
 )
@@ -31,10 +32,10 @@ require (
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.16.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
-	k8s.io/api v0.20.2
-	k8s.io/apimachinery v0.20.2
+	k8s.io/api v0.20.6
+	k8s.io/apimachinery v0.20.6
 	k8s.io/cli-runtime v0.20.2
-	k8s.io/client-go v0.20.2
+	k8s.io/client-go v0.20.6
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	k8s.io/kubectl v0.20.2
 	sigs.k8s.io/yaml v1.2.0
