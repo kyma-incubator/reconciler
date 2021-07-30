@@ -6,11 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 
 	"github.com/stretchr/testify/require"
@@ -121,7 +124,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			WithServerConfig(9999, "", "").
 			WithDependencies("abc", "xyz").
 			WithRetry(1, 1*time.Second).
-			WithStatusUpdaterConfig(1*time.Second, 1, 1*time.Second).
+			WithStatusUpdaterConfig(1*time.Second, 2, 1*time.Second).
 			WithProgressTrackerConfig(1*time.Second, workerTimeout).
 			StartRemote(ctx)
 		require.NoError(t, err)
@@ -170,6 +173,23 @@ func TestReconcilerEnd2End(t *testing.T) {
 	})
 
 	t.Run("Happy path", func(t *testing.T) {
+		//get Kubernetes client
+		kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), true)
+		require.NoError(t, err)
+		clientSet, err := kubeClient.Clientset()
+		require.NoError(t, err)
+
+		//cleanup old pods (before and after test runs)
+		var cleanup = func() {
+			t.Log("Cleaning up dummy-pod")
+			err = clientSet.CoreV1().Pods("default").Delete(ctx, "dummy-pod", metav1.DeleteOptions{})
+			if errors.IsNotFound(err) {
+				t.Log("No dummy-pod found for cleanup")
+			}
+		}
+		cleanup()
+		defer cleanup()
+
 		//send request with which does not include all required dependencies
 		body := post(t, "http://localhost:9999/v1/run", reconciler.Reconciliation{
 			ComponentsReady: []string{"abc", "xyz"},
@@ -183,7 +203,12 @@ func TestReconcilerEnd2End(t *testing.T) {
 			InstallCRD:      false,
 		}, http.StatusOK)
 		t.Logf("Body received: %s", string(body))
-		time.Sleep(workerTimeout) //just let it run until worker timeout occurs
+
+		time.Sleep(workerTimeout) //wait until process context got closed
+
+		//check that pod was created
+		_, err = clientSet.CoreV1().Pods("default").Get(context.Background(), "dummy-pod", metav1.GetOptions{})
+		require.NoError(t, err)
 	})
 }
 

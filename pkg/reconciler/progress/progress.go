@@ -140,10 +140,10 @@ func (pt *Tracker) isReady() (bool, error) {
 	componentIsReady := true
 	for _, object := range pt.objects {
 		switch object.kind {
-		case Deployment:
-			componentIsReady, err = pt.deploymentIsReady(object)
 		case Pod:
 			componentIsReady, err = pt.podIsReady(object)
+		case Deployment:
+			componentIsReady, err = pt.deploymentIsReady(object)
 		case DaemonSet:
 			componentIsReady, err = pt.daemonSetIsReady(object)
 		case StatefulSet:
@@ -204,7 +204,8 @@ func (pt *Tracker) podIsReady(object *resource) (bool, error) {
 			return false, nil
 		}
 	}
-	return true, err
+	//deletion timestamp determines whether pod is terminating or running (nil == running)
+	return pod.ObjectMeta.DeletionTimestamp == nil, nil
 }
 
 func (pt *Tracker) daemonSetIsReady(object *resource) (bool, error) {
