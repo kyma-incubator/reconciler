@@ -8,4 +8,11 @@ spec:
     - name: dummy-pod
       image: debian
       command: ["/bin/sh"]
-      args: ["-c", "sleep 1 && echo Sleep expired > /dev/termination-log"]
+      args: ["-c", "sleep 20"]
+      readinessProbe:
+        exec:
+          command:
+            - find
+            - /tmp
+        initialDelaySeconds: 5
+        periodSeconds: 5

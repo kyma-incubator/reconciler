@@ -48,35 +48,36 @@ func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInte
 		case yamlData, ok := <-chanMes:
 			if !ok {
 				//channel closed
-				g.logger.Debug("Manifest processed: all Kubernetes resources were successfully deployed")
+				g.logger.Debugf("Manifest processed: %d Kubernetes resources were successfully deployed",
+					len(deployedResources))
 				return deployedResources, nil
 			}
 
 			//convert YAML to JSON
 			jsonData, err := yamlToJson.YAMLToJSON(yamlData)
 			if err != nil {
-				g.logger.Error("Failed to convert manifest YAML to JSON: %s", err)
-				g.logger.Debug("Used YAML data: %s", string(yamlData))
+				g.logger.Errorf("Failed to convert manifest YAML to JSON: %s", err)
+				g.logger.Debugf("Used YAML data: %s", string(yamlData))
 				return deployedResources, err
 			}
 			if string(jsonData) == "null" {
 				//YAML didn't contain any valuable JSON data (e.g. just comments)
-				g.logger.Debug("Ignoring non-valuable manifest data '%s'", string(jsonData))
+				g.logger.Debugf("Ignoring non-valuable manifest data '%s'", string(jsonData))
 				continue
 			}
 
 			//get unstructured entity from JSON and intercept
 			unstruct, err := ToUnstructured(jsonData)
 			if err != nil {
-				g.logger.Error("Failed to convert JSON to Kubernetes unstructured entity: %s", err)
-				g.logger.Debug("Used JSON data: %s", string(jsonData))
+				g.logger.Errorf("Failed to convert JSON to Kubernetes unstructured entity: %s", err)
+				g.logger.Debugf("Used JSON data: %s", string(jsonData))
 				return deployedResources, err
 			}
 
 			//intercept unstructured entity before deploying it
 			for _, interceptor := range interceptors {
 				if err := interceptor.Intercept(&unstruct); err != nil {
-					g.logger.Error("Failed to intercept Kubernetes unstructured entity: %s", err)
+					g.logger.Errorf("Failed to intercept Kubernetes unstructured entity: %s", err)
 					return deployedResources, err
 				}
 			}
@@ -84,12 +85,12 @@ func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInte
 			//deploy unstructured entity
 			resource, err := g.kubeClient.Apply(&unstruct)
 			if err != nil {
-				g.logger.Error("Failed to apply Kubernetes unstructured entity: %s", err)
+				g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
 				return deployedResources, err
 			}
 
 			//add deploy resource to result
-			g.logger.Debug("Kubernetes resource '%v' successfully deployed", resource)
+			g.logger.Debugf("Kubernetes resource '%v' successfully deployed", resource)
 			deployedResources = append(deployedResources, resource)
 		case err := <-chanErr:
 			//stop processing in any error case
