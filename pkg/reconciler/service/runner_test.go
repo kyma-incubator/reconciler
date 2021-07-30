@@ -385,8 +385,8 @@ func TestLabelInterceptor(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			tt := tt
 			l := &LabelInterceptor{}
 			if err := l.Intercept(tt.args.resource); (err != nil) != tt.wantErr {
 				t.Errorf("Intercept() error = %v, wantErr %v", err, tt.wantErr)
