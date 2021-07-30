@@ -37,8 +37,8 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 			}
 			err := r.reconcile(ctx, model)
 			if err != nil {
-				if err := statusUpdater.Failed(); err != nil {
-					return err
+				if errUpdater := statusUpdater.Failed(); errUpdater != nil {
+					err = errors.Wrap(err, errUpdater.Error())
 				}
 			}
 			return err
