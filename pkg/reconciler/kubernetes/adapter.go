@@ -4,50 +4,25 @@ import (
 	"bufio"
 	"bytes"
 	b64 "encoding/base64"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"strings"
-
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"go.uber.org/zap"
+	"io"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	yamlToJson "sigs.k8s.io/yaml"
 )
 
-const (
-	envVarKubectlPath = "KUBECTL_PATH"
-)
-
 type kubeClientAdapter struct {
-	kubeClient     KubeClient
-	logger         *zap.SugaredLogger
-	kubectlCmd     string
-	kubeconfigFile string
-	manifestFile   string
+	kubeClient KubeClient
+	logger     *zap.SugaredLogger
 }
 
 func newKubeClientAdapter(kubeconfig string, debug bool) (Client, error) {
 	logger, err := logger.NewLogger(debug)
 	if err != nil {
-		return nil, err
-	}
-
-	//get kubectlcmd
-	kubectlCmd, err := kubectl()
-	if err != nil {
-		return nil, err
-	}
-
-	//persist kubeconfig for kubectl-calls
-	kubeconfigFile := "/tmp/kubeconfig-" + uuid.New().String()
-	if err := ioutil.WriteFile(kubeconfigFile, []byte(kubeconfig), 0600); err != nil {
 		return nil, err
 	}
 
@@ -59,17 +34,15 @@ func newKubeClientAdapter(kubeconfig string, debug bool) (Client, error) {
 	}
 
 	return &kubeClientAdapter{
-		kubeClient:     *client,
-		logger:         logger,
-		kubectlCmd:     kubectlCmd,
-		kubeconfigFile: kubeconfigFile,
+		kubeClient: *client,
+		logger:     logger,
 	}, nil
 }
 
 func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInterceptor) ([]*Resource, error) {
 	var deployedResources []*Resource
 
-	chanMes, chanErr := g.readYaml([]byte(manifest))
+	chanMes, chanErr := asyncReadYaml([]byte(manifest))
 	for {
 		select {
 		case yamlData, ok := <-chanMes:
@@ -125,11 +98,42 @@ func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInte
 	}
 }
 
+func (g kubeClientAdapter) Delete(manifest string) (err error) {
+	yamls, err := syncReadYaml([]byte(manifest))
+	if err != nil {
+		g.logger.Error("Problem with read manifest")
+		g.logger.Debug("Manifest file: %s", manifest)
+		return err
+	}
+
+	//delete resource in reverse order
+	for i := len(yamls) - 1; i >= 0; i-- {
+		json, err := yamlToJson.YAMLToJSON(yamls[i])
+		if err != nil {
+			g.logger.Error("Failed to convert manifest YAML to JSON: %s", err)
+			g.logger.Debug("Used YAML data: %s", string(json))
+			return err
+		}
+		toUnstructured, err := ToUnstructured(json)
+		if err != nil {
+			g.logger.Error("Failed to convert JSON to Kubernetes unstructured entity: %s", err)
+			g.logger.Debug("Used JSON data: %s", string(json))
+			return err
+		}
+		err = g.kubeClient.DeleteResourceByKindAndNameAndNamespace(toUnstructured.GetKind(), toUnstructured.GetName(), toUnstructured.GetNamespace(), v1.DeleteOptions{})
+		if err != nil {
+			g.logger.Error("Failed to delete Kubernetes unstructured entity: %s", err)
+			return err
+		}
+	}
+	return nil
+}
+
 func (g *kubeClientAdapter) Clientset() (*kubernetes.Clientset, error) {
 	return g.kubeClient.GetClientSet()
 }
 
-func (g *kubeClientAdapter) readYaml(data []byte) (<-chan []byte, <-chan error) {
+func asyncReadYaml(data []byte) (<-chan []byte, <-chan error) {
 	var (
 		chanErr        = make(chan error)
 		chanBytes      = make(chan []byte)
@@ -155,40 +159,18 @@ func (g *kubeClientAdapter) readYaml(data []byte) (<-chan []byte, <-chan error) 
 	return chanBytes, chanErr
 }
 
-// TODO change implementation to native go
-func (g *kubeClientAdapter) Delete(manifest string) error {
-	//store manifest as file
-	manifestFile, err := g.getManifestFile(manifest)
-	if err != nil {
-		return err
-	}
-	//call kubectl delete
-	args := []string{fmt.Sprintf("--kubeconfig=%s", g.kubeconfigFile), "delete", "-f", manifestFile}
-	//nolint:gosec //arguments for cmd call not allowed: replace command-call with Go k8s-client
-	_, err = exec.Command(g.kubectlCmd, args...).CombinedOutput()
-	return err
-}
-
-func (g *kubeClientAdapter) getManifestFile(manifest string) (string, error) {
-	if g.manifestFile == "" {
-		g.manifestFile = "/tmp/manifest-" + uuid.New().String()
-		if err := ioutil.WriteFile(g.manifestFile, []byte(manifest), 0600); err != nil {
-			return "", errors.Wrap(err, "failed to store manifests in a file")
+func syncReadYaml(data []byte) (results [][]byte, err error) {
+	var (
+		multidocReader = utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(data)))
+	)
+	for {
+		buf, err := multidocReader.Read()
+		if err != nil {
+			if err == io.EOF {
+				return results, nil
+			}
+			return results, err
 		}
+		results = append(results, buf)
 	}
-	return g.manifestFile, nil
-}
-
-func kubectl() (string, error) {
-	//try lookup using which
-	whichLookup, err := exec.Command("which", "kubectl").CombinedOutput()
-	if err == nil {
-		return strings.TrimSpace(string(whichLookup)), nil
-	}
-	//fallback to env-var
-	envLookup, ok := os.LookupEnv(envVarKubectlPath)
-	if !ok {
-		return "", fmt.Errorf("cannot find kubectl cmd, please set env-var '%s'", envVarKubectlPath)
-	}
-	return envLookup, nil
 }
