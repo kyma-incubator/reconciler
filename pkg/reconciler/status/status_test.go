@@ -24,7 +24,13 @@ type testCallbackHandler struct {
 }
 
 func (cb *testCallbackHandler) Callback(status reconciler.Status) error {
-	return os.Setenv("_testCallbackHandlerStatuses", fmt.Sprintf("%s,%s", os.Getenv("_testCallbackHandlerStatuses"), status))
+	statusList := os.Getenv("_testCallbackHandlerStatuses")
+	if statusList == "" {
+		statusList = string(status)
+	} else {
+		statusList = fmt.Sprintf("%s,%s", statusList, status)
+	}
+	return os.Setenv("_testCallbackHandlerStatuses", statusList)
 }
 
 func (cb *testCallbackHandler) Statuses() []reconciler.Status {
