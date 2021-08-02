@@ -6,27 +6,30 @@ import (
 
 type Options struct {
 	*cli.Options
+	Workspace             string
 	ServerConfig          *ServerConfig
 	WorkerConfig          *WorkerConfig
 	RetryConfig           *RetryConfig
 	StatusUpdaterConfig   *RecurringTaskConfig
 	ProgressTrackerConfig *RecurringTaskConfig
-	Workspace             string
 }
 
 func NewOptions(o *cli.Options) *Options {
 	return &Options{
 		o,
+		".",
 		&ServerConfig{},
 		&WorkerConfig{},
 		&RetryConfig{},
 		&RecurringTaskConfig{},
 		&RecurringTaskConfig{},
-		".",
 	}
 }
 
 func (o *Options) Validate() error {
+	if o.Workspace == "" {
+		o.Workspace = "."
+	}
 	if err := o.ServerConfig.validate(); err != nil {
 		return err
 	}
@@ -36,8 +39,6 @@ func (o *Options) Validate() error {
 	if err := o.RetryConfig.validate(); err != nil {
 		return err
 	}
-	if o.Workspace == "" {
-		o.Workspace = "."
-	}
+
 	return nil
 }

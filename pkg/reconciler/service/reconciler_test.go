@@ -17,7 +17,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes"
 )
 
 const workerTimeout = 10 * time.Second
@@ -26,7 +25,7 @@ type DummyAction struct {
 	receivedVersion string
 }
 
-func (da *DummyAction) Run(version string, kubeClient *kubernetes.Clientset) error {
+func (da *DummyAction) Run(version string, kubeClient k8s.Client) error {
 	if kubeClient != nil {
 		return fmt.Errorf("kubeClient is not expected in this test case")
 	}
@@ -37,7 +36,7 @@ func (da *DummyAction) Run(version string, kubeClient *kubernetes.Clientset) err
 func TestReconciler(t *testing.T) {
 
 	t.Run("Verify fluent configuration interface", func(t *testing.T) {
-		recon, err := NewComponentReconciler("./test", true)
+		recon, err := NewComponentReconciler("unittest", "./test", true)
 		require.NoError(t, err)
 		require.True(t, recon.debug) //debug has to be enabled
 
@@ -86,7 +85,7 @@ func TestReconciler(t *testing.T) {
 	})
 
 	t.Run("Filter missing component dependencies", func(t *testing.T) {
-		recon, err := NewComponentReconciler("./test", true)
+		recon, err := NewComponentReconciler("unittest", "./test", true)
 		require.NoError(t, err)
 
 		recon.WithDependencies("a", "b")
@@ -116,7 +115,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 	//start reconciler
 	go func() {
-		recon, err := NewComponentReconciler("./test", true)
+		recon, err := NewComponentReconciler("unittest", "./test", true)
 		require.NoError(t, err)
 
 		err = recon.WithWorkers(2, workerTimeout).

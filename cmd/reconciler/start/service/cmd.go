@@ -3,46 +3,35 @@ package cmd
 import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/internal/cli"
+	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/spf13/cobra"
 )
 
-/*
-* To create a component reconciler, please adjust the options.go file.
-* Normally are no changes in this file required.
- */
-
-func NewCmd(o *Options) *cobra.Command {
+func NewCmd(o *reconCli.Options, reconcilerName string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   o.Name,
-		Short: fmt.Sprintf("Administrate Kyma '%s' reconcilers", o.Name),
-		Long:  fmt.Sprintf("Administrative CLI tool for the Kyma '%s' reconciler service", o.Name),
+		Use:   reconcilerName,
+		Short: fmt.Sprintf("Start '%s' reconciler service", reconcilerName),
+		Long:  fmt.Sprintf("CLI tool to start the Kyma '%s' component-reconciler service", reconcilerName),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Validate(); err != nil {
 				return err
 			}
-			return Run(o)
+			return Run(o, reconcilerName)
 		},
 	}
 
 	return cmd
 }
 
-func Run(o *Options) error {
-	//create component reconciler
-	recon, err := service.NewComponentReconciler(o.Workspace, o.Verbose)
+func Run(o *reconCli.Options, reconcilerName string) error {
+	recon, err := service.Get(reconcilerName)
 	if err != nil {
 		return err
 	}
 
-	//configure component reconciler
-	recon.WithDependencies(o.Dependencies...).
-		//configure custom actions
-		WithPreReconcileAction(o.PreAction).
-		WithReconcileAction(o.ReconcileAction).
-		WithPostReconcileAction(o.PostAction).
-		//configure REST API server
-		WithServerConfig(o.ServerConfig.Port, o.ServerConfig.SSLCrt, o.ServerConfig.SSLKey).
+	//configure REST API server
+	recon.WithServerConfig(o.ServerConfig.Port, o.ServerConfig.SSLCrt, o.ServerConfig.SSLKey).
 		//configure reconciliation
 		WithWorkers(o.WorkerConfig.Workers, o.WorkerConfig.Timeout).
 		WithRetry(o.RetryConfig.MaxRetries, o.RetryConfig.RetryDelay).

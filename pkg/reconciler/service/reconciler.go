@@ -12,13 +12,13 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/panjf2000/ants/v2"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 
 	"go.uber.org/zap"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/pkg/server"
@@ -35,7 +35,7 @@ const (
 )
 
 type Action interface {
-	Run(version string, kubeClient *kubernetes.Clientset) error
+	Run(version string, kubeClient kubernetes.Client) error
 }
 
 type ComponentReconciler struct {
@@ -73,7 +73,7 @@ type serverConfig struct {
 	sslKeyFile string
 }
 
-func NewComponentReconciler(workspaceDir string, debug bool) (*ComponentReconciler, error) {
+func NewComponentReconciler(reconcilerName, workspaceDir string, debug bool) (*ComponentReconciler, error) {
 	wsf := &workspace.Factory{
 		Debug:      debug,
 		StorageDir: workspaceDir,
@@ -82,10 +82,15 @@ func NewComponentReconciler(workspaceDir string, debug bool) (*ComponentReconcil
 	if err != nil {
 		return nil, err
 	}
-	return &ComponentReconciler{
+
+	recon := &ComponentReconciler{
 		debug:         debug,
 		chartProvider: chartProvider,
-	}, nil
+	}
+
+	Register(reconcilerName, recon) //add reconciler to registry
+
+	return recon, nil
 }
 
 func (r *ComponentReconciler) logger() *zap.SugaredLogger {

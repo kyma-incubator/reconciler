@@ -1,7 +1,6 @@
 package start
 
 import (
-	exampleCmd "github.com/kyma-incubator/reconciler/cmd/reconciler/start/example"
 	"github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/spf13/cobra"
 	"time"
@@ -50,12 +49,5 @@ func NewCmd(o *reconciler.Options) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&o.Workspace, "workspace", ".",
 		"Workspace directory used to cache Kyma sources")
 
-	//register component reconcilers
-	registerComponentReconcilers(cmd, o)
-
 	return cmd
-}
-
-func registerComponentReconcilers(cmd *cobra.Command, o *reconciler.Options) {
-	cmd.AddCommand(exampleCmd.NewCmd(exampleCmd.NewOptions(o)))
 }
