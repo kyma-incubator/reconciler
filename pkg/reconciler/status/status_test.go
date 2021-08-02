@@ -14,13 +14,13 @@ import (
 )
 
 //testCallbackHandler is tracking fired status-updates in an env-var (allows a stateless callback implementation)
+//This implementation CAN NOT RUN IN PARALLEL!
+type testCallbackHandler struct {
+}
 
 func newTestCallbackHandler(t *testing.T) *testCallbackHandler {
 	require.NoError(t, os.Unsetenv("_testCallbackHandlerStatuses"))
 	return &testCallbackHandler{}
-}
-
-type testCallbackHandler struct {
 }
 
 func (cb *testCallbackHandler) Callback(status reconciler.Status) error {
@@ -51,8 +51,6 @@ func TestStatusUpdater(t *testing.T) {
 	if !test.RunExpensiveTests() {
 		return
 	}
-
-	t.Parallel()
 
 	t.Run("Test status updater without timeout", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
