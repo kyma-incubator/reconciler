@@ -128,7 +128,7 @@ func TestStatusUpdater(t *testing.T) {
 		time.Sleep(2 * time.Second) //wait longer than status update timeout to timeout
 
 		//check fired status updates
-		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything >= 1 is sufficient to ensure the statusUpdaters worked
+		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything <= 2 is sufficient to ensure the statusUpdaters worked
 
 		err = statusUpdater.Failed()
 		require.Error(t, err)
