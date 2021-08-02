@@ -46,9 +46,9 @@ type ComponentReconciler struct {
 	progressTrackerConfig progressTrackerConfig
 	chartProvider         *chart.Provider
 	//actions:
-	preInstallAction  Action
-	installAction     Action
-	postInstallAction Action
+	preReconcileAction  Action
+	reconcileAction     Action
+	postReconcileAction Action
 	//retry:
 	maxRetries int
 	retryDelay time.Duration
@@ -58,9 +58,8 @@ type ComponentReconciler struct {
 }
 
 type statusUpdaterConfig struct {
-	interval   time.Duration
-	maxRetries int
-	retryDelay time.Duration
+	interval time.Duration
+	timeout  time.Duration
 }
 
 type progressTrackerConfig struct {
@@ -107,19 +106,12 @@ func (r *ComponentReconciler) validate() error {
 	if r.statusUpdaterConfig.interval == 0 {
 		r.statusUpdaterConfig.interval = defaultInterval
 	}
-	if r.statusUpdaterConfig.retryDelay < 0 {
-		return fmt.Errorf("status updater retry-delay cannot be < 0 (got %.1f secs)",
-			r.statusUpdaterConfig.retryDelay.Seconds())
+	if r.statusUpdaterConfig.timeout < 0 {
+		return fmt.Errorf("status updater timeouts cannot be < 0 (got %d)",
+			r.statusUpdaterConfig.timeout)
 	}
-	if r.statusUpdaterConfig.retryDelay == 0 {
-		r.statusUpdaterConfig.retryDelay = defaultRetryDelay
-	}
-	if r.statusUpdaterConfig.maxRetries < 0 {
-		return fmt.Errorf("status updater max-retries cannot be < 0 (got %d)",
-			r.statusUpdaterConfig.maxRetries)
-	}
-	if r.statusUpdaterConfig.maxRetries == 0 {
-		r.statusUpdaterConfig.maxRetries = defaultMaxRetries
+	if r.statusUpdaterConfig.timeout == 0 {
+		r.statusUpdaterConfig.timeout = defaultTimeout
 	}
 	if r.progressTrackerConfig.interval < 0 {
 		return fmt.Errorf("progress tracker interval cannot be < 0 (got %.1f secs)",
@@ -179,25 +171,24 @@ func (r *ComponentReconciler) WithWorkers(workers int, timeout time.Duration) *C
 	return r
 }
 
-func (r *ComponentReconciler) WithPreInstallAction(preInstallAction Action) *ComponentReconciler {
-	r.preInstallAction = preInstallAction
+func (r *ComponentReconciler) WithPreReconcileAction(preReconcileAction Action) *ComponentReconciler {
+	r.preReconcileAction = preReconcileAction
 	return r
 }
 
-func (r *ComponentReconciler) WithInstallAction(installAction Action) *ComponentReconciler {
-	r.installAction = installAction
+func (r *ComponentReconciler) WithReconcileAction(reconcileAction Action) *ComponentReconciler {
+	r.reconcileAction = reconcileAction
 	return r
 }
 
-func (r *ComponentReconciler) WithPostInstallAction(postInstallAction Action) *ComponentReconciler {
-	r.postInstallAction = postInstallAction
+func (r *ComponentReconciler) WithPostReconcileAction(postReconcileAction Action) *ComponentReconciler {
+	r.postReconcileAction = postReconcileAction
 	return r
 }
 
-func (r *ComponentReconciler) WithStatusUpdaterConfig(interval time.Duration, maxRetries int, retryDelay time.Duration) *ComponentReconciler {
+func (r *ComponentReconciler) WithStatusUpdaterConfig(interval time.Duration, timeout time.Duration) *ComponentReconciler {
 	r.statusUpdaterConfig.interval = interval
-	r.statusUpdaterConfig.maxRetries = maxRetries
-	r.statusUpdaterConfig.retryDelay = retryDelay
+	r.statusUpdaterConfig.timeout = timeout
 	return r
 }
 

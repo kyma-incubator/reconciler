@@ -312,10 +312,10 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 
 	recon.WithRetry(3, 1*time.Second).
 		WithWorkers(5, timeout).
-		WithStatusUpdaterConfig(interval, 3, 1*time.Second).
-		WithPreInstallAction(preAct).
-		WithInstallAction(instAct).
-		WithPostInstallAction(postAct).
+		WithStatusUpdaterConfig(interval, timeout).
+		WithPreReconcileAction(preAct).
+		WithReconcileAction(instAct).
+		WithPostReconcileAction(postAct).
 		WithProgressTrackerConfig(interval, timeout)
 
 	return &runner{recon}

@@ -22,9 +22,8 @@ type runner struct {
 
 func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {
 	statusUpdater, err := status.NewStatusUpdater(ctx, callback, r.debug, status.Config{
-		Interval:   r.statusUpdaterConfig.interval,
-		MaxRetries: r.statusUpdaterConfig.maxRetries,
-		RetryDelay: r.statusUpdaterConfig.retryDelay,
+		Interval: r.statusUpdaterConfig.interval,
+		Timeout:  r.statusUpdaterConfig.timeout,
 	})
 	if err != nil {
 		return err
@@ -82,27 +81,27 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	}
 
 	logger := r.logger()
-	if r.preInstallAction != nil {
-		if err := r.preInstallAction.Run(model.Version, clientSet); err != nil {
+	if r.preReconcileAction != nil {
+		if err := r.preReconcileAction.Run(model.Version, clientSet); err != nil {
 			logger.Warnf("Pre-installation action of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	}
 
-	if r.installAction == nil {
+	if r.reconcileAction == nil {
 		if err := r.install(ctx, model, kubeClient); err != nil {
 			logger.Warnf("Default-installation of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	} else {
-		if err := r.installAction.Run(model.Version, clientSet); err != nil {
+		if err := r.reconcileAction.Run(model.Version, clientSet); err != nil {
 			logger.Warnf("Installation action of version '%s' failed: %s", model.Version, err)
 			return err
 		}
 	}
 
-	if r.postInstallAction != nil {
-		if err := r.postInstallAction.Run(model.Version, clientSet); err != nil {
+	if r.postReconcileAction != nil {
+		if err := r.postReconcileAction.Run(model.Version, clientSet); err != nil {
 			logger.Warnf("Post-installation action of version '%s' failed: %s", model.Version, err)
 			return err
 		}

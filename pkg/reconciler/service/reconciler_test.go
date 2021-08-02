@@ -60,22 +60,21 @@ func TestReconciler(t *testing.T) {
 		postAct := &DummyAction{
 			"123",
 		}
-		recon.WithPreInstallAction(preAct).
-			WithInstallAction(instAct).
-			WithPostInstallAction(postAct)
-		require.Equal(t, preAct, recon.preInstallAction)
-		require.Equal(t, instAct, recon.installAction)
-		require.Equal(t, postAct, recon.postInstallAction)
+		recon.WithPreReconcileAction(preAct).
+			WithReconcileAction(instAct).
+			WithPostReconcileAction(postAct)
+		require.Equal(t, preAct, recon.preReconcileAction)
+		require.Equal(t, instAct, recon.reconcileAction)
+		require.Equal(t, postAct, recon.postReconcileAction)
 
 		recon.WithServerConfig(9999, "sslCrtFile", "sslKeyFile")
 		require.Equal(t, 9999, recon.serverConfig.port)
 		require.Equal(t, "sslKeyFile", recon.serverConfig.sslKeyFile)
 		require.Equal(t, "sslCrtFile", recon.serverConfig.sslCrtFile)
 
-		recon.WithStatusUpdaterConfig(333*time.Second, 444, 555*time.Second)
+		recon.WithStatusUpdaterConfig(333*time.Second, 4455*time.Second)
 		require.Equal(t, 333*time.Second, recon.statusUpdaterConfig.interval)
-		require.Equal(t, 444, recon.statusUpdaterConfig.maxRetries)
-		require.Equal(t, 555*time.Second, recon.statusUpdaterConfig.retryDelay)
+		require.Equal(t, 4455*time.Second, recon.statusUpdaterConfig.timeout)
 
 		recon.WithProgressTrackerConfig(666*time.Second, 777*time.Second)
 		require.Equal(t, 666*time.Second, recon.progressTrackerConfig.interval)
@@ -124,7 +123,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			WithServerConfig(9999, "", "").
 			WithDependencies("abc", "xyz").
 			WithRetry(1, 1*time.Second).
-			WithStatusUpdaterConfig(1*time.Second, 2, 1*time.Second).
+			WithStatusUpdaterConfig(1*time.Second, 2*time.Second).
 			WithProgressTrackerConfig(1*time.Second, workerTimeout).
 			StartRemote(ctx)
 		require.NoError(t, err)
