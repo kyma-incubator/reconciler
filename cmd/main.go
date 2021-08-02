@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	cfgCmd "github.com/kyma-incubator/reconciler/cmd/config"
-	clrCmd "github.com/kyma-incubator/reconciler/cmd/reconciler"
+	rclCmd "github.com/kyma-incubator/reconciler/cmd/reconciler"
 	svcCmd "github.com/kyma-incubator/reconciler/cmd/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/app"
@@ -33,7 +33,7 @@ func main() {
 
 	cmd.AddCommand(cfgCmd.NewCmd(o))
 	cmd.AddCommand(svcCmd.NewCmd(o))
-	cmd.AddCommand(clrCmd.NewCmd(o))
+	cmd.AddCommand(rclCmd.NewCmd(o))
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
@@ -111,7 +111,7 @@ func getConfigFile() (string, error) {
 		configFile = DefaultConfigFile
 	}
 	if !file.Exists(configFile) {
-		return "", fmt.Errorf("No configuration file found: set environment variable $%s_CONFIG or define it as CLI parameter", envVarPrefix)
+		return "", fmt.Errorf("no configuration file found: set environment variable $%s_CONFIG or define it as CLI parameter", envVarPrefix)
 	}
 	return configFile, nil
 }
