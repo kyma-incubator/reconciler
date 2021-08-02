@@ -186,7 +186,7 @@ func (r *ComponentReconciler) WithPostReconcileAction(postReconcileAction Action
 	return r
 }
 
-func (r *ComponentReconciler) WithStatusUpdaterConfig(interval time.Duration, timeout time.Duration) *ComponentReconciler {
+func (r *ComponentReconciler) WithStatusUpdaterConfig(interval, timeout time.Duration) *ComponentReconciler {
 	r.statusUpdaterConfig.interval = interval
 	r.statusUpdaterConfig.timeout = timeout
 	return r

@@ -1,19 +1,65 @@
 package cmd
 
 import (
-	startCmd "github.com/kyma-incubator/reconciler/cmd/reconciler/start"
+	example "github.com/kyma-incubator/reconciler/cmd/reconciler/example"
 	"github.com/kyma-incubator/reconciler/internal/cli"
+	"github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/spf13/cobra"
+	"time"
 )
+
+const defaultTimeout = 10 * time.Minute //max time a reconciliation process is allowed to take
 
 func NewCmd(o *cli.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reconciler",
-		Short: "Kyma component reconciler",
+		Short: "Administrate Kyma component reconcilers",
 		Long:  "Administrative CLI tool for the Kyma component reconcilers",
 	}
 
-	cmd.AddCommand(startCmd.NewCmd(startCmd.NewOptions(o)))
+	//decorate CLI options with component reconciler attributes
+	reconOpts := reconciler.NewOptions(o)
+
+	//worker pool configuration
+	cmd.Flags().IntVar(&reconOpts.WorkerConfig.Workers, "worker-count", 50,
+		"Number of in parallel running reconciliation workers")
+	cmd.Flags().DurationVar(&reconOpts.WorkerConfig.Timeout, "worker-timeout", defaultTimeout,
+		"Maximal time a worker will run before a reconciliation will be stopped")
+
+	//REST API configuration
+	cmd.Flags().IntVar(&reconOpts.ServerConfig.Port, "server-port", 8080,
+		"Port of the REST API")
+	cmd.Flags().StringVar(&reconOpts.ServerConfig.SSLCrt, "server-crt", "",
+		"Path to SSL certificate file used for secure REST API communication")
+	cmd.Flags().StringVar(&reconOpts.ServerConfig.SSLKey, "server-key", "",
+		"Path to SSL key file used for secure REST API communication")
+
+	//retry configuration
+	cmd.Flags().IntVar(&reconOpts.RetryConfig.MaxRetries, "retries-max", 5,
+		"Number of retries until the reconciler will report a reconciliation as consistently failing")
+	cmd.Flags().DurationVar(&reconOpts.RetryConfig.RetryDelay, "retries-delay", 30*time.Second,
+		"Delay between each reconciliation retry")
+
+	//status-updater configuration
+	cmd.Flags().DurationVar(&reconOpts.StatusUpdaterConfig.Interval, "status-interval", 30*time.Second,
+		"Interval to report the latest reconciliation process status to the mothership reconciler")
+	reconOpts.StatusUpdaterConfig.Timeout = reconOpts.WorkerConfig.Timeout //coupled to reconcile-timeout
+
+	//progress-tracker configuration
+	cmd.Flags().DurationVar(&reconOpts.ProgressTrackerConfig.Interval, "progress-interval", 15*time.Second,
+		"Interval to verify the installation progress of a deployed Kubernetes resource")
+	reconOpts.ProgressTrackerConfig.Timeout = reconOpts.WorkerConfig.Timeout //coupled to reconcile-timeout
+
+	//file cache for Kyma sources
+	cmd.Flags().StringVar(&reconOpts.Workspace, "workspace", ".",
+		"Workspace directory used to cache Kyma sources")
+
+	//register component reconcilers
+	registerComponentReconcilers(cmd, reconOpts)
 
 	return cmd
+}
+
+func registerComponentReconcilers(cmd *cobra.Command, o *reconciler.Options) {
+	cmd.AddCommand(example.NewCmd(example.NewOptions(o)))
 }
