@@ -29,33 +29,37 @@ func TestProgressTracker(t *testing.T) {
 	//read resource manifest
 	manifest := readManifest(t)
 
-	//ensure old resources are deleted before running the test
-	err = kubeClient.Delete(manifest)
-	if err != nil {
-		t.Log("Cleanup of old test resources failed (probably nothing to cleanup): test is continuing")
+	cleanup := func() {
+		t.Log("Cleanup test resources")
+		if err := kubeClient.Delete(manifest); err != nil {
+			t.Log("Cleanup of test resources failed (probably nothing to cleanup): test is continuing")
+		}
 	}
+	cleanup()       //ensure relicts from previous test runs were removed
+	defer cleanup() //cleanup after test is finished
 
 	//install test resources
 	t.Log("Deploying test resources")
 	resources, err := kubeClient.Deploy(manifest)
 	require.NoError(t, err)
 	require.Len(t, resources, 6)
-	defer func() {
-		t.Log("Cleanup test resources")
-		require.NoError(t, kubeClient.Delete(manifest))
-	}()
 
 	t.Run("Test progress tracking with timeout", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second) //stop progress tracker after 1 sec
 		defer cancel()
 
 		pt, err := NewProgressTracker(ctx, clientSet, true,
-			Config{Interval: 1 * time.Second, Timeout: 2 * time.Second})
+			Config{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
 		require.NoError(t, err)
 
 		addWatchable(t, resources, pt)
 
+		//check timeout happened within ~1 sec:
+		startTime := time.Now()
 		err = pt.Watch()
+		require.WithinDuration(t, startTime, time.Now(), 1250*time.Millisecond) //250msec as buffer to compensate overhead
+
+		//err expected because a timeout occurred:
 		require.Error(t, err)
 		require.IsType(t, &e.ContextClosedError{}, err)
 	})
@@ -73,6 +77,20 @@ func TestProgressTracker(t *testing.T) {
 		require.NoError(t, pt.Watch())
 		require.WithinDuration(t, startTime, time.Now(), 30*time.Second)
 	})
+
+	t.Run("Test progress tracking when state is terminating", func(t *testing.T) {
+		cleanup() //delete resources
+
+		// get progress tracker
+		pt, err := NewProgressTracker(context.TODO(), clientSet, true,
+			Config{Interval: 1 * time.Second, Timeout: 10 * time.Second})
+		require.NoError(t, err)
+
+		addWatchable(t, resources, pt)
+
+		//Expect error as resources could not be watched properly when terminating/disappearing
+		require.Error(t, pt.Watch())
+	})
 }
 
 func addWatchable(t *testing.T, resources []*k8s.Resource, pt *Tracker) {
@@ -80,6 +98,7 @@ func addWatchable(t *testing.T, resources []*k8s.Resource, pt *Tracker) {
 	for _, resource := range resources {
 		watchable, err := NewWatchableResource(resource.Kind)
 		if err == nil {
+			t.Logf("Register watchable '%s'", resource)
 			pt.AddResource(watchable, resource.Namespace, resource.Name)
 			cntWatchable++
 		}
