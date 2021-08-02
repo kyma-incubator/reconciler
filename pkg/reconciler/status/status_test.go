@@ -47,7 +47,7 @@ func (cb *testCallbackHandler) LatestStatus() reconciler.Status {
 	return reconciler.Status(statuses[len(statuses)-1])
 }
 
-func TestStatusUpdater(t *testing.T) {
+func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 	if !test.RunExpensiveTests() {
 		return
 	}
