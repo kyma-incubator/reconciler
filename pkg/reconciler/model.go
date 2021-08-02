@@ -21,7 +21,7 @@ const (
 )
 
 const (
-	ManagedByLabel       = "managed-by"
+	ManagedByLabel       = "reconciler.kyma-project.io/managed-by"
 	LabelReconcilerValue = "reconciler"
 )
 
