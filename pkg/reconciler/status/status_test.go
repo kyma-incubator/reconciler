@@ -14,6 +14,12 @@ import (
 )
 
 //testCallbackHandler is tracking fired status-updates in an env-var (allows a stateless callback implementation)
+
+func newTestCallbackHandler(t *testing.T) *testCallbackHandler {
+	require.NoError(t, os.Unsetenv("_testCallbackHandlerStatuses"))
+	return &testCallbackHandler{}
+}
+
 type testCallbackHandler struct {
 }
 
@@ -46,12 +52,11 @@ func TestStatusUpdater(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		callbackHdlr := &testCallbackHandler{}
+		callbackHdlr := newTestCallbackHandler(t)
 
 		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, true, Config{
-			Interval:   1 * time.Second,
-			MaxRetries: 1,
-			RetryDelay: 1 * time.Second,
+			Interval: 1 * time.Second,
+			Timeout:  10 * time.Second,
 		})
 		require.NoError(t, err)
 		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.NotStarted)
@@ -73,16 +78,15 @@ func TestStatusUpdater(t *testing.T) {
 		require.Equal(t, callbackHdlr.LatestStatus(), reconciler.Success)
 	})
 
-	t.Run("Test status updater with timeout", func(t *testing.T) {
+	t.Run("Test status updater with context timeout", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		callbackHdlr := &testCallbackHandler{}
+		callbackHdlr := newTestCallbackHandler(t)
 
 		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, true, Config{
-			Interval:   1 * time.Second,
-			MaxRetries: 1,
-			RetryDelay: 1 * time.Second,
+			Interval: 1 * time.Second,
+			Timeout:  10 * time.Second,
 		})
 		require.NoError(t, err)
 		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.NotStarted)
@@ -96,6 +100,29 @@ func TestStatusUpdater(t *testing.T) {
 
 		//check fired status updates
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the statusUpdaters worked
+
+		err = statusUpdater.Failed()
+		require.Error(t, err)
+		require.IsType(t, &e.ContextClosedError{}, err) //status changes have to fail after status-updater was interrupted
+	})
+
+	t.Run("Test status updater with status updater timeout", func(t *testing.T) {
+		callbackHdlr := newTestCallbackHandler(t)
+
+		statusUpdater, err := NewStatusUpdater(context.Background(), callbackHdlr, true, Config{
+			Interval: 500 * time.Millisecond,
+			Timeout:  1 * time.Second,
+		})
+		require.NoError(t, err)
+		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.NotStarted)
+
+		require.NoError(t, statusUpdater.Running())
+		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Running)
+
+		time.Sleep(2 * time.Second) //wait longer than status update timeout to timeout
+
+		//check fired status updates
+		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 3) //anything >= 1 is sufficient to ensure the statusUpdaters worked
 
 		err = statusUpdater.Failed()
 		require.Error(t, err)

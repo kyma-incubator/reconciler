@@ -16,15 +16,13 @@ import (
 )
 
 const (
-	defaultStatusUpdaterInterval   = 30 * time.Second
-	defaultStatusUpdaterMaxRetries = 5
-	defaultStatusUpdaterRetryDelay = 30 * time.Second
+	defaultStatusUpdaterInterval = 30 * time.Second
+	defaultStatusUpdaterTimeout  = 1 * time.Hour
 )
 
 type Config struct {
-	Interval   time.Duration
-	MaxRetries int
-	RetryDelay time.Duration
+	Interval time.Duration
+	Timeout  time.Duration
 }
 
 func (su *Config) validate() error {
@@ -34,17 +32,16 @@ func (su *Config) validate() error {
 	if su.Interval == 0 {
 		su.Interval = defaultStatusUpdaterInterval
 	}
-	if su.MaxRetries < 0 {
-		return fmt.Errorf("retries cannot be < 0 but was %d", su.MaxRetries)
+	if su.Timeout < 0 {
+		return fmt.Errorf("timeout cannot be < 0 but was %d", su.Timeout)
 	}
-	if su.MaxRetries == 0 {
-		su.MaxRetries = defaultStatusUpdaterMaxRetries
+	if su.Timeout == 0 {
+		su.Timeout = defaultStatusUpdaterTimeout
 	}
-	if su.RetryDelay < 0 {
-		return fmt.Errorf("retry delay cannot be < 0 but was %.1f", su.RetryDelay.Seconds())
-	}
-	if su.RetryDelay == 0 {
-		su.RetryDelay = defaultStatusUpdaterRetryDelay
+
+	if su.Timeout <= su.Interval {
+		return fmt.Errorf("timeout cannot be <= interval (%.1f secs <= %.1f secs)",
+			su.Timeout.Seconds(), su.Interval.Seconds())
 	}
 	return nil
 }
@@ -52,6 +49,7 @@ func (su *Config) validate() error {
 type Updater struct {
 	ctx             context.Context
 	ctxClosed       bool //indicate whether the process was interrupted by parent context
+	timeout         *time.Timer
 	debug           bool
 	config          Config
 	status          reconciler.Status //current status
@@ -71,6 +69,7 @@ func NewStatusUpdater(ctx context.Context, callback cb.Handler, debug bool, conf
 		callback:        callback,
 		debug:           debug,
 		status:          reconciler.NotStarted,
+		timeout:         time.NewTimer(config.Timeout),
 	}, nil
 }
 
@@ -103,12 +102,13 @@ func (su *Updater) sendUpdate(status reconciler.Status, onlyOnce bool) {
 		return err
 	}
 
-	go func(status reconciler.Status, interval time.Duration, onlyOnce bool) {
+	go func(status reconciler.Status, interval time.Duration, timeout time.Duration, onlyOnce bool) {
 		su.logger().Debugf("Starting new update loop for status '%s' (update only once: %t)", status, onlyOnce)
 		if err := task(status); err == nil && onlyOnce {
 			su.logger().Debugf("Status '%s' successfully communicated: stopping update loop", status)
 			return
 		}
+		su.timeout.Reset(timeout)
 		for {
 			select {
 			case <-su.restartInterval:
@@ -116,6 +116,11 @@ func (su *Updater) sendUpdate(status reconciler.Status, onlyOnce bool) {
 				return
 			case <-su.ctx.Done():
 				su.logger().Debugf("Stopping update loop for status '%s' because context was closed", status)
+				su.closeContext()
+				return
+			case <-su.timeout.C:
+				su.logger().Debugf("Stopping update loop for status '%s' because timeout of %.1f secs reached",
+					status, timeout.Seconds())
 				su.closeContext()
 				return
 			case <-time.NewTicker(interval).C:
@@ -126,7 +131,7 @@ func (su *Updater) sendUpdate(status reconciler.Status, onlyOnce bool) {
 				}
 			}
 		}
-	}(status, su.config.Interval, onlyOnce)
+	}(status, su.config.Interval, su.config.Timeout, onlyOnce)
 
 	su.status = status
 }
