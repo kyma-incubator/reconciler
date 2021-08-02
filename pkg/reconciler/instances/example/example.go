@@ -12,7 +12,8 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	log.Debug("Creating component reconciler (name :'example')")
+
+	log.Debug("Initializing component reconciler 'example'")
 	reconciler, err := service.NewComponentReconciler("example", "/workspaces/example-component-reconciler", true)
 	if err != nil {
 		log.Fatalf("Could not create component reconciler: %s", err)
