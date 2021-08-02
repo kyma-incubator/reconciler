@@ -50,19 +50,26 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 			if err := o.Validate(); err != nil {
 				return err
 			}
-			return initApplicationRegistry(o)
+			if o.InitRegistry {
+				return initApplicationRegistry(o)
+			}
+			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			//shutdown object context
-			return o.Registry.Close()
+			if o.Registry != nil {
+				//shutdown object context
+				return o.Registry.Close()
+			}
+			return nil
 		},
 		SilenceErrors: false,
 		SilenceUsage:  true,
 	}
 	cobra.OnInitialize(initViper(o))
-	cmd.PersistentFlags().StringVarP(&DefaultConfigFile, "config", "c", "configs/reconciler.yaml", `Path to the configuration file.`)
-	cmd.PersistentFlags().BoolVarP(&o.Verbose, "verbose", "v", false, "Show detailed information about the executed command actions.")
+	cmd.PersistentFlags().StringVarP(&DefaultConfigFile, "config", "c", "configs/reconciler.yaml", `Path to the configuration file`)
+	cmd.PersistentFlags().BoolVarP(&o.Verbose, "verbose", "v", false, "Show detailed information about the executed command actions")
 	cmd.PersistentFlags().BoolVar(&o.NonInteractive, "non-interactive", false, "Enables the non-interactive shell mode")
+	cmd.PersistentFlags().BoolVarP(&o.InitRegistry, "init-registry", "r", false, "Auto-initialize application registry ")
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
 	return cmd
 }

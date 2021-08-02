@@ -11,6 +11,7 @@ import (
 
 type Options struct {
 	Verbose        bool
+	InitRegistry   bool
 	NonInteractive bool
 	OutputFormat   string
 	logger         *zap.SugaredLogger
@@ -33,11 +34,11 @@ func (o *Options) Validate() error {
 
 func (o *Options) Logger() *zap.SugaredLogger {
 	if o.logger == nil {
-		logger, err := logger.NewLogger(o.Verbose)
+		zapLogger, err := logger.NewLogger(o.Verbose)
 		if err != nil {
 			panic(err)
 		}
-		o.logger = logger
+		o.logger = zapLogger
 	}
 	return o.logger
 }
