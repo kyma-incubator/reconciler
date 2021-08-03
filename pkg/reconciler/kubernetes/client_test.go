@@ -16,7 +16,7 @@ func TestKubernetesClient(t *testing.T) {
 	}
 
 	//create client
-	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), true)
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t))
 	require.NoError(t, err)
 
 	t.Run("Deploy and delete resources", func(t *testing.T) {

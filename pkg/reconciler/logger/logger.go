@@ -16,7 +16,7 @@ var (
 
 func InitLogger(correlationID string, debug bool) (*zap.SugaredLogger, error) {
 	if correlationID == "" {
-		return nil, fmt.Errorf("Correlation ID is empty. Logger cannot be created without the correlation ID.")
+		return nil, fmt.Errorf("correlation ID is empty while creating the logger")
 	}
 
 	var err error
@@ -32,7 +32,7 @@ func InitLogger(correlationID string, debug bool) (*zap.SugaredLogger, error) {
 
 func NewLogger() (*zap.SugaredLogger, error) {
 	if loggerInstance == nil {
-		return nil, fmt.Errorf("InitLogger must be called to initialize the logger.")
+		return nil, fmt.Errorf("logger is not initialized")
 	}
 	return loggerInstance, nil
 }

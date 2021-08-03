@@ -71,7 +71,7 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 }
 
 func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation) error {
-	kubeClient, err := kubernetes.NewKubernetesClient(model.Kubeconfig, r.debug)
+	kubeClient, err := kubernetes.NewKubernetesClient(model.Kubeconfig)
 	if err != nil {
 		return err
 	}

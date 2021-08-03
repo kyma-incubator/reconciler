@@ -2,15 +2,16 @@ package progress
 
 import (
 	"context"
+	"io/ioutil"
+	"path/filepath"
+	"testing"
+	"time"
+
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 func TestProgressTracker(t *testing.T) {
@@ -19,7 +20,7 @@ func TestProgressTracker(t *testing.T) {
 	}
 
 	//create Kubernetes client
-	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), true)
+	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t))
 	require.NoError(t, err)
 
 	//get client set

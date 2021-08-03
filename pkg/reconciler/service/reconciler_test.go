@@ -175,7 +175,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 	t.Run("Happy path", func(t *testing.T) {
 		//get Kubernetes client
-		kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), true)
+		kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t))
 		require.NoError(t, err)
 		clientSet, err := kubeClient.Clientset()
 		require.NoError(t, err)

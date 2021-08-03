@@ -21,7 +21,7 @@ type kubeClientAdapter struct {
 	logger     *zap.SugaredLogger
 }
 
-func newKubeClientAdapter(kubeconfig string, debug bool) (Client, error) {
+func newKubeClientAdapter(kubeconfig string) (Client, error) {
 	logger, err := logger.NewLogger()
 	if err != nil {
 		return nil, err
