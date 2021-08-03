@@ -10,7 +10,6 @@ import (
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	ws "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -44,8 +43,8 @@ func (a *TestAction) logger() *zap.SugaredLogger {
 	return logger.NewOptionalLogger(true)
 }
 
-func (a *TestAction) Run(version string, kubeClient kubernetes.Client) error {
-	if kubeClient == nil {
+func (a *TestAction) Run(version, profile string, config []reconciler.Configuration, helper *ActionHelper) error {
+	if helper.KubeClient == nil {
 		return fmt.Errorf("kubeClient is expected but was nil")
 	}
 

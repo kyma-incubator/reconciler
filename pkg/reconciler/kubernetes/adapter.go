@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 
 	"github.com/pkg/errors"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -21,7 +22,7 @@ type kubeClientAdapter struct {
 }
 
 func newKubeClientAdapter(kubeconfig string, debug bool) (Client, error) {
-	logger, err := logger.NewLogger(debug)
+	log, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +36,7 @@ func newKubeClientAdapter(kubeconfig string, debug bool) (Client, error) {
 
 	return &kubeClientAdapter{
 		kubeClient: *client,
-		logger:     logger,
+		logger:     log,
 	}, nil
 }
 
@@ -132,6 +133,10 @@ func (g kubeClientAdapter) Delete(manifest string) (err error) {
 
 func (g *kubeClientAdapter) Clientset() (*kubernetes.Clientset, error) {
 	return g.kubeClient.GetClientSet()
+}
+
+func (g *kubeClientAdapter) Config() *rest.Config {
+	return g.kubeClient.Config
 }
 
 func asyncReadYaml(data []byte) (<-chan []byte, <-chan error) {

@@ -23,13 +23,17 @@ const workerTimeout = 30 * time.Second
 
 type DummyAction struct {
 	receivedVersion string
+	receivedProfile string
+	receivedConfig  []reconciler.Configuration
 }
 
-func (da *DummyAction) Run(version string, kubeClient k8s.Client) error {
-	if kubeClient != nil {
+func (da *DummyAction) Run(version, profile string, config []reconciler.Configuration, helper *ActionHelper) error {
+	if helper.KubeClient != nil {
 		return fmt.Errorf("kubeClient is not expected in this test case")
 	}
 	da.receivedVersion = version
+	da.receivedProfile = profile
+	da.receivedConfig = config
 	return nil
 }
 
@@ -57,12 +61,18 @@ func TestReconciler(t *testing.T) {
 		//verify pre, post and install-action
 		preAct := &DummyAction{
 			"123",
+			"",
+			nil,
 		}
 		instAct := &DummyAction{
 			"123",
+			"",
+			nil,
 		}
 		postAct := &DummyAction{
 			"123",
+			"",
+			nil,
 		}
 		recon.WithPreReconcileAction(preAct).
 			WithReconcileAction(instAct).

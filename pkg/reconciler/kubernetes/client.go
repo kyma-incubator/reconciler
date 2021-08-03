@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type Resource struct {
@@ -24,6 +25,7 @@ type Client interface {
 	Deploy(manifest string, interceptors ...ResourceInterceptor) ([]*Resource, error)
 	Delete(manifest string) error
 	Clientset() (*kubernetes.Clientset, error)
+	Config() *rest.Config
 }
 
 func NewKubernetesClient(kubeconfig string, debug bool) (Client, error) {

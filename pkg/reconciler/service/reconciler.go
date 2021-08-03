@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -35,8 +36,18 @@ const (
 	defaultWorkspace     = "."
 )
 
+var (
+	workspaceFactory *workspace.Factory //singleton
+	m                sync.Mutex
+)
+
+type ActionHelper struct {
+	KubeClient       kubernetes.Client
+	WorkspaceFactory *workspace.Factory
+}
+
 type Action interface {
-	Run(version string, kubeClient kubernetes.Client) error
+	Run(version, profile string, configuration []reconciler.Configuration, helper *ActionHelper) error
 }
 
 type ComponentReconciler struct {
@@ -83,12 +94,20 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 }
 
 func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
-	r.logger().Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
-	wsf := &workspace.Factory{
-		Debug:      r.debug,
-		StorageDir: r.workspace,
+	return chart.NewProvider(r.newWorkspaceFactory(), r.debug)
+}
+
+func (r *ComponentReconciler) newWorkspaceFactory() *workspace.Factory {
+	m.Lock()
+	if workspaceFactory == nil {
+		r.logger().Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
+		workspaceFactory = &workspace.Factory{
+			Debug:      r.debug,
+			StorageDir: r.workspace,
+		}
 	}
-	return chart.NewProvider(wsf, r.debug)
+	m.Unlock()
+	return workspaceFactory
 }
 
 func (r *ComponentReconciler) logger() *zap.SugaredLogger {
