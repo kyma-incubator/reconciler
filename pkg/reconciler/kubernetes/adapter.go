@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	b64 "encoding/base64"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"go.uber.org/zap"
 	"io"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
+	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/pkg/errors"
@@ -21,7 +22,7 @@ type kubeClientAdapter struct {
 }
 
 func newKubeClientAdapter(kubeconfig string, debug bool) (Client, error) {
-	logger, err := logger.NewLogger(debug)
+	logger, err := logger.NewLogger("", debug)
 	if err != nil {
 		return nil, err
 	}

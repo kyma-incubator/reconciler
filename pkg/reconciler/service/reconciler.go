@@ -15,7 +15,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/panjf2000/ants/v2"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
@@ -53,8 +53,9 @@ type ComponentReconciler struct {
 	maxRetries int
 	retryDelay time.Duration
 	//worker pool:
-	timeout time.Duration
-	workers int
+	timeout       time.Duration
+	workers       int
+	correlationID string
 }
 
 type statusUpdaterConfig struct {
@@ -74,23 +75,24 @@ type serverConfig struct {
 	sslKeyFile string
 }
 
-func NewComponentReconciler(workspaceDir string, debug bool) (*ComponentReconciler, error) {
+func NewComponentReconciler(workspaceDir string, correlationID string, debug bool) (*ComponentReconciler, error) {
 	wsf := &workspace.Factory{
 		Debug:      debug,
 		StorageDir: workspaceDir,
 	}
-	chartProvider, err := chart.NewProvider(wsf, debug)
+	chartProvider, err := chart.NewProvider(wsf, correlationID, debug)
 	if err != nil {
 		return nil, err
 	}
 	return &ComponentReconciler{
 		debug:         debug,
 		chartProvider: chartProvider,
+		correlationID: correlationID,
 	}, nil
 }
 
 func (r *ComponentReconciler) logger() *zap.SugaredLogger {
-	return logger.NewOptionalLogger(r.debug)
+	return logger.NewOptionalLogger(r.correlationID, r.debug)
 }
 
 func (r *ComponentReconciler) validate() error {

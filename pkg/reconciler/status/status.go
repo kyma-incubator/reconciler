@@ -10,7 +10,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	cb "github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 
 	"go.uber.org/zap"
 )
@@ -87,7 +87,7 @@ func (su *Updater) isContextClosed() bool {
 }
 
 func (su *Updater) logger() *zap.SugaredLogger {
-	return logger.NewOptionalLogger(su.debug)
+	return logger.NewOptionalLogger("", su.debug)
 }
 
 func (su *Updater) sendUpdate(status reconciler.Status, onlyOnce bool) {

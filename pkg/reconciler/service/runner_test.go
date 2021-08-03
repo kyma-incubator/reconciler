@@ -3,16 +3,17 @@ package service
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	ws "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -41,7 +42,7 @@ type TestAction struct {
 }
 
 func (a *TestAction) logger() *zap.SugaredLogger {
-	return logger.NewOptionalLogger(true)
+	return logger.NewOptionalLogger("", true)
 }
 
 func (a *TestAction) Run(version string, kubeClient *kubernetes.Clientset) error {
@@ -308,7 +309,7 @@ func TestRunner(t *testing.T) {
 }
 
 func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
-	recon, err := NewComponentReconciler("./test", true)
+	recon, err := NewComponentReconciler("./test", "test-correlation-id", true)
 	require.NoError(t, err)
 
 	recon.WithRetry(3, 1*time.Second).

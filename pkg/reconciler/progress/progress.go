@@ -6,7 +6,7 @@ import (
 	"time"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	log "github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,7 +67,7 @@ func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug
 		return nil, err
 	}
 
-	logger, err := log.NewLogger(debug)
+	logger, err := log.NewLogger("", debug)
 	if err != nil {
 		return nil, err
 	}

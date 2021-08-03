@@ -8,8 +8,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	log "github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 	"go.uber.org/zap"
 )
 
@@ -21,7 +21,7 @@ type RemoteCallbackHandler struct {
 
 func NewRemoteCallbackHandler(callbackURL string, debug bool) (Handler, error) {
 	//create logger
-	logger, err := log.NewLogger(debug)
+	logger, err := log.NewLogger("", debug)
 	if err != nil {
 		return nil, err
 	}

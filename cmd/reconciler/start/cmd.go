@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/spf13/cobra"
@@ -27,7 +28,8 @@ func NewCmd(o *Options) *cobra.Command {
 func Run(o *Options) error {
 	ctx := cli.NewContext()
 
-	recon, err := service.NewComponentReconciler(o.Workspace, o.Verbose)
+	correlationID := uuid.New().String()
+	recon, err := service.NewComponentReconciler(o.Workspace, correlationID, o.Verbose)
 	if err != nil {
 		return err
 	}

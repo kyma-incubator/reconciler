@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -37,7 +38,7 @@ func (da *DummyAction) Run(version string, kubeClient *kubernetes.Clientset) err
 func TestReconciler(t *testing.T) {
 
 	t.Run("Verify fluent configuration interface", func(t *testing.T) {
-		recon, err := NewComponentReconciler("./test", true)
+		recon, err := NewComponentReconciler("./test", "test-correlation-id", true)
 		require.NoError(t, err)
 		require.True(t, recon.debug) //debug has to be enabled
 
@@ -87,7 +88,7 @@ func TestReconciler(t *testing.T) {
 	})
 
 	t.Run("Filter missing component dependencies", func(t *testing.T) {
-		recon, err := NewComponentReconciler("./test", true)
+		recon, err := NewComponentReconciler("./test", "test-correlation-id", true)
 		require.NoError(t, err)
 
 		recon.WithDependencies("a", "b")
@@ -117,7 +118,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 	//start reconciler
 	go func() {
-		recon, err := NewComponentReconciler("./test", true)
+		recon, err := NewComponentReconciler("./test", "test-correlation-id", true)
 		require.NoError(t, err)
 
 		err = recon.WithWorkers(2, workerTimeout).
