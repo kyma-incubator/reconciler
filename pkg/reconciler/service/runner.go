@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -14,6 +13,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/progress"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/status"
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 type runner struct {
@@ -111,7 +111,7 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 		return err
 	}
 
-	resources, err := kubeClient.Deploy(manifest)
+	resources, err := kubeClient.Deploy(manifest, &LabelInterceptor{})
 
 	if err != nil {
 		r.logger().Warnf("Failed to deploy manifests on target cluster: %s", err)
@@ -186,4 +186,17 @@ func (r *runner) configMap(model *reconciler.Reconciliation) map[string]interfac
 		result[comp.Key] = comp.Value
 	}
 	return result
+}
+
+type LabelInterceptor struct {
+}
+
+func (l *LabelInterceptor) Intercept(resource *unstructured.Unstructured) error {
+	labels := resource.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[reconciler.ManagedByLabel] = reconciler.LabelReconcilerValue
+	resource.SetLabels(labels)
+	return nil
 }

@@ -20,6 +20,11 @@ const (
 	Success    Status = "success"
 )
 
+const (
+	ManagedByLabel       = "reconciler.kyma-project.io/managed-by"
+	LabelReconcilerValue = "reconciler"
+)
+
 //Reconciliation is the model for reconciliation calls
 type Reconciliation struct {
 	ComponentsReady []string        `json:"componentsReady"`
