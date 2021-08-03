@@ -42,7 +42,7 @@ type TestAction struct {
 }
 
 func (a *TestAction) logger() *zap.SugaredLogger {
-	return logger.NewOptionalLogger("", true)
+	return logger.NewOptionalLogger()
 }
 
 func (a *TestAction) Run(version string, kubeClient *kubernetes.Clientset) error {

@@ -39,7 +39,7 @@ type Factory struct {
 
 func (f *Factory) validate(version string) error {
 	var err error
-	f.logger, err = logger.NewLogger("", f.Debug)
+	f.logger, err = logger.NewLogger()
 	if err != nil {
 		return err
 	}

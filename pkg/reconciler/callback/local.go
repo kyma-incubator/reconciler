@@ -12,7 +12,7 @@ type LocalCallbackHandler struct {
 }
 
 func NewLocalCallbackHandler(callbackFct func(status reconciler.Status) error, debug bool) (Handler, error) {
-	logger, err := log.NewLogger("", debug)
+	logger, err := log.NewLogger()
 	if err != nil {
 		return nil, err
 	}

@@ -67,7 +67,7 @@ func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug
 		return nil, err
 	}
 
-	logger, err := log.NewLogger("", debug)
+	logger, err := log.NewLogger()
 	if err != nil {
 		return nil, err
 	}

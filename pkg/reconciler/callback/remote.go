@@ -21,7 +21,7 @@ type RemoteCallbackHandler struct {
 
 func NewRemoteCallbackHandler(callbackURL string, debug bool) (Handler, error) {
 	//create logger
-	logger, err := log.NewLogger("", debug)
+	logger, err := log.NewLogger()
 	if err != nil {
 		return nil, err
 	}

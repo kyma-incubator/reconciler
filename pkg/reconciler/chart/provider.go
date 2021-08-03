@@ -27,7 +27,12 @@ func NewProvider(wsFactory *workspace.Factory, correlationID string, debug bool)
 	if wsFactory == nil {
 		return nil, fmt.Errorf("Workspace factory cannot be nil")
 	}
-	logger, err := log.NewLogger(correlationID, debug)
+	logger, err := log.InitLogger(correlationID, debug)
+	if err != nil {
+		return nil, err
+	}
+
+	logger, err = log.NewLogger()
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +54,7 @@ func (p *Provider) ChangeWorkspace(wsDir string) error {
 }
 
 func (p *Provider) loggerAdapter() (*HydroformLoggerAdapter, error) {
-	logger, err := log.NewLogger("", p.debug)
+	logger, err := log.NewLogger()
 	if err != nil {
 		return nil, err
 	}

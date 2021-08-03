@@ -22,7 +22,7 @@ type kubeClientAdapter struct {
 }
 
 func newKubeClientAdapter(kubeconfig string, debug bool) (Client, error) {
-	logger, err := logger.NewLogger("", debug)
+	logger, err := logger.NewLogger()
 	if err != nil {
 		return nil, err
 	}
