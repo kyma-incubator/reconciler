@@ -120,7 +120,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		cbh := newCallbackHandler(t)
 
@@ -144,7 +144,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, apiGatewayComponent, kymaVersion, false, "default")
 		cbh := newCallbackHandler(t)
 
@@ -168,7 +168,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
 		cbh := newCallbackHandler(t)
 
@@ -192,7 +192,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, apiGatewayComponent, kymaVersion, true, "default")
 		cbh := newCallbackHandler(t)
 
@@ -212,7 +212,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
 		cbh := newCallbackHandler(t)
 
@@ -308,10 +308,12 @@ func TestRunner(t *testing.T) {
 }
 
 func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
-	recon, err := NewComponentReconciler("unittest", "./test", true)
+	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 
-	recon.WithRetry(3, 1*time.Second).
+	recon.Debug().
+		WithWorkspace("./test").
+		WithRetry(3, 1*time.Second).
 		WithWorkers(5, timeout).
 		WithStatusUpdaterConfig(interval, timeout).
 		WithPreReconcileAction(preAct).

@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const workerTimeout = 10 * time.Second
+const workerTimeout = 30 * time.Second
 
 type DummyAction struct {
 	receivedVersion string
@@ -36,9 +36,14 @@ func (da *DummyAction) Run(version string, kubeClient k8s.Client) error {
 func TestReconciler(t *testing.T) {
 
 	t.Run("Verify fluent configuration interface", func(t *testing.T) {
-		recon, err := NewComponentReconciler("unittest", "./test", true)
+		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
-		require.True(t, recon.debug) //debug has to be enabled
+
+		recon.Debug()
+		require.True(t, recon.debug)
+
+		recon.WithWorkspace("./test")
+		require.Equal(t, "./test", recon.workspace)
 
 		//verify retry config
 		recon.WithRetry(111, 222*time.Second)
@@ -85,10 +90,10 @@ func TestReconciler(t *testing.T) {
 	})
 
 	t.Run("Filter missing component dependencies", func(t *testing.T) {
-		recon, err := NewComponentReconciler("unittest", "./test", true)
+		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
 
-		recon.WithDependencies("a", "b")
+		recon.Debug().WithDependencies("a", "b")
 		require.ElementsMatch(t, []string{"a", "b"}, recon.dependenciesMissing(&reconciler.Reconciliation{
 			ComponentsReady: []string{"x", "y", "z"},
 		}))
@@ -115,14 +120,16 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 	//start reconciler
 	go func() {
-		recon, err := NewComponentReconciler("unittest", "./test", true)
+		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
 
-		err = recon.WithWorkers(2, workerTimeout).
+		err = recon.Debug().
+			WithWorkspace("./test").
+			WithWorkers(2, workerTimeout).
 			WithServerConfig(9999, "", "").
 			WithDependencies("abc", "xyz").
 			WithRetry(1, 1*time.Second).
-			WithStatusUpdaterConfig(1*time.Second, 2*time.Second).
+			WithStatusUpdaterConfig(1*time.Second, workerTimeout).
 			WithProgressTrackerConfig(1*time.Second, workerTimeout).
 			StartRemote(ctx)
 		require.NoError(t, err)

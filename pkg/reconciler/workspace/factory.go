@@ -93,6 +93,7 @@ func (f *Factory) clone(version, dstDir string) error {
 
 	sFile := filepath.Join(dstDir, successFile)
 	if file.Exists(sFile) {
+		f.logger.Debugf("Workspace '%s' already exists", dstDir)
 		//race condition protection: it could happen that a previous go-routing was also triggering the clone of the Kyma version
 		return nil
 	}
@@ -128,11 +129,15 @@ func (f *Factory) clone(version, dstDir string) error {
 	}
 
 	//create a marker file to flag success
-	file, err := os.Create(sFile)
+	fileHandler, err := os.Create(sFile)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := fileHandler.Close(); err != nil {
+			f.logger.Warnf("Failed to close marker file: %s", err)
+		}
+	}()
 
 	//clone ready for use
 	return nil

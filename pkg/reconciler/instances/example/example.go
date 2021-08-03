@@ -1,9 +1,7 @@
 package example
 
 import (
-	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
@@ -14,7 +12,7 @@ func init() {
 	}
 
 	log.Debug("Initializing component reconciler 'example'")
-	reconciler, err := service.NewComponentReconciler("example", "/workspaces/example-component-reconciler", true)
+	reconciler, err := service.NewComponentReconciler("example")
 	if err != nil {
 		log.Fatalf("Could not create component reconciler: %s", err)
 	}
@@ -35,16 +33,4 @@ func init() {
 		WithPostReconcileAction(&CustomAction{
 			name: "post-action",
 		})
-}
-
-type CustomAction struct {
-	name string
-}
-
-func (a *CustomAction) Run(version string, kubeClient kubernetes.Client) error {
-	if kubeClient == nil {
-		return fmt.Errorf("kubeClient is expected but was nil")
-	}
-	fmt.Printf("Action '%s' called (retrieved version is '%s')\n", a.name, version)
-	return nil
 }

@@ -32,6 +32,7 @@ const (
 	defaultRetryDelay    = 30 * time.Second
 	defaultTimeout       = 10 * time.Minute
 	defaultWorkers       = 100
+	defaultWorkspace     = "."
 )
 
 type Action interface {
@@ -40,11 +41,11 @@ type Action interface {
 
 type ComponentReconciler struct {
 	debug                 bool
+	workspace             string
 	dependencies          []string
 	serverConfig          serverConfig
 	statusUpdaterConfig   statusUpdaterConfig
 	progressTrackerConfig progressTrackerConfig
-	chartProvider         *chart.Provider
 	//actions:
 	preReconcileAction  Action
 	reconcileAction     Action
@@ -73,24 +74,21 @@ type serverConfig struct {
 	sslKeyFile string
 }
 
-func NewComponentReconciler(reconcilerName, workspaceDir string, debug bool) (*ComponentReconciler, error) {
-	wsf := &workspace.Factory{
-		Debug:      debug,
-		StorageDir: workspaceDir,
-	}
-	chartProvider, err := chart.NewProvider(wsf, debug)
-	if err != nil {
-		return nil, err
-	}
-
+func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error) {
 	recon := &ComponentReconciler{
-		debug:         debug,
-		chartProvider: chartProvider,
+		workspace: defaultWorkspace,
 	}
-
 	Register(reconcilerName, recon) //add reconciler to registry
-
 	return recon, nil
+}
+
+func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
+	r.logger().Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
+	wsf := &workspace.Factory{
+		Debug:      r.debug,
+		StorageDir: r.workspace,
+	}
+	return chart.NewProvider(wsf, r.debug)
 }
 
 func (r *ComponentReconciler) logger() *zap.SugaredLogger {
@@ -157,6 +155,16 @@ func (r *ComponentReconciler) validate() error {
 		r.timeout = defaultTimeout
 	}
 	return nil
+}
+
+func (r *ComponentReconciler) Debug() *ComponentReconciler {
+	r.debug = true
+	return r
+}
+
+func (r *ComponentReconciler) WithWorkspace(workspace string) *ComponentReconciler {
+	r.workspace = workspace
+	return r
 }
 
 func (r *ComponentReconciler) WithDependencies(components ...string) *ComponentReconciler {

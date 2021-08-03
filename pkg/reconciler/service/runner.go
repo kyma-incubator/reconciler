@@ -122,7 +122,11 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 }
 
 func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error) {
-	manifests, err := r.chartProvider.Manifests(r.newComponentSet(model), model.InstallCRD, &chart.Options{})
+	chartProvider, err := r.newChartProvider()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create chart provider instance")
+	}
+	manifests, err := chartProvider.Manifests(r.newComponentSet(model), model.InstallCRD, &chart.Options{})
 	if err != nil {
 		msg := fmt.Sprintf("Failed to render manifest for component '%s'", model.Component)
 		r.logger().Warn(msg)

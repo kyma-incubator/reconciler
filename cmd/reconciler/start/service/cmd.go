@@ -30,9 +30,14 @@ func Run(o *reconCli.Options, reconcilerName string) error {
 		return err
 	}
 
-	//configure REST API server
-	recon.WithServerConfig(o.ServerConfig.Port, o.ServerConfig.SSLCrt, o.ServerConfig.SSLKey).
-		//configure reconciliation
+	if o.Verbose {
+		recon.Debug()
+	}
+
+	recon.WithWorkspace(o.Workspace).
+		//configure REST API server
+		WithServerConfig(o.ServerConfig.Port, o.ServerConfig.SSLCrt, o.ServerConfig.SSLKey).
+		//configure reconciliation worker pool + retry-behaviour
 		WithWorkers(o.WorkerConfig.Workers, o.WorkerConfig.Timeout).
 		WithRetry(o.RetryConfig.MaxRetries, o.RetryConfig.RetryDelay).
 		//configure status updates send to mothership reconciler

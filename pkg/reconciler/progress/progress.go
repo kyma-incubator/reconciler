@@ -199,6 +199,9 @@ func (pt *Tracker) podIsReady(object *resource) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if pod.Status.Phase != v1.PodRunning {
+		return false, nil
+	}
 	for _, condition := range pod.Status.Conditions {
 		if condition.Status != v1.ConditionTrue {
 			return false, nil

@@ -8,11 +8,11 @@ import (
 	"github.com/spf13/cobra"
 
 	//load component-reconciler packages (they add themself automatically to the reconciler registry)
-	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/example"
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
 )
 
 //TODO: add name of new component reconciler to slice 'componentReconcilers' + add anonymous import
-var componentReconcilers = []string{"example"}
+var componentReconcilers = []string{"istio"}
 
 func NewCmd(o *cli.Options) *cobra.Command {
 	cmd := &cobra.Command{
