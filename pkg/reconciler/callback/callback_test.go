@@ -2,10 +2,12 @@ package callback
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestRemoteCallbackHandler(t *testing.T) {
@@ -28,6 +30,8 @@ func TestRemoteCallbackHandler(t *testing.T) {
 func TestLocalCallbackHandler(t *testing.T) {
 	t.Run("Test successful local status update", func(t *testing.T) {
 		var localFctCalled bool
+		_, err := logger.InitLogger("test-correlation-id", true)
+		require.NoError(t, err)
 		rcb, err := NewLocalCallbackHandler(func(status reconciler.Status) error {
 			localFctCalled = true
 			return nil

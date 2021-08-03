@@ -31,7 +31,6 @@ func NewProvider(wsFactory *workspace.Factory, correlationID string, debug bool)
 	if err != nil {
 		return nil, err
 	}
-
 	return &Provider{
 		debug:     debug,
 		wsFactory: wsFactory,
