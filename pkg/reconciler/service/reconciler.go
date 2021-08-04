@@ -37,17 +37,18 @@ const (
 )
 
 var (
-	workspaceFactory *workspace.Factory //singleton
-	m                sync.Mutex
+	wsFactory *workspace.Factory //singleton
+	m         sync.Mutex
 )
 
-type ActionHelper struct {
+type ActionContext struct {
 	KubeClient       kubernetes.Client
 	WorkspaceFactory *workspace.Factory
+	Context          context.Context
 }
 
 type Action interface {
-	Run(version, profile string, configuration []reconciler.Configuration, helper *ActionHelper) error
+	Run(version, profile string, configuration []reconciler.Configuration, helper *ActionContext) error
 }
 
 type ComponentReconciler struct {
@@ -89,25 +90,25 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 	recon := &ComponentReconciler{
 		workspace: defaultWorkspace,
 	}
-	Register(reconcilerName, recon) //add reconciler to registry
+	RegisterReconciler(reconcilerName, recon) //add reconciler to registry
 	return recon, nil
 }
 
 func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
-	return chart.NewProvider(r.newWorkspaceFactory(), r.debug)
+	return chart.NewProvider(r.workspaceFactory(), r.debug)
 }
 
-func (r *ComponentReconciler) newWorkspaceFactory() *workspace.Factory {
+func (r *ComponentReconciler) workspaceFactory() *workspace.Factory {
 	m.Lock()
-	if workspaceFactory == nil {
+	if wsFactory == nil {
 		r.logger().Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
-		workspaceFactory = &workspace.Factory{
+		wsFactory = &workspace.Factory{
 			Debug:      r.debug,
 			StorageDir: r.workspace,
 		}
 	}
 	m.Unlock()
-	return workspaceFactory
+	return wsFactory
 }
 
 func (r *ComponentReconciler) logger() *zap.SugaredLogger {

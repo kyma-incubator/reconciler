@@ -18,16 +18,16 @@ func TestWorkspaceFactory(t *testing.T) {
 		wsf1 := Factory{
 			Debug: true,
 		}
-		require.NoError(t, wsf1.validate(version))
-		require.Equal(t, filepath.Join(wsf1.defaultStorageDir(), version), wsf1.workspaceDir)
+		require.NoError(t, wsf1.validate())
+		require.Equal(t, filepath.Join(wsf1.defaultStorageDir(), version), wsf1.workspaceDir(version))
 		require.Equal(t, defaultRepositoryURL, wsf1.RepositoryURL)
 
 		wsf2 := Factory{
 			Debug:      true,
 			StorageDir: "/tmp",
 		}
-		require.NoError(t, wsf2.validate(version))
-		require.Equal(t, filepath.Join("/tmp", version), wsf2.workspaceDir)
+		require.NoError(t, wsf2.validate())
+		require.Equal(t, filepath.Join("/tmp", version), wsf2.workspaceDir(version))
 		require.Equal(t, defaultRepositoryURL, wsf1.RepositoryURL)
 	})
 
@@ -58,6 +58,7 @@ func TestWorkspaceFactory(t *testing.T) {
 		require.True(t, file.DirExists(ws.InstallationResourceDir))
 
 		//delete success file
+		t.Log("Deleting success file to simulate broken workspace")
 		err = os.Remove(filepath.Join(workspaceDir, successFile))
 		require.NoError(t, err)
 

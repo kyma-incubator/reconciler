@@ -5,18 +5,20 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-//nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in a centralized registry
+const ReconcilerName = "istio"
+
+//nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
 	log, err := logger.NewLogger(true)
 	if err != nil {
 		panic(err)
 	}
 
-	log.Debug("Initializing component reconciler 'istio'")
-	reconciler, err := service.NewComponentReconciler("istio")
+	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
+	reconciler, err := service.NewComponentReconciler(ReconcilerName)
 	if err != nil {
-		log.Fatalf("Could not create component reconciler: %s", err)
+		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	reconciler.WithPreReconcileAction(&InstallAction{})
+	reconciler.WithPreReconcileAction(&ReconcileAction{})
 }

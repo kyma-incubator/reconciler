@@ -5,14 +5,19 @@ import (
 	startSvcCmd "github.com/kyma-incubator/reconciler/cmd/reconciler/start/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/internal/cli/reconciler"
+	reconcilerRegistry "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/spf13/cobra"
 
-	//load component-reconciler packages (they add themself automatically to the reconciler registry)
+	//register component-reconciler packages (they add themself automatically to the reconciler registry):
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
 )
 
-//TODO: add name of new component reconciler to slice 'componentReconcilers' + add anonymous import
-var componentReconcilers = []string{"istio"}
+/*
+ * PLEASE BE AWARE:
+ *
+ * Any supported component-reconciler requires an anonymous import statement (see above) to be considered by the CLI!
+ *
+ */
 
 func NewCmd(o *cli.Options) *cobra.Command {
 	cmd := &cobra.Command{
@@ -28,7 +33,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	cmd.AddCommand(startCommand)
 
 	//register component-reconcilers in start-command:
-	for _, reconcilerName := range componentReconcilers {
+	for _, reconcilerName := range reconcilerRegistry.RegisteredReconcilers() {
 		startCommand.AddCommand(startSvcCmd.NewCmd(reconcilerOpts, reconcilerName))
 	}
 

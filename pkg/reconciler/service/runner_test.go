@@ -43,8 +43,8 @@ func (a *TestAction) logger() *zap.SugaredLogger {
 	return logger.NewOptionalLogger(true)
 }
 
-func (a *TestAction) Run(version, profile string, config []reconciler.Configuration, helper *ActionHelper) error {
-	if helper.KubeClient == nil {
+func (a *TestAction) Run(version, profile string, config []reconciler.Configuration, context *ActionContext) error {
+	if context.KubeClient == nil {
 		return fmt.Errorf("kubeClient is expected but was nil")
 	}
 

@@ -27,7 +27,7 @@ type DummyAction struct {
 	receivedConfig  []reconciler.Configuration
 }
 
-func (da *DummyAction) Run(version, profile string, config []reconciler.Configuration, helper *ActionHelper) error {
+func (da *DummyAction) Run(version, profile string, config []reconciler.Configuration, helper *ActionContext) error {
 	if helper.KubeClient != nil {
 		return fmt.Errorf("kubeClient is not expected in this test case")
 	}

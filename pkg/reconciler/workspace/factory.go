@@ -23,6 +23,7 @@ const (
 )
 
 type Workspace struct {
+	WorkspaceDir            string
 	ComponentFile           string
 	ResourceDir             string
 	InstallationResourceDir string
@@ -34,10 +35,9 @@ type Factory struct {
 	RepositoryURL string
 	mutex         sync.Mutex
 	logger        *zap.SugaredLogger
-	workspaceDir  string
 }
 
-func (f *Factory) validate(version string) error {
+func (f *Factory) validate() error {
 	var err error
 	f.logger, err = logger.NewLogger(f.Debug)
 	if err != nil {
@@ -49,8 +49,11 @@ func (f *Factory) validate(version string) error {
 	if f.RepositoryURL == "" {
 		f.RepositoryURL = defaultRepositoryURL
 	}
-	f.workspaceDir = filepath.Join(f.StorageDir, version) //add Kyma version as subdirectory
 	return nil
+}
+
+func (f *Factory) workspaceDir(version string) string {
+	return filepath.Join(f.StorageDir, version) //add Kyma version as subdirectory
 }
 
 func (f *Factory) defaultStorageDir() string {
@@ -66,24 +69,27 @@ func (f *Factory) defaultStorageDir() string {
 }
 
 func (f *Factory) Get(version string) (*Workspace, error) {
-	if err := f.validate(version); err != nil {
+	if err := f.validate(); err != nil {
 		return nil, err
 	}
 
-	sFile := filepath.Join(f.workspaceDir, successFile)
+	wsDir := f.workspaceDir(version)
+
+	sFile := filepath.Join(wsDir, successFile)
 	//ensure Kyma sources are available
 	if !file.Exists(sFile) {
-		f.logger.Infof("Creating new workspace directory '%s' ", f.workspaceDir)
-		if err := f.clone(version, f.workspaceDir); err != nil {
+		f.logger.Infof("Creating new workspace directory '%s' ", wsDir)
+		if err := f.clone(version, wsDir); err != nil {
 			return nil, err
 		}
 	}
 
 	//return workspace
 	return &Workspace{
-		ComponentFile:           filepath.Join(f.workspaceDir, componentFile),
-		ResourceDir:             filepath.Join(f.workspaceDir, resDir),
-		InstallationResourceDir: filepath.Join(f.workspaceDir, instResDir),
+		WorkspaceDir:            wsDir,
+		ComponentFile:           filepath.Join(wsDir, componentFile),
+		ResourceDir:             filepath.Join(wsDir, resDir),
+		InstallationResourceDir: filepath.Join(wsDir, instResDir),
 	}, nil
 }
 
@@ -144,13 +150,14 @@ func (f *Factory) clone(version, dstDir string) error {
 }
 
 func (f *Factory) Delete(version string) error {
-	if err := f.validate(version); err != nil {
+	if err := f.validate(); err != nil {
 		return err
 	}
-	f.logger.Debugf("Deleting workspace '%s'", f.workspaceDir)
-	err := os.RemoveAll(f.workspaceDir)
+	wsDir := f.workspaceDir(version)
+	f.logger.Debugf("Deleting workspace '%s'", wsDir)
+	err := os.RemoveAll(wsDir)
 	if err != nil {
-		f.logger.Warnf("Failed to delete workspace '%s': %s", f.workspaceDir, err)
+		f.logger.Warnf("Failed to delete workspace '%s': %s", wsDir, err)
 	}
 	return err
 }

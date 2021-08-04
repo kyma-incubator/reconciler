@@ -10,13 +10,13 @@ type CustomAction struct {
 	name string
 }
 
-func (a *CustomAction) Run(version, profile string, config []reconciler.Configuration, helper *service.ActionHelper) error {
+func (a *CustomAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
 	log, err := logger.NewLogger(true)
 	if err != nil {
 		return err
 	}
 
-	if _, err := helper.KubeClient.Clientset(); err != nil { //example how to retrieve native Kubernetes GO client
+	if _, err := context.KubeClient.Clientset(); err != nil { //example how to retrieve native Kubernetes GO client
 		log.Errorf("Failed to retrieve native Kubernetes GO client")
 	}
 

@@ -75,34 +75,39 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return err
 	}
 
-	actionHelper := &ActionHelper{
+	actionHelper := &ActionContext{
 		KubeClient:       kubeClient,
-		WorkspaceFactory: r.newWorkspaceFactory(),
+		WorkspaceFactory: r.workspaceFactory(),
+		Context:          ctx,
 	}
 
 	logger := r.logger()
 	if r.preReconcileAction != nil {
 		if err := r.preReconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
-			logger.Warnf("Pre-installation action of version '%s' failed: %s", model.Version, err)
+			logger.Warnf("Pre-reconciliation action of '%s' with version '%s' failed: %s",
+				model.Component, model.Version, err)
 			return err
 		}
 	}
 
 	if r.reconcileAction == nil {
 		if err := r.install(ctx, model, kubeClient); err != nil {
-			logger.Warnf("Default-installation of version '%s' failed: %s", model.Version, err)
+			logger.Warnf("Default-reconciliation of '%s' with version '%s' failed: %s",
+				model.Component, model.Version, err)
 			return err
 		}
 	} else {
 		if err := r.reconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
-			logger.Warnf("Installation action of version '%s' failed: %s", model.Version, err)
+			logger.Warnf("Reconciliation action of '%s' with version '%s' failed: %s",
+				model.Component, model.Version, err)
 			return err
 		}
 	}
 
 	if r.postReconcileAction != nil {
 		if err := r.postReconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
-			logger.Warnf("Post-installation action of version '%s' failed: %s", model.Version, err)
+			logger.Warnf("Post-reconciliation action of '%s' with version '%s' failed: %s",
+				model.Component, model.Version, err)
 			return err
 		}
 	}

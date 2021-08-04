@@ -25,7 +25,7 @@ func NewCmd(o *reconCli.Options, reconcilerName string) *cobra.Command {
 }
 
 func Run(o *reconCli.Options, reconcilerName string) error {
-	recon, err := service.Get(reconcilerName)
+	recon, err := service.GetReconciler(reconcilerName)
 	if err != nil {
 		return err
 	}
