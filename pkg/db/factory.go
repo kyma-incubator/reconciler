@@ -18,11 +18,11 @@ func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, err
 	switch dbToUse {
 	case "postgres":
 		connFact := &PostgresConnectionFactory{
-			Host:     viper.GetString("db.postgres.host"),
-			Port:     viper.GetInt("db.postgres.port"),
-			Database: viper.GetString("db.postgres.database"),
-			User:     viper.GetString("db.postgres.user"),
-			Password: viper.GetString("db.postgres.password"),
+			Host:     viper.GetString("DATABASE_HOST"),
+			Port:     viper.GetInt("DATABASE_PORT"),
+			Database: viper.GetString("DATABASE_NAME"),
+			User:     viper.GetString("DATABASE_USER"),
+			Password: viper.GetString("DATABASE_PASSWORD"),
 			SslMode:  viper.GetBool("db.postgres.sslMode"),
 			Debug:    debug,
 		}
