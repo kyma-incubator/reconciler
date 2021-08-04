@@ -1,0 +1,6 @@
+dependencies:
+- name: postgresql
+  condition: global.database.embedded.enabled
+- name: reconciler
+  condition: global.reconciler.enabled
+

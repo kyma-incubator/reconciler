@@ -1,0 +1,11 @@
+global:
+  reconciler:
+    enabled: true
+  database:
+    manageSecrets: true
+    embedded:
+      enabled: true
+      reconciler:
+        name: "reconciler"
+      #TODO remove below after migration to separate user will be done
+      reconcilerDBName: "reconciler"
