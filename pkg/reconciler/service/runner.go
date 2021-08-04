@@ -32,10 +32,16 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 	retryable := func(statusUpdater *status.Updater) func() error {
 		return func() error {
 			if err := statusUpdater.Running(); err != nil {
+				r.logger().Warnf("Failed to start status updater: %s", err)
 				return err
 			}
 			err := r.reconcile(ctx, model)
-			if err != nil {
+			if err == nil {
+				r.logger().Infof("Reconciliation succesful of '%s' in version '%s' with profile '%s'",
+					model.Component, model.Version, model.Profile)
+			} else {
+				r.logger().Warnf("Reconciliation of '%s' in version '%s' with profile '%s': %s",
+					model.Component, model.Version, model.Profile, err)
 				if errUpdater := statusUpdater.Failed(); errUpdater != nil {
 					err = errors.Wrap(err, errUpdater.Error())
 				}
