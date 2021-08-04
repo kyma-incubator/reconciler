@@ -5,6 +5,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
+//nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in a centralized registry
 func init() {
 	log, err := logger.NewLogger(true)
 	if err != nil {

@@ -55,7 +55,7 @@ func (a *InstallAction) Run(revision, profile string, config []reconciler.Config
 		return err
 	}
 
-	iop, err = a.installManifests(iop, true, true, k8sConfig, k8sClient, 5*time.Minute, l)
+	_, err = a.installManifests(iop, true, true, k8sConfig, k8sClient, 5*time.Minute, l)
 	if err != nil {
 		return fmt.Errorf("failed to install manifests: %v", err)
 	}

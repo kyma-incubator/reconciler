@@ -39,6 +39,11 @@ func (o *Options) Validate() error {
 	if err := o.RetryConfig.validate(); err != nil {
 		return err
 	}
-
+	if err := o.StatusUpdaterConfig.validate(); err != nil {
+		return err
+	}
+	if err := o.ProgressTrackerConfig.validate(); err != nil {
+		return err
+	}
 	return nil
 }
