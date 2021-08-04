@@ -6,7 +6,9 @@
 
 The Reconciler is a central system to reconcile Kyma clusters.
 
-## Locally start reconciler service
+## Run Reconciler locally
+
+Follow these steps to run Reconciler locally:
 
 1. Build docker image 
 
