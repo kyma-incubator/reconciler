@@ -144,6 +144,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			Kubeconfig:      "xyz",
 			CallbackURL:     "https://fake.url/",
 			InstallCRD:      false,
+			CorrelationID:   "test-correlation-id",
 		}, http.StatusPreconditionRequired)
 
 		//convert body to HTTP response model
@@ -166,6 +167,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			Kubeconfig:      "",
 			CallbackURL:     "",
 			InstallCRD:      false,
+			CorrelationID:   "test-correlation-id",
 		}, http.StatusBadRequest)
 
 		//convert body to HTTP response model
@@ -203,6 +205,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			Kubeconfig:      test.ReadKubeconfig(t),
 			CallbackURL:     "https://httpbin.org/post",
 			InstallCRD:      false,
+			CorrelationID:   "test-correlation-id",
 		}, http.StatusOK)
 		t.Logf("Body received: %s", string(body))
 
