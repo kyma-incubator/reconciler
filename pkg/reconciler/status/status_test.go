@@ -3,14 +3,16 @@ package status
 import (
 	"context"
 	"fmt"
-	e "github.com/kyma-incubator/reconciler/pkg/error"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	e "github.com/kyma-incubator/reconciler/pkg/error"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/stretchr/testify/require"
 )
 
 //testCallbackHandler is tracking fired status-updates in an env-var (allows a stateless callback implementation)
@@ -42,13 +44,14 @@ func TestStatusUpdater(t *testing.T) {
 
 	t.Parallel()
 
+	logger := logger.NewOptionalLogger(true)
 	t.Run("Test status updater without timeout", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		callbackHdlr := &testCallbackHandler{}
 
-		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, true, Config{
+		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, logger, true, Config{
 			Interval:   1 * time.Second,
 			MaxRetries: 1,
 			RetryDelay: 1 * time.Second,
@@ -79,7 +82,7 @@ func TestStatusUpdater(t *testing.T) {
 
 		callbackHdlr := &testCallbackHandler{}
 
-		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, true, Config{
+		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, logger, true, Config{
 			Interval:   1 * time.Second,
 			MaxRetries: 1,
 			RetryDelay: 1 * time.Second,

@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"fmt"
+
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 )
@@ -26,6 +28,6 @@ type Client interface {
 	Clientset() (*kubernetes.Clientset, error)
 }
 
-func NewKubernetesClient(kubeconfig string, debug bool) (Client, error) {
-	return newKubeClientAdapter(kubeconfig, debug)
+func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger) (Client, error) {
+	return newKubeClientAdapter(kubeconfig, logger)
 }
