@@ -12,6 +12,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/pkg/errors"
@@ -45,6 +46,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges/{%s}", paramContractVersion, paramCluster, paramOffset),
 		callHandler(o, statusChanges)).
 		Methods("GET")
+
+	router.HandleFunc(
+		fmt.Sprintf("v{%s}/operations/{%s}/callback", paramContractVersion, paramCorrelationID),
+		callHandler(o, operationCallback)).
+		Methods("POST")
 
 	//metrics endpoint
 	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
@@ -97,12 +103,12 @@ func createOrUpdate(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func get(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	cluster, err := params.String("cluster")
+	cluster, err := params.String(paramCluster)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	configVersion, err := params.Int64("configVersion")
+	configVersion, err := params.Int64(paramConfigVersion)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -117,7 +123,7 @@ func get(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func getLatest(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	cluster, err := params.String("cluster")
+	cluster, err := params.String(paramCluster)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -132,12 +138,12 @@ func getLatest(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	cluster, err := params.String("cluster")
+	cluster, err := params.String(paramCluster)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
 	}
-	offset, err := params.String("offset")
+	offset, err := params.String(paramOffset)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -162,7 +168,7 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func delete(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	cluster, err := params.String("cluster")
+	cluster, err := params.String(paramCluster)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
 		return
@@ -173,6 +179,41 @@ func delete(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 	if err := o.Registry.Inventory().Delete(cluster); err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", cluster)))
+		return
+	}
+}
+
+func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
+	type msg struct {
+		Status string `json:"status"`
+	}
+
+	params := server.NewParams(r)
+	correlationID, err := params.String(paramCorrelationID)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	var body msg
+	reqBody, err := ioutil.ReadAll(r.Body)
+	err = json.Unmarshal(reqBody, &body)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Failed to unmarshal JSON payload"))
+		return
+	}
+	switch body.Status {
+	case string(reconciler.NotStarted), string(reconciler.Running):
+		err = o.Registry.OperationsRegistry().SetInProgress(correlationID)
+	case string(reconciler.Success):
+		err = o.Registry.OperationsRegistry().SetDone(correlationID)
+	case string(reconciler.Error):
+		err = o.Registry.OperationsRegistry().SetError(correlationID, "Reconciler reported error status")
+	case string(reconciler.Failed):
+		err = o.Registry.OperationsRegistry().SetFailed(correlationID, "Reconciler reported failed status")
+	}
+	if err != nil {
+		sendError(w, http.StatusBadRequest, err)
 		return
 	}
 }

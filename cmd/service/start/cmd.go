@@ -12,6 +12,7 @@ const (
 	paramCluster         = "cluster"
 	paramConfigVersion   = "configVersion"
 	paramOffset          = "offset"
+	paramCorrelationID   = "correlationID"
 )
 
 func NewCmd(o *Options) *cobra.Command {
@@ -31,6 +32,7 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().IntVarP(&o.Workers, "workers", "", 50, "Size of the reconciler worker pool")
 	cmd.Flags().DurationVarP(&o.WatchInterval, "watch-interval", "", 1*time.Minute, "Size of the reconciler worker pool")
 	cmd.Flags().DurationVarP(&o.ClusterReconcileInterval, "reconcile-interval", "", 5*time.Minute, "Defines the time when a cluster will to be reconciled since his last successful reconciliation")
+	cmd.Flags().StringVar(&o.ReconcilersCfgPath, "reconcilers", "", "Path to component reconcilers configuration file")
 	return cmd
 }
 

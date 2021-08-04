@@ -11,7 +11,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const defaultPoolSize = 50
+const (
+	defaultPoolSize = 50
+)
 
 type Scheduler interface {
 	Run(ctx context.Context) error
@@ -19,17 +21,19 @@ type Scheduler interface {
 
 type RemoteScheduler struct {
 	inventoryWatch InventoryWatcher
+	workerFactory  *WorkersFactory
 	poolSize       int
 	logger         *zap.SugaredLogger
 }
 
-func NewRemoteScheduler(inventoryWatch InventoryWatcher, workers int, debug bool) (Scheduler, error) {
+func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory *WorkersFactory, workers int, debug bool) (Scheduler, error) {
 	logger, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
 	return &RemoteScheduler{
 		inventoryWatch: inventoryWatch,
+		workerFactory:  workerFactory,
 		poolSize:       workers,
 		logger:         logger,
 	}, nil
@@ -54,7 +58,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 
 	rs.logger.Debugf("Starting worker pool with capacity %d workers")
 	workersPool, err := ants.NewPoolWithFunc(rs.poolSize, func(i interface{}) {
-		rs.Worker(i.(cluster.State))
+		rs.schedule(i.(cluster.State))
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to create worker pool of remote-scheduler")
@@ -81,8 +85,25 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 	}
 }
 
-func (rs *RemoteScheduler) Worker(cluster cluster.State) {
+func (rs *RemoteScheduler) schedule(state cluster.State) {
+	components, err := state.Configuration.GetComponents()
+	if err != nil {
+		rs.logger.Errorf("Failed to get components for cluster %s", state.Cluster.Cluster)
+		return
+	}
 
+	if len(components) == 0 {
+		rs.logger.Infof("No components to reconcile for cluster %s", state.Cluster.Cluster)
+		return
+	}
+
+	for _, component := range components {
+		worker, err := rs.workerFactory.ForComponent(component.Component)
+		if err != nil {
+			rs.logger.Errorf("Error creating worker for component: %s", err)
+		}
+		go worker.Reconcile(component, state)
+	}
 }
 
 // func NewLocalScheduler() (Scheduler, error) {
