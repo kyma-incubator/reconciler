@@ -10,6 +10,7 @@ RUN mkdir /user && \
 
 WORKDIR $SRC_DIR
 
+COPY configs/reconciler.yaml /configs/reconciler.yaml
 RUN CGO_ENABLED=0 go build -o /bin/reconciler ./cmd/main.go
 
 # Get latest CA certs
@@ -22,6 +23,7 @@ LABEL source=git@github.com:kyma-incubator/reconciler.git
 
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /bin/reconciler /bin/reconciler
+COPY --from=build /configs/reconciler.yaml /configs/reconciler.yaml
 
 COPY --from=build /user/group /user/passwd /etc/
 USER appuser:appuser
