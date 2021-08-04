@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -38,7 +39,7 @@ func (da *DummyAction) Run(version string, kubeClient *kubernetes.Clientset) err
 func TestReconciler(t *testing.T) {
 
 	t.Run("Verify fluent configuration interface", func(t *testing.T) {
-		recon, err := NewComponentReconciler("./test", "test-correlation-id", true)
+		recon, err := NewComponentReconciler("./test", true)
 		require.NoError(t, err)
 		require.True(t, recon.debug) //debug has to be enabled
 
@@ -88,7 +89,7 @@ func TestReconciler(t *testing.T) {
 	})
 
 	t.Run("Filter missing component dependencies", func(t *testing.T) {
-		recon, err := NewComponentReconciler("./test", "test-correlation-id", true)
+		recon, err := NewComponentReconciler("./test", true)
 		require.NoError(t, err)
 
 		recon.WithDependencies("a", "b")
@@ -118,7 +119,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 	//start reconciler
 	go func() {
-		recon, err := NewComponentReconciler("./test", "test-correlation-id", true)
+		recon, err := NewComponentReconciler("./test", true)
 		require.NoError(t, err)
 
 		err = recon.WithWorkers(2, workerTimeout).
@@ -175,7 +176,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 	t.Run("Happy path", func(t *testing.T) {
 		//get Kubernetes client
-		kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t))
+		kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true))
 		require.NoError(t, err)
 		clientSet, err := kubeClient.Clientset()
 		require.NoError(t, err)

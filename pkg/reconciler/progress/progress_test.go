@@ -9,6 +9,7 @@ import (
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
@@ -19,8 +20,10 @@ func TestProgressTracker(t *testing.T) {
 		return
 	}
 
+	logger := log.NewOptionalLogger(true)
+
 	//create Kubernetes client
-	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t))
+	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger)
 	require.NoError(t, err)
 
 	//get client set
@@ -49,7 +52,7 @@ func TestProgressTracker(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second) //stop progress tracker after 1 sec
 		defer cancel()
 
-		pt, err := NewProgressTracker(ctx, clientSet, true,
+		pt, err := NewProgressTracker(ctx, clientSet, logger,
 			Config{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
 		require.NoError(t, err)
 
@@ -67,7 +70,7 @@ func TestProgressTracker(t *testing.T) {
 
 	t.Run("Test progress tracking", func(t *testing.T) {
 		// get progress tracker
-		pt, err := NewProgressTracker(context.TODO(), clientSet, true,
+		pt, err := NewProgressTracker(context.TODO(), clientSet, logger,
 			Config{Interval: 1 * time.Second, Timeout: 35 * time.Second})
 		require.NoError(t, err)
 
@@ -83,7 +86,7 @@ func TestProgressTracker(t *testing.T) {
 		cleanup() //delete resources
 
 		// get progress tracker
-		pt, err := NewProgressTracker(context.TODO(), clientSet, true,
+		pt, err := NewProgressTracker(context.TODO(), clientSet, logger,
 			Config{Interval: 1 * time.Second, Timeout: 10 * time.Second})
 		require.NoError(t, err)
 

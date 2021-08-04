@@ -20,7 +20,7 @@ func TestProvider(t *testing.T) {
 	wsFactory := &workspace.Factory{
 		StorageDir: "./test",
 	}
-	prov, err := NewProvider(wsFactory, "test-correlation-id", true)
+	prov, err := NewProvider(wsFactory, true)
 	require.NoError(t, err)
 
 	t.Run("Convert dot-notated configuration keys to a nested map", func(t *testing.T) {

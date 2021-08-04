@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -39,7 +39,7 @@ type Factory struct {
 
 func (f *Factory) validate(version string) error {
 	var err error
-	f.logger, err = logger.NewLogger()
+	f.logger, err = logger.NewLogger(f.Debug)
 	if err != nil {
 		return err
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/deployment"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/overrides"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
-	log "github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -23,11 +23,11 @@ type Provider struct {
 	logger    *zap.SugaredLogger
 }
 
-func NewProvider(wsFactory *workspace.Factory, correlationID string, debug bool) (*Provider, error) {
+func NewProvider(wsFactory *workspace.Factory, debug bool) (*Provider, error) {
 	if wsFactory == nil {
 		return nil, fmt.Errorf("Workspace factory cannot be nil")
 	}
-	logger, err := log.InitLogger(correlationID, debug)
+	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (p *Provider) ChangeWorkspace(wsDir string) error {
 }
 
 func (p *Provider) loggerAdapter() (*HydroformLoggerAdapter, error) {
-	logger, err := log.NewLogger()
+	logger, err := log.NewLogger(p.debug)
 	if err != nil {
 		return nil, err
 	}

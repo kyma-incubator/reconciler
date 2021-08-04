@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
@@ -19,8 +18,6 @@ func TestWorkspaceFactory(t *testing.T) {
 		wsf1 := Factory{
 			Debug: true,
 		}
-		_, err := logger.InitLogger("test-correlation-id", true)
-		require.NoError(t, err)
 		require.NoError(t, wsf1.validate(version))
 		require.Equal(t, filepath.Join(wsf1.defaultStorageDir(), version), wsf1.workspaceDir)
 		require.Equal(t, defaultRepositoryURL, wsf1.RepositoryURL)

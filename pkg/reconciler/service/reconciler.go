@@ -15,9 +15,10 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/panjf2000/ants/v2"
 
-	log "github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/gorilla/mux"
@@ -75,17 +76,17 @@ type serverConfig struct {
 	sslKeyFile string
 }
 
-func NewComponentReconciler(workspaceDir string, correlationID string, debug bool) (*ComponentReconciler, error) {
+func NewComponentReconciler(workspaceDir string, debug bool) (*ComponentReconciler, error) {
 	wsf := &workspace.Factory{
 		Debug:      debug,
 		StorageDir: workspaceDir,
 	}
-	chartProvider, err := chart.NewProvider(wsf, correlationID, debug)
+	chartProvider, err := chart.NewProvider(wsf, debug)
 	if err != nil {
 		return nil, err
 	}
 
-	logger, err := log.NewLogger()
+	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
@@ -301,8 +302,11 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 				return
 			}
 
+			//enrich logger with correlation ID
+			r.logger = r.logger.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID})
+
 			//create callback handler
-			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.debug)
+			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger, r.debug)
 			if err != nil {
 				r.logger.Warnf("Could not create remote callback handler: %s", err)
 				r.sendResponse(w, http.StatusInternalServerError, err)

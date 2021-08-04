@@ -6,7 +6,6 @@ import (
 	"time"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
-	log "github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,13 +61,8 @@ type Tracker struct {
 	logger   *zap.SugaredLogger
 }
 
-func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, debug bool, config Config) (*Tracker, error) {
+func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, logger *zap.SugaredLogger, config Config) (*Tracker, error) {
 	if err := config.validate(); err != nil {
-		return nil, err
-	}
-
-	logger, err := log.NewLogger()
-	if err != nil {
 		return nil, err
 	}
 

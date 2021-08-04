@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
@@ -16,7 +17,7 @@ func TestKubernetesClient(t *testing.T) {
 	}
 
 	//create client
-	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t))
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewOptionalLogger(true))
 	require.NoError(t, err)
 
 	t.Run("Deploy and delete resources", func(t *testing.T) {

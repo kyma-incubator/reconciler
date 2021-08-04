@@ -9,7 +9,6 @@ import (
 	"net/url"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	log "github.com/kyma-incubator/reconciler/pkg/reconciler/logger"
 	"go.uber.org/zap"
 )
 
@@ -19,13 +18,7 @@ type RemoteCallbackHandler struct {
 	callbackURL string
 }
 
-func NewRemoteCallbackHandler(callbackURL string, debug bool) (Handler, error) {
-	//create logger
-	logger, err := log.NewLogger()
-	if err != nil {
-		return nil, err
-	}
-
+func NewRemoteCallbackHandler(callbackURL string, logger *zap.SugaredLogger, debug bool) (Handler, error) {
 	//validate URL
 	if callbackURL != "" { //empty URLs are allowed (used in some test cases)
 		if _, err := url.ParseRequestURI(callbackURL); err != nil {
