@@ -4,10 +4,9 @@ metadata:
   labels:
   {{- include "reconciler.labels" . | nindent 4 }}
   name: reconciler
-  namespace: abc
 spec:
   containers:
-  - image: reconciler:v1
+  - image: rafaljankowski/reconciler:v1
     args:
       - reconciler
       - service
