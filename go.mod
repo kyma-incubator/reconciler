@@ -13,6 +13,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/fatih/structs v1.1.0
 	github.com/go-git/go-git/v5 v5.4.2
+	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
