@@ -1,3 +1,0 @@
-package busola_migrator
-
-

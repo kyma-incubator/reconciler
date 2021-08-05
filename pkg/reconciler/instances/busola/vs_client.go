@@ -1,4 +1,4 @@
-package busola_migrator
+package busola
 
 import (
 	"context"
@@ -7,6 +7,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 )
+
+type VirtSvcClient interface {
+	GetVirtSvcHosts(ctx context.Context, restClient rest.Interface, name, namespace string) ([]string, error)
+	PatchVirtSvc(ctx context.Context, restClient rest.Interface, name, namespace string, patch virtualServicePatch) error
+}
+
+var _ VirtSvcClient = &client{}
 
 type client struct {
 }

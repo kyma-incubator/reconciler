@@ -1,4 +1,4 @@
-package busola_migrator
+package busola
 
 import (
 	"context"
@@ -9,11 +9,6 @@ import (
 	"net/url"
 	"strings"
 )
-
-type virtSvcClient interface {
-	GetVirtSvcHosts(ctx context.Context, restClient rest.Interface, name, namespace string) ([]string, error)
-	PatchVirtSvc(ctx context.Context, restClient rest.Interface, name, namespace string, patch virtualServicePatch) error
-}
 
 type virtualServicePatch struct {
 	Spec specPatch `json:"spec"`
@@ -31,7 +26,7 @@ type VirtualSvcMeta struct {
 type VirtualServicePreInstallPatch struct {
 	virtSvcsToPatch []VirtualSvcMeta
 	suffix          string
-	virtSvcClient   virtSvcClient
+	virtSvcClient   VirtSvcClient
 }
 
 func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix string) *VirtualServicePreInstallPatch {
