@@ -1,3 +1,5 @@
+// This file is generated: manual changes will be overwritten!!!
+
 package instances
 
 import (

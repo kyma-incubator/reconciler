@@ -17,6 +17,13 @@ if [ -d "./${compName}" ]; then
   exit 1
 fi
 
+if [ ! -d "./example" ]; then
+  echo ""
+  echo "Mandatory package 'example' is missing. Scaffolding a new component-reconciler is not possible."
+  echo ""
+  exit 1
+fi
+
 ######################
 
 echo "Creating new component-reconciler package '${compName}'"
@@ -42,7 +49,9 @@ for directory in */ ; do
     fi
 done
 if [ -n "$import" ]; then
-  echo "package instances
+  echo "// This file is generated: manual changes will be overwritten!!!
+
+package instances
 
 import(
 ${import}
