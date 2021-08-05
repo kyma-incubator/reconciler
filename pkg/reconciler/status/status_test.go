@@ -118,7 +118,7 @@ func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 	t.Run("Test status updater with status updater timeout", func(t *testing.T) {
 		callbackHdlr := newTestCallbackHandler(t)
 
-		statusUpdater, err := NewStatusUpdater(context.Background(), callbackHdlr, true, Config{
+		statusUpdater, err := NewStatusUpdater(context.Background(), callbackHdlr, logger, true, Config{
 			Interval: 500 * time.Millisecond,
 			Timeout:  1 * time.Second,
 		})
