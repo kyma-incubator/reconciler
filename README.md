@@ -37,7 +37,7 @@ By default, expensive test suites are disabled. To enable them, before you execu
 * Set the environment variable `RECONCILER_EXPENSIVE_TESTS=true`
 * In the GO code, execute the function `test.EnableExpensiveTests()`
 
-## Integrating a component-reconciler
+## Adding a new component-reconciler
 
 Component reconcilers are required as soon as custom logic has to be executed before- during or after the reconciliation of a component.
 
