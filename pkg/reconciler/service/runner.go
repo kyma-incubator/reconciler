@@ -38,7 +38,7 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 			}
 			err := r.reconcile(ctx, model)
 			if err == nil {
-				r.logger.Infof("Reconciliation succesful of '%s' in version '%s' with profile '%s'",
+				r.logger.Infof("Reconciliation successful of '%s' in version '%s' with profile '%s'",
 					model.Component, model.Version, model.Profile)
 			} else {
 				r.logger.Warnf("Reconciliation of '%s' in version '%s' with profile '%s': %s",

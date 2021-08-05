@@ -5,6 +5,7 @@ import (
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +32,9 @@ func Run(o *reconCli.Options, reconcilerName string) error {
 	}
 
 	if o.Verbose {
-		recon.Debug()
+		if err := recon.Debug(); err != nil {
+			return errors.Wrap(err, "Failed to enable debug mode")
+		}
 	}
 
 	recon.WithWorkspace(o.Workspace).

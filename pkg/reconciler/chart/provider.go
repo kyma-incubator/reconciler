@@ -41,8 +41,8 @@ func (p *Provider) ChangeWorkspace(wsDir string) error {
 	return nil
 }
 
-func (p *Provider) loggerAdapter() (*HydroformLoggerAdapter, error) {
-	return NewHydroformLoggerAdapter(p.logger), nil
+func (p *Provider) loggerAdapter() *HydroformLoggerAdapter {
+	return NewHydroformLoggerAdapter(p.logger)
 }
 
 func (p *Provider) Manifests(compSet *ComponentSet, includeCRD bool, opts *Options) ([]*components.Manifest, error) {
@@ -87,10 +87,7 @@ func (p *Provider) render(compSet *ComponentSet, renderCrds bool, ws *workspace.
 	}
 
 	//get logger
-	logger, err := p.loggerAdapter()
-	if err != nil {
-		return nil, err
-	}
+	logger := p.loggerAdapter()
 
 	//get overrides
 	builder, err := p.overrides(compSet.components)
