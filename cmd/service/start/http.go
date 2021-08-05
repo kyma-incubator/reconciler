@@ -48,7 +48,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Methods("GET")
 
 	router.HandleFunc(
-		fmt.Sprintf("v{%s}/operations/{%s}/callback", paramContractVersion, paramCorrelationID),
+		fmt.Sprintf("v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, operationCallback)).
 		Methods("POST")
 
@@ -189,6 +189,11 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, err)
+		return
+	}
 	correlationID, err := params.String(paramCorrelationID)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)
@@ -197,6 +202,10 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	var body msg
 	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to read received JSON payload"))
+		return
+	}
 	err = json.Unmarshal(reqBody, &body)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Failed to unmarshal JSON payload"))
@@ -204,13 +213,13 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 	switch body.Status {
 	case string(reconciler.NotStarted), string(reconciler.Running):
-		err = o.Registry.OperationsRegistry().SetInProgress(correlationID)
+		err = o.Registry.OperationsRegistry().SetInProgress(correlationID, schedulingID)
 	case string(reconciler.Success):
-		err = o.Registry.OperationsRegistry().SetDone(correlationID)
+		err = o.Registry.OperationsRegistry().SetDone(correlationID, schedulingID)
 	case string(reconciler.Error):
-		err = o.Registry.OperationsRegistry().SetError(correlationID, "Reconciler reported error status")
+		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID, "Reconciler reported error status")
 	case string(reconciler.Failed):
-		err = o.Registry.OperationsRegistry().SetFailed(correlationID, "Reconciler reported failed status")
+		err = o.Registry.OperationsRegistry().SetFailed(correlationID, schedulingID, "Reconciler reported failed status")
 	}
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)

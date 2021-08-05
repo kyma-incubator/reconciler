@@ -16,10 +16,13 @@ import (
 	"go.uber.org/zap"
 )
 
-const DefaultReconciler = "helm"
+const (
+	DefaultReconciler = "helm"
+	MaxRetryCount     = 20
+)
 
 type ReconciliationWorker interface {
-	Reconcile(component *keb.Components, state cluster.State) error
+	Reconcile(component *keb.Components, state cluster.State, schedulingID string) error
 }
 
 type WorkersFactory struct {
@@ -63,9 +66,14 @@ type Worker struct {
 	inventory     cluster.Inventory
 	operationsReg OperationsRegistry
 	logger        *zap.SugaredLogger
+	errorsCount   int
 }
 
-func NewWorker(config *reconciler.ComponentReconciler, inventory cluster.Inventory, operationsReg OperationsRegistry, debug bool) (*Worker, error) {
+func NewWorker(
+	config *reconciler.ComponentReconciler,
+	inventory cluster.Inventory,
+	operationsReg OperationsRegistry,
+	debug bool) (*Worker, error) {
 	logger, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
@@ -76,15 +84,16 @@ func NewWorker(config *reconciler.ComponentReconciler, inventory cluster.Invento
 		inventory:     inventory,
 		operationsReg: operationsReg,
 		logger:        logger,
+		errorsCount:   0,
 	}, nil
 }
 
-func (w *Worker) Reconcile(component *keb.Components, state cluster.State) error {
+func (w *Worker) Reconcile(component *keb.Components, state cluster.State, schedulingID string) error {
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
-			done, err := w.process(component, state)
+			done, err := w.process(component, state, schedulingID)
 			if err != nil {
 				// At this point something critical happend, we need to give up
 				return err
@@ -96,41 +105,72 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State) error
 	}
 }
 
-func (w *Worker) process(component *keb.Components, state cluster.State) (bool, error) {
+func (w *Worker) process(component *keb.Components, state cluster.State, schedulingID string) (bool, error) {
+	// check max retry counter
+	if w.errorsCount > MaxRetryCount {
+		return true, fmt.Errorf("Max retry count for opeation %s in %s excceded", w.correlationID, schedulingID)
+	}
 	// check status
-	op := w.operationsReg.GetOperation(w.correlationID)
-	if op == nil {
-		w.operationsReg.RegisterOperation(w.correlationID)
-		// send operation to component reconciler
-		err := w.send(component, state)
+	op := w.operationsReg.GetOperation(w.correlationID, schedulingID)
+	if op == nil { // New operation
+		w.operationsReg.RegisterOperation(w.correlationID, schedulingID, component.Component)
+		w.callReconciler(component, state, schedulingID)
+		err := w.send(component, state, schedulingID)
 		if err != nil {
-			// TODO
+			w.errorsCount += 1
+			return false, err
 		}
 		return false, nil
 	}
 
 	switch op.State {
+	case StateClientError:
+		// In this state we assume that the reconciliation operation was
+		// never processed by the component reconciler so we need to call
+		// the reconciler again
+		err := w.callReconciler(component, state, schedulingID)
+		if err != nil {
+			w.errorsCount += 1
+			return false, err
+		}
+		return false, nil
 	case StateNew, StateInProgress, StateError:
+		// Operation still being processed by the component reconciler
 		return false, nil
 	case StateFailed:
 		return true, fmt.Errorf("Operation failed: %s", op.Reason)
 	case StateDone:
-		w.operationsReg.RemoveOperation(w.correlationID)
+		w.operationsReg.RemoveOperation(w.correlationID, schedulingID)
 		return true, nil
 	}
 	return false, nil
 }
 
-func (w *Worker) send(component *keb.Components, state cluster.State) error {
+func (w *Worker) callReconciler(component *keb.Components, state cluster.State, schedulingID string) error {
+	err := w.send(component, state, schedulingID)
+	if err != nil {
+		w.operationsReg.SetClientError(w.correlationID, schedulingID, fmt.Sprintf("Error when calling the reconciler: %s", err))
+		return err
+	}
+
+	return nil
+}
+
+func (w *Worker) send(component *keb.Components, state cluster.State, schedulingID string) error {
+	componentsReady, err := w.getDoneComponents(schedulingID)
+	if err != nil {
+		return err
+	}
+
 	payload := reconciler.Reconciliation{
-		ComponentsReady: []string{},
+		ComponentsReady: componentsReady,
 		Component:       component.Component,
 		Namespace:       component.Namespace,
 		Version:         state.Configuration.KymaVersion,
 		Profile:         state.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(component.Configuration),
 		Kubeconfig:      state.Cluster.Kubeconfig,
-		CallbackURL:     fmt.Sprintf("http://localhost:8080/v1/operations/%s/callback", w.correlationID),
+		CallbackURL:     fmt.Sprintf("http://localhost:8080/v1/operations/%s/callback/%s", schedulingID, w.correlationID),
 		InstallCRD:      false,
 		CorrelationID:   w.correlationID,
 	}
@@ -154,16 +194,29 @@ func (w *Worker) send(component *keb.Components, state cluster.State) error {
 	if err != nil {
 		return fmt.Errorf("Error while reading the response body: %s", err)
 	}
-	_ = body // TODO
+	_ = body // TODO: handle the reconciler response body
 
 	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode != http.StatusPreconditionRequired {
-			// something bad happened
+		if resp.StatusCode == http.StatusPreconditionRequired {
+			return fmt.Errorf("Preconditions failed: %s", resp.Status)
 		}
+		return fmt.Errorf("Reconciler responded with status: %s", resp.Status)
 	}
 	// At this point we can assume that the call was successful
 	// and the component reconciler is doing the job of reconciliation
 	return nil
+}
+
+func (w *Worker) getDoneComponents(schedulingID string) ([]string, error) {
+	operations, err := w.operationsReg.GetDoneOperations(schedulingID)
+	if err != nil {
+		return nil, err
+	}
+	var result []string
+	for _, op := range operations {
+		result = append(result, op.Component)
+	}
+	return result, nil
 }
 
 func mapConfiguration(kebCfg []keb.Configuration) []reconciler.Configuration {

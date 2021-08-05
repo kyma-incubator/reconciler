@@ -12,6 +12,7 @@ const (
 	paramCluster         = "cluster"
 	paramConfigVersion   = "configVersion"
 	paramOffset          = "offset"
+	paramSchedulingID    = "schedulingID"
 	paramCorrelationID   = "correlationID"
 )
 

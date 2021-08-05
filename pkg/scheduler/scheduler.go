@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/panjf2000/ants/v2"
@@ -86,6 +87,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 }
 
 func (rs *RemoteScheduler) schedule(state cluster.State) {
+	schedulingID := uuid.NewString()
 	components, err := state.Configuration.GetComponents()
 	if err != nil {
 		rs.logger.Errorf("Failed to get components for cluster %s", state.Cluster.Cluster)
@@ -102,7 +104,7 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		if err != nil {
 			rs.logger.Errorf("Error creating worker for component: %s", err)
 		}
-		go worker.Reconcile(component, state)
+		go worker.Reconcile(component, state, schedulingID)
 	}
 }
 
