@@ -40,6 +40,12 @@ type DefaultOperationsRegistry struct {
 	mu       sync.Mutex
 }
 
+func NewDefaultOperationsRegistry() *DefaultOperationsRegistry {
+	return &DefaultOperationsRegistry{
+		registry: make(map[string]map[string]OperationState),
+	}
+}
+
 func (or *DefaultOperationsRegistry) GetDoneOperations(schedulingID string) ([]*OperationState, error) {
 	operations, ok := or.registry[schedulingID]
 	if !ok {
@@ -47,7 +53,9 @@ func (or *DefaultOperationsRegistry) GetDoneOperations(schedulingID string) ([]*
 	}
 	var result []*OperationState
 	for _, op := range operations {
-		result = append(result, &op)
+		if op.State == StateDone {
+			result = append(result, &op)
+		}
 	}
 	return result, nil
 }
@@ -62,6 +70,8 @@ func (or *DefaultOperationsRegistry) RegisterOperation(operationID, schedulingID
 		if ok {
 			return nil, fmt.Errorf("Operation with the following id %s already registered", operationID)
 		}
+	} else {
+		or.registry[schedulingID] = make(map[string]OperationState)
 	}
 
 	op := OperationState{

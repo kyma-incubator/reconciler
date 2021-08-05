@@ -12,7 +12,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -93,9 +95,13 @@ func NewWorker(
 
 func (w *Worker) Reconcile(component *keb.Components, state cluster.State, schedulingID string) error {
 	ticker := time.NewTicker(10 * time.Second)
+	_, err := w.inventory.UpdateStatus(&state, model.Reconciling)
+	if err != nil {
+		return errors.Wrap(err, "while updating cluster as reconciling")
+	}
 	for {
 		select {
-		//TODO: refacotor to time.After chan
+		//TODO: refactor to time.After chan
 		case <-ticker.C:
 			done, err := w.process(component, state, schedulingID)
 			if err != nil {
@@ -103,6 +109,10 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 				return err
 			}
 			if done {
+				_, err = w.inventory.UpdateStatus(&state, model.Ready)
+				if err != nil {
+					return errors.Wrap(err, "while updating cluster as ready")
+				}
 				return nil
 			}
 		}
@@ -110,6 +120,7 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 }
 
 func (w *Worker) process(component *keb.Components, state cluster.State, schedulingID string) (bool, error) {
+	w.logger.Debugf("Processing the reconciliation for a compoent %s, correlationID: %s", component.Component, w.correlationID)
 	// check max retry counter
 	if w.errorsCount > MaxRetryCount {
 		w.operationsReg.SetFailed(w.correlationID, schedulingID, "Max retry count reached")
@@ -123,6 +134,7 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 	// check status
 	op := w.operationsReg.GetOperation(w.correlationID, schedulingID)
 	if op == nil { // New operation
+		w.logger.Debugf("Creating new reconciliation operation for a component %s, correlationID: %s", component.Component, w.correlationID)
 		w.operationsReg.RegisterOperation(w.correlationID, schedulingID, component.Component)
 		err := w.callReconciler(component, state, schedulingID)
 		if err != nil {
@@ -131,6 +143,8 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 		}
 		return false, nil
 	}
+
+	w.logger.Debugf("Reconciliation operation for a component %s, correlationID: %s has state %s", component.Component, w.correlationID, op.State)
 
 	switch op.State {
 	case StateClientError:
@@ -188,6 +202,7 @@ func (w *Worker) send(component *keb.Components, state cluster.State, scheduling
 		return fmt.Errorf("Error while marshaling payload for reconciler call: %s", err)
 	}
 
+	w.logger.Debugf("Calling the reconciler for a component %s, correlation ID: %s", component.Component, w.correlationID)
 	resp, err := http.Post(w.config.URL, "application/json",
 		bytes.NewBuffer(jsonPayload))
 	if err != nil {
@@ -203,6 +218,7 @@ func (w *Worker) send(component *keb.Components, state cluster.State, scheduling
 	if err != nil {
 		return fmt.Errorf("Error while reading the response body: %s", err)
 	}
+	w.logger.Debugf("Called the reconciler for a component %s, correlation ID: %s, got status %s", component.Component, w.correlationID, resp.Status)
 	_ = body // TODO: handle the reconciler response body
 
 	if resp.StatusCode != http.StatusOK {

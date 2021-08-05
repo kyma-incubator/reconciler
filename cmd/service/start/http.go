@@ -48,7 +48,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Methods("GET")
 
 	router.HandleFunc(
-		fmt.Sprintf("v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, operationCallback)).
 		Methods("POST")
 

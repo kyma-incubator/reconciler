@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
@@ -40,9 +41,9 @@ func NewCmd(o *Options) *cobra.Command {
 func Run(o *Options) error {
 	ctx := cli.NewContext()
 
-	if err := startWebserver(ctx, o); err != nil {
-		return err
-	}
+	go func(ctx context.Context, o *Options) {
+		startScheduler(ctx, o)
+	}(ctx, o)
 
-	return startScheduler(ctx, o)
+	return startWebserver(ctx, o)
 }

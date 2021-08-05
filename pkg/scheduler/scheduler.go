@@ -58,7 +58,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 
 	queue := make(chan cluster.State, rs.poolSize)
 
-	rs.logger.Debugf("Starting worker pool with capacity %d workers")
+	rs.logger.Debugf("Starting worker pool with capacity %d workers", rs.poolSize)
 	workersPool, err := ants.NewPoolWithFunc(rs.poolSize, func(i interface{}) {
 		rs.schedule(i.(cluster.State))
 	})
