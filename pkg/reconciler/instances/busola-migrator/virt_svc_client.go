@@ -63,27 +63,3 @@ func (c *client) PatchVirtSvc(ctx context.Context, restClient rest.Interface, na
 
 	return errors.Wrapf(err, "while patching virtual service: %s, in namespace: %s", name, namespace)
 }
-
-//func extractHosts(vs virtSvc) ([]string, error) {
-//	//tmpSpec := vs.Spec
-//	//spec, ok := tmpSpec.(map[string]interface{})
-//	//if !ok {
-//	//	return nil, errors.New("could find `{.spec}` field in virtual service")
-//	//}
-//
-//	//genericHosts, ok := spec["hosts"].([]interface{})
-//	//if !ok {
-//	//	return nil, errors.New("could find `{.spec.hosts}` field in virtual service")
-//	//}
-//
-//	hosts  = vs.Spec.Hosts
-//	for _, genericHost := range genericHosts {
-//		if host, ok := genericHost.(string); ok {
-//			hosts = append(hosts, host)
-//		} else {
-//			return nil, errors.New(fmt.Sprintf("%+v is not a string", genericHost))
-//		}
-//	}
-//
-//	return hosts, nil
-//}

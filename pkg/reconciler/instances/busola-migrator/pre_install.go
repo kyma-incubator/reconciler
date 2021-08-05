@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"net/url"
 	"strings"
 )
 
@@ -71,7 +72,11 @@ func (p *VirtualServicePreInstallPatch) patchVirtSvc(ctx context.Context, kubeRe
 }
 
 func addSuffix(host, suffix string) (string, error) {
+	if _, err := url.Parse(host); err != nil {
+		return "", err
+	}
 	splittedHost := strings.Split(host, ".")
+	// TODO: is it possible?
 	if len(splittedHost) < 1 {
 		return "", errors.Errorf("host name is incorrect: %s", host)
 	}
