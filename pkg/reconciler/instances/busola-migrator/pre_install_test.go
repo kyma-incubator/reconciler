@@ -1,22 +1,26 @@
-package busola_migrator_test
+package busola_migrator
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	busola_migrator "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/busola-migrator"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	restFake "k8s.io/client-go/rest/fake"
 	"net/http"
+	"path"
 	"strings"
 	"testing"
 )
 
 func TestPreInstall(t *testing.T) {
 	//GIVEN
-	vs := []busola_migrator.VirtualSvcMeta{
+	vs := []VirtualSvcMeta{
 		{
 			Name:      "dex-virtualservice",
 			Namespace: "kyma-system",
@@ -29,7 +33,7 @@ func TestPreInstall(t *testing.T) {
 	require.NoError(t, err)
 	kubeClient, err := kubernetes.NewKubernetesClient(string(kubeconfig), true)
 	require.NoError(t, err)
-	p := busola_migrator.NewVirtualServicePreInstallPatch(vs, "-old")
+	p := NewVirtualServicePreInstallPatch(vs, "-old")
 
 	clientSet, err := kubeClient.Clientset()
 	require.NoError(t, err)
@@ -43,27 +47,28 @@ func TestPreInstall(t *testing.T) {
 
 func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 	//GIVEN
-	vs := []busola_migrator.VirtualSvcMeta{
-		{
-			Name:      "test",
-			Namespace: "test-namespace",
-		}}
-	prefix := "-old"
-	p := busola_migrator.NewVirtualServicePreInstallPatch(vs, prefix)
+	name := "test"
+	namespace := "test-namespace"
+	vs := []VirtualSvcMeta{{Name: name, Namespace: namespace}}
 
+	prefix := "-old"
+	expectedPatch := virtualServicePatch{Spec: specPatch{Hosts: []string{"my-domain-old.kyma.io"}}}
+
+	expectedCRPath := path.Join("/apis", "networking.istio.io/v1alpha3", "namespaces", namespace, "virtualservices", name)
+
+	p := NewVirtualServicePreInstallPatch(vs, prefix)
 	httpClient := restFake.CreateHTTPClient(func(request *http.Request) (*http.Response, error) {
 		require.NotNil(t, request)
 		switch request.Method {
 		case http.MethodGet:
 			{
-				assertGet(t, request)
+				assertGet(t, request, expectedCRPath)
 				resp := getVirtSvc(t)
 				return resp, nil
 			}
-
 		case http.MethodPatch:
 			{
-				assertPatch(t, request)
+				assertPatch(t, request, expectedPatch)
 				resp := &http.Response{StatusCode: http.StatusNoContent}
 				return resp, nil
 			}
@@ -73,8 +78,6 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 			}
 		}
 	})
-	//baseURL, err := url.Parse("localhost:8000")
-	//require.NoError(t, err)
 
 	restClient := &restFake.RESTClient{
 		NegotiatedSerializer: nil,
@@ -86,14 +89,15 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 		Resp:                 nil,
 	}
 
+	ctx := context.TODO()
 	//WHEN
-	err := p.PatchVirtSvc(restClient, "test", "test-namespace")
+	err := p.patchVirtSvc(ctx, restClient, name, namespace)
 
 	//THEN
 	require.NoError(t, err)
 }
 
-func getVirtSvc(t *testing.T) *http.Response{
+func getVirtSvc(t *testing.T) *http.Response {
 	out, err := ioutil.ReadFile("./test_files/virtual-service.yaml")
 	require.NoError(t, err)
 
@@ -104,9 +108,15 @@ func getVirtSvc(t *testing.T) *http.Response{
 	return resp
 }
 
-func assertGet(t *testing.T, request *http.Request) {
+func assertGet(t *testing.T, request *http.Request, expectedPath string) {
+	assert.Equal(t, expectedPath, request.URL.Path)
 
 }
-func assertPatch(t *testing.T, request *http.Request) {
-
+func assertPatch(t *testing.T, request *http.Request, expectedPatch virtualServicePatch) {
+	out, err := io.ReadAll(request.Body)
+	require.NoError(t, err)
+	var currentPatch virtualServicePatch
+	err = json.Unmarshal(out, &currentPatch)
+	require.NoError(t, err)
+	assert.Equal(t, expectedPatch, currentPatch)
 }

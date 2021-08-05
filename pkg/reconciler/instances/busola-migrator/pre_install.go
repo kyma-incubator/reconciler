@@ -7,8 +7,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"strings"
-
-	//istio_client "istio.io/client-go"
 )
 
 type virtSvcClient interface {
@@ -41,35 +39,42 @@ func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix strin
 }
 
 func (p *VirtualServicePreInstallPatch) Run(version string, kubeClient kubernetes.Interface) error {
+	ctx := context.TODO()
 
 	for _, virtSvcToPatch := range p.virtSvcsToPatch {
-		if err := p.PatchVirtSvc(kubeClient.Discovery().RESTClient(), virtSvcToPatch.Name, virtSvcToPatch.Namespace); err != nil {
-			return err
+		if err := p.patchVirtSvc(ctx, kubeClient.Discovery().RESTClient(), virtSvcToPatch.Name, virtSvcToPatch.Namespace); err != nil {
+			return errors.Wrapf(err, "while patching virtual service: %s, in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		}
 	}
 	return nil
 }
 
-func (p *VirtualServicePreInstallPatch) PatchVirtSvc(kubeRestClient rest.Interface, virtSvcName, namespace string) error {
-	ctx := context.TODO()
+func (p *VirtualServicePreInstallPatch) patchVirtSvc(ctx context.Context, kubeRestClient rest.Interface, name, namespace string) error {
 
-	hosts, err := p.virtSvcClient.GetVirtSvcHosts(ctx, kubeRestClient, virtSvcName, namespace)
+	hosts, err := p.virtSvcClient.GetVirtSvcHosts(ctx, kubeRestClient, name, namespace)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "while getting virtual service: %s, in namespace: %s", name, namespace)
+	}
+	if len(hosts) < 1 {
+		return errors.New(fmt.Sprintf("hosts is empty in virtual service: %s, in namespace: %s", name, namespace))
 	}
 
-	hosts[0] = addSuffix(hosts[0], p.suffix)
-	patch := virtualServicePatch{
-		Spec: specPatch{Hosts: hosts},
+	host, err := addSuffix(hosts[0], p.suffix)
+	if err != nil {
+		return errors.Wrapf(err, "while appending suffix to host in virtual service: %s, in namespace: %s", name, namespace)
 	}
+	hosts[0] = host
+	patch := virtualServicePatch{Spec: specPatch{Hosts: hosts}}
 
-	err = p.virtSvcClient.PatchVirtSvc(ctx, kubeRestClient, virtSvcName, namespace, patch)
-	return errors.Wrap(err,"while patching virtual service")
+	err = p.virtSvcClient.PatchVirtSvc(ctx, kubeRestClient, name, namespace, patch)
+	return errors.Wrap(err, "while patching virtual service")
 }
 
-func addSuffix(host, suffix string) string {
+func addSuffix(host, suffix string) (string, error) {
 	splittedHost := strings.Split(host, ".")
-
+	if len(splittedHost) < 1 {
+		return "", errors.Errorf("host name is incorrect: %s", host)
+	}
 	splittedHost[0] = fmt.Sprintf("%s%s", splittedHost[0], suffix)
-	return strings.Join(splittedHost, ".")
+	return strings.Join(splittedHost, "."), nil
 }
