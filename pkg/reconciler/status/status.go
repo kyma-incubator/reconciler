@@ -47,7 +47,6 @@ type Updater struct {
 	ctx             context.Context
 	ctxClosed       bool //indicate whether the process was interrupted by parent context
 	timeout         *time.Timer
-	debug           bool
 	config          Config
 	status          reconciler.Status //current status
 	callback        cb.Handler        //callback-handler which trigger the callback logic to inform reconciler-controller
@@ -56,7 +55,7 @@ type Updater struct {
 	logger          *zap.SugaredLogger
 }
 
-func NewStatusUpdater(ctx context.Context, callback cb.Handler, logger *zap.SugaredLogger, debug bool, config Config) (*Updater, error) {
+func NewStatusUpdater(ctx context.Context, callback cb.Handler, logger *zap.SugaredLogger, config Config) (*Updater, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
@@ -66,7 +65,6 @@ func NewStatusUpdater(ctx context.Context, callback cb.Handler, logger *zap.Suga
 		config:          config,
 		restartInterval: make(chan bool),
 		callback:        callback,
-		debug:           debug,
 		status:          reconciler.NotStarted,
 		timeout:         time.NewTimer(config.Timeout),
 		logger:          logger,

@@ -2,6 +2,7 @@ package chart
 
 import (
 	"encoding/json"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -17,10 +18,14 @@ import (
 func TestProvider(t *testing.T) {
 	t.Parallel()
 
+	log, err := logger.NewLogger(true)
+	require.NoError(t, err)
+
 	wsFactory := &workspace.Factory{
 		StorageDir: "./test",
+		Logger:     log,
 	}
-	prov, err := NewProvider(wsFactory, true)
+	prov, err := NewProvider(wsFactory, log)
 	require.NoError(t, err)
 
 	t.Run("Convert dot-notated configuration keys to a nested map", func(t *testing.T) {

@@ -45,6 +45,7 @@ type ActionContext struct {
 	KubeClient       kubernetes.Client
 	WorkspaceFactory *workspace.Factory
 	Context          context.Context
+	Logger           *zap.SugaredLogger
 }
 
 type Action interface {
@@ -52,7 +53,6 @@ type Action interface {
 }
 
 type ComponentReconciler struct {
-	debug                 bool
 	workspace             string
 	dependencies          []string
 	serverConfig          serverConfig
@@ -101,7 +101,7 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 }
 
 func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
-	return chart.NewProvider(r.workspaceFactory(), r.debug)
+	return chart.NewProvider(r.workspaceFactory(), r.logger)
 }
 
 func (r *ComponentReconciler) workspaceFactory() *workspace.Factory {
@@ -109,7 +109,7 @@ func (r *ComponentReconciler) workspaceFactory() *workspace.Factory {
 	if wsFactory == nil {
 		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
 		wsFactory = &workspace.Factory{
-			Debug:      r.debug,
+			Logger:     r.logger,
 			StorageDir: r.workspace,
 		}
 	}
@@ -179,10 +179,10 @@ func (r *ComponentReconciler) validate() error {
 	return nil
 }
 
-func (r *ComponentReconciler) Debug() *ComponentReconciler {
-	r.debug = true
-	r.logger = logger.NewOptionalLogger(true)
-	return r
+func (r *ComponentReconciler) Debug() error {
+	var err error
+	r.logger, err = logger.NewLogger(true)
+	return err
 }
 
 func (r *ComponentReconciler) WithWorkspace(workspace string) *ComponentReconciler {
@@ -251,7 +251,7 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.
 		return err
 	}
 
-	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFct, r.debug)
+	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFct, r.logger)
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			r.logger = r.logger.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID})
 
 			//create callback handler
-			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger, r.debug)
+			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger)
 			if err != nil {
 				r.logger.Warnf("Could not create remote callback handler: %s", err)
 				r.sendResponse(w, http.StatusInternalServerError, err)

@@ -45,8 +45,7 @@ func TestReconciler(t *testing.T) {
 		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
 
-		recon.Debug()
-		require.True(t, recon.debug)
+		require.NoError(t, recon.Debug())
 
 		recon.WithWorkspace("./test")
 		require.Equal(t, "./test", recon.workspace)
@@ -105,7 +104,9 @@ func TestReconciler(t *testing.T) {
 		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
 
-		recon.Debug().WithDependencies("a", "b")
+		require.NoError(t, recon.Debug())
+
+		recon.WithDependencies("a", "b")
 		require.ElementsMatch(t, []string{"a", "b"}, recon.dependenciesMissing(&reconciler.Reconciliation{
 			ComponentsReady: []string{"x", "y", "z"},
 		}))
@@ -135,7 +136,9 @@ func TestReconcilerEnd2End(t *testing.T) {
 		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
 
-		err = recon.Debug().
+		require.NoError(t, recon.Debug())
+
+		err = recon.
 			WithWorkspace("./test").
 			WithWorkers(2, workerTimeout).
 			WithServerConfig(9999, "", "").

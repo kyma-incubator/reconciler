@@ -9,7 +9,7 @@ import (
 	"time"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
@@ -56,14 +56,14 @@ func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 
 	t.Parallel()
 
-	logger := logger.NewOptionalLogger(true)
+	logger := log.NewOptionalLogger(true)
 	t.Run("Test status updater without timeout", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		callbackHdlr := newTestCallbackHandler(t)
 
-		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, logger, true, Config{
+		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, logger, Config{
 			Interval: 1 * time.Second,
 			Timeout:  10 * time.Second,
 		})
@@ -93,7 +93,7 @@ func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 
 		callbackHdlr := newTestCallbackHandler(t)
 
-		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, logger, true, Config{
+		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, logger, Config{
 			Interval: 1 * time.Second,
 			Timeout:  10 * time.Second,
 		})
@@ -118,7 +118,7 @@ func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 	t.Run("Test status updater with status updater timeout", func(t *testing.T) {
 		callbackHdlr := newTestCallbackHandler(t)
 
-		statusUpdater, err := NewStatusUpdater(context.Background(), callbackHdlr, logger, true, Config{
+		statusUpdater, err := NewStatusUpdater(context.Background(), callbackHdlr, logger, Config{
 			Interval: 500 * time.Millisecond,
 			Timeout:  1 * time.Second,
 		})

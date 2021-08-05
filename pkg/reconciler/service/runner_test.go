@@ -29,7 +29,7 @@ const (
 
 var wsf = &ws.Factory{
 	StorageDir: "./test",
-	Debug:      true,
+	Logger:     logger.NewOptionalLogger(true),
 }
 
 type TestAction struct {
@@ -311,8 +311,9 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 
-	recon.Debug().
-		WithWorkspace("./test").
+	require.NoError(t, recon.Debug())
+
+	recon.WithWorkspace("./test").
 		WithRetry(3, 1*time.Second).
 		WithWorkers(5, timeout).
 		WithStatusUpdaterConfig(interval, timeout).
@@ -337,7 +338,7 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 func newCallbackHandler(t *testing.T) callback.Handler {
 	callbackHdlr, err := callback.NewLocalCallbackHandler(func(status reconciler.Status) error {
 		return nil
-	}, true)
+	}, logger.NewOptionalLogger(true))
 	require.NoError(t, err)
 	return callbackHdlr
 }

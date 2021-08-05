@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -30,18 +29,15 @@ type Workspace struct {
 }
 
 type Factory struct {
-	Debug         bool
 	StorageDir    string
 	RepositoryURL string
+	Logger        *zap.SugaredLogger
 	mutex         sync.Mutex
-	logger        *zap.SugaredLogger
 }
 
 func (f *Factory) validate() error {
-	var err error
-	f.logger, err = logger.NewLogger(f.Debug)
-	if err != nil {
-		return err
+	if f.Logger == nil {
+		return fmt.Errorf("no logger provided: please set field Logger")
 	}
 	if f.StorageDir == "" {
 		f.StorageDir = f.defaultStorageDir()
@@ -78,7 +74,7 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 	sFile := filepath.Join(wsDir, successFile)
 	//ensure Kyma sources are available
 	if !file.Exists(sFile) {
-		f.logger.Infof("Creating new workspace directory '%s' ", wsDir)
+		f.Logger.Infof("Creating new workspace directory '%s' ", wsDir)
 		if err := f.clone(version, wsDir); err != nil {
 			return nil, err
 		}
@@ -99,23 +95,23 @@ func (f *Factory) clone(version, dstDir string) error {
 
 	sFile := filepath.Join(dstDir, successFile)
 	if file.Exists(sFile) {
-		f.logger.Debugf("Workspace '%s' already exists", dstDir)
+		f.Logger.Debugf("Workspace '%s' already exists", dstDir)
 		//race condition protection: it could happen that a previous go-routing was also triggering the clone of the Kyma version
 		return nil
 	}
 	if file.DirExists(dstDir) {
 		//if workspace exists but there is no success file, it is probably corrupted, so delete it
-		f.logger.Warnf("Deleting workspace '%s' because GIT clone does not contain all the required files", dstDir)
+		f.Logger.Warnf("Deleting workspace '%s' because GIT clone does not contain all the required files", dstDir)
 		if err := os.RemoveAll(dstDir); err != nil {
 			return err
 		}
 	}
 
 	//clone sources
-	f.logger.Infof("Start cloning repository '%s' with revision '%s' into workspace '%s'",
+	f.Logger.Infof("Start cloning repository '%s' with revision '%s' into workspace '%s'",
 		f.RepositoryURL, version, dstDir)
 	if err := git.CloneRepo(f.RepositoryURL, dstDir, version); err != nil {
-		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
+		f.Logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 			dstDir, f.RepositoryURL, version)
 		if removeErr := f.Delete(version); removeErr != nil {
 			err = errors.Wrap(err, removeErr.Error())
@@ -141,7 +137,7 @@ func (f *Factory) clone(version, dstDir string) error {
 	}
 	defer func() {
 		if err := fileHandler.Close(); err != nil {
-			f.logger.Warnf("Failed to close marker file: %s", err)
+			f.Logger.Warnf("Failed to close marker file: %s", err)
 		}
 	}()
 
@@ -154,10 +150,10 @@ func (f *Factory) Delete(version string) error {
 		return err
 	}
 	wsDir := f.workspaceDir(version)
-	f.logger.Debugf("Deleting workspace '%s'", wsDir)
+	f.Logger.Debugf("Deleting workspace '%s'", wsDir)
 	err := os.RemoveAll(wsDir)
 	if err != nil {
-		f.logger.Warnf("Failed to delete workspace '%s': %s", wsDir, err)
+		f.Logger.Warnf("Failed to delete workspace '%s': %s", wsDir, err)
 	}
 	return err
 }

@@ -22,7 +22,7 @@ type runner struct {
 }
 
 func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {
-	statusUpdater, err := status.NewStatusUpdater(ctx, callback, r.logger, r.debug, status.Config{
+	statusUpdater, err := status.NewStatusUpdater(ctx, callback, r.logger, status.Config{
 		Interval: r.statusUpdaterConfig.interval,
 		Timeout:  r.statusUpdaterConfig.timeout,
 	})
@@ -85,6 +85,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		KubeClient:       kubeClient,
 		WorkspaceFactory: r.workspaceFactory(),
 		Context:          ctx,
+		Logger:           r.logger,
 	}
 
 	if r.preReconcileAction != nil {
