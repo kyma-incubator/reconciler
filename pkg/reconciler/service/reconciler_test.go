@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -142,6 +144,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			Kubeconfig:      "xyz",
 			CallbackURL:     "https://fake.url/",
 			InstallCRD:      false,
+			CorrelationID:   "test-correlation-id",
 		}, http.StatusPreconditionRequired)
 
 		//convert body to HTTP response model
@@ -164,6 +167,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			Kubeconfig:      "",
 			CallbackURL:     "",
 			InstallCRD:      false,
+			CorrelationID:   "test-correlation-id",
 		}, http.StatusBadRequest)
 
 		//convert body to HTTP response model
@@ -174,7 +178,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 	t.Run("Happy path", func(t *testing.T) {
 		//get Kubernetes client
-		kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), true)
+		kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true))
 		require.NoError(t, err)
 		clientSet, err := kubeClient.Clientset()
 		require.NoError(t, err)
@@ -201,6 +205,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			Kubeconfig:      test.ReadKubeconfig(t),
 			CallbackURL:     "https://httpbin.org/post",
 			InstallCRD:      false,
+			CorrelationID:   "test-correlation-id",
 		}, http.StatusOK)
 		t.Logf("Body received: %s", string(body))
 

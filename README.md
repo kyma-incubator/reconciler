@@ -6,15 +6,23 @@
 
 The Reconciler is a central system to reconcile Kyma clusters.
 
-## Locally start reconciler service
+## Run Reconciler locally
 
-1. Build docker image 
+Follow these steps to run Reconciler locally:
 
-`docker build -f Dockerfile -t reconciler:v1 .`
+1. Build the Docker image:
 
-2. Run docker container
+```
+docker build -f Dockerfile -t reconciler:v1 .
+```
 
-`docker run --name reconciler -it -p 8080:8080 reconciler:v1 reconciler service start`
+
+2. Run the Docker container:
+
+```
+docker run --name reconciler -it -p 8080:8080 reconciler:v1 reconciler service start
+```
+
 
 ## Testing
 

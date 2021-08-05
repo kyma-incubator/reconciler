@@ -2,12 +2,13 @@ package chart
 
 import (
 	"encoding/json"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"github.com/kyma-incubator/reconciler/pkg/test"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"gopkg.in/yaml.v3"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/stretchr/testify/require"

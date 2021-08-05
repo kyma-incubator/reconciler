@@ -12,7 +12,7 @@ func NewLogger(debug bool) (*zap.SugaredLogger, error) {
 	}
 	cfg := zap.Config{
 		Encoding:         "console",
-		Level:            zap.NewAtomicLevelAt(zapcore.WarnLevel),
+		Level:            zap.NewAtomicLevelAt(zapcore.DebugLevel),
 		OutputPaths:      []string{"stderr"},
 		ErrorOutputPaths: []string{"stderr"},
 		EncoderConfig: zapcore.EncoderConfig{

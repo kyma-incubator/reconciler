@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	b64 "encoding/base64"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"go.uber.org/zap"
 	"io"
+
+	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/pkg/errors"
@@ -20,12 +20,7 @@ type kubeClientAdapter struct {
 	logger     *zap.SugaredLogger
 }
 
-func newKubeClientAdapter(kubeconfig string, debug bool) (Client, error) {
-	logger, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
-
+func newKubeClientAdapter(kubeconfig string, logger *zap.SugaredLogger) (Client, error) {
 	//get kubeClient
 	base64kubeConfig := b64.StdEncoding.EncodeToString([]byte(kubeconfig))
 	client, err := NewKubeClient(base64kubeConfig)
