@@ -8,16 +8,9 @@ import (
 	reconcilerRegistry "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/spf13/cobra"
 
-	//register component-reconciler packages (they add themself automatically to the reconciler registry):
-	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
+	//imports loader.go which ensures that all available component-reconcilers will be added to the reconciler registry:
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
 )
-
-/*
- * PLEASE BE AWARE:
- *
- * Any supported component-reconciler requires an anonymous import statement (see above) to be considered by the CLI!
- *
- */
 
 func NewCmd(o *cli.Options) *cobra.Command {
 	cmd := &cobra.Command{

@@ -66,21 +66,16 @@ Adding another component-reconciler requires following steps:
             2. use the `WithPreReconcileAction()`, `WithReconcileAction()`, `WithPostReconcileAction()`
                to inject custom `Action` instances into the reconciliation process.
                
-3. Add an anonymouse import to `cmd/reconciler/reconciler.go`.
-   
-   Example:
-
-   `import _ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"`
-
-4. Compile the CLI and be ready to go.
+3. Re-build the CLI to add the new component-reconciler to the `reconciler start` command.
+   The `reconciler start` command is a convenient way to run a component-reconciler as standalone server.
 
     Example:
 
-        # Compile CLI
+        # Build CLI
         cd $GOPATH/src/github.com/kyma-incubator/reconciler/
         make build
         
-        # Start component-reconciler (here 'istio') as standalone service
+        # Start the component-reconciler (here 'istio') as standalone service
         ./bin/reconciler-darwin reconciler start istio
         
         # To get a list list all configuration options for the component-reconciler call: 
