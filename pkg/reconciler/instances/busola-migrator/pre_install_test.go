@@ -90,14 +90,6 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 			PatchVirtSvcFn: createPatchResponse,
 			ExpectedError:  nil,
 		},
-		//TODO: os such situation can show up?
-		{
-			Name:           "Host name is empty",
-			ExpectedPatch:  virtualServicePatch{Spec: specPatch{Hosts: []string{"-old"}}},
-			GetVirtSvcFn:   getCreateMinimalResponseFn(""),
-			PatchVirtSvcFn: createPatchResponse,
-			ExpectedError:  nil,
-		},
 	}
 
 	for _, testCase := range testCases {

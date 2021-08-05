@@ -76,9 +76,8 @@ func addSuffix(host, suffix string) (string, error) {
 		return "", err
 	}
 	splittedHost := strings.Split(host, ".")
-	// TODO: is it possible?
 	if len(splittedHost) < 1 {
-		return "", errors.Errorf("host name is incorrect: %s", host)
+		return "", errors.Errorf("something is wrong with host name: %s", host)
 	}
 	splittedHost[0] = fmt.Sprintf("%s%s", splittedHost[0], suffix)
 	return strings.Join(splittedHost, "."), nil
