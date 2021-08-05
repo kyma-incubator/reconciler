@@ -28,9 +28,9 @@ func TestPreInstall(t *testing.T) {
 			Name:      "console-web",
 			Namespace: "kyma-system",
 		}}
-	kubeconfig, err := ioutil.ReadFile("/Users/i515376/.kube/config")
+	kubeConfig, err := ioutil.ReadFile("/Users/i515376/.kube/config")
 	require.NoError(t, err)
-	kubeClient, err := kubernetes.NewKubernetesClient(string(kubeconfig), true)
+	kubeClient, err := kubernetes.NewKubernetesClient(string(kubeConfig), true)
 	require.NoError(t, err)
 	p := NewVirtualServicePreInstallPatch(vs, "-old")
 
@@ -140,7 +140,7 @@ func createResponseFromTestFile(t *testing.T) *http.Response {
 	out, err := ioutil.ReadFile("./test_files/virtual-service.yaml")
 	require.NoError(t, err)
 	reader := strings.NewReader(string(out))
-	body := ioutil.NopCloser(reader)
+	body := io.NopCloser(reader)
 	resp := &http.Response{Body: body}
 	resp.StatusCode = http.StatusOK
 	return resp
@@ -152,7 +152,7 @@ func getCreateMinimalResponseFn(host string) func(t *testing.T) *http.Response {
 		out, err := json.Marshal(&virtSvc)
 		require.NoError(t, err)
 		reader := strings.NewReader(string(out))
-		body := ioutil.NopCloser(reader)
+		body := io.NopCloser(reader)
 		resp := &http.Response{Body: body}
 		resp.StatusCode = http.StatusOK
 		return resp
