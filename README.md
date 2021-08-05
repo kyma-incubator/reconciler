@@ -72,11 +72,12 @@ Adding another component-reconciler requires following steps:
 
    `import _ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"`
 
-4. Compile the CLI and be are ready to go.
+4. Compile the CLI and be ready to go.
 
     Example:
 
         # Compile CLI
+        cd $GOPATH/src/github.com/kyma-incubator/reconciler/
         make build
         
         # Start component-reconciler (here 'istio') as standalone service
