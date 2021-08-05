@@ -17,33 +17,6 @@ import (
 	"testing"
 )
 
-func TestPreInstall(t *testing.T) {
-	//GIVEN
-	vs := []VirtualSvcMeta{
-		{
-			Name:      "dex-virtualservice",
-			Namespace: "kyma-system",
-		},
-		{
-			Name:      "console-web",
-			Namespace: "kyma-system",
-		}}
-	kubeConfig, err := ioutil.ReadFile("/Users/i515376/.kube/config")
-	require.NoError(t, err)
-	kubeClient, err := kubernetes.NewKubernetesClient(string(kubeConfig), true)
-	require.NoError(t, err)
-	p := NewVirtualServicePreInstallPatch(vs, "-old")
-
-	clientSet, err := kubeClient.Clientset()
-	require.NoError(t, err)
-
-	//WHEN
-	err = p.Run("", clientSet)
-
-	//THE
-	require.NoError(t, err)
-}
-
 func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 	//GIVEN
 	name := "test"
