@@ -95,6 +95,7 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		select {
+		//TODO: refacotor to time.After chan
 		case <-ticker.C:
 			done, err := w.process(component, state, schedulingID)
 			if err != nil {
@@ -123,8 +124,7 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 	op := w.operationsReg.GetOperation(w.correlationID, schedulingID)
 	if op == nil { // New operation
 		w.operationsReg.RegisterOperation(w.correlationID, schedulingID, component.Component)
-		w.callReconciler(component, state, schedulingID)
-		err := w.send(component, state, schedulingID)
+		err := w.callReconciler(component, state, schedulingID)
 		if err != nil {
 			w.errorsCount += 1
 			return false, err
@@ -143,11 +143,11 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 			return false, err
 		}
 		return false, nil
-	case StateNew, StateInProgress, StateError:
+	case StateNew, StateInProgress, StateFailed:
 		// Operation still being processed by the component reconciler
 		return false, nil
-	case StateFailed:
-		return true, fmt.Errorf("Operation failed: %s", op.Reason)
+	case StateError:
+		return true, fmt.Errorf("Operation errored: %s", op.Reason)
 	case StateDone:
 		w.operationsReg.RemoveOperation(w.correlationID, schedulingID)
 		return true, nil

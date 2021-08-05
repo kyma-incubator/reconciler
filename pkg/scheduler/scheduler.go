@@ -91,7 +91,7 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 	schedulingID := uuid.NewString()
 	components, err := state.Configuration.GetComponents()
 	if err != nil {
-		rs.logger.Errorf("Failed to get components for cluster %s", state.Cluster.Cluster)
+		rs.logger.Errorf("Failed to get components for cluster %s: %s", state.Cluster.Cluster, err)
 		return
 	}
 
