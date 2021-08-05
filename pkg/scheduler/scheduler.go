@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
@@ -103,8 +104,14 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		worker, err := rs.workerFactory.ForComponent(component.Component)
 		if err != nil {
 			rs.logger.Errorf("Error creating worker for component: %s", err)
+			continue
 		}
-		go worker.Reconcile(component, state, schedulingID)
+		go func(component *keb.Components, state cluster.State, schedulingID string) {
+			err := worker.Reconcile(component, state, schedulingID)
+			if err != nil {
+				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+			}
+		}(component, state, schedulingID)
 	}
 }
 
