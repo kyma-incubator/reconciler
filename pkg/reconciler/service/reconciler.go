@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -17,9 +18,8 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/panjf2000/ants/v2"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/pkg/server"
@@ -68,6 +68,7 @@ type ComponentReconciler struct {
 	//worker pool:
 	timeout time.Duration
 	workers int
+	logger  *zap.SugaredLogger
 }
 
 type statusUpdaterConfig struct {
@@ -87,8 +88,13 @@ type serverConfig struct {
 }
 
 func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error) {
+	log, err := logger.NewLogger(false)
+	if err != nil {
+		return nil, err
+	}
 	recon := &ComponentReconciler{
 		workspace: defaultWorkspace,
+		logger:    log,
 	}
 	RegisterReconciler(reconcilerName, recon) //add reconciler to registry
 	return recon, nil
@@ -101,7 +107,7 @@ func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
 func (r *ComponentReconciler) workspaceFactory() *workspace.Factory {
 	m.Lock()
 	if wsFactory == nil {
-		r.logger().Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
+		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
 		wsFactory = &workspace.Factory{
 			Debug:      r.debug,
 			StorageDir: r.workspace,
@@ -109,10 +115,6 @@ func (r *ComponentReconciler) workspaceFactory() *workspace.Factory {
 	}
 	m.Unlock()
 	return wsFactory
-}
-
-func (r *ComponentReconciler) logger() *zap.SugaredLogger {
-	return logger.NewOptionalLogger(r.debug)
 }
 
 func (r *ComponentReconciler) validate() error {
@@ -179,6 +181,7 @@ func (r *ComponentReconciler) validate() error {
 
 func (r *ComponentReconciler) Debug() *ComponentReconciler {
 	r.debug = true
+	r.logger = logger.NewOptionalLogger(true)
 	return r
 }
 
@@ -263,20 +266,20 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
 	}
 
 	//start worker pool
-	r.logger().Infof("Starting worker pool with %d workers", r.workers)
+	r.logger.Infof("Starting worker pool with %d workers", r.workers)
 	workerPool, err := ants.NewPool(r.workers, ants.WithNonblocking(true))
 	if err != nil {
 		return err
 	}
 
 	defer func() { //shutdown worker pool when stopping webserver
-		r.logger().Info("Shutting down worker pool")
+		r.logger.Info("Shutting down worker pool")
 		workerPool.Release()
 	}()
 
 	//start webserver
 	srv := server.Webserver{
-		Logger:     r.logger(),
+		Logger:     r.logger,
 		Port:       r.serverConfig.port,
 		SSLCrtFile: r.serverConfig.sslCrtFile,
 		SSLKeyFile: r.serverConfig.sslKeyFile,
@@ -291,16 +294,16 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/run", paramContractVersion),
 		func(w http.ResponseWriter, req *http.Request) {
-			r.logger().Debug("Start processing request")
+			r.logger.Debug("Start processing request")
 
 			//marshal model
 			model, err := r.model(req)
 			if err != nil {
-				r.logger().Warnf("Unmarshalling of model failed: %s", err)
+				r.logger.Warnf("Unmarshalling of model failed: %s", err)
 				r.sendResponse(w, http.StatusInternalServerError, err)
 				return
 			}
-			r.logger().Debugf("Model unmarshalled: %s", model)
+			r.logger.Debugf("Model unmarshalled: %s", model)
 
 			//validate model
 			if err := model.Validate(); err != nil {
@@ -311,7 +314,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			//check whether all dependencies are fulfilled
 			depMissing := r.dependenciesMissing(model)
 			if len(depMissing) > 0 {
-				r.logger().Debugf("Found missing component dependencies: %s", strings.Join(depMissing, ", "))
+				r.logger.Debugf("Found missing component dependencies: %s", strings.Join(depMissing, ", "))
 				r.sendResponse(w, http.StatusPreconditionRequired, reconciler.HTTPMissingDependenciesResponse{
 					Dependencies: struct {
 						Required []string
@@ -321,33 +324,36 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 				return
 			}
 
+			//enrich logger with correlation ID
+			r.logger = r.logger.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID})
+
 			//create callback handler
-			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.debug)
+			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger, r.debug)
 			if err != nil {
-				r.logger().Warnf("Could not create remote callback handler: %s", err)
+				r.logger.Warnf("Could not create remote callback handler: %s", err)
 				r.sendResponse(w, http.StatusInternalServerError, err)
 				return
 			}
 
 			//assign runner to worker
 			err = workerPool.Submit(func() {
-				r.logger().Debugf("Runner for model '%s' is assigned to worker", model)
+				r.logger.Debugf("Runner for model '%s' is assigned to worker", model)
 				runnerFct := r.newRunnerFct(ctx, model, remoteCbh)
 				if errRunner := runnerFct(); errRunner != nil {
-					r.logger().Warnf("Runner failed for model '%s': %v", model, errRunner)
+					r.logger.Warnf("Runner failed for model '%s': %v", model, errRunner)
 					return
 				}
 			})
 
 			//check if execution of worker was successful
 			if err != nil {
-				r.logger().Warnf("Runner for model '%s' could not be assigned to worker: %s", model, err)
+				r.logger.Warnf("Runner for model '%s' could not be assigned to worker: %s", model, err)
 				r.sendResponse(w, http.StatusInternalServerError, err)
 				return
 			}
 
 			//done
-			r.logger().Debug("Request successfully processed")
+			r.logger.Debug("Request successfully processed")
 			r.sendResponse(w, http.StatusOK, nil)
 		}).
 		Methods("PUT", "POST")
@@ -372,7 +378,7 @@ func (r *ComponentReconciler) dependenciesMissing(model *reconciler.Reconciliati
 }
 
 func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {
-	r.logger().Debugf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds())
+	r.logger.Debugf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds())
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 		defer cancel()
@@ -389,7 +395,7 @@ func (r *ComponentReconciler) sendResponse(w http.ResponseWriter, httpCode int, 
 	w.WriteHeader(httpCode)
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		r.logger().Warnf("Failed to encode response payload to JSON: %s", err)
+		r.logger.Warnf("Failed to encode response payload to JSON: %s", err)
 		//send error response
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, "Failed to encode response payload to JSON", http.StatusInternalServerError)

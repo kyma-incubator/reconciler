@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -21,7 +22,7 @@ type runner struct {
 }
 
 func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {
-	statusUpdater, err := status.NewStatusUpdater(ctx, callback, r.debug, status.Config{
+	statusUpdater, err := status.NewStatusUpdater(ctx, callback, r.logger, r.debug, status.Config{
 		Interval: r.statusUpdaterConfig.interval,
 		Timeout:  r.statusUpdaterConfig.timeout,
 	})
@@ -32,15 +33,15 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 	retryable := func(statusUpdater *status.Updater) func() error {
 		return func() error {
 			if err := statusUpdater.Running(); err != nil {
-				r.logger().Warnf("Failed to start status updater: %s", err)
+				r.logger.Warnf("Failed to start status updater: %s", err)
 				return err
 			}
 			err := r.reconcile(ctx, model)
 			if err == nil {
-				r.logger().Infof("Reconciliation succesful of '%s' in version '%s' with profile '%s'",
+				r.logger.Infof("Reconciliation succesful of '%s' in version '%s' with profile '%s'",
 					model.Component, model.Version, model.Profile)
 			} else {
-				r.logger().Warnf("Reconciliation of '%s' in version '%s' with profile '%s': %s",
+				r.logger.Warnf("Reconciliation of '%s' in version '%s' with profile '%s': %s",
 					model.Component, model.Version, model.Profile, err)
 				if errUpdater := statusUpdater.Failed(); errUpdater != nil {
 					err = errors.Wrap(err, errUpdater.Error())
@@ -57,15 +58,14 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 		retry.LastErrorOnly(false),
 		retry.Context(ctx))
 
-	logger := r.logger()
 	if err == nil {
-		logger.Infof("Reconciliation of component '%s' for version '%s' finished successfully",
+		r.logger.Infof("Reconciliation of component '%s' for version '%s' finished successfully",
 			model.Component, model.Version)
 		if err := statusUpdater.Success(); err != nil {
 			return err
 		}
 	} else {
-		logger.Warnf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
+		r.logger.Warnf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			model.Component, model.Version)
 		if err := statusUpdater.Error(); err != nil {
 			return err
@@ -76,7 +76,7 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 }
 
 func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation) error {
-	kubeClient, err := kubernetes.NewKubernetesClient(model.Kubeconfig, r.debug)
+	kubeClient, err := kubernetes.NewKubernetesClient(model.Kubeconfig, r.logger)
 	if err != nil {
 		return err
 	}
@@ -87,10 +87,9 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		Context:          ctx,
 	}
 
-	logger := r.logger()
 	if r.preReconcileAction != nil {
 		if err := r.preReconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
-			logger.Warnf("Pre-reconciliation action of '%s' with version '%s' failed: %s",
+			r.logger.Warnf("Pre-reconciliation action of '%s' with version '%s' failed: %s",
 				model.Component, model.Version, err)
 			return err
 		}
@@ -98,13 +97,13 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 
 	if r.reconcileAction == nil {
 		if err := r.install(ctx, model, kubeClient); err != nil {
-			logger.Warnf("Default-reconciliation of '%s' with version '%s' failed: %s",
+			r.logger.Warnf("Default-reconciliation of '%s' with version '%s' failed: %s",
 				model.Component, model.Version, err)
 			return err
 		}
 	} else {
 		if err := r.reconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
-			logger.Warnf("Reconciliation action of '%s' with version '%s' failed: %s",
+			r.logger.Warnf("Reconciliation action of '%s' with version '%s' failed: %s",
 				model.Component, model.Version, err)
 			return err
 		}
@@ -112,7 +111,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 
 	if r.postReconcileAction != nil {
 		if err := r.postReconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
-			logger.Warnf("Post-reconciliation action of '%s' with version '%s' failed: %s",
+			r.logger.Warnf("Post-reconciliation action of '%s' with version '%s' failed: %s",
 				model.Component, model.Version, err)
 			return err
 		}
@@ -130,7 +129,7 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 	resources, err := kubeClient.Deploy(manifest, &LabelInterceptor{})
 
 	if err != nil {
-		r.logger().Warnf("Failed to deploy manifests on target cluster: %s", err)
+		r.logger.Warnf("Failed to deploy manifests on target cluster: %s", err)
 		return err
 	}
 
@@ -145,15 +144,15 @@ func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error
 	manifests, err := chartProvider.Manifests(r.newComponentSet(model), model.InstallCRD, &chart.Options{})
 	if err != nil {
 		msg := fmt.Sprintf("Failed to render manifest for component '%s'", model.Component)
-		r.logger().Warn(msg)
+		r.logger.Warn(msg)
 		return "", errors.Wrap(err, msg)
 	}
 
 	var buffer bytes.Buffer
-	r.logger().Debugf("Rendering of component '%s' returned %d manifests", model.Component, len(manifests))
+	r.logger.Debugf("Rendering of component '%s' returned %d manifests", model.Component, len(manifests))
 	for _, manifest := range manifests {
 		if !model.InstallCRD && manifest.Type == components.CRD {
-			r.logger().Errorf("Illegal state detected! "+
+			r.logger.Errorf("Illegal state detected! "+
 				"No CRDs were requested but chartProvider returned CRD manifest: '%s'", manifest.Name)
 		}
 		buffer.WriteString("---\n")
@@ -170,7 +169,7 @@ func (r *runner) trackProgress(ctx context.Context, kubeClient kubernetes.Client
 		return err
 	}
 	//get resources defined in manifest
-	pt, err := progress.NewProgressTracker(ctx, clientSet, r.debug, progress.Config{
+	pt, err := progress.NewProgressTracker(ctx, clientSet, r.logger, progress.Config{
 		Timeout:  r.progressTrackerConfig.timeout,
 		Interval: r.progressTrackerConfig.interval,
 	})
@@ -181,7 +180,7 @@ func (r *runner) trackProgress(ctx context.Context, kubeClient kubernetes.Client
 	for _, resource := range resources {
 		watchable, err := progress.NewWatchableResource(resource.Kind) //convert "kind" to watchable
 		if err != nil {
-			r.logger().Debugf("Ignoring non-watchable resource: %s", resource)
+			r.logger.Debugf("Ignoring non-watchable resource: %s", resource)
 			continue //not watchable resource: ignore it
 		}
 		pt.AddResource(
@@ -190,7 +189,7 @@ func (r *runner) trackProgress(ctx context.Context, kubeClient kubernetes.Client
 			resource.Name,
 		)
 	}
-	r.logger().Debug("Start watching installation progress")
+	r.logger.Debug("Start watching installation progress")
 	return pt.Watch() //blocking call
 }
 
