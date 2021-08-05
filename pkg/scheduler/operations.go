@@ -52,7 +52,8 @@ func (or *DefaultOperationsRegistry) GetDoneOperations(schedulingID string) ([]*
 		return nil, fmt.Errorf("No operations found for scheduling id %s", schedulingID)
 	}
 	var result []*OperationState
-	for _, op := range operations {
+	for idx := range operations {
+		op := operations[idx]
 		if op.State == StateDone {
 			result = append(result, &op)
 		}

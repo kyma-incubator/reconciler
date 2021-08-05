@@ -42,7 +42,10 @@ func Run(o *Options) error {
 	ctx := cli.NewContext()
 
 	go func(ctx context.Context, o *Options) {
-		startScheduler(ctx, o)
+		err := startScheduler(ctx, o)
+		if err != nil {
+			panic(err)
+		}
 	}(ctx, o)
 
 	return startWebserver(ctx, o)

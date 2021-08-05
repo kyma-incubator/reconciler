@@ -45,9 +45,7 @@ func (or *ApplicationRegistry) init() error {
 	if or.kvRepository, err = or.initRepository(); err != nil {
 		return err
 	}
-	if or.operations, err = or.initOperationsRegistry(); err != nil {
-		return err
-	}
+	or.initOperationsRegistry()
 	or.initialized = true
 	return nil
 }
@@ -110,7 +108,7 @@ func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 	return or.inventory, nil
 }
 
-func (or *ApplicationRegistry) initOperationsRegistry() (scheduler.OperationsRegistry, error) {
+func (or *ApplicationRegistry) initOperationsRegistry() scheduler.OperationsRegistry {
 	or.operations = scheduler.NewDefaultOperationsRegistry()
-	return or.operations, nil
+	return or.operations
 }

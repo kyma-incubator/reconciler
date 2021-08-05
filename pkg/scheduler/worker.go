@@ -104,7 +104,7 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 		case <-ticker.C:
 			done, err := w.process(component, state, schedulingID)
 			if err != nil {
-				// At this point something critical happend, we need to give up
+				// At this point something critical happened, we need to give up
 				return err
 			}
 			if done {
@@ -122,17 +122,24 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 	w.logger.Debugf("Processing the reconciliation for a compoent %s, correlationID: %s", component.Component, w.correlationID)
 	// check max retry counter
 	if w.errorsCount > MaxRetryCount {
-		w.operationsReg.SetFailed(w.correlationID, schedulingID, "Max retry count reached")
+		err := w.operationsReg.SetFailed(w.correlationID, schedulingID, "Max retry count reached")
+		if err != nil {
+			w.logger.Errorf("Error while updating operation status to failed, correlationID %s: %s", w.correlationID, err)
+		}
 		return true, fmt.Errorf("Max retry count for opeation %s in %s excceded", w.correlationID, schedulingID)
 	}
 	// check status
 	op := w.operationsReg.GetOperation(w.correlationID, schedulingID)
 	if op == nil { // New operation
 		w.logger.Debugf("Creating new reconciliation operation for a component %s, correlationID: %s", component.Component, w.correlationID)
-		w.operationsReg.RegisterOperation(w.correlationID, schedulingID, component.Component)
-		err := w.callReconciler(component, state, schedulingID)
+		_, err := w.operationsReg.RegisterOperation(w.correlationID, schedulingID, component.Component)
 		if err != nil {
-			w.errorsCount += 1
+			return true, fmt.Errorf("Error while registering the operation, correlationID %s: %s", w.correlationID, err)
+		}
+
+		err = w.callReconciler(component, state, schedulingID)
+		if err != nil {
+			w.errorsCount++
 			return false, err
 		}
 		return false, nil
@@ -147,7 +154,7 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 		// the reconciler again
 		err := w.callReconciler(component, state, schedulingID)
 		if err != nil {
-			w.errorsCount += 1
+			w.errorsCount++
 			return false, err
 		}
 		return false, nil
@@ -157,7 +164,10 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 	case StateError:
 		return true, fmt.Errorf("Operation errored: %s", op.Reason)
 	case StateDone:
-		w.operationsReg.RemoveOperation(w.correlationID, schedulingID)
+		err := w.operationsReg.RemoveOperation(w.correlationID, schedulingID)
+		if err != nil {
+			w.logger.Error("Error while removing the operation, correlationID %s: %s", w.correlationID, err)
+		}
 		return true, nil
 	}
 	return false, nil
@@ -166,7 +176,10 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 func (w *Worker) callReconciler(component *keb.Components, state cluster.State, schedulingID string) error {
 	err := w.send(component, state, schedulingID)
 	if err != nil {
-		w.operationsReg.SetClientError(w.correlationID, schedulingID, fmt.Sprintf("Error when calling the reconciler: %s", err))
+		operr := w.operationsReg.SetClientError(w.correlationID, schedulingID, fmt.Sprintf("Error when calling the reconciler: %s", err))
+		if operr != nil {
+			w.logger.Errorf("Error while updating operation status to client error, correlationID %s: %s", w.correlationID, err)
+		}
 		return err
 	}
 
