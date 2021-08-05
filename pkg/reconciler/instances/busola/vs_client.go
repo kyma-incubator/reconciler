@@ -18,7 +18,7 @@ var _ VirtSvcClient = &client{}
 type client struct {
 }
 
-func NewVirtSvcClient() *client {
+func NewVirtSvcClient() VirtSvcClient {
 	return &client{}
 }
 
