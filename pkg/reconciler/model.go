@@ -95,6 +95,10 @@ type HTTPMissingDependenciesResponse struct {
 	}
 }
 
+type CallbackMessage struct {
+	Status string `json:"status"`
+}
+
 //ComponentReconciler is the model used to describe the component reconciler configuration
 type ComponentReconciler struct {
 	URL string `json:"url"`

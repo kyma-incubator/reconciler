@@ -70,7 +70,6 @@ type Worker struct {
 	operationsReg OperationsRegistry
 	logger        *zap.SugaredLogger
 	errorsCount   int
-	timeoutAt     time.Time
 }
 
 func NewWorker(
@@ -89,7 +88,6 @@ func NewWorker(
 		operationsReg: operationsReg,
 		logger:        logger,
 		errorsCount:   0,
-		timeoutAt:     time.Now().Add(MaxDuration),
 	}, nil
 }
 
@@ -101,7 +99,8 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 	}
 	for {
 		select {
-		//TODO: refactor to time.After chan
+		case <-time.After(MaxDuration):
+			return fmt.Errorf("Max operation time reached for operation %s in %s", w.correlationID, schedulingID)
 		case <-ticker.C:
 			done, err := w.process(component, state, schedulingID)
 			if err != nil {
@@ -125,11 +124,6 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 	if w.errorsCount > MaxRetryCount {
 		w.operationsReg.SetFailed(w.correlationID, schedulingID, "Max retry count reached")
 		return true, fmt.Errorf("Max retry count for opeation %s in %s excceded", w.correlationID, schedulingID)
-	}
-	// check timeout
-	if time.Now().After(w.timeoutAt) {
-		w.operationsReg.SetFailed(w.correlationID, schedulingID, "Max operation time reached")
-		return true, fmt.Errorf("Max operation time reached for operation %s in %s", w.correlationID, schedulingID)
 	}
 	// check status
 	op := w.operationsReg.GetOperation(w.correlationID, schedulingID)

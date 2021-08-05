@@ -184,10 +184,6 @@ func delete(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
-	type msg struct {
-		Status string `json:"status"`
-	}
-
 	params := server.NewParams(r)
 	schedulingID, err := params.String(paramSchedulingID)
 	if err != nil {
@@ -200,7 +196,7 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var body msg
+	var body reconciler.CallbackMessage
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to read received JSON payload"))
