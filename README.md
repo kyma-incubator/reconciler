@@ -70,7 +70,7 @@ Adding another component-reconciler requires following steps:
    
    Example:
 
-   `import _ github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio`
+   `import _ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"`
 
 4. Compile the CLI and be are ready to go.
 
