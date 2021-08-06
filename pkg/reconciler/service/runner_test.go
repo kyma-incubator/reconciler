@@ -334,16 +334,16 @@ func newCleanupFct(t *testing.T) func(bool) {
 	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true))
 	require.NoError(t, err)
 
-	clCleaner := clusterCleaner{
+	cleanup := cleanup{
 		reconciler: recon,
 		kubeClient: kubeClient,
 	}
 
 	return func(deleteWorkspace bool) {
 		//remove all installed components
-		clCleaner.cleanup(t, kymaVersion, clusterUsersComponent, "default")
-		clCleaner.cleanup(t, kymaVersion, apiGatewayComponent, "default")
-		clCleaner.cleanup(t, fakeKymaVersion, fakeComponent, "unittest-service")
+		cleanup.removeKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
+		cleanup.removeKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
+		cleanup.removeKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
 		//remove the cloned workspace
 		if deleteWorkspace {
 			require.NoError(t, wsf.Delete(kymaVersion))

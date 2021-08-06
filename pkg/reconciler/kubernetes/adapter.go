@@ -24,7 +24,7 @@ type kubeClientAdapter struct {
 	logger     *zap.SugaredLogger
 }
 
-func newKubeClientAdapter(kubeconfig string, logger *zap.SugaredLogger) (Client, error) {
+func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger) (Client, error) {
 	//get kubeClient
 	base64kubeConfig := b64.StdEncoding.EncodeToString([]byte(kubeconfig))
 	client, err := NewKubeClient(base64kubeConfig)

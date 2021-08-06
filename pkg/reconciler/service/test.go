@@ -8,12 +8,12 @@ import (
 	"testing"
 )
 
-type clusterCleaner struct {
+type cleanup struct {
 	reconciler *ComponentReconciler
 	kubeClient kubernetes.Client
 }
 
-func (c *clusterCleaner) cleanup(t *testing.T, version, component, namespace string) {
+func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespace string) {
 	t.Logf("Cleanup of component '%s' (version: %s, namespace: %s) started", component, version, namespace)
 
 	//render manifest
@@ -21,6 +21,7 @@ func (c *clusterCleaner) cleanup(t *testing.T, version, component, namespace str
 	require.NoError(t, err)
 
 	compSet := chart.NewComponentSet(
+
 		test.ReadKubeconfig(t),
 		version,
 		namespace,

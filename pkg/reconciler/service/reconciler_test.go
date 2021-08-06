@@ -198,12 +198,12 @@ func TestReconcilerEnd2End(t *testing.T) {
 		require.NoError(t, err)
 
 		//cleanup old pods (before and after test runs)
-		clCleaner := &clusterCleaner{
+		cleanup := &cleanup{
 			reconciler: recon,
 			kubeClient: kubeClient,
 		}
-		clCleaner.cleanup(t, "0.0.0", "component-1", "unittest-service")       //cleanup before test runs
-		defer clCleaner.cleanup(t, "0.0.0", "component-1", "unittest-service") //cleanup after test is finished
+		cleanup.removeKymaComponent(t, "0.0.0", "component-1", "unittest-service")       //cleanup before test runs
+		defer cleanup.removeKymaComponent(t, "0.0.0", "component-1", "unittest-service") //cleanup after test is finished
 
 		//send request with which does not include all required dependencies
 		body := post(t, "http://localhost:9999/v1/run", reconciler.Reconciliation{
