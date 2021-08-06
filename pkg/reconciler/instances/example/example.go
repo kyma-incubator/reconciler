@@ -28,7 +28,8 @@ func init() {
 		WithPreReconcileAction(&CustomAction{
 			name: "pre-action",
 		}).
-		//register reconciler action (custom reconciliation logic)
+		//register reconciler action (custom reconciliation logic). If no custom reconciliation action is provided,
+		//the default reconciliation logic provided by reconciler-framework will be used.
 		WithReconcileAction(&CustomAction{
 			name: "install-action",
 		}).
