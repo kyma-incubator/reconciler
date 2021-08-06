@@ -55,13 +55,13 @@ func (ptc *Config) validate() error {
 type Tracker struct {
 	ctx      context.Context
 	objects  []*resource
-	client   *kubernetes.Clientset
+	client   kubernetes.Interface
 	interval time.Duration
 	timeout  time.Duration
 	logger   *zap.SugaredLogger
 }
 
-func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, logger *zap.SugaredLogger, config Config) (*Tracker, error) {
+func NewProgressTracker(ctx context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, config Config) (*Tracker, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
