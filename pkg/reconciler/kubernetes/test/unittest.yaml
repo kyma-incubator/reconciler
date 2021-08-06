@@ -136,3 +136,35 @@ spec:
                 - /tmp
             initialDelaySeconds: 5
             periodSeconds: 5
+---
+#Deployment without defining a namespace (verify that default-namespace is used if no namespace is provided)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unittest-deployment
+  labels:
+    app: unittest-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: unittest-deployment
+  template:
+    metadata:
+      labels:
+        app: unittest-deployment
+    spec:
+      containers:
+        - name: unittest-deployment
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 30
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5

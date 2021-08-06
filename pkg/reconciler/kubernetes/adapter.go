@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	b64 "encoding/base64"
-	"io"
-
 	"go.uber.org/zap"
+	"io"
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
@@ -95,35 +95,50 @@ func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInte
 	}
 }
 
-func (g kubeClientAdapter) Delete(manifest string) (err error) {
+func (g kubeClientAdapter) Delete(manifest string) ([]*Resource, error) {
 	yamls, err := syncReadYaml([]byte(manifest))
 	if err != nil {
 		g.logger.Error("Problem with read manifest")
-		g.logger.Debug("Manifest file: %s", manifest)
-		return err
+		g.logger.Debugf("Manifest file: %s", manifest)
+		return nil, err
 	}
 
 	//delete resource in reverse order
+	var deletedResources []*Resource
 	for i := len(yamls) - 1; i >= 0; i-- {
 		json, err := yamlToJson.YAMLToJSON(yamls[i])
+		if string(json) == "null" {
+			g.logger.Debugf("Ignoring YAML at posistion %d which does not include payload data (only comments)", i)
+			continue
+		}
 		if err != nil {
-			g.logger.Error("Failed to convert manifest YAML to JSON: %s", err)
-			g.logger.Debug("Used YAML data: %s", string(json))
-			return err
+			g.logger.Errorf("Failed to convert manifest YAML to JSON: %s", err)
+			g.logger.Debugf("Used YAML data: %s", string(json))
+			return nil, err
 		}
 		toUnstructured, err := ToUnstructured(json)
 		if err != nil {
-			g.logger.Error("Failed to convert JSON to Kubernetes unstructured entity: %s", err)
-			g.logger.Debug("Used JSON data: %s", string(json))
-			return err
+			g.logger.Errorf("Failed to convert JSON to Kubernetes unstructured entity: %s", err)
+			g.logger.Debugf("Used JSON data: %s", string(json))
+			return nil, err
 		}
-		err = g.kubeClient.DeleteResourceByKindAndNameAndNamespace(toUnstructured.GetKind(), toUnstructured.GetName(), toUnstructured.GetNamespace(), v1.DeleteOptions{})
-		if err != nil {
-			g.logger.Error("Failed to delete Kubernetes unstructured entity: %s", err)
-			return err
+
+		g.logger.Debugf("Deleting resource kind='%s', name='%s', namespace='%s'",
+			toUnstructured.GetKind(), toUnstructured.GetName(), toUnstructured.GetNamespace())
+
+		resource, err := g.kubeClient.DeleteResourceByKindAndNameAndNamespace(
+			toUnstructured.GetKind(), toUnstructured.GetName(), toUnstructured.GetNamespace(), v1.DeleteOptions{})
+
+		if err != nil && !k8serr.IsNotFound(err) {
+			g.logger.Errorf("Failed to delete Kubernetes unstructured entity kind='%s', name='%s', namespace='%s': %s",
+				toUnstructured.GetKind(), toUnstructured.GetName(), toUnstructured.GetNamespace(), err)
+			return deletedResources, err
 		}
+
+		deletedResources = append(deletedResources, resource)
 	}
-	return nil
+
+	return deletedResources, nil
 }
 
 func (g *kubeClientAdapter) Clientset() (kubernetes.Interface, error) {

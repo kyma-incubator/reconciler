@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"testing"
 	"time"
 
@@ -73,12 +74,10 @@ func TestRunner(t *testing.T) {
 		return
 	}
 
-	//cleanup relicts from previous run
-	require.NoError(t, wsf.Delete(kymaVersion))
-	//cleanup at the end of the run
-	defer func() {
-		require.NoError(t, wsf.Delete(kymaVersion))
-	}()
+	//cleanup
+	cleanup := newCleanupFct(t)
+	cleanup(false)      //cleanup before test runs
+	defer cleanup(true) //cleanup after test is finished
 
 	t.Run("Run with pre-, post- and custom install-action", func(t *testing.T) {
 		//create install actions
@@ -323,6 +322,33 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 		WithProgressTrackerConfig(interval, timeout)
 
 	return &runner{recon}
+}
+
+func newCleanupFct(t *testing.T) func(bool) {
+	recon, err := NewComponentReconciler("unittest")
+	require.NoError(t, err)
+	require.NoError(t, recon.Debug())
+
+	recon.WithWorkspace("./test") //use test-subfolder to cache Kyma sources
+
+	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true))
+	require.NoError(t, err)
+
+	clCleaner := clusterCleaner{
+		reconciler: recon,
+		kubeClient: kubeClient,
+	}
+
+	return func(deleteWorkspace bool) {
+		//remove all installed components
+		clCleaner.cleanup(t, kymaVersion, clusterUsersComponent, "default")
+		clCleaner.cleanup(t, kymaVersion, apiGatewayComponent, "default")
+		clCleaner.cleanup(t, fakeKymaVersion, fakeComponent, "unittest-service")
+		//remove the cloned workspace
+		if deleteWorkspace {
+			require.NoError(t, wsf.Delete(kymaVersion))
+		}
+	}
 }
 
 func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, namespace string) *reconciler.Reconciliation {

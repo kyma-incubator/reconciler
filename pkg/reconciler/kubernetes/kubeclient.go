@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/kubectl/pkg/util"
+	"strings"
 )
 
 type KubeClient struct {
@@ -155,23 +156,28 @@ func (kube *KubeClient) GetClientSet() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(restConfig)
 }
 
-func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) error {
+func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*Resource, error) {
 	gvk, err := kube.Mapper.KindFor(schema.GroupVersionResource{Resource: kind})
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	if strings.ToLower(gvk.Kind) != "namespace" && namespace == "" { //set qualified namespace (except resource is of kind 'namespace')
+		namespace = "default"
 	}
 
 	restMapping, err := kube.Mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	restClient, err := newRestClient(*kube.Config, gvk.GroupVersion())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	helper := resource.NewHelper(restClient, restMapping)
+
 	if helper.NamespaceScoped {
 		err = kube.DynamicClient.
 			Resource(restMapping.Resource).
@@ -183,7 +189,11 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 			Delete(context.TODO(), name, do)
 	}
 
-	return err
+	return &Resource{
+		Kind:      kind,
+		Name:      name,
+		Namespace: namespace,
+	}, nil
 }
 
 // Get a manifest by resource/kind (example: 'pods' or 'pod'),

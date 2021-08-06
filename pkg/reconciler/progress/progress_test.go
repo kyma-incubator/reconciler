@@ -35,7 +35,8 @@ func TestProgressTracker(t *testing.T) {
 
 	cleanup := func() {
 		t.Log("Cleanup test resources")
-		if err := kubeClient.Delete(manifest); err != nil {
+		_, err := kubeClient.Delete(manifest)
+		if err != nil {
 			t.Log("Cleanup of test resources failed (probably nothing to cleanup): test is continuing")
 		}
 	}

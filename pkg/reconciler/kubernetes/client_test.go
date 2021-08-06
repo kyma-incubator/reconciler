@@ -11,6 +11,44 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+var expectedResources = []*Resource{
+	{
+		Kind:      "Deployment",
+		Name:      "unittest-deployment",
+		Namespace: "default",
+	},
+	{
+		Kind:      "Deployment",
+		Name:      "unittest-deployment",
+		Namespace: "unittest-kubernetes",
+	},
+	{
+		Kind:      "Pod",
+		Name:      "unittest-pod",
+		Namespace: "unittest-kubernetes",
+	},
+	{
+		Kind:      "StatefulSet",
+		Name:      "unittest-statefulset",
+		Namespace: "unittest-kubernetes",
+	},
+	{
+		Kind:      "DaemonSet",
+		Name:      "unittest-daemonset",
+		Namespace: "unittest-kubernetes",
+	},
+	{
+		Kind:      "Job",
+		Name:      "unittest-job",
+		Namespace: "unittest-kubernetes",
+	},
+	{
+		Kind:      "Namespace",
+		Name:      "unittest-kubernetes",
+		Namespace: "",
+	},
+}
+
 func TestKubernetesClient(t *testing.T) {
 	if !test.RunExpensiveTests() {
 		return
@@ -22,48 +60,19 @@ func TestKubernetesClient(t *testing.T) {
 
 	t.Run("Deploy and delete resources", func(t *testing.T) {
 		manifest := readManifest(t)
+
 		//deploy
 		t.Log("Deploying test resources")
-		resources, err := kubeClient.Deploy(manifest)
+		deployedResources, err := kubeClient.Deploy(manifest)
 		require.NoError(t, err)
-		//cleanup
-		defer func() {
-			t.Log("Cleanup test resources")
-			require.NoError(t, kubeClient.Delete(manifest))
-		}()
+		require.ElementsMatch(t, expectedResources, deployedResources)
 
-		require.ElementsMatch(t, []*Resource{
-			{
-				Kind:      "Deployment",
-				Name:      "unittest-deployment",
-				Namespace: "unittest-kubernetes",
-			},
-			{
-				Kind:      "Pod",
-				Name:      "unittest-pod",
-				Namespace: "unittest-kubernetes",
-			},
-			{
-				Kind:      "StatefulSet",
-				Name:      "unittest-statefulset",
-				Namespace: "unittest-kubernetes",
-			},
-			{
-				Kind:      "DaemonSet",
-				Name:      "unittest-daemonset",
-				Namespace: "unittest-kubernetes",
-			},
-			{
-				Kind:      "Job",
-				Name:      "unittest-job",
-				Namespace: "unittest-kubernetes",
-			},
-			{
-				Kind:      "Namespace",
-				Name:      "unittest-kubernetes",
-				Namespace: "",
-			},
-		}, resources)
+		//delete (at the end of the test)
+		t.Log("Cleanup test resources")
+		deletedResources, err := kubeClient.Delete(manifest)
+		require.NoError(t, err)
+		require.ElementsMatch(t, expectedResources, deletedResources)
+
 	})
 
 	t.Run("Get Clientset", func(t *testing.T) {
