@@ -65,6 +65,7 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
+		tc := testCase
 		t.Run(testCase.Name, func(t *testing.T) {
 			p := NewVirtualServicePreInstallPatch(vs, prefix)
 			httpClient := restFake.CreateHTTPClient(func(request *http.Request) (*http.Response, error) {
@@ -73,13 +74,13 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 				case http.MethodGet:
 					{
 						assertGet(t, request, expectedCRPath)
-						resp := testCase.GetVirtSvcFn(t)
+						resp := tc.GetVirtSvcFn(t)
 						return resp, nil
 					}
 				case http.MethodPatch:
 					{
-						assertPatch(t, request, testCase.ExpectedPatch)
-						resp := testCase.PatchVirtSvcFn(t)
+						assertPatch(t, request, tc.ExpectedPatch)
+						resp := tc.PatchVirtSvcFn(t)
 						return resp, nil
 					}
 				default:
@@ -97,11 +98,11 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 			err := p.patchVirtSvc(ctx, restClient, name, namespace)
 
 			//THEN
-			if testCase.ExpectedError == nil {
+			if tc.ExpectedError == nil {
 				require.NoError(t, err)
 			} else {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), testCase.ExpectedError.Error())
+				assert.Contains(t, err.Error(), tc.ExpectedError.Error())
 			}
 		})
 	}
