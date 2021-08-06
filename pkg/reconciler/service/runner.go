@@ -170,7 +170,7 @@ func (r *runner) trackProgress(ctx context.Context, kubeClient kubernetes.Client
 		return err
 	}
 	//get resources defined in manifest
-	pt, err := progress.NewProgressTracker(ctx, clientSet, r.logger, progress.Config{
+	pt, err := progress.NewProgressTracker(clientSet, r.logger, progress.Config{
 		Timeout:  r.progressTrackerConfig.timeout,
 		Interval: r.progressTrackerConfig.interval,
 	})
@@ -191,7 +191,7 @@ func (r *runner) trackProgress(ctx context.Context, kubeClient kubernetes.Client
 		)
 	}
 	r.logger.Debug("Start watching installation progress")
-	return pt.Watch() //blocking call
+	return pt.Watch(ctx, progress.ReadyState) //blocking call
 }
 
 func (r *runner) newComponentSet(model *reconciler.Reconciliation) *chart.ComponentSet {

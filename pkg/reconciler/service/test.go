@@ -6,7 +6,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"testing"
-	"time"
 )
 
 type clusterCleaner struct {
@@ -35,10 +34,8 @@ func (c *clusterCleaner) cleanup(t *testing.T, version, component, namespace str
 	require.Len(t, manifests, 1)
 
 	//delete resources in manifest
-	_, err = c.kubeClient.Delete(manifests[0].Manifest)
-	if err == nil {
-		time.Sleep(30 * time.Second) //FIXME: check deletion state instead using fixed time slot
-	}
+	_, err = c.kubeClient.Delete(manifests[0].Manifest) //blocking call until all watchable resources were removed
+	require.NoError(t, err)
 
 	t.Logf("Cleanup of component '%s' finished", component)
 }

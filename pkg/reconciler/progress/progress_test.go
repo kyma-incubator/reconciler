@@ -53,7 +53,7 @@ func TestProgressTracker(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second) //stop progress tracker after 1 sec
 		defer cancel()
 
-		pt, err := NewProgressTracker(ctx, clientSet, logger,
+		pt, err := NewProgressTracker(clientSet, logger,
 			Config{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
 		require.NoError(t, err)
 
@@ -61,7 +61,7 @@ func TestProgressTracker(t *testing.T) {
 
 		//check timeout happened within ~1 sec:
 		startTime := time.Now()
-		err = pt.Watch()
+		err = pt.Watch(ctx, ReadyState)
 		require.WithinDuration(t, startTime, time.Now(), 1250*time.Millisecond) //250msec as buffer to compensate overhead
 
 		//err expected because a timeout occurred:
@@ -69,32 +69,47 @@ func TestProgressTracker(t *testing.T) {
 		require.IsType(t, &e.ContextClosedError{}, err)
 	})
 
-	t.Run("Test progress tracking", func(t *testing.T) {
+	t.Run("Test progress tracking to state 'ready", func(t *testing.T) {
 		// get progress tracker
-		pt, err := NewProgressTracker(context.TODO(), clientSet, logger,
-			Config{Interval: 1 * time.Second, Timeout: 35 * time.Second})
+		pt, err := NewProgressTracker(clientSet, logger,
+			Config{Interval: 1 * time.Second, Timeout: 30 * time.Second})
 		require.NoError(t, err)
 
 		addWatchable(t, resources, pt)
 
 		//depending on bandwidth, the installation should be finished latest after 30sec
 		startTime := time.Now()
-		require.NoError(t, pt.Watch())
+		require.NoError(t, pt.Watch(context.TODO(), ReadyState))
 		require.WithinDuration(t, startTime, time.Now(), 30*time.Second)
 	})
 
-	t.Run("Test progress tracking when state is terminating", func(t *testing.T) {
+	t.Run("Test progress tracking to state 'terminated'", func(t *testing.T) {
 		cleanup() //delete resources
 
-		// get progress tracker
-		pt, err := NewProgressTracker(context.TODO(), clientSet, logger,
-			Config{Interval: 1 * time.Second, Timeout: 10 * time.Second})
-		require.NoError(t, err)
+		//ensure progress returns error when checking for ready state of terminating resources
+		go func(t *testing.T) {
+			pt, err := NewProgressTracker(clientSet, logger,
+				Config{Interval: 1 * time.Second, Timeout: 20 * time.Second})
+			require.NoError(t, err)
+			addWatchable(t, resources, pt)
 
-		addWatchable(t, resources, pt)
+			//Expect error as resources could not be watched properly when terminating/disappearing
+			require.Error(t, pt.Watch(context.TODO(), ReadyState))
+			t.Log("Test successfully finished: checking for READY state failed with error")
+		}(t)
 
-		//Expect error as resources could not be watched properly when terminating/disappearing
-		require.Error(t, pt.Watch())
+		go func(t *testing.T) {
+			pt, err := NewProgressTracker(clientSet, logger,
+				Config{Interval: 1 * time.Second, Timeout: 15 * time.Second})
+			require.NoError(t, err)
+			addWatchable(t, resources, pt)
+
+			//Expect NO error as resources are watched until they disappeared
+			require.NoError(t, pt.Watch(context.TODO(), TerminatedState))
+			t.Log("Test successfully finished: checking for TERMINATED state finished without an error")
+		}(t)
+
+		time.Sleep(20 * time.Second)
 	})
 }
 

@@ -3,6 +3,7 @@ package progress
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"time"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
@@ -15,7 +16,12 @@ import (
 const (
 	defaultProgressInterval = 20 * time.Second
 	defaultProgressTimeout  = 10 * time.Minute
+
+	ReadyState      State = "ready"
+	TerminatedState State = "terminated"
 )
+
+type State string
 
 type resource struct {
 	kind      WatchableResource
@@ -53,7 +59,6 @@ func (ptc *Config) validate() error {
 }
 
 type Tracker struct {
-	ctx      context.Context
 	objects  []*resource
 	client   kubernetes.Interface
 	interval time.Duration
@@ -61,13 +66,12 @@ type Tracker struct {
 	logger   *zap.SugaredLogger
 }
 
-func NewProgressTracker(ctx context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, config Config) (*Tracker, error) {
+func NewProgressTracker(client kubernetes.Interface, logger *zap.SugaredLogger, config Config) (*Tracker, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
 
 	return &Tracker{
-		ctx:      ctx,
 		client:   client,
 		interval: config.Interval,
 		timeout:  config.Timeout,
@@ -75,14 +79,14 @@ func NewProgressTracker(ctx context.Context, client kubernetes.Interface, logger
 	}, nil
 }
 
-func (pt *Tracker) Watch() error {
+func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 	if len(pt.objects) == 0 { //check if any watchable resources were added
 		pt.logger.Debug("No watchable resources defined: installation treated as successfully finished")
 		return nil
 	}
 
 	//initial installation status check
-	ready, err := pt.isReady()
+	ready, err := pt.isInState(targetState)
 	if err != nil {
 		pt.logger.Warnf("Failed to verify initial Kubernetes resource installation status: %v", err)
 	}
@@ -98,7 +102,7 @@ func (pt *Tracker) Watch() error {
 	for {
 		select {
 		case <-readyCheck.C:
-			ready, err := pt.isReady()
+			ready, err := pt.isInState(targetState)
 			if err != nil {
 				pt.logger.Warnf("Failed to check Kubernetes resource installation progress but will "+
 					"retry until timeout is reached: %s", err)
@@ -107,7 +111,7 @@ func (pt *Tracker) Watch() error {
 				readyCheck.Stop()
 				return nil
 			}
-		case <-pt.ctx.Done():
+		case <-ctx.Done():
 			pt.logger.Debug("Stopping progress tracker because parent context got closed")
 			return &e.ContextClosedError{
 				Message: "Progress tracker interrupted: running installation treated as non-successfully installed",
@@ -129,106 +133,160 @@ func (pt *Tracker) AddResource(kind WatchableResource, namespace, name string) {
 	})
 }
 
-func (pt *Tracker) isReady() (bool, error) {
+func (pt *Tracker) isInState(targetState State) (bool, error) {
 	var err error
-	componentIsReady := true
+	componentInState := true
 	for _, object := range pt.objects {
 		switch object.kind {
 		case Pod:
-			componentIsReady, err = pt.podIsReady(object)
+			componentInState, err = pt.podInState(targetState, object)
 		case Deployment:
-			componentIsReady, err = pt.deploymentIsReady(object)
+			componentInState, err = pt.deploymentInState(targetState, object)
 		case DaemonSet:
-			componentIsReady, err = pt.daemonSetIsReady(object)
+			componentInState, err = pt.daemonsetInState(targetState, object)
 		case StatefulSet:
-			componentIsReady, err = pt.statefulSetIsReady(object)
+			componentInState, err = pt.statefulsetInState(targetState, object)
 		case Job:
-			componentIsReady, err = pt.jobIsReady(object)
+			componentInState, err = pt.jobInState(targetState, object)
 		}
-		pt.logger.Debugf("%s resource '%s:%s' is ready: %t", object.kind, object.name, object.namespace, componentIsReady)
+		pt.logger.Debugf("%s resource '%s:%s' is in state '%s': %t",
+			object.kind, object.name, object.namespace, targetState, componentInState)
 		if err != nil {
-			pt.logger.Errorf("Failed to retrieve installation progress of %v: %s", object, err)
+			pt.logger.Errorf("Failed to retrieve state of %v: %s", object, err)
 			return false, err
 		}
-		if !componentIsReady { //at least one component is not ready
-			pt.logger.Debug("Installation is still ongoing")
+		if !componentInState { //at least one component is not ready
+			pt.logger.Debugf("Resource transition to state '%s' is still ongoing", targetState)
 			return false, nil
 		}
 	}
-	pt.logger.Debug("Installation finished successfully")
-	return componentIsReady, nil
+	pt.logger.Debugf("Resource transition to state '%s' finished successfully", targetState)
+	return componentInState, nil
 }
 
-func (pt *Tracker) deploymentIsReady(object *resource) (bool, error) {
+func (pt *Tracker) deploymentInState(inState State, object *resource) (bool, error) {
 	deploymentsClient := pt.client.AppsV1().Deployments(object.namespace)
 	deployment, err := deploymentsClient.Get(context.TODO(), object.name, metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-	for _, condition := range deployment.Status.Conditions {
-		if condition.Status != v1.ConditionTrue {
-			return false, nil
+	switch inState {
+	case ReadyState:
+		if err != nil {
+			return false, err
 		}
+		for _, condition := range deployment.Status.Conditions {
+			if condition.Status != v1.ConditionTrue {
+				return false, nil
+			}
+		}
+		return true, err
+	case TerminatedState:
+		if err != nil && errors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	default:
+		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
-	return true, err
+
 }
 
-func (pt *Tracker) statefulSetIsReady(object *resource) (bool, error) {
+func (pt *Tracker) statefulsetInState(inState State, object *resource) (bool, error) {
 	statefulSetClient := pt.client.AppsV1().StatefulSets(object.namespace)
 	statefulSet, err := statefulSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-	for _, condition := range statefulSet.Status.Conditions {
-		if condition.Status != v1.ConditionTrue {
-			return false, nil
+	switch inState {
+	case ReadyState:
+		if err != nil {
+			return false, err
 		}
+		for _, condition := range statefulSet.Status.Conditions {
+			if condition.Status != v1.ConditionTrue {
+				return false, nil
+			}
+		}
+		return true, err
+	case TerminatedState:
+		if err != nil && errors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	default:
+		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
-	return true, err
 }
 
-func (pt *Tracker) podIsReady(object *resource) (bool, error) {
+func (pt *Tracker) podInState(inState State, object *resource) (bool, error) {
 	podsClient := pt.client.CoreV1().Pods(object.namespace)
 	pod, err := podsClient.Get(context.TODO(), object.name, metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-	if pod.Status.Phase != v1.PodRunning {
-		return false, nil
-	}
-	for _, condition := range pod.Status.Conditions {
-		if condition.Status != v1.ConditionTrue {
+	switch inState {
+	case ReadyState:
+		if err != nil {
+			return false, err
+		}
+		if pod.Status.Phase != v1.PodRunning {
 			return false, nil
 		}
+		for _, condition := range pod.Status.Conditions {
+			if condition.Status != v1.ConditionTrue {
+				return false, nil
+			}
+		}
+		//deletion timestamp determines whether pod is terminating or running (nil == running)
+		return pod.ObjectMeta.DeletionTimestamp == nil, nil
+	case TerminatedState:
+		if err != nil && errors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	default:
+		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
-	//deletion timestamp determines whether pod is terminating or running (nil == running)
-	return pod.ObjectMeta.DeletionTimestamp == nil, nil
+
 }
 
-func (pt *Tracker) daemonSetIsReady(object *resource) (bool, error) {
+func (pt *Tracker) daemonsetInState(inState State, object *resource) (bool, error) {
 	daemonSetClient := pt.client.AppsV1().DaemonSets(object.namespace)
 	daemonSet, err := daemonSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-	for _, condition := range daemonSet.Status.Conditions {
-		if condition.Status != v1.ConditionTrue {
-			return false, nil
+	switch inState {
+	case ReadyState:
+		if err != nil {
+			return false, err
 		}
+		for _, condition := range daemonSet.Status.Conditions {
+			if condition.Status != v1.ConditionTrue {
+				return false, nil
+			}
+		}
+		return true, err
+	case TerminatedState:
+		if err != nil && errors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	default:
+		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
-	return true, err
+
 }
 
-func (pt *Tracker) jobIsReady(object *resource) (bool, error) {
+func (pt *Tracker) jobInState(inState State, object *resource) (bool, error) {
 	jobClient := pt.client.BatchV1().Jobs(object.namespace)
 	job, err := jobClient.Get(context.TODO(), object.name, metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-	for _, condition := range job.Status.Conditions {
-		if condition.Status != v1.ConditionTrue {
-			return false, nil
+	switch inState {
+	case ReadyState:
+		if err != nil {
+			return false, err
 		}
+		for _, condition := range job.Status.Conditions {
+			if condition.Status != v1.ConditionTrue {
+				return false, nil
+			}
+		}
+		return true, err
+	case TerminatedState:
+		if err != nil && errors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	default:
+		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
-	return true, err
 }

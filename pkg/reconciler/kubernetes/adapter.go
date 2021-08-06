@@ -3,12 +3,15 @@ package kubernetes
 import (
 	"bufio"
 	"bytes"
+	"context"
 	b64 "encoding/base64"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/progress"
 	"go.uber.org/zap"
 	"io"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"time"
 
 	"github.com/pkg/errors"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -104,6 +107,17 @@ func (g kubeClientAdapter) Delete(manifest string) ([]*Resource, error) {
 	}
 
 	//delete resource in reverse order
+	clientSet, err := g.Clientset()
+	if err != nil {
+		return nil, err
+	}
+	pt, err := progress.NewProgressTracker(clientSet, g.logger, progress.Config{
+		Interval: 2 * time.Second,
+		Timeout:  30 * time.Second,
+	})
+	if err != nil {
+		return nil, err
+	}
 	var deletedResources []*Resource
 	for i := len(yamls) - 1; i >= 0; i-- {
 		json, err := yamlToJson.YAMLToJSON(yamls[i])
@@ -135,7 +149,20 @@ func (g kubeClientAdapter) Delete(manifest string) ([]*Resource, error) {
 			return deletedResources, err
 		}
 
+		//add deleted resource to result set
 		deletedResources = append(deletedResources, resource)
+
+		//if resource is watchable, add it to progress tracker
+		watchable, err := progress.NewWatchableResource(resource.Kind)
+		if err == nil { //add only watchable resources to progress tracker
+			pt.AddResource(watchable, resource.Namespace, resource.Name)
+		}
+
+	}
+
+	//wait until all resources were deleted
+	if err := pt.Watch(context.TODO(), progress.TerminatedState); err != nil {
+		g.logger.Warnf("Watching progress of deleted resources failed: %s", err)
 	}
 
 	return deletedResources, nil
