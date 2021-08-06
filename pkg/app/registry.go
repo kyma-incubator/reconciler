@@ -6,6 +6,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"go.uber.org/zap"
 )
 
@@ -15,6 +16,7 @@ type ApplicationRegistry struct {
 	connectionFactory db.ConnectionFactory
 	inventory         cluster.Inventory
 	kvRepository      *kv.Repository
+	operations        scheduler.OperationsRegistry
 	initialized       bool
 }
 
@@ -43,6 +45,7 @@ func (or *ApplicationRegistry) init() error {
 	if or.kvRepository, err = or.initRepository(); err != nil {
 		return err
 	}
+	or.initOperationsRegistry()
 	or.initialized = true
 	return nil
 }
@@ -67,6 +70,10 @@ func (or *ApplicationRegistry) Inventory() cluster.Inventory {
 
 func (or *ApplicationRegistry) KVRepository() *kv.Repository {
 	return or.kvRepository
+}
+
+func (or *ApplicationRegistry) OperationsRegistry() scheduler.OperationsRegistry {
+	return or.operations
 }
 
 func (or *ApplicationRegistry) initRepository() (*kv.Repository, error) {
@@ -99,4 +106,9 @@ func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 	}
 
 	return or.inventory, nil
+}
+
+func (or *ApplicationRegistry) initOperationsRegistry() scheduler.OperationsRegistry {
+	or.operations = scheduler.NewDefaultOperationsRegistry()
+	return or.operations
 }
