@@ -1,5 +1,5 @@
 global:
-  reconciler:
+  mothership-reconciler:
     enabled: true
   database:
     manageSecrets: true
