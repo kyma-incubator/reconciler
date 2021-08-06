@@ -126,7 +126,7 @@ func (g kubeClientAdapter) Delete(manifest string) (err error) {
 	return nil
 }
 
-func (g *kubeClientAdapter) Clientset() (*kubernetes.Clientset, error) {
+func (g *kubeClientAdapter) Clientset() (kubernetes.Interface, error) {
 	return g.kubeClient.GetClientSet()
 }
 
