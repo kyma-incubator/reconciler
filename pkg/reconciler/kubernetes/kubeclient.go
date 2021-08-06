@@ -193,7 +193,7 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 		Kind:      kind,
 		Name:      name,
 		Namespace: namespace,
-	}, nil
+	}, err
 }
 
 // Get a manifest by resource/kind (example: 'pods' or 'pod'),
