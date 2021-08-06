@@ -26,7 +26,7 @@ type ResourceInterceptor interface {
 type Client interface {
 	Deploy(manifest string, interceptors ...ResourceInterceptor) ([]*Resource, error)
 	Delete(manifest string) error
-	Clientset() (*kubernetes.Clientset, error)
+	Clientset() (kubernetes.Interface, error)
 	Config() *rest.Config
 }
 
