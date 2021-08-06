@@ -20,6 +20,7 @@ spec:
           - reconciler
           - service
           - start
+          - --reconcilers=configs/component-reconcilers.json
         name: mothership-reconciler
         ports:
         - name: http
