@@ -1,0 +1,9 @@
+# This file is not part of official PostgreSQL chart
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "fullname" . }}-db-init
+data:
+  init-reconciler-db.sql: |
+    CREATE DATABASE {{ .Values.global.database.embedded.reconciler.name }};
+
