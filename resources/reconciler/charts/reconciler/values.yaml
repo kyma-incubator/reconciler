@@ -79,5 +79,5 @@ tolerations: []
 affinity: {}
 
 
-
-host: "kyma-env-broker" # FIXME
+# TODO https://github.com/kyma-incubator/reconciler/issues/53
+#host: "kyma-env-reconciler"

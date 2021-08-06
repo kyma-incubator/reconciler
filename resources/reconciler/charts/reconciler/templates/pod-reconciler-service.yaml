@@ -6,7 +6,7 @@ metadata:
   name: reconciler
 spec:
   containers:
-  - image: rafaljankowski/reconciler:v1
+  - image: rafaljankowski/reconciler:v1 #TODO change to correct repo
     args:
       - reconciler
       - service

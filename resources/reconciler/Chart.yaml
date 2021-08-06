@@ -1,4 +1,4 @@
 apiVersion: v1
-description: Kyma Control Plane
-name: kcp
+description: Reconciler
+name: reconciler
 version: 0.1.0
