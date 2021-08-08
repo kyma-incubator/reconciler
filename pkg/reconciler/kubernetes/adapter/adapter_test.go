@@ -1,6 +1,8 @@
-package kubernetes
+package adapter
 
 import (
+	"context"
+	kubernetes2 "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -11,7 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var expectedResources = []*Resource{
+var expectedResources = []*kubernetes2.Resource{
 	{
 		Kind:      "Deployment",
 		Name:      "unittest-deployment",
@@ -55,7 +57,7 @@ func TestKubernetesClient(t *testing.T) {
 	}
 
 	//create client
-	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewOptionalLogger(true))
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewOptionalLogger(true), nil)
 	require.NoError(t, err)
 
 	t.Run("Deploy and delete resources", func(t *testing.T) {
@@ -63,13 +65,13 @@ func TestKubernetesClient(t *testing.T) {
 
 		//deploy
 		t.Log("Deploying test resources")
-		deployedResources, err := kubeClient.Deploy(manifest)
+		deployedResources, err := kubeClient.Deploy(context.TODO(), manifest)
 		require.NoError(t, err)
 		require.ElementsMatch(t, expectedResources, deployedResources)
 
 		//delete (at the end of the test)
 		t.Log("Cleanup test resources")
-		deletedResources, err := kubeClient.Delete(manifest)
+		deletedResources, err := kubeClient.Delete(context.TODO(), manifest)
 		require.NoError(t, err)
 		require.ElementsMatch(t, expectedResources, deletedResources)
 

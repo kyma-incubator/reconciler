@@ -1,11 +1,12 @@
-package kubernetes
+package adapter
 
 import (
 	"bufio"
 	"bytes"
 	"context"
-	b64 "encoding/base64"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/progress"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"go.uber.org/zap"
 	"io"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
@@ -20,27 +21,41 @@ import (
 )
 
 type kubeClientAdapter struct {
-	kubeClient KubeClient
+	kubeClient kubeclient.KubeClient
 	logger     *zap.SugaredLogger
+	config     *Config
 }
 
-func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger) (Client, error) {
+type Config struct {
+	ProgressInterval time.Duration
+	ProgressTimeout  time.Duration
+}
+
+func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (k8s.Client, error) {
 	//get kubeClient
-	base64kubeConfig := b64.StdEncoding.EncodeToString([]byte(kubeconfig))
-	client, err := NewKubeClient(base64kubeConfig)
+	client, err := kubeclient.NewKubeClient(kubeconfig)
 	if err != nil {
 		return nil, err
+	}
+
+	if config == nil {
+		config = &Config{}
 	}
 
 	return &kubeClientAdapter{
 		kubeClient: *client,
 		logger:     logger,
+		config:     config,
 	}, nil
 }
 
-func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInterceptor) ([]*Resource, error) {
-	var deployedResources []*Resource
+func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest string, interceptors ...k8s.ResourceInterceptor) ([]*k8s.Resource, error) {
+	pt, err := g.newProgressTracker()
+	if err != nil {
+		return nil, err
+	}
 
+	var deployedResources []*k8s.Resource
 	chanMes, chanErr := asyncReadYaml([]byte(manifest))
 	for {
 		select {
@@ -49,7 +64,7 @@ func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInte
 				//channel closed
 				g.logger.Debugf("Manifest processed: %d Kubernetes resources were successfully deployed",
 					len(deployedResources))
-				return deployedResources, nil
+				return deployedResources, pt.Watch(ctx, progress.ReadyState)
 			}
 
 			//convert YAML to JSON
@@ -66,7 +81,7 @@ func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInte
 			}
 
 			//get unstructured entity from JSON and intercept
-			unstruct, err := ToUnstructured(jsonData)
+			unstruct, err := kubeclient.ToUnstructured(jsonData)
 			if err != nil {
 				g.logger.Errorf("Failed to convert JSON to Kubernetes unstructured entity: %s", err)
 				g.logger.Debugf("Used JSON data: %s", string(jsonData))
@@ -91,6 +106,12 @@ func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInte
 			//add deploy resource to result
 			g.logger.Debugf("Kubernetes resource '%v' successfully deployed", resource)
 			deployedResources = append(deployedResources, resource)
+
+			//if resource is watchable, add it to progress tracker
+			watchable, err := progress.NewWatchableResource(resource.Kind)
+			if err == nil { //add only watchable resources to progress tracker
+				pt.AddResource(watchable, resource.Namespace, resource.Name)
+			}
 		case err := <-chanErr:
 			//stop processing in any error case
 			return deployedResources, err
@@ -98,7 +119,7 @@ func (g *kubeClientAdapter) Deploy(manifest string, interceptors ...ResourceInte
 	}
 }
 
-func (g kubeClientAdapter) Delete(manifest string) ([]*Resource, error) {
+func (g kubeClientAdapter) Delete(ctx context.Context, manifest string) ([]*k8s.Resource, error) {
 	yamls, err := syncReadYaml([]byte(manifest))
 	if err != nil {
 		g.logger.Error("Problem with read manifest")
@@ -106,19 +127,13 @@ func (g kubeClientAdapter) Delete(manifest string) ([]*Resource, error) {
 		return nil, err
 	}
 
+	pt, err := g.newProgressTracker()
+	if err != nil {
+		return nil, err
+	}
+
 	//delete resource in reverse order
-	clientSet, err := g.Clientset()
-	if err != nil {
-		return nil, err
-	}
-	pt, err := progress.NewProgressTracker(clientSet, g.logger, progress.Config{
-		Interval: 2 * time.Second,
-		Timeout:  30 * time.Second,
-	})
-	if err != nil {
-		return nil, err
-	}
-	var deletedResources []*Resource
+	var deletedResources []*k8s.Resource
 	for i := len(yamls) - 1; i >= 0; i-- {
 		json, err := yamlToJson.YAMLToJSON(yamls[i])
 		if string(json) == "null" {
@@ -130,7 +145,7 @@ func (g kubeClientAdapter) Delete(manifest string) ([]*Resource, error) {
 			g.logger.Debugf("Used YAML data: %s", string(json))
 			return nil, err
 		}
-		toUnstructured, err := ToUnstructured(json)
+		toUnstructured, err := kubeclient.ToUnstructured(json)
 		if err != nil {
 			g.logger.Errorf("Failed to convert JSON to Kubernetes unstructured entity: %s", err)
 			g.logger.Debugf("Used JSON data: %s", string(json))
@@ -157,15 +172,24 @@ func (g kubeClientAdapter) Delete(manifest string) ([]*Resource, error) {
 		if err == nil { //add only watchable resources to progress tracker
 			pt.AddResource(watchable, resource.Namespace, resource.Name)
 		}
-
 	}
 
 	//wait until all resources were deleted
-	if err := pt.Watch(context.TODO(), progress.TerminatedState); err != nil {
+	if err := pt.Watch(ctx, progress.TerminatedState); err != nil {
 		g.logger.Warnf("Watching progress of deleted resources failed: %s", err)
 	}
 
 	return deletedResources, nil
+}
+func (g *kubeClientAdapter) newProgressTracker() (*progress.Tracker, error) {
+	clientSet, err := g.Clientset()
+	if err != nil {
+		return nil, err
+	}
+	return progress.NewProgressTracker(clientSet, g.logger, progress.Config{
+		Interval: g.config.ProgressInterval,
+		Timeout:  g.config.ProgressTimeout,
+	})
 }
 
 func (g *kubeClientAdapter) Clientset() (kubernetes.Interface, error) {
