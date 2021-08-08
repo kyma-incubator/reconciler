@@ -81,18 +81,19 @@ func NewProgressTracker(client kubernetes.Interface, logger *zap.SugaredLogger, 
 
 func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 	if len(pt.objects) == 0 { //check if any watchable resources were added
-		pt.logger.Debug("No watchable resources defined: deployment treated as successfully finished")
+		pt.logger.Debugf("No watchable resources defined: transition to state '%s' "+
+			"will be treated as successfully finished", targetState)
 		return nil
 	}
 
 	//initial installation status check
 	ready, err := pt.isInState(targetState)
 	if err != nil {
-		pt.logger.Warnf("Failed to verify initial Kubernetes resource installation status: %v", err)
+		pt.logger.Warnf("Failed to verify initial Kubernetes resource state: %v", err)
 	}
 	if ready {
 		//we are already done
-		pt.logger.Debug("Watchable resources are already successfully deployed: no recurring checks triggered")
+		pt.logger.Debugf("Watchable resources are already in target state '%s': no recurring checks triggered", targetState)
 		return nil
 	}
 
@@ -104,21 +105,25 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 		case <-readyCheck.C:
 			ready, err := pt.isInState(targetState)
 			if err != nil {
-				pt.logger.Warnf("Failed to check deployment progress but will retry until timeout is reached: %s", err)
+				pt.logger.Warnf("Failed to check progress of resource transition to state '%s' "+
+					"but will retry until timeout is reached: %s", targetState, err)
 			}
 			if ready {
 				readyCheck.Stop()
-				pt.logger.Debug("Watchable resources are successfully deployed")
+				pt.logger.Debugf("Watchable resources reached target state '%s'", targetState)
 				return nil
 			}
 		case <-ctx.Done():
-			pt.logger.Debug("Stop checking deployment progress because parent context got closed")
+			pt.logger.Debugf("Stop checking progress of resource transition to state '%s' "+
+				"because parent context got closed", targetState)
 			return &e.ContextClosedError{
-				Message: "Running resource deployment was not finished: the deployment is treated as failed",
+				Message: fmt.Sprintf("Running resource transition to state '%s' was not completed: "+
+					"transition is treated as failed", targetState),
 			}
 		case <-timeout:
-			err := fmt.Errorf("progress tracker reached timeout (%.0f secs): stop checking resource installation state",
-				pt.timeout.Seconds())
+			err := fmt.Errorf("progress tracker reached timeout (%.0f secs): "+
+				"stop checking progress of resource transistion to state '%s'",
+				pt.timeout.Seconds(), targetState)
 			pt.logger.Warn(err.Error())
 			return err
 		}

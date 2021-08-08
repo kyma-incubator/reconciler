@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"testing"
+	"time"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -57,7 +58,10 @@ func TestKubernetesClient(t *testing.T) {
 	}
 
 	//create client
-	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewOptionalLogger(true), nil)
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewOptionalLogger(true), &Config{
+		ProgressInterval: 1 * time.Second,
+		ProgressTimeout:  1 * time.Minute,
+	})
 	require.NoError(t, err)
 
 	t.Run("Deploy and delete resources", func(t *testing.T) {
