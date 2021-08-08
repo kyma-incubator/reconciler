@@ -6,15 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"testing"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 
 	"github.com/stretchr/testify/require"
@@ -194,7 +193,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 	})
 
 	t.Run("Happy path", func(t *testing.T) {
-		kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true))
+		kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true), nil)
 		require.NoError(t, err)
 
 		//cleanup old pods (before and after test runs)

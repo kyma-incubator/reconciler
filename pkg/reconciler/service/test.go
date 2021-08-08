@@ -1,11 +1,13 @@
 package service
 
 import (
+	"context"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 type cleanup struct {
@@ -35,7 +37,9 @@ func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespac
 	require.Len(t, manifests, 1)
 
 	//delete resources in manifest
-	_, err = c.kubeClient.Delete(manifests[0].Manifest) //blocking call until all watchable resources were removed
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute) //deletion has to happen within 1 min
+	defer cancel()
+	_, err = c.kubeClient.Delete(ctx, manifests[0].Manifest) //blocking call until all watchable resources were removed
 	require.NoError(t, err)
 
 	t.Logf("Cleanup of component '%s' finished", component)

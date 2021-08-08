@@ -1,10 +1,11 @@
 // solution from https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/client.go
 
-package kubernetes
+package kubeclient
 
 import (
 	"context"
 	"encoding/base64"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +31,8 @@ type KubeClient struct {
 	Mapper           *restmapper.DeferredDiscoveryRESTMapper
 }
 
-func NewKubeClient(base64kubeConfig string) (*KubeClient, error) {
+func NewKubeClient(kubeconfig string) (*KubeClient, error) {
+	base64kubeConfig := base64.StdEncoding.EncodeToString([]byte(kubeconfig))
 	client := KubeClient{
 		Base64KubeConfig: base64kubeConfig,
 	}
@@ -60,7 +62,7 @@ func NewKubeClient(base64kubeConfig string) (*KubeClient, error) {
 	}, nil
 }
 
-func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*Resource, error) {
+func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*k8s.Resource, error) {
 	return kube.ApplyWithNamespaceOverride(u, "")
 }
 
@@ -69,8 +71,8 @@ func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*Resource, error) {
 // If namespaceOverride is empty it will NOT override the namespace set on the manifest.
 // We only override the namespace if the manifest is NOT cluster scoped (i.e. a ClusterRole) and namespaceOverride is NOT an
 // empty string.
-func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, namespaceOverride string) (*Resource, error) {
-	metadata := &Resource{}
+func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, namespaceOverride string) (*k8s.Resource, error) {
+	metadata := &k8s.Resource{}
 	gvk := u.GroupVersionKind()
 
 	restMapping, err := kube.Mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
@@ -156,8 +158,10 @@ func (kube *KubeClient) GetClientSet() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(restConfig)
 }
 
-func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*Resource, error) {
-	gvk, err := kube.Mapper.KindFor(schema.GroupVersionResource{Resource: kind})
+func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*k8s.Resource, error) {
+	gvk, err := kube.Mapper.KindFor(schema.GroupVersionResource{
+		Resource: kind,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +193,7 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 			Delete(context.TODO(), name, do)
 	}
 
-	return &Resource{
+	return &k8s.Resource{
 		Kind:      kind,
 		Name:      name,
 		Namespace: namespace,

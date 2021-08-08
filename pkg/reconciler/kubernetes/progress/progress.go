@@ -81,7 +81,7 @@ func NewProgressTracker(client kubernetes.Interface, logger *zap.SugaredLogger, 
 
 func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 	if len(pt.objects) == 0 { //check if any watchable resources were added
-		pt.logger.Debug("No watchable resources defined: installation treated as successfully finished")
+		pt.logger.Debug("No watchable resources defined: deployment treated as successfully finished")
 		return nil
 	}
 
@@ -92,7 +92,7 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 	}
 	if ready {
 		//we are already done
-		pt.logger.Debug("Watchable resources are already installed")
+		pt.logger.Debug("Watchable resources are already successfully deployed: no recurring checks triggered")
 		return nil
 	}
 
@@ -104,17 +104,17 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 		case <-readyCheck.C:
 			ready, err := pt.isInState(targetState)
 			if err != nil {
-				pt.logger.Warnf("Failed to check Kubernetes resource installation progress but will "+
-					"retry until timeout is reached: %s", err)
+				pt.logger.Warnf("Failed to check deployment progress but will retry until timeout is reached: %s", err)
 			}
 			if ready {
 				readyCheck.Stop()
+				pt.logger.Debug("Watchable resources are successfully deployed")
 				return nil
 			}
 		case <-ctx.Done():
-			pt.logger.Debug("Stopping progress tracker because parent context got closed")
+			pt.logger.Debug("Stop checking deployment progress because parent context got closed")
 			return &e.ContextClosedError{
-				Message: "Progress tracker interrupted: running installation treated as non-successfully installed",
+				Message: "Running resource deployment was not finished: the deployment is treated as failed",
 			}
 		case <-timeout:
 			err := fmt.Errorf("progress tracker reached timeout (%.0f secs): stop checking resource installation state",

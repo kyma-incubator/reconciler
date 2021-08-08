@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 	"testing"
 	"time"
 
@@ -331,7 +331,7 @@ func newCleanupFct(t *testing.T) func(bool) {
 
 	recon.WithWorkspace("./test") //use test-subfolder to cache Kyma sources
 
-	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true))
+	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true), nil)
 	require.NoError(t, err)
 
 	cleanup := cleanup{

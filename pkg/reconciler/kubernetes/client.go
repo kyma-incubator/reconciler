@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -15,7 +16,7 @@ type Resource struct {
 }
 
 func (r *Resource) String() string {
-	return fmt.Sprintf("Resource [Kind:%s,Namespace:%s,Name:%s]", r.Kind, r.Namespace, r.Name)
+	return fmt.Sprintf("KubernetesResource [Kind:%s,Namespace:%s,Name:%s]", r.Kind, r.Namespace, r.Name)
 }
 
 type ResourceInterceptor interface {
@@ -23,8 +24,8 @@ type ResourceInterceptor interface {
 }
 
 type Client interface {
-	Deploy(manifest string, interceptors ...ResourceInterceptor) ([]*Resource, error)
-	Delete(manifest string) ([]*Resource, error)
+	Deploy(ctx context.Context, manifest string, interceptors ...ResourceInterceptor) ([]*Resource, error)
+	Delete(ctx context.Context, manifest string) ([]*Resource, error)
 	Clientset() (kubernetes.Interface, error)
 	Config() *rest.Config
 }

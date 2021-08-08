@@ -1,6 +1,6 @@
 // solution from https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/patcher/patcher.go
 
-package kubernetes
+package kubeclient
 
 import (
 	"encoding/json"
