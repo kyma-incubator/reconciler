@@ -212,6 +212,8 @@ func TestInventory(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statesNotReady, 2)
 		require.ElementsMatch(t, []*State{expectedCluster2State2b, expectedCluster3State1c}, statesNotReady)
+
+		//TODO: test for clusters which are inside and outside of filter interval
 	})
 
 	t.Run("Get status changes", func(t *testing.T) {
