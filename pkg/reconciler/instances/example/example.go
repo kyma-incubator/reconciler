@@ -20,6 +20,7 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
+	//TODO: please configure the component reconciler for your component by setting dependencies and custom actions
 	//configure reconciler
 	reconciler.
 		//list dependencies (these components have to be available before this component reconciler is able to run)

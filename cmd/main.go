@@ -10,8 +10,6 @@ import (
 	rclCmd "github.com/kyma-incubator/reconciler/cmd/reconciler"
 	svcCmd "github.com/kyma-incubator/reconciler/cmd/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
-	"github.com/kyma-incubator/reconciler/pkg/app"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -50,10 +48,7 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 			if err := o.Validate(); err != nil {
 				return err
 			}
-			if o.InitRegistry {
-				return initApplicationRegistry(o)
-			}
-			return nil
+			return o.InitApplicationRegistry(false)
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			if o.Registry != nil {
@@ -72,15 +67,6 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 	cmd.PersistentFlags().BoolVarP(&o.InitRegistry, "init-registry", "r", false, "Auto-initialize application registry ")
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
 	return cmd
-}
-
-func initApplicationRegistry(o *cli.Options) error {
-	dbConnFact, err := db.NewConnectionFactory(viper.ConfigFileUsed(), o.Verbose)
-	if err != nil {
-		return err
-	}
-	o.Registry, err = app.NewApplicationRegistry(dbConnFact, o.Verbose)
-	return err
 }
 
 func initViper(o *cli.Options) func() {

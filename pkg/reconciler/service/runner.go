@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/progress"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/status"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -76,7 +75,10 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 }
 
 func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation) error {
-	kubeClient, err := kubernetes.NewKubernetesClient(model.Kubeconfig, r.logger)
+	kubeClient, err := adapter.NewKubernetesClient(model.Kubeconfig, r.logger, &adapter.Config{
+		ProgressInterval: r.progressTrackerConfig.interval,
+		ProgressTimeout:  r.progressTrackerConfig.timeout,
+	})
 	if err != nil {
 		return err
 	}
@@ -127,14 +129,15 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 		return err
 	}
 
-	resources, err := kubeClient.Deploy(manifest, &LabelInterceptor{})
+	resources, err := kubeClient.Deploy(ctx, manifest, &LabelInterceptor{})
 
-	if err != nil {
+	if err == nil {
+		r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
+	} else {
 		r.logger.Warnf("Failed to deploy manifests on target cluster: %s", err)
-		return err
 	}
 
-	return r.trackProgress(ctx, kubeClient, resources) //blocking call
+	return err
 }
 
 func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error) {
@@ -162,36 +165,6 @@ func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error
 		buffer.WriteString("\n")
 	}
 	return buffer.String(), nil
-}
-
-func (r *runner) trackProgress(ctx context.Context, kubeClient kubernetes.Client, resources []*kubernetes.Resource) error {
-	clientSet, err := kubeClient.Clientset()
-	if err != nil {
-		return err
-	}
-	//get resources defined in manifest
-	pt, err := progress.NewProgressTracker(ctx, clientSet, r.logger, progress.Config{
-		Timeout:  r.progressTrackerConfig.timeout,
-		Interval: r.progressTrackerConfig.interval,
-	})
-	if err != nil {
-		return err
-	}
-	//watch progress of installed resources
-	for _, resource := range resources {
-		watchable, err := progress.NewWatchableResource(resource.Kind) //convert "kind" to watchable
-		if err != nil {
-			r.logger.Debugf("Ignoring non-watchable resource: %s", resource)
-			continue //not watchable resource: ignore it
-		}
-		pt.AddResource(
-			watchable,
-			resource.Namespace,
-			resource.Name,
-		)
-	}
-	r.logger.Debug("Start watching installation progress")
-	return pt.Watch() //blocking call
 }
 
 func (r *runner) newComponentSet(model *reconciler.Reconciliation) *chart.ComponentSet {

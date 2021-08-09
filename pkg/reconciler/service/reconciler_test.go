@@ -10,12 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 
 	"github.com/stretchr/testify/require"
@@ -131,13 +130,13 @@ func TestReconcilerEnd2End(t *testing.T) {
 		time.Sleep(1 * time.Second) //give some time for graceful shutdown
 	}()
 
+	//create reconciler
+	recon, err := NewComponentReconciler("unittest")
+	require.NoError(t, err)
+	require.NoError(t, recon.Debug())
+
 	//start reconciler
 	go func() {
-		recon, err := NewComponentReconciler("unittest")
-		require.NoError(t, err)
-
-		require.NoError(t, recon.Debug())
-
 		err = recon.
 			WithWorkspace("./test").
 			WithWorkers(2, workerTimeout).
@@ -155,7 +154,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 		body := post(t, "http://localhost:9999/v1/run", reconciler.Reconciliation{
 			ComponentsReady: []string{"abc", "def"},
 			Component:       "unittest-component",
-			Namespace:       "unittest",
+			Namespace:       "unittest-service",
 			Version:         "1.2.3",
 			Profile:         "unittest",
 			Configuration:   nil,
@@ -178,9 +177,9 @@ func TestReconcilerEnd2End(t *testing.T) {
 		body := post(t, "http://localhost:9999/v1/run", reconciler.Reconciliation{
 			ComponentsReady: []string{"abc", "xyz"},
 			Component:       "unittest-component",
-			Namespace:       "unittest",
+			Namespace:       "unittest-service",
 			Version:         "1.2.3",
-			Profile:         "unittest",
+			Profile:         "",
 			Configuration:   nil,
 			Kubeconfig:      "",
 			CallbackURL:     "",
@@ -195,28 +194,22 @@ func TestReconcilerEnd2End(t *testing.T) {
 	})
 
 	t.Run("Happy path", func(t *testing.T) {
-		//get Kubernetes client
-		kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true))
-		require.NoError(t, err)
-		clientSet, err := kubeClient.Clientset()
+		kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true), nil)
 		require.NoError(t, err)
 
 		//cleanup old pods (before and after test runs)
-		var cleanup = func() {
-			t.Log("Cleaning up dummy-pod")
-			err = clientSet.CoreV1().Pods("default").Delete(ctx, "dummy-pod", metav1.DeleteOptions{})
-			if errors.IsNotFound(err) {
-				t.Log("No dummy-pod found for cleanup")
-			}
+		cleanup := &cleanup{
+			reconciler: recon,
+			kubeClient: kubeClient,
 		}
-		cleanup()
-		defer cleanup()
+		cleanup.removeKymaComponent(t, "0.0.0", "component-1", "unittest-service")       //cleanup before test runs
+		defer cleanup.removeKymaComponent(t, "0.0.0", "component-1", "unittest-service") //cleanup after test is finished
 
 		//send request with which does not include all required dependencies
 		body := post(t, "http://localhost:9999/v1/run", reconciler.Reconciliation{
 			ComponentsReady: []string{"abc", "xyz"},
 			Component:       "component-1",
-			Namespace:       "default",
+			Namespace:       "unittest-service",
 			Version:         "0.0.0",
 			Profile:         "",
 			Configuration:   nil,
@@ -230,7 +223,9 @@ func TestReconcilerEnd2End(t *testing.T) {
 		time.Sleep(workerTimeout) //wait until process context got closed
 
 		//check that pod was created
-		_, err = clientSet.CoreV1().Pods("default").Get(context.Background(), "dummy-pod", metav1.GetOptions{})
+		clientSet, err := kubeClient.Clientset()
+		require.NoError(t, err)
+		_, err = clientSet.CoreV1().Pods("unittest-service").Get(context.Background(), "dummy-pod", metav1.GetOptions{})
 		require.NoError(t, err)
 	})
 }

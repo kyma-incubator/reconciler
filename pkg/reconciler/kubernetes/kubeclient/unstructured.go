@@ -1,6 +1,6 @@
 // solution from https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/unstructured.go
 
-package kubernetes
+package kubeclient
 
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
