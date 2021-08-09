@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - image: "{{ $global.Values.global.image.repository }}:{{ $global.Values.global.image.tag }}"
-        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        imagePullPolicy: {{ $global.Values.global.image.pullPolicy }}
         args:
           - reconciler
           - reconciler
