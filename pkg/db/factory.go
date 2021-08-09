@@ -17,15 +17,7 @@ func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, err
 	dbToUse := viper.GetString("db.driver")
 	switch dbToUse {
 	case "postgres":
-		connFact := &PostgresConnectionFactory{
-			Host:     viper.GetString("db.postgres.host"),
-			Port:     viper.GetInt("db.postgres.port"),
-			Database: viper.GetString("db.postgres.database"),
-			User:     viper.GetString("db.postgres.user"),
-			Password: viper.GetString("db.postgres.password"),
-			SslMode:  viper.GetBool("db.postgres.sslMode"),
-			Debug:    debug,
-		}
+		connFact := createPostgresConnectionFactory(debug)
 		return connFact, connFact.Init()
 	case "sqlite":
 		dbFile := viper.GetString("db.sqlite.file")
@@ -48,5 +40,43 @@ func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, err
 		return connFact, connFact.Init()
 	default:
 		panic(fmt.Sprintf("DB type '%s' not supported", dbToUse))
+	}
+}
+
+func createPostgresConnectionFactory(debug bool) *PostgresConnectionFactory {
+	host := viper.GetString("db.postgres.host")
+	port := viper.GetInt("db.postgres.port")
+	database := viper.GetString("db.postgres.database")
+	user := viper.GetString("db.postgres.user")
+	password := viper.GetString("db.postgres.password")
+	sslMode := viper.GetBool("db.postgres.sslMode")
+
+	if viper.GetString("DATABASE_HOST") != "" {
+		host = viper.GetString("DATABASE_HOST")
+	}
+	if viper.GetString("DATABASE_PORT") != "" {
+		port = viper.GetInt("DATABASE_PORT")
+	}
+	if viper.GetString("DATABASE_NAME") != "" {
+		database = viper.GetString("DATABASE_NAME")
+	}
+	if viper.GetString("DATABASE_USER") != "" {
+		user = viper.GetString("DATABASE_USER")
+	}
+	if viper.GetString("DATABASE_PASSWORD") != "" {
+		password = viper.GetString("DATABASE_PASSWORD")
+	}
+	if viper.GetString("DATABASE_SSL_MODE") != "" {
+		sslMode = viper.GetBool("DATABASE_SSL_MODE")
+	}
+
+	return &PostgresConnectionFactory{
+		Host:     host,
+		Port:     port,
+		Database: database,
+		User:     user,
+		Password: password,
+		SslMode:  sslMode,
+		Debug:    debug,
 	}
 }
