@@ -1,0 +1,39 @@
+{{ $global := . }}
+{{- range $component := .Values.components }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    name: component-reconcilers-{{ $component }}
+    component: {{ $component }}
+  name: component-reconcilers-{{ $component }}
+spec:
+  selector:
+    matchLabels:
+      name: component-reconcilers-{{ $component }}
+      component: {{ $component }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: component-reconcilers-{{ $component }}
+        component: {{ $component }}
+    spec:
+      containers:
+      - image: "{{ $global.Values.global.image.repository }}:{{ $global.Values.global.image.tag }}"
+        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        args:
+          - reconciler
+          - reconciler
+          - start
+          - {{ $component }}
+        name: component-reconcilers
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        resources: {}
+      securityContext:
+        runAsUser: 2000
+---
+{{- end }}
