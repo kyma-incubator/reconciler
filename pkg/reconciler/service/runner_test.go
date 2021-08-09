@@ -17,7 +17,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -30,7 +29,7 @@ const (
 
 var wsf = &ws.Factory{
 	StorageDir: "./test",
-	Debug:      true,
+	Logger:     logger.NewOptionalLogger(true),
 }
 
 type TestAction struct {
@@ -45,8 +44,8 @@ func (a *TestAction) logger() *zap.SugaredLogger {
 	return logger.NewOptionalLogger(true)
 }
 
-func (a *TestAction) Run(version string, kubeClient *kubernetes.Clientset) error {
-	if kubeClient == nil {
+func (a *TestAction) Run(version, profile string, config []reconciler.Configuration, context *ActionContext) error {
+	if context.KubeClient == nil {
 		return fmt.Errorf("kubeClient is expected but was nil")
 	}
 
@@ -121,7 +120,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
 		cbh := newCallbackHandler(t)
 
@@ -145,7 +144,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, apiGatewayComponent, kymaVersion, false, "default")
 		cbh := newCallbackHandler(t)
 
@@ -169,7 +168,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
 		cbh := newCallbackHandler(t)
 
@@ -193,7 +192,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, apiGatewayComponent, kymaVersion, true, "default")
 		cbh := newCallbackHandler(t)
 
@@ -213,7 +212,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
 		cbh := newCallbackHandler(t)
 
@@ -309,15 +308,18 @@ func TestRunner(t *testing.T) {
 }
 
 func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
-	recon, err := NewComponentReconciler("./test", true)
+	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 
-	recon.WithRetry(3, 1*time.Second).
+	require.NoError(t, recon.Debug())
+
+	recon.WithWorkspace("./test").
+		WithRetry(3, 1*time.Second).
 		WithWorkers(5, timeout).
-		WithStatusUpdaterConfig(interval, 3, 1*time.Second).
-		WithPreInstallAction(preAct).
-		WithInstallAction(instAct).
-		WithPostInstallAction(postAct).
+		WithStatusUpdaterConfig(interval, timeout).
+		WithPreReconcileAction(preAct).
+		WithReconcileAction(instAct).
+		WithPostReconcileAction(postAct).
 		WithProgressTrackerConfig(interval, timeout)
 
 	return &runner{recon}
@@ -336,7 +338,7 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 func newCallbackHandler(t *testing.T) callback.Handler {
 	callbackHdlr, err := callback.NewLocalCallbackHandler(func(status reconciler.Status) error {
 		return nil
-	}, true)
+	}, logger.NewOptionalLogger(true))
 	require.NoError(t, err)
 	return callbackHdlr
 }

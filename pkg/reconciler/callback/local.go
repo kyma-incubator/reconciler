@@ -1,7 +1,6 @@
 package callback
 
 import (
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"go.uber.org/zap"
 )
@@ -11,11 +10,7 @@ type LocalCallbackHandler struct {
 	callbackFct func(status reconciler.Status) error
 }
 
-func NewLocalCallbackHandler(callbackFct func(status reconciler.Status) error, debug bool) (Handler, error) {
-	logger, err := log.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
+func NewLocalCallbackHandler(callbackFct func(status reconciler.Status) error, logger *zap.SugaredLogger) (Handler, error) {
 	return &LocalCallbackHandler{
 		logger:      logger,
 		callbackFct: callbackFct,

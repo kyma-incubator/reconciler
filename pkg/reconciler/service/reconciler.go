@@ -7,19 +7,19 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/panjf2000/ants/v2"
 
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/pkg/server"
@@ -33,23 +33,35 @@ const (
 	defaultRetryDelay    = 30 * time.Second
 	defaultTimeout       = 10 * time.Minute
 	defaultWorkers       = 100
+	defaultWorkspace     = "."
 )
 
+var (
+	wsFactory *workspace.Factory //singleton
+	m         sync.Mutex
+)
+
+type ActionContext struct {
+	KubeClient       kubernetes.Client
+	WorkspaceFactory *workspace.Factory
+	Context          context.Context
+	Logger           *zap.SugaredLogger
+}
+
 type Action interface {
-	Run(version string, kubeClient *kubernetes.Clientset) error
+	Run(version, profile string, configuration []reconciler.Configuration, helper *ActionContext) error
 }
 
 type ComponentReconciler struct {
-	debug                 bool
+	workspace             string
 	dependencies          []string
 	serverConfig          serverConfig
 	statusUpdaterConfig   statusUpdaterConfig
 	progressTrackerConfig progressTrackerConfig
-	chartProvider         *chart.Provider
 	//actions:
-	preInstallAction  Action
-	installAction     Action
-	postInstallAction Action
+	preReconcileAction  Action
+	reconcileAction     Action
+	postReconcileAction Action
 	//retry:
 	maxRetries int
 	retryDelay time.Duration
@@ -60,9 +72,8 @@ type ComponentReconciler struct {
 }
 
 type statusUpdaterConfig struct {
-	interval   time.Duration
-	maxRetries int
-	retryDelay time.Duration
+	interval time.Duration
+	timeout  time.Duration
 }
 
 type progressTrackerConfig struct {
@@ -76,26 +87,34 @@ type serverConfig struct {
 	sslKeyFile string
 }
 
-func NewComponentReconciler(workspaceDir string, debug bool) (*ComponentReconciler, error) {
-	wsf := &workspace.Factory{
-		Debug:      debug,
-		StorageDir: workspaceDir,
-	}
-	chartProvider, err := chart.NewProvider(wsf, debug)
+func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error) {
+	log, err := logger.NewLogger(false)
 	if err != nil {
 		return nil, err
 	}
-
-	logger, err := log.NewLogger(debug)
-	if err != nil {
-		return nil, err
+	recon := &ComponentReconciler{
+		workspace: defaultWorkspace,
+		logger:    log,
 	}
+	RegisterReconciler(reconcilerName, recon) //add reconciler to registry
+	return recon, nil
+}
 
-	return &ComponentReconciler{
-		debug:         debug,
-		chartProvider: chartProvider,
-		logger:        logger,
-	}, nil
+func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
+	return chart.NewProvider(r.workspaceFactory(), r.logger)
+}
+
+func (r *ComponentReconciler) workspaceFactory() *workspace.Factory {
+	m.Lock()
+	if wsFactory == nil {
+		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
+		wsFactory = &workspace.Factory{
+			Logger:     r.logger,
+			StorageDir: r.workspace,
+		}
+	}
+	m.Unlock()
+	return wsFactory
 }
 
 func (r *ComponentReconciler) validate() error {
@@ -112,19 +131,12 @@ func (r *ComponentReconciler) validate() error {
 	if r.statusUpdaterConfig.interval == 0 {
 		r.statusUpdaterConfig.interval = defaultInterval
 	}
-	if r.statusUpdaterConfig.retryDelay < 0 {
-		return fmt.Errorf("status updater retry-delay cannot be < 0 (got %.1f secs)",
-			r.statusUpdaterConfig.retryDelay.Seconds())
+	if r.statusUpdaterConfig.timeout < 0 {
+		return fmt.Errorf("status updater timeouts cannot be < 0 (got %d)",
+			r.statusUpdaterConfig.timeout)
 	}
-	if r.statusUpdaterConfig.retryDelay == 0 {
-		r.statusUpdaterConfig.retryDelay = defaultRetryDelay
-	}
-	if r.statusUpdaterConfig.maxRetries < 0 {
-		return fmt.Errorf("status updater max-retries cannot be < 0 (got %d)",
-			r.statusUpdaterConfig.maxRetries)
-	}
-	if r.statusUpdaterConfig.maxRetries == 0 {
-		r.statusUpdaterConfig.maxRetries = defaultMaxRetries
+	if r.statusUpdaterConfig.timeout == 0 {
+		r.statusUpdaterConfig.timeout = defaultTimeout
 	}
 	if r.progressTrackerConfig.interval < 0 {
 		return fmt.Errorf("progress tracker interval cannot be < 0 (got %.1f secs)",
@@ -167,6 +179,17 @@ func (r *ComponentReconciler) validate() error {
 	return nil
 }
 
+func (r *ComponentReconciler) Debug() error {
+	var err error
+	r.logger, err = logger.NewLogger(true)
+	return err
+}
+
+func (r *ComponentReconciler) WithWorkspace(workspace string) *ComponentReconciler {
+	r.workspace = workspace
+	return r
+}
+
 func (r *ComponentReconciler) WithDependencies(components ...string) *ComponentReconciler {
 	r.dependencies = components
 	return r
@@ -184,25 +207,24 @@ func (r *ComponentReconciler) WithWorkers(workers int, timeout time.Duration) *C
 	return r
 }
 
-func (r *ComponentReconciler) WithPreInstallAction(preInstallAction Action) *ComponentReconciler {
-	r.preInstallAction = preInstallAction
+func (r *ComponentReconciler) WithPreReconcileAction(preReconcileAction Action) *ComponentReconciler {
+	r.preReconcileAction = preReconcileAction
 	return r
 }
 
-func (r *ComponentReconciler) WithInstallAction(installAction Action) *ComponentReconciler {
-	r.installAction = installAction
+func (r *ComponentReconciler) WithReconcileAction(reconcileAction Action) *ComponentReconciler {
+	r.reconcileAction = reconcileAction
 	return r
 }
 
-func (r *ComponentReconciler) WithPostInstallAction(postInstallAction Action) *ComponentReconciler {
-	r.postInstallAction = postInstallAction
+func (r *ComponentReconciler) WithPostReconcileAction(postReconcileAction Action) *ComponentReconciler {
+	r.postReconcileAction = postReconcileAction
 	return r
 }
 
-func (r *ComponentReconciler) WithStatusUpdaterConfig(interval time.Duration, maxRetries int, retryDelay time.Duration) *ComponentReconciler {
+func (r *ComponentReconciler) WithStatusUpdaterConfig(interval, timeout time.Duration) *ComponentReconciler {
 	r.statusUpdaterConfig.interval = interval
-	r.statusUpdaterConfig.maxRetries = maxRetries
-	r.statusUpdaterConfig.retryDelay = retryDelay
+	r.statusUpdaterConfig.timeout = timeout
 	return r
 }
 
@@ -229,7 +251,7 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.
 		return err
 	}
 
-	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFct, r.debug)
+	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFct, r.logger)
 	if err != nil {
 		return err
 	}
@@ -306,7 +328,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			r.logger = r.logger.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID})
 
 			//create callback handler
-			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger, r.debug)
+			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger)
 			if err != nil {
 				r.logger.Warnf("Could not create remote callback handler: %s", err)
 				r.sendResponse(w, http.StatusInternalServerError, err)

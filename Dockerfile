@@ -1,3 +1,6 @@
+# Istioctl source images
+FROM istio/istioctl:1.10.2 AS istio-1_10_2
+
 # Build image
 FROM golang:1.16.4-alpine3.12 AS build
 
@@ -21,11 +24,19 @@ RUN apk --update add ca-certificates
 FROM scratch
 LABEL source=git@github.com:kyma-incubator/reconciler.git
 
+# Add SSL certificates
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# Add system users
+COPY --from=build /user/group /user/passwd /etc/
+
+# Add reconciler
 COPY --from=build /bin/reconciler /bin/reconciler
 COPY --from=build /configs/ /configs/
 
-COPY --from=build /user/group /user/passwd /etc/
+# Add istioctl tools
+COPY --from=istio-1_10_2 /usr/local/bin/istioctl /bin/istioctl-1.10.2
+
 USER appuser:appuser
 
 CMD ["/bin/reconciler"]

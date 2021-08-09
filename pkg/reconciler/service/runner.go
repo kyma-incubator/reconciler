@@ -22,10 +22,9 @@ type runner struct {
 }
 
 func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {
-	statusUpdater, err := status.NewStatusUpdater(ctx, callback, r.logger, r.debug, status.Config{
-		Interval:   r.statusUpdaterConfig.interval,
-		MaxRetries: r.statusUpdaterConfig.maxRetries,
-		RetryDelay: r.statusUpdaterConfig.retryDelay,
+	statusUpdater, err := status.NewStatusUpdater(ctx, callback, r.logger, status.Config{
+		Interval: r.statusUpdaterConfig.interval,
+		Timeout:  r.statusUpdaterConfig.timeout,
 	})
 	if err != nil {
 		return err
@@ -34,10 +33,16 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 	retryable := func(statusUpdater *status.Updater) func() error {
 		return func() error {
 			if err := statusUpdater.Running(); err != nil {
+				r.logger.Warnf("Failed to start status updater: %s", err)
 				return err
 			}
 			err := r.reconcile(ctx, model)
-			if err != nil {
+			if err == nil {
+				r.logger.Infof("Reconciliation successful of '%s' in version '%s' with profile '%s'",
+					model.Component, model.Version, model.Profile)
+			} else {
+				r.logger.Warnf("Reconciliation of '%s' in version '%s' with profile '%s': %s",
+					model.Component, model.Version, model.Profile, err)
 				if errUpdater := statusUpdater.Failed(); errUpdater != nil {
 					err = errors.Wrap(err, errUpdater.Error())
 				}
@@ -76,33 +81,39 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return err
 	}
 
-	clientSet, err := kubeClient.Clientset()
-	if err != nil {
-		return err
+	actionHelper := &ActionContext{
+		KubeClient:       kubeClient,
+		WorkspaceFactory: r.workspaceFactory(),
+		Context:          ctx,
+		Logger:           r.logger,
 	}
 
-	if r.preInstallAction != nil {
-		if err := r.preInstallAction.Run(model.Version, clientSet); err != nil {
-			r.logger.Warnf("Pre-installation action of version '%s' failed: %s", model.Version, err)
+	if r.preReconcileAction != nil {
+		if err := r.preReconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
+			r.logger.Warnf("Pre-reconciliation action of '%s' with version '%s' failed: %s",
+				model.Component, model.Version, err)
 			return err
 		}
 	}
 
-	if r.installAction == nil {
+	if r.reconcileAction == nil {
 		if err := r.install(ctx, model, kubeClient); err != nil {
-			r.logger.Warnf("Default-installation of version '%s' failed: %s", model.Version, err)
+			r.logger.Warnf("Default-reconciliation of '%s' with version '%s' failed: %s",
+				model.Component, model.Version, err)
 			return err
 		}
 	} else {
-		if err := r.installAction.Run(model.Version, clientSet); err != nil {
-			r.logger.Warnf("Installation action of version '%s' failed: %s", model.Version, err)
+		if err := r.reconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
+			r.logger.Warnf("Reconciliation action of '%s' with version '%s' failed: %s",
+				model.Component, model.Version, err)
 			return err
 		}
 	}
 
-	if r.postInstallAction != nil {
-		if err := r.postInstallAction.Run(model.Version, clientSet); err != nil {
-			r.logger.Warnf("Post-installation action of version '%s' failed: %s", model.Version, err)
+	if r.postReconcileAction != nil {
+		if err := r.postReconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
+			r.logger.Warnf("Post-reconciliation action of '%s' with version '%s' failed: %s",
+				model.Component, model.Version, err)
 			return err
 		}
 	}
@@ -127,7 +138,11 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 }
 
 func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error) {
-	manifests, err := r.chartProvider.Manifests(r.newComponentSet(model), model.InstallCRD, &chart.Options{})
+	chartProvider, err := r.newChartProvider()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create chart provider instance")
+	}
+	manifests, err := chartProvider.Manifests(r.newComponentSet(model), model.InstallCRD, &chart.Options{})
 	if err != nil {
 		msg := fmt.Sprintf("Failed to render manifest for component '%s'", model.Component)
 		r.logger.Warn(msg)

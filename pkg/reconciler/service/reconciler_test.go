@@ -19,29 +19,36 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes"
 )
 
-const workerTimeout = 10 * time.Second
+const workerTimeout = 30 * time.Second
 
 type DummyAction struct {
 	receivedVersion string
+	receivedProfile string
+	receivedConfig  []reconciler.Configuration
 }
 
-func (da *DummyAction) Run(version string, kubeClient *kubernetes.Clientset) error {
-	if kubeClient != nil {
+func (da *DummyAction) Run(version, profile string, config []reconciler.Configuration, helper *ActionContext) error {
+	if helper.KubeClient != nil {
 		return fmt.Errorf("kubeClient is not expected in this test case")
 	}
 	da.receivedVersion = version
+	da.receivedProfile = profile
+	da.receivedConfig = config
 	return nil
 }
 
 func TestReconciler(t *testing.T) {
 
 	t.Run("Verify fluent configuration interface", func(t *testing.T) {
-		recon, err := NewComponentReconciler("./test", true)
+		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
-		require.True(t, recon.debug) //debug has to be enabled
+
+		require.NoError(t, recon.Debug())
+
+		recon.WithWorkspace("./test")
+		require.Equal(t, "./test", recon.workspace)
 
 		//verify retry config
 		recon.WithRetry(111, 222*time.Second)
@@ -55,29 +62,34 @@ func TestReconciler(t *testing.T) {
 		//verify pre, post and install-action
 		preAct := &DummyAction{
 			"123",
+			"",
+			nil,
 		}
 		instAct := &DummyAction{
 			"123",
+			"",
+			nil,
 		}
 		postAct := &DummyAction{
 			"123",
+			"",
+			nil,
 		}
-		recon.WithPreInstallAction(preAct).
-			WithInstallAction(instAct).
-			WithPostInstallAction(postAct)
-		require.Equal(t, preAct, recon.preInstallAction)
-		require.Equal(t, instAct, recon.installAction)
-		require.Equal(t, postAct, recon.postInstallAction)
+		recon.WithPreReconcileAction(preAct).
+			WithReconcileAction(instAct).
+			WithPostReconcileAction(postAct)
+		require.Equal(t, preAct, recon.preReconcileAction)
+		require.Equal(t, instAct, recon.reconcileAction)
+		require.Equal(t, postAct, recon.postReconcileAction)
 
 		recon.WithServerConfig(9999, "sslCrtFile", "sslKeyFile")
 		require.Equal(t, 9999, recon.serverConfig.port)
 		require.Equal(t, "sslKeyFile", recon.serverConfig.sslKeyFile)
 		require.Equal(t, "sslCrtFile", recon.serverConfig.sslCrtFile)
 
-		recon.WithStatusUpdaterConfig(333*time.Second, 444, 555*time.Second)
+		recon.WithStatusUpdaterConfig(333*time.Second, 4455*time.Second)
 		require.Equal(t, 333*time.Second, recon.statusUpdaterConfig.interval)
-		require.Equal(t, 444, recon.statusUpdaterConfig.maxRetries)
-		require.Equal(t, 555*time.Second, recon.statusUpdaterConfig.retryDelay)
+		require.Equal(t, 4455*time.Second, recon.statusUpdaterConfig.timeout)
 
 		recon.WithProgressTrackerConfig(666*time.Second, 777*time.Second)
 		require.Equal(t, 666*time.Second, recon.progressTrackerConfig.interval)
@@ -89,8 +101,10 @@ func TestReconciler(t *testing.T) {
 	})
 
 	t.Run("Filter missing component dependencies", func(t *testing.T) {
-		recon, err := NewComponentReconciler("./test", true)
+		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
+
+		require.NoError(t, recon.Debug())
 
 		recon.WithDependencies("a", "b")
 		require.ElementsMatch(t, []string{"a", "b"}, recon.dependenciesMissing(&reconciler.Reconciliation{
@@ -119,14 +133,18 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 	//start reconciler
 	go func() {
-		recon, err := NewComponentReconciler("./test", true)
+		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
 
-		err = recon.WithWorkers(2, workerTimeout).
+		require.NoError(t, recon.Debug())
+
+		err = recon.
+			WithWorkspace("./test").
+			WithWorkers(2, workerTimeout).
 			WithServerConfig(9999, "", "").
 			WithDependencies("abc", "xyz").
 			WithRetry(1, 1*time.Second).
-			WithStatusUpdaterConfig(1*time.Second, 2, 1*time.Second).
+			WithStatusUpdaterConfig(1*time.Second, workerTimeout).
 			WithProgressTrackerConfig(1*time.Second, workerTimeout).
 			StartRemote(ctx)
 		require.NoError(t, err)

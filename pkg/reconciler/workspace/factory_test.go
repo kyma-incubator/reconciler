@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,20 +15,22 @@ import (
 const version = "1.20.0"
 
 func TestWorkspaceFactory(t *testing.T) {
+	logger := log.NewOptionalLogger(true)
+
 	t.Run("Test validation", func(t *testing.T) {
 		wsf1 := Factory{
-			Debug: true,
+			Logger: logger,
 		}
-		require.NoError(t, wsf1.validate(version))
-		require.Equal(t, filepath.Join(wsf1.defaultStorageDir(), version), wsf1.workspaceDir)
+		require.NoError(t, wsf1.validate())
+		require.Equal(t, filepath.Join(wsf1.defaultStorageDir(), version), wsf1.workspaceDir(version))
 		require.Equal(t, defaultRepositoryURL, wsf1.RepositoryURL)
 
 		wsf2 := Factory{
-			Debug:      true,
+			Logger:     logger,
 			StorageDir: "/tmp",
 		}
-		require.NoError(t, wsf2.validate(version))
-		require.Equal(t, filepath.Join("/tmp", version), wsf2.workspaceDir)
+		require.NoError(t, wsf2.validate())
+		require.Equal(t, filepath.Join("/tmp", version), wsf2.workspaceDir(version))
 		require.Equal(t, defaultRepositoryURL, wsf1.RepositoryURL)
 	})
 
@@ -39,6 +42,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		workspaceDir := filepath.Join(".", "test", version)
 		wsf := &Factory{
+			Logger:     logger,
 			StorageDir: "./test",
 		}
 
@@ -58,6 +62,7 @@ func TestWorkspaceFactory(t *testing.T) {
 		require.True(t, file.DirExists(ws.InstallationResourceDir))
 
 		//delete success file
+		t.Log("Deleting success file to simulate broken workspace")
 		err = os.Remove(filepath.Join(workspaceDir, successFile))
 		require.NoError(t, err)
 

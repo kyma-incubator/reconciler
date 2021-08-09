@@ -55,13 +55,13 @@ func (ptc *Config) validate() error {
 type Tracker struct {
 	ctx      context.Context
 	objects  []*resource
-	client   *kubernetes.Clientset
+	client   kubernetes.Interface
 	interval time.Duration
 	timeout  time.Duration
 	logger   *zap.SugaredLogger
 }
 
-func NewProgressTracker(ctx context.Context, client *kubernetes.Clientset, logger *zap.SugaredLogger, config Config) (*Tracker, error) {
+func NewProgressTracker(ctx context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, config Config) (*Tracker, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
@@ -192,6 +192,9 @@ func (pt *Tracker) podIsReady(object *resource) (bool, error) {
 	pod, err := podsClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
+	}
+	if pod.Status.Phase != v1.PodRunning {
+		return false, nil
 	}
 	for _, condition := range pod.Status.Conditions {
 		if condition.Status != v1.ConditionTrue {

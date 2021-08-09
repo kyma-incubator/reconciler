@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	cfgCmd "github.com/kyma-incubator/reconciler/cmd/config"
-	clrCmd "github.com/kyma-incubator/reconciler/cmd/reconciler"
+	rclCmd "github.com/kyma-incubator/reconciler/cmd/reconciler"
 	svcCmd "github.com/kyma-incubator/reconciler/cmd/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/app"
@@ -33,7 +33,7 @@ func main() {
 
 	cmd.AddCommand(cfgCmd.NewCmd(o))
 	cmd.AddCommand(svcCmd.NewCmd(o))
-	cmd.AddCommand(clrCmd.NewCmd(o))
+	cmd.AddCommand(rclCmd.NewCmd(o))
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
@@ -50,19 +50,26 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 			if err := o.Validate(); err != nil {
 				return err
 			}
-			return initApplicationRegistry(o)
+			if o.InitRegistry {
+				return initApplicationRegistry(o)
+			}
+			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			//shutdown object context
-			return o.Registry.Close()
+			if o.Registry != nil {
+				//shutdown object context
+				return o.Registry.Close()
+			}
+			return nil
 		},
 		SilenceErrors: false,
 		SilenceUsage:  true,
 	}
 	cobra.OnInitialize(initViper(o))
-	cmd.PersistentFlags().StringVarP(&DefaultConfigFile, "config", "c", "configs/reconciler.yaml", `Path to the configuration file.`)
-	cmd.PersistentFlags().BoolVarP(&o.Verbose, "verbose", "v", false, "Show detailed information about the executed command actions.")
+	cmd.PersistentFlags().StringVarP(&DefaultConfigFile, "config", "c", "configs/reconciler.yaml", `Path to the configuration file`)
+	cmd.PersistentFlags().BoolVarP(&o.Verbose, "verbose", "v", false, "Show detailed information about the executed command actions")
 	cmd.PersistentFlags().BoolVar(&o.NonInteractive, "non-interactive", false, "Enables the non-interactive shell mode")
+	cmd.PersistentFlags().BoolVarP(&o.InitRegistry, "init-registry", "r", false, "Auto-initialize application registry ")
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
 	return cmd
 }
@@ -104,7 +111,7 @@ func getConfigFile() (string, error) {
 		configFile = DefaultConfigFile
 	}
 	if !file.Exists(configFile) {
-		return "", fmt.Errorf("No configuration file found: set environment variable $%s_CONFIG or define it as CLI parameter", envVarPrefix)
+		return "", fmt.Errorf("no configuration file found: set environment variable $%s_CONFIG or define it as CLI parameter", envVarPrefix)
 	}
 	return configFile, nil
 }
