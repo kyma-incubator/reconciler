@@ -132,7 +132,7 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 	resources, err := kubeClient.Deploy(ctx, manifest, &LabelInterceptor{})
 
 	if err == nil {
-		r.logger.Debugf("Deployment of manifest finished successully: %d resources deployed", len(resources))
+		r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
 	} else {
 		r.logger.Warnf("Failed to deploy manifests on target cluster: %s", err)
 	}

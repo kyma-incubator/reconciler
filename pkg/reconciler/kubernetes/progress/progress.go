@@ -122,7 +122,7 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 			}
 		case <-timeout:
 			err := fmt.Errorf("progress tracker reached timeout (%.0f secs): "+
-				"stop checking progress of resource transistion to state '%s'",
+				"stop checking progress of resource transition to state '%s'",
 				pt.timeout.Seconds(), targetState)
 			pt.logger.Warn(err.Error())
 			return err
