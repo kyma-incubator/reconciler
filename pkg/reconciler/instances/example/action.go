@@ -5,6 +5,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
+//TODO: please implement component specific action logic here
 type CustomAction struct {
 	name string
 }
