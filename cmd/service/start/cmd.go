@@ -25,6 +25,9 @@ func NewCmd(o *Options) *cobra.Command {
 			if err := o.Validate(); err != nil {
 				return err
 			}
+			if err := o.InitApplicationRegistry(true); err != nil {
+				return err
+			}
 			return Run(o)
 		},
 	}
