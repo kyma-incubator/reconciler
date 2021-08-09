@@ -9,9 +9,6 @@ import (
 )
 
 func ReadKubeconfig(t *testing.T) string {
-	if !RunExpensiveTests() {
-		t.Fatal("ReadKubeconfig can only be used when expensive tests are enabled")
-	}
 	kubecfgFile := os.Getenv("KUBECONFIG")
 	if !file.Exists(kubecfgFile) {
 		require.Fail(t, "Please set env-var KUBECONFIG before executing this test case")
