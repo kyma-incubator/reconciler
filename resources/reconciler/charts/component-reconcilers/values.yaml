@@ -3,8 +3,7 @@
 nameOverride: ""
 fullnameOverride: ""
 
-components:
-- istio
+components: {}
 
 service:
   type: ClusterIP
