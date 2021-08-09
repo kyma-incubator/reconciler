@@ -13,7 +13,7 @@ func RegisterReconciler(reconcilerName string, reconciler *ComponentReconciler) 
 func GetReconciler(reconcilerName string) (*ComponentReconciler, error) {
 	reconciler, ok := reconcilers[reconcilerName]
 	if !ok {
-		return nil, fmt.Errorf("component reconciler '%s' not found in reconciler-registry", reconcilerName)
+		return nil, fmt.Errorf("component reconciler '%s' not found in reconciler registry", reconcilerName)
 	}
 	return reconciler, nil
 }

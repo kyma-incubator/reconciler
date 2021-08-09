@@ -13,7 +13,7 @@ RUN mkdir /user && \
 
 WORKDIR $SRC_DIR
 
-COPY configs/reconciler.yaml /configs/reconciler.yaml
+COPY configs /configs
 RUN CGO_ENABLED=0 go build -o /bin/reconciler ./cmd/main.go
 
 # Get latest CA certs
@@ -32,7 +32,7 @@ COPY --from=build /user/group /user/passwd /etc/
 
 # Add reconciler
 COPY --from=build /bin/reconciler /bin/reconciler
-COPY --from=build /configs/reconciler.yaml /configs/reconciler.yaml
+COPY --from=build /configs/ /configs/
 
 # Add istioctl tools
 COPY --from=istio-1_10_2 /usr/local/bin/istioctl /bin/istioctl-1.10.2

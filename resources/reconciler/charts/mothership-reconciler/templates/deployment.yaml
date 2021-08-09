@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+  {{- include "mothership-reconciler.labels" . | nindent 4 }}
+  name: mothership-reconciler
+spec:
+  selector:
+    matchLabels:
+    {{- include "mothership-reconciler.labels" . | nindent 6 }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+      {{- include "mothership-reconciler.labels" . | nindent 8 }}
+    spec:
+      containers:
+      - image: eu.gcr.io/kyma-project/incubator/reconciler:c2c75ad4
+        args:
+          - reconciler
+          - service
+          - start
+          - --reconcilers=configs/component-reconcilers.json
+        name: mothership-reconciler
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        resources: {}
+        env:
+          - name: RECONCILER_DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-reconciler-username
+          - name: RECONCILER_DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-reconciler-password
+          - name: RECONCILER_DATABASE_HOST
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-serviceName
+          - name: RECONCILER_DATABASE_PORT
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-servicePort
+          - name: RECONCILER_DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-reconciler-db-name
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      securityContext:
+        runAsUser: 2000

@@ -8,7 +8,7 @@ import (
 	reconcilerRegistry "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/spf13/cobra"
 
-	//imports loader.go which ensures that all available component-reconcilers will be added to the reconciler registry:
+	//imports loader.go which ensures that all available component reconcilers are added to the reconciler registry:
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
 )
 
@@ -25,7 +25,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	startCommand := startCmd.NewCmd(reconcilerOpts)
 	cmd.AddCommand(startCommand)
 
-	//register component-reconcilers in start-command:
+	//register component reconcilers in start command:
 	for _, reconcilerName := range reconcilerRegistry.RegisteredReconcilers() {
 		startCommand.AddCommand(startSvcCmd.NewCmd(reconcilerOpts, reconcilerName))
 	}

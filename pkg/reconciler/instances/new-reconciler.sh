@@ -19,14 +19,14 @@ fi
 
 if [ ! -d "./example" ]; then
   echo ""
-  echo "Mandatory package 'example' is missing. Scaffolding a new component-reconciler is not possible."
+  echo "Mandatory package 'example' is missing. Scaffolding a new component reconciler is not possible."
   echo ""
   exit 1
 fi
 
 ######################
 
-echo "Creating new component-reconciler package '${compName}'"
+echo "Creating new component reconciler package '${compName}'"
 cp -r ./example "./${compName}"
 
 mv "./${compName}/example.go" "./${compName}/${compName}.go"
@@ -40,13 +40,13 @@ done
 
 ######################
 
-echo "Updating component-reconciler loader"
+echo "Updating component reconciler loader"
 import=""
 for directory in */ ; do
     baseName=$(basename "$directory")
     if [ -d "$directory" -a "$baseName" != "example" ]; then
       import="${import}
-      //import required to register component-reconciler '$baseName' in reconciler-registry
+      //import required to register component reconciler '$baseName' in reconciler registry
       _ \"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/${baseName}\""
     fi
 done
@@ -67,4 +67,3 @@ fi
 echo ""
 echo "Please edit ${compInitFile}: inject your reconcilication logic by setting your custom Action structs!"
 echo ""
-
