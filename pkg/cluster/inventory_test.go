@@ -3,7 +3,6 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -287,7 +286,7 @@ func newCluster(t *testing.T, clusterID, clusterVersion int64) *keb.Cluster {
 	cluster.Metadata.GlobalAccountID = fmt.Sprintf("globalAccountId%d", clusterVersion)
 	cluster.KymaConfig.Profile = fmt.Sprintf("kymaProfile%d", clusterVersion)
 	cluster.KymaConfig.Version = fmt.Sprintf("kymaVersion%d", clusterVersion)
-	cluster.Kubeconfig = test.ReadKubeconfig(t)
+	cluster.Kubeconfig = "fake kubeconfig"
 
 	return cluster
 }
