@@ -43,10 +43,11 @@ done
 echo "Updating component-reconciler loader"
 import=""
 for directory in */ ; do
-    if [ -d "$directory" -a "$(basename "$directory")" != "example" ]; then
+    baseName=$(basename "$directory")
+    if [ -d "$directory" -a "$baseName" != "example" ]; then
       import="${import}
-      //import required to register component-reconciler '${compName}' in reconciler-registry
-      _ \"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/$(basename "$directory")\""
+      //import required to register component-reconciler '$baseName' in reconciler-registry
+      _ \"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/${baseName}\""
     fi
 done
 if [ -n "$import" ]; then
