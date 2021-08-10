@@ -1,6 +1,8 @@
 global:
   mothership-reconciler:
     enabled: true
+  component-reconcilers:
+    enabled: true
   database:
     manageSecrets: true
     embedded:
@@ -9,6 +11,10 @@ global:
         name: "reconciler"
       #TODO remove below after migration to separate user will be done
       reconcilerDBName: "reconciler"
+  image:
+    repository: eu.gcr.io/kyma-project/incubator/reconciler
+    pullPolicy: IfNotPresent
+    tag: 2f41852a
 
 # TODO https://github.com/kyma-incubator/reconciler/issues/53
 #  istio:

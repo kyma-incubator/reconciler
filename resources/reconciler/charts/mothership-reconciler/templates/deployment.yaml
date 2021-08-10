@@ -8,25 +8,42 @@ spec:
   selector:
     matchLabels:
     {{- include "mothership-reconciler.labels" . | nindent 6 }}
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   template:
     metadata:
       labels:
       {{- include "mothership-reconciler.labels" . | nindent 8 }}
     spec:
+      {{- if .Values.podSecurityContext }}
+      securityContext:
+      {{ toYaml .Values.podSecurityContext | indent 8 }}
+      {{- end }}
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range .Values.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
       containers:
-      - image: eu.gcr.io/kyma-project/incubator/reconciler:c2c75ad4
+      - image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
+        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         args:
           - reconciler
           - service
           - start
           - --reconcilers=configs/component-reconcilers.json
+          - -r
         name: mothership-reconciler
         ports:
         - name: http
           containerPort: 8080
           protocol: TCP
-        resources: {}
+        resources:
+        {{ toYaml .Values.resources | indent 10 }}
+        {{- if .Values.securityContext }}
+        securityContext:
+        {{ toYaml .Values.securityContext | indent 10 }}
+        {{- end }}
         env:
           - name: RECONCILER_DATABASE_USER
             valueFrom:
@@ -53,7 +70,15 @@ spec:
               secretKeyRef:
                 name: reconciler-postgresql
                 key: postgresql-reconciler-db-name
-      dnsPolicy: ClusterFirst
-      restartPolicy: Always
-      securityContext:
-        runAsUser: 2000
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+      {{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+      {{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{ toYaml . | indent 8 }}
+      {{- end }}

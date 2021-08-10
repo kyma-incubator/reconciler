@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 type cleanup struct {

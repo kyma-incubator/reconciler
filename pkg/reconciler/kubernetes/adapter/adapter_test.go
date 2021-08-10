@@ -2,11 +2,12 @@ package adapter
 
 import (
 	"context"
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
 	"time"
+
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
