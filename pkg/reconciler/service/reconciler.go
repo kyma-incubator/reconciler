@@ -324,8 +324,13 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 				return
 			}
 
-			//enrich logger with correlation ID
-			r.logger = r.logger.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID})
+			//enrich logger with correlation ID and component name
+			nlogger, err := logger.NewLogger(false)
+			if err != nil {
+				r.logger.Warnf("Could not create a logger: %s", err)
+				return
+			}
+			r.logger = nlogger.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID}, zap.Field{Key: "component-name", Type: zapcore.StringType, String: model.Component})
 
 			//create callback handler
 			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger)
