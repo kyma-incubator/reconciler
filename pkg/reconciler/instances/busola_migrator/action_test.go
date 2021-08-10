@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 	"io"
 	"io/ioutil"
 	restFake "k8s.io/client-go/rest/fake"
@@ -18,6 +19,7 @@ import (
 
 func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 	//GIVEN
+	logger := zaptest.NewLogger(t).Sugar()
 	name := "test"
 	namespace := "test-namespace"
 	vs := []VirtualSvcMeta{{Name: name, Namespace: namespace}}
@@ -37,6 +39,22 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 			GetVirtSvcFn:   createResponseFromTestFile,
 			PatchVirtSvcFn: createPatchResponse,
 			ExpectedError:  nil,
+		},
+		{
+			Name: "No Action - virtual service already patched",
+			GetVirtSvcFn: func(t *testing.T) *http.Response {
+				o := map[string]interface{}{
+					"spec": map[string]interface{}{
+						"hosts": []string{"test-old.kyma.local"},
+					},
+				}
+				out, err := json.Marshal(o)
+				require.NoError(t, err)
+				reader := strings.NewReader(string(out))
+				body := io.NopCloser(reader)
+				return &http.Response{StatusCode: http.StatusOK, Body: body}
+			},
+			ExpectedError:     nil,
 		},
 		{
 			Name:          "Patching of virtual service failed",
@@ -95,7 +113,7 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 			ctx := context.TODO()
 
 			//WHEN
-			err := p.patchVirtSvc(ctx, restClient, name, namespace, nil)
+			err := p.patchVirtSvc(ctx, restClient, name, namespace, logger)
 
 			//THEN
 			if tc.ExpectedError == nil {

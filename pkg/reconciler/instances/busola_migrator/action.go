@@ -36,10 +36,9 @@ var _ service.Action = &VirtualServicePreInstallPatch{}
 
 func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix string) *VirtualServicePreInstallPatch {
 	client := NewVirtSvcClient()
-	return &VirtualServicePreInstallPatch{"pre-install", virtualSvcs, suffix, client}
+	return &VirtualServicePreInstallPatch{"pre-reconciler", virtualSvcs, suffix, client}
 }
 
-// TODO: reconciler moze sie uruchomic wiele razy, a wynik ma byc ten sam.
 func (p *VirtualServicePreInstallPatch) Run(version string, profile string, configuration []reconciler.Configuration, helper *service.ActionContext) error {
 	ctx := context.TODO()
 	logger := helper.Logger
@@ -55,23 +54,23 @@ func (p *VirtualServicePreInstallPatch) Run(version string, profile string, conf
 		if err := p.patchVirtSvc(ctx, restClient, virtSvcToPatch.Name, virtSvcToPatch.Namespace, logger); err != nil {
 			return errors.Wrapf(err, "while patching virtual service: %s, in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		}
-		logger.Infof("Success patching virtual service :%s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
+		logger.Infof("Finished patching of virtual service :%s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 	}
-	logger.Info("Finished pre install busola migrator job")
+	logger.Info("Finished pre reconciler busola migrator job")
 	return nil
 }
 
 func (p *VirtualServicePreInstallPatch) patchVirtSvc(ctx context.Context, kubeRestClient rest.Interface, name, namespace string, logger *zap.SugaredLogger) error {
-
 	hosts, err := p.virtSvcClient.GetVirtSvcHosts(ctx, kubeRestClient, name, namespace)
 	if err != nil {
 		return errors.Wrapf(err, "while getting virtual service: %s, in namespace: %s", name, namespace)
 	}
+
 	if len(hosts) < 1 {
 		return errors.New(fmt.Sprintf("hosts is empty in virtual service: %s, in namespace: %s", name, namespace))
 	}
 
-	has, err := isHostHasSuffix(hosts[0], p.suffix)
+	has, err := hasSuffix(hosts[0], p.suffix)
 	if err != nil {
 		return errors.Wrapf(err, "while checking suffix in host: %s, in namespace: %s", name, namespace)
 	}
@@ -92,7 +91,7 @@ func (p *VirtualServicePreInstallPatch) patchVirtSvc(ctx context.Context, kubeRe
 	return errors.Wrap(err, "while patching virtual service")
 }
 
-func isHostHasSuffix(host, suffix string) (bool, error) {
+func hasSuffix(host, suffix string) (bool, error) {
 	splittedHost := strings.Split(host, ".")
 	if len(splittedHost) < 1 {
 		return false, errors.Errorf("something is wrong with host name: %s", host)
