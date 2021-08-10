@@ -166,7 +166,9 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 		return nil, err
 	}
 
-	if strings.ToLower(gvk.Kind) != "namespace" && namespace == "" { //set qualified namespace (except resource is of kind 'namespace')
+	var isNamespaceResource = strings.ToLower(gvk.Kind) == "namespace"
+
+	if !isNamespaceResource && namespace == "" { //set qualified namespace (except resource is of kind 'namespace')
 		namespace = "default"
 	}
 
@@ -193,6 +195,10 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 			Delete(context.TODO(), name, do)
 	}
 
+	//return deleted resource
+	if isNamespaceResource {
+		namespace = "" //namespace resources have always an empty namespace field
+	}
 	return &k8s.Resource{
 		Kind:      kind,
 		Name:      name,

@@ -39,7 +39,7 @@ func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespac
 	//delete resources in manifest
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute) //deletion has to happen within 1 min
 	defer cancel()
-	_, err = c.kubeClient.Delete(ctx, manifests[0].Manifest) //blocking call until all watchable resources were removed
+	_, err = c.kubeClient.Delete(ctx, manifests[0].Manifest, namespace) //blocking call until all watchable resources were removed
 	require.NoError(t, err)
 
 	t.Logf("Cleanup of component '%s' finished", component)

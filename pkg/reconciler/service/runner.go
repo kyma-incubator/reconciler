@@ -129,7 +129,7 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 		return err
 	}
 
-	resources, err := kubeClient.Deploy(ctx, manifest, &LabelInterceptor{})
+	resources, err := kubeClient.Deploy(ctx, manifest, model.Namespace, &LabelInterceptor{})
 
 	if err == nil {
 		r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))

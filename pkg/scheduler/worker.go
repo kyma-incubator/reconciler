@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	DefaultReconciler = "helm"
+	DefaultReconciler = "base" //TODO: take this information from reconciler-configuration
 	MaxRetryCount     = 20
 	MaxDuration       = time.Hour
 )
@@ -37,7 +37,7 @@ type WorkersFactory struct {
 }
 
 func NewWorkersFactory(inventory cluster.Inventory, reconcilersCfg reconciler.ComponentReconcilersConfig, operationsReg OperationsRegistry, debug bool) (*WorkersFactory, error) {
-	logger, err := logger.NewLogger(debug)
+	log, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func NewWorkersFactory(inventory cluster.Inventory, reconcilersCfg reconciler.Co
 		inventory,
 		reconcilersCfg,
 		operationsReg,
-		logger,
+		log,
 		debug,
 	}, nil
 }
@@ -77,7 +77,7 @@ func NewWorker(
 	inventory cluster.Inventory,
 	operationsReg OperationsRegistry,
 	debug bool) (*Worker, error) {
-	logger, err := logger.NewLogger(debug)
+	log, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func NewWorker(
 		config:        config,
 		inventory:     inventory,
 		operationsReg: operationsReg,
-		logger:        logger,
+		logger:        log,
 		errorsCount:   0,
 	}, nil
 }

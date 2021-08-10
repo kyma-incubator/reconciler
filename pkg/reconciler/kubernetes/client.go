@@ -24,8 +24,8 @@ type ResourceInterceptor interface {
 }
 
 type Client interface {
-	Deploy(ctx context.Context, manifest string, interceptors ...ResourceInterceptor) ([]*Resource, error)
-	Delete(ctx context.Context, manifest string) ([]*Resource, error)
+	Deploy(ctx context.Context, manifest, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error)
+	Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error)
 	Clientset() (kubernetes.Interface, error)
 	Config() *rest.Config
 }
