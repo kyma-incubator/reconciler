@@ -6,6 +6,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
 	"net/url"
 	"strings"
@@ -37,6 +38,7 @@ func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix strin
 	client := NewVirtSvcClient()
 	return &VirtualServicePreInstallPatch{"pre-install", virtualSvcs, suffix, client}
 }
+
 // TODO: reconciler moze sie uruchomic wiele razy, a wynik ma byc ten sam.
 func (p *VirtualServicePreInstallPatch) Run(version string, profile string, configuration []reconciler.Configuration, helper *service.ActionContext) error {
 	ctx := context.TODO()
@@ -50,7 +52,7 @@ func (p *VirtualServicePreInstallPatch) Run(version string, profile string, conf
 	logger.Infof("Launching pre install busola migrator job, version: %s ", version)
 	for _, virtSvcToPatch := range p.virtSvcsToPatch {
 		logger.Infof("Patching virtual service:%s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
-		if err := p.patchVirtSvc(ctx, restClient, virtSvcToPatch.Name, virtSvcToPatch.Namespace); err != nil {
+		if err := p.patchVirtSvc(ctx, restClient, virtSvcToPatch.Name, virtSvcToPatch.Namespace, logger); err != nil {
 			return errors.Wrapf(err, "while patching virtual service: %s, in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		}
 		logger.Infof("Success patching virtual service :%s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
@@ -59,7 +61,7 @@ func (p *VirtualServicePreInstallPatch) Run(version string, profile string, conf
 	return nil
 }
 
-func (p *VirtualServicePreInstallPatch) patchVirtSvc(ctx context.Context, kubeRestClient rest.Interface, name, namespace string) error {
+func (p *VirtualServicePreInstallPatch) patchVirtSvc(ctx context.Context, kubeRestClient rest.Interface, name, namespace string, logger *zap.SugaredLogger) error {
 
 	hosts, err := p.virtSvcClient.GetVirtSvcHosts(ctx, kubeRestClient, name, namespace)
 	if err != nil {
@@ -67,6 +69,16 @@ func (p *VirtualServicePreInstallPatch) patchVirtSvc(ctx context.Context, kubeRe
 	}
 	if len(hosts) < 1 {
 		return errors.New(fmt.Sprintf("hosts is empty in virtual service: %s, in namespace: %s", name, namespace))
+	}
+
+	has, err := isHostHasSuffix(hosts[0], p.suffix)
+	if err != nil {
+		return errors.Wrapf(err, "while checking suffix in host: %s, in namespace: %s", name, namespace)
+	}
+
+	if has {
+		logger.Infof("Virtual service already patched: %s, in namespace: %s", name, namespace)
+		return nil
 	}
 
 	host, err := addSuffix(hosts[0], p.suffix)
@@ -80,6 +92,13 @@ func (p *VirtualServicePreInstallPatch) patchVirtSvc(ctx context.Context, kubeRe
 	return errors.Wrap(err, "while patching virtual service")
 }
 
+func isHostHasSuffix(host, suffix string) (bool, error) {
+	splittedHost := strings.Split(host, ".")
+	if len(splittedHost) < 1 {
+		return false, errors.Errorf("something is wrong with host name: %s", host)
+	}
+	return strings.HasSuffix(splittedHost[0], suffix), nil
+}
 func addSuffix(host, suffix string) (string, error) {
 	if _, err := url.Parse(host); err != nil {
 		return "", err

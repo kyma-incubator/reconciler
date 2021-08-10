@@ -95,7 +95,7 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 			ctx := context.TODO()
 
 			//WHEN
-			err := p.patchVirtSvc(ctx, restClient, name, namespace)
+			err := p.patchVirtSvc(ctx, restClient, name, namespace, nil)
 
 			//THEN
 			if tc.ExpectedError == nil {
