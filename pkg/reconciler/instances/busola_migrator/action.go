@@ -1,10 +1,11 @@
-package busola
+package busola_migrator
 
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"net/url"
 	"strings"
@@ -24,24 +25,37 @@ type VirtualSvcMeta struct {
 }
 
 type VirtualServicePreInstallPatch struct {
+	name            string
 	virtSvcsToPatch []VirtualSvcMeta
 	suffix          string
 	virtSvcClient   VirtSvcClient
 }
 
+var _ service.Action = &VirtualServicePreInstallPatch{}
+
 func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix string) *VirtualServicePreInstallPatch {
 	client := NewVirtSvcClient()
-	return &VirtualServicePreInstallPatch{virtualSvcs, suffix, client}
+	return &VirtualServicePreInstallPatch{"pre-install", virtualSvcs, suffix, client}
 }
-
-func (p *VirtualServicePreInstallPatch) Run(version string, kubeClient kubernetes.Interface) error {
+// TODO: reconciler moze sie uruchomic wiele razy, a wynik ma byc ten sam.
+func (p *VirtualServicePreInstallPatch) Run(version string, profile string, configuration []reconciler.Configuration, helper *service.ActionContext) error {
 	ctx := context.TODO()
+	logger := helper.Logger
+	clientSet, err := helper.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrapf(err, "while getting client set from kubeclient")
+	}
+	restClient := clientSet.Discovery().RESTClient()
 
+	logger.Infof("Launching pre install busola migrator job, version: %s ", version)
 	for _, virtSvcToPatch := range p.virtSvcsToPatch {
-		if err := p.patchVirtSvc(ctx, kubeClient.Discovery().RESTClient(), virtSvcToPatch.Name, virtSvcToPatch.Namespace); err != nil {
+		logger.Infof("Patching virtual service:%s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
+		if err := p.patchVirtSvc(ctx, restClient, virtSvcToPatch.Name, virtSvcToPatch.Namespace); err != nil {
 			return errors.Wrapf(err, "while patching virtual service: %s, in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		}
+		logger.Infof("Success patching virtual service :%s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 	}
+	logger.Info("Finished pre install busola migrator job")
 	return nil
 }
 

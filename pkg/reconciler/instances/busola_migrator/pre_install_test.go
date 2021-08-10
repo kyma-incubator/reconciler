@@ -1,4 +1,4 @@
-package busola
+package busola_migrator
 
 import (
 	"context"

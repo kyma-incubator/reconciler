@@ -1,4 +1,4 @@
-package busola
+package busola_migrator
 
 import (
 	"context"
@@ -59,7 +59,7 @@ func (c *client) PatchVirtSvc(ctx context.Context, restClient rest.Interface, na
 	if err != nil {
 		return errors.Wrap(err, "while marshalling virtual service patch")
 	}
-	_, err = restClient.
+	resp, err := restClient.
 		Patch(types.MergePatchType).
 		AbsPath(istioCRPath).
 		Resource(resourceName).
@@ -67,6 +67,8 @@ func (c *client) PatchVirtSvc(ctx context.Context, restClient rest.Interface, na
 		Name(name).
 		Body(out).
 		DoRaw(ctx)
-
-	return errors.Wrapf(err, "while patching virtual service: %s, in namespace: %s", name, namespace)
+	if err != nil {
+		return errors.Wrapf(err, "while patching virtual service: %s, in namespace: %s, response: %s", name, namespace, string(resp))
+	}
+	return nil
 }
