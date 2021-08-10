@@ -3,7 +3,7 @@
 package instances
 
 import (
-	//import required to register component reconciler 'fallback' in reconciler registry
+	//import required to register component reconciler 'base' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/base"
 	//import required to register component reconciler 'istio' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
