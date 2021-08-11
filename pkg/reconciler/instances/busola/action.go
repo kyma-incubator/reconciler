@@ -50,11 +50,11 @@ func (p *VirtualServicePreInstallPatch) Run(version string, profile string, conf
 
 	logger.Infof("Launching pre install busola migrator job, version: %s ", version)
 	for _, virtSvcToPatch := range p.virtSvcsToPatch {
-		logger.Infof("Patching virtual service:%s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
+		logger.Infof("Patching virtual service: %s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		if err := p.patchVirtSvc(ctx, restClient, virtSvcToPatch.Name, virtSvcToPatch.Namespace, logger); err != nil {
 			return errors.Wrapf(err, "while patching virtual service: %s, in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		}
-		logger.Infof("Finished patching of virtual service :%s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
+		logger.Infof("Finished patching of virtual service : %s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 	}
 	logger.Info("Finished pre reconciler busola migrator job")
 	return nil
@@ -98,6 +98,7 @@ func hasSuffix(host, suffix string) (bool, error) {
 	}
 	return strings.HasSuffix(splittedHost[0], suffix), nil
 }
+
 func addSuffix(host, suffix string) (string, error) {
 	if _, err := url.Parse(host); err != nil {
 		return "", err
