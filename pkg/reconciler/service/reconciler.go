@@ -70,6 +70,7 @@ type ComponentReconciler struct {
 	timeout time.Duration
 	workers int
 	logger  *zap.SugaredLogger
+	debug   bool
 }
 
 type statusUpdaterConfig struct {
@@ -183,6 +184,7 @@ func (r *ComponentReconciler) validate() error {
 func (r *ComponentReconciler) Debug() error {
 	var err error
 	r.logger, err = logger.NewLogger(true)
+	r.debug = true
 	return err
 }
 
@@ -326,7 +328,12 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			}
 
 			//enrich logger with correlation ID and component name
-			r.logger = r.logger.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID}, zap.Field{Key: "component-name", Type: zapcore.StringType, String: model.Component})
+			loggerNew, err := logger.NewLogger(r.debug)
+			if err != nil {
+				r.logger.Errorf("Could not create new logger: %s", err)
+				return
+			}
+			r.logger = loggerNew.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID}, zap.Field{Key: "component-name", Type: zapcore.StringType, String: model.Component})
 
 			//create callback handler
 			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger)
