@@ -57,9 +57,13 @@ function addReconciler {
 
   mv "./${pkgName}/example.go" "./${pkgName}/${pkgName}.go"
 
-  echo "Adjusting init function for component '${reconName}'"
+  echo "Adjusting init function for component '${reconName}' (OS is '$(uname)')"
   for file in ./"${pkgName}"/*.go; do
-    sed -i '' "s/example/${reconName}/g" "$file"
+    if [ "$(uname)" == "Darwin" ]; then
+      sed -i '' "s/example/${reconName}/g" "$file"
+    else
+      sed -i "s/example/${reconName}/g" "$file"
+    fi
   done
 
   echo ""
