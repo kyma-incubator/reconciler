@@ -26,11 +26,15 @@ func TestStuff(t *testing.T) {
 		logger.Fatalf("Could not create '%s' component reconciler: %s", component, err)
 	}
 
+	operationsReg := NewDefaultOperationsRegistry()
+
 	worker, err := NewWorker(
 		&reconciler.ComponentReconciler{},
 		&cluster.MockInventory{},
-		NewDefaultOperationsRegistry(),
-		&LocalReconcilerInvoker{logger: logger},
+		operationsReg,
+		&LocalReconcilerInvoker{
+			logger:        logger,
+			operationsReg: operationsReg},
 		true)
 	require.NoError(t, err)
 

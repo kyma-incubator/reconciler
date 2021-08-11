@@ -82,7 +82,8 @@ func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 }
 
 type LocalReconcilerInvoker struct {
-	logger *zap.SugaredLogger
+	operationsReg OperationsRegistry
+	logger        *zap.SugaredLogger
 }
 
 func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
@@ -104,8 +105,19 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
 		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
 		CallbackFct: func(status reconciler.Status) error {
-			fmt.Printf("Callback: %s!", status)
-			return nil
+			var err error
+			switch status {
+			case reconciler.NotStarted, reconciler.Running:
+				err = lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
+			case reconciler.Success:
+				err = lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
+			case reconciler.Error:
+				err = lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID, "Reconciler reported error status")
+			case reconciler.Failed:
+				err = lri.operationsReg.SetFailed(params.CorrelationID, params.SchedulingID, "Reconciler reported failed status")
+			}
+
+			return err
 		},
 		InstallCRD:    false,
 		CorrelationID: params.CorrelationID,
