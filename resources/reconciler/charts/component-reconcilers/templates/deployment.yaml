@@ -1,5 +1,5 @@
 {{ $global := . }}
-{{- range $component := .Values.components }}
+{{- range $component := .Values.global.components }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
