@@ -71,9 +71,8 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace stri
 				g.logger.Errorf("Failed to create namespace '%s' which is required to deploy manifest: %s",
 					namespace, err)
 				return nil, err
-			} else {
-				g.logger.Debugf("Namespace '%s' is required to deploy manifest and was successfully created", namespace)
 			}
+			g.logger.Debugf("Namespace '%s' is required to deploy manifest and was successfully created", namespace)
 		} else {
 			return nil, errors.Wrap(err,
 				fmt.Sprintf("Failed to get namespace '%s' which is required to deploy manifest", namespace))
