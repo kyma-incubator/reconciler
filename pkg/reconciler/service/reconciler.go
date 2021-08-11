@@ -46,6 +46,7 @@ type ActionContext struct {
 	WorkspaceFactory *workspace.Factory
 	Context          context.Context
 	Logger           *zap.SugaredLogger
+	ChartProvider    *chart.Provider
 }
 
 type Action interface {

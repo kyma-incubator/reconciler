@@ -84,11 +84,17 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return err
 	}
 
+	chartProvider, err := r.newChartProvider()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create chart provider instance")
+	}
+
 	actionHelper := &ActionContext{
 		KubeClient:       kubeClient,
 		WorkspaceFactory: r.workspaceFactory(),
 		Context:          ctx,
 		Logger:           r.logger,
+		ChartProvider:    chartProvider,
 	}
 
 	if r.preReconcileAction != nil {
@@ -100,7 +106,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	}
 
 	if r.reconcileAction == nil {
-		if err := r.install(ctx, model, kubeClient); err != nil {
+		if err := r.install(ctx, chartProvider, model, kubeClient); err != nil {
 			r.logger.Warnf("Default-reconciliation of '%s' with version '%s' failed: %s",
 				model.Component, model.Version, err)
 			return err
@@ -124,8 +130,8 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	return nil
 }
 
-func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
-	manifest, err := r.renderManifest(model)
+func (r *runner) install(ctx context.Context, chartProvider *chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
+	manifest, err := r.renderManifest(chartProvider, model)
 	if err != nil {
 		return err
 	}
@@ -141,11 +147,7 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 	return err
 }
 
-func (r *runner) renderManifest(model *reconciler.Reconciliation) (string, error) {
-	chartProvider, err := r.newChartProvider()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create chart provider instance")
-	}
+func (r *runner) renderManifest(chartProvider *chart.Provider, model *reconciler.Reconciliation) (string, error) {
 	manifests, err := chartProvider.Manifests(r.newComponentSet(model), model.InstallCRD, &chart.Options{})
 	if err != nil {
 		msg := fmt.Sprintf("Failed to render manifest for component '%s'", model.Component)
