@@ -115,7 +115,7 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 	clusterState, err := o.Registry.Inventory().Get(clusterName, configVersion)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster state"))
+		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Could not retrieve cluster state"))
 		return
 	}
 	sendResponse(w, responsePayload(clusterState))
@@ -155,7 +155,7 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 	changes, err := o.Registry.Inventory().StatusChanges(clusterName, duration)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Cloud not retrieve cluster statusChanges"))
+		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Could not retrieve cluster statusChanges"))
 		return
 	}
 	//respond
@@ -174,7 +174,7 @@ func deleteCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := o.Registry.Inventory().GetLatest(clusterName); repository.IsNotFoundError(err) {
-		sendError(w, http.StatusNotFound, errors.Wrap(err, fmt.Sprintf("Deletion impossible: cluster '%s' not found", clusterName)))
+		sendError(w, http.StatusNotFound, errors.Wrap(err, fmt.Sprintf("Deletion impossible: Cluster '%s' not found", clusterName)))
 		return
 	}
 	if err := o.Registry.Inventory().Delete(clusterName); err != nil {

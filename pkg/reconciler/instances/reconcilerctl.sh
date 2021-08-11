@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function showHelp() {
-  echo "Please provide all mandatory parameters:"
+  echo "Provide all mandatory parameters:"
   echo ""
   echo "$0 [update | add [reconcilerName]]"
   echo ""
@@ -40,7 +40,7 @@ function addReconciler {
 
   if [ -d "./${pkgName}" ]; then
     echo ""
-    echo "Package '${pkgName}' already exists: please choose a different name."
+    echo "Package '${pkgName}' already exists. Choose a different name."
     echo ""
     exit 1
   fi
@@ -63,7 +63,7 @@ function addReconciler {
   done
 
   echo ""
-  echo "Please edit '${pkgName}/*.go': inject your reconcilication logic by setting your custom Action structs!"
+  echo "Edit '${pkgName}/*.go': Inject your reconciliation logic by setting your custom Action structs."
   echo ""
 }
 
