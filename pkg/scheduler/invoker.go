@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"go.uber.org/zap"
 )
 
@@ -77,4 +79,35 @@ func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 	// At this point we can assume that the call was successful
 	// and the component reconciler is doing the job of reconciliation
 	return nil
+}
+
+type LocalReconcilerInvoker struct {
+	logger *zap.SugaredLogger
+}
+
+func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
+	component := params.ComponentToReconcile.Component
+
+	componentReconciler, err := service.GetReconciler(component)
+	if err != nil {
+		return err
+	}
+
+	lri.logger.Debugf("Calling the reconciler for a component %s, correlation ID: %s", component, params.CorrelationID)
+
+	return componentReconciler.StartLocal(context.Background(), &reconciler.Reconciliation{
+		ComponentsReady: params.ComponentsReady,
+		Component:       component,
+		Namespace:       params.ComponentToReconcile.Namespace,
+		Version:         params.Cluster.Configuration.KymaVersion,
+		Profile:         params.Cluster.Configuration.KymaProfile,
+		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
+		Kubeconfig:      params.Cluster.Cluster.Kubeconfig,
+		CallbackFct: func(status reconciler.Status) error {
+			fmt.Printf("Callback: %s!", status)
+			return nil
+		},
+		InstallCRD:    false,
+		CorrelationID: params.CorrelationID,
+	})
 }
