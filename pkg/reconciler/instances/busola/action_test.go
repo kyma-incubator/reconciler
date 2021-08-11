@@ -1,4 +1,4 @@
-package busola_migrator
+package busola
 
 import (
 	"context"
@@ -54,7 +54,7 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 				body := io.NopCloser(reader)
 				return &http.Response{StatusCode: http.StatusOK, Body: body}
 			},
-			ExpectedError:     nil,
+			ExpectedError: nil,
 		},
 		{
 			Name:          "Patching of virtual service failed",

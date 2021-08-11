@@ -1,4 +1,4 @@
-package busola_migrator
+package busola
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -38,9 +38,9 @@ func init() {
 		WithDependencies("istio", "dex", "console").
 		//register reconciler pre-action (executed BEFORE reconciliation happens)
 		WithPreReconcileAction(&VirtualServicePreInstallPatch{
-		name:            "pre-action",
-		virtSvcsToPatch: virtSvcs,
-		suffix:          "-old",
-		virtSvcClient:   virtSvcClient,
-	})
+			name:            "pre-action",
+			virtSvcsToPatch: virtSvcs,
+			suffix:          "-old",
+			virtSvcClient:   virtSvcClient,
+		})
 }
