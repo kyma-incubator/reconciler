@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: unittest-kubernetes
+  name: unittest-adapter
 ---
 apiVersion: v1
 kind: Pod
@@ -10,7 +10,8 @@ metadata:
   name: unittest-pod
   labels:
     app: unittest-pod
-  namespace: unittest-kubernetes
+  #namespace will be overwritten during deployment
+  namespace: unittest-xyz
 spec:
   containers:
     - name: unittest-pod
@@ -26,7 +27,7 @@ metadata:
   name: unittest-deployment
   labels:
     app: unittest-deployment
-  namespace: unittest-kubernetes
+  namespace: unittest-abc
 spec:
   replicas: 1
   selector:
@@ -56,7 +57,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: unittest-job
-  namespace: unittest-kubernetes
+  # namespace has to be set during deployment
 spec:
   template:
     spec:
@@ -80,7 +81,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: unittest-daemonset
-  namespace: unittest-kubernetes
+  # namespace has to be set during deployment
   labels:
     k8s-app: unittest-daemonset
 spec:
@@ -111,7 +112,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: unittest-statefulset
-  namespace: unittest-kubernetes
+  namespace: unittest-123
 spec:
   selector:
     matchLabels:
@@ -124,38 +125,6 @@ spec:
     spec:
       containers:
         - name: unittest-statefulset
-          image: alpine
-          args:
-            - /bin/sh
-            - -c
-            - sleep 30
-          readinessProbe:
-            exec:
-              command:
-                - find
-                - /tmp
-            initialDelaySeconds: 5
-            periodSeconds: 5
----
-#Deployment without defining a namespace (verify that default-namespace is used if no namespace is provided)
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: unittest-deployment
-  labels:
-    app: unittest-deployment
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: unittest-deployment
-  template:
-    metadata:
-      labels:
-        app: unittest-deployment
-    spec:
-      containers:
-        - name: unittest-deployment
           image: alpine
           args:
             - /bin/sh

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -129,7 +130,7 @@ func (r *runner) install(ctx context.Context, model *reconciler.Reconciliation, 
 		return err
 	}
 
-	resources, err := kubeClient.Deploy(ctx, manifest, &LabelInterceptor{})
+	resources, err := kubeClient.Deploy(ctx, manifest, model.Namespace, &LabelInterceptor{})
 
 	if err == nil {
 		r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
