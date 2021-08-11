@@ -86,21 +86,10 @@ func createRafterSecret(ctx context.Context, secretName string, values *rafterVa
 	return err
 }
 
-func isUsingExistingSecret(ctx context.Context, existingSecretName string, kubeClient kubernetes.Interface) (bool, error) {
-	_, err := kubeClient.CoreV1().Secrets(rafterNamespace).Get(ctx, existingSecretName, metav1.GetOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to get existing rafter secret:%v", err)
-	}
-	return true, nil
-}
-
 func readRafterControllerValues(ctx *service.ActionContext, version string) (*rafterValues, error) {
 	ws, err := ctx.WorkspaceFactory.Get(version)
 	if err != nil {
-		return nil, errors.Wrap(err, "faild to retrive Kyma workspace for rafter action")
+		return nil, errors.Wrap(err, "failed to retrieve Kyma workspace for rafter action")
 	}
 	valuesFile := filepath.Join(ws.WorkspaceDir, rafterValuesRelativePath)
 
