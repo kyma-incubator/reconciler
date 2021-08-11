@@ -330,7 +330,7 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			//enrich logger with correlation ID and component name
 			loggerNew, err := logger.NewLogger(r.debug)
 			if err != nil {
-				r.logger.Errorf("Could not create new logger: %s", err)
+				r.logger.Errorf("Could not create new logger which is correlationID aware: %s", err)
 				return
 			}
 			r.logger = loggerNew.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID}, zap.Field{Key: "component-name", Type: zapcore.StringType, String: model.Component})
