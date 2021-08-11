@@ -182,7 +182,7 @@ func (w *Worker) callReconciler(component *keb.Components, state cluster.State, 
 			ComponentToReconcile: component,
 			ComponentsReady:      componentsReady,
 			ReconcilerURL:        w.config.URL,
-			Cluster:              state,
+			ClusterState:         state,
 			SchedulingID:         schedulingID,
 			CorrelationID:        w.correlationID,
 		})

@@ -19,7 +19,7 @@ type InvokeParams struct {
 	ComponentToReconcile *keb.Components
 	ComponentsReady      []string
 	ReconcilerURL        string
-	Cluster              cluster.State
+	ClusterState         cluster.State
 	SchedulingID         string
 	CorrelationID        string
 }
@@ -39,10 +39,10 @@ func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 		ComponentsReady: params.ComponentsReady,
 		Component:       component,
 		Namespace:       params.ComponentToReconcile.Namespace,
-		Version:         params.Cluster.Configuration.KymaVersion,
-		Profile:         params.Cluster.Configuration.KymaProfile,
+		Version:         params.ClusterState.Configuration.KymaVersion,
+		Profile:         params.ClusterState.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
-		Kubeconfig:      params.Cluster.Cluster.Kubeconfig,
+		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
 		CallbackURL:     fmt.Sprintf("http://localhost:8080/v1/operations/%s/callback/%s", params.SchedulingID, params.CorrelationID), // TODO: parametrize the URL
 		InstallCRD:      false,
 		CorrelationID:   params.CorrelationID,
@@ -99,10 +99,10 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 		ComponentsReady: params.ComponentsReady,
 		Component:       component,
 		Namespace:       params.ComponentToReconcile.Namespace,
-		Version:         params.Cluster.Configuration.KymaVersion,
-		Profile:         params.Cluster.Configuration.KymaProfile,
+		Version:         params.ClusterState.Configuration.KymaVersion,
+		Profile:         params.ClusterState.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
-		Kubeconfig:      params.Cluster.Cluster.Kubeconfig,
+		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
 		CallbackFct: func(status reconciler.Status) error {
 			fmt.Printf("Callback: %s!", status)
 			return nil
