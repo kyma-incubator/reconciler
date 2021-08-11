@@ -90,7 +90,7 @@ curl --location \
 func readKubeconfig() (string, error) {
 	kubeConfigFile, ok := os.LookupEnv("KUBECONFIG")
 	if !ok {
-		return "", fmt.Errorf("please set env-var 'KUBECONFIG' before execting the test command")
+		return "", fmt.Errorf("set env-var 'KUBECONFIG' before executing the test command")
 	}
 	kubeConfig, err := ioutil.ReadFile(kubeConfigFile)
 	if err != nil {
