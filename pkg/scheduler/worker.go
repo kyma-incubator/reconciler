@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	DefaultReconciler = "base" //TODO: take this information from reconciler-configuration
+	DefaultReconciler = "base" //TODO: take this information configurable
 	MaxRetryCount     = 20
 	MaxDuration       = time.Hour
 )
