@@ -98,7 +98,7 @@ func TestInventory(t *testing.T) {
 	})
 
 	t.Run("Get clusters with particular status", func(t *testing.T) {
-		expectedClusters := []*keb.Cluster{}
+		var expectedClusters []*keb.Cluster
 
 		// //create for each cluster-status a new cluster
 		for idx, clusterStatus := range clusterStatuses {
@@ -212,6 +212,8 @@ func TestInventory(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, statesNotReady, 2)
 		require.ElementsMatch(t, []*State{expectedCluster2State2b, expectedCluster3State1c}, statesNotReady)
+
+		//TODO: test for clusters which are inside and outside of filter interval
 	})
 
 	t.Run("Get status changes", func(t *testing.T) {
@@ -244,7 +246,7 @@ func TestInventory(t *testing.T) {
 }
 
 func listStatuses(states []*State) []model.Status {
-	result := []model.Status{}
+	var result []model.Status
 	for _, state := range states {
 		result = append(result, state.Status.Status)
 	}
@@ -252,7 +254,7 @@ func listStatuses(states []*State) []model.Status {
 }
 
 func listStatusesForStatusChanges(states []*StatusChange) []model.Status {
-	result := []model.Status{}
+	var result []model.Status
 	for _, state := range states {
 		result = append(result, *state.Status)
 	}
@@ -286,6 +288,7 @@ func newCluster(t *testing.T, clusterID, clusterVersion int64) *keb.Cluster {
 	cluster.Metadata.GlobalAccountID = fmt.Sprintf("globalAccountId%d", clusterVersion)
 	cluster.KymaConfig.Profile = fmt.Sprintf("kymaProfile%d", clusterVersion)
 	cluster.KymaConfig.Version = fmt.Sprintf("kymaVersion%d", clusterVersion)
+	cluster.Kubeconfig = "fake kubeconfig"
 
 	return cluster
 }

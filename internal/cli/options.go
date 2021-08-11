@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/spf13/viper"
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/app"
@@ -11,6 +13,7 @@ import (
 
 type Options struct {
 	Verbose        bool
+	InitRegistry   bool
 	NonInteractive bool
 	OutputFormat   string
 	logger         *zap.SugaredLogger
@@ -33,11 +36,23 @@ func (o *Options) Validate() error {
 
 func (o *Options) Logger() *zap.SugaredLogger {
 	if o.logger == nil {
-		logger, err := logger.NewLogger(o.Verbose)
+		zapLogger, err := logger.NewLogger(o.Verbose)
 		if err != nil {
 			panic(err)
 		}
-		o.logger = logger
+		o.logger = zapLogger
 	}
 	return o.logger
+}
+
+func (o *Options) InitApplicationRegistry(forceInitialization bool) error {
+	if forceInitialization || o.InitRegistry {
+		dbConnFact, err := db.NewConnectionFactory(viper.ConfigFileUsed(), o.Verbose)
+		if err != nil {
+			return err
+		}
+		o.Registry, err = app.NewApplicationRegistry(dbConnFact, o.Verbose)
+		return err
+	}
+	return nil
 }

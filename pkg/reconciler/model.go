@@ -20,6 +20,11 @@ const (
 	Success    Status = "success"
 )
 
+const (
+	ManagedByLabel       = "reconciler.kyma-project.io/managed-by"
+	LabelReconcilerValue = "reconciler"
+)
+
 //Reconciliation is the model for reconciliation calls
 type Reconciliation struct {
 	ComponentsReady []string        `json:"componentsReady"`
@@ -32,8 +37,9 @@ type Reconciliation struct {
 	CallbackURL     string          `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
-	InstallCRD  bool                      `json:"-"` //CallbackFct is mandatory when component-reconciler runs embedded in another process
-	CallbackFct func(status Status) error `json:"-"`
+	InstallCRD    bool                      `json:"-"` //CallbackFct is mandatory when component-reconciler runs embedded in another process
+	CallbackFct   func(status Status) error `json:"-"`
+	CorrelationID string                    `json:"correlationID"`
 }
 
 func (r *Reconciliation) String() string {
@@ -64,6 +70,10 @@ func (r *Reconciliation) Validate() error {
 	if r.CallbackFct == nil && r.CallbackURL == "" {
 		errFields = append(errFields, "CallbackFct or CallbackURL")
 	}
+	r.CorrelationID = strings.TrimSpace(r.CorrelationID)
+	if r.CorrelationID == "" {
+		errFields = append(errFields, "CorrelationID")
+	}
 	//return aggregated error msg
 	var err error
 	if len(errFields) > 0 {
@@ -84,3 +94,14 @@ type HTTPMissingDependenciesResponse struct {
 		Missing  []string
 	}
 }
+
+type CallbackMessage struct {
+	Status string `json:"status"`
+}
+
+//ComponentReconciler is the model used to describe the component reconciler configuration
+type ComponentReconciler struct {
+	URL string `json:"url"`
+}
+
+type ComponentReconcilersConfig map[string]*ComponentReconciler

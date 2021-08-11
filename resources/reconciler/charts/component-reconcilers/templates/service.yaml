@@ -1,0 +1,21 @@
+{{ $global := . }}
+{{- range $component := .Values.components }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: component-reconcilers-{{ $component }}
+  labels:
+    name: component-reconcilers-{{ $component }}
+    component: {{ $component }}
+spec:
+  type: {{ $global.Values.service.type }}
+  ports:
+    - port: {{ $global.Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    name: component-reconcilers-{{ $component }}
+    component: {{ $component }}
+---
+{{- end }}

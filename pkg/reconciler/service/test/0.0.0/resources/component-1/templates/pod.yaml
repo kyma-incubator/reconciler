@@ -1,8 +1,14 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: unittest-service
+---
 apiVersion: v1
 kind: Pod
 metadata:
   name: dummy-pod
-  namespace: default
+  namespace: unittest-service
 spec:
   containers:
     - name: dummy-pod

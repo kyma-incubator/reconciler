@@ -5,6 +5,7 @@ type Cluster struct {
 	RuntimeInput RuntimeInput `json:"runtimeInput"`
 	KymaConfig   KymaConfig   `json:"kymaConfig"`
 	Metadata     Metadata     `json:"metadata"`
+	Kubeconfig   string       `json:"kubeconfig"`
 }
 
 type RuntimeInput struct {

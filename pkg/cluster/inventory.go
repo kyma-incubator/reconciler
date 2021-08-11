@@ -85,7 +85,7 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 		Cluster:    cluster.Cluster,
 		Runtime:    string(runtime),
 		Metadata:   string(metadata),
-		Kubeconfig: "fixme", //TODO: use correct model field as soon as kubeconfig is provided
+		Kubeconfig: cluster.Kubeconfig,
 		Contract:   contractVersion,
 	}
 
@@ -388,7 +388,7 @@ func (i *DefaultInventory) latestCluster(cluster string) (*model.ClusterEntity, 
 }
 
 func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
-	filters := []statusSQLFilter{}
+	var filters []statusSQLFilter
 	if reconcileInterval > 0 {
 		filters = append(filters, &reconcileIntervalFilter{
 			reconcileInterval: reconcileInterval,
@@ -480,7 +480,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	}
 
 	//retreive clusters which require a reconciliation
-	result := []*State{}
+	var result []*State
 	for _, clusterConfig := range clusterConfigs {
 		clusterConfigEntity := clusterConfig.(*model.ClusterConfigurationEntity)
 		state, err := i.Get(clusterConfigEntity.Cluster, clusterConfigEntity.Version)

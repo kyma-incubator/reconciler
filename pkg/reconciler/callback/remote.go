@@ -8,24 +8,16 @@ import (
 	"net/http/httputil"
 	"net/url"
 
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"go.uber.org/zap"
 )
 
 type RemoteCallbackHandler struct {
 	logger      *zap.SugaredLogger
-	debug       bool
 	callbackURL string
 }
 
-func NewRemoteCallbackHandler(callbackURL string, debug bool) (Handler, error) {
-	//create logger
-	logger, err := log.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
-
+func NewRemoteCallbackHandler(callbackURL string, logger *zap.SugaredLogger) (Handler, error) {
 	//validate URL
 	if callbackURL != "" { //empty URLs are allowed (used in some test cases)
 		if _, err := url.ParseRequestURI(callbackURL); err != nil {
@@ -36,7 +28,6 @@ func NewRemoteCallbackHandler(callbackURL string, debug bool) (Handler, error) {
 	//return new remote callback
 	return &RemoteCallbackHandler{
 		logger:      logger,
-		debug:       debug,
 		callbackURL: callbackURL,
 	}, nil
 }
@@ -56,14 +47,12 @@ func (cb *RemoteCallbackHandler) Callback(status reconciler.Status) error {
 
 	resp, err := http.Post(cb.callbackURL, "application/json", bytes.NewBuffer(requestBody))
 
-	//dump request
-	if cb.debug {
-		dumpResp, dumpErr := httputil.DumpResponse(resp, true)
-		if err == nil {
-			cb.logger.Debugf("Response dump: %s", string(dumpResp))
-		} else {
-			cb.logger.Errorf("Failed to dump response: %s", dumpErr)
-		}
+	//dump request for debugging purposes
+	dumpResp, dumpErr := httputil.DumpResponse(resp, true)
+	if err == nil {
+		cb.logger.Debugf("HTTP response dump: %s", string(dumpResp))
+	} else {
+		cb.logger.Debugf("Failed to generate HTTP response dump: %s", dumpErr)
 	}
 
 	if err != nil {

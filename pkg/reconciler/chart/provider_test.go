@@ -2,12 +2,14 @@ package chart
 
 import (
 	"encoding/json"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"github.com/kyma-incubator/reconciler/pkg/test"
-	"gopkg.in/yaml.v3"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"gopkg.in/yaml.v3"
 
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/stretchr/testify/require"
@@ -16,10 +18,14 @@ import (
 func TestProvider(t *testing.T) {
 	t.Parallel()
 
+	log, err := logger.NewLogger(true)
+	require.NoError(t, err)
+
 	wsFactory := &workspace.Factory{
 		StorageDir: "./test",
+		Logger:     log,
 	}
-	prov, err := NewProvider(wsFactory, true)
+	prov, err := NewProvider(wsFactory, log)
 	require.NoError(t, err)
 
 	t.Run("Convert dot-notated configuration keys to a nested map", func(t *testing.T) {

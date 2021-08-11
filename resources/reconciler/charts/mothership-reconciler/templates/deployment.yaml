@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+  {{- include "mothership-reconciler.labels" . | nindent 4 }}
+  name: mothership-reconciler
+spec:
+  selector:
+    matchLabels:
+    {{- include "mothership-reconciler.labels" . | nindent 6 }}
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+      {{- include "mothership-reconciler.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.podSecurityContext }}
+      securityContext:
+      {{ toYaml .Values.podSecurityContext | indent 8 }}
+      {{- end }}
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range .Values.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
+      containers:
+      - image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
+        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        args:
+          - reconciler
+          - service
+          - start
+          - --reconcilers=configs/component-reconcilers.json
+          - -r
+        name: mothership-reconciler
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        resources:
+        {{ toYaml .Values.resources | indent 10 }}
+        {{- if .Values.securityContext }}
+        securityContext:
+        {{ toYaml .Values.securityContext | indent 10 }}
+        {{- end }}
+        env:
+          - name: RECONCILER_DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-reconciler-username
+          - name: RECONCILER_DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-reconciler-password
+          - name: RECONCILER_DATABASE_HOST
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-serviceName
+          - name: RECONCILER_DATABASE_PORT
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-servicePort
+          - name: RECONCILER_DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: reconciler-postgresql
+                key: postgresql-reconciler-db-name
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+      {{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+      {{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{ toYaml . | indent 8 }}
+      {{- end }}

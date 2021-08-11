@@ -27,7 +27,7 @@ func (cb *ClientBuilder) WithString(kubeconfig string) *ClientBuilder {
 	return cb
 }
 
-func (cb *ClientBuilder) Build() (*kubernetes.Clientset, error) {
+func (cb *ClientBuilder) Build() (kubernetes.Interface, error) {
 	if cb.err != nil {
 		return nil, cb.err
 	}
