@@ -32,6 +32,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 		o.Registry.Inventory(),
 		reconcilersCfg,
 		o.Registry.OperationsRegistry(),
+		&scheduler.RemoteReconcilerInvoker{},
 		o.Verbose,
 	)
 	if err != nil {
