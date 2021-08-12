@@ -27,7 +27,7 @@ func init() {
 			Namespace: "kyma-system",
 		},
 		{
-			Name:      "dexx-virtualservice",
+			Name:      "dex-virtualservice",
 			Namespace: "kyma-system",
 		},
 	}
