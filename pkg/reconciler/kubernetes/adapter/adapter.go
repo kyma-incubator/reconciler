@@ -155,6 +155,7 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 			resource, err := g.kubeClient.ApplyWithNamespaceOverride(&unstruct, namespace)
 			if err != nil {
 				g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
+				g.logger.Debugf("Used JSON data: %+v", unstruct)
 				return deployedResources, err
 			}
 
