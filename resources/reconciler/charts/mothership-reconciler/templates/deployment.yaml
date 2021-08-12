@@ -4,6 +4,7 @@ metadata:
   labels:
   {{- include "mothership-reconciler.labels" . | nindent 4 }}
   name: mothership-reconciler
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
