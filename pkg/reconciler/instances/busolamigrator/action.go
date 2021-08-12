@@ -1,4 +1,4 @@
-package busola
+package busolamigrator
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/rest"
 	"net/url"
 	"strings"
@@ -25,21 +26,21 @@ type VirtualSvcMeta struct {
 	Namespace string
 }
 
-type VirtualServicePreInstallPatch struct {
+type VirtSvcPreReconcilePatch struct {
 	name            string
 	virtSvcsToPatch []VirtualSvcMeta
 	suffix          string
 	virtSvcClient   VirtSvcClient
 }
 
-var _ service.Action = &VirtualServicePreInstallPatch{}
+var _ service.Action = &VirtSvcPreReconcilePatch{}
 
-func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix string) *VirtualServicePreInstallPatch {
+func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix string) *VirtSvcPreReconcilePatch {
 	client := NewVirtSvcClient()
-	return &VirtualServicePreInstallPatch{"pre-reconciler", virtualSvcs, suffix, client}
+	return &VirtSvcPreReconcilePatch{"pre-reconciler", virtualSvcs, suffix, client}
 }
 
-func (p *VirtualServicePreInstallPatch) Run(version string, profile string, configuration []reconciler.Configuration, helper *service.ActionContext) error {
+func (p *VirtSvcPreReconcilePatch) Run(version string, profile string, configuration []reconciler.Configuration, helper *service.ActionContext) error {
 	ctx := context.TODO()
 	logger := helper.Logger
 	clientSet, err := helper.KubeClient.Clientset()
@@ -60,9 +61,13 @@ func (p *VirtualServicePreInstallPatch) Run(version string, profile string, conf
 	return nil
 }
 
-func (p *VirtualServicePreInstallPatch) patchVirtSvc(ctx context.Context, kubeRestClient rest.Interface, name, namespace string, logger *zap.SugaredLogger) error {
+func (p *VirtSvcPreReconcilePatch) patchVirtSvc(ctx context.Context, kubeRestClient rest.Interface, name, namespace string, logger *zap.SugaredLogger) error {
 	hosts, err := p.virtSvcClient.GetVirtSvcHosts(ctx, kubeRestClient, name, namespace)
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			logger.Infof("Given virtual service: %s in namespace: %s not found, which is okay", name, namespace)
+			return nil
+		}
 		return errors.Wrapf(err, "while getting virtual service: %s, in namespace: %s", name, namespace)
 	}
 

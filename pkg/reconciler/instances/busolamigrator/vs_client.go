@@ -1,4 +1,4 @@
-package busola
+package busolamigrator
 
 import (
 	"context"
@@ -46,7 +46,6 @@ func (c *client) GetVirtSvcHosts(ctx context.Context, restClient rest.Interface,
 	if err != nil {
 		return nil, err
 	}
-
 	var virtSvc virtSvc
 	if err := json.Unmarshal(r, &virtSvc); err != nil {
 		return nil, errors.Wrap(err, "while unmarshalling virtual service")

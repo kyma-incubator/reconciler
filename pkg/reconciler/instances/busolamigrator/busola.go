@@ -1,4 +1,4 @@
-package busola
+package busolamigrator
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -27,7 +27,7 @@ func init() {
 			Namespace: "kyma-system",
 		},
 		{
-			Name:      "dex-virtualservice",
+			Name:      "dexx-virtualservice",
 			Namespace: "kyma-system",
 		},
 	}
@@ -35,9 +35,9 @@ func init() {
 	//configure reconciler
 	reconciler.
 		//list dependencies (these components have to be available before this component reconciler is able to run)
-		WithDependencies("istio", "dex", "console").
+		WithDependencies("istio").
 		//register reconciler pre-action (executed BEFORE reconciliation happens)
-		WithPreReconcileAction(&VirtualServicePreInstallPatch{
+		WithPreReconcileAction(&VirtSvcPreReconcilePatch{
 			name:            "pre-action",
 			virtSvcsToPatch: virtSvcs,
 			suffix:          "-old",

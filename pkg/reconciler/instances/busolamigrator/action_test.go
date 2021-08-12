@@ -1,4 +1,4 @@
-package busola
+package busolamigrator
 
 import (
 	"context"
@@ -64,6 +64,12 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 				return &http.Response{StatusCode: http.StatusForbidden}
 			},
 			ExpectedError: errors.New("while patching virtual service"),
+		},
+		{
+			Name: "Virtual service not exist",
+			GetVirtSvcFn: func(t *testing.T) *http.Response {
+				return &http.Response{StatusCode: http.StatusNotFound}
+			},
 		},
 		{
 			Name: "Getting of virtual service failed",
