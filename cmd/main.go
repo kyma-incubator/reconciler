@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	cfgCmd "github.com/kyma-incubator/reconciler/cmd/config"
+	msCmd "github.com/kyma-incubator/reconciler/cmd/mothership"
 	rclCmd "github.com/kyma-incubator/reconciler/cmd/reconciler"
-	svcCmd "github.com/kyma-incubator/reconciler/cmd/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/cobra"
@@ -30,7 +30,7 @@ func main() {
 		"Command line tool to administrate the Kyma reconciler system")
 
 	cmd.AddCommand(cfgCmd.NewCmd(o))
-	cmd.AddCommand(svcCmd.NewCmd(o))
+	cmd.AddCommand(msCmd.NewCmd(o))
 	cmd.AddCommand(rclCmd.NewCmd(o))
 
 	if err := cmd.Execute(); err != nil {

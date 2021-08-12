@@ -20,17 +20,17 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	}
 
 	//register get commands
-	getCmd := getCmd.NewCmd(o)
-	cmd.AddCommand(getCmd)
-	getCmd.AddCommand(getBucketCmd.NewCmd(o))
-	getCmd.AddCommand(getKeyCmd.NewCmd(getKeyCmd.NewOptions(o)))
-	getCmd.AddCommand(getValueCmd.NewCmd(getValueCmd.NewOptions(o)))
+	getCommand := getCmd.NewCmd(o)
+	cmd.AddCommand(getCommand)
+	getCommand.AddCommand(getBucketCmd.NewCmd(o))
+	getCommand.AddCommand(getKeyCmd.NewCmd(getKeyCmd.NewOptions(o)))
+	getCommand.AddCommand(getValueCmd.NewCmd(getValueCmd.NewOptions(o)))
 
 	//register create commands
-	createCmd := createCmd.NewCmd(o)
-	cmd.AddCommand(createCmd)
-	createCmd.AddCommand(createKeyCmd.NewCmd(createKeyCmd.NewOptions(o)))
-	createCmd.AddCommand(createValueCmd.NewCmd(createValueCmd.NewOptions(o)))
+	createCommand := createCmd.NewCmd(o)
+	cmd.AddCommand(createCommand)
+	createCommand.AddCommand(createKeyCmd.NewCmd(createKeyCmd.NewOptions(o)))
+	createCommand.AddCommand(createValueCmd.NewCmd(createValueCmd.NewOptions(o)))
 
 	return cmd
 }

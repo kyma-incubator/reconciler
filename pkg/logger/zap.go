@@ -6,13 +6,14 @@ import (
 )
 
 func NewLogger(debug bool) (*zap.SugaredLogger, error) {
+	logLevel := zapcore.InfoLevel
 	if debug {
-		logger, err := zap.NewDevelopment()
-		return logger.Sugar(), err
+		logLevel = zapcore.DebugLevel
 	}
+
 	cfg := zap.Config{
 		Encoding:         "console",
-		Level:            zap.NewAtomicLevelAt(zapcore.DebugLevel),
+		Level:            zap.NewAtomicLevelAt(logLevel),
 		OutputPaths:      []string{"stderr"},
 		ErrorOutputPaths: []string{"stderr"},
 		EncoderConfig: zapcore.EncoderConfig{

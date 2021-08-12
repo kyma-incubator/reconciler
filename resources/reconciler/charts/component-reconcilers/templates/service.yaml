@@ -1,9 +1,10 @@
 {{ $global := . }}
-{{- range $component := .Values.components }}
+{{- range $component := .Values.global.components }}
 apiVersion: v1
 kind: Service
 metadata:
   name: component-reconcilers-{{ $component }}
+  namespace: {{ $global.Release.Namespace }}
   labels:
     name: component-reconcilers-{{ $component }}
     component: {{ $component }}

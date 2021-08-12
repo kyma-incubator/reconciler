@@ -4,7 +4,6 @@ package kubeclient
 
 import (
 	"context"
-	"encoding/base64"
 	"strings"
 
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -26,40 +25,31 @@ import (
 )
 
 type KubeClient struct {
-	Base64KubeConfig string
-	DynamicClient    dynamic.Interface
-	Config           *rest.Config
-	Mapper           *restmapper.DeferredDiscoveryRESTMapper
+	dynamicClient dynamic.Interface
+	config        *rest.Config
+	mapper        *restmapper.DeferredDiscoveryRESTMapper
 }
 
 func NewKubeClient(kubeconfig string) (*KubeClient, error) {
-	base64kubeConfig := base64.StdEncoding.EncodeToString([]byte(kubeconfig))
-	client := KubeClient{
-		Base64KubeConfig: base64kubeConfig,
-	}
-	dynamicClient, err := client.getDynamicClient()
+	config, err := getRestConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
-	client.DynamicClient = dynamicClient
 
-	restClient, err := client.getDiscoveryMapper()
+	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	client.Mapper = restClient
 
-	config, err := client.buildRestConfig()
+	mapper, err := getDiscoveryMapper(config)
 	if err != nil {
 		return nil, err
 	}
-	client.Config = config
 
 	return &KubeClient{
-		Base64KubeConfig: base64kubeConfig,
-		DynamicClient:    dynamicClient,
-		Config:           config,
-		Mapper:           restClient,
+		dynamicClient: dynamicClient,
+		config:        config,
+		mapper:        mapper,
 	}, nil
 }
 
@@ -76,15 +66,15 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 	metadata := &k8s.Resource{}
 	gvk := u.GroupVersionKind()
 
-	restMapping, err := kube.Mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return metadata, err
 	}
 
 	gv := gvk.GroupVersion()
-	kube.Config.GroupVersion = &gv
+	kube.config.GroupVersion = &gv
 
-	restClient, err := newRestClient(*kube.Config, gv)
+	restClient, err := newRestClient(*kube.config, gv)
 	if err != nil {
 		return metadata, err
 	}
@@ -152,15 +142,11 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 }
 
 func (kube *KubeClient) GetClientSet() (*kubernetes.Clientset, error) {
-	restConfig, err := kube.buildRestConfig()
-	if err != nil {
-		return nil, errors.Wrap(err, "build restConfig failed")
-	}
-	return kubernetes.NewForConfig(restConfig)
+	return kubernetes.NewForConfig(kube.config)
 }
 
 func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*k8s.Resource, error) {
-	gvk, err := kube.Mapper.KindFor(schema.GroupVersionResource{
+	gvk, err := kube.mapper.KindFor(schema.GroupVersionResource{
 		Resource: kind,
 	})
 	if err != nil {
@@ -173,12 +159,12 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 		namespace = "default"
 	}
 
-	restMapping, err := kube.Mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return nil, err
 	}
 
-	restClient, err := newRestClient(*kube.Config, gvk.GroupVersion())
+	restClient, err := newRestClient(*kube.config, gvk.GroupVersion())
 	if err != nil {
 		return nil, err
 	}
@@ -186,12 +172,12 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 	helper := resource.NewHelper(restClient, restMapping)
 
 	if helper.NamespaceScoped {
-		err = kube.DynamicClient.
+		err = kube.dynamicClient.
 			Resource(restMapping.Resource).
 			Namespace(namespace).
 			Delete(context.TODO(), name, do)
 	} else {
-		err = kube.DynamicClient.
+		err = kube.dynamicClient.
 			Resource(restMapping.Resource).
 			Delete(context.TODO(), name, do)
 	}
@@ -210,17 +196,17 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 // Get a manifest by resource/kind (example: 'pods' or 'pod'),
 // name (example: 'my-pod'), and namespace (example: 'my-namespace').
 func (kube *KubeClient) Get(kind, name, namespace string) (*unstructured.Unstructured, error) {
-	gvk, err := kube.Mapper.KindFor(schema.GroupVersionResource{Resource: kind})
+	gvk, err := kube.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
 	if err != nil {
 		return nil, err
 	}
 
-	restMapping, err := kube.Mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return nil, err
 	}
 
-	restClient, err := newRestClient(*kube.Config, gvk.GroupVersion())
+	restClient, err := newRestClient(*kube.config, gvk.GroupVersion())
 	if err != nil {
 		return nil, err
 	}
@@ -229,12 +215,12 @@ func (kube *KubeClient) Get(kind, name, namespace string) (*unstructured.Unstruc
 
 	helper := resource.NewHelper(restClient, restMapping)
 	if helper.NamespaceScoped {
-		u, err = kube.DynamicClient.
+		u, err = kube.dynamicClient.
 			Resource(restMapping.Resource).
 			Namespace(namespace).
 			Get(context.TODO(), name, metav1.GetOptions{})
 	} else {
-		u, err = kube.DynamicClient.
+		u, err = kube.dynamicClient.
 			Resource(restMapping.Resource).
 			Get(context.TODO(), name, metav1.GetOptions{})
 	}
@@ -242,18 +228,13 @@ func (kube *KubeClient) Get(kind, name, namespace string) (*unstructured.Unstruc
 	return u, err
 }
 
-func (kube *KubeClient) GVRForKind(kind string) (schema.GroupVersionResource, error) {
-	return kube.Mapper.ResourceFor(schema.GroupVersionResource{Resource: kind})
-}
-
 // ListResource lists all resources by their kind or resource (e.g. "replicaset" or "replicasets").
 func (kube *KubeClient) ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
-	gvr, err := kube.GVRForKind(resource)
+	gvr, err := kube.mapper.ResourceFor(schema.GroupVersionResource{Resource: resource})
 	if err != nil {
 		return nil, err
 	}
-
-	return kube.DynamicClient.Resource(gvr).List(context.TODO(), lo)
+	return kube.dynamicClient.Resource(gvr).List(context.TODO(), lo)
 }
 
 func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
@@ -269,43 +250,19 @@ func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interfa
 	return rest.RESTClientFor(&restConfig)
 }
 
-func (kube *KubeClient) getDynamicClient() (dynamic.Interface, error) {
-	restConfig, err := kube.buildRestConfig()
-	if err != nil {
-		return nil, errors.Wrap(err, "build restConfig failed")
-	}
-
-	return dynamic.NewForConfig(restConfig)
-}
-
-func (kube *KubeClient) getDiscoveryMapper() (*restmapper.DeferredDiscoveryRESTMapper, error) {
-	restConfig, err := kube.buildRestConfig()
-	if err != nil {
-		return nil, errors.Wrap(err, "build restConfig failed")
-	}
-
+func getDiscoveryMapper(restConfig *rest.Config) (*restmapper.DeferredDiscoveryRESTMapper, error) {
 	// Prepare a RESTMapper to find GVR
 	dc, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
-		return nil, errors.Wrap(err, "new dc failed")
+		return nil, errors.Wrap(err, "Failed to create new discovery client")
 	}
 
 	discoveryMapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(dc))
 	return discoveryMapper, nil
 }
 
-func (kube *KubeClient) buildRestConfig() (resetConfig *rest.Config, err error) {
-	kubeConfig, err := base64.StdEncoding.DecodeString(kube.Base64KubeConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	conf, err := clientcmd.BuildConfigFromKubeconfigGetter("", func() (config *clientcmdapi.Config, e error) {
-		return clientcmd.Load(kubeConfig)
+func getRestConfig(kubeconfig string) (*rest.Config, error) {
+	return clientcmd.BuildConfigFromKubeconfigGetter("", func() (config *clientcmdapi.Config, e error) {
+		return clientcmd.Load([]byte(kubeconfig))
 	})
-
-	if err != nil {
-		return nil, err
-	}
-	return conf, nil
 }

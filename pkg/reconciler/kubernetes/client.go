@@ -6,7 +6,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 type Resource struct {
@@ -24,8 +23,8 @@ type ResourceInterceptor interface {
 }
 
 type Client interface {
+	Kubeconfig() string
 	Deploy(ctx context.Context, manifest, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error)
 	Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error)
 	Clientset() (kubernetes.Interface, error)
-	Config() *rest.Config
 }

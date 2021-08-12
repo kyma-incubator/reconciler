@@ -4,6 +4,7 @@ metadata:
   labels:
   {{- include "mothership-reconciler.labels" . | nindent 4 }}
   name: mothership-reconciler
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -24,15 +25,51 @@ spec:
         - name: {{ . }}
       {{- end }}
       {{- end }}
+      initContainers:
+      - image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
+        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        name: migrate
+        args:
+          - migrate
+          - -database
+          - "postgres://$(RECONCILER_DATABASE_USER):$(RECONCILER_DATABASE_PASSWORD)@$(RECONCILER_DATABASE_HOST):$(RECONCILER_DATABASE_PORT)/$(RECONCILER_DATABASE_NAME)?sslmode=disable"
+          - -path 
+          - "configs/db/postgres" 
+          - up
+        env:
+        - name: RECONCILER_DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-reconciler-username
+        - name: RECONCILER_DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-reconciler-password
+        - name: RECONCILER_DATABASE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-serviceName
+        - name: RECONCILER_DATABASE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-servicePort
+        - name: RECONCILER_DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-reconciler-db-name
       containers:
       - image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         args:
           - reconciler
-          - service
+          - mothership
           - start
-          - --reconcilers=configs/component-reconcilers.json
-          - -r
+          - --reconcilers=configuration/component-reconcilers.json
         name: mothership-reconciler
         ports:
         - name: http
@@ -45,31 +82,38 @@ spec:
         {{ toYaml .Values.securityContext | indent 10 }}
         {{- end }}
         env:
-          - name: RECONCILER_DATABASE_USER
-            valueFrom:
-              secretKeyRef:
-                name: reconciler-postgresql
-                key: postgresql-reconciler-username
-          - name: RECONCILER_DATABASE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: reconciler-postgresql
-                key: postgresql-reconciler-password
-          - name: RECONCILER_DATABASE_HOST
-            valueFrom:
-              secretKeyRef:
-                name: reconciler-postgresql
-                key: postgresql-serviceName
-          - name: RECONCILER_DATABASE_PORT
-            valueFrom:
-              secretKeyRef:
-                name: reconciler-postgresql
-                key: postgresql-servicePort
-          - name: RECONCILER_DATABASE_NAME
-            valueFrom:
-              secretKeyRef:
-                name: reconciler-postgresql
-                key: postgresql-reconciler-db-name
+        - name: RECONCILER_DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-reconciler-username
+        - name: RECONCILER_DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-reconciler-password
+        - name: RECONCILER_DATABASE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-serviceName
+        - name: RECONCILER_DATABASE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-servicePort
+        - name: RECONCILER_DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: reconciler-postgresql
+              key: postgresql-reconciler-db-name
+        volumeMounts:
+        - name: mothership-reconciler-configuration
+          mountPath: "/configuration"
+      volumes:
+      - name: mothership-reconciler-configuration
+        configMap:
+          name: mothership-reconciler
       {{- with .Values.nodeSelector }}
       nodeSelector:
       {{ toYaml . | indent 8 }}
