@@ -28,11 +28,10 @@ func startScheduler(ctx context.Context, o *Options) error {
 		return err
 	}
 
-	workerFactory, err := scheduler.NewWorkersFactory(
+	workerFactory, err := scheduler.NewRemoteWorkerFactory(
 		o.Registry.Inventory(),
 		reconcilersCfg,
 		o.Registry.OperationsRegistry(),
-		&scheduler.RemoteReconcilerInvoker{},
 		o.Verbose,
 	)
 	if err != nil {

@@ -24,43 +24,6 @@ type ReconciliationWorker interface {
 	Reconcile(component *keb.Components, state cluster.State, schedulingID string) error
 }
 
-type WorkersFactory struct {
-	inventory      cluster.Inventory
-	reconcilersCfg reconciler.ComponentReconcilersConfig
-	operationsReg  OperationsRegistry
-	invoker        ReconcilerInvoker
-	logger         *zap.SugaredLogger
-	debug          bool
-}
-
-func NewWorkersFactory(inventory cluster.Inventory, reconcilersCfg reconciler.ComponentReconcilersConfig, operationsReg OperationsRegistry, invoker ReconcilerInvoker, debug bool) (*WorkersFactory, error) {
-	log, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
-	return &WorkersFactory{
-		inventory,
-		reconcilersCfg,
-		operationsReg,
-		invoker,
-		log,
-		debug,
-	}, nil
-}
-
-func (wf *WorkersFactory) ForComponent(component string) (ReconciliationWorker, error) {
-	reconcilerCfg, ok := wf.reconcilersCfg[component]
-	if !ok {
-		wf.logger.Debugf("No reconciler for component %s, using default", component)
-		reconcilerCfg = wf.reconcilersCfg[DefaultReconciler]
-	}
-
-	if reconcilerCfg == nil {
-		return nil, fmt.Errorf("No reconciler found for component %s", component)
-	}
-	return NewWorker(reconcilerCfg, wf.inventory, wf.operationsReg, wf.invoker, wf.debug)
-}
-
 type Worker struct {
 	correlationID string
 	config        *reconciler.ComponentReconciler

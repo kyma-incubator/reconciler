@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -23,13 +24,13 @@ type Scheduler interface {
 
 type RemoteScheduler struct {
 	inventoryWatch InventoryWatcher
-	workerFactory  *WorkersFactory
+	workerFactory  WorkerFactory
 	poolSize       int
 	logger         *zap.SugaredLogger
 }
 
-func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory *WorkersFactory, workers int, debug bool) (Scheduler, error) {
-	logger, err := logger.NewLogger(debug)
+func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFactory, workers int, debug bool) (Scheduler, error) {
+	l, err := logger.NewLogger(false)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +38,7 @@ func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory *WorkersF
 		inventoryWatch: inventoryWatch,
 		workerFactory:  workerFactory,
 		poolSize:       workers,
-		logger:         logger,
+		logger:         l,
 	}, nil
 }
 
@@ -115,12 +116,50 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 	}
 }
 
-// func NewLocalScheduler() (Scheduler, error) {
-// 	return &LocalScheduler{}, nil
-// }
+type LocalScheduler struct {
+	clusterState  cluster.State
+	workerFactory WorkerFactory
+	logger        *zap.SugaredLogger
+}
 
-// type LocalScheduler struct{}
+func NewLocalScheduler(cs cluster.State) (Scheduler, error) {
+	l, err := logger.NewLogger(false)
+	if err != nil {
+		return nil, err
+	}
+	return &LocalScheduler{
+		clusterState: cs,
+		logger:       l,
+	}, nil
+}
 
-// func (ls *LocalScheduler) Run() {
+func (ls *LocalScheduler) Run(ctx context.Context) error {
+	schedulingID := uuid.NewString()
 
-// }
+	components, err := ls.clusterState.Configuration.GetComponents()
+	if err != nil {
+		return fmt.Errorf("failed to get components: %s", err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(components))
+
+	for _, component := range components {
+		worker, err := ls.workerFactory.ForComponent(component.Component)
+		if err != nil {
+			return fmt.Errorf("failed to create a: %s", err)
+		}
+
+		go func(component *keb.Components, state cluster.State, schedulingID string) {
+			defer wg.Done()
+			err := worker.Reconcile(component, state, schedulingID)
+			if err != nil {
+				ls.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+			}
+		}(component, ls.clusterState, schedulingID)
+	}
+
+	wg.Wait()
+
+	return nil
+}
