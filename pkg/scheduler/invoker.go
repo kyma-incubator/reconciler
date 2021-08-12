@@ -104,7 +104,7 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 		Profile:         params.ClusterState.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
 		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
-		CallbackFct: func(status reconciler.Status) error {
+		CallbackFunc: func(status reconciler.Status) error {
 			var err error
 			switch status {
 			case reconciler.NotStarted, reconciler.Running:
