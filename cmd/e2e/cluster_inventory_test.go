@@ -26,8 +26,9 @@ const (
 )
 
 func TestReconciliation(t *testing.T) {
+	return // FIXME remove after created dedicated pipeline
 	if !test.RunExpensiveTests() {
-		//return
+		return
 	}
 	clusterInventoryUrl := inventoryUrl()
 	registerClusterUrl := clusterInventoryUrl
