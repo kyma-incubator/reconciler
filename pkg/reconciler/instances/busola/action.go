@@ -1,16 +1,17 @@
-package busolamigrator
+package busola
 
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/rest"
-	"net/url"
-	"strings"
 )
 
 type virtualServicePatch struct {

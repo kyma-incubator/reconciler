@@ -1,8 +1,9 @@
-package busolamigrator
+package busola
 
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
