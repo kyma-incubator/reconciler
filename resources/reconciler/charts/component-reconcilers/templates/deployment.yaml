@@ -4,20 +4,20 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    name: component-reconcilers-{{ $component }}
+    kyma-project.io/component-reconciler: ""
     component: {{ $component }}
-  name: component-reconcilers-{{ $component }}
+  name: {{ $component }}-reconciler
   namespace: {{ $global.Release.Namespace }}
 spec:
   selector:
     matchLabels:
-      name: component-reconcilers-{{ $component }}
+      kyma-project.io/component-reconciler: ""
       component: {{ $component }}
   replicas: 1
   template:
     metadata:
       labels:
-        name: component-reconcilers-{{ $component }}
+        kyma-project.io/component-reconciler: ""
         component: {{ $component }}
     spec:
       containers:
@@ -28,7 +28,7 @@ spec:
           - reconciler
           - start
           - {{ $component }}
-        name: component-reconcilers
+        name: reconciler
         ports:
         - name: http
           containerPort: 8080
