@@ -7,4 +7,6 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/base"
 	//import required to register component reconciler 'istio' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
+	//import required to register component reconciler 'simpleTestComponent' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/simpleTestComponent"
 )
