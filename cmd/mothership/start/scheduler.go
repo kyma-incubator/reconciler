@@ -38,7 +38,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 		return err
 	}
 
-	scheduler, err := scheduler.NewRemoteScheduler(
+	remoteScheduler, err := scheduler.NewRemoteScheduler(
 		inventoryWatch,
 		workerFactory,
 		o.Workers,
@@ -48,19 +48,19 @@ func startScheduler(ctx context.Context, o *Options) error {
 		return err
 	}
 
-	return scheduler.Run(ctx)
+	return remoteScheduler.Run(ctx)
 }
 
 func parseComponentReconcilersConfig(path string) (reconciler.ComponentReconcilersConfig, error) {
 	serialized, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Error while reading component reconcilers configuration: %s", err)
+		return nil, fmt.Errorf("error while reading component reconcilers configuration: %s", err)
 	}
 
 	var config reconciler.ComponentReconcilersConfig
 	err = json.Unmarshal(serialized, &config)
 	if err != nil {
-		return nil, fmt.Errorf("Error while unmarshaling component reconcilers configuration: %s", err)
+		return nil, fmt.Errorf("error while unmarshaling component reconcilers configuration: %s", err)
 	}
 
 	return config, nil

@@ -11,19 +11,18 @@ import (
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
-
-	"github.com/pkg/errors"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	yamlToJson "sigs.k8s.io/yaml"
 )
 
 type kubeClientAdapter struct {
+	kubeconfig string
 	kubeClient kubeclient.KubeClient
 	logger     *zap.SugaredLogger
 	config     *Config
@@ -46,10 +45,15 @@ func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *C
 	}
 
 	return &kubeClientAdapter{
+		kubeconfig: kubeconfig,
 		kubeClient: *client,
 		logger:     logger,
 		config:     config,
 	}, nil
+}
+
+func (g *kubeClientAdapter) Kubeconfig() string {
+	return g.kubeconfig
 }
 
 func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace string, interceptors ...k8s.ResourceInterceptor) ([]*k8s.Resource, error) {
@@ -151,6 +155,7 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 			resource, err := g.kubeClient.ApplyWithNamespaceOverride(&unstruct, namespace)
 			if err != nil {
 				g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
+				g.logger.Debugf("Used JSON data: %+v", unstruct)
 				return deployedResources, err
 			}
 
@@ -251,10 +256,6 @@ func (g *kubeClientAdapter) newProgressTracker() (*progress.Tracker, error) {
 
 func (g *kubeClientAdapter) Clientset() (kubernetes.Interface, error) {
 	return g.kubeClient.GetClientSet()
-}
-
-func (g *kubeClientAdapter) Config() *rest.Config {
-	return g.kubeClient.Config
 }
 
 func asyncReadYaml(data []byte) (<-chan []byte, <-chan error) {

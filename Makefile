@@ -47,6 +47,7 @@ docker-push:
 
 .PHONY: deploy
 deploy:
+	kubectl create namespace reconciler --dry-run=client -o yaml | kubectl apply -f -
 	helm template reconciler --namespace reconciler --set "global.components={$(COMPONENTS)}" ./resources/reconciler > reconciler.yaml
 	kubectl apply -f reconciler.yaml
 	rm reconciler.yaml

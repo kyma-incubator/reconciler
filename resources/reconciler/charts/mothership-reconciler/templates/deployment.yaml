@@ -4,6 +4,7 @@ metadata:
   labels:
   {{- include "mothership-reconciler.labels" . | nindent 4 }}
   name: mothership-reconciler
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -66,7 +67,7 @@ spec:
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         args:
           - reconciler
-          - service
+          - mothership
           - start
           - --reconcilers=configuration/component-reconcilers.json
         name: mothership-reconciler
