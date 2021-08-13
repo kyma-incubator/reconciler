@@ -210,7 +210,7 @@ func (w *Worker) send(component *keb.Components, state cluster.State, scheduling
 		Profile:         state.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(component.Configuration),
 		Kubeconfig:      state.Cluster.Kubeconfig,
-		CallbackURL:     fmt.Sprintf("http://%s:%d/v1/operations/%s/callback/%s", w.mothershipHost, w.mothershipPort, schedulingID, w.correlationID), // TODO: parametrize the URL
+		CallbackURL:     fmt.Sprintf("http://%s:%d/v1/operations/%s/callback/%s", w.mothershipHost, w.mothershipPort, schedulingID, w.correlationID),
 		InstallCRD:      false,
 		CorrelationID:   w.correlationID,
 	}
