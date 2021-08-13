@@ -1,11 +1,12 @@
 package test
 
 import (
-	file "github.com/kyma-incubator/reconciler/pkg/files"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/stretchr/testify/require"
 )
 
 func ReadKubeconfig(t *testing.T) string {

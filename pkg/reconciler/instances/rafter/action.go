@@ -15,7 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	clientgo "k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -35,16 +35,6 @@ type rafterValues struct {
 }
 
 func (a *CustomAction) Run(version, profile string, config []reconciler.Configuration, svcCtx *service.ActionContext) error {
-
-	if err := a.ensureRafterSecret(svcCtx, version); err != nil {
-		return errors.Wrap(err, "failed to ensure Rafter secret")
-	}
-	svcCtx.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, version)
-
-	return nil
-}
-
-func (a *CustomAction) ensureRafterSecret(svcCtx *service.ActionContext, version string) error {
 	values, err := readRafterControllerValues(svcCtx, version)
 	if err != nil {
 		return errors.Wrap(err, "failed to read Rafter controller `values.yaml` file")
@@ -58,10 +48,19 @@ func (a *CustomAction) ensureRafterSecret(svcCtx *service.ActionContext, version
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	_, err = kubeClient.CoreV1().Secrets(rafterNamespace).Get(svcCtx.Context, rafterSecretName, metav1.GetOptions{})
+	if err := a.ensureRafterSecret(svcCtx.Context, kubeClient, values); err != nil {
+		return errors.Wrap(err, "failed to ensure Rafter secret")
+	}
+	svcCtx.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, version)
+
+	return nil
+}
+
+func (a *CustomAction) ensureRafterSecret(ctx context.Context, kubeClient clientgo.Interface, values *rafterValues) error {
+	_, err := kubeClient.CoreV1().Secrets(rafterNamespace).Get(ctx, rafterSecretName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return createRafterSecret(svcCtx.Context, rafterSecretName, values, kubeClient)
+			return createRafterSecret(ctx, rafterSecretName, values, kubeClient)
 		}
 		return errors.Wrap(err, "failed to get secret")
 	}
@@ -69,10 +68,17 @@ func (a *CustomAction) ensureRafterSecret(svcCtx *service.ActionContext, version
 	return nil
 }
 
-func createRafterSecret(ctx context.Context, secretName string, values *rafterValues, kubeClient kubernetes.Interface) error {
+func createRafterSecret(ctx context.Context, secretName string, values *rafterValues, kubeClient clientgo.Interface) error {
+	if values == nil {
+		return errors.New("rafter values is not set")
+	}
 	var err error
 	accessKey := values.AccessKey
 	secretKey := values.SecretKey
+
+	if values.ExistingSecret != "" {
+		return nil
+	}
 	if accessKey == "" {
 		if accessKey, err = randAlphaNum(20); err != nil {
 			return errors.Wrap(err, "failed to generate accessKey")
@@ -105,6 +111,11 @@ func readRafterControllerValues(ctx *service.ActionContext, version string) (*ra
 	}
 	valuesFile := filepath.Join(ws.WorkspaceDir, rafterValuesRelativePath)
 
+	return readValues(valuesFile)
+
+}
+
+func readValues(valuesFile string) (*rafterValues, error) {
 	valuesYAML, err := ioutil.ReadFile(valuesFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read Rafter controller `values.yaml` file")
