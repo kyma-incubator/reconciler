@@ -26,13 +26,16 @@ const (
 )
 
 func TestReconciliation(t *testing.T) {
-	return // FIXME remove after created dedicated pipeline
 	if !test.RunExpensiveTests() {
 		return
 	}
-	clusterInventoryUrl := inventoryUrl()
-	registerClusterUrl := clusterInventoryUrl
-	getLatestConfigClusterUrl := clusterInventoryUrl + "%s/status"
+	if true { // FIXME remove after created dedicated pipeline
+		return
+	}
+
+	clusterInventoryURL := inventoryURL()
+	registerClusterURL := clusterInventoryURL
+	getLatestConfigClusterURL := clusterInventoryURL + "%s/status"
 
 	kubeConfig, _ := os.LookupEnv(EnvKubeConfigForE2ETest)
 	tests := []TestStruct{
@@ -42,11 +45,6 @@ func TestReconciliation(t *testing.T) {
 			expectedStatus:     "ready",
 			overrideKubeConfig: kubeConfig,
 		},
-		//{
-		//	requestFile: "request/correct_simple_request.json",
-		//	delay: 2 * time.Minute,
-		//	expectedStatus: "ready",
-		//},
 		//{ FIXME uncomment after https://github.com/kyma-incubator/reconciler/issues/91
 		//	requestFile: "request/wrong_kubeconfig.json",
 		//	delay: 2 * time.Minute,
@@ -65,7 +63,7 @@ func TestReconciliation(t *testing.T) {
 		data = overrideKubeConfig(testCase.overrideKubeConfig, data)
 		requestBody := string(data)
 		reader := strings.NewReader(requestBody)
-		request, err := http.NewRequest("POST", registerClusterUrl, reader)
+		request, err := http.NewRequest("POST", registerClusterURL, reader)
 		res, err := http.DefaultClient.Do(request)
 		if err != nil {
 			t.Error(err) //Something is wrong while sending request
@@ -78,7 +76,7 @@ func TestReconciliation(t *testing.T) {
 		time.Sleep(testCase.delay)
 
 		// Get latest status
-		url := fmt.Sprintf(getLatestConfigClusterUrl, "runtimeTest")
+		url := fmt.Sprintf(getLatestConfigClusterURL, "runtimeTest")
 		request, err = http.NewRequest("GET", url, reader)
 		res, err = http.DefaultClient.Do(request)
 		if err != nil {
@@ -100,14 +98,14 @@ func TestReconciliation(t *testing.T) {
 func overrideKubeConfig(overrideKubeConfig string, data []byte) []byte {
 	if overrideKubeConfig != "" {
 		m := make(map[string]interface{})
-		json.Unmarshal(data, &m)
+		_ = json.Unmarshal(data, &m)
 		m["kubeConfig"] = overrideKubeConfig
 		data, _ = json.Marshal(m)
 	}
 	return data
 }
 
-func inventoryUrl() string {
+func inventoryURL() string {
 	host, ok := os.LookupEnv(EnvHostForE2ETest)
 	if !ok {
 		host = "localhost"

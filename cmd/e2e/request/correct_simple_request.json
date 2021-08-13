@@ -14,7 +14,7 @@
     "profile": "Production",
     "components": [
       {
-        "component": "simpleTestComponent",
+        "component": "simpletestcomponent",
         "namespace": "kyma-system"
       }
     ],

@@ -1,4 +1,4 @@
-package simpleTestComponent
+package simpletestcomponent
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -11,7 +11,7 @@ type CustomAction struct {
 }
 
 func (a *CustomAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
-	if _, err := context.KubeClient.Clientset(); err != nil { //simpleTestComponent how to retrieve native Kubernetes GO client
+	if _, err := context.KubeClient.Clientset(); err != nil { //simpletestcomponent how to retrieve native Kubernetes GO client
 		context.Logger.Errorf("Failed to retrieve native Kubernetes GO client")
 	}
 
