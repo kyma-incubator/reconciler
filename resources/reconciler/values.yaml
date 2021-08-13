@@ -14,7 +14,7 @@ global:
   image:
     repository: eu.gcr.io/kyma-project/incubator/reconciler
     pullPolicy: IfNotPresent
-    tag: PR-76
+    tag: 4bca9608
   components: []
 
 # TODO https://github.com/kyma-incubator/reconciler/issues/53
