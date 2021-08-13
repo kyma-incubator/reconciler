@@ -97,8 +97,6 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 	recon := &ComponentReconciler{
 		workspace: defaultWorkspace,
 		logger:    log,
-		//maxRetries : 0,
-		//retryDelay: 5 * time.Second,
 	}
 	RegisterReconciler(reconcilerName, recon) //add reconciler to registry
 	return recon, nil
@@ -392,8 +390,6 @@ func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconcile
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 		defer cancel()
-		//r.retryDelay = 5*time.Second
-		//r.maxRetries = 1
 		return (&runner{r}).Run(timeoutCtx, model, callback)
 	}
 }
