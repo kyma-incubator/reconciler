@@ -8,9 +8,17 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler"
+	"github.com/spf13/viper"
 )
 
-func startScheduler(ctx context.Context, o *Options) error {
+func startScheduler(ctx context.Context, o *Options, configFile string) error {
+	viper.SetConfigFile(configFile)
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
+	mothershipHost := viper.GetString("mothership.host")
+	mothershipPort := viper.GetInt("mothership.port")
+
 	reconcilersCfg, err := parseComponentReconcilersConfig(o.ReconcilersCfgPath)
 	if err != nil {
 		return err
@@ -31,6 +39,8 @@ func startScheduler(ctx context.Context, o *Options) error {
 	workerFactory, err := scheduler.NewWorkersFactory(
 		o.Registry.Inventory(),
 		reconcilersCfg,
+		mothershipHost,
+		mothershipPort,
 		o.Registry.OperationsRegistry(),
 		o.Verbose,
 	)
