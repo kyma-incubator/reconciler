@@ -122,5 +122,3 @@ func inventoryURL() string {
 	}
 	return fmt.Sprintf("http://%s:%s/v1/clusters/", host, port)
 }
-
-//t.Logf("Passed Case:\n  request body : %s \n expectedStatus : %d \n responseBody : %s \n observedStatusCode : %d \n", test.requestBody, test.expectedStatusCode, test.responseBody, test.observedStatusCode)
