@@ -23,7 +23,6 @@ func TestRemoteScheduler(t *testing.T) {
 				{Component: "monitoring"},
 			}),
 		},
-		Status: &model.ClusterStatusEntity{},
 	}
 
 	var queue InventoryQueue
@@ -52,6 +51,37 @@ func TestRemoteScheduler(t *testing.T) {
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second)
 	err := sut.Run(ctx)
+	require.NoError(t, err)
+
+	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
+	workerMock.AssertNumberOfCalls(t, "Reconcile", 2)
+}
+
+func TestLocalScheduler(t *testing.T) {
+	state := cluster.State{
+		Cluster: &model.ClusterEntity{},
+		Configuration: &model.ClusterConfigurationEntity{
+			Contract: 1,
+			Components: fixUgliness([]keb.Components{
+				{Component: "logging"},
+				{Component: "monitoring"},
+			}),
+		},
+	}
+
+	workerMock := &MockReconciliationWorker{}
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	workerFactoryMock := &MockWorkerFactory{}
+	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
+	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
+
+	sut := LocalScheduler{
+		clusterState:  state,
+		workerFactory: workerFactoryMock,
+	}
+
+	err := sut.Run(context.Background())
 	require.NoError(t, err)
 
 	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
