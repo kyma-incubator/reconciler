@@ -16,7 +16,7 @@ type TestStruct struct {
 	requestFile        string
 	delay              time.Duration
 	expectedStatus     string
-	ovverideKubeConfig string
+	overrideKubeConfig string
 }
 
 const (
@@ -25,7 +25,6 @@ const (
 	EnvKubeConfigForE2ETest = "RECONCILER_KUBE_CONFIG_FOR_E2E_TEST"
 )
 
-//TODO afte
 func TestReconciliation(t *testing.T) {
 	if !test.RunExpensiveTests() {
 		//return
@@ -40,7 +39,7 @@ func TestReconciliation(t *testing.T) {
 			requestFile:        "request/correct_simple_request.json",
 			delay:              2 * time.Minute,
 			expectedStatus:     "ready",
-			ovverideKubeConfig: kubeConfig,
+			overrideKubeConfig: kubeConfig,
 		},
 		//{
 		//	requestFile: "request/correct_simple_request.json",
@@ -54,13 +53,15 @@ func TestReconciliation(t *testing.T) {
 		//},
 	}
 
-	for _, testStruct := range tests {
+	for _, testCase := range tests {
 
 		//Register cluster
-		data, err := ioutil.ReadFile(testStruct.requestFile)
+		data, err := ioutil.ReadFile(testCase.requestFile)
 		if err != nil {
 			t.Error(err) //Something is wrong while sending request
 		}
+
+		data = overrideKubeConfig(testCase.overrideKubeConfig, data)
 		requestBody := string(data)
 		reader := strings.NewReader(requestBody)
 		request, err := http.NewRequest("POST", registerClusterUrl, reader)
@@ -73,7 +74,7 @@ func TestReconciliation(t *testing.T) {
 			t.Error(err) //Something is wrong while sending request
 		}
 
-		time.Sleep(testStruct.delay)
+		time.Sleep(testCase.delay)
 
 		// Get latest status
 		url := fmt.Sprintf(getLatestConfigClusterUrl, "runtimeTest")
@@ -89,10 +90,20 @@ func TestReconciliation(t *testing.T) {
 			t.Error(err) //Something is wrong while sending request
 		}
 
-		if m["status"] != testStruct.expectedStatus {
-			t.Errorf("Failed Case:\n  request body : %s \n expectedStatus : %s \n responseBody : %s \n actualStatus : %s \n", requestBody, testStruct.expectedStatus, string(body), m["status"])
+		if m["status"] != testCase.expectedStatus {
+			t.Errorf("Failed Case:\n  request body : %s \n expectedStatus : %s \n responseBody : %s \n actualStatus : %s \n", requestBody, testCase.expectedStatus, string(body), m["status"])
 		}
 	}
+}
+
+func overrideKubeConfig(overrideKubeConfig string, data []byte) []byte {
+	if overrideKubeConfig != "" {
+		m := make(map[string]interface{})
+		json.Unmarshal(data, &m)
+		m["kubeConfig"] = overrideKubeConfig
+		data, _ = json.Marshal(m)
+	}
+	return data
 }
 
 func inventoryUrl() string {
