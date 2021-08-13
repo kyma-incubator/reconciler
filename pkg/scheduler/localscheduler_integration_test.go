@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -15,6 +14,8 @@ import (
 )
 
 func TestStuff(t *testing.T) {
+	t.Skip()
+
 	kubeconfig := test.ReadKubeconfig(t)
 
 	l, _ := logger.NewLogger(false)
@@ -62,9 +63,4 @@ func TestStuff(t *testing.T) {
 
 	err = ls.Run(context.Background())
 	require.NoError(t, err)
-}
-
-func fixUgliness(components []keb.Components) string {
-	result, _ := json.Marshal(components)
-	return string(result)
 }
