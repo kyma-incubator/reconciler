@@ -2,6 +2,7 @@ package rafter
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -62,15 +63,26 @@ func (a *CustomAction) ensureRafterSecret(svcCtx *service.ActionContext, version
 		if kerrors.IsNotFound(err) {
 			return createRafterSecret(svcCtx.Context, rafterSecretName, values, kubeClient)
 		}
-		return fmt.Errorf("failed to get secret:%v", err)
+		return errors.Wrap(err, "failed to get secret")
 	}
 
 	return nil
 }
 
 func createRafterSecret(ctx context.Context, secretName string, values *rafterValues, kubeClient kubernetes.Interface) error {
-	if values.AccessKey == "" || values.SecretKey == "" {
-		return errors.New("failed to create Rafter secert. AccessKey or SecretKey are empty")
+	var err error
+	accessKey := values.AccessKey
+	secretKey := values.SecretKey
+	if accessKey == "" {
+		if accessKey, err = randAlphaNum(20); err != nil {
+			return errors.Wrap(err, "failed to generate accessKey")
+		}
+
+	}
+	if secretKey == "" {
+		if secretKey, err = randAlphaNum(40); err != nil {
+			return errors.Wrap(err, "failed to generate secretKey")
+		}
 	}
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -78,11 +90,11 @@ func createRafterSecret(ctx context.Context, secretName string, values *rafterVa
 			Namespace: rafterNamespace,
 		},
 		Data: map[string][]byte{
-			"accessKey": []byte(values.AccessKey),
-			"secretKey": []byte(values.SecretKey),
+			"accessKey": []byte(accessKey),
+			"secretKey": []byte(secretKey),
 		},
 	}
-	_, err := kubeClient.CoreV1().Secrets(rafterNamespace).Create(ctx, &secret, metav1.CreateOptions{})
+	_, err = kubeClient.CoreV1().Secrets(rafterNamespace).Create(ctx, &secret, metav1.CreateOptions{})
 	return err
 }
 
@@ -104,4 +116,12 @@ func readRafterControllerValues(ctx *service.ActionContext, version string) (*ra
 
 	}
 	return values, nil
+}
+
+func randAlphaNum(length int) (string, error) {
+	s := make([]byte, length/2)
+	if _, err := rand.Read(s); err != nil {
+		return "", errors.Wrap(err, "failed to generate random key")
+	}
+	return fmt.Sprintf("%X", s), nil
 }
