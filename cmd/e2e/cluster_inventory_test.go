@@ -64,13 +64,16 @@ func TestReconciliation(t *testing.T) {
 		requestBody := string(data)
 		reader := strings.NewReader(requestBody)
 		request, err := http.NewRequest("POST", registerClusterURL, reader)
+		if err != nil {
+			t.Error(err)
+		}
 		res, err := http.DefaultClient.Do(request)
 		if err != nil {
-			t.Error(err) //Something is wrong while sending request
+			t.Error(err)
 		}
-		body, err := ioutil.ReadAll(res.Body)
+		registerClusterResponse, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			t.Error(err) //Something is wrong while sending request
+			t.Error(err)
 		}
 
 		time.Sleep(testCase.delay)
@@ -78,11 +81,14 @@ func TestReconciliation(t *testing.T) {
 		// Get latest status
 		url := fmt.Sprintf(getLatestConfigClusterURL, "runtimeTest")
 		request, err = http.NewRequest("GET", url, reader)
+		if err != nil {
+			t.Error(err)
+		}
 		res, err = http.DefaultClient.Do(request)
 		if err != nil {
 			t.Error(err) //Something is wrong while sending request
 		}
-		body, _ = ioutil.ReadAll(res.Body)
+		body, _ := ioutil.ReadAll(res.Body)
 		m := make(map[string]interface{})
 		err = json.Unmarshal(body, &m)
 		if err != nil {
@@ -90,7 +96,7 @@ func TestReconciliation(t *testing.T) {
 		}
 
 		if m["status"] != testCase.expectedStatus {
-			t.Errorf("Failed Case:\n  request body : %s \n expectedStatus : %s \n responseBody : %s \n actualStatus : %s \n", requestBody, testCase.expectedStatus, string(body), m["status"])
+			t.Errorf("Failed Case:\n  request body : %s \n expectedStatus : %s \n responseBody : %s \n actualStatus : %s \n", requestBody, testCase.expectedStatus, string(registerClusterResponse), m["status"])
 		}
 	}
 }
