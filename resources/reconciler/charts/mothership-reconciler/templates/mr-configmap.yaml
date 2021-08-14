@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mothership-reconciler
+  namespace: {{ .Release.Namespace }}
+data:
+  reconciler.yaml: |-
+    db:
+      driver: postgres
+      postgres:
+        host: "localhost"
+        database: "kyma"
+        port: 5432
+        user: kyma
+        password: kyma
+        useSsl: false
+      sqlite:
+        file: "reconciler.db"
+        deploySchema: true
+        resetDatabase: false
+    mothership:
+      host: {{ include "mothership-reconciler.fullname" . }}
+      port: {{ .Values.service.port }}
+---
