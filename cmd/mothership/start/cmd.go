@@ -6,6 +6,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -45,7 +46,7 @@ func Run(o *Options) error {
 	ctx := cli.NewContext()
 
 	go func(ctx context.Context, o *Options) {
-		err := startScheduler(ctx, o)
+		err := startScheduler(ctx, o, viper.ConfigFileUsed())
 		if err != nil {
 			panic(err)
 		}

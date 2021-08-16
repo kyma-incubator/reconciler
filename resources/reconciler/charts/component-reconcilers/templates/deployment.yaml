@@ -28,13 +28,20 @@ spec:
           - reconciler
           - start
           - {{ $component }}
+          - --workspace=/tmp/reconciler
         name: reconciler
         ports:
         - name: http
           containerPort: 8080
           protocol: TCP
         resources: {}
+        volumeMounts:
+        - mountPath: /tmp
+          name: workspace
       securityContext:
         runAsUser: 2000
+      volumes:
+      - emptyDir: {}
+        name: workspace
 ---
 {{- end }}
