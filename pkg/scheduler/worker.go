@@ -144,10 +144,10 @@ func (w *Worker) callReconciler(component *keb.Components, state cluster.State, 
 		err = w.invoker.Invoke(&InvokeParams{
 			ComponentToReconcile: component,
 			ComponentsReady:      componentsReady,
-			ReconcilerURL:        w.config.URL,
 			ClusterState:         state,
 			SchedulingID:         schedulingID,
 			CorrelationID:        w.correlationID,
+			ReconcilerURL:        w.config.URL,
 		})
 	}
 	if err != nil {

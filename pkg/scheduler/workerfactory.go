@@ -22,7 +22,13 @@ type remoteWorkerFactory struct {
 	debug          bool
 }
 
-func NewRemoteWorkerFactory(inventory cluster.Inventory, reconcilersCfg reconciler.ComponentReconcilersConfig, operationsReg OperationsRegistry, debug bool) (WorkerFactory, error) {
+func NewRemoteWorkerFactory(
+	inventory cluster.Inventory,
+	reconcilersCfg reconciler.ComponentReconcilersConfig,
+	mothershipHost string,
+	mothershipPort int,
+	operationsReg OperationsRegistry,
+	debug bool) (WorkerFactory, error) {
 	l, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
@@ -31,7 +37,11 @@ func NewRemoteWorkerFactory(inventory cluster.Inventory, reconcilersCfg reconcil
 		inventory,
 		reconcilersCfg,
 		operationsReg,
-		&RemoteReconcilerInvoker{logger: l},
+		&RemoteReconcilerInvoker{
+			logger:         l,
+			mothershipHost: mothershipHost,
+			mothershipPort: mothershipPort,
+		},
 		l,
 		debug,
 	}, nil

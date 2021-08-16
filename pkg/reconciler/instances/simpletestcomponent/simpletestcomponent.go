@@ -1,11 +1,11 @@
-package busolamigrator
+package simpletestcomponent
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-const ReconcilerName = "busola-migrator"
+const ReconcilerName = "simpletestcomponent"
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
@@ -20,27 +20,19 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	virtSvcClient := NewVirtSvcClient()
-	virtSvcs := []VirtualSvcMeta{
-		{
-			Name:      "console-web",
-			Namespace: "kyma-system",
-		},
-		{
-			Name:      "dex-virtualservice",
-			Namespace: "kyma-system",
-		},
-	}
-
 	//configure reconciler
 	reconciler.
-		//list dependencies (these components have to be available before this component reconciler is able to run)
-		WithDependencies("istio").
 		//register reconciler pre-action (executed BEFORE reconciliation happens)
-		WithPreReconcileAction(&VirtSvcPreReconcilePatch{
-			name:            "pre-action",
-			virtSvcsToPatch: virtSvcs,
-			suffix:          "-old",
-			virtSvcClient:   virtSvcClient,
+		WithPreReconcileAction(&CustomAction{
+			name: "pre-action",
+		}).
+		//register reconciler action (custom reconciliation logic). If no custom reconciliation action is provided,
+		//the default reconciliation logic provided by reconciler-framework will be used.
+		WithReconcileAction(&CustomAction{
+			name: "install-action",
+		}).
+		//register reconciler post-action (executed AFTER reconciliation happened)
+		WithPostReconcileAction(&CustomAction{
+			name: "post-action",
 		})
 }

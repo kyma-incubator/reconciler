@@ -18,10 +18,10 @@ import (
 type InvokeParams struct {
 	ComponentToReconcile *keb.Components
 	ComponentsReady      []string
-	ReconcilerURL        string
 	ClusterState         cluster.State
 	SchedulingID         string
 	CorrelationID        string
+	ReconcilerURL        string
 }
 
 type ReconcilerInvoker interface {
@@ -29,7 +29,9 @@ type ReconcilerInvoker interface {
 }
 
 type RemoteReconcilerInvoker struct {
-	logger *zap.SugaredLogger
+	logger         *zap.SugaredLogger
+	mothershipHost string
+	mothershipPort int
 }
 
 func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
@@ -43,7 +45,7 @@ func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 		Profile:         params.ClusterState.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
 		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
-		CallbackURL:     fmt.Sprintf("http://localhost:8080/v1/operations/%s/callback/%s", params.SchedulingID, params.CorrelationID), // TODO: parametrize the URL
+		CallbackURL:     fmt.Sprintf("http://%s:%d/v1/operations/%s/callback/%s", rri.mothershipHost, rri.mothershipPort, params.SchedulingID, params.CorrelationID), // TODO: parametrize the URL
 		InstallCRD:      false,
 		CorrelationID:   params.CorrelationID,
 	}
