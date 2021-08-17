@@ -100,19 +100,67 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		return
 	}
 
+	//Reconcile CRD components first
 	for _, component := range components {
-		worker, err := rs.workerFactory.ForComponent(component.Component)
-		if err != nil {
-			rs.logger.Errorf("Error creating worker for component: %s", err)
+		if rs.isCRDComponent(component.Component) {
+			rs.reconcile(component, state, schedulingID, false)
+		}
+	}
+
+	//Reconcile pre components
+	for _, component := range components {
+		if rs.isPreComponent(component.Component) {
+			rs.reconcile(component, state, schedulingID, false)
+		}
+	}
+
+	//Reconcile the rest
+	for _, component := range components {
+		if rs.isPreComponent(component.Component) || rs.isCRDComponent(component.Component) {
 			continue
 		}
+		rs.reconcile(component, state, schedulingID, true)
+	}
+}
+
+func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.State, schedulingID string, concurrent bool) {
+	worker, err := rs.workerFactory.ForComponent(component.Component)
+	if err != nil {
+		rs.logger.Errorf("Error creating worker for component: %s", err)
+		return
+	}
+
+	if concurrent {
 		go func(component *keb.Components, state cluster.State, schedulingID string) {
 			err := worker.Reconcile(component, state, schedulingID)
 			if err != nil {
 				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			}
 		}(component, state, schedulingID)
+	} else {
+		err = worker.Reconcile(component, state, schedulingID)
+		if err != nil {
+			rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+		}
 	}
+}
+
+func (rs *RemoteScheduler) isCRDComponent(component string) bool {
+	for _, c := range rs.workerFactory.mothershipCfg.CrdComponents {
+		if component == c {
+			return true
+		}
+	}
+	return false
+}
+
+func (rs *RemoteScheduler) isPreComponent(component string) bool {
+	for _, c := range rs.workerFactory.mothershipCfg.PreComponents {
+		if component == c {
+			return true
+		}
+	}
+	return false
 }
 
 // func NewLocalScheduler() (Scheduler, error) {

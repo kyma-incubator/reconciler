@@ -14,3 +14,7 @@ db:
 mothership:
   host: localhost
   port: 8080
+crdComponents:
+  - cluster-essentials
+preComponents:
+  - istio
