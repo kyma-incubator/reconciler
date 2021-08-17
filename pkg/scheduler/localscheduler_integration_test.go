@@ -14,10 +14,11 @@ import (
 )
 
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
-	kubeconfig := test.ReadKubeconfig(t)
-	if kubeconfig == "" {
-		t.Skip("Kubeconfig is not set. Skipping...")
+	if !test.RunExpensiveTests() {
+		t.Skip("Skipping an expensive test...")
 	}
+
+	kubeconfig := test.ReadKubeconfig(t)
 
 	l, _ := logger.NewLogger(false)
 	_, err := service.NewComponentReconciler("cluster-essentials")
