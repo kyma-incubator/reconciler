@@ -53,7 +53,8 @@ func TestRemoteScheduler(t *testing.T) {
 		logger:         l,
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	err := sut.Run(ctx)
 	require.NoError(t, err)
 
