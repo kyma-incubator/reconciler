@@ -67,7 +67,11 @@ func parseMothershipReconcilerConfig(configFile string) (reconciler.MothershipRe
 	mothershipPort := viper.GetInt("mothership.port")
 	crdComponents := viper.GetStringSlice("crdComponents")
 	preComponents := viper.GetStringSlice("preComponents")
-	return reconciler.MothershipReconcilerConfig{mothershipHost, mothershipPort, crdComponents, preComponents}, nil
+	return reconciler.MothershipReconcilerConfig{
+		Host:          mothershipHost,
+		Port:          mothershipPort,
+		CrdComponents: crdComponents,
+		PreComponents: preComponents}, nil
 }
 
 func parseComponentReconcilersConfig(path string) (reconciler.ComponentReconcilersConfig, error) {
