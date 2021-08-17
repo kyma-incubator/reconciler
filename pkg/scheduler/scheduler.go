@@ -102,56 +102,72 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 
 	//Reconcile CRD components first
 	for _, component := range components {
-		for _, crdComponent := range rs.workerFactory.crdComponents {
-			if component.Component == crdComponent {
-				worker, err := rs.workerFactory.ForComponent(component.Component)
-				if err != nil {
-					rs.logger.Errorf("Error creating worker for component: %s", err)
-					continue
-				}
+		if rs.isCRDComponent(component.Component) {
+			worker, err := rs.workerFactory.ForComponent(component.Component)
+			if err != nil {
+				rs.logger.Errorf("Error creating worker for component: %s", err)
+				continue
+			}
 
-				err = worker.Reconcile(component, state, schedulingID)
-				if err != nil {
-					rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
-				}
+			err = worker.Reconcile(component, state, schedulingID)
+			if err != nil {
+				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			}
 		}
 	}
 
 	//Reconcile pre components
 	for _, component := range components {
-		for _, preComponent := range rs.workerFactory.preComponents {
-			if component.Component == preComponent {
-				worker, err := rs.workerFactory.ForComponent(component.Component)
-				if err != nil {
-					rs.logger.Errorf("Error creating worker for component: %s", err)
-					continue
-				}
+		if rs.isPreComponent(component.Component) {
+			worker, err := rs.workerFactory.ForComponent(component.Component)
+			if err != nil {
+				rs.logger.Errorf("Error creating worker for component: %s", err)
+				continue
+			}
 
-				err = worker.Reconcile(component, state, schedulingID)
-				if err != nil {
-					rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
-				}
+			err = worker.Reconcile(component, state, schedulingID)
+			if err != nil {
+				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			}
 		}
 	}
 
 	//Reconcile the rest
 	for _, component := range components {
-		if component.Component != "istio" && component.Component != "cluster-essentials" {
-			worker, err := rs.workerFactory.ForComponent(component.Component)
+		if rs.isPreComponent(component.Component) || rs.isCRDComponent(component.Component) {
+			continue
+		}
+
+		worker, err := rs.workerFactory.ForComponent(component.Component)
+		if err != nil {
+			rs.logger.Errorf("Error creating worker for component: %s", err)
+			continue
+		}
+		go func(component *keb.Components, state cluster.State, schedulingID string) {
+			err := worker.Reconcile(component, state, schedulingID)
 			if err != nil {
-				rs.logger.Errorf("Error creating worker for component: %s", err)
-				continue
+				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			}
-			go func(component *keb.Components, state cluster.State, schedulingID string) {
-				err := worker.Reconcile(component, state, schedulingID)
-				if err != nil {
-					rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
-				}
-			}(component, state, schedulingID)
+		}(component, state, schedulingID)
+	}
+}
+
+func (rs *RemoteScheduler) isCRDComponent(component string) bool {
+	for _, c := range rs.workerFactory.crdComponents {
+		if component == c {
+			return true
 		}
 	}
+	return false
+}
+
+func (rs *RemoteScheduler) isPreComponent(component string) bool {
+	for _, c := range rs.workerFactory.preComponents {
+		if component == c {
+			return true
+		}
+	}
+	return false
 }
 
 // func NewLocalScheduler() (Scheduler, error) {
