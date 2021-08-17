@@ -33,12 +33,15 @@ type WorkersFactory struct {
 	reconcilersCfg reconciler.ComponentReconcilersConfig
 	mothershipHost string
 	mothershipPort int
+	crdComponents  []string
+	preComponents  []string
 	operationsReg  OperationsRegistry
 	logger         *zap.SugaredLogger
 	debug          bool
 }
 
-func NewWorkersFactory(inventory cluster.Inventory, reconcilersCfg reconciler.ComponentReconcilersConfig, mothershipHost string, mothershipPort int, operationsReg OperationsRegistry, debug bool) (*WorkersFactory, error) {
+func NewWorkersFactory(inventory cluster.Inventory, reconcilersCfg reconciler.ComponentReconcilersConfig,
+	mothershipHost string, mothershipPort int, crdComponents []string, preComponents []string, operationsReg OperationsRegistry, debug bool) (*WorkersFactory, error) {
 	log, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
@@ -48,6 +51,8 @@ func NewWorkersFactory(inventory cluster.Inventory, reconcilersCfg reconciler.Co
 		reconcilersCfg,
 		mothershipHost,
 		mothershipPort,
+		crdComponents,
+		preComponents,
 		operationsReg,
 		log,
 		debug,
@@ -64,7 +69,7 @@ func (wf *WorkersFactory) ForComponent(component string) (ReconciliationWorker, 
 	if reconcilerCfg == nil {
 		return nil, fmt.Errorf("No reconciler found for component %s", component)
 	}
-	return NewWorker(reconcilerCfg, wf.mothershipHost, wf.mothershipPort, wf.inventory, wf.operationsReg, wf.debug)
+	return NewWorker(reconcilerCfg, wf.mothershipHost, wf.mothershipPort, wf.crdComponents, wf.preComponents, wf.inventory, wf.operationsReg, wf.debug)
 }
 
 type Worker struct {
@@ -72,6 +77,8 @@ type Worker struct {
 	config         *reconciler.ComponentReconciler
 	mothershipHost string
 	mothershipPort int
+	crdComponents  []string
+	preComponents  []string
 	inventory      cluster.Inventory
 	operationsReg  OperationsRegistry
 	logger         *zap.SugaredLogger
@@ -82,6 +89,8 @@ func NewWorker(
 	config *reconciler.ComponentReconciler,
 	mothershipHost string,
 	mothershipPort int,
+	crdComponents []string,
+	preComponents []string,
 	inventory cluster.Inventory,
 	operationsReg OperationsRegistry,
 	debug bool) (*Worker, error) {
@@ -94,6 +103,8 @@ func NewWorker(
 		config:         config,
 		mothershipHost: mothershipHost,
 		mothershipPort: mothershipPort,
+		crdComponents:  crdComponents,
+		preComponents:  preComponents,
 		inventory:      inventory,
 		operationsReg:  operationsReg,
 		logger:         log,
@@ -202,6 +213,13 @@ func (w *Worker) send(component *keb.Components, state cluster.State, scheduling
 		return err
 	}
 
+	installCRD := false
+	for _, c := range w.crdComponents {
+		if c == component.Component {
+			installCRD = true
+		}
+	}
+
 	payload := reconciler.Reconciliation{
 		ComponentsReady: componentsReady,
 		Component:       component.Component,
@@ -211,7 +229,7 @@ func (w *Worker) send(component *keb.Components, state cluster.State, scheduling
 		Configuration:   mapConfiguration(component.Configuration),
 		Kubeconfig:      state.Cluster.Kubeconfig,
 		CallbackURL:     fmt.Sprintf("http://%s:%d/v1/operations/%s/callback/%s", w.mothershipHost, w.mothershipPort, schedulingID, w.correlationID),
-		InstallCRD:      component.Component == "cluster-essentials",
+		InstallCRD:      installCRD,
 		CorrelationID:   w.correlationID,
 	}
 	jsonPayload, err := json.Marshal(payload)

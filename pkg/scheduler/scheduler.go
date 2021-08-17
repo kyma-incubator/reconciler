@@ -100,34 +100,38 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		return
 	}
 
-	//Reconcile Cluster Essentials first to install CRDs
+	//Reconcile CRD components first
 	for _, component := range components {
-		if component.Component == "cluster-essentials" {
-			worker, err := rs.workerFactory.ForComponent(component.Component)
-			if err != nil {
-				rs.logger.Errorf("Error creating worker for component: %s", err)
-				continue
-			}
+		for _, crdComponent := range rs.workerFactory.crdComponents {
+			if component.Component == crdComponent {
+				worker, err := rs.workerFactory.ForComponent(component.Component)
+				if err != nil {
+					rs.logger.Errorf("Error creating worker for component: %s", err)
+					continue
+				}
 
-			err = worker.Reconcile(component, state, schedulingID)
-			if err != nil {
-				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+				err = worker.Reconcile(component, state, schedulingID)
+				if err != nil {
+					rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+				}
 			}
 		}
 	}
 
-	//Reconcile Istio
+	//Reconcile pre components
 	for _, component := range components {
-		if component.Component == "istio" {
-			worker, err := rs.workerFactory.ForComponent(component.Component)
-			if err != nil {
-				rs.logger.Errorf("Error creating worker for component: %s", err)
-				continue
-			}
+		for _, preComponent := range rs.workerFactory.preComponents {
+			if component.Component == preComponent {
+				worker, err := rs.workerFactory.ForComponent(component.Component)
+				if err != nil {
+					rs.logger.Errorf("Error creating worker for component: %s", err)
+					continue
+				}
 
-			err = worker.Reconcile(component, state, schedulingID)
-			if err != nil {
-				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+				err = worker.Reconcile(component, state, schedulingID)
+				if err != nil {
+					rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+				}
 			}
 		}
 	}

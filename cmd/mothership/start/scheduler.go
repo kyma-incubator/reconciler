@@ -18,6 +18,8 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 	}
 	mothershipHost := viper.GetString("mothership.host")
 	mothershipPort := viper.GetInt("mothership.port")
+	crdComponents := viper.GetStringSlice("crdComponents")
+	preComponents := viper.GetStringSlice("preComponents")
 
 	reconcilersCfg, err := parseComponentReconcilersConfig(o.ReconcilersCfgPath)
 	if err != nil {
@@ -41,6 +43,8 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 		reconcilersCfg,
 		mothershipHost,
 		mothershipPort,
+		crdComponents,
+		preComponents,
 		o.Registry.OperationsRegistry(),
 		o.Verbose,
 	)
