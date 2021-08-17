@@ -7,12 +7,13 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 )
 
-func TestStuff(t *testing.T) {
+func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	kubeconfig := test.ReadKubeconfig(t)
 	if kubeconfig == "" {
 		t.Skip("Kubeconfig is not set. Skipping...")
@@ -33,6 +34,9 @@ func TestStuff(t *testing.T) {
 	workerFactory, err := NewLocalWorkerFactory(
 		&cluster.MockInventory{},
 		operationsRegistry,
+		func(component string, status reconciler.Status) {
+			l.Infof("Component %s has status %s", component, status)
+		},
 		true)
 	require.NoError(t, err)
 

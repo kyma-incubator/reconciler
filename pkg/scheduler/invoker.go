@@ -83,9 +83,12 @@ func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 	return nil
 }
 
+type ReconcilerStatusFunc func(component string, status reconciler.Status)
+
 type LocalReconcilerInvoker struct {
 	operationsReg OperationsRegistry
 	logger        *zap.SugaredLogger
+	statusFunc    ReconcilerStatusFunc
 }
 
 func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
@@ -107,19 +110,22 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
 		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
 		CallbackFunc: func(status reconciler.Status) error {
-			var err error
-			switch status {
-			case reconciler.NotStarted, reconciler.Running:
-				err = lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
-			case reconciler.Success:
-				err = lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
-			case reconciler.Error:
-				err = lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID, "Reconciler reported error status")
-			case reconciler.Failed:
-				err = lri.operationsReg.SetFailed(params.CorrelationID, params.SchedulingID, "Reconciler reported failed status")
+			if lri.statusFunc != nil {
+				lri.statusFunc(component, status)
 			}
 
-			return err
+			switch status {
+			case reconciler.NotStarted, reconciler.Running:
+				return lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
+			case reconciler.Success:
+				return lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
+			case reconciler.Error:
+				return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID, "Reconciler reported error status")
+			case reconciler.Failed:
+				return lri.operationsReg.SetFailed(params.CorrelationID, params.SchedulingID, "Reconciler reported failed status")
+			}
+
+			return nil
 		},
 		InstallCRD:    true,
 		CorrelationID: params.CorrelationID,

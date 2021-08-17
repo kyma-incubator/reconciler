@@ -67,7 +67,7 @@ type localWorkerFactory struct {
 	debug         bool
 }
 
-func NewLocalWorkerFactory(inventory cluster.Inventory, operationsReg OperationsRegistry, debug bool) (WorkerFactory, error) {
+func NewLocalWorkerFactory(inventory cluster.Inventory, operationsReg OperationsRegistry, statusFunc ReconcilerStatusFunc, debug bool) (WorkerFactory, error) {
 	l, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
@@ -78,6 +78,7 @@ func NewLocalWorkerFactory(inventory cluster.Inventory, operationsReg Operations
 		&LocalReconcilerInvoker{
 			logger:        l,
 			operationsReg: operationsReg,
+			statusFunc:    statusFunc,
 		},
 		debug,
 	}, nil
