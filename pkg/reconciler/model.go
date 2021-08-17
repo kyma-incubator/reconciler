@@ -105,3 +105,10 @@ type ComponentReconciler struct {
 }
 
 type ComponentReconcilersConfig map[string]*ComponentReconciler
+
+type MothershipReconcilerConfig struct {
+	Host          string
+	Port          int
+	CrdComponents []string
+	PreComponents []string
+}
