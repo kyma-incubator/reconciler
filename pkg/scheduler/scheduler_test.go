@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -14,14 +15,17 @@ import (
 )
 
 func TestRemoteScheduler(t *testing.T) {
+	components := []keb.Components{
+		{Component: "logging"},
+		{Component: "monitoring"},
+	}
+	componentsJSON, _ := json.Marshal(components)
+
 	state := cluster.State{
 		Cluster: &model.ClusterEntity{},
 		Configuration: &model.ClusterConfigurationEntity{
-			Contract: 1,
-			Components: fixUgliness([]keb.Components{
-				{Component: "logging"},
-				{Component: "monitoring"},
-			}),
+			Contract:   1,
+			Components: string(componentsJSON),
 		},
 	}
 
@@ -58,14 +62,12 @@ func TestRemoteScheduler(t *testing.T) {
 }
 
 func TestLocalScheduler(t *testing.T) {
-	state := cluster.State{
-		Cluster: &model.ClusterEntity{},
-		Configuration: &model.ClusterConfigurationEntity{
-			Contract: 1,
-			Components: fixUgliness([]keb.Components{
+	cluster := keb.Cluster{
+		KymaConfig: keb.KymaConfig{
+			Components: []keb.Components{
 				{Component: "logging"},
 				{Component: "monitoring"},
-			}),
+			},
 		},
 	}
 
@@ -77,7 +79,7 @@ func TestLocalScheduler(t *testing.T) {
 	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
 
 	sut := LocalScheduler{
-		clusterState:  state,
+		cluster:       cluster,
 		workerFactory: workerFactoryMock,
 	}
 

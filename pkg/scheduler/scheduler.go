@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -117,26 +119,31 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 }
 
 type LocalScheduler struct {
-	clusterState  cluster.State
+	cluster       keb.Cluster
 	workerFactory WorkerFactory
 	logger        *zap.SugaredLogger
 }
 
-func NewLocalScheduler(cs cluster.State) (Scheduler, error) {
+func NewLocalScheduler(cluster keb.Cluster) (Scheduler, error) {
 	l, err := logger.NewLogger(false)
 	if err != nil {
 		return nil, err
 	}
 	return &LocalScheduler{
-		clusterState: cs,
-		logger:       l,
+		cluster: cluster,
+		logger:  l,
 	}, nil
 }
 
 func (ls *LocalScheduler) Run(ctx context.Context) error {
 	schedulingID := uuid.NewString()
 
-	components, err := ls.clusterState.Configuration.GetComponents()
+	clusterState, err := localClusterState(&ls.cluster)
+	if err != nil {
+		return fmt.Errorf("failed to convert to cluster state: %s", err)
+	}
+
+	components, err := clusterState.Configuration.GetComponents()
 	if err != nil {
 		return fmt.Errorf("failed to get components: %s", err)
 	}
@@ -156,10 +163,53 @@ func (ls *LocalScheduler) Run(ctx context.Context) error {
 			if err != nil {
 				ls.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			}
-		}(component, ls.clusterState, schedulingID)
+		}(component, *clusterState, schedulingID)
 	}
 
 	wg.Wait()
 
 	return nil
+}
+
+func localClusterState(c *keb.Cluster) (*cluster.State, error) {
+	var defaultContractVersion int64 = 1
+
+	metadata, err := json.Marshal(c.Metadata)
+	if err != nil {
+		return nil, err
+	}
+	runtime, err := json.Marshal(c.RuntimeInput)
+	if err != nil {
+		return nil, err
+	}
+	clusterEntity := &model.ClusterEntity{
+		Cluster:    c.Cluster,
+		Runtime:    string(runtime),
+		Metadata:   string(metadata),
+		Kubeconfig: c.Kubeconfig,
+		Contract:   defaultContractVersion,
+	}
+
+	components, err := json.Marshal(c.KymaConfig.Components)
+	if err != nil {
+		return nil, err
+	}
+	administrators, err := json.Marshal(c.KymaConfig.Administrators)
+	if err != nil {
+		return nil, err
+	}
+	configurationEntity := &model.ClusterConfigurationEntity{
+		Cluster:        c.Cluster,
+		KymaVersion:    c.KymaConfig.Version,
+		KymaProfile:    c.KymaConfig.Profile,
+		Components:     string(components),
+		Administrators: string(administrators),
+		Contract:       defaultContractVersion,
+	}
+
+	return &cluster.State{
+		Cluster:       clusterEntity,
+		Configuration: configurationEntity,
+		Status:        &model.ClusterStatusEntity{},
+	}, nil
 }

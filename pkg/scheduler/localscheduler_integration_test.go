@@ -7,16 +7,16 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStuff(t *testing.T) {
-	t.Skip()
-
 	kubeconfig := test.ReadKubeconfig(t)
+	if kubeconfig == "" {
+		t.Skip("Kubeconfig is not set. Skipping...")
+	}
 
 	l, _ := logger.NewLogger(false)
 	_, err := service.NewComponentReconciler("cluster-essentials")
@@ -37,24 +37,15 @@ func TestStuff(t *testing.T) {
 	require.NoError(t, err)
 
 	ls := LocalScheduler{
-		clusterState: cluster.State{
-			Cluster: &model.ClusterEntity{
-				Kubeconfig: kubeconfig,
-			},
-			Configuration: &model.ClusterConfigurationEntity{
-				Contract:    1,
-				KymaVersion: "main",
-				KymaProfile: "evaluation",
-				Components: fixUgliness([]keb.Components{
-					{
-						Component: "cluster-essentials",
-						Namespace: "kyma-system",
-					},
-					{
-						Component: "istio",
-						Namespace: "istio-system",
-					},
-				}),
+		cluster: keb.Cluster{
+			Kubeconfig: kubeconfig,
+			KymaConfig: keb.KymaConfig{
+				Version: "main",
+				Profile: "evaluation",
+				Components: []keb.Components{
+					{Component: "cluster-essentials", Namespace: "kyma-system"},
+					{Component: "istio", Namespace: "istio-system"},
+				},
 			},
 		},
 		workerFactory: workerFactory,
