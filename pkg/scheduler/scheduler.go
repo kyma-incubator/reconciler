@@ -13,8 +13,12 @@ import (
 	"go.uber.org/zap"
 )
 
+type concurrency bool
+
 const (
-	defaultPoolSize = 50
+	defaultPoolSize                   = 50
+	concurrencyNotAllowed concurrency = false
+	concurrencyAllowed    concurrency = true
 )
 
 type Scheduler interface {
@@ -103,14 +107,14 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 	//Reconcile CRD components first
 	for _, component := range components {
 		if rs.isCRDComponent(component.Component) {
-			rs.reconcile(component, state, schedulingID, false)
+			rs.reconcile(component, state, schedulingID, concurrencyNotAllowed)
 		}
 	}
 
 	//Reconcile pre components
 	for _, component := range components {
 		if rs.isPreComponent(component.Component) {
-			rs.reconcile(component, state, schedulingID, false)
+			rs.reconcile(component, state, schedulingID, concurrencyNotAllowed)
 		}
 	}
 
@@ -119,29 +123,27 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		if rs.isPreComponent(component.Component) || rs.isCRDComponent(component.Component) {
 			continue
 		}
-		rs.reconcile(component, state, schedulingID, true)
+		rs.reconcile(component, state, schedulingID, concurrencyAllowed)
 	}
 }
 
-func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.State, schedulingID string, concurrent bool) {
-	worker, err := rs.workerFactory.ForComponent(component.Component)
-	if err != nil {
-		rs.logger.Errorf("Error creating worker for component: %s", err)
-		return
-	}
-
-	if concurrent {
-		go func(component *keb.Components, state cluster.State, schedulingID string) {
-			err := worker.Reconcile(component, state, schedulingID)
-			if err != nil {
-				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
-			}
-		}(component, state, schedulingID)
-	} else {
+func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.State, schedulingID string, concurrent concurrency) {
+	fn := func(component *keb.Components, state cluster.State, schedulingID string) {
+		worker, err := rs.workerFactory.ForComponent(component.Component)
+		if err != nil {
+			rs.logger.Errorf("Error creating worker for component: %s", err)
+			return
+		}
 		err = worker.Reconcile(component, state, schedulingID)
 		if err != nil {
 			rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 		}
+	}
+
+	if bool(concurrent) {
+		go fn(component, state, schedulingID)
+	} else {
+		fn(component, state, schedulingID)
 	}
 }
 
@@ -162,13 +164,3 @@ func (rs *RemoteScheduler) isPreComponent(component string) bool {
 	}
 	return false
 }
-
-// func NewLocalScheduler() (Scheduler, error) {
-// 	return &LocalScheduler{}, nil
-// }
-
-// type LocalScheduler struct{}
-
-// func (ls *LocalScheduler) Run() {
-
-// }
