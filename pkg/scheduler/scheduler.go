@@ -100,18 +100,53 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		return
 	}
 
+	//Reconcile Cluster Essentials first to install CRDs
 	for _, component := range components {
-		worker, err := rs.workerFactory.ForComponent(component.Component)
-		if err != nil {
-			rs.logger.Errorf("Error creating worker for component: %s", err)
-			continue
-		}
-		go func(component *keb.Components, state cluster.State, schedulingID string) {
-			err := worker.Reconcile(component, state, schedulingID)
+		if component.Component == "cluster-essentials" {
+			worker, err := rs.workerFactory.ForComponent(component.Component)
+			if err != nil {
+				rs.logger.Errorf("Error creating worker for component: %s", err)
+				continue
+			}
+
+			err = worker.Reconcile(component, state, schedulingID)
 			if err != nil {
 				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			}
-		}(component, state, schedulingID)
+		}
+	}
+
+	//Reconcile Istio
+	for _, component := range components {
+		if component.Component == "istio" {
+			worker, err := rs.workerFactory.ForComponent(component.Component)
+			if err != nil {
+				rs.logger.Errorf("Error creating worker for component: %s", err)
+				continue
+			}
+
+			err = worker.Reconcile(component, state, schedulingID)
+			if err != nil {
+				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+			}
+		}
+	}
+
+	//Reconcile the rest
+	for _, component := range components {
+		if component.Component != "istio" && component.Component != "cluster-essentials" {
+			worker, err := rs.workerFactory.ForComponent(component.Component)
+			if err != nil {
+				rs.logger.Errorf("Error creating worker for component: %s", err)
+				continue
+			}
+			go func(component *keb.Components, state cluster.State, schedulingID string) {
+				err := worker.Reconcile(component, state, schedulingID)
+				if err != nil {
+					rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+				}
+			}(component, state, schedulingID)
+		}
 	}
 }
 

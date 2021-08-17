@@ -89,9 +89,9 @@ func (su *Updater) sendUpdate(status reconciler.Status, onlyOnce bool) {
 	task := func(status reconciler.Status) error {
 		err := su.callback.Callback(status)
 		if err == nil {
-			su.logger.Debugf("Interval-callback with status-update ('%s') finished successfully", status)
+			su.logger.Debugf("Interval-callback with status-update ('%s') sent successfully", status)
 		} else {
-			su.logger.Warnf("Interval-callback with status-update ('%s') to reconciler-controller failed: %s", status, err)
+			su.logger.Warnf("Interval-callback with status-update ('%s') to mothersip-reconciler failed: %s", status, err)
 		}
 		return err
 	}

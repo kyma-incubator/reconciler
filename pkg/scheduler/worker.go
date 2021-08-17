@@ -211,7 +211,7 @@ func (w *Worker) send(component *keb.Components, state cluster.State, scheduling
 		Configuration:   mapConfiguration(component.Configuration),
 		Kubeconfig:      state.Cluster.Kubeconfig,
 		CallbackURL:     fmt.Sprintf("http://%s:%d/v1/operations/%s/callback/%s", w.mothershipHost, w.mothershipPort, schedulingID, w.correlationID),
-		InstallCRD:      false,
+		InstallCRD:      component.Component == "cluster-essentials",
 		CorrelationID:   w.correlationID,
 	}
 	jsonPayload, err := json.Marshal(payload)
