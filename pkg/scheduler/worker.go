@@ -92,7 +92,6 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 		}
 		return true, fmt.Errorf("Max retry count for opeation %s in %s excceded", w.correlationID, schedulingID)
 	}
-	// check status
 	op := w.operationsReg.GetOperation(w.correlationID, schedulingID)
 	if op == nil { // New operation
 		w.logger.Debugf("Creating new reconciliation operation for a component %s, correlationID: %s", component.Component, w.correlationID)
