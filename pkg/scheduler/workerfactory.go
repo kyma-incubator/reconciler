@@ -16,6 +16,7 @@ type WorkerFactory interface {
 type remoteWorkerFactory struct {
 	inventory      cluster.Inventory
 	reconcilersCfg reconciler.ComponentReconcilersConfig
+	mothershipCfg  reconciler.MothershipReconcilerConfig
 	operationsReg  OperationsRegistry
 	invoker        *RemoteReconcilerInvoker
 	logger         *zap.SugaredLogger
@@ -25,8 +26,7 @@ type remoteWorkerFactory struct {
 func NewRemoteWorkerFactory(
 	inventory cluster.Inventory,
 	reconcilersCfg reconciler.ComponentReconcilersConfig,
-	mothershipHost string,
-	mothershipPort int,
+	mothershipCfg reconciler.MothershipReconcilerConfig,
 	operationsReg OperationsRegistry,
 	debug bool) (WorkerFactory, error) {
 	l, err := logger.NewLogger(debug)
@@ -36,11 +36,12 @@ func NewRemoteWorkerFactory(
 	return &remoteWorkerFactory{
 		inventory,
 		reconcilersCfg,
+		mothershipCfg,
 		operationsReg,
 		&RemoteReconcilerInvoker{
 			logger:         l,
-			mothershipHost: mothershipHost,
-			mothershipPort: mothershipPort,
+			mothershipHost: mothershipCfg.Host,
+			mothershipPort: mothershipCfg.Port,
 		},
 		l,
 		debug,

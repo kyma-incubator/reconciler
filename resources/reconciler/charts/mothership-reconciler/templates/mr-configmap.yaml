@@ -21,4 +21,12 @@ data:
     mothership:
       host: {{ include "mothership-reconciler.fullname" . }}
       port: {{ .Values.service.port }}
+    {{- with .Values.crdComponents }}
+    crdComponents:
+    {{ toYaml . | indent 6 }}
+    {{- end }}
+    {{- with .Values.preComponents }}
+    preComponents:
+    {{ toYaml . | indent 6 }}
+    {{- end }}
 ---

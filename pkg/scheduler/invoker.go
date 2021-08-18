@@ -22,6 +22,7 @@ type InvokeParams struct {
 	SchedulingID         string
 	CorrelationID        string
 	ReconcilerURL        string
+	InstallCRD           bool
 }
 
 type ReconcilerInvoker interface {
@@ -46,7 +47,7 @@ func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
 		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
 		CallbackURL:     fmt.Sprintf("http://%s:%d/v1/operations/%s/callback/%s", rri.mothershipHost, rri.mothershipPort, params.SchedulingID, params.CorrelationID), // TODO: parametrize the URL
-		InstallCRD:      false,
+		InstallCRD:      params.InstallCRD,
 		CorrelationID:   params.CorrelationID,
 	}
 	jsonPayload, err := json.Marshal(payload)
@@ -127,7 +128,7 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 
 			return nil
 		},
-		InstallCRD:    true,
+		InstallCRD:    params.InstallCRD,
 		CorrelationID: params.CorrelationID,
 	})
 }

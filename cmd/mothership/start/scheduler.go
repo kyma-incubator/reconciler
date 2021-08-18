@@ -12,12 +12,10 @@ import (
 )
 
 func startScheduler(ctx context.Context, o *Options, configFile string) error {
-	viper.SetConfigFile(configFile)
-	if err := viper.ReadInConfig(); err != nil {
+	mothershipCfg, err := parseMothershipReconcilerConfig(configFile)
+	if err != nil {
 		return err
 	}
-	mothershipHost := viper.GetString("mothership.host")
-	mothershipPort := viper.GetInt("mothership.port")
 
 	reconcilersCfg, err := parseComponentReconcilersConfig(o.ReconcilersCfgPath)
 	if err != nil {
@@ -39,8 +37,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 	workerFactory, err := scheduler.NewRemoteWorkerFactory(
 		o.Registry.Inventory(),
 		reconcilersCfg,
-		mothershipHost,
-		mothershipPort,
+		mothershipCfg,
 		o.Registry.OperationsRegistry(),
 		o.Verbose,
 	)
@@ -51,6 +48,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 	remoteScheduler, err := scheduler.NewRemoteScheduler(
 		inventoryWatch,
 		workerFactory,
+		mothershipCfg,
 		o.Workers,
 		o.Verbose,
 	)
@@ -59,6 +57,22 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 	}
 
 	return remoteScheduler.Run(ctx)
+}
+
+func parseMothershipReconcilerConfig(configFile string) (reconciler.MothershipReconcilerConfig, error) {
+	viper.SetConfigFile(configFile)
+	if err := viper.ReadInConfig(); err != nil {
+		return reconciler.MothershipReconcilerConfig{}, err
+	}
+	mothershipHost := viper.GetString("mothership.host")
+	mothershipPort := viper.GetInt("mothership.port")
+	crdComponents := viper.GetStringSlice("crdComponents")
+	preComponents := viper.GetStringSlice("preComponents")
+	return reconciler.MothershipReconcilerConfig{
+		Host:          mothershipHost,
+		Port:          mothershipPort,
+		CrdComponents: crdComponents,
+		PreComponents: preComponents}, nil
 }
 
 func parseComponentReconcilersConfig(path string) (reconciler.ComponentReconcilersConfig, error) {

@@ -35,11 +35,11 @@ type Reconciliation struct {
 	Configuration   []Configuration `json:"configuration"`
 	Kubeconfig      string          `json:"kubeconfig"`
 	CallbackURL     string          `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
+	InstallCRD      bool            `json:"installCRD"`
+	CorrelationID   string          `json:"correlationID"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
-	InstallCRD    bool                      `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
-	CallbackFunc  func(status Status) error `json:"-"`
-	CorrelationID string                    `json:"correlationID"`
+	CallbackFunc func(status Status) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
 }
 
 func (r *Reconciliation) String() string {
@@ -105,3 +105,10 @@ type ComponentReconciler struct {
 }
 
 type ComponentReconcilersConfig map[string]*ComponentReconciler
+
+type MothershipReconcilerConfig struct {
+	Host          string
+	Port          int
+	CrdComponents []string
+	PreComponents []string
+}

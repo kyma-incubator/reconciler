@@ -10,6 +10,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -39,7 +40,7 @@ func TestRemoteScheduler(t *testing.T) {
 		})
 
 	workerMock := &MockReconciliationWorker{}
-	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	workerFactoryMock := &MockWorkerFactory{}
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
@@ -49,6 +50,7 @@ func TestRemoteScheduler(t *testing.T) {
 	sut := RemoteScheduler{
 		inventoryWatch: inventoryWatchStub,
 		workerFactory:  workerFactoryMock,
+		mothershipCfg:  reconciler.MothershipReconcilerConfig{},
 		poolSize:       2,
 		logger:         l,
 	}
@@ -73,7 +75,7 @@ func TestLocalScheduler(t *testing.T) {
 	}
 
 	workerMock := &MockReconciliationWorker{}
-	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	workerFactoryMock := &MockWorkerFactory{}
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)

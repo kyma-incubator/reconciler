@@ -21,7 +21,7 @@ const (
 )
 
 type ReconciliationWorker interface {
-	Reconcile(component *keb.Components, state cluster.State, schedulingID string) error
+	Reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool) error
 }
 
 type Worker struct {
@@ -55,7 +55,7 @@ func NewWorker(
 	}, nil
 }
 
-func (w *Worker) Reconcile(component *keb.Components, state cluster.State, schedulingID string) error {
+func (w *Worker) Reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool) error {
 	ticker := time.NewTicker(10 * time.Second)
 	_, err := w.inventory.UpdateStatus(&state, model.Reconciling)
 	if err != nil {
@@ -66,7 +66,7 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 		case <-time.After(MaxDuration):
 			return fmt.Errorf("Max operation time reached for operation %s in %s", w.correlationID, schedulingID)
 		case <-ticker.C:
-			done, err := w.process(component, state, schedulingID)
+			done, err := w.process(component, state, schedulingID, installCRD)
 			if err != nil {
 				// At this point something critical happened, we need to give up
 				return err
@@ -82,7 +82,7 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 	}
 }
 
-func (w *Worker) process(component *keb.Components, state cluster.State, schedulingID string) (bool, error) {
+func (w *Worker) process(component *keb.Components, state cluster.State, schedulingID string, installCRD bool) (bool, error) {
 	w.logger.Debugf("Processing the reconciliation for a compoent %s, correlationID: %s", component.Component, w.correlationID)
 	// check max retry counter
 	if w.errorsCount > MaxRetryCount {
@@ -101,7 +101,7 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 			return true, fmt.Errorf("Error while registering the operation, correlationID %s: %s", w.correlationID, err)
 		}
 
-		err = w.callReconciler(component, state, schedulingID)
+		err = w.callReconciler(component, state, schedulingID, installCRD)
 		if err != nil {
 			w.errorsCount++
 			return false, err
@@ -116,7 +116,7 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 		// In this state we assume that the reconciliation operation was
 		// never processed by the component reconciler so we need to call
 		// the reconciler again
-		err := w.callReconciler(component, state, schedulingID)
+		err := w.callReconciler(component, state, schedulingID, installCRD)
 		if err != nil {
 			w.errorsCount++
 			return false, err
@@ -137,7 +137,7 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 	return false, nil
 }
 
-func (w *Worker) callReconciler(component *keb.Components, state cluster.State, schedulingID string) error {
+func (w *Worker) callReconciler(component *keb.Components, state cluster.State, schedulingID string, installCRD bool) error {
 	var componentsReady []string
 	var err error
 	if componentsReady, err = w.getDoneComponents(schedulingID); err == nil {
@@ -148,6 +148,7 @@ func (w *Worker) callReconciler(component *keb.Components, state cluster.State, 
 			SchedulingID:         schedulingID,
 			CorrelationID:        w.correlationID,
 			ReconcilerURL:        w.config.URL,
+			InstallCRD:           installCRD,
 		})
 	}
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -27,11 +28,12 @@ type Scheduler interface {
 type RemoteScheduler struct {
 	inventoryWatch InventoryWatcher
 	workerFactory  WorkerFactory
+	mothershipCfg  reconciler.MothershipReconcilerConfig
 	poolSize       int
 	logger         *zap.SugaredLogger
 }
 
-func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFactory, workers int, debug bool) (Scheduler, error) {
+func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFactory, mothershipCfg reconciler.MothershipReconcilerConfig, workers int, debug bool) (Scheduler, error) {
 	l, err := logger.NewLogger(false)
 	if err != nil {
 		return nil, err
@@ -39,6 +41,7 @@ func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFac
 	return &RemoteScheduler{
 		inventoryWatch: inventoryWatch,
 		workerFactory:  workerFactory,
+		mothershipCfg:  mothershipCfg,
 		poolSize:       workers,
 		logger:         l,
 	}, nil
@@ -103,19 +106,73 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		return
 	}
 
+	//Reconcile CRD components first
 	for _, component := range components {
-		worker, err := rs.workerFactory.ForComponent(component.Component)
-		if err != nil {
-			rs.logger.Errorf("Error creating worker for component: %s", err)
+		if rs.isCRDComponent(component.Component) {
+			installCRD := true
+			concurrent := false
+			rs.reconcile(component, state, schedulingID, installCRD, concurrent)
+		}
+	}
+
+	//Reconcile pre components
+	for _, component := range components {
+		if rs.isPreComponent(component.Component) {
+			installCRD := false
+			concurrent := false
+			rs.reconcile(component, state, schedulingID, installCRD, concurrent)
+		}
+	}
+
+	//Reconcile the rest
+	for _, component := range components {
+		if rs.isPreComponent(component.Component) || rs.isCRDComponent(component.Component) {
 			continue
 		}
+		installCRD := false
+		concurrent := true
+		rs.reconcile(component, state, schedulingID, installCRD, concurrent)
+	}
+}
+
+func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool, concurrent bool) {
+	worker, err := rs.workerFactory.ForComponent(component.Component)
+	if err != nil {
+		rs.logger.Errorf("Error creating worker for component: %s", err)
+		return
+	}
+
+	if concurrent {
 		go func(component *keb.Components, state cluster.State, schedulingID string) {
-			err := worker.Reconcile(component, state, schedulingID)
+			err := worker.Reconcile(component, state, schedulingID, installCRD)
 			if err != nil {
 				rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			}
 		}(component, state, schedulingID)
+	} else {
+		err = worker.Reconcile(component, state, schedulingID, installCRD)
+		if err != nil {
+			rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+		}
 	}
+}
+
+func (rs *RemoteScheduler) isCRDComponent(component string) bool {
+	for _, c := range rs.mothershipCfg.CrdComponents {
+		if component == c {
+			return true
+		}
+	}
+	return false
+}
+
+func (rs *RemoteScheduler) isPreComponent(component string) bool {
+	for _, c := range rs.mothershipCfg.PreComponents {
+		if component == c {
+			return true
+		}
+	}
+	return false
 }
 
 type LocalScheduler struct {
@@ -159,7 +216,7 @@ func (ls *LocalScheduler) Run(ctx context.Context) error {
 
 		go func(component *keb.Components, state cluster.State, schedulingID string) {
 			defer wg.Done()
-			err := worker.Reconcile(component, state, schedulingID)
+			err := worker.Reconcile(component, state, schedulingID, true)
 			if err != nil {
 				ls.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			}
