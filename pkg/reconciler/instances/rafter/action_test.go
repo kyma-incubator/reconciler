@@ -4,6 +4,11 @@ import (
 	"context"
 	"testing"
 
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -117,5 +122,67 @@ func TestReadRafterControllerValues(t *testing.T) {
 				assert.EqualValues(t, test.Values, values)
 			}
 		})
+	}
+}
+
+func TestActionRun(t *testing.T) {
+	tests := []struct {
+		Name         string
+		Version      string
+		ExpectSecret bool
+	}{
+		{
+			Name:         "Create new rafter secret",
+			Version:      "0.0.0",
+			ExpectSecret: true,
+		},
+		{
+			Name:    "Values have existing secret name set",
+			Version: "0.0.1",
+		},
+	}
+
+	for _, testCase := range tests {
+		test := testCase
+		t.Run(test.Name, func(t *testing.T) {
+
+			fakeContext := newFakeServiceContext()
+			customAction := CustomAction{
+				name: "test-action",
+			}
+
+			err := customAction.Run(test.Version, "", nil, fakeContext)
+			assert.NoError(t, err)
+
+			fakeClient, _ := fakeContext.KubeClient.Clientset()
+			secret, err := fakeClient.CoreV1().Secrets(rafterNamespace).Get(fakeContext.Context, rafterSecretName, metav1.GetOptions{})
+
+			if test.ExpectSecret {
+				assert.NoError(t, err)
+				assert.NotNil(t, secret)
+			} else {
+				assert.True(t, err != nil && kerrors.IsNotFound(err))
+			}
+		})
+	}
+}
+
+func newFakeServiceContext() *service.ActionContext {
+	mockClient := &mocks.Client{}
+	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+	// We create './test_files/0.0.0/success.yaml' to trick the
+	// WorkspaceFactory into thinking that we don't need to
+	// clone the kyma repo. This is a temporary workaround
+	// since we can't currently mock WorkspaceFactory.
+	fakeFactory := &workspace.Factory{
+		StorageDir: "./test_files",
+		Logger:     log.NewOptionalLogger(true),
+	}
+
+	return &service.ActionContext{
+		KubeClient:       mockClient,
+		Context:          context.Background(),
+		WorkspaceFactory: fakeFactory,
+		Logger:           log.NewOptionalLogger(true),
 	}
 }
