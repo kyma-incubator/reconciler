@@ -39,7 +39,7 @@ type Reconciliation struct {
 	CorrelationID   string          `json:"correlationID"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
-	CallbackFct func(status Status) error `json:"-"` //CallbackFct is mandatory when component-reconciler runs embedded in another process
+	CallbackFunc func(status Status) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
 }
 
 func (r *Reconciliation) String() string {
@@ -67,8 +67,8 @@ func (r *Reconciliation) Validate() error {
 		errFields = append(errFields, "Kubeconfig")
 	}
 	r.CallbackURL = strings.TrimSpace(r.CallbackURL)
-	if r.CallbackFct == nil && r.CallbackURL == "" {
-		errFields = append(errFields, "CallbackFct or CallbackURL")
+	if r.CallbackFunc == nil && r.CallbackURL == "" {
+		errFields = append(errFields, "CallbackFunc or CallbackURL")
 	}
 	r.CorrelationID = strings.TrimSpace(r.CorrelationID)
 	if r.CorrelationID == "" {

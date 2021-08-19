@@ -34,7 +34,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 		return err
 	}
 
-	workerFactory, err := scheduler.NewWorkersFactory(
+	workerFactory, err := scheduler.NewRemoteWorkerFactory(
 		o.Registry.Inventory(),
 		reconcilersCfg,
 		mothershipCfg,
@@ -48,6 +48,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 	remoteScheduler, err := scheduler.NewRemoteScheduler(
 		inventoryWatch,
 		workerFactory,
+		mothershipCfg,
 		o.Workers,
 		o.Verbose,
 	)
