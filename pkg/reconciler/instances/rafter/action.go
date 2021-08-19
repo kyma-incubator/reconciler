@@ -22,6 +22,11 @@ const (
 	rafterNamespace          = "kyma-system"
 	rafterValuesRelativePath = "resources/rafter/charts/controller-manager/charts/minio/values.yaml"
 	rafterSecretName         = "rafter-minio"
+	accessKeySize            = 20
+	secretKeySize            = 40
+
+	accessKeyName = "accessKey"
+	secretKeyName = "secretKey"
 )
 
 type CustomAction struct {
@@ -80,13 +85,13 @@ func createRafterSecret(ctx context.Context, secretName string, values *rafterVa
 		return nil
 	}
 	if accessKey == "" {
-		if accessKey, err = randAlphaNum(20); err != nil {
+		if accessKey, err = randAlphaNum(accessKeySize); err != nil {
 			return errors.Wrap(err, "failed to generate accessKey")
 		}
 
 	}
 	if secretKey == "" {
-		if secretKey, err = randAlphaNum(40); err != nil {
+		if secretKey, err = randAlphaNum(secretKeySize); err != nil {
 			return errors.Wrap(err, "failed to generate secretKey")
 		}
 	}
@@ -96,8 +101,8 @@ func createRafterSecret(ctx context.Context, secretName string, values *rafterVa
 			Namespace: rafterNamespace,
 		},
 		Data: map[string][]byte{
-			"accessKey": []byte(accessKey),
-			"secretKey": []byte(secretKey),
+			accessKeyName: []byte(accessKey),
+			secretKeyName: []byte(secretKey),
 		},
 	}
 	_, err = kubeClient.CoreV1().Secrets(rafterNamespace).Create(ctx, &secret, metav1.CreateOptions{})
