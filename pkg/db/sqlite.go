@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	//add SQlite driver:
 	_ "github.com/mattn/go-sqlite3"
@@ -14,19 +14,29 @@ import (
 )
 
 type SqliteConnection struct {
-	db     *sql.DB
-	logger *zap.SugaredLogger
+	db        *sql.DB
+	encryptor *Encryptor
+	logger    *zap.SugaredLogger
 }
 
-func newSqliteConnection(db *sql.DB, debug bool) (*SqliteConnection, error) {
-	logger, err := logger.NewLogger(debug)
+func newSqliteConnection(db *sql.DB, encKey string, debug bool) (*SqliteConnection, error) {
+	logger, err := log.NewLogger(debug)
+	if err != nil {
+		return nil, err
+	}
+	encryptor, err := NewEncryptor(encKey)
 	if err != nil {
 		return nil, err
 	}
 	return &SqliteConnection{
-		db:     db,
-		logger: logger,
+		db:        db,
+		encryptor: encryptor,
+		logger:    logger,
 	}, nil
+}
+
+func (sc *SqliteConnection) Encryptor() *Encryptor {
+	return sc.encryptor
 }
 
 func (sc *SqliteConnection) QueryRow(query string, args ...interface{}) DataRow {
@@ -67,10 +77,11 @@ func (sc *SqliteConnection) Type() Type {
 }
 
 type SqliteConnectionFactory struct {
-	File       string
-	Debug      bool
-	Reset      bool
-	SchemaFile string
+	File          string
+	Debug         bool
+	Reset         bool
+	SchemaFile    string
+	EncryptionKey string
 }
 
 func (scf *SqliteConnectionFactory) Init() error {
@@ -110,11 +121,13 @@ func (scf *SqliteConnectionFactory) NewConnection() (Connection, error) {
 		return nil, err
 	}
 
-	return newSqliteConnection(db, scf.Debug) //connection ready to use
+	return newSqliteConnection(db, scf.EncryptionKey, scf.Debug) //connection ready to use
 }
 
 func (scf *SqliteConnectionFactory) resetFile() error {
-	os.Remove(scf.File)
+	if err := os.Remove(scf.File); err != nil {
+		return err
+	}
 	file, err := os.Create(scf.File)
 	if err != nil {
 		return err

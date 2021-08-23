@@ -211,7 +211,7 @@ func (i *DefaultInventory) Delete(cluster string) error {
 
 		//update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
-		clusterColHandler, err := db.NewColumnHandler(clusterEntity)
+		clusterColHandler, err := db.NewColumnHandler(clusterEntity, i.Conn)
 		if err != nil {
 			return err
 		}
@@ -230,7 +230,7 @@ func (i *DefaultInventory) Delete(cluster string) error {
 
 		//update cluster-name of all referenced cluster-config entities
 		configEntity := &model.ClusterConfigurationEntity{}
-		configColHandler, err := db.NewColumnHandler(configEntity)
+		configColHandler, err := db.NewColumnHandler(configEntity, i.Conn)
 		if err != nil {
 			return err
 		}
@@ -410,7 +410,7 @@ func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State, error) {
 	//get DDL for sub-query
 	clusterStatus := &model.ClusterStatusEntity{}
-	statusColHandler, err := db.NewColumnHandler(clusterStatus)
+	statusColHandler, err := db.NewColumnHandler(clusterStatus, i.Conn)
 	if err != nil {
 		return nil, err
 	}
@@ -494,7 +494,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 }
 
 func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error) {
-	statusColHandler, err := db.NewColumnHandler(&model.ClusterStatusEntity{})
+	statusColHandler, err := db.NewColumnHandler(&model.ClusterStatusEntity{}, i.Conn)
 	if err != nil {
 		return nil, err
 	}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"go.uber.org/zap"
 )
 
@@ -17,7 +17,7 @@ type Repository struct {
 }
 
 func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
-	logger, err := logger.NewLogger(debug)
+	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}

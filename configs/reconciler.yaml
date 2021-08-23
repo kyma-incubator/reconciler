@@ -1,5 +1,8 @@
 db:
   driver: postgres
+  encryption:
+    # CHANGE THIS VALUE IN A PRODUCTIVE SETUP!
+    key: "20f57b38116084c5436ff6686fc46fe3"
   postgres:
     host: "localhost"
     database: "kyma"

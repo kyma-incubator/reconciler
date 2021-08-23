@@ -27,5 +27,5 @@ func resolveConfigsDir() (string, error) {
 		}
 		configsDir = path.Join("..", configsDir)
 	}
-	return "", fmt.Errorf("Failed to resolve 'configs' directory")
+	return "", fmt.Errorf("failed to resolve 'configs' directory")
 }

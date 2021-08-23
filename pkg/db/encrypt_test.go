@@ -8,6 +8,16 @@ import (
 const data = "I will be encrypted :-P"
 
 func TestEncryptor(t *testing.T) {
+	t.Run("Works not with empty key", func(t *testing.T) {
+		_, err := NewEncryptor("")
+		require.Error(t, err)
+	})
+
+	t.Run("Works not with non-HEX key", func(t *testing.T) {
+		_, err := NewEncryptor("abc123!")
+		require.Error(t, err)
+	})
+
 	t.Run("Is Decryptable", func(t *testing.T) {
 		enc1 := newEncryptor(t)
 		enc2 := newEncryptor(t)

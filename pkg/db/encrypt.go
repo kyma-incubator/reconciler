@@ -18,6 +18,10 @@ type Encryptor struct {
 }
 
 func NewEncryptor(key string) (*Encryptor, error) {
+	if len(key) == 0 {
+		return nil, fmt.Errorf("cannot create new encryptor instance because encryption key was an empty string")
+	}
+
 	aead, err := newAEAD(key)
 	if err != nil {
 		return nil, err

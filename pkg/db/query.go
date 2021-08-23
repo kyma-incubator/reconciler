@@ -16,7 +16,7 @@ type Query struct {
 }
 
 func NewQuery(conn Connection, entity DatabaseEntity) (*Query, error) {
-	columnHandler, err := NewColumnHandler(entity)
+	columnHandler, err := NewColumnHandler(entity, conn)
 	if err != nil {
 		return nil, err
 	}
@@ -33,25 +33,32 @@ func (q Query) String() string {
 
 func (q *Query) Select() *Select {
 	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
+
 	return &Select{q, []interface{}{}, nil}
 }
 
 func (q *Query) Insert() *Insert {
+	colValPlcHdr, err := q.columnHandler.ColumnValuesPlaceholderCsv(true)
+
 	q.buffer.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING %s",
-		q.entity.Table(), q.columnHandler.ColumnNamesCsv(true), q.columnHandler.ColumnValuesPlaceholderCsv(true), q.columnHandler.ColumnNamesCsv(false)))
-	return &Insert{q}
+		q.entity.Table(), q.columnHandler.ColumnNamesCsv(true), colValPlcHdr, q.columnHandler.ColumnNamesCsv(false)))
+
+	return &Insert{q, err}
 }
 
 func (q *Query) Delete() *Delete {
 	q.buffer.WriteString(fmt.Sprintf("DELETE FROM %s", q.entity.Table()))
+
 	return &Delete{q, []interface{}{}, nil}
 }
 
 func (q *Query) Update() *Update {
-	colEntriesCsv, plcHdrCnt := q.columnHandler.columnEntriesCsvRenderer(true, true)
+	colEntriesCsv, plcHdrCnt, err := q.columnHandler.columnEntriesCsvRenderer(true, true)
+
 	q.buffer.WriteString(fmt.Sprintf("UPDATE %s SET %s",
 		q.entity.Table(), colEntriesCsv))
-	return &Update{q, []interface{}{}, plcHdrCnt, nil}
+
+	return &Update{q, []interface{}{}, plcHdrCnt, err}
 }
 
 // helper functions:
@@ -135,7 +142,7 @@ func (s *Select) GroupBy(args []string) *Select {
 	}
 
 	//get groupings
-	grouping := []string{}
+	var grouping []string
 	for _, field := range args {
 		col, err := s.columnHandler.ColumnName(field)
 		if err != nil {
@@ -164,7 +171,7 @@ func (s *Select) OrderBy(args map[string]string) *Select {
 	sort.Strings(fields)
 
 	//get orderings
-	ordering := []string{}
+	var ordering []string
 	for _, field := range fields {
 		col, err := s.columnHandler.ColumnName(field)
 		if err != nil {
@@ -208,10 +215,10 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	}
 
 	//create entities
-	result := []DatabaseEntity{}
+	var result []DatabaseEntity
 	for rows.Next() {
 		entity := s.entity.New()
-		colHdlr, err := NewColumnHandler(entity)
+		colHdlr, err := NewColumnHandler(entity, s.conn)
 		if err != nil {
 			return result, err
 		}
@@ -226,6 +233,7 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 // INSERT:
 type Insert struct {
 	*Query
+	err error
 }
 
 func (i *Insert) Exec() error {

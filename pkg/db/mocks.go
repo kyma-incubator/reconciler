@@ -7,6 +7,7 @@ import (
 const (
 	MockRowsAffected = int64(999)
 	MockLastInsertID = int64(111)
+	MockEncryptorKey = "e286d76de2378ce776389a4f6df2b112"
 )
 
 type MockDbEntity struct {
@@ -44,6 +45,14 @@ func (r *MockResult) LastInsertId() (int64, error) {
 
 func (r *MockResult) RowsAffected() (int64, error) {
 	return MockRowsAffected, nil
+}
+
+func (c *MockConnection) Encryptor() *Encryptor {
+	encryptor, err := NewEncryptor(MockEncryptorKey)
+	if err != nil {
+		panic(err)
+	}
+	return encryptor
 }
 
 func (c *MockConnection) QueryRow(query string, args ...interface{}) DataRow {
