@@ -32,13 +32,13 @@ func (_m *MockOperationsRegistry) GetDoneOperations(schedulingID string) ([]*Ope
 	return r0, r1
 }
 
-// GetOperation provides a mock function with given fields: operationID, schedulingID
-func (_m *MockOperationsRegistry) GetOperation(operationID string, schedulingID string) *OperationState {
-	ret := _m.Called(operationID, schedulingID)
+// GetOperation provides a mock function with given fields: correlationID, schedulingID
+func (_m *MockOperationsRegistry) GetOperation(correlationID string, schedulingID string) *OperationState {
+	ret := _m.Called(correlationID, schedulingID)
 
 	var r0 *OperationState
 	if rf, ok := ret.Get(0).(func(string, string) *OperationState); ok {
-		r0 = rf(operationID, schedulingID)
+		r0 = rf(correlationID, schedulingID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*OperationState)
@@ -48,13 +48,13 @@ func (_m *MockOperationsRegistry) GetOperation(operationID string, schedulingID 
 	return r0
 }
 
-// RegisterOperation provides a mock function with given fields: operationID, schedulingID, component
-func (_m *MockOperationsRegistry) RegisterOperation(operationID string, schedulingID string, component string) (*OperationState, error) {
-	ret := _m.Called(operationID, schedulingID, component)
+// RegisterOperation provides a mock function with given fields: correlationID, schedulingID, component
+func (_m *MockOperationsRegistry) RegisterOperation(correlationID string, schedulingID string, component string) (*OperationState, error) {
+	ret := _m.Called(correlationID, schedulingID, component)
 
 	var r0 *OperationState
 	if rf, ok := ret.Get(0).(func(string, string, string) *OperationState); ok {
-		r0 = rf(operationID, schedulingID, component)
+		r0 = rf(correlationID, schedulingID, component)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*OperationState)
@@ -63,7 +63,7 @@ func (_m *MockOperationsRegistry) RegisterOperation(operationID string, scheduli
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
-		r1 = rf(operationID, schedulingID, component)
+		r1 = rf(correlationID, schedulingID, component)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -71,13 +71,13 @@ func (_m *MockOperationsRegistry) RegisterOperation(operationID string, scheduli
 	return r0, r1
 }
 
-// RemoveOperation provides a mock function with given fields: operationID, schedulingID
-func (_m *MockOperationsRegistry) RemoveOperation(operationID string, schedulingID string) error {
-	ret := _m.Called(operationID, schedulingID)
+// RemoveOperation provides a mock function with given fields: correlationID, schedulingID
+func (_m *MockOperationsRegistry) RemoveOperation(correlationID string, schedulingID string) error {
+	ret := _m.Called(correlationID, schedulingID)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(operationID, schedulingID)
+		r0 = rf(correlationID, schedulingID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -85,13 +85,13 @@ func (_m *MockOperationsRegistry) RemoveOperation(operationID string, scheduling
 	return r0
 }
 
-// SetClientError provides a mock function with given fields: operationID, schedulingID, reason
-func (_m *MockOperationsRegistry) SetClientError(operationID string, schedulingID string, reason string) error {
-	ret := _m.Called(operationID, schedulingID, reason)
+// SetClientError provides a mock function with given fields: correlationID, schedulingID, reason
+func (_m *MockOperationsRegistry) SetClientError(correlationID string, schedulingID string, reason string) error {
+	ret := _m.Called(correlationID, schedulingID, reason)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
-		r0 = rf(operationID, schedulingID, reason)
+		r0 = rf(correlationID, schedulingID, reason)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -99,13 +99,13 @@ func (_m *MockOperationsRegistry) SetClientError(operationID string, schedulingI
 	return r0
 }
 
-// SetDone provides a mock function with given fields: operationID, schedulingID
-func (_m *MockOperationsRegistry) SetDone(operationID string, schedulingID string) error {
-	ret := _m.Called(operationID, schedulingID)
+// SetDone provides a mock function with given fields: correlationID, schedulingID
+func (_m *MockOperationsRegistry) SetDone(correlationID string, schedulingID string) error {
+	ret := _m.Called(correlationID, schedulingID)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(operationID, schedulingID)
+		r0 = rf(correlationID, schedulingID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -113,13 +113,13 @@ func (_m *MockOperationsRegistry) SetDone(operationID string, schedulingID strin
 	return r0
 }
 
-// SetError provides a mock function with given fields: operationID, schedulingID, reason
-func (_m *MockOperationsRegistry) SetError(operationID string, schedulingID string, reason string) error {
-	ret := _m.Called(operationID, schedulingID, reason)
+// SetError provides a mock function with given fields: correlationID, schedulingID, reason
+func (_m *MockOperationsRegistry) SetError(correlationID string, schedulingID string, reason string) error {
+	ret := _m.Called(correlationID, schedulingID, reason)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
-		r0 = rf(operationID, schedulingID, reason)
+		r0 = rf(correlationID, schedulingID, reason)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -127,13 +127,13 @@ func (_m *MockOperationsRegistry) SetError(operationID string, schedulingID stri
 	return r0
 }
 
-// SetFailed provides a mock function with given fields: operationID, schedulingID, reason
-func (_m *MockOperationsRegistry) SetFailed(operationID string, schedulingID string, reason string) error {
-	ret := _m.Called(operationID, schedulingID, reason)
+// SetFailed provides a mock function with given fields: correlationID, schedulingID, reason
+func (_m *MockOperationsRegistry) SetFailed(correlationID string, schedulingID string, reason string) error {
+	ret := _m.Called(correlationID, schedulingID, reason)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
-		r0 = rf(operationID, schedulingID, reason)
+		r0 = rf(correlationID, schedulingID, reason)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -141,13 +141,13 @@ func (_m *MockOperationsRegistry) SetFailed(operationID string, schedulingID str
 	return r0
 }
 
-// SetInProgress provides a mock function with given fields: operationID, schedulingID
-func (_m *MockOperationsRegistry) SetInProgress(operationID string, schedulingID string) error {
-	ret := _m.Called(operationID, schedulingID)
+// SetInProgress provides a mock function with given fields: correlationID, schedulingID
+func (_m *MockOperationsRegistry) SetInProgress(correlationID string, schedulingID string) error {
+	ret := _m.Called(correlationID, schedulingID)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(operationID, schedulingID)
+		r0 = rf(correlationID, schedulingID)
 	} else {
 		r0 = ret.Error(0)
 	}

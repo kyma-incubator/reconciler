@@ -26,6 +26,7 @@ type Scheduler interface {
 }
 
 type RemoteScheduler struct {
+	inventory      cluster.Inventory
 	inventoryWatch InventoryWatcher
 	workerFactory  WorkerFactory
 	mothershipCfg  MothershipReconcilerConfig
@@ -39,6 +40,7 @@ func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFac
 		return nil, err
 	}
 	return &RemoteScheduler{
+		inventory:      inventory,
 		inventoryWatch: inventoryWatch,
 		workerFactory:  workerFactory,
 		mothershipCfg:  mothershipCfg,
@@ -106,31 +108,55 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		return
 	}
 
+	//Set the status as reconciling
+	_, err = rs.inventory.UpdateStatus(&state, model.Reconciling)
+	if err != nil {
+		rs.logger.Infof("Failed to update cluster status as reconciling: %s", err)
+	}
+
 	//Reconcile CRD components first
 	for _, component := range components {
 		if rs.isCRDComponent(component.Component) {
-			rs.reconcile(component, state, schedulingID, doInstallCRD, concurrencyNotAllowed)
+			rs.reconcile(nil, component, state, schedulingID, doInstallCRD, concurrencyNotAllowed)
 		}
 	}
 
 	//Reconcile pre components
 	for _, component := range components {
 		if rs.isPreComponent(component.Component) {
-			rs.reconcile(component, state, schedulingID, doNotInstallCRD, concurrencyNotAllowed)
+			rs.reconcile(nil, component, state, schedulingID, doNotInstallCRD, concurrencyNotAllowed)
 		}
 	}
+
+	var wg sync.WaitGroup
 
 	//Reconcile the rest
 	for _, component := range components {
 		if rs.isPreComponent(component.Component) || rs.isCRDComponent(component.Component) {
 			continue
 		}
-		rs.reconcile(component, state, schedulingID, doNotInstallCRD, concurrencyAllowed)
+		rs.reconcile(&wg, component, state, schedulingID, doNotInstallCRD, concurrencyAllowed)
+	}
+
+	wg.Wait()
+	//Check if any component reconciliation errored, if not, set the status as ready
+	latestState, err := rs.inventory.GetLatest(state.Cluster.Cluster)
+	if err != nil {
+		rs.logger.Infof("Failed to update cluster status as reconciling: %s", err)
+	}
+	if latestState.Status.Status != model.Error {
+		_, err = rs.inventory.UpdateStatus(&state, model.Ready)
+		if err != nil {
+			rs.logger.Infof("Failed to update cluster status as ready: %s", err)
+		}
 	}
 }
 
-func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool, concurrent concurrency) {
-	fn := func(component *keb.Components, state cluster.State, schedulingID string) {
+func (rs *RemoteScheduler) reconcile(wg *sync.WaitGroup, component *keb.Components, state cluster.State, schedulingID string, installCRD bool, concurrent concurrency) {
+	fn := func(wg *sync.WaitGroup, component *keb.Components, state cluster.State, schedulingID string, concurrent concurrency) {
+		if bool(concurrent) {
+			defer wg.Done()
+		}
 		worker, err := rs.workerFactory.ForComponent(component.Component)
 		if err != nil {
 			rs.logger.Errorf("Error creating worker for component: %s", err)
@@ -143,9 +169,10 @@ func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.St
 	}
 
 	if bool(concurrent) {
-		go fn(component, state, schedulingID)
+		wg.Add(1)
+		go fn(wg, component, state, schedulingID, concurrent)
 	} else {
-		fn(component, state, schedulingID)
+		fn(wg, component, state, schedulingID, concurrent)
 	}
 }
 
