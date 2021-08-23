@@ -69,7 +69,8 @@ spec:
           - reconciler
           - mothership
           - start
-          - --reconcilers=configuration/component-reconcilers.json
+          - --reconcilers=components-configuration/component-reconcilers.json
+          - --config=mothership-configuration/reconciler.yaml
         name: mothership-reconciler
         ports:
         - name: http
@@ -108,9 +109,14 @@ spec:
               name: reconciler-postgresql
               key: postgresql-reconciler-db-name
         volumeMounts:
+        - name: component-reconcilers-configuration
+          mountPath: "/components-configuration"
         - name: mothership-reconciler-configuration
-          mountPath: "/configuration"
+          mountPath: "/mothership-configuration"
       volumes:
+      - name: component-reconcilers-configuration
+        configMap:
+          name: component-reconcilers
       - name: mothership-reconciler-configuration
         configMap:
           name: mothership-reconciler

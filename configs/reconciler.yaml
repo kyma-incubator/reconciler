@@ -11,3 +11,10 @@ db:
     file: "reconciler.db"
     deploySchema: true
     resetDatabase: false
+mothership:
+  host: localhost
+  port: 8080
+crdComponents:
+  - cluster-essentials
+preComponents:
+  - istio

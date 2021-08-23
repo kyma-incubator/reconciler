@@ -254,13 +254,13 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.
 		return err
 	}
 
-	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFct, r.logger)
+	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFunc, r.logger)
 	if err != nil {
 		return err
 	}
 
-	runnerFct := r.newRunnerFct(ctx, model, localCbh)
-	return runnerFct()
+	runnerFunc := r.newRunnerFunc(ctx, model, localCbh)
+	return runnerFunc()
 }
 
 func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
@@ -346,8 +346,8 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			//assign runner to worker
 			err = workerPool.Submit(func() {
 				r.logger.Debugf("Runner for model '%s' is assigned to worker", model)
-				runnerFct := r.newRunnerFct(ctx, model, remoteCbh)
-				if errRunner := runnerFct(); errRunner != nil {
+				runnerFunc := r.newRunnerFunc(ctx, model, remoteCbh)
+				if errRunner := runnerFunc(); errRunner != nil {
 					r.logger.Warnf("Runner failed for model '%s': %v", model, errRunner)
 					return
 				}
@@ -385,7 +385,7 @@ func (r *ComponentReconciler) dependenciesMissing(model *reconciler.Reconciliati
 	return missing
 }
 
-func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {
+func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {
 	r.logger.Debugf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds())
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)

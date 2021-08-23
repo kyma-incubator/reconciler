@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 	"testing"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -75,7 +76,7 @@ func TestRunner(t *testing.T) {
 	}
 
 	//cleanup
-	cleanup := newCleanupFct(t)
+	cleanup := newCleanupFunc(t)
 	cleanup(false)      //cleanup before test runs
 	defer cleanup(true) //cleanup after test is finished
 
@@ -324,7 +325,7 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 	return &runner{recon}
 }
 
-func newCleanupFct(t *testing.T) func(bool) {
+func newCleanupFunc(t *testing.T) func(bool) {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 	require.NoError(t, recon.Debug())
