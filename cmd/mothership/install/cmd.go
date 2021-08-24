@@ -1,15 +1,8 @@
 package cmd
 
 import (
-	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/db"
-	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 func NewCmd(o *Options) *cobra.Command {
@@ -24,29 +17,16 @@ func NewCmd(o *Options) *cobra.Command {
 			return Run(o)
 		},
 	}
-	cmd.Flags().BoolVar(&o.Backup, "backup", true, "Create a backup of the previous encryption key file")
+	cmd.Flags().BoolVar(&o.Backup, "backup", true, "Create a backup of the current encryption key file")
 	return cmd
 }
 
 func Run(o *Options) error {
-	o.Logger().Infof("Generating database encryption key")
-	encKey, err := db.NewEncryptionKey()
-	if err != nil {
-		return err
+	err := cli.NewEncryptionKey(o.Backup)
+	if err == nil {
+		o.Logger().Infof("New encryption key file created")
+	} else {
+		o.Logger().Warnf("Failed to create encryption key file")
 	}
-
-	keyFile := viper.GetString("db.encryption.keyFile")
-	keyFileAbs := filepath.Join(filepath.Dir(viper.ConfigFileUsed()), keyFile)
-
-	if file.Exists(keyFileAbs) && o.Backup {
-		timestamp := time.Now().Unix()
-		encKeyFileBackup := fmt.Sprintf("%s.%d.bak", keyFileAbs, timestamp)
-		o.Logger().Infof("Renaming existing encryption key file to '%s'", encKeyFileBackup)
-		if err := os.Rename(keyFileAbs, encKeyFileBackup); err != nil {
-			return err
-		}
-	}
-
-	o.Logger().Infof("Storing new encryption key in file '%s'", keyFileAbs)
-	return ioutil.WriteFile(keyFileAbs, []byte(encKey), 0600)
+	return err
 }

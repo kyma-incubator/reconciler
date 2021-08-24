@@ -71,6 +71,7 @@ spec:
           - start
           - --reconcilers=components-configuration/component-reconcilers.json
           - --config=mothership-configuration/reconciler.yaml
+          - --create-encryption-key
         name: mothership-reconciler
         ports:
         - name: http
