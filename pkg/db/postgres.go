@@ -14,8 +14,8 @@ import (
 
 type PostgresConnection struct {
 	db        *sql.DB
-	logger    *zap.SugaredLogger
 	encryptor *Encryptor
+	logger    *zap.SugaredLogger
 }
 
 func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool) (*PostgresConnection, error) {
