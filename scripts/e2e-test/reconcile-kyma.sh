@@ -10,14 +10,14 @@ statusURL=$(curl --request POST -sL \
 echo "statusURL: ${statusURL}"
 
 ## Wait until Kyma is installed
-timeout=20 # in secs
+timeout=1200 # in secs
 delay=2 # in secs
 iterationsLeft=$(( timeout/delay ))
 while : ; do
   status=$(curl http://$statusURL | jq -r .status)
-  if [ "${status}" = "Installed" ]; then
+  if [ "${status}" = "ready" ]; then
     echo "kyma is installed"
-    break
+    exit 0
   fi
 
   if [ "$timeout" -ne 0 ] && [ "$iterationsLeft" -le 0 ]; then
