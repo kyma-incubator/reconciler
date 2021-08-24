@@ -29,11 +29,6 @@ const (
 	fakeComponent         = "component-1"
 )
 
-var wsf = &ws.Factory{
-	StorageDir: "./test",
-	Logger:     logger.NewOptionalLogger(true),
-}
-
 type TestAction struct {
 	name            string
 	receivedVersion string
@@ -347,6 +342,9 @@ func newCleanupFunc(t *testing.T) func(bool) {
 		cleanup.removeKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
 		//remove the cloned workspace
 		if deleteWorkspace {
+			wsf, err := ws.NewFactory("./test", logger.NewOptionalLogger(true))
+			require.NoError(t, err)
+
 			require.NoError(t, wsf.Delete(kymaVersion))
 		}
 	}

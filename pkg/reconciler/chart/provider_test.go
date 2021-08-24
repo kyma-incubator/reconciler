@@ -21,10 +21,9 @@ func TestProvider(t *testing.T) {
 	log, err := logger.NewLogger(true)
 	require.NoError(t, err)
 
-	wsFactory := &workspace.Factory{
-		StorageDir: "./test",
-		Logger:     log,
-	}
+	wsFactory, err := workspace.NewFactory("test", log)
+	require.NoError(t, err)
+
 	prov, err := NewProvider(wsFactory, log)
 	require.NoError(t, err)
 

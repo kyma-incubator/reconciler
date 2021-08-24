@@ -47,9 +47,12 @@ func NewDefaultOperationsRegistry() *DefaultOperationsRegistry {
 }
 
 func (or *DefaultOperationsRegistry) GetDoneOperations(schedulingID string) ([]*OperationState, error) {
+	or.mu.Lock()
+	defer or.mu.Unlock()
+
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return nil, fmt.Errorf("No operations found for scheduling id %s", schedulingID)
+		return nil, fmt.Errorf("no operations found for scheduling id %s", schedulingID)
 	}
 	var result []*OperationState
 	for idx := range operations {
@@ -69,7 +72,7 @@ func (or *DefaultOperationsRegistry) RegisterOperation(correlationID, scheduling
 	if ok {
 		_, ok := operations[correlationID]
 		if ok {
-			return nil, fmt.Errorf("Operation with the following id %s already registered", correlationID)
+			return nil, fmt.Errorf("operation with the following id %s already registered", correlationID)
 		}
 	} else {
 		or.registry[schedulingID] = make(map[string]OperationState)
@@ -106,11 +109,11 @@ func (or *DefaultOperationsRegistry) RemoveOperation(correlationID, schedulingID
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return fmt.Errorf("Operation with the following id %s not found", correlationID)
+		return fmt.Errorf("operation with the following id %s not found", correlationID)
 	}
 	_, ok = operations[correlationID]
 	if !ok {
-		return fmt.Errorf("Operation with the following id %s not found", correlationID)
+		return fmt.Errorf("operation with the following id %s not found", correlationID)
 	}
 	delete(or.registry[schedulingID], correlationID)
 	return nil
@@ -142,11 +145,11 @@ func (or *DefaultOperationsRegistry) update(correlationID, schedulingID, state, 
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return fmt.Errorf("Operation with the following id %s not found", correlationID)
+		return fmt.Errorf("operation with the following id %s not found", correlationID)
 	}
 	op, ok := operations[correlationID]
 	if !ok {
-		return fmt.Errorf("Operation with the following id %s not found", correlationID)
+		return fmt.Errorf("operation with the following id %s not found", correlationID)
 	}
 
 	or.registry[schedulingID][correlationID] = OperationState{

@@ -15,7 +15,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	fake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestEnsureRafterSecret(t *testing.T) {
@@ -148,7 +148,7 @@ func TestActionRun(t *testing.T) {
 		test := testCase
 		t.Run(test.Name, func(t *testing.T) {
 
-			fakeContext := newFakeServiceContext()
+			fakeContext := newFakeServiceContext(t)
 			customAction := CustomAction{
 				name: "test-action",
 			}
@@ -178,17 +178,15 @@ func TestRandAlphaNum(t *testing.T) {
 	}
 }
 
-func newFakeServiceContext() *service.ActionContext {
+func newFakeServiceContext(t *testing.T) *service.ActionContext {
 	mockClient := &mocks.Client{}
 	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
 	// We create './test_files/0.0.0/success.yaml' to trick the
 	// WorkspaceFactory into thinking that we don't need to
 	// clone the kyma repo. This is a temporary workaround
 	// since we can't currently mock WorkspaceFactory.
-	fakeFactory := &workspace.Factory{
-		StorageDir: "./test_files",
-		Logger:     log.NewOptionalLogger(true),
-	}
+	fakeFactory, err := workspace.NewFactory("./test_files", log.NewOptionalLogger(true))
+	require.NoError(t, err)
 
 	return &service.ActionContext{
 		KubeClient:       mockClient,

@@ -19,19 +19,17 @@ func TestWorkspaceFactory(t *testing.T) {
 
 	t.Run("Test validation", func(t *testing.T) {
 		wsf1 := Factory{
-			Logger: logger,
+			logger: logger,
 		}
 		require.NoError(t, wsf1.validate())
 		require.Equal(t, filepath.Join(wsf1.defaultStorageDir(), version), wsf1.workspaceDir(version))
-		require.Equal(t, defaultRepositoryURL, wsf1.RepositoryURL)
 
 		wsf2 := Factory{
-			Logger:     logger,
-			StorageDir: "/tmp",
+			logger:     logger,
+			storageDir: "/tmp",
 		}
 		require.NoError(t, wsf2.validate())
 		require.Equal(t, filepath.Join("/tmp", version), wsf2.workspaceDir(version))
-		require.Equal(t, defaultRepositoryURL, wsf1.RepositoryURL)
 	})
 
 	t.Run("Clone and delete workspace", func(t *testing.T) {
@@ -42,8 +40,8 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		workspaceDir := filepath.Join(".", "test", version)
 		wsf := &Factory{
-			Logger:     logger,
-			StorageDir: "./test",
+			logger:     logger,
+			storageDir: "./test",
 		}
 
 		//cleanup at the beginning (if test was interrupted before)

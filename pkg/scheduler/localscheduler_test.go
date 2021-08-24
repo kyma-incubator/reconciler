@@ -2,6 +2,8 @@ package scheduler
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"os"
 	"path/filepath"
 	"testing"
@@ -71,11 +73,13 @@ func newWorkerFactory(t *testing.T, operationsRegistry *DefaultOperationsRegistr
 }
 
 func initComponentReconcilers(t *testing.T) {
-	ceRecon, err := service.NewComponentReconciler("cluster-essentials")
-	require.NoErrorf(t, err, "Could not create '%s' component reconciler: %s", "cluster-essentials", err)
-	ceRecon.WithWorkspace(workspaceDir)
+	wsFact, err := workspace.NewFactory("test", logger.NewOptionalLogger(true))
+	require.NoError(t, err)
+	require.NoError(t, service.UseGlobalWorkspaceFactory(wsFact))
 
-	istioRecon, err := service.NewComponentReconciler("istio")
+	_, err = service.NewComponentReconciler("cluster-essentials")
+	require.NoErrorf(t, err, "Could not create '%s' component reconciler: %s", "cluster-essentials", err)
+
+	_, err = service.NewComponentReconciler("istio")
 	require.NoErrorf(t, err, "Could not create '%s' component reconciler: %s", "istio", err)
-	istioRecon.WithWorkspace(workspaceDir)
 }
