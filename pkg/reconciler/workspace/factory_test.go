@@ -39,10 +39,8 @@ func TestWorkspaceFactory(t *testing.T) {
 		}
 
 		workspaceDir := filepath.Join(".", "test", version)
-		wsf := &Factory{
-			logger:     logger,
-			storageDir: "./test",
-		}
+		wsf, err := NewFactory("test", log.NewOptionalLogger(true))
+		require.NoError(t, err)
 
 		//cleanup at the beginning (if test was interrupted before)
 		testDelete(t, wsf)
