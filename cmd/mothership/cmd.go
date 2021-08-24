@@ -15,7 +15,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	}
 
 	cmd.AddCommand(startCmd.NewCmd(startCmd.NewOptions(o)))
-	cmd.AddCommand(installCmd.NewCmd(o))
+	cmd.AddCommand(installCmd.NewCmd(installCmd.NewOptions(o)))
 
 	return cmd
 }
