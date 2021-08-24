@@ -2,15 +2,21 @@ package scheduler
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	kymaVersion  = "main"
+	workspaceDir = "test"
 )
 
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
@@ -18,45 +24,58 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 		t.Skip("Skipping an expensive test...")
 	}
 
-	kubeconfig := test.ReadKubeconfig(t)
+	//cleanup workspace
+	defer func() {
+		wsDir := filepath.Join(workspaceDir, kymaVersion)
+		t.Logf("Deleting cloned Kyma sources in %s", wsDir)
+		require.NoError(t, os.RemoveAll(wsDir))
+	}()
 
-	l, _ := logger.NewLogger(false)
-	_, err := service.NewComponentReconciler("cluster-essentials")
-	if err != nil {
-		l.Fatalf("Could not create '%s' component reconciler: %s", "cluster-essentials", err)
-	}
-	_, err = service.NewComponentReconciler("istio")
-	if err != nil {
-		l.Fatalf("Could not create '%s' component reconciler: %s", "istio", err)
-	}
+	initComponentReconcilers(t)
 
 	operationsRegistry := NewDefaultOperationsRegistry()
+	workerFactory := newWorkerFactory(t, operationsRegistry)
+	localScheduler := newLocalScheduler(t, workerFactory)
 
+	err := localScheduler.Run(context.Background())
+	require.NoError(t, err)
+}
+
+func newLocalScheduler(t *testing.T, workerFactory WorkerFactory) Scheduler {
+	kebCluster := keb.Cluster{
+		Kubeconfig: test.ReadKubeconfig(t),
+		KymaConfig: keb.KymaConfig{
+			Version: kymaVersion,
+			Profile: "evaluation",
+			Components: []keb.Components{
+				{Component: "cluster-essentials", Namespace: "kyma-system"},
+				{Component: "istio", Namespace: "istio-system"},
+			},
+		},
+	}
+	ls, err := NewLocalScheduler(kebCluster, workerFactory, true)
+	require.NoError(t, err)
+	return ls
+}
+
+func newWorkerFactory(t *testing.T, operationsRegistry *DefaultOperationsRegistry) WorkerFactory {
 	workerFactory, err := NewLocalWorkerFactory(
 		&cluster.MockInventory{},
 		operationsRegistry,
 		func(component string, status reconciler.Status) {
-			l.Infof("Component %s has status %s", component, status)
+			t.Logf("Component %s has status %s", component, status)
 		},
 		true)
 	require.NoError(t, err)
+	return workerFactory
+}
 
-	ls := LocalScheduler{
-		cluster: keb.Cluster{
-			Kubeconfig: kubeconfig,
-			KymaConfig: keb.KymaConfig{
-				Version: "main",
-				Profile: "evaluation",
-				Components: []keb.Components{
-					{Component: "cluster-essentials", Namespace: "kyma-system"},
-					{Component: "istio", Namespace: "istio-system"},
-				},
-			},
-		},
-		workerFactory: workerFactory,
-		logger:        l,
-	}
+func initComponentReconcilers(t *testing.T) {
+	ceRecon, err := service.NewComponentReconciler("cluster-essentials")
+	require.NoErrorf(t, err, "Could not create '%s' component reconciler: %s", "cluster-essentials", err)
+	ceRecon.WithWorkspace(workspaceDir)
 
-	err = ls.Run(context.Background())
-	require.NoError(t, err)
+	istioRecon, err := service.NewComponentReconciler("istio")
+	require.NoErrorf(t, err, "Could not create '%s' component reconciler: %s", "istio", err)
+	istioRecon.WithWorkspace(workspaceDir)
 }

@@ -40,7 +40,7 @@ type RemoteScheduler struct {
 }
 
 func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFactory, mothershipCfg reconciler.MothershipReconcilerConfig, workers int, debug bool) (Scheduler, error) {
-	l, err := logger.NewLogger(false)
+	l, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +86,9 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 
 	for {
 		select {
-		case cluster := <-queue:
+		case clusterState := <-queue:
 			go func(workersPool *ants.PoolWithFunc) {
-				if err := workersPool.Invoke(cluster); err != nil {
+				if err := workersPool.Invoke(clusterState); err != nil {
 					rs.logger.Errorf("Failed to pass cluster to cluster-pool worker: %s", err)
 				}
 			}(workersPool)
@@ -179,14 +179,15 @@ type LocalScheduler struct {
 	logger        *zap.SugaredLogger
 }
 
-func NewLocalScheduler(cluster keb.Cluster) (Scheduler, error) {
-	l, err := logger.NewLogger(false)
+func NewLocalScheduler(cluster keb.Cluster, workerFactory WorkerFactory, debug bool) (Scheduler, error) {
+	log, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
 	return &LocalScheduler{
-		cluster: cluster,
-		logger:  l,
+		cluster:       cluster,
+		workerFactory: workerFactory,
+		logger:        log,
 	}, nil
 }
 
