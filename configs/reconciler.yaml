@@ -1,23 +1,23 @@
+crdcomponents:
+- cluster-essentials
 db:
   driver: postgres
   encryption:
-    # CHANGE THIS VALUE IN A PRODUCTIVE SETUP!
-    key: "20f57b38116084c5436ff6686fc46fe3"
+    #Call `./bin/reconciler mothership install` to create or update the encryption key file
+    keyFile: "./encryption/reconciler.key"
   postgres:
-    host: "localhost"
-    database: "kyma"
+    database: kyma
+    host: localhost
+    password: kyma
     port: 5432
     user: kyma
-    password: kyma
-    useSsl: false
+    usessl: false
   sqlite:
-    file: "reconciler.db"
-    deploySchema: true
-    resetDatabase: false
+    deployschema: true
+    file: reconciler.db
+    resetdatabase: false
 mothership:
   host: localhost
   port: 8080
-crdComponents:
-  - cluster-essentials
-preComponents:
-  - istio
+precomponents:
+- istio

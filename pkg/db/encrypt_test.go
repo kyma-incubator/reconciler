@@ -46,7 +46,7 @@ func TestEncryptor(t *testing.T) {
 	})
 
 	t.Run("Verify idempotency", func(t *testing.T) {
-		key, err := NewKey()
+		key, err := NewEncryptionKey()
 		require.NoError(t, err)
 
 		enc1, err := NewEncryptor(key)
@@ -74,7 +74,7 @@ func TestEncryptor(t *testing.T) {
 }
 
 func newEncryptor(t *testing.T) *Encryptor {
-	key, err := NewKey()
+	key, err := NewEncryptionKey()
 	require.NoError(t, err)
 
 	enc, err := NewEncryptor(key)

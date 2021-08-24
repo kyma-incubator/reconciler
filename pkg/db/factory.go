@@ -4,6 +4,7 @@ import (
 	"fmt"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/viper"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -13,11 +14,19 @@ func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, err
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
 	}
+
+	encKey, err := readEncryptionKey()
+	if err != nil {
+		return nil, err
+	}
+
 	dbToUse := viper.GetString("db.driver")
+
 	switch dbToUse {
 	case "postgres":
-		connFact := createPostgresConnectionFactory(debug)
+		connFact := createPostgresConnectionFactory(encKey, debug)
 		return connFact, connFact.Init()
+
 	case "sqlite":
 		dbFile := viper.GetString("db.sqlite.file")
 		//ensure directory structure of db-file exists
@@ -32,25 +41,50 @@ func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, err
 			File:          dbFile,
 			Debug:         debug,
 			Reset:         viper.GetBool("db.sqlite.resetDatabase"),
-			EncryptionKey: viper.GetString("db.encryption.key"),
+			EncryptionKey: encKey,
 		}
 		if viper.GetBool("db.sqlite.deploySchema") {
 			connFact.SchemaFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), "db", "sqlite", "reconciler.sql")
 		}
 		return connFact, connFact.Init()
+
 	default:
 		panic(fmt.Sprintf("DB type '%s' not supported", dbToUse))
 	}
 }
 
-func createPostgresConnectionFactory(debug bool) *PostgresConnectionFactory {
+func readEncryptionKey() (string, error) {
+	encKeyFile := viper.GetString("db.encryption.keyFile")
+	if encKeyFile != "" {
+		if !filepath.IsAbs(encKeyFile) {
+			//define absolute path relative to config-file directory
+			encKeyFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), encKeyFile)
+		}
+	}
+
+	//overwrite encKeyFile if env-var if defined
+	if viper.IsSet("DATABASE_ENCRYPTION_KEYFILE") {
+		encKeyFile = viper.GetString("DATABASE_ENCRYPTION_KEYFILE")
+	}
+
+	if !file.Exists(encKeyFile) {
+		return "", fmt.Errorf("encryption key file '%s' not found", encKeyFile)
+	}
+
+	encKeyBytes, err := ioutil.ReadFile(encKeyFile)
+	if err != nil {
+		return "", err
+	}
+	return string(encKeyBytes), nil
+}
+
+func createPostgresConnectionFactory(encKey string, debug bool) *PostgresConnectionFactory {
 	host := viper.GetString("db.postgres.host")
 	port := viper.GetInt("db.postgres.port")
 	database := viper.GetString("db.postgres.database")
 	user := viper.GetString("db.postgres.user")
 	password := viper.GetString("db.postgres.password")
 	sslMode := viper.GetBool("db.postgres.sslMode")
-	encryptionKey := viper.GetString("db.encryption.key")
 
 	if viper.IsSet("DATABASE_HOST") {
 		host = viper.GetString("DATABASE_HOST")
@@ -70,9 +104,6 @@ func createPostgresConnectionFactory(debug bool) *PostgresConnectionFactory {
 	if viper.IsSet("DATABASE_SSL_MODE") {
 		sslMode = viper.GetBool("DATABASE_SSL_MODE")
 	}
-	if viper.IsSet("DATABASE_ENCRYPTION_KEY") {
-		encryptionKey = viper.GetString("DATABASE_ENCRYPTION_KEY")
-	}
 
 	return &PostgresConnectionFactory{
 		Host:          host,
@@ -81,7 +112,7 @@ func createPostgresConnectionFactory(debug bool) *PostgresConnectionFactory {
 		User:          user,
 		Password:      password,
 		SslMode:       sslMode,
-		EncryptionKey: encryptionKey,
+		EncryptionKey: encKey,
 		Debug:         debug,
 	}
 }

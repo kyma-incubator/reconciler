@@ -35,8 +35,8 @@ func NewEncryptor(key string) (*Encryptor, error) {
 	}, nil
 }
 
-//NewKey generates a random 32 byte key for AES-256
-func NewKey() (string, error) {
+//NewEncryptionKey generates a random 32 byte key for AES-256
+func NewEncryptionKey() (string, error) {
 	bytes := make([]byte, 32)
 	_, err := rand.Read(bytes)
 	return hex.EncodeToString(bytes), err

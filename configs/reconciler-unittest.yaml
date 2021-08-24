@@ -1,7 +1,7 @@
 db:
   driver: sqlite
   encryption:
-    key: "df23aafdd6f9a9197c13648fe8dc10af"
+    keyFile: "./encryption/unittest.key"
   postgres:
     host: "localhost"
     database: "kyma"
