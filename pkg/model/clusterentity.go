@@ -15,7 +15,7 @@ type ClusterEntity struct {
 	Cluster    string    `db:"notNull"`
 	Runtime    string    `db:"notNull"`
 	Metadata   string    `db:"notNull"`
-	Kubeconfig string    `db:"notNull"`
+	Kubeconfig string    `db:"notNull,encrypt"`
 	Contract   int64     `db:"notNull"`
 	Deleted    bool      `db:"notNull"`
 	Created    time.Time `db:"readOnly"`

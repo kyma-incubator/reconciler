@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+const keyIdLength = 15
+
 type Encryptor struct {
 	keyID [16]byte
 	aead  cipher.AEAD
@@ -52,9 +54,9 @@ func newAEAD(key string) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-//KeyID returns the MD5 checksum of the current key as HEX string
+//KeyID returns the first characters of the MD5 keys checksum as HEX string
 func (e *Encryptor) KeyID() string {
-	return fmt.Sprintf("%x", e.keyID)
+	return fmt.Sprintf("%x", e.keyID)[:keyIdLength]
 }
 
 func (e *Encryptor) Encrypt(data string) (string, error) {

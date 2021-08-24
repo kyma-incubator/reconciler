@@ -9,10 +9,10 @@ import (
 )
 
 func TestColumnHandler(t *testing.T) {
-	testConnFact, err := NewTestConnectionFactory()
+	connFact, err := NewTestConnectionFactory()
 	require.NoError(t, err)
 
-	conn, err := testConnFact.NewConnection()
+	conn, err := connFact.NewConnection()
 	require.NoError(t, err)
 
 	t.Run("Validate model", func(t *testing.T) {
@@ -59,10 +59,18 @@ func TestColumnHandler(t *testing.T) {
 	require.NoError(t, colHdr.Validate())
 
 	t.Run("Get values", func(t *testing.T) {
-		//check internal state
 		require.Equal(t, 3, len(colHdr.columns))
-		require.ElementsMatch(t, []interface{}{"testString", true, 123456789}, colHdr.ColumnValues(false))
-		require.ElementsMatch(t, []interface{}{"testString", 123456789}, colHdr.ColumnValues(true))
+
+		colValsAll, err := colHdr.ColumnValues(false)
+		require.NoError(t, err)
+		require.Len(t, colValsAll, 3)
+		require.Contains(t, colValsAll, "testString")
+		require.Contains(t, colValsAll, true)
+
+		colValsWriteable, err := colHdr.ColumnValues(true)
+		require.NoError(t, err)
+		require.Len(t, colValsWriteable, 2)
+		require.Contains(t, colValsWriteable, "testString")
 	})
 
 	t.Run("Get column name", func(t *testing.T) {
@@ -81,44 +89,51 @@ func TestColumnHandler(t *testing.T) {
 	})
 
 	t.Run("Get column values as CSV", func(t *testing.T) {
-		colValsOnlyWritable, err := colHdr.ColumnValuesCsv(false)
+		colValsAll, err := colHdr.ColumnValuesCsv(false)
 		require.NoError(t, err)
-		require.ElementsMatch(t, []string{"'testString'", "true", "123456789"}, splitAndTrimCsv(colValsOnlyWritable))
+		require.Len(t, splitAndTrimCsv(colValsAll), 3)
+		require.Contains(t, splitAndTrimCsv(colValsAll), "'testString'")
+		require.Contains(t, splitAndTrimCsv(colValsAll), "true")
 
-		colVals, err := colHdr.ColumnValuesCsv(true)
+		colValsWriteable, err := colHdr.ColumnValuesCsv(true)
 		require.NoError(t, err)
-		require.ElementsMatch(t, []string{"'testString'", "123456789"}, splitAndTrimCsv(colVals))
+		require.Len(t, splitAndTrimCsv(colValsWriteable), 2)
+		require.Contains(t, splitAndTrimCsv(colValsWriteable), "'testString'")
 	})
 
 	t.Run("Get column values as placeholder CSV", func(t *testing.T) {
-		colValsPlcHdrsOnlyWriteable, err := colHdr.ColumnValuesPlaceholderCsv(false)
+		colValsPlcHdrsAll, err := colHdr.ColumnValuesPlaceholderCsv(false)
 		require.NoError(t, err)
-		require.Equal(t, "$1, $2, $3", colValsPlcHdrsOnlyWriteable)
+		require.Equal(t, "$1, $2, $3", colValsPlcHdrsAll)
 
-		colValsPlcHdrs, err := colHdr.ColumnValuesPlaceholderCsv(true)
+		colValsPlcHdrsWriteable, err := colHdr.ColumnValuesPlaceholderCsv(true)
 		require.NoError(t, err)
-		require.Equal(t, "$1, $2", colValsPlcHdrs)
+		require.Equal(t, "$1, $2", colValsPlcHdrsWriteable)
 	})
 
 	t.Run("Get column entries as CSV", func(t *testing.T) {
-		rwKVPairsCsv, _, err := colHdr.ColumnEntriesCsv(false)
+		kvPairsAll, _, err := colHdr.ColumnEntriesCsv(false)
 		require.NoError(t, err)
-		require.ElementsMatch(t, []string{"col_1='testString'", "col_2=true", "col_3=123456789"}, splitAndTrimCsv(rwKVPairsCsv))
+		require.Len(t, splitAndTrimCsv(kvPairsAll), 3)
+		//don't test for encrypted value (enc-values are unique and cannot be reproduced/predicted)
+		require.Contains(t, splitAndTrimCsv(kvPairsAll), "col_1='testString'")
+		require.Contains(t, splitAndTrimCsv(kvPairsAll), "col_2=true")
 
-		roKVPairsCsv, _, err := colHdr.ColumnEntriesCsv(true)
+		kvPairsWriteable, _, err := colHdr.ColumnEntriesCsv(true)
 		require.NoError(t, err)
-		require.ElementsMatch(t, []string{"col_1='testString'", "col_3=123456789"}, splitAndTrimCsv(roKVPairsCsv))
+		require.Len(t, splitAndTrimCsv(kvPairsWriteable), 2)
+		require.Contains(t, splitAndTrimCsv(kvPairsWriteable), "col_1='testString'")
 	})
 
 	t.Run("Get column entries as placeholder CSV", func(t *testing.T) {
-		rwKeyValuePairsCsv, plcHdrCnt, err := colHdr.ColumnEntriesPlaceholderCsv(false)
+		kvPairsPlcHdrsAll, plcHdrCnt, err := colHdr.ColumnEntriesPlaceholderCsv(false)
 		require.NoError(t, err)
-		require.Regexp(t, regexp.MustCompile(`((col_1|col_2|col_3)=\$[1-3](, )?){3}`), rwKeyValuePairsCsv)
+		require.Regexp(t, regexp.MustCompile(`((col_1|col_2|col_3)=\$[1-3](, )?){3}`), kvPairsPlcHdrsAll)
 		require.Equal(t, 3, plcHdrCnt)
 
-		roKeyValuePairs, plcHdrCnt, err := colHdr.ColumnEntriesPlaceholderCsv(true)
+		kvPairsPlcHdrsWriteonly, plcHdrCnt, err := colHdr.ColumnEntriesPlaceholderCsv(true)
 		require.NoError(t, err)
-		require.Regexp(t, regexp.MustCompile(`((col_1|col_3)=\$[1-2](, )?){2}`), roKeyValuePairs)
+		require.Regexp(t, regexp.MustCompile(`((col_1|col_3)=\$[1-2](, )?){2}`), kvPairsPlcHdrsWriteonly)
 		require.Equal(t, 2, plcHdrCnt)
 	})
 }

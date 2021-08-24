@@ -45,6 +45,32 @@ func TestEncryptor(t *testing.T) {
 		require.Equal(t, data, decData)
 	})
 
+	t.Run("Verify idempotency", func(t *testing.T) {
+		key, err := NewKey()
+		require.NoError(t, err)
+
+		enc1, err := NewEncryptor(key)
+		require.NoError(t, err)
+		enc2, err := NewEncryptor(key)
+		require.NoError(t, err)
+
+		encData1, err := enc1.Encrypt(data)
+		require.NoError(t, err)
+		encData2, err := enc2.Encrypt(data)
+		require.NoError(t, err)
+
+		//decode with data1 with enc2 and data2 with enc1
+		decData1, err := enc2.Decrypt(encData1)
+		require.NoError(t, err)
+		require.Equal(t, decData1, data)
+
+		decData2, err := enc1.Decrypt(encData2)
+		require.NoError(t, err)
+		require.Equal(t, decData2, data)
+
+		require.Equal(t, decData1, decData2)
+	})
+
 }
 
 func newEncryptor(t *testing.T) *Encryptor {

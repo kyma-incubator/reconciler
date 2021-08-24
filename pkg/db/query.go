@@ -241,7 +241,11 @@ func (i *Insert) Exec() error {
 	if err := i.columnHandler.Validate(); err != nil {
 		return err
 	}
-	row := i.conn.QueryRow(i.buffer.String(), i.columnHandler.ColumnValues(true)...)
+	colVals, err := i.columnHandler.ColumnValues(true)
+	if err != nil {
+		return err
+	}
+	row := i.conn.QueryRow(i.buffer.String(), colVals...)
 	return i.columnHandler.Unmarshal(row, i.entity)
 }
 
@@ -297,6 +301,10 @@ func (u *Update) Exec() error {
 	//finalize query by appending RETURNING
 	u.buffer.WriteString(fmt.Sprintf(" RETURNING %s", u.columnHandler.ColumnNamesCsv(false)))
 
-	row := u.conn.QueryRow(u.buffer.String(), u.columnHandler.ColumnValues(true)...)
+	colVals, err := u.columnHandler.ColumnValues(true)
+	if err != nil {
+		return err
+	}
+	row := u.conn.QueryRow(u.buffer.String(), colVals...)
 	return u.columnHandler.Unmarshal(row, u.entity)
 }

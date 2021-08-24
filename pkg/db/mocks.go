@@ -13,7 +13,7 @@ const (
 type MockDbEntity struct {
 	Col1 string `db:"notNull"`
 	Col2 bool   `db:"readOnly"`
-	Col3 int
+	Col3 int    `db:"encrypt"`
 }
 
 type MockConnection struct {

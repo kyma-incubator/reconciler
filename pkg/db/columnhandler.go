@@ -3,6 +3,7 @@ package db
 import (
 	"bytes"
 	"fmt"
+	"github.com/pkg/errors"
 	"reflect"
 	"strings"
 
@@ -152,15 +153,23 @@ func (ch *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 	return buffer.String()
 }
 
-func (ch *ColumnHandler) ColumnValues(onlyWriteable bool) []interface{} {
+func (ch *ColumnHandler) ColumnValues(onlyWriteable bool) ([]interface{}, error) {
 	var result []interface{}
 	for _, col := range ch.columns {
 		if onlyWriteable && col.readOnly {
 			continue
 		}
-		result = append(result, col.value)
+		if col.encrypt {
+			encValue, err := ch.serializeValue(col)
+			if err != nil {
+				return result, err
+			}
+			result = append(result, encValue)
+		} else {
+			result = append(result, col.value)
+		}
 	}
-	return result
+	return result, nil
 }
 
 func (ch *ColumnHandler) columnValuesCsvRenderer(onlyWriteable, placeholder bool) (string, error) {
@@ -259,14 +268,22 @@ func (ch *ColumnHandler) Unmarshal(row DataRow, entity DatabaseEntity) error {
 	entityData := make(map[string]interface{}, len(ch.columns))
 	for _, col := range ch.columns {
 		if col.encrypt {
-			decValue, err := ch.encryptor.Decrypt(fmt.Sprintf("%s", col.value))
-			if err != nil {
-				return err
+			//try to decrypt the data
+			decValue, err := ch.encryptor.Decrypt(fmt.Sprintf("%v", col.value))
+			if err == nil {
+				//use decrypted value
+				entityData[col.field.Name()] = decValue
+				continue
+			} else if col.notNull {
+				//fail if field is marked as notNull
+				//(for nullable fields, ignore the error and use the value returned by DB)
+				return errors.Wrap(err,
+					fmt.Sprintf("Field '%s' is encrypted and marked as notNull but value could not be decrypted",
+						col.name))
 			}
-			entityData[col.field.Name()] = decValue
-		} else {
-			entityData[col.field.Name()] = col.value
 		}
+		entityData[col.field.Name()] = col.value
 	}
+
 	return entity.Marshaller().Unmarshal(entityData)
 }
