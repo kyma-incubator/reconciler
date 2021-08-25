@@ -64,12 +64,14 @@ func TestColumnHandler(t *testing.T) {
 		colValsAll, err := colHdr.ColumnValues(false)
 		require.NoError(t, err)
 		require.Len(t, colValsAll, 3)
+		//don't test for encrypted value in col3 (enc-values are unique and cannot be reproduced/predicted)
 		require.Contains(t, colValsAll, "testString")
 		require.Contains(t, colValsAll, true)
 
 		colValsWriteable, err := colHdr.ColumnValues(true)
 		require.NoError(t, err)
 		require.Len(t, colValsWriteable, 2)
+		//don't test for encrypted value in col3 (enc-values are unique and cannot be reproduced/predicted)
 		require.Contains(t, colValsWriteable, "testString")
 	})
 
@@ -92,12 +94,14 @@ func TestColumnHandler(t *testing.T) {
 		colValsAll, err := colHdr.ColumnValuesCsv(false)
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(colValsAll), 3)
+		//don't test for encrypted value in col3 (enc-values are unique and cannot be reproduced/predicted)
 		require.Contains(t, splitAndTrimCsv(colValsAll), "testString")
 		require.Contains(t, splitAndTrimCsv(colValsAll), "true")
 
 		colValsWriteable, err := colHdr.ColumnValuesCsv(true)
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(colValsWriteable), 2)
+		//don't test for encrypted value in col3 (enc-values are unique and cannot be reproduced/predicted)
 		require.Contains(t, splitAndTrimCsv(colValsWriteable), "testString")
 	})
 
@@ -115,13 +119,14 @@ func TestColumnHandler(t *testing.T) {
 		kvPairsAll, _, err := colHdr.ColumnEntriesCsv(false)
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(kvPairsAll), 3)
-		//don't test for encrypted value (enc-values are unique and cannot be reproduced/predicted)
+		//don't test for encrypted value 'col_3' (enc-values are unique and cannot be reproduced/predicted)
 		require.Contains(t, splitAndTrimCsv(kvPairsAll), "col_1=testString")
 		require.Contains(t, splitAndTrimCsv(kvPairsAll), "col_2=true")
 
 		kvPairsWriteable, _, err := colHdr.ColumnEntriesCsv(true)
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(kvPairsWriteable), 2)
+		//don't test for encrypted value 'col_3' (enc-values are unique and cannot be reproduced/predicted)
 		require.Contains(t, splitAndTrimCsv(kvPairsWriteable), "col_1=testString")
 	})
 
