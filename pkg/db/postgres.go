@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	//add Postgres driver:
 	_ "github.com/lib/pq"
@@ -13,19 +13,29 @@ import (
 )
 
 type PostgresConnection struct {
-	db     *sql.DB
-	logger *zap.SugaredLogger
+	db        *sql.DB
+	encryptor *Encryptor
+	logger    *zap.SugaredLogger
 }
 
-func newPostgresConnection(db *sql.DB, debug bool) (*PostgresConnection, error) {
-	logger, err := logger.NewLogger(debug)
+func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool) (*PostgresConnection, error) {
+	logger, err := log.NewLogger(debug)
+	if err != nil {
+		return nil, err
+	}
+	encryptor, err := NewEncryptor(encryptionKey)
 	if err != nil {
 		return nil, err
 	}
 	return &PostgresConnection{
-		db:     db,
-		logger: logger,
+		db:        db,
+		encryptor: encryptor,
+		logger:    logger,
 	}, nil
+}
+
+func (pc *PostgresConnection) Encryptor() *Encryptor {
+	return pc.encryptor
 }
 
 func (pc *PostgresConnection) QueryRow(query string, args ...interface{}) DataRow {
@@ -66,13 +76,14 @@ func (pc *PostgresConnection) Type() Type {
 }
 
 type PostgresConnectionFactory struct {
-	Host     string
-	Port     int
-	Database string
-	User     string
-	Password string
-	SslMode  bool
-	Debug    bool
+	Host          string
+	Port          int
+	Database      string
+	User          string
+	Password      string
+	SslMode       bool
+	EncryptionKey string
+	Debug         bool
 }
 
 func (pcf *PostgresConnectionFactory) Init() error {
@@ -99,5 +110,5 @@ func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
 		return nil, err
 	}
 
-	return newPostgresConnection(db, pcf.Debug)
+	return newPostgresConnection(db, pcf.EncryptionKey, pcf.Debug)
 }

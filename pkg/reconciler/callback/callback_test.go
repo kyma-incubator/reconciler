@@ -34,14 +34,14 @@ func TestLocalCallbackHandler(t *testing.T) {
 	logger := log.NewOptionalLogger(true)
 
 	t.Run("Test successful local status update", func(t *testing.T) {
-		var localFctCalled bool
+		var localFuncCalled bool
 		rcb, err := NewLocalCallbackHandler(func(status reconciler.Status) error {
-			localFctCalled = true
+			localFuncCalled = true
 			return nil
 		}, logger)
 		require.NoError(t, err)
 		require.NoError(t, rcb.Callback(reconciler.Running))
-		require.True(t, localFctCalled)
+		require.True(t, localFuncCalled)
 	})
 
 	t.Run("Test failed local status update", func(t *testing.T) {

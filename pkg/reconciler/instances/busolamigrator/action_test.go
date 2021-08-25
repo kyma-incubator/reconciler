@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 	"io"
 	"io/ioutil"
-	restFake "k8s.io/client-go/rest/fake"
 	"net/http"
 	"path"
 	"strings"
 	"testing"
+
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
+	restFake "k8s.io/client-go/rest/fake"
 )
 
 func TestNewVirtualServicePreInstallPatch(t *testing.T) {

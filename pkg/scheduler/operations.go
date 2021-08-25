@@ -25,14 +25,14 @@ type OperationState struct {
 
 type OperationsRegistry interface {
 	GetDoneOperations(schedulingID string) ([]*OperationState, error)
-	RegisterOperation(operationID, schedulingID, component string) (*OperationState, error)
-	GetOperation(operationID, schedulingID string) *OperationState
-	RemoveOperation(operationID, schedulingID string) error
-	SetInProgress(operationID, schedulingID string) error
-	SetDone(operationID, schedulingID string) error
-	SetError(operationID, schedulingID, reason string) error
-	SetClientError(operationID, schedulingID, reason string) error
-	SetFailed(operationID, schedulingID, reason string) error
+	RegisterOperation(correlationID, schedulingID, component string) (*OperationState, error)
+	GetOperation(correlationID, schedulingID string) *OperationState
+	RemoveOperation(correlationID, schedulingID string) error
+	SetInProgress(correlationID, schedulingID string) error
+	SetDone(correlationID, schedulingID string) error
+	SetError(correlationID, schedulingID, reason string) error
+	SetClientError(correlationID, schedulingID, reason string) error
+	SetFailed(correlationID, schedulingID, reason string) error
 }
 
 type DefaultOperationsRegistry struct {
@@ -47,9 +47,12 @@ func NewDefaultOperationsRegistry() *DefaultOperationsRegistry {
 }
 
 func (or *DefaultOperationsRegistry) GetDoneOperations(schedulingID string) ([]*OperationState, error) {
+	or.mu.Lock()
+	defer or.mu.Unlock()
+
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return nil, fmt.Errorf("No operations found for scheduling id %s", schedulingID)
+		return nil, fmt.Errorf("no operations found for scheduling id %s", schedulingID)
 	}
 	var result []*OperationState
 	for idx := range operations {
@@ -61,31 +64,31 @@ func (or *DefaultOperationsRegistry) GetDoneOperations(schedulingID string) ([]*
 	return result, nil
 }
 
-func (or *DefaultOperationsRegistry) RegisterOperation(operationID, schedulingID, component string) (*OperationState, error) {
+func (or *DefaultOperationsRegistry) RegisterOperation(correlationID, schedulingID, component string) (*OperationState, error) {
 	or.mu.Lock()
 	defer or.mu.Unlock()
 
 	operations, ok := or.registry[schedulingID]
 	if ok {
-		_, ok := operations[operationID]
+		_, ok := operations[correlationID]
 		if ok {
-			return nil, fmt.Errorf("Operation with the following id %s already registered", operationID)
+			return nil, fmt.Errorf("operation with the following id %s already registered", correlationID)
 		}
 	} else {
 		or.registry[schedulingID] = make(map[string]OperationState)
 	}
 
 	op := OperationState{
-		ID:        operationID,
+		ID:        correlationID,
 		Component: component,
 		State:     StateNew,
 		UpdatedAt: time.Now(),
 	}
-	or.registry[schedulingID][operationID] = op
+	or.registry[schedulingID][correlationID] = op
 	return &op, nil
 }
 
-func (or *DefaultOperationsRegistry) GetOperation(operationID, schedulingID string) *OperationState {
+func (or *DefaultOperationsRegistry) GetOperation(correlationID, schedulingID string) *OperationState {
 	or.mu.Lock()
 	defer or.mu.Unlock()
 
@@ -93,64 +96,64 @@ func (or *DefaultOperationsRegistry) GetOperation(operationID, schedulingID stri
 	if !ok {
 		return nil
 	}
-	op, ok := operations[operationID]
+	op, ok := operations[correlationID]
 	if !ok {
 		return nil
 	}
 	return &op
 }
 
-func (or *DefaultOperationsRegistry) RemoveOperation(operationID, schedulingID string) error {
+func (or *DefaultOperationsRegistry) RemoveOperation(correlationID, schedulingID string) error {
 	or.mu.Lock()
 	defer or.mu.Unlock()
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return fmt.Errorf("Operation with the following id %s not found", operationID)
+		return fmt.Errorf("operation with the following id %s not found", correlationID)
 	}
-	_, ok = operations[operationID]
+	_, ok = operations[correlationID]
 	if !ok {
-		return fmt.Errorf("Operation with the following id %s not found", operationID)
+		return fmt.Errorf("operation with the following id %s not found", correlationID)
 	}
-	delete(or.registry[schedulingID], operationID)
+	delete(or.registry[schedulingID], correlationID)
 	return nil
 }
 
-func (or *DefaultOperationsRegistry) SetInProgress(operationID, schedulingID string) error {
-	return or.update(operationID, schedulingID, StateInProgress, "")
+func (or *DefaultOperationsRegistry) SetInProgress(correlationID, schedulingID string) error {
+	return or.update(correlationID, schedulingID, StateInProgress, "")
 }
 
-func (or *DefaultOperationsRegistry) SetDone(operationID, schedulingID string) error {
-	return or.update(operationID, schedulingID, StateDone, "")
+func (or *DefaultOperationsRegistry) SetDone(correlationID, schedulingID string) error {
+	return or.update(correlationID, schedulingID, StateDone, "")
 }
 
-func (or *DefaultOperationsRegistry) SetError(operationID, schedulingID, reason string) error {
-	return or.update(operationID, schedulingID, StateError, reason)
+func (or *DefaultOperationsRegistry) SetError(correlationID, schedulingID, reason string) error {
+	return or.update(correlationID, schedulingID, StateError, reason)
 }
 
-func (or *DefaultOperationsRegistry) SetClientError(operationID, schedulingID, reason string) error {
-	return or.update(operationID, schedulingID, StateClientError, reason)
+func (or *DefaultOperationsRegistry) SetClientError(correlationID, schedulingID, reason string) error {
+	return or.update(correlationID, schedulingID, StateClientError, reason)
 }
 
-func (or *DefaultOperationsRegistry) SetFailed(operationID, schedulingID, reason string) error {
-	return or.update(operationID, schedulingID, StateFailed, reason)
+func (or *DefaultOperationsRegistry) SetFailed(correlationID, schedulingID, reason string) error {
+	return or.update(correlationID, schedulingID, StateFailed, reason)
 }
 
-func (or *DefaultOperationsRegistry) update(operationID, schedulingID, state, reason string) error {
+func (or *DefaultOperationsRegistry) update(correlationID, schedulingID, state, reason string) error {
 	or.mu.Lock()
 	defer or.mu.Unlock()
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return fmt.Errorf("Operation with the following id %s not found", operationID)
+		return fmt.Errorf("operation with the following id %s not found", correlationID)
 	}
-	op, ok := operations[operationID]
+	op, ok := operations[correlationID]
 	if !ok {
-		return fmt.Errorf("Operation with the following id %s not found", operationID)
+		return fmt.Errorf("operation with the following id %s not found", correlationID)
 	}
 
-	or.registry[schedulingID][operationID] = OperationState{
-		ID:        operationID,
+	or.registry[schedulingID][correlationID] = OperationState{
+		ID:        correlationID,
 		Component: op.Component,
 		State:     state,
 		Reason:    reason,

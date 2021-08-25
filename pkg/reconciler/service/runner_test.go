@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 	"testing"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -27,11 +28,6 @@ const (
 	apiGatewayComponent   = "api-gateway"
 	fakeComponent         = "component-1"
 )
-
-var wsf = &ws.Factory{
-	StorageDir: "./test",
-	Logger:     logger.NewOptionalLogger(true),
-}
 
 type TestAction struct {
 	name            string
@@ -75,7 +71,7 @@ func TestRunner(t *testing.T) {
 	}
 
 	//cleanup
-	cleanup := newCleanupFct(t)
+	cleanup := newCleanupFunc(t)
 	cleanup(false)      //cleanup before test runs
 	defer cleanup(true) //cleanup after test is finished
 
@@ -324,7 +320,7 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 	return &runner{recon}
 }
 
-func newCleanupFct(t *testing.T) func(bool) {
+func newCleanupFunc(t *testing.T) func(bool) {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 	require.NoError(t, recon.Debug())
@@ -346,6 +342,9 @@ func newCleanupFct(t *testing.T) func(bool) {
 		cleanup.removeKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
 		//remove the cloned workspace
 		if deleteWorkspace {
+			wsf, err := ws.NewFactory("./test", logger.NewOptionalLogger(true))
+			require.NoError(t, err)
+
 			require.NoError(t, wsf.Delete(kymaVersion))
 		}
 	}

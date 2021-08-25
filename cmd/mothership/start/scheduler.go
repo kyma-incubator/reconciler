@@ -8,9 +8,15 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler"
+	"github.com/spf13/viper"
 )
 
-func startScheduler(ctx context.Context, o *Options) error {
+func startScheduler(ctx context.Context, o *Options, configFile string) error {
+	mothershipCfg, err := parseMothershipReconcilerConfig(configFile)
+	if err != nil {
+		return err
+	}
+
 	reconcilersCfg, err := parseComponentReconcilersConfig(o.ReconcilersCfgPath)
 	if err != nil {
 		return err
@@ -28,9 +34,10 @@ func startScheduler(ctx context.Context, o *Options) error {
 		return err
 	}
 
-	workerFactory, err := scheduler.NewWorkersFactory(
+	workerFactory, err := scheduler.NewRemoteWorkerFactory(
 		o.Registry.Inventory(),
 		reconcilersCfg,
+		mothershipCfg,
 		o.Registry.OperationsRegistry(),
 		o.Verbose,
 	)
@@ -41,6 +48,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 	remoteScheduler, err := scheduler.NewRemoteScheduler(
 		inventoryWatch,
 		workerFactory,
+		mothershipCfg,
 		o.Workers,
 		o.Verbose,
 	)
@@ -49,6 +57,22 @@ func startScheduler(ctx context.Context, o *Options) error {
 	}
 
 	return remoteScheduler.Run(ctx)
+}
+
+func parseMothershipReconcilerConfig(configFile string) (reconciler.MothershipReconcilerConfig, error) {
+	viper.SetConfigFile(configFile)
+	if err := viper.ReadInConfig(); err != nil {
+		return reconciler.MothershipReconcilerConfig{}, err
+	}
+	mothershipHost := viper.GetString("mothership.host")
+	mothershipPort := viper.GetInt("mothership.port")
+	crdComponents := viper.GetStringSlice("crdComponents")
+	preComponents := viper.GetStringSlice("preComponents")
+	return reconciler.MothershipReconcilerConfig{
+		Host:          mothershipHost,
+		Port:          mothershipPort,
+		CrdComponents: crdComponents,
+		PreComponents: preComponents}, nil
 }
 
 func parseComponentReconcilersConfig(path string) (reconciler.ComponentReconcilersConfig, error) {

@@ -2,7 +2,6 @@ package chart
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
@@ -11,7 +10,6 @@ import (
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/deployment"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/overrides"
-	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -23,7 +21,7 @@ type Provider struct {
 
 func NewProvider(wsFactory *workspace.Factory, logger *zap.SugaredLogger) (*Provider, error) {
 	if wsFactory == nil {
-		return nil, fmt.Errorf("Workspace factory cannot be nil")
+		return nil, fmt.Errorf("workspace factory cannot be nil")
 	}
 	return &Provider{
 		wsFactory: wsFactory,
@@ -31,22 +29,11 @@ func NewProvider(wsFactory *workspace.Factory, logger *zap.SugaredLogger) (*Prov
 	}, nil
 }
 
-func (p *Provider) ChangeWorkspace(wsDir string) error {
-	if !file.DirExists(wsDir) {
-		if err := os.MkdirAll(wsDir, 0755); err != nil {
-			return err
-		}
-	}
-	p.wsFactory.StorageDir = wsDir
-	return nil
-}
-
 func (p *Provider) loggerAdapter() *HydroformLoggerAdapter {
 	return NewHydroformLoggerAdapter(p.logger)
 }
 
 func (p *Provider) Manifests(compSet *ComponentSet, includeCRD bool, opts *Options) ([]*components.Manifest, error) {
-	//TODO: add caching check here
 	p.logger.Debugf("Getting workspace for Kyma '%s'", compSet.version)
 	ws, err := p.wsFactory.Get(compSet.version)
 	if err != nil {

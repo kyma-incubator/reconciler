@@ -28,7 +28,7 @@ func (cer *Repository) Keys() ([]*model.KeyEntity, error) {
 	}
 
 	//get fields used in sub-query
-	colHdlr, err := db.NewColumnHandler(entity)
+	colHdlr, err := db.NewColumnHandler(entity, cer.Conn)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (cer *Repository) Keys() ([]*model.KeyEntity, error) {
 	}
 
 	//cast to specific entity
-	result := []*model.KeyEntity{}
+	var result []*model.KeyEntity
 	for _, entity := range entities {
 		result = append(result, entity.(*model.KeyEntity))
 	}
@@ -73,7 +73,7 @@ func (cer *Repository) KeyHistory(key string) ([]*model.KeyEntity, error) {
 		return nil, err
 	}
 	//cast to specific entity
-	result := []*model.KeyEntity{}
+	var result []*model.KeyEntity
 	for _, entity := range entities {
 		result = append(result, entity.(*model.KeyEntity))
 	}
@@ -185,7 +185,7 @@ func (cer *Repository) ValuesByBucket(bucket string) ([]*model.ValueEntity, erro
 	}
 
 	//get fields used in sub-query
-	colHdlr, err := db.NewColumnHandler(entity)
+	colHdlr, err := db.NewColumnHandler(entity, cer.Conn)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func (cer *Repository) ValuesByBucket(bucket string) ([]*model.ValueEntity, erro
 	}
 
 	//cast to specific entity
-	result := []*model.ValueEntity{}
+	var result []*model.ValueEntity
 	for _, entity := range entities {
 		result = append(result, entity.(*model.ValueEntity))
 	}
@@ -228,7 +228,7 @@ func (cer *Repository) ValuesByKey(key *model.KeyEntity) ([]*model.ValueEntity, 
 	}
 
 	//get fields used in sub-query
-	colHdlr, err := db.NewColumnHandler(entity)
+	colHdlr, err := db.NewColumnHandler(entity, cer.Conn)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +260,7 @@ func (cer *Repository) ValuesByKey(key *model.KeyEntity) ([]*model.ValueEntity, 
 	}
 
 	//cast to specific entity
-	result := []*model.ValueEntity{}
+	var result []*model.ValueEntity
 	for _, entity := range entities {
 		result = append(result, entity.(*model.ValueEntity))
 	}
@@ -281,7 +281,7 @@ func (cer *Repository) ValueHistory(bucket, key string) ([]*model.ValueEntity, e
 		return nil, err
 	}
 	//cast to specific entity
-	result := []*model.ValueEntity{}
+	var result []*model.ValueEntity
 	for _, entity := range entities {
 		result = append(result, entity.(*model.ValueEntity))
 	}
@@ -407,7 +407,7 @@ func (cer *Repository) Buckets() ([]*model.BucketEntity, error) {
 		return nil, err
 	}
 
-	buckets := []*model.BucketEntity{}
+	var buckets []*model.BucketEntity
 	for _, bucketName := range bucketNames {
 		q, err := db.NewQuery(cer.Conn, &model.BucketEntity{})
 		if err != nil {
@@ -431,7 +431,7 @@ func (cer *Repository) Buckets() ([]*model.BucketEntity, error) {
 func (cer *Repository) bucketNames() ([]string, error) {
 	entity := &model.BucketEntity{}
 
-	colHdlr, err := db.NewColumnHandler(entity)
+	colHdlr, err := db.NewColumnHandler(entity, cer.Conn)
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +446,7 @@ func (cer *Repository) bucketNames() ([]string, error) {
 		return nil, err
 	}
 
-	bucketNames := []string{}
+	var bucketNames []string
 	for rows.Next() {
 		var bucket string
 		if err := rows.Scan(&bucket); err != nil {

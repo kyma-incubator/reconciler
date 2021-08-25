@@ -5,11 +5,11 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-const ReconcilerName = "busola-migrator"
+const ReconcilerName = "busolamigrator"
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
-	log, err := logger.NewLogger(true)
+	log, err := logger.NewLogger(false)
 	if err != nil {
 		panic(err)
 	}

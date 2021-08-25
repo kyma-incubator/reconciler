@@ -54,5 +54,11 @@ tolerations: []
 
 affinity: {}
 
+crdComponents:
+  - cluster-essentials
+
+preComponents:
+  - istio
+
 # TODO https://github.com/kyma-incubator/reconciler/issues/53
 #host: "kyma-env-reconciler"

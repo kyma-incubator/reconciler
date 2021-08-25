@@ -15,7 +15,7 @@ type ClusterEntity struct {
 	Cluster    string    `db:"notNull"`
 	Runtime    string    `db:"notNull"`
 	Metadata   string    `db:"notNull"`
-	Kubeconfig string    `db:"notNull"`
+	Kubeconfig string    `db:"notNull,encrypt"`
 	Contract   int64     `db:"notNull"`
 	Deleted    bool      `db:"notNull"`
 	Created    time.Time `db:"readOnly"`
@@ -49,8 +49,7 @@ func (c *ClusterEntity) Equal(other db.DatabaseEntity) bool {
 		return c.Cluster == otherClProp.Cluster &&
 			c.Runtime == otherClProp.Runtime &&
 			c.Metadata == otherClProp.Metadata &&
-			c.Contract == otherClProp.Contract &&
-			c.Kubeconfig == otherClProp.Kubeconfig
+			c.Contract == otherClProp.Contract
 	}
 	return false
 }

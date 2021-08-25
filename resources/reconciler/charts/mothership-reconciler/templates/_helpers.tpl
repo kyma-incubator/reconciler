@@ -64,7 +64,7 @@ Create the name of the service account to use
 {{- define "mothership-reconciler.component-reconcilers" -}}
 {{- range $component := .Values.global.components }}
   "{{ $component }}": {
-    "url": "http://component-reconcilers-{{ $component }}:8080/v1/run"
+    "url": "http://{{ $component }}-reconciler:8080/v1/run"
   },
 {{- end }}
 {{- end }}
