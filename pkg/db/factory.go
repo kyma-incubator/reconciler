@@ -28,23 +28,9 @@ func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, err
 		return connFact, connFact.Init()
 
 	case "sqlite":
-		dbFile := viper.GetString("db.sqlite.file")
-		//ensure directory structure of db-file exists
-		dbFileDir := filepath.Dir(dbFile)
-		if !file.DirExists(dbFile) {
-			if err := os.MkdirAll(dbFileDir, 0700); err != nil {
-				return nil, err
-			}
-		}
-		//create the factory
-		connFact := &SqliteConnectionFactory{
-			File:          dbFile,
-			Debug:         debug,
-			Reset:         viper.GetBool("db.sqlite.resetDatabase"),
-			EncryptionKey: encKey,
-		}
-		if viper.GetBool("db.sqlite.deploySchema") {
-			connFact.SchemaFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), "db", "sqlite", "reconciler.sql")
+		connFact, err := createSqliteConnectionFactory(encKey, debug)
+		if err != nil {
+			return nil, err
 		}
 		return connFact, connFact.Init()
 
@@ -76,6 +62,27 @@ func readEncryptionKey() (string, error) {
 		return "", err
 	}
 	return string(encKeyBytes), nil
+}
+
+func createSqliteConnectionFactory(encKey string, debug bool) (*SqliteConnectionFactory, error) {
+	dbFile := viper.GetString("db.sqlite.file")
+	//ensure directory structure of db-file exists
+	dbFileDir := filepath.Dir(dbFile)
+	if !file.DirExists(dbFile) {
+		if err := os.MkdirAll(dbFileDir, 0700); err != nil {
+			return nil, err
+		}
+	}
+	connFact := &SqliteConnectionFactory{
+		File:          dbFile,
+		Debug:         debug,
+		Reset:         viper.GetBool("db.sqlite.resetDatabase"),
+		EncryptionKey: encKey,
+	}
+	if viper.GetBool("db.sqlite.deploySchema") {
+		connFact.SchemaFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), "db", "sqlite", "reconciler.sql")
+	}
+	return connFact, nil
 }
 
 func createPostgresConnectionFactory(encKey string, debug bool) *PostgresConnectionFactory {
