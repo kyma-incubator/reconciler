@@ -249,7 +249,7 @@ func (ch *ColumnHandler) serializeValue(col *column) (string, error) {
 	case reflect.Float32, reflect.Float64:
 		value = fmt.Sprintf("%f", col.value)
 	default:
-		value = fmt.Sprintf("'%v'", col.value)
+		value = fmt.Sprintf("%v", col.value)
 	}
 	if col.encrypt {
 		return ch.encryptor.Encrypt(value)

@@ -49,8 +49,7 @@ func (c *ClusterEntity) Equal(other db.DatabaseEntity) bool {
 		return c.Cluster == otherClProp.Cluster &&
 			c.Runtime == otherClProp.Runtime &&
 			c.Metadata == otherClProp.Metadata &&
-			c.Contract == otherClProp.Contract &&
-			c.Kubeconfig == otherClProp.Kubeconfig
+			c.Contract == otherClProp.Contract
 	}
 	return false
 }

@@ -92,13 +92,13 @@ func TestColumnHandler(t *testing.T) {
 		colValsAll, err := colHdr.ColumnValuesCsv(false)
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(colValsAll), 3)
-		require.Contains(t, splitAndTrimCsv(colValsAll), "'testString'")
+		require.Contains(t, splitAndTrimCsv(colValsAll), "testString")
 		require.Contains(t, splitAndTrimCsv(colValsAll), "true")
 
 		colValsWriteable, err := colHdr.ColumnValuesCsv(true)
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(colValsWriteable), 2)
-		require.Contains(t, splitAndTrimCsv(colValsWriteable), "'testString'")
+		require.Contains(t, splitAndTrimCsv(colValsWriteable), "testString")
 	})
 
 	t.Run("Get column values as placeholder CSV", func(t *testing.T) {
@@ -116,13 +116,13 @@ func TestColumnHandler(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(kvPairsAll), 3)
 		//don't test for encrypted value (enc-values are unique and cannot be reproduced/predicted)
-		require.Contains(t, splitAndTrimCsv(kvPairsAll), "col_1='testString'")
+		require.Contains(t, splitAndTrimCsv(kvPairsAll), "col_1=testString")
 		require.Contains(t, splitAndTrimCsv(kvPairsAll), "col_2=true")
 
 		kvPairsWriteable, _, err := colHdr.ColumnEntriesCsv(true)
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(kvPairsWriteable), 2)
-		require.Contains(t, splitAndTrimCsv(kvPairsWriteable), "col_1='testString'")
+		require.Contains(t, splitAndTrimCsv(kvPairsWriteable), "col_1=testString")
 	})
 
 	t.Run("Get column entries as placeholder CSV", func(t *testing.T) {
