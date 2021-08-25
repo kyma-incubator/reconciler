@@ -58,10 +58,10 @@ func (rwf *remoteWorkerFactory) ForComponent(component string) (ReconciliationWo
 	reconcilerCfg, ok := rwf.reconcilersCfg[component]
 	if !ok {
 		rwf.logger.Debugf("No dedicated component reconciler configured for component '%s': "+
-			"using configuration of '%s' component reconciler as fallback", component, DefaultReconciler)
+			"using configuration of default component reconciler '%s' as fallback", component, DefaultReconciler)
 		reconcilerCfg, ok = rwf.reconcilersCfg[DefaultReconciler]
 		if !ok {
-			rwf.logger.Errorf("Configuration for fallback component reconciler '%s' is missing: "+
+			rwf.logger.Errorf("Configuration for default component reconciler '%s' is missing: "+
 				"reconciler confiugration file seems to be incomplete", DefaultReconciler)
 		}
 	}
