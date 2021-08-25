@@ -50,9 +50,7 @@ func (cb *testCallbackHandler) LatestStatus() reconciler.Status {
 }
 
 func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
-	if !test.RunIntegrationTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	t.Parallel()
 

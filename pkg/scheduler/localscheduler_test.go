@@ -22,9 +22,7 @@ const (
 )
 
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
-	if !test.RunIntegrationTests() {
-		t.Skip("Skipping an expensive test...")
-	}
+	test.IntegrationTest(t)
 
 	//cleanup workspace
 	defer func() {

@@ -66,9 +66,7 @@ func (a *TestAction) Run(version, profile string, config []reconciler.Configurat
 }
 
 func TestRunner(t *testing.T) {
-	if !test.RunIntegrationTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	//cleanup
 	cleanup := newCleanupFunc(t)

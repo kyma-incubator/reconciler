@@ -11,9 +11,7 @@ import (
 )
 
 func TestRemoteCallbackHandler(t *testing.T) {
-	if !test.RunIntegrationTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	logger := log.NewOptionalLogger(true)
 

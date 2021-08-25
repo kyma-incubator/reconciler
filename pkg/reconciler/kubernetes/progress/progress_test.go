@@ -23,9 +23,7 @@ import (
 )
 
 func TestProgressTracker(t *testing.T) {
-	if !test.RunIntegrationTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	logger, err := log.NewLogger(true)
 	require.NoError(t, err)

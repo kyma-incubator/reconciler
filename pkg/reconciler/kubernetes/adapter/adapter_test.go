@@ -57,9 +57,7 @@ var expectedResourcesWithNs = []*k8s.Resource{
 }
 
 func TestKubernetesClient(t *testing.T) {
-	if !test.RunIntegrationTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	//create client
 	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewOptionalLogger(true), &Config{

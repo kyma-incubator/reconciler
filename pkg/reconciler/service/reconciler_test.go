@@ -119,9 +119,7 @@ func TestReconciler(t *testing.T) {
 }
 
 func TestReconcilerEnd2End(t *testing.T) {
-	if !test.RunIntegrationTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	//create runtime context which is cancelled at the end of the method
 	ctx, cancel := context.WithCancel(context.Background())
