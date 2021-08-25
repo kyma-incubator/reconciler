@@ -1,8 +1,6 @@
 package scheduler
 
 import (
-	"fmt"
-
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -13,14 +11,18 @@ type WorkerFactory interface {
 	ForComponent(component string) (ReconciliationWorker, error)
 }
 
+type baseWorkerFactory struct {
+	inventory     cluster.Inventory
+	operationsReg OperationsRegistry
+	invoker       ReconcilerInvoker
+	logger        *zap.SugaredLogger
+	debug         bool
+}
+
 type remoteWorkerFactory struct {
-	inventory      cluster.Inventory
+	*baseWorkerFactory
 	reconcilersCfg reconciler.ComponentReconcilersConfig
 	mothershipCfg  reconciler.MothershipReconcilerConfig
-	operationsReg  OperationsRegistry
-	invoker        *RemoteReconcilerInvoker
-	logger         *zap.SugaredLogger
-	debug          bool
 }
 
 func NewRemoteWorkerFactory(
@@ -29,59 +31,71 @@ func NewRemoteWorkerFactory(
 	mothershipCfg reconciler.MothershipReconcilerConfig,
 	operationsReg OperationsRegistry,
 	debug bool) (WorkerFactory, error) {
-	l, err := logger.NewLogger(debug)
+
+	log, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
+
 	return &remoteWorkerFactory{
-		inventory,
+		&baseWorkerFactory{
+			inventory:     inventory,
+			operationsReg: operationsReg,
+			invoker: &RemoteReconcilerInvoker{
+				logger:         log,
+				mothershipHost: mothershipCfg.Host,
+				mothershipPort: mothershipCfg.Port,
+			},
+			logger: log,
+			debug:  debug,
+		},
 		reconcilersCfg,
 		mothershipCfg,
-		operationsReg,
-		&RemoteReconcilerInvoker{
-			logger:         l,
-			mothershipHost: mothershipCfg.Host,
-			mothershipPort: mothershipCfg.Port,
-		},
-		l,
-		debug,
 	}, nil
 }
 
 func (rwf *remoteWorkerFactory) ForComponent(component string) (ReconciliationWorker, error) {
 	reconcilerCfg, ok := rwf.reconcilersCfg[component]
 	if !ok {
-		rwf.logger.Debugf("No reconciler for component %s, using default", component)
-		reconcilerCfg = rwf.reconcilersCfg[DefaultReconciler]
+		rwf.logger.Debugf("No dedicated component reconciler configured for component '%s': "+
+			"using configuration of '%s' component reconciler as fallback", component, DefaultReconciler)
+		reconcilerCfg, ok = rwf.reconcilersCfg[DefaultReconciler]
+		if !ok {
+			rwf.logger.Errorf("Configuration for fallback component reconciler '%s' is missing: "+
+				"reconciler confiugration file seems to be incomplete", DefaultReconciler)
+		}
 	}
 
-	if reconcilerCfg == nil {
-		return nil, fmt.Errorf("No reconciler found for component %s", component)
-	}
 	return NewWorker(reconcilerCfg, rwf.inventory, rwf.operationsReg, rwf.invoker, rwf.debug)
 }
 
 type localWorkerFactory struct {
-	inventory     cluster.Inventory
-	operationsReg OperationsRegistry
-	invoker       *LocalReconcilerInvoker
-	debug         bool
+	*baseWorkerFactory
 }
 
-func NewLocalWorkerFactory(inventory cluster.Inventory, operationsReg OperationsRegistry, statusFunc ReconcilerStatusFunc, debug bool) (WorkerFactory, error) {
-	l, err := logger.NewLogger(debug)
+func NewLocalWorkerFactory(
+	inventory cluster.Inventory,
+	operationsReg OperationsRegistry,
+	statusFunc ReconcilerStatusFunc,
+	debug bool) (WorkerFactory, error) {
+
+	log, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
+
 	return &localWorkerFactory{
-		inventory,
-		operationsReg,
-		&LocalReconcilerInvoker{
-			logger:        l,
+		&baseWorkerFactory{
+			inventory:     inventory,
 			operationsReg: operationsReg,
-			statusFunc:    statusFunc,
+			invoker: &LocalReconcilerInvoker{
+				logger:        log,
+				operationsReg: operationsReg,
+				statusFunc:    statusFunc,
+			},
+			logger: log,
+			debug:  debug,
 		},
-		debug,
 	}, nil
 }
 
