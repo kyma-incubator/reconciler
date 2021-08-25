@@ -125,9 +125,7 @@ func (scf *SqliteConnectionFactory) NewConnection() (Connection, error) {
 }
 
 func (scf *SqliteConnectionFactory) resetFile() error {
-	if err := os.Remove(scf.File); err != nil {
-		return err
-	}
+	_ = os.Remove(scf.File) //errors expected (e.g. file can be missing) and can be ignored
 	file, err := os.Create(scf.File)
 	if err != nil {
 		return err

@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	cacheDep *cacheDependencyManager = newCacheDep()
+	cacheDep = newCacheDep()
 )
 
 func newCacheDep() *cacheDependencyManager {
