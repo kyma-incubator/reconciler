@@ -86,9 +86,14 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return errors.Wrap(err, "Failed to create chart provider instance")
 	}
 
+	wsFactory, err := r.workspaceFactory()
+	if err != nil {
+		return err
+	}
+
 	actionHelper := &ActionContext{
 		KubeClient:       kubeClient,
-		WorkspaceFactory: r.workspaceFactory(),
+		WorkspaceFactory: wsFactory,
 		Context:          ctx,
 		Logger:           r.logger,
 		ChartProvider:    chartProvider,

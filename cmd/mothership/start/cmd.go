@@ -39,10 +39,21 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().DurationVarP(&o.WatchInterval, "watch-interval", "", 1*time.Minute, "Size of the reconciler worker pool")
 	cmd.Flags().DurationVarP(&o.ClusterReconcileInterval, "reconcile-interval", "", 5*time.Minute, "Defines the time when a cluster will to be reconciled since his last successful reconciliation")
 	cmd.Flags().StringVar(&o.ReconcilersCfgPath, "reconcilers", "", "Path to component reconcilers configuration file")
+	cmd.Flags().BoolVar(&o.CreateEncyptionKey, "create-encryption-key", false, "Create a new encryption file during startup")
 	return cmd
 }
 
 func Run(o *Options) error {
+	if o.CreateEncyptionKey {
+		err := cli.NewEncryptionKey(true)
+		if err == nil {
+			o.Logger().Infof("New encryption key file created")
+		} else {
+			o.Logger().Warnf("Failed to create encryption key file")
+			return err
+		}
+	}
+
 	ctx := cli.NewContext()
 
 	go func(ctx context.Context, o *Options) {

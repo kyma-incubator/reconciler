@@ -10,9 +10,8 @@ const (
 	Mock     Type = "mock"
 )
 
-//Introducing our own interface to be able to add logging capabilities
-//and make testing simpler (allows injection of mocks)
 type Connection interface {
+	Encryptor() *Encryptor
 	QueryRow(query string, args ...interface{}) DataRow
 	Query(query string, args ...interface{}) (DataRows, error)
 	Exec(query string, args ...interface{}) (sql.Result, error)

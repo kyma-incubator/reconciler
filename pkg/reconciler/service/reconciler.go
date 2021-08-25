@@ -102,21 +102,33 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 	return recon, nil
 }
 
-func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
-	return chart.NewProvider(r.workspaceFactory(), r.logger)
+func UseGlobalWorkspaceFactory(workspaceFactory *workspace.Factory) error {
+	if wsFactory != nil {
+		return fmt.Errorf("workspace factory already defined: %s", wsFactory)
+	}
+	wsFactory = workspaceFactory
+	return nil
 }
 
-func (r *ComponentReconciler) workspaceFactory() *workspace.Factory {
+func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
+	wsFact, err := r.workspaceFactory()
+	if err != nil {
+		return nil, err
+	}
+	return chart.NewProvider(wsFact, r.logger)
+}
+
+func (r *ComponentReconciler) workspaceFactory() (*workspace.Factory, error) {
 	m.Lock()
+	defer m.Unlock()
+
+	var err error
 	if wsFactory == nil {
 		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
-		wsFactory = &workspace.Factory{
-			Logger:     r.logger,
-			StorageDir: r.workspace,
-		}
+		wsFactory, err = workspace.NewFactory(r.workspace, r.logger)
 	}
-	m.Unlock()
-	return wsFactory
+
+	return wsFactory, err
 }
 
 func (r *ComponentReconciler) validate() error {
