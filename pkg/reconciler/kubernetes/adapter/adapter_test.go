@@ -57,7 +57,7 @@ var expectedResourcesWithNs = []*k8s.Resource{
 }
 
 func TestKubernetesClient(t *testing.T) {
-	if !test.RunExpensiveTests() {
+	if !test.RunIntegrationTests() {
 		return
 	}
 

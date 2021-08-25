@@ -23,7 +23,7 @@ import (
 )
 
 func TestProgressTracker(t *testing.T) {
-	if !test.RunExpensiveTests() {
+	if !test.RunIntegrationTests() {
 		return
 	}
 

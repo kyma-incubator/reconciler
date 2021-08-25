@@ -22,7 +22,7 @@ const (
 )
 
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
-	if !test.RunExpensiveTests() {
+	if !test.RunIntegrationTests() {
 		t.Skip("Skipping an expensive test...")
 	}
 

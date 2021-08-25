@@ -77,7 +77,7 @@ func TestProvider(t *testing.T) {
 	})
 
 	t.Run("Test render manifest", func(t *testing.T) {
-		if !test.RunExpensiveTests() {
+		if !test.RunIntegrationTests() {
 			return
 		}
 

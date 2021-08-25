@@ -33,7 +33,7 @@ func TestWorkspaceFactory(t *testing.T) {
 	})
 
 	t.Run("Clone and delete workspace", func(t *testing.T) {
-		if !test.RunExpensiveTests() {
+		if !test.RunIntegrationTests() {
 			//this test case clones the Kyma repo can take up to 60 sec (depending on the bandwidth) and generates bigger amount of traffic
 			return
 		}

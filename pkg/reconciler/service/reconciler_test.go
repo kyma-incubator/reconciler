@@ -119,7 +119,7 @@ func TestReconciler(t *testing.T) {
 }
 
 func TestReconcilerEnd2End(t *testing.T) {
-	if !test.RunExpensiveTests() {
+	if !test.RunIntegrationTests() {
 		return
 	}
 

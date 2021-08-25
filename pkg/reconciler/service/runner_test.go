@@ -66,7 +66,7 @@ func (a *TestAction) Run(version, profile string, config []reconciler.Configurat
 }
 
 func TestRunner(t *testing.T) {
-	if !test.RunExpensiveTests() {
+	if !test.RunIntegrationTests() {
 		return
 	}
 
