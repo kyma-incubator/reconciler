@@ -95,9 +95,19 @@ type LocalReconcilerInvoker struct {
 func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 	component := params.ComponentToReconcile.Component
 
+	//resolve component reconciler
 	componentReconciler, err := service.GetReconciler(component)
-	if err != nil {
-		return err
+	if err == nil {
+		lri.logger.Debugf("Found dedicated component reconciler for component '%s'", component)
+	} else {
+		lri.logger.Debugf("No dedicated component reconciler found for component '%s': "+
+			"using '%s' component reconciler as fallback", component, DefaultReconciler)
+		componentReconciler, err = service.GetReconciler(DefaultReconciler)
+		if err != nil {
+			lri.logger.Errorf("Fallback component reconciler '%s' is missing: "+
+				"check local component reconciler initialization", DefaultReconciler)
+			return err
+		}
 	}
 
 	lri.logger.Debugf("Calling the reconciler for a component %s, correlation ID: %s", component, params.CorrelationID)

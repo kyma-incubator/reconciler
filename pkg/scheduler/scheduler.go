@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
-
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -15,6 +13,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"sync"
 )
 
 type concurrency bool
@@ -204,9 +203,12 @@ func (ls *LocalScheduler) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to get components: %s", err)
 	}
 
+	results := make(chan error, len(components))
+
 	var wg sync.WaitGroup
 	wg.Add(len(components))
 
+	//trigger all component reconcilers
 	for _, component := range components {
 		worker, err := ls.workerFactory.ForComponent(component.Component)
 		if err != nil {
@@ -219,10 +221,19 @@ func (ls *LocalScheduler) Run(ctx context.Context) error {
 			if err != nil {
 				ls.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			}
+			results <- err
 		}(component, *clusterState, schedulingID)
 	}
 
 	wg.Wait()
+
+	close(results)
+
+	for err := range results {
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
