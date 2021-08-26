@@ -39,7 +39,7 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().DurationVarP(&o.WatchInterval, "watch-interval", "", 1*time.Minute, "Size of the reconciler worker pool")
 	cmd.Flags().DurationVarP(&o.ClusterReconcileInterval, "reconcile-interval", "", 5*time.Minute, "Defines the time when a cluster will to be reconciled since his last successful reconciliation")
 	cmd.Flags().StringVar(&o.ReconcilersCfgPath, "reconcilers", "", "Path to component reconcilers configuration file")
-	cmd.Flags().BoolVar(&o.CreateEncyptionKey, "create-encryption-key", false, "Create a new encryption file during startup")
+	cmd.Flags().BoolVar(&o.CreateEncyptionKey, "create-encryption-key", false, "Create new encryption key file during startup")
 	return cmd
 }
 
