@@ -24,6 +24,13 @@ const (
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	test.IntegrationTest(t)
 
+	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
+	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
+	//collisions when sharing the same directory)
+	wsFact, err := workspace.NewFactory(workspaceDir, logger.NewOptionalLogger(true))
+	require.NoError(t, err)
+	require.NoError(t, service.UseGlobalWorkspaceFactory(wsFact))
+
 	//cleanup workspace
 	defer func() {
 		wsDir := filepath.Join(workspaceDir, kymaVersion)
@@ -31,17 +38,23 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 		require.NoError(t, os.RemoveAll(wsDir))
 	}()
 
-	initComponentReconcilers(t)
+	t.Run("Missing component reconciler", func(t *testing.T) {
+		//no initialization of component reconcilers happened - reconciliation has to fail
+		localScheduler := newLocalScheduler(t)
+		err := localScheduler.Run(context.Background())
+		require.Error(t, err)
+	})
 
-	operationsRegistry := NewDefaultOperationsRegistry()
-	workerFactory := newWorkerFactory(t, operationsRegistry)
-	localScheduler := newLocalScheduler(t, workerFactory)
+	t.Run("Happy path", func(t *testing.T) {
+		initDefaultComponentReconciler(t)
+		localScheduler := newLocalScheduler(t)
+		err := localScheduler.Run(context.Background())
+		require.NoError(t, err)
+	})
 
-	err := localScheduler.Run(context.Background())
-	require.NoError(t, err)
 }
 
-func newLocalScheduler(t *testing.T, workerFactory WorkerFactory) Scheduler {
+func newLocalScheduler(t *testing.T) Scheduler {
 	kebCluster := keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),
 		KymaConfig: keb.KymaConfig{
@@ -53,15 +66,16 @@ func newLocalScheduler(t *testing.T, workerFactory WorkerFactory) Scheduler {
 			},
 		},
 	}
-	ls, err := NewLocalScheduler(kebCluster, workerFactory, true)
+
+	ls, err := NewLocalScheduler(kebCluster, newWorkerFactory(t), true)
 	require.NoError(t, err)
 	return ls
 }
 
-func newWorkerFactory(t *testing.T, operationsRegistry *DefaultOperationsRegistry) WorkerFactory {
+func newWorkerFactory(t *testing.T) WorkerFactory {
 	workerFactory, err := NewLocalWorkerFactory(
 		&cluster.MockInventory{},
-		operationsRegistry,
+		NewDefaultOperationsRegistry(),
 		func(component string, status reconciler.Status) {
 			t.Logf("Component %s has status %s", component, status)
 		},
@@ -70,14 +84,11 @@ func newWorkerFactory(t *testing.T, operationsRegistry *DefaultOperationsRegistr
 	return workerFactory
 }
 
-func initComponentReconcilers(t *testing.T) {
-	wsFact, err := workspace.NewFactory("test", logger.NewOptionalLogger(true))
-	require.NoError(t, err)
-	require.NoError(t, service.UseGlobalWorkspaceFactory(wsFact))
-
-	_, err = service.NewComponentReconciler("cluster-essentials")
-	require.NoErrorf(t, err, "Could not create '%s' component reconciler: %s", "cluster-essentials", err)
-
-	_, err = service.NewComponentReconciler("istio")
-	require.NoErrorf(t, err, "Could not create '%s' component reconciler: %s", "istio", err)
+//initDefaultComponentReconciler initialises the default component reconciler during runtime.
+//Attention: this is just a workaround for this test case to simulate edge-cases!
+//Normally, the component reconcilers should be loaded automatically by adding following import to a Go file:
+//`import _ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"`
+func initDefaultComponentReconciler(t *testing.T) {
+	_, err := service.NewComponentReconciler(DefaultReconciler)
+	require.NoErrorf(t, err, "Could not create '%s' component reconciler: %s", DefaultReconciler, err)
 }
