@@ -6,15 +6,17 @@ import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/spf13/cobra"
 )
 
-func NewCmd(o *reconCli.Options, reconcilerName string) *cobra.Command {
+func NewCmd(o *Options, reconcilerName string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   reconcilerName,
 		Short: fmt.Sprintf("Test '%s' reconciler service", reconcilerName),
@@ -27,10 +29,16 @@ func NewCmd(o *reconCli.Options, reconcilerName string) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&o.Version, "version", "main", "Kyma version")
+	cmd.Flags().StringVar(&o.Component, "component", reconcilerName, "Name of the component to reconcile")
+	cmd.Flags().StringVar(&o.Namespace, "namespace", "kyma-system", "Namespace of the component")
+	cmd.Flags().StringVar(&o.Profile, "profile", "", "Kyma profile")
+	cmd.Flags().BoolVar(&o.InstallCRDs, "crds", false, "Install CRDs")
+
 	return cmd
 }
 
-func Run(o *reconCli.Options, reconcilerName string) error {
+func Run(o *Options, reconcilerName string) error {
 	if err := showCurl(o); err != nil {
 		return err
 	}
@@ -48,22 +56,22 @@ func Run(o *reconCli.Options, reconcilerName string) error {
 	return ctx.Err()
 }
 
-func showCurl(o *reconCli.Options) error {
-	kubeConfig, err := readKubeconfig()
+func showCurl(o *Options) error {
+	kubeConfig, err := readKubeconfigAsJSON()
 	if err != nil {
 		o.Logger().Infof("Could not retrieve kubeconfig: %s", err)
 	}
 
 	model := reconciler.Reconciliation{
 		ComponentsReady: nil,
-		Component:       "cluster-users",
-		Namespace:       "kyma-test",
-		Version:         "1.24.0",
-		Profile:         "Evaluation",
+		Component:       o.Component,
+		Namespace:       o.Namespace,
+		Version:         o.Version,
+		Profile:         o.Profile,
 		Configuration:   nil,
 		Kubeconfig:      kubeConfig,
 		CallbackURL:     "https://httpbin.org/post",
-		InstallCRD:      false,
+		InstallCRD:      o.InstallCRDs,
 		CorrelationID:   "1-2-3-4-5",
 	}
 
@@ -87,20 +95,34 @@ curl --location \
 	return nil
 }
 
-func readKubeconfig() (string, error) {
+func readKubeconfigAsJSON() (string, error) {
 	kubeConfigFile, ok := os.LookupEnv("KUBECONFIG")
 	if !ok {
 		return "", fmt.Errorf("set env-var 'KUBECONFIG' before executing the test command")
 	}
+
 	kubeConfig, err := ioutil.ReadFile(kubeConfigFile)
 	if err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("Failed to read kubeconfig file '%s'", kubeConfigFile))
+		return "", errors.Wrap(err, fmt.Sprintf("failed to read kubeconfig file '%s'", kubeConfigFile))
 	}
+
+	yamlData := make(map[string]interface{})
+	fileExt := filepath.Ext(kubeConfigFile)
+	if fileExt == ".yaml" || fileExt == ".yml" {
+		if err := yaml.Unmarshal(kubeConfig, &yamlData); err != nil {
+			return "", errors.Wrap(err, fmt.Sprintf("failed to unmarshal YAML kubeconfig file '%s'", kubeConfigFile))
+		}
+		kubeConfig, err = json.Marshal(yamlData)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to convert YAML kubeconfig into JSON string")
+		}
+	}
+
 	return string(kubeConfig), nil
 }
 
-func startComponentReconciler(ctx context.Context, o *reconCli.Options, reconcilerName string) error {
-	recon, err := reconCli.NewComponentReconciler(o, reconcilerName)
+func startComponentReconciler(ctx context.Context, o *Options, reconcilerName string) error {
+	recon, err := reconCli.NewComponentReconciler(o.Options, reconcilerName)
 	if err != nil {
 		return err
 	}
