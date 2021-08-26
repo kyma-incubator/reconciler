@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	istioctl1_10_2 = "/usr/local/bin/istioctl-1.10.2"
+	istioctl1_10_2 = "istioctl-1.10.2"
 )
 
 type ReconcileAction struct {
