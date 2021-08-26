@@ -22,9 +22,7 @@ const (
 )
 
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
-	if !test.RunExpensiveTests() {
-		t.Skip("Skipping an expensive test...")
-	}
+	test.IntegrationTest(t)
 
 	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause

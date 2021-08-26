@@ -77,9 +77,7 @@ func TestProvider(t *testing.T) {
 	})
 
 	t.Run("Test render manifest", func(t *testing.T) {
-		if !test.RunExpensiveTests() {
-			return
-		}
+		test.IntegrationTest(t)
 
 		compSet := NewComponentSet(test.ReadKubeconfig(t), "2.0.0", "testProfile", []*Component{
 			{

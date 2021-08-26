@@ -59,7 +59,8 @@ func Run(o *Options, reconcilerName string) error {
 func showCurl(o *Options) error {
 	kubeConfig, err := readKubeconfigAsJSON()
 	if err != nil {
-		o.Logger().Infof("Could not retrieve kubeconfig: %s", err)
+		o.Logger().Errorf("Could not retrieve kubeconfig")
+		return err
 	}
 
 	model := reconciler.Reconciliation{
