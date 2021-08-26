@@ -7,11 +7,10 @@ import (
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"github.com/spf13/cobra"
 )
@@ -35,26 +34,13 @@ func NewCmd(o *cli.Options) *cobra.Command {
 func RunLocal(o *cli.Options) error {
 
 	kubecfgFile := os.Getenv("KUBECONFIG")
-
-	if !file.Exists(kubecfgFile) {
-
-	}
 	kubeconfig, _ := ioutil.ReadFile(kubecfgFile)
 
 	l, _ := logger.NewLogger(false)
-	_, err := service.NewComponentReconciler("cluster-essentials")
-
-	if err != nil {
-		l.Fatalf("Could not create '%s' component reconciler: %s", "cluster-essentials", err)
-	}
-	_, err = service.NewComponentReconciler("istio")
-	if err != nil {
-		l.Fatalf("Could not create '%s' component reconciler: %s", "istio", err)
-	}
 
 	operationsRegistry := scheduler.NewDefaultOperationsRegistry()
 
-	workerFactory, err := scheduler.NewLocalWorkerFactory(
+	workerFactory, _ := scheduler.NewLocalWorkerFactory(
 		&cluster.MockInventory{},
 		operationsRegistry,
 		func(component string, status reconciler.Status) {
@@ -62,7 +48,7 @@ func RunLocal(o *cli.Options) error {
 		},
 		true)
 
-	ls, err := scheduler.NewLocalScheduler(keb.Cluster{
+	ls, _ := scheduler.NewLocalScheduler(keb.Cluster{
 		Kubeconfig: string(kubeconfig),
 		KymaConfig: keb.KymaConfig{
 			Version: "main",
@@ -71,7 +57,7 @@ func RunLocal(o *cli.Options) error {
 				{Component: "cluster-essentials", Namespace: "kyma-system"},
 				{Component: "istio", Namespace: "istio-system"},
 				{Component: "serverless", Namespace: "kyma-system"},
-			}}}, workerFactory)
-	err = ls.Run(context.Background())
+			}}}, workerFactory, true)
+	ls.Run(context.Background())
 	return nil
 }
