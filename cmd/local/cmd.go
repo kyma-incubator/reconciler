@@ -16,8 +16,14 @@ import (
 
 	//Register all reconcilers
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"github.com/spf13/cobra"
+)
+
+const (
+	workspaceDir = ".workspace"
 )
 
 type Options struct {
@@ -72,6 +78,7 @@ func NewCmd(o *Options) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&o.kubeconfigFile, "kubeconfig", "", "Path to kubeconfig file")
+
 	return cmd
 }
 
@@ -79,12 +86,20 @@ func RunLocal(o *Options) error {
 
 	l := logger.NewOptionalLogger(o.Verbose)
 	l.Infof("Local installation started with kubeconfig %s", o.kubeconfigFile)
-
-	operationsRegistry := scheduler.NewDefaultOperationsRegistry()
-
+	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
+	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
+	//collisions when sharing the same directory)
+	wsFact, err := workspace.NewFactory(workspaceDir, l)
+	if err != nil {
+		return err
+	}
+	err = service.UseGlobalWorkspaceFactory(wsFact)
+	if err != nil {
+		return err
+	}
 	workerFactory, _ := scheduler.NewLocalWorkerFactory(
 		&cluster.MockInventory{},
-		operationsRegistry,
+		scheduler.NewDefaultOperationsRegistry(),
 		func(component string, status reconciler.Status) {
 			l.Infof("Component %s has status %s", component, status)
 		},
@@ -98,7 +113,21 @@ func RunLocal(o *Options) error {
 			Components: []keb.Components{
 				{Component: "cluster-essentials", Namespace: "kyma-system"},
 				{Component: "istio", Namespace: "istio-system"},
+				{Component: "certificates", Namespace: "istio-system"},
+				{Component: "logging", Namespace: "kyma-system"},
+				{Component: "tracing", Namespace: "kyma-system"},
+				{Component: "kiali", Namespace: "kyma-system"},
+				{Component: "monitoring", Namespace: "kyma-system"},
+				{Component: "eventing", Namespace: "kyma-system"},
+				{Component: "ory", Namespace: "kyma-system"},
+				{Component: "api-gateway", Namespace: "kyma-system"},
+				{Component: "service-catalog", Namespace: "kyma-system"},
+				{Component: "service-catalog-addons", Namespace: "kyma-system"},
+				{Component: "rafter", Namespace: "kyma-system"},
+				{Component: "helm-broker", Namespace: "kyma-system"},
+				{Component: "cluster-users", Namespace: "kyma-system"},
 				{Component: "serverless", Namespace: "kyma-system"},
+				{Component: "application-connector", Namespace: "kyma-integration"},
 			}}}, workerFactory, true)
 	return ls.Run(context.Background())
 }
