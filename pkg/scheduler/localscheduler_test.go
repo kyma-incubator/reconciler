@@ -2,15 +2,17 @@ package scheduler
 
 import (
 	"context"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/test"
+	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,6 +20,35 @@ const (
 	kymaVersion  = "main"
 	workspaceDir = "test"
 )
+
+func TestLocalScheduler(t *testing.T) {
+	cluster := keb.Cluster{
+		KymaConfig: keb.KymaConfig{
+			Components: []keb.Components{
+				{Component: "logging"},
+				{Component: "monitoring"},
+			},
+		},
+	}
+
+	workerMock := &MockReconciliationWorker{}
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	workerFactoryMock := &MockWorkerFactory{}
+	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
+	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
+
+	sut := LocalScheduler{
+		cluster:       cluster,
+		workerFactory: workerFactoryMock,
+	}
+
+	err := sut.Run(context.Background())
+	require.NoError(t, err)
+
+	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
+	workerMock.AssertNumberOfCalls(t, "Reconcile", 2)
+}
 
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	test.IntegrationTest(t)
