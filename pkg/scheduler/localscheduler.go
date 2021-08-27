@@ -4,27 +4,40 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 type LocalSchedulerOption func(*LocalScheduler)
 
-func WithLogger(l *zap.SugaredLogger) LocalSchedulerOption {
+func WithLogger(logger *zap.SugaredLogger) LocalSchedulerOption {
 	return func(ls *LocalScheduler) {
-		ls.logger = l
+		ls.logger = logger
+	}
+}
+
+func WithComponentsWithCRDs(components []string) LocalSchedulerOption {
+	return func(ls *LocalScheduler) {
+		ls.componentsWithCRDs = components
+	}
+}
+
+func WithPrerequisites(components []string) LocalSchedulerOption {
+	return func(ls *LocalScheduler) {
+		ls.prerequisites = components
 	}
 }
 
 type LocalScheduler struct {
-	cluster       keb.Cluster
-	workerFactory WorkerFactory
-	logger        *zap.SugaredLogger
+	workerFactory      WorkerFactory
+	logger             *zap.SugaredLogger
+	componentsWithCRDs []string
+	prerequisites      []string
 }
 
 func NewLocalScheduler(workerFactory WorkerFactory, opts ...LocalSchedulerOption) *LocalScheduler {
@@ -53,39 +66,52 @@ func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 		return fmt.Errorf("failed to get components: %s", err)
 	}
 
-	results := make(chan error, len(components))
+	for _, c := range components {
+		if contains(ls.prerequisites, c.Component) {
+			worker, err := ls.workerFactory.ForComponent(c.Component)
+			if err != nil {
+				return fmt.Errorf("failed to create a worker: %s", err)
+			}
 
-	var wg sync.WaitGroup
-	wg.Add(len(components))
+			err = worker.Reconcile(c, *clusterState, schedulingID, false)
+			if err != nil {
+				return fmt.Errorf("failed to reconcile a component: %s", c.Component)
+			}
+		}
+	}
 
-	//trigger all component reconcilers
-	for _, component := range components {
+	for _, c := range components {
+		if contains(ls.componentsWithCRDs, c.Component) {
+			worker, err := ls.workerFactory.ForComponent(c.Component)
+			if err != nil {
+				return fmt.Errorf("failed to create a worker: %s", err)
+			}
+
+			err = worker.Reconcile(c, *clusterState, schedulingID, true)
+			if err != nil {
+				return fmt.Errorf("failed to reconcile a component: %s", c.Component)
+			}
+		}
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	for _, c := range components {
+		if contains(ls.componentsWithCRDs, c.Component) || contains(ls.prerequisites, c.Component) {
+			continue
+		}
+
+		component := c // https://golang.org/doc/faq#closures_and_goroutines
 		worker, err := ls.workerFactory.ForComponent(component.Component)
 		if err != nil {
-			return fmt.Errorf("failed to create a: %s", err)
+			return fmt.Errorf("failed to create a worker: %s", err)
 		}
 
-		go func(component *keb.Components, state cluster.State, schedulingID string) {
-			defer wg.Done()
-			err := worker.Reconcile(component, state, schedulingID, true)
-			if err != nil {
-				ls.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
-			}
-			results <- err
-		}(component, *clusterState, schedulingID)
+		g.Go(func() error {
+			return worker.Reconcile(component, *clusterState, schedulingID, false)
+		})
 	}
 
-	wg.Wait()
-
-	close(results)
-
-	for err := range results {
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return g.Wait()
 }
 
 func localClusterState(c *keb.Cluster) (*cluster.State, error) {
@@ -129,4 +155,13 @@ func localClusterState(c *keb.Cluster) (*cluster.State, error) {
 		Configuration: configurationEntity,
 		Status:        &model.ClusterStatusEntity{},
 	}, nil
+}
+
+func contains(items []string, item string) bool {
+	for i := range items {
+		if item == items[i] {
+			return true
+		}
+	}
+	return false
 }
