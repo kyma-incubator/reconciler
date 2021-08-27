@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"go.uber.org/zap"
 )
@@ -28,29 +27,23 @@ type LocalScheduler struct {
 	logger        *zap.SugaredLogger
 }
 
-func NewLocalScheduler(cluster keb.Cluster, workerFactory WorkerFactory, opts ...LocalSchedulerOption) (Scheduler, error) {
-	l, err := logger.NewLogger(false)
-	if err != nil {
-		return nil, err
-	}
-
+func NewLocalScheduler(workerFactory WorkerFactory, opts ...LocalSchedulerOption) *LocalScheduler {
 	ls := &LocalScheduler{
-		cluster:       cluster,
 		workerFactory: workerFactory,
-		logger:        l,
+		logger:        zap.NewNop().Sugar(),
 	}
 
 	for _, opt := range opts {
 		opt(ls)
 	}
 
-	return ls, nil
+	return ls
 }
 
-func (ls *LocalScheduler) Run(ctx context.Context) error {
+func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 	schedulingID := uuid.NewString()
 
-	clusterState, err := localClusterState(&ls.cluster)
+	clusterState, err := localClusterState(&c)
 	if err != nil {
 		return fmt.Errorf("failed to convert to cluster state: %s", err)
 	}

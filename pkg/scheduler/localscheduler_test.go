@@ -38,12 +38,9 @@ func TestLocalScheduler(t *testing.T) {
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
 	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
 
-	sut := LocalScheduler{
-		cluster:       cluster,
-		workerFactory: workerFactoryMock,
-	}
+	sut := NewLocalScheduler(workerFactoryMock)
 
-	err := sut.Run(context.Background())
+	err := sut.Run(context.Background(), cluster)
 	require.NoError(t, err)
 
 	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
@@ -69,22 +66,22 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 
 	t.Run("Missing component reconciler", func(t *testing.T) {
 		//no initialization of component reconcilers happened - reconciliation has to fail
-		localScheduler := newLocalScheduler(t)
-		err := localScheduler.Run(context.Background())
+		ls := NewLocalScheduler(newWorkerFactory(t))
+		err := ls.Run(context.Background(), newCluster(t))
 		require.Error(t, err)
 	})
 
 	t.Run("Happy path", func(t *testing.T) {
 		initDefaultComponentReconciler(t)
-		localScheduler := newLocalScheduler(t)
-		err := localScheduler.Run(context.Background())
+		ls := NewLocalScheduler(newWorkerFactory(t))
+		err := ls.Run(context.Background(), newCluster(t))
 		require.NoError(t, err)
 	})
 
 }
 
-func newLocalScheduler(t *testing.T) Scheduler {
-	kebCluster := keb.Cluster{
+func newCluster(t *testing.T) keb.Cluster {
+	return keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),
 		KymaConfig: keb.KymaConfig{
 			Version: kymaVersion,
@@ -95,10 +92,6 @@ func newLocalScheduler(t *testing.T) Scheduler {
 			},
 		},
 	}
-
-	ls, err := NewLocalScheduler(kebCluster, newWorkerFactory(t), true)
-	require.NoError(t, err)
-	return ls
 }
 
 func newWorkerFactory(t *testing.T) WorkerFactory {
