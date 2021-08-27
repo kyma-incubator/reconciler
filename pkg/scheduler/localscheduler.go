@@ -14,22 +14,37 @@ import (
 	"go.uber.org/zap"
 )
 
+type LocalSchedulerOption func(*LocalScheduler)
+
+func WithLogger(l *zap.SugaredLogger) LocalSchedulerOption {
+	return func(ls *LocalScheduler) {
+		ls.logger = l
+	}
+}
+
 type LocalScheduler struct {
 	cluster       keb.Cluster
 	workerFactory WorkerFactory
 	logger        *zap.SugaredLogger
 }
 
-func NewLocalScheduler(cluster keb.Cluster, workerFactory WorkerFactory, debug bool) (Scheduler, error) {
-	log, err := logger.NewLogger(debug)
+func NewLocalScheduler(cluster keb.Cluster, workerFactory WorkerFactory, opts ...LocalSchedulerOption) (Scheduler, error) {
+	l, err := logger.NewLogger(false)
 	if err != nil {
 		return nil, err
 	}
-	return &LocalScheduler{
+
+	ls := &LocalScheduler{
 		cluster:       cluster,
 		workerFactory: workerFactory,
-		logger:        log,
-	}, nil
+		logger:        l,
+	}
+
+	for _, opt := range opts {
+		opt(ls)
+	}
+
+	return ls, nil
 }
 
 func (ls *LocalScheduler) Run(ctx context.Context) error {
