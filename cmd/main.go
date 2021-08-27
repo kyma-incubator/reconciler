@@ -33,7 +33,7 @@ func main() {
 	cmd.AddCommand(cfgCmd.NewCmd(o))
 	cmd.AddCommand(msCmd.NewCmd(o))
 	cmd.AddCommand(rclCmd.NewCmd(o))
-	cmd.AddCommand(localCmd.NewCmd(o))
+	cmd.AddCommand(localCmd.NewCmd(localCmd.NewOptions(o)))
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
