@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -30,16 +31,49 @@ type Options struct {
 	*cli.Options
 	kubeconfigFile string
 	kubeconfig     string
+	components     []string
+}
+
+func defaultComponentList() []keb.Components {
+	defaultComponents := []string{"cluster-essentials", "istio-configuration@istio-system",
+		"certificates@istio-system", "logging", "tracing", "kiali", "monitoring", "eventing", "ory", "api-gateway",
+		"service-catalog", "service-catalog-addons", "rafter", "helm-broker", "cluster-users", "serverless",
+		"application-connector@kyma-integration"}
+	return componentsFromStrings(defaultComponents)
+
 }
 
 func NewOptions(o *cli.Options) *Options {
 	return &Options{o,
-		"", // kubeconfigFile
-		"", // kubeconfig
+		"",         // kubeconfigFile
+		"",         // kubeconfig
+		[]string{}, // components
 	}
 }
 func (o *Options) Kubeconfig() string {
 	return o.kubeconfig
+}
+
+func componentsFromStrings(list []string) []keb.Components {
+	var components []keb.Components
+	for _, item := range list {
+		s := strings.Split(item, "@")
+		name := s[0]
+		namespace := "kyma-system"
+		if len(s) >= 2 {
+			namespace = s[1]
+		}
+		components = append(components, keb.Components{Component: name, Namespace: namespace})
+	}
+	return components
+}
+
+func (o *Options) Components() []keb.Components {
+	components := componentsFromStrings(o.components)
+	if len(components) == 0 {
+		components = defaultComponentList()
+	}
+	return components
 }
 
 func (o *Options) Validate() error {
@@ -78,7 +112,7 @@ func NewCmd(o *Options) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&o.kubeconfigFile, "kubeconfig", "", "Path to kubeconfig file")
-
+	cmd.Flags().StringSliceVar(&o.components, "components", []string{}, "Comma separated list of components with optional namespace, e.g. serverless,certificates@istio-system,monitoring")
 	return cmd
 }
 
@@ -108,26 +142,8 @@ func RunLocal(o *Options) error {
 	ls, _ := scheduler.NewLocalScheduler(keb.Cluster{
 		Kubeconfig: o.kubeconfig,
 		KymaConfig: keb.KymaConfig{
-			Version: "main",
-			Profile: "evaluation",
-			Components: []keb.Components{
-				{Component: "cluster-essentials", Namespace: "kyma-system"},
-				{Component: "istio", Namespace: "istio-system"},
-				{Component: "certificates", Namespace: "istio-system"},
-				{Component: "logging", Namespace: "kyma-system"},
-				{Component: "tracing", Namespace: "kyma-system"},
-				{Component: "kiali", Namespace: "kyma-system"},
-				{Component: "monitoring", Namespace: "kyma-system"},
-				{Component: "eventing", Namespace: "kyma-system"},
-				{Component: "ory", Namespace: "kyma-system"},
-				{Component: "api-gateway", Namespace: "kyma-system"},
-				{Component: "service-catalog", Namespace: "kyma-system"},
-				{Component: "service-catalog-addons", Namespace: "kyma-system"},
-				{Component: "rafter", Namespace: "kyma-system"},
-				{Component: "helm-broker", Namespace: "kyma-system"},
-				{Component: "cluster-users", Namespace: "kyma-system"},
-				{Component: "serverless", Namespace: "kyma-system"},
-				{Component: "application-connector", Namespace: "kyma-integration"},
-			}}}, workerFactory, true)
+			Version:    "main",
+			Profile:    "evaluation",
+			Components: o.Components()}}, workerFactory, true)
 	return ls.Run(context.Background())
 }
