@@ -1,12 +1,13 @@
 package chart
 
 import (
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
-	"testing"
 )
 
 func TestProvider(t *testing.T) {

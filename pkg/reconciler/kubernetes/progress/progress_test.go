@@ -23,9 +23,7 @@ import (
 )
 
 func TestProgressTracker(t *testing.T) {
-	if !test.RunExpensiveTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	logger, err := log.NewLogger(true)
 	require.NoError(t, err)

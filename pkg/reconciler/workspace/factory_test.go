@@ -33,10 +33,7 @@ func TestWorkspaceFactory(t *testing.T) {
 	})
 
 	t.Run("Clone and delete workspace", func(t *testing.T) {
-		if !test.RunExpensiveTests() {
-			//this test case clones the Kyma repo can take up to 60 sec (depending on the bandwidth) and generates bigger amount of traffic
-			return
-		}
+		test.IntegrationTest(t)
 
 		workspaceDir := filepath.Join(".", "test", version)
 		wsf, err := NewFactory("test", log.NewOptionalLogger(true))
