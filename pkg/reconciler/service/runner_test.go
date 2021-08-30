@@ -357,6 +357,13 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
 		Namespace:  namespace,
+		//global parameters - required by some Kyma components
+		Configuration: []reconciler.Configuration{
+			{
+				Key:   "global.ingress.domainName",
+				Value: "local.kyma.dev",
+			},
+		},
 	}
 }
 

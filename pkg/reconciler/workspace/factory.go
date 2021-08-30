@@ -17,15 +17,15 @@ const (
 	defaultRepositoryURL = "https://github.com/kyma-project/kyma"
 	resDir               = "resources"
 	instResDir           = "installation/resources"
-	componentFile        = "installation/resources/components.yaml"
+	instResCrdDir        = "installation/resources/crds"
 	successFile          = "success.yaml"
 )
 
 type Workspace struct {
-	WorkspaceDir            string
-	ComponentFile           string
-	ResourceDir             string
-	InstallationResourceDir string
+	WorkspaceDir               string
+	ResourceDir                string
+	InstallationResourceDir    string
+	InstallationResourceCrdDir string
 }
 
 type Factory struct {
@@ -91,10 +91,10 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 
 	//return workspace
 	return &Workspace{
-		WorkspaceDir:            wsDir,
-		ComponentFile:           filepath.Join(wsDir, componentFile),
-		ResourceDir:             filepath.Join(wsDir, resDir),
-		InstallationResourceDir: filepath.Join(wsDir, instResDir),
+		WorkspaceDir:               wsDir,
+		ResourceDir:                filepath.Join(wsDir, resDir),
+		InstallationResourceDir:    filepath.Join(wsDir, instResDir),
+		InstallationResourceCrdDir: filepath.Join(wsDir, instResCrdDir),
 	}, nil
 }
 
@@ -128,15 +128,11 @@ func (f *Factory) clone(version, dstDir string) error {
 		return err
 	}
 	//ensure expected files exist
-	for _, dir := range []string{resDir, instResDir} {
+	for _, dir := range []string{resDir, instResDir, instResCrdDir} {
 		reqDir := filepath.Join(dstDir, dir)
 		if !file.DirExists(reqDir) {
 			return fmt.Errorf("required resource directory '%s' is missing in Kyma version '%s'", reqDir, version)
 		}
-	}
-	reqFile := filepath.Join(dstDir, componentFile)
-	if !file.Exists(reqFile) {
-		return fmt.Errorf("required component file '%s' is missing in Kyma version '%s'", reqFile, version)
 	}
 
 	//create a marker file to flag success

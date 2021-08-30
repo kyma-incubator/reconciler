@@ -1,33 +1,92 @@
-// solution from https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/unstructured.go
-
 package kubeclient
 
 import (
+	"bufio"
+	"bytes"
+	"github.com/pkg/errors"
+	"io"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/resource"
+	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+	yamlToJson "sigs.k8s.io/yaml"
 )
 
-// ToUnstructured converts a map[string]interface{} to a kubernetes unstructured.Unstructured
-// object. An unstructured's "Object" field is technically just a map[string]interface{},
-// so we could do the following:
-//
-// return unstructured.Unstructured{ Object: manifest }
-//
-// and not have this function return an error, but we miss out on some validation that
-// happens during `kubectl`, such as when you attempt to kubeClient a bad manifest, like something
-// without "kind" specified. Example:
-//
-// $ k kubeClient -f bad.yaml --validate=false
-// error: unable to decode "bad.yaml": Object 'Kind' is missing in '{}'
-//
-// If we decide to not cycle through the encoding/decoding process, these errors
-// will be deferred to when the manifest gets applied, and will fail with some error like
-//
-// error applying manifest (kind: , apiVersion: v1, name: bad-gke): no matches for kind "" in version "apps/v1"
-//
-// For now, we are not deferring the error.
-func ToUnstructured(b []byte) (unstructured.Unstructured, error) {
+func ToUnstructured(manifest []byte, async bool) ([]unstructured.Unstructured, error) {
+	var result []unstructured.Unstructured
+	var err error
+
+	chanMes, chanErr := readYaml(manifest, async)
+Loop:
+	for {
+		select {
+		case yamlData, ok := <-chanMes:
+			if !ok {
+				//channel closed
+				break Loop
+			}
+
+			//convert YAML to JSON
+			jsonData, err := yamlToJson.YAMLToJSON(yamlData)
+			if err != nil {
+				break Loop
+			}
+
+			if string(jsonData) == "null" {
+				//YAML didn't contain any valuable JSON data (e.g. just comments)
+				continue
+			}
+
+			//get unstructured entity from JSON and intercept
+			unstruct, err := newUnstructured(jsonData)
+			if err != nil {
+				break Loop
+			}
+			result = append(result, unstruct)
+
+		case err = <-chanErr:
+			break Loop
+		}
+	}
+	return result, err
+}
+
+func readYaml(data []byte, async bool) (<-chan []byte, <-chan error) {
+	var (
+		chanErr        = make(chan error)
+		chanBytes      = make(chan []byte)
+		multidocReader = utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(data)))
+	)
+
+	readFct := func() {
+		defer close(chanErr)
+		defer close(chanBytes)
+
+		for {
+			buf, err := multidocReader.Read()
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+				chanErr <- errors.Wrap(err, "failed to read yaml data")
+				return
+			}
+			chanBytes <- buf
+		}
+	}
+
+	if async {
+		go readFct()
+	} else {
+		readFct()
+	}
+
+	return chanBytes, chanErr
+}
+
+//newUnstructured converts a map[string]interface{} to a kubernetes unstructured.Unstructured
+//object.
+//From https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/unstructured.go
+func newUnstructured(b []byte) (unstructured.Unstructured, error) {
 	obj, _, err := unstructured.UnstructuredJSONScheme.Decode(b, nil, nil)
 	if err != nil {
 		return unstructured.Unstructured{}, err
@@ -41,18 +100,4 @@ func ToUnstructured(b []byte) (unstructured.Unstructured, error) {
 	return unstructured.Unstructured{
 		Object: m,
 	}, nil
-}
-
-func SetDefaultNamespaceIfScopedAndNoneSet(u *unstructured.Unstructured, helper *resource.Helper) {
-	namespace := u.GetNamespace()
-	if helper.NamespaceScoped && namespace == "" {
-		namespace = "default"
-		u.SetNamespace(namespace)
-	}
-}
-
-func SetNamespaceIfScoped(namespace string, u *unstructured.Unstructured, helper *resource.Helper) {
-	if helper.NamespaceScoped {
-		u.SetNamespace(namespace)
-	}
 }
