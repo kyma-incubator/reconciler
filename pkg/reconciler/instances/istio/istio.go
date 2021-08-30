@@ -1,10 +1,6 @@
 package istio
 
 import (
-	"fmt"
-	"os"
-
-	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
@@ -24,14 +20,5 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	istioctlPath, ok := os.LookupEnv("ISTIOCTL")
-	if !ok {
-		istioctlPath = istioctl1_10_2
-	}
-	if !file.Exists(istioctlPath) {
-		panic(fmt.Errorf("Reference istioctl '%s' not found", istioctlPath))
-	}
-	log.Debugf("Istioctl found: '%s'", istioctlPath)
-
-	reconciler.WithPreReconcileAction(&ReconcileAction{istioctlPath})
+	reconciler.WithPreReconcileAction(&ReconcileAction{})
 }
