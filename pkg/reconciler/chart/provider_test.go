@@ -1,19 +1,17 @@
 package chart
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
 
 func TestProvider(t *testing.T) {
-	if !test.RunExpensiveTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	var (
 		kymaVersion   = "main"
