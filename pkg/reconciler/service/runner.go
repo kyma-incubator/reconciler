@@ -149,7 +149,7 @@ func (r *runner) renderManifest(chartProvider *chart.Provider, model *reconciler
 	component := chart.NewComponentBuilder(model.Version, model.Component).
 		WithProfile(model.Profile).
 		WithNamespace(model.Namespace).
-		WithConfiguration(r.configMap(model)).
+		WithConfiguration(model.Configuration).
 		Build()
 
 	var manifests []*chart.Manifest
@@ -176,12 +176,4 @@ func (r *runner) renderManifest(chartProvider *chart.Provider, model *reconciler
 	}
 
 	return chart.MergeManifests(manifests...), nil
-}
-
-func (r *runner) configMap(model *reconciler.Reconciliation) map[string]interface{} {
-	result := make(map[string]interface{}, len(model.Configuration))
-	for _, comp := range model.Configuration {
-		result[comp.Key] = comp.Value
-	}
-	return result
 }

@@ -3,6 +3,7 @@ package chart
 import (
 	"encoding/json"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"io/ioutil"
@@ -97,10 +98,19 @@ func TestHelm(t *testing.T) {
 		component := NewComponentBuilder("main", componentName).
 			WithNamespace("testNamespace").
 			WithProfile(profileName).
-			WithConfiguration(map[string]interface{}{
-				"config.key2":           "value2 from component",
-				"component.config.key1": 123.4,
-				"component.config.key2": true,
+			WithConfiguration([]reconciler.Configuration{
+				{
+					Key:   "config.key2",
+					Value: "value2 from component",
+				},
+				{
+					Key:   "component.config.key1",
+					Value: "123.4",
+				},
+				{
+					Key:   "component.config.key2",
+					Value: "true",
+				},
 			}).
 			Build()
 
@@ -119,8 +129,8 @@ func TestHelm(t *testing.T) {
 			"profile": true,
 			"component": {
 				"config": {
-					"key1": 123.4,
-					"key2": true
+					"key1": "123.4",
+					"key2": "true"
 				}
 			}
 		}`), &expected)
@@ -132,8 +142,11 @@ func TestHelm(t *testing.T) {
 		component := NewComponentBuilder("main", componentName).
 			WithNamespace("testNamespace").
 			WithProfile(profileName).
-			WithConfiguration(map[string]interface{}{
-				"config.key2": "value2 from component",
+			WithConfiguration([]reconciler.Configuration{
+				{
+					Key:   "config.key2",
+					Value: "value2 from component",
+				},
 			}).
 			Build()
 

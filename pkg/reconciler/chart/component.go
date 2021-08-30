@@ -2,20 +2,21 @@ package chart
 
 import (
 	"github.com/imdario/mergo"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"strings"
 )
 
 type Component struct {
-	version         string
-	name            string
-	profile         string
-	namespace       string
-	kvConfiguration map[string]interface{}
+	version       string
+	name          string
+	profile       string
+	namespace     string
+	configuration map[string]interface{}
 }
 
 func (c *Component) Configuration() (map[string]interface{}, error) {
 	result := make(map[string]interface{})
-	for key, value := range c.kvConfiguration {
+	for key, value := range c.configuration {
 		if err := mergo.Merge(&result, c.convertToNestedMap(key, value), mergo.WithOverride); err != nil {
 			return nil, err
 		}
@@ -47,8 +48,9 @@ type ComponentBuilder struct {
 func NewComponentBuilder(version, name string) *ComponentBuilder {
 	return &ComponentBuilder{
 		&Component{
-			version: version,
-			name:    name,
+			version:       version,
+			name:          name,
+			configuration: make(map[string]interface{}),
 		},
 	}
 }
@@ -63,8 +65,10 @@ func (cb *ComponentBuilder) WithNamespace(namespace string) *ComponentBuilder {
 	return cb
 }
 
-func (cb *ComponentBuilder) WithConfiguration(configuration map[string]interface{}) *ComponentBuilder {
-	cb.component.kvConfiguration = configuration
+func (cb *ComponentBuilder) WithConfiguration(config []reconciler.Configuration) *ComponentBuilder {
+	for _, kvEntry := range config {
+		cb.component.configuration[kvEntry.Key] = kvEntry.Value
+	}
 	return cb
 }
 
