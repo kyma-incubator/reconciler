@@ -1,5 +1,5 @@
 # Istioctl source images
-FROM istio/istioctl:1.10.2 AS istio-1_10_2
+FROM istio/istioctl:1.11.1 AS istio-1_11_1
 
 # Build image
 FROM golang:1.16.4-alpine3.12 AS build
@@ -42,7 +42,7 @@ COPY --from=build /bin/migrate /bin/migrate
 COPY --from=build /configs/ /configs/
 
 # Add istioctl tools
-COPY --from=istio-1_10_2 /usr/local/bin/istioctl /bin/istioctl-1.10.2
+COPY --from=istio-istio-1_11_1 /usr/local/bin/istioctl /bin/istioctl-1.11.1
 
 USER appuser:appuser
 

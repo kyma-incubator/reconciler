@@ -4,6 +4,7 @@ package kubeclient
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/types"
 	"strings"
 
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -23,6 +24,15 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/kubectl/pkg/util"
 )
+
+type Metadata struct {
+	Name      string
+	Namespace string
+	Group     string
+	Version   string
+	Resource  string
+	Kind      string
+}
 
 type KubeClient struct {
 	dynamicClient dynamic.Interface
@@ -235,6 +245,58 @@ func (kube *KubeClient) ListResource(resource string, lo metav1.ListOptions) (*u
 		return nil, err
 	}
 	return kube.dynamicClient.Resource(gvr).List(context.TODO(), lo)
+}
+
+func (c *KubeClient) Patch(kind, name, namespace string, p []byte) (Metadata, *unstructured.Unstructured, error) {
+	return c.PatchUsingStrategy(kind, name, namespace, p, types.StrategicMergePatchType)
+}
+
+func (c *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) (Metadata, *unstructured.Unstructured, error) {
+	metadata := Metadata{}
+	gvk, err := c.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
+	if err != nil {
+		return metadata, nil, err
+	}
+
+	restMapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return metadata, nil, err
+	}
+
+	restClient, err := newRestClient(*c.config, gvk.GroupVersion())
+	if err != nil {
+		return metadata, nil, err
+	}
+
+	helper := resource.NewHelper(restClient, restMapping)
+
+	var u *unstructured.Unstructured
+
+	if helper.NamespaceScoped {
+		u, err = c.dynamicClient.
+			Resource(restMapping.Resource).
+			Namespace(namespace).
+			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
+	} else {
+		u, err = c.dynamicClient.
+			Resource(restMapping.Resource).
+			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
+	}
+
+	if err != nil {
+		return metadata, nil, err
+	}
+
+	gvr := restMapping.Resource
+
+	metadata.Name = u.GetName()
+	metadata.Namespace = u.GetNamespace()
+	metadata.Group = gvr.Group
+	metadata.Resource = gvr.Resource
+	metadata.Version = gvr.Version
+	metadata.Kind = gvk.Kind
+
+	return metadata, u, err
 }
 
 func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
