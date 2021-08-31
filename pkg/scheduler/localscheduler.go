@@ -137,15 +137,17 @@ func localClusterState(c *keb.Cluster) (*cluster.State, error) {
 }
 
 func (ls *LocalScheduler) reconcile(component *keb.Components, state *cluster.State, schedulingID string, installCRD bool) error {
-	worker, err := ls.workerFactory.ForComponent(c.Component)
+	worker, err := ls.workerFactory.ForComponent(component.Component)
 	if err != nil {
 		return fmt.Errorf("failed to create a worker: %s", err)
 	}
 
-	err = worker.Reconcile(c, state, schedulingID, installCRD)
+	err = worker.Reconcile(component, *state, schedulingID, installCRD)
 	if err != nil {
-		return fmt.Errorf("failed to reconcile a component: %s", c.Component)
+		return fmt.Errorf("failed to reconcile a component: %s", component.Component)
 	}
+
+	return nil
 }
 
 func contains(items []string, item string) bool {
