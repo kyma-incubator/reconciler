@@ -29,7 +29,7 @@ func WithCRDComponents(components ...string) LocalSchedulerOption {
 
 func WithPrerequisites(components ...string) LocalSchedulerOption {
 	return func(ls *LocalScheduler) {
-		ls.prerequisites = components
+		ls.prereqs = components
 	}
 }
 
@@ -37,7 +37,7 @@ type LocalScheduler struct {
 	workerFactory WorkerFactory
 	logger        *zap.SugaredLogger
 	crdComponents []string
-	prerequisites []string
+	prereqs       []string
 }
 
 func NewLocalScheduler(workerFactory WorkerFactory, opts ...LocalSchedulerOption) *LocalScheduler {
@@ -158,7 +158,7 @@ func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Components, c
 func (ls *LocalScheduler) reconcileComponents(ctx context.Context, components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for _, c := range components {
-		if contains(ls.crdComponents, c.Component) || contains(ls.prerequisites, c.Component) {
+		if contains(ls.crdComponents, c.Component) || contains(ls.prereqs, c.Component) {
 			continue
 		}
 
@@ -172,7 +172,7 @@ func (ls *LocalScheduler) reconcileComponents(ctx context.Context, components []
 }
 
 func (ls *LocalScheduler) isPrereq(c *keb.Components) bool {
-	return contains(ls.prerequisites, c.Component)
+	return contains(ls.prereqs, c.Component)
 }
 
 func (ls *LocalScheduler) isCRDComponent(c *keb.Components) bool {
