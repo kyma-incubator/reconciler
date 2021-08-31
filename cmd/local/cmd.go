@@ -62,11 +62,11 @@ func RunLocal(o *Options) error {
 		},
 		true)
 
-	ls, _ := scheduler.NewLocalScheduler(keb.Cluster{
+	ls := scheduler.NewLocalScheduler(workerFactory, scheduler.WithLogger(l))
+	return ls.Run(context.Background(), keb.Cluster{
 		Kubeconfig: o.kubeconfig,
 		KymaConfig: keb.KymaConfig{
 			Version:    o.version,
 			Profile:    o.profile,
-			Components: o.Components()}}, workerFactory, true)
-	return ls.Run(context.Background())
+			Components: o.Components()}})
 }
