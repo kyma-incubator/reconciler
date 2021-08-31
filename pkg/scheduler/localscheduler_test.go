@@ -47,6 +47,81 @@ func TestLocalScheduler(t *testing.T) {
 	workerMock.AssertNumberOfCalls(t, "Reconcile", 2)
 }
 
+func TestLocalSchedulerOrder(t *testing.T) {
+	testCases := []struct {
+		summary       string
+		prerequisites []string
+		crdComponents []string
+		allComponents []string
+		expectedOrder []string
+	}{
+		{
+			summary:       "single prerequisite",
+			prerequisites: []string{"b"},
+			allComponents: []string{"a", "b"},
+			expectedOrder: []string{"b", "a"},
+		},
+		{
+			summary:       "multiple prerequisites",
+			prerequisites: []string{"b", "d"},
+			allComponents: []string{"d", "a", "b"},
+			expectedOrder: []string{"d", "b", "a"},
+		},
+		{
+			summary:       "non-overlapping prerequisites and crds",
+			prerequisites: []string{"b", "d"},
+			crdComponents: []string{"c", "e"},
+			allComponents: []string{"d", "c", "a", "e", "b"},
+			expectedOrder: []string{"d", "b", "c", "e", "a"},
+		},
+		{
+			summary:       "overlapping prerequisites and crds",
+			prerequisites: []string{"b", "d"},
+			crdComponents: []string{"c", "b"},
+			allComponents: []string{"d", "c", "a", "b"},
+			expectedOrder: []string{"d", "b", "c", "a"},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.summary, func(t *testing.T) {
+			t.Parallel()
+
+			cluster := keb.Cluster{
+				KymaConfig: keb.KymaConfig{},
+			}
+			for _, c := range tc.allComponents {
+				cluster.KymaConfig.Components = append(cluster.KymaConfig.Components, keb.Components{Component: c})
+			}
+
+			var reconciledComponents []string
+			workerMock := &MockReconciliationWorker{}
+			workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Return(nil).
+				Run(func(args mock.Arguments) {
+					component := args.Get(0).(*keb.Components)
+					reconciledComponents = append(reconciledComponents, component.Component)
+				})
+
+			workerFactoryMock := &MockWorkerFactory{}
+			for _, c := range tc.allComponents {
+				workerFactoryMock.On("ForComponent", c).Return(workerMock, nil)
+			}
+
+			sut := NewLocalScheduler(workerFactoryMock,
+				WithPrerequisites(tc.prerequisites...),
+				WithCRDComponents(tc.crdComponents...))
+
+			err := sut.Run(context.Background(), cluster)
+			require.NoError(t, err)
+
+			require.Len(t, reconciledComponents, len(tc.allComponents))
+			require.Equal(t, tc.expectedOrder, reconciledComponents)
+		})
+	}
+}
+
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	test.IntegrationTest(t)
 

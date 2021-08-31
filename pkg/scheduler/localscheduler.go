@@ -21,13 +21,13 @@ func WithLogger(logger *zap.SugaredLogger) LocalSchedulerOption {
 	}
 }
 
-func WithCRDComponents(components []string) LocalSchedulerOption {
+func WithCRDComponents(components ...string) LocalSchedulerOption {
 	return func(ls *LocalScheduler) {
 		ls.crdComponents = components
 	}
 }
 
-func WithPrerequisites(components []string) LocalSchedulerOption {
+func WithPrerequisites(components ...string) LocalSchedulerOption {
 	return func(ls *LocalScheduler) {
 		ls.prerequisites = components
 	}
