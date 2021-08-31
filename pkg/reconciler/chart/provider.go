@@ -2,19 +2,16 @@ package chart
 
 import (
 	"fmt"
-	"os"
-	"strings"
-
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
-	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
-	"github.com/kyma-incubator/hydroform/parallel-install/pkg/config"
-	"github.com/kyma-incubator/hydroform/parallel-install/pkg/deployment"
-	"github.com/kyma-incubator/hydroform/parallel-install/pkg/overrides"
-	file "github.com/kyma-incubator/reconciler/pkg/files"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
+
+const kindCRD = "CustomResourceDefinition"
 
 type Provider struct {
 	wsFactory *workspace.Factory
@@ -23,7 +20,7 @@ type Provider struct {
 
 func NewProvider(wsFactory *workspace.Factory, logger *zap.SugaredLogger) (*Provider, error) {
 	if wsFactory == nil {
-		return nil, fmt.Errorf("Workspace factory cannot be nil")
+		return nil, fmt.Errorf("workspace factory cannot be nil")
 	}
 	return &Provider{
 		wsFactory: wsFactory,
@@ -31,137 +28,91 @@ func NewProvider(wsFactory *workspace.Factory, logger *zap.SugaredLogger) (*Prov
 	}, nil
 }
 
-func (p *Provider) ChangeWorkspace(wsDir string) error {
-	if !file.DirExists(wsDir) {
-		if err := os.MkdirAll(wsDir, 0755); err != nil {
-			return err
-		}
-	}
-	p.wsFactory.StorageDir = wsDir
-	return nil
-}
-
-func (p *Provider) loggerAdapter() *HydroformLoggerAdapter {
-	return NewHydroformLoggerAdapter(p.logger)
-}
-
-func (p *Provider) Manifests(compSet *ComponentSet, includeCRD bool, opts *Options) ([]*components.Manifest, error) {
-	//TODO: add caching check here
-	p.logger.Debugf("Getting workspace for Kyma '%s'", compSet.version)
-	ws, err := p.wsFactory.Get(compSet.version)
-	if err != nil {
-		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s': %s", compSet.version, err)
-		return nil, err
-	}
-
-	var result []*components.Manifest
-	if len(compSet.components) > 0 {
-		manifests, err := p.renderManifests(compSet, ws, opts)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, manifests...)
-	}
-	if includeCRD {
-		crds, err := p.renderCrds(compSet, ws, opts)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, crds...)
-	}
-
-	return result, nil
-}
-
-func (p *Provider) renderManifests(compSet *ComponentSet, ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
-	return p.render(compSet, false, ws, opts)
-}
-
-func (p *Provider) renderCrds(compSet *ComponentSet, ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
-	return p.render(compSet, true, ws, opts)
-}
-
-func (p *Provider) render(compSet *ComponentSet, renderCrds bool, ws *workspace.Workspace, opts *Options) ([]*components.Manifest, error) {
-	if err := opts.validate(); err != nil {
-		return nil, errors.Wrap(err, "Invalid provider options defined")
-	}
-
-	//get logger
-	logger := p.loggerAdapter()
-
-	//get overrides
-	builder, err := p.overrides(compSet.components)
+func (p *Provider) RenderCRD(version string) ([]*Manifest, error) {
+	ws, err := p.newWorkspace(version)
 	if err != nil {
 		return nil, err
 	}
 
-	//get templating instance
-	cfg := &config.Config{
-		WorkersCount:                  opts.WorkersCount,
-		CancelTimeout:                 opts.CancelTimeout,
-		QuitTimeout:                   opts.QuitTimeout,
-		HelmTimeoutSeconds:            60,
-		BackoffInitialIntervalSeconds: 3,
-		BackoffMaxElapsedTimeSeconds:  45,
-		Log:                           logger,
-		HelmMaxRevisionHistory:        10,
-		ComponentList:                 p.componentList(compSet.components),
-		ResourcePath:                  ws.ResourceDir,
-		InstallationResourcePath:      ws.InstallationResourceDir,
-		Profile:                       compSet.profile,
-		KubeconfigSource: config.KubeconfigSource{
-			Path:    "",
-			Content: compSet.kubeconfig,
-		},
-		Version: compSet.version,
-	}
-	templating, err := deployment.NewTemplating(cfg, builder)
-	if err != nil {
-		return nil, err
-	}
+	p.logger.Debugf("Rendering CRD resources of Kyma version '%s'", version)
 
-	return templating.Render(renderCrds)
-}
-
-//componentList will create a new component list using the components provided by KEB
-func (p *Provider) componentList(comps []*Component) *config.ComponentList {
-	compList := &config.ComponentList{}
-	for _, comp := range comps {
-		p.logger.Debugf("Adding component '%s' with namespace '%s' to rendering scope",
-			comp.name, comp.namespace)
-		compList.Components = append(compList.Components, config.ComponentDefinition{
-			Name:      comp.name,
-			Namespace: comp.namespace,
-		})
-	}
-	return compList
-}
-
-func (p *Provider) overrides(comps []*Component) (*overrides.Builder, error) {
-	overrideBuilder := &overrides.Builder{}
-	for _, comp := range comps {
-		for key, value := range comp.configuration {
-			if err := overrideBuilder.AddOverrides(comp.name, p.nestedConfMap(key, value)); err != nil {
-				return nil, err
+	var manifests []*Manifest
+	err = filepath.Walk(ws.InstallationResourceCrdDir,
+		func(path string, file os.FileInfo, e error) error {
+			if e != nil {
+				return e
 			}
-		}
-	}
-	return overrideBuilder, nil
+
+			if file.IsDir() {
+				return nil
+			}
+
+			fileExt := filepath.Ext(file.Name())
+			if fileExt != ".yaml" && fileExt != ".yml" {
+				p.logger.Debugf("Found file in CRD directory with non-supported "+
+					"file extension '%s': ignoring it", path)
+				return nil
+			}
+
+			crdData, err := ioutil.ReadFile(path)
+			if err != nil {
+				return err
+			}
+
+			unstructs, err := kubeclient.ToUnstructured(crdData, true)
+			if err != nil {
+				return err
+			}
+
+			for _, unstruct := range unstructs {
+				if unstruct.GetKind() != kindCRD {
+					p.logger.Warnf("Found in CRD directory the file '%s' which includes a resource of kind '%s': "+
+						"this resource will be ignored", path, unstruct.GetKind())
+					continue
+				}
+				manifests = append(manifests, &Manifest{
+					Type:     CRD,
+					Name:     path,
+					Manifest: string(crdData),
+				})
+			}
+
+			return nil
+		})
+
+	p.logger.Debugf("Found %d CRD resources in Kyma version '%s'", len(manifests), version)
+
+	return manifests, err
 }
 
-//nestedConfMap converts a key with dot-notation into a nested map (e.g. a.b.c=value become [a:[b:[c:value]]])
-func (p *Provider) nestedConfMap(key string, value interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	tokens := strings.Split(key, ".")
-	lastNestedMap := result
-	for depth, token := range tokens {
-		switch depth {
-		case len(tokens) - 1: //last token reached, stop nesting
-			lastNestedMap[token] = value
-		default:
-			lastNestedMap[token] = make(map[string]interface{})
-			lastNestedMap = lastNestedMap[token].(map[string]interface{})
-		}
+func (p *Provider) RenderManifest(component *Component) (*Manifest, error) {
+	ws, err := p.newWorkspace(component.version)
+	if err != nil {
+		return nil, err
 	}
-	return result
+
+	helmClient, err := NewHelmClient(ws.ResourceDir, p.logger)
+	if err != nil {
+		return nil, err
+	}
+
+	manifest, err := helmClient.Render(component)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Manifest{
+		Type:     HelmChart,
+		Name:     component.name,
+		Manifest: manifest,
+	}, nil
+}
+
+func (p *Provider) newWorkspace(version string) (*workspace.Workspace, error) {
+	p.logger.Debugf("Getting workspace for Kyma '%s'", version)
+	ws, err := p.wsFactory.Get(version)
+	if err != nil {
+		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s': %s", version, err)
+	}
+	return ws, err
 }

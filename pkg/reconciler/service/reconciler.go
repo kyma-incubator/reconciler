@@ -71,6 +71,7 @@ type ComponentReconciler struct {
 	workers int
 	logger  *zap.SugaredLogger
 	debug   bool
+	mu      sync.Mutex
 }
 
 type statusUpdaterConfig struct {
@@ -102,24 +103,39 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 	return recon, nil
 }
 
-func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
-	return chart.NewProvider(r.workspaceFactory(), r.logger)
+func UseGlobalWorkspaceFactory(workspaceFactory *workspace.Factory) error {
+	if wsFactory != nil {
+		return fmt.Errorf("workspace factory already defined: %s", wsFactory)
+	}
+	wsFactory = workspaceFactory
+	return nil
 }
 
-func (r *ComponentReconciler) workspaceFactory() *workspace.Factory {
+func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
+	wsFact, err := r.workspaceFactory()
+	if err != nil {
+		return nil, err
+	}
+	return chart.NewProvider(wsFact, r.logger)
+}
+
+func (r *ComponentReconciler) workspaceFactory() (*workspace.Factory, error) {
 	m.Lock()
+	defer m.Unlock()
+
+	var err error
 	if wsFactory == nil {
 		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
-		wsFactory = &workspace.Factory{
-			Logger:     r.logger,
-			StorageDir: r.workspace,
-		}
+		wsFactory, err = workspace.NewFactory(r.workspace, r.logger)
 	}
-	m.Unlock()
-	return wsFactory
+
+	return wsFactory, err
 }
 
 func (r *ComponentReconciler) validate() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if r.serverConfig.port < 0 {
 		return fmt.Errorf("server port cannot be < 0 (got %d)", r.serverConfig.port)
 	}
@@ -254,13 +270,13 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.
 		return err
 	}
 
-	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFct, r.logger)
+	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFunc, r.logger)
 	if err != nil {
 		return err
 	}
 
-	runnerFct := r.newRunnerFct(ctx, model, localCbh)
-	return runnerFct()
+	runnerFunc := r.newRunnerFunc(ctx, model, localCbh)
+	return runnerFunc()
 }
 
 func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
@@ -346,8 +362,8 @@ func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Po
 			//assign runner to worker
 			err = workerPool.Submit(func() {
 				r.logger.Debugf("Runner for model '%s' is assigned to worker", model)
-				runnerFct := r.newRunnerFct(ctx, model, remoteCbh)
-				if errRunner := runnerFct(); errRunner != nil {
+				runnerFunc := r.newRunnerFunc(ctx, model, remoteCbh)
+				if errRunner := runnerFunc(); errRunner != nil {
 					r.logger.Warnf("Runner failed for model '%s': %v", model, errRunner)
 					return
 				}
@@ -385,7 +401,7 @@ func (r *ComponentReconciler) dependenciesMissing(model *reconciler.Reconciliati
 	return missing
 }
 
-func (r *ComponentReconciler) newRunnerFct(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {
+func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {
 	r.logger.Debugf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds())
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)

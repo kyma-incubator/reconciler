@@ -11,4 +11,6 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
 	//import required to register component reconciler 'simpletestcomponent' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/simpletestcomponent"
+	//import required to register component reconciler 'rafter' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/rafter"
 )

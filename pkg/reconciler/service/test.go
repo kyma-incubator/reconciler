@@ -2,12 +2,12 @@ package service
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"testing"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,25 +23,28 @@ func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespac
 	chartProv, err := c.reconciler.newChartProvider()
 	require.NoError(t, err)
 
-	compSet := chart.NewComponentSet(
+	comp := chart.NewComponentBuilder(version, component).
+		WithNamespace(namespace).
+		WithConfiguration(globalComponentConfiguration()).
+		Build()
 
-		test.ReadKubeconfig(t),
-		version,
-		namespace,
-		[]*chart.Component{
-			chart.NewComponent(component, namespace, nil),
-		},
-	)
-
-	manifests, err := chartProv.Manifests(compSet, false, &chart.Options{})
+	manifest, err := chartProv.RenderManifest(comp)
 	require.NoError(t, err)
-	require.Len(t, manifests, 1)
 
 	//delete resources in manifest
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute) //deletion has to happen within 1 min
 	defer cancel()
-	_, err = c.kubeClient.Delete(ctx, manifests[0].Manifest, namespace) //blocking call until all watchable resources were removed
+	_, err = c.kubeClient.Delete(ctx, manifest.Manifest, namespace) //blocking call until all watchable resources were removed
 	require.NoError(t, err)
 
 	t.Logf("Cleanup of component '%s' finished", component)
+}
+
+func globalComponentConfiguration() []reconciler.Configuration {
+	return []reconciler.Configuration{
+		{
+			Key:   "global.ingress.domainName",
+			Value: "local.kyma.dev",
+		},
+	}
 }
