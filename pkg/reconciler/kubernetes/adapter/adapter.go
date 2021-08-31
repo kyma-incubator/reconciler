@@ -115,12 +115,12 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 
 	for _, unstruct := range unstructs {
 		for _, interceptor := range interceptors {
-			if err := interceptor.Intercept(&unstruct); err != nil {
+			if err := interceptor.Intercept(unstruct); err != nil {
 				g.logger.Errorf("Failed to intercept Kubernetes unstructured entity: %s", err)
 				return deployedResources, err
 			}
 		}
-		resource, err := g.kubeClient.ApplyWithNamespaceOverride(&unstruct, namespace)
+		resource, err := g.kubeClient.ApplyWithNamespaceOverride(unstruct, namespace)
 		if err != nil {
 			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
 			g.logger.Debugf("Used JSON data: %+v", unstruct)

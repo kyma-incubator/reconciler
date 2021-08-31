@@ -11,8 +11,8 @@ import (
 	yamlToJson "sigs.k8s.io/yaml"
 )
 
-func ToUnstructured(manifest []byte, async bool) ([]unstructured.Unstructured, error) {
-	var result []unstructured.Unstructured
+func ToUnstructured(manifest []byte, async bool) ([]*unstructured.Unstructured, error) {
+	var result []*unstructured.Unstructured
 	var err error
 
 	chanMes, chanErr := readYaml(manifest, async)
@@ -86,18 +86,18 @@ func readYaml(data []byte, async bool) (<-chan []byte, <-chan error) {
 //newUnstructured converts a map[string]interface{} to a kubernetes unstructured.Unstructured
 //object.
 //From https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/unstructured.go
-func newUnstructured(b []byte) (unstructured.Unstructured, error) {
+func newUnstructured(b []byte) (*unstructured.Unstructured, error) {
 	obj, _, err := unstructured.UnstructuredJSONScheme.Decode(b, nil, nil)
 	if err != nil {
-		return unstructured.Unstructured{}, err
+		return nil, err
 	}
 	// Convert the runtime.Object to unstructured.Unstructured.
 	m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
-		return unstructured.Unstructured{}, err
+		return nil, err
 	}
 
-	return unstructured.Unstructured{
+	return &unstructured.Unstructured{
 		Object: m,
 	}, nil
 }

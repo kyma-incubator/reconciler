@@ -38,7 +38,11 @@ func (p *Provider) RenderCRD(version string) ([]*Manifest, error) {
 
 	var manifests []*Manifest
 	err = filepath.Walk(ws.InstallationResourceCrdDir,
-		func(path string, file os.FileInfo, err error) error {
+		func(path string, file os.FileInfo, e error) error {
+			if e != nil {
+				return e
+			}
+
 			if file.IsDir() {
 				return nil
 			}
