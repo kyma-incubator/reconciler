@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/test"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -40,13 +39,4 @@ func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespac
 	require.NoError(t, err)
 
 	t.Logf("Cleanup of component '%s' finished", component)
-}
-
-func globalComponentConfiguration() []reconciler.Configuration {
-	return []reconciler.Configuration{
-		{
-			Key:   "global.ingress.domainName",
-			Value: "local.kyma.dev",
-		},
-	}
 }
