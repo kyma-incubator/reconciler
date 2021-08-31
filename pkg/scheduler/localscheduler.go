@@ -68,29 +68,13 @@ func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 
 	for _, c := range components {
 		if contains(ls.prerequisites, c.Component) {
-			worker, err := ls.workerFactory.ForComponent(c.Component)
-			if err != nil {
-				return fmt.Errorf("failed to create a worker: %s", err)
-			}
-
-			err = worker.Reconcile(c, *clusterState, schedulingID, false)
-			if err != nil {
-				return fmt.Errorf("failed to reconcile a component: %s", c.Component)
-			}
+			ls.reconcile(c, clusterState, schedulingID, false)
 		}
 	}
 
 	for _, c := range components {
 		if contains(ls.crdComponents, c.Component) {
-			worker, err := ls.workerFactory.ForComponent(c.Component)
-			if err != nil {
-				return fmt.Errorf("failed to create a worker: %s", err)
-			}
-
-			err = worker.Reconcile(c, *clusterState, schedulingID, true)
-			if err != nil {
-				return fmt.Errorf("failed to reconcile a component: %s", c.Component)
-			}
+			ls.reconcile(c, clusterState, schedulingID, true)
 		}
 	}
 
@@ -101,13 +85,8 @@ func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 		}
 
 		component := c // https://golang.org/doc/faq#closures_and_goroutines
-		worker, err := ls.workerFactory.ForComponent(component.Component)
-		if err != nil {
-			return fmt.Errorf("failed to create a worker: %s", err)
-		}
-
 		g.Go(func() error {
-			return worker.Reconcile(component, *clusterState, schedulingID, false)
+			return ls.reconcile(component, clusterState, schedulingID, true)
 		})
 	}
 
@@ -155,6 +134,18 @@ func localClusterState(c *keb.Cluster) (*cluster.State, error) {
 		Configuration: configurationEntity,
 		Status:        &model.ClusterStatusEntity{},
 	}, nil
+}
+
+func (ls *LocalScheduler) reconcile(component *keb.Components, state *cluster.State, schedulingID string, installCRD bool) error {
+	worker, err := ls.workerFactory.ForComponent(c.Component)
+	if err != nil {
+		return fmt.Errorf("failed to create a worker: %s", err)
+	}
+
+	err = worker.Reconcile(c, state, schedulingID, installCRD)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile a component: %s", c.Component)
+	}
 }
 
 func contains(items []string, item string) bool {
