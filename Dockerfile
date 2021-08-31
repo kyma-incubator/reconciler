@@ -43,6 +43,7 @@ COPY --from=build /configs/ /configs/
 
 # Add istioctl tools
 COPY --from=istio-istio-1_11_1 /usr/local/bin/istioctl /bin/istioctl-1.11.1
+ENV ISTIOCTL_PATH=/bin/istioctl-1.11.1
 
 USER appuser:appuser
 

@@ -34,7 +34,7 @@ func CreateTempFileWith(content string) (resPath string, cf CleanupFunc, err err
 func createTemporaryFile(content string) (string, error) {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), temporaryFilePattern)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to generate a temporary file for kubeconfig")
+		return "", errors.Wrap(err, "Failed to generate a temporary file")
 	}
 
 	resPath := tmpFile.Name()

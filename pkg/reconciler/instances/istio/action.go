@@ -1,20 +1,19 @@
 package istio
 
 import (
-	"bytes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
 )
 
 const (
-	istioctl1_11_1      = "/bin/istioctl-1.11.1" // change path to the local `istioctl` if debugging locally
+	//istioctl1_11_1      = "/bin/istioctl-1.11.1" // change path to the local `istioctl` if debugging locally
+	istioctl1_11_1      = "/Users/i354853/Documents/Develop/Kyma/Istio/istio-1.11.1/bin/istioctl" // change path to the local `istioctl` if debugging locally
 	yaml_delimiter      = "---"
 	istio_operator_kind = "kind: IstioOperator"
 )
@@ -67,12 +66,13 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 		}
 	}()
 
+	// TODO: check binary path
 	cmd := prepareIstioctlCommand(istioOperatorPath, kubeconfigPath)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
 
-	_, err = context.KubeClient.Deploy(nil, finalManifest, "istio-system", nil)
+	_, err = context.KubeClient.Deploy(context.Context, finalManifest, "istio-system", nil)
 	if err != nil {
 		return err
 	}
@@ -84,10 +84,8 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 
 func prepareIstioctlCommand(istioOperatorPath, kubeconfigPath string) *exec.Cmd {
 	cmd := exec.Command(istioctl1_11_1, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
-	var stdBuffer bytes.Buffer
-	mw := io.MultiWriter(os.Stdout, &stdBuffer)
-	cmd.Stdout = mw
-	cmd.Stderr = mw
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	return cmd
 }
