@@ -13,9 +13,9 @@ const (
 // CleanupFunc defines the contract for removing a temporary kubeconfig file.
 type CleanupFunc func() error
 
-// Path returns a filesystem path to a generated temporary file with the given content.
+// CreateTempFileWith returns a filesystem path to a generated temporary file with the given content.
 // In order to ensure proper cleanup you should always call the returned CleanupFunc using `defer` statement.
-func Path(content string) (resPath string, cf CleanupFunc, err error) {
+func CreateTempFileWith(content string) (resPath string, cf CleanupFunc, err error) {
 	resPath, err = createTemporaryFile(content)
 	if err != nil {
 		return "", nil, err
@@ -48,5 +48,3 @@ func createTemporaryFile(content string) (string, error) {
 
 	return resPath, nil
 }
-
-
