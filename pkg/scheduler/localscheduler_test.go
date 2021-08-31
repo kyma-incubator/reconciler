@@ -4,8 +4,6 @@ import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -32,11 +30,11 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsFact))
 
 	//cleanup workspace
-	defer func() {
-		wsDir := filepath.Join(workspaceDir, kymaVersion)
-		t.Logf("Deleting cloned Kyma sources in %s", wsDir)
-		require.NoError(t, os.RemoveAll(wsDir))
-	}()
+	cleanupFct := func(t *testing.T) {
+		require.NoError(t, wsFact.Delete(kymaVersion))
+	}
+	cleanupFct(t)
+	defer cleanupFct(t)
 
 	t.Run("Missing component reconciler", func(t *testing.T) {
 		//no initialization of component reconcilers happened - reconciliation has to fail
