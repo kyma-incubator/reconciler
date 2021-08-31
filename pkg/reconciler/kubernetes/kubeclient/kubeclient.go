@@ -1,5 +1,4 @@
 // solution from https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/client.go
-
 package kubeclient
 
 import (
@@ -30,12 +29,25 @@ type KubeClient struct {
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
 }
 
+func NewInCluster() (*KubeClient, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return newForConfig(config)
+}
+
 func NewKubeClient(kubeconfig string) (*KubeClient, error) {
 	config, err := getRestConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
+	return newForConfig(config)
+}
+
+func newForConfig(config *rest.Config) (*KubeClient, error) {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -82,10 +94,10 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 	helper := resource.NewHelper(restClient, restMapping)
 
 	if namespaceOverride == "" {
-		SetDefaultNamespaceIfScopedAndNoneSet(u, helper)
-	} else {
-		SetNamespaceIfScoped(namespaceOverride, u, helper)
+		namespaceOverride = "default"
 	}
+
+	SetNamespaceIfScoped(namespaceOverride, u, helper)
 
 	info := &resource.Info{
 		Client:          restClient,

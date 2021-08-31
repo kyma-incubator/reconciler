@@ -204,17 +204,25 @@ func (w *Worker) send(component *keb.Components, state cluster.State, scheduling
 		}
 	}
 
+	version := state.Configuration.KymaVersion
+	if component.Version != "" {
+		version = component.Version
+	}
+
 	payload := reconciler.Reconciliation{
 		ComponentsReady: componentsReady,
 		Component:       component.Component,
 		Namespace:       component.Namespace,
-		Version:         state.Configuration.KymaVersion,
+		Version:         version,
 		Profile:         state.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(component.Configuration),
 		Kubeconfig:      state.Cluster.Kubeconfig,
 		CallbackURL:     fmt.Sprintf("http://%s:%d/v1/operations/%s/callback/%s", w.mothershipCfg.Host, w.mothershipCfg.Port, schedulingID, w.correlationID),
 		InstallCRD:      installCRD,
 		CorrelationID:   w.correlationID,
+		Repo: reconciler.Repo{
+			URL: component.URL,
+		},
 	}
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {

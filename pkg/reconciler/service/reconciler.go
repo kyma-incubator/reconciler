@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	k8s "k8s.io/client-go/kubernetes"
 	"net/http"
 	"strings"
 	"sync"
@@ -42,11 +43,15 @@ var (
 )
 
 type ActionContext struct {
-	KubeClient       kubernetes.Client
-	WorkspaceFactory *workspace.Factory
-	Context          context.Context
-	Logger           *zap.SugaredLogger
-	ChartProvider    *chart.Provider
+	KubeClient         kubernetes.Client
+	WorkspaceFactory   *workspace.Factory
+	Context            context.Context
+	Logger             *zap.SugaredLogger
+	ChartProvider      *chart.Provider
+	Kubeconfig         string
+	InClusterClientSet k8s.Interface
+	ConfigsMap         map[string]string
+	ClientSet          k8s.Interface
 }
 
 type Action interface {
@@ -102,15 +107,16 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 	return recon, nil
 }
 
-func (r *ComponentReconciler) newChartProvider() (*chart.Provider, error) {
-	return chart.NewProvider(r.workspaceFactory(), r.logger)
+func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repo) (*chart.Provider, error) {
+	return chart.NewProvider(r.workspaceFactory(repo), r.logger)
 }
 
-func (r *ComponentReconciler) workspaceFactory() *workspace.Factory {
+func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repo) *workspace.Factory {
 	m.Lock()
 	if wsFactory == nil {
 		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
 		wsFactory = &workspace.Factory{
+			Repo:       repo,
 			Logger:     r.logger,
 			StorageDir: r.workspace,
 		}

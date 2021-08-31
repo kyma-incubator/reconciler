@@ -22,6 +22,8 @@ type Configuration struct {
 type Components struct {
 	Component     string          `json:"component"`
 	Namespace     string          `json:"namespace"`
+	URL           string          `json:"url"`
+	Version       string          `json:"version"`
 	Configuration []Configuration `json:"configuration"`
 }
 

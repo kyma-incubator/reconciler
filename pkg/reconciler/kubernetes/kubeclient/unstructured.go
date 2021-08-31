@@ -43,16 +43,8 @@ func ToUnstructured(b []byte) (unstructured.Unstructured, error) {
 	}, nil
 }
 
-func SetDefaultNamespaceIfScopedAndNoneSet(u *unstructured.Unstructured, helper *resource.Helper) {
-	namespace := u.GetNamespace()
-	if helper.NamespaceScoped && namespace == "" {
-		namespace = "default"
-		u.SetNamespace(namespace)
-	}
-}
-
 func SetNamespaceIfScoped(namespace string, u *unstructured.Unstructured, helper *resource.Helper) {
-	if helper.NamespaceScoped {
+	if u.GetNamespace() == "" && helper.NamespaceScoped {
 		u.SetNamespace(namespace)
 	}
 }

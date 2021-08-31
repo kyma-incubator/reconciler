@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"os"
 	"path/filepath"
 	"sync"
@@ -29,10 +30,10 @@ type Workspace struct {
 }
 
 type Factory struct {
-	StorageDir    string
-	RepositoryURL string
-	Logger        *zap.SugaredLogger
-	mutex         sync.Mutex
+	StorageDir string
+	Repo       *reconciler.Repo
+	Logger     *zap.SugaredLogger
+	mutex      sync.Mutex
 }
 
 func (f *Factory) validate() error {
@@ -42,8 +43,10 @@ func (f *Factory) validate() error {
 	if f.StorageDir == "" {
 		f.StorageDir = f.defaultStorageDir()
 	}
-	if f.RepositoryURL == "" {
-		f.RepositoryURL = defaultRepositoryURL
+	if f.Repo == nil || f.Repo.URL == "" {
+		f.Repo = &reconciler.Repo{
+			URL: defaultRepositoryURL,
+		}
 	}
 	return nil
 }
@@ -109,10 +112,11 @@ func (f *Factory) clone(version, dstDir string) error {
 
 	//clone sources
 	f.Logger.Infof("Start cloning repository '%s' with revision '%s' into workspace '%s'",
-		f.RepositoryURL, version, dstDir)
-	if err := git.CloneRepo(f.RepositoryURL, dstDir, version); err != nil {
+		f.Repo.URL, version, dstDir)
+	cloner := git.NewCloner(&git.DefaultClient{}, f.Repo, true)
+	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.Logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
-			dstDir, f.RepositoryURL, version)
+			dstDir, f.Repo.URL, version)
 		if removeErr := f.Delete(version); removeErr != nil {
 			err = errors.Wrap(err, removeErr.Error())
 		}

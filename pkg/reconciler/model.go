@@ -1,7 +1,12 @@
 package reconciler
 
 import (
+	"context"
 	"fmt"
+	"github.com/pkg/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"net/url"
 	"strings"
 )
 
@@ -37,9 +42,18 @@ type Reconciliation struct {
 	CallbackURL     string          `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
 	InstallCRD      bool            `json:"installCRD"`
 	CorrelationID   string          `json:"correlationID"`
+	Repo            Repo            `json:"repo"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
 	CallbackFct func(status Status) error `json:"-"` //CallbackFct is mandatory when component-reconciler runs embedded in another process
+}
+
+func (r *Reconciliation) ConfigsToMap() map[string]string {
+	configs := make(map[string]string)
+	for i := 0; i < len(r.Configuration); i++ {
+		configs[r.Configuration[i].Key] = r.Configuration[i].Value
+	}
+	return configs
 }
 
 func (r *Reconciliation) String() string {
@@ -111,4 +125,55 @@ type MothershipReconcilerConfig struct {
 	Port          int
 	CrdComponents []string
 	PreComponents []string
+}
+
+type Repo struct {
+	URL   string `json:"url"`
+	Token string `json:"-"`
+}
+
+func (r *Repo) ReadToken(clientSet core.CoreV1Interface, namespace string) error {
+	secretKey, err := MapSecretKey(r.URL)
+	if err != nil {
+		return err
+	}
+
+	secret, err := clientSet.
+		Secrets(namespace).
+		Get(context.Background(), secretKey, v1.GetOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	r.Token = strings.Trim(string(secret.Data["token"]), "\n")
+
+	return nil
+}
+
+func MapSecretKey(URL string) (string, error) {
+	parsed, err := url.Parse(URL)
+
+	URL = strings.ReplaceAll(URL, "www.", "")
+
+	if !strings.HasPrefix(URL, "http") {
+		return "", errors.Errorf("Invalid URL configuration")
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	if parsed.Scheme == "" {
+		return parsed.Path, nil
+	}
+
+	output := strings.ReplaceAll(parsed.Host, ":"+parsed.Port(), "")
+	output = strings.ReplaceAll(output, "www.", "")
+
+	return output, nil
+}
+
+func (r *Repo) String() string {
+	return r.URL
 }

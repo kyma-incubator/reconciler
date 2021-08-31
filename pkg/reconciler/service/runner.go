@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -12,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/status"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -81,17 +81,45 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return err
 	}
 
-	chartProvider, err := r.newChartProvider()
+	inClusterClient, err := kubeclient.NewInCluster()
+	if err != nil {
+		return err
+	}
+
+	inClusterClientSet, err := inClusterClient.GetClientSet()
+	if err != nil {
+		return err
+	}
+
+	clusterClientSet, err := kubeClient.Clientset()
+	if err != nil {
+		return err
+	}
+
+	configs := model.ConfigsToMap()
+	err = model.Repo.ReadToken(inClusterClientSet.CoreV1(), configs["url.namespace"])
+	if err != nil {
+		return err
+	}
+
+	chartProvider, err := r.newChartProvider(&model.Repo)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create chart provider instance")
 	}
 
+	factory := r.workspaceFactory(&model.Repo)
+	if err != nil {
+		return err
+	}
 	actionHelper := &ActionContext{
-		KubeClient:       kubeClient,
-		WorkspaceFactory: r.workspaceFactory(),
-		Context:          ctx,
-		Logger:           r.logger,
-		ChartProvider:    chartProvider,
+		InClusterClientSet: inClusterClientSet,
+		KubeClient:         kubeClient,
+		ClientSet:          clusterClientSet,
+		WorkspaceFactory:   factory,
+		Context:            ctx,
+		Logger:             r.logger,
+		ChartProvider:      chartProvider,
+		ConfigsMap:         configs,
 	}
 
 	if r.preReconcileAction != nil {
