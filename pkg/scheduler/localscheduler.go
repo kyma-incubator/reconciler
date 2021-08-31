@@ -21,9 +21,9 @@ func WithLogger(logger *zap.SugaredLogger) LocalSchedulerOption {
 	}
 }
 
-func WithComponentsWithCRDs(components []string) LocalSchedulerOption {
+func WithCRDComponents(components []string) LocalSchedulerOption {
 	return func(ls *LocalScheduler) {
-		ls.componentsWithCRDs = components
+		ls.crdComponents = components
 	}
 }
 
@@ -34,10 +34,10 @@ func WithPrerequisites(components []string) LocalSchedulerOption {
 }
 
 type LocalScheduler struct {
-	workerFactory      WorkerFactory
-	logger             *zap.SugaredLogger
-	componentsWithCRDs []string
-	prerequisites      []string
+	workerFactory WorkerFactory
+	logger        *zap.SugaredLogger
+	crdComponents []string
+	prerequisites []string
 }
 
 func NewLocalScheduler(workerFactory WorkerFactory, opts ...LocalSchedulerOption) *LocalScheduler {
@@ -81,7 +81,7 @@ func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 	}
 
 	for _, c := range components {
-		if contains(ls.componentsWithCRDs, c.Component) {
+		if contains(ls.crdComponents, c.Component) {
 			worker, err := ls.workerFactory.ForComponent(c.Component)
 			if err != nil {
 				return fmt.Errorf("failed to create a worker: %s", err)
@@ -96,7 +96,7 @@ func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 
 	g, ctx := errgroup.WithContext(ctx)
 	for _, c := range components {
-		if contains(ls.componentsWithCRDs, c.Component) || contains(ls.prerequisites, c.Component) {
+		if contains(ls.crdComponents, c.Component) || contains(ls.prerequisites, c.Component) {
 			continue
 		}
 
