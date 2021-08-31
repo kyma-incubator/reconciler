@@ -26,6 +26,18 @@ func NewCmd(o *Options) *cobra.Command {
 			if err := o.Validate(); err != nil {
 				return err
 			}
+
+			//create enc-key before starting application registry (otherwise registry bootstrap will fail)
+			if o.CreateEncyptionKey {
+				err := cli.NewEncryptionKey(true)
+				if err == nil {
+					o.Logger().Infof("New encryption key file created")
+				} else {
+					o.Logger().Warnf("Failed to create encryption key file")
+					return err
+				}
+			}
+
 			if err := o.InitApplicationRegistry(true); err != nil {
 				return err
 			}
@@ -44,16 +56,6 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options) error {
-	if o.CreateEncyptionKey {
-		err := cli.NewEncryptionKey(true)
-		if err == nil {
-			o.Logger().Infof("New encryption key file created")
-		} else {
-			o.Logger().Warnf("Failed to create encryption key file")
-			return err
-		}
-	}
-
 	ctx := cli.NewContext()
 
 	go func(ctx context.Context, o *Options) {

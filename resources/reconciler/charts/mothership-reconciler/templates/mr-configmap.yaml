@@ -7,6 +7,8 @@ data:
   reconciler.yaml: |-
     db:
       driver: postgres
+      encryption:
+        keyFile: "/reconciler.key"
       postgres:
         host: "localhost"
         database: "kyma"
