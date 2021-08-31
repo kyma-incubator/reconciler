@@ -1,24 +1,18 @@
 package chart
 
 import (
-	"strings"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"testing"
 
-	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
-	"github.com/kyma-incubator/reconciler/pkg/test"
-
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	kymaVersion    = "main"
-	kymaComponents = []string{"cluster-essentials", "istio-configuration@istio-system",
-		"certificates@istio-system", "logging", "tracing", "kiali", "monitoring", "eventing", "ory", "api-gateway",
-		"service-catalog", "service-catalog-addons", "rafter", "helm-broker", "cluster-users", "serverless",
-		"application-connector@kyma-integration"}
+const (
+	kymaVersion = "main"
 )
 
 func TestProvider(t *testing.T) {
@@ -44,16 +38,14 @@ func TestProvider(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Render manifest", func(t *testing.T) {
-		for _, kymaComponent := range kymaComponents {
-			component := newComponent(kymaComponent)
-			t.Logf("Rendering Kyma HELM component '%s'", component)
-
+		for _, component := range componentList(t) {
+			t.Logf("Rendering Kyma HELM component '%s'", component.name)
 			manifest, err := prov.RenderManifest(component)
 			require.NoError(t, err)
 			require.Equal(t, component.name, manifest.Name)
 			require.Equal(t, HelmChart, manifest.Type)
 			require.NotEmpty(t, manifest.Manifest)
-			require.NoError(t, yaml.Unmarshal([]byte(manifest.Manifest), make(map[string]interface{})))
+			require.NoError(t, yaml.Unmarshal([]byte(manifest.Manifest), make(map[string]interface{}))) //valid YAML
 		}
 	})
 
@@ -66,15 +58,28 @@ func TestProvider(t *testing.T) {
 
 }
 
-func newComponent(comp string) *Component {
-	compTokens := strings.Split(comp, "@")
-	compBuilder := NewComponentBuilder(kymaVersion, compTokens[0]).
+func componentList(t *testing.T) []*Component {
+	compList := test.NewKymaComponentList(t)
+
+	var result []*Component
+	for _, comp := range compList.Prerequisites {
+		result = append(result, newComponent(comp))
+	}
+	for _, comp := range compList.Components {
+		result = append(result, newComponent(comp))
+	}
+
+	return result
+}
+
+func newComponent(comp test.Component) *Component {
+	compBuilder := NewComponentBuilder(kymaVersion, comp.Name).
 		WithConfiguration(reconTest.NewGlobalComponentConfiguration())
 
-	if len(compTokens) < 2 {
+	if comp.Namespace == "" {
 		compBuilder.WithNamespace("kyma-system")
 	} else {
-		compBuilder.WithNamespace(compTokens[1])
+		compBuilder.WithNamespace(comp.Namespace)
 	}
 
 	return compBuilder.Build()
