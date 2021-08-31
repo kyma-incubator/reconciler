@@ -30,7 +30,7 @@ type Component struct {
 }
 
 func NewKymaComponentList(t *testing.T) *KymaComponentList {
-	payload := httpGET(t, kymaComponentListURL)
+	payload := httpGET(t)
 
 	compList := &KymaComponentList{
 		DefaultNamespace: kymaNamespace,
@@ -39,9 +39,9 @@ func NewKymaComponentList(t *testing.T) *KymaComponentList {
 	return compList
 }
 
-func httpGET(t *testing.T, url string) []byte {
+func httpGET(t *testing.T) []byte {
 	//get latest Kyma component list from Github
-	resp, err := http.Get(url)
+	resp, err := http.Get(kymaComponentListURL)
 	require.NoError(t, err)
 
 	defer func() {
