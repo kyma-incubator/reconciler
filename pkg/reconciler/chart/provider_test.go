@@ -1,10 +1,11 @@
 package chart
 
 import (
-	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"strings"
 	"testing"
+
+	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
