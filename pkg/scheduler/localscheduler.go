@@ -21,13 +21,13 @@ func WithLogger(logger *zap.SugaredLogger) LocalSchedulerOption {
 	}
 }
 
-func WithCRDComponents(components []string) LocalSchedulerOption {
+func WithCRDComponents(components ...string) LocalSchedulerOption {
 	return func(ls *LocalScheduler) {
 		ls.crdComponents = components
 	}
 }
 
-func WithPrerequisites(components []string) LocalSchedulerOption {
+func WithPrerequisites(components ...string) LocalSchedulerOption {
 	return func(ls *LocalScheduler) {
 		ls.prerequisites = components
 	}
@@ -56,7 +56,7 @@ func NewLocalScheduler(workerFactory WorkerFactory, opts ...LocalSchedulerOption
 func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 	schedulingID := uuid.NewString()
 
-	clusterState, err := localClusterState(&c)
+	clusterState, err := toLocalClusterState(&c)
 	if err != nil {
 		return fmt.Errorf("failed to convert to cluster state: %s", err)
 	}
@@ -66,34 +66,25 @@ func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 		return fmt.Errorf("failed to get components: %s", err)
 	}
 
-	for _, c := range components {
-		if contains(ls.prerequisites, c.Component) {
-			ls.reconcile(c, clusterState, schedulingID, false)
-		}
+	err = ls.reconcilePrereqs(components, clusterState, schedulingID)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile prerequisite component: %s", err)
 	}
 
-	for _, c := range components {
-		if contains(ls.crdComponents, c.Component) {
-			ls.reconcile(c, clusterState, schedulingID, true)
-		}
+	err = ls.reconcileCRDComponents(components, clusterState, schedulingID)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile CRD component: %s", err)
 	}
 
-	g, ctx := errgroup.WithContext(ctx)
-	for _, c := range components {
-		if contains(ls.crdComponents, c.Component) || contains(ls.prerequisites, c.Component) {
-			continue
-		}
-
-		component := c // https://golang.org/doc/faq#closures_and_goroutines
-		g.Go(func() error {
-			return ls.reconcile(component, clusterState, schedulingID, true)
-		})
+	err = ls.reconcileComponents(ctx, components, clusterState, schedulingID)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile component: %s", err)
 	}
 
-	return g.Wait()
+	return nil
 }
 
-func localClusterState(c *keb.Cluster) (*cluster.State, error) {
+func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 	var defaultContractVersion int64 = 1
 
 	metadata, err := json.Marshal(c.Metadata)
@@ -134,6 +125,58 @@ func localClusterState(c *keb.Cluster) (*cluster.State, error) {
 		Configuration: configurationEntity,
 		Status:        &model.ClusterStatusEntity{},
 	}, nil
+}
+
+func (ls *LocalScheduler) reconcilePrereqs(components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
+	for _, c := range components {
+		if !ls.isPrereq(c) {
+			continue
+		}
+
+		err := ls.reconcile(c, clusterState, schedulingID, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
+	for _, c := range components {
+		if !ls.isCRDComponent(c) || ls.isPrereq(c) {
+			continue
+		}
+
+		err := ls.reconcile(c, clusterState, schedulingID, true)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ls *LocalScheduler) reconcileComponents(ctx context.Context, components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
+	g, ctx := errgroup.WithContext(ctx)
+	for _, c := range components {
+		if contains(ls.crdComponents, c.Component) || contains(ls.prerequisites, c.Component) {
+			continue
+		}
+
+		component := c // https://golang.org/doc/faq#closures_and_goroutines
+		g.Go(func() error {
+			return ls.reconcile(component, clusterState, schedulingID, true)
+		})
+	}
+
+	return g.Wait()
+}
+
+func (ls *LocalScheduler) isPrereq(c *keb.Components) bool {
+	return contains(ls.prerequisites, c.Component)
+}
+
+func (ls *LocalScheduler) isCRDComponent(c *keb.Components) bool {
+	return contains(ls.crdComponents, c.Component)
 }
 
 func (ls *LocalScheduler) reconcile(component *keb.Components, state *cluster.State, schedulingID string, installCRD bool) error {

@@ -22,7 +22,7 @@ const (
 )
 
 func TestLocalScheduler(t *testing.T) {
-	cluster := keb.Cluster{
+	testCluster := keb.Cluster{
 		KymaConfig: keb.KymaConfig{
 			Components: []keb.Components{
 				{Component: "logging"},
@@ -40,7 +40,7 @@ func TestLocalScheduler(t *testing.T) {
 
 	sut := NewLocalScheduler(workerFactoryMock)
 
-	err := sut.Run(context.Background(), cluster)
+	err := sut.Run(context.Background(), testCluster)
 	require.NoError(t, err)
 
 	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
@@ -88,11 +88,11 @@ func TestLocalSchedulerOrder(t *testing.T) {
 		t.Run(tc.summary, func(t *testing.T) {
 			t.Parallel()
 
-			cluster := keb.Cluster{
+			testCluster := keb.Cluster{
 				KymaConfig: keb.KymaConfig{},
 			}
 			for _, c := range tc.allComponents {
-				cluster.KymaConfig.Components = append(cluster.KymaConfig.Components, keb.Components{Component: c})
+				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Components{Component: c})
 			}
 
 			var reconciledComponents []string
@@ -113,7 +113,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 				WithPrerequisites(tc.prerequisites...),
 				WithCRDComponents(tc.crdComponents...))
 
-			err := sut.Run(context.Background(), cluster)
+			err := sut.Run(context.Background(), testCluster)
 			require.NoError(t, err)
 
 			require.Len(t, reconciledComponents, len(tc.allComponents))
