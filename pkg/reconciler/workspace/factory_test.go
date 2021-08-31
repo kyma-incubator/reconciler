@@ -33,10 +33,7 @@ func TestWorkspaceFactory(t *testing.T) {
 	})
 
 	t.Run("Clone and delete workspace", func(t *testing.T) {
-		if !test.RunExpensiveTests() {
-			//this test case clones the Kyma repo can take up to 60 sec (depending on the bandwidth) and generates bigger amount of traffic
-			return
-		}
+		test.IntegrationTest(t)
 
 		workspaceDir := filepath.Join(".", "test", version)
 		wsf, err := NewFactory("test", log.NewOptionalLogger(true))
@@ -50,12 +47,12 @@ func TestWorkspaceFactory(t *testing.T) {
 		ws, err := wsf.Get(version)
 		require.NoError(t, err)
 
-		require.Equal(t, filepath.Join(workspaceDir, componentFile), ws.ComponentFile)
-		require.True(t, file.Exists(ws.ComponentFile))
 		require.Equal(t, filepath.Join(workspaceDir, resDir), ws.ResourceDir)
 		require.True(t, file.DirExists(ws.ResourceDir))
 		require.Equal(t, filepath.Join(workspaceDir, instResDir), ws.InstallationResourceDir)
 		require.True(t, file.DirExists(ws.InstallationResourceDir))
+		require.Equal(t, filepath.Join(workspaceDir, instResCrdDir), ws.InstallationResourceCrdDir)
+		require.True(t, file.DirExists(ws.InstallationResourceCrdDir))
 
 		//delete success file
 		t.Log("Deleting success file to simulate broken workspace")
@@ -67,9 +64,9 @@ func TestWorkspaceFactory(t *testing.T) {
 		require.NoError(t, err)
 
 		//check again all the required files including success file
-		require.True(t, file.Exists(ws.ComponentFile))
 		require.True(t, file.DirExists(ws.ResourceDir))
 		require.True(t, file.DirExists(ws.InstallationResourceDir))
+		require.True(t, file.DirExists(ws.InstallationResourceCrdDir))
 		require.True(t, file.Exists(filepath.Join(workspaceDir, successFile)))
 	})
 

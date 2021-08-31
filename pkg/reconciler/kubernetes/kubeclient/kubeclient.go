@@ -57,7 +57,7 @@ func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*k8s.Resource, erro
 	return kube.ApplyWithNamespaceOverride(u, "")
 }
 
-// Apply a given manifest with an optional namespace to override.
+// ApplyWithNamespaceOverride applies a given manifest with an optional namespace to override.
 // If no namespace is set on the manifest and no namespace override is passed in then we set the namespace to 'default'.
 // If namespaceOverride is empty it will NOT override the namespace set on the manifest.
 // We only override the namespace if the manifest is NOT cluster scoped (i.e. a ClusterRole) and namespaceOverride is NOT an
@@ -82,9 +82,9 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 	helper := resource.NewHelper(restClient, restMapping)
 
 	if namespaceOverride == "" {
-		SetDefaultNamespaceIfScopedAndNoneSet(u, helper)
+		setDefaultNamespaceIfScopedAndNoneSet(u, helper)
 	} else {
-		SetNamespaceIfScoped(namespaceOverride, u, helper)
+		setNamespaceIfScoped(namespaceOverride, u, helper)
 	}
 
 	info := &resource.Info{
@@ -265,4 +265,18 @@ func getRestConfig(kubeconfig string) (*rest.Config, error) {
 	return clientcmd.BuildConfigFromKubeconfigGetter("", func() (config *clientcmdapi.Config, e error) {
 		return clientcmd.Load([]byte(kubeconfig))
 	})
+}
+
+func setDefaultNamespaceIfScopedAndNoneSet(u *unstructured.Unstructured, helper *resource.Helper) {
+	namespace := u.GetNamespace()
+	if helper.NamespaceScoped && namespace == "" {
+		namespace = "default"
+		u.SetNamespace(namespace)
+	}
+}
+
+func setNamespaceIfScoped(namespace string, u *unstructured.Unstructured, helper *resource.Helper) {
+	if helper.NamespaceScoped {
+		u.SetNamespace(namespace)
+	}
 }

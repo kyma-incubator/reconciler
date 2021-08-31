@@ -26,9 +26,8 @@ const (
 )
 
 func TestReconciliation(t *testing.T) {
-	if !test.RunExpensiveTests() {
-		return
-	}
+	test.IntegrationTest(t)
+
 	if true { // FIXME remove after created dedicated pipeline
 		return
 	}
