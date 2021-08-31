@@ -3,7 +3,7 @@ db:
   driver: postgres
   encryption:
     #Call `./bin/reconciler mothership install` to create or update the encryption key file
-    keyFile: "./encryption/reconciler.key"
+    keyFile: "/tmp/reconciler.key"
   postgres:
     host: "localhost"
     database: "kyma"
