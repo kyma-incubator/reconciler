@@ -22,15 +22,22 @@ type Options struct {
 	version        string
 	profile        string
 	components     []string
+	values         []string
 }
 
-func defaultComponentList() []keb.Components {
-	defaultComponents := []string{"cluster-essentials", "istio-configuration@istio-system",
+func defaultComponents() []string {
+	return []string{"cluster-essentials", "istio-configuration@istio-system",
 		"certificates@istio-system", "logging", "tracing", "kiali", "monitoring", "eventing", "ory", "api-gateway",
 		"service-catalog", "service-catalog-addons", "rafter", "helm-broker", "cluster-users", "serverless",
 		"application-connector@kyma-integration"}
-	return componentsFromStrings(defaultComponents)
-
+}
+func defaultValues() []string {
+	return []string{
+		"tracing.authProxy.config.useDex=false",
+		"tracing.authProxy.configDocsLink=https://kyma-project.io/docs",
+		"kiali.authProxy.config.useDex=false",
+		"kiali.authProxy.configDocsLink=https://kyma-project.io/docs",
+	}
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -40,13 +47,14 @@ func NewOptions(o *cli.Options) *Options {
 		"",         // version
 		"",         // profile
 		[]string{}, // components
+		[]string{}, // values
 	}
 }
 func (o *Options) Kubeconfig() string {
 	return o.kubeconfig
 }
 
-func componentsFromStrings(list []string) []keb.Components {
+func componentsFromStrings(list []string, values []string) []keb.Components {
 	var components []keb.Components
 	for _, item := range list {
 		s := strings.Split(item, "@")
@@ -55,16 +63,31 @@ func componentsFromStrings(list []string) []keb.Components {
 		if len(s) >= 2 {
 			namespace = s[1]
 		}
-		components = append(components, keb.Components{Component: name, Namespace: namespace})
+		configuration := []keb.Configuration{}
+		for _, keyValue := range values {
+			splitKeyValue := strings.Split(keyValue, "=")
+			splitKey := strings.Split(splitKeyValue[0], ".")
+			keyComponent := splitKey[0]
+			if keyComponent == name {
+				configuration = append(configuration, keb.Configuration{Key: strings.Join(splitKey[1:], "."), Value: splitKeyValue[1]})
+				//configuration = append(configuration, keb.Configuration{Key: splitKeyValue[0], Value: splitKeyValue[1]})
+			}
+			if keyComponent == "global" {
+				configuration = append(configuration, keb.Configuration{Key: splitKeyValue[0], Value: splitKeyValue[1]})
+			}
+		}
+		components = append(components, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
 	}
 	return components
 }
 
 func (o *Options) Components() []keb.Components {
-	if len(o.components) > 0 {
-		return componentsFromStrings(o.components)
+	components := o.components
+	if len(components) == 0 {
+		components = defaultComponents()
 	}
-	return defaultComponentList()
+	values := append(defaultValues(), o.values...)
+	return componentsFromStrings(components, values)
 }
 
 func (o *Options) Validate() error {

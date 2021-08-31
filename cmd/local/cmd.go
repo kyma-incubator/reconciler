@@ -33,6 +33,7 @@ func NewCmd(o *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&o.kubeconfigFile, "kubeconfig", "", "Path to kubeconfig file")
 	cmd.Flags().StringSliceVar(&o.components, "components", []string{}, "Comma separated list of components with optional namespace, e.g. serverless,certificates@istio-system,monitoring")
+	cmd.Flags().StringSliceVarP(&o.values, "value", "", []string{}, "Set configuration values. Can specify one or more values, also as a comma-separated list (e.g. --value component.a='1' --value component.b='2' or --value component.a='1',component.b='2').")
 	cmd.Flags().StringVar(&o.version, "version", "main", "Kyma version")
 	cmd.Flags().StringVar(&o.profile, "profile", "evaluation", "Kyma profile")
 	return cmd
