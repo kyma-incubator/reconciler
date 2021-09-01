@@ -50,7 +50,7 @@ func TestCloneRepo(t *testing.T) {
 		Auth:              transport.AuthMethod(nil),
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}
-	clonerMock.On("PlainCloneContext",
+	clonerMock.On("Clone",
 		context.Background(), "bar/baz", false, &options).
 		Return(repo, nil)
 	clonerMock.On("Worktree").

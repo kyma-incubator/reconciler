@@ -14,6 +14,14 @@ type SecretFrom interface {
 	Get() (*coreV1.Secret, error)
 }
 
+type SecretTo struct {
+	Key       string
+	Namespace string
+	Name      string
+
+	targetClientSet k8s.Interface
+}
+
 type SecretCopy struct {
 	SecretFrom SecretFrom
 	SecretTo   SecretTo
@@ -29,14 +37,6 @@ func (c SecretCopy) Transfer() error {
 		return err
 	}
 	return nil
-}
-
-type SecretTo struct {
-	Key       string
-	Namespace string
-	Name      string
-
-	targetClientSet k8s.Interface
 }
 
 func NewFromURL(prefix string, targetClientSet k8s.Interface, configs map[string]string) *SecretCopy {

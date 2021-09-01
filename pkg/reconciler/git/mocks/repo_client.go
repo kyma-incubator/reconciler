@@ -17,7 +17,7 @@ type RepoClient struct {
 }
 
 // PlainCloneContext provides a mock function with given fields: ctx, path, isBare, o
-func (_m *RepoClient) PlainCloneContext(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error) {
+func (_m *RepoClient) Clone(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error) {
 	ret := _m.Called(ctx, path, isBare, o)
 
 	var r0 *git.Repository

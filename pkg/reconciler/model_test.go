@@ -60,7 +60,7 @@ func TestStatusUpdater(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("Should read correct token secret", func(t *testing.T) {
+	t.Run("Should parse URL", func(t *testing.T) {
 		assertParsed(t, "localhost", "localhost", true)
 		assertParsed(t, "localhost", "localhost:8080", true)
 		assertParsed(t, "localhost", "http://localhost:8080", false)

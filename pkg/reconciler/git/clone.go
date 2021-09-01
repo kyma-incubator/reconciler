@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -21,7 +22,7 @@ type RemoteRepoCloner struct {
 
 //go:generate mockery --name RepoClient --case=underscore
 type RepoClient interface {
-	PlainCloneContext(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error)
+	Clone(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error)
 	Worktree() (*git.Worktree, error)
 	ResolveRevision(rev plumbing.Revision) (*plumbing.Hash, error)
 }
@@ -47,7 +48,7 @@ func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout 
 // Clone clones the repository in the given URL to the given dstPath and
 func (r *RemoteRepoCloner) Clone(path string) error {
 	var err error
-	_, err = r.repoClient.PlainCloneContext(context.Background(), path, false, &git.CloneOptions{
+	_, err = r.repoClient.Clone(context.Background(), path, false, &git.CloneOptions{
 		Depth:             0,
 		URL:               r.repo.URL,
 		NoCheckout:        !r.autoCheckout,

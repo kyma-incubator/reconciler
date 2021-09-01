@@ -2,14 +2,12 @@ package service
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"testing"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/test"
-
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +20,7 @@ func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespac
 	t.Logf("Cleanup of component '%s' (version: %s, namespace: %s) started", component, version, namespace)
 
 	//render manifest
-	chartProv, err := c.reconciler.newChartProvider(&reconciler.Repository{})
+	chartProv, err := c.reconciler.newChartProvider(nil)
 	require.NoError(t, err)
 
 	comp := chart.NewComponentBuilder(version, component).

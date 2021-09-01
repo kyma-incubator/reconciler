@@ -12,7 +12,7 @@ type Client struct {
 	repo *git.Repository
 }
 
-func (d *Client) PlainCloneContext(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error) {
+func (d *Client) Clone(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error) {
 	var err error
 	d.repo, err = git.PlainCloneContext(ctx, path, isBare, o)
 	if err != nil {
