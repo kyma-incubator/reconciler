@@ -23,7 +23,7 @@ func TestProvider(t *testing.T) {
 	log, err := logger.NewLogger(true)
 	require.NoError(t, err)
 
-	wsFactory, err := workspace.NewFactory("test", log)
+	wsFactory, err := workspace.NewFactory(nil, "test", log)
 	require.NoError(t, err)
 
 	cleanupFct := func(t *testing.T) {

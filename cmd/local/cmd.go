@@ -46,7 +46,7 @@ func RunLocal(o *Options) error {
 	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
 	//collisions when sharing the same directory)
-	wsFact, err := workspace.NewFactory(workspaceDir, l)
+	wsFact, err := workspace.NewFactory(nil, workspaceDir, l)
 	if err != nil {
 		return err
 	}

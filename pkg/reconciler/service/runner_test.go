@@ -341,7 +341,7 @@ func newCleanupFunc(t *testing.T) func(bool) {
 		cleanup.removeKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
 		//remove the cloned workspace
 		if deleteWorkspace {
-			wsf, err := ws.NewFactory("./test", logger.NewOptionalLogger(true))
+			wsf, err := ws.NewFactory(nil, "./test", logger.NewOptionalLogger(true))
 			require.NoError(t, err)
 
 			require.NoError(t, wsf.Delete(kymaVersion))

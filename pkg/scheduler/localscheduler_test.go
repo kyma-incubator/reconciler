@@ -25,7 +25,7 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
 	//collisions when sharing the same directory)
-	wsFact, err := workspace.NewFactory(workspaceDir, logger.NewOptionalLogger(true))
+	wsFact, err := workspace.NewFactory(nil, workspaceDir, logger.NewOptionalLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsFact))
 

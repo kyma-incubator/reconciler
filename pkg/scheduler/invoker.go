@@ -112,11 +112,17 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 
 	lri.logger.Debugf("Calling the reconciler for a component %s, correlation ID: %s", component, params.CorrelationID)
 
+	// TODO: Check with reviewer
+	version := params.ClusterState.Configuration.KymaVersion
+	if params.ComponentToReconcile.Version != "" {
+		version = params.ComponentToReconcile.Version
+	}
+
 	return componentReconciler.StartLocal(context.Background(), &reconciler.Reconciliation{
 		ComponentsReady: params.ComponentsReady,
 		Component:       component,
 		Namespace:       params.ComponentToReconcile.Namespace,
-		Version:         params.ClusterState.Configuration.KymaVersion,
+		Version:         version,
 		Profile:         params.ClusterState.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
 		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
@@ -140,5 +146,8 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 		},
 		InstallCRD:    params.InstallCRD,
 		CorrelationID: params.CorrelationID,
+		Repository: reconciler.Repository{
+			URL: params.ComponentToReconcile.URL,
+		},
 	})
 }

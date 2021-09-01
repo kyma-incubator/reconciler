@@ -279,17 +279,3 @@ func getRestConfig(kubeconfig string) (*rest.Config, error) {
 		return clientcmd.Load([]byte(kubeconfig))
 	})
 }
-
-func setDefaultNamespaceIfScopedAndNoneSet(u *unstructured.Unstructured, helper *resource.Helper) {
-	namespace := u.GetNamespace()
-	if helper.NamespaceScoped && namespace == "" {
-		namespace = "default"
-		u.SetNamespace(namespace)
-	}
-}
-
-func setNamespaceIfScoped(namespace string, u *unstructured.Unstructured, helper *resource.Helper) {
-	if helper.NamespaceScoped {
-		u.SetNamespace(namespace)
-	}
-}

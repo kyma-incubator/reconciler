@@ -30,19 +30,17 @@ type Workspace struct {
 }
 
 type Factory struct {
-	storageDir    string
-	logger        *zap.SugaredLogger
-	mutex         sync.Mutex
-	Repository          *reconciler.Repository
+	storageDir string
+	logger     *zap.SugaredLogger
+	mutex      sync.Mutex
+	repository *reconciler.Repository
 }
 
-func NewFactory(storageDir string, logger *zap.SugaredLogger) (*Factory, error) {
+func NewFactory(repo *reconciler.Repository, storageDir string, logger *zap.SugaredLogger) (*Factory, error) {
 	factory := &Factory{
 		storageDir: storageDir,
 		logger:     logger,
-		Repo:       &reconciler.Repo {
-			defaultRepositoryURL,
-		},
+		repository: repo,
 	}
 	return factory, factory.validate()
 }
@@ -58,8 +56,8 @@ func (f *Factory) validate() error {
 	if f.storageDir == "" {
 		f.storageDir = f.defaultStorageDir()
 	}
-	if f.Repo == nil || f.Repo.URL == "" {
-		f.Repo = &reconciler.Repository{
+	if f.repository == nil || f.repository.URL == "" {
+		f.repository = &reconciler.Repository{
 			URL: defaultRepositoryURL,
 		}
 	}
@@ -126,11 +124,11 @@ func (f *Factory) clone(version, dstDir string) error {
 
 	//clone sources
 	f.logger.Infof("Cloning repository '%s' with revision '%s' into workspace '%s'",
-		f.Repo.URL, version, dstDir)
-	cloner := git.NewCloner(&git.Client{}, f.Repo, true)
+		f.repository.URL, version, dstDir)
+	cloner := git.NewCloner(&git.Client{}, f.repository, true)
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
-			dstDir, f.Repo.URL, version)
+			dstDir, f.repository.URL, version)
 		if removeErr := f.Delete(version); removeErr != nil {
 			err = errors.Wrap(err, removeErr.Error())
 		}

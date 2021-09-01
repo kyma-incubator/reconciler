@@ -104,7 +104,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return errors.Wrap(err, "Failed to create chart provider instance")
 	}
 
-	wsFactory := r.workspaceFactory(&model.Repository)
+	wsFactory, err := r.workspaceFactory(&model.Repository)
 	if err != nil {
 		return err
 	}
