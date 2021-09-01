@@ -47,12 +47,12 @@ func TestWorkspaceFactory(t *testing.T) {
 		ws, err := wsf.Get(version)
 		require.NoError(t, err)
 
-		require.Equal(t, filepath.Join(workspaceDir, componentFile), ws.ComponentFile)
-		require.True(t, file.Exists(ws.ComponentFile))
 		require.Equal(t, filepath.Join(workspaceDir, resDir), ws.ResourceDir)
 		require.True(t, file.DirExists(ws.ResourceDir))
 		require.Equal(t, filepath.Join(workspaceDir, instResDir), ws.InstallationResourceDir)
 		require.True(t, file.DirExists(ws.InstallationResourceDir))
+		require.Equal(t, filepath.Join(workspaceDir, instResCrdDir), ws.InstallationResourceCrdDir)
+		require.True(t, file.DirExists(ws.InstallationResourceCrdDir))
 
 		//delete success file
 		t.Log("Deleting success file to simulate broken workspace")
@@ -64,9 +64,9 @@ func TestWorkspaceFactory(t *testing.T) {
 		require.NoError(t, err)
 
 		//check again all the required files including success file
-		require.True(t, file.Exists(ws.ComponentFile))
 		require.True(t, file.DirExists(ws.ResourceDir))
 		require.True(t, file.DirExists(ws.InstallationResourceDir))
+		require.True(t, file.DirExists(ws.InstallationResourceCrdDir))
 		require.True(t, file.Exists(filepath.Join(workspaceDir, successFile)))
 	})
 

@@ -2,7 +2,7 @@ package scheduler
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -28,13 +28,13 @@ type InventoryWatchConfig struct {
 
 func (wc *InventoryWatchConfig) validate() error {
 	if wc.WatchInterval < 0 {
-		return fmt.Errorf("Watch interval cannot cannot be < 0")
+		return errors.New("watch interval cannot cannot be < 0")
 	}
 	if wc.WatchInterval == 0 {
 		wc.WatchInterval = defaultWatchInterval
 	}
 	if wc.ClusterReconcileInterval < 0 {
-		return fmt.Errorf("Cluster reconciliation interval cannot cannot be < 0")
+		return errors.New("cluster reconciliation interval cannot cannot be < 0")
 	}
 	if wc.ClusterReconcileInterval == 0 {
 		wc.ClusterReconcileInterval = defaultClusterReconcileInterval
@@ -43,7 +43,7 @@ func (wc *InventoryWatchConfig) validate() error {
 }
 
 func NewInventoryWatch(inventory cluster.Inventory, debug bool, config *InventoryWatchConfig) (InventoryWatcher, error) {
-	logger, err := logger.NewLogger(debug)
+	l, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func NewInventoryWatch(inventory cluster.Inventory, debug bool, config *Inventor
 	return &DefaultInventoryWatcher{
 		inventory: inventory,
 		config:    config,
-		logger:    logger}, nil
+		logger:    l}, nil
 }
 
 type DefaultInventoryWatcher struct {

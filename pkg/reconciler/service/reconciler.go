@@ -71,6 +71,7 @@ type ComponentReconciler struct {
 	workers int
 	logger  *zap.SugaredLogger
 	debug   bool
+	mu      sync.Mutex
 }
 
 type statusUpdaterConfig struct {
@@ -132,6 +133,9 @@ func (r *ComponentReconciler) workspaceFactory() (*workspace.Factory, error) {
 }
 
 func (r *ComponentReconciler) validate() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if r.serverConfig.port < 0 {
 		return fmt.Errorf("server port cannot be < 0 (got %d)", r.serverConfig.port)
 	}

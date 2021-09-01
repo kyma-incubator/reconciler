@@ -4,4 +4,5 @@ kind: ConfigMap
 metadata:
   name: component-1
 data:
-  dummyConfig: "{{ .Values.dummy.config }}"
+  key1: "{{ .Values.config.key1 }}"
+  key2: "{{ .Values.config.key2 }}"
