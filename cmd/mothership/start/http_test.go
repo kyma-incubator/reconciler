@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/internal/cli"
-	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -24,7 +24,7 @@ const (
 type TestStruct struct {
 	url            string
 	requestFile    string
-	expectedStatus model.Status
+	expectedStatus keb.ClusterStatus
 	kubeconfig     string
 }
 
@@ -37,6 +37,7 @@ func TestReconciliation(t *testing.T) {
 	go func() {
 		o := NewOptions(cli.NewTestOptions(t))
 		o.Port = serverPort
+		o.Verbose = true
 		require.NoError(t, startWebserver(ctx, o))
 	}()
 
@@ -46,23 +47,23 @@ func TestReconciliation(t *testing.T) {
 		{
 			url:            fmt.Sprintf("http://localhost:%d/v1/clusters", serverPort),
 			requestFile:    filepath.Join("test", "request", "create_cluster.json"),
-			expectedStatus: model.ClusterStatusReady,
+			expectedStatus: keb.ClusterStatusReady,
 			kubeconfig:     test.ReadKubeconfig(t),
 		},
 		{
 			url:            fmt.Sprintf("http://localhost:%d/v1/clusters", serverPort),
 			requestFile:    filepath.Join("test", "request", "create_cluster_invalid_kubeconfig.json"),
-			expectedStatus: model.ClusterStatusError,
+			expectedStatus: keb.ClusterStatusError,
 		},
 	}
 
 	for _, testCase := range tests {
 		responseData := sendRequest(t, testCase)
-		requireClusterStatus(t, responseData["statusUrl"].(string), testCase.expectedStatus, 15*time.Second)
+		requireClusterStatus(t, responseData.StatusURL, testCase.expectedStatus, 15*time.Second)
 	}
 }
 
-func sendRequest(t *testing.T, testCase *TestStruct) map[string]interface{} {
+func sendRequest(t *testing.T, testCase *TestStruct) *keb.HTTPClusterResponse {
 	payload := requestPayload(t, testCase)
 	response, err := http.Post(testCase.url, "application/json", strings.NewReader(payload))
 	require.NoError(t, err)
@@ -71,52 +72,64 @@ func sendRequest(t *testing.T, testCase *TestStruct) map[string]interface{} {
 	require.NoError(t, response.Body.Close())
 	require.NoError(t, err)
 
-	result := make(map[string]interface{})
-	require.NoError(t, json.Unmarshal(responseBody, &result))
-	return result //{"cluster":"e2etest-cluster","clusterVersion":1,"configurationVersion":1,"status":"reconcile_pending","statusUrl":"localhost:8080/v1/clusters/e2etest-cluster/configs/1/status"}
-
+	result := &keb.HTTPClusterResponse{}
+	require.NoError(t, json.Unmarshal(responseBody, result))
+	return result
 }
 
 func requestPayload(t *testing.T, testCase *TestStruct) string {
 	data, err := ioutil.ReadFile(testCase.requestFile)
 	require.NoError(t, err)
-
-	data = overrideKubeConfig(testCase.kubeconfig, data)
-
-	return string(data)
+	return string(overrideKubeConfig(t, data, testCase.kubeconfig))
 }
 
-func requireClusterStatus(t *testing.T, statusURL string, expected model.Status, timeout time.Duration) {
+func requireClusterStatus(t *testing.T, statusURL string, expectedStatus keb.ClusterStatus, timeout time.Duration) {
 	startTime := time.Now()
 	ticker := time.NewTicker(5 * time.Second)
 	for range ticker.C {
-		response, err := http.Get(statusURL)
+		response, err := http.Get(fmt.Sprintf("http://%s", statusURL))
 		require.NoError(t, err)
 
 		body, _ := ioutil.ReadAll(response.Body)
 		require.NoError(t, response.Body.Close())
 
-		payload := make(map[string]interface{})
-		require.NoError(t, json.Unmarshal(body, &payload))
+		clusterResponse := &keb.HTTPClusterResponse{}
+		require.NoError(t, json.Unmarshal(body, clusterResponse))
 
-		if payload["status"] == expected {
+		if clusterResponse.Status == expectedStatus {
+			//cluster state achieved - we are done
 			return
 		}
+
+		//stop checking for expected status if cluster is in a final state
+		if clusterResponse.Status == keb.ClusterStatusReady || clusterResponse.Status == keb.ClusterStatusError {
+			t.Logf("Was waiting for cluster status '%s' but cluster moved into final state '%s'",
+				expectedStatus, clusterResponse.Status)
+			break
+		}
+
+		//check for timeout before retrying
 		if time.Since(startTime) >= timeout {
 			t.Logf("Timeout reached: latest status of cluster '%s' was '%s' but expected was '%s'",
-				clusterName, payload["status"], expected)
+				clusterName, clusterResponse.Status, expectedStatus)
 			break
 		}
 	}
+
+	//timeout occurred
 	t.Fail()
 }
 
-func overrideKubeConfig(overrideKubeConfig string, data []byte) []byte {
+func overrideKubeConfig(t *testing.T, data []byte, overrideKubeConfig string) []byte {
 	if overrideKubeConfig != "" {
-		m := make(map[string]interface{})
-		_ = json.Unmarshal(data, &m)
-		m["kubeConfig"] = overrideKubeConfig
-		data, _ = json.Marshal(m)
+		newData := make(map[string]interface{})
+		require.NoError(t, json.Unmarshal(data, &newData))
+
+		newData["kubeConfig"] = overrideKubeConfig
+		result, err := json.Marshal(newData)
+		require.NoError(t, err)
+
+		return result
 	}
 	return data
 }
