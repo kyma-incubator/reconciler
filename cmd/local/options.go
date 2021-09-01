@@ -10,9 +10,7 @@ import (
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/pkg/errors"
-
-	//Register all reconcilers
-	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
+	"gopkg.in/yaml.v3"
 )
 
 type Options struct {
@@ -23,21 +21,7 @@ type Options struct {
 	profile        string
 	components     []string
 	values         []string
-}
-
-func defaultComponents() []string {
-	return []string{"cluster-essentials", "istio-configuration@istio-system",
-		"certificates@istio-system", "logging", "tracing", "kiali", "monitoring", "eventing", "ory", "api-gateway",
-		"service-catalog", "service-catalog-addons", "rafter", "helm-broker", "cluster-users", "serverless",
-		"application-connector@kyma-integration"}
-}
-func defaultValues() []string {
-	return []string{
-		"tracing.authProxy.config.useDex=false",
-		"tracing.authProxy.configDocsLink=https://kyma-project.io/docs",
-		"kiali.authProxy.config.useDex=false",
-		"kiali.authProxy.configDocsLink=https://kyma-project.io/docs",
-	}
+	componentsFile string
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -48,10 +32,40 @@ func NewOptions(o *cli.Options) *Options {
 		"",         // profile
 		[]string{}, // components
 		[]string{}, // values
+		"",         // componentsFile
 	}
 }
 func (o *Options) Kubeconfig() string {
 	return o.kubeconfig
+}
+
+type KymaComponentList struct {
+	DefaultNamespace string `yaml:"defaultNamespace" json:"defaultNamespace"`
+	Prerequisites    []Component
+	Components       []Component
+}
+type Component struct {
+	Name      string
+	Namespace string
+}
+
+func componentsFromFile(path string) ([]string, error) {
+	componentsFile, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("Can't read components file %s", path)
+	}
+	data := &KymaComponentList{}
+	err = yaml.Unmarshal(componentsFile, &data)
+	var defaultComponents []string
+
+	for _, c := range data.Components {
+		if c.Namespace != "" {
+			defaultComponents = append(defaultComponents, c.Name+"@"+c.Namespace)
+		} else {
+			defaultComponents = append(defaultComponents, c.Name)
+		}
+	}
+	return defaultComponents, nil
 }
 
 func componentsFromStrings(list []string, values []string) []keb.Components {
@@ -81,13 +95,21 @@ func componentsFromStrings(list []string, values []string) []keb.Components {
 	return components
 }
 
-func (o *Options) Components() []keb.Components {
+func (o *Options) Components(defaultComponentsFile string) []keb.Components {
+
 	components := o.components
-	if len(components) == 0 {
-		components = defaultComponents()
+	if len(o.components) == 0 {
+		cFile := o.componentsFile
+		if cFile == "" {
+			cFile = defaultComponentsFile
+		}
+		var err error
+		components, err = componentsFromFile(cFile)
+		if err != nil {
+			panic(err)
+		}
 	}
-	values := append(defaultValues(), o.values...)
-	return componentsFromStrings(components, values)
+	return componentsFromStrings(components, o.values)
 }
 
 func (o *Options) Validate() error {
@@ -110,5 +132,8 @@ func (o *Options) Validate() error {
 		return errors.Wrap(err, fmt.Sprintf("Failed to read kubeconfig file '%s'", o.kubeconfigFile))
 	}
 	o.kubeconfig = string(content)
+	if len(o.components) > 0 && o.componentsFile != "" {
+		return fmt.Errorf("Use one of 'components' or 'component-file' flag")
+	}
 	return nil
 }
