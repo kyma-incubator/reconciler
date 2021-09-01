@@ -57,7 +57,7 @@ func NewWorker(
 
 func (w *Worker) Reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool) error {
 	ticker := time.NewTicker(10 * time.Second)
-	_, err := w.inventory.UpdateStatus(&state, model.Reconciling)
+	_, err := w.inventory.UpdateStatus(&state, model.ClusterStatusReconciling)
 	if err != nil {
 		return errors.Wrap(err, "while updating cluster as reconciling")
 	}
@@ -72,7 +72,7 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 				return err
 			}
 			if done {
-				_, err = w.inventory.UpdateStatus(&state, model.Ready)
+				_, err = w.inventory.UpdateStatus(&state, model.ClusterStatusReady)
 				if err != nil {
 					return errors.Wrap(err, "while updating cluster as ready")
 				}

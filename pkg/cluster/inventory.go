@@ -50,7 +50,7 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 		if err != nil {
 			return nil, err
 		}
-		clusterStatusEntity, err := i.createStatus(clusterConfigurationEntity, model.ReconcilePending)
+		clusterStatusEntity, err := i.createStatus(clusterConfigurationEntity, model.ClusterStatusReconcilePending)
 		if err != nil {
 			return nil, err
 		}
@@ -395,14 +395,14 @@ func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) 
 		})
 	}
 	filters = append(filters, &statusFilter{
-		allowedStatuses: []model.Status{model.ReconcilePending, model.ReconcileFailed},
+		allowedStatuses: []model.Status{model.ClusterStatusReconcilePending, model.ClusterStatusReconcileFailed},
 	})
 	return i.filterClusters(filters...)
 }
 
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	statusFilter := &statusFilter{
-		allowedStatuses: []model.Status{model.Reconciling, model.ReconcileFailed, model.Error},
+		allowedStatuses: []model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed, model.ClusterStatusError},
 	}
 	return i.filterClusters(statusFilter)
 }
