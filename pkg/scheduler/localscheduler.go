@@ -76,7 +76,7 @@ func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 		return fmt.Errorf("failed to reconcile CRD component: %s", err)
 	}
 
-	err = ls.reconcileUnprioritizeComponents(ctx, components, clusterState, schedulingID)
+	err = ls.reconcileUnprioritizedComponents(ctx, components, clusterState, schedulingID)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile component: %s", err)
 	}
@@ -155,7 +155,7 @@ func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Components, c
 	return nil
 }
 
-func (ls *LocalScheduler) reconcileUnprioritizeComponents(ctx context.Context, components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
+func (ls *LocalScheduler) reconcileUnprioritizedComponents(ctx context.Context, components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for _, c := range components {
 		if contains(ls.crdComponents, c.Component) || contains(ls.prereqs, c.Component) {
