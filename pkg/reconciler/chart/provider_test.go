@@ -2,6 +2,7 @@ package chart
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
+	"path/filepath"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -12,7 +13,8 @@ import (
 )
 
 const (
-	kymaVersion = "main"
+	kymaVersion   = "main"
+	kymaNamespace = "kyma-system"
 )
 
 func TestProvider(t *testing.T) {
@@ -38,7 +40,10 @@ func TestProvider(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Render manifest", func(t *testing.T) {
-		for _, component := range componentList(t) {
+		ws, err := wsFactory.Get(kymaVersion)
+		require.NoError(t, err)
+
+		for _, component := range componentList(t, filepath.Join(ws.InstallationResourceDir, "components.yaml")) {
 			t.Logf("Rendering Kyma HELM component '%s'", component.name)
 			manifest, err := prov.RenderManifest(component)
 			require.NoError(t, err)
@@ -58,8 +63,8 @@ func TestProvider(t *testing.T) {
 
 }
 
-func componentList(t *testing.T) []*Component {
-	compList := test.NewKymaComponentList(t)
+func componentList(t *testing.T, compListFile string) []*Component {
+	compList := test.NewComponentList(t, compListFile)
 
 	var result []*Component
 	for _, comp := range compList.Prerequisites {
@@ -77,7 +82,7 @@ func newComponent(comp test.Component) *Component {
 		WithConfiguration(reconTest.NewGlobalComponentConfiguration())
 
 	if comp.Namespace == "" {
-		compBuilder.WithNamespace("kyma-system")
+		compBuilder.WithNamespace(kymaNamespace)
 	} else {
 		compBuilder.WithNamespace(comp.Namespace)
 	}
