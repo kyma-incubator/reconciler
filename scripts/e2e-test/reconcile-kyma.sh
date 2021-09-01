@@ -9,6 +9,11 @@ statusURL=$(curl --request POST -sL \
      --data @/tmp/body.json | jq -r .statusUrl)
 echo "statusURL: ${statusURL}"
 
+if [[ ! $statusURL ]]; then
+  echo "reconciliation request failed: statusURL is empty"
+  exit 1
+fi
+
 ## Wait until Kyma is installed
 timeout=1200 # in secs
 delay=2 # in secs
