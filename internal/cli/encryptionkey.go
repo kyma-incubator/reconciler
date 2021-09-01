@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-func NewEncryptionKey(backup bool) error {
+func NewEncryptionKey(backup bool) (string, error) {
 	keyFile := viper.GetString("db.encryption.keyFile")
 	if keyFile == "" {
-		return fmt.Errorf("encryption key file not configured")
+		return keyFile, fmt.Errorf("encryption key file not configured")
 	}
 	if !filepath.IsAbs(keyFile) { //ensure key file path is absolute (if not, use config-file location as parent-dir)
 		keyFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), keyFile)
@@ -22,15 +22,15 @@ func NewEncryptionKey(backup bool) error {
 
 	encKey, err := db.NewEncryptionKey()
 	if err != nil {
-		return err
+		return keyFile, err
 	}
 
 	if file.Exists(keyFile) && backup {
 		keyFileBackup := fmt.Sprintf("%s.%d.bak", keyFile, time.Now().Unix())
 		if err := os.Rename(keyFile, keyFileBackup); err != nil {
-			return err
+			return keyFile, err
 		}
 	}
 
-	return ioutil.WriteFile(keyFile, []byte(encKey), 0600)
+	return keyFile, ioutil.WriteFile(keyFile, []byte(encKey), 0600)
 }

@@ -13,6 +13,7 @@ import (
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
+	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
 	ws "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -66,9 +67,7 @@ func (a *TestAction) Run(version, profile string, config []reconciler.Configurat
 }
 
 func TestRunner(t *testing.T) {
-	if !test.RunExpensiveTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	//cleanup
 	cleanup := newCleanupFunc(t)
@@ -357,6 +356,8 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
 		Namespace:  namespace,
+		//global parameters - required by some Kyma components
+		Configuration: reconTest.NewGlobalComponentConfiguration(),
 	}
 }
 

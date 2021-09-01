@@ -47,6 +47,7 @@ docker-push:
 
 .PHONY: deploy
 deploy:
+	@./scripts/kcversion.sh
 	kubectl create namespace reconciler --dry-run=client -o yaml | kubectl apply -f -
 	helm template reconciler --namespace reconciler --set "global.components={$(COMPONENTS)}" ./resources/reconciler > reconciler.yaml
 	kubectl apply -f reconciler.yaml
@@ -59,7 +60,7 @@ test:
 	@rm cover.out
 
 .PHONY: test-all
-test-all: export RECONCILER_EXPENSIVE_TESTS = 1
+test-all: export RECONCILER_INTEGRATION_TESTS = 1
 test-all: test
 
 .PHONY: clean
