@@ -110,11 +110,16 @@ spec:
               name: reconciler-postgresql
               key: postgresql-reconciler-db-name
         volumeMounts:
+        - name: encryption-key
+          mountPath: "/encryption"
         - name: component-reconcilers-configuration
           mountPath: "/components-configuration"
         - name: mothership-reconciler-configuration
           mountPath: "/mothership-configuration"
       volumes:
+      - name: encryption-key
+        emptyDir:
+          medium: Memory
       - name: component-reconcilers-configuration
         configMap:
           name: component-reconcilers
