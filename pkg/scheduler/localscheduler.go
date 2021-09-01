@@ -86,15 +86,16 @@ func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
 
 func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 	var defaultContractVersion int64 = 1
-
 	metadata, err := json.Marshal(c.Metadata)
 	if err != nil {
 		return nil, err
 	}
+
 	runtime, err := json.Marshal(c.RuntimeInput)
 	if err != nil {
 		return nil, err
 	}
+
 	clusterEntity := &model.ClusterEntity{
 		Cluster:    c.Cluster,
 		Runtime:    string(runtime),
@@ -107,10 +108,12 @@ func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	administrators, err := json.Marshal(c.KymaConfig.Administrators)
 	if err != nil {
 		return nil, err
 	}
+
 	configurationEntity := &model.ClusterConfigurationEntity{
 		Cluster:        c.Cluster,
 		KymaVersion:    c.KymaConfig.Version,
@@ -119,7 +122,6 @@ func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 		Administrators: string(administrators),
 		Contract:       defaultContractVersion,
 	}
-
 	return &cluster.State{
 		Cluster:       clusterEntity,
 		Configuration: configurationEntity,
