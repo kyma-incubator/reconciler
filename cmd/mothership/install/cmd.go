@@ -22,11 +22,11 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(o *Options) error {
-	err := cli.NewEncryptionKey(o.Backup)
+	encKeyFile, err := cli.NewEncryptionKey(o.Backup)
 	if err == nil {
-		o.Logger().Infof("New encryption key file created")
+		o.Logger().Infof("New encryption key file created: %s", encKeyFile)
 	} else {
-		o.Logger().Warnf("Failed to create encryption key file")
+		o.Logger().Warnf("Failed to create encryption key file '%s'", encKeyFile)
 	}
 	return err
 }
