@@ -42,7 +42,7 @@ type Reconciliation struct {
 	CallbackURL     string          `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
 	InstallCRD      bool            `json:"installCRD"`
 	CorrelationID   string          `json:"correlationID"`
-	Repo            Repo            `json:"repo"`
+	Repository      Repository      `json:"repository"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
 	CallbackFct func(status Status) error `json:"-"` //CallbackFct is mandatory when component-reconciler runs embedded in another process
@@ -127,12 +127,12 @@ type MothershipReconcilerConfig struct {
 	PreComponents []string
 }
 
-type Repo struct {
+type Repository struct {
 	URL   string `json:"url"`
 	Token string `json:"-"`
 }
 
-func (r *Repo) ReadToken(clientSet core.CoreV1Interface, namespace string) error {
+func (r *Repository) ReadToken(clientSet core.CoreV1Interface, namespace string) error {
 	secretKey, err := MapSecretKey(r.URL)
 	if err != nil {
 		return err
@@ -174,6 +174,6 @@ func MapSecretKey(URL string) (string, error) {
 	return output, nil
 }
 
-func (r *Repo) String() string {
+func (r *Repository) String() string {
 	return r.URL
 }

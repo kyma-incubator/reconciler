@@ -31,7 +31,7 @@ type Workspace struct {
 
 type Factory struct {
 	StorageDir string
-	Repo       *reconciler.Repo
+	Repo       *reconciler.Repository
 	Logger     *zap.SugaredLogger
 	mutex      sync.Mutex
 }
@@ -44,7 +44,7 @@ func (f *Factory) validate() error {
 		f.StorageDir = f.defaultStorageDir()
 	}
 	if f.Repo == nil || f.Repo.URL == "" {
-		f.Repo = &reconciler.Repo{
+		f.Repo = &reconciler.Repository{
 			URL: defaultRepositoryURL,
 		}
 	}
@@ -113,7 +113,7 @@ func (f *Factory) clone(version, dstDir string) error {
 	//clone sources
 	f.Logger.Infof("Start cloning repository '%s' with revision '%s' into workspace '%s'",
 		f.Repo.URL, version, dstDir)
-	cloner := git.NewCloner(&git.DefaultClient{}, f.Repo, true)
+	cloner := git.NewCloner(&git.Client{}, f.Repo, true)
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.Logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 			dstDir, f.Repo.URL, version)

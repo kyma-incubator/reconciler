@@ -29,7 +29,7 @@ type KubeClient struct {
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
 }
 
-func NewInCluster() (*KubeClient, error) {
+func NewInClusterClient() (*KubeClient, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err

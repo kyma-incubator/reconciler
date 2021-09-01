@@ -42,7 +42,7 @@ func TestCloneRepo(t *testing.T) {
 
 	clonerMock := &mocks.RepoClient{}
 
-	r := reconciler.Repo{URL: "github.com/foo"}
+	r := reconciler.Repository{URL: "github.com/foo"}
 	options := git.CloneOptions{
 		Depth:             0,
 		URL:               r.URL,

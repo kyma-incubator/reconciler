@@ -81,7 +81,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return err
 	}
 
-	inClusterClient, err := kubeclient.NewInCluster()
+	inClusterClient, err := kubeclient.NewInClusterClient()
 	if err != nil {
 		return err
 	}
@@ -97,17 +97,17 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	}
 
 	configs := model.ConfigsToMap()
-	err = model.Repo.ReadToken(inClusterClientSet.CoreV1(), configs["url.namespace"])
+	err = model.Repository.ReadToken(inClusterClientSet.CoreV1(), configs["url.namespace"])
 	if err != nil {
 		return err
 	}
 
-	chartProvider, err := r.newChartProvider(&model.Repo)
+	chartProvider, err := r.newChartProvider(&model.Repository)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create chart provider instance")
 	}
 
-	factory := r.workspaceFactory(&model.Repo)
+	factory := r.workspaceFactory(&model.Repository)
 	if err != nil {
 		return err
 	}

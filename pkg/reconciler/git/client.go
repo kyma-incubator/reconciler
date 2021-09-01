@@ -8,11 +8,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-type DefaultClient struct {
+type Client struct {
 	repo *git.Repository
 }
 
-func (d *DefaultClient) PlainCloneContext(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error) {
+func (d *Client) PlainCloneContext(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error) {
 	var err error
 	d.repo, err = git.PlainCloneContext(ctx, path, isBare, o)
 	if err != nil {
@@ -21,10 +21,10 @@ func (d *DefaultClient) PlainCloneContext(ctx context.Context, path string, isBa
 	return d.repo, nil
 }
 
-func (d *DefaultClient) Worktree() (*git.Worktree, error) {
+func (d *Client) Worktree() (*git.Worktree, error) {
 	return d.repo.Worktree()
 }
 
-func (d *DefaultClient) ResolveRevision(rev plumbing.Revision) (*plumbing.Hash, error) {
+func (d *Client) ResolveRevision(rev plumbing.Revision) (*plumbing.Hash, error) {
 	return d.repo.ResolveRevision(rev)
 }

@@ -220,7 +220,7 @@ func (w *Worker) send(component *keb.Components, state cluster.State, scheduling
 		CallbackURL:     fmt.Sprintf("http://%s:%d/v1/operations/%s/callback/%s", w.mothershipCfg.Host, w.mothershipCfg.Port, schedulingID, w.correlationID),
 		InstallCRD:      installCRD,
 		CorrelationID:   w.correlationID,
-		Repo: reconciler.Repo{
+		Repository: reconciler.Repository{
 			URL: component.URL,
 		},
 	}

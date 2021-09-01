@@ -21,7 +21,7 @@ func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespac
 	t.Logf("Cleanup of component '%s' (version: %s, namespace: %s) started", component, version, namespace)
 
 	//render manifest
-	chartProv, err := c.reconciler.newChartProvider(&reconciler.Repo{})
+	chartProv, err := c.reconciler.newChartProvider(&reconciler.Repository{})
 	require.NoError(t, err)
 
 	compSet := chart.NewComponentSet(

@@ -12,21 +12,21 @@ import (
 )
 
 type RemoteRepoCloner struct {
-	repo         *reconciler.Repo
+	repo         *reconciler.Repository
 	auth         transport.AuthMethod
 	autoCheckout bool
 
 	repoClient RepoClient
 }
 
-//go:generate mockery -name RepoClient
+//go:generate mockery --name RepoClient --case=underscore
 type RepoClient interface {
 	PlainCloneContext(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error)
 	Worktree() (*git.Worktree, error)
 	ResolveRevision(rev plumbing.Revision) (*plumbing.Hash, error)
 }
 
-func NewCloner(repoClient RepoClient, repo *reconciler.Repo, autoCheckout bool) *RemoteRepoCloner {
+func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool) *RemoteRepoCloner {
 	var auth transport.AuthMethod
 	if repo != nil && repo.Token != "" {
 		auth = &http.BasicAuth{

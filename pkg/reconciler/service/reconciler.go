@@ -107,11 +107,11 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 	return recon, nil
 }
 
-func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repo) (*chart.Provider, error) {
+func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*chart.Provider, error) {
 	return chart.NewProvider(r.workspaceFactory(repo), r.logger)
 }
 
-func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repo) *workspace.Factory {
+func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) *workspace.Factory {
 	m.Lock()
 	if wsFactory == nil {
 		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)

@@ -36,7 +36,7 @@ func TestStatusUpdater(t *testing.T) {
 	t.Run("Should read correct token secret", func(t *testing.T) {
 		client := initiateClient()
 
-		repo := Repo{
+		repo := Repository{
 			URL:   "https://localhost",
 			Token: "",
 		}
@@ -50,7 +50,7 @@ func TestStatusUpdater(t *testing.T) {
 	t.Run("Should read return error when token secret not found", func(t *testing.T) {
 		client := initiateClient()
 
-		repo := Repo{
+		repo := Repository{
 			URL:   "https://localhost",
 			Token: "",
 		}
