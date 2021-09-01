@@ -19,7 +19,7 @@ timeout=1200 # in secs
 delay=2 # in secs
 iterationsLeft=$(( timeout/delay ))
 while : ; do
-  status=$(curl http://$statusURL | jq -r .status)
+  status=$(curl -sL http://$statusURL | jq -r .status)
   if [ "${status}" = "ready" ]; then
     echo "kyma is installed"
     exit 0
