@@ -1,11 +1,11 @@
-package simpletestcomponent
+package e2etest
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-const ReconcilerName = "simpletestcomponent"
+const ReconcilerName = "e2etest"
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {

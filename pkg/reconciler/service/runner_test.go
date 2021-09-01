@@ -383,7 +383,7 @@ func TestLabelInterceptor(t *testing.T) {
 			},
 			wantErr: false,
 			labels: map[string]string{
-				reconciler.ManagedByLabel: reconciler.LabelReconcilerValue,
+				ManagedByLabel: LabelReconcilerValue,
 			},
 		},
 		{
@@ -404,9 +404,9 @@ func TestLabelInterceptor(t *testing.T) {
 			},
 			wantErr: false,
 			labels: map[string]string{
-				"some-label":              "some-value",
-				"some-label2":             "some-value2",
-				reconciler.ManagedByLabel: reconciler.LabelReconcilerValue,
+				"some-label":   "some-value",
+				"some-label2":  "some-value2",
+				ManagedByLabel: LabelReconcilerValue,
 			},
 		},
 	}

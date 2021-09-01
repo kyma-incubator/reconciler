@@ -20,11 +20,6 @@ const (
 	Success    Status = "success"
 )
 
-const (
-	ManagedByLabel       = "reconciler.kyma-project.io/managed-by"
-	LabelReconcilerValue = "reconciler"
-)
-
 //Reconciliation is the model for reconciliation calls
 type Reconciliation struct {
 	ComponentsReady []string        `json:"componentsReady"`
@@ -80,19 +75,6 @@ func (r *Reconciliation) Validate() error {
 		err = fmt.Errorf("mandatory fields are undefined: %s", strings.Join(errFields, ","))
 	}
 	return err
-}
-
-//HTTPErrorResponse is the model used for general error responses
-type HTTPErrorResponse struct {
-	Error string
-}
-
-//HTTPMissingDependenciesResponse is the model used for missing dependency responses
-type HTTPMissingDependenciesResponse struct {
-	Dependencies struct {
-		Required []string
-		Missing  []string
-	}
 }
 
 type CallbackMessage struct {
