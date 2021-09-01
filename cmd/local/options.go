@@ -57,6 +57,9 @@ func componentsFromFile(path string) ([]string, error) {
 	}
 	data := &KymaComponentList{}
 	err = yaml.Unmarshal(componentsFile, &data)
+	if err != nil {
+		return nil, fmt.Errorf("Can't parse components file %s", path)
+	}
 	var defaultComponents []string
 
 	for _, c := range data.Components {
