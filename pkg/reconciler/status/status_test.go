@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	e "github.com/kyma-incubator/reconciler/pkg/error"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -72,10 +71,6 @@ func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Running)
 		time.Sleep(2 * time.Second)
 
-		require.NoError(t, statusUpdater.Failed())
-		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Failed)
-		time.Sleep(2 * time.Second)
-
 		require.NoError(t, statusUpdater.Success())
 		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Success)
 		time.Sleep(2 * time.Second)
@@ -107,10 +102,6 @@ func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 
 		//check fired status updates
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the statusUpdaters worked
-
-		err = statusUpdater.Failed()
-		require.Error(t, err)
-		require.IsType(t, &e.ContextClosedError{}, err) //status changes have to fail after status-updater was interrupted
 	})
 
 	t.Run("Test status updater with status updater timeout", func(t *testing.T) {
@@ -130,10 +121,6 @@ func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 
 		//check fired status updates
 		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything <= 2 is sufficient to ensure the statusUpdaters worked
-
-		err = statusUpdater.Failed()
-		require.Error(t, err)
-		require.IsType(t, &e.ContextClosedError{}, err) //status changes have to fail after status-updater was interrupted
 	})
 
 }
