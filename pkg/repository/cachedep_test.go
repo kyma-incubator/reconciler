@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	cacheDep *cacheDependencyManager = newCacheDep()
+	cacheDep = newCacheDep()
 )
 
 func newCacheDep() *cacheDependencyManager {
@@ -168,7 +168,7 @@ func TestCacheDependencyManager(t *testing.T) {
 	})
 }
 
-func withTestData(t *testing.T, testFct func(*testing.T, []*model.CacheEntryEntity, []*model.CacheDependencyEntity)) {
+func withTestData(t *testing.T, testFunc func(*testing.T, []*model.CacheEntryEntity, []*model.CacheDependencyEntity)) {
 	entity1, deps1 := importCacheEntry(t,
 		&model.CacheEntryEntity{
 			Label:   "testCacheEntry1",
@@ -210,7 +210,7 @@ func withTestData(t *testing.T, testFct func(*testing.T, []*model.CacheEntryEnti
 	expectedDeps = append(expectedDeps, deps1...)
 	expectedDeps = append(expectedDeps, deps2...)
 
-	testFct(t, []*model.CacheEntryEntity{entity1, entity2}, expectedDeps)
+	testFunc(t, []*model.CacheEntryEntity{entity1, entity2}, expectedDeps)
 	require.NoError(t, cacheDep.Invalidate().Exec(true))
 }
 

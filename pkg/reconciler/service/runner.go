@@ -1,11 +1,9 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/avast/retry-go"
-	"github.com/kyma-incubator/hydroform/parallel-install/pkg/components"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -14,7 +12,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/status"
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 type runner struct {
@@ -107,15 +104,16 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return errors.Wrap(err, "Failed to create chart provider instance")
 	}
 
-	factory := r.workspaceFactory(&model.Repository)
+	wsFactory := r.workspaceFactory(&model.Repository)
 	if err != nil {
 		return err
 	}
+
 	actionHelper := &ActionContext{
 		InClusterClientSet: inClusterClientSet,
 		KubeClient:         kubeClient,
 		ClientSet:          clusterClientSet,
-		WorkspaceFactory:   factory,
+		WorkspaceFactory:   wsFactory,
 		Context:            ctx,
 		Logger:             r.logger,
 		ChartProvider:      chartProvider,
@@ -173,51 +171,34 @@ func (r *runner) install(ctx context.Context, chartProvider *chart.Provider, mod
 }
 
 func (r *runner) renderManifest(chartProvider *chart.Provider, model *reconciler.Reconciliation) (string, error) {
-	manifests, err := chartProvider.Manifests(r.newComponentSet(model), model.InstallCRD, &chart.Options{})
+	component := chart.NewComponentBuilder(model.Version, model.Component).
+		WithProfile(model.Profile).
+		WithNamespace(model.Namespace).
+		WithConfiguration(model.Configuration).
+		Build()
+
+	var manifests []*chart.Manifest
+
+	//get manifest of component
+	chartManifest, err := chartProvider.RenderManifest(component)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to render manifest for component '%s'", model.Component)
-		r.logger.Warn(msg)
+		msg := fmt.Sprintf("Failed to get manifest for component '%s' in Kyma version '%s'",
+			model.Component, model.Version)
+		r.logger.Errorf("%s: %s", msg, err)
 		return "", errors.Wrap(err, msg)
 	}
+	manifests = append(manifests, chartManifest)
 
-	var buffer bytes.Buffer
-	r.logger.Debugf("Rendering of component '%s' returned %d manifests", model.Component, len(manifests))
-	for _, manifest := range manifests {
-		if !model.InstallCRD && manifest.Type == components.CRD {
-			r.logger.Errorf("Illegal state detected! "+
-				"No CRDs were requested but chartProvider returned CRD manifest: '%s'", manifest.Name)
+	//get Kyma CRDs
+	if model.InstallCRD {
+		crdManifests, err := chartProvider.RenderCRD(model.Version)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to get CRD manifests for Kyma version '%s'", model.Version)
+			r.logger.Errorf("%s: %s", msg, err)
+			return "", errors.Wrap(err, msg)
 		}
-		buffer.WriteString("---\n")
-		buffer.WriteString(fmt.Sprintf("# Manifest of %s '%s'\n", manifest.Type, model.Component))
-		buffer.WriteString(manifest.Manifest)
-		buffer.WriteString("\n")
+		manifests = append(manifests, crdManifests...)
 	}
-	return buffer.String(), nil
-}
 
-func (r *runner) newComponentSet(model *reconciler.Reconciliation) *chart.ComponentSet {
-	comp := chart.NewComponent(model.Component, model.Namespace, r.configMap(model))
-	compSet := chart.NewComponentSet(model.Kubeconfig, model.Version, model.Profile, []*chart.Component{comp})
-	return compSet
-}
-
-func (r *runner) configMap(model *reconciler.Reconciliation) map[string]interface{} {
-	result := make(map[string]interface{}, len(model.Configuration))
-	for _, comp := range model.Configuration {
-		result[comp.Key] = comp.Value
-	}
-	return result
-}
-
-type LabelInterceptor struct {
-}
-
-func (l *LabelInterceptor) Intercept(resource *unstructured.Unstructured) error {
-	labels := resource.GetLabels()
-	if labels == nil {
-		labels = make(map[string]string)
-	}
-	labels[reconciler.ManagedByLabel] = reconciler.LabelReconcilerValue
-	resource.SetLabels(labels)
-	return nil
+	return chart.MergeManifests(manifests...), nil
 }

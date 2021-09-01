@@ -71,7 +71,7 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	cmd.AddCommand(testCommand)
 	//register component reconcilers in start command:
 	for _, reconcilerName := range reconcilerRegistry.RegisteredReconcilers() {
-		testCommand.AddCommand(testSvcCmd.NewCmd(reconcilerOpts, reconcilerName))
+		testCommand.AddCommand(testSvcCmd.NewCmd(testSvcCmd.NewOptions(reconcilerOpts), reconcilerName))
 	}
 
 	return cmd

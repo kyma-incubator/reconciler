@@ -13,8 +13,8 @@ type bucketMerger struct {
 }
 
 func (bm *bucketMerger) Add(bucket string, values []*model.ValueEntity) error {
-	if err := mergo.MergeWithOverwrite(&bm.result, bm.keyValueMap(values)); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed to merge value entries of bucket '%s'", bucket))
+	if err := mergo.Merge(&bm.result, bm.keyValueMap(values), mergo.WithOverride); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("failed to merge value entries of bucket '%s'", bucket))
 	}
 	return nil
 }
@@ -28,7 +28,7 @@ func (bm *bucketMerger) keyValueMap(values []*model.ValueEntity) map[string]*mod
 }
 
 func (bm *bucketMerger) ValuesList() []*model.ValueEntity {
-	result := []*model.ValueEntity{}
+	var result []*model.ValueEntity
 	for _, v := range bm.result {
 		result = append(result, v)
 	}
@@ -42,7 +42,7 @@ func (bm *bucketMerger) Values() map[string]*model.ValueEntity {
 func (bm *bucketMerger) Value(value string) (*model.ValueEntity, error) {
 	valueEntity, ok := bm.result[value]
 	if !ok {
-		return nil, fmt.Errorf("Merge result does not contain the value '%s'", value)
+		return nil, fmt.Errorf("merge result does not contain the value '%s'", value)
 	}
 	return valueEntity, nil
 }
@@ -50,7 +50,7 @@ func (bm *bucketMerger) Value(value string) (*model.ValueEntity, error) {
 func (bm *bucketMerger) Get(value string) (interface{}, error) {
 	valueEntity, ok := bm.result[value]
 	if !ok {
-		return nil, fmt.Errorf("Merge result does not contain the value '%s'", value)
+		return nil, fmt.Errorf("merge result does not contain the value '%s'", value)
 	}
 	return valueEntity.Get()
 }
@@ -61,7 +61,7 @@ func (bm *bucketMerger) GetAll() (map[string]interface{}, error) {
 		typedValue, err := value.Get()
 		if err != nil {
 			return result, errors.Wrap(err,
-				fmt.Sprintf("Potential data inconsistency detected: failed to get typed value of value-entity %s", value))
+				fmt.Sprintf("potential data inconsistency detected: failed to get typed value of value-entity %s", value))
 		}
 		result[key] = typedValue
 	}

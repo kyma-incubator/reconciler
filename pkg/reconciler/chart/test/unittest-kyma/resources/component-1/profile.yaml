@@ -1,0 +1,4 @@
+config:
+  key1: "value1 from profile.yaml"
+  key2: "value2 from profile.yaml"
+profile: true

@@ -18,30 +18,45 @@ const (
 	defaultRepositoryURL = "https://github.com/kyma-project/kyma"
 	resDir               = "resources"
 	instResDir           = "installation/resources"
-	componentFile        = "installation/resources/components.yaml"
+	instResCrdDir        = "installation/resources/crds"
 	successFile          = "success.yaml"
 )
 
 type Workspace struct {
-	WorkspaceDir            string
-	ComponentFile           string
-	ResourceDir             string
-	InstallationResourceDir string
+	WorkspaceDir               string
+	ResourceDir                string
+	InstallationResourceDir    string
+	InstallationResourceCrdDir string
 }
 
 type Factory struct {
-	StorageDir string
-	Repo       *reconciler.Repository
-	Logger     *zap.SugaredLogger
-	mutex      sync.Mutex
+	storageDir    string
+	logger        *zap.SugaredLogger
+	mutex         sync.Mutex
+	Repository          *reconciler.Repository
+}
+
+func NewFactory(storageDir string, logger *zap.SugaredLogger) (*Factory, error) {
+	factory := &Factory{
+		storageDir: storageDir,
+		logger:     logger,
+		Repo:       &reconciler.Repo {
+			defaultRepositoryURL,
+		},
+	}
+	return factory, factory.validate()
+}
+
+func (f *Factory) String() string {
+	return fmt.Sprintf("WorkspaceFactory [storageDir=%s]", f.storageDir)
 }
 
 func (f *Factory) validate() error {
-	if f.Logger == nil {
+	if f.logger == nil {
 		return fmt.Errorf("no logger provided: please set field Logger")
 	}
-	if f.StorageDir == "" {
-		f.StorageDir = f.defaultStorageDir()
+	if f.storageDir == "" {
+		f.storageDir = f.defaultStorageDir()
 	}
 	if f.Repo == nil || f.Repo.URL == "" {
 		f.Repo = &reconciler.Repository{
@@ -52,7 +67,7 @@ func (f *Factory) validate() error {
 }
 
 func (f *Factory) workspaceDir(version string) string {
-	return filepath.Join(f.StorageDir, version) //add Kyma version as subdirectory
+	return filepath.Join(f.storageDir, version) //add Kyma version as subdirectory
 }
 
 func (f *Factory) defaultStorageDir() string {
@@ -77,7 +92,6 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 	sFile := filepath.Join(wsDir, successFile)
 	//ensure Kyma sources are available
 	if !file.Exists(sFile) {
-		f.Logger.Infof("Creating new workspace directory '%s' ", wsDir)
 		if err := f.clone(version, wsDir); err != nil {
 			return nil, err
 		}
@@ -85,10 +99,10 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 
 	//return workspace
 	return &Workspace{
-		WorkspaceDir:            wsDir,
-		ComponentFile:           filepath.Join(wsDir, componentFile),
-		ResourceDir:             filepath.Join(wsDir, resDir),
-		InstallationResourceDir: filepath.Join(wsDir, instResDir),
+		WorkspaceDir:               wsDir,
+		ResourceDir:                filepath.Join(wsDir, resDir),
+		InstallationResourceDir:    filepath.Join(wsDir, instResDir),
+		InstallationResourceCrdDir: filepath.Join(wsDir, instResCrdDir),
 	}, nil
 }
 
@@ -98,24 +112,24 @@ func (f *Factory) clone(version, dstDir string) error {
 
 	sFile := filepath.Join(dstDir, successFile)
 	if file.Exists(sFile) {
-		f.Logger.Debugf("Workspace '%s' already exists", dstDir)
+		f.logger.Debugf("Workspace '%s' already exists", dstDir)
 		//race condition protection: it could happen that a previous go-routing was also triggering the clone of the Kyma version
 		return nil
 	}
 	if file.DirExists(dstDir) {
 		//if workspace exists but there is no success file, it is probably corrupted, so delete it
-		f.Logger.Warnf("Deleting workspace '%s' because GIT clone does not contain all the required files", dstDir)
+		f.logger.Warnf("Deleting workspace '%s' because GIT clone does not contain all the required files", dstDir)
 		if err := os.RemoveAll(dstDir); err != nil {
 			return err
 		}
 	}
 
 	//clone sources
-	f.Logger.Infof("Start cloning repository '%s' with revision '%s' into workspace '%s'",
+	f.logger.Infof("Cloning repository '%s' with revision '%s' into workspace '%s'",
 		f.Repo.URL, version, dstDir)
 	cloner := git.NewCloner(&git.Client{}, f.Repo, true)
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
-		f.Logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
+		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 			dstDir, f.Repo.URL, version)
 		if removeErr := f.Delete(version); removeErr != nil {
 			err = errors.Wrap(err, removeErr.Error())
@@ -123,15 +137,11 @@ func (f *Factory) clone(version, dstDir string) error {
 		return err
 	}
 	//ensure expected files exist
-	for _, dir := range []string{resDir, instResDir} {
+	for _, dir := range []string{resDir, instResDir, instResCrdDir} {
 		reqDir := filepath.Join(dstDir, dir)
 		if !file.DirExists(reqDir) {
 			return fmt.Errorf("required resource directory '%s' is missing in Kyma version '%s'", reqDir, version)
 		}
-	}
-	reqFile := filepath.Join(dstDir, componentFile)
-	if !file.Exists(reqFile) {
-		return fmt.Errorf("required component file '%s' is missing in Kyma version '%s'", reqFile, version)
 	}
 
 	//create a marker file to flag success
@@ -141,7 +151,7 @@ func (f *Factory) clone(version, dstDir string) error {
 	}
 	defer func() {
 		if err := fileHandler.Close(); err != nil {
-			f.Logger.Warnf("Failed to close marker file: %s", err)
+			f.logger.Warnf("Failed to close marker file: %s", err)
 		}
 	}()
 
@@ -154,10 +164,10 @@ func (f *Factory) Delete(version string) error {
 		return err
 	}
 	wsDir := f.workspaceDir(version)
-	f.Logger.Debugf("Deleting workspace '%s'", wsDir)
+	f.logger.Debugf("Deleting workspace '%s'", wsDir)
 	err := os.RemoveAll(wsDir)
 	if err != nil {
-		f.Logger.Warnf("Failed to delete workspace '%s': %s", wsDir, err)
+		f.logger.Warnf("Failed to delete workspace '%s': %s", wsDir, err)
 	}
 	return err
 }

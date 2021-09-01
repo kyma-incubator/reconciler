@@ -3,15 +3,17 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 	"testing"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
+	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
 	ws "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -27,11 +29,6 @@ const (
 	apiGatewayComponent   = "api-gateway"
 	fakeComponent         = "component-1"
 )
-
-var wsf = &ws.Factory{
-	StorageDir: "./test",
-	Logger:     logger.NewOptionalLogger(true),
-}
 
 type TestAction struct {
 	name            string
@@ -70,12 +67,10 @@ func (a *TestAction) Run(version, profile string, config []reconciler.Configurat
 }
 
 func TestRunner(t *testing.T) {
-	if !test.RunExpensiveTests() {
-		return
-	}
+	test.IntegrationTest(t)
 
 	//cleanup
-	cleanup := newCleanupFct(t)
+	cleanup := newCleanupFunc(t)
 	cleanup(false)      //cleanup before test runs
 	defer cleanup(true) //cleanup after test is finished
 
@@ -324,7 +319,7 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 	return &runner{recon}
 }
 
-func newCleanupFct(t *testing.T) func(bool) {
+func newCleanupFunc(t *testing.T) func(bool) {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 	require.NoError(t, recon.Debug())
@@ -346,6 +341,9 @@ func newCleanupFct(t *testing.T) func(bool) {
 		cleanup.removeKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
 		//remove the cloned workspace
 		if deleteWorkspace {
+			wsf, err := ws.NewFactory("./test", logger.NewOptionalLogger(true))
+			require.NoError(t, err)
+
 			require.NoError(t, wsf.Delete(kymaVersion))
 		}
 	}
@@ -358,6 +356,8 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
 		Namespace:  namespace,
+		//global parameters - required by some Kyma components
+		Configuration: reconTest.NewGlobalComponentConfiguration(),
 	}
 }
 

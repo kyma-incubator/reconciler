@@ -5,4 +5,5 @@ kind: ConfigMap
 metadata:
   name: component-1
 data:
-  dummyConfig: "overwritten by unittest"
+  key1: "value1 from profile.yaml"
+  key2: "value2 from component"
