@@ -158,7 +158,7 @@ func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Components, c
 }
 
 func (ls *LocalScheduler) reconcileUnprioritizedComponents(ctx context.Context, components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 	for _, c := range components {
 		if contains(ls.crdComponents, c.Component) || contains(ls.prereqs, c.Component) {
 			continue
