@@ -63,32 +63,3 @@ func TestRemoteScheduler(t *testing.T) {
 	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
 	workerMock.AssertNumberOfCalls(t, "Reconcile", 2)
 }
-
-func TestLocalScheduler(t *testing.T) {
-	cluster := keb.Cluster{
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Components{
-				{Component: "logging"},
-				{Component: "monitoring"},
-			},
-		},
-	}
-
-	workerMock := &MockReconciliationWorker{}
-	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	workerFactoryMock := &MockWorkerFactory{}
-	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
-	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
-
-	sut := LocalScheduler{
-		cluster:       cluster,
-		workerFactory: workerFactoryMock,
-	}
-
-	err := sut.Run(context.Background())
-	require.NoError(t, err)
-
-	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
-	workerMock.AssertNumberOfCalls(t, "Reconcile", 2)
-}
