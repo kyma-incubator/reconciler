@@ -13,6 +13,7 @@ import (
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
+	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
 	ws "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -356,7 +357,7 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 		Kubeconfig: test.ReadKubeconfig(t),
 		Namespace:  namespace,
 		//global parameters - required by some Kyma components
-		Configuration: globalComponentConfiguration(),
+		Configuration: reconTest.NewGlobalComponentConfiguration(),
 	}
 }
 
