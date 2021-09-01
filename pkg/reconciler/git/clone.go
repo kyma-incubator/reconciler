@@ -44,7 +44,7 @@ func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout 
 	}
 }
 
-// Clone clones the repository in the given URL to the given dstPath and
+// Clone clones the repository from the given remote URL to the given `path` in the local filesystem.
 func (r *RemoteRepoCloner) Clone(path string) error {
 	var err error
 	_, err = r.repoClient.PlainCloneContext(context.Background(), path, false, &git.CloneOptions{
