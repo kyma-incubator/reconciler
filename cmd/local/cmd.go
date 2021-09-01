@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"context"
-
+	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -63,7 +62,7 @@ func RunLocal(o *Options) error {
 		true)
 
 	ls := scheduler.NewLocalScheduler(workerFactory, scheduler.WithLogger(l))
-	return ls.Run(context.Background(), keb.Cluster{
+	return ls.Run(cli.NewContext(), keb.Cluster{
 		Kubeconfig: o.kubeconfig,
 		KymaConfig: keb.KymaConfig{
 			Version:    o.version,
