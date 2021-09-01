@@ -14,6 +14,7 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/jonboulle/clockwork v0.1.0
 	github.com/lib/pq v1.10.0
+	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/olekukonko/tablewriter v0.0.5

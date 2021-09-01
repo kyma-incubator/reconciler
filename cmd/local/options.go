@@ -9,6 +9,7 @@ import (
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/magiconair/properties"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -78,16 +79,20 @@ func componentsFromStrings(list []string, values []string) []keb.Components {
 			namespace = s[1]
 		}
 		configuration := []keb.Configuration{}
-		for _, keyValue := range values {
-			splitKeyValue := strings.Split(keyValue, "=")
-			splitKey := strings.Split(splitKeyValue[0], ".")
+		for _, value := range values {
+			props, err := properties.LoadString(value)
+
+			if err != nil {
+				panic(fmt.Errorf("Can't parse value %s", value))
+			}
+			key := props.Keys()[0]
+			splitKey := strings.Split(key, ".")
 			keyComponent := splitKey[0]
 			if keyComponent == name {
-				configuration = append(configuration, keb.Configuration{Key: strings.Join(splitKey[1:], "."), Value: splitKeyValue[1]})
-				//configuration = append(configuration, keb.Configuration{Key: splitKeyValue[0], Value: splitKeyValue[1]})
+				configuration = append(configuration, keb.Configuration{Key: strings.Join(splitKey[1:], "."), Value: props.GetString(key, "")})
 			}
 			if keyComponent == "global" {
-				configuration = append(configuration, keb.Configuration{Key: splitKeyValue[0], Value: splitKeyValue[1]})
+				configuration = append(configuration, keb.Configuration{Key: key, Value: props.GetString(key, "")})
 			}
 		}
 		components = append(components, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
