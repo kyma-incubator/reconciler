@@ -1,22 +1,30 @@
 package istio
 
 import (
+	"encoding/json"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"os/exec"
 	"strings"
 )
 
 const (
-	//istioctl1_11_1      = "/bin/istioctl-1.11.1" // change path to the local `istioctl` if debugging locally
-	istioctl1_11_1      = "/Users/i354853/Documents/Develop/Kyma/Istio/istio-1.11.1/bin/istioctl" // change path to the local `istioctl` if debugging locally
-	yaml_delimiter      = "---"
-	istio_operator_kind = "kind: IstioOperator"
+	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
+	yamlDelimiter            = "---"
+	istioOperatorKind        = "kind: IstioOperator"
+	istioNamespace           = "istio-system"
+ 	istioChart               = "istio-configuration"
 )
+
+type patchStringValue struct {
+	Op string `json:"op"`
+	Path string `json:"path"`
+	Value string `json:"value"`
+}
 
 type ReconcileAction struct {
 }
@@ -28,20 +36,13 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 		overrides[configEntry.Key] = configEntry.Value
 	}
 
-	comp := chart.NewComponent("istio-configuration", "istio-system", overrides)
-	componentSet := chart.NewComponentSet(context.KubeClient.Kubeconfig(), version, profile, []*chart.Component{comp})
-	manifests, err := context.ChartProvider.Manifests(componentSet, false, &chart.Options{})
+	component := chart.NewComponentBuilder( version, istioChart).WithNamespace(istioNamespace).WithProfile(profile).WithConfiguration(config).Build()
+	manifest, err := context.ChartProvider.RenderManifest(component)
 	if err != nil {
 		return err
 	}
 
-	manifestsCount := len(manifests)
-	if manifestsCount != 1 {
-		return errors.Errorf("One manifest expected but got %d", manifestsCount)
-	}
-
-	finalManifest := manifests[0].Manifest
-	istioOperator := extractIstioOperatorContextFrom(finalManifest)
+	istioOperator := extractIstioOperatorContextFrom(manifest.Manifest)
 	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
 	if err != nil {
 		return err
@@ -66,24 +67,41 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 		}
 	}()
 
-	// TODO: check binary path
-	cmd := prepareIstioctlCommand(istioOperatorPath, kubeconfigPath)
+	istioBinaryPath := getIstioctlBinaryPath()
+	cmd := prepareIstioctlCommand(istioBinaryPath, istioOperatorPath, kubeconfigPath)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
 
-	_, err = context.KubeClient.Deploy(context.Context, finalManifest, "istio-system", nil)
+	//_, err = context.KubeClient.Deploy(context.Context, manifest.Manifest, istioNamespace)
+	//if err != nil {
+	//	return err
+	//}
+
+	patchContent := []patchStringValue{{
+		Op:    "add",
+		Path:  "/webhooks/4/namespaceSelector/matchExpressions/-",
+		Value: "{\n      \"key\": \"gardener.cloud/purpose\",\n      \"operator\": \"NotIn\",\n      \"values\": [\n        \"kube-system\"\n      ]\n    }",
+	}}
+	patchContentJson, err := json.Marshal(patchContent)
 	if err != nil {
 		return err
 	}
 
-	// TODO: add patching to the Istio
+	err = context.KubeClient.PatchUsingStrategy("MutatingWebhookConfiguration", "istio-sidecar-injector", istioNamespace, patchContentJson, types.JSONPatchType)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func prepareIstioctlCommand(istioOperatorPath, kubeconfigPath string) *exec.Cmd {
-	cmd := exec.Command(istioctl1_11_1, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+func getIstioctlBinaryPath() string {
+	return os.Getenv(istioctlBinaryPathEnvKey)
+}
+
+func prepareIstioctlCommand(istioBinaryPath, istioOperatorPath, kubeconfigPath string) *exec.Cmd {
+	cmd := exec.Command(istioBinaryPath, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -91,9 +109,9 @@ func prepareIstioctlCommand(istioOperatorPath, kubeconfigPath string) *exec.Cmd 
 }
 
 func extractIstioOperatorContextFrom(manifest string) string {
-	defs := strings.Split(manifest, yaml_delimiter)
+	defs := strings.Split(manifest, yamlDelimiter)
 	for _, def := range defs {
-		if strings.Contains(def, istio_operator_kind) {
+		if strings.Contains(def, istioOperatorKind) {
 			return def
 		}
 	}
