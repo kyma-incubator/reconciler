@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
 
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
