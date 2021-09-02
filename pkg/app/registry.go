@@ -21,14 +21,11 @@ type ApplicationRegistry struct {
 }
 
 func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*ApplicationRegistry, error) {
-	or := &ApplicationRegistry{
+	registry := &ApplicationRegistry{
 		debug:             debug,
 		connectionFactory: cf,
 	}
-	if err := or.init(); err != nil {
-		return nil, err
-	}
-	return or, nil
+	return registry, registry.init()
 }
 
 func (or *ApplicationRegistry) init() error {
@@ -58,10 +55,6 @@ func (or *ApplicationRegistry) Close() error {
 		return err
 	}
 	return nil
-}
-
-func (or *ApplicationRegistry) Logger() *zap.SugaredLogger {
-	return or.logger
 }
 
 func (or *ApplicationRegistry) Inventory() cluster.Inventory {
