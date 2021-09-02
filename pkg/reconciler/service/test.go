@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"testing"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/test"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -25,7 +26,7 @@ func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespac
 
 	comp := chart.NewComponentBuilder(version, component).
 		WithNamespace(namespace).
-		WithConfiguration(globalComponentConfiguration()).
+		WithConfiguration(test.NewGlobalComponentConfiguration()).
 		Build()
 
 	manifest, err := chartProv.RenderManifest(comp)
@@ -38,13 +39,4 @@ func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespac
 	require.NoError(t, err)
 
 	t.Logf("Cleanup of component '%s' finished", component)
-}
-
-func globalComponentConfiguration() []reconciler.Configuration {
-	return []reconciler.Configuration{
-		{
-			Key:   "global.ingress.domainName",
-			Value: "local.kyma.dev",
-		},
-	}
 }

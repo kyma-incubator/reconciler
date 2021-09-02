@@ -3,7 +3,6 @@ package scheduler
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"go.uber.org/zap"
 )
 
@@ -21,14 +20,14 @@ type baseWorkerFactory struct {
 
 type remoteWorkerFactory struct {
 	*baseWorkerFactory
-	reconcilersCfg reconciler.ComponentReconcilersConfig
-	mothershipCfg  reconciler.MothershipReconcilerConfig
+	reconcilersCfg ComponentReconcilersConfig
+	mothershipCfg  MothershipReconcilerConfig
 }
 
 func NewRemoteWorkerFactory(
 	inventory cluster.Inventory,
-	reconcilersCfg reconciler.ComponentReconcilersConfig,
-	mothershipCfg reconciler.MothershipReconcilerConfig,
+	reconcilersCfg ComponentReconcilersConfig,
+	mothershipCfg MothershipReconcilerConfig,
 	operationsReg OperationsRegistry,
 	debug bool) (WorkerFactory, error) {
 
@@ -42,9 +41,10 @@ func NewRemoteWorkerFactory(
 			inventory:     inventory,
 			operationsReg: operationsReg,
 			invoker: &RemoteReconcilerInvoker{
-				logger:         log,
-				mothershipHost: mothershipCfg.Host,
-				mothershipPort: mothershipCfg.Port,
+				logger:           log,
+				mothershipScheme: mothershipCfg.Scheme,
+				mothershipHost:   mothershipCfg.Host,
+				mothershipPort:   mothershipCfg.Port,
 			},
 			logger: log,
 			debug:  debug,
@@ -100,5 +100,5 @@ func NewLocalWorkerFactory(
 }
 
 func (lwf *localWorkerFactory) ForComponent(component string) (ReconciliationWorker, error) {
-	return NewWorker(&reconciler.ComponentReconciler{}, lwf.inventory, lwf.operationsReg, lwf.invoker, lwf.debug)
+	return NewWorker(&ComponentReconciler{}, lwf.inventory, lwf.operationsReg, lwf.invoker, lwf.debug)
 }

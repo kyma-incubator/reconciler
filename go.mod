@@ -14,6 +14,7 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/jonboulle/clockwork v0.1.0
 	github.com/lib/pq v1.10.0
+	github.com/magiconair/properties v1.8.5
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/olekukonko/tablewriter v0.0.5
@@ -27,6 +28,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	helm.sh/helm/v3 v3.6.3
 	k8s.io/api v0.21.0

@@ -10,7 +10,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +49,7 @@ func TestRemoteScheduler(t *testing.T) {
 	sut := RemoteScheduler{
 		inventoryWatch: inventoryWatchStub,
 		workerFactory:  workerFactoryMock,
-		mothershipCfg:  reconciler.MothershipReconcilerConfig{},
+		mothershipCfg:  MothershipReconcilerConfig{},
 		poolSize:       2,
 		logger:         l,
 	}
@@ -58,35 +57,6 @@ func TestRemoteScheduler(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	err := sut.Run(ctx)
-	require.NoError(t, err)
-
-	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
-	workerMock.AssertNumberOfCalls(t, "Reconcile", 2)
-}
-
-func TestLocalScheduler(t *testing.T) {
-	cluster := keb.Cluster{
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Components{
-				{Component: "logging"},
-				{Component: "monitoring"},
-			},
-		},
-	}
-
-	workerMock := &MockReconciliationWorker{}
-	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	workerFactoryMock := &MockWorkerFactory{}
-	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
-	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
-
-	sut := LocalScheduler{
-		cluster:       cluster,
-		workerFactory: workerFactoryMock,
-	}
-
-	err := sut.Run(context.Background())
 	require.NoError(t, err)
 
 	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
