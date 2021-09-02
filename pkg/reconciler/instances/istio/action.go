@@ -37,12 +37,10 @@ type ReconcileAction struct {
 
 func (a *ReconcileAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
 	var overrides = make(map[string]interface{}, len(config))
-
 	for _, configEntry := range config {
 		overrides[configEntry.Key] = configEntry.Value
 	}
-
-	component := chart.NewComponentBuilder( version, istioChart).WithNamespace(istioNamespace).WithProfile(profile).WithConfiguration(config).Build()
+	component := chart.NewComponentBuilder(version, istioChart).WithNamespace(istioNamespace).WithProfile(profile).WithConfiguration(config).Build()
 	manifest, err := context.ChartProvider.RenderManifest(component)
 	if err != nil {
 		return err
