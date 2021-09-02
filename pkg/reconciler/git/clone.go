@@ -22,12 +22,14 @@ type RemoteRepoCloner struct {
 
 //go:generate mockery --name RepoClient --case=underscore
 type RepoClient interface {
-	Clone(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error)
+	Clone(ctx context.Context, path string,
+		isBare bool, o *git.CloneOptions) (*git.Repository, error)
 	Worktree() (*git.Worktree, error)
 	ResolveRevision(rev plumbing.Revision) (*plumbing.Hash, error)
 }
 
-func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool) *RemoteRepoCloner {
+func NewCloner(repoClient RepoClient, repo *reconciler.Repository,
+	autoCheckout bool) *RemoteRepoCloner {
 	var auth transport.AuthMethod
 	if repo != nil && repo.Token != "" {
 		auth = &http.BasicAuth{
@@ -40,8 +42,7 @@ func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout 
 		repo:         repo,
 		auth:         auth,
 		autoCheckout: autoCheckout,
-
-		repoClient: repoClient,
+		repoClient:   repoClient,
 	}
 }
 

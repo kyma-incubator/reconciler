@@ -2,12 +2,15 @@ package git
 
 import (
 	"context"
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/git/mocks"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/git/mocks"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/alcortesm/tgz"
 	"github.com/go-git/go-git/v5"
@@ -42,7 +45,8 @@ func TestCloneRepo(t *testing.T) {
 
 	clonerMock := &mocks.RepoClient{}
 
-	r := reconciler.Repository{URL: "github.com/foo"}
+	repoUrl := "github.com/foo"
+	r := reconciler.Repository{URL: repoUrl}
 	options := git.CloneOptions{
 		Depth:             0,
 		URL:               r.URL,
@@ -76,4 +80,27 @@ func TestCloneRepo(t *testing.T) {
 	commit, err = repo.CommitObject(headRef.Hash())
 	require.NoError(t, err)
 	require.Equal(t, "Add README\n", commit.Message)
+
+	t.Run("Should add auth data if token set", func(t *testing.T) {
+		token := "tokeValue"
+		//client := mocks.RepoClient{}
+		autoCheckout := false
+		clonerMock.On("Clone", context.Background(), "/test", autoCheckout, &git.CloneOptions{
+			Depth:      0,
+			URL:        repoUrl,
+			NoCheckout: !autoCheckout,
+			Auth: &http.BasicAuth{
+				Username: "xxx", // anything but an empty string
+				Password: token,
+			},
+			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		}).Return(repo, nil)
+		cloner := NewCloner(clonerMock, &reconciler.Repository{
+			URL:   repoUrl,
+			Token: token,
+		}, autoCheckout)
+
+		err := cloner.Clone("/test")
+		assert.NoError(t, err)
+	})
 }
