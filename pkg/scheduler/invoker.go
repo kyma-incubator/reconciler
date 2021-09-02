@@ -30,9 +30,10 @@ type ReconcilerInvoker interface {
 }
 
 type RemoteReconcilerInvoker struct {
-	logger         *zap.SugaredLogger
-	mothershipHost string
-	mothershipPort int
+	logger           *zap.SugaredLogger
+	mothershipScheme string
+	mothershipHost   string
+	mothershipPort   int
 }
 
 func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
@@ -46,7 +47,7 @@ func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 		Profile:         params.ClusterState.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
 		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
-		CallbackURL:     fmt.Sprintf("http://%s:%d/v1/operations/%s/callback/%s", rri.mothershipHost, rri.mothershipPort, params.SchedulingID, params.CorrelationID), // TODO: parametrize the URL
+		CallbackURL:     fmt.Sprintf("%s://%s:%d/v1/operations/%s/callback/%s", rri.mothershipScheme, rri.mothershipHost, rri.mothershipPort, params.SchedulingID, params.CorrelationID),
 		InstallCRD:      params.InstallCRD,
 		CorrelationID:   params.CorrelationID,
 	}

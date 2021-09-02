@@ -63,15 +63,13 @@ func parseMothershipReconcilerConfig(configFile string) (scheduler.MothershipRec
 	if err := viper.ReadInConfig(); err != nil {
 		return scheduler.MothershipReconcilerConfig{}, err
 	}
-	mothershipHost := viper.GetString("mothership.host")
-	mothershipPort := viper.GetInt("mothership.port")
-	crdComponents := viper.GetStringSlice("crdComponents")
-	preComponents := viper.GetStringSlice("preComponents")
+
 	return scheduler.MothershipReconcilerConfig{
-		Host:          mothershipHost,
-		Port:          mothershipPort,
-		CrdComponents: crdComponents,
-		PreComponents: preComponents}, nil
+		Scheme:        viper.GetString("mothership.scheme"),
+		Host:          viper.GetString("mothership.host"),
+		Port:          viper.GetInt("mothership.port"),
+		CrdComponents: viper.GetStringSlice("crdComponents"),
+		PreComponents: viper.GetStringSlice("preComponents")}, nil
 }
 
 func parseComponentReconcilersConfig(path string) (scheduler.ComponentReconcilersConfig, error) {

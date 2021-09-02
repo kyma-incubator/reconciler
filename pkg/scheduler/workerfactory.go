@@ -41,9 +41,10 @@ func NewRemoteWorkerFactory(
 			inventory:     inventory,
 			operationsReg: operationsReg,
 			invoker: &RemoteReconcilerInvoker{
-				logger:         log,
-				mothershipHost: mothershipCfg.Host,
-				mothershipPort: mothershipCfg.Port,
+				logger:           log,
+				mothershipScheme: mothershipCfg.Scheme,
+				mothershipHost:   mothershipCfg.Host,
+				mothershipPort:   mothershipCfg.Port,
 			},
 			logger: log,
 			debug:  debug,

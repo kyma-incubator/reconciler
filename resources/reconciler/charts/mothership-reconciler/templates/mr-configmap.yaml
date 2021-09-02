@@ -21,6 +21,7 @@ data:
         deploySchema: true
         resetDatabase: false
     mothership:
+      scheme: http
       host: {{ include "mothership-reconciler.fullname" . }}
       port: {{ .Values.service.port }}
     {{- with .Values.crdComponents }}
