@@ -9,6 +9,7 @@ import (
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/magiconair/properties"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -40,25 +41,15 @@ func (o *Options) Kubeconfig() string {
 	return o.kubeconfig
 }
 
-type KymaComponentList struct {
-	DefaultNamespace string `yaml:"defaultNamespace" json:"defaultNamespace"`
-	Prerequisites    []Component
-	Components       []Component
-}
-type Component struct {
-	Name      string
-	Namespace string
-}
-
 func componentsFromFile(path string) ([]string, error) {
 	componentsFile, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Can't read components file %s", path)
+		return nil, fmt.Errorf("can't read components file %s", path)
 	}
-	data := &KymaComponentList{}
+	data := &test.ComponentList{}
 	err = yaml.Unmarshal(componentsFile, &data)
 	if err != nil {
-		return nil, fmt.Errorf("Can't parse components file %s", path)
+		return nil, fmt.Errorf("can't parse components file %s", path)
 	}
 	var defaultComponents []string
 
