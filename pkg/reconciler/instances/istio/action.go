@@ -20,10 +20,16 @@ const (
  	istioChart               = "istio-configuration"
 )
 
-type patchStringValue struct {
+type webhookPatchJson struct {
 	Op string `json:"op"`
 	Path string `json:"path"`
-	Value string `json:"value"`
+	Value webhookPatchJsonValue `json:"value"`
+}
+
+type webhookPatchJsonValue struct {
+	Key string `json:"key"`
+	Operator string `json:"operator"`
+	Values [] string `json:"values"`
 }
 
 type ReconcileAction struct {
@@ -73,16 +79,23 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 		return err
 	}
 
-	//_, err = context.KubeClient.Deploy(context.Context, manifest.Manifest, istioNamespace)
-	//if err != nil {
-	//	return err
-	//}
+	_, err = context.KubeClient.Deploy(context.Context, manifest.Manifest, istioNamespace)
+	if err != nil {
+		return err
+	}
 
-	patchContent := []patchStringValue{{
+	patchContent := []webhookPatchJson{{
 		Op:    "add",
 		Path:  "/webhooks/4/namespaceSelector/matchExpressions/-",
-		Value: "{\n      \"key\": \"gardener.cloud/purpose\",\n      \"operator\": \"NotIn\",\n      \"values\": [\n        \"kube-system\"\n      ]\n    }",
+		Value: webhookPatchJsonValue{
+			Key:      "gardener.cloud/purpose",
+			Operator: "NotIn",
+			Values:   []string{
+				"kube-system",
+			},
+		},
 	}}
+
 	patchContentJson, err := json.Marshal(patchContent)
 	if err != nil {
 		return err
@@ -97,7 +110,7 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 }
 
 func getIstioctlBinaryPath() string {
-	return os.Getenv(istioctlBinaryPathEnvKey)
+	return os.Getenv(istioctlBinaryPathEnvKey) // TODO: uncomment
 }
 
 func prepareIstioctlCommand(istioBinaryPath, istioOperatorPath, kubeconfigPath string) *exec.Cmd {
