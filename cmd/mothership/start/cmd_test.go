@@ -23,6 +23,7 @@ const (
 )
 
 type TestStruct struct {
+	name             string
 	url              string
 	requestFile      string
 	kubeconfig       string
@@ -37,10 +38,17 @@ func TestReconciliation(t *testing.T) {
 	defer ctx.Done()
 
 	startMothershipReconciler(t, ctx)
+
+	requireErrorResponseFct := func(t *testing.T, response interface{}) {
+		require.IsType(t, response, &keb.HTTPErrorResponse{})
+		errModel := response.(*keb.HTTPErrorResponse)
+		require.NotEmpty(t, errModel.Error)
+	}
 	clustersURL := fmt.Sprintf("http://localhost:%d/v1/clusters", serverPort)
 
 	tests := []*TestStruct{
 		{
+			name:             "Happy path",
 			url:              clustersURL,
 			requestFile:      filepath.Join("test", "request", "create_cluster.json"),
 			kubeconfig:       test.ReadKubeconfig(t),
@@ -54,22 +62,35 @@ func TestReconciliation(t *testing.T) {
 			},
 		},
 		{
+			name:             "Invalid Kubeconfig",
 			url:              clustersURL,
 			requestFile:      filepath.Join("test", "request", "create_cluster_invalid_kubeconfig.json"),
 			expectedHTTPCode: 400,
-			verifier: func(t *testing.T, response interface{}) {
-				require.IsType(t, response, &keb.HTTPErrorResponse{})
-				errModel := response.(*keb.HTTPErrorResponse)
-				require.NotEmpty(t, errModel.Error)
-			},
+			verifier:         requireErrorResponseFct,
+		},
+		{
+			name:             "Invalid request",
+			url:              clustersURL,
+			requestFile:      filepath.Join("test", "request", "invalid.json"),
+			expectedHTTPCode: 400,
+			verifier:         requireErrorResponseFct,
+		},
+		{
+			name:             "Empty request",
+			url:              clustersURL,
+			requestFile:      filepath.Join("test", "request", "empty.json"),
+			expectedHTTPCode: 400,
+			verifier:         requireErrorResponseFct,
 		},
 	}
 
 	for _, testCase := range tests {
-		resp := sendRequest(t, testCase)
-		if testCase.verifier != nil {
-			testCase.verifier(t, resp)
-		}
+		t.Run(testCase.name, func(t *testing.T) {
+			resp := sendRequest(t, testCase)
+			if testCase.verifier != nil {
+				testCase.verifier(t, resp)
+			}
+		})
 	}
 }
 
