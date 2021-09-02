@@ -9,10 +9,10 @@ import (
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/magiconair/properties"
 	"github.com/pkg/errors"
-
-	//Register all reconcilers
-	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
+	"gopkg.in/yaml.v3"
 )
 
 type Options struct {
@@ -22,15 +22,8 @@ type Options struct {
 	version        string
 	profile        string
 	components     []string
-}
-
-func defaultComponentList() []keb.Components {
-	defaultComponents := []string{"cluster-essentials", "istio-configuration@istio-system",
-		"certificates@istio-system", "logging", "tracing", "kiali", "monitoring", "eventing", "ory", "api-gateway",
-		"service-catalog", "service-catalog-addons", "rafter", "helm-broker", "cluster-users", "serverless",
-		"application-connector@kyma-integration"}
-	return componentsFromStrings(defaultComponents)
-
+	values         []string
+	componentsFile string
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -40,13 +33,37 @@ func NewOptions(o *cli.Options) *Options {
 		"",         // version
 		"",         // profile
 		[]string{}, // components
+		[]string{}, // values
+		"",         // componentsFile
 	}
 }
 func (o *Options) Kubeconfig() string {
 	return o.kubeconfig
 }
 
-func componentsFromStrings(list []string) []keb.Components {
+func componentsFromFile(path string) ([]string, error) {
+	componentsFile, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("can't read components file %s", path)
+	}
+	data := &test.ComponentList{}
+	err = yaml.Unmarshal(componentsFile, &data)
+	if err != nil {
+		return nil, fmt.Errorf("can't parse components file %s", path)
+	}
+	var defaultComponents []string
+
+	for _, c := range data.Components {
+		if c.Namespace != "" {
+			defaultComponents = append(defaultComponents, c.Name+"@"+c.Namespace)
+		} else {
+			defaultComponents = append(defaultComponents, c.Name)
+		}
+	}
+	return defaultComponents, nil
+}
+
+func componentsFromStrings(list []string, values []string) []keb.Components {
 	var components []keb.Components
 	for _, item := range list {
 		s := strings.Split(item, "@")
@@ -55,16 +72,43 @@ func componentsFromStrings(list []string) []keb.Components {
 		if len(s) >= 2 {
 			namespace = s[1]
 		}
-		components = append(components, keb.Components{Component: name, Namespace: namespace})
+		configuration := []keb.Configuration{}
+		for _, value := range values {
+			props, err := properties.LoadString(value)
+
+			if err != nil {
+				panic(fmt.Errorf("Can't parse value %s", value))
+			}
+			key := props.Keys()[0]
+			splitKey := strings.Split(key, ".")
+			keyComponent := splitKey[0]
+			if keyComponent == name {
+				configuration = append(configuration, keb.Configuration{Key: strings.Join(splitKey[1:], "."), Value: props.GetString(key, "")})
+			}
+			if keyComponent == "global" {
+				configuration = append(configuration, keb.Configuration{Key: key, Value: props.GetString(key, "")})
+			}
+		}
+		components = append(components, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
 	}
 	return components
 }
 
-func (o *Options) Components() []keb.Components {
-	if len(o.components) > 0 {
-		return componentsFromStrings(o.components)
+func (o *Options) Components(defaultComponentsFile string) []keb.Components {
+
+	components := o.components
+	if len(o.components) == 0 {
+		cFile := o.componentsFile
+		if cFile == "" {
+			cFile = defaultComponentsFile
+		}
+		var err error
+		components, err = componentsFromFile(cFile)
+		if err != nil {
+			panic(err)
+		}
 	}
-	return defaultComponentList()
+	return componentsFromStrings(components, o.values)
 }
 
 func (o *Options) Validate() error {
@@ -87,5 +131,8 @@ func (o *Options) Validate() error {
 		return errors.Wrap(err, fmt.Sprintf("Failed to read kubeconfig file '%s'", o.kubeconfigFile))
 	}
 	o.kubeconfig = string(content)
+	if len(o.components) > 0 && o.componentsFile != "" {
+		return fmt.Errorf("Use one of 'components' or 'component-file' flag")
+	}
 	return nil
 }
