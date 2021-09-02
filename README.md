@@ -6,23 +6,27 @@
 
 The Reconciler is a central system to reconcile Kyma clusters.
 
-## Run Reconciler locally
+## Run Reconciler locally (Mac OS)
 
 Follow these steps to run Reconciler locally:
 
-1. Build the Docker image:
+1. Build the reconciler
 
 ```
-docker build -f Dockerfile -t reconciler:v1 .
+make build-darwin 
 ```
 
 
-2. Run the Docker container:
+2. Run with default configuration (all componennts from installation/resources/components.yaml)
 
 ```
-docker run --name reconciler -it -p 8080:8080 reconciler:v1 reconciler service start
+./bin/reconciler-darwin local 
 ```
 
+Or just run with specified components:
+```
+./bin/reconciler-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
+```
 
 ## Testing
 
