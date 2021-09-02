@@ -1,6 +1,7 @@
 package chart
 
 import (
+	"github.com/kyma-incubator/reconciler/internal/components"
 	"path/filepath"
 	"testing"
 
@@ -65,7 +66,8 @@ func TestProvider(t *testing.T) {
 }
 
 func componentList(t *testing.T, compListFile string) []*Component {
-	compList := test.NewComponentList(t, compListFile)
+	compList, err := components.NewComponentList(compListFile)
+	require.NoError(t, err)
 
 	var result []*Component
 	for _, comp := range compList.Prerequisites {
@@ -78,7 +80,7 @@ func componentList(t *testing.T, compListFile string) []*Component {
 	return result
 }
 
-func newComponent(comp test.Component) *Component {
+func newComponent(comp components.Component) *Component {
 	compBuilder := NewComponentBuilder(kymaVersion, comp.Name).
 		WithConfiguration(reconTest.NewGlobalComponentConfiguration())
 

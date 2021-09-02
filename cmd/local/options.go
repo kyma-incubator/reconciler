@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/internal/components"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -9,10 +10,8 @@ import (
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/magiconair/properties"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
 
 type Options struct {
@@ -42,18 +41,14 @@ func (o *Options) Kubeconfig() string {
 }
 
 func componentsFromFile(path string) ([]string, error) {
-	componentsFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("can't read components file %s", path)
-	}
-	data := &test.ComponentList{}
-	err = yaml.Unmarshal(componentsFile, &data)
-	if err != nil {
-		return nil, fmt.Errorf("can't parse components file %s", path)
-	}
 	var defaultComponents []string
 
-	for _, c := range data.Components {
+	compList, err := components.NewComponentList(path)
+	if err != nil {
+		return defaultComponents, err
+	}
+
+	for _, c := range compList.Components {
 		if c.Namespace != "" {
 			defaultComponents = append(defaultComponents, c.Name+"@"+c.Namespace)
 		} else {
@@ -64,15 +59,15 @@ func componentsFromFile(path string) ([]string, error) {
 }
 
 func componentsFromStrings(list []string, values []string) []keb.Components {
-	var components []keb.Components
+	var comps []keb.Components
 	for _, item := range list {
 		s := strings.Split(item, "@")
 		name := s[0]
-		namespace := "kyma-system"
+		namespace := components.KymaNamespace
 		if len(s) >= 2 {
 			namespace = s[1]
 		}
-		configuration := []keb.Configuration{}
+		var configuration []keb.Configuration
 		for _, value := range values {
 			props, err := properties.LoadString(value)
 
@@ -89,26 +84,25 @@ func componentsFromStrings(list []string, values []string) []keb.Components {
 				configuration = append(configuration, keb.Configuration{Key: key, Value: props.GetString(key, "")})
 			}
 		}
-		components = append(components, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
+		comps = append(comps, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
 	}
-	return components
+	return comps
 }
 
 func (o *Options) Components(defaultComponentsFile string) []keb.Components {
-
-	components := o.components
+	comps := o.components
 	if len(o.components) == 0 {
 		cFile := o.componentsFile
 		if cFile == "" {
 			cFile = defaultComponentsFile
 		}
 		var err error
-		components, err = componentsFromFile(cFile)
+		comps, err = componentsFromFile(cFile)
 		if err != nil {
 			panic(err)
 		}
 	}
-	return componentsFromStrings(components, o.values)
+	return componentsFromStrings(comps, o.values)
 }
 
 func (o *Options) Validate() error {
@@ -132,7 +126,7 @@ func (o *Options) Validate() error {
 	}
 	o.kubeconfig = string(content)
 	if len(o.components) > 0 && o.componentsFile != "" {
-		return fmt.Errorf("Use one of 'components' or 'component-file' flag")
+		return fmt.Errorf("use one of 'components' or 'component-file' flag")
 	}
 	return nil
 }
