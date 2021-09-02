@@ -19,5 +19,5 @@ type HTTPClusterResponse struct {
 
 //HTTPErrorResponse is the model used for general error responses
 type HTTPErrorResponse struct {
-	Error string
+	Error string `json:"error"`
 }
