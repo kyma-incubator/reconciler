@@ -110,7 +110,7 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 }
 
 func getIstioctlBinaryPath() string {
-	return os.Getenv(istioctlBinaryPathEnvKey) // TODO: uncomment
+	return os.Getenv(istioctlBinaryPathEnvKey)
 }
 
 func prepareIstioctlCommand(istioBinaryPath, istioOperatorPath, kubeconfigPath string) *exec.Cmd {
