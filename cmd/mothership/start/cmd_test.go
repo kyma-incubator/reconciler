@@ -19,14 +19,19 @@ import (
 )
 
 const (
-	serverPort = 8080
+	serverPort            = 8080
+	httpPost   httpMethod = http.MethodPost
+	httpGet    httpMethod = http.MethodGet
+	httpDelete httpMethod = http.MethodDelete
 )
+
+type httpMethod string
 
 type TestStruct struct {
 	name             string
 	url              string
-	requestFile      string
-	kubeconfig       string
+	method           httpMethod
+	payload          string
 	expectedHTTPCode int
 	verifier         func(t *testing.T, response interface{})
 }
@@ -44,14 +49,15 @@ func TestReconciliation(t *testing.T) {
 		errModel := response.(*keb.HTTPErrorResponse)
 		require.NotEmpty(t, errModel.Error)
 	}
+
 	clustersURL := fmt.Sprintf("http://localhost:%d/v1/clusters", serverPort)
 
 	tests := []*TestStruct{
 		{
 			name:             "Happy path",
 			url:              clustersURL,
-			requestFile:      filepath.Join("test", "request", "create_cluster.json"),
-			kubeconfig:       test.ReadKubeconfig(t),
+			method:           httpPost,
+			payload:          payload(t, filepath.Join("test", "request", "create_cluster.json"), test.ReadKubeconfig(t)),
 			expectedHTTPCode: 200,
 			verifier: func(t *testing.T, response interface{}) {
 				require.IsType(t, response, &keb.HTTPClusterResponse{})
@@ -64,21 +70,24 @@ func TestReconciliation(t *testing.T) {
 		{
 			name:             "Invalid Kubeconfig",
 			url:              clustersURL,
-			requestFile:      filepath.Join("test", "request", "create_cluster_invalid_kubeconfig.json"),
+			method:           httpPost,
+			payload:          payload(t, filepath.Join("test", "request", "create_cluster_invalid_kubeconfig.json"), ""),
 			expectedHTTPCode: 400,
 			verifier:         requireErrorResponseFct,
 		},
 		{
 			name:             "Invalid request",
 			url:              clustersURL,
-			requestFile:      filepath.Join("test", "request", "invalid.json"),
+			method:           httpPost,
+			payload:          payload(t, filepath.Join("test", "request", "invalid.json"), ""),
 			expectedHTTPCode: 400,
 			verifier:         requireErrorResponseFct,
 		},
 		{
 			name:             "Empty request",
 			url:              clustersURL,
-			requestFile:      filepath.Join("test", "request", "empty.json"),
+			method:           httpPost,
+			payload:          payload(t, filepath.Join("test", "request", "empty.json"), ""),
 			expectedHTTPCode: 400,
 			verifier:         requireErrorResponseFct,
 		},
@@ -128,9 +137,7 @@ func waitForTCPSocket(t *testing.T, host string, port int, timeout time.Duration
 }
 
 func sendRequest(t *testing.T, testCase *TestStruct) interface{} {
-	payload := readPayload(t, testCase)
-	response, err := http.Post(testCase.url, "application/json", strings.NewReader(payload))
-	require.NoError(t, err)
+	response, err := fireHttpRequest(t, testCase)
 
 	require.Equal(t, testCase.expectedHTTPCode, response.StatusCode, "Returned HTTP response code was unexpected")
 
@@ -149,22 +156,42 @@ func sendRequest(t *testing.T, testCase *TestStruct) interface{} {
 	return result
 }
 
-func readPayload(t *testing.T, testCase *TestStruct) string {
-	data, err := ioutil.ReadFile(testCase.requestFile)
+func fireHttpRequest(t *testing.T, testCase *TestStruct) (*http.Response, error) {
+	client := &http.Client{
+		Timeout: 1 * time.Second,
+	}
+
+	var response *http.Response
+	var err error
+	switch testCase.method {
+	case httpGet:
+		response, err = client.Get(testCase.url)
+	case httpPost:
+		response, err = client.Post(testCase.url, "application/json", strings.NewReader(testCase.payload))
+	case httpDelete:
+		req, err := http.NewRequest(http.MethodDelete, testCase.url, nil)
+		require.NoError(t, err)
+		response, err = client.Do(req)
+	}
 	require.NoError(t, err)
-	return string(overrideKubeConfig(t, data, testCase.kubeconfig))
+	return response, err
 }
 
-func overrideKubeConfig(t *testing.T, data []byte, overrideKubeConfig string) []byte {
-	if overrideKubeConfig != "" {
-		newData := make(map[string]interface{})
-		require.NoError(t, json.Unmarshal(data, &newData))
+func payload(t *testing.T, file, kubeconfig string) string {
+	data, err := ioutil.ReadFile(file)
+	require.NoError(t, err)
 
-		newData["kubeConfig"] = overrideKubeConfig
-		result, err := json.Marshal(newData)
-		require.NoError(t, err)
-
-		return result
+	if kubeconfig == "" {
+		return string(data)
 	}
-	return data
+
+	//inject kubeconfig into payload
+	newData := make(map[string]interface{})
+	require.NoError(t, json.Unmarshal(data, &newData))
+
+	newData["kubeConfig"] = kubeconfig
+	result, err := json.Marshal(newData)
+	require.NoError(t, err)
+
+	return string(result)
 }
