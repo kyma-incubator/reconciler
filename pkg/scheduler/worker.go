@@ -26,7 +26,7 @@ type ReconciliationWorker interface {
 
 type Worker struct {
 	correlationID string
-	config        *reconciler.ComponentReconciler
+	config        *ComponentReconciler
 	inventory     cluster.Inventory
 	operationsReg OperationsRegistry
 	invoker       ReconcilerInvoker
@@ -35,7 +35,7 @@ type Worker struct {
 }
 
 func NewWorker(
-	config *reconciler.ComponentReconciler,
+	config *ComponentReconciler,
 	inventory cluster.Inventory,
 	operationsReg OperationsRegistry,
 	invoker ReconcilerInvoker,

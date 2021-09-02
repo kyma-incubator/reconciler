@@ -2,13 +2,10 @@ package scheduler
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -31,12 +28,12 @@ type Scheduler interface {
 type RemoteScheduler struct {
 	inventoryWatch InventoryWatcher
 	workerFactory  WorkerFactory
-	mothershipCfg  reconciler.MothershipReconcilerConfig
+	mothershipCfg  MothershipReconcilerConfig
 	poolSize       int
 	logger         *zap.SugaredLogger
 }
 
-func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFactory, mothershipCfg reconciler.MothershipReconcilerConfig, workers int, debug bool) (Scheduler, error) {
+func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFactory, mothershipCfg MothershipReconcilerConfig, workers int, debug bool) (Scheduler, error) {
 	l, err := logger.NewLogger(debug)
 	if err != nil {
 		return nil, err
@@ -52,7 +49,7 @@ func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFac
 
 func (rs *RemoteScheduler) validate() error {
 	if rs.poolSize < 0 {
-		return fmt.Errorf("Worker pool size cannot be < 0")
+		return errors.New("worker pool size cannot be < 0")
 	}
 	if rs.poolSize == 0 {
 		rs.poolSize = defaultPoolSize
