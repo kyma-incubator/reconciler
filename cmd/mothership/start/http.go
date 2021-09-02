@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -88,6 +89,10 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	clusterModel, err := keb.NewModelFactory(contractV).Cluster(reqBody)
 	if err != nil {
 		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Failed to unmarshal JSON payload"))
+		return
+	}
+	if _, err := (&kubernetes.ClientBuilder{}).WithString(clusterModel.Kubeconfig).Build(true); err != nil {
+		sendError(w, http.StatusBadRequest, errors.Wrap(err, "kubeconfig not accepted"))
 		return
 	}
 	clusterState, err := o.Registry.Inventory().CreateOrUpdate(contractV, clusterModel)
@@ -221,8 +226,19 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func sendError(w http.ResponseWriter, httpCode int, err error) {
-	http.Error(w, fmt.Sprintf("%s\n\n%s", http.StatusText(httpCode), err.Error()), httpCode)
+func sendError(w http.ResponseWriter, httpCode int, response interface{}) {
+	if err, ok := response.(error); ok { //convert to error response
+		response = reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		}
+	}
+	w.WriteHeader(httpCode)
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		//send error response
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Failed to encode response payload to JSON", http.StatusInternalServerError)
+	}
 }
 
 func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State) {

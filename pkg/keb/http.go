@@ -16,3 +16,8 @@ type HTTPClusterResponse struct {
 	Status               ClusterStatus `json:"status"`
 	StatusURL            string        `json:"statusUrl"`
 }
+
+//HTTPErrorResponse is the model used for general error responses
+type HTTPErrorResponse struct {
+	Error string
+}
