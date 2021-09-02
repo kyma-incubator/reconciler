@@ -37,10 +37,11 @@ func TestReconciliation(t *testing.T) {
 	defer ctx.Done()
 
 	startMothershipReconciler(t, ctx)
+	clustersURL := fmt.Sprintf("http://localhost:%d/v1/clusters", serverPort)
 
 	tests := []*TestStruct{
 		{
-			url:              fmt.Sprintf("http://localhost:%d/v1/clusters", serverPort),
+			url:              clustersURL,
 			requestFile:      filepath.Join("test", "request", "create_cluster.json"),
 			kubeconfig:       test.ReadKubeconfig(t),
 			expectedHTTPCode: 200,
@@ -53,7 +54,7 @@ func TestReconciliation(t *testing.T) {
 			},
 		},
 		{
-			url:              fmt.Sprintf("http://localhost:%d/v1/clusters", serverPort),
+			url:              clustersURL,
 			requestFile:      filepath.Join("test", "request", "create_cluster_invalid_kubeconfig.json"),
 			expectedHTTPCode: 400,
 			verifier: func(t *testing.T, response interface{}) {
