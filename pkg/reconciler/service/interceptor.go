@@ -1,8 +1,12 @@
 package service
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+)
+
+const (
+	ManagedByLabel       = "reconciler.kyma-project.io/managed-by"
+	LabelReconcilerValue = "reconciler"
 )
 
 type LabelInterceptor struct {
@@ -13,7 +17,7 @@ func (l *LabelInterceptor) Intercept(resource *unstructured.Unstructured) error 
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	labels[reconciler.ManagedByLabel] = reconciler.LabelReconcilerValue
+	labels[ManagedByLabel] = LabelReconcilerValue
 	resource.SetLabels(labels)
 	return nil
 }

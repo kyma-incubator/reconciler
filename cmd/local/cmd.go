@@ -44,9 +44,10 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func RunLocal(o *Options) error {
-
 	l := logger.NewOptionalLogger(o.Verbose)
+
 	l.Infof("Local installation started with kubeconfig %s", o.kubeconfigFile)
+
 	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
 	//collisions when sharing the same directory)
@@ -59,11 +60,11 @@ func RunLocal(o *Options) error {
 		return err
 	}
 
-	workspace, err := wsFact.Get(o.version)
+	ws, err := wsFact.Get(o.version)
 	if err != nil {
 		return err
 	}
-	defaultComponentsYaml := filepath.Join(workspace.InstallationResourceDir, "components.yaml")
+	defaultComponentsYaml := filepath.Join(ws.InstallationResourceDir, "components.yaml")
 
 	workerFactory, _ := scheduler.NewLocalWorkerFactory(
 		&cluster.MockInventory{},
@@ -74,7 +75,7 @@ func RunLocal(o *Options) error {
 		true)
 
 	ls := scheduler.NewLocalScheduler(workerFactory, scheduler.WithLogger(l))
-	return ls.Run(cli.NewContext(), keb.Cluster{
+	return ls.Run(cli.NewContext(), &keb.Cluster{
 		Kubeconfig: o.kubeconfig,
 		KymaConfig: keb.KymaConfig{
 			Version:    o.version,

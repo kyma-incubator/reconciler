@@ -53,10 +53,10 @@ func NewLocalScheduler(workerFactory WorkerFactory, opts ...LocalSchedulerOption
 	return ls
 }
 
-func (ls *LocalScheduler) Run(ctx context.Context, c keb.Cluster) error {
+func (ls *LocalScheduler) Run(ctx context.Context, c *keb.Cluster) error {
 	schedulingID := uuid.NewString()
 
-	clusterState, err := toLocalClusterState(&c)
+	clusterState, err := toLocalClusterState(c)
 	if err != nil {
 		return fmt.Errorf("failed to convert to cluster state: %s", err)
 	}

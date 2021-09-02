@@ -96,9 +96,7 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//respond status URL
-	payload := responsePayload(clusterState)
-	payload["statusUrl"] = fmt.Sprintf("%s%s/%s/configs/%d/status", r.Host, r.URL.RequestURI(), clusterState.Cluster.Cluster, clusterState.Configuration.Version)
-	sendResponse(w, payload)
+	sendResponse(w, r, clusterState)
 }
 
 func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -118,7 +116,7 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Could not retrieve cluster state"))
 		return
 	}
-	sendResponse(w, responsePayload(clusterState))
+	sendResponse(w, r, clusterState)
 }
 
 func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -133,7 +131,7 @@ func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Could not retrieve cluster state"))
 		return
 	}
-	sendResponse(w, responsePayload(clusterState))
+	sendResponse(w, r, clusterState)
 }
 
 func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -223,22 +221,35 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func responsePayload(clusterState *cluster.State) map[string]interface{} {
-	return map[string]interface{}{
-		"cluster":              clusterState.Cluster.Cluster,
-		"clusterVersion":       clusterState.Cluster.Version,
-		"configurationVersion": clusterState.Configuration.Version,
-		"status":               clusterState.Status.Status,
-	}
-}
-
 func sendError(w http.ResponseWriter, httpCode int, err error) {
 	http.Error(w, fmt.Sprintf("%s\n\n%s", http.StatusText(httpCode), err.Error()), httpCode)
 }
 
-func sendResponse(w http.ResponseWriter, payload map[string]interface{}) {
+func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State) {
+	respModel, err := newClusterResponse(r, clusterState)
+	if err != nil {
+		sendError(w, 500, errors.Wrap(err, "failed to generate cluster response model"))
+		return
+	}
+
 	w.Header().Set("content-type", "application/json")
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
+	if err := json.NewEncoder(w).Encode(respModel); err != nil {
 		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode response payload to JSON"))
 	}
+}
+
+func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTPClusterResponse, error) {
+	kebStatus, err := clusterState.Status.GetKEBClusterStatus()
+	if err != nil {
+		return nil, err
+	}
+
+	return &keb.HTTPClusterResponse{
+		Cluster:              clusterState.Cluster.Cluster,
+		ClusterVersion:       clusterState.Cluster.Version,
+		ConfigurationVersion: clusterState.Configuration.Version,
+		Status:               kebStatus,
+		StatusURL: fmt.Sprintf("%s%s/%s/configs/%d/status", r.Host, r.URL.RequestURI(),
+			clusterState.Cluster.Cluster, clusterState.Configuration.Version),
+	}, nil
 }

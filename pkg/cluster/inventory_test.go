@@ -20,7 +20,7 @@ const (
 )
 
 var clusterJSONFile = filepath.Join(".", "test", "cluster.json")
-var clusterStatuses = []model.Status{model.Error, model.Ready, model.ReconcileFailed, model.ReconcilePending, model.Reconciling}
+var clusterStatuses = []model.Status{model.ClusterStatusError, model.ClusterStatusReady, model.ClusterStatusReconcileFailed, model.ClusterStatusReconcilePending, model.ClusterStatusReconciling}
 
 func TestInventory(t *testing.T) {
 	inventory := newInventory(t)
@@ -70,17 +70,17 @@ func TestInventory(t *testing.T) {
 		cluster := newCluster(t, 1, maxVersion)
 		clusterState, err := inventory.GetLatest(cluster.Cluster)
 		require.NoError(t, err)
-		require.Equal(t, clusterState.Status.Status, model.ReconcilePending)
+		require.Equal(t, clusterState.Status.Status, model.ClusterStatusReconcilePending)
 		oldStatusID := clusterState.Status.ID
 		//update status with same status (should NOT cause a status change)
-		newState, err := inventory.UpdateStatus(clusterState, model.ReconcilePending)
+		newState, err := inventory.UpdateStatus(clusterState, model.ClusterStatusReconcilePending)
 		require.NoError(t, err)
-		require.Equal(t, newState.Status.Status, model.ReconcilePending)
+		require.Equal(t, newState.Status.Status, model.ClusterStatusReconcilePending)
 		require.Equal(t, oldStatusID, newState.Status.ID)
 		//update status with new status (has to cause a status change)
-		newState2, err := inventory.UpdateStatus(clusterState, model.Reconciling)
+		newState2, err := inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
 		require.NoError(t, err)
-		require.Equal(t, newState2.Status.Status, model.Reconciling)
+		require.Equal(t, newState2.Status.Status, model.ClusterStatusReconciling)
 		require.True(t, oldStatusID < newState2.Status.ID)
 	})
 
@@ -107,7 +107,7 @@ func TestInventory(t *testing.T) {
 			require.NoError(t, err)
 			expectedClusters = append(expectedClusters, newCluster)
 			//add another status to verify that SQL query works correctly
-			_, err = inventory.UpdateStatus(clusterState, model.ReconcileFailed)
+			_, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconcileFailed)
 			require.NoError(t, err)
 			//add expected status
 			_, err = inventory.UpdateStatus(clusterState, clusterStatus)
@@ -127,7 +127,7 @@ func TestInventory(t *testing.T) {
 		require.Len(t, statesReconcile, 2)
 		require.ElementsMatch(t,
 			listStatuses(statesReconcile),
-			[]model.Status{model.ReconcilePending, model.ReconcileFailed})
+			[]model.Status{model.ClusterStatusReconcilePending, model.ClusterStatusReconcileFailed})
 
 		//check clusters which are not ready
 		statesNotReady, err := inventory.ClustersNotReady()
@@ -135,7 +135,7 @@ func TestInventory(t *testing.T) {
 		require.Len(t, statesNotReady, 3)
 		require.ElementsMatch(t,
 			listStatuses(statesNotReady),
-			[]model.Status{model.Reconciling, model.ReconcileFailed, model.Error})
+			[]model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed, model.ClusterStatusError})
 	})
 
 	t.Run("Edge-case: cluster has interim states and only latest state has to be replied)", func(t *testing.T) {
@@ -144,55 +144,55 @@ func TestInventory(t *testing.T) {
 		cluster1v1 := newCluster(t, int64(1), 1)
 		cluster1State1a, err := inventory.CreateOrUpdate(1, cluster1v1)
 		require.NoError(t, err)
-		require.Equal(t, model.ReconcilePending, cluster1State1a.Status.Status)
-		cluster1State1b, err := inventory.UpdateStatus(cluster1State1a, model.Ready)
+		require.Equal(t, model.ClusterStatusReconcilePending, cluster1State1a.Status.Status)
+		cluster1State1b, err := inventory.UpdateStatus(cluster1State1a, model.ClusterStatusReady)
 		require.NoError(t, err)
-		require.Equal(t, model.Ready, cluster1State1b.Status.Status)
+		require.Equal(t, model.ClusterStatusReady, cluster1State1b.Status.Status)
 
 		//create cluster1, version2, status: ReconcileFailed
 		cluster1v2 := newCluster(t, int64(1), 2)
 		cluster1State2a, err := inventory.CreateOrUpdate(1, cluster1v2)
 		require.NoError(t, err)
-		require.Equal(t, model.ReconcilePending, cluster1State2a.Status.Status)
-		cluster1State2b, err := inventory.UpdateStatus(cluster1State2a, model.ReconcileFailed)
+		require.Equal(t, model.ClusterStatusReconcilePending, cluster1State2a.Status.Status)
+		cluster1State2b, err := inventory.UpdateStatus(cluster1State2a, model.ClusterStatusReconcileFailed)
 		require.NoError(t, err)
-		require.Equal(t, model.ReconcileFailed, cluster1State2b.Status.Status)
+		require.Equal(t, model.ClusterStatusReconcileFailed, cluster1State2b.Status.Status)
 
 		//create cluster1, version3, status: ReconcilePending
 		cluster1v3 := newCluster(t, int64(1), 3)
 		expectedCluster1State3, err := inventory.CreateOrUpdate(1, cluster1v3) //<- EXPECTED STATE
 		require.NoError(t, err)
-		require.Equal(t, model.ReconcilePending, expectedCluster1State3.Status.Status)
+		require.Equal(t, model.ClusterStatusReconcilePending, expectedCluster1State3.Status.Status)
 
 		//create cluster2, version1, status: Error
 		cluster2v1 := newCluster(t, int64(2), 1)
 		cluster2State1a, err := inventory.CreateOrUpdate(1, cluster2v1)
 		require.NoError(t, err)
-		require.Equal(t, model.ReconcilePending, cluster2State1a.Status.Status)
-		cluster2State1b, err := inventory.UpdateStatus(cluster2State1a, model.Error)
+		require.Equal(t, model.ClusterStatusReconcilePending, cluster2State1a.Status.Status)
+		cluster2State1b, err := inventory.UpdateStatus(cluster2State1a, model.ClusterStatusError)
 		require.NoError(t, err)
-		require.Equal(t, model.Error, cluster2State1b.Status.Status)
+		require.Equal(t, model.ClusterStatusError, cluster2State1b.Status.Status)
 
 		//create cluster3, version1, status: Error
 		cluster3v1 := newCluster(t, int64(3), 1)
 		cluster3State1a, err := inventory.CreateOrUpdate(1, cluster3v1)
 		require.NoError(t, err)
-		require.Equal(t, model.ReconcilePending, cluster3State1a.Status.Status)
-		cluster3State1b, err := inventory.UpdateStatus(cluster3State1a, model.Ready)
+		require.Equal(t, model.ClusterStatusReconcilePending, cluster3State1a.Status.Status)
+		cluster3State1b, err := inventory.UpdateStatus(cluster3State1a, model.ClusterStatusReady)
 		require.NoError(t, err)
-		require.Equal(t, model.Ready, cluster3State1b.Status.Status)
-		expectedCluster3State1c, err := inventory.UpdateStatus(cluster3State1b, model.Error) //<- EXPECTED STATE
+		require.Equal(t, model.ClusterStatusReady, cluster3State1b.Status.Status)
+		expectedCluster3State1c, err := inventory.UpdateStatus(cluster3State1b, model.ClusterStatusError) //<- EXPECTED STATE
 		require.NoError(t, err)
-		require.Equal(t, model.Error, expectedCluster3State1c.Status.Status)
+		require.Equal(t, model.ClusterStatusError, expectedCluster3State1c.Status.Status)
 
 		//create cluster2, version2, status: ReconcileFailed
 		cluster2v2 := newCluster(t, int64(2), 2)
 		cluster2State2a, err := inventory.CreateOrUpdate(1, cluster2v2)
 		require.NoError(t, err)
-		require.Equal(t, model.ReconcilePending, cluster2State2a.Status.Status)
-		expectedCluster2State2b, err := inventory.UpdateStatus(cluster2State2a, model.ReconcileFailed) //<- EXPECTED STATE
+		require.Equal(t, model.ClusterStatusReconcilePending, cluster2State2a.Status.Status)
+		expectedCluster2State2b, err := inventory.UpdateStatus(cluster2State2a, model.ClusterStatusReconcileFailed) //<- EXPECTED STATE
 		require.NoError(t, err)
-		require.Equal(t, model.ReconcileFailed, expectedCluster2State2b.Status.Status)
+		require.Equal(t, model.ClusterStatusReconcileFailed, expectedCluster2State2b.Status.Status)
 
 		defer func() {
 			//cleanup
@@ -218,7 +218,7 @@ func TestInventory(t *testing.T) {
 
 	t.Run("Get status changes", func(t *testing.T) {
 		inventory := newInventory(t)
-		expectedStatuses := append(clusterStatuses, model.ReconcilePending)
+		expectedStatuses := append(clusterStatuses, model.ClusterStatusReconcilePending)
 		newCluster := newCluster(t, 1, 1)
 		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
 		require.NoError(t, err)
@@ -327,7 +327,7 @@ func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 	require.Equal(t, cluster.KymaConfig.Administrators, admins) //compare components-object
 
 	// *** ClusterStatusEntity ***
-	require.Equal(t, model.ReconcilePending, state.Status.Status)
+	require.Equal(t, model.ClusterStatusReconcilePending, state.Status.Status)
 }
 
 func toJSON(t *testing.T, model interface{}) string {

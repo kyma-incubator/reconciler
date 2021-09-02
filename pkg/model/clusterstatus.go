@@ -7,11 +7,11 @@ import (
 type Status string
 
 const (
-	ReconcilePending Status = "reconcile_pending"
-	ReconcileFailed  Status = "reconcile_failed"
-	Reconciling      Status = "reconciling"
-	Error            Status = "error"
-	Ready            Status = "ready"
+	ClusterStatusReconcilePending Status = "reconcile_pending"
+	ClusterStatusReconcileFailed  Status = "reconcile_failed"
+	ClusterStatusReconciling      Status = "reconciling"
+	ClusterStatusError            Status = "error"
+	ClusterStatusReady            Status = "ready"
 )
 
 type ClusterStatus struct {
@@ -26,20 +26,20 @@ func (s *ClusterStatus) String() string {
 func NewClusterStatus(status Status) (*ClusterStatus, error) {
 	clusterStatus := &ClusterStatus{}
 	switch status {
-	case Error:
-		clusterStatus.Status = Error
+	case ClusterStatusError:
+		clusterStatus.Status = ClusterStatusError
 		clusterStatus.ID = 0
-	case Ready:
-		clusterStatus.Status = Ready
+	case ClusterStatusReady:
+		clusterStatus.Status = ClusterStatusReady
 		clusterStatus.ID = 1
-	case ReconcilePending:
-		clusterStatus.Status = ReconcilePending
+	case ClusterStatusReconcilePending:
+		clusterStatus.Status = ClusterStatusReconcilePending
 		clusterStatus.ID = 2
-	case Reconciling:
-		clusterStatus.Status = Reconciling
+	case ClusterStatusReconciling:
+		clusterStatus.Status = ClusterStatusReconciling
 		clusterStatus.ID = 3
-	case ReconcileFailed:
-		clusterStatus.Status = ReconcileFailed
+	case ClusterStatusReconcileFailed:
+		clusterStatus.Status = ClusterStatusReconcileFailed
 		clusterStatus.ID = 4
 	default:
 		return clusterStatus, fmt.Errorf("ClusterStatus '%s' is unknown", status)

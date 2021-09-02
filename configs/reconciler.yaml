@@ -16,6 +16,7 @@ db:
     deploySchema: true
     resetDatabase: false
 mothership:
+  scheme: http
   host: localhost
   port: 8080
 crdComponents:
