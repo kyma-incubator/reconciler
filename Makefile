@@ -1,7 +1,7 @@
 APP_NAME = reconciler
 IMG_NAME := $(DOCKER_PUSH_REPOSITORY)$(DOCKER_PUSH_DIRECTORY)/$(APP_NAME)
 TAG := $(DOCKER_TAG)
-COMPONENTS := $(shell (find pkg/reconciler/instances -mindepth 1 -maxdepth 1 -type d -not -path '*/example' -exec basename {} \; | awk -vORS=, '{ print $1 }' | sed 's/,$$//'))
+COMPONENTS := $(shell (find pkg/reconciler/instances -mindepth 1 -maxdepth 1 -type d -not -path '*/example' -not -path '*/e2etest' -exec basename {} \; | awk -vORS=, '{ print $1 }' | sed 's/,$$//'))
 
 ifndef VERSION
 	VERSION = ${shell git describe --tags --always}
