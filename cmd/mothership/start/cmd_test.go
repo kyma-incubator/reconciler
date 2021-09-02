@@ -49,6 +49,37 @@ func TestReconciliation(t *testing.T) {
 				require.IsType(t, response, &keb.HTTPClusterResponse{})
 				respModel := response.(*keb.HTTPClusterResponse)
 				require.Equal(t, keb.ClusterStatusPending, respModel.Status)
+				_, err := url.Parse(respModel.StatusURL)
+				require.NoError(t, err)
+			},
+		},
+		{
+			url:              clustersURL,
+			requestFile:      filepath.Join("test", "request", "create_cluster_invalid_kubeconfig.json"),
+			expectedHTTPCode: 400,
+			verifier: func(t *testing.T, response interface{}) {
+				require.IsType(t, response, &keb.HTTPErrorResponse{})
+				errModel := response.(*keb.HTTPErrorResponse)
+				require.NotEmpty(t, errModel.Error)
+			},
+		},
+	}
+
+	for _, testCase := range tests {
+		resp := sendRequest(t, testCase)
+		if testCase.verifier != nil {
+			testCase.verifier(t, resp)
+		}
+	}
+}
+
+func startMothershipReconciler(t *testing.T, ctx context.Context) {
+	go func(ctx context.Context) {
+		o := NewOptions(cli.NewTestOptions(t))
+		o.Port = serverPort
+		o.ReconcilersCfgPath = filepath.Join("test", "component-reconcilers.json")
+		o.WatchInterval = 1 * time.Second
+		o.Verbose = true
 
 		t.Log("Starting mothership reconciler")
 		require.NoError(t, Run(ctx, o))
@@ -79,6 +110,7 @@ func sendRequest(t *testing.T, testCase *TestStruct) interface{} {
 	payload := readPayload(t, testCase)
 	response, err := http.Post(testCase.url, "application/json", strings.NewReader(payload))
 	require.NoError(t, err)
+
 	require.Equal(t, testCase.expectedHTTPCode, response.StatusCode, "Returned HTTP response code was unexpected")
 
 	responseBody, err := ioutil.ReadAll(response.Body)
