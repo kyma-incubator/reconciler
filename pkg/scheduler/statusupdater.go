@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -39,7 +40,7 @@ func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.S
 	return statusUpdater
 }
 
-func (su *ClusterStatusUpdater) Run() {
+func (su *ClusterStatusUpdater) Run(ctx context.Context) {
 	timeout := time.After(defaultProgressTimeout)
 	for {
 		select {
@@ -55,7 +56,10 @@ func (su *ClusterStatusUpdater) Run() {
 				return
 			}
 		case <-timeout:
-			su.logger.Warnf("cluster status updater reached timeout (%.0f secs)", defaultProgressTimeout.Seconds())
+			su.logger.Errorf("Cluster status updater reached timeout (%.0f secs)", defaultProgressTimeout.Seconds())
+			return
+		case <-ctx.Done():
+			su.logger.Debug("Stop cluster status updater because parent context got closed")
 			return
 		}
 	}

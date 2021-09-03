@@ -67,7 +67,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 
 	rs.logger.Debugf("Starting worker pool with capacity %d workers", rs.poolSize)
 	workersPool, err := ants.NewPoolWithFunc(rs.poolSize, func(i interface{}) {
-		rs.schedule(i.(cluster.State))
+		rs.schedule(ctx, i.(cluster.State))
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to create worker pool of remote-scheduler")
@@ -94,7 +94,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 	}
 }
 
-func (rs *RemoteScheduler) schedule(state cluster.State) {
+func (rs *RemoteScheduler) schedule(ctx context.Context, state cluster.State) {
 	schedulingID := uuid.NewString()
 	components, err := state.Configuration.GetComponents()
 	if err != nil {
@@ -108,7 +108,7 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 	}
 
 	statusUpdater := NewClusterStatusUpdater(rs.inventoryWatch.Inventory(), state, components, rs.logger)
-	go statusUpdater.Run()
+	go statusUpdater.Run(ctx)
 
 	//Reconcile CRD components first
 	for _, component := range components {
