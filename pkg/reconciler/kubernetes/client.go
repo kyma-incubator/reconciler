@@ -22,6 +22,7 @@ type ResourceInterceptor interface {
 	Intercept(resource *unstructured.Unstructured) error
 }
 
+//go:generate mockery --name Client
 type Client interface {
 	Kubeconfig() string
 	Deploy(ctx context.Context, manifest, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error)
