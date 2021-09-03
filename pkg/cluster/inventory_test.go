@@ -256,7 +256,7 @@ func listStatuses(states []*State) []model.Status {
 func listStatusesForStatusChanges(states []*StatusChange) []model.Status {
 	var result []model.Status
 	for _, state := range states {
-		result = append(result, *state.Status)
+		result = append(result, state.Status.Status)
 	}
 	return result
 }

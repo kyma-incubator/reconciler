@@ -52,7 +52,7 @@ func (or *DefaultOperationsRegistry) GetDoneOperations(schedulingID string) ([]*
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return nil, fmt.Errorf("no operations found for scheduling id %s", schedulingID)
+		return nil, fmt.Errorf("no operations found for scheduling id '%s'", schedulingID)
 	}
 	var result []*OperationState
 	for idx := range operations {
@@ -72,7 +72,7 @@ func (or *DefaultOperationsRegistry) RegisterOperation(correlationID, scheduling
 	if ok {
 		_, ok := operations[correlationID]
 		if ok {
-			return nil, fmt.Errorf("operation with the following id %s already registered", correlationID)
+			return nil, fmt.Errorf("operation with id '%s' already registered", correlationID)
 		}
 	} else {
 		or.registry[schedulingID] = make(map[string]OperationState)
@@ -109,11 +109,11 @@ func (or *DefaultOperationsRegistry) RemoveOperation(correlationID, schedulingID
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return fmt.Errorf("operation with the following id %s not found", correlationID)
+		return or.newNotFoundError(schedulingID, correlationID)
 	}
 	_, ok = operations[correlationID]
 	if !ok {
-		return fmt.Errorf("operation with the following id %s not found", correlationID)
+		return or.newNotFoundError(schedulingID, correlationID)
 	}
 	delete(or.registry[schedulingID], correlationID)
 	return nil
@@ -145,11 +145,11 @@ func (or *DefaultOperationsRegistry) update(correlationID, schedulingID, state, 
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return fmt.Errorf("operation with the following id %s not found", correlationID)
+		return or.newNotFoundError(schedulingID, correlationID)
 	}
 	op, ok := operations[correlationID]
 	if !ok {
-		return fmt.Errorf("operation with the following id %s not found", correlationID)
+		return or.newNotFoundError(schedulingID, correlationID)
 	}
 
 	or.registry[schedulingID][correlationID] = OperationState{
@@ -160,4 +160,9 @@ func (or *DefaultOperationsRegistry) update(correlationID, schedulingID, state, 
 		UpdatedAt: time.Now(),
 	}
 	return nil
+}
+
+func (or *DefaultOperationsRegistry) newNotFoundError(schedulingID string, correlationID string) error {
+	return fmt.Errorf("operation with id '%s' not found (schedulingID:%s/correlationID:%s)", correlationID,
+		schedulingID, correlationID)
 }

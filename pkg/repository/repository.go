@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bytes"
-	"database/sql"
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -46,18 +45,17 @@ func (r *Repository) Transactional(dbOps func() error) error {
 
 func (r *Repository) NewNotFoundError(err error, entity db.DatabaseEntity,
 	identifier map[string]interface{}) error {
-	if err == sql.ErrNoRows {
-		return &EntityNotFoundError{
-			entity:     entity,
-			identifier: identifier,
-		}
+	return &EntityNotFoundError{
+		entity:     entity,
+		identifier: identifier,
+		err:        err,
 	}
-	return err
 }
 
 type EntityNotFoundError struct {
 	entity     db.DatabaseEntity
 	identifier map[string]interface{}
+	err        error
 }
 
 func (e *EntityNotFoundError) Error() string {
