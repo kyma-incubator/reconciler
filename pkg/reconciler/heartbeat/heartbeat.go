@@ -167,7 +167,7 @@ func (su *Sender) Error() error {
 func (su *Sender) statusChangeAllowed(status reconciler.Status) error {
 	if su.isContextClosed() {
 		return &e.ContextClosedError{
-			Message: fmt.Sprintf("Cannot change status to '%s' because context of status Sender is closed", status),
+			Message: fmt.Sprintf("Cannot change status to '%s' because context of heartbeat sender is closed", status),
 		}
 	}
 	if su.status == reconciler.Error || su.status == reconciler.Success {

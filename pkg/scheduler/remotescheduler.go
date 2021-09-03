@@ -134,7 +134,7 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 }
 
 func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool, concurrent concurrency, statusUpdater ClusterStatusUpdater) {
-	fn := func(component *keb.Components, state cluster.State, schedulingID string, concurrent concurrency) {
+	fn := func(component *keb.Components, state cluster.State, schedulingID string) {
 		worker, err := rs.workerFactory.ForComponent(component.Component)
 		if err != nil {
 			rs.logger.Errorf("Error creating worker for component: %s", err)
@@ -149,9 +149,9 @@ func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.St
 	}
 
 	if bool(concurrent) {
-		go fn(component, state, schedulingID, concurrent)
+		go fn(component, state, schedulingID)
 	} else {
-		fn(component, state, schedulingID, concurrent)
+		fn(component, state, schedulingID)
 	}
 }
 

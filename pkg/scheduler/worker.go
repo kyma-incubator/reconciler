@@ -73,7 +73,7 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 }
 
 func (w *Worker) process(component *keb.Components, state cluster.State, schedulingID string, installCRD bool) (bool, error) {
-	w.logger.Debugf("Processing the reconciliation for a compoent %s, correlationID: %s", component.Component, w.correlationID)
+	w.logger.Debugf("Processing the reconciliation for a component %s, correlationID: %s", component.Component, w.correlationID)
 	// check max retry counter
 	if w.errorsCount > MaxRetryCount {
 		err := w.operationsReg.SetFailed(w.correlationID, schedulingID, "Max retry count reached")
