@@ -1,4 +1,4 @@
-package status
+package heartbeat
 
 import (
 	"context"
@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	defaultStatusUpdaterInterval = 30 * time.Second
-	defaultStatusUpdaterTimeout  = 1 * time.Hour
+	defaultHeartbeatSenderInterval = 30 * time.Second
+	defaultHeartbeatSenderTimeout  = 1 * time.Hour
 )
 
 type Config struct {
@@ -24,16 +24,16 @@ type Config struct {
 
 func (su *Config) validate() error {
 	if su.Interval < 0 {
-		return fmt.Errorf("status update interval cannot be < 0 but was %.1f secs", su.Interval.Seconds())
+		return fmt.Errorf("heartbeat interval cannot be < 0 but was %.1f secs", su.Interval.Seconds())
 	}
 	if su.Interval == 0 {
-		su.Interval = defaultStatusUpdaterInterval
+		su.Interval = defaultHeartbeatSenderInterval
 	}
 	if su.Timeout < 0 {
 		return fmt.Errorf("timeout cannot be < 0 but was %d", su.Timeout)
 	}
 	if su.Timeout == 0 {
-		su.Timeout = defaultStatusUpdaterTimeout
+		su.Timeout = defaultHeartbeatSenderTimeout
 	}
 
 	if su.Timeout <= su.Interval {
@@ -43,7 +43,7 @@ func (su *Config) validate() error {
 	return nil
 }
 
-type Updater struct {
+type Sender struct {
 	ctx             context.Context
 	ctxClosed       bool //indicate whether the process was interrupted by parent context
 	timeout         *time.Timer
@@ -55,12 +55,12 @@ type Updater struct {
 	logger          *zap.SugaredLogger
 }
 
-func NewStatusUpdater(ctx context.Context, callback cb.Handler, logger *zap.SugaredLogger, config Config) (*Updater, error) {
+func NewHeartbeatSender(ctx context.Context, callback cb.Handler, logger *zap.SugaredLogger, config Config) (*Sender, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
 
-	return &Updater{
+	return &Sender{
 		ctx:             ctx,
 		config:          config,
 		restartInterval: make(chan bool),
@@ -71,19 +71,19 @@ func NewStatusUpdater(ctx context.Context, callback cb.Handler, logger *zap.Suga
 	}, nil
 }
 
-func (su *Updater) closeContext() {
+func (su *Sender) closeContext() {
 	su.m.Lock()
 	defer su.m.Unlock()
 	su.ctxClosed = true
 }
 
-func (su *Updater) isContextClosed() bool {
+func (su *Sender) isContextClosed() bool {
 	su.m.Lock()
 	defer su.m.Unlock()
 	return su.ctxClosed
 }
 
-func (su *Updater) sendUpdate(status reconciler.Status, onlyOnce bool) {
+func (su *Sender) sendUpdate(status reconciler.Status, onlyOnce bool) {
 	su.stopJob() //ensure previous interval-loop is stopped before starting a new loop
 
 	task := func(status reconciler.Status) error {
@@ -130,17 +130,17 @@ func (su *Updater) sendUpdate(status reconciler.Status, onlyOnce bool) {
 	su.status = status
 }
 
-func (su *Updater) CurrentStatus() reconciler.Status {
+func (su *Sender) CurrentStatus() reconciler.Status {
 	return su.status
 }
 
-func (su *Updater) stopJob() {
+func (su *Sender) stopJob() {
 	if su.status == reconciler.Running {
 		su.restartInterval <- true
 	}
 }
 
-func (su *Updater) Running() error {
+func (su *Sender) Running() error {
 	if err := su.statusChangeAllowed(reconciler.Running); err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (su *Updater) Running() error {
 	return nil
 }
 
-func (su *Updater) Success() error {
+func (su *Sender) Success() error {
 	if err := su.statusChangeAllowed(reconciler.Success); err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (su *Updater) Success() error {
 	return nil
 }
 
-func (su *Updater) Error() error {
+func (su *Sender) Error() error {
 	if err := su.statusChangeAllowed(reconciler.Error); err != nil {
 		return err
 	}
@@ -164,10 +164,10 @@ func (su *Updater) Error() error {
 	return nil
 }
 
-func (su *Updater) statusChangeAllowed(status reconciler.Status) error {
+func (su *Sender) statusChangeAllowed(status reconciler.Status) error {
 	if su.isContextClosed() {
 		return &e.ContextClosedError{
-			Message: fmt.Sprintf("Cannot change status to '%s' because context of status updater is closed", status),
+			Message: fmt.Sprintf("Cannot change status to '%s' because context of status Sender is closed", status),
 		}
 	}
 	if su.status == reconciler.Error || su.status == reconciler.Success {

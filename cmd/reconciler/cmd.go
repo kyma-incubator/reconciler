@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"time"
+
 	startCmd "github.com/kyma-incubator/reconciler/cmd/reconciler/start"
 	startSvcCmd "github.com/kyma-incubator/reconciler/cmd/reconciler/start/service"
 	testCmd "github.com/kyma-incubator/reconciler/cmd/reconciler/test"
@@ -9,7 +11,6 @@ import (
 	"github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	reconcilerRegistry "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/spf13/cobra"
-	"time"
 
 	//imports loader.go which ensures that all available component reconcilers are added to the reconciler registry:
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
@@ -46,10 +47,10 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	cmd.PersistentFlags().DurationVar(&reconcilerOpts.RetryConfig.RetryDelay, "retries-delay", 30*time.Second,
 		"Delay between each reconciliation retry")
 
-	//status-updater configuration
-	cmd.PersistentFlags().DurationVar(&reconcilerOpts.StatusUpdaterConfig.Interval, "status-interval", 30*time.Second,
+	//heartbeat-sender configuration
+	cmd.PersistentFlags().DurationVar(&reconcilerOpts.HeartbeatSenderConfig.Interval, "status-interval", 30*time.Second,
 		"Interval to report the latest reconciliation process status to the mothership reconciler")
-	reconcilerOpts.StatusUpdaterConfig.Timeout = reconcilerOpts.WorkerConfig.Timeout //coupled to reconcile-timeout
+	reconcilerOpts.HeartbeatSenderConfig.Timeout = reconcilerOpts.WorkerConfig.Timeout //coupled to reconcile-timeout
 
 	//progress-tracker configuration
 	cmd.PersistentFlags().DurationVar(&reconcilerOpts.ProgressTrackerConfig.Interval, "progress-interval", 15*time.Second,

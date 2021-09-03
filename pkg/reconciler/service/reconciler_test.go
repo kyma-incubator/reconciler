@@ -86,9 +86,9 @@ func TestReconciler(t *testing.T) {
 		require.Equal(t, "sslKeyFile", recon.serverConfig.sslKeyFile)
 		require.Equal(t, "sslCrtFile", recon.serverConfig.sslCrtFile)
 
-		recon.WithStatusUpdaterConfig(333*time.Second, 4455*time.Second)
-		require.Equal(t, 333*time.Second, recon.statusUpdaterConfig.interval)
-		require.Equal(t, 4455*time.Second, recon.statusUpdaterConfig.timeout)
+		recon.WithHeartbeatSenderConfig(333*time.Second, 4455*time.Second)
+		require.Equal(t, 333*time.Second, recon.heartbeatSenderConfig.interval)
+		require.Equal(t, 4455*time.Second, recon.heartbeatSenderConfig.timeout)
 
 		recon.WithProgressTrackerConfig(666*time.Second, 777*time.Second)
 		require.Equal(t, 666*time.Second, recon.progressTrackerConfig.interval)
@@ -141,7 +141,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 			WithServerConfig(9999, "", "").
 			WithDependencies("abc", "xyz").
 			WithRetry(1, 1*time.Second).
-			WithStatusUpdaterConfig(1*time.Second, workerTimeout).
+			WithHeartbeatSenderConfig(1*time.Second, workerTimeout).
 			WithProgressTrackerConfig(1*time.Second, workerTimeout).
 			StartRemote(ctx)
 		require.NoError(t, err)

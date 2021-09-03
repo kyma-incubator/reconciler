@@ -8,7 +8,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"go.uber.org/zap"
 )
@@ -59,7 +58,7 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 	for {
 		select {
 		case <-time.After(MaxDuration):
-			return fmt.Errorf("Max operation time reached for operation %s in %s", w.correlationID, schedulingID)
+			return fmt.Errorf("max operation time reached for operation %s in %s", w.correlationID, schedulingID)
 		case <-ticker.C:
 			done, err := w.process(component, state, schedulingID, installCRD)
 			if err != nil {
@@ -81,14 +80,14 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 		if err != nil {
 			w.logger.Errorf("Error while updating operation status to failed, correlationID %s: %s", w.correlationID, err)
 		}
-		return true, fmt.Errorf("Max retry count for opeation %s in %s excceded", w.correlationID, schedulingID)
+		return true, fmt.Errorf("max retry count for opeation %s in %s excceded", w.correlationID, schedulingID)
 	}
 	op := w.operationsReg.GetOperation(w.correlationID, schedulingID)
 	if op == nil { // New operation
 		w.logger.Debugf("Creating new reconciliation operation for a component %s, correlationID: %s", component.Component, w.correlationID)
 		_, err := w.operationsReg.RegisterOperation(w.correlationID, schedulingID, component.Component)
 		if err != nil {
-			return true, fmt.Errorf("Error while registering the operation, correlationID %s: %s", w.correlationID, err)
+			return true, fmt.Errorf("error while registering the operation, correlationID %s: %s", w.correlationID, err)
 		}
 
 		err = w.callReconciler(component, state, schedulingID, installCRD)
@@ -116,11 +115,7 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 		// Operation still being processed by the component reconciler
 		return false, nil
 	case StateError:
-		_, err := w.inventory.UpdateStatus(&state, model.Error)
-		if err != nil {
-			w.logger.Error(err, "while updating cluster as error")
-		}
-		return true, fmt.Errorf("Operation errored: %s", op.Reason)
+		return true, fmt.Errorf("operation errored: %s", op.Reason)
 	case StateDone:
 		err := w.operationsReg.RemoveOperation(w.correlationID, schedulingID)
 		if err != nil {

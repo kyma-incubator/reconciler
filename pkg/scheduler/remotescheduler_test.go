@@ -47,7 +47,6 @@ func TestRemoteScheduler(t *testing.T) {
 
 	l, _ := logger.NewLogger(true)
 	sut := RemoteScheduler{
-		inventory:      &cluster.MockInventory{},
 		inventoryWatch: inventoryWatchStub,
 		workerFactory:  workerFactoryMock,
 		mothershipCfg:  MothershipReconcilerConfig{},
