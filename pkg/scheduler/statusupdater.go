@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	CHANNEL_SIZE    = 100
-	progressTimeout = 20 * time.Minute
+	channelSize            = 100
+	defaultProgressTimeout = 1 * time.Hour
 )
 
 type ClusterStatusUpdater struct {
@@ -35,12 +35,12 @@ func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.S
 		statusUpdater.statusMap[comp.Component] = StateInProgress
 	}
 	statusUpdater.reconciling()
-	statusUpdater.updateChannel = make(chan Update, CHANNEL_SIZE)
+	statusUpdater.updateChannel = make(chan Update, channelSize)
 	return statusUpdater
 }
 
 func (su *ClusterStatusUpdater) Run() {
-	timeout := time.After(progressTimeout)
+	timeout := time.After(defaultProgressTimeout)
 	for {
 		select {
 		case update := <-su.updateChannel:
