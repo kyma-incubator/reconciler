@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	//add Postgres driver:
@@ -87,7 +86,7 @@ type PostgresConnectionFactory struct {
 }
 
 func (pcf *PostgresConnectionFactory) Init() error {
-	//no init action required for postgres
+	pcf.dumpPostgresIsolationLevel()
 	return nil
 }
 
@@ -111,4 +110,35 @@ func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
 	}
 
 	return newPostgresConnection(db, pcf.EncryptionKey, pcf.Debug)
+}
+
+func (pcf *PostgresConnectionFactory) dumpPostgresIsolationLevel() {
+	logger := log.NewOptionalLogger(pcf.Debug)
+
+	dbConn, err := pcf.NewConnection()
+	if err != nil {
+		logger.Warnf("Not able to open DB connection to verify DB isolation level: %s", err)
+		return
+	}
+
+	defer func() {
+		if err := dbConn.Close(); err != nil {
+			logger.Warnf("Failed to close DB connection which was used to get Postgres isolation level: %s", err)
+		}
+	}()
+
+	res, err := dbConn.Query("SHOW TRANSACTION ISOLATION LEVEL")
+	if err == nil {
+		var isoLevel interface{}
+		if res.Next() {
+			if err := res.Scan(&isoLevel); err != nil {
+				logger.Infof("Failed to bind Postgres result including isolation level: %s", err)
+			}
+			logger.Infof("Postgres isolation level is: %v", isoLevel)
+		} else {
+			logger.Info("Postgres isolation level unknown")
+		}
+	} else {
+		logger.Warnf("Failed to get isolation level from Postgres DB: %s", err)
+	}
 }
