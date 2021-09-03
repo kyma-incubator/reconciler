@@ -55,7 +55,7 @@ func (su *ClusterStatusUpdater) Run() {
 				return
 			}
 		case <-timeout:
-			su.logger.Warnf("cluster status updater reached timeout (%.0f secs)", progressTimeout.Seconds())
+			su.logger.Warnf("cluster status updater reached timeout (%.0f secs)", defaultProgressTimeout.Seconds())
 			return
 		}
 	}
