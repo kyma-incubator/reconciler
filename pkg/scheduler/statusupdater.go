@@ -28,8 +28,8 @@ type Update struct {
 	operationState string
 }
 
-func NewClusterStatusUpdater(inventory *cluster.Inventory, clusterState cluster.State, components []*keb.Components, logger *zap.SugaredLogger) ClusterStatusUpdater {
-	statusUpdater := ClusterStatusUpdater{inventory: *inventory, clusterState: clusterState, logger: logger}
+func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.State, components []*keb.Components, logger *zap.SugaredLogger) ClusterStatusUpdater {
+	statusUpdater := ClusterStatusUpdater{inventory: inventory, clusterState: clusterState, logger: logger}
 	statusUpdater.statusMap = make(map[string]string)
 	for _, comp := range components {
 		statusUpdater.statusMap[comp.Component] = StateInProgress
@@ -45,9 +45,7 @@ func (su *ClusterStatusUpdater) Run() {
 		select {
 		case update := <-su.updateChannel:
 			su.statusMap[update.component] = update.operationState
-			if update.operationState == StateInProgress {
-				su.reconciling()
-			} else if update.operationState == StateDone {
+			if update.operationState == StateDone {
 				su.success()
 			} else if update.operationState == StateError {
 				su.error()
@@ -103,7 +101,7 @@ func (su *ClusterStatusUpdater) sendUpdate(status model.Status) {
 func (su *ClusterStatusUpdater) statusChangeAllowed(status model.Status) error {
 	latestState, err := su.inventory.GetLatest(su.clusterState.Cluster.Cluster)
 	if err != nil {
-		su.logger.Infof("Failed to update cluster status as ready: %s", err)
+		return fmt.Errorf("failed to get the latest cluster status: %s", err)
 	}
 
 	if latestState.Status.Status == model.ClusterStatusError || latestState.Status.Status == model.ClusterStatusReady {

@@ -16,15 +16,15 @@ type MockInventoryWatcher struct {
 }
 
 // Inventory provides a mock function with given fields:
-func (_m *MockInventoryWatcher) Inventory() *cluster.Inventory {
+func (_m *MockInventoryWatcher) Inventory() cluster.Inventory {
 	ret := _m.Called()
 
-	var r0 *cluster.Inventory
-	if rf, ok := ret.Get(0).(func() *cluster.Inventory); ok {
+	var r0 cluster.Inventory
+	if rf, ok := ret.Get(0).(func() cluster.Inventory); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*cluster.Inventory)
+			r0 = ret.Get(0).(cluster.Inventory)
 		}
 	}
 

@@ -18,7 +18,7 @@ const (
 type InventoryQueue chan<- cluster.State
 
 type InventoryWatcher interface {
-	Inventory() *cluster.Inventory
+	Inventory() cluster.Inventory
 	Run(ctx context.Context, informer InventoryQueue) error
 }
 
@@ -65,8 +65,8 @@ type DefaultInventoryWatcher struct {
 	logger    *zap.SugaredLogger
 }
 
-func (w *DefaultInventoryWatcher) Inventory() *cluster.Inventory {
-	return &w.inventory
+func (w *DefaultInventoryWatcher) Inventory() cluster.Inventory {
+	return w.inventory
 }
 
 func (w *DefaultInventoryWatcher) Run(ctx context.Context, queue InventoryQueue) error {
