@@ -1,37 +1,131 @@
 package istio
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"os"
 	"os/exec"
+	"strings"
 )
 
 const (
-	istioctl1_10_2 = "/bin/istioctl-1.10.2"
+	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
+	yamlDelimiter            = "---"
+	istioOperatorKind        = "kind: IstioOperator"
+	istioNamespace           = "istio-system"
+	istioChart               = "istio-configuration"
 )
+
+type webhookPatchJSON struct {
+	Op    string                `json:"op"`
+	Path  string                `json:"path"`
+	Value webhookPatchJSONValue `json:"value"`
+}
+
+type webhookPatchJSONValue struct {
+	Key      string   `json:"key"`
+	Operator string   `json:"operator"`
+	Values   []string `json:"values"`
+}
 
 type ReconcileAction struct {
 }
 
 func (a *ReconcileAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
-	ws, err := context.WorkspaceFactory.Get(version)
-	if err != nil {
-		return errors.Wrap(err,
-			fmt.Sprintf("Failed to retrieve Kyma workspace '%s' in ISTIO reconcile-action", version))
+	var overrides = make(map[string]interface{}, len(config))
+	for _, configEntry := range config {
+		overrides[configEntry.Key] = configEntry.Value
 	}
-	fmt.Printf("Kyma sources are located here: %s\n", ws.WorkspaceDir)
+	component := chart.NewComponentBuilder(version, istioChart).WithNamespace(istioNamespace).WithProfile(profile).WithConfiguration(config).Build()
+	manifest, err := context.ChartProvider.RenderManifest(component)
+	if err != nil {
+		return err
+	}
 
-	return istioctl(version)
+	istioOperator := extractIstioOperatorContextFrom(manifest.Manifest)
+	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		cleanupErr := istioOperatorCf()
+		if cleanupErr != nil {
+			context.Logger.Error(cleanupErr)
+		}
+	}()
+
+	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(context.KubeClient.Kubeconfig())
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		cleanupErr := kubeconfigCf()
+		if cleanupErr != nil {
+			context.Logger.Error(cleanupErr)
+		}
+	}()
+
+	istioBinaryPath := getIstioctlBinaryPath()
+	cmd := prepareIstioctlCommand(istioBinaryPath, istioOperatorPath, kubeconfigPath)
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	_, err = context.KubeClient.Deploy(context.Context, manifest.Manifest, istioNamespace)
+	if err != nil {
+		return err
+	}
+
+	patchContent := []webhookPatchJSON{{
+		Op:   "add",
+		Path: "/webhooks/4/namespaceSelector/matchExpressions/-",
+		Value: webhookPatchJSONValue{
+			Key:      "gardener.cloud/purpose",
+			Operator: "NotIn",
+			Values: []string{
+				"kube-system",
+			},
+		},
+	}}
+
+	patchContentJSON, err := json.Marshal(patchContent)
+	if err != nil {
+		return err
+	}
+
+	err = context.KubeClient.PatchUsingStrategy("MutatingWebhookConfiguration", "istio-sidecar-injector", istioNamespace, patchContentJSON, types.JSONPatchType)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-//istioctl calls the istioctl command depending on the provided Kyma version
-func istioctl(version string) error {
-	switch version {
-	case "2.0.0":
-		return exec.Command(istioctl1_10_2, "version").Run()
-	default:
-		return exec.Command(istioctl1_10_2, "version").Run()
+func getIstioctlBinaryPath() string {
+	return os.Getenv(istioctlBinaryPathEnvKey)
+}
+
+func prepareIstioctlCommand(istioBinaryPath, istioOperatorPath, kubeconfigPath string) *exec.Cmd {
+	cmd := exec.Command(istioBinaryPath, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd
+}
+
+func extractIstioOperatorContextFrom(manifest string) string {
+	defs := strings.Split(manifest, yamlDelimiter)
+	for _, def := range defs {
+		if strings.Contains(def, istioOperatorKind) {
+			return def
+		}
 	}
+
+	return ""
 }
