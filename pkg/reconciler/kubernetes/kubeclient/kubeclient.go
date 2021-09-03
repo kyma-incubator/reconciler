@@ -247,23 +247,23 @@ func (kube *KubeClient) ListResource(resource string, lo metav1.ListOptions) (*u
 	return kube.dynamicClient.Resource(gvr).List(context.TODO(), lo)
 }
 
-func (c *KubeClient) Patch(kind, name, namespace string, p []byte) (Metadata, *unstructured.Unstructured, error) {
-	return c.PatchUsingStrategy(kind, name, namespace, p, types.StrategicMergePatchType)
+func (kube *KubeClient) Patch(kind, name, namespace string, p []byte) (Metadata, *unstructured.Unstructured, error) {
+	return kube.PatchUsingStrategy(kind, name, namespace, p, types.StrategicMergePatchType)
 }
 
-func (c *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) (Metadata, *unstructured.Unstructured, error) {
+func (kube *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) (Metadata, *unstructured.Unstructured, error) {
 	metadata := Metadata{}
-	gvk, err := c.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
+	gvk, err := kube.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
 	if err != nil {
 		return metadata, nil, err
 	}
 
-	restMapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return metadata, nil, err
 	}
 
-	restClient, err := newRestClient(*c.config, gvk.GroupVersion())
+	restClient, err := newRestClient(*kube.config, gvk.GroupVersion())
 	if err != nil {
 		return metadata, nil, err
 	}
@@ -273,12 +273,12 @@ func (c *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byte, 
 	var u *unstructured.Unstructured
 
 	if helper.NamespaceScoped {
-		u, err = c.dynamicClient.
+		u, err = kube.dynamicClient.
 			Resource(restMapping.Resource).
 			Namespace(namespace).
 			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
 	} else {
-		u, err = c.dynamicClient.
+		u, err = kube.dynamicClient.
 			Resource(restMapping.Resource).
 			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
 	}

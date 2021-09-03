@@ -17,19 +17,19 @@ const (
 	yamlDelimiter            = "---"
 	istioOperatorKind        = "kind: IstioOperator"
 	istioNamespace           = "istio-system"
- 	istioChart               = "istio-configuration"
+	istioChart               = "istio-configuration"
 )
 
-type webhookPatchJson struct {
-	Op string `json:"op"`
-	Path string `json:"path"`
-	Value webhookPatchJsonValue `json:"value"`
+type webhookPatchJSON struct {
+	Op    string                `json:"op"`
+	Path  string                `json:"path"`
+	Value webhookPatchJSONValue `json:"value"`
 }
 
-type webhookPatchJsonValue struct {
-	Key string `json:"key"`
-	Operator string `json:"operator"`
-	Values [] string `json:"values"`
+type webhookPatchJSONValue struct {
+	Key      string   `json:"key"`
+	Operator string   `json:"operator"`
+	Values   []string `json:"values"`
 }
 
 type ReconcileAction struct {
@@ -82,24 +82,24 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 		return err
 	}
 
-	patchContent := []webhookPatchJson{{
-		Op:    "add",
-		Path:  "/webhooks/4/namespaceSelector/matchExpressions/-",
-		Value: webhookPatchJsonValue{
+	patchContent := []webhookPatchJSON{{
+		Op:   "add",
+		Path: "/webhooks/4/namespaceSelector/matchExpressions/-",
+		Value: webhookPatchJSONValue{
 			Key:      "gardener.cloud/purpose",
 			Operator: "NotIn",
-			Values:   []string{
+			Values: []string{
 				"kube-system",
 			},
 		},
 	}}
 
-	patchContentJson, err := json.Marshal(patchContent)
+	patchContentJSON, err := json.Marshal(patchContent)
 	if err != nil {
 		return err
 	}
 
-	err = context.KubeClient.PatchUsingStrategy("MutatingWebhookConfiguration", "istio-sidecar-injector", istioNamespace, patchContentJson, types.JSONPatchType)
+	err = context.KubeClient.PatchUsingStrategy("MutatingWebhookConfiguration", "istio-sidecar-injector", istioNamespace, patchContentJSON, types.JSONPatchType)
 	if err != nil {
 		return err
 	}
