@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/heartbeat"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/status"
 	"github.com/pkg/errors"
 )
 
@@ -18,17 +19,17 @@ type runner struct {
 }
 
 func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {
-	statusUpdater, err := status.NewStatusUpdater(ctx, callback, r.logger, status.Config{
-		Interval: r.statusUpdaterConfig.interval,
-		Timeout:  r.statusUpdaterConfig.timeout,
+	heartbeatSender, err := heartbeat.NewHeartbeatSender(ctx, callback, r.logger, heartbeat.Config{
+		Interval: r.heartbeatSenderConfig.interval,
+		Timeout:  r.heartbeatSenderConfig.timeout,
 	})
 	if err != nil {
 		return err
 	}
 
-	retryable := func(statusUpdater *status.Updater) func() error {
+	retryable := func(heartbeatSender *heartbeat.Sender) func() error {
 		return func() error {
-			if err := statusUpdater.Running(); err != nil {
+			if err := heartbeatSender.Running(); err != nil {
 				r.logger.Warnf("Failed to start status updater: %s", err)
 				return err
 			}
@@ -36,13 +37,10 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 			if err != nil {
 				r.logger.Warnf("Failing reconciliation of '%s' in version '%s' with profile '%s': %s",
 					model.Component, model.Version, model.Profile, err)
-				if errUpdater := statusUpdater.Failed(); errUpdater != nil {
-					err = errors.Wrap(err, errUpdater.Error())
-				}
 			}
 			return err
 		}
-	}(statusUpdater)
+	}(heartbeatSender)
 
 	//retry the reconciliation in case of an error
 	err = retry.Do(retryable,
@@ -54,13 +52,13 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 	if err == nil {
 		r.logger.Infof("Reconciliation of component '%s' for version '%s' finished successfully",
 			model.Component, model.Version)
-		if err := statusUpdater.Success(); err != nil {
+		if err := heartbeatSender.Success(); err != nil {
 			return err
 		}
 	} else {
 		r.logger.Warnf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			model.Component, model.Version)
-		if err := statusUpdater.Error(); err != nil {
+		if err := heartbeatSender.Error(); err != nil {
 			return err
 		}
 	}

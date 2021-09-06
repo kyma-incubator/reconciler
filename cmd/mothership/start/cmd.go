@@ -41,7 +41,7 @@ func NewCmd(o *Options) *cobra.Command {
 			if err := o.InitApplicationRegistry(true); err != nil {
 				return err
 			}
-			return Run(o)
+			return Run(cli.NewContext(), o)
 		},
 	}
 	cmd.Flags().IntVar(&o.Port, "server-port", 8080, "Webserver port")
@@ -55,9 +55,7 @@ func NewCmd(o *Options) *cobra.Command {
 	return cmd
 }
 
-func Run(o *Options) error {
-	ctx := cli.NewContext()
-
+func Run(ctx context.Context, o *Options) error {
 	go func(ctx context.Context, o *Options) {
 		err := startScheduler(ctx, o, viper.ConfigFileUsed())
 		if err != nil {

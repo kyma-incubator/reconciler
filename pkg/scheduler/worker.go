@@ -8,9 +8,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +24,7 @@ type ReconciliationWorker interface {
 
 type Worker struct {
 	correlationID string
-	config        *reconciler.ComponentReconciler
+	config        *ComponentReconciler
 	inventory     cluster.Inventory
 	operationsReg OperationsRegistry
 	invoker       ReconcilerInvoker
@@ -35,7 +33,7 @@ type Worker struct {
 }
 
 func NewWorker(
-	config *reconciler.ComponentReconciler,
+	config *ComponentReconciler,
 	inventory cluster.Inventory,
 	operationsReg OperationsRegistry,
 	invoker ReconcilerInvoker,
@@ -57,10 +55,6 @@ func NewWorker(
 
 func (w *Worker) Reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool) error {
 	ticker := time.NewTicker(10 * time.Second)
-	_, err := w.inventory.UpdateStatus(&state, model.Reconciling)
-	if err != nil {
-		return errors.Wrap(err, "while updating cluster as reconciling")
-	}
 	for {
 		select {
 		case <-time.After(MaxDuration):
@@ -72,10 +66,6 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 				return err
 			}
 			if done {
-				_, err = w.inventory.UpdateStatus(&state, model.Ready)
-				if err != nil {
-					return errors.Wrap(err, "while updating cluster as ready")
-				}
 				return nil
 			}
 		}
@@ -121,7 +111,7 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 			return false, err
 		}
 		return false, nil
-	case StateNew, StateInProgress, StateFailed:
+	case StateNew, StateInProgress:
 		// Operation still being processed by the component reconciler
 		return false, nil
 	case StateError:

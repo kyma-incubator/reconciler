@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -49,6 +50,11 @@ func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *C
 
 func (g *kubeClientAdapter) Kubeconfig() string {
 	return g.kubeconfig
+}
+
+func (g *kubeClientAdapter) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) error {
+	_, _, err := g.kubeClient.PatchUsingStrategy(kind, name, namespace, p, strategy)
+	return err
 }
 
 func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace string, interceptors ...k8s.ResourceInterceptor) ([]*k8s.Resource, error) {
@@ -115,6 +121,10 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 
 	for _, unstruct := range unstructs {
 		for _, interceptor := range interceptors {
+			if interceptor == nil {
+				continue
+			}
+
 			if err := interceptor.Intercept(unstruct); err != nil {
 				g.logger.Errorf("Failed to intercept Kubernetes unstructured entity: %s", err)
 				return deployedResources, err
