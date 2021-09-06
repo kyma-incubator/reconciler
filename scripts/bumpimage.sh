@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ -z "$PULL_NUMBER" ]; then
-  >&2 echo "Environment variable 'PULL_NUMBER' is missing: cann update tag for PR-image"
+  >&2 echo "Environment variable 'PULL_NUMBER' is missing: cannot update tag for PR-image"
   exit 1
 fi
 
