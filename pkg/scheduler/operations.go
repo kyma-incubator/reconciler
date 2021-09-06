@@ -35,25 +35,25 @@ type OperationsRegistry interface {
 	SetFailed(correlationID, schedulingID, reason string) error
 }
 
-type OperationNowFoundError struct {
+type OperationNotFoundError struct {
 	schedulingID  string
 	correlationID string
 }
 
-func (err *OperationNowFoundError) Error() string {
+func (err *OperationNotFoundError) Error() string {
 	return fmt.Sprintf("operation with id '%s' not found (schedulingID:%s/correlationID:%s)", err.correlationID,
 		err.schedulingID, err.correlationID)
 }
 
 func newOperationNotFoundError(schedulingID string, correlationID string) error {
-	return &OperationNowFoundError{
+	return &OperationNotFoundError{
 		schedulingID:  schedulingID,
 		correlationID: correlationID,
 	}
 }
 
 func IsOperationNotFoundError(err error) bool {
-	_, ok := err.(*OperationNowFoundError)
+	_, ok := err.(*OperationNotFoundError)
 	return ok
 }
 
