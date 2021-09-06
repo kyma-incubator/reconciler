@@ -58,8 +58,8 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 	} else {
 		r.logger.Errorf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			model.Component, model.Version)
-		if err := heartbeatSender.Error(); err != nil {
-			return err
+		if heartbeatErr := heartbeatSender.Error(); heartbeatErr != nil {
+			return errors.Wrap(err, heartbeatErr.Error())
 		}
 	}
 
