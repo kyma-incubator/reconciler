@@ -6,3 +6,6 @@ metadata:
 data:
   key1: "{{ .Values.config.key1 }}"
   key2: "{{ .Values.config.key2 }}"
+{{- if .Values.conditionalkey.enabled }}
+  conditionalkey: {{ .Values.conditionalkey.name}}
+{{- end }}

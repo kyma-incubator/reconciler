@@ -2,13 +2,14 @@ package chart
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"path/filepath"
+	"testing"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	"io/ioutil"
-	"path/filepath"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 )
@@ -146,6 +147,10 @@ func TestHelm(t *testing.T) {
 				{
 					Key:   "config.key2",
 					Value: "value2 from component",
+				},
+				{
+					Key:   "conditionalkey.enabled",
+					Value: false,
 				},
 			}).
 			Build()

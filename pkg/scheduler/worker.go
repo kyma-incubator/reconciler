@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -163,12 +164,24 @@ func (w *Worker) getDoneComponents(schedulingID string) ([]string, error) {
 	return result, nil
 }
 
+func convertBooleans(value string) interface{} {
+	v := strings.ToLower(value)
+	if v == "false" {
+		return false
+	}
+	if v == "true" {
+		return true
+	}
+	return value
+
+}
+
 func mapConfiguration(kebCfg []keb.Configuration) []reconciler.Configuration {
 	reconcilerCfg := make([]reconciler.Configuration, len(kebCfg))
 	for _, k := range kebCfg {
 		reconcilerCfg = append(reconcilerCfg, reconciler.Configuration{
 			Key:   k.Key,
-			Value: k.Value,
+			Value: convertBooleans(k.Value),
 		})
 	}
 	return reconcilerCfg
