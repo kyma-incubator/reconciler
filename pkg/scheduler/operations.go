@@ -35,6 +35,28 @@ type OperationsRegistry interface {
 	SetFailed(correlationID, schedulingID, reason string) error
 }
 
+type OperationNotFoundError struct {
+	schedulingID  string
+	correlationID string
+}
+
+func (err *OperationNotFoundError) Error() string {
+	return fmt.Sprintf("operation with id '%s' not found (schedulingID:%s/correlationID:%s)", err.correlationID,
+		err.schedulingID, err.correlationID)
+}
+
+func newOperationNotFoundError(schedulingID string, correlationID string) error {
+	return &OperationNotFoundError{
+		schedulingID:  schedulingID,
+		correlationID: correlationID,
+	}
+}
+
+func IsOperationNotFoundError(err error) bool {
+	_, ok := err.(*OperationNotFoundError)
+	return ok
+}
+
 type DefaultOperationsRegistry struct {
 	registry map[string]map[string]OperationState
 	mu       sync.Mutex
@@ -52,7 +74,7 @@ func (or *DefaultOperationsRegistry) GetDoneOperations(schedulingID string) ([]*
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return nil, fmt.Errorf("no operations found for scheduling id %s", schedulingID)
+		return nil, fmt.Errorf("no operations found for scheduling id '%s'", schedulingID)
 	}
 	var result []*OperationState
 	for idx := range operations {
@@ -72,7 +94,7 @@ func (or *DefaultOperationsRegistry) RegisterOperation(correlationID, scheduling
 	if ok {
 		_, ok := operations[correlationID]
 		if ok {
-			return nil, fmt.Errorf("operation with the following id %s already registered", correlationID)
+			return nil, fmt.Errorf("operation with id '%s' already registered", correlationID)
 		}
 	} else {
 		or.registry[schedulingID] = make(map[string]OperationState)
@@ -109,11 +131,11 @@ func (or *DefaultOperationsRegistry) RemoveOperation(correlationID, schedulingID
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return fmt.Errorf("operation with the following id %s not found", correlationID)
+		return newOperationNotFoundError(schedulingID, correlationID)
 	}
 	_, ok = operations[correlationID]
 	if !ok {
-		return fmt.Errorf("operation with the following id %s not found", correlationID)
+		return newOperationNotFoundError(schedulingID, correlationID)
 	}
 	delete(or.registry[schedulingID], correlationID)
 	return nil
@@ -145,11 +167,11 @@ func (or *DefaultOperationsRegistry) update(correlationID, schedulingID, state, 
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return fmt.Errorf("operation with the following id %s not found", correlationID)
+		return newOperationNotFoundError(schedulingID, correlationID)
 	}
 	op, ok := operations[correlationID]
 	if !ok {
-		return fmt.Errorf("operation with the following id %s not found", correlationID)
+		return newOperationNotFoundError(schedulingID, correlationID)
 	}
 
 	or.registry[schedulingID][correlationID] = OperationState{

@@ -1,10 +1,12 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
@@ -27,7 +29,7 @@ func (cb *ClientBuilder) WithString(kubeconfig string) *ClientBuilder {
 	return cb
 }
 
-func (cb *ClientBuilder) Build() (kubernetes.Interface, error) {
+func (cb *ClientBuilder) Build(validate bool) (kubernetes.Interface, error) {
 	if cb.err != nil {
 		return nil, cb.err
 	}
@@ -48,6 +50,17 @@ func (cb *ClientBuilder) Build() (kubernetes.Interface, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create Kubernetes clientset by using provided REST-configuration")
 	}
+
+	if validate {
+		timeout := int64(5)
+		_, err := clientSet.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
+			TimeoutSeconds: &timeout,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "validation of connection to Kubernetes cluster failed")
+		}
+	}
+
 	return clientSet, err
 }
 
