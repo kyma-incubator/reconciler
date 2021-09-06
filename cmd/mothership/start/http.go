@@ -269,8 +269,6 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 		err = o.Registry.OperationsRegistry().SetDone(correlationID, schedulingID)
 	case string(reconciler.Error):
 		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID, "Reconciler reported error status")
-	case string(reconciler.Failed):
-		err = o.Registry.OperationsRegistry().SetFailed(correlationID, schedulingID, "Reconciler reported failed status")
 	}
 	if err != nil {
 		sendError(w, http.StatusBadRequest, err)

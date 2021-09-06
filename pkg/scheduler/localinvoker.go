@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"go.uber.org/zap"
@@ -55,8 +56,6 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 				return lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
 			case reconciler.Error:
 				return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID, "Reconciler reported error status")
-			case reconciler.Failed:
-				return lri.operationsReg.SetFailed(params.CorrelationID, params.SchedulingID, "Reconciler reported failed status")
 			}
 
 			return nil
