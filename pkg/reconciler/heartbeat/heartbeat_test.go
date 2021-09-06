@@ -1,4 +1,4 @@
-package status
+package heartbeat
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	e "github.com/kyma-incubator/reconciler/pkg/error"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -49,91 +48,79 @@ func (cb *testCallbackHandler) LatestStatus() reconciler.Status {
 	return reconciler.Status(statuses[len(statuses)-1])
 }
 
-func TestStatusUpdater(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
+func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 	test.IntegrationTest(t)
 
 	t.Parallel()
 
 	logger := log.NewOptionalLogger(true)
-	t.Run("Test status updater without timeout", func(t *testing.T) {
+	t.Run("Test heartbeat sender without timeout", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		callbackHdlr := newTestCallbackHandler(t)
 
-		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, logger, Config{
+		heartbeatSender, err := NewHeartbeatSender(ctx, callbackHdlr, logger, Config{
 			Interval: 1 * time.Second,
 			Timeout:  10 * time.Second,
 		})
 		require.NoError(t, err)
-		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.NotStarted)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.NotStarted)
 
-		require.NoError(t, statusUpdater.Running())
-		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Running)
+		require.NoError(t, heartbeatSender.Running())
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Running)
 		time.Sleep(2 * time.Second)
 
-		require.NoError(t, statusUpdater.Failed())
-		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Failed)
-		time.Sleep(2 * time.Second)
-
-		require.NoError(t, statusUpdater.Success())
-		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Success)
+		require.NoError(t, heartbeatSender.Success())
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Success)
 		time.Sleep(2 * time.Second)
 
 		//check fired status updates
-		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 4) //anything >= 4 is sufficient to ensure the statusUpdaters works
+		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 4) //anything >= 4 is sufficient to ensure the heartbeatSenders works
 		require.Equal(t, callbackHdlr.LatestStatus(), reconciler.Success)
 	})
 
-	t.Run("Test status updater with context timeout", func(t *testing.T) {
+	t.Run("Test heartbeat sender with context timeout", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
 		callbackHdlr := newTestCallbackHandler(t)
 
-		statusUpdater, err := NewStatusUpdater(ctx, callbackHdlr, logger, Config{
+		heartbeatSender, err := NewHeartbeatSender(ctx, callbackHdlr, logger, Config{
 			Interval: 1 * time.Second,
 			Timeout:  10 * time.Second,
 		})
 		require.NoError(t, err)
-		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.NotStarted)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.NotStarted)
 
-		require.NoError(t, statusUpdater.Running())
-		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Running)
+		require.NoError(t, heartbeatSender.Running())
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Running)
 
 		time.Sleep(3 * time.Second) //wait longer than timeout to simulate expired context
 
-		require.True(t, statusUpdater.isContextClosed()) //verify that status-updater received timeout
+		require.True(t, heartbeatSender.isContextClosed()) //verify that status-updater received timeout
 
 		//check fired status updates
-		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the statusUpdaters worked
-
-		err = statusUpdater.Failed()
-		require.Error(t, err)
-		require.IsType(t, &e.ContextClosedError{}, err) //status changes have to fail after status-updater was interrupted
+		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the heartbeatSenders worked
 	})
 
-	t.Run("Test status updater with status updater timeout", func(t *testing.T) {
+	t.Run("Test heartbeat sender with heartbeat sender timeout", func(t *testing.T) {
 		callbackHdlr := newTestCallbackHandler(t)
 
-		statusUpdater, err := NewStatusUpdater(context.Background(), callbackHdlr, logger, Config{
+		heartbeatSender, err := NewHeartbeatSender(context.Background(), callbackHdlr, logger, Config{
 			Interval: 500 * time.Millisecond,
 			Timeout:  1 * time.Second,
 		})
 		require.NoError(t, err)
-		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.NotStarted)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.NotStarted)
 
-		require.NoError(t, statusUpdater.Running())
-		require.Equal(t, statusUpdater.CurrentStatus(), reconciler.Running)
+		require.NoError(t, heartbeatSender.Running())
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Running)
 
 		time.Sleep(2 * time.Second) //wait longer than status update timeout to timeout
 
 		//check fired status updates
-		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything <= 2 is sufficient to ensure the statusUpdaters worked
-
-		err = statusUpdater.Failed()
-		require.Error(t, err)
-		require.IsType(t, &e.ContextClosedError{}, err) //status changes have to fail after status-updater was interrupted
+		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything <= 2 is sufficient to ensure the heartbeatSenders worked
 	})
 
 }

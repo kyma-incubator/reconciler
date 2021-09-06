@@ -14,7 +14,6 @@ type Status string
 
 const (
 	NotStarted Status = "notstarted"
-	Failed     Status = "failed"
 	Error      Status = "error"
 	Running    Status = "running"
 	Success    Status = "success"
