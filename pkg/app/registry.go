@@ -105,6 +105,6 @@ func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 }
 
 func (or *ApplicationRegistry) initOperationsRegistry() scheduler.OperationsRegistry {
-	or.operations = scheduler.NewDefaultOperationsRegistry()
+	or.operations = scheduler.NewInMemoryOperationsRegistry()
 	return or.operations
 }

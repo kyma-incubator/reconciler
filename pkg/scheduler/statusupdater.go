@@ -33,7 +33,7 @@ func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.S
 	statusUpdater := ClusterStatusUpdater{inventory: inventory, clusterState: clusterState, logger: logger}
 	statusUpdater.statusMap = make(map[string]string)
 	for _, comp := range components {
-		statusUpdater.statusMap[comp.Component] = StateInProgress
+		statusUpdater.statusMap[comp.Component] = model.OperationStateInProgress
 	}
 	statusUpdater.reconciling()
 	statusUpdater.updateChannel = make(chan Update, channelSize)
@@ -46,9 +46,9 @@ func (su *ClusterStatusUpdater) Run(ctx context.Context) {
 		select {
 		case update := <-su.updateChannel:
 			su.statusMap[update.component] = update.operationState
-			if update.operationState == StateDone {
+			if update.operationState == model.OperationStateDone {
 				su.success()
-			} else if update.operationState == StateError {
+			} else if update.operationState == model.OperationStateError {
 				su.error()
 			}
 			if su.isAllInEndState() {
@@ -116,7 +116,7 @@ func (su *ClusterStatusUpdater) statusChangeAllowed(status model.Status) error {
 
 func (su *ClusterStatusUpdater) isAllDone() bool {
 	for _, state := range su.statusMap {
-		if state != StateDone {
+		if state != model.OperationStateDone {
 			return false
 		}
 	}
@@ -125,7 +125,7 @@ func (su *ClusterStatusUpdater) isAllDone() bool {
 
 func (su *ClusterStatusUpdater) isAllInEndState() bool {
 	for _, state := range su.statusMap {
-		if state != StateDone && state != StateError {
+		if state != model.OperationStateDone && state != model.OperationStateError {
 			return false
 		}
 	}
