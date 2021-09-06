@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
-
+	"github.com/pkg/errors"
 	//add Postgres driver:
 	_ "github.com/lib/pq"
 
@@ -86,8 +86,7 @@ type PostgresConnectionFactory struct {
 }
 
 func (pcf *PostgresConnectionFactory) Init() error {
-	pcf.dumpPostgresIsolationLevel()
-	return nil
+	return pcf.checkPostgresIsolationLevel()
 }
 
 func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
@@ -112,13 +111,12 @@ func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
 	return newPostgresConnection(db, pcf.EncryptionKey, pcf.Debug)
 }
 
-func (pcf *PostgresConnectionFactory) dumpPostgresIsolationLevel() {
+func (pcf *PostgresConnectionFactory) checkPostgresIsolationLevel() error {
 	logger := log.NewOptionalLogger(pcf.Debug)
 
 	dbConn, err := pcf.NewConnection()
 	if err != nil {
-		logger.Warnf("Not able to open DB connection to verify DB isolation level: %s", err)
-		return
+		return errors.Wrap(err, "not able to open DB connection to verify DB isolation level")
 	}
 
 	defer func() {
@@ -128,17 +126,25 @@ func (pcf *PostgresConnectionFactory) dumpPostgresIsolationLevel() {
 	}()
 
 	res, err := dbConn.Query("SHOW TRANSACTION ISOLATION LEVEL")
-	if err == nil {
-		var isoLevel interface{}
-		if res.Next() {
-			if err := res.Scan(&isoLevel); err != nil {
-				logger.Infof("Failed to bind Postgres result including isolation level: %s", err)
-			}
-			logger.Infof("Postgres isolation level is: %v", isoLevel)
-		} else {
-			logger.Info("Postgres isolation level unknown")
+	if err != nil {
+		return errors.Wrap(err, "failed to get isolation level from Postgres DB")
+	}
+
+	var isoLevel string
+	if res.Next() {
+		if err := res.Scan(&isoLevel); err != nil {
+			return errors.Wrap(err, "failed to bind Postgres result which includes isolation level")
+		}
+		if isoLevel == sql.LevelReadUncommitted.String() {
+			//stop bootstrapping if isolation level is too low
+			return fmt.Errorf("postgres isolation level has to be >= '%s' but was '%s'",
+				isoLevel, sql.LevelReadCommitted.String())
 		}
 	} else {
-		logger.Warnf("Failed to get isolation level from Postgres DB: %s", err)
+		return errors.New("Postgres isolation level unknown")
 	}
+
+	logger.Infof("Postgres isolation level is: %v", isoLevel)
+
+	return nil
 }
