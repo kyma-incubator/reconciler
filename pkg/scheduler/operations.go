@@ -35,6 +35,28 @@ type OperationsRegistry interface {
 	SetFailed(correlationID, schedulingID, reason string) error
 }
 
+type OperationNowFoundError struct {
+	schedulingID  string
+	correlationID string
+}
+
+func (err *OperationNowFoundError) Error() string {
+	return fmt.Sprintf("operation with id '%s' not found (schedulingID:%s/correlationID:%s)", err.correlationID,
+		err.schedulingID, err.correlationID)
+}
+
+func newOperationNotFoundError(schedulingID string, correlationID string) error {
+	return &OperationNowFoundError{
+		schedulingID:  schedulingID,
+		correlationID: correlationID,
+	}
+}
+
+func IsOperationNotFoundError(err error) bool {
+	_, ok := err.(*OperationNowFoundError)
+	return ok
+}
+
 type DefaultOperationsRegistry struct {
 	registry map[string]map[string]OperationState
 	mu       sync.Mutex
@@ -109,11 +131,11 @@ func (or *DefaultOperationsRegistry) RemoveOperation(correlationID, schedulingID
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return or.newNotFoundError(schedulingID, correlationID)
+		return newOperationNotFoundError(schedulingID, correlationID)
 	}
 	_, ok = operations[correlationID]
 	if !ok {
-		return or.newNotFoundError(schedulingID, correlationID)
+		return newOperationNotFoundError(schedulingID, correlationID)
 	}
 	delete(or.registry[schedulingID], correlationID)
 	return nil
@@ -145,11 +167,11 @@ func (or *DefaultOperationsRegistry) update(correlationID, schedulingID, state, 
 
 	operations, ok := or.registry[schedulingID]
 	if !ok {
-		return or.newNotFoundError(schedulingID, correlationID)
+		return newOperationNotFoundError(schedulingID, correlationID)
 	}
 	op, ok := operations[correlationID]
 	if !ok {
-		return or.newNotFoundError(schedulingID, correlationID)
+		return newOperationNotFoundError(schedulingID, correlationID)
 	}
 
 	or.registry[schedulingID][correlationID] = OperationState{
@@ -160,9 +182,4 @@ func (or *DefaultOperationsRegistry) update(correlationID, schedulingID, state, 
 		UpdatedAt: time.Now(),
 	}
 	return nil
-}
-
-func (or *DefaultOperationsRegistry) newNotFoundError(schedulingID string, correlationID string) error {
-	return fmt.Errorf("operation with id '%s' not found (schedulingID:%s/correlationID:%s)", correlationID,
-		schedulingID, correlationID)
 }

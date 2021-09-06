@@ -36,7 +36,13 @@ var (
 
 	requireClusterResponseFct = func(t *testing.T, response interface{}) {
 		respModel := response.(*keb.HTTPClusterResponse)
-		require.Equal(t, keb.ClusterStatusPending, respModel.Status)
+		//depending how fast the scheduler picked up the cluster for reconciling,
+		//status can be either pending or reconciling
+		if !(respModel.Status == keb.ClusterStatusPending || respModel.Status == keb.ClusterStatusReconciling) {
+			t.Logf("Cluster status '%s' is not allowed: expected was %s or %s",
+				respModel.Status, keb.ClusterStatusPending, keb.ClusterStatusReconciling)
+			t.Fail()
+		}
 		_, err := url.Parse(respModel.StatusURL)
 		require.NoError(t, err)
 	}
@@ -186,7 +192,7 @@ func TestReconciliation(t *testing.T) {
 			url:              fmt.Sprintf("%s/%s/callback/%s", fmt.Sprintf("%s/%s", baseURL, "operations"), "opsId", "corrId"),
 			payload:          payload(t, "callback.json", ""),
 			method:           httpPost,
-			expectedHTTPCode: 400,
+			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
 			verifier:         requireErrorResponseFct,
 		},

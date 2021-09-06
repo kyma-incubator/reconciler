@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -271,7 +272,11 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID, "Reconciler reported error status")
 	}
 	if err != nil {
-		sendError(w, http.StatusBadRequest, err)
+		httpCode := http.StatusBadRequest
+		if scheduler.IsOperationNotFoundError(err) {
+			httpCode = http.StatusNotFound
+		}
+		sendError(w, httpCode, err)
 		return
 	}
 }
