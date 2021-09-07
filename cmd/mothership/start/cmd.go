@@ -9,15 +9,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	paramContractVersion = "contractVersion"
-	paramCluster         = "cluster"
-	paramConfigVersion   = "configVersion"
-	paramOffset          = "offset"
-	paramSchedulingID    = "schedulingID"
-	paramCorrelationID   = "correlationID"
-)
-
 func NewCmd(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "start",

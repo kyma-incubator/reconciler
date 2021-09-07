@@ -27,10 +27,16 @@ func TestRemoteScheduler(t *testing.T) {
 			Contract:   1,
 			Components: string(componentsJSON),
 		},
+		Status: &model.ClusterStatusEntity{
+			Status: model.ClusterStatusReconcilePending,
+		},
 	}
 
+	inventory := &cluster.MockInventory{}
+	inventory.GetLatestResult = &state
 	var queue InventoryQueue
 	inventoryWatchStub := &MockInventoryWatcher{}
+	inventoryWatchStub.On("Inventory").Return(inventory)
 	inventoryWatchStub.On("Run", mock.Anything, mock.Anything).
 		Return(nil).
 		Run(func(args mock.Arguments) {

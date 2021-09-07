@@ -10,7 +10,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -57,10 +56,6 @@ func NewWorker(
 
 func (w *Worker) Reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool) error {
 	ticker := time.NewTicker(10 * time.Second)
-	_, err := w.inventory.UpdateStatus(&state, model.ClusterStatusReconciling)
-	if err != nil {
-		return errors.Wrap(err, "while updating cluster as reconciling")
-	}
 	for {
 		select {
 		case <-time.After(MaxDuration):
@@ -72,10 +67,6 @@ func (w *Worker) Reconcile(component *keb.Components, state cluster.State, sched
 				return err
 			}
 			if done {
-				_, err = w.inventory.UpdateStatus(&state, model.ClusterStatusReady)
-				if err != nil {
-					return errors.Wrap(err, "while updating cluster as ready")
-				}
 				return nil
 			}
 		}
@@ -92,10 +83,10 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 		}
 		return true, fmt.Errorf("max retry count for opeation %s in %s excceded", w.correlationID, schedulingID)
 	}
-	op := w.operationsReg.GetOperation(w.correlationID, schedulingID)
+	op, _ := w.operationsReg.GetOperation(w.correlationID, schedulingID)
 	if op == nil { // New operation
 		w.logger.Debugf("Creating new reconciliation operation for a component %s, correlationID: %s", component.Component, w.correlationID)
-		_, err := w.operationsReg.RegisterOperation(w.correlationID, schedulingID, component.Component)
+		_, err := w.operationsReg.RegisterOperation(w.correlationID, schedulingID, component.Component, state.Configuration.Version)
 		if err != nil {
 			return true, fmt.Errorf("error while registering the operation, correlationID %s: %s", w.correlationID, err)
 		}
@@ -111,7 +102,7 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 	w.logger.Debugf("Reconciliation operation for a component %s, correlationID: %s has state %s", component.Component, w.correlationID, op.State)
 
 	switch op.State {
-	case StateClientError:
+	case model.OperationStateClientError:
 		// In this state we assume that the reconciliation operation was
 		// never processed by the component reconciler so we need to call
 		// the reconciler again
@@ -121,12 +112,12 @@ func (w *Worker) process(component *keb.Components, state cluster.State, schedul
 			return false, err
 		}
 		return false, nil
-	case StateNew, StateInProgress, StateFailed:
+	case model.OperationStateNew, model.OperationStateInProgress:
 		// Operation still being processed by the component reconciler
 		return false, nil
-	case StateError:
+	case model.OperationStateError:
 		return true, fmt.Errorf("operation errored: %s", op.Reason)
-	case StateDone:
+	case model.OperationStateDone:
 		err := w.operationsReg.RemoveOperation(w.correlationID, schedulingID)
 		if err != nil {
 			w.logger.Error("Error while removing the operation, correlationID %s: %s", w.correlationID, err)

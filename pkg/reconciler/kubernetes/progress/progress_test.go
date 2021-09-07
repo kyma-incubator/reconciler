@@ -31,7 +31,7 @@ func TestProgressTracker(t *testing.T) {
 	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t))
 	require.NoError(t, err)
 
-	clientSet, err := (&k8s.ClientBuilder{}).Build()
+	clientSet, err := (&k8s.ClientBuilder{}).Build(true)
 	require.NoError(t, err)
 
 	resources := readManifest(t)

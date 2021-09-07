@@ -172,7 +172,7 @@ func newCluster(t *testing.T) *keb.Cluster {
 func newWorkerFactory(t *testing.T) WorkerFactory {
 	workerFactory, err := NewLocalWorkerFactory(
 		&cluster.MockInventory{},
-		NewDefaultOperationsRegistry(),
+		NewInMemoryOperationsRegistry(),
 		func(component string, status reconciler.Status) {
 			t.Logf("Component %s has status %s", component, status)
 		},

@@ -2,10 +2,12 @@ package scheduler
 
 import (
 	"context"
+
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -66,7 +68,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 
 	rs.logger.Debugf("Starting worker pool with capacity %d workers", rs.poolSize)
 	workersPool, err := ants.NewPoolWithFunc(rs.poolSize, func(i interface{}) {
-		rs.schedule(i.(cluster.State))
+		rs.schedule(ctx, i.(cluster.State))
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to create worker pool of remote-scheduler")
@@ -93,7 +95,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 	}
 }
 
-func (rs *RemoteScheduler) schedule(state cluster.State) {
+func (rs *RemoteScheduler) schedule(ctx context.Context, state cluster.State) {
 	schedulingID := uuid.NewString()
 	components, err := state.Configuration.GetComponents()
 	if err != nil {
@@ -106,17 +108,20 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		return
 	}
 
+	statusUpdater := NewClusterStatusUpdater(rs.inventoryWatch.Inventory(), state, components, rs.logger)
+	go statusUpdater.Run(ctx)
+
 	//Reconcile CRD components first
 	for _, component := range components {
 		if rs.isCRDComponent(component.Component) {
-			rs.reconcile(component, state, schedulingID, doInstallCRD, concurrencyNotAllowed)
+			rs.reconcile(component, state, schedulingID, doInstallCRD, concurrencyNotAllowed, statusUpdater)
 		}
 	}
 
 	//Reconcile pre components
 	for _, component := range components {
 		if rs.isPreComponent(component.Component) {
-			rs.reconcile(component, state, schedulingID, doNotInstallCRD, concurrencyNotAllowed)
+			rs.reconcile(component, state, schedulingID, doNotInstallCRD, concurrencyNotAllowed, statusUpdater)
 		}
 	}
 
@@ -125,11 +130,11 @@ func (rs *RemoteScheduler) schedule(state cluster.State) {
 		if rs.isPreComponent(component.Component) || rs.isCRDComponent(component.Component) {
 			continue
 		}
-		rs.reconcile(component, state, schedulingID, doNotInstallCRD, concurrencyAllowed)
+		rs.reconcile(component, state, schedulingID, doNotInstallCRD, concurrencyAllowed, statusUpdater)
 	}
 }
 
-func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool, concurrent concurrency) {
+func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool, concurrent concurrency, statusUpdater ClusterStatusUpdater) {
 	fn := func(component *keb.Components, state cluster.State, schedulingID string) {
 		worker, err := rs.workerFactory.ForComponent(component.Component)
 		if err != nil {
@@ -139,7 +144,9 @@ func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.St
 		err = worker.Reconcile(component, state, schedulingID, installCRD)
 		if err != nil {
 			rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
+			statusUpdater.Update(component.Component, model.OperationStateError)
 		}
+		statusUpdater.Update(component.Component, model.OperationStateDone)
 	}
 
 	if bool(concurrent) {

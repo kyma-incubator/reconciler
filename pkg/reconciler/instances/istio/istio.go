@@ -20,5 +20,5 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	reconciler.WithPreReconcileAction(&ReconcileAction{})
+	reconciler.WithReconcileAction(&ReconcileAction{})
 }
