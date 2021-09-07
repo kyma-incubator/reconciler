@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type ReconcilerStatusFunc func(component string, status reconciler.Status)
+type ReconcilerStatusFunc func(component string, msg *reconciler.CallbackMessage)
 
 type LocalReconcilerInvoker struct {
 	operationsReg OperationsRegistry
@@ -44,12 +44,12 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 		Profile:         params.ClusterState.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
 		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
-		CallbackFunc: func(status reconciler.Status) error {
+		CallbackFunc: func(msg *reconciler.CallbackMessage) error {
 			if lri.statusFunc != nil {
-				lri.statusFunc(component, status)
+				lri.statusFunc(component, msg)
 			}
 
-			switch status {
+			switch msg.Status {
 			case reconciler.NotStarted, reconciler.Running:
 				return lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
 			case reconciler.Success:
