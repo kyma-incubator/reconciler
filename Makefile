@@ -45,6 +45,10 @@ docker-push:
 	docker tag $(APP_NAME) $(IMG_NAME):$(TAG)
 	docker push $(IMG_NAME):$(TAG)
 
+.PHONY: bump-primage
+bump-primage:
+	./scripts/bumpimage.sh
+
 .PHONY: deploy
 deploy:
 	@./scripts/kcversion.sh

@@ -13,14 +13,19 @@ type Params struct {
 }
 
 func NewParams(r *http.Request) *Params {
+	params := mux.Vars(r)
+	query := r.URL.Query()
+	for k := range query {
+		params[k] = query.Get(k)
+	}
 	return &Params{
-		params: mux.Vars(r),
+		params: params,
 	}
 }
 func (p *Params) String(name string) (string, error) {
 	result, ok := p.params[name]
 	if !ok {
-		return "", fmt.Errorf("Parameter '%s' undefined", name)
+		return "", fmt.Errorf("parameter '%s' undefined", name)
 	}
 	return result, nil
 }

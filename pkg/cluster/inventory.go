@@ -494,15 +494,14 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 }
 
 func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error) {
-	statusColHandler, err := db.NewColumnHandler(&model.ClusterStatusEntity{}, i.Conn)
+	clusterStatusEntity := &model.ClusterStatusEntity{}
+
+	//build sub-query
+	statusColHandler, err := db.NewColumnHandler(clusterStatusEntity, i.Conn)
 	if err != nil {
 		return nil, err
 	}
-	statusColName, err := statusColHandler.ColumnName("Status")
-	if err != nil {
-		return nil, err
-	}
-	createdColName, err := statusColHandler.ColumnName("Created")
+	idColName, err := statusColHandler.ColumnName("ID")
 	if err != nil {
 		return nil, err
 	}
@@ -515,29 +514,50 @@ func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) (
 	if err != nil {
 		return nil, err
 	}
-	rows, err := i.Conn.Query(fmt.Sprintf("SELECT %s, %s FROM %s WHERE %s ORDER BY %s DESC", statusColName, createdColName, (&model.ClusterStatusEntity{}).Table(), sqlCond, createdColName))
+
+	//query status entities (using sub-query in WHERE condition)
+	q, err := db.NewQuery(i.Conn, clusterStatusEntity)
 	if err != nil {
 		return nil, err
 	}
+
+	clusterStatuses, err := q.Select().
+		WhereIn("ID", fmt.Sprintf("SELECT %s FROM %s WHERE %s", idColName, clusterStatusEntity.Table(), sqlCond)).
+		OrderBy(map[string]string{"Created": "DESC"}).
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(clusterStatuses) == 0 {
+		//invalid state: there cannot be a cluster without any state
+		return nil, i.NewNotFoundError(
+			fmt.Errorf("no status found for cluster '%s'", cluster),
+			clusterStatusEntity,
+			map[string]interface{}{
+				"Cluster": cluster,
+			})
+	}
+
+	//build list of status changes
 	var statusChanges []*StatusChange
 	var createdPrevStatus time.Time
-	var createdCurrStatus time.Time
-	for rows.Next() {
-		var status *model.Status
-		if err := rows.Scan(&status, &createdCurrStatus); err != nil {
-			return nil, err
-		}
-		var duration string
+	for _, clusterStatus := range clusterStatuses {
+		clusterStatusEntity := clusterStatus.(*model.ClusterStatusEntity)
+		var duration time.Duration
 		if createdPrevStatus.IsZero() {
-			duration = time.Since(createdCurrStatus).String()
+			duration = time.Since(clusterStatusEntity.Created)
 		} else {
-			duration = createdPrevStatus.Sub(createdCurrStatus).String()
+			duration = createdPrevStatus.Sub(clusterStatusEntity.Created)
 		}
+
 		statusChanges = append(statusChanges, &StatusChange{
-			Status:   status,
+			Status:   clusterStatusEntity,
 			Duration: duration,
 		})
-		createdPrevStatus = createdCurrStatus
+
+		createdPrevStatus = clusterStatusEntity.Created
 	}
+
 	return statusChanges, nil
 }

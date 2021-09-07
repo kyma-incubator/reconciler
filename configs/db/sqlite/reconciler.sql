@@ -90,3 +90,17 @@ CREATE TABLE IF NOT EXISTS inventory_cluster_config_statuses (
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
+
+--DDL for scheduler operations:
+CREATE TABLE IF NOT EXISTS scheduler_operations (
+	"scheduling_id" char(36) NOT NULL PRIMARY KEY,
+	"correlation_id" char(36) NOT NULL,
+	"config_version" int NOT NULL,
+    "component" text NOT NULL,
+    "state" text NOT NULL,
+	"reason" text,
+    "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT scheduler_operations_pk UNIQUE ("scheduling_id", "correlation_id"),
+    FOREIGN KEY("config_version") REFERENCES inventory_cluster_configs("version") ON UPDATE CASCADE ON DELETE CASCADE
+)

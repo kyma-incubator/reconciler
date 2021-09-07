@@ -7,6 +7,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -143,9 +144,9 @@ func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.St
 		err = worker.Reconcile(component, state, schedulingID, installCRD)
 		if err != nil {
 			rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
-			statusUpdater.Update(component.Component, StateError)
+			statusUpdater.Update(component.Component, model.OperationStateError)
 		}
-		statusUpdater.Update(component.Component, StateDone)
+		statusUpdater.Update(component.Component, model.OperationStateDone)
 	}
 
 	if bool(concurrent) {

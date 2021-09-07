@@ -68,7 +68,7 @@ func RunLocal(o *Options) error {
 
 	workerFactory, _ := scheduler.NewLocalWorkerFactory(
 		&cluster.MockInventory{},
-		scheduler.NewDefaultOperationsRegistry(),
+		scheduler.NewInMemoryOperationsRegistry(),
 		func(component string, status reconciler.Status) {
 			l.Infof("Component %s has status %s", component, status)
 		},

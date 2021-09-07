@@ -21,20 +21,18 @@ type ApplicationRegistry struct {
 }
 
 func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*ApplicationRegistry, error) {
-	or := &ApplicationRegistry{
+	registry := &ApplicationRegistry{
 		debug:             debug,
 		connectionFactory: cf,
 	}
-	if err := or.init(); err != nil {
-		return nil, err
-	}
-	return or, nil
+	return registry, registry.init()
 }
 
 func (or *ApplicationRegistry) init() error {
 	if or.initialized {
 		return nil
 	}
+
 	var err error
 	if or.logger, err = logger.NewLogger(or.debug); err != nil {
 		return err
@@ -46,7 +44,9 @@ func (or *ApplicationRegistry) init() error {
 		return err
 	}
 	or.initOperationsRegistry()
+
 	or.initialized = true
+
 	return nil
 }
 
@@ -58,10 +58,6 @@ func (or *ApplicationRegistry) Close() error {
 		return err
 	}
 	return nil
-}
-
-func (or *ApplicationRegistry) Logger() *zap.SugaredLogger {
-	return or.logger
 }
 
 func (or *ApplicationRegistry) Inventory() cluster.Inventory {
@@ -109,6 +105,6 @@ func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 }
 
 func (or *ApplicationRegistry) initOperationsRegistry() scheduler.OperationsRegistry {
-	or.operations = scheduler.NewDefaultOperationsRegistry()
+	or.operations = scheduler.NewInMemoryOperationsRegistry()
 	return or.operations
 }
