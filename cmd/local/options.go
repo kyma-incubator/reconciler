@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/internal/components"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -9,10 +10,8 @@ import (
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/magiconair/properties"
 	"github.com/pkg/errors"
-
-	//Register all reconcilers
-	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
 )
 
 type Options struct {
@@ -22,15 +21,8 @@ type Options struct {
 	version        string
 	profile        string
 	components     []string
-}
-
-func defaultComponentList() []keb.Components {
-	defaultComponents := []string{"cluster-essentials", "istio-configuration@istio-system",
-		"certificates@istio-system", "logging", "tracing", "kiali", "monitoring", "eventing", "ory", "api-gateway",
-		"service-catalog", "service-catalog-addons", "rafter", "helm-broker", "cluster-users", "serverless",
-		"application-connector@kyma-integration"}
-	return componentsFromStrings(defaultComponents)
-
+	values         []string
+	componentsFile string
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -40,31 +32,77 @@ func NewOptions(o *cli.Options) *Options {
 		"",         // version
 		"",         // profile
 		[]string{}, // components
+		[]string{}, // values
+		"",         // componentsFile
 	}
 }
 func (o *Options) Kubeconfig() string {
 	return o.kubeconfig
 }
 
-func componentsFromStrings(list []string) []keb.Components {
-	var components []keb.Components
+func componentsFromFile(path string) ([]string, error) {
+	var defaultComponents []string
+
+	compList, err := components.NewComponentList(path)
+	if err != nil {
+		return defaultComponents, err
+	}
+
+	for _, c := range compList.Components {
+		if c.Namespace != "" {
+			defaultComponents = append(defaultComponents, c.Name+"@"+c.Namespace)
+		} else {
+			defaultComponents = append(defaultComponents, c.Name)
+		}
+	}
+	return defaultComponents, nil
+}
+
+func componentsFromStrings(list []string, values []string) []keb.Components {
+	var comps []keb.Components
 	for _, item := range list {
 		s := strings.Split(item, "@")
 		name := s[0]
-		namespace := "kyma-system"
+		namespace := components.KymaNamespace
 		if len(s) >= 2 {
 			namespace = s[1]
 		}
-		components = append(components, keb.Components{Component: name, Namespace: namespace})
+		var configuration []keb.Configuration
+		for _, value := range values {
+			props, err := properties.LoadString(value)
+
+			if err != nil {
+				panic(fmt.Errorf("Can't parse value %s", value))
+			}
+			key := props.Keys()[0]
+			splitKey := strings.Split(key, ".")
+			keyComponent := splitKey[0]
+			if keyComponent == name {
+				configuration = append(configuration, keb.Configuration{Key: strings.Join(splitKey[1:], "."), Value: props.GetString(key, "")})
+			}
+			if keyComponent == "global" {
+				configuration = append(configuration, keb.Configuration{Key: key, Value: props.GetString(key, "")})
+			}
+		}
+		comps = append(comps, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
 	}
-	return components
+	return comps
 }
 
-func (o *Options) Components() []keb.Components {
-	if len(o.components) > 0 {
-		return componentsFromStrings(o.components)
+func (o *Options) Components(defaultComponentsFile string) []keb.Components {
+	comps := o.components
+	if len(o.components) == 0 {
+		cFile := o.componentsFile
+		if cFile == "" {
+			cFile = defaultComponentsFile
+		}
+		var err error
+		comps, err = componentsFromFile(cFile)
+		if err != nil {
+			panic(err)
+		}
 	}
-	return defaultComponentList()
+	return componentsFromStrings(comps, o.values)
 }
 
 func (o *Options) Validate() error {
@@ -87,5 +125,8 @@ func (o *Options) Validate() error {
 		return errors.Wrap(err, fmt.Sprintf("Failed to read kubeconfig file '%s'", o.kubeconfigFile))
 	}
 	o.kubeconfig = string(content)
+	if len(o.components) > 0 && o.componentsFile != "" {
+		return fmt.Errorf("use one of 'components' or 'component-file' flag")
+	}
 	return nil
 }

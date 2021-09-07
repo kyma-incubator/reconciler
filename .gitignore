@@ -68,3 +68,6 @@ cover.out
 
 # Ignore coverage output file
 coverage.out
+
+# Ignore backup files
+*.bak

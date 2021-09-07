@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"path/filepath"
+
 	"github.com/kyma-incubator/reconciler/internal/cli"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -33,15 +36,18 @@ func NewCmd(o *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&o.kubeconfigFile, "kubeconfig", "", "Path to kubeconfig file")
 	cmd.Flags().StringSliceVar(&o.components, "components", []string{}, "Comma separated list of components with optional namespace, e.g. serverless,certificates@istio-system,monitoring")
+	cmd.Flags().StringVar(&o.componentsFile, "components-file", "", `Path to the components file (default "<workspace>/installation/resources/components-2.0.yaml")`)
+	cmd.Flags().StringSliceVar(&o.values, "value", []string{}, "Set configuration values. Can specify one or more values, also as a comma-separated list (e.g. --value component.a='1' --value component.b='2' or --value component.a='1',component.b='2').")
 	cmd.Flags().StringVar(&o.version, "version", "main", "Kyma version")
 	cmd.Flags().StringVar(&o.profile, "profile", "evaluation", "Kyma profile")
 	return cmd
 }
 
 func RunLocal(o *Options) error {
-
 	l := logger.NewOptionalLogger(o.Verbose)
+
 	l.Infof("Local installation started with kubeconfig %s", o.kubeconfigFile)
+
 	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
 	//collisions when sharing the same directory)
@@ -53,19 +59,26 @@ func RunLocal(o *Options) error {
 	if err != nil {
 		return err
 	}
+
+	ws, err := wsFact.Get(o.version)
+	if err != nil {
+		return err
+	}
+	defaultComponentsYaml := filepath.Join(ws.InstallationResourceDir, "components.yaml")
+
 	workerFactory, _ := scheduler.NewLocalWorkerFactory(
 		&cluster.MockInventory{},
-		scheduler.NewDefaultOperationsRegistry(),
+		scheduler.NewInMemoryOperationsRegistry(),
 		func(component string, status reconciler.Status) {
 			l.Infof("Component %s has status %s", component, status)
 		},
 		true)
 
 	ls := scheduler.NewLocalScheduler(workerFactory, scheduler.WithLogger(l))
-	return ls.Run(cli.NewContext(), keb.Cluster{
+	return ls.Run(cli.NewContext(), &keb.Cluster{
 		Kubeconfig: o.kubeconfig,
 		KymaConfig: keb.KymaConfig{
 			Version:    o.version,
 			Profile:    o.profile,
-			Components: o.Components()}})
+			Components: o.Components(defaultComponentsYaml)}})
 }

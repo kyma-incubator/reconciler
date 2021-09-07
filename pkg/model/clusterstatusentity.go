@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -57,4 +58,27 @@ func (c *ClusterStatusEntity) Equal(other db.DatabaseEntity) bool {
 
 func (c *ClusterStatusEntity) GetClusterStatus() (*ClusterStatus, error) {
 	return NewClusterStatus(c.Status)
+}
+
+func (c *ClusterStatusEntity) GetKEBClusterStatus() (keb.ClusterStatus, error) {
+	var kebStatus keb.ClusterStatus
+	switch c.Status {
+	case ClusterStatusReconcilePending:
+		kebStatus = keb.ClusterStatusPending
+
+	case ClusterStatusReconcileFailed:
+		kebStatus = keb.ClusterStatusReconciling
+	case ClusterStatusReconciling:
+		kebStatus = keb.ClusterStatusReconciling
+
+	case ClusterStatusReady:
+		kebStatus = keb.ClusterStatusReady
+
+	case ClusterStatusError:
+		kebStatus = keb.ClusterStatusError
+
+	default:
+		return kebStatus, fmt.Errorf("cluster status '%s' not convertable to KEB cluster status", c.Status)
+	}
+	return kebStatus, nil
 }

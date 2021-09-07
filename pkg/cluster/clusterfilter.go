@@ -29,6 +29,6 @@ func (rif *createdIntervalFilter) Filter(dbType db.Type, statusColHdr *db.Column
 		return fmt.Sprintf(`%s = '%s' AND %s >= DATETIME('now', '-%.0f SECONDS')`,
 			clusterColName, rif.cluster, createdColName, rif.interval.Seconds()), nil
 	default:
-		return "", fmt.Errorf("Database type '%s' is not supported by this filter", dbType)
+		return "", fmt.Errorf("database type '%s' is not supported by this filter", dbType)
 	}
 }

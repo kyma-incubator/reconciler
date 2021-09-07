@@ -57,7 +57,7 @@ type ComponentReconciler struct {
 	workspace             string
 	dependencies          []string
 	serverConfig          serverConfig
-	statusUpdaterConfig   statusUpdaterConfig
+	heartbeatSenderConfig heartbeatSenderConfig
 	progressTrackerConfig progressTrackerConfig
 	//actions:
 	preReconcileAction  Action
@@ -74,7 +74,7 @@ type ComponentReconciler struct {
 	mu      sync.Mutex
 }
 
-type statusUpdaterConfig struct {
+type heartbeatSenderConfig struct {
 	interval time.Duration
 	timeout  time.Duration
 }
@@ -142,19 +142,19 @@ func (r *ComponentReconciler) validate() error {
 	if r.serverConfig.port == 0 {
 		r.serverConfig.port = defaultServerPort
 	}
-	if r.statusUpdaterConfig.interval < 0 {
-		return fmt.Errorf("status updater interval cannot be < 0 (got %.1f secs)",
-			r.statusUpdaterConfig.interval.Seconds())
+	if r.heartbeatSenderConfig.interval < 0 {
+		return fmt.Errorf("heartbeat interval cannot be < 0 (got %.1f secs)",
+			r.heartbeatSenderConfig.interval.Seconds())
 	}
-	if r.statusUpdaterConfig.interval == 0 {
-		r.statusUpdaterConfig.interval = defaultInterval
+	if r.heartbeatSenderConfig.interval == 0 {
+		r.heartbeatSenderConfig.interval = defaultInterval
 	}
-	if r.statusUpdaterConfig.timeout < 0 {
-		return fmt.Errorf("status updater timeouts cannot be < 0 (got %d)",
-			r.statusUpdaterConfig.timeout)
+	if r.heartbeatSenderConfig.timeout < 0 {
+		return fmt.Errorf("heartbeat sender timeouts cannot be < 0 (got %d)",
+			r.heartbeatSenderConfig.timeout)
 	}
-	if r.statusUpdaterConfig.timeout == 0 {
-		r.statusUpdaterConfig.timeout = defaultTimeout
+	if r.heartbeatSenderConfig.timeout == 0 {
+		r.heartbeatSenderConfig.timeout = defaultTimeout
 	}
 	if r.progressTrackerConfig.interval < 0 {
 		return fmt.Errorf("progress tracker interval cannot be < 0 (got %.1f secs)",
@@ -241,9 +241,9 @@ func (r *ComponentReconciler) WithPostReconcileAction(postReconcileAction Action
 	return r
 }
 
-func (r *ComponentReconciler) WithStatusUpdaterConfig(interval, timeout time.Duration) *ComponentReconciler {
-	r.statusUpdaterConfig.interval = interval
-	r.statusUpdaterConfig.timeout = timeout
+func (r *ComponentReconciler) WithHeartbeatSenderConfig(interval, timeout time.Duration) *ComponentReconciler {
+	r.heartbeatSenderConfig.interval = interval
+	r.heartbeatSenderConfig.timeout = timeout
 	return r
 }
 
