@@ -17,13 +17,13 @@ make build-darwin
 ```
 
 
-2. Run with default configuration (all componennts from installation/resources/components.yaml)
+2. Run Reconciler with the default configuration. By default, Reconciler installs all components listed in the `installation/resources/components.yaml` file.
 
 ```
 ./bin/reconciler-darwin local 
 ```
 
-Or just run with specified components:
+You can also run Reconciler with the specified components:
 ```
 ./bin/reconciler-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
 ```
