@@ -10,14 +10,14 @@ The Reconciler is a central system to reconcile Kyma clusters.
 
 Follow these steps to run Reconciler locally:
 
-1. Build the reconciler
+1. Build the Reconciler binary:
 
 ```
 make build-darwin 
 ```
 
 
-2. Run Reconciler with the default configuration. By default, Reconciler installs all components listed in the `installation/resources/components.yaml` file.
+2. Run Reconciler with the default configuration. By default, Reconciler installs all components listed in the [components.yaml](https://github.com/kyma-project/kyma/blob/main/installation/resources/components.yaml) file.
 
 ```
 ./bin/reconciler-darwin local 
