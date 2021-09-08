@@ -15,7 +15,21 @@
     "components": [
       {
         "component": "e2etest",
-        "namespace": "kyma-system"
+        "namespace": "kyma-system",
+        "configuration": [
+          {
+            "key": "abc",
+            "value": true
+          },
+          {
+            "key": "xyz",
+            "value": 123
+          },
+          {
+            "key": "qwertz",
+            "value": "test"
+          }
+        ]
       }
     ],
     "administrators": [
