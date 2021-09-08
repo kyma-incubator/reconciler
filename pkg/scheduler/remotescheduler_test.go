@@ -15,7 +15,7 @@ import (
 )
 
 func TestRemoteScheduler(t *testing.T) {
-	components := []keb.Components{
+	components := []keb.Component{
 		{Component: "logging"},
 		{Component: "monitoring"},
 	}

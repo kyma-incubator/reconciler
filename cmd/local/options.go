@@ -58,8 +58,8 @@ func componentsFromFile(path string) ([]string, error) {
 	return defaultComponents, nil
 }
 
-func componentsFromStrings(list []string, values []string) []keb.Components {
-	var comps []keb.Components
+func componentsFromStrings(list []string, values []string) []keb.Component {
+	var comps []keb.Component
 	for _, item := range list {
 		s := strings.Split(item, "@")
 		name := s[0]
@@ -72,7 +72,7 @@ func componentsFromStrings(list []string, values []string) []keb.Components {
 			props, err := properties.LoadString(value)
 
 			if err != nil {
-				panic(fmt.Errorf("Can't parse value %s", value))
+				panic(fmt.Errorf("can't parse value %s", value))
 			}
 			key := props.Keys()[0]
 			splitKey := strings.Split(key, ".")
@@ -84,12 +84,12 @@ func componentsFromStrings(list []string, values []string) []keb.Components {
 				configuration = append(configuration, keb.Configuration{Key: key, Value: props.GetString(key, "")})
 			}
 		}
-		comps = append(comps, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
+		comps = append(comps, keb.Component{Component: name, Namespace: namespace, Configuration: configuration})
 	}
 	return comps
 }
 
-func (o *Options) Components(defaultComponentsFile string) []keb.Components {
+func (o *Options) Components(defaultComponentsFile string) []keb.Component {
 	comps := o.components
 	if len(o.components) == 0 {
 		cFile := o.componentsFile
@@ -118,7 +118,7 @@ func (o *Options) Validate() error {
 		o.kubeconfigFile = envKubeconfig
 	}
 	if !file.Exists(o.kubeconfigFile) {
-		return fmt.Errorf("Reference kubeconfig file '%s' not found", o.kubeconfigFile)
+		return fmt.Errorf("reference kubeconfig file '%s' not found", o.kubeconfigFile)
 	}
 	content, err := ioutil.ReadFile(o.kubeconfigFile)
 	if err != nil {

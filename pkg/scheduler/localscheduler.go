@@ -129,7 +129,7 @@ func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 	}, nil
 }
 
-func (ls *LocalScheduler) reconcilePrereqs(components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
+func (ls *LocalScheduler) reconcilePrereqs(components []*keb.Component, clusterState *cluster.State, schedulingID string) error {
 	for _, c := range components {
 		if !ls.isPrereq(c) {
 			continue
@@ -143,7 +143,7 @@ func (ls *LocalScheduler) reconcilePrereqs(components []*keb.Components, cluster
 	return nil
 }
 
-func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
+func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Component, clusterState *cluster.State, schedulingID string) error {
 	for _, c := range components {
 		if !ls.isCRDComponent(c) || ls.isPrereq(c) {
 			continue
@@ -157,7 +157,7 @@ func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Components, c
 	return nil
 }
 
-func (ls *LocalScheduler) reconcileUnprioritizedComponents(ctx context.Context, components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
+func (ls *LocalScheduler) reconcileUnprioritizedComponents(ctx context.Context, components []*keb.Component, clusterState *cluster.State, schedulingID string) error {
 	g, _ := errgroup.WithContext(ctx)
 	for _, c := range components {
 		if contains(ls.crdComponents, c.Component) || contains(ls.prereqs, c.Component) {
@@ -173,15 +173,15 @@ func (ls *LocalScheduler) reconcileUnprioritizedComponents(ctx context.Context, 
 	return g.Wait()
 }
 
-func (ls *LocalScheduler) isPrereq(c *keb.Components) bool {
+func (ls *LocalScheduler) isPrereq(c *keb.Component) bool {
 	return contains(ls.prereqs, c.Component)
 }
 
-func (ls *LocalScheduler) isCRDComponent(c *keb.Components) bool {
+func (ls *LocalScheduler) isCRDComponent(c *keb.Component) bool {
 	return contains(ls.crdComponents, c.Component)
 }
 
-func (ls *LocalScheduler) reconcile(component *keb.Components, state *cluster.State, schedulingID string, installCRD bool) error {
+func (ls *LocalScheduler) reconcile(component *keb.Component, state *cluster.State, schedulingID string, installCRD bool) error {
 	worker, err := ls.workerFactory.ForComponent(component.Component)
 	if err != nil {
 		return fmt.Errorf("failed to create a worker: %s", err)

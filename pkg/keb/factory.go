@@ -21,7 +21,7 @@ func (mf *ModelFactory) load(model interface{}, data []byte) (interface{}, error
 		err := json.Unmarshal(data, &model)
 		return model, err
 	default:
-		return nil, fmt.Errorf("Contract version '%d' not supported", mf.version)
+		return nil, fmt.Errorf("contract version '%d' not supported", mf.version)
 	}
 }
 
@@ -49,14 +49,14 @@ func (mf *ModelFactory) Cluster(data []byte) (*Cluster, error) {
 	return model.(*Cluster), err
 }
 
-func (mf *ModelFactory) Components(data []byte) ([]*Components, error) {
+func (mf *ModelFactory) Components(data []byte) ([]*Component, error) {
 	untypedModels, err := mf.load([]interface{}{}, data)
 	if err != nil {
 		return nil, err
 	}
-	result := []*Components{}
+	result := []*Component{}
 	for _, untypedModel := range untypedModels.([]interface{}) {
-		typedModel := &Components{}
+		typedModel := &Component{}
 		err := mapstructure.Decode(untypedModel, typedModel)
 		if err != nil {
 			return result, err
