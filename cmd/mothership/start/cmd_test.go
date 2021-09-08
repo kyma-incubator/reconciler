@@ -49,10 +49,25 @@ var (
 
 	requireClusterStatusResponseFct = func(t *testing.T, response interface{}) {
 		respModel := response.(*keb.HTTPClusterStatusResponse)
-		require.Len(t, respModel.StatusChanges, 1)
+
+		//dump received status chagnes for debugging purposes
+		var statusChanges []string
+		for _, statusChange := range respModel.StatusChanges {
+			statusChanges = append(statusChanges, fmt.Sprintf("%s", statusChange))
+		}
+		t.Logf("Received following status changes: %s", strings.Join(statusChanges, ", "))
+
+		//verify received status changes
+		require.GreaterOrEqual(t, len(respModel.StatusChanges), 1)
 		require.NotEmpty(t, respModel.StatusChanges[0].Started)
 		require.NotEmpty(t, respModel.StatusChanges[0].Duration)
-		require.Equal(t, keb.ClusterStatusPending, respModel.StatusChanges[0].Status)
+
+		//cluster status list shows latest status on top... check for the expected status depending on list length
+		if len(respModel.StatusChanges) == 1 {
+			require.Equal(t, keb.ClusterStatusPending, respModel.StatusChanges[0].Status)
+		} else {
+			require.Equal(t, keb.ClusterStatusReconciling, respModel.StatusChanges[0].Status)
+		}
 	}
 )
 
@@ -68,7 +83,7 @@ type TestStruct struct {
 	verifier         func(t *testing.T, response interface{})
 }
 
-func TestReconciliation(t *testing.T) {
+func TestMothership(t *testing.T) {
 	test.IntegrationTest(t)
 
 	ctx := context.Background()
@@ -284,7 +299,7 @@ func callMothership(t *testing.T, testCase *TestStruct) interface{} {
 
 func sendRequest(t *testing.T, testCase *TestStruct) (*http.Response, error) {
 	client := &http.Client{
-		Timeout: 1 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	var response *http.Response

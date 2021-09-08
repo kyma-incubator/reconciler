@@ -83,11 +83,14 @@ func (su *Sender) isContextClosed() bool {
 	return su.ctxClosed
 }
 
-func (su *Sender) sendUpdate(status reconciler.Status, onlyOnce bool) {
+func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bool) {
 	su.stopJob() //ensure previous interval-loop is stopped before starting a new loop
 
-	task := func(status reconciler.Status) error {
-		err := su.callback.Callback(status)
+	task := func(status reconciler.Status, rootCause error) error {
+		err := su.callback.Callback(&reconciler.CallbackMessage{
+			Status: status,
+			Error:  rootCause,
+		})
 		if err == nil {
 			su.logger.Debugf("Interval-callback with status-update ('%s') sent successfully", status)
 		} else {
@@ -96,9 +99,10 @@ func (su *Sender) sendUpdate(status reconciler.Status, onlyOnce bool) {
 		return err
 	}
 
-	go func(status reconciler.Status, interval time.Duration, timeout time.Duration, onlyOnce bool) {
-		su.logger.Debugf("Starting new update loop for status '%s' (update only once: %t)", status, onlyOnce)
-		if err := task(status); err == nil && onlyOnce {
+	go func(status reconciler.Status, rootCause error, interval time.Duration, timeout time.Duration, onlyOnce bool) {
+		su.logger.Debugf("Starting new update loop for status '%s' (update only once: %t / root cause: %v)",
+			status, onlyOnce, rootCause)
+		if err := task(status, rootCause); err == nil && onlyOnce {
 			su.logger.Debugf("Status '%s' successfully communicated: stopping update loop", status)
 			return
 		}
@@ -119,13 +123,16 @@ func (su *Sender) sendUpdate(status reconciler.Status, onlyOnce bool) {
 				return
 			case <-time.NewTicker(interval).C:
 				su.logger.Debugf("Update loop for status '%s' executes callback", status)
-				if err := task(status); err == nil && onlyOnce {
+				err := task(status, rootCause)
+				if err != nil {
+					su.logger.Warnf("Update loop for status '%s' failed when executing the callback: %s", status, err)
+				} else if onlyOnce {
 					su.logger.Debugf("Status '%s' successfully communicated after retry: stopping update loop", status)
 					return
 				}
 			}
 		}
-	}(status, su.config.Interval, su.config.Timeout, onlyOnce)
+	}(status, reason, su.config.Interval, su.config.Timeout, onlyOnce)
 
 	su.status = status
 }
@@ -144,7 +151,7 @@ func (su *Sender) Running() error {
 	if err := su.statusChangeAllowed(reconciler.Running); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.Running, false) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
+	su.sendUpdate(reconciler.Running, nil, false) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
 	return nil
 }
 
@@ -152,15 +159,15 @@ func (su *Sender) Success() error {
 	if err := su.statusChangeAllowed(reconciler.Success); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.Success, true) //Success is a final status: use retry because heartbeat-requests are no longer needed
+	su.sendUpdate(reconciler.Success, nil, true) //Success is a final status: use retry because heartbeat-requests are no longer needed
 	return nil
 }
 
-func (su *Sender) Error() error {
+func (su *Sender) Error(err error) error {
 	if err := su.statusChangeAllowed(reconciler.Error); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.Error, true) //Error is a final status: use retry because heartbeat-requests are no longer needed
+	su.sendUpdate(reconciler.Error, err, true) //Error is a final status: use retry because heartbeat-requests are no longer needed
 	return nil
 }
 

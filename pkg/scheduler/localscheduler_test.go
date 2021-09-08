@@ -173,8 +173,8 @@ func newWorkerFactory(t *testing.T) WorkerFactory {
 	workerFactory, err := NewLocalWorkerFactory(
 		&cluster.MockInventory{},
 		NewInMemoryOperationsRegistry(),
-		func(component string, status reconciler.Status) {
-			t.Logf("Component %s has status %s", component, status)
+		func(component string, msg *reconciler.CallbackMessage) {
+			t.Logf("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
 		},
 		true)
 	require.NoError(t, err)
