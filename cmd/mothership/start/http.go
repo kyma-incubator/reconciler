@@ -264,11 +264,11 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch body.Status {
-	case string(reconciler.NotStarted), string(reconciler.Running):
+	case reconciler.NotStarted, reconciler.Running:
 		err = o.Registry.OperationsRegistry().SetInProgress(correlationID, schedulingID)
-	case string(reconciler.Success):
+	case reconciler.Success:
 		err = o.Registry.OperationsRegistry().SetDone(correlationID, schedulingID)
-	case string(reconciler.Error):
+	case reconciler.Error:
 		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID, "Reconciler reported error status")
 	}
 	if err != nil {

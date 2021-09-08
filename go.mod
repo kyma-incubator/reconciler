@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
+	github.com/docker/docker v20.10.8+incompatible // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-git/go-git/v5 v5.4.2
@@ -28,7 +29,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	helm.sh/helm/v3 v3.6.3
 	k8s.io/api v0.21.0

@@ -69,8 +69,8 @@ func RunLocal(o *Options) error {
 	workerFactory, _ := scheduler.NewLocalWorkerFactory(
 		&cluster.MockInventory{},
 		scheduler.NewInMemoryOperationsRegistry(),
-		func(component string, status reconciler.Status) {
-			l.Infof("Component %s has status %s", component, status)
+		func(component string, msg *reconciler.CallbackMessage) {
+			l.Infof("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
 		},
 		true)
 

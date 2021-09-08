@@ -145,6 +145,7 @@ func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.St
 		if err != nil {
 			rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
 			statusUpdater.Update(component.Component, model.OperationStateError)
+			return
 		}
 		statusUpdater.Update(component.Component, model.OperationStateDone)
 	}
