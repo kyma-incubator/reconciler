@@ -2,7 +2,7 @@
 FROM istio/istioctl:1.11.1 AS istio-1_11_1
 
 # Build image
-FROM golang:1.16.4-alpine3.12 AS build
+FROM golang:1.17.0-alpine3.13 AS build
 
 ENV SRC_DIR=/go/src/github.com/kyma-incubator/reconciler
 ADD . $SRC_DIR
@@ -16,7 +16,8 @@ WORKDIR $SRC_DIR
 COPY configs /configs
 RUN CGO_ENABLED=0 go build -o /bin/reconciler ./cmd/main.go
 
-RUN apk --no-cache add curl
+RUN apk update && apk upgrade && \
+    apk --no-cache add curl
 RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.0-beta.1/migrate.linux-386.tar.gz -o migrate.tar.gz &&\
     tar xvzf migrate.tar.gz migrate -C /bin/ &&\
     ls -la /bin &&\
