@@ -15,6 +15,6 @@ type InvokeParams struct {
 	InstallCRD           bool
 }
 
-type ReconcilerInvoker interface {
+type reconcilerInvoker interface {
 	Invoke(params *InvokeParams) error
 }
