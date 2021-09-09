@@ -147,7 +147,7 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	defer cleanupFct(t)
 
 
-	workerFactory := NewLocalWorkerFactory(
+	workerFactory := newLocalWorkerFactory(
 		zap.NewNop().Sugar(),
 		&cluster.MockInventory{},
 		NewInMemoryOperationsRegistry(),

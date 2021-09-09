@@ -10,13 +10,13 @@ import (
 
 type ReconcilerStatusFunc func(component string, msg *reconciler.CallbackMessage)
 
-type LocalReconcilerInvoker struct {
+type localReconcilerInvoker struct {
 	operationsReg OperationsRegistry
 	logger        *zap.SugaredLogger
 	statusFunc    ReconcilerStatusFunc
 }
 
-func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
+func (lri *localReconcilerInvoker) Invoke(params *InvokeParams) error {
 	component := params.ComponentToReconcile.Component
 
 	//resolve component reconciler

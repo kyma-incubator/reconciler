@@ -58,7 +58,7 @@ func NewLocalScheduler(opts ...LocalSchedulerOption) *LocalScheduler {
 		opt(ls)
 	}
 
-	ls.workerFactory = NewLocalWorkerFactory(ls.logger, &cluster.MockInventory{}, NewInMemoryOperationsRegistry(), ls.statusFunc)
+	ls.workerFactory = newLocalWorkerFactory(ls.logger, &cluster.MockInventory{}, NewInMemoryOperationsRegistry(), ls.statusFunc)
 	return ls
 }
 

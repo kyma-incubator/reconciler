@@ -13,7 +13,7 @@ type WorkerFactory interface {
 type baseWorkerFactory struct {
 	inventory     cluster.Inventory
 	operationsReg OperationsRegistry
-	invoker       ReconcilerInvoker
+	invoker       reconcilerInvoker
 	logger        *zap.SugaredLogger
 	debug         bool
 }
@@ -40,7 +40,7 @@ func NewRemoteWorkerFactory(
 		&baseWorkerFactory{
 			inventory:     inventory,
 			operationsReg: operationsReg,
-			invoker: &RemoteReconcilerInvoker{
+			invoker: &remoteReconcilerInvoker{
 				logger:           log,
 				mothershipScheme: mothershipCfg.Scheme,
 				mothershipHost:   mothershipCfg.Host,
@@ -73,7 +73,7 @@ type localWorkerFactory struct {
 	*baseWorkerFactory
 }
 
-func NewLocalWorkerFactory(
+func newLocalWorkerFactory(
 	logger *zap.SugaredLogger,
 	inventory cluster.Inventory,
 	operationsReg OperationsRegistry,
@@ -83,7 +83,7 @@ func NewLocalWorkerFactory(
 		&baseWorkerFactory{
 			inventory:     inventory,
 			operationsReg: operationsReg,
-			invoker: &LocalReconcilerInvoker{
+			invoker: &localReconcilerInvoker{
 				logger:        logger,
 				operationsReg: operationsReg,
 				statusFunc:    statusFunc,
