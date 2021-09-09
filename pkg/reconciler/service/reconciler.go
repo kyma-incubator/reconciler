@@ -2,11 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -14,44 +10,24 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"github.com/panjf2000/ants/v2"
-
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
-	"github.com/gorilla/mux"
-	"github.com/kyma-incubator/reconciler/pkg/server"
 )
 
 const (
-	paramContractVersion = "version"
-	defaultServerPort    = 8080
-	defaultMaxRetries    = 5
-	defaultInterval      = 30 * time.Second
-	defaultRetryDelay    = 30 * time.Second
-	defaultTimeout       = 10 * time.Minute
-	defaultWorkers       = 100
-	defaultWorkspace     = "."
+	defaultServerPort = 8080
+	defaultMaxRetries = 5
+	defaultInterval   = 30 * time.Second
+	defaultRetryDelay = 30 * time.Second
+	defaultTimeout    = 10 * time.Minute
+	defaultWorkers    = 100
+	defaultWorkspace  = "."
 )
 
 var (
 	wsFactory *workspace.Factory //singleton
 	m         sync.Mutex
 )
-
-type ActionContext struct {
-	KubeClient       kubernetes.Client
-	WorkspaceFactory *workspace.Factory
-	Context          context.Context
-	Logger           *zap.SugaredLogger
-	ChartProvider    *chart.Provider
-}
-
-type Action interface {
-	Run(version, profile string, configuration []reconciler.Configuration, helper *ActionContext) error
-}
 
 type ComponentReconciler struct {
 	workspace             string
@@ -279,126 +255,11 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.
 	return runnerFunc()
 }
 
-func (r *ComponentReconciler) StartRemote(ctx context.Context) error {
+func (r *ComponentReconciler) StartRemote(ctx context.Context) (*WorkerPool, error) {
 	if err := r.validate(); err != nil {
-		return err
+		return nil, err
 	}
-
-	//start worker pool
-	r.logger.Infof("Starting worker pool with %d workers", r.workers)
-	workerPool, err := ants.NewPool(r.workers, ants.WithNonblocking(true))
-	if err != nil {
-		return err
-	}
-
-	defer func() { //shutdown worker pool when stopping webserver
-		r.logger.Info("Shutting down worker pool")
-		workerPool.Release()
-	}()
-
-	//start webserver
-	srv := server.Webserver{
-		Logger:     r.logger,
-		Port:       r.serverConfig.port,
-		SSLCrtFile: r.serverConfig.sslCrtFile,
-		SSLKeyFile: r.serverConfig.sslKeyFile,
-		Router:     r.newRouter(ctx, workerPool),
-	}
-
-	return srv.Start(ctx) //blocking until ctx gets closed
-}
-
-func (r *ComponentReconciler) newRouter(ctx context.Context, workerPool *ants.Pool) *mux.Router {
-	router := mux.NewRouter()
-	router.HandleFunc(
-		fmt.Sprintf("/v{%s}/run", paramContractVersion),
-		func(w http.ResponseWriter, req *http.Request) {
-			r.logger.Debug("Start processing request")
-
-			//marshal model
-			model, err := r.model(req)
-			if err != nil {
-				r.logger.Warnf("Unmarshalling of model failed: %s", err)
-				r.sendResponse(w, http.StatusInternalServerError, err)
-				return
-			}
-			r.logger.Debugf("Model unmarshalled: %s", model)
-
-			//validate model
-			if err := model.Validate(); err != nil {
-				r.sendResponse(w, http.StatusBadRequest, err)
-				return
-			}
-
-			//check whether all dependencies are fulfilled
-			depMissing := r.dependenciesMissing(model)
-			if len(depMissing) > 0 {
-				r.logger.Debugf("Found missing component dependencies: %s", strings.Join(depMissing, ", "))
-				r.sendResponse(w, http.StatusPreconditionRequired, reconciler.HTTPMissingDependenciesResponse{
-					Dependencies: struct {
-						Required []string
-						Missing  []string
-					}{Required: r.dependencies, Missing: depMissing},
-				})
-				return
-			}
-
-			//enrich logger with correlation ID and component name
-			loggerNew, err := logger.NewLogger(r.debug)
-			if err != nil {
-				r.logger.Errorf("Could not create a new logger that is correlationID-aware: %s", err)
-				return
-			}
-			r.logger = loggerNew.With(zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID}, zap.Field{Key: "component-name", Type: zapcore.StringType, String: model.Component})
-
-			//create callback handler
-			remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger)
-			if err != nil {
-				r.logger.Warnf("Could not create remote callback handler: %s", err)
-				r.sendResponse(w, http.StatusInternalServerError, err)
-				return
-			}
-
-			//assign runner to worker
-			err = workerPool.Submit(func() {
-				r.logger.Debugf("Runner for model '%s' is assigned to worker", model)
-				runnerFunc := r.newRunnerFunc(ctx, model, remoteCbh)
-				if errRunner := runnerFunc(); errRunner != nil {
-					r.logger.Warnf("Runner failed for model '%s': %v", model, errRunner)
-					return
-				}
-			})
-
-			//check if execution of worker was successful
-			if err != nil {
-				r.logger.Warnf("Runner for model '%s' could not be assigned to worker: %s", model, err)
-				r.sendResponse(w, http.StatusInternalServerError, err)
-				return
-			}
-
-			//done
-			r.logger.Debug("Request successfully processed")
-			r.sendResponse(w, http.StatusOK, nil)
-		}).
-		Methods("PUT", "POST")
-	return router
-}
-
-func (r *ComponentReconciler) dependenciesMissing(model *reconciler.Reconciliation) []string {
-	var missing []string
-	for _, compDep := range r.dependencies {
-		found := false
-		for _, compReady := range model.ComponentsReady {
-			if compReady == compDep { //check if required component is part of the components which are ready
-				found = true
-				break
-			}
-		}
-		if !found {
-			missing = append(missing, compDep)
-		}
-	}
-	return missing
+	return newWorkerPool(ctx, r)
 }
 
 func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {
@@ -408,51 +269,4 @@ func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconcil
 		defer cancel()
 		return (&runner{r}).Run(timeoutCtx, model, callback)
 	}
-}
-
-func (r *ComponentReconciler) sendResponse(w http.ResponseWriter, httpCode int, response interface{}) {
-	if err, ok := response.(error); ok { //convert to error response
-		response = reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		}
-	}
-	w.WriteHeader(httpCode)
-	w.Header().Set("content-type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		r.logger.Warnf("Failed to encode response payload to JSON: %s", err)
-		//send error response
-		w.WriteHeader(http.StatusInternalServerError)
-		http.Error(w, "Failed to encode response payload to JSON", http.StatusInternalServerError)
-	}
-}
-
-func (r *ComponentReconciler) model(req *http.Request) (*reconciler.Reconciliation, error) {
-	params := server.NewParams(req)
-	contractVersion, err := params.String(paramContractVersion)
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	model, err := r.modelForVersion(contractVersion)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(b, model)
-	if err != nil {
-		return nil, err
-	}
-
-	return model, err
-}
-
-func (r *ComponentReconciler) modelForVersion(contractVersion string) (*reconciler.Reconciliation, error) {
-	if contractVersion == "" {
-		return nil, fmt.Errorf("contract version cannot be empty")
-	}
-	return &reconciler.Reconciliation{}, nil //change this function if different contract versions have to be supported
 }

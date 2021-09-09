@@ -99,23 +99,6 @@ func TestReconciler(t *testing.T) {
 		require.Equal(t, 999*time.Second, recon.timeout)
 	})
 
-	t.Run("Filter missing component dependencies", func(t *testing.T) {
-		recon, err := NewComponentReconciler("unittest")
-		require.NoError(t, err)
-
-		require.NoError(t, recon.Debug())
-
-		recon.WithDependencies("a", "b")
-		require.ElementsMatch(t, []string{"a", "b"}, recon.dependenciesMissing(&reconciler.Reconciliation{
-			ComponentsReady: []string{"x", "y", "z"},
-		}))
-		require.ElementsMatch(t, []string{"b"}, recon.dependenciesMissing(&reconciler.Reconciliation{
-			ComponentsReady: []string{"a", "y", "z"},
-		}))
-		require.ElementsMatch(t, []string{}, recon.dependenciesMissing(&reconciler.Reconciliation{
-			ComponentsReady: []string{"a", "b", "z"},
-		}))
-	})
 }
 
 func TestReconcilerEnd2End(t *testing.T) {
@@ -135,7 +118,7 @@ func TestReconcilerEnd2End(t *testing.T) {
 
 	//start reconciler
 	go func() {
-		err = recon.
+		_, err := recon.
 			WithWorkspace("./test").
 			WithWorkers(2, workerTimeout).
 			WithServerConfig(9999, "", "").

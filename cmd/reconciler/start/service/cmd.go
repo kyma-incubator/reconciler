@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/spf13/cobra"
@@ -25,11 +24,10 @@ func NewCmd(o *reconCli.Options, reconcilerName string) *cobra.Command {
 }
 
 func Run(o *reconCli.Options, reconcilerName string) error {
-	recon, err := reconCli.NewComponentReconciler(o, reconcilerName)
+	ctx := cli.NewContext()
+	workerPool, err := StartComponentReconciler(ctx, o, reconcilerName)
 	if err != nil {
 		return err
 	}
-
-	o.Logger().Infof("Starting component reconciler '%s'", reconcilerName)
-	return recon.StartRemote(cli.NewContext())
+	return StartWebserver(ctx, o, workerPool)
 }

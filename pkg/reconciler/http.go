@@ -12,3 +12,7 @@ type HTTPMissingDependenciesResponse struct {
 		Missing  []string
 	}
 }
+
+type HTTPReconciliationResponse struct {
+	//mothership reconciler expects no payload in the reconciliation response at the moment
+}

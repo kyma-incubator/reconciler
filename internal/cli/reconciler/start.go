@@ -19,7 +19,7 @@ func NewComponentReconciler(o *Options, reconcilerName string) (*service.Compone
 
 	recon.WithWorkspace(o.Workspace).
 		//configure REST API server
-		WithServerConfig(o.ServerConfig.Port, o.ServerConfig.SSLCrt, o.ServerConfig.SSLKey).
+		WithServerConfig(o.ServerConfig.Port, o.ServerConfig.SSLCrtFile, o.ServerConfig.SSLKeyFile).
 		//configure reconciliation worker pool + retry-behaviour
 		WithWorkers(o.WorkerConfig.Workers, o.WorkerConfig.Timeout).
 		WithRetry(o.RetryConfig.MaxRetries, o.RetryConfig.RetryDelay).
