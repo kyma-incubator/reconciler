@@ -72,14 +72,14 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			prerequisites: []string{"b", "d"},
 			crdComponents: []string{"c", "e"},
 			allComponents: []string{"d", "c", "a", "e", "b"},
-			expectedOrder: []string{"d", "b", "c", "e", "a"},
+			expectedOrder: []string{"c", "e", "d", "b", "a"},
 		},
 		{
 			summary:       "overlapping prereqs and crds",
 			prerequisites: []string{"b", "d"},
 			crdComponents: []string{"c", "b"},
 			allComponents: []string{"d", "c", "a", "b"},
-			expectedOrder: []string{"d", "b", "c", "a"},
+			expectedOrder: []string{"c", "b", "d", "a"},
 		},
 	}
 
