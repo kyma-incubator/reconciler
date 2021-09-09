@@ -47,6 +47,6 @@ func (f *InvokeParams) createReconciliation() *reconciler.Reconciliation {
 	}
 }
 
-type ReconcilerInvoker interface {
+type reconcilerInvoker interface {
 	Invoke(params *InvokeParams) error
 }

@@ -10,14 +10,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type RemoteReconcilerInvoker struct {
+type remoteReconcilerInvoker struct {
 	logger           *zap.SugaredLogger
 	mothershipScheme string
 	mothershipHost   string
 	mothershipPort   int
 }
 
-func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
+func (rri *remoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 	payload := params.CreateRemoteReconciliation(fmt.Sprintf("%s://%s:%d/v1/operations/%s/callback/%s",
 		rri.mothershipScheme, rri.mothershipHost, rri.mothershipPort, params.SchedulingID, params.CorrelationID))
 

@@ -28,7 +28,7 @@ type Worker struct {
 	config        *ComponentReconciler
 	inventory     cluster.Inventory
 	operationsReg OperationsRegistry
-	invoker       ReconcilerInvoker
+	invoker       reconcilerInvoker
 	logger        *zap.SugaredLogger
 	errorsCount   int
 }
@@ -37,7 +37,7 @@ func NewWorker(
 	config *ComponentReconciler,
 	inventory cluster.Inventory,
 	operationsReg OperationsRegistry,
-	invoker ReconcilerInvoker,
+	invoker reconcilerInvoker,
 	debug bool) (*Worker, error) {
 	log, err := logger.NewLogger(debug)
 	if err != nil {
