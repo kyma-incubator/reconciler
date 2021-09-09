@@ -1,3 +1,4 @@
 config:
   key1: "value1 from values.yaml"
   key2: "value2 from values.yaml"
+showKey2: false

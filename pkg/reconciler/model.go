@@ -6,8 +6,8 @@ import (
 )
 
 type Configuration struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key   string      `json:"key"`
+	Value interface{} `json:"value"`
 }
 
 type Status string
