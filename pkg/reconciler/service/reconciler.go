@@ -259,7 +259,10 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) (*WorkerPool, err
 	if err := r.validate(); err != nil {
 		return nil, err
 	}
-	return newWorkerPool(ctx, r)
+	return newWorkerPoolBuilder(&dependencyChecker{r.dependencies}, r.newRunnerFunc).
+		WithPoolSize(r.workers).
+		WithDebug(r.debug).
+		Build(ctx)
 }
 
 func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {

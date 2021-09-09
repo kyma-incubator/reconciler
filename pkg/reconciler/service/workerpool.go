@@ -10,38 +10,73 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type WorkerPool struct {
-	reconciler *ComponentReconciler
-	workerPool *ants.Pool
-	ctx        context.Context
+type workPoolBuilder struct {
+	workerPool *WorkerPool
+	poolSize   int
 }
 
-func newWorkerPool(ctx context.Context, recon *ComponentReconciler) (*WorkerPool, error) {
-	//start worker pool
-	recon.logger.Infof("Starting worker pool with %d workers", recon.workers)
-	workerPool, err := ants.NewPool(recon.workers, ants.WithNonblocking(true))
+type WorkerPool struct {
+	debug        bool
+	logger       *zap.SugaredLogger
+	antsPool     *ants.Pool
+	newRunnerFct func(context.Context, *reconciler.Reconciliation, callback.Handler) func() error
+	depChecker   *dependencyChecker
+}
+
+func newWorkerPoolBuilder(depChecker *dependencyChecker, newRunnerFct func(context.Context, *reconciler.Reconciliation, callback.Handler) func() error) *workPoolBuilder {
+	return &workPoolBuilder{
+		poolSize: defaultWorkers,
+		workerPool: &WorkerPool{
+			newRunnerFct: newRunnerFct,
+			depChecker:   depChecker,
+		},
+	}
+}
+
+func (pb *workPoolBuilder) WithPoolSize(poolSize int) *workPoolBuilder {
+	pb.poolSize = poolSize
+	return pb
+}
+
+func (pb *workPoolBuilder) WithDebug(debug bool) *workPoolBuilder {
+	pb.workerPool.debug = debug
+	return pb
+}
+
+func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
+	//add logger
+	log, err := logger.NewLogger(pb.workerPool.debug)
 	if err != nil {
 		return nil, err
 	}
+	pb.workerPool.logger = log
 
-	go func() {
+	//add ants worker pool
+	log.Infof("Starting worker pool with %d workers", pb.poolSize)
+	antsPool, err := ants.NewPool(pb.poolSize, ants.WithNonblocking(true))
+	if err != nil {
+		return nil, err
+	}
+	pb.workerPool.antsPool = antsPool
+
+	go func(ctx context.Context, antsPool *ants.Pool) {
 		<-ctx.Done()
-		recon.logger.Info("Shutting down worker pool")
-		workerPool.Release()
-	}()
+		log.Info("Shutting down worker pool")
+		antsPool.Release()
+	}(ctx, antsPool)
 
-	return &WorkerPool{
-		reconciler: recon,
-		workerPool: workerPool,
-		ctx:        ctx,
-	}, nil
+	return pb.workerPool, nil
 }
 
-func (wa *WorkerPool) AssignWorker(model *reconciler.Reconciliation) error {
+func (wa *WorkerPool) CheckDependencies(model *reconciler.Reconciliation) *DependencyCheck {
+	return wa.depChecker.newDependencyCheck(model)
+}
+
+func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Reconciliation) error {
 	//enrich logger with correlation ID and component name
-	loggerNew, err := logger.NewLogger(wa.reconciler.debug)
+	loggerNew, err := logger.NewLogger(wa.debug)
 	if err != nil {
-		wa.reconciler.logger.Errorf("Failed to prepare reconciliation of model '%s'! "+
+		wa.logger.Errorf("Failed to prepare reconciliation of model '%s'! "+
 			"Could not create a new logger that is correlationID-aware: %s", model, err)
 		return err
 	}
@@ -52,50 +87,19 @@ func (wa *WorkerPool) AssignWorker(model *reconciler.Reconciliation) error {
 	//create callback handler
 	remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, loggerNew)
 	if err != nil {
-		wa.reconciler.logger.Errorf("Failed to start reconciliation of model '%s'! "+
+		wa.logger.Errorf("Failed to start reconciliation of model '%s'! "+
 			"Could not create remote callback handler - not able to process : %s", model, err)
 		return err
 	}
 
 	//assign runner to worker
-	err = wa.workerPool.Submit(func() {
-		wa.reconciler.logger.Debugf("Runner for model '%s' is assigned to worker", model)
-		runnerFunc := wa.reconciler.newRunnerFunc(wa.ctx, model, remoteCbh)
+	err = wa.antsPool.Submit(func() {
+		wa.logger.Debugf("Runner for model '%s' is assigned to worker", model)
+		runnerFunc := wa.newRunnerFct(ctx, model, remoteCbh)
 		if errRunner := runnerFunc(); errRunner != nil {
-			wa.reconciler.logger.Warnf("Runner failed for model '%s': %v", model, errRunner)
+			wa.logger.Warnf("Runner failed for model '%s': %v", model, errRunner)
 		}
 	})
 
 	return err
-}
-
-func (wa *WorkerPool) Reconcilable(model *reconciler.Reconciliation) *ReconcilableResult {
-	var missingDeps []string
-	for _, compDep := range wa.reconciler.dependencies {
-		found := false
-		for _, compReady := range model.ComponentsReady {
-			if compReady == compDep { //check if required component is part of the components which are ready
-				found = true
-				break
-			}
-		}
-		if !found {
-			missingDeps = append(missingDeps, compDep)
-		}
-	}
-	return &ReconcilableResult{
-		Component: model.Component,
-		Required:  wa.reconciler.dependencies,
-		Missing:   missingDeps,
-	}
-}
-
-type ReconcilableResult struct {
-	Component string
-	Required  []string
-	Missing   []string
-}
-
-func (cd *ReconcilableResult) IsReconcilable() bool {
-	return len(cd.Missing) == 0
 }

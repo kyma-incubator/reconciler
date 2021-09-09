@@ -25,17 +25,17 @@ func StartWebserver(ctx context.Context, o *reconCli.Options, workerPool *servic
 		Port:       o.ServerConfig.Port,
 		SSLCrtFile: o.ServerConfig.SSLCrtFile,
 		SSLKeyFile: o.ServerConfig.SSLKeyFile,
-		Router:     newRouter(o, workerPool),
+		Router:     newRouter(ctx, o, workerPool),
 	}
 	return srv.Start(ctx) //blocking until ctx gets closed
 }
 
-func newRouter(o *reconCli.Options, workerPool *service.WorkerPool) *mux.Router {
+func newRouter(ctx context.Context, o *reconCli.Options, workerPool *service.WorkerPool) *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/run", paramContractVersion),
 		func(w http.ResponseWriter, r *http.Request) { //just an adapter for the reconcile-fct call
-			reconcile(w, r, o, workerPool)
+			reconcile(ctx, w, r, o, workerPool)
 		},
 	).Methods("PUT", "POST")
 	return router
@@ -72,7 +72,7 @@ func modelForVersion(contractVersion string) (*reconciler.Reconciliation, error)
 	return &reconciler.Reconciliation{}, nil //change this function if multiple contract versions have to be supported
 }
 
-func reconcile(w http.ResponseWriter, req *http.Request, o *reconCli.Options, workerPool *service.WorkerPool) {
+func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o *reconCli.Options, workerPool *service.WorkerPool) {
 	o.Logger().Debug("Start processing reconciliation request")
 
 	//marshal model
@@ -91,23 +91,23 @@ func reconcile(w http.ResponseWriter, req *http.Request, o *reconCli.Options, wo
 	}
 
 	//check whether all dependencies are fulfilled
-	reconcilable := workerPool.Reconcilable(model)
-	if !reconcilable.IsReconcilable() {
+	depCheck := workerPool.CheckDependencies(model)
+	if !depCheck.DependencyMissing() {
 		o.Logger().Debugf("Model '%s' not reconcilable", model)
 		cliHttp.SendHTTPError(w, http.StatusPreconditionRequired, reconciler.HTTPMissingDependenciesResponse{
 			Dependencies: struct {
 				Required []string
 				Missing  []string
 			}{
-				Required: reconcilable.Required,
-				Missing:  reconcilable.Missing,
+				Required: depCheck.Required,
+				Missing:  depCheck.Missing,
 			},
 		})
 		return
 	}
 
 	o.Logger().Debugf("Assigning reconciliation worker to model '%s'", model)
-	if err := workerPool.AssignWorker(model); err != nil {
+	if err := workerPool.AssignWorker(ctx, model); err != nil {
 		cliHttp.SendHTTPError(w, http.StatusInternalServerError, err)
 		return
 	}
