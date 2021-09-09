@@ -1,14 +1,12 @@
-package test
+package components
 
 import (
-	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"testing"
 )
 
 const (
-	kymaNamespace = "kyma-system"
+	KymaNamespace = "kyma-system"
 )
 
 type ComponentList struct {
@@ -22,13 +20,19 @@ type Component struct {
 	Namespace string
 }
 
-func NewComponentList(t *testing.T, compListFile string) *ComponentList {
+func NewComponentList(compListFile string) (*ComponentList, error) {
 	data, err := ioutil.ReadFile(compListFile)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 
 	compList := &ComponentList{
-		DefaultNamespace: kymaNamespace,
+		DefaultNamespace: KymaNamespace,
 	}
-	require.NoError(t, yaml.Unmarshal(data, &compList))
-	return compList
+
+	if err := yaml.Unmarshal(data, &compList); err != nil {
+		return nil, err
+	}
+
+	return compList, nil
 }

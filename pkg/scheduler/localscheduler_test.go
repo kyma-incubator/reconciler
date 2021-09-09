@@ -12,7 +12,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/test"
-	mock "github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +22,7 @@ const (
 )
 
 func TestLocalScheduler(t *testing.T) {
-	testCluster := keb.Cluster{
+	testCluster := &keb.Cluster{
 		KymaConfig: keb.KymaConfig{
 			Components: []keb.Components{
 				{Component: "logging"},
@@ -88,7 +88,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 		t.Run(tc.summary, func(t *testing.T) {
 			t.Parallel()
 
-			testCluster := keb.Cluster{
+			testCluster := &keb.Cluster{
 				KymaConfig: keb.KymaConfig{},
 			}
 			for _, c := range tc.allComponents {
@@ -155,8 +155,8 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 
 }
 
-func newCluster(t *testing.T) keb.Cluster {
-	return keb.Cluster{
+func newCluster(t *testing.T) *keb.Cluster {
+	return &keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),
 		KymaConfig: keb.KymaConfig{
 			Version: kymaVersion,
@@ -172,9 +172,9 @@ func newCluster(t *testing.T) keb.Cluster {
 func newWorkerFactory(t *testing.T) WorkerFactory {
 	workerFactory, err := NewLocalWorkerFactory(
 		&cluster.MockInventory{},
-		NewDefaultOperationsRegistry(),
-		func(component string, status reconciler.Status) {
-			t.Logf("Component %s has status %s", component, status)
+		NewInMemoryOperationsRegistry(),
+		func(component string, msg *reconciler.CallbackMessage) {
+			t.Logf("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
 		},
 		true)
 	require.NoError(t, err)

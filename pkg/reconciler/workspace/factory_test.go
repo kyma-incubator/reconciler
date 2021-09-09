@@ -66,12 +66,24 @@ func TestWorkspaceFactory(t *testing.T) {
 		require.NoError(t, err)
 
 		//check again all the required files including success file
-		require.True(t, file.DirExists(ws.ResourceDir))
-		require.True(t, file.DirExists(ws.InstallationResourceDir))
-		require.True(t, file.DirExists(ws.InstallationResourceCrdDir))
+		checkWorkspaceDirectories(t, ws)
 		require.True(t, file.Exists(filepath.Join(workspaceDir, successFile)))
 	})
 
+	t.Run("Use local workspace", func(t *testing.T) {
+		workspaceDir := filepath.Join(".", "test", "local")
+		wsf, err := NewFactory(workspaceDir, log.NewOptionalLogger(true))
+		require.NoError(t, err)
+		localWs, err := wsf.Get(VersionLocal)
+		require.NoError(t, err)
+		checkWorkspaceDirectories(t, localWs)
+	})
+}
+
+func checkWorkspaceDirectories(t *testing.T, ws *Workspace) {
+	require.True(t, file.DirExists(ws.ResourceDir))
+	require.True(t, file.DirExists(ws.InstallationResourceDir))
+	require.True(t, file.DirExists(ws.InstallationResourceCrdDir))
 }
 
 func testDelete(t *testing.T, wsf *Factory) {

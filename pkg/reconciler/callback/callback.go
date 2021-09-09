@@ -5,5 +5,5 @@ import (
 )
 
 type Handler interface {
-	Callback(status reconciler.Status) error
+	Callback(msg *reconciler.CallbackMessage) error
 }

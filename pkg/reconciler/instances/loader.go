@@ -11,8 +11,8 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy"
 	//import required to register component reconciler 'istio' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
-	//import required to register component reconciler 'simpletestcomponent' in reconciler registry
-	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/simpletestcomponent"
+	//import required to register component reconciler 'e2etest' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/e2etest"
 	//import required to register component reconciler 'rafter' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/rafter"
 )

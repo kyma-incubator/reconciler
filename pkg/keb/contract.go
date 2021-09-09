@@ -14,9 +14,9 @@ type RuntimeInput struct {
 }
 
 type Configuration struct {
-	Key    string `json:"key"`
-	Value  string `json:"value"`
-	Secret bool   `json:"secret"`
+	Key    string      `json:"key"`
+	Value  interface{} `json:"value"`
+	Secret bool        `json:"secret"`
 }
 
 type Components struct {

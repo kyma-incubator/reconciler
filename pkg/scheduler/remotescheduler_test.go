@@ -10,7 +10,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -28,10 +27,16 @@ func TestRemoteScheduler(t *testing.T) {
 			Contract:   1,
 			Components: string(componentsJSON),
 		},
+		Status: &model.ClusterStatusEntity{
+			Status: model.ClusterStatusReconcilePending,
+		},
 	}
 
+	inventory := &cluster.MockInventory{}
+	inventory.GetLatestResult = &state
 	var queue InventoryQueue
 	inventoryWatchStub := &MockInventoryWatcher{}
+	inventoryWatchStub.On("Inventory").Return(inventory)
 	inventoryWatchStub.On("Run", mock.Anything, mock.Anything).
 		Return(nil).
 		Run(func(args mock.Arguments) {
@@ -50,7 +55,7 @@ func TestRemoteScheduler(t *testing.T) {
 	sut := RemoteScheduler{
 		inventoryWatch: inventoryWatchStub,
 		workerFactory:  workerFactoryMock,
-		mothershipCfg:  reconciler.MothershipReconcilerConfig{},
+		mothershipCfg:  MothershipReconcilerConfig{},
 		poolSize:       2,
 		logger:         l,
 	}

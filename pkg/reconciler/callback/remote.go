@@ -32,15 +32,13 @@ func NewRemoteCallbackHandler(callbackURL string, logger *zap.SugaredLogger) (Ha
 	}, nil
 }
 
-func (cb *RemoteCallbackHandler) Callback(status reconciler.Status) error {
+func (cb *RemoteCallbackHandler) Callback(msg *reconciler.CallbackMessage) error {
 	if cb.callbackURL == "" { //test cases often don't provide a callback URL
 		cb.logger.Warn("Empty callback-URL provided: remote callback not executed")
 		return nil
 	}
 
-	requestBody, err := json.Marshal(map[string]string{
-		"status": string(status),
-	})
+	requestBody, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -62,7 +60,7 @@ func (cb *RemoteCallbackHandler) Callback(status reconciler.Status) error {
 
 	if resp.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("Status update request (status '%s')  failed with '%d' HTTP response code",
-			status,
+			msg,
 			resp.StatusCode)
 		cb.logger.Info(msg)
 		return fmt.Errorf(msg)

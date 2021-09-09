@@ -10,7 +10,7 @@ type Options struct {
 	ServerConfig          *ServerConfig
 	WorkerConfig          *WorkerConfig
 	RetryConfig           *RetryConfig
-	StatusUpdaterConfig   *RecurringTaskConfig
+	HeartbeatSenderConfig *RecurringTaskConfig
 	ProgressTrackerConfig *RecurringTaskConfig
 }
 
@@ -39,7 +39,7 @@ func (o *Options) Validate() error {
 	if err := o.RetryConfig.validate(); err != nil {
 		return err
 	}
-	if err := o.StatusUpdaterConfig.validate(); err != nil {
+	if err := o.HeartbeatSenderConfig.validate(); err != nil {
 		return err
 	}
 	if err := o.ProgressTrackerConfig.validate(); err != nil {

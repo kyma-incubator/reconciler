@@ -11,23 +11,17 @@ import (
 )
 
 type Configuration struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key   string      `json:"key"`
+	Value interface{} `json:"value"`
 }
 
 type Status string
 
 const (
 	NotStarted Status = "notstarted"
-	Failed     Status = "failed"
 	Error      Status = "error"
 	Running    Status = "running"
 	Success    Status = "success"
-)
-
-const (
-	ManagedByLabel       = "reconciler.kyma-project.io/managed-by"
-	LabelReconcilerValue = "reconciler"
 )
 
 //Reconciliation is the model for reconciliation calls
@@ -45,7 +39,7 @@ type Reconciliation struct {
 	Repository      Repository      `json:"repository"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
-	CallbackFunc func(status Status) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
+	CallbackFunc func(msg *CallbackMessage) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
 }
 
 func (r *Reconciliation) ConfigsToMap() map[string]string {
@@ -96,35 +90,13 @@ func (r *Reconciliation) Validate() error {
 	return err
 }
 
-//HTTPErrorResponse is the model used for general error responses
-type HTTPErrorResponse struct {
-	Error string
-}
-
-//HTTPMissingDependenciesResponse is the model used for missing dependency responses
-type HTTPMissingDependenciesResponse struct {
-	Dependencies struct {
-		Required []string
-		Missing  []string
-	}
-}
-
 type CallbackMessage struct {
-	Status string `json:"status"`
+	Status Status `json:"status"`
+	Error  error  `json:"error"`
 }
 
-//ComponentReconciler is the model used to describe the component reconciler configuration
-type ComponentReconciler struct {
-	URL string `json:"url"`
-}
-
-type ComponentReconcilersConfig map[string]*ComponentReconciler
-
-type MothershipReconcilerConfig struct {
-	Host          string
-	Port          int
-	CrdComponents []string
-	PreComponents []string
+func (cb *CallbackMessage) String() string {
+	return fmt.Sprintf("CallbackMessage [status=%s,error=%s]", cb.Status, cb.Error)
 }
 
 type Repository struct {

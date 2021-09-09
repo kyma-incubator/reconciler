@@ -3,9 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
-
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
-
+	"github.com/pkg/errors"
 	//add Postgres driver:
 	_ "github.com/lib/pq"
 
@@ -87,8 +86,7 @@ type PostgresConnectionFactory struct {
 }
 
 func (pcf *PostgresConnectionFactory) Init() error {
-	//no init action required for postgres
-	return nil
+	return pcf.checkPostgresIsolationLevel()
 }
 
 func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
@@ -111,4 +109,42 @@ func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
 	}
 
 	return newPostgresConnection(db, pcf.EncryptionKey, pcf.Debug)
+}
+
+func (pcf *PostgresConnectionFactory) checkPostgresIsolationLevel() error {
+	logger := log.NewOptionalLogger(pcf.Debug)
+
+	dbConn, err := pcf.NewConnection()
+	if err != nil {
+		return errors.Wrap(err, "not able to open DB connection to verify DB isolation level")
+	}
+
+	defer func() {
+		if err := dbConn.Close(); err != nil {
+			logger.Warnf("Failed to close DB connection which was used to get Postgres isolation level: %s", err)
+		}
+	}()
+
+	res, err := dbConn.Query("SHOW TRANSACTION ISOLATION LEVEL")
+	if err != nil {
+		return errors.Wrap(err, "failed to get isolation level from Postgres DB")
+	}
+
+	var isoLevel string
+	if res.Next() {
+		if err := res.Scan(&isoLevel); err != nil {
+			return errors.Wrap(err, "failed to bind Postgres result which includes isolation level")
+		}
+		if isoLevel == sql.LevelReadUncommitted.String() {
+			//stop bootstrapping if isolation level is too low
+			return fmt.Errorf("postgres isolation level has to be >= '%s' but was '%s'",
+				isoLevel, sql.LevelReadCommitted.String())
+		}
+	} else {
+		return errors.New("Postgres isolation level unknown")
+	}
+
+	logger.Infof("Postgres isolation level is: %v", isoLevel)
+
+	return nil
 }
