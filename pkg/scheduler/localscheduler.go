@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -33,23 +34,31 @@ func WithPrerequisites(components ...string) LocalSchedulerOption {
 	}
 }
 
+func WithStatusFunc(statusFunc ReconcilerStatusFunc) LocalSchedulerOption {
+	return func(ls *LocalScheduler) {
+		ls.statusFunc = statusFunc
+	}
+}
+
 type LocalScheduler struct {
-	workerFactory WorkerFactory
 	logger        *zap.SugaredLogger
 	crdComponents []string
 	prereqs       []string
+	statusFunc    ReconcilerStatusFunc
+	workerFactory WorkerFactory
 }
 
-func NewLocalScheduler(workerFactory WorkerFactory, opts ...LocalSchedulerOption) *LocalScheduler {
+func NewLocalScheduler(opts ...LocalSchedulerOption) *LocalScheduler {
 	ls := &LocalScheduler{
-		workerFactory: workerFactory,
 		logger:        zap.NewNop().Sugar(),
+		statusFunc: func(component string, msg *reconciler.CallbackMessage) {},
 	}
 
 	for _, opt := range opts {
 		opt(ls)
 	}
 
+	ls.workerFactory = NewLocalWorkerFactory(ls.logger, &cluster.MockInventory{}, NewInMemoryOperationsRegistry(), ls.statusFunc)
 	return ls
 }
 

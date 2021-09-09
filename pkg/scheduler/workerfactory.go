@@ -74,31 +74,26 @@ type localWorkerFactory struct {
 }
 
 func NewLocalWorkerFactory(
+	logger *zap.SugaredLogger,
 	inventory cluster.Inventory,
 	operationsReg OperationsRegistry,
-	statusFunc ReconcilerStatusFunc,
-	debug bool) (WorkerFactory, error) {
-
-	log, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
+	statusFunc ReconcilerStatusFunc) WorkerFactory {
 
 	return &localWorkerFactory{
 		&baseWorkerFactory{
 			inventory:     inventory,
 			operationsReg: operationsReg,
 			invoker: &LocalReconcilerInvoker{
-				logger:        log,
+				logger:        logger,
 				operationsReg: operationsReg,
 				statusFunc:    statusFunc,
 			},
-			logger: log,
-			debug:  debug,
+			logger: logger,
 		},
-	}, nil
+	}
 }
 
 func (lwf *localWorkerFactory) ForComponent(component string) (ReconciliationWorker, error) {
-	return NewWorker(&ComponentReconciler{}, lwf.inventory, lwf.operationsReg, lwf.invoker, lwf.debug)
+	//TODO: pass the logger to the worker instead of the debug flag
+	return NewWorker(&ComponentReconciler{}, lwf.inventory, lwf.operationsReg, lwf.invoker, true)
 }
