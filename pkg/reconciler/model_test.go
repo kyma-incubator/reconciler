@@ -27,7 +27,7 @@ func TestStatusUpdater(t *testing.T) {
 		}
 
 		configsMap := model.ConfigsToMap()
-		assert.Equal(t, map[string]string{
+		assert.Equal(t, map[string]interface{}{
 			"test1": "value1",
 			"test2": "value2",
 		}, configsMap)

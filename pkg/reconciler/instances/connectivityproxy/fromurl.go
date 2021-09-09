@@ -29,7 +29,7 @@ func (fu *FromURL) Get() (*coreV1.Secret, error) {
 	}, nil
 }
 
-func (fu *FromURL) query() ([]byte, error) {
+func (fu *FromURL) query() (data []byte, err error) {
 	req, err := http.NewRequest("GET", fu.URL, nil)
 	if err != nil {
 		return nil, err
@@ -39,6 +39,15 @@ func (fu *FromURL) query() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close() // TODO: handle error
-	return ioutil.ReadAll(resp.Body)
+
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		err = resp.Body.Close()
+	}()
+
+	return bytes, err
 }
