@@ -25,8 +25,8 @@ const (
 	accessKeySize            = 20
 	secretKeySize            = 40
 
-	accessKeyName = "accessKey"
-	secretKeyName = "secretKey"
+	accessKeyName = "accesskey"
+	secretKeyName = "secretkey"
 )
 
 type CustomAction struct {
