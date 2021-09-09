@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -92,8 +93,9 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 
 	//check whether all dependencies are fulfilled
 	depCheck := workerPool.CheckDependencies(model)
-	if !depCheck.DependencyMissing() {
-		o.Logger().Debugf("Model '%s' not reconcilable", model)
+	if depCheck.DependencyMissing() {
+		o.Logger().Debugf("Model '%s' not reconcilable because dependencies are missing: '%s'",
+			model, strings.Join(depCheck.Missing, "', '"))
 		cliHttp.SendHTTPError(w, http.StatusPreconditionRequired, reconciler.HTTPMissingDependenciesResponse{
 			Dependencies: struct {
 				Required []string

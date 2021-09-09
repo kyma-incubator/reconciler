@@ -34,5 +34,5 @@ type DependencyCheck struct {
 }
 
 func (cd *DependencyCheck) DependencyMissing() bool {
-	return len(cd.Missing) == 0
+	return len(cd.Missing) > 0
 }

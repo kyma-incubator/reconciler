@@ -327,16 +327,13 @@ func newCleanupFunc(t *testing.T) func(bool) {
 	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true), nil)
 	require.NoError(t, err)
 
-	cleanup := cleanup{
-		reconciler: recon,
-		kubeClient: kubeClient,
-	}
+	cleanup := NewTestCleanup(recon, kubeClient)
 
 	return func(deleteWorkspace bool) {
 		//remove all installed components
-		cleanup.removeKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
-		cleanup.removeKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
-		cleanup.removeKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
+		cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
+		cleanup.RemoveKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
+		cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
 		//remove the cloned workspace
 		if deleteWorkspace {
 			wsf, err := ws.NewFactory("./test", logger.NewOptionalLogger(true))

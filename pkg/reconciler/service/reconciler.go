@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	defaultServerPort = 8080
 	defaultMaxRetries = 5
 	defaultInterval   = 30 * time.Second
 	defaultRetryDelay = 30 * time.Second
@@ -32,7 +31,6 @@ var (
 type ComponentReconciler struct {
 	workspace             string
 	dependencies          []string
-	serverConfig          serverConfig
 	heartbeatSenderConfig heartbeatSenderConfig
 	progressTrackerConfig progressTrackerConfig
 	//actions:
@@ -58,12 +56,6 @@ type heartbeatSenderConfig struct {
 type progressTrackerConfig struct {
 	interval time.Duration
 	timeout  time.Duration
-}
-
-type serverConfig struct {
-	port       int
-	sslCrtFile string
-	sslKeyFile string
 }
 
 func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error) {
@@ -112,12 +104,6 @@ func (r *ComponentReconciler) validate() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.serverConfig.port < 0 {
-		return fmt.Errorf("server port cannot be < 0 (got %d)", r.serverConfig.port)
-	}
-	if r.serverConfig.port == 0 {
-		r.serverConfig.port = defaultServerPort
-	}
 	if r.heartbeatSenderConfig.interval < 0 {
 		return fmt.Errorf("heartbeat interval cannot be < 0 (got %.1f secs)",
 			r.heartbeatSenderConfig.interval.Seconds())
@@ -220,13 +206,6 @@ func (r *ComponentReconciler) WithPostReconcileAction(postReconcileAction Action
 func (r *ComponentReconciler) WithHeartbeatSenderConfig(interval, timeout time.Duration) *ComponentReconciler {
 	r.heartbeatSenderConfig.interval = interval
 	r.heartbeatSenderConfig.timeout = timeout
-	return r
-}
-
-func (r *ComponentReconciler) WithServerConfig(port int, sslCrtFile, sslKeyFile string) *ComponentReconciler {
-	r.serverConfig.port = port
-	r.serverConfig.sslCrtFile = sslCrtFile
-	r.serverConfig.sslKeyFile = sslKeyFile
 	return r
 }
 

@@ -17,7 +17,14 @@ type cleanup struct {
 	kubeClient kubernetes.Client
 }
 
-func (c *cleanup) removeKymaComponent(t *testing.T, version, component, namespace string) {
+func NewTestCleanup(reconciler *ComponentReconciler, kubeClient kubernetes.Client) *cleanup {
+	return &cleanup{
+		reconciler: reconciler,
+		kubeClient: kubeClient,
+	}
+}
+
+func (c *cleanup) RemoveKymaComponent(t *testing.T, version, component, namespace string) {
 	t.Logf("Cleanup of component '%s' (version: %s, namespace: %s) started", component, version, namespace)
 
 	//render manifest
