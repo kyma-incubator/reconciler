@@ -10,9 +10,7 @@ type CustomAction struct {
 	copyFactory []CopyFactory
 }
 
-func (a *CustomAction) Run(version, _ string, _ []reconciler.Configuration, context *service.ActionContext) error {
-	context.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, version)
-
+func (a *CustomAction) Run(_, _ string, _ []reconciler.Configuration, context *service.ActionContext) error {
 	for _, create := range a.copyFactory {
 		operation := create(context)
 		err := operation.Transfer()

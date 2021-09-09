@@ -42,8 +42,8 @@ type Reconciliation struct {
 	CallbackFunc func(msg *CallbackMessage) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
 }
 
-func (r *Reconciliation) ConfigsToMap() map[string]string {
-	configs := make(map[string]string)
+func (r *Reconciliation) ConfigsToMap() map[string]interface{} {
+	configs := make(map[string]interface{})
 	for i := 0; i < len(r.Configuration); i++ {
 		configs[r.Configuration[i].Key] = r.Configuration[i].Value
 	}
@@ -104,14 +104,14 @@ type Repository struct {
 	Token string `json:"-"`
 }
 
-func (r *Repository) ReadToken(clientSet core.CoreV1Interface, namespace string) error {
+func (r *Repository) ReadToken(clientSet core.CoreV1Interface, namespace interface{}) error {
 	secretKey, err := mapSecretKey(r.URL)
 	if err != nil {
 		return err
 	}
 
 	secret, err := clientSet.
-		Secrets(namespace).
+		Secrets(fmt.Sprintf("%v", namespace)).
 		Get(context.Background(), secretKey, v1.GetOptions{})
 
 	if err != nil {

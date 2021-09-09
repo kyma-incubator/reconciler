@@ -50,7 +50,7 @@ type ActionContext struct {
 	ChartProvider      *chart.Provider
 	Kubeconfig         string
 	InClusterClientSet k8s.Interface
-	ConfigsMap         map[string]string
+	ConfigsMap         map[string]interface{}
 	ClientSet          k8s.Interface
 }
 

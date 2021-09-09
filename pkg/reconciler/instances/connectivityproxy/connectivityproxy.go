@@ -1,6 +1,7 @@
 package connectivityproxy
 
 import (
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	service "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
@@ -40,12 +41,12 @@ func registrySecretCopy(context *service.ActionContext) *SecretCopy {
 	configs := context.ConfigsMap
 
 	return &SecretCopy{
-		Namespace:       configs[registryConfigPrefix+".secret.to.namespace"],
-		Name:            configs[registryConfigPrefix+".secret.name"],
+		Namespace:       fmt.Sprintf("%v", configs[registryConfigPrefix+".secret.to.namespace"]),
+		Name:            fmt.Sprintf("%v", configs[registryConfigPrefix+".secret.name"]),
 		targetClientSet: context.ClientSet,
 		from: &FromSecret{
-			Name:      configs[registryConfigPrefix+".secret.name"],
-			Namespace: configs[registryConfigPrefix+".secret.from.namespace"],
+			Name:      fmt.Sprintf("%v", configs[registryConfigPrefix+".secret.name"]),
+			Namespace: fmt.Sprintf("%v", configs[registryConfigPrefix+".secret.from.namespace"]),
 			inCluster: context.InClusterClientSet,
 		},
 	}
@@ -55,12 +56,12 @@ func istioSecretCopy(context *service.ActionContext) *SecretCopy {
 	configs := context.ConfigsMap
 
 	return &SecretCopy{
-		Namespace:       configs[istioConfigPrefix+".secret.namespace"],
-		Name:            configs[istioConfigPrefix+".secret.name"],
+		Namespace:       fmt.Sprintf("%v", configs[istioConfigPrefix+".secret.namespace"]),
+		Name:            fmt.Sprintf("%v", configs[istioConfigPrefix+".secret.name"]),
 		targetClientSet: context.ClientSet,
 		from: &FromURL{
-			URL: configs[istioConfigPrefix+".secret.url"],
-			Key: configs[istioConfigPrefix+".secret.key"],
+			URL: fmt.Sprintf("%v", configs[istioConfigPrefix+".secret.url"]),
+			Key: fmt.Sprintf("%v", configs[istioConfigPrefix+".secret.key"]),
 		},
 	}
 }

@@ -60,7 +60,7 @@ func TestClient(t *testing.T) {
 
 		require.NoError(t, err)
 
-		headRef, err = repo.Head()
+		_, err = repo.Head()
 		require.NoError(t, err)
 	})
 }

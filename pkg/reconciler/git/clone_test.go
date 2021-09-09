@@ -45,8 +45,8 @@ func TestCloneRepo(t *testing.T) {
 
 	clonerMock := &mocks.RepoClient{}
 
-	repoUrl := "github.com/foo"
-	r := reconciler.Repository{URL: repoUrl}
+	repoURL := "github.com/foo"
+	r := reconciler.Repository{URL: repoURL}
 	options := git.CloneOptions{
 		Depth:             0,
 		URL:               r.URL,
@@ -87,7 +87,7 @@ func TestCloneRepo(t *testing.T) {
 		autoCheckout := false
 		clonerMock.On("Clone", context.Background(), "/test", autoCheckout, &git.CloneOptions{
 			Depth:      0,
-			URL:        repoUrl,
+			URL:        repoURL,
 			NoCheckout: !autoCheckout,
 			Auth: &http.BasicAuth{
 				Username: "xxx", // anything but an empty string
@@ -96,7 +96,7 @@ func TestCloneRepo(t *testing.T) {
 			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 		}).Return(repo, nil)
 		cloner := NewCloner(clonerMock, &reconciler.Repository{
-			URL:   repoUrl,
+			URL:   repoURL,
 			Token: token,
 		}, autoCheckout)
 

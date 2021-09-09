@@ -20,12 +20,12 @@ type SecretCopy struct {
 	from            SecretFrom
 }
 
-func (c *SecretCopy) Transfer() error {
-	secret, err := c.from.Get()
+func (s *SecretCopy) Transfer() error {
+	secret, err := s.from.Get()
 	if err != nil {
 		return err
 	}
-	err = c.createSecret(secret)
+	err = s.createSecret(secret)
 	if err != nil {
 		return err
 	}

@@ -11,10 +11,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/heartbeat"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/pkg/errors"
 )
-
-const repoTokenKey = "repo.token.namespace"
 
 type runner struct {
 	*ComponentReconciler
@@ -93,7 +92,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	}
 
 	configs := model.ConfigsToMap()
-	err = model.Repository.ReadToken(inClusterClientSet.CoreV1(), configs[repoTokenKey])
+	err = model.Repository.ReadToken(inClusterClientSet.CoreV1(), configs["repo.token.namespace"])
 	if err != nil {
 		return err
 	}

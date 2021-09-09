@@ -36,31 +36,22 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 
 	lri.logger.Debugf("Calling the reconciler for a component %s, correlation ID: %s", component, params.CorrelationID)
 
-	return componentReconciler.StartLocal(context.Background(), &reconciler.Reconciliation{
-		ComponentsReady: params.ComponentsReady,
-		Component:       component,
-		Namespace:       params.ComponentToReconcile.Namespace,
-		Version:         params.ClusterState.Configuration.KymaVersion,
-		Profile:         params.ClusterState.Configuration.KymaProfile,
-		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
-		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
-		CallbackFunc: func(msg *reconciler.CallbackMessage) error {
-			if lri.statusFunc != nil {
-				lri.statusFunc(component, msg)
-			}
+	payload := params.CreateLocalReconciliation(func(msg *reconciler.CallbackMessage) error {
+		if lri.statusFunc != nil {
+			lri.statusFunc(component, msg)
+		}
 
-			switch msg.Status {
-			case reconciler.NotStarted, reconciler.Running:
-				return lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
-			case reconciler.Success:
-				return lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
-			case reconciler.Error:
-				return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID, "Reconciler reported error status")
-			}
+		switch msg.Status {
+		case reconciler.NotStarted, reconciler.Running:
+			return lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
+		case reconciler.Success:
+			return lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
+		case reconciler.Error:
+			return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID, "Reconciler reported error status")
+		}
 
-			return nil
-		},
-		InstallCRD:    params.InstallCRD,
-		CorrelationID: params.CorrelationID,
+		return nil
 	})
+
+	return componentReconciler.StartLocal(context.Background(), payload)
 }

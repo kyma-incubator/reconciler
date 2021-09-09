@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kyma-incubator/reconciler/pkg/test"
-
 	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,7 +72,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 	t.Run("Use local workspace", func(t *testing.T) {
 		workspaceDir := filepath.Join(".", "test", "local")
-		wsf, err := NewFactory(workspaceDir, log.NewOptionalLogger(true))
+		wsf, err := NewFactory(&reconciler.Repository{}, workspaceDir, log.NewOptionalLogger(true))
 		require.NoError(t, err)
 		localWs, err := wsf.Get(VersionLocal)
 		require.NoError(t, err)

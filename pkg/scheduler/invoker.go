@@ -3,6 +3,7 @@ package scheduler
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 )
 
 type InvokeParams struct {
@@ -15,25 +16,37 @@ type InvokeParams struct {
 	InstallCRD           bool
 }
 
+func (f *InvokeParams) CreateLocalReconciliation(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Reconciliation {
+	payload := f.createReconciliation()
+	payload.CallbackFunc = callbackFunc
+	return payload
+}
+
+func (f *InvokeParams) CreateRemoteReconciliation(callbackURL string) *reconciler.Reconciliation {
+	payload := f.createReconciliation()
+	payload.CallbackURL = callbackURL
+	return payload
+}
+
+func (f *InvokeParams) createReconciliation() *reconciler.Reconciliation {
+	version := f.ClusterState.Configuration.KymaVersion
+	if f.ComponentToReconcile.Version != "" {
+		version = f.ComponentToReconcile.Version
+	}
+
+	return &reconciler.Reconciliation{
+		ComponentsReady: f.ComponentsReady,
+		Component:       f.ComponentToReconcile.Component,
+		Namespace:       f.ComponentToReconcile.Namespace,
+		Version:         version,
+		Profile:         f.ClusterState.Configuration.KymaProfile,
+		Configuration:   mapConfiguration(f.ComponentToReconcile.Configuration),
+		Kubeconfig:      f.ClusterState.Cluster.Kubeconfig,
+		InstallCRD:      f.InstallCRD,
+		CorrelationID:   f.CorrelationID,
+	}
+}
+
 type ReconcilerInvoker interface {
 	Invoke(params *InvokeParams) error
-}
-
-
-version := params.ClusterState.Configuration.KymaVersion
-if params.ComponentToReconcile.Version != "" {
-version = params.ComponentToReconcile.Version
-}
-
-return componentReconciler.StartLocal(context.Background(), &reconciler.Reconciliation{
-ComponentsReady: params.ComponentsReady,
-Component:       component,
-Namespace:       params.ComponentToReconcile.Namespace,
-Version:         version,
-Profile:         params.ClusterState.Configuration.KymaProfile,
-Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
-Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
-CallbackFunc: func(status reconciler.Status) error {
-if lri.statusFunc != nil {
-lri.statusFunc(component, status)
 }
