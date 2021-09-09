@@ -66,14 +66,14 @@ func (ls *LocalScheduler) Run(ctx context.Context, c *keb.Cluster) error {
 		return fmt.Errorf("failed to get components: %s", err)
 	}
 
-	err = ls.reconcilePrereqs(components, clusterState, schedulingID)
-	if err != nil {
-		return fmt.Errorf("failed to reconcile prerequisite component: %s", err)
-	}
-
 	err = ls.reconcileCRDComponents(components, clusterState, schedulingID)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile CRD component: %s", err)
+	}
+
+	err = ls.reconcilePrereqs(components, clusterState, schedulingID)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile prerequisite component: %s", err)
 	}
 
 	err = ls.reconcileUnprioritizedComponents(ctx, components, clusterState, schedulingID)
@@ -129,23 +129,9 @@ func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 	}, nil
 }
 
-func (ls *LocalScheduler) reconcilePrereqs(components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
-	for _, c := range components {
-		if !ls.isPrereq(c) {
-			continue
-		}
-
-		err := ls.reconcile(c, clusterState, schedulingID, false)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
 	for _, c := range components {
-		if !ls.isCRDComponent(c) || ls.isPrereq(c) {
+		if !ls.isCRDComponent(c) {
 			continue
 		}
 
@@ -157,10 +143,24 @@ func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Components, c
 	return nil
 }
 
+func (ls *LocalScheduler) reconcilePrereqs(components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
+	for _, c := range components {
+		if !ls.isPrereq(c) || ls.isCRDComponent(c) {
+			continue
+		}
+
+		err := ls.reconcile(c, clusterState, schedulingID, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (ls *LocalScheduler) reconcileUnprioritizedComponents(ctx context.Context, components []*keb.Components, clusterState *cluster.State, schedulingID string) error {
 	g, _ := errgroup.WithContext(ctx)
 	for _, c := range components {
-		if contains(ls.crdComponents, c.Component) || contains(ls.prereqs, c.Component) {
+		if ls.isPrereq(c) || ls.isCRDComponent(c) {
 			continue
 		}
 
