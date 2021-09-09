@@ -89,7 +89,7 @@ func initiateClient() *fake.Clientset {
 }
 
 func assertParsed(t *testing.T, expected string, url string, expectError bool) {
-	key, err := MapSecretKey(url)
+	key, err := mapSecretKey(url)
 	if expectError {
 		assert.Error(t, err)
 	} else {

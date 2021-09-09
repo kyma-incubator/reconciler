@@ -14,6 +14,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const repoTokenKey = "repo.token.namespace"
+
 type runner struct {
 	*ComponentReconciler
 }
@@ -94,7 +96,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	}
 
 	configs := model.ConfigsToMap()
-	err = model.Repository.ReadToken(inClusterClientSet.CoreV1(), configs["url.namespace"])
+	err = model.Repository.ReadToken(inClusterClientSet.CoreV1(), configs[repoTokenKey])
 	if err != nil {
 		return err
 	}

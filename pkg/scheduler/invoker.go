@@ -112,7 +112,6 @@ func (lri *LocalReconcilerInvoker) Invoke(params *InvokeParams) error {
 
 	lri.logger.Debugf("Calling the reconciler for a component %s, correlation ID: %s", component, params.CorrelationID)
 
-	// TODO: Check with reviewer
 	version := params.ClusterState.Configuration.KymaVersion
 	if params.ComponentToReconcile.Version != "" {
 		version = params.ComponentToReconcile.Version

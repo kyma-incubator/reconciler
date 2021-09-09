@@ -133,7 +133,7 @@ type Repository struct {
 }
 
 func (r *Repository) ReadToken(clientSet core.CoreV1Interface, namespace string) error {
-	secretKey, err := MapSecretKey(r.URL)
+	secretKey, err := mapSecretKey(r.URL)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (r *Repository) ReadToken(clientSet core.CoreV1Interface, namespace string)
 	return nil
 }
 
-func MapSecretKey(URL string) (string, error) {
+func mapSecretKey(URL string) (string, error) {
 	parsed, err := url.Parse(URL)
 
 	URL = strings.ReplaceAll(URL, "www.", "")
