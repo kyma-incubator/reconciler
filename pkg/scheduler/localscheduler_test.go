@@ -40,7 +40,7 @@ func TestLocalScheduler(t *testing.T) {
 	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
 
 	sut := LocalScheduler{
-		logger: zap.NewNop().Sugar(),
+		logger:        zap.NewNop().Sugar(),
 		workerFactory: workerFactoryMock,
 	}
 
@@ -114,8 +114,8 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			}
 
 			sut := LocalScheduler{
-				logger: zap.NewNop().Sugar(),
-				prereqs: tc.prerequisites,
+				logger:        zap.NewNop().Sugar(),
+				prereqs:       tc.prerequisites,
 				crdComponents: tc.crdComponents,
 				workerFactory: workerFactoryMock,
 			}
@@ -146,7 +146,6 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	cleanupFct(t)
 	defer cleanupFct(t)
 
-
 	workerFactory := newLocalWorkerFactory(
 		zap.NewNop().Sugar(),
 		&cluster.MockInventory{},
@@ -158,7 +157,7 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	t.Run("Missing component reconciler", func(t *testing.T) {
 		//no initialization of component reconcilers happened - reconciliation has to fail
 		ls := LocalScheduler{
-			logger: zap.NewNop().Sugar(),
+			logger:        zap.NewNop().Sugar(),
 			workerFactory: workerFactory,
 		}
 		err := ls.Run(context.Background(), newCluster(t))
@@ -168,7 +167,7 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	t.Run("Happy path", func(t *testing.T) {
 		initDefaultComponentReconciler(t)
 		ls := LocalScheduler{
-			logger: zap.NewNop().Sugar(),
+			logger:        zap.NewNop().Sugar(),
 			workerFactory: workerFactory,
 		}
 		err := ls.Run(context.Background(), newCluster(t))
