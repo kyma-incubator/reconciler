@@ -50,7 +50,7 @@ type LocalScheduler struct {
 
 func NewLocalScheduler(opts ...LocalSchedulerOption) *LocalScheduler {
 	ls := &LocalScheduler{
-		logger:        zap.NewNop().Sugar(),
+		logger:     zap.NewNop().Sugar(),
 		statusFunc: func(component string, msg *reconciler.CallbackMessage) {},
 	}
 
