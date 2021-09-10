@@ -5,15 +5,16 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/types"
 	"os"
-	"strings"
 )
 
 const (
 	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
+	istioOperatorKind = "IstioOperator"
 )
 
 type webhookPatchJSON struct {
@@ -51,14 +52,14 @@ type DefaultIstioPerformer struct {
 
 // NewDefaultIstioPerformer creates a new instance of the DefaultIstioPerformer.
 func NewDefaultIstioPerformer(kubeConfig, manifest string, kubeClient kubernetes.Client, logger *zap.SugaredLogger, cmder istioctl.Commander) (*DefaultIstioPerformer, error) {
-	istioctlPath := resolveIstioctlPath()
-	if istioctlPath == "" {
-		return nil, errors.New("Istioctl binary could not be found under ISTIOCTL_PATH env variable")
+	istioctlPath, err := resolveIstioctlPath()
+	if err != nil {
+		return nil, err
 	}
 
-	istioOperator := extractIstioOperatorContextFrom(manifest)
-	if istioOperator == "" {
-		return nil, errors.New("Istio Operator definition could not be found in manifest")
+	istioOperator, err := extractIstioOperatorContextFrom(manifest)
+	if err != nil {
+		return nil, err
 	}
 
 	return &DefaultIstioPerformer{
@@ -96,6 +97,8 @@ func (c *DefaultIstioPerformer) Install() error {
 		}
 	}()
 
+	c.logger.Info("Starting Istio installation...")
+
 	err = c.commander.Install(c.istioctlPath, istioOperatorPath, kubeconfigPath)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
@@ -122,25 +125,45 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook() error {
 		return err
 	}
 
+	c.logger.Info("Patching istio-sidecar-injector MutatingWebhookConfiguration...")
+
 	err = c.kubeClient.PatchUsingStrategy("MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", patchContentJSON, types.JSONPatchType)
 	if err != nil {
 		return err
 	}
 
+	c.logger.Infof("Patch has been applied successfully")
+
 	return nil
 }
 
-func resolveIstioctlPath() string {
-	return os.Getenv(istioctlBinaryPathEnvKey)
-}
-
-func extractIstioOperatorContextFrom(manifest string) string {
-	defs := strings.Split(manifest, "---")
-	for _, def := range defs {
-		if strings.Contains(def, "kind: IstioOperator") {
-			return def
-		}
+func resolveIstioctlPath() (string, error) {
+	path := os.Getenv(istioctlBinaryPathEnvKey)
+	if path == "" {
+		return "", errors.New("Istioctl binary could not be found under ISTIOCTL_PATH env variable")
 	}
 
-	return ""
+	return path, nil
+}
+
+func extractIstioOperatorContextFrom(manifest string) (string, error) {
+	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
+	if err != nil {
+		return "", err
+	}
+
+	for _, unstruct := range unstructs {
+		if unstruct.GetKind() != istioOperatorKind {
+			continue
+		}
+
+		unstructBytes, err := unstruct.MarshalJSON()
+		if err != nil {
+			return "", nil
+		}
+
+		return string(unstructBytes), nil
+	}
+
+	return "", errors.New("Istio Operator definition could not be found in manifest")
 }
