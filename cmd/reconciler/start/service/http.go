@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
-	cliHttp "github.com/kyma-incubator/reconciler/internal/cli/http"
 	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
@@ -80,14 +79,18 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 	model, err := newModel(req)
 	if err != nil {
 		o.Logger().Warnf("Unmarshalling of model failed: %s", err)
-		cliHttp.SendHTTPError(w, http.StatusInternalServerError, err)
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 	o.Logger().Debugf("Reconciliation model unmarshalled: %s", model)
 
 	//validate model
 	if err := model.Validate(); err != nil {
-		cliHttp.SendHTTPError(w, http.StatusBadRequest, err)
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 
@@ -96,11 +99,8 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 	if depCheck.DependencyMissing() {
 		o.Logger().Debugf("Model '%s' not reconcilable because dependencies are missing: '%s'",
 			model, strings.Join(depCheck.Missing, "', '"))
-		cliHttp.SendHTTPError(w, http.StatusPreconditionRequired, reconciler.HTTPMissingDependenciesResponse{
-			Dependencies: struct {
-				Required []string
-				Missing  []string
-			}{
+		server.SendHTTPError(w, http.StatusPreconditionRequired, reconciler.HTTPMissingDependenciesResponse{
+			Dependencies: reconciler.Dependencies{
 				Required: depCheck.Required,
 				Missing:  depCheck.Missing,
 			},
@@ -110,7 +110,9 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 
 	o.Logger().Debugf("Assigning reconciliation worker to model '%s'", model)
 	if err := workerPool.AssignWorker(ctx, model); err != nil {
-		cliHttp.SendHTTPError(w, http.StatusInternalServerError, err)
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 	sendResponse(w)
@@ -119,6 +121,8 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 func sendResponse(w http.ResponseWriter) {
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(&reconciler.HTTPReconciliationResponse{}); err != nil {
-		cliHttp.SendHTTPError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode response payload to JSON"))
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to encode response payload to JSON").Error(),
+		})
 	}
 }
