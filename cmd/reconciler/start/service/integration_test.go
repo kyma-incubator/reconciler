@@ -10,13 +10,15 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clientgo "k8s.io/client-go/kubernetes"
 	"net/http"
 	"testing"
 	"time"
@@ -24,8 +26,12 @@ import (
 
 const (
 	componentReconcilerName = "unittest"
-	workerTimeout           = 30 * time.Second
+	workerTimeout           = 1 * time.Minute
 	serverPort              = 9999
+	componentName           = "component-1"
+	componentNamespace      = "inttest-comprecon"
+	componentVersion        = "0.0.0"
+	componentPod            = "dummy-pod"
 )
 
 type testCase struct {
@@ -34,6 +40,7 @@ type testCase struct {
 	expectedHTTPCode int
 	responseModel    interface{}
 	url              string
+	prepareFct       func(*testing.T, kubernetes.Client)
 	verifyFct        func(*testing.T, interface{}, kubernetes.Client)
 }
 
@@ -46,8 +53,8 @@ func TestReconciler(t *testing.T) {
 
 	//cleanup old pods after and before test execution
 	cleanup := service.NewTestCleanup(recon, kubeClient)
-	cleanup.RemoveKymaComponent(t, "0.0.0", "component-1", "unittest-service")       //cleanup before tests are executed
-	defer cleanup.RemoveKymaComponent(t, "0.0.0", "component-1", "unittest-service") //cleanup after tests are finished
+	cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace)       //cleanup before tests are executed
+	defer cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace) //cleanup after tests are finished
 
 	//start reconciler
 
@@ -131,8 +138,8 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			name: "Missing dependencies",
 			model: &reconciler.Reconciliation{
 				ComponentsReady: []string{"abc", "def"},
-				Component:       "unittest-component",
-				Namespace:       "unittest-service",
+				Component:       componentName,
+				Namespace:       componentNamespace,
 				Version:         "1.2.3",
 				Profile:         "unittest",
 				Configuration:   nil,
@@ -151,11 +158,11 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			},
 		},
 		{
-			name: "Invalid request",
+			name: "Invalid request: mandatory fields missing",
 			model: &reconciler.Reconciliation{
 				ComponentsReady: []string{"abc", "xyz"},
-				Component:       "unittest-component",
-				Namespace:       "unittest-service",
+				Component:       componentName,
+				Namespace:       componentNamespace,
 				Version:         "1.2.3",
 				Profile:         "",
 				Configuration:   nil,
@@ -172,12 +179,12 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			},
 		},
 		{
-			name: "Happy path",
+			name: "Install component from scratch",
 			model: &reconciler.Reconciliation{
 				ComponentsReady: []string{"abc", "xyz"},
-				Component:       "component-1",
-				Namespace:       "unittest-service",
-				Version:         "0.0.0",
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      test.ReadKubeconfig(t),
@@ -188,16 +195,49 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			expectedHTTPCode: http.StatusOK,
 			responseModel:    &reconciler.HTTPReconciliationResponse{},
 			url:              "http://localhost:9999/v1/run",
-			verifyFct: func(t *testing.T, responseModel interface{}, kubeClient kubernetes.Client) {
-				time.Sleep(workerTimeout) //wait until process context got closed before verifying the results
-
+			verifyFct:        expectRunningPod,
+		},
+		{
+			name: "Install incomplete component",
+			model: &reconciler.Reconciliation{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				Profile:         "",
+				Configuration:   nil,
+				Kubeconfig:      test.ReadKubeconfig(t),
+				CallbackURL:     "https://httpbin.org/post",
+				InstallCRD:      false,
+				CorrelationID:   "test-correlation-id",
+			},
+			expectedHTTPCode: http.StatusOK,
+			responseModel:    &reconciler.HTTPReconciliationResponse{},
+			url:              "http://localhost:9999/v1/run",
+			prepareFct: func(t *testing.T, client kubernetes.Client) {
 				clientSet, err := kubeClient.Clientset()
 				require.NoError(t, err)
 
-				_, err = clientSet.CoreV1().Pods("unittest-service").Get(context.Background(), "dummy-pod", metav1.GetOptions{})
-				require.NoError(t, err)
+				err = clientSet.CoreV1().Pods(componentNamespace).Delete(context.Background(), componentPod, metav1.DeleteOptions{})
+				if err == nil {
+					//wait for deletion
+					t.Logf("Waiting for final termination of pod '%s'", componentPod)
+					watchable, err := progress.NewWatchableResource("pod")
+					require.NoError(t, err)
+
+					prog := newProgressTracker(t, clientSet)
+					prog.AddResource(watchable, componentNamespace, componentPod)
+					require.NoError(t, prog.Watch(context.TODO(), progress.TerminatedState))
+					return
+				}
+
+				if !errors.IsNotFound(err) {
+					require.Failf(t, "Termination of pod '%s' failed with unexpected error: %s", componentPod, err)
+				}
 			},
+			verifyFct: expectRunningPod,
 		},
+		//TODO: non-fixable component, non-reachable cluster, insufficient permissions on cluster, defective helm-chart
 	}
 
 	for _, testCase := range testCases {
@@ -205,10 +245,35 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 	}
 }
 
+func newProgressTracker(t *testing.T, clientSet clientgo.Interface) *progress.Tracker {
+	prog, err := progress.NewProgressTracker(clientSet, logger.NewOptionalLogger(true), progress.Config{
+		Interval: 1 * time.Second,
+	})
+	require.NoError(t, err)
+	return prog
+}
+
 //newTestFct is required to make the linter happy ;)
 func newTestFct(testCase testCase, kubeClient kubernetes.Client) func(t *testing.T) {
 	return func(t *testing.T) {
+		if testCase.prepareFct != nil {
+			testCase.prepareFct(t, kubeClient)
+		}
 		respModel := post(t, testCase)
 		testCase.verifyFct(t, respModel, kubeClient)
 	}
+}
+
+func expectRunningPod(t *testing.T, responseModel interface{}, kubeClient kubernetes.Client) {
+	clientSet, err := kubeClient.Clientset()
+	require.NoError(t, err)
+
+	watchable, err := progress.NewWatchableResource("pod")
+	require.NoError(t, err)
+
+	t.Logf("Waiting for pod '%s' to reach READY state", componentPod)
+	prog := newProgressTracker(t, clientSet)
+	prog.AddResource(watchable, componentNamespace, componentPod)
+	require.NoError(t, prog.Watch(context.TODO(), progress.ReadyState))
+	t.Logf("Pod '%s' reached READY state", componentPod)
 }

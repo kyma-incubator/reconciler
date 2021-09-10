@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: unittest-service
+  name: inttest-comprecon
 ---
 apiVersion: v1
 kind: Pod
 metadata:
   name: dummy-pod
-  namespace: unittest-service
+  namespace: inttest-comprecon
 spec:
   containers:
     - name: dummy-pod
