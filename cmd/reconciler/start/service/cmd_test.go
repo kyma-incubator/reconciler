@@ -57,7 +57,7 @@ func TestReconciler(t *testing.T) {
 		cancel()
 		time.Sleep(1 * time.Second) //give some time for graceful shutdown
 	}()
-	startReconciler(t, ctx)
+	startReconciler(ctx, t)
 
 	runTestCases(t, kubeClient)
 }
@@ -85,7 +85,7 @@ func newComponentReconciler(t *testing.T) *service.ComponentReconciler {
 	return recon
 }
 
-func startReconciler(t *testing.T, ctx context.Context) {
+func startReconciler(ctx context.Context, t *testing.T) {
 	go func() {
 		o := cliRecon.NewOptions(cliTest.NewTestOptions(t))
 		o.ServerConfig.Port = serverPort
@@ -201,9 +201,14 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			respModel := post(t, testCase)
-			testCase.verifyFct(t, respModel, kubeClient)
-		})
+		t.Run(testCase.name, newTestFct(testCase, kubeClient))
+	}
+}
+
+//newTestFct is required to make the linter happy ;)
+func newTestFct(testCase testCase, kubeClient kubernetes.Client) func(t *testing.T) {
+	return func(t *testing.T) {
+		respModel := post(t, testCase)
+		testCase.verifyFct(t, respModel, kubeClient)
 	}
 }
