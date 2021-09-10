@@ -3,7 +3,6 @@ package ory
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -55,19 +54,17 @@ func (a *CustomAction) Run(version, profile string, config []reconciler.Configur
 		Alg:  "RS256",
 		Bits: 0,
 	}
-
-	data, err := generateJwks(jwks)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	name := types.NamespacedName{
+	oryNamespacedName := types.NamespacedName{
 		Name:      "ory-oathkeeper-jwks-secret",
 		Namespace: "kyma-system",
 	}
-	secret := prepareSecret(name, data)
 
-	if err := a.ensureOrySecret(context.Context, kubeClient, name, secret); err != nil {
+	data, err := generateJwks(jwks)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate JWKS secret")
+	}
+	secretObject := prepareSecret(oryNamespacedName, data)
+	if err := a.ensureOrySecret(context.Context, kubeClient, oryNamespacedName, secretObject); err != nil {
 		return errors.Wrap(err, "failed to ensure Ory secret")
 	}
 
@@ -102,7 +99,7 @@ func (a *CustomAction) ensureOrySecret(ctx context.Context, client kubernetes.In
 func createSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret) error {
 	_, err := client.CoreV1().Secrets(name.Namespace).Create(ctx, &secret, metav1.CreateOptions{})
 	if err != nil {
-		log.Fatalf("failed to create the secret: %s", err)
+		return errors.Wrap(err, "failed to create the secret")
 	}
 	log.Printf("%s created", name.String())
 
@@ -113,11 +110,11 @@ func generateJwks(config jwksConfig) ([]byte, error) {
 
 	key, err := jwksx.GenerateSigningKeys(config.ID, config.Alg, config.Bits)
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate key: %s", err)
+		return nil, errors.Wrap(err, "unable to generate key")
 	}
 	data, err := json.Marshal(key)
 	if err != nil {
-		log.Fatal(err)
+		return nil, errors.Wrap(err, "unable to marshal key")
 	}
 
 	return data, nil
