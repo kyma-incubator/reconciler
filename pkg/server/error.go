@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -10,6 +11,6 @@ func SendHTTPError(w http.ResponseWriter, httpCode int, resp interface{}) {
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		http.Error(w, "Failed to encode response payload to JSON", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to encode response payload to JSON: %s", err), http.StatusInternalServerError)
 	}
 }
