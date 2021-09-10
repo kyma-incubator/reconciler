@@ -14,7 +14,7 @@ import (
 
 const (
 	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
-	istioOperatorKind = "IstioOperator"
+	istioOperatorKind        = "IstioOperator"
 )
 
 type webhookPatchJSON struct {
