@@ -2,16 +2,17 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/internal/components"
 	"io/ioutil"
 	"os"
 	"strings"
 
+	"github.com/kyma-incubator/reconciler/internal/components"
+
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
-	"github.com/magiconair/properties"
 	"github.com/pkg/errors"
+	"helm.sh/helm/v3/pkg/strvals"
 )
 
 type Options struct {
@@ -58,6 +59,11 @@ func componentsFromFile(path string) ([]string, error) {
 	return defaultComponents, nil
 }
 
+func isMap(x interface{}) bool {
+	t := fmt.Sprintf("%T", x)
+	return strings.HasPrefix(t, "map[")
+}
+
 func componentsFromStrings(list []string, values []string) []keb.Components {
 	var comps []keb.Components
 	for _, item := range list {
@@ -69,19 +75,24 @@ func componentsFromStrings(list []string, values []string) []keb.Components {
 		}
 		var configuration []keb.Configuration
 		for _, value := range values {
-			props, err := properties.LoadString(value)
-
+			vals, err := strvals.Parse(value)
 			if err != nil {
 				panic(fmt.Errorf("Can't parse value %s", value))
 			}
-			key := props.Keys()[0]
-			splitKey := strings.Split(key, ".")
-			keyComponent := splitKey[0]
-			if keyComponent == name {
-				configuration = append(configuration, keb.Configuration{Key: strings.Join(splitKey[1:], "."), Value: props.GetString(key, "")})
+			if vals[name] != nil {
+				val := vals[name]
+				mapValue, ok := val.(map[string]interface{})
+				if ok {
+					for key, value := range mapValue {
+						configuration = append(configuration, keb.Configuration{Key: key, Value: value})
+
+					}
+				} else {
+					panic(fmt.Errorf("Expected nested values for component %s, got value %s", name, val))
+				}
 			}
-			if keyComponent == "global" {
-				configuration = append(configuration, keb.Configuration{Key: key, Value: props.GetString(key, "")})
+			if vals["global"] != nil {
+				configuration = append(configuration, keb.Configuration{Key: "global", Value: vals["global"]})
 			}
 		}
 		comps = append(comps, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
