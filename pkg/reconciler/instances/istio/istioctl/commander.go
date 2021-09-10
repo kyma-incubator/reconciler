@@ -5,10 +5,6 @@ import (
 	"os/exec"
 )
 
-const (
-	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
-)
-
 //go:generate mockery -name=Commander
 // Commander for istioctl binary.
 type Commander interface {
