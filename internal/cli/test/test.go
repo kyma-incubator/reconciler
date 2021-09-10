@@ -25,11 +25,11 @@ func NewTestOptions(t *testing.T) *cli.Options {
 }
 
 func WaitForTCPSocket(t *testing.T, host string, port int, timeout time.Duration) {
-	check := time.Tick(1 * time.Second)
+	check := time.NewTimer(1 * time.Second)
 	destAddr := fmt.Sprintf("%s:%d", host, port)
 	for {
 		select {
-		case <-check:
+		case <-check.C:
 			_, err := net.Dial("tcp", destAddr)
 			if err == nil {
 				return
@@ -37,6 +37,7 @@ func WaitForTCPSocket(t *testing.T, host string, port int, timeout time.Duration
 		case <-time.After(timeout):
 			t.Logf("Timeout reached: could not open TCP connection to '%s' within %.1f seconds",
 				destAddr, timeout.Seconds())
+			check.Stop()
 			t.Fail()
 		}
 	}

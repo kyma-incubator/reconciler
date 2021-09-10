@@ -12,19 +12,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type cleanup struct {
+type TestCleanup struct {
 	reconciler *ComponentReconciler
 	kubeClient kubernetes.Client
 }
 
-func NewTestCleanup(reconciler *ComponentReconciler, kubeClient kubernetes.Client) *cleanup {
-	return &cleanup{
+func NewTestCleanup(reconciler *ComponentReconciler, kubeClient kubernetes.Client) *TestCleanup {
+	return &TestCleanup{
 		reconciler: reconciler,
 		kubeClient: kubeClient,
 	}
 }
 
-func (c *cleanup) RemoveKymaComponent(t *testing.T, version, component, namespace string) {
+func (c *TestCleanup) RemoveKymaComponent(t *testing.T, version, component, namespace string) {
 	t.Logf("Cleanup of component '%s' (version: %s, namespace: %s) started", component, version, namespace)
 
 	//render manifest
