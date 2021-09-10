@@ -59,11 +59,6 @@ func componentsFromFile(path string) ([]string, error) {
 	return defaultComponents, nil
 }
 
-func isMap(x interface{}) bool {
-	t := fmt.Sprintf("%T", x)
-	return strings.HasPrefix(t, "map[")
-}
-
 func componentsFromStrings(list []string, values []string) []keb.Components {
 	var comps []keb.Components
 	for _, item := range list {
