@@ -43,7 +43,7 @@
         "configuration": [
           {
             "key": "livenessProbe.enabled",
-            "value": "true"
+            "value": false
           }
         ]
       },
@@ -85,7 +85,7 @@
           },
           {
             "key": "hydra.hydra.autoMigrate",
-            "value": "true"
+            "value": true
           },
           {
             "key": "oathkeeper.oathkeeper-maester.deployment.resources.limits.memory",
@@ -123,11 +123,11 @@
           },
           {
             "key": "catalog.controllerManager.verbosity",
-            "value": "6"
+            "value": 6
           },
           {
             "key": "catalog.webhook.verbosity",
-            "value": "6"
+            "value": 6
           }
         ]
       },
@@ -141,7 +141,7 @@
           },
           {
             "key": "nats.clusterSize",
-            "value": "3"
+            "value": 3
           },
           {
             "key": "nats.resources.limits.cpu",
@@ -195,7 +195,7 @@
         "configuration": [
           {
             "key": "loki.persistence.enabled",
-            "value": "true"
+            "value": true
           },
           {
             "key": "loki.persistence.size",
@@ -219,7 +219,7 @@
           },
           {
             "key": "loki.kyma.auth.useKymaGroups",
-            "value": "true"
+            "value": true
           },
           {
             "key": "fluent-bit.config.outputs.loki.alias",
