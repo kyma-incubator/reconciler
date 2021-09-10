@@ -2,11 +2,12 @@ package db
 
 import (
 	"fmt"
-	file "github.com/kyma-incubator/reconciler/pkg/files"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/spf13/viper"
 )
 
 func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, error) {
@@ -21,14 +22,15 @@ func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, err
 	}
 
 	dbToUse := viper.GetString("db.driver")
+	executeUnverified := viper.GetBool("db.executeUnverified")
 
 	switch dbToUse {
 	case "postgres":
-		connFact := createPostgresConnectionFactory(encKey, debug)
+		connFact := createPostgresConnectionFactory(encKey, debug, executeUnverified)
 		return connFact, connFact.Init()
 
 	case "sqlite":
-		connFact, err := createSqliteConnectionFactory(encKey, debug)
+		connFact, err := createSqliteConnectionFactory(encKey, debug, executeUnverified)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +66,7 @@ func readEncryptionKey() (string, error) {
 	return string(encKeyBytes), nil
 }
 
-func createSqliteConnectionFactory(encKey string, debug bool) (*SqliteConnectionFactory, error) {
+func createSqliteConnectionFactory(encKey string, debug bool, executeUnverified bool) (*SqliteConnectionFactory, error) {
 	dbFile := viper.GetString("db.sqlite.file")
 	//ensure directory structure of db-file exists
 	dbFileDir := filepath.Dir(dbFile)
@@ -74,10 +76,11 @@ func createSqliteConnectionFactory(encKey string, debug bool) (*SqliteConnection
 		}
 	}
 	connFact := &SqliteConnectionFactory{
-		File:          dbFile,
-		Debug:         debug,
-		Reset:         viper.GetBool("db.sqlite.resetDatabase"),
-		EncryptionKey: encKey,
+		File:              dbFile,
+		Debug:             debug,
+		Reset:             viper.GetBool("db.sqlite.resetDatabase"),
+		EncryptionKey:     encKey,
+		ExecuteUnverified: executeUnverified,
 	}
 	if viper.GetBool("db.sqlite.deploySchema") {
 		connFact.SchemaFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), "db", "sqlite", "reconciler.sql")
@@ -85,7 +88,7 @@ func createSqliteConnectionFactory(encKey string, debug bool) (*SqliteConnection
 	return connFact, nil
 }
 
-func createPostgresConnectionFactory(encKey string, debug bool) *PostgresConnectionFactory {
+func createPostgresConnectionFactory(encKey string, debug bool, executeUnverified bool) *PostgresConnectionFactory {
 	host := viper.GetString("db.postgres.host")
 	port := viper.GetInt("db.postgres.port")
 	database := viper.GetString("db.postgres.database")
@@ -113,13 +116,14 @@ func createPostgresConnectionFactory(encKey string, debug bool) *PostgresConnect
 	}
 
 	return &PostgresConnectionFactory{
-		Host:          host,
-		Port:          port,
-		Database:      database,
-		User:          user,
-		Password:      password,
-		SslMode:       sslMode,
-		EncryptionKey: encKey,
-		Debug:         debug,
+		Host:              host,
+		Port:              port,
+		Database:          database,
+		User:              user,
+		Password:          password,
+		SslMode:           sslMode,
+		EncryptionKey:     encKey,
+		Debug:             debug,
+		ExecuteUnverified: executeUnverified,
 	}
 }

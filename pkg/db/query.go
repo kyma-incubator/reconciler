@@ -197,7 +197,10 @@ func (s *Select) GetOne() (DatabaseEntity, error) {
 		return nil, s.err
 	}
 	defer s.reset()
-	row := s.conn.QueryRow(s.buffer.String(), s.args...)
+	row, err := s.conn.QueryRow(s.buffer.String(), s.args...)
+	if err != nil {
+		return nil, err
+	}
 	return s.entity, s.columnHandler.Unmarshal(row, s.entity)
 }
 
@@ -245,7 +248,10 @@ func (i *Insert) Exec() error {
 	if err != nil {
 		return err
 	}
-	row := i.conn.QueryRow(i.buffer.String(), colVals...)
+	row, err := i.conn.QueryRow(i.buffer.String(), colVals...)
+	if err != nil {
+		return err
+	}
 	return i.columnHandler.Unmarshal(row, i.entity)
 }
 
@@ -305,6 +311,9 @@ func (u *Update) Exec() error {
 	if err != nil {
 		return err
 	}
-	row := u.conn.QueryRow(u.buffer.String(), colVals...)
+	row, err := u.conn.QueryRow(u.buffer.String(), colVals...)
+	if err != nil {
+		return err
+	}
 	return u.columnHandler.Unmarshal(row, u.entity)
 }
