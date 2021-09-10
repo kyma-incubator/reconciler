@@ -107,9 +107,9 @@ func (sc *SqliteConnection) validate(query string) bool {
 		return false
 	}
 
-	matchCreate := strings.Contains(query, "CREATE TABLE")
+	matchOthers := strings.Contains(query, "CREATE TABLE") || strings.Contains(query, "SHOW TRANSACTION")
 
-	return matchSelect || matchInsert || matchUpdate || matchDelete || matchCreate
+	return matchSelect || matchInsert || matchUpdate || matchDelete || matchOthers
 }
 
 func (sc *SqliteConnection) Begin() (*sql.Tx, error) {

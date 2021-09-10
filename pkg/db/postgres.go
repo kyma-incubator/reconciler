@@ -106,9 +106,9 @@ func (pc *PostgresConnection) validate(query string) bool {
 		return false
 	}
 
-	matchCreate := strings.Contains(query, "CREATE TABLE")
+	matchOthers := strings.Contains(query, "CREATE TABLE") || strings.Contains(query, "SHOW TRANSACTION")
 
-	return matchSelect || matchInsert || matchUpdate || matchCreate || matchDelete
+	return matchSelect || matchInsert || matchUpdate || matchDelete || matchOthers
 }
 
 func (pc *PostgresConnection) Begin() (*sql.Tx, error) {
