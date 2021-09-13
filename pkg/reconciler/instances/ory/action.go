@@ -6,8 +6,8 @@ import (
 	"log"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/ory/x/jwksx"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -108,7 +108,7 @@ func createSecret(ctx context.Context, client kubernetes.Interface, name types.N
 
 func generateJwks(config jwksConfig) ([]byte, error) {
 
-	key, err := jwksx.GenerateSigningKeys(config.ID, config.Alg, config.Bits)
+	key, err := actions.GenerateSigningKeys(config.ID, config.Alg, config.Bits)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate key")
 	}
