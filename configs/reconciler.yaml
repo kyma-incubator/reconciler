@@ -4,7 +4,7 @@ db:
   encryption:
     #Call `./bin/reconciler mothership install` to create or update the encryption key file
     keyFile: "./encryption/reconciler.key"
-  executeUnverified: false
+  blockQueries: true
   postgres:
     host: "localhost"
     database: "kyma"

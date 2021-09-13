@@ -22,15 +22,15 @@ func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, err
 	}
 
 	dbToUse := viper.GetString("db.driver")
-	executeUnverified := viper.GetBool("db.executeUnverified")
+	blockQueries := viper.GetBool("db.blockQueries")
 
 	switch dbToUse {
 	case "postgres":
-		connFact := createPostgresConnectionFactory(encKey, debug, executeUnverified)
+		connFact := createPostgresConnectionFactory(encKey, debug, blockQueries)
 		return connFact, connFact.Init()
 
 	case "sqlite":
-		connFact, err := createSqliteConnectionFactory(encKey, debug, executeUnverified)
+		connFact, err := createSqliteConnectionFactory(encKey, debug, blockQueries)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +66,7 @@ func readEncryptionKey() (string, error) {
 	return string(encKeyBytes), nil
 }
 
-func createSqliteConnectionFactory(encKey string, debug bool, executeUnverified bool) (*SqliteConnectionFactory, error) {
+func createSqliteConnectionFactory(encKey string, debug bool, blockQueries bool) (*SqliteConnectionFactory, error) {
 	dbFile := viper.GetString("db.sqlite.file")
 	//ensure directory structure of db-file exists
 	dbFileDir := filepath.Dir(dbFile)
@@ -76,11 +76,11 @@ func createSqliteConnectionFactory(encKey string, debug bool, executeUnverified 
 		}
 	}
 	connFact := &SqliteConnectionFactory{
-		File:              dbFile,
-		Debug:             debug,
-		Reset:             viper.GetBool("db.sqlite.resetDatabase"),
-		EncryptionKey:     encKey,
-		ExecuteUnverified: executeUnverified,
+		File:          dbFile,
+		Debug:         debug,
+		Reset:         viper.GetBool("db.sqlite.resetDatabase"),
+		EncryptionKey: encKey,
+		blockQueries:  blockQueries,
 	}
 	if viper.GetBool("db.sqlite.deploySchema") {
 		connFact.SchemaFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), "db", "sqlite", "reconciler.sql")
@@ -88,7 +88,7 @@ func createSqliteConnectionFactory(encKey string, debug bool, executeUnverified 
 	return connFact, nil
 }
 
-func createPostgresConnectionFactory(encKey string, debug bool, executeUnverified bool) *PostgresConnectionFactory {
+func createPostgresConnectionFactory(encKey string, debug bool, blockQueries bool) *PostgresConnectionFactory {
 	host := viper.GetString("db.postgres.host")
 	port := viper.GetInt("db.postgres.port")
 	database := viper.GetString("db.postgres.database")
@@ -116,14 +116,14 @@ func createPostgresConnectionFactory(encKey string, debug bool, executeUnverifie
 	}
 
 	return &PostgresConnectionFactory{
-		Host:              host,
-		Port:              port,
-		Database:          database,
-		User:              user,
-		Password:          password,
-		SslMode:           sslMode,
-		EncryptionKey:     encKey,
-		Debug:             debug,
-		ExecuteUnverified: executeUnverified,
+		Host:          host,
+		Port:          port,
+		Database:      database,
+		User:          user,
+		Password:      password,
+		SslMode:       sslMode,
+		EncryptionKey: encKey,
+		Debug:         debug,
+		blockQueries:  blockQueries,
 	}
 }
