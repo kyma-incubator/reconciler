@@ -16,8 +16,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientgo "k8s.io/client-go/kubernetes"
 	"net/http"
 	"testing"
@@ -198,44 +196,28 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			verifyFct:        expectRunningPod,
 		},
 		{
-			name: "Install incomplete component",
+			name: "Try to apply a change which is not allowed (add container to running pod)",
 			model: &reconciler.Reconciliation{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
 				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      test.ReadKubeconfig(t),
-				CallbackURL:     "https://httpbin.org/post",
-				InstallCRD:      false,
-				CorrelationID:   "test-correlation-id",
+				Configuration: []reconciler.Configuration{
+					{
+						Key:   "initContainer",
+						Value: true,
+					},
+				},
+				Kubeconfig:    test.ReadKubeconfig(t),
+				CallbackURL:   "https://httpbin.org/post",
+				InstallCRD:    false,
+				CorrelationID: "test-correlation-id",
 			},
 			expectedHTTPCode: http.StatusOK,
 			responseModel:    &reconciler.HTTPReconciliationResponse{},
 			url:              "http://localhost:9999/v1/run",
-			prepareFct: func(t *testing.T, client kubernetes.Client) {
-				clientSet, err := kubeClient.Clientset()
-				require.NoError(t, err)
-
-				err = clientSet.CoreV1().Pods(componentNamespace).Delete(context.Background(), componentPod, metav1.DeleteOptions{})
-				if err == nil {
-					//wait for deletion
-					t.Logf("Waiting for final termination of pod '%s'", componentPod)
-					watchable, err := progress.NewWatchableResource("pod")
-					require.NoError(t, err)
-
-					prog := newProgressTracker(t, clientSet)
-					prog.AddResource(watchable, componentNamespace, componentPod)
-					require.NoError(t, prog.Watch(context.TODO(), progress.TerminatedState))
-					return
-				}
-
-				if !errors.IsNotFound(err) {
-					require.Failf(t, "Termination of pod '%s' failed with unexpected error: %s", componentPod, err)
-				}
-			},
-			verifyFct: expectRunningPod,
+			verifyFct:        expectFailure,
 		},
 		//TODO: non-fixable component, non-reachable cluster, insufficient permissions on cluster, defective helm-chart
 	}
@@ -262,6 +244,10 @@ func newTestFct(testCase testCase, kubeClient kubernetes.Client) func(t *testing
 		respModel := post(t, testCase)
 		testCase.verifyFct(t, respModel, kubeClient)
 	}
+}
+
+func expectFailure(t *testing.T, responseModel interface{}, kubeClient kubernetes.Client) {
+	time.Sleep(30 * time.Second)
 }
 
 func expectRunningPod(t *testing.T, responseModel interface{}, kubeClient kubernetes.Client) {
