@@ -30,16 +30,16 @@ You can also run Reconciler with the specified components:
 
 ## Testing
 
-The reconciler unit tests include also expensive test suites. Expensive means that the test execution might do the following:
+The reconciler unit tests include also integration test suites.
+Integration tests have a higher resource consumption and expect that the environment variable 
+`KUBECONFIG` is defined which points to a test Kubernetes cluster. 
 
-* take an unusual amount of time (e.g. >1 min)
-* generate a big amount of network traffic to remote systems (e.g. >100MB)
-* allocates during the execution many disc space (e.g. > 1GB)
+Be aware that the integration test suite will install and delete Kubernetes resources as part of the test run.
 
-By default, expensive test suites are disabled. To enable them, before you execute the test suits, apply one of the following options:
+By default, the integration test suites are disabled. To enable them apply these steps:
 
-* Set the environment variable `RECONCILER_INTEGRATION_TESTS=true`
-* In the GO code, execute the function `test.EnableIntegrationTests()`
+* Set the environment variable `RECONCILER_INTEGRATION_TESTS=1` (`export RECONCILER_INTEGRATION_TESTS=1`)
+* Set the environment variable `KUBECONFIG=<pathToKubecfgFile>` (`export KUBECONFIG=$PATH_TO_KUBECFG_FILE`)
 
 ## Adding a new component reconciler
 
