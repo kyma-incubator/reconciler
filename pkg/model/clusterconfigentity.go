@@ -59,9 +59,9 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	return false
 }
 
-func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Components, error) {
+func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Component, error) {
 	if c.Components == "" {
-		return []*keb.Components{}, nil
+		return []*keb.Component{}, nil
 	}
 	return keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
 }

@@ -10,8 +10,7 @@ metadata:
   name: unittest-pod
   labels:
     app: unittest-pod
-  #namespace will be overwritten during deployment
-  namespace: unittest-xyz
+  namespace: unittest-adapter
 spec:
   containers:
     - name: unittest-pod
@@ -27,7 +26,7 @@ metadata:
   name: unittest-deployment
   labels:
     app: unittest-deployment
-  namespace: unittest-abc
+  namespace: unittest-adapter
 spec:
   replicas: 1
   selector:
@@ -112,7 +111,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: unittest-statefulset
-  namespace: unittest-123
+  namespace: unittest-adapter
 spec:
   selector:
     matchLabels:

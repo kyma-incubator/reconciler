@@ -15,11 +15,11 @@ type MockReconciliationWorker struct {
 }
 
 // Reconcile provides a mock function with given fields: component, state, schedulingID, installCRD
-func (_m *MockReconciliationWorker) Reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool) error {
+func (_m *MockReconciliationWorker) Reconcile(component *keb.Component, state cluster.State, schedulingID string, installCRD bool) error {
 	ret := _m.Called(component, state, schedulingID, installCRD)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*keb.Components, cluster.State, string, bool) error); ok {
+	if rf, ok := ret.Get(0).(func(*keb.Component, cluster.State, string, bool) error); ok {
 		r0 = rf(component, state, schedulingID, installCRD)
 	} else {
 		r0 = ret.Error(0)

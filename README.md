@@ -28,18 +28,26 @@ You can also run Reconciler with the specified components:
 ./bin/reconciler-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
 ```
 
+
 ## Testing
 
-The reconciler unit tests include also expensive test suites. Expensive means that the test execution might do the following:
+### Unit tests
 
-* take an unusual amount of time (e.g. >1 min)
-* generate a big amount of network traffic to remote systems (e.g. >100MB)
-* allocates during the execution many disc space (e.g. > 1GB)
+To execute unit tests, use the `make test` target:
 
-By default, expensive test suites are disabled. To enable them, before you execute the test suits, apply one of the following options:
+      make test
 
-* Set the environment variable `RECONCILER_EXPENSIVE_TESTS=true`
-* In the GO code, execute the function `test.EnableExpensiveTests()`
+
+### Integration test
+
+Integration tests have a higher resource consumption compared to unit tests. You must define the environment variable `KUBECONFIG`, which points to a test Kubernetes cluster. 
+
+Be aware that the integration test suite installs and deletes Kubernetes resources during the test run.
+
+To execute the integration tests, execute the `make test-all` target:
+
+     make test-all
+
 
 ## Adding a new component reconciler
 
