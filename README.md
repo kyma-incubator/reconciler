@@ -28,6 +28,7 @@ You can also run Reconciler with the specified components:
 ./bin/reconciler-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
 ```
 
+
 ## Testing
 
 ### Unit tests
@@ -39,14 +40,14 @@ Use the `make test` target to execute unit tests:
 
 ### Integration test
 
-Integration tests have a higher resource consumption compared to unit tests and expect that the environment variable 
-`KUBECONFIG` is defined which points to a test Kubernetes cluster. 
+Integration tests have a higher resource consumption compared to unit tests and expect that the environment variable `KUBECONFIG` is defined which points to a test Kubernetes cluster. 
 
 Be aware that the integration test suite will install and delete Kubernetes resources as part of the test run.
 
 To execute the integration tests please execute the `make test-all` target:
 
      make test-all
+
 
 ## Adding a new component reconciler
 
