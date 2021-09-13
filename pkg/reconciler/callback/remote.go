@@ -44,22 +44,20 @@ func (cb *RemoteCallbackHandler) Callback(msg *reconciler.CallbackMessage) error
 	}
 
 	resp, err := http.Post(cb.callbackURL, "application/json", bytes.NewBuffer(requestBody))
-
+	if err != nil {
+		cb.logger.Errorf("Callback request failed: %s", err)
+		return err
+	}
 	//dump request for debugging purposes
 	dumpResp, dumpErr := httputil.DumpResponse(resp, true)
-	if err == nil {
+	if dumpErr == nil {
 		cb.logger.Debugf("HTTP response dump: %s", string(dumpResp))
 	} else {
 		cb.logger.Debugf("Failed to generate HTTP response dump: %s", dumpErr)
 	}
 
-	if err != nil {
-		cb.logger.Errorf("Status update request failed: %s", err)
-		return err
-	}
-
 	if resp.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("Status update request (status '%s')  failed with '%d' HTTP response code",
+		msg := fmt.Sprintf("Callback request ('%s')  failed with '%d' HTTP response code",
 			msg,
 			resp.StatusCode)
 		cb.logger.Info(msg)
