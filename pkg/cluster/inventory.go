@@ -207,7 +207,7 @@ func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*Sta
 func (i *DefaultInventory) Delete(cluster string) error {
 	dbOps := func() error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), cluster)
-		updateSQLTpl := "UPDATE %s SET %s=$1, %s='TRUE' WHERE %s=$2 OR %s=$3" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
+		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
 
 		//update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
@@ -224,7 +224,7 @@ func (i *DefaultInventory) Delete(cluster string) error {
 			return err
 		}
 		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterDelColName, clusterColName, clusterColName)
-		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, cluster, newClusterName); err != nil {
+		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, "TRUE", cluster, newClusterName); err != nil {
 			return err
 		}
 
@@ -243,7 +243,7 @@ func (i *DefaultInventory) Delete(cluster string) error {
 			return err
 		}
 		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configClusterColName, configDelColName, configClusterColName, configClusterColName)
-		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, cluster, newClusterName); err != nil {
+		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, "TRUE", cluster, newClusterName); err != nil {
 			return err
 		}
 

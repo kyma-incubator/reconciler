@@ -3,8 +3,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
+
 	//add Postgres driver:
 	_ "github.com/lib/pq"
 
@@ -14,10 +16,11 @@ import (
 type PostgresConnection struct {
 	db        *sql.DB
 	encryptor *Encryptor
+	validator *Validator
 	logger    *zap.SugaredLogger
 }
 
-func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool) (*PostgresConnection, error) {
+func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQueries bool) (*PostgresConnection, error) {
 	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
@@ -26,9 +29,11 @@ func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool) (*Postg
 	if err != nil {
 		return nil, err
 	}
+	validator := NewValidator(blockQueries, logger)
 	return &PostgresConnection{
 		db:        db,
 		encryptor: encryptor,
+		validator: validator,
 		logger:    logger,
 	}, nil
 }
@@ -37,13 +42,19 @@ func (pc *PostgresConnection) Encryptor() *Encryptor {
 	return pc.encryptor
 }
 
-func (pc *PostgresConnection) QueryRow(query string, args ...interface{}) DataRow {
+func (pc *PostgresConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
 	pc.logger.Debugf("Postgres QueryRow(): %s | %v", query, args)
-	return pc.db.QueryRow(query, args...)
+	if err := pc.validator.Validate(query); err != nil {
+		return nil, err
+	}
+	return pc.db.QueryRow(query, args...), nil
 }
 
 func (pc *PostgresConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	pc.logger.Debugf("Postgres Query(): %s | %v", query, args)
+	if err := pc.validator.Validate(query); err != nil {
+		return nil, err
+	}
 	rows, err := pc.db.Query(query, args...)
 	if err != nil {
 		pc.logger.Errorf("Postgres Query() error: %s", err)
@@ -53,6 +64,9 @@ func (pc *PostgresConnection) Query(query string, args ...interface{}) (DataRows
 
 func (pc *PostgresConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
 	pc.logger.Debugf("Postgres Exec(): %s | %v", query, args)
+	if err := pc.validator.Validate(query); err != nil {
+		return nil, err
+	}
 	result, err := pc.db.Exec(query, args...)
 	if err != nil {
 		pc.logger.Errorf("Postgres Exec() error: %s", err)
@@ -83,6 +97,7 @@ type PostgresConnectionFactory struct {
 	SslMode       bool
 	EncryptionKey string
 	Debug         bool
+	blockQueries  bool
 }
 
 func (pcf *PostgresConnectionFactory) Init() error {
@@ -108,7 +123,7 @@ func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
 		return nil, err
 	}
 
-	return newPostgresConnection(db, pcf.EncryptionKey, pcf.Debug)
+	return newPostgresConnection(db, pcf.EncryptionKey, pcf.Debug, pcf.blockQueries)
 }
 
 func (pcf *PostgresConnectionFactory) checkPostgresIsolationLevel() error {
