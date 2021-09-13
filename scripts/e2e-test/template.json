@@ -14,27 +14,27 @@
     "profile": "Evaluation",
     "components": [
       {
-        "component": "cluster-essentials",
-        "namespace": "kyma-system",
-        "configuration": []
-      },
-      {
         "component": "istio",
         "namespace": "istio-system",
         "configuration": []
       },
       {
-        "component": "dex",
+        "component": "logging",
         "namespace": "kyma-system",
         "configuration": []
       },
       {
-        "component": "ory",
+        "component": "tracing",
         "namespace": "kyma-system",
         "configuration": []
       },
       {
-        "component": "service-catalog",
+        "component": "kiali",
+        "namespace": "kyma-system",
+        "configuration": []
+      },
+      {
+        "component": "monitoring",
         "namespace": "kyma-system",
         "configuration": []
       },
@@ -44,7 +44,47 @@
         "configuration": []
       },
       {
-        "component": "logging",
+        "component": "ory",
+        "namespace": "kyma-system",
+        "configuration": []
+      },
+      {
+        "component": "api-gateway",
+        "namespace": "kyma-system",
+        "configuration": []
+      },
+      {
+        "component": "service-catalog",
+        "namespace": "kyma-system",
+        "configuration": []
+      },
+      {
+        "component": "service-catalog-addons",
+        "namespace": "kyma-system",
+        "configuration": []
+      },
+      {
+        "component": "rafter",
+        "namespace": "kyma-system",
+        "configuration": []
+      },
+      {
+        "component": "helm-broker",
+        "namespace": "kyma-system",
+        "configuration": []
+      },
+      {
+        "component": "cluster-users",
+        "namespace": "kyma-system",
+        "configuration": []
+      },
+      {
+        "component": "serverless",
+        "namespace": "kyma-system",
+        "configuration": []
+      },
+      {
+        "component": "application-connector",
         "namespace": "kyma-system",
         "configuration": []
       }
