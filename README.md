@@ -30,16 +30,23 @@ You can also run Reconciler with the specified components:
 
 ## Testing
 
-The reconciler unit tests include also integration test suites.
-Integration tests have a higher resource consumption and expect that the environment variable 
+### Unit tests
+
+Use the `make test` target to execute unit tests:
+
+      make test
+
+
+### Integration test
+
+Integration tests have a higher resource consumption compared to unit tests and expect that the environment variable 
 `KUBECONFIG` is defined which points to a test Kubernetes cluster. 
 
 Be aware that the integration test suite will install and delete Kubernetes resources as part of the test run.
 
-By default, the integration test suites are disabled. To enable them apply these steps:
+To execute the integration tests please execute the `make test-all` target:
 
-* Set the environment variable `RECONCILER_INTEGRATION_TESTS=1` (`export RECONCILER_INTEGRATION_TESTS=1`)
-* Set the environment variable `KUBECONFIG=<pathToKubecfgFile>` (`export KUBECONFIG=$PATH_TO_KUBECFG_FILE`)
+     make test-all
 
 ## Adding a new component reconciler
 
