@@ -34,10 +34,10 @@ type webhookPatchJSONValue struct {
 type IstioPerformer interface {
 
 	// Install Istio on the cluster.
-	Install() error
+	Install(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error
 
 	// PatchMutatingWebhook configuration.
-	PatchMutatingWebhook() error
+	PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
@@ -72,8 +72,18 @@ func NewDefaultIstioPerformer(kubeConfig, manifest string, kubeClient kubernetes
 	}, nil
 }
 
-func (c *DefaultIstioPerformer) Install() error {
-	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(c.istioOperator)
+func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error {
+	istioctlPath, err := resolveIstioctlPath()
+	if err != nil {
+		return err
+	}
+
+	istioOperator, err := extractIstioOperatorContextFrom(manifest)
+	if err != nil {
+		return err
+	}
+
+	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
 	if err != nil {
 		return err
 	}
@@ -81,11 +91,11 @@ func (c *DefaultIstioPerformer) Install() error {
 	defer func() {
 		cleanupErr := istioOperatorCf()
 		if cleanupErr != nil {
-			c.logger.Error(cleanupErr)
+			logger.Error(cleanupErr)
 		}
 	}()
 
-	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(c.kubeConfig)
+	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeConfig)
 	if err != nil {
 		return err
 	}
@@ -93,13 +103,13 @@ func (c *DefaultIstioPerformer) Install() error {
 	defer func() {
 		cleanupErr := kubeconfigCf()
 		if cleanupErr != nil {
-			c.logger.Error(cleanupErr)
+			logger.Error(cleanupErr)
 		}
 	}()
 
-	c.logger.Info("Starting Istio installation...")
+	logger.Info("Starting Istio installation...")
 
-	err = c.commander.Install(c.istioctlPath, istioOperatorPath, kubeconfigPath)
+	err = commander.Install(istioctlPath, istioOperatorPath, kubeconfigPath)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -107,7 +117,7 @@ func (c *DefaultIstioPerformer) Install() error {
 	return nil
 }
 
-func (c *DefaultIstioPerformer) PatchMutatingWebhook() error {
+func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
 	patchContent := []webhookPatchJSON{{
 		Op:   "add",
 		Path: "/webhooks/4/namespaceSelector/matchExpressions/-",
@@ -125,14 +135,14 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook() error {
 		return err
 	}
 
-	c.logger.Info("Patching istio-sidecar-injector MutatingWebhookConfiguration...")
+	logger.Info("Patching istio-sidecar-injector MutatingWebhookConfiguration...")
 
-	err = c.kubeClient.PatchUsingStrategy("MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", patchContentJSON, types.JSONPatchType)
+	err = kubeClient.PatchUsingStrategy("MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", patchContentJSON, types.JSONPatchType)
 	if err != nil {
 		return err
 	}
 
-	c.logger.Infof("Patch has been applied successfully")
+	logger.Infof("Patch has been applied successfully")
 
 	return nil
 }

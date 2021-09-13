@@ -100,7 +100,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		err = wrapper.Install()
+		err = wrapper.Install(kubeConfig, istioManifest, log, &cmder)
 
 		// then
 		require.Error(t, err)
@@ -115,7 +115,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		err = wrapper.Install()
+		err = wrapper.Install(kubeConfig, istioManifest, log, &cmder)
 
 		// then
 		require.NoError(t, err)

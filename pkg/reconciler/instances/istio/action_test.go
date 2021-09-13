@@ -1,7 +1,13 @@
 package istio
 
 import (
+	"context"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes/fake"
 	"testing"
 )
 
@@ -84,4 +90,39 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 		require.NotContains(t, result, "IstioOperator")
 	})
 
+}
+
+func Test_ReconcileAction_Run(t *testing.T) {
+
+	version := ""
+
+	t.Run("should not extract istio operator from manifest that does not contain istio operator", func(t *testing.T) {
+		// given
+		action := ReconcileAction{}
+
+		// when
+		err := action.Run(version, "", nil, newFakeServiceContext(t))
+
+		// then
+		require.NoError(t, err)
+	})
+
+}
+
+func newFakeServiceContext(t *testing.T) *service.ActionContext {
+	mockClient := &k8smocks.Client{}
+	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+	// We create './test_files/0.0.0/success.yaml' to trick the
+	// WorkspaceFactory into thinking that we don't need to
+	// clone the kyma repo. This is a temporary workaround
+	// since we can't currently mock WorkspaceFactory.
+	fakeFactory, err := workspace.NewFactory("./test_files", log.NewOptionalLogger(true))
+	require.NoError(t, err)
+
+	return &service.ActionContext{
+		KubeClient:       mockClient,
+		Context:          context.Background(),
+		WorkspaceFactory: fakeFactory,
+		Logger:           log.NewOptionalLogger(true),
+	}
 }

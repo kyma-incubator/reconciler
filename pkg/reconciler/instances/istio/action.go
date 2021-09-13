@@ -16,6 +16,8 @@ const (
 )
 
 type ReconcileAction struct {
+	performer actions.IstioPerformer
+	commander istioctl.Commander
 }
 
 func (a *ReconcileAction) Run(context *service.ActionContext) error {
@@ -36,12 +38,12 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Could not initialize DefaultIstioPerformer")
 	}
 
-	err = performer.Install()
+	err = performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
 	if err != nil {
 		return errors.Wrap(err, "Could not install Istio")
 	}
 
-	err = performer.PatchMutatingWebhook()
+	err = performer.PatchMutatingWebhook(context.KubeClient, context.Logger)
 	if err != nil {
 		return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 	}
