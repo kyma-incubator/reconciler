@@ -69,14 +69,20 @@ func RunLocal(o *Options) error {
 			l.Infof("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
 		}
 
+	comps, err := o.Components(defaultComponentsYaml)
+	if err != nil {
+		return err
+	}
 	ls := scheduler.NewLocalScheduler(
 		scheduler.WithLogger(l),
 		scheduler.WithStatusFunc(printStatus))
-	return ls.Run(cli.NewContext(), &keb.Cluster{
-		Kubeconfig: o.kubeconfig,
-		KymaConfig: keb.KymaConfig{
-			Version:    o.version,
-			Profile:    o.profile,
-			Components: o.Components(defaultComponentsYaml)}},
-	)
+	return ls.Run(
+		cli.NewContext(),
+		&keb.Cluster{
+			Kubeconfig: o.kubeconfig,
+			KymaConfig: keb.KymaConfig{
+				Version:    o.version,
+				Profile:    o.profile,
+				Components: comps},
+		})
 }
