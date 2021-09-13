@@ -59,7 +59,7 @@ func componentsFromFile(path string) ([]string, error) {
 	return defaultComponents, nil
 }
 
-func componentsFromStrings(list []string, values []string) []keb.Components {
+func componentsFromStrings(list []string, values []string) ([]keb.Components, error) {
 	var comps []keb.Components
 	for _, item := range list {
 		s := strings.Split(item, "@")
@@ -72,7 +72,7 @@ func componentsFromStrings(list []string, values []string) []keb.Components {
 		for _, value := range values {
 			vals, err := strvals.Parse(value)
 			if err != nil {
-				panic(fmt.Errorf("Can't parse value %s", value))
+				return nil, fmt.Errorf("can't parse value %s", value)
 			}
 			if vals[name] != nil {
 				val := vals[name]
@@ -83,7 +83,7 @@ func componentsFromStrings(list []string, values []string) []keb.Components {
 
 					}
 				} else {
-					panic(fmt.Errorf("Expected nested values for component %s, got value %s", name, val))
+					return nil, fmt.Errorf("expected nested values for component %s, got value %s", name, val)
 				}
 			}
 			if vals["global"] != nil {
@@ -92,10 +92,10 @@ func componentsFromStrings(list []string, values []string) []keb.Components {
 		}
 		comps = append(comps, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
 	}
-	return comps
+	return comps, nil
 }
 
-func (o *Options) Components(defaultComponentsFile string) []keb.Components {
+func (o *Options) Components(defaultComponentsFile string) ([]keb.Components, error) {
 	comps := o.components
 	if len(o.components) == 0 {
 		cFile := o.componentsFile
@@ -105,7 +105,7 @@ func (o *Options) Components(defaultComponentsFile string) []keb.Components {
 		var err error
 		comps, err = componentsFromFile(cFile)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 	return componentsFromStrings(comps, o.values)
@@ -124,7 +124,7 @@ func (o *Options) Validate() error {
 		o.kubeconfigFile = envKubeconfig
 	}
 	if !file.Exists(o.kubeconfigFile) {
-		return fmt.Errorf("Reference kubeconfig file '%s' not found", o.kubeconfigFile)
+		return fmt.Errorf("reference kubeconfig file '%s' not found", o.kubeconfigFile)
 	}
 	content, err := ioutil.ReadFile(o.kubeconfigFile)
 	if err != nil {

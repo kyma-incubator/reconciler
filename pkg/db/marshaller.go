@@ -34,7 +34,7 @@ func (es *EntityMarshaller) AddUnmarshaller(field string, fct func(value interfa
 
 func (es *EntityMarshaller) ensureFieldExist(field string) {
 	if _, ok := es.structs.FieldOk(field); !ok {
-		panic(fmt.Sprintf("Failure in Marshaller: the entity '%s' has not field '%s'", es.structs.Name(), field))
+		panic(fmt.Sprintf("Failure in Marshaller: entity '%s' has no field '%s'", es.structs.Name(), field))
 	}
 }
 

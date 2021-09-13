@@ -37,7 +37,7 @@ func NewConnectionFactory(configFile string, debug bool) (ConnectionFactory, err
 		return connFact, connFact.Init()
 
 	default:
-		panic(fmt.Sprintf("DB type '%s' not supported", dbToUse))
+		return nil, fmt.Errorf("DB type '%s' not supported", dbToUse)
 	}
 }
 
