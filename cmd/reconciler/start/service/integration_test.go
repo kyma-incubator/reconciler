@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	urlCallbackHttpBin = "https://httpbin.org/post"
+	urlCallbackHTTPBin = "https://httpbin.org/post"
 	urlCallbackMock    = "http://localhost:11111/callback"
 
 	urlReconcilerRun = "http://localhost:9999/v1/run"
@@ -247,7 +247,7 @@ func newTestFct(testCase testCase) func(t *testing.T) {
 	return func(t *testing.T) {
 		//inject mock-url into model if required
 		if testCase.verifyCallbacksFct == nil {
-			testCase.model.CallbackURL = urlCallbackHttpBin
+			testCase.model.CallbackURL = urlCallbackHTTPBin
 		} else {
 			testCase.model.CallbackURL = urlCallbackMock
 		}
