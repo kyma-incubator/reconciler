@@ -13,7 +13,7 @@ type WorkerFactory interface {
 type baseWorkerFactory struct {
 	inventory     cluster.Inventory
 	operationsReg OperationsRegistry
-	invoker       ReconcilerInvoker
+	invoker       reconcilerInvoker
 	logger        *zap.SugaredLogger
 	debug         bool
 }
@@ -40,7 +40,7 @@ func NewRemoteWorkerFactory(
 		&baseWorkerFactory{
 			inventory:     inventory,
 			operationsReg: operationsReg,
-			invoker: &RemoteReconcilerInvoker{
+			invoker: &remoteReconcilerInvoker{
 				logger:           log,
 				mothershipScheme: mothershipCfg.Scheme,
 				mothershipHost:   mothershipCfg.Host,
@@ -73,32 +73,27 @@ type localWorkerFactory struct {
 	*baseWorkerFactory
 }
 
-func NewLocalWorkerFactory(
+func newLocalWorkerFactory(
+	logger *zap.SugaredLogger,
 	inventory cluster.Inventory,
 	operationsReg OperationsRegistry,
-	statusFunc ReconcilerStatusFunc,
-	debug bool) (WorkerFactory, error) {
-
-	log, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
+	statusFunc ReconcilerStatusFunc) WorkerFactory {
 
 	return &localWorkerFactory{
 		&baseWorkerFactory{
 			inventory:     inventory,
 			operationsReg: operationsReg,
-			invoker: &LocalReconcilerInvoker{
-				logger:        log,
+			invoker: &localReconcilerInvoker{
+				logger:        logger,
 				operationsReg: operationsReg,
 				statusFunc:    statusFunc,
 			},
-			logger: log,
-			debug:  debug,
+			logger: logger,
 		},
-	}, nil
+	}
 }
 
 func (lwf *localWorkerFactory) ForComponent(component string) (ReconciliationWorker, error) {
-	return NewWorker(&ComponentReconciler{}, lwf.inventory, lwf.operationsReg, lwf.invoker, lwf.debug)
+	//TODO: pass the logger to the worker instead of the debug flag
+	return NewWorker(&ComponentReconciler{}, lwf.inventory, lwf.operationsReg, lwf.invoker, true)
 }

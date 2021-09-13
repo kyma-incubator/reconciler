@@ -71,7 +71,7 @@ func (r *Reconciliation) Validate() error {
 	//return aggregated error msg
 	var err error
 	if len(errFields) > 0 {
-		err = fmt.Errorf("mandatory fields are undefined: %s", strings.Join(errFields, ","))
+		err = fmt.Errorf("mandatory fields are undefined: %s", strings.Join(errFields, ", "))
 	}
 	return err
 }

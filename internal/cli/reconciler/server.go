@@ -6,14 +6,14 @@ import (
 )
 
 type ServerConfig struct {
-	Port   int
-	SSLCrt string
-	SSLKey string
+	Port       int
+	SSLCrtFile string
+	SSLKeyFile string
 }
 
 func (c *ServerConfig) validate() error {
 	if c.Port <= 0 || c.Port > 65535 {
 		return fmt.Errorf("port %d is out of range 1-65535", c.Port)
 	}
-	return ssl.VerifyKeyPair(c.SSLCrt, c.SSLKey)
+	return ssl.VerifyKeyPair(c.SSLCrtFile, c.SSLKeyFile)
 }
