@@ -6,8 +6,8 @@ import (
 )
 
 type Configuration struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key   string      `json:"key"`
+	Value interface{} `json:"value"`
 }
 
 type Status string
@@ -33,7 +33,7 @@ type Reconciliation struct {
 	CorrelationID   string          `json:"correlationID"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
-	CallbackFunc func(status Status) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
+	CallbackFunc func(msg *CallbackMessage) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
 }
 
 func (r *Reconciliation) String() string {
@@ -71,11 +71,16 @@ func (r *Reconciliation) Validate() error {
 	//return aggregated error msg
 	var err error
 	if len(errFields) > 0 {
-		err = fmt.Errorf("mandatory fields are undefined: %s", strings.Join(errFields, ","))
+		err = fmt.Errorf("mandatory fields are undefined: %s", strings.Join(errFields, ", "))
 	}
 	return err
 }
 
 type CallbackMessage struct {
-	Status string `json:"status"`
+	Status Status `json:"status"`
+	Error  error  `json:"error"`
+}
+
+func (cb *CallbackMessage) String() string {
+	return fmt.Sprintf("CallbackMessage [status=%s,error=%s]", cb.Status, cb.Error)
 }

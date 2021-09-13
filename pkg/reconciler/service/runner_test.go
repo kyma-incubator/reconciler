@@ -8,7 +8,6 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 
-	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
@@ -290,11 +289,12 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//failing run
+		start := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		err := runner.Run(ctx, model, cbh)
 		require.Error(t, err)
-		require.IsType(t, &e.ContextClosedError{}, err)
+		require.WithinDuration(t, time.Now(), start, 1500*time.Millisecond)
 	})
 
 }
@@ -327,16 +327,13 @@ func newCleanupFunc(t *testing.T) func(bool) {
 	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true), nil)
 	require.NoError(t, err)
 
-	cleanup := cleanup{
-		reconciler: recon,
-		kubeClient: kubeClient,
-	}
+	cleanup := NewTestCleanup(recon, kubeClient)
 
 	return func(deleteWorkspace bool) {
 		//remove all installed components
-		cleanup.removeKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
-		cleanup.removeKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
-		cleanup.removeKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
+		cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
+		cleanup.RemoveKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
+		cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
 		//remove the cloned workspace
 		if deleteWorkspace {
 			wsf, err := ws.NewFactory("./test", logger.NewOptionalLogger(true))
@@ -360,7 +357,7 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 }
 
 func newCallbackHandler(t *testing.T) callback.Handler {
-	callbackHdlr, err := callback.NewLocalCallbackHandler(func(status reconciler.Status) error {
+	callbackHdlr, err := callback.NewLocalCallbackHandler(func(msg *reconciler.CallbackMessage) error {
 		return nil
 	}, logger.NewOptionalLogger(true))
 	require.NoError(t, err)

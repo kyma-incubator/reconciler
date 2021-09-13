@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"os"
 	"strings"
 	"testing"
@@ -10,7 +11,6 @@ import (
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,12 +24,12 @@ func newTestCallbackHandler(t *testing.T) *testCallbackHandler {
 	return &testCallbackHandler{}
 }
 
-func (cb *testCallbackHandler) Callback(status reconciler.Status) error {
+func (cb *testCallbackHandler) Callback(msg *reconciler.CallbackMessage) error {
 	statusList := os.Getenv("_testCallbackHandlerStatuses")
 	if statusList == "" {
-		statusList = string(status)
+		statusList = string(msg.Status)
 	} else {
-		statusList = fmt.Sprintf("%s,%s", statusList, status)
+		statusList = fmt.Sprintf("%s,%s", statusList, msg.Status)
 	}
 	return os.Setenv("_testCallbackHandlerStatuses", statusList)
 }
@@ -61,7 +61,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		callbackHdlr := newTestCallbackHandler(t)
 
 		heartbeatSender, err := NewHeartbeatSender(ctx, callbackHdlr, logger, Config{
-			Interval: 1 * time.Second,
+			Interval: 500 * time.Millisecond,
 			Timeout:  10 * time.Second,
 		})
 		require.NoError(t, err)
@@ -119,8 +119,9 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 		time.Sleep(2 * time.Second) //wait longer than status update timeout to timeout
 
-		//check fired status updates
-		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything <= 2 is sufficient to ensure the heartbeatSenders worked
+		//check fired status updates: anything 1 >= x <= 3 is sufficient to ensure the heartbeatSenders worked
+		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 1)
+		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 3)
 	})
 
 }

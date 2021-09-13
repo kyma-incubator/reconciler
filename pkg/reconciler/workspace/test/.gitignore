@@ -1,2 +1,7 @@
 *
+!local
+!local/resources
+!local/installation
+!local/installation/resources
+!local/installation/resources/crds
 !.gitignore

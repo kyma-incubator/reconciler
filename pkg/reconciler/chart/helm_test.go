@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"io/ioutil"
@@ -40,7 +41,8 @@ func TestHelm(t *testing.T) {
 			"config": {
 				"key1": "value1 from values.yaml",
 				"key2": "value2 from values.yaml"
-			}
+			},
+			"showKey2": false
 		}`), &expected)
 		require.NoError(t, err)
 		require.Equal(t, expected, got)
@@ -147,6 +149,10 @@ func TestHelm(t *testing.T) {
 					Key:   "config.key2",
 					Value: "value2 from component",
 				},
+				{
+					Key:   "showKey2",
+					Value: true,
+				},
 			}).
 			Build()
 
@@ -155,10 +161,15 @@ func TestHelm(t *testing.T) {
 
 		got, err := helm.Render(component)
 		require.NoError(t, err)
+		gotAsMap := make(map[string]interface{})
+		require.NoError(t, yaml.Unmarshal([]byte(got), &gotAsMap)) //use for equality check (avoids whitespace diffs)
 
 		expected, err := ioutil.ReadFile(filepath.Join(chartDir, componentName, "configmap-expected.yaml"))
 		require.NoError(t, err)
-		require.Equal(t, string(expected), got)
+		expectedAsMap := make(map[string]interface{})
+		require.NoError(t, yaml.Unmarshal(expected, &expectedAsMap)) //use for equality check (avoids whitespace diffs)
+
+		require.Equal(t, expectedAsMap, gotAsMap)
 	})
 }
 

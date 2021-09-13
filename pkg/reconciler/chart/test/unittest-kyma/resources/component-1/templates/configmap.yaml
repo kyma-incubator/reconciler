@@ -5,4 +5,6 @@ metadata:
   name: component-1
 data:
   key1: "{{ .Values.config.key1 }}"
+{{ if .Values.showKey2 }}
   key2: "{{ .Values.config.key2 }}"
+{{ end }}

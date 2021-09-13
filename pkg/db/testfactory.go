@@ -20,8 +20,8 @@ func NewTestConnectionFactory() (ConnectionFactory, error) {
 }
 
 func resolveConfigsDir() (string, error) {
-	configsDir := path.Join("..", "..", "configs")
-	for i := 0; i < 2; i++ {
+	configsDir := path.Join("..", "configs")
+	for i := 0; i < 5; i++ { //lookup for 'configs' directory by climbing directory tree up (max 5 higher dirs)
 		if file.DirExists(configsDir) {
 			return configsDir, nil
 		}

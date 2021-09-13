@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/internal/cli"
+	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -49,16 +48,31 @@ var (
 
 	requireClusterStatusResponseFct = func(t *testing.T, response interface{}) {
 		respModel := response.(*keb.HTTPClusterStatusResponse)
-		require.Len(t, respModel.StatusChanges, 1)
+
+		//dump received status chagnes for debugging purposes
+		var statusChanges []string
+		for _, statusChange := range respModel.StatusChanges {
+			statusChanges = append(statusChanges, fmt.Sprintf("%s", statusChange))
+		}
+		t.Logf("Received following status changes: %s", strings.Join(statusChanges, ", "))
+
+		//verify received status changes
+		require.GreaterOrEqual(t, len(respModel.StatusChanges), 1)
 		require.NotEmpty(t, respModel.StatusChanges[0].Started)
 		require.NotEmpty(t, respModel.StatusChanges[0].Duration)
-		require.Equal(t, keb.ClusterStatusPending, respModel.StatusChanges[0].Status)
+
+		//cluster status list shows latest status on top... check for the expected status depending on list length
+		if len(respModel.StatusChanges) == 1 {
+			require.Equal(t, keb.ClusterStatusPending, respModel.StatusChanges[0].Status)
+		} else {
+			require.Equal(t, keb.ClusterStatusReconciling, respModel.StatusChanges[0].Status)
+		}
 	}
 )
 
 type httpMethod string
 
-type TestStruct struct {
+type testCase struct {
 	name             string
 	url              string
 	method           httpMethod
@@ -68,7 +82,7 @@ type TestStruct struct {
 	verifier         func(t *testing.T, response interface{})
 }
 
-func TestReconciliation(t *testing.T) {
+func TestMothership(t *testing.T) {
 	test.IntegrationTest(t)
 
 	ctx := context.Background()
@@ -78,7 +92,7 @@ func TestReconciliation(t *testing.T) {
 
 	baseURL := fmt.Sprintf("http://localhost:%d/v1", serverPort)
 
-	tests := []*TestStruct{
+	tests := []*testCase{
 		{
 			name:             "Create cluster:happy path",
 			url:              fmt.Sprintf("%s/%s", baseURL, "clusters"),
@@ -221,7 +235,7 @@ func TestReconciliation(t *testing.T) {
 }
 
 //newTestFct is required to make the linter happy ;)
-func newTestFct(testCase *TestStruct) func(t *testing.T) {
+func newTestFct(testCase *testCase) func(t *testing.T) {
 	return func(t *testing.T) {
 		resp := callMothership(t, testCase)
 		if testCase.verifier != nil {
@@ -232,7 +246,7 @@ func newTestFct(testCase *TestStruct) func(t *testing.T) {
 
 func startMothershipReconciler(ctx context.Context, t *testing.T) {
 	go func(ctx context.Context) {
-		o := NewOptions(cli.NewTestOptions(t))
+		o := NewOptions(cliTest.NewTestOptions(t))
 		o.Port = serverPort
 		o.ReconcilersCfgPath = filepath.Join("test", "component-reconcilers.json")
 		o.WatchInterval = 1 * time.Second
@@ -242,28 +256,10 @@ func startMothershipReconciler(ctx context.Context, t *testing.T) {
 		require.NoError(t, Run(ctx, o))
 	}(ctx)
 
-	waitForTCPSocket(t, "127.0.0.1", serverPort, 8*time.Second)
+	cliTest.WaitForTCPSocket(t, "127.0.0.1", serverPort, 8*time.Second)
 }
 
-func waitForTCPSocket(t *testing.T, host string, port int, timeout time.Duration) {
-	check := time.Tick(1 * time.Second)
-	destAddr := fmt.Sprintf("%s:%d", host, port)
-	for {
-		select {
-		case <-check:
-			_, err := net.Dial("tcp", destAddr)
-			if err == nil {
-				return
-			}
-		case <-time.After(timeout):
-			t.Logf("Timeout reached: could not open TCP connection to '%s' within %.1f seconds",
-				destAddr, timeout.Seconds())
-			t.Fail()
-		}
-	}
-}
-
-func callMothership(t *testing.T, testCase *TestStruct) interface{} {
+func callMothership(t *testing.T, testCase *testCase) interface{} {
 	response, err := sendRequest(t, testCase)
 	require.NoError(t, err)
 
@@ -282,9 +278,9 @@ func callMothership(t *testing.T, testCase *TestStruct) interface{} {
 	return testCase.responseModel
 }
 
-func sendRequest(t *testing.T, testCase *TestStruct) (*http.Response, error) {
+func sendRequest(t *testing.T, testCase *testCase) (*http.Response, error) {
 	client := &http.Client{
-		Timeout: 1 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	var response *http.Response

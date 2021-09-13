@@ -36,9 +36,9 @@ func NewCmd(o *cli.Options) *cobra.Command {
 	//REST API configuration
 	cmd.PersistentFlags().IntVar(&reconcilerOpts.ServerConfig.Port, "server-port", 8080,
 		"Port of the REST API")
-	cmd.PersistentFlags().StringVar(&reconcilerOpts.ServerConfig.SSLCrt, "server-crt", "",
+	cmd.PersistentFlags().StringVar(&reconcilerOpts.ServerConfig.SSLCrtFile, "server-crt", "",
 		"Path to SSL certificate file used for secure REST API communication")
-	cmd.PersistentFlags().StringVar(&reconcilerOpts.ServerConfig.SSLKey, "server-key", "",
+	cmd.PersistentFlags().StringVar(&reconcilerOpts.ServerConfig.SSLKeyFile, "server-key", "",
 		"Path to SSL key file used for secure REST API communication")
 
 	//retry configuration
