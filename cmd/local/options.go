@@ -59,8 +59,8 @@ func componentsFromFile(path string) ([]string, error) {
 	return defaultComponents, nil
 }
 
-func componentsFromStrings(list []string, values []string) ([]keb.Components, error) {
-	var comps []keb.Components
+func componentsFromStrings(list []string, values []string) ([]keb.Component, error) {
+	var comps []keb.Component
 	for _, item := range list {
 		s := strings.Split(item, "@")
 		name := s[0]
@@ -90,12 +90,12 @@ func componentsFromStrings(list []string, values []string) ([]keb.Components, er
 				configuration = append(configuration, keb.Configuration{Key: "global", Value: vals["global"]})
 			}
 		}
-		comps = append(comps, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
+		comps = append(comps, keb.Component{Component: name, Namespace: namespace, Configuration: configuration})
 	}
 	return comps, nil
 }
 
-func (o *Options) Components(defaultComponentsFile string) ([]keb.Components, error) {
+func (o *Options) Components(defaultComponentsFile string) ([]keb.Component, error) {
 	comps := o.components
 	if len(o.components) == 0 {
 		cFile := o.componentsFile

@@ -29,7 +29,7 @@ type Update struct {
 	operationState string
 }
 
-func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.State, components []*keb.Components, logger *zap.SugaredLogger) ClusterStatusUpdater {
+func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.State, components []*keb.Component, logger *zap.SugaredLogger) ClusterStatusUpdater {
 	statusUpdater := ClusterStatusUpdater{inventory: inventory, clusterState: clusterState, logger: logger}
 	statusUpdater.statusMap = make(map[string]string)
 	for _, comp := range components {
