@@ -311,10 +311,14 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	switch body.Status {
 	case reconciler.NotStarted, reconciler.Running:
 		err = o.Registry.OperationsRegistry().SetInProgress(correlationID, schedulingID)
+	case reconciler.Failed:
+		err = o.Registry.OperationsRegistry().SetFailed(correlationID, schedulingID,
+			fmt.Sprintf("Reconciler reported failure status: %s", body.Error.Error()))
 	case reconciler.Success:
 		err = o.Registry.OperationsRegistry().SetDone(correlationID, schedulingID)
 	case reconciler.Error:
-		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID, "Reconciler reported error status")
+		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID,
+			fmt.Sprintf("Reconciler reported error status: %s", body.Error.Error()))
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
