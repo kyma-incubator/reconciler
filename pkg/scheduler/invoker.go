@@ -44,6 +44,9 @@ func (f *InvokeParams) createReconciliation() *reconciler.Reconciliation {
 		Kubeconfig:      f.ClusterState.Cluster.Kubeconfig,
 		InstallCRD:      f.InstallCRD,
 		CorrelationID:   f.CorrelationID,
+		Repository: reconciler.Repository{
+			URL: f.ComponentToReconcile.URL,
+		},
 	}
 }
 

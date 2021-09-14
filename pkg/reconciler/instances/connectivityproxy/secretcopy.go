@@ -33,6 +33,10 @@ func (s *SecretCopy) Transfer() error {
 }
 
 func (s *SecretCopy) createSecret(secret *coreV1.Secret) error {
+	if s.Namespace == "" {
+		s.Namespace = "default"
+	}
+
 	err := s.targetClientSet.CoreV1().
 		Secrets(s.Namespace).
 		Delete(context.Background(), s.Name, v1.DeleteOptions{})

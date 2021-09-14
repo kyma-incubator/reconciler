@@ -110,8 +110,13 @@ func (r *Repository) ReadToken(clientSet core.CoreV1Interface, namespace interfa
 		return err
 	}
 
+	stringNamespace := fmt.Sprintf("%v", namespace)
+	if stringNamespace == "" {
+		stringNamespace = "default"
+	}
+
 	secret, err := clientSet.
-		Secrets(fmt.Sprintf("%v", namespace)).
+		Secrets(stringNamespace).
 		Get(context.Background(), secretKey, v1.GetOptions{})
 
 	if err != nil {

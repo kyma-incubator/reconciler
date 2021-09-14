@@ -15,6 +15,9 @@ type FromSecret struct {
 }
 
 func (fs *FromSecret) Get() (*coreV1.Secret, error) {
+	if fs.Namespace == "" {
+		fs.Namespace = "default"
+	}
 	return fs.inCluster.CoreV1().Secrets(fs.Namespace).
 		Get(context.Background(), fs.Name, v1.GetOptions{})
 }
