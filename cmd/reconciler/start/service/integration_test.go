@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	clientgo "k8s.io/client-go/kubernetes"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 )
@@ -61,14 +60,14 @@ func TestReconciler(t *testing.T) {
 
 	//cleanup old pods after and before test execution
 	cleanup := service.NewTestCleanup(recon, kubeClient)
-	cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace)       //cleanup before tests are executed
-	defer cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace) //cleanup after tests are finished
+	cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace)       //cleanup before
+	defer cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace) //cleanup after
 
 	//create runtime context which is cancelled at the end of the test
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
-		time.Sleep(1 * time.Second) //give some time for graceful shutdown
+		time.Sleep(1 * time.Second) //give component reconciler some time for graceful shutdown
 	}()
 	startReconciler(ctx, t)
 
@@ -293,20 +292,7 @@ func newTestFct(testCase testCase) func(t *testing.T) {
 		}
 
 		if testCase.verifyCallbacksFct != nil {
-			var received []*reconciler.CallbackMessage
-		Loop:
-			for {
-				select {
-				case callback := <-callbackC:
-					received = append(received, callback)
-					if callback.Status == reconciler.Error || callback.Status == reconciler.Success {
-						break Loop
-					}
-				case <-time.NewTimer(workerTimeout).C:
-					t.Logf("Timeout reached for retrieving callbacks")
-					break Loop
-				}
-			}
+			received := receiveCallbacks(t, callbackC)
 			testCase.verifyCallbacksFct(t, received)
 		}
 	}
@@ -326,7 +312,7 @@ func newCallbackMock(t *testing.T) (*http.Server, chan *reconciler.CallbackMessa
 		callbackData := make(map[string]interface{})
 		require.NoError(t, json.Unmarshal(body, &callbackData))
 
-		status, err := newStatus(fmt.Sprintf("%s", callbackData["status"]))
+		status, err := reconciler.NewStatus(fmt.Sprintf("%s", callbackData["status"]))
 		require.NoError(t, err)
 
 		callbackC <- &reconciler.CallbackMessage{
@@ -351,6 +337,24 @@ func newCallbackMock(t *testing.T) (*http.Server, chan *reconciler.CallbackMessa
 	return srv, callbackC
 }
 
+func receiveCallbacks(t *testing.T, callbackC chan *reconciler.CallbackMessage) []*reconciler.CallbackMessage {
+	var received []*reconciler.CallbackMessage
+Loop:
+	for {
+		select {
+		case callback := <-callbackC:
+			received = append(received, callback)
+			if callback.Status == reconciler.Error || callback.Status == reconciler.Success {
+				break Loop
+			}
+		case <-time.NewTimer(workerTimeout).C:
+			t.Logf("Timeout reached for retrieving callbacks")
+			break Loop
+		}
+	}
+	return received
+}
+
 func expectRunningPod(t *testing.T, kubeClient kubernetes.Client) {
 	clientSet, err := kubeClient.Clientset()
 	require.NoError(t, err)
@@ -363,21 +367,4 @@ func expectRunningPod(t *testing.T, kubeClient kubernetes.Client) {
 	prog.AddResource(watchable, componentNamespace, componentPod)
 	require.NoError(t, prog.Watch(context.TODO(), progress.ReadyState))
 	t.Logf("Pod '%s' reached READY state", componentPod)
-}
-
-func newStatus(status string) (reconciler.Status, error) {
-	switch strings.ToLower(status) {
-	case string(reconciler.NotStarted):
-		return reconciler.NotStarted, nil
-	case string(reconciler.Failed):
-		return reconciler.Failed, nil
-	case string(reconciler.Error):
-		return reconciler.Error, nil
-	case string(reconciler.Running):
-		return reconciler.Running, nil
-	case string(reconciler.Success):
-		return reconciler.Success, nil
-	default:
-		return "", fmt.Errorf("status '%s' not found", status)
-	}
 }
