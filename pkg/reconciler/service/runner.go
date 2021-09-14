@@ -37,6 +37,9 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 			if err != nil {
 				r.logger.Warnf("Failing reconciliation of '%s' in version '%s' with profile '%s': %s",
 					model.Component, model.Version, model.Profile, err)
+				if heartbeatErr := heartbeatSender.Failed(err); heartbeatErr != nil {
+					err = errors.Wrap(err, heartbeatErr.Error())
+				}
 			}
 			return err
 		}

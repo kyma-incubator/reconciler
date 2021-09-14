@@ -142,7 +142,7 @@ func (su *Sender) CurrentStatus() reconciler.Status {
 }
 
 func (su *Sender) stopJob() {
-	if su.status == reconciler.Running {
+	if su.status == reconciler.Running || su.status == reconciler.Failed {
 		su.restartInterval <- true
 	}
 }
@@ -152,6 +152,14 @@ func (su *Sender) Running() error {
 		return err
 	}
 	su.sendUpdate(reconciler.Running, nil, false) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
+	return nil
+}
+
+func (su *Sender) Failed(err error) error {
+	if err := su.statusChangeAllowed(reconciler.Failed); err != nil {
+		return err
+	}
+	su.sendUpdate(reconciler.Failed, err, false) //Failed is an interim status: use interval to send heartbeat-request to reconciler-controller
 	return nil
 }
 
