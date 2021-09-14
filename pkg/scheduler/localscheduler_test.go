@@ -59,13 +59,13 @@ func TestLocalSchedulerOrder(t *testing.T) {
 		expectedOrder []string
 	}{
 		{
-			summary:       "single prerequisite",
+			summary:       "single prereq",
 			prerequisites: []string{"b"},
 			allComponents: []string{"a", "b"},
 			expectedOrder: []string{"b", "a"},
 		},
 		{
-			summary:       "multiple prerequisites",
+			summary:       "multiple prereqs",
 			prerequisites: []string{"b", "d"},
 			allComponents: []string{"d", "a", "b"},
 			expectedOrder: []string{"d", "b", "a"},
@@ -100,7 +100,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 
 			sut := LocalScheduler{
 				logger:        zap.NewNop().Sugar(),
-				prerequisites: tc.prerequisites,
+				prereqs:       tc.prerequisites,
 				workerFactory: workerFactoryMock,
 			}
 

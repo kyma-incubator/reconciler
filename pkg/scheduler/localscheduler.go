@@ -24,7 +24,7 @@ func WithLogger(logger *zap.SugaredLogger) LocalSchedulerOption {
 
 func WithPrerequisites(components ...string) LocalSchedulerOption {
 	return func(ls *LocalScheduler) {
-		ls.prerequisites = components
+		ls.prereqs = components
 	}
 }
 
@@ -36,7 +36,7 @@ func WithStatusFunc(statusFunc ReconcilerStatusFunc) LocalSchedulerOption {
 
 type LocalScheduler struct {
 	logger        *zap.SugaredLogger
-	prerequisites []string
+	prereqs       []string
 	statusFunc    ReconcilerStatusFunc
 	workerFactory WorkerFactory
 	installedCRD  int32
@@ -69,7 +69,7 @@ func (ls *LocalScheduler) Run(ctx context.Context, c *keb.Cluster) error {
 		return fmt.Errorf("failed to get components: %s", err)
 	}
 
-	err = ls.reconcilePrerequisites(components, clusterState, schedulingID)
+	err = ls.reconcilePrereqs(components, clusterState, schedulingID)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile prerequisite component: %s", err)
 	}
@@ -127,9 +127,9 @@ func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 	}, nil
 }
 
-func (ls *LocalScheduler) reconcilePrerequisites(components []*keb.Component, clusterState *cluster.State, schedulingID string) error {
+func (ls *LocalScheduler) reconcilePrereqs(components []*keb.Component, clusterState *cluster.State, schedulingID string) error {
 	for _, c := range components {
-		if !ls.isPrerequisite(c) {
+		if !ls.isPrereq(c) {
 			continue
 		}
 
@@ -144,7 +144,7 @@ func (ls *LocalScheduler) reconcilePrerequisites(components []*keb.Component, cl
 func (ls *LocalScheduler) reconcileUnprioritizedComponents(ctx context.Context, components []*keb.Component, clusterState *cluster.State, schedulingID string) error {
 	g, _ := errgroup.WithContext(ctx)
 	for _, c := range components {
-		if ls.isPrerequisite(c) {
+		if ls.isPrereq(c) {
 			continue
 		}
 
@@ -157,8 +157,8 @@ func (ls *LocalScheduler) reconcileUnprioritizedComponents(ctx context.Context, 
 	return g.Wait()
 }
 
-func (ls *LocalScheduler) isPrerequisite(c *keb.Component) bool {
-	return contains(ls.prerequisites, c.Component)
+func (ls *LocalScheduler) isPrereq(c *keb.Component) bool {
+	return contains(ls.prereqs, c.Component)
 }
 
 func (ls *LocalScheduler) reconcile(component *keb.Component, state *cluster.State, schedulingID string) error {
