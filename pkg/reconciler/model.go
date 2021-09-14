@@ -10,28 +10,18 @@ type Configuration struct {
 	Value interface{} `json:"value"`
 }
 
-type Status string
-
-const (
-	NotStarted Status = "notstarted"
-	Failed     Status = "failed"
-	Error      Status = "error"
-	Running    Status = "running"
-	Success    Status = "success"
-)
-
 func NewStatus(status string) (Status, error) {
 	switch strings.ToLower(status) {
-	case string(NotStarted):
-		return NotStarted, nil
-	case string(Failed):
-		return Failed, nil
-	case string(Error):
-		return Error, nil
-	case string(Running):
-		return Running, nil
-	case string(Success):
-		return Success, nil
+	case string(StatusNotstarted):
+		return StatusNotstarted, nil
+	case string(StatusFailed):
+		return StatusFailed, nil
+	case string(StatusError):
+		return StatusError, nil
+	case string(StatusRunning):
+		return StatusRunning, nil
+	case string(StatusSuccess):
+		return StatusSuccess, nil
 	default:
 		return "", fmt.Errorf("status '%s' not found", status)
 	}
@@ -94,9 +84,12 @@ func (r *Reconciliation) Validate() error {
 	return err
 }
 
-type CallbackMessage struct {
-	Status Status `json:"status"`
-	Error  error  `json:"error"`
+func (cb *CallbackMessage) GetErrMessage() string {
+	errMsg := ""
+	if cb.Error != nil {
+		errMsg = *cb.Error
+	}
+	return errMsg
 }
 
 func (cb *CallbackMessage) String() string {

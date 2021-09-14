@@ -22,7 +22,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	clientgo "k8s.io/client-go/kubernetes"
 )
@@ -286,9 +285,9 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 func expectSuccessfulReconciliation(t *testing.T, callbacks []*reconciler.CallbackMessage) {
 	for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
 		if idx < len(callbacks)-1 {
-			require.Equal(t, reconciler.Running, callback.Status)
+			require.Equal(t, reconciler.StatusRunning, callback.Status)
 		} else {
-			require.Equal(t, reconciler.Success, callback.Status)
+			require.Equal(t, reconciler.StatusSuccess, callback.Status)
 		}
 	}
 }
@@ -298,15 +297,15 @@ func expectFailingReconciliation(t *testing.T, callbacks []*reconciler.CallbackM
 		switch idx {
 		case 0:
 			//first callback has to indicate a running reconciliation
-			require.Equal(t, reconciler.Running, callback.Status)
+			require.Equal(t, reconciler.StatusRunning, callback.Status)
 		case len(callbacks) - 1:
 			//last callback has to indicate an error
-			require.Equal(t, reconciler.Error, callback.Status)
+			require.Equal(t, reconciler.StatusError, callback.Status)
 		default:
 			//callbacks during the reconciliation is ongoing have to indicate a failure or running
 			require.Contains(t, []reconciler.Status{
-				reconciler.Failed,
-				reconciler.Running,
+				reconciler.StatusFailed,
+				reconciler.StatusRunning,
 			}, callback.Status)
 		}
 	}
@@ -369,10 +368,10 @@ func newCallbackMock(t *testing.T) (*http.Server, chan *reconciler.CallbackMessa
 
 		status, err := reconciler.NewStatus(fmt.Sprintf("%s", callbackData["status"]))
 		require.NoError(t, err)
-
+		errMsg := fmt.Sprintf("%s", callbackData["error"])
 		callbackC <- &reconciler.CallbackMessage{
 			Status: status,
-			Error:  errors.New(fmt.Sprintf("%s", callbackData["error"])),
+			Error:  &errMsg,
 		}
 	})
 
@@ -399,7 +398,7 @@ Loop:
 		select {
 		case callback := <-callbackC:
 			received = append(received, callback)
-			if callback.Status == reconciler.Error || callback.Status == reconciler.Success {
+			if callback.Status == reconciler.StatusError || callback.Status == reconciler.StatusSuccess {
 				break Loop
 			}
 		case <-time.NewTimer(workerTimeout).C:

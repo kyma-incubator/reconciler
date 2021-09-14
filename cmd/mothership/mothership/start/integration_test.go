@@ -38,9 +38,9 @@ var (
 		respModel := response.(*keb.HTTPClusterResponse)
 		//depending how fast the scheduler picked up the cluster for reconciling,
 		//status can be either pending or reconciling
-		if !(respModel.Status == keb.ClusterStatusPending || respModel.Status == keb.ClusterStatusReconciling) {
+		if !(respModel.Status == keb.StatusReconcilePending || respModel.Status == keb.StatusReconciling) {
 			t.Logf("Cluster status '%s' is not allowed: expected was %s or %s",
-				respModel.Status, keb.ClusterStatusPending, keb.ClusterStatusReconciling)
+				respModel.Status, keb.StatusReconcilePending, keb.StatusReconciling)
 			t.Fail()
 		}
 		_, err := url.Parse(respModel.StatusURL)
@@ -53,7 +53,7 @@ var (
 		//dump received status chagnes for debugging purposes
 		var statusChanges []string
 		for _, statusChange := range respModel.StatusChanges {
-			statusChanges = append(statusChanges, fmt.Sprintf("%s", statusChange))
+			statusChanges = append(statusChanges, fmt.Sprintf("%+v", statusChange))
 		}
 		t.Logf("Received following status changes: %s", strings.Join(statusChanges, ", "))
 
@@ -64,9 +64,9 @@ var (
 
 		//cluster status list shows latest status on top... check for the expected status depending on list length
 		if len(respModel.StatusChanges) == 1 {
-			require.Equal(t, keb.ClusterStatusPending, respModel.StatusChanges[0].Status)
+			require.Equal(t, keb.StatusReconcilePending, respModel.StatusChanges[0].Status)
 		} else {
-			if keb.ClusterStatusReconciling != respModel.StatusChanges[0].Status {
+			if keb.StatusReconcilePending != respModel.StatusChanges[0].Status {
 				var buffer bytes.Buffer
 				for _, statusChange := range respModel.StatusChanges {
 					buffer.WriteRune(',')
@@ -74,7 +74,7 @@ var (
 				}
 				t.Logf("Unexpected ordering of cluster status changes: %s", buffer.String())
 			}
-			require.Equal(t, keb.ClusterStatusReconciling, respModel.StatusChanges[0].Status)
+			require.Equal(t, keb.StatusReconcilePending, respModel.StatusChanges[0].Status)
 		}
 	}
 )

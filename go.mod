@@ -9,6 +9,7 @@ require (
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-git/go-git/v5 v5.4.2
+	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
@@ -16,6 +17,7 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/jonboulle/clockwork v0.1.0
 	github.com/lib/pq v1.10.0
+	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/olekukonko/tablewriter v0.0.5
