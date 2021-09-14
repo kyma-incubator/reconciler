@@ -32,19 +32,15 @@ type get struct {
 }
 
 func newCacheDependencyManager(conn db.Connection, debug bool) (*cacheDependencyManager, error) {
-	logger, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
 	return &cacheDependencyManager{
 		conn:   conn,
-		logger: logger,
+		logger: logger.NewLogger(debug),
 	}, nil
 }
 
 func (cdm *cacheDependencyManager) transactional(desc string, dbOps func() error) error {
 	if err := db.Transaction(cdm.conn, dbOps, cdm.logger); err != nil {
-		return fmt.Errorf("Failed to execute database transaction '%s': %s", desc, err)
+		return fmt.Errorf("failed to execute database transaction '%s': %s", desc, err)
 	}
 	return nil
 }
@@ -59,7 +55,7 @@ func (cdm *cacheDependencyManager) Record(cacheEntry *model.CacheEntryEntity, ca
 
 func (r *record) Exec(newTx bool) error {
 	if r.cacheEntry.ID <= 0 {
-		return fmt.Errorf("Cache entry '%s' has no ID: indicates that cache entity is not persisted in database", r.cacheEntry)
+		return fmt.Errorf("cache entry '%s' has no ID: indicates that cache entity is not persisted in database", r.cacheEntry)
 	}
 	dbOps := func() error {
 		//track deps in DB
@@ -235,7 +231,7 @@ func (c *get) Exec() ([]*model.CacheDependencyEntity, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := []*model.CacheDependencyEntity{}
+	var result []*model.CacheDependencyEntity
 	for _, dep := range deps {
 		result = append(result, dep.(*model.CacheDependencyEntity))
 	}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -16,6 +17,7 @@ import (
 
 type runner struct {
 	*ComponentReconciler
+	logger *zap.SugaredLogger
 }
 
 func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {

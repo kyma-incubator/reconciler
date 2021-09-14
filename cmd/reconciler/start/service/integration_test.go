@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	clientgo "k8s.io/client-go/kubernetes"
 	"net/http"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -76,14 +77,14 @@ func TestReconciler(t *testing.T) {
 
 func setGlobalWorkspaceFactory(t *testing.T) {
 	//use ./test folder as workspace
-	wsf, err := workspace.NewFactory("test", logger.NewOptionalLogger(true))
+	wsf, err := workspace.NewFactory("test", logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsf))
 }
 
 func newKubeClient(t *testing.T) kubernetes.Client {
 	//create kubeClient (e.g. needed to verify reconciliation results)
-	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true), nil)
+	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 	return kubeClient
 }
@@ -93,8 +94,7 @@ func newComponentReconciler(t *testing.T) *service.ComponentReconciler {
 	recon, err := service.NewComponentReconciler(componentReconcilerName) //register brand new component reconciler
 	require.NoError(t, err)
 	//configure reconciler
-	require.NoError(t, recon.WithDependencies("abc", "xyz").Debug())
-	return recon
+	return recon.Debug().WithDependencies("abc", "xyz")
 }
 
 func startReconciler(ctx context.Context, t *testing.T) {
@@ -201,15 +201,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			verifyResponseFct: func(t *testing.T, i interface{}) {
 				expectRunningPod(t, kubeClient) //wait until pod is ready
 			},
-			verifyCallbacksFct: func(t *testing.T, callbacks []*reconciler.CallbackMessage) {
-				for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
-					if idx < len(callbacks)-1 {
-						require.Equal(t, reconciler.Running, callback.Status)
-					} else {
-						require.Equal(t, reconciler.Success, callback.Status)
-					}
-				}
-			},
+			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
 		{
 			name: "Try to apply impossible change: add container to running pod",
@@ -229,29 +221,33 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				InstallCRD:    false,
 				CorrelationID: "test-correlation-id",
 			},
-			expectedHTTPCode: http.StatusOK,
-			expectedResponse: &reconciler.HTTPReconciliationResponse{},
-			verifyCallbacksFct: func(t *testing.T, callbacks []*reconciler.CallbackMessage) {
-				for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
-					switch idx {
-					case 0:
-						//first callback has to indicate a running reconciliation
-						require.Equal(t, reconciler.Running, callback.Status)
-					case len(callbacks) - 1:
-						//last callback has to indicate an error
-						require.Equal(t, reconciler.Error, callback.Status)
-					default:
-						//callbacks during the reconciliation is ongoing have to indicate a failure or running
-						require.Contains(t, []reconciler.Status{
-							reconciler.Failed,
-							reconciler.Running,
-						}, callback.Status)
-					}
-				}
+			expectedHTTPCode:   http.StatusOK,
+			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
+			verifyCallbacksFct: expectFailingReconciliation,
+		},
+		{
+			name: "Try to reconcile unreachable cluster",
+			model: &reconciler.Reconciliation{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				Profile:         "",
+				Configuration:   nil,
+				Kubeconfig: func() string {
+					kc, err := ioutil.ReadFile(filepath.Join("test", "kubeconfig-unreachable.yaml"))
+					require.NoError(t, err)
+					return string(kc)
+				}(),
+				InstallCRD:    false,
+				CorrelationID: "test-correlation-id",
 			},
+			expectedHTTPCode:   http.StatusOK,
+			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
+			verifyCallbacksFct: expectFailingReconciliation,
 		},
 
-		//TODO: non-reachable cluster, insufficient permissions on cluster, defective helm-chart, non-started MS service
+		//TODO: insufficient permissions on cluster, defective helm-chart, non-started MS service
 	}
 
 	for _, testCase := range testCases {
@@ -259,8 +255,37 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 	}
 }
 
+func expectSuccessfulReconciliation(t *testing.T, callbacks []*reconciler.CallbackMessage) {
+	for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
+		if idx < len(callbacks)-1 {
+			require.Equal(t, reconciler.Running, callback.Status)
+		} else {
+			require.Equal(t, reconciler.Success, callback.Status)
+		}
+	}
+}
+
+func expectFailingReconciliation(t *testing.T, callbacks []*reconciler.CallbackMessage) {
+	for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
+		switch idx {
+		case 0:
+			//first callback has to indicate a running reconciliation
+			require.Equal(t, reconciler.Running, callback.Status)
+		case len(callbacks) - 1:
+			//last callback has to indicate an error
+			require.Equal(t, reconciler.Error, callback.Status)
+		default:
+			//callbacks during the reconciliation is ongoing have to indicate a failure or running
+			require.Contains(t, []reconciler.Status{
+				reconciler.Failed,
+				reconciler.Running,
+			}, callback.Status)
+		}
+	}
+}
+
 func newProgressTracker(t *testing.T, clientSet clientgo.Interface) *progress.Tracker {
-	prog, err := progress.NewProgressTracker(clientSet, logger.NewOptionalLogger(true), progress.Config{
+	prog, err := progress.NewProgressTracker(clientSet, logger.NewLogger(true), progress.Config{
 		Interval: 1 * time.Second,
 	})
 	require.NoError(t, err)

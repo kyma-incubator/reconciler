@@ -9,22 +9,20 @@ import (
 
 func TestValidator(t *testing.T) {
 	t.Run("Do not block invalid queries", func(t *testing.T) {
-		blockQueries := false
-		validator := NewValidator(blockQueries, logger.NewOptionalLogger(true))
+		validator := NewValidator(false, logger.NewLogger(true))
 		query := "invalid query"
 		err := validator.Validate(query)
 		require.NoError(t, err)
 	})
 	t.Run("Block invalid queries", func(t *testing.T) {
-		blockQueries := true
-		validator := NewValidator(blockQueries, logger.NewOptionalLogger(true))
+		validator := NewValidator(true, logger.NewLogger(true))
 		query := "invalid query"
 		err := validator.Validate(query)
 		require.Error(t, err)
 	})
 
 	//Create validator for the rest of the tests, which blocks invalid queries
-	validator := NewValidator(true, logger.NewOptionalLogger(true))
+	validator := NewValidator(true, logger.NewLogger(true))
 	t.Run("Validate valid insert query", func(t *testing.T) {
 		query := "INSERT INTO mockTable (col_1, col_3) VALUES ($1, $2) RETURNING col_1, col_2, col_3"
 		err := validator.Validate(query)

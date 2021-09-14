@@ -57,7 +57,8 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 	t.Parallel()
 
-	logger := log.NewOptionalLogger(true)
+	logger := log.NewLogger(true)
+
 	t.Run("Test heartbeat sender without timeout", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

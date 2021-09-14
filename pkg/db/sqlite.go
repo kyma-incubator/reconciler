@@ -21,14 +21,13 @@ type SqliteConnection struct {
 }
 
 func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries bool) (*SqliteConnection, error) {
-	logger, err := log.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
+	logger := log.NewLogger(debug)
+
 	encryptor, err := NewEncryptor(encKey)
 	if err != nil {
 		return nil, err
 	}
+
 	validator := NewValidator(blockQueries, logger)
 
 	return &SqliteConnection{

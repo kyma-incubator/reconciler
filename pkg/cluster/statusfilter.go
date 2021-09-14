@@ -22,11 +22,11 @@ func (sf *statusFilter) Filter(dbType db.Type, statusColHdr *db.ColumnHandler) (
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s IN ('%s')", statusColName, strings.Join(sf.stausesToStrings(), "','")), nil
+	return fmt.Sprintf("%s IN ('%s')", statusColName, strings.Join(sf.statusesToStrings(), "','")), nil
 }
 
-func (sf *statusFilter) stausesToStrings() []string {
-	result := []string{}
+func (sf *statusFilter) statusesToStrings() []string {
+	var result []string
 	for _, status := range sf.allowedStatuses {
 		result = append(result, string(status))
 	}

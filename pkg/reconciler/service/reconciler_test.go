@@ -31,7 +31,9 @@ func TestReconciler(t *testing.T) {
 		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
 
-		require.NoError(t, recon.Debug())
+		recon.Debug()
+		require.NotEmpty(t, recon.logger)
+		require.True(t, recon.debug)
 
 		recon.WithWorkspace("./test")
 		require.Equal(t, "./test", recon.workspace)

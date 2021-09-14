@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -65,6 +66,14 @@ var (
 		if len(respModel.StatusChanges) == 1 {
 			require.Equal(t, keb.ClusterStatusPending, respModel.StatusChanges[0].Status)
 		} else {
+			if keb.ClusterStatusReconciling != respModel.StatusChanges[0].Status {
+				var buffer bytes.Buffer
+				for _, statusChange := range respModel.StatusChanges {
+					buffer.WriteRune(',')
+					buffer.WriteString(string(statusChange.Status))
+				}
+				t.Logf("Unexpected ordering of cluster status changes: %s", buffer.String())
+			}
 			require.Equal(t, keb.ClusterStatusReconciling, respModel.StatusChanges[0].Status)
 		}
 	}

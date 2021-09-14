@@ -37,7 +37,7 @@ func (lri *localReconcilerInvoker) Invoke(params *InvokeParams) error {
 
 	lri.logger.Debugf("Calling the reconciler for a component %s, correlation ID: %s", component, params.CorrelationID)
 
-	return componentReconciler.StartLocal(context.Background(), &reconciler.Reconciliation{
+	model := &reconciler.Reconciliation{
 		ComponentsReady: params.ComponentsReady,
 		Component:       component,
 		Namespace:       params.ComponentToReconcile.Namespace,
@@ -67,5 +67,7 @@ func (lri *localReconcilerInvoker) Invoke(params *InvokeParams) error {
 		},
 		InstallCRD:    params.InstallCRD,
 		CorrelationID: params.CorrelationID,
-	})
+	}
+
+	return componentReconciler.StartLocal(context.Background(), model, lri.logger)
 }
