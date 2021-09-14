@@ -30,6 +30,13 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
+	istioctlPath, err := resolveIstioctlPath()
+	if err != nil {
+		return err
+	}
+
+	a.commander.Version(istioctlPath)
+
 	commander := &istioctl.DefaultCommander{
 		Logger: context.Logger,
 	}
@@ -60,6 +67,15 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	return nil
+}
+
+func resolveIstioctlPath() (string, error) {
+	path := os.Getenv(istioctlBinaryPathEnvKey)
+	if path == "" {
+		return "", errors.New("Istioctl binary could not be found under ISTIOCTL_PATH env variable")
+	}
+
+	return path, nil
 }
 
 func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error) {

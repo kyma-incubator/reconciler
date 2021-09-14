@@ -38,6 +38,9 @@ type IstioPerformer interface {
 
 	// PatchMutatingWebhook configuration.
 	PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
+
+	// Update Istio on the cluster.
+	Update(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
@@ -124,6 +127,12 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Clien
 
 	logger.Infof("Patch has been applied successfully")
 
+	return nil
+}
+
+func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error {
+	// TODO: implement upgrade logic, for now let it be error-free
+	// Hint: use commander.Upgrade() for binary execution
 	return nil
 }
 

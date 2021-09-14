@@ -43,3 +43,17 @@ func (_m *IstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Client, log
 
 	return r0
 }
+
+// Update provides a mock function with given fields: kubeConfig, manifest, logger, commander
+func (_m *IstioPerformer) Update(kubeConfig string, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error {
+	ret := _m.Called(kubeConfig, manifest, logger, commander)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, *zap.SugaredLogger, istioctl.Commander) error); ok {
+		r0 = rf(kubeConfig, manifest, logger, commander)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
