@@ -12,7 +12,7 @@ const (
 
 type Connection interface {
 	Encryptor() *Encryptor
-	QueryRow(query string, args ...interface{}) DataRow
+	QueryRow(query string, args ...interface{}) (DataRow, error)
 	Query(query string, args ...interface{}) (DataRows, error)
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Begin() (*sql.Tx, error)

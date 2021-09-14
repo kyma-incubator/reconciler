@@ -25,7 +25,7 @@ const (
 func TestLocalScheduler(t *testing.T) {
 	testCluster := &keb.Cluster{
 		KymaConfig: keb.KymaConfig{
-			Components: []keb.Components{
+			Components: []keb.Component{
 				{Component: "logging"},
 				{Component: "monitoring"},
 			},
@@ -96,7 +96,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 				KymaConfig: keb.KymaConfig{},
 			}
 			for _, c := range tc.allComponents {
-				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Components{Component: c})
+				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Component{Component: c})
 			}
 
 			var reconciledComponents []string
@@ -104,7 +104,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(nil).
 				Run(func(args mock.Arguments) {
-					component := args.Get(0).(*keb.Components)
+					component := args.Get(0).(*keb.Component)
 					reconciledComponents = append(reconciledComponents, component.Component)
 				})
 
@@ -182,7 +182,7 @@ func newCluster(t *testing.T) *keb.Cluster {
 		KymaConfig: keb.KymaConfig{
 			Version: kymaVersion,
 			Profile: "evaluation",
-			Components: []keb.Components{
+			Components: []keb.Component{
 				{Component: "cluster-essentials", Namespace: "kyma-system"},
 				{Component: "istio", Namespace: "istio-system"},
 			},

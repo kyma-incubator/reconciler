@@ -6,7 +6,7 @@ import (
 )
 
 type InvokeParams struct {
-	ComponentToReconcile *keb.Components
+	ComponentToReconcile *keb.Component
 	ComponentsReady      []string
 	ClusterState         cluster.State
 	SchedulingID         string

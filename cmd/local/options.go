@@ -59,8 +59,15 @@ func componentsFromFile(path string) ([]string, error) {
 	return defaultComponents, nil
 }
 
-func componentsFromStrings(list []string, values []string) ([]keb.Components, error) {
-	var comps []keb.Components
+func componentsFromStrings(list []string, values []string) ([]keb.Component, error) {
+	var comps []keb.Component
+	vals := map[string]interface{}{}
+	for _, value := range values {
+		err := strvals.ParseInto(value, vals)
+		if err != nil {
+			return nil, fmt.Errorf("can't parse value %s", value)
+		}
+	}
 	for _, item := range list {
 		s := strings.Split(item, "@")
 		name := s[0]
@@ -69,33 +76,27 @@ func componentsFromStrings(list []string, values []string) ([]keb.Components, er
 			namespace = s[1]
 		}
 		var configuration []keb.Configuration
-		for _, value := range values {
-			vals, err := strvals.Parse(value)
-			if err != nil {
-				return nil, fmt.Errorf("can't parse value %s", value)
-			}
-			if vals[name] != nil {
-				val := vals[name]
-				mapValue, ok := val.(map[string]interface{})
-				if ok {
-					for key, value := range mapValue {
-						configuration = append(configuration, keb.Configuration{Key: key, Value: value})
+		if vals[name] != nil {
+			val := vals[name]
+			mapValue, ok := val.(map[string]interface{})
+			if ok {
+				for key, value := range mapValue {
+					configuration = append(configuration, keb.Configuration{Key: key, Value: value})
 
-					}
-				} else {
-					return nil, fmt.Errorf("expected nested values for component %s, got value %s", name, val)
 				}
-			}
-			if vals["global"] != nil {
-				configuration = append(configuration, keb.Configuration{Key: "global", Value: vals["global"]})
+			} else {
+				return nil, fmt.Errorf("expected nested values for component %s, got value %s", name, val)
 			}
 		}
-		comps = append(comps, keb.Components{Component: name, Namespace: namespace, Configuration: configuration})
+		if vals["global"] != nil {
+			configuration = append(configuration, keb.Configuration{Key: "global", Value: vals["global"]})
+		}
+		comps = append(comps, keb.Component{Component: name, Namespace: namespace, Configuration: configuration})
 	}
 	return comps, nil
 }
 
-func (o *Options) Components(defaultComponentsFile string) ([]keb.Components, error) {
+func (o *Options) Components(defaultComponentsFile string) ([]keb.Component, error) {
 	comps := o.components
 	if len(o.components) == 0 {
 		cFile := o.componentsFile

@@ -16,7 +16,7 @@ type ClusterConfigurationEntity struct {
 	ClusterVersion int64  `db:"notNull"`
 	KymaVersion    string `db:"notNull"`
 	KymaProfile    string `db:"notNull"`
-	Components     string `db:"notNull"`
+	Components     string `db:"notNull,encrypt"`
 	Administrators string
 	Contract       int64     `db:"notNull"`
 	Deleted        bool      `db:"notNull"`
@@ -59,9 +59,9 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	return false
 }
 
-func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Components, error) {
+func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Component, error) {
 	if c.Components == "" {
-		return []*keb.Components{}, nil
+		return []*keb.Component{}, nil
 	}
 	return keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
 }

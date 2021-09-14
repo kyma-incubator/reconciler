@@ -16,10 +16,11 @@ import (
 type SqliteConnection struct {
 	db        *sql.DB
 	encryptor *Encryptor
+	validator *Validator
 	logger    *zap.SugaredLogger
 }
 
-func newSqliteConnection(db *sql.DB, encKey string, debug bool) (*SqliteConnection, error) {
+func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries bool) (*SqliteConnection, error) {
 	logger, err := log.NewLogger(debug)
 	if err != nil {
 		return nil, err
@@ -28,9 +29,12 @@ func newSqliteConnection(db *sql.DB, encKey string, debug bool) (*SqliteConnecti
 	if err != nil {
 		return nil, err
 	}
+	validator := NewValidator(blockQueries, logger)
+
 	return &SqliteConnection{
 		db:        db,
 		encryptor: encryptor,
+		validator: validator,
 		logger:    logger,
 	}, nil
 }
@@ -39,13 +43,19 @@ func (sc *SqliteConnection) Encryptor() *Encryptor {
 	return sc.encryptor
 }
 
-func (sc *SqliteConnection) QueryRow(query string, args ...interface{}) DataRow {
+func (sc *SqliteConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
 	sc.logger.Debugf("Sqlite3 QueryRow(): %s | %v", query, args)
-	return sc.db.QueryRow(query, args...)
+	if err := sc.validator.Validate(query); err != nil {
+		return nil, err
+	}
+	return sc.db.QueryRow(query, args...), nil
 }
 
 func (sc *SqliteConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	sc.logger.Debugf("Sqlite3 Query(): %s | %v", query, args)
+	if err := sc.validator.Validate(query); err != nil {
+		return nil, err
+	}
 	rows, err := sc.db.Query(query, args...)
 	if err != nil {
 		sc.logger.Errorf("Sqlite3 Query() error: %s", err)
@@ -55,6 +65,9 @@ func (sc *SqliteConnection) Query(query string, args ...interface{}) (DataRows, 
 
 func (sc *SqliteConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
 	sc.logger.Debugf("Sqlite3 Exec(): %s | %v", query, args)
+	if err := sc.validator.Validate(query); err != nil {
+		return nil, err
+	}
 	result, err := sc.db.Exec(query, args...)
 	if err != nil {
 		sc.logger.Errorf("Sqlite3 Exec() error: %s", err)
@@ -82,6 +95,7 @@ type SqliteConnectionFactory struct {
 	Reset         bool
 	SchemaFile    string
 	EncryptionKey string
+	blockQueries  bool
 }
 
 func (scf *SqliteConnectionFactory) Init() error {
@@ -121,7 +135,7 @@ func (scf *SqliteConnectionFactory) NewConnection() (Connection, error) {
 		return nil, err
 	}
 
-	return newSqliteConnection(db, scf.EncryptionKey, scf.Debug) //connection ready to use
+	return newSqliteConnection(db, scf.EncryptionKey, scf.Debug, scf.blockQueries) //connection ready to use
 }
 
 func (scf *SqliteConnectionFactory) resetFile() error {
