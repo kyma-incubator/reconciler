@@ -11,14 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type RemoteReconcilerInvoker struct {
+type remoteReconcilerInvoker struct {
 	logger           *zap.SugaredLogger
 	mothershipScheme string
 	mothershipHost   string
 	mothershipPort   int
 }
 
-func (rri *RemoteReconcilerInvoker) Invoke(params *InvokeParams) error {
+func (rri *remoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 	component := params.ComponentToReconcile.Component
 
 	payload := reconciler.Reconciliation{

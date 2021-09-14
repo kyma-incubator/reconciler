@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -11,8 +10,9 @@ import (
 	"os"
 	"path/filepath"
 
+	startSvcCmd "github.com/kyma-incubator/reconciler/cmd/reconciler/start/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
-	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
+
 	"github.com/spf13/cobra"
 )
 
@@ -47,13 +47,11 @@ func Run(o *Options, reconcilerName string) error {
 	o.Logger().Infof("Starting component reconciler '%s'", reconcilerName)
 	ctx := cli.NewContext()
 
-	if err := startComponentReconciler(ctx, o, reconcilerName); err != nil {
+	workerPool, err := startSvcCmd.StartComponentReconciler(ctx, o.Options, reconcilerName)
+	if err != nil {
 		return err
 	}
-
-	//wait until context gets closed
-	<-ctx.Done()
-	return ctx.Err()
+	return startSvcCmd.StartWebserver(ctx, o.Options, workerPool)
 }
 
 func showCurl(o *Options) error {
@@ -124,24 +122,4 @@ func readKubeconfigAsJSON() (string, error) {
 	}
 
 	return string(kubeConfig), nil
-}
-
-func startComponentReconciler(ctx context.Context, o *Options, reconcilerName string) error {
-	recon, err := reconCli.NewComponentReconciler(o.Options, reconcilerName)
-	if err != nil {
-		return err
-	}
-
-	//enable debug mode when running in test command
-	if err := recon.Debug(); err != nil {
-		return err
-	}
-
-	go func(ctx context.Context) {
-		if err := recon.StartRemote(ctx); err != nil {
-			panic(err)
-		}
-	}(ctx)
-
-	return nil
 }

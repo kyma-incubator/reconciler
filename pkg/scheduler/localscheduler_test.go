@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -24,7 +25,7 @@ const (
 func TestLocalScheduler(t *testing.T) {
 	testCluster := &keb.Cluster{
 		KymaConfig: keb.KymaConfig{
-			Components: []keb.Components{
+			Components: []keb.Component{
 				{Component: "logging"},
 				{Component: "monitoring"},
 			},
@@ -38,7 +39,10 @@ func TestLocalScheduler(t *testing.T) {
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
 	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
 
-	sut := NewLocalScheduler(workerFactoryMock)
+	sut := LocalScheduler{
+		logger:        zap.NewNop().Sugar(),
+		workerFactory: workerFactoryMock,
+	}
 
 	err := sut.Run(context.Background(), testCluster)
 	require.NoError(t, err)
@@ -72,14 +76,14 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			prerequisites: []string{"b", "d"},
 			crdComponents: []string{"c", "e"},
 			allComponents: []string{"d", "c", "a", "e", "b"},
-			expectedOrder: []string{"d", "b", "c", "e", "a"},
+			expectedOrder: []string{"c", "e", "d", "b", "a"},
 		},
 		{
 			summary:       "overlapping prereqs and crds",
 			prerequisites: []string{"b", "d"},
 			crdComponents: []string{"c", "b"},
 			allComponents: []string{"d", "c", "a", "b"},
-			expectedOrder: []string{"d", "b", "c", "a"},
+			expectedOrder: []string{"c", "b", "d", "a"},
 		},
 	}
 
@@ -92,7 +96,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 				KymaConfig: keb.KymaConfig{},
 			}
 			for _, c := range tc.allComponents {
-				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Components{Component: c})
+				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Component{Component: c})
 			}
 
 			var reconciledComponents []string
@@ -100,7 +104,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(nil).
 				Run(func(args mock.Arguments) {
-					component := args.Get(0).(*keb.Components)
+					component := args.Get(0).(*keb.Component)
 					reconciledComponents = append(reconciledComponents, component.Component)
 				})
 
@@ -109,9 +113,12 @@ func TestLocalSchedulerOrder(t *testing.T) {
 				workerFactoryMock.On("ForComponent", c).Return(workerMock, nil)
 			}
 
-			sut := NewLocalScheduler(workerFactoryMock,
-				WithPrerequisites(tc.prerequisites...),
-				WithCRDComponents(tc.crdComponents...))
+			sut := LocalScheduler{
+				logger:        zap.NewNop().Sugar(),
+				prereqs:       tc.prerequisites,
+				crdComponents: tc.crdComponents,
+				workerFactory: workerFactoryMock,
+			}
 
 			err := sut.Run(context.Background(), testCluster)
 			require.NoError(t, err)
@@ -139,16 +146,30 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	cleanupFct(t)
 	defer cleanupFct(t)
 
+	workerFactory := newLocalWorkerFactory(
+		zap.NewNop().Sugar(),
+		&cluster.MockInventory{},
+		NewInMemoryOperationsRegistry(),
+		func(component string, msg *reconciler.CallbackMessage) {
+			t.Logf("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
+		})
+
 	t.Run("Missing component reconciler", func(t *testing.T) {
 		//no initialization of component reconcilers happened - reconciliation has to fail
-		ls := NewLocalScheduler(newWorkerFactory(t))
+		ls := LocalScheduler{
+			logger:        zap.NewNop().Sugar(),
+			workerFactory: workerFactory,
+		}
 		err := ls.Run(context.Background(), newCluster(t))
 		require.Error(t, err)
 	})
 
 	t.Run("Happy path", func(t *testing.T) {
 		initDefaultComponentReconciler(t)
-		ls := NewLocalScheduler(newWorkerFactory(t))
+		ls := LocalScheduler{
+			logger:        zap.NewNop().Sugar(),
+			workerFactory: workerFactory,
+		}
 		err := ls.Run(context.Background(), newCluster(t))
 		require.NoError(t, err)
 	})
@@ -161,24 +182,12 @@ func newCluster(t *testing.T) *keb.Cluster {
 		KymaConfig: keb.KymaConfig{
 			Version: kymaVersion,
 			Profile: "evaluation",
-			Components: []keb.Components{
+			Components: []keb.Component{
 				{Component: "cluster-essentials", Namespace: "kyma-system"},
 				{Component: "istio", Namespace: "istio-system"},
 			},
 		},
 	}
-}
-
-func newWorkerFactory(t *testing.T) WorkerFactory {
-	workerFactory, err := NewLocalWorkerFactory(
-		&cluster.MockInventory{},
-		NewInMemoryOperationsRegistry(),
-		func(component string, msg *reconciler.CallbackMessage) {
-			t.Logf("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
-		},
-		true)
-	require.NoError(t, err)
-	return workerFactory
 }
 
 //initDefaultComponentReconciler initialises the default component reconciler during runtime.

@@ -6,7 +6,7 @@ import (
 )
 
 type InvokeParams struct {
-	ComponentToReconcile *keb.Components
+	ComponentToReconcile *keb.Component
 	ComponentsReady      []string
 	ClusterState         cluster.State
 	SchedulingID         string
@@ -15,6 +15,6 @@ type InvokeParams struct {
 	InstallCRD           bool
 }
 
-type ReconcilerInvoker interface {
+type reconcilerInvoker interface {
 	Invoke(params *InvokeParams) error
 }

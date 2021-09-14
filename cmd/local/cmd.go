@@ -1,15 +1,13 @@
 package cmd
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 
-	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-
 	//Register all reconcilers
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
@@ -66,19 +64,25 @@ func RunLocal(o *Options) error {
 	}
 	defaultComponentsYaml := filepath.Join(ws.InstallationResourceDir, "components.yaml")
 
-	workerFactory, _ := scheduler.NewLocalWorkerFactory(
-		&cluster.MockInventory{},
-		scheduler.NewInMemoryOperationsRegistry(),
+	printStatus :=
 		func(component string, msg *reconciler.CallbackMessage) {
 			l.Infof("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
-		},
-		true)
+		}
 
-	ls := scheduler.NewLocalScheduler(workerFactory, scheduler.WithLogger(l))
-	return ls.Run(cli.NewContext(), &keb.Cluster{
-		Kubeconfig: o.kubeconfig,
-		KymaConfig: keb.KymaConfig{
-			Version:    o.version,
-			Profile:    o.profile,
-			Components: o.Components(defaultComponentsYaml)}})
+	comps, err := o.Components(defaultComponentsYaml)
+	if err != nil {
+		return err
+	}
+	ls := scheduler.NewLocalScheduler(
+		scheduler.WithLogger(l),
+		scheduler.WithStatusFunc(printStatus))
+	return ls.Run(
+		cli.NewContext(),
+		&keb.Cluster{
+			Kubeconfig: o.kubeconfig,
+			KymaConfig: keb.KymaConfig{
+				Version:    o.version,
+				Profile:    o.profile,
+				Components: comps},
+		})
 }
