@@ -31,11 +31,11 @@ type get struct {
 	selector map[string]interface{}
 }
 
-func newCacheDependencyManager(conn db.Connection, debug bool) (*cacheDependencyManager, error) {
+func newCacheDependencyManager(conn db.Connection, debug bool) *cacheDependencyManager {
 	return &cacheDependencyManager{
 		conn:   conn,
 		logger: logger.NewLogger(debug),
-	}, nil
+	}
 }
 
 func (cdm *cacheDependencyManager) transactional(desc string, dbOps func() error) error {

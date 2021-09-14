@@ -21,15 +21,10 @@ func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) 
 		return nil, err
 	}
 
-	cacheDepMgr, err := newCacheDependencyManager(conn, debug)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Repository{
 		Conn:     conn,
 		Logger:   log.NewLogger(debug),
-		CacheDep: cacheDepMgr,
+		CacheDep: newCacheDependencyManager(conn, debug),
 	}, nil
 }
 
