@@ -20,8 +20,11 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	reconciler.WithReconcileAction(&CustomAction{
-		name: "ory-secrets",
-	})
-
+	reconciler.
+		WithPreReconcileAction(&ReconcileAction{
+			step: "pre-install",
+		}).
+		WithPostReconcileAction(&ReconcileAction{
+			step: "post-install",
+		})
 }
