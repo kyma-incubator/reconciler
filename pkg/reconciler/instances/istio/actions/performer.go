@@ -42,34 +42,14 @@ type IstioPerformer interface {
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
 type DefaultIstioPerformer struct {
-	commander     istioctl.Commander
-	istioctlPath  string
-	kubeConfig    string
-	istioOperator string
-	kubeClient    kubernetes.Client
-	logger        *zap.SugaredLogger
+	commander istioctl.Commander
 }
 
 // NewDefaultIstioPerformer creates a new instance of the DefaultIstioPerformer.
-func NewDefaultIstioPerformer(kubeConfig, manifest string, kubeClient kubernetes.Client, logger *zap.SugaredLogger, cmder istioctl.Commander) (*DefaultIstioPerformer, error) {
-	istioctlPath, err := resolveIstioctlPath()
-	if err != nil {
-		return nil, err
-	}
-
-	istioOperator, err := extractIstioOperatorContextFrom(manifest)
-	if err != nil {
-		return nil, err
-	}
-
+func NewDefaultIstioPerformer(commander istioctl.Commander) *DefaultIstioPerformer {
 	return &DefaultIstioPerformer{
-		istioctlPath:  istioctlPath,
-		kubeConfig:    kubeConfig,
-		istioOperator: istioOperator,
-		kubeClient:    kubeClient,
-		logger:        logger,
-		commander:     cmder,
-	}, nil
+		commander: commander,
+	}
 }
 
 func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error {

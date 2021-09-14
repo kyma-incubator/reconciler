@@ -39,11 +39,12 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	err = performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
+	err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
 	if err != nil {
 		return errors.Wrap(err, "Could not install Istio")
 	}
 
-	err = performer.PatchMutatingWebhook(context.KubeClient, context.Logger)
+	err = a.performer.PatchMutatingWebhook(context.KubeClient, context.Logger)
 	if err != nil {
 		return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 	}

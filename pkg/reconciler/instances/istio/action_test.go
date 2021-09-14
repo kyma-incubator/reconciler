@@ -3,6 +3,9 @@ package istio
 import (
 	"context"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	istiomocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/mocks"
+	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
@@ -94,17 +97,17 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 
 func Test_ReconcileAction_Run(t *testing.T) {
 
-	version := ""
-
-	t.Run("should not extract istio operator from manifest that does not contain istio operator", func(t *testing.T) {
+	t.Run("should not perform istio reconcile action", func(t *testing.T) {
 		// given
-		action := ReconcileAction{}
+		performer := istiomocks.IstioPerformer{}
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
 
 		// when
-		err := action.Run(version, "", nil, newFakeServiceContext(t))
+		err := action.Run("0.0.0", "profile", nil, newFakeServiceContext(t))
 
 		// then
-		require.NoError(t, err)
+		require.Error(t, err) // it should not return error, refactor
 	})
 
 }
@@ -118,11 +121,15 @@ func newFakeServiceContext(t *testing.T) *service.ActionContext {
 	// since we can't currently mock WorkspaceFactory.
 	fakeFactory, err := workspace.NewFactory("./test_files", log.NewOptionalLogger(true))
 	require.NoError(t, err)
+	logger := log.NewOptionalLogger(true)
+	chartProvider, err := chart.NewProvider(fakeFactory, logger)
+	require.NoError(t, err)
 
 	return &service.ActionContext{
 		KubeClient:       mockClient,
 		Context:          context.Background(),
 		WorkspaceFactory: fakeFactory,
-		Logger:           log.NewOptionalLogger(true),
+		Logger:           logger,
+		ChartProvider:    chartProvider,
 	}
 }

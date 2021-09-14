@@ -2,6 +2,8 @@ package istio
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
@@ -17,5 +19,7 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	reconciler.WithReconcileAction(&ReconcileAction{})
+	commander := istioctl.DefaultCommander{}
+	performer := actions.NewDefaultIstioPerformer(&commander)
+	reconciler.WithReconcileAction(&ReconcileAction{commander: &commander, performer: performer})
 }

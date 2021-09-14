@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"testing"
 )
@@ -33,71 +34,57 @@ metadata:
 `
 )
 
-func Test_NewDefaultIstioPerformer(t *testing.T) {
-
-	kubeConfig := "kubeConfig"
-	manifest := "manifest"
-	kubeClient := mocks.Client{}
-	log := logger.NewLogger(false)
-	cmder := istioctlmocks.Commander{}
-
-	t.Run("should not create wrapper when istioctl binary could not be found in env", func(t *testing.T) {
-		// given
-		err := os.Setenv("ISTIOCTL_PATH", "")
-		require.NoError(t, err)
-
-		// when
-		wrapper, err := NewDefaultIstioPerformer(kubeConfig, manifest, &kubeClient, log, &cmder)
-
-		/// then
-		require.Nil(t, wrapper)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Istioctl binary could not be found")
-	})
-
-	t.Run("should not create wrapper when istioctl operator could not be found in manifest", func(t *testing.T) {
-		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
-
-		// when
-		wrapper, err := NewDefaultIstioPerformer(kubeConfig, manifest, &kubeClient, log, &cmder)
-
-		/// then
-		require.Nil(t, wrapper)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Istio Operator definition could not be found")
-	})
-
-	t.Run("should create wrapper when all required properties are present", func(t *testing.T) {
-		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
-
-		// when
-		wrapper, err := NewDefaultIstioPerformer(kubeConfig, istioManifest, &kubeClient, log, &cmder)
-
-		/// then
-		require.NotNil(t, wrapper)
-		require.NoError(t, err)
-	})
-
-}
-
 func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
 	err := os.Setenv("ISTIOCTL_PATH", "path")
 	require.NoError(t, err)
 	kubeConfig := "kubeConfig"
+	manifest := "manifest"
 	kubeClient := mocks.Client{}
-	log := logger.NewLogger(false)
+	cmder := istioctlmocks.Commander{}
+	log, err := logger.NewLogger(false)
+	require.NoError(t, err)
+
+	t.Run("should not install when istioctl binary could not be found in env", func(t *testing.T) {
+		// given
+		err := os.Setenv("ISTIOCTL_PATH", "")
+		require.NoError(t, err)
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(errors.New("istioctl error"))
+		wrapper := NewDefaultIstioPerformer(&cmder)
+
+		// when
+		err = wrapper.Install(kubeConfig, "", log, &cmder)
+
+		/// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Istioctl binary could not be found")
+		cmder.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+	})
+
+	t.Run("should not install when istio operator could not be found in manifest", func(t *testing.T) {
+		// given
+		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(errors.New("istioctl error"))
+		wrapper := NewDefaultIstioPerformer(&cmder)
+
+		// when
+		err = wrapper.Install(kubeConfig, "", log, &cmder)
+
+		/// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Istio Operator definition could not be found")
+		cmder.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+	})
 
 	t.Run("should not install Istio when istioctl returned an error", func(t *testing.T) {
 		// given
+		err := os.Setenv("ISTIOCTL_PATH", "path")
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(errors.New("istioctl error"))
-		wrapper, err := NewDefaultIstioPerformer(kubeConfig, istioManifest, &kubeClient, log, &cmder)
-		require.NoError(t, err)
+		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
 		err = wrapper.Install(kubeConfig, istioManifest, log, &cmder)
@@ -105,17 +92,56 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "istioctl error")
+		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
 	})
 
 	t.Run("should install Istio when istioctl command was successful", func(t *testing.T) {
 		// given
+		err := os.Setenv("ISTIOCTL_PATH", "path")
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
-		wrapper, err := NewDefaultIstioPerformer(kubeConfig, istioManifest, &kubeClient, log, &cmder)
-		require.NoError(t, err)
+		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
 		err = wrapper.Install(kubeConfig, istioManifest, log, &cmder)
+
+		// then
+		require.NoError(t, err)
+		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+	})
+
+}
+
+func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
+
+	err := os.Setenv("ISTIOCTL_PATH", "path")
+	require.NoError(t, err)
+	log := logger.NewLogger(false)
+
+	t.Run("should not patch MutatingWebhookConfiguration when kubeclient had returned an error", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		wrapper := NewDefaultIstioPerformer(&cmder)
+		kubeClient := mocks.Client{}
+		kubeClient.On("PatchUsingStrategy", "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(errors.New("kubeclient error"))
+
+		// when
+		err = wrapper.PatchMutatingWebhook(&kubeClient, log)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "kubeclient error")
+	})
+
+	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		wrapper := NewDefaultIstioPerformer(&cmder)
+		kubeClient := mocks.Client{}
+		kubeClient.On("PatchUsingStrategy", "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(nil)
+
+		// when
+		err = wrapper.PatchMutatingWebhook(&kubeClient, log)
 
 		// then
 		require.NoError(t, err)
