@@ -33,7 +33,7 @@ func TestLocalScheduler(t *testing.T) {
 	}
 
 	workerMock := &MockReconciliationWorker{}
-	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	workerFactoryMock := &MockWorkerFactory{}
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
@@ -55,7 +55,6 @@ func TestLocalSchedulerOrder(t *testing.T) {
 	testCases := []struct {
 		summary       string
 		prerequisites []string
-		crdComponents []string
 		allComponents []string
 		expectedOrder []string
 	}{
@@ -66,24 +65,10 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			expectedOrder: []string{"b", "a"},
 		},
 		{
-			summary:       "multiple prereqs",
+			summary:       "multiple prerequisites",
 			prerequisites: []string{"b", "d"},
 			allComponents: []string{"d", "a", "b"},
 			expectedOrder: []string{"d", "b", "a"},
-		},
-		{
-			summary:       "non-overlapping prereqs and crds",
-			prerequisites: []string{"b", "d"},
-			crdComponents: []string{"c", "e"},
-			allComponents: []string{"d", "c", "a", "e", "b"},
-			expectedOrder: []string{"c", "e", "d", "b", "a"},
-		},
-		{
-			summary:       "overlapping prereqs and crds",
-			prerequisites: []string{"b", "d"},
-			crdComponents: []string{"c", "b"},
-			allComponents: []string{"d", "c", "a", "b"},
-			expectedOrder: []string{"c", "b", "d", "a"},
 		},
 	}
 
@@ -115,8 +100,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 
 			sut := LocalScheduler{
 				logger:        zap.NewNop().Sugar(),
-				prereqs:       tc.prerequisites,
-				crdComponents: tc.crdComponents,
+				prerequisites: tc.prerequisites,
 				workerFactory: workerFactoryMock,
 			}
 
@@ -127,6 +111,46 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			require.Equal(t, tc.expectedOrder, reconciledComponents)
 		})
 	}
+}
+
+func TestLocalSchedulerInstallsCRDsOnce(t *testing.T) {
+	testCluster := &keb.Cluster{
+		KymaConfig: keb.KymaConfig{
+			Components: []keb.Component{
+				{Component: "logging"},
+				{Component: "monitoring"},
+				{Component: "kiali"},
+				{Component: "tracing"},
+			},
+		},
+	}
+
+	workerMock := &MockReconciliationWorker{}
+	installCRDCalledCount := 0
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			installCRD := args.Bool(3)
+			if installCRD {
+				installCRDCalledCount++
+			}
+		})
+
+	workerFactoryMock := &MockWorkerFactory{}
+	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
+	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
+	workerFactoryMock.On("ForComponent", "kiali").Return(workerMock, nil)
+	workerFactoryMock.On("ForComponent", "tracing").Return(workerMock, nil)
+
+	sut := LocalScheduler{
+		logger:        zap.NewNop().Sugar(),
+		workerFactory: workerFactoryMock,
+	}
+
+	err := sut.Run(context.Background(), testCluster)
+	require.NoError(t, err)
+
+	require.Equal(t, installCRDCalledCount, 1)
 }
 
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
