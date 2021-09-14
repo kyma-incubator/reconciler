@@ -22,3 +22,8 @@ spec:
             - /tmp
         initialDelaySeconds: 5
         periodSeconds: 5
+{{ if .Values.initContainer }}
+  initContainers:
+    - name: init
+      image: hello-world:latest
+{{ end }}

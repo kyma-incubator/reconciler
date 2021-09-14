@@ -14,6 +14,7 @@ type Status string
 
 const (
 	NotStarted Status = "notstarted"
+	Failed     Status = "failed"
 	Error      Status = "error"
 	Running    Status = "running"
 	Success    Status = "success"
@@ -82,5 +83,5 @@ type CallbackMessage struct {
 }
 
 func (cb *CallbackMessage) String() string {
-	return fmt.Sprintf("CallbackMessage [status=%s,error=%s]", cb.Status, cb.Error)
+	return fmt.Sprintf("CallbackMessage [status=%s,error=%v]", cb.Status, cb.Error)
 }

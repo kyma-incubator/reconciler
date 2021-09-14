@@ -7,12 +7,12 @@ fi
 
 backupFlag=""
 if [ "$(uname -s)" == 'Darwin' ]; then
-  backupFlag="-I '.bak'"
+  backupFlag="-I .bak"
 fi
 
 readonly valuesYaml="$(dirname $0)/../resources/reconciler/values.yaml"
 
-sed $backupFlag -E "/tag:/ s/PR-[[:digit:]]+/PR-${PULL_NUMBER}/" $valuesYaml
+sed $backupFlag -E "/tag:/ s/tag: [[:alnum:]_-]+/tag: PR-${PULL_NUMBER}/" $valuesYaml
 readonly bumpExitCode=$?
 
 if [ "$bumpExitCode" -eq "0" ]; then
