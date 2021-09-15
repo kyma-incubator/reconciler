@@ -39,17 +39,13 @@ func NewWorker(
 	operationsReg OperationsRegistry,
 	invoker reconcilerInvoker,
 	debug bool) (*Worker, error) {
-	log, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
 	return &Worker{
 		correlationID: uuid.NewString(),
 		config:        config,
 		inventory:     inventory,
 		operationsReg: operationsReg,
 		invoker:       invoker,
-		logger:        log,
+		logger:        logger.NewLogger(debug),
 		errorsCount:   0,
 	}, nil
 }

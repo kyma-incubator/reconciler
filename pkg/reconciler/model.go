@@ -20,6 +20,23 @@ const (
 	Success    Status = "success"
 )
 
+func NewStatus(status string) (Status, error) {
+	switch strings.ToLower(status) {
+	case string(NotStarted):
+		return NotStarted, nil
+	case string(Failed):
+		return Failed, nil
+	case string(Error):
+		return Error, nil
+	case string(Running):
+		return Running, nil
+	case string(Success):
+		return Success, nil
+	default:
+		return "", fmt.Errorf("status '%s' not found", status)
+	}
+}
+
 //Reconciliation is the model for reconciliation calls
 type Reconciliation struct {
 	ComponentsReady []string        `json:"componentsReady"`

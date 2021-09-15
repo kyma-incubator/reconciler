@@ -20,14 +20,16 @@ func NewContext() context.Context {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
+		log := logger.NewLogger(false)
+
 		select {
-		case <-osSignalC: // first signal, cancel context
+		case <-osSignalC: // first signal received: cancel context (graceful shutdown)
 			cancel()
-			logger.NewOptionalLogger(false).Warnf(
+			log.Warnf(
 				"Received OS interrupt event: stopping execution context")
 
 			time.AfterFunc(shutdownTimeout, func() {
-				logger.NewOptionalLogger(false).Warnf(
+				log.Warnf(
 					"Program didn't stop after %.1f secs waiting period: hard shutdown", shutdownTimeout.Seconds())
 				os.Exit(exitInterrupted)
 
@@ -36,8 +38,8 @@ func NewContext() context.Context {
 			os.Exit(exitDone)
 		}
 
-		<-osSignalC // second signal, hard exit
-		logger.NewOptionalLogger(false).Warnf("Received second OS interrupt event: hard shutdown")
+		<-osSignalC // second signal received: exit (hard shutdown)
+		log.Warnf("Received second OS interrupt event: hard shutdown")
 		os.Exit(exitInterrupted)
 	}()
 	return ctx

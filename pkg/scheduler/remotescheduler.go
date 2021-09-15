@@ -36,16 +36,12 @@ type RemoteScheduler struct {
 }
 
 func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFactory, mothershipCfg MothershipReconcilerConfig, workers int, debug bool) (Scheduler, error) {
-	l, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
 	return &RemoteScheduler{
 		inventoryWatch: inventoryWatch,
 		workerFactory:  workerFactory,
 		mothershipCfg:  mothershipCfg,
 		poolSize:       workers,
-		logger:         l,
+		logger:         logger.NewLogger(debug),
 	}, nil
 }
 

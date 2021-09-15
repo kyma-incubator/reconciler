@@ -38,7 +38,7 @@ func Test_NewDefaultIstioPerformer(t *testing.T) {
 	kubeConfig := "kubeConfig"
 	manifest := "manifest"
 	kubeClient := mocks.Client{}
-	log, _ := logger.NewLogger(false)
+	log := logger.NewLogger(false)
 	cmder := istioctlmocks.Commander{}
 
 	t.Run("should not create wrapper when istioctl binary could not be found in env", func(t *testing.T) {
@@ -90,8 +90,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 	require.NoError(t, err)
 	kubeConfig := "kubeConfig"
 	kubeClient := mocks.Client{}
-	log, err := logger.NewLogger(false)
-	require.NoError(t, err)
+	log := logger.NewLogger(false)
 
 	t.Run("should not install Istio when istioctl returned an error", func(t *testing.T) {
 		// given

@@ -19,11 +19,11 @@ type WorkerPool struct {
 	debug        bool
 	logger       *zap.SugaredLogger
 	antsPool     *ants.Pool
-	newRunnerFct func(context.Context, *reconciler.Reconciliation, callback.Handler) func() error
+	newRunnerFct func(context.Context, *reconciler.Reconciliation, callback.Handler, *zap.SugaredLogger) func() error
 	depChecker   *dependencyChecker
 }
 
-func newWorkerPoolBuilder(depChecker *dependencyChecker, newRunnerFct func(context.Context, *reconciler.Reconciliation, callback.Handler) func() error) *workPoolBuilder {
+func newWorkerPoolBuilder(depChecker *dependencyChecker, newRunnerFct func(context.Context, *reconciler.Reconciliation, callback.Handler, *zap.SugaredLogger) func() error) *workPoolBuilder {
 	return &workPoolBuilder{
 		poolSize: defaultWorkers,
 		workerPool: &WorkerPool{
@@ -45,10 +45,7 @@ func (pb *workPoolBuilder) WithDebug(debug bool) *workPoolBuilder {
 
 func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
 	//add logger
-	log, err := logger.NewLogger(pb.workerPool.debug)
-	if err != nil {
-		return nil, err
-	}
+	log := logger.NewLogger(pb.workerPool.debug)
 	pb.workerPool.logger = log
 
 	//add ants worker pool
@@ -74,13 +71,7 @@ func (wa *WorkerPool) CheckDependencies(model *reconciler.Reconciliation) *Depen
 
 func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Reconciliation) error {
 	//enrich logger with correlation ID and component name
-	loggerNew, err := logger.NewLogger(wa.debug)
-	if err != nil {
-		wa.logger.Errorf("Failed to prepare reconciliation of model '%s'! "+
-			"Could not create a new logger that is correlationID-aware: %s", model, err)
-		return err
-	}
-	loggerNew = loggerNew.With(
+	loggerNew := logger.NewLogger(wa.debug).With(
 		zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID},
 		zap.Field{Key: "component-name", Type: zapcore.StringType, String: model.Component})
 
@@ -95,7 +86,7 @@ func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Reconc
 	//assign runner to worker
 	err = wa.antsPool.Submit(func() {
 		wa.logger.Debugf("Runner for model '%s' is assigned to worker", model)
-		runnerFunc := wa.newRunnerFct(ctx, model, remoteCbh)
+		runnerFunc := wa.newRunnerFct(ctx, model, remoteCbh, loggerNew)
 		if errRunner := runnerFunc(); errRunner != nil {
 			wa.logger.Warnf("Runner failed for model '%s': %v", model, errRunner)
 		}

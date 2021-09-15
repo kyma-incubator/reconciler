@@ -5,6 +5,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"testing"
 	"time"
 )
@@ -13,8 +14,9 @@ func TestWorkerPool(t *testing.T) {
 	t.Run("Filter missing component dependencies", func(t *testing.T) {
 		recon, err := NewComponentReconciler("unittest")
 		require.NoError(t, err)
-		require.NoError(t, recon.Debug())
-		recon.WithDependencies("a", "b")
+
+		//configure reconciler
+		recon.Debug().WithDependencies("a", "b")
 
 		ctx, cancel := context.WithCancel(context.TODO())
 
@@ -37,8 +39,8 @@ func TestWorkerPool(t *testing.T) {
 	})
 }
 
-func newRunnerFct() func(context.Context, *reconciler.Reconciliation, callback.Handler) func() error {
-	return func(ctx context.Context, reconciliation *reconciler.Reconciliation, handler callback.Handler) func() error {
+func newRunnerFct() func(context.Context, *reconciler.Reconciliation, callback.Handler, *zap.SugaredLogger) func() error {
+	return func(ctx context.Context, reconciliation *reconciler.Reconciliation, handler callback.Handler, logger *zap.SugaredLogger) func() error {
 		return func() error {
 			return nil
 		}

@@ -44,11 +44,6 @@ func (wc *InventoryWatchConfig) validate() error {
 }
 
 func NewInventoryWatch(inventory cluster.Inventory, debug bool, config *InventoryWatchConfig) (InventoryWatcher, error) {
-	l, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
-
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
@@ -56,7 +51,7 @@ func NewInventoryWatch(inventory cluster.Inventory, debug bool, config *Inventor
 	return &DefaultInventoryWatcher{
 		inventory: inventory,
 		config:    config,
-		logger:    l}, nil
+		logger:    logger.NewLogger(debug)}, nil
 }
 
 type DefaultInventoryWatcher struct {
