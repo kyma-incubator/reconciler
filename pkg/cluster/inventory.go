@@ -21,6 +21,7 @@ type Inventory interface {
 	StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
+	ListReconciles(runtimeIds *[]string, shootNames *[]string, statuses *[]keb.Status) (keb.HTTPReconcilerStatus, error)
 }
 
 type DefaultInventory struct {
@@ -560,4 +561,39 @@ func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) (
 	}
 
 	return statusChanges, nil
+}
+
+func (i *DefaultInventory) ListReconciles(runtimeIds *[]string, shootNames *[]string, statuses *[]keb.Status) (keb.HTTPReconcilerStatus, error) {
+	clusterStatusEntity := &model.ClusterStatusEntity{}
+
+	q, err := db.NewQuery(i.Conn, clusterStatusEntity)
+	if err != nil {
+		return nil, err
+	}
+
+	var statusCondition *db.Condition = nil
+	if statuses != nil {
+		statusCondition = &db.Condition{
+			Column:    "Status",
+			Condition: db.In,
+			Value:     *statuses,
+		}
+	}
+
+	if runtimeIds != nil {
+		var conditions = []db.Condition{}
+		conditions = append(conditions, db.Condition{Column: "Cluster", Condition: db.In, Value: *runtimeIds})
+		if statusCondition != nil {
+			conditions = append(conditions, *statusCondition)
+		}
+		entities, err := q.Select().ImprovedWhere(conditions).GetMany()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, entity := range entities {
+			i.Logger.Debugf("entity: %+v", entity)
+		}
+	}
+	return nil, nil
 }

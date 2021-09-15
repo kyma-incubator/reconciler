@@ -68,7 +68,7 @@ func NewColumnHandler(entity DatabaseEntity, conn Connection) (*ColumnHandler, e
 		return colHdlr, newInvalidEntityError(fmt.Sprintf("failed to marshal values of entity '%s': %s", entity, err.Error()))
 	}
 
-	//add columns to column handler instance
+	//add columns to Column handler instance
 	for _, field := range fields {
 		col := &column{
 			name:     strcase.ToSnake(field.Name()),
@@ -135,10 +135,10 @@ func (ch *ColumnHandler) ColumnName(field string) (string, error) {
 	if colName, ok := ch.columnNames[field]; ok {
 		return colName, nil
 	}
-	return "", fmt.Errorf("entity '%s' has no field '%s': cannot resolve column name", ch.entity, field)
+	return "", fmt.Errorf("entity '%s' has no field '%s': cannot resolve Column name", ch.entity, field)
 }
 
-//ColumnNamesCsv returns the CSV string of the column names
+//ColumnNamesCsv returns the CSV string of the Column names
 func (ch *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 	var buffer bytes.Buffer
 	for _, col := range ch.columns {

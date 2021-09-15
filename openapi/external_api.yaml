@@ -17,6 +17,42 @@ servers:
         default: 'v1'
 
 paths:
+  /reconciles:
+    get:
+      description: 'Get list of current working reconcilers'
+      parameters:
+        - name: runtimeIDs
+          required: false
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+        - name: statuses
+          required: false
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/status'
+        - name: shoots
+          required: false
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: 'Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPReconcilerStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /clusters:
     put:
       description: update exisiting cluster
@@ -199,6 +235,75 @@ components:
         statusURL:
           type: string
           format: uri
+
+    HTTPReconcilerStatus:
+      type: array
+      items:
+        $ref: '#/components/schemas/reconciliation'
+
+    reconciliation:
+      type: object
+      required: [ lock, runtimeID, shootName, schedulingID, created, updated, status ]
+      properties:
+        lock:
+          type: string
+        runtimeID:
+          type: string
+        shootName:
+          type: string
+        schedulingID:
+          type: string
+          format: uuid
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+        status:
+          $ref:
+            '#/components/schemas/status'
+
+
+    operation:
+      type: object
+      required: [ priority, schedulingID, correlationID, component, state, reason, created, updated ]
+      properties:
+        priority:
+          type: integer
+          format: int64
+        schedulingID:
+          type: string
+          format: uuid
+        correlationID:
+          type: string
+          format: uuid
+        component:
+          type: string
+        state:
+          type: string # TODO: this should be enum
+        reason:
+          type: string
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+
+    reconcilerStatus:
+      type: object
+      required: [ cluster, metadata, created, status ]
+      properties:
+        cluster:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/metadata'
+        created:
+          type: string
+          format: date-time
+        status:
+          type: string
 
     statusChange:
       type: object

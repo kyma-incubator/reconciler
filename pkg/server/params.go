@@ -22,6 +22,15 @@ func NewParams(r *http.Request) *Params {
 		params: params,
 	}
 }
+
+func GetArray(r *http.Request, key string) *[]string {
+	query := r.URL.Query()
+	value := query[key]
+	if len(value) == 0 {
+		return nil
+	}
+	return &value
+}
 func (p *Params) String(name string) (string, error) {
 	result, ok := p.params[name]
 	if !ok {

@@ -8,6 +8,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"github.com/spf13/viper"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -31,6 +32,10 @@ const (
 	paramOffset          = "offset"
 	paramSchedulingID    = "schedulingID"
 	paramCorrelationID   = "correlationID"
+
+	paramShootNames = "shoots"
+	paramStatuses   = "statuses"
+	paramRuntimeIDs = "runtimeIDs"
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
@@ -40,6 +45,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdateCluster)).
 		Methods("PUT", "POST")
+
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/reconciles", paramContractVersion),
+		callHandler(o, listReconciles)).
+		Methods("GET")
 
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramCluster),
@@ -157,6 +167,74 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sendResponse(w, r, clusterState)
+}
+
+func listReconciles(o *Options, w http.ResponseWriter, r *http.Request) {
+	shoots := server.GetArray(r, paramShootNames)
+	tmpStatuses := server.GetArray(r, paramStatuses)
+	var statuses *[]keb.Status = nil
+	if tmpStatuses != nil {
+		tmp := []keb.Status{}
+		for _, status := range *tmpStatuses {
+			value, err := keb.ToStatus(status)
+			if err != nil {
+				server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{Error: err.Error()})
+			}
+			tmp = append(tmp, value)
+		}
+		statuses = &tmp
+	}
+
+	rtmIDs := server.GetArray(r, paramRuntimeIDs)
+	log.Println(shoots)
+	log.Println(statuses)
+	log.Println(rtmIDs)
+
+	//reconciles, err := o.Registry.Inventory().ListReconciles(rtmIDs, shoots, statuses)
+	//if err != nil {
+	//	server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+	//		Error: err.Error(),
+	//	})
+	//	return
+	//}
+
+	//TODO: mock response
+	reconciles := keb.HTTPReconcilerStatus{
+		{
+			Created:      time.Now(),
+			Lock:         "dunno",
+			RuntimeID:    "3123dasdasd21321dad",
+			SchedulingID: "2131231231231231231",
+			ShootName:    "kyma",
+			Status:       keb.StatusError,
+			Updated:      time.Now(),
+		}, {
+			Created:      time.Now().Add(time.Hour * (-24)),
+			Lock:         "dunno",
+			RuntimeID:    "3123dasdasd21321dad",
+			SchedulingID: "2131231231231231231",
+			ShootName:    "kyma",
+			Updated:      time.Now().Add(time.Hour * (-24)),
+			Status:       keb.StatusReconciling,
+		}, {
+			Created:      time.Now().Add(time.Hour * (-48)),
+			Lock:         "dunno",
+			RuntimeID:    "3123dasdasd21321dad",
+			SchedulingID: "2131231231231231231",
+			ShootName:    "kyma",
+			Updated:      time.Now().Add(time.Hour * (-48)),
+			Status:       keb.StatusReady,
+		},
+	}
+
+	//respond
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(reconciles); err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to encode cluster list response").Error(),
+		})
+		return
+	}
 }
 
 func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -356,7 +434,6 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTP
 	if err != nil {
 		return nil, err
 	}
-
 	return &keb.HTTPClusterResponse{
 		Cluster:              clusterState.Cluster.Cluster,
 		ClusterVersion:       clusterState.Cluster.Version,

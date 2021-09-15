@@ -69,3 +69,6 @@ func (kp *MockKubeconfigProvider) Get() (string, error) {
 	}
 	return kp.KubeconfigResult, nil
 }
+func (i *MockInventory) ListReconciles(runtimeIds *[]string, shootNames *[]string, statuses *[]keb.Status) (keb.HTTPReconcilerStatus, error) {
+	return nil, nil
+}

@@ -106,3 +106,6 @@ all: resolve oapi build test lint docker-build docker-push
 
 .PHONY: release
 release: all
+
+.PHONY: verify
+verify: resolve oapi test lint

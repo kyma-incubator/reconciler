@@ -75,7 +75,7 @@ func TestColumnHandler(t *testing.T) {
 		require.Contains(t, colValsWriteable, "testString")
 	})
 
-	t.Run("Get column name", func(t *testing.T) {
+	t.Run("Get Column name", func(t *testing.T) {
 		colNameInt64, err := colHdr.ColumnName("Col1")
 		require.NoError(t, err)
 		require.Equal(t, "col_1", colNameInt64)
@@ -85,12 +85,12 @@ func TestColumnHandler(t *testing.T) {
 		require.Equal(t, "col_2", colNameStr)
 	})
 
-	t.Run("Get column names as CSV", func(t *testing.T) {
+	t.Run("Get Column names as CSV", func(t *testing.T) {
 		require.ElementsMatch(t, []string{"col_1", "col_2", "col_3"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(false)))
 		require.ElementsMatch(t, []string{"col_1", "col_3"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(true)))
 	})
 
-	t.Run("Get column values as CSV", func(t *testing.T) {
+	t.Run("Get Column values as CSV", func(t *testing.T) {
 		colValsAll, err := colHdr.ColumnValuesCsv(false)
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(colValsAll), 3)
@@ -105,7 +105,7 @@ func TestColumnHandler(t *testing.T) {
 		require.Contains(t, splitAndTrimCsv(colValsWriteable), "testString")
 	})
 
-	t.Run("Get column values as placeholder CSV", func(t *testing.T) {
+	t.Run("Get Column values as placeholder CSV", func(t *testing.T) {
 		colValsPlcHdrsAll, err := colHdr.ColumnValuesPlaceholderCsv(false)
 		require.NoError(t, err)
 		require.Equal(t, "$1, $2, $3", colValsPlcHdrsAll)
@@ -115,7 +115,7 @@ func TestColumnHandler(t *testing.T) {
 		require.Equal(t, "$1, $2", colValsPlcHdrsWriteable)
 	})
 
-	t.Run("Get column entries as CSV", func(t *testing.T) {
+	t.Run("Get Column entries as CSV", func(t *testing.T) {
 		kvPairsAll, _, err := colHdr.ColumnEntriesCsv(false)
 		require.NoError(t, err)
 		require.Len(t, splitAndTrimCsv(kvPairsAll), 3)
@@ -130,7 +130,7 @@ func TestColumnHandler(t *testing.T) {
 		require.Contains(t, splitAndTrimCsv(kvPairsWriteable), "col_1=testString")
 	})
 
-	t.Run("Get column entries as placeholder CSV", func(t *testing.T) {
+	t.Run("Get Column entries as placeholder CSV", func(t *testing.T) {
 		kvPairsPlcHdrsAll, plcHdrCnt, err := colHdr.ColumnEntriesPlaceholderCsv(false)
 		require.NoError(t, err)
 		require.Regexp(t, regexp.MustCompile(`((col_1|col_2|col_3)=\$[1-3](, )?){3}`), kvPairsPlcHdrsAll)

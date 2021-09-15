@@ -1,5 +1,8 @@
 {
+    "busola-migrator": {
+        "url": "http://localhost:8082/v1/run"
+    },
     "base": {
-        "url": "http://localhost:8081/v1/run"
+        "url": "http://localhost:8084/v1/run"
     }
 }

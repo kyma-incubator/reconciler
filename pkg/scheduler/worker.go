@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DefaultReconciler = "base" //TODO: take this information configurable
+	DefaultReconciler = "busola-migrator" //TODO: take this information configurable
 	MaxRetryCount     = 20
 	MaxDuration       = time.Hour
 )

@@ -15,6 +15,19 @@ type Query struct {
 	whereClause   bool
 }
 
+type ConditionType string
+
+const (
+	Equal ConditionType = "="
+	In                  = "in"
+)
+
+type Condition struct {
+	Column    string
+	Condition ConditionType
+	Value     interface{}
+}
+
 func NewQuery(conn Connection, entity DatabaseEntity) (*Query, error) {
 	columnHandler, err := NewColumnHandler(entity, conn)
 	if err != nil {
@@ -67,38 +80,6 @@ func (q *Query) reset() {
 	q.whereClause = false
 }
 
-func (q *Query) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset int) ([]interface{}, error) {
-	var args []interface{}
-	var plcHdrIdx int
-
-	if len(whereCond) == 0 {
-		return args, nil
-	}
-
-	//get sort list of fields
-	fields := make([]string, 0, len(whereCond))
-	for field := range whereCond {
-		fields = append(fields, field)
-	}
-	sort.Strings(fields)
-
-	//render WHERE condition
-	q.addWhere()
-	for _, field := range fields {
-		col, err := q.columnHandler.ColumnName(field)
-		if err != nil {
-			return args, err
-		}
-		if plcHdrIdx > 0 {
-			q.buffer.WriteString(" AND")
-		}
-		plcHdrIdx++
-		q.buffer.WriteString(fmt.Sprintf(" %s=$%d", col, plcHdrIdx+plcHdrOffset))
-		args = append(args, whereCond[field])
-	}
-	return args, nil
-}
-
 func (q *Query) addWhereInCondition(field, subQuery string) error {
 	colName, err := q.columnHandler.ColumnName(field)
 	if err != nil {
@@ -126,13 +107,20 @@ type Select struct {
 }
 
 func (s *Select) Where(args map[string]interface{}) *Select {
-	s.args, s.err = s.addWhereCondition(args, 0)
+	conditions := transformOldConditions(args)
+
+	s.args, s.err = s.addWhereCondition(conditions, 0)
 	return s
 }
 
 func (s *Select) WhereIn(field, subQuery string, args ...interface{}) *Select {
 	s.err = s.addWhereInCondition(field, subQuery)
 	s.args = args
+	return s
+}
+
+func (s *Select) ImprovedWhere(conditions []Condition) *Select {
+	s.args, s.err = s.addWhereCondition(conditions, 0)
 	return s
 }
 
@@ -263,7 +251,8 @@ type Delete struct {
 }
 
 func (d *Delete) Where(args map[string]interface{}) *Delete {
-	d.args, d.err = d.addWhereCondition(args, 0)
+	conditions := transformOldConditions(args)
+	d.args, d.err = d.addWhereCondition(conditions, 0)
 	return d
 }
 
@@ -294,7 +283,8 @@ type Update struct {
 }
 
 func (u *Update) Where(args map[string]interface{}) *Update {
-	u.args, u.err = u.addWhereCondition(args, u.placeholderOffset)
+	conditions := transformOldConditions(args)
+	u.args, u.err = u.addWhereCondition(conditions, u.placeholderOffset)
 	return u
 }
 
@@ -316,4 +306,42 @@ func (u *Update) Exec() error {
 		return err
 	}
 	return u.columnHandler.Unmarshal(row, u.entity)
+}
+
+func (q *Query) addWhereCondition(whereCond []Condition, plcHdrOffset int) ([]interface{}, error) {
+	var args []interface{}
+	var plcHdrIdx int
+
+	if len(whereCond) == 0 {
+		return args, nil
+	}
+
+	//render WHERE condition
+	q.addWhere()
+	for _, condition := range whereCond {
+		col, err := q.columnHandler.ColumnName(condition.Column)
+		if err != nil {
+			return args, err
+		}
+		if plcHdrIdx > 0 {
+			q.buffer.WriteString(string(condition.Condition))
+		}
+		plcHdrIdx++
+		q.buffer.WriteString(fmt.Sprintf(" %s=$%d ", col, plcHdrIdx+plcHdrOffset))
+		args = append(args, condition.Value)
+	}
+	return args, nil
+}
+
+func transformOldConditions(args map[string]interface{}) []Condition {
+	conditions := []Condition{}
+	for key, value := range args {
+		newCondition := Condition{
+			Column:    key,
+			Condition: Equal,
+			Value:     value,
+		}
+		conditions = append(conditions, newCondition)
+	}
+	return conditions
 }
