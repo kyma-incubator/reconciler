@@ -40,7 +40,7 @@ func TestResolvePRrevision(t *testing.T) {
 			defaultLister = &fakeRefLister{
 				refs: tc.givenRefs,
 			}
-			r, err := resolvePRrevision("github.com/fake-repo", tc.givenRevision)
+			r, err := resolveRefs("github.com/fake-repo", tc.givenRevision, "pr")
 			if tc.expectErr {
 				require.Error(t, err)
 			} else {
