@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
 )
 
@@ -21,7 +20,7 @@ func CloneRepo(url, dstPath, rev string) error {
 	if err != nil {
 		return errors.Wrapf(err, "error downloading Git repository (%s)", url)
 	}
-	return checkout(repo, rev)
+	return checkout(repo, rev, url)
 }
 
 type repoCloner interface {
@@ -39,13 +38,13 @@ func (rc *remoteRepoCloner) Clone(url, path string, autoCheckout bool) (*git.Rep
 	})
 }
 
-func checkout(repo *git.Repository, rev string) error {
+func checkout(repo *git.Repository, rev string, url string) error {
 	w, err := repo.Worktree()
 	if err != nil {
 		return errors.Wrap(err, "error getting the GIT worktree")
 	}
 
-	hash, err := repo.ResolveRevision(plumbing.Revision(rev))
+	hash, err := resolveRevision(repo, url, rev)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to resolve GIT revision '%s'", rev))
 	}
