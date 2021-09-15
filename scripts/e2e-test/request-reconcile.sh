@@ -47,6 +47,7 @@ send_reconciliation_request
 # Check if reconcile status url is valid
 check_reconcile_status_url
 
+# Saving status URL in a file
 echo $RECONCILE_STATUS_URL > status_url.txt
 
 exit 0
