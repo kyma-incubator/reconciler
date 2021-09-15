@@ -21,6 +21,7 @@ type Inventory interface {
 	StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
+	ListReconciles() ([]ReconcileStatus, error)
 }
 
 type DefaultInventory struct {
@@ -560,4 +561,63 @@ func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) (
 	}
 
 	return statusChanges, nil
+}
+
+// func (i *DefaultInventory) ListClusters() ([]*model.ClusterEntity, error) {
+// 	q, err := db.NewQuery(i.Conn, &model.ClusterEntity{})
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	results, err := q.Select().GetMany()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	clusters := []*model.ClusterEntity{}
+// 	if len(results) != 0 {
+// 		for _, r := range results {
+// 			clusters = append(clusters, r.(*model.ClusterEntity))
+// 		}
+// 	}
+// 	return clusters, err
+// }
+
+func (i *DefaultInventory) ListReconciles() ([]ReconcileStatus, error) {
+	q, err := db.NewQuery(i.Conn, &model.ClusterEntity{})
+	if err != nil {
+		return nil, err
+	}
+	results, err := q.Select().Where(map[string]interface{}{
+		"Deleted": false,
+	}).GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	reconciles := []ReconcileStatus{}
+	if len(results) != 0 {
+		for _, r := range results {
+			state, err := i.Get(r.(*model.ClusterEntity).Cluster, r.(*model.ClusterEntity).Version)
+			if err != nil {
+				return nil, err
+			}
+			metadata := keb.Metadata{}
+			if err := json.Unmarshal([]byte(r.(*model.ClusterEntity).Metadata), &metadata); err != nil {
+				return nil, err
+			}
+			reconciles = append(reconciles, ReconcileStatus{
+				Cluster:  r.(*model.ClusterEntity).Cluster,
+				Metadata: metadata,
+				Created:  r.(*model.ClusterEntity).Created,
+				Status:   string(state.Status.Status),
+			})
+		}
+	}
+	return reconciles, err
+}
+
+type ReconcileStatus struct {
+	Cluster  string
+	Metadata keb.Metadata
+	Created  time.Time
+	Status   string
 }

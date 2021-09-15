@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/scheduler"
+	"github.com/spf13/viper"
 
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
 
@@ -41,6 +42,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdateCluster)).
 		Methods("PUT", "POST")
+
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/reconciles", paramContractVersion),
+		callHandler(o, listReconciles)).
+		Methods("GET")
 
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramCluster),
@@ -160,6 +166,24 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, r, clusterState)
 }
 
+func listReconciles(o *Options, w http.ResponseWriter, r *http.Request) {
+	reconciles, err := o.Registry.Inventory().ListReconciles()
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	//respond
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(reconciles); err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to encode cluster list response").Error(),
+		})
+		return
+	}
+}
 func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	clusterName, err := params.String(paramCluster)
@@ -357,7 +381,6 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTP
 	if err != nil {
 		return nil, err
 	}
-
 	return &keb.HTTPClusterResponse{
 		Cluster:              clusterState.Cluster.Cluster,
 		ClusterVersion:       clusterState.Cluster.Version,
