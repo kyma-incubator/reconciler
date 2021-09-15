@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 # Description: Initiates Kyma reconciliation requests to reconciler and waits until Kyma is installed
 
@@ -23,7 +23,6 @@ function wait_until_kyma_installed() {
   iterationsLeft=$(( RECONCILER_TIMEOUT/RECONCILER_DELAY ))
   while : ; do
     status=$(curl -sL http://"$RECONCILE_STATUS_URL" | jq -r .status)
-    exitCode=$?
     if [ "${status}" = "ready" ]; then
       echo "Kyma is installed"
       exit 0
@@ -35,7 +34,7 @@ function wait_until_kyma_installed() {
     fi
 
     sleep $RECONCILER_DELAY
-    echo "waiting to get Kyma installed, current status: ${status} .... code: ${exitCode}"
+    echo "waiting to get Kyma installed, current status: ${status} ...."
     iterationsLeft=$(( iterationsLeft-1 ))
   done
 }
@@ -63,19 +62,9 @@ function check_reconcile_status_url() {
 ## Execution steps
 ## ---------------------------------------------------------------------------------------
 
-trap cleanup 1 2 3 6 15
-
-function cleanup() {
-  echo "Caught Signal ... cleaning up."
-  echo $?
-  exit 1
-}
-
 # Install curl and jq
 echo "Installing curl and jq to the environment"
-apt-get update
-echo Y | apt-get install curl
-echo Y | apt-get install jq
+apk --no-cache add curl jq
 
 # Send reconciliation http request to mothership-reconciler
 send_reconciliation_request
@@ -86,4 +75,4 @@ check_reconcile_status_url
 # Wait until Kyma is installed
 wait_until_kyma_installed
 
-echo "Reconciler script is completed"
+echo "reconcile-kyma completed"
