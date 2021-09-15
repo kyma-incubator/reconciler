@@ -32,7 +32,7 @@ func TestHelm(t *testing.T) {
 		helm, err := NewHelmClient(chartDir, logger)
 		require.NoError(t, err)
 
-		got, err := helm.chartConfiguration(loadHelmChart(t, component), "")
+		got, err := helm.profileConfiguration(loadHelmChart(t, component), "")
 		require.NoError(t, err)
 
 		var expected map[string]interface{}
@@ -56,7 +56,7 @@ func TestHelm(t *testing.T) {
 		helm, err := NewHelmClient(chartDir, logger)
 		require.NoError(t, err)
 
-		got, err := helm.chartConfiguration(loadHelmChart(t, component), profileName)
+		got, err := helm.profileConfiguration(loadHelmChart(t, component), profileName)
 		require.NoError(t, err)
 
 		var expected map[string]interface{}
@@ -80,9 +80,7 @@ func TestHelm(t *testing.T) {
 		helm, err := NewHelmClient(chartDir, logger)
 		require.NoError(t, err)
 
-		got, err := helm.mergeChartConfiguration(loadHelmChart(t, component), component)
-		require.NoError(t, err)
-
+		got, err := helm.Configuration(component)
 		var expected map[string]interface{}
 		err = json.Unmarshal([]byte(`{
 			"config": {
@@ -118,7 +116,7 @@ func TestHelm(t *testing.T) {
 		helm, err := NewHelmClient(chartDir, logger)
 		require.NoError(t, err)
 
-		got, err := helm.mergeChartConfiguration(loadHelmChart(t, component), component)
+		got, err := helm.Configuration(component)
 		require.NoError(t, err)
 
 		var expected map[string]interface{}

@@ -83,8 +83,16 @@ func (c *HelmClient) newActionConfig(namespace string) (*action.Configuration, e
 	return cfg, nil
 }
 
+func (c *HelmClient) Configuration(component *Component) (map[string]interface{}, error) {
+	helmChart, err := loader.Load(filepath.Join(c.chartDir, component.name))
+	if err != nil {
+		return nil, err
+	}
+	return c.mergeChartConfiguration(helmChart, component)
+}
+
 func (c *HelmClient) mergeChartConfiguration(chart *chart.Chart, component *Component) (map[string]interface{}, error) {
-	result, err := c.chartConfiguration(chart, component.profile)
+	result, err := c.profileConfiguration(chart, component.profile)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +110,7 @@ func (c *HelmClient) mergeChartConfiguration(chart *chart.Chart, component *Comp
 	return result, nil
 }
 
-func (c *HelmClient) chartConfiguration(ch *chart.Chart, profileName string) (map[string]interface{}, error) {
+func (c *HelmClient) profileConfiguration(ch *chart.Chart, profileName string) (map[string]interface{}, error) {
 	var profile *chart.File
 	for _, f := range ch.Files {
 		if (f.Name == fmt.Sprintf("profile-%s.yaml", profileName)) || (f.Name == fmt.Sprintf("%s.yaml", profileName)) {
