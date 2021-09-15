@@ -21,15 +21,15 @@ type PostgresConnection struct {
 }
 
 func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQueries bool) (*PostgresConnection, error) {
-	logger, err := log.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
+	logger := log.NewLogger(debug)
+
 	encryptor, err := NewEncryptor(encryptionKey)
 	if err != nil {
 		return nil, err
 	}
+
 	validator := NewValidator(blockQueries, logger)
+
 	return &PostgresConnection{
 		db:        db,
 		encryptor: encryptor,
@@ -127,7 +127,7 @@ func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
 }
 
 func (pcf *PostgresConnectionFactory) checkPostgresIsolationLevel() error {
-	logger := log.NewOptionalLogger(pcf.Debug)
+	logger := log.NewLogger(pcf.Debug)
 
 	dbConn, err := pcf.NewConnection()
 	if err != nil {

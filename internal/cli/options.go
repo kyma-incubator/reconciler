@@ -36,11 +36,7 @@ func (o *Options) Validate() error {
 
 func (o *Options) Logger() *zap.SugaredLogger {
 	if o.logger == nil {
-		zapLogger, err := logger.NewLogger(o.Verbose)
-		if err != nil {
-			panic(err)
-		}
-		o.logger = zapLogger
+		o.logger = logger.NewLogger(o.Verbose)
 	}
 	return o.logger
 }

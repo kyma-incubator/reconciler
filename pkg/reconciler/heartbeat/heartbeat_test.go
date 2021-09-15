@@ -3,7 +3,9 @@ package heartbeat
 import (
 	"context"
 	"fmt"
+	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/pkg/errors"
 	"os"
 	"strings"
 	"testing"
@@ -17,14 +19,16 @@ import (
 //testCallbackHandler is tracking fired status-updates in an env-var (allows a stateless callback implementation)
 //This implementation CAN NOT RUN IN PARALLEL!
 type testCallbackHandler struct {
+	t *testing.T
 }
 
 func newTestCallbackHandler(t *testing.T) *testCallbackHandler {
 	require.NoError(t, os.Unsetenv("_testCallbackHandlerStatuses"))
-	return &testCallbackHandler{}
+	return &testCallbackHandler{t}
 }
 
 func (cb *testCallbackHandler) Callback(msg *reconciler.CallbackMessage) error {
+	cb.t.Logf("Sending callback: %s", msg)
 	statusList := os.Getenv("_testCallbackHandlerStatuses")
 	if statusList == "" {
 		statusList = string(msg.Status)
@@ -53,7 +57,8 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 	t.Parallel()
 
-	logger := log.NewOptionalLogger(true)
+	logger := log.NewLogger(true)
+
 	t.Run("Test heartbeat sender without timeout", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -69,6 +74,10 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 		require.NoError(t, heartbeatSender.Running())
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Running)
+		time.Sleep(2 * time.Second)
+
+		require.NoError(t, heartbeatSender.Failed(errors.New("I'm currently failing")))
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Failed)
 		time.Sleep(2 * time.Second)
 
 		require.NoError(t, heartbeatSender.Success())
@@ -119,7 +128,13 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 		time.Sleep(2 * time.Second) //wait longer than status update timeout to timeout
 
-		//check fired status updates: anything 1 >= x <= 3 is sufficient to ensure the heartbeatSenders worked
+		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything <= 2 is sufficient to ensure the statusUpdaters worked
+
+		err = heartbeatSender.Failed(errors.New("I'm failing"))
+		require.Error(t, err)
+		require.IsType(t, &e.ContextClosedError{}, err) //status changes have to fail after status-updater was interrupted
+
+		// check fired status updates: anything 1 >= x <= 3 is sufficient to ensure the heartbeatSenders worked
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 1)
 		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 3)
 	})

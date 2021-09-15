@@ -24,6 +24,7 @@ func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*ApplicationRe
 	registry := &ApplicationRegistry{
 		debug:             debug,
 		connectionFactory: cf,
+		logger:            logger.NewLogger(debug),
 	}
 	return registry, registry.init()
 }
@@ -34,9 +35,6 @@ func (or *ApplicationRegistry) init() error {
 	}
 
 	var err error
-	if or.logger, err = logger.NewLogger(or.debug); err != nil {
-		return err
-	}
 	if or.inventory, err = or.initInventory(); err != nil {
 		return err
 	}

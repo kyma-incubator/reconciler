@@ -23,11 +23,7 @@ func newCacheDep() *cacheDependencyManager {
 	if err != nil {
 		panic(err)
 	}
-	result, err := newCacheDependencyManager(conn, true)
-	if err != nil {
-		panic(err)
-	}
-	return result
+	return newCacheDependencyManager(conn, true)
 }
 
 func TestCacheDependencyManager(t *testing.T) {

@@ -9,13 +9,10 @@ const ReconcilerName = "base"
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
-	log, err := logger.NewLogger(false)
-	if err != nil {
-		panic(err)
-	}
+	log := logger.NewLogger(false)
 
 	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
-	_, err = service.NewComponentReconciler(ReconcilerName)
+	_, err := service.NewComponentReconciler(ReconcilerName)
 	if err != nil {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}

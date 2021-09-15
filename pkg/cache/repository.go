@@ -28,7 +28,8 @@ func (cr *Repository) All() ([]*model.CacheEntryEntity, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := []*model.CacheEntryEntity{}
+
+	var result []*model.CacheEntryEntity
 	for _, entity := range entities {
 		result = append(result, entity.(*model.CacheEntryEntity))
 	}
