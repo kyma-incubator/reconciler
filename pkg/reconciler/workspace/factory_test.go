@@ -56,7 +56,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		//delete success file
 		t.Log("Deleting success file to simulate broken workspace")
-		err = os.Remove(filepath.Join(workspaceDir, successFile))
+		err = os.Remove(filepath.Join(workspaceDir, wsReadyIndicatorFile))
 		require.NoError(t, err)
 
 		//trigger re-cloning
@@ -65,7 +65,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		//check again all the required files including success file
 		checkWorkspaceDirectories(t, ws)
-		require.True(t, file.Exists(filepath.Join(workspaceDir, successFile)))
+		require.True(t, file.Exists(filepath.Join(workspaceDir, wsReadyIndicatorFile)))
 	})
 
 	t.Run("Use local workspace", func(t *testing.T) {
