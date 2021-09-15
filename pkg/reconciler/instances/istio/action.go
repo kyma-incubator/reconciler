@@ -30,14 +30,13 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	istioctlPath, err := resolveIstioctlPath()
+	ver, err := a.performer.Version(context.KubeClient.Kubeconfig(), context.Logger, a.commander)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Could not fetch Istio version")
 	}
 
-	a.commander.Version(istioctlPath)
-
-	commander := &istioctl.DefaultCommander{
+	if shouldInstall(ver) {
+		commander := &istioctl.DefaultCommander{
 		Logger: context.Logger,
 	}
 	performer, err := actions.NewDefaultIstioPerformer(context.KubeClient.Kubeconfig(), manifest.Manifest, context.KubeClient, context.Logger, commander)
@@ -45,15 +44,20 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Could not initialize DefaultIstioPerformer")
 	}
 
-	err = performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
-	err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
-	if err != nil {
-		return errors.Wrap(err, "Could not install Istio")
-	}
+	err = performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
+		if err != nil {
+			return errors.Wrap(err, "Could not install Istio")
+		}
 
-	err = a.performer.PatchMutatingWebhook(context.KubeClient, context.Logger)
-	if err != nil {
-		return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
+		err = a.performer.PatchMutatingWebhook(context.KubeClient, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
+		}
+	} else {
+		err = a.performer.Update(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
+		if err != nil {
+			return errors.Wrap(err, "Could not update Istio")
+		}
 	}
 
 	generated, err := generateNewManifestWithoutIstioOperatorFrom(manifest.Manifest)
@@ -69,13 +73,9 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func resolveIstioctlPath() (string, error) {
-	path := os.Getenv(istioctlBinaryPathEnvKey)
-	if path == "" {
-		return "", errors.New("Istioctl binary could not be found under ISTIOCTL_PATH env variable")
-	}
-
-	return path, nil
+func shouldInstall(version actions.IstioVersion) bool {
+	// mockup function
+	return false
 }
 
 func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error) {

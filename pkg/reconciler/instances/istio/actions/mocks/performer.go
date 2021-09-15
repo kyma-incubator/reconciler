@@ -3,7 +3,9 @@
 package mocks
 
 import (
+	actions "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	istioctl "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
+
 	kubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	mock "github.com/stretchr/testify/mock"
@@ -56,4 +58,25 @@ func (_m *IstioPerformer) Update(kubeConfig string, manifest string, logger *zap
 	}
 
 	return r0
+}
+
+// Version provides a mock function with given fields: kubeConfig, logger, commander
+func (_m *IstioPerformer) Version(kubeConfig string, logger *zap.SugaredLogger, commander istioctl.Commander) (actions.IstioVersion, error) {
+	ret := _m.Called(kubeConfig, logger, commander)
+
+	var r0 actions.IstioVersion
+	if rf, ok := ret.Get(0).(func(string, *zap.SugaredLogger, istioctl.Commander) actions.IstioVersion); ok {
+		r0 = rf(kubeConfig, logger, commander)
+	} else {
+		r0 = ret.Get(0).(actions.IstioVersion)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, *zap.SugaredLogger, istioctl.Commander) error); ok {
+		r1 = rf(kubeConfig, logger, commander)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }

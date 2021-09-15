@@ -29,6 +29,12 @@ type webhookPatchJSONValue struct {
 	Values   []string `json:"values"`
 }
 
+// IstioVersion TODO
+type IstioVersion struct {
+	istioctlVersion string
+	istioVersion    string
+}
+
 //go:generate mockery -name=IstioPerformer
 // IstioPerformer performs actions on Istio component on the cluster.
 type IstioPerformer interface {
@@ -41,6 +47,9 @@ type IstioPerformer interface {
 
 	// Update Istio on the cluster.
 	Update(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error
+
+	// Version of Istio on the cluster.
+	Version(kubeConfig string, logger *zap.SugaredLogger, commander istioctl.Commander) (IstioVersion, error)
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
@@ -136,6 +145,37 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.
 	return nil
 }
 
+func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLogger, commander istioctl.Commander) (IstioVersion, error) {
+	// TODO: implement upgrade logic, for now let it be error-free
+	// Hint: use commander.Upgrade() for binary execution
+
+	istioctlPath, err := resolveIstioctlPath()
+	if err != nil {
+		return IstioVersion{}, err
+	}
+
+	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeConfig)
+	if err != nil {
+		return  IstioVersion{}, err
+	}
+
+	defer func() {
+		cleanupErr := kubeconfigCf()
+		if cleanupErr != nil {
+			logger.Error(cleanupErr)
+		}
+	}()
+
+	ver, err := c.commander.Version(istioctlPath, kubeconfigPath)
+	if err != nil {
+		return IstioVersion{}, nil
+	}
+
+	mappedIstioVersion := mapVersionToStruct(ver)
+
+	return mappedIstioVersion, nil
+}
+
 func resolveIstioctlPath() (string, error) {
 	path := os.Getenv(istioctlBinaryPathEnvKey)
 	if path == "" {
@@ -165,4 +205,9 @@ func extractIstioOperatorContextFrom(manifest string) (string, error) {
 	}
 
 	return "", errors.New("Istio Operator definition could not be found in manifest")
+}
+
+func mapVersionToStruct(raw string) IstioVersion {
+	// mockup function
+	return IstioVersion{}
 }

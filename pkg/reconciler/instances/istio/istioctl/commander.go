@@ -8,11 +8,6 @@ import (
 	"sync"
 )
 
-type IstioVersion struct {
-	istioctlVersion string
-	istioVersion    string
-}
-
 //go:generate mockery -name=Commander
 // Commander for istioctl binary.
 type Commander interface {
@@ -24,7 +19,7 @@ type Commander interface {
 	Upgrade(istioCtlPath, istioOperatorPath, kubeconfigPath string) error
 
 	// Version wraps istioctl version command.
-	Version(istioCtlPath, kubeconfigPath string) (IstioVersion, error)
+	Version(istioCtlPath, kubeconfigPath string) (string, error)
 }
 
 // DefaultCommander provides a default implementation of Commander.
@@ -73,12 +68,10 @@ func (c *DefaultCommander) Upgrade(istioCtlPath, istioOperatorPath, kubeconfigPa
 	return nil
 }
 
-func (c *DefaultCommander) Version(istioCtlPath, kubeconfigPath string) (IstioVersion, error) {
+func (c *DefaultCommander) Version(istioCtlPath, kubeconfigPath string) (string, error) {
 	// TODO: implement version logic, for now let it return mocked valuexw be error-free
-	return IstioVersion{
-		istioctlVersion: "istioctlVersion",
-		istioVersion:    "istioVersion",
-	}, nil
+
+	return "", nil
 }
 
 func bufferAndLog(r io.Reader, logger *zap.SugaredLogger) {
