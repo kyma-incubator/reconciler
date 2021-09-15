@@ -1,6 +1,9 @@
 package reconciliation
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 )
@@ -19,6 +22,43 @@ func (ws *WithSchedulingID) FilterByQuery(q *db.Select) error {
 func (ws *WithSchedulingID) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
 	if i.SchedulingID == ws.SchedulingID {
 		return i
+	}
+	return nil
+}
+
+type WithRuntimeIDs struct {
+	RuntimeIDs []string
+}
+
+func (wc *WithRuntimeIDs) FilterByQuery(q *db.Select) error {
+	runtimeIDsLen := len(wc.RuntimeIDs)
+	if runtimeIDsLen < 1 {
+		return nil
+	}
+
+	var values string
+	for i := range wc.RuntimeIDs {
+		if i == runtimeIDsLen-1 {
+			values = fmt.Sprintf("%s$%d", values, i+1)
+			break
+		}
+		values = fmt.Sprintf("%s$%d,", values, i+1)
+	}
+
+	q.WhereIn("RuntimeID", values, strings.Join(wc.RuntimeIDs, ","))
+	return nil
+}
+
+func (wc *WithRuntimeIDs) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
+	runtimeIDsLen := len(wc.RuntimeIDs)
+	if runtimeIDsLen < 1 {
+		return nil
+	}
+
+	for _, runtimeID := range wc.RuntimeIDs {
+		if i.RuntimeID == runtimeID {
+			return i
+		}
 	}
 	return nil
 }

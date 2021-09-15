@@ -18,9 +18,27 @@ servers:
         default: 'v1'
 
 paths:
-  /reconciles:
+  /reconciliations/{schedulingID}/info:
     get:
-      description: 'Get list of current working reconcilers; not implemented yet'
+      description: 'Get details of a reconciliation'
+      parameters:
+        - name: schedulingID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/ReconcilationOperationsOKResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /reconciliations:
+    get:
+      description: 'Get list of current working reconcilers'
       parameters:
         - name: runtimeIDs
           required: false
@@ -37,22 +55,13 @@ paths:
             type: array
             items:
               $ref: '#/components/schemas/status'
-        - name: shoots
-          required: false
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
       responses:
         '200':
-          description: 'Ok'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPReconcilerStatus'
+          $ref: '#/components/responses/ReconcilationsOKResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /clusters:
     put:
@@ -191,7 +200,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPClusterStatusResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/BadRequest'        
         '404':
           $ref: '#/components/responses/ClusterNotFound'
         '500':
@@ -205,18 +214,36 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/HTTPClusterResponse'
+
+    ReconcilationsOKResponse:
+      description: 'OK'
+      content:
+        application/json:
+          schema:
+            $ref:  '#/components/schemas/HTTPReconcilerStatus'
+
+    ReconcilationOperationsOKResponse:
+      description: 'OK'
+      content:
+        application/json:
+          schema:
+            $ref:  '#/components/schemas/HTTPReconciliationOperations'
+
     InternalError:
       description: 'Internal server error'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/HTTPErrorResponse'
+
     BadRequest:
       description: 'Bad request'
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/HTTPErrorResponse'
+
+    # TODO rename to not found            
     ClusterNotFound:
       description: 'Given cluster not found'
       content:
@@ -260,6 +287,16 @@ components:
           type: string
           format: uri
 
+    HTTPReconciliationOperations:
+      type: object
+      properties:
+        cluster:
+          $ref: '#/components/schemas/cluster'            
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/operation'
+    
     HTTPReconcilerStatus:
       type: array
       items:
@@ -273,8 +310,6 @@ components:
           type: string
         runtimeID:
           type: string
-        shootName:
-          type: string
         schedulingID:
           type: string
           format: uuid
@@ -287,7 +322,6 @@ components:
         status:
           $ref:
             '#/components/schemas/status'
-
 
     operation:
       type: object
@@ -314,6 +348,8 @@ components:
         updated:
           type: string
           format: date-time
+        clusterMetadata:
+          $ref: '#/components/schemas/cluster'
 
     reconcilerStatus:
       type: object

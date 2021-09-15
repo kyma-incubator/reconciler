@@ -17,6 +17,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 
 	"github.com/gorilla/mux"
@@ -32,6 +33,10 @@ const (
 	paramOffset          = "offset"
 	paramSchedulingID    = "schedulingID"
 	paramCorrelationID   = "correlationID"
+
+	paramStatuses   = "statuses"
+	paramRuntimeIDs = "runtimeIDs"
+	paramCluster    = "cluster"
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
@@ -44,6 +49,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramRuntimeID),
+		callHandler(o, deleteCluster)).
+		Methods("DELETE")
+
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramCluster),
 		callHandler(o, deleteCluster)).
 		Methods("DELETE")
 
@@ -71,6 +81,16 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, operationCallback)).
 		Methods("POST")
+
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/reconciliations", paramContractVersion),
+		callHandler(o, getReconciliations)).
+		Methods("GET")
+
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/reconciliations/{%s}/info", paramContractVersion, paramSchedulingID),
+		callHandler(o, getReconciliationInfo)).
+		Methods("GET")
 
 	//metrics endpoint
 	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
@@ -222,6 +242,183 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	sendResponse(w, r, clusterState)
+}
+
+func contains(slice []string, value string) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
+func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
+	statuses := r.URL.Query()[paramStatuses]
+
+	// validate statuseses
+	for _, statusStr := range statuses {
+		if _, err := keb.ToStatus(statusStr); err != nil {
+			server.SendHTTPError(
+				w,
+				http.StatusBadRequest,
+				&keb.BadRequest{Error: err.Error()},
+			)
+			return
+		}
+	}
+
+	runtimeIDs := r.URL.Query()[paramRuntimeIDs]
+
+	// Fetch all reconciliation entitlies base on runtime id
+	reconciles, err := o.Registry.
+		ReconciliationRepository().
+		GetReconciliations(
+			&reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs},
+		)
+
+	if err != nil {
+		server.SendHTTPError(
+			w,
+			http.StatusInternalServerError,
+			&keb.InternalError{Error: err.Error()},
+		)
+		return
+	}
+
+	results := []keb.Reconciliation{}
+
+RESULT_LOOP:
+	for _, reconcile := range reconciles {
+		// FIXME add new method in inventory to fetch multiple statuses via runtimeID and fetch it in 1 go
+		state, err := o.Registry.
+			Inventory().
+			GetLatest(reconcile.RuntimeID)
+
+		if err != nil {
+			server.SendHTTPError(
+				w,
+				http.StatusInternalServerError,
+				&keb.InternalError{
+					Error: err.Error(),
+				})
+			return
+		}
+
+		if len(statuses) != 0 && !contains(statuses, string(state.Status.Status)) {
+			continue RESULT_LOOP
+		}
+
+		results = append(results, keb.Reconciliation{
+			Created:      reconcile.Created,
+			Lock:         reconcile.Lock,
+			RuntimeID:    reconcile.RuntimeID,
+			SchedulingID: reconcile.SchedulingID,
+			Status:       keb.Status(state.Status.Status),
+			Updated:      reconcile.Updated,
+		})
+	}
+
+	//respond
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(keb.ReconcilationsOKResponse(results)); err != nil {
+		server.SendHTTPError(
+			w,
+			http.StatusInternalServerError,
+			&reconciler.HTTPErrorResponse{
+				Error: errors.Wrap(err, "Failed to encode cluster list response").Error(),
+			})
+		return
+	}
+}
+
+func getReconciliationInfo(o *Options, w http.ResponseWriter, r *http.Request) {
+	// find arguments
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(
+			w,
+			http.StatusBadRequest,
+			&keb.BadRequest{Error: err.Error()},
+		)
+		return
+	}
+	// fetch all reconciliation operations for given scheduling id
+	operations, err := o.Registry.ReconciliationRepository().GetOperations(schedulingID)
+	if err != nil {
+		server.SendHTTPError(
+			w,
+			http.StatusInternalServerError,
+			&keb.InternalError{Error: err.Error()},
+		)
+		return
+	}
+	// return 404 if no reconciliation opertations found
+	operationLen := len(operations)
+	if operationLen < 1 {
+		server.SendHTTPError(
+			w,
+			http.StatusNotFound,
+			&keb.HTTPErrorResponse{
+				Error: fmt.Sprintf("Reconciliation run with schedulingID: '%s' does not exist", schedulingID),
+			},
+		)
+		return
+	}
+	// find runtime id
+	runtimeID := operations[0].RuntimeID
+	// fetch cluster latest state
+	lastState, err := o.Registry.
+		Inventory().
+		GetLatest(runtimeID)
+
+	if err != nil || lastState == nil {
+		server.SendHTTPError(
+			w,
+			http.StatusInternalServerError,
+			&keb.InternalError{
+				Error: fmt.Sprintf(
+					"Failed to fetch the lates state for the cluster with runtimeID: '%s'",
+					schedulingID,
+				),
+			},
+		)
+		return
+	}
+	// update response with the lates state of the cluster
+	result := keb.ReconcilationOperationsOKResponse{
+		Cluster: clusterMetadata(runtimeID, lastState),
+	}
+	// prepare reconciliation operations
+	resultOperations := make([]keb.Operation, operationLen)
+	for i := 0; i < operationLen; i++ {
+		operation := operations[i]
+
+		resultOperations[i] = keb.Operation{
+			Component:     operation.Component,
+			CorrelationID: operation.CorrelationID,
+			Created:       operation.Created,
+			Priority:      operation.Priority,
+			Reason:        operation.Reason,
+			SchedulingID:  operation.CorrelationID,
+			State:         string(operation.State),
+			Updated:       operation.Updated,
+		}
+	}
+	// update response with the reconciliation operations
+	result.Operations = &resultOperations
+	//respond
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(keb.ReconcilationOperationsOKResponse(result)); err != nil {
+		server.SendHTTPError(
+			w,
+			http.StatusInternalServerError,
+			&keb.InternalError{
+				Error: errors.Wrap(err, "Failed to encode cluster list response").Error(),
+			})
+		return
+	}
 }
 
 func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -429,7 +626,6 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTP
 	if err != nil {
 		return nil, err
 	}
-
 	return &keb.HTTPClusterResponse{
 		Cluster:              clusterState.Cluster.RuntimeID,
 		ClusterVersion:       clusterState.Cluster.Version,

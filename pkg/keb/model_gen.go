@@ -44,6 +44,12 @@ type HTTPErrorResponse struct {
 // HTTPReconcilerStatus defines model for HTTPReconcilerStatus.
 type HTTPReconcilerStatus []Reconciliation
 
+// HTTPReconciliationOperations defines model for HTTPReconciliationOperations.
+type HTTPReconciliationOperations struct {
+	Cluster    *Cluster     `json:"cluster,omitempty"`
+	Operations *[]Operation `json:"operations,omitempty"`
+}
+
 // Cluster defines model for cluster.
 type Cluster struct {
 	// valid kubeconfig to cluster
@@ -90,14 +96,15 @@ type Metadata struct {
 
 // Operation defines model for operation.
 type Operation struct {
-	Component     string    `json:"component"`
-	CorrelationID string    `json:"correlationID"`
-	Created       time.Time `json:"created"`
-	Priority      int64     `json:"priority"`
-	Reason        string    `json:"reason"`
-	SchedulingID  string    `json:"schedulingID"`
-	State         string    `json:"state"`
-	Updated       time.Time `json:"updated"`
+	ClusterMetadata *Cluster  `json:"clusterMetadata,omitempty"`
+	Component       string    `json:"component"`
+	CorrelationID   string    `json:"correlationID"`
+	Created         time.Time `json:"created"`
+	Priority        int64     `json:"priority"`
+	Reason          string    `json:"reason"`
+	SchedulingID    string    `json:"schedulingID"`
+	State           string    `json:"state"`
+	Updated         time.Time `json:"updated"`
 }
 
 // ReconcilerStatus defines model for reconcilerStatus.
@@ -114,7 +121,6 @@ type Reconciliation struct {
 	Lock         string    `json:"lock"`
 	RuntimeID    string    `json:"runtimeID"`
 	SchedulingID string    `json:"schedulingID"`
-	ShootName    string    `json:"shootName"`
 	Status       Status    `json:"status"`
 	Updated      time.Time `json:"updated"`
 }
@@ -152,6 +158,12 @@ type InternalError HTTPErrorResponse
 // Ok defines model for Ok.
 type Ok HTTPClusterResponse
 
+// ReconcilationOperationsOKResponse defines model for ReconcilationOperationsOKResponse.
+type ReconcilationOperationsOKResponse HTTPReconciliationOperations
+
+// ReconcilationsOKResponse defines model for ReconcilationsOKResponse.
+type ReconcilationsOKResponse HTTPReconcilerStatus
+
 // PostClustersJSONBody defines parameters for PostClusters.
 type PostClustersJSONBody Cluster
 
@@ -161,11 +173,10 @@ type PutClustersJSONBody Cluster
 // PutClustersRuntimeIDStatusJSONBody defines parameters for PutClustersRuntimeIDStatus.
 type PutClustersRuntimeIDStatusJSONBody StatusUpdate
 
-// GetReconcilesParams defines parameters for GetReconciles.
-type GetReconcilesParams struct {
+// GetReconciliationsParams defines parameters for GetReconciliations.
+type GetReconciliationsParams struct {
 	RuntimeIDs *[]string `json:"runtimeIDs,omitempty"`
 	Statuses   *[]Status `json:"statuses,omitempty"`
-	Shoots     *[]string `json:"shoots,omitempty"`
 }
 
 // PostClustersJSONRequestBody defines body for PostClusters for application/json ContentType.

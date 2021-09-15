@@ -5,11 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
-	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/spf13/viper"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -18,13 +13,20 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/require"
 )
 
 const (
-	clusterName            = "e2etest-cluster"
-	httpPost    httpMethod = http.MethodPost
-	httpGet     httpMethod = http.MethodGet
-	httpDelete  httpMethod = http.MethodDelete
+	clusterName             = "e2etest-cluster"
+	clusterName2            = "e2etest-cluster2"
+	httpPost     httpMethod = http.MethodPost
+	httpGet      httpMethod = http.MethodGet
+	httpDelete   httpMethod = http.MethodDelete
 )
 
 var (
@@ -85,6 +87,7 @@ var (
 type httpMethod string
 
 type testCase struct {
+	beforeTestCase   func()
 	name             string
 	url              string
 	dynamicURL       func() string
@@ -116,6 +119,15 @@ func TestMothership(t *testing.T) {
 			url:              fmt.Sprintf("%s/clusters", baseURL),
 			method:           httpPost,
 			payload:          payload(t, "create_cluster.json", test.ReadKubeconfig(t)),
+			expectedHTTPCode: 200,
+			responseModel:    &keb.HTTPClusterResponse{},
+			verifier:         requireClusterResponseFct,
+		},
+		{
+			name:             "Create cluster2:happy path",
+			url:              fmt.Sprintf("%s/clusters", baseURL),
+			method:           httpPost,
+			payload:          payload(t, "create_cluster2.json", test.ReadKubeconfig(t)),
 			expectedHTTPCode: 200,
 			responseModel:    &keb.HTTPClusterResponse{},
 			verifier:         requireClusterResponseFct,
@@ -255,8 +267,79 @@ func TestMothership(t *testing.T) {
 			verifier:         requireErrorResponseFct,
 		},
 		{
+			name:             "Get list of reconciliations: all",
+			url:              fmt.Sprintf("%s/reconciliations", baseURL),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.ReconcilationsOKResponse{},
+			beforeTestCase:   wait(3 * time.Second),
+			verifier:         twoReconciliations,
+		},
+		{
+			name:             "Get list of reconciliations: no runtime id",
+			url:              fmt.Sprintf("%s/reconciliations?runtimeIDs=none", baseURL),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.ReconcilationsOKResponse{},
+			verifier:         zeroReconciliations,
+			// no need for waiting in initFn
+		},
+		{
+			name:             "Get list of reconciliations: filter by status",
+			url:              fmt.Sprintf("%s/reconciliations?statuses=none", baseURL),
+			method:           httpGet,
+			expectedHTTPCode: 400,
+			responseModel:    &keb.HTTPErrorResponse{},
+			// no need for waiting in initFn
+		},
+		{
+			name:             "Get list of reconciliations: filter by runtimeId",
+			url:              fmt.Sprintf("%s/reconciliations?runtimeIDs=e2etest-cluster2", baseURL),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.ReconcilationsOKResponse{},
+			verifier:         oneReconciliation,
+			// no need for waiting in initFn
+		},
+		{
+			name:             "Get operation: not found",
+			url:              fmt.Sprintf("%s/reconciliations/xxx/info", baseURL),
+			method:           httpGet,
+			expectedHTTPCode: 404,
+			responseModel:    &keb.HTTPErrorResponse{},
+			// no need for waiting in initFn
+		},
+		{
+			name: "Get operation: found",
+			dynamicURL: func() string {
+				resp := callMothership(t, &testCase{
+					url:              fmt.Sprintf("%s/reconciliations", baseURL),
+					method:           httpGet,
+					expectedHTTPCode: 200,
+					responseModel:    &keb.ReconcilationsOKResponse{},
+				})
+
+				respModel := *(resp.(*keb.ReconcilationsOKResponse))
+				if len(respModel) < 1 {
+					t.Errorf("no reconciliations in db")
+				}
+
+				return fmt.Sprintf("%s/reconciliations/%s/info", baseURL, respModel[0].SchedulingID)
+			},
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.HTTPReconciliationOperations{},
+			verifier:         twoReconciliationOps,
+			// no need for waiting in initFn
+		},
+		{
 			name:   "Cleanup test context",
 			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName),
+			method: httpDelete,
+		},
+		{
+			name:   "Cleanup test context2",
+			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName2),
 			method: httpDelete,
 		},
 	}
@@ -269,6 +352,9 @@ func TestMothership(t *testing.T) {
 //newTestFct is required to make the linter happy ;)
 func newTestFct(testCase *testCase) func(t *testing.T) {
 	return func(t *testing.T) {
+		if testCase.beforeTestCase != nil {
+			testCase.beforeTestCase()
+		}
 		resp := callMothership(t, testCase)
 		if testCase.verifier != nil {
 			testCase.verifier(t, resp)
@@ -371,3 +457,40 @@ func payload(t *testing.T, file, kubeconfig string) string {
 
 	return string(result)
 }
+
+func wait(d time.Duration) func() {
+	return func() {
+		time.Sleep(d)
+	}
+}
+
+type verifier = func(*testing.T, interface{})
+
+func hasReconciliation(p func(int) bool) verifier {
+	return func(t *testing.T, response interface{}) {
+		var status keb.ReconcilationsOKResponse = *response.(*keb.ReconcilationsOKResponse)
+		actualReconciliationSize := len(status)
+
+		if !p(actualReconciliationSize) {
+			t.Errorf("unexpected reconciliation size: %d", actualReconciliationSize)
+		}
+	}
+}
+
+func hasReconciliationOpt(p func(int) bool) verifier {
+	return func(t *testing.T, response interface{}) {
+		var result keb.HTTPReconciliationOperations = *response.(*keb.HTTPReconciliationOperations)
+		actualReconciliationSize := len(*result.Operations)
+
+		if !p(actualReconciliationSize) {
+			t.Errorf("unexpected reconciliation operation size: %d", actualReconciliationSize)
+		}
+	}
+}
+
+var (
+	zeroReconciliations  verifier = hasReconciliation(func(i int) bool { return i == 0 })
+	oneReconciliation    verifier = hasReconciliation(func(i int) bool { return i == 1 })
+	twoReconciliations   verifier = hasReconciliation(func(i int) bool { return i == 2 })
+	twoReconciliationOps verifier = hasReconciliationOpt(func(i int) bool { return i == 2 })
+)
