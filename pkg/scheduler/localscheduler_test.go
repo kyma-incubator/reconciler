@@ -63,14 +63,14 @@ func TestLocalSchedulerOrder(t *testing.T) {
 		{
 			summary:       "single prereq",
 			prerequisites: []string{"b"},
-			allComponents: []string{"a", "b"},
-			expectedOrder: []string{"b", "a"},
+			allComponents: []string{"CRDs", "a", "b"},
+			expectedOrder: []string{"CRDs", "b", "a"},
 		},
 		{
 			summary:       "multiple prereqs",
 			prerequisites: []string{"b", "d"},
-			allComponents: []string{"d", "a", "b"},
-			expectedOrder: []string{"d", "b", "a"},
+			allComponents: []string{"CRDs", "d", "a", "b"},
+			expectedOrder: []string{"CRDs", "d", "b", "a"},
 		},
 	}
 
@@ -83,7 +83,9 @@ func TestLocalSchedulerOrder(t *testing.T) {
 				KymaConfig: keb.KymaConfig{},
 			}
 			for _, c := range tc.allComponents {
-				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Component{Component: c})
+				if c != "CRDs" {
+					testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Component{Component: c})
+				}
 			}
 
 			var reconciledComponents []string

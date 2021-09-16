@@ -48,6 +48,7 @@ func TestRemoteScheduler(t *testing.T) {
 	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	workerFactoryMock := &MockWorkerFactory{}
+	workerFactoryMock.On("ForComponent", "CRDs").Return(workerMock, nil)
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
 	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
 
@@ -64,6 +65,6 @@ func TestRemoteScheduler(t *testing.T) {
 	err := sut.Run(ctx)
 	require.NoError(t, err)
 
-	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
-	workerMock.AssertNumberOfCalls(t, "Reconcile", 2)
+	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 3)
+	workerMock.AssertNumberOfCalls(t, "Reconcile", 3)
 }
