@@ -64,29 +64,12 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 	log, err := logger.NewLogger(false)
 	require.NoError(t, err)
 
-	t.Run("should not install when istioctl binary could not be found in env", func(t *testing.T) {
-		// given
-		err := os.Setenv("ISTIOCTL_PATH", "")
-		require.NoError(t, err)
-		cmder := istioctlmocks.Commander{}
-		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(errors.New("istioctl error"))
-		wrapper := NewDefaultIstioPerformer(&cmder)
-
-		// when
-		err = wrapper.Install(kubeConfig, "", log, &cmder)
-
-		/// then
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Istioctl binary could not be found")
-		cmder.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
-	})
-
 	t.Run("should not install when istio operator could not be found in manifest", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
 		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
-		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(errors.New("istioctl error"))
+		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
@@ -95,14 +78,14 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		/// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Istio Operator definition could not be found")
-		cmder.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		cmder.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
 	t.Run("should not install Istio when istioctl returned an error", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
 		cmder := istioctlmocks.Commander{}
-		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(errors.New("istioctl error"))
+		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
@@ -111,14 +94,14 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "istioctl error")
-		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
 	t.Run("should install Istio when istioctl command was successful", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
 		cmder := istioctlmocks.Commander{}
-		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
@@ -126,7 +109,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
 }
@@ -200,15 +183,16 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
 		cmder := istioctlmocks.Commander{}
-		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return([]byte(""), nil)
+		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(""), nil)
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
 		ver, err := wrapper.Version(kubeConfig, log, &cmder)
 
 		// then
-		require.EqualValues(t, ver, IstioVersion{clientVersion: "", pilotVersion: "", dataPlaneVersion: ""})
+		require.EqualValues(t, ver, IstioVersion{})
 		require.NoError(t, err)
-		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		cmder.AssertNumberOfCalls(t, "Version", 1)
 	})
 }

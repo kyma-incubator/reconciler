@@ -35,6 +35,8 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Could not fetch Istio version")
 	}
 
+	context.Logger.Infof("Detected versions: istioctl %s, pilot version: %s, data plane version: %s", ver.ClientVersion, ver.PilotVersion, ver.DataPlaneVersion)
+
 	if shouldInstall(ver) {
 		commander := &istioctl.DefaultCommander{
 		Logger: context.Logger,
@@ -45,6 +47,9 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	err = performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
+		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
+
+		err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
 		if err != nil {
 			return errors.Wrap(err, "Could not install Istio")
 		}
@@ -54,6 +59,16 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 	} else {
+		if !canUpdate(ver) {
+			return errors.New("Istio could not be updated due to the versions limitations")
+		}
+
+		if !isMismatchPresent(ver) {
+			context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
+		}
+
+		context.Logger.Infof("Istio version was detected on the cluster, updating from %s to %s...", ver.PilotVersion, ver.ClientVersion)
+
 		err = a.performer.Update(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
 		if err != nil {
 			return errors.Wrap(err, "Could not update Istio")
@@ -75,6 +90,16 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 
 func shouldInstall(version actions.IstioVersion) bool {
 	// mockup function
+	return false
+}
+
+func canUpdate(version actions.IstioVersion) bool {
+	// mockup function
+	return false
+}
+
+func isMismatchPresent(version actions.IstioVersion) bool {
+	// mockup
 	return false
 }
 

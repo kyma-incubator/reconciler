@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
-
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
@@ -16,8 +13,7 @@ import (
 )
 
 const (
-	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
-	istioOperatorKind        = "IstioOperator"
+	istioOperatorKind = "IstioOperator"
 )
 
 type VersionType string
@@ -42,9 +38,9 @@ type webhookPatchJSONValue struct {
 
 // IstioVersion TODO
 type IstioVersion struct {
-	clientVersion    string
-	pilotVersion     string
-	dataPlaneVersion string
+	ClientVersion    string
+	PilotVersion     string
+	DataPlaneVersion string
 }
 
 type IstioVersionOutput struct {
@@ -100,43 +96,14 @@ func NewDefaultIstioPerformer(commander istioctl.Commander) *DefaultIstioPerform
 }
 
 func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error {
-	istioctlPath, err := resolveIstioctlPath()
-	if err != nil {
-		return err
-	}
-
 	istioOperator, err := extractIstioOperatorContextFrom(manifest)
 	if err != nil {
 		return err
 	}
 
-	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		cleanupErr := istioOperatorCf()
-		if cleanupErr != nil {
-			logger.Error(cleanupErr)
-		}
-	}()
-
-	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeConfig)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		cleanupErr := kubeconfigCf()
-		if cleanupErr != nil {
-			logger.Error(cleanupErr)
-		}
-	}()
-
 	logger.Info("Starting Istio installation...")
 
-	err = commander.Install(istioctlPath, istioOperatorPath, kubeconfigPath)
+	err = commander.Install(istioOperator, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -175,33 +142,25 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Clien
 }
 
 func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error {
-	// TODO: implement upgrade logic, for now let it be error-free
-	// Hint: use commander.Upgrade() for binary execution
+	istioOperator, err := extractIstioOperatorContextFrom(manifest)
+	if err != nil {
+		return err
+	}
+
+	logger.Info("Starting Istio update...")
+
+	err = commander.Upgrade(istioOperator, kubeConfig, logger)
+	if err != nil {
+		return errors.Wrap(err, "Error occurred when calling istioctl")
+	}
+
+	logger.Info("Istio has been updated successfully")
+
 	return nil
 }
 
 func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLogger, commander istioctl.Commander) (IstioVersion, error) {
-	// TODO: implement upgrade logic, for now let it be error-free
-	// Hint: use commander.Upgrade() for binary execution
-
-	istioctlPath, err := resolveIstioctlPath()
-	if err != nil {
-		return IstioVersion{}, err
-	}
-
-	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeConfig)
-	if err != nil {
-		return IstioVersion{}, err
-	}
-
-	defer func() {
-		cleanupErr := kubeconfigCf()
-		if cleanupErr != nil {
-			logger.Error(cleanupErr)
-		}
-	}()
-
-	version, err := c.commander.Version(istioctlPath, kubeconfigPath)
+	version, err := c.commander.Version(kubeConfig, logger)
 	if err != nil {
 		return IstioVersion{}, nil
 	}
@@ -209,15 +168,6 @@ func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLo
 	mappedIstioVersion := mapVersionToStruct(version, logger)
 
 	return mappedIstioVersion, nil
-}
-
-func resolveIstioctlPath() (string, error) {
-	path := os.Getenv(istioctlBinaryPathEnvKey)
-	if path == "" {
-		return "", errors.New("Istioctl binary could not be found under ISTIOCTL_PATH env variable")
-	}
-
-	return path, nil
 }
 
 func extractIstioOperatorContextFrom(manifest string) (string, error) {
@@ -268,9 +218,9 @@ func mapVersionToStruct(raw []byte, logger *zap.SugaredLogger) IstioVersion {
 	//	If raw is empty
 	if len(raw) == 0 {
 		return IstioVersion{
-			clientVersion:    "",
-			pilotVersion:     "",
-			dataPlaneVersion: "",
+			ClientVersion:    "",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
 		}
 	}
 
@@ -289,8 +239,8 @@ func mapVersionToStruct(raw []byte, logger *zap.SugaredLogger) IstioVersion {
 	}
 
 	return IstioVersion{
-		clientVersion:    getVersionFromJSON("client", version),
-		pilotVersion:     getVersionFromJSON("pilot", version),
-		dataPlaneVersion: getVersionFromJSON("dataPlane", version),
+		ClientVersion:    getVersionFromJSON("client", version),
+		PilotVersion:     getVersionFromJSON("pilot", version),
+		DataPlaneVersion: getVersionFromJSON("dataPlane", version),
 	}
 }
