@@ -9,6 +9,7 @@ import (
 func TestLabelInterceptor(t *testing.T) {
 	type args struct {
 		resource *unstructured.Unstructured
+		version  string
 	}
 	tests := []struct {
 		name    string
@@ -20,10 +21,12 @@ func TestLabelInterceptor(t *testing.T) {
 			name: "Resource without any labels",
 			args: args{
 				resource: &unstructured.Unstructured{},
+				version:  "1.19.0",
 			},
 			wantErr: false,
 			labels: map[string]string{
-				ManagedByLabel: LabelReconcilerValue,
+				ManagedByLabel:   LabelReconcilerValue,
+				KymaVersionLabel: "1.19.0",
 			},
 		},
 		{
@@ -41,19 +44,21 @@ func TestLabelInterceptor(t *testing.T) {
 						},
 					},
 				},
+				version: "1.19.0",
 			},
 			wantErr: false,
 			labels: map[string]string{
-				"some-label":   "some-value",
-				"some-label2":  "some-value2",
-				ManagedByLabel: LabelReconcilerValue,
+				"some-label":     "some-value",
+				"some-label2":    "some-value2",
+				ManagedByLabel:   LabelReconcilerValue,
+				KymaVersionLabel: "1.19.0",
 			},
 		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			l := &LabelInterceptor{}
+			l := &LabelsInterceptor{Version: tt.args.version}
 			if err := l.Intercept(tt.args.resource); (err != nil) != tt.wantErr {
 				t.Errorf("Intercept() error = %v, wantErr %v", err, tt.wantErr)
 			}

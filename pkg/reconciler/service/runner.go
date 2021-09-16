@@ -137,7 +137,7 @@ func (r *runner) install(ctx context.Context, chartProvider *chart.Provider, mod
 		return err
 	}
 
-	resources, err := kubeClient.Deploy(ctx, manifest, model.Namespace, &LabelInterceptor{})
+	resources, err := kubeClient.Deploy(ctx, manifest, model.Namespace, &LabelsInterceptor{Version: model.Version}, &AnnotationsInterceptor{})
 
 	if err == nil {
 		r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
