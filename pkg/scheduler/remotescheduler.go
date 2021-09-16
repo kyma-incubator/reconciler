@@ -5,9 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -91,13 +89,13 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 
 func (rs *RemoteScheduler) schedule(ctx context.Context, state cluster.State) {
 	schedulingID := uuid.NewString()
-	components, err := state.Configuration.GetComponents()
+	components, err := state.Configuration.GetComponents(rs.mothershipCfg.PreComponents)
 	if err != nil {
 		rs.logger.Errorf("Failed to get components for cluster %s: %s", state.Cluster.Cluster, err)
 		return
 	}
 
-	if len(components) == 0 {
+	if components == nil {
 		rs.logger.Infof("No components to reconcile for cluster %s", state.Cluster.Cluster)
 		return
 	}
@@ -105,54 +103,10 @@ func (rs *RemoteScheduler) schedule(ctx context.Context, state cluster.State) {
 	statusUpdater := NewClusterStatusUpdater(rs.inventoryWatch.Inventory(), state, components, rs.logger)
 	go statusUpdater.Run(ctx)
 
-	//Reconcile CRDs first
-	component := &keb.Component{Component: "CRDs", Namespace: "default"}
-	rs.reconcile(component, state, schedulingID, concurrencyNotAllowed, statusUpdater)
-
-	//Reconcile pre components
-	for _, component := range components {
-		if rs.isPreComponent(component.Component) {
-			rs.reconcile(component, state, schedulingID, concurrencyNotAllowed, statusUpdater)
-		}
+	handler := NewReconciliationHandler(rs.workerFactory).WithStatusUpdater(statusUpdater)
+	err = handler.Reconcile(ctx, components, &state, schedulingID)
+	if err != nil {
+		rs.logger.Errorf("Failed to reconcile components for cluster %s: %s", state.Cluster.Cluster, err)
+		return
 	}
-
-	//Reconcile the rest
-	for _, component := range components {
-		if rs.isPreComponent(component.Component) {
-			continue
-		}
-		rs.reconcile(component, state, schedulingID, concurrencyAllowed, statusUpdater)
-	}
-}
-
-func (rs *RemoteScheduler) reconcile(component *keb.Component, state cluster.State, schedulingID string, concurrent concurrency, statusUpdater ClusterStatusUpdater) {
-	fn := func(component *keb.Component, state cluster.State, schedulingID string) {
-		worker, err := rs.workerFactory.ForComponent(component.Component)
-		if err != nil {
-			rs.logger.Errorf("Error creating worker for component: %s", err)
-			return
-		}
-		err = worker.Reconcile(component, state, schedulingID)
-		if err != nil {
-			rs.logger.Errorf("Error while reconciling component %s: %s", component.Component, err)
-			statusUpdater.Update(component.Component, model.OperationStateError)
-			return
-		}
-		statusUpdater.Update(component.Component, model.OperationStateDone)
-	}
-
-	if bool(concurrent) {
-		go fn(component, state, schedulingID)
-	} else {
-		fn(component, state, schedulingID)
-	}
-}
-
-func (rs *RemoteScheduler) isPreComponent(component string) bool {
-	for _, c := range rs.mothershipCfg.PreComponents {
-		if component == c {
-			return true
-		}
-	}
-	return false
 }
