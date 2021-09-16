@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -355,13 +357,20 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTP
 	if err != nil {
 		return nil, err
 	}
-	apiVersion := strings.Split(r.URL.RequestURI(), "/")[1]
+
 	return &keb.HTTPClusterResponse{
 		Cluster:              clusterState.Cluster.Cluster,
 		ClusterVersion:       clusterState.Cluster.Version,
 		ConfigurationVersion: clusterState.Configuration.Version,
 		Status:               kebStatus,
-		StatusURL: fmt.Sprintf("%s/%s/clusters/%s/configs/%d/status", r.Host, apiVersion,
-			clusterState.Cluster.Cluster, clusterState.Configuration.Version),
+		StatusURL: (&url.URL{
+			Scheme: viper.GetString("mothership.scheme"),
+			Host:   fmt.Sprintf("%s:%s", viper.GetString("mothership.host"), viper.GetString("mothership.port")),
+			Path: func() string {
+				apiVersion := strings.Split(r.URL.RequestURI(), "/")[1]
+				return fmt.Sprintf("%s/clusters/%s/configs/%d/status", apiVersion,
+					clusterState.Cluster.Cluster, clusterState.Configuration.Version)
+			}(),
+		}).String(),
 	}, nil
 }

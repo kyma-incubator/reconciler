@@ -5,6 +5,8 @@ import (
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/app"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
@@ -41,4 +43,12 @@ func WaitForTCPSocket(t *testing.T, host string, port int, timeout time.Duration
 			t.Fail()
 		}
 	}
+}
+
+func InitViper(t *testing.T) {
+	configFile, err := test.GetConfigFile()
+	require.NoError(t, err)
+
+	viper.SetConfigFile(configFile)
+	require.NoError(t, viper.ReadInConfig())
 }
