@@ -17,7 +17,7 @@ import (
 const (
 	VersionLocal         = "local"
 	defaultRepositoryURL = "https://github.com/kyma-project/kyma"
-	successFile          = "success.yaml"
+	wsReadyIndicatorFile = "workspace-ready.yaml"
 )
 
 type Factory struct {
@@ -83,9 +83,9 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 
 	wsDir := f.workspaceDir(version)
 
-	sFile := filepath.Join(wsDir, successFile)
+	wsReadyFile := filepath.Join(wsDir, wsReadyIndicatorFile)
 	//ensure Kyma sources are available
-	if !file.Exists(sFile) {
+	if !file.Exists(wsReadyFile) {
 		if err := f.clone(version, wsDir); err != nil {
 			return nil, err
 		}
@@ -98,8 +98,8 @@ func (f *Factory) clone(version, dstDir string) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
-	sFile := filepath.Join(dstDir, successFile)
-	if file.Exists(sFile) {
+	wsReadyFile := filepath.Join(dstDir, wsReadyIndicatorFile)
+	if file.Exists(wsReadyFile) {
 		f.logger.Debugf("Workspace '%s' already exists", dstDir)
 		//race condition protection: it could happen that a previous go-routing was also triggering the clone of the Kyma version
 		return nil
@@ -126,7 +126,7 @@ func (f *Factory) clone(version, dstDir string) error {
 	}
 
 	//create a marker file to flag success
-	fileHandler, err := os.Create(sFile)
+	fileHandler, err := os.Create(wsReadyFile)
 	if err != nil {
 		return err
 	}
