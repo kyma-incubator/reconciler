@@ -28,7 +28,6 @@ func (rl *remoteRefLister) List(repoURL string) ([]*plumbing.Reference, error) {
 		Name: "origin",
 		URLs: []string{repoURL},
 	})
-
 	return remote.List(&git.ListOptions{})
 }
 
@@ -63,11 +62,9 @@ func fetch(repo *git.Repository, name string, kind string) error {
 		name = strings.TrimLeft(name, prPrefix)
 		refs := []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/pull/%s/head:refs/remotes/origin/pr/%s", name, name))}
 		return repo.Fetch(&git.FetchOptions{RefSpecs: refs})
-
 	case "branch":
 		refs := []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/heads/%s:refs/remotes/origin/%s", name, name))}
 		return repo.Fetch(&git.FetchOptions{RefSpecs: refs})
-
 	default:
 		return errors.Errorf("Unknown Type: %s", kind)
 	}
@@ -104,5 +101,4 @@ func resolveRefs(repoURL, name string, kind string) (string, error) {
 	default:
 		return "", errors.Errorf("Unknown type: %s", kind)
 	}
-
 }
