@@ -68,6 +68,13 @@ func (ls *LocalScheduler) Run(ctx context.Context, c *keb.Cluster) error {
 		return fmt.Errorf("failed to get components: %s", err)
 	}
 
+	//Reconcile CRDs first
+	component := &keb.Component{Component: "CRDs", Namespace: "default"}
+	err = ls.reconcile(component, clusterState, schedulingID)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile CRDs: %s", err)
+	}
+
 	err = ls.reconcilePrereqs(components, clusterState, schedulingID)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile prerequisite component: %s", err)

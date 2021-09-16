@@ -106,7 +106,7 @@ func (rs *RemoteScheduler) schedule(ctx context.Context, state cluster.State) {
 	go statusUpdater.Run(ctx)
 
 	//Reconcile CRDs first
-	component := &keb.Component{Component: "CRDs"}
+	component := &keb.Component{Component: "CRDs", Namespace: "default"}
 	rs.reconcile(component, state, schedulingID, concurrencyNotAllowed, statusUpdater)
 
 	//Reconcile pre components
