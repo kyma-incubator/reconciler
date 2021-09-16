@@ -2,6 +2,7 @@ package connectivityproxy
 
 import (
 	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	service "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
@@ -16,10 +17,7 @@ type CopyFactory func(context *service.ActionContext) *SecretCopy
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
-	log, err := logger.NewLogger(false)
-	if err != nil {
-		panic(err)
-	}
+	log := logger.NewLogger(false)
 
 	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
 	reconciler, err := service.NewComponentReconciler(ReconcilerName)

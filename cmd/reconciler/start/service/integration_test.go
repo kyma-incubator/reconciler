@@ -5,6 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"github.com/gorilla/mux"
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
@@ -18,12 +24,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
 	clientgo "k8s.io/client-go/kubernetes"
-	"net/http"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 const (
@@ -77,7 +78,7 @@ func TestReconciler(t *testing.T) {
 
 func setGlobalWorkspaceFactory(t *testing.T) {
 	//use ./test folder as workspace
-	wsf, err := workspace.NewFactory("test", logger.NewLogger(true))
+	wsf, err := workspace.NewFactory(nil, "test", logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsf))
 }
