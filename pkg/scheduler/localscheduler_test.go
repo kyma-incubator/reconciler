@@ -2,8 +2,9 @@ package scheduler
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
@@ -36,6 +37,7 @@ func TestLocalScheduler(t *testing.T) {
 	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	workerFactoryMock := &MockWorkerFactory{}
+	workerFactoryMock.On("ForComponent", "CRDs").Return(workerMock, nil)
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
 	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
 
@@ -47,8 +49,8 @@ func TestLocalScheduler(t *testing.T) {
 	err := sut.Run(context.Background(), testCluster)
 	require.NoError(t, err)
 
-	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
-	workerMock.AssertNumberOfCalls(t, "Reconcile", 2)
+	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 3)
+	workerMock.AssertNumberOfCalls(t, "Reconcile", 3)
 }
 
 func TestLocalSchedulerOrder(t *testing.T) {
@@ -61,14 +63,14 @@ func TestLocalSchedulerOrder(t *testing.T) {
 		{
 			summary:       "single prereq",
 			prerequisites: []string{"b"},
-			allComponents: []string{"a", "b"},
-			expectedOrder: []string{"b", "a"},
+			allComponents: []string{"CRDs", "a", "b"},
+			expectedOrder: []string{"CRDs", "b", "a"},
 		},
 		{
 			summary:       "multiple prereqs",
 			prerequisites: []string{"b", "d"},
-			allComponents: []string{"d", "a", "b"},
-			expectedOrder: []string{"d", "b", "a"},
+			allComponents: []string{"CRDs", "d", "a", "b"},
+			expectedOrder: []string{"CRDs", "d", "b", "a"},
 		},
 	}
 
@@ -81,7 +83,9 @@ func TestLocalSchedulerOrder(t *testing.T) {
 				KymaConfig: keb.KymaConfig{},
 			}
 			for _, c := range tc.allComponents {
-				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Component{Component: c})
+				if c != "CRDs" {
+					testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Component{Component: c})
+				}
 			}
 
 			var reconciledComponents []string
@@ -111,46 +115,6 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			require.Equal(t, tc.expectedOrder, reconciledComponents)
 		})
 	}
-}
-
-func TestLocalSchedulerInstallsCRDsOnce(t *testing.T) {
-	testCluster := &keb.Cluster{
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Component{
-				{Component: "logging"},
-				{Component: "monitoring"},
-				{Component: "kiali"},
-				{Component: "tracing"},
-			},
-		},
-	}
-
-	workerMock := &MockReconciliationWorker{}
-	installCRDCalledCount := 0
-	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(nil).
-		Run(func(args mock.Arguments) {
-			installCRD := args.Bool(3)
-			if installCRD {
-				installCRDCalledCount++
-			}
-		})
-
-	workerFactoryMock := &MockWorkerFactory{}
-	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
-	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
-	workerFactoryMock.On("ForComponent", "kiali").Return(workerMock, nil)
-	workerFactoryMock.On("ForComponent", "tracing").Return(workerMock, nil)
-
-	sut := LocalScheduler{
-		logger:        zap.NewNop().Sugar(),
-		workerFactory: workerFactoryMock,
-	}
-
-	err := sut.Run(context.Background(), testCluster)
-	require.NoError(t, err)
-
-	require.Equal(t, installCRDCalledCount, 1)
 }
 
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {

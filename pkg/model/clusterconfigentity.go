@@ -59,11 +59,34 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	return false
 }
 
-func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Component, error) {
+type ReconciliationSequence struct {
+	FirstInSequence []*keb.Component
+	InParallel      []*keb.Component
+}
+
+func (c *ClusterConfigurationEntity) GetComponents(prerequisites []string) (*ReconciliationSequence, error) {
 	if c.Components == "" {
-		return []*keb.Component{}, nil
+		return nil, nil
 	}
-	return keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
+
+	sequence := &ReconciliationSequence{}
+	crds := &keb.Component{Component: "CRDs", Namespace: "default"}
+	sequence.FirstInSequence = append(sequence.FirstInSequence, crds)
+
+	components, err := keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, component := range components {
+		if contains(prerequisites, component.Component) {
+			sequence.FirstInSequence = append(sequence.FirstInSequence, component)
+		} else {
+			sequence.InParallel = append(sequence.InParallel, component)
+		}
+	}
+
+	return sequence, nil
 }
 
 func (c *ClusterConfigurationEntity) GetAdministrators() ([]string, error) {
@@ -71,4 +94,13 @@ func (c *ClusterConfigurationEntity) GetAdministrators() ([]string, error) {
 		return []string{}, nil
 	}
 	return keb.NewModelFactory(c.Contract).Administrators([]byte(c.Administrators))
+}
+
+func contains(items []string, item string) bool {
+	for i := range items {
+		if item == items[i] {
+			return true
+		}
+	}
+	return false
 }

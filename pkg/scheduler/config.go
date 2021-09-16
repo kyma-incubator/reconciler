@@ -11,6 +11,5 @@ type MothershipReconcilerConfig struct {
 	Scheme        string
 	Host          string
 	Port          int
-	CrdComponents []string
 	PreComponents []string
 }

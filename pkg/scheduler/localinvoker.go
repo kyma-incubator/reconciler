@@ -65,7 +65,6 @@ func (lri *localReconcilerInvoker) Invoke(params *InvokeParams) error {
 
 			return nil
 		},
-		InstallCRD:    params.InstallCRD,
 		CorrelationID: params.CorrelationID,
 	}
 

@@ -315,9 +315,9 @@ func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 	require.Equal(t, cluster.KymaConfig.Version, state.Configuration.KymaVersion)
 	//compare components
 	require.Equal(t, toJSON(t, cluster.KymaConfig.Components), state.Configuration.Components) //compare components-string
-	components, err := state.Configuration.GetComponents()
+	components, err := state.Configuration.GetComponents([]string{})
 	require.NoError(t, err)
-	for _, comp := range components { //compare components-objects
+	for _, comp := range components.InParallel { //compare components-objects
 		require.Contains(t, cluster.KymaConfig.Components, *comp)
 	}
 	//compare administrators

@@ -2,16 +2,16 @@ package cmd
 
 import (
 	"fmt"
+
 	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 )
 
 type Options struct {
 	*reconCli.Options
-	Version     string
-	Namespace   string
-	Component   string
-	Profile     string
-	InstallCRDs bool
+	Version   string
+	Namespace string
+	Component string
+	Profile   string
 }
 
 func NewOptions(o *reconCli.Options) *Options {
@@ -21,7 +21,6 @@ func NewOptions(o *reconCli.Options) *Options {
 		"kyma-system",
 		"",
 		"",
-		false,
 	}
 }
 
