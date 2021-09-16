@@ -34,7 +34,7 @@ func TestLocalScheduler(t *testing.T) {
 	}
 
 	workerMock := &MockReconciliationWorker{}
-	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	workerFactoryMock := &MockWorkerFactory{}
 	workerFactoryMock.On("ForComponent", "CRDs").Return(workerMock, nil)
@@ -93,7 +93,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(nil).
 				Run(func(args mock.Arguments) {
-					component := args.Get(0).(*keb.Component)
+					component := args.Get(1).(*keb.Component)
 					reconciledComponents = append(reconciledComponents, component.Component)
 				})
 
