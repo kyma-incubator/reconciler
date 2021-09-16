@@ -5,6 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"github.com/gorilla/mux"
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
@@ -18,12 +24,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
 	clientgo "k8s.io/client-go/kubernetes"
-	"net/http"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 const (
@@ -152,7 +153,6 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Profile:         "unittest",
 				Configuration:   nil,
 				Kubeconfig:      "xyz",
-				InstallCRD:      false,
 				CorrelationID:   "test-correlation-id",
 			},
 			expectedHTTPCode: http.StatusPreconditionRequired,
@@ -173,7 +173,6 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      "",
-				InstallCRD:      false,
 				CorrelationID:   "test-correlation-id",
 				CallbackFunc:    nil,
 			},
@@ -193,7 +192,6 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      test.ReadKubeconfig(t),
-				InstallCRD:      false,
 				CorrelationID:   "test-correlation-id",
 			},
 			expectedHTTPCode: http.StatusOK,
@@ -218,7 +216,6 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 					},
 				},
 				Kubeconfig:    test.ReadKubeconfig(t),
-				InstallCRD:    false,
 				CorrelationID: "test-correlation-id",
 			},
 			expectedHTTPCode:   http.StatusOK,
@@ -239,7 +236,6 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 					require.NoError(t, err)
 					return string(kc)
 				}(),
-				InstallCRD:    false,
 				CorrelationID: "test-correlation-id",
 			},
 			expectedHTTPCode:   http.StatusOK,

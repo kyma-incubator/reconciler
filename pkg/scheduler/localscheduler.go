@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -11,7 +12,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-	"sync/atomic"
 )
 
 type LocalSchedulerOption func(*LocalScheduler)
@@ -39,7 +39,6 @@ type LocalScheduler struct {
 	prereqs       []string
 	statusFunc    ReconcilerStatusFunc
 	workerFactory WorkerFactory
-	installedCRD  int32
 }
 
 func NewLocalScheduler(opts ...LocalSchedulerOption) *LocalScheduler {
@@ -167,9 +166,7 @@ func (ls *LocalScheduler) reconcile(component *keb.Component, state *cluster.Sta
 		return fmt.Errorf("failed to create a worker: %s", err)
 	}
 
-	// make sure that installCRD will be only set to true when the first component is scheduled for reconciliation
-	installCRD := atomic.CompareAndSwapInt32(&ls.installedCRD, 0, 1)
-	err = worker.Reconcile(component, *state, schedulingID, installCRD)
+	err = worker.Reconcile(component, *state, schedulingID)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile a component: %s", component.Component)
 	}
