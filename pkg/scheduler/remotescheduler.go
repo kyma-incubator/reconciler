@@ -11,12 +11,8 @@ import (
 	"go.uber.org/zap"
 )
 
-type concurrency bool
-
 const (
-	defaultPoolSize                   = 50
-	concurrencyNotAllowed concurrency = false
-	concurrencyAllowed    concurrency = true
+	defaultPoolSize = 50
 )
 
 type Scheduler interface {
