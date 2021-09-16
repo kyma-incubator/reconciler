@@ -36,10 +36,10 @@ func (rl *remoteRefLister) List(repoURL string) ([]*plumbing.Reference, error) {
 func resolveRevision(repo *git.Repository, url, rev string) (*plumbing.Hash, error) {
 	// Check if revision is PR
 	if strings.HasPrefix(rev, prPrefix) {
-		if err := fetch(repo, strings.TrimPrefix(rev, prPrefix), "pr"); err != nil { // to ensure that the rev hash can be checked out
+		if err := fetch(repo, rev, "pr"); err != nil { // to ensure that the rev hash can be checked out
 			return nil, err
 		}
-		rev, err := resolveRefs(url, strings.TrimLeft(rev, prPrefix), "pr")
+		rev, err := resolveRefs(url, rev, "pr")
 		if err != nil {
 			return nil, err
 		}
@@ -60,6 +60,7 @@ func resolveRevision(repo *git.Repository, url, rev string) (*plumbing.Hash, err
 func fetch(repo *git.Repository, name string, kind string) error {
 	switch kind {
 	case "pr":
+		name = strings.TrimLeft(name, prPrefix)
 		refs := []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/pull/%s/head:refs/remotes/origin/pr/%s", name, name))}
 		return repo.Fetch(&git.FetchOptions{RefSpecs: refs})
 
@@ -81,20 +82,24 @@ func resolveRefs(repoURL, name string, kind string) (string, error) {
 
 	switch kind {
 	case "pr":
+		name = strings.TrimLeft(name, prPrefix)
 		for _, ref := range refs {
+			fmt.Println(ref)
 			if strings.HasPrefix(ref.Name().String(), "refs/pull") && strings.HasSuffix(ref.Name().String(), "head") && strings.Contains(ref.Name().String(), name) {
 				return ref.Hash().String(), nil
 			}
 		}
-		return "", errors.Wrapf(err, "could not find HEAD of pull request %s in %s", name, repoURL)
+		return "", errors.Errorf("could not find HEAD of pull request %s in %s", name, repoURL)
 
 	case "branch":
 		for _, ref := range refs {
+			fmt.Println(ref)
 			if strings.HasPrefix(ref.Name().String(), "refs/heads") && strings.Contains(ref.Name().String(), name) {
+				fmt.Println(ref.Hash().String())
 				return ref.Hash().String(), nil
 			}
 		}
-		return "", errors.Wrapf(err, "could not find HEAD of branch %s in %s", name, repoURL)
+		return "", errors.Errorf("could not find HEAD of branch %s in %s", name, repoURL)
 
 	default:
 		return "", errors.Errorf("Unknown type: %s", kind)
