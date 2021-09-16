@@ -12,6 +12,8 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
+
+	//add migrator source:
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"go.uber.org/zap"
 )
