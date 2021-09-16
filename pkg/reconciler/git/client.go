@@ -3,8 +3,9 @@ package git
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
+	gitp "github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
 )
 
@@ -25,6 +26,6 @@ func (d *Client) Worktree() (*git.Worktree, error) {
 	return d.repo.Worktree()
 }
 
-func (d *Client) ResolveRevision(rev plumbing.Revision) (*plumbing.Hash, error) {
+func (d *Client) ResolveRevision(rev gitp.Revision) (*gitp.Hash, error) {
 	return d.repo.ResolveRevision(rev)
 }

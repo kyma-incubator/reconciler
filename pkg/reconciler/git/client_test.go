@@ -8,7 +8,7 @@ import (
 
 	"github.com/alcortesm/tgz"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
+	gitp "github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/stretchr/testify/require"
 )
@@ -30,11 +30,11 @@ func TestClient(t *testing.T) {
 		repo, err := git.PlainOpen(path.Join(localRepoRootPath, "repo"))
 		require.NoError(t, err)
 
-		var refs []*plumbing.Reference
+		var refs []*gitp.Reference
 		iter, err := repo.References()
 		require.NoError(t, err)
 
-		err = iter.ForEach(func(r *plumbing.Reference) error {
+		err = iter.ForEach(func(r *gitp.Reference) error {
 			refs = append(refs, r)
 			return nil
 		})

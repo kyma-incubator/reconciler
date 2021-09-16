@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
+	gitp "github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -25,7 +25,7 @@ type RepoClient interface {
 	Clone(ctx context.Context, path string,
 		isBare bool, o *git.CloneOptions) (*git.Repository, error)
 	Worktree() (*git.Worktree, error)
-	ResolveRevision(rev plumbing.Revision) (*plumbing.Hash, error)
+	ResolveRevision(rev gitp.Revision) (*gitp.Hash, error)
 }
 
 func NewCloner(repoClient RepoClient, repo *reconciler.Repository,
@@ -72,7 +72,7 @@ func (r *RemoteRepoCloner) Checkout(rev string) error {
 		return errors.Wrap(err, "error getting the GIT worktree")
 	}
 
-	hash, err := r.repoClient.ResolveRevision(plumbing.Revision(rev))
+	hash, err := r.repoClient.ResolveRevision(gitp.Revision(rev))
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to resolve GIT revision '%s'", rev))
 	}
