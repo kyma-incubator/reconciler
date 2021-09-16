@@ -1,7 +1,11 @@
 package actions
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"os"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -9,12 +13,19 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/types"
-	"os"
 )
 
 const (
 	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
 	istioOperatorKind        = "IstioOperator"
+)
+
+type VersionType string
+
+const (
+	client    VersionType = "client"
+	pilot                 = "pilot"
+	dataPlane             = "dataPlane"
 )
 
 type webhookPatchJSON struct {
@@ -31,8 +42,32 @@ type webhookPatchJSONValue struct {
 
 // IstioVersion TODO
 type IstioVersion struct {
-	istioctlVersion string
-	istioVersion    string
+	clientVersion    string
+	pilotVersion     string
+	dataPlaneVersion string
+}
+
+type IstioVersionOutput struct {
+	ClientVersion    *ClientVersion      `json:"clientVersion"`
+	MeshVersion      []*MeshComponent    `json:"meshVersion,omitempty"`
+	DataPlaneVersion []*DataPlaneVersion `json:"dataPlaneVersion,omitempty"`
+}
+
+type ClientVersion struct {
+	Version string `json:"version"`
+}
+
+type MeshComponent struct {
+	Component string    `json:"Component,omitempty"`
+	Info      *MeshInfo `json:"Info,omitempty"`
+}
+
+type MeshInfo struct {
+	Version string `json:"version,omitempty"`
+}
+
+type DataPlaneVersion struct {
+	IstioVersion string `json:"IstioVersion,omitempty"`
 }
 
 //go:generate mockery -name=IstioPerformer
@@ -156,7 +191,7 @@ func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLo
 
 	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeConfig)
 	if err != nil {
-		return  IstioVersion{}, err
+		return IstioVersion{}, err
 	}
 
 	defer func() {
@@ -166,12 +201,12 @@ func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLo
 		}
 	}()
 
-	ver, err := c.commander.Version(istioctlPath, kubeconfigPath)
+	version, err := c.commander.Version(istioctlPath, kubeconfigPath)
 	if err != nil {
 		return IstioVersion{}, nil
 	}
 
-	mappedIstioVersion := mapVersionToStruct(ver)
+	mappedIstioVersion := mapVersionToStruct(version, logger)
 
 	return mappedIstioVersion, nil
 }
@@ -207,7 +242,55 @@ func extractIstioOperatorContextFrom(manifest string) (string, error) {
 	return "", errors.New("Istio Operator definition could not be found in manifest")
 }
 
-func mapVersionToStruct(raw string) IstioVersion {
-	// mockup function
-	return IstioVersion{}
+func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string {
+	switch versionType {
+	case "client":
+		return json.ClientVersion.Version
+	case "pilot":
+		if len(json.MeshVersion) > 0 {
+			return json.MeshVersion[0].Info.Version
+		} else {
+			return ""
+		}
+	case "dataPlane":
+		if len(json.DataPlaneVersion) > 0 {
+			return json.DataPlaneVersion[0].IstioVersion
+		} else {
+			return ""
+		}
+	default:
+		return ""
+	}
+}
+
+func mapVersionToStruct(raw []byte, logger *zap.SugaredLogger) IstioVersion {
+	logger.Infof(string(raw)) // To be removed
+	//	If raw is empty
+	if len(raw) == 0 {
+		return IstioVersion{
+			clientVersion:    "",
+			pilotVersion:     "",
+			dataPlaneVersion: "",
+		}
+	}
+
+	// Remove text not part of the json output
+	if index := bytes.IndexRune(raw, '{'); index != 0 {
+		raw = raw[bytes.IndexRune(raw, '{'):]
+	}
+
+	var version IstioVersionOutput
+	// Map the json output to the IstioVersionOutput struct
+	err := json.Unmarshal(raw, &version)
+
+	if err != nil {
+		//TODO: Decide on error handling
+		fmt.Println(err)
+	}
+
+	return IstioVersion{
+		clientVersion:    getVersionFromJSON("client", version),
+		pilotVersion:     getVersionFromJSON("pilot", version),
+		dataPlaneVersion: getVersionFromJSON("dataPlane", version),
+	}
 }

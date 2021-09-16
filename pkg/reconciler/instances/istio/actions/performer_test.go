@@ -1,6 +1,9 @@
 package actions
 
 import (
+	"os"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
@@ -8,8 +11,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
-	"os"
-	"testing"
 )
 
 const (
@@ -32,6 +33,24 @@ metadata:
   namespace: namespace
   name: name
 `
+	istioctlMockVersion = `{
+	"clientVersion": {
+	  "version": "1.11.1",
+	},
+	"meshVersion": [
+	  {
+		"Component": "pilot",
+		"Info": {
+		  "version": "1.11.1",
+		}
+	  }
+	],
+	"dataPlaneVersion": [
+	  {
+		"IstioVersion": "1.11.1"
+	  }
+	]
+  }`
 )
 
 func Test_DefaultIstioPerformer_Install(t *testing.T) {
@@ -170,4 +189,26 @@ func Test_extractIstioOperatorContextFrom(t *testing.T) {
 		require.Contains(t, result, "IstioOperator")
 	})
 
+}
+
+func Test_DefaultIstioPerformer_Version(t *testing.T) {
+	kubeConfig := "kubeConfig"
+	log, err := logger.NewLogger(false)
+	require.NoError(t, err)
+
+	t.Run("should get istioctl version", func(t *testing.T) {
+		// given
+		err := os.Setenv("ISTIOCTL_PATH", "path")
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return([]byte(""), nil)
+		wrapper := NewDefaultIstioPerformer(&cmder)
+
+		// when
+		ver, err := wrapper.Version(kubeConfig, log, &cmder)
+
+		// then
+		require.EqualValues(t, ver, IstioVersion{clientVersion: "", pilotVersion: "", dataPlaneVersion: ""})
+		require.NoError(t, err)
+		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+	})
 }

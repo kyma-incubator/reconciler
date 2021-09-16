@@ -38,14 +38,14 @@ func (_m *Commander) Upgrade(istioCtlPath string, istioOperatorPath string, kube
 }
 
 // Version provides a mock function with given fields: istioCtlPath, kubeconfigPath
-func (_m *Commander) Version(istioCtlPath string, kubeconfigPath string) (string, error) {
+func (_m *Commander) Version(istioCtlPath string, kubeconfigPath string) ([]byte, error) {
 	ret := _m.Called(istioCtlPath, kubeconfigPath)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(string, string) []byte); ok {
 		r0 = rf(istioCtlPath, kubeconfigPath)
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).([]byte)
 	}
 
 	var r1 error

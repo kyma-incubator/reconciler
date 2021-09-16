@@ -19,7 +19,7 @@ type Commander interface {
 	Upgrade(istioCtlPath, istioOperatorPath, kubeconfigPath string) error
 
 	// Version wraps istioctl version command.
-	Version(istioCtlPath, kubeconfigPath string) (string, error)
+	Version(istioCtlPath, kubeconfigPath string) ([]byte, error)
 }
 
 // DefaultCommander provides a default implementation of Commander.
@@ -68,10 +68,17 @@ func (c *DefaultCommander) Upgrade(istioCtlPath, istioOperatorPath, kubeconfigPa
 	return nil
 }
 
-func (c *DefaultCommander) Version(istioCtlPath, kubeconfigPath string) (string, error) {
+func (c *DefaultCommander) Version(istioCtlPath, kubeconfigPath string) ([]byte, error) {
 	// TODO: implement version logic, for now let it return mocked valuexw be error-free
+	cmd := exec.Command(istioCtlPath, "version", "--output", "json")
 
-	return "", nil
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		// What error should we return?
+		return []byte(""), err
+	}
+
+	return out, nil
 }
 
 func bufferAndLog(r io.Reader, logger *zap.SugaredLogger) {
