@@ -6,7 +6,7 @@ import (
 
 const (
 	ManagedByAnnotation       = "reconciler.kyma-project.io/managed-by-reconciler-disclaimer"
-	AnnotationReconcilerValue = "This resource is managed [by SAP]. Don't make any changes. Changes made by users are reverted automatically."
+	AnnotationReconcilerValue = "This resource is managed [by Kyma]. Don't make any changes. Changes made by users are reverted automatically."
 )
 
 type AnnotationsInterceptor struct {
