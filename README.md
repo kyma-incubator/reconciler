@@ -23,10 +23,17 @@ make build-darwin
 ./bin/reconciler-darwin local 
 ```
 
+**Warning: at this moment reconciliation with default values will fail. You need to specify additional parameters**
+```
+./bin/reconciler-darwin local global.ingress.domainName=example.com,global.domainName=example.com,tracing.authProxy.config.useDex=false,tracing.virtualservice.enabled=false,kiali.authProxy.config.useDex=false,kiali.virtualservice.enabled=false
+```
+
+
 You can also run Reconciler with the specified components:
 ```
 ./bin/reconciler-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
 ```
+
 
 
 ## Testing
