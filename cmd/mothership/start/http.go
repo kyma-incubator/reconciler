@@ -7,6 +7,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
@@ -354,13 +355,13 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTP
 	if err != nil {
 		return nil, err
 	}
-
+	apiVersion := strings.Split(r.URL.RequestURI(), "/")[1]
 	return &keb.HTTPClusterResponse{
 		Cluster:              clusterState.Cluster.Cluster,
 		ClusterVersion:       clusterState.Cluster.Version,
 		ConfigurationVersion: clusterState.Configuration.Version,
 		Status:               kebStatus,
-		StatusURL: fmt.Sprintf("%s%s/%s/configs/%d/status", r.Host, r.URL.RequestURI(),
+		StatusURL: fmt.Sprintf("%s/%s/clusters/%s/configs/%d/status", r.Host, apiVersion,
 			clusterState.Cluster.Cluster, clusterState.Configuration.Version),
 	}, nil
 }
