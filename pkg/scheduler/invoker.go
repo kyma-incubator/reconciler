@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -9,6 +10,7 @@ import (
 )
 
 type InvokeParams struct {
+	Ctx                  context.Context
 	ComponentToReconcile *keb.Component
 	ComponentsReady      []string
 	ClusterState         cluster.State

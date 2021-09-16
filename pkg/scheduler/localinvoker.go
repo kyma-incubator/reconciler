@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -41,7 +40,7 @@ func (lri *localReconcilerInvoker) Invoke(params *InvokeParams) error {
 		lri.createCallbackFunc(params),
 	)
 
-	return componentReconciler.StartLocal(context.Background(), model, lri.logger)
+	return componentReconciler.StartLocal(params.Ctx, model, lri.logger)
 }
 
 func (lri *localReconcilerInvoker) createCallbackFunc(params *InvokeParams) func(msg *reconciler.CallbackMessage) error {
