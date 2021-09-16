@@ -2,9 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/spf13/viper"
-	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/app"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -12,6 +13,7 @@ import (
 )
 
 type Options struct {
+	Migrate        bool
 	Verbose        bool
 	InitRegistry   bool
 	NonInteractive bool
@@ -21,8 +23,8 @@ type Options struct {
 }
 
 func (o *Options) String() string {
-	return fmt.Sprintf("CLI options: verbose=%t non-interactive=%t",
-		o.Verbose, o.NonInteractive)
+	return fmt.Sprintf("CLI options: migrate=%t verbose=%t non-interactive=%t",
+		o.Migrate, o.Verbose, o.NonInteractive)
 }
 
 func (o *Options) Validate() error {
@@ -43,7 +45,7 @@ func (o *Options) Logger() *zap.SugaredLogger {
 
 func (o *Options) InitApplicationRegistry(forceInitialization bool) error {
 	if forceInitialization || o.InitRegistry {
-		dbConnFact, err := db.NewConnectionFactory(viper.ConfigFileUsed(), o.Verbose)
+		dbConnFact, err := db.NewConnectionFactory(viper.ConfigFileUsed(), o.Migrate, o.Verbose)
 		if err != nil {
 			return err
 		}

@@ -10,10 +10,10 @@ func NewTestConnectionFactory() (ConnectionFactory, error) {
 		return nil, err
 	}
 
-	connFac, err := NewConnectionFactory(configFile, true)
+	connFac, err := NewConnectionFactory(configFile, false, true)
 	if err != nil {
 		return nil, err
 	}
 
-	return connFac, connFac.Init()
+	return connFac, connFac.Init(false)
 }
