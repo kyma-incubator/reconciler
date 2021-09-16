@@ -22,12 +22,34 @@ type jwksPatchJSONValue struct {
 	Jwks []byte `json:"jwks.json"`
 }
 
-// Generate creates a JSON Web Key Set with RSA Signature Algorithm and returns the JSON encoding of it.
-func GenerateJWKSSecret(alg string, bits int) ([]byte, error) {
+// PreparePatchData generates a JSON Web Key Set with RSA Signature Algorithm and returns the JSON encoded patch for Ory secret.
+func PreparePatchData(alg string, bits int) ([]byte, error) {
+	data, err := generateJwksSecret(alg, bits)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to generate key key")
+	}
+
+	patchContent := []jwksPatchJSON{{
+		Op:   "add",
+		Path: "/data",
+		Value: jwksPatchJSONValue{
+			Jwks: data,
+		},
+	}}
+
+	patchDataJSON, err := json.Marshal(patchContent)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to marshal key")
+	}
+
+	return patchDataJSON, nil
+}
+
+func generateJwksSecret(alg string, bits int) ([]byte, error) {
 	id := uuid.New().String()
 	key, err := generateRSAKey(bits)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to generate key")
+		return nil, err
 	}
 	jwks := &jose.JSONWebKeySet{
 		Keys: []jose.JSONWebKey{
@@ -43,21 +65,10 @@ func GenerateJWKSSecret(alg string, bits int) ([]byte, error) {
 
 	data, err := json.Marshal(jwks)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to marshal key")
-	}
-	patchContent := []jwksPatchJSON{{
-		Op:   "add",
-		Path: "/data",
-		Value: jwksPatchJSONValue{
-			Jwks: data,
-		},
-	}}
-
-	patchContentJSON, err := json.Marshal(patchContent)
-	if err != nil {
 		return nil, err
 	}
-	return patchContentJSON, nil
+
+	return data, nil
 }
 
 // generateRSAKey generates keypair for corresponding RSA Signature Algorithm.
@@ -69,6 +80,9 @@ func generateRSAKey(bits int) (crypto.PrivateKey, error) {
 		return nil, errors.Errorf(`jwks: key size must be at least 2048 bit for algorithm`)
 	}
 	key, err := rsa.GenerateKey(rand.Reader, bits)
-	return key, errors.Wrapf(err, "jwks: unable to generate RSA key")
+	if err != nil {
+		return nil, errors.Wrap(err, "jwks: unable to generate RSA key")
+	}
 
+	return key, nil
 }
