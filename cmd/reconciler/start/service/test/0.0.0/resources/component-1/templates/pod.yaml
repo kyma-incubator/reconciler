@@ -27,3 +27,6 @@ spec:
     - name: init
       image: hello-world:latest
 {{ end }}
+{{ if .Values.breakHelmChart }}
+This will break the yaml format
+{{ end }}

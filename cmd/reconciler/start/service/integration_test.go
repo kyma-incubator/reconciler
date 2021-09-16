@@ -246,8 +246,48 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
 			verifyCallbacksFct: expectFailingReconciliation,
 		},
-
-		//TODO: insufficient permissions on cluster, defective helm-chart, non-started MS service
+		{
+			name: "Try to deploy defective HELM chart",
+			model: &reconciler.Reconciliation{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				Profile:         "",
+				Configuration: []reconciler.Configuration{
+					{
+						Key:   "breakHelmChart",
+						Value: true,
+					},
+				},
+				Kubeconfig:    test.ReadKubeconfig(t),
+				InstallCRD:    false,
+				CorrelationID: "test-correlation-id",
+			},
+			expectedHTTPCode:   http.StatusOK,
+			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
+			verifyCallbacksFct: expectFailingReconciliation,
+		},
+		{
+			name: "Simulate non-available mothership",
+			model: &reconciler.Reconciliation{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				Profile:         "",
+				Configuration:   nil,
+				Kubeconfig:      test.ReadKubeconfig(t),
+				InstallCRD:      false,
+				CallbackURL:     "https://127.0.0.1:12345",
+				CorrelationID:   "test-correlation-id",
+			},
+			expectedHTTPCode: http.StatusOK,
+			expectedResponse: &reconciler.HTTPReconciliationResponse{},
+			verifyCallbacksFct: func(t *testing.T, callbacks []*reconciler.CallbackMessage) {
+				require.Empty(t, callbacks)
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -297,18 +337,20 @@ func newTestFct(testCase testCase) func(t *testing.T) {
 	return func(t *testing.T) {
 		var callbackC chan *reconciler.CallbackMessage
 
-		if testCase.verifyCallbacksFct == nil { //check if validation of callback events has to happen
-			testCase.model.CallbackURL = urlCallbackHTTPBin
-		} else {
-			testCase.model.CallbackURL = urlCallbackMock
+		if testCase.model.CallbackURL == "" { //set fallback callback URL
+			if testCase.verifyCallbacksFct == nil { //check if validation of callback events has to happen
+				testCase.model.CallbackURL = urlCallbackHTTPBin
+			} else {
+				testCase.model.CallbackURL = urlCallbackMock
 
-			//start mock server to catch callback events
-			var server *http.Server
-			server, callbackC = newCallbackMock(t)
-			defer func() {
-				require.NoError(t, server.Shutdown(context.Background()))
-				time.Sleep(1 * time.Second) //give the server some time for graceful shutdown
-			}()
+				//start mock server to catch callback events
+				var server *http.Server
+				server, callbackC = newCallbackMock(t)
+				defer func() {
+					require.NoError(t, server.Shutdown(context.Background()))
+					time.Sleep(1 * time.Second) //give the server some time for graceful shutdown
+				}()
+			}
 		}
 
 		respModel := post(t, testCase)
