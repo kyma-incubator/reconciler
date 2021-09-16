@@ -22,8 +22,7 @@ const (
 func TestProvider(t *testing.T) {
 	test.IntegrationTest(t)
 
-	log, err := logger.NewLogger(true)
-	require.NoError(t, err)
+	log := logger.NewLogger(true)
 
 	wsFactory, err := workspace.NewFactory(nil, "test", log)
 	require.NoError(t, err)

@@ -36,16 +36,12 @@ type RemoteScheduler struct {
 }
 
 func NewRemoteScheduler(inventoryWatch InventoryWatcher, workerFactory WorkerFactory, mothershipCfg MothershipReconcilerConfig, workers int, debug bool) (Scheduler, error) {
-	l, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
 	return &RemoteScheduler{
 		inventoryWatch: inventoryWatch,
 		workerFactory:  workerFactory,
 		mothershipCfg:  mothershipCfg,
 		poolSize:       workers,
-		logger:         l,
+		logger:         logger.NewLogger(debug),
 	}, nil
 }
 
@@ -134,8 +130,8 @@ func (rs *RemoteScheduler) schedule(ctx context.Context, state cluster.State) {
 	}
 }
 
-func (rs *RemoteScheduler) reconcile(component *keb.Components, state cluster.State, schedulingID string, installCRD bool, concurrent concurrency, statusUpdater ClusterStatusUpdater) {
-	fn := func(component *keb.Components, state cluster.State, schedulingID string) {
+func (rs *RemoteScheduler) reconcile(component *keb.Component, state cluster.State, schedulingID string, installCRD bool, concurrent concurrency, statusUpdater ClusterStatusUpdater) {
+	fn := func(component *keb.Component, state cluster.State, schedulingID string) {
 		worker, err := rs.workerFactory.ForComponent(component.Component)
 		if err != nil {
 			rs.logger.Errorf("Error creating worker for component: %s", err)

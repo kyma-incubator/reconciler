@@ -89,26 +89,36 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	contractV, err := params.Int64(paramContractVersion)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Contract version undefined"))
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Contract version undefined").Error(),
+		})
 		return
 	}
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to read received JSON payload"))
+		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
+		})
 		return
 	}
 	clusterModel, err := keb.NewModelFactory(contractV).Cluster(reqBody)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Failed to unmarshal JSON payload"))
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
+		})
 		return
 	}
 	if _, err := (&kubernetes.ClientBuilder{}).WithString(clusterModel.Kubeconfig).Build(true); err != nil {
-		sendError(w, http.StatusBadRequest, errors.Wrap(err, "kubeconfig not accepted"))
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "kubeconfig not accepted").Error(),
+		})
 		return
 	}
 	clusterState, err := o.Registry.Inventory().CreateOrUpdate(contractV, clusterModel)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to create or update cluster entity"))
+		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to create or update cluster entity").Error(),
+		})
 		return
 	}
 	//respond status URL
@@ -119,12 +129,16 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	clusterName, err := params.String(paramCluster)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, err)
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 	configVersion, err := params.Int64(paramConfigVersion)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, err)
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 	clusterState, err := o.Registry.Inventory().Get(clusterName, configVersion)
@@ -135,7 +149,9 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		} else {
 			httpCode = http.StatusInternalServerError
 		}
-		sendError(w, httpCode, errors.Wrap(err, "Could not retrieve cluster state"))
+		server.SendHTTPError(w, httpCode, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Could not retrieve cluster state").Error(),
+		})
 		return
 	}
 	sendResponse(w, r, clusterState)
@@ -145,7 +161,9 @@ func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	clusterName, err := params.String(paramCluster)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, err)
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 	clusterState, err := o.Registry.Inventory().GetLatest(clusterName)
@@ -154,7 +172,9 @@ func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		if repository.IsNotFoundError(err) {
 			httpCode = http.StatusNotFound
 		}
-		sendError(w, httpCode, errors.Wrap(err, "Could not retrieve cluster state"))
+		server.SendHTTPError(w, httpCode, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Could not retrieve cluster state").Error(),
+		})
 		return
 	}
 	sendResponse(w, r, clusterState)
@@ -165,7 +185,9 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	clusterName, err := params.String(paramCluster)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, err)
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 
@@ -178,7 +200,9 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	duration, err := time.ParseDuration(offset)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, err)
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 
@@ -188,7 +212,9 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 		if repository.IsNotFoundError(err) {
 			httpCode = http.StatusNotFound
 		}
-		sendError(w, httpCode, errors.Wrap(err, "Could not retrieve cluster statusChanges"))
+		server.SendHTTPError(w, httpCode, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Could not retrieve cluster statusChanges").Error(),
+		})
 		return
 	}
 
@@ -196,8 +222,9 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 	for _, statusChange := range statusChanges {
 		kebClusterStatus, err := statusChange.Status.GetKEBClusterStatus()
 		if err != nil {
-			sendError(w, http.StatusInternalServerError,
-				errors.Wrap(err, "Failed to map reconciler internal cluster status to KEB cluster status"))
+			server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+				Error: errors.Wrap(err, "Failed to map reconciler internal cluster status to KEB cluster status").Error(),
+			})
 			return
 		}
 		resp.StatusChanges = append(resp.StatusChanges, &keb.StatusChange{
@@ -210,7 +237,9 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 	//respond
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode cluster statusChanges response"))
+		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to encode cluster statusChanges response").Error(),
+		})
 		return
 	}
 }
@@ -219,15 +248,21 @@ func deleteCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	clusterName, err := params.String(paramCluster)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, err)
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 	if _, err := o.Registry.Inventory().GetLatest(clusterName); repository.IsNotFoundError(err) {
-		sendError(w, http.StatusNotFound, errors.Wrap(err, fmt.Sprintf("Deletion impossible: Cluster '%s' not found", clusterName)))
+		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, fmt.Sprintf("Deletion impossible: Cluster '%s' not found", clusterName)).Error(),
+		})
 		return
 	}
 	if err := o.Registry.Inventory().Delete(clusterName); err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", clusterName)))
+		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", clusterName)).Error(),
+		})
 		return
 	}
 }
@@ -236,76 +271,81 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	schedulingID, err := params.String(paramSchedulingID)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, err)
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 	correlationID, err := params.String(paramCorrelationID)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, err)
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 
 	var body reconciler.CallbackMessage
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to read received JSON payload"))
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
+		})
 		return
 	}
 
 	err = json.Unmarshal(reqBody, &body)
 	if err != nil {
-		sendError(w, http.StatusBadRequest, errors.Wrap(err, "Failed to unmarshal JSON payload"))
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
+		})
 		return
 	}
 
 	if body.Status == "" {
-		sendError(w, http.StatusBadRequest, fmt.Errorf("status not provided in payload"))
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: fmt.Errorf("status not provided in payload").Error(),
+		})
 		return
 	}
 
 	switch body.Status {
 	case reconciler.NotStarted, reconciler.Running:
 		err = o.Registry.OperationsRegistry().SetInProgress(correlationID, schedulingID)
+	case reconciler.Failed:
+		err = o.Registry.OperationsRegistry().SetFailed(correlationID, schedulingID,
+			fmt.Sprintf("Reconciler reported failure status: %s", body.Error.Error()))
 	case reconciler.Success:
 		err = o.Registry.OperationsRegistry().SetDone(correlationID, schedulingID)
 	case reconciler.Error:
-		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID, "Reconciler reported error status")
+		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID,
+			fmt.Sprintf("Reconciler reported error status: %s", body.Error.Error()))
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
 		if scheduler.IsOperationNotFoundError(err) {
 			httpCode = http.StatusNotFound
 		}
-		sendError(w, httpCode, err)
-		return
-	}
-}
-
-func sendError(w http.ResponseWriter, httpCode int, response interface{}) {
-	if err, ok := response.(error); ok { //convert to error response
-		response = reconciler.HTTPErrorResponse{
+		server.SendHTTPError(w, httpCode, &reconciler.HTTPErrorResponse{
 			Error: err.Error(),
-		}
-	}
-	w.WriteHeader(httpCode)
-	w.Header().Set("content-type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		//send error response
-		w.WriteHeader(http.StatusInternalServerError)
-		http.Error(w, "Failed to encode response payload to JSON", http.StatusInternalServerError)
+		})
+		return
 	}
 }
 
 func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State) {
 	respModel, err := newClusterResponse(r, clusterState)
 	if err != nil {
-		sendError(w, 500, errors.Wrap(err, "failed to generate cluster response model"))
+		server.SendHTTPError(w, 500, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "failed to generate cluster response model").Error(),
+		})
 		return
 	}
 
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(respModel); err != nil {
-		sendError(w, http.StatusInternalServerError, errors.Wrap(err, "Failed to encode response payload to JSON"))
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to encode response payload to JSON").Error(),
+		})
 	}
 }
 

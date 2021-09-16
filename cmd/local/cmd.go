@@ -42,7 +42,7 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func RunLocal(o *Options) error {
-	l := logger.NewOptionalLogger(o.Verbose)
+	l := logger.NewLogger(o.Verbose)
 
 	l.Infof("Local installation started with kubeconfig %s", o.kubeconfigFile)
 
@@ -69,14 +69,20 @@ func RunLocal(o *Options) error {
 			l.Infof("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
 		}
 
+	comps, err := o.Components(defaultComponentsYaml)
+	if err != nil {
+		return err
+	}
 	ls := scheduler.NewLocalScheduler(
 		scheduler.WithLogger(l),
 		scheduler.WithStatusFunc(printStatus))
-	return ls.Run(cli.NewContext(), &keb.Cluster{
-		Kubeconfig: o.kubeconfig,
-		KymaConfig: keb.KymaConfig{
-			Version:    o.version,
-			Profile:    o.profile,
-			Components: o.Components(defaultComponentsYaml)}},
-	)
+	return ls.Run(
+		cli.NewContext(),
+		&keb.Cluster{
+			Kubeconfig: o.kubeconfig,
+			KymaConfig: keb.KymaConfig{
+				Version:    o.version,
+				Profile:    o.profile,
+				Components: comps},
+		})
 }

@@ -22,8 +22,7 @@ const (
 var chartDir = filepath.Join("test", "unittest-kyma", "resources")
 
 func TestHelm(t *testing.T) {
-	logger, err := log.NewLogger(true)
-	require.NoError(t, err)
+	logger := log.NewLogger(true)
 
 	t.Run("Get chart configuration without profile", func(t *testing.T) {
 		component := NewComponentBuilder("main", componentName).

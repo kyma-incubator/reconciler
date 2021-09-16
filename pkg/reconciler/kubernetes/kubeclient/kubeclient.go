@@ -4,8 +4,9 @@ package kubeclient
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/types"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
@@ -104,9 +105,7 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 
 	helper := resource.NewHelper(restClient, restMapping)
 
-	if namespaceOverride == "" {
-		namespaceOverride = "default"
-	}
+	setDefaultNamespaceIfScopedAndNoneSet(namespaceOverride, u, helper)
 
 	SetNamespaceIfScoped(namespaceOverride, u, helper)
 
@@ -340,4 +339,16 @@ func getRestConfig(kubeconfig string) (*rest.Config, error) {
 	return clientcmd.BuildConfigFromKubeconfigGetter("", func() (config *clientcmdapi.Config, e error) {
 		return clientcmd.Load([]byte(kubeconfig))
 	})
+}
+
+func setDefaultNamespaceIfScopedAndNoneSet(namespace string, u *unstructured.Unstructured, helper *resource.Helper) {
+	if helper.NamespaceScoped {
+		resNamespace := u.GetNamespace()
+		if resNamespace == "" {
+			if namespace == "" {
+				namespace = "default"
+			}
+			u.SetNamespace(namespace)
+		}
+	}
 }

@@ -13,7 +13,7 @@ import (
 func TestRemoteCallbackHandler(t *testing.T) {
 	test.IntegrationTest(t)
 
-	logger := log.NewOptionalLogger(true)
+	logger := log.NewLogger(true)
 
 	t.Run("Test successful remote status update", func(t *testing.T) {
 		rcb, err := NewRemoteCallbackHandler("https://httpbin.org/status/200", logger)
@@ -35,7 +35,7 @@ func TestRemoteCallbackHandler(t *testing.T) {
 }
 
 func TestLocalCallbackHandler(t *testing.T) {
-	logger := log.NewOptionalLogger(true)
+	logger := log.NewLogger(true)
 
 	t.Run("Test successful local status update", func(t *testing.T) {
 		var localFuncCalled bool

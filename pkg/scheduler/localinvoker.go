@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
@@ -36,22 +37,32 @@ func (lri *localReconcilerInvoker) Invoke(params *InvokeParams) error {
 
 	lri.logger.Debugf("Calling the reconciler for a component %s, correlation ID: %s", component, params.CorrelationID)
 
-	payload := params.CreateLocalReconciliation(func(msg *reconciler.CallbackMessage) error {
+	model := params.CreateLocalReconciliation(
+		lri.createCallbackFunc(params),
+	)
+
+	return componentReconciler.StartLocal(context.Background(), model, lri.logger)
+}
+
+func (lri *localReconcilerInvoker) createCallbackFunc(params *InvokeParams) func(msg *reconciler.CallbackMessage) error {
+	return func(msg *reconciler.CallbackMessage) error {
 		if lri.statusFunc != nil {
-			lri.statusFunc(component, msg)
+			lri.statusFunc(params.ComponentToReconcile.Component, msg)
 		}
 
 		switch msg.Status {
 		case reconciler.NotStarted, reconciler.Running:
 			return lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
+		case reconciler.Failed:
+			return lri.operationsReg.SetFailed(params.CorrelationID, params.SchedulingID,
+				fmt.Sprintf("Reconciler reported failure status: %s", msg.Error.Error()))
 		case reconciler.Success:
 			return lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
 		case reconciler.Error:
-			return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID, "Reconciler reported error status")
+			return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID,
+				fmt.Sprintf("Reconciler reported error status: %s", msg.Error.Error()))
 		}
 
 		return nil
-	})
-
-	return componentReconciler.StartLocal(context.Background(), payload)
+	}
 }

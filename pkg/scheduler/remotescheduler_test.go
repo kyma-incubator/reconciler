@@ -15,7 +15,7 @@ import (
 )
 
 func TestRemoteScheduler(t *testing.T) {
-	components := []keb.Components{
+	components := []keb.Component{
 		{Component: "logging"},
 		{Component: "monitoring"},
 	}
@@ -51,13 +51,12 @@ func TestRemoteScheduler(t *testing.T) {
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
 	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
 
-	l, _ := logger.NewLogger(true)
 	sut := RemoteScheduler{
 		inventoryWatch: inventoryWatchStub,
 		workerFactory:  workerFactoryMock,
 		mothershipCfg:  MothershipReconcilerConfig{},
 		poolSize:       2,
-		logger:         l,
+		logger:         logger.NewLogger(true),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

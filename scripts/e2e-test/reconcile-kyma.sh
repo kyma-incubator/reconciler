@@ -74,3 +74,5 @@ check_reconcile_status_url
 
 # Wait until Kyma is installed
 wait_until_kyma_installed
+
+echo "reconcile-kyma completed"

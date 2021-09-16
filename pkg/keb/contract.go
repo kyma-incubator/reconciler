@@ -19,7 +19,7 @@ type Configuration struct {
 	Secret bool        `json:"secret"`
 }
 
-type Components struct {
+type Component struct {
 	Component     string          `json:"component"`
 	Namespace     string          `json:"namespace"`
 	URL           string          `json:"url"`
@@ -28,10 +28,10 @@ type Components struct {
 }
 
 type KymaConfig struct {
-	Version        string       `json:"version"`
-	Profile        string       `json:"profile"`
-	Components     []Components `json:"components"`
-	Administrators []string     `json:"administrators"`
+	Version        string      `json:"version"`
+	Profile        string      `json:"profile"`
+	Components     []Component `json:"components"`
+	Administrators []string    `json:"administrators"`
 }
 
 type Metadata struct {

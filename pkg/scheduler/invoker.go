@@ -7,7 +7,7 @@ import (
 )
 
 type InvokeParams struct {
-	ComponentToReconcile *keb.Components
+	ComponentToReconcile *keb.Component
 	ComponentsReady      []string
 	ClusterState         cluster.State
 	SchedulingID         string
@@ -16,36 +16,36 @@ type InvokeParams struct {
 	InstallCRD           bool
 }
 
-func (f *InvokeParams) CreateLocalReconciliation(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Reconciliation {
-	payload := f.createReconciliation()
-	payload.CallbackFunc = callbackFunc
-	return payload
+func (p *InvokeParams) CreateLocalReconciliation(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Reconciliation {
+	model := p.createReconciliationModel()
+	model.CallbackFunc = callbackFunc
+	return model
 }
 
-func (f *InvokeParams) CreateRemoteReconciliation(callbackURL string) *reconciler.Reconciliation {
-	payload := f.createReconciliation()
-	payload.CallbackURL = callbackURL
-	return payload
+func (p *InvokeParams) CreateRemoteReconciliation(callbackURL string) *reconciler.Reconciliation {
+	model := p.createReconciliationModel()
+	model.CallbackURL = callbackURL
+	return model
 }
 
-func (f *InvokeParams) createReconciliation() *reconciler.Reconciliation {
-	version := f.ClusterState.Configuration.KymaVersion
-	if f.ComponentToReconcile.Version != "" {
-		version = f.ComponentToReconcile.Version
+func (p *InvokeParams) createReconciliationModel() *reconciler.Reconciliation {
+	version := p.ClusterState.Configuration.KymaVersion
+	if p.ComponentToReconcile.Version != "" {
+		version = p.ComponentToReconcile.Version
 	}
 
 	return &reconciler.Reconciliation{
-		ComponentsReady: f.ComponentsReady,
-		Component:       f.ComponentToReconcile.Component,
-		Namespace:       f.ComponentToReconcile.Namespace,
+		ComponentsReady: p.ComponentsReady,
+		Component:       p.ComponentToReconcile.Component,
+		Namespace:       p.ComponentToReconcile.Namespace,
 		Version:         version,
-		Profile:         f.ClusterState.Configuration.KymaProfile,
-		Configuration:   mapConfiguration(f.ComponentToReconcile.Configuration),
-		Kubeconfig:      f.ClusterState.Cluster.Kubeconfig,
-		InstallCRD:      f.InstallCRD,
-		CorrelationID:   f.CorrelationID,
+		Profile:         p.ClusterState.Configuration.KymaProfile,
+		Configuration:   mapConfiguration(p.ComponentToReconcile.Configuration),
+		Kubeconfig:      p.ClusterState.Cluster.Kubeconfig,
+		InstallCRD:      p.InstallCRD,
+		CorrelationID:   p.CorrelationID,
 		Repository: reconciler.Repository{
-			URL: f.ComponentToReconcile.URL,
+			URL: p.ComponentToReconcile.URL,
 		},
 	}
 }

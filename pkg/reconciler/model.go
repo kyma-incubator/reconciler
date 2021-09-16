@@ -19,10 +19,28 @@ type Status string
 
 const (
 	NotStarted Status = "notstarted"
+	Failed     Status = "failed"
 	Error      Status = "error"
 	Running    Status = "running"
 	Success    Status = "success"
 )
+
+func NewStatus(status string) (Status, error) {
+	switch strings.ToLower(status) {
+	case string(NotStarted):
+		return NotStarted, nil
+	case string(Failed):
+		return Failed, nil
+	case string(Error):
+		return Error, nil
+	case string(Running):
+		return Running, nil
+	case string(Success):
+		return Success, nil
+	default:
+		return "", fmt.Errorf("status '%s' not found", status)
+	}
+}
 
 //Reconciliation is the model for reconciliation calls
 type Reconciliation struct {
@@ -85,7 +103,7 @@ func (r *Reconciliation) Validate() error {
 	//return aggregated error msg
 	var err error
 	if len(errFields) > 0 {
-		err = fmt.Errorf("mandatory fields are undefined: %s", strings.Join(errFields, ","))
+		err = fmt.Errorf("mandatory fields are undefined: %s", strings.Join(errFields, ", "))
 	}
 	return err
 }
@@ -96,7 +114,7 @@ type CallbackMessage struct {
 }
 
 func (cb *CallbackMessage) String() string {
-	return fmt.Sprintf("CallbackMessage [status=%s,error=%s]", cb.Status, cb.Error)
+	return fmt.Sprintf("CallbackMessage [status=%s,error=%v]", cb.Status, cb.Error)
 }
 
 type Repository struct {

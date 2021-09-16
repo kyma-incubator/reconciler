@@ -2,8 +2,9 @@ package scheduler
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
@@ -25,7 +26,7 @@ const (
 func TestLocalScheduler(t *testing.T) {
 	testCluster := &keb.Cluster{
 		KymaConfig: keb.KymaConfig{
-			Components: []keb.Components{
+			Components: []keb.Component{
 				{Component: "logging"},
 				{Component: "monitoring"},
 			},
@@ -33,7 +34,7 @@ func TestLocalScheduler(t *testing.T) {
 	}
 
 	workerMock := &MockReconciliationWorker{}
-	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	workerFactoryMock := &MockWorkerFactory{}
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
@@ -55,12 +56,11 @@ func TestLocalSchedulerOrder(t *testing.T) {
 	testCases := []struct {
 		summary       string
 		prerequisites []string
-		crdComponents []string
 		allComponents []string
 		expectedOrder []string
 	}{
 		{
-			summary:       "single prerequisite",
+			summary:       "single prereq",
 			prerequisites: []string{"b"},
 			allComponents: []string{"a", "b"},
 			expectedOrder: []string{"b", "a"},
@@ -70,20 +70,6 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			prerequisites: []string{"b", "d"},
 			allComponents: []string{"d", "a", "b"},
 			expectedOrder: []string{"d", "b", "a"},
-		},
-		{
-			summary:       "non-overlapping prereqs and crds",
-			prerequisites: []string{"b", "d"},
-			crdComponents: []string{"c", "e"},
-			allComponents: []string{"d", "c", "a", "e", "b"},
-			expectedOrder: []string{"c", "e", "d", "b", "a"},
-		},
-		{
-			summary:       "overlapping prereqs and crds",
-			prerequisites: []string{"b", "d"},
-			crdComponents: []string{"c", "b"},
-			allComponents: []string{"d", "c", "a", "b"},
-			expectedOrder: []string{"c", "b", "d", "a"},
 		},
 	}
 
@@ -96,7 +82,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 				KymaConfig: keb.KymaConfig{},
 			}
 			for _, c := range tc.allComponents {
-				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Components{Component: c})
+				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Component{Component: c})
 			}
 
 			var reconciledComponents []string
@@ -104,7 +90,7 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(nil).
 				Run(func(args mock.Arguments) {
-					component := args.Get(0).(*keb.Components)
+					component := args.Get(0).(*keb.Component)
 					reconciledComponents = append(reconciledComponents, component.Component)
 				})
 
@@ -116,7 +102,6 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			sut := LocalScheduler{
 				logger:        zap.NewNop().Sugar(),
 				prereqs:       tc.prerequisites,
-				crdComponents: tc.crdComponents,
 				workerFactory: workerFactoryMock,
 			}
 
@@ -129,13 +114,53 @@ func TestLocalSchedulerOrder(t *testing.T) {
 	}
 }
 
+func TestLocalSchedulerInstallsCRDsOnce(t *testing.T) {
+	testCluster := &keb.Cluster{
+		KymaConfig: keb.KymaConfig{
+			Components: []keb.Component{
+				{Component: "logging"},
+				{Component: "monitoring"},
+				{Component: "kiali"},
+				{Component: "tracing"},
+			},
+		},
+	}
+
+	workerMock := &MockReconciliationWorker{}
+	installCRDCalledCount := 0
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			installCRD := args.Bool(3)
+			if installCRD {
+				installCRDCalledCount++
+			}
+		})
+
+	workerFactoryMock := &MockWorkerFactory{}
+	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
+	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
+	workerFactoryMock.On("ForComponent", "kiali").Return(workerMock, nil)
+	workerFactoryMock.On("ForComponent", "tracing").Return(workerMock, nil)
+
+	sut := LocalScheduler{
+		logger:        zap.NewNop().Sugar(),
+		workerFactory: workerFactoryMock,
+	}
+
+	err := sut.Run(context.Background(), testCluster)
+	require.NoError(t, err)
+
+	require.Equal(t, installCRDCalledCount, 1)
+}
+
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	test.IntegrationTest(t)
 
 	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
 	//collisions when sharing the same directory)
-	wsFact, err := workspace.NewFactory(nil, workspaceDir, logger.NewOptionalLogger(true))
+	wsFact, err := workspace.NewFactory(nil, workspaceDir, logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsFact))
 
@@ -182,7 +207,7 @@ func newCluster(t *testing.T) *keb.Cluster {
 		KymaConfig: keb.KymaConfig{
 			Version: kymaVersion,
 			Profile: "evaluation",
-			Components: []keb.Components{
+			Components: []keb.Component{
 				{Component: "cluster-essentials", Namespace: "kyma-system"},
 				{Component: "istio", Namespace: "istio-system"},
 			},

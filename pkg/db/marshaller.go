@@ -34,7 +34,7 @@ func (es *EntityMarshaller) AddUnmarshaller(field string, fct func(value interfa
 
 func (es *EntityMarshaller) ensureFieldExist(field string) {
 	if _, ok := es.structs.FieldOk(field); !ok {
-		panic(fmt.Sprintf("Failure in Marshaller: the entity '%s' has not field '%s'", es.structs.Name(), field))
+		panic(fmt.Sprintf("Failure in Marshaller: entity '%s' has no field '%s'", es.structs.Name(), field))
 	}
 }
 
@@ -59,7 +59,7 @@ func (es *EntityMarshaller) Unmarshal(rawData map[string]interface{}) error {
 	for _, field := range es.structs.Fields() {
 		value, ok := rawData[field.Name()]
 		if !ok {
-			return fmt.Errorf("No value in database found for field '%s'", field.Name())
+			return fmt.Errorf("no value in database found for field '%s'", field.Name())
 		}
 
 		//check if a value converter function was defined for this field
@@ -125,13 +125,13 @@ func (es *EntityMarshaller) setFieldValue(field *structs.Field, value interface{
 		}
 		err = field.Set(stringValue)
 	default:
-		err = fmt.Errorf("Cannot synchronize field '%s' because type '%s' is not supported (value was '%v')",
+		err = fmt.Errorf("cannot synchronize field '%s' because type '%s' is not supported (value was '%v')",
 			field.Name(), field.Kind(), value)
 	}
 	return err
 }
 
 func (es *EntityMarshaller) fireCastError(kind reflect.Kind, field *structs.Field, value interface{}) error {
-	return fmt.Errorf("Failed to convert value from DB to %s: got '%v' as value for entity field '%s'",
+	return fmt.Errorf("failed to convert value from DB to %s: got '%v' as value for entity field '%s'",
 		kind.String(), value, field.Name())
 }

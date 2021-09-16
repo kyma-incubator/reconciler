@@ -55,10 +55,10 @@ func (c *MockConnection) Encryptor() *Encryptor {
 	return encryptor
 }
 
-func (c *MockConnection) QueryRow(query string, args ...interface{}) DataRow {
+func (c *MockConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
 	c.query = query
 	c.args = args
-	return &MockDataRow{}
+	return &MockDataRow{}, nil
 }
 
 func (c *MockConnection) Query(query string, args ...interface{}) (DataRows, error) {

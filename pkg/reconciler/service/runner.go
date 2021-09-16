@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -17,6 +18,7 @@ import (
 
 type runner struct {
 	*ComponentReconciler
+	logger *zap.SugaredLogger
 }
 
 func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {
@@ -38,6 +40,9 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 			if err != nil {
 				r.logger.Warnf("Failing reconciliation of '%s' in version '%s' with profile '%s': %s",
 					model.Component, model.Version, model.Profile, err)
+				if heartbeatErr := heartbeatSender.Failed(err); heartbeatErr != nil {
+					err = errors.Wrap(err, heartbeatErr.Error())
+				}
 			}
 			return err
 		}
