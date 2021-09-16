@@ -12,7 +12,6 @@ type InvokeParams struct {
 	SchedulingID         string
 	CorrelationID        string
 	ReconcilerURL        string
-	InstallCRD           bool
 }
 
 type reconcilerInvoker interface {

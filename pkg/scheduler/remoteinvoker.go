@@ -30,7 +30,6 @@ func (rri *remoteReconcilerInvoker) Invoke(params *InvokeParams) error {
 		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
 		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
 		CallbackURL:     fmt.Sprintf("%s://%s:%d/v1/operations/%s/callback/%s", rri.mothershipScheme, rri.mothershipHost, rri.mothershipPort, params.SchedulingID, params.CorrelationID),
-		InstallCRD:      params.InstallCRD,
 		CorrelationID:   params.CorrelationID,
 	}
 	jsonPayload, err := json.Marshal(payload)
