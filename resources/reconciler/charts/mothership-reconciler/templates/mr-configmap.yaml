@@ -9,6 +9,7 @@ data:
       driver: postgres
       encryption:
         keyFile: "/encryption/db-encryption.key"
+      blockQueries: true
       postgres:
         host: "localhost"
         database: "kyma"
@@ -24,12 +25,8 @@ data:
       scheme: {{ .Values.service.scheme }}
       host: {{ include "mothership-reconciler.fullname" . }}
       port: {{ .Values.service.port }}
-    {{- with .Values.crdComponents }}
-    crdComponents:
-    {{ toYaml . | indent 6 }}
-    {{- end }}
-    {{- with .Values.preComponents }}
+    {{- if .Values.preComponents }}
     preComponents:
-    {{ toYaml . | indent 6 }}
+{{ toYaml .Values.preComponents | indent 6 }}
     {{- end }}
 ---

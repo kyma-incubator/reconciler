@@ -84,7 +84,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, instAct, postAct, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -109,7 +109,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -133,7 +133,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, apiGatewayComponent, kymaVersion, false, "default")
+		model := newModel(t, apiGatewayComponent, kymaVersion, "default")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -157,7 +157,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -181,7 +181,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, apiGatewayComponent, kymaVersion, true, "default")
+		model := newModel(t, apiGatewayComponent, kymaVersion, "default")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -201,7 +201,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -222,7 +222,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, nil, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -243,7 +243,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, install, nil, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -268,7 +268,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, install, postAct, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -282,7 +282,7 @@ func TestRunner(t *testing.T) {
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
 		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Second)
-		model := newModel(t, fakeComponent, fakeKymaVersion, false, "")
+		model := newModel(t, fakeComponent, fakeKymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -339,9 +339,8 @@ func newCleanupFunc(t *testing.T) func(bool) {
 	}
 }
 
-func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, namespace string) *reconciler.Reconciliation {
+func newModel(t *testing.T, kymaComponent, kymaVersion string, namespace string) *reconciler.Reconciliation {
 	return &reconciler.Reconciliation{
-		InstallCRD: installCRD,
 		Component:  kymaComponent,
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
