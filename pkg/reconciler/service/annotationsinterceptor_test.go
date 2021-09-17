@@ -23,7 +23,7 @@ func TestAnnotationsInterceptor(t *testing.T) {
 			},
 			wantErr: false,
 			annotations: map[string]string{
-				ManagedByAnnotation: AnnotationReconcilerValue,
+				ManagedByAnnotation: annotationReconcilerValue,
 			},
 		},
 		{
