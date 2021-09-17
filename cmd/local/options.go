@@ -49,6 +49,13 @@ func componentsFromFile(path string) ([]string, error) {
 		return defaultComponents, err
 	}
 
+	for _, c := range compList.Prerequisites {
+		if c.Namespace != "" {
+			defaultComponents = append(defaultComponents, c.Name+"@"+c.Namespace)
+		} else {
+			defaultComponents = append(defaultComponents, c.Name)
+		}
+	}
 	for _, c := range compList.Components {
 		if c.Namespace != "" {
 			defaultComponents = append(defaultComponents, c.Name+"@"+c.Namespace)

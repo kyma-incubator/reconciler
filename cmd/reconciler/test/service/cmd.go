@@ -3,12 +3,13 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 
 	startSvcCmd "github.com/kyma-incubator/reconciler/cmd/reconciler/start/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
@@ -33,7 +34,6 @@ func NewCmd(o *Options, reconcilerName string) *cobra.Command {
 	cmd.Flags().StringVar(&o.Component, "component", reconcilerName, "Name of the component to reconcile")
 	cmd.Flags().StringVar(&o.Namespace, "namespace", "kyma-system", "Namespace of the component")
 	cmd.Flags().StringVar(&o.Profile, "profile", "", "Kyma profile")
-	cmd.Flags().BoolVar(&o.InstallCRDs, "crds", false, "Install CRDs")
 
 	return cmd
 }
@@ -70,7 +70,6 @@ func showCurl(o *Options) error {
 		Configuration:   nil,
 		Kubeconfig:      kubeConfig,
 		CallbackURL:     "https://httpbin.org/post",
-		InstallCRD:      o.InstallCRDs,
 		CorrelationID:   "1-2-3-4-5",
 	}
 

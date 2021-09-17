@@ -38,6 +38,10 @@ func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries boo
 	}, nil
 }
 
+func (sc *SqliteConnection) DB() *sql.DB {
+	return sc.db
+}
+
 func (sc *SqliteConnection) Encryptor() *Encryptor {
 	return sc.encryptor
 }
@@ -97,7 +101,7 @@ type SqliteConnectionFactory struct {
 	blockQueries  bool
 }
 
-func (scf *SqliteConnectionFactory) Init() error {
+func (scf *SqliteConnectionFactory) Init(migrate bool) error {
 	if scf.Reset {
 		if err := scf.resetFile(); err != nil {
 			return err

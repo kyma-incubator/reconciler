@@ -52,7 +52,6 @@ type Reconciliation struct {
 	Configuration   []Configuration `json:"configuration"`
 	Kubeconfig      string          `json:"kubeconfig"`
 	CallbackURL     string          `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
-	InstallCRD      bool            `json:"installCRD"`
 	CorrelationID   string          `json:"correlationID"`
 	Repository      Repository      `json:"repository"`
 

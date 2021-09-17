@@ -9,6 +9,7 @@ require (
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-git/go-git/v5 v5.4.2
+	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/iancoleman/strcase v0.1.3
@@ -18,7 +19,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/onsi/gomega v1.8.1 // indirect
 	github.com/panjf2000/ants/v2 v2.4.6
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1

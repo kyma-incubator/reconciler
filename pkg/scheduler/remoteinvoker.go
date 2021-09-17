@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"go.uber.org/zap"
 )
 

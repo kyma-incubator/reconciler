@@ -13,7 +13,6 @@ type InvokeParams struct {
 	SchedulingID         string
 	CorrelationID        string
 	ReconcilerURL        string
-	InstallCRD           bool
 }
 
 func (p *InvokeParams) CreateLocalReconciliation(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Reconciliation {

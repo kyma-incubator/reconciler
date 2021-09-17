@@ -14,3 +14,7 @@ db:
     file: "test/unittest.db"
     deploySchema: true
     resetDatabase: true
+mothership:
+  scheme: http
+  host: localhost
+  port: 33333

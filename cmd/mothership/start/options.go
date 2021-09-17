@@ -30,7 +30,7 @@ func NewOptions(o *cli.Options) *Options {
 		0 * time.Second, //WatchInterval
 		0 * time.Second, //ClusterReconcileInterval
 		"",              //ReconcilersCfg
-		false,
+		false,           //CreateEncyptionKey
 	}
 }
 
