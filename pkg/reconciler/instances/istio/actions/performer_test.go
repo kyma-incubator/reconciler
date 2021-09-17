@@ -171,6 +171,64 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 
 }
 
+func Test_DefaultIstioPerformer_Update(t *testing.T) {
+
+	err := os.Setenv("ISTIOCTL_PATH", "path")
+	require.NoError(t, err)
+	kubeConfig := "kubeConfig"
+	log, err := logger.NewLogger(false)
+	require.NoError(t, err)
+
+	t.Run("should not update when istio operator could not be found in manifest", func(t *testing.T) {
+		// given
+		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
+		wrapper := NewDefaultIstioPerformer(&cmder)
+
+		// when
+		err = wrapper.Update(kubeConfig, "", log, &cmder)
+
+		/// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Istio Operator definition could not be found")
+		cmder.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should not update Istio when istioctl returned an error", func(t *testing.T) {
+		// given
+		err := os.Setenv("ISTIOCTL_PATH", "path")
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
+		wrapper := NewDefaultIstioPerformer(&cmder)
+
+		// when
+		err = wrapper.Update(kubeConfig, istioManifest, log, &cmder)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "istioctl error")
+		cmder.AssertCalled(t, "Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should update Istio when istioctl command was successful", func(t *testing.T) {
+		// given
+		err := os.Setenv("ISTIOCTL_PATH", "path")
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		wrapper := NewDefaultIstioPerformer(&cmder)
+
+		// when
+		err = wrapper.Update(kubeConfig, istioManifest, log, &cmder)
+
+		// then
+		require.NoError(t, err)
+		cmder.AssertCalled(t, "Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+}
+
 func Test_extractIstioOperatorContextFrom(t *testing.T) {
 
 	t.Run("should not extract istio operator from manifest that does not contain istio operator", func(t *testing.T) {
