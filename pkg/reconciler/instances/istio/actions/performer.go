@@ -3,7 +3,7 @@ package actions
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
@@ -162,12 +162,12 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.
 func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLogger, commander istioctl.Commander) (IstioVersion, error) {
 	version, err := c.commander.Version(kubeConfig, logger)
 	if err != nil {
-		return IstioVersion{}, nil
+		return IstioVersion{}, err
 	}
 
-	mappedIstioVersion := mapVersionToStruct(version, logger)
+	mappedIstioVersion, err := mapVersionToStruct(version, logger)
 
-	return mappedIstioVersion, nil
+	return mappedIstioVersion, err
 }
 
 func extractIstioOperatorContextFrom(manifest string) (string, error) {
@@ -213,18 +213,13 @@ func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string
 	}
 }
 
-func mapVersionToStruct(raw []byte, logger *zap.SugaredLogger) IstioVersion {
-	logger.Infof(string(raw)) // To be removed
+func mapVersionToStruct(raw []byte, logger *zap.SugaredLogger) (IstioVersion, error) {
 	//	If raw is empty
 	if len(raw) == 0 {
-		return IstioVersion{
-			ClientVersion:    "",
-			PilotVersion:     "",
-			DataPlaneVersion: "",
-		}
+		return IstioVersion{}, errors.New("The result of the version command is empty!")
 	}
 
-	// Remove text not part of the json output
+	// Remove additional text not part of the json output
 	if index := bytes.IndexRune(raw, '{'); index != 0 {
 		raw = raw[bytes.IndexRune(raw, '{'):]
 	}
@@ -234,13 +229,12 @@ func mapVersionToStruct(raw []byte, logger *zap.SugaredLogger) IstioVersion {
 	err := json.Unmarshal(raw, &version)
 
 	if err != nil {
-		//TODO: Decide on error handling
-		fmt.Println(err)
+		return IstioVersion{}, err
 	}
 
 	return IstioVersion{
 		ClientVersion:    getVersionFromJSON("client", version),
 		PilotVersion:     getVersionFromJSON("pilot", version),
 		DataPlaneVersion: getVersionFromJSON("dataPlane", version),
-	}
+	}, nil
 }

@@ -89,8 +89,11 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 }
 
 func shouldInstall(version actions.IstioVersion) bool {
-	// mockup function
-	return false
+	if version.DataPlaneVersion == "" && version.PilotVersion == "" {
+		return true
+	} else {
+		return false
+	}
 }
 
 func canUpdate(version actions.IstioVersion) bool {
@@ -99,8 +102,11 @@ func canUpdate(version actions.IstioVersion) bool {
 }
 
 func isMismatchPresent(version actions.IstioVersion) bool {
-	// mockup
-	return false
+	if version.PilotVersion != version.DataPlaneVersion {
+		return true
+	} else {
+		return false
+	}
 }
 
 func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error) {
