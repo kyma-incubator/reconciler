@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"go.uber.org/zap"
 )
@@ -29,10 +28,13 @@ type Update struct {
 	operationState string
 }
 
-func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.State, components []*keb.Component, logger *zap.SugaredLogger) ClusterStatusUpdater {
+func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.State, components *model.ReconciliationSequence, logger *zap.SugaredLogger) ClusterStatusUpdater {
 	statusUpdater := ClusterStatusUpdater{inventory: inventory, clusterState: clusterState, logger: logger}
 	statusUpdater.statusMap = make(map[string]string)
-	for _, comp := range components {
+	for _, comp := range components.FirstInSequence {
+		statusUpdater.statusMap[comp.Component] = model.OperationStateInProgress
+	}
+	for _, comp := range components.InParallel {
 		statusUpdater.statusMap[comp.Component] = model.OperationStateInProgress
 	}
 	statusUpdater.reconciling()
@@ -66,7 +68,9 @@ func (su *ClusterStatusUpdater) Run(ctx context.Context) {
 }
 
 func (su *ClusterStatusUpdater) Update(component string, operationState string) {
-	su.updateChannel <- Update{component, operationState}
+	if su.updateChannel != nil {
+		su.updateChannel <- Update{component, operationState}
+	}
 }
 
 func (su *ClusterStatusUpdater) reconciling() {

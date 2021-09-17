@@ -8,6 +8,7 @@ import (
 	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
@@ -20,7 +21,6 @@ import (
 )
 
 const (
-	serverPort             = 8080
 	clusterName            = "e2etest-cluster"
 	httpPost    httpMethod = http.MethodPost
 	httpGet     httpMethod = http.MethodGet
@@ -97,8 +97,7 @@ func TestMothership(t *testing.T) {
 	ctx := context.Background()
 	defer ctx.Done()
 
-	startMothershipReconciler(ctx, t)
-
+	serverPort := startMothershipReconciler(ctx, t)
 	baseURL := fmt.Sprintf("http://localhost:%d/v1", serverPort)
 
 	tests := []*testCase{
@@ -253,19 +252,23 @@ func newTestFct(testCase *testCase) func(t *testing.T) {
 	}
 }
 
-func startMothershipReconciler(ctx context.Context, t *testing.T) {
+func startMothershipReconciler(ctx context.Context, t *testing.T) int {
+	cliTest.InitViper(t)
+	serverPort := viper.GetInt("mothership.port")
+
 	go func(ctx context.Context) {
 		o := NewOptions(cliTest.NewTestOptions(t))
-		o.Port = serverPort
 		o.ReconcilersCfgPath = filepath.Join("test", "component-reconcilers.json")
 		o.WatchInterval = 1 * time.Second
-		o.Verbose = true
+		o.Port = serverPort
 
 		t.Log("Starting mothership reconciler")
 		require.NoError(t, Run(ctx, o))
 	}(ctx)
 
 	cliTest.WaitForTCPSocket(t, "127.0.0.1", serverPort, 8*time.Second)
+
+	return serverPort
 }
 
 func callMothership(t *testing.T, testCase *testCase) interface{} {
@@ -306,6 +309,11 @@ func sendRequest(t *testing.T, testCase *testCase) (*http.Response, error) {
 		require.NoError(t, err)
 	}
 	require.NoError(t, err)
+
+	respOutput, err := httputil.DumpResponse(response, true)
+	require.NoError(t, err)
+	t.Logf("Received HTTP response from mothership reconciler: %s", string(respOutput))
+
 	return response, err
 }
 
