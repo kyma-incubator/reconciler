@@ -59,15 +59,13 @@ type progressTrackerConfig struct {
 }
 
 func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error) {
-	log, err := logger.NewLogger(false)
-	if err != nil {
-		return nil, err
-	}
 	recon := &ComponentReconciler{
 		workspace: defaultWorkspace,
-		logger:    log,
+		logger:    logger.NewLogger(false),
 	}
+
 	RegisterReconciler(reconcilerName, recon) //add reconciler to registry
+
 	return recon, nil
 }
 
@@ -159,11 +157,10 @@ func (r *ComponentReconciler) validate() error {
 	return nil
 }
 
-func (r *ComponentReconciler) Debug() error {
-	var err error
-	r.logger, err = logger.NewLogger(true)
+func (r *ComponentReconciler) Debug() *ComponentReconciler {
+	r.logger = logger.NewLogger(true)
 	r.debug = true
-	return err
+	return r
 }
 
 func (r *ComponentReconciler) WithWorkspace(workspace string) *ComponentReconciler {
@@ -215,7 +212,7 @@ func (r *ComponentReconciler) WithProgressTrackerConfig(interval, timeout time.D
 	return r
 }
 
-func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.Reconciliation) error {
+func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.Reconciliation, logger *zap.SugaredLogger) error {
 	//ensure model is valid
 	if err := model.Validate(); err != nil {
 		return err
@@ -225,12 +222,12 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.
 		return err
 	}
 
-	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFunc, r.logger)
+	localCbh, err := callback.NewLocalCallbackHandler(model.CallbackFunc, logger)
 	if err != nil {
 		return err
 	}
 
-	runnerFunc := r.newRunnerFunc(ctx, model, localCbh)
+	runnerFunc := r.newRunnerFunc(ctx, model, localCbh, logger)
 	return runnerFunc()
 }
 
@@ -244,11 +241,11 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) (*WorkerPool, err
 		Build(ctx)
 }
 
-func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) func() error {
+func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler, logger *zap.SugaredLogger) func() error {
 	r.logger.Debugf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds())
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 		defer cancel()
-		return (&runner{r}).Run(timeoutCtx, model, callback)
+		return (&runner{r, logger}).Run(timeoutCtx, model, callback)
 	}
 }

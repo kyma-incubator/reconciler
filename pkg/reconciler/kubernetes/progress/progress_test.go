@@ -25,8 +25,7 @@ import (
 func TestProgressTracker(t *testing.T) {
 	test.IntegrationTest(t)
 
-	logger, err := log.NewLogger(true)
-	require.NoError(t, err)
+	logger := log.NewLogger(true)
 
 	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t))
 	require.NoError(t, err)

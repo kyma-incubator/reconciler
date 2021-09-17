@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 )
 
 type LocalSchedulerOption func(*LocalScheduler)
@@ -19,12 +18,6 @@ type LocalSchedulerOption func(*LocalScheduler)
 func WithLogger(logger *zap.SugaredLogger) LocalSchedulerOption {
 	return func(ls *LocalScheduler) {
 		ls.logger = logger
-	}
-}
-
-func WithCRDComponents(components ...string) LocalSchedulerOption {
-	return func(ls *LocalScheduler) {
-		ls.crdComponents = components
 	}
 }
 
@@ -42,7 +35,6 @@ func WithStatusFunc(statusFunc ReconcilerStatusFunc) LocalSchedulerOption {
 
 type LocalScheduler struct {
 	logger        *zap.SugaredLogger
-	crdComponents []string
 	prereqs       []string
 	statusFunc    ReconcilerStatusFunc
 	workerFactory WorkerFactory
@@ -70,24 +62,20 @@ func (ls *LocalScheduler) Run(ctx context.Context, c *keb.Cluster) error {
 		return fmt.Errorf("failed to convert to cluster state: %s", err)
 	}
 
-	components, err := clusterState.Configuration.GetComponents()
+	components, err := clusterState.Configuration.GetComponents(ls.prereqs)
 	if err != nil {
 		return fmt.Errorf("failed to get components: %s", err)
 	}
 
-	err = ls.reconcileCRDComponents(components, clusterState, schedulingID)
-	if err != nil {
-		return fmt.Errorf("failed to reconcile CRD component: %s", err)
+	if components == nil {
+		ls.logger.Infof("No components to reconcile for cluster %s", c.Cluster)
+		return nil
 	}
 
-	err = ls.reconcilePrereqs(components, clusterState, schedulingID)
+	handler := NewReconciliationHandler(ls.workerFactory)
+	err = handler.Reconcile(ctx, components, clusterState, schedulingID)
 	if err != nil {
-		return fmt.Errorf("failed to reconcile prerequisite component: %s", err)
-	}
-
-	err = ls.reconcileUnprioritizedComponents(ctx, components, clusterState, schedulingID)
-	if err != nil {
-		return fmt.Errorf("failed to reconcile component: %s", err)
+		return fmt.Errorf("failed to reconcile components for cluster %s: %s", c.Cluster, err)
 	}
 
 	return nil
@@ -136,79 +124,4 @@ func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 		Configuration: configurationEntity,
 		Status:        &model.ClusterStatusEntity{},
 	}, nil
-}
-
-func (ls *LocalScheduler) reconcileCRDComponents(components []*keb.Component, clusterState *cluster.State, schedulingID string) error {
-	for _, c := range components {
-		if !ls.isCRDComponent(c) {
-			continue
-		}
-
-		err := ls.reconcile(c, clusterState, schedulingID, true)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (ls *LocalScheduler) reconcilePrereqs(components []*keb.Component, clusterState *cluster.State, schedulingID string) error {
-	for _, c := range components {
-		if !ls.isPrereq(c) || ls.isCRDComponent(c) {
-			continue
-		}
-
-		err := ls.reconcile(c, clusterState, schedulingID, false)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (ls *LocalScheduler) reconcileUnprioritizedComponents(ctx context.Context, components []*keb.Component, clusterState *cluster.State, schedulingID string) error {
-	g, _ := errgroup.WithContext(ctx)
-	for _, c := range components {
-		if ls.isPrereq(c) || ls.isCRDComponent(c) {
-			continue
-		}
-
-		component := c // https://golang.org/doc/faq#closures_and_goroutines
-		g.Go(func() error {
-			return ls.reconcile(component, clusterState, schedulingID, true)
-		})
-	}
-
-	return g.Wait()
-}
-
-func (ls *LocalScheduler) isPrereq(c *keb.Component) bool {
-	return contains(ls.prereqs, c.Component)
-}
-
-func (ls *LocalScheduler) isCRDComponent(c *keb.Component) bool {
-	return contains(ls.crdComponents, c.Component)
-}
-
-func (ls *LocalScheduler) reconcile(component *keb.Component, state *cluster.State, schedulingID string, installCRD bool) error {
-	worker, err := ls.workerFactory.ForComponent(component.Component)
-	if err != nil {
-		return fmt.Errorf("failed to create a worker: %s", err)
-	}
-
-	err = worker.Reconcile(component, *state, schedulingID, installCRD)
-	if err != nil {
-		return fmt.Errorf("failed to reconcile a component: %s", component.Component)
-	}
-
-	return nil
-}
-
-func contains(items []string, item string) bool {
-	for i := range items {
-		if item == items[i] {
-			return true
-		}
-	}
-	return false
 }

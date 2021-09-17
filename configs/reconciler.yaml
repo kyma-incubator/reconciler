@@ -12,6 +12,7 @@ db:
     user: kyma
     password: kyma
     useSsl: false
+    migrationsDir: "./configs/db/postgres"
   sqlite:
     file: "reconciler.db"
     deploySchema: true
@@ -20,7 +21,6 @@ mothership:
   scheme: http
   host: localhost
   port: 8080
-crdComponents:
-  - cluster-essentials
 preComponents:
+  - cluster-essentials
   - istio

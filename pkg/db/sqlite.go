@@ -21,14 +21,13 @@ type SqliteConnection struct {
 }
 
 func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries bool) (*SqliteConnection, error) {
-	logger, err := log.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
+	logger := log.NewLogger(debug)
+
 	encryptor, err := NewEncryptor(encKey)
 	if err != nil {
 		return nil, err
 	}
+
 	validator := NewValidator(blockQueries, logger)
 
 	return &SqliteConnection{
@@ -37,6 +36,10 @@ func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries boo
 		validator: validator,
 		logger:    logger,
 	}, nil
+}
+
+func (sc *SqliteConnection) DB() *sql.DB {
+	return sc.db
 }
 
 func (sc *SqliteConnection) Encryptor() *Encryptor {
@@ -98,7 +101,7 @@ type SqliteConnectionFactory struct {
 	blockQueries  bool
 }
 
-func (scf *SqliteConnectionFactory) Init() error {
+func (scf *SqliteConnectionFactory) Init(migrate bool) error {
 	if scf.Reset {
 		if err := scf.resetFile(); err != nil {
 			return err

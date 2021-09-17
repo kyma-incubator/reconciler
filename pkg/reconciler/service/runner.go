@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
@@ -16,6 +18,7 @@ import (
 
 type runner struct {
 	*ComponentReconciler
+	logger *zap.SugaredLogger
 }
 
 func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {
@@ -130,7 +133,13 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 }
 
 func (r *runner) install(ctx context.Context, chartProvider *chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
-	manifest, err := r.renderManifest(chartProvider, model)
+	var err error
+	var manifest string
+	if model.Component == "CRDs" {
+		manifest, err = r.renderCRDs(chartProvider, model)
+	} else {
+		manifest, err = r.renderManifest(chartProvider, model)
+	}
 	if err != nil {
 		return err
 	}
@@ -153,8 +162,6 @@ func (r *runner) renderManifest(chartProvider *chart.Provider, model *reconciler
 		WithConfiguration(model.Configuration).
 		Build()
 
-	var manifests []*chart.Manifest
-
 	//get manifest of component
 	chartManifest, err := chartProvider.RenderManifest(component)
 	if err != nil {
@@ -163,18 +170,16 @@ func (r *runner) renderManifest(chartProvider *chart.Provider, model *reconciler
 		r.logger.Errorf("%s: %s", msg, err)
 		return "", errors.Wrap(err, msg)
 	}
-	manifests = append(manifests, chartManifest)
 
-	//get Kyma CRDs
-	if model.InstallCRD {
-		crdManifests, err := chartProvider.RenderCRD(model.Version)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to get CRD manifests for Kyma version '%s'", model.Version)
-			r.logger.Errorf("%s: %s", msg, err)
-			return "", errors.Wrap(err, msg)
-		}
-		manifests = append(manifests, crdManifests...)
+	return chartManifest.Manifest, nil
+}
+
+func (r *runner) renderCRDs(chartProvider *chart.Provider, model *reconciler.Reconciliation) (string, error) {
+	crdManifests, err := chartProvider.RenderCRD(model.Version)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to get CRD manifests for Kyma version '%s'", model.Version)
+		r.logger.Errorf("%s: %s", msg, err)
+		return "", errors.Wrap(err, msg)
 	}
-
-	return chart.MergeManifests(manifests...), nil
+	return chart.MergeManifests(crdManifests...), nil
 }

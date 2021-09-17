@@ -47,6 +47,10 @@ func (r *MockResult) RowsAffected() (int64, error) {
 	return MockRowsAffected, nil
 }
 
+func (c *MockConnection) DB() *sql.DB {
+	return nil
+}
+
 func (c *MockConnection) Encryptor() *Encryptor {
 	encryptor, err := NewEncryptor(MockEncryptorKey)
 	if err != nil {

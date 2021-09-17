@@ -31,10 +31,7 @@ func NewRemoteWorkerFactory(
 	operationsReg OperationsRegistry,
 	debug bool) (WorkerFactory, error) {
 
-	log, err := logger.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
+	log := logger.NewLogger(debug)
 
 	return &remoteWorkerFactory{
 		&baseWorkerFactory{

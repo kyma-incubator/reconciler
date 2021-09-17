@@ -68,7 +68,6 @@ func parseMothershipReconcilerConfig(configFile string) (scheduler.MothershipRec
 		Scheme:        viper.GetString("mothership.scheme"),
 		Host:          viper.GetString("mothership.host"),
 		Port:          viper.GetInt("mothership.port"),
-		CrdComponents: viper.GetStringSlice("crdComponents"),
 		PreComponents: viper.GetStringSlice("preComponents")}, nil
 }
 

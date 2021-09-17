@@ -5,6 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"github.com/gorilla/mux"
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
@@ -18,17 +24,13 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
 	clientgo "k8s.io/client-go/kubernetes"
-	"net/http"
-	"strings"
-	"testing"
-	"time"
 )
 
 const (
 	urlCallbackHTTPBin = "https://httpbin.org/post"
 	urlCallbackMock    = "http://localhost:11111/callback"
+	mockServerPort     = 11111
 
 	urlReconcilerRun = "http://localhost:9999/v1/run"
 
@@ -60,14 +62,14 @@ func TestReconciler(t *testing.T) {
 
 	//cleanup old pods after and before test execution
 	cleanup := service.NewTestCleanup(recon, kubeClient)
-	cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace)       //cleanup before tests are executed
-	defer cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace) //cleanup after tests are finished
+	cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace)       //cleanup before
+	defer cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace) //cleanup after
 
 	//create runtime context which is cancelled at the end of the test
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
-		time.Sleep(1 * time.Second) //give some time for graceful shutdown
+		time.Sleep(1 * time.Second) //give component reconciler some time for graceful shutdown
 	}()
 	startReconciler(ctx, t)
 
@@ -76,14 +78,14 @@ func TestReconciler(t *testing.T) {
 
 func setGlobalWorkspaceFactory(t *testing.T) {
 	//use ./test folder as workspace
-	wsf, err := workspace.NewFactory("test", logger.NewOptionalLogger(true))
+	wsf, err := workspace.NewFactory("test", logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsf))
 }
 
 func newKubeClient(t *testing.T) kubernetes.Client {
 	//create kubeClient (e.g. needed to verify reconciliation results)
-	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true), nil)
+	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 	return kubeClient
 }
@@ -93,8 +95,7 @@ func newComponentReconciler(t *testing.T) *service.ComponentReconciler {
 	recon, err := service.NewComponentReconciler(componentReconcilerName) //register brand new component reconciler
 	require.NoError(t, err)
 	//configure reconciler
-	require.NoError(t, recon.WithDependencies("abc", "xyz").Debug())
-	return recon
+	return recon.Debug().WithDependencies("abc", "xyz")
 }
 
 func startReconciler(ctx context.Context, t *testing.T) {
@@ -120,6 +121,7 @@ func post(t *testing.T, testCase testCase) interface{} {
 	require.NoError(t, err)
 
 	//nolint:gosec //in test cases is a dynamic URL acceptable
+	t.Logf("Sending post request to component reconciler (%s)", urlReconcilerRun)
 	resp, err := http.Post(urlReconcilerRun, "application/json",
 		bytes.NewBuffer(jsonPayload))
 	require.NoError(t, err)
@@ -132,7 +134,7 @@ func post(t *testing.T, testCase testCase) interface{} {
 	body, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	t.Logf("Body received: %s", string(body))
+	t.Logf("Body received from component reconciler: %s", string(body))
 
 	require.NoError(t, json.Unmarshal(body, testCase.expectedResponse))
 	return testCase.expectedResponse
@@ -151,7 +153,6 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Profile:         "unittest",
 				Configuration:   nil,
 				Kubeconfig:      "xyz",
-				InstallCRD:      false,
 				CorrelationID:   "test-correlation-id",
 			},
 			expectedHTTPCode: http.StatusPreconditionRequired,
@@ -172,7 +173,6 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      "",
-				InstallCRD:      false,
 				CorrelationID:   "test-correlation-id",
 				CallbackFunc:    nil,
 			},
@@ -192,7 +192,6 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      test.ReadKubeconfig(t),
-				InstallCRD:      false,
 				CorrelationID:   "test-correlation-id",
 			},
 			expectedHTTPCode: http.StatusOK,
@@ -200,6 +199,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			verifyResponseFct: func(t *testing.T, i interface{}) {
 				expectRunningPod(t, kubeClient) //wait until pod is ready
 			},
+			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
 		{
 			name: "Try to apply impossible change: add container to running pod",
@@ -216,17 +216,72 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 					},
 				},
 				Kubeconfig:    test.ReadKubeconfig(t),
-				InstallCRD:    false,
 				CorrelationID: "test-correlation-id",
+			},
+			expectedHTTPCode:   http.StatusOK,
+			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
+			verifyCallbacksFct: expectFailingReconciliation,
+		},
+		{
+			name: "Try to reconcile unreachable cluster",
+			model: &reconciler.Reconciliation{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				Profile:         "",
+				Configuration:   nil,
+				Kubeconfig: func() string {
+					kc, err := ioutil.ReadFile(filepath.Join("test", "kubeconfig-unreachable.yaml"))
+					require.NoError(t, err)
+					return string(kc)
+				}(),
+				CorrelationID: "test-correlation-id",
+			},
+			expectedHTTPCode:   http.StatusOK,
+			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
+			verifyCallbacksFct: expectFailingReconciliation,
+		},
+		{
+			name: "Try to deploy defective HELM chart",
+			model: &reconciler.Reconciliation{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				Profile:         "",
+				Configuration: []reconciler.Configuration{
+					{
+						Key:   "breakHelmChart",
+						Value: true,
+					},
+				},
+				Kubeconfig:    test.ReadKubeconfig(t),
+				CorrelationID: "test-correlation-id",
+			},
+			expectedHTTPCode:   http.StatusOK,
+			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
+			verifyCallbacksFct: expectFailingReconciliation,
+		},
+		{
+			name: "Simulate non-available mothership",
+			model: &reconciler.Reconciliation{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				Profile:         "",
+				Configuration:   nil,
+				Kubeconfig:      test.ReadKubeconfig(t),
+				CallbackURL:     "https://127.0.0.1:12345",
+				CorrelationID:   "test-correlation-id",
 			},
 			expectedHTTPCode: http.StatusOK,
 			expectedResponse: &reconciler.HTTPReconciliationResponse{},
 			verifyCallbacksFct: func(t *testing.T, callbacks []*reconciler.CallbackMessage) {
-				require.Equal(t, reconciler.Error, callbacks[len(callbacks)-1].Status) // last status should be error
+				require.Empty(t, callbacks)
 			},
 		},
-
-		//TODO: non-reachable cluster, insufficient permissions on cluster, defective helm-chart, non-started MS service
 	}
 
 	for _, testCase := range testCases {
@@ -234,8 +289,37 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 	}
 }
 
+func expectSuccessfulReconciliation(t *testing.T, callbacks []*reconciler.CallbackMessage) {
+	for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
+		if idx < len(callbacks)-1 {
+			require.Equal(t, reconciler.Running, callback.Status)
+		} else {
+			require.Equal(t, reconciler.Success, callback.Status)
+		}
+	}
+}
+
+func expectFailingReconciliation(t *testing.T, callbacks []*reconciler.CallbackMessage) {
+	for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
+		switch idx {
+		case 0:
+			//first callback has to indicate a running reconciliation
+			require.Equal(t, reconciler.Running, callback.Status)
+		case len(callbacks) - 1:
+			//last callback has to indicate an error
+			require.Equal(t, reconciler.Error, callback.Status)
+		default:
+			//callbacks during the reconciliation is ongoing have to indicate a failure or running
+			require.Contains(t, []reconciler.Status{
+				reconciler.Failed,
+				reconciler.Running,
+			}, callback.Status)
+		}
+	}
+}
+
 func newProgressTracker(t *testing.T, clientSet clientgo.Interface) *progress.Tracker {
-	prog, err := progress.NewProgressTracker(clientSet, logger.NewOptionalLogger(true), progress.Config{
+	prog, err := progress.NewProgressTracker(clientSet, logger.NewLogger(true), progress.Config{
 		Interval: 1 * time.Second,
 	})
 	require.NoError(t, err)
@@ -245,11 +329,22 @@ func newProgressTracker(t *testing.T, clientSet clientgo.Interface) *progress.Tr
 //newTestFct is required to make the linter happy ;)
 func newTestFct(testCase testCase) func(t *testing.T) {
 	return func(t *testing.T) {
-		//inject mock-url into model if required
-		if testCase.verifyCallbacksFct == nil {
-			testCase.model.CallbackURL = urlCallbackHTTPBin
-		} else {
-			testCase.model.CallbackURL = urlCallbackMock
+		var callbackC chan *reconciler.CallbackMessage
+
+		if testCase.model.CallbackURL == "" { //set fallback callback URL
+			if testCase.verifyCallbacksFct == nil { //check if validation of callback events has to happen
+				testCase.model.CallbackURL = urlCallbackHTTPBin
+			} else {
+				testCase.model.CallbackURL = urlCallbackMock
+
+				//start mock server to catch callback events
+				var server *http.Server
+				server, callbackC = newCallbackMock(t)
+				defer func() {
+					require.NoError(t, server.Shutdown(context.Background()))
+					time.Sleep(1 * time.Second) //give the server some time for graceful shutdown
+				}()
+			}
 		}
 
 		respModel := post(t, testCase)
@@ -258,57 +353,67 @@ func newTestFct(testCase testCase) func(t *testing.T) {
 		}
 
 		if testCase.verifyCallbacksFct != nil {
-			timer := time.NewTimer(workerTimeout)
-			var callbackC = newCallbackMock(t)
-			var received []*reconciler.CallbackMessage
-		Loop:
-			for {
-				select {
-				case callback := <-callbackC:
-					received = append(received, callback)
-					if finalStatus(callback.Status) {
-						break Loop
-					}
-				case <-timer.C:
-					t.Logf("Timeout reached for retrieving callbacks")
-					break Loop
-				}
-			}
+			received := receiveCallbacks(t, callbackC)
 			testCase.verifyCallbacksFct(t, received)
 		}
 	}
 }
 
-func newCallbackMock(t *testing.T) chan *reconciler.CallbackMessage {
+func newCallbackMock(t *testing.T) (*http.Server, chan *reconciler.CallbackMessage) {
 	callbackC := make(chan *reconciler.CallbackMessage, 100) //don't block
 
-	go func(t *testing.T, cbChannel chan *reconciler.CallbackMessage) {
-		router := mux.NewRouter()
+	router := mux.NewRouter()
+	router.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		body, err := ioutil.ReadAll(r.Body)
+		defer require.NoError(t, r.Body.Close())
+		require.NoError(t, err, "Failed to read HTTP callback message")
 
-		router.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-			body, err := ioutil.ReadAll(r.Body)
-			defer require.NoError(t, r.Body.Close())
-			require.NoError(t, err, "Failed to read HTTP callback message")
+		t.Logf("Callback mock server received following callback request: %s", string(body))
 
-			t.Logf("Received HTTP callback: %s", string(body))
+		callbackData := make(map[string]interface{})
+		require.NoError(t, json.Unmarshal(body, &callbackData))
 
-			callbackData := make(map[string]interface{})
-			require.NoError(t, json.Unmarshal(body, &callbackData))
+		status, err := reconciler.NewStatus(fmt.Sprintf("%s", callbackData["status"]))
+		require.NoError(t, err)
 
-			status, err := newStatus(fmt.Sprintf("%s", callbackData["status"]))
-			require.NoError(t, err)
+		callbackC <- &reconciler.CallbackMessage{
+			Status: status,
+			Error:  errors.New(fmt.Sprintf("%s", callbackData["error"])),
+		}
+	})
 
-			cbChannel <- &reconciler.CallbackMessage{
-				Status: status,
-				Error:  errors.New(fmt.Sprintf("%s", callbackData["error"])),
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", mockServerPort),
+		Handler: router,
+	}
+	go func() {
+		t.Logf("Starting callback mock server on port %d", mockServerPort)
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			t.Logf("Failed to start callback mock server: %s", err)
+		}
+		t.Log("Shutting down callback mock server")
+	}()
+	cliTest.WaitForTCPSocket(t, "localhost", mockServerPort, 3*time.Second)
+
+	return srv, callbackC
+}
+
+func receiveCallbacks(t *testing.T, callbackC chan *reconciler.CallbackMessage) []*reconciler.CallbackMessage {
+	var received []*reconciler.CallbackMessage
+Loop:
+	for {
+		select {
+		case callback := <-callbackC:
+			received = append(received, callback)
+			if callback.Status == reconciler.Error || callback.Status == reconciler.Success {
+				break Loop
 			}
-		})
-		go func() {
-			require.NoError(t, http.ListenAndServe(":11111", router))
-		}()
-	}(t, callbackC)
-
-	return callbackC
+		case <-time.NewTimer(workerTimeout).C:
+			t.Logf("Timeout reached for retrieving callbacks")
+			break Loop
+		}
+	}
+	return received
 }
 
 func expectRunningPod(t *testing.T, kubeClient kubernetes.Client) {
@@ -323,25 +428,4 @@ func expectRunningPod(t *testing.T, kubeClient kubernetes.Client) {
 	prog.AddResource(watchable, componentNamespace, componentPod)
 	require.NoError(t, prog.Watch(context.TODO(), progress.ReadyState))
 	t.Logf("Pod '%s' reached READY state", componentPod)
-}
-
-func finalStatus(status reconciler.Status) bool {
-	return status == reconciler.Error || status == reconciler.Success
-}
-
-func newStatus(status string) (reconciler.Status, error) {
-	switch strings.ToLower(status) {
-	case string(reconciler.NotStarted):
-		return reconciler.NotStarted, nil
-	case string(reconciler.Failed):
-		return reconciler.Failed, nil
-	case string(reconciler.Error):
-		return reconciler.Error, nil
-	case string(reconciler.Running):
-		return reconciler.Running, nil
-	case string(reconciler.Success):
-		return reconciler.Success, nil
-	default:
-		return "", fmt.Errorf("status '%s' not found", status)
-	}
 }

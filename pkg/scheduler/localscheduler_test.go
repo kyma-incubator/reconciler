@@ -2,8 +2,9 @@ package scheduler
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
@@ -33,9 +34,10 @@ func TestLocalScheduler(t *testing.T) {
 	}
 
 	workerMock := &MockReconciliationWorker{}
-	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	workerMock.On("Reconcile", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	workerFactoryMock := &MockWorkerFactory{}
+	workerFactoryMock.On("ForComponent", "CRDs").Return(workerMock, nil)
 	workerFactoryMock.On("ForComponent", "logging").Return(workerMock, nil)
 	workerFactoryMock.On("ForComponent", "monitoring").Return(workerMock, nil)
 
@@ -47,43 +49,28 @@ func TestLocalScheduler(t *testing.T) {
 	err := sut.Run(context.Background(), testCluster)
 	require.NoError(t, err)
 
-	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 2)
-	workerMock.AssertNumberOfCalls(t, "Reconcile", 2)
+	workerFactoryMock.AssertNumberOfCalls(t, "ForComponent", 3)
+	workerMock.AssertNumberOfCalls(t, "Reconcile", 3)
 }
 
 func TestLocalSchedulerOrder(t *testing.T) {
 	testCases := []struct {
 		summary       string
 		prerequisites []string
-		crdComponents []string
 		allComponents []string
 		expectedOrder []string
 	}{
 		{
-			summary:       "single prerequisite",
+			summary:       "single prereq",
 			prerequisites: []string{"b"},
-			allComponents: []string{"a", "b"},
-			expectedOrder: []string{"b", "a"},
+			allComponents: []string{"CRDs", "a", "b"},
+			expectedOrder: []string{"CRDs", "b", "a"},
 		},
 		{
 			summary:       "multiple prereqs",
 			prerequisites: []string{"b", "d"},
-			allComponents: []string{"d", "a", "b"},
-			expectedOrder: []string{"d", "b", "a"},
-		},
-		{
-			summary:       "non-overlapping prereqs and crds",
-			prerequisites: []string{"b", "d"},
-			crdComponents: []string{"c", "e"},
-			allComponents: []string{"d", "c", "a", "e", "b"},
-			expectedOrder: []string{"c", "e", "d", "b", "a"},
-		},
-		{
-			summary:       "overlapping prereqs and crds",
-			prerequisites: []string{"b", "d"},
-			crdComponents: []string{"c", "b"},
-			allComponents: []string{"d", "c", "a", "b"},
-			expectedOrder: []string{"c", "b", "d", "a"},
+			allComponents: []string{"CRDs", "d", "a", "b"},
+			expectedOrder: []string{"CRDs", "d", "b", "a"},
 		},
 	}
 
@@ -96,7 +83,9 @@ func TestLocalSchedulerOrder(t *testing.T) {
 				KymaConfig: keb.KymaConfig{},
 			}
 			for _, c := range tc.allComponents {
-				testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Component{Component: c})
+				if c != "CRDs" {
+					testCluster.KymaConfig.Components = append(testCluster.KymaConfig.Components, keb.Component{Component: c})
+				}
 			}
 
 			var reconciledComponents []string
@@ -116,7 +105,6 @@ func TestLocalSchedulerOrder(t *testing.T) {
 			sut := LocalScheduler{
 				logger:        zap.NewNop().Sugar(),
 				prereqs:       tc.prerequisites,
-				crdComponents: tc.crdComponents,
 				workerFactory: workerFactoryMock,
 			}
 
@@ -135,7 +123,7 @@ func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
 	//collisions when sharing the same directory)
-	wsFact, err := workspace.NewFactory(workspaceDir, logger.NewOptionalLogger(true))
+	wsFact, err := workspace.NewFactory(workspaceDir, logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsFact))
 

@@ -60,7 +60,7 @@ func TestKubernetesClient(t *testing.T) {
 	test.IntegrationTest(t)
 
 	//create client
-	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewOptionalLogger(true), &Config{
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), &Config{
 		ProgressInterval: 1 * time.Second,
 		ProgressTimeout:  1 * time.Minute,
 	})

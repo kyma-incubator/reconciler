@@ -42,7 +42,7 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func RunLocal(o *Options) error {
-	l := logger.NewOptionalLogger(o.Verbose)
+	l := logger.NewLogger(o.Verbose)
 
 	l.Infof("Local installation started with kubeconfig %s", o.kubeconfigFile)
 

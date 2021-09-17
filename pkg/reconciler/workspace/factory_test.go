@@ -15,7 +15,7 @@ import (
 const version = "1.20.0"
 
 func TestWorkspaceFactory(t *testing.T) {
-	logger := log.NewOptionalLogger(true)
+	logger := log.NewLogger(true)
 
 	t.Run("Test validation", func(t *testing.T) {
 		wsf1 := Factory{
@@ -36,7 +36,7 @@ func TestWorkspaceFactory(t *testing.T) {
 		test.IntegrationTest(t)
 
 		workspaceDir := filepath.Join(".", "test", version)
-		wsf, err := NewFactory("test", log.NewOptionalLogger(true))
+		wsf, err := NewFactory("test", log.NewLogger(true))
 		require.NoError(t, err)
 
 		//cleanup at the beginning (if test was interrupted before)
@@ -56,7 +56,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		//delete success file
 		t.Log("Deleting success file to simulate broken workspace")
-		err = os.Remove(filepath.Join(workspaceDir, successFile))
+		err = os.Remove(filepath.Join(workspaceDir, wsReadyIndicatorFile))
 		require.NoError(t, err)
 
 		//trigger re-cloning
@@ -65,12 +65,12 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		//check again all the required files including success file
 		checkWorkspaceDirectories(t, ws)
-		require.True(t, file.Exists(filepath.Join(workspaceDir, successFile)))
+		require.True(t, file.Exists(filepath.Join(workspaceDir, wsReadyIndicatorFile)))
 	})
 
 	t.Run("Use local workspace", func(t *testing.T) {
 		workspaceDir := filepath.Join(".", "test", "local")
-		wsf, err := NewFactory(workspaceDir, log.NewOptionalLogger(true))
+		wsf, err := NewFactory(workspaceDir, log.NewLogger(true))
 		require.NoError(t, err)
 		localWs, err := wsf.Get(VersionLocal)
 		require.NoError(t, err)

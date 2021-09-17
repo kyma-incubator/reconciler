@@ -16,22 +16,15 @@ type Repository struct {
 }
 
 func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
-	logger, err := log.NewLogger(debug)
-	if err != nil {
-		return nil, err
-	}
 	conn, err := dbFac.NewConnection()
 	if err != nil {
 		return nil, err
 	}
-	cacheDepMgr, err := newCacheDependencyManager(conn, debug)
-	if err != nil {
-		return nil, err
-	}
+
 	return &Repository{
 		Conn:     conn,
-		Logger:   logger,
-		CacheDep: cacheDepMgr,
+		Logger:   log.NewLogger(debug),
+		CacheDep: newCacheDependencyManager(conn, debug),
 	}, nil
 }
 

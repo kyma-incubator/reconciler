@@ -57,7 +57,8 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 	t.Parallel()
 
-	logger := log.NewOptionalLogger(true)
+	logger := log.NewLogger(true)
+
 	t.Run("Test heartbeat sender without timeout", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -127,15 +128,11 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 		time.Sleep(2 * time.Second) //wait longer than status update timeout to timeout
 
-		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything <= 2 is sufficient to ensure the statusUpdaters worked
+		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything >= 2 is sufficient to ensure the statusUpdaters worked
 
 		err = heartbeatSender.Failed(errors.New("I'm failing"))
 		require.Error(t, err)
 		require.IsType(t, &e.ContextClosedError{}, err) //status changes have to fail after status-updater was interrupted
-
-		// check fired status updates: anything 1 >= x <= 3 is sufficient to ensure the heartbeatSenders worked
-		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 1)
-		require.LessOrEqual(t, len(callbackHdlr.Statuses()), 3)
 	})
 
 }

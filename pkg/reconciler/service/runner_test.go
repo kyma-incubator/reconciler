@@ -16,7 +16,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 const (
@@ -35,20 +34,18 @@ type TestAction struct {
 	failAlways      bool
 }
 
-func (a *TestAction) logger() *zap.SugaredLogger {
-	return logger.NewOptionalLogger(true)
-}
-
 func (a *TestAction) Run(version, profile string, config []reconciler.Configuration, context *ActionContext) error {
+	log := logger.NewLogger(true)
+
 	if context.KubeClient == nil {
 		return fmt.Errorf("kubeClient is expected but was nil")
 	}
 
-	a.logger().Debugf("Action '%s': received version '%s'", a.name, version)
+	log.Debugf("Action '%s': received version '%s'", a.name, version)
 	a.receivedVersion = version
 
 	if a.delay > 0 {
-		a.logger().Debugf("Action '%s': simulating delay of %v secs", a.name, a.delay.Seconds())
+		log.Debugf("Action '%s': simulating delay of %v secs", a.name, a.delay.Seconds())
 		time.Sleep(a.delay)
 	}
 
@@ -56,7 +53,7 @@ func (a *TestAction) Run(version, profile string, config []reconciler.Configurat
 		if !a.failAlways {
 			a.fail = false //in next retry it won't fail again
 		}
-		a.logger().Debugf("Action '%s': simulating error", a.name)
+		log.Debugf("Action '%s': simulating error", a.name)
 		return fmt.Errorf("action '%s' is failing", a.name)
 	}
 
@@ -87,7 +84,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, instAct, postAct, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -112,7 +109,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -136,7 +133,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, apiGatewayComponent, kymaVersion, false, "default")
+		model := newModel(t, apiGatewayComponent, kymaVersion, "default")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -160,7 +157,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -184,7 +181,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, apiGatewayComponent, kymaVersion, true, "default")
+		model := newModel(t, apiGatewayComponent, kymaVersion, "default")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -204,7 +201,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, clusterUsersComponent, kymaVersion, true, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -225,7 +222,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, nil, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -246,7 +243,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, install, nil, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -271,7 +268,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, install, postAct, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, false, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -285,7 +282,7 @@ func TestRunner(t *testing.T) {
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
 		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Second)
-		model := newModel(t, fakeComponent, fakeKymaVersion, false, "")
+		model := newModel(t, fakeComponent, fakeKymaVersion, "")
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -303,9 +300,8 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 
-	require.NoError(t, recon.Debug())
-
-	recon.WithWorkspace("./test").
+	recon.Debug().
+		WithWorkspace("./test").
 		WithRetry(3, 1*time.Second).
 		WithWorkers(5, timeout).
 		WithHeartbeatSenderConfig(interval, timeout).
@@ -314,17 +310,16 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 		WithPostReconcileAction(postAct).
 		WithProgressTrackerConfig(interval, timeout)
 
-	return &runner{recon}
+	return &runner{recon, logger.NewLogger(true)}
 }
 
 func newCleanupFunc(t *testing.T) func(bool) {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
-	require.NoError(t, recon.Debug())
 
-	recon.WithWorkspace("./test") //use test-subfolder to cache Kyma sources
+	recon.Debug().WithWorkspace("./test") //use test-subfolder to cache Kyma sources
 
-	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewOptionalLogger(true), nil)
+	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	cleanup := NewTestCleanup(recon, kubeClient)
@@ -336,7 +331,7 @@ func newCleanupFunc(t *testing.T) func(bool) {
 		cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
 		//remove the cloned workspace
 		if deleteWorkspace {
-			wsf, err := ws.NewFactory("./test", logger.NewOptionalLogger(true))
+			wsf, err := ws.NewFactory("./test", logger.NewLogger(true))
 			require.NoError(t, err)
 
 			require.NoError(t, wsf.Delete(kymaVersion))
@@ -344,9 +339,8 @@ func newCleanupFunc(t *testing.T) func(bool) {
 	}
 }
 
-func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, namespace string) *reconciler.Reconciliation {
+func newModel(t *testing.T, kymaComponent, kymaVersion string, namespace string) *reconciler.Reconciliation {
 	return &reconciler.Reconciliation{
-		InstallCRD: installCRD,
 		Component:  kymaComponent,
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
@@ -359,7 +353,7 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string, installCRD bool, 
 func newCallbackHandler(t *testing.T) callback.Handler {
 	callbackHdlr, err := callback.NewLocalCallbackHandler(func(msg *reconciler.CallbackMessage) error {
 		return nil
-	}, logger.NewOptionalLogger(true))
+	}, logger.NewLogger(true))
 	require.NoError(t, err)
 	return callbackHdlr
 }
