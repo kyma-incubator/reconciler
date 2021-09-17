@@ -12,27 +12,27 @@ Follow these steps to run Reconciler locally:
 
 1. Build the Reconciler binary:
 
-```
-make build-darwin 
-```
+   ```bash
+   make build-darwin 
+   ```
 
 
-2. Run Reconciler with the default configuration. By default, Reconciler installs all components listed in the [components.yaml](https://github.com/kyma-project/kyma/blob/main/installation/resources/components.yaml) file.
+2. Run Reconciler with the default configuration. By default, Reconciler installs all components listed in the [`components.yaml`](https://github.com/kyma-project/kyma/blob/main/installation/resources/components.yaml) file.
 
-```
-./bin/reconciler-darwin local 
-```
+   ```bash
+   ./bin/reconciler-darwin local 
+   ```
 
-**Warning: at this moment reconciliation with default values will fail. You need to specify additional parameters**
-```
-./bin/reconciler-darwin local global.ingress.domainName=example.com,global.domainName=example.com,tracing.authProxy.config.useDex=false,tracing.virtualservice.enabled=false,kiali.authProxy.config.useDex=false,kiali.virtualservice.enabled=false
-```
+   > **CAUTION:** At the moment, reconciliation with default values will fail. You must specify additional parameters:
+   > ```bash
+   > ./bin/reconciler-darwin local global.ingress.domainName=example.com,global.domainName=example.com,tracing.authProxy.config.useDex=false,tracing.virtualservice.enabled=false,kiali.authProxy.config.useDex=false,kiali.virtualservice.enabled=false
+   > ```
 
 
-You can also run Reconciler with the specified components:
-```
-./bin/reconciler-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
-```
+   Alternatively, you can run Reconciler with the specified components:
+   ```bash
+   ./bin/reconciler-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
+   ```
 
 
 
