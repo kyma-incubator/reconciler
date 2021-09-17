@@ -46,7 +46,7 @@ func TestAnnotationsInterceptor(t *testing.T) {
 			annotations: map[string]string{
 				"some-annotation":   "some-value",
 				"some-annotation2":  "some-value2",
-				ManagedByAnnotation: AnnotationReconcilerValue,
+				ManagedByAnnotation: annotationReconcilerValue,
 			},
 		},
 	}
