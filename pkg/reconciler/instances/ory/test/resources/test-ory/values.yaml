@@ -1,0 +1,13 @@
+global:
+  postgresql:
+    postgresqlDatabase: testdb
+    postgresqlUsername: tester
+  ory:
+    hydra:
+      persistence:
+        enabled: true
+        gcloud:
+          enabled: false
+          saJson: ""
+        postgresql:
+          enabled: true

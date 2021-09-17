@@ -16,9 +16,10 @@ import (
 const (
 	dsnOpts     = "sslmode=disable&max_conn_lifetime=10s"
 	dsnTemplate = "%s://%s:%s@%s/%s?%s"
+	postgresURL = "ory-postgresql.kyma-system.svc.cluster.local:5432"
 )
 
-func newConfig(chartValues map[string]interface{}) (*Config, error) {
+func new(chartValues map[string]interface{}) (*Config, error) {
 	data, err := yaml.Marshal(chartValues)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to marshal Ory chart values")
@@ -33,18 +34,18 @@ func newConfig(chartValues map[string]interface{}) (*Config, error) {
 	return val, nil
 }
 
-// PrepareSecret creates Kubernetes Secret object matching the provided helm values.
-func PrepareSecret(name types.NamespacedName, values map[string]interface{}) (*v1.Secret, error) {
-	c, err := newConfig(values)
+// Get creates Kubernetes Secret object matching the provided helm values.
+func Get(name types.NamespacedName, values map[string]interface{}) (*v1.Secret, error) {
+	cfg, err := new(values)
 	if err != nil {
 		return nil, err
 	}
 
-	if c.Global.PostgresCfg.Password == "" {
-		c.Global.PostgresCfg.Password = generateRandomString(10)
+	if cfg.Global.PostgresCfg.Password == "" {
+		cfg.Global.PostgresCfg.Password = generateRandomString(10)
 	}
 
-	data := c.prepareStringData()
+	data := cfg.prepareStringData()
 
 	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,9 +57,7 @@ func PrepareSecret(name types.NamespacedName, values map[string]interface{}) (*v
 }
 
 func (c *Config) preparePostgresDSN() string {
-	url := "ory-postgresql.kyma-system.svc.cluster.local:5432"
-
-	return fmt.Sprintf(dsnTemplate, "postgres", c.Global.PostgresCfg.User, c.Global.PostgresCfg.Password, url, c.Global.PostgresCfg.DBName, dsnOpts)
+	return fmt.Sprintf(dsnTemplate, "postgres", c.Global.PostgresCfg.User, c.Global.PostgresCfg.Password, postgresURL, c.Global.PostgresCfg.DBName, dsnOpts)
 }
 
 func (c *Config) prepareStringData() map[string]string {

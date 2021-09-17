@@ -22,9 +22,19 @@ type jwksPatchJSONValue struct {
 	Jwks []byte `json:"jwks.json"`
 }
 
-// PreparePatchData generates a JSON Web Key Set with RSA Signature Algorithm and returns the JSON encoded patch for Ory secret.
-func PreparePatchData(alg string, bits int) ([]byte, error) {
-	data, err := generateJwksSecret(alg, bits)
+type JWKS struct {
+	alg  string
+	bits int
+}
+
+func new(alg string, bits int) *JWKS {
+	return &JWKS{alg, bits}
+}
+
+// Get generates a JSON Web Key Set with RSA Signature Algorithm and returns the JSON encoded patch for Ory secret.
+func Get(alg string, bits int) ([]byte, error) {
+	cfg := new(alg, bits)
+	data, err := cfg.generateJwksSecret()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate key key")
 	}
@@ -45,16 +55,16 @@ func PreparePatchData(alg string, bits int) ([]byte, error) {
 	return patchDataJSON, nil
 }
 
-func generateJwksSecret(alg string, bits int) ([]byte, error) {
+func (j *JWKS) generateJwksSecret() ([]byte, error) {
 	id := uuid.New().String()
-	key, err := generateRSAKey(bits)
+	key, err := j.generateRSAKey()
 	if err != nil {
 		return nil, err
 	}
 	jwks := &jose.JSONWebKeySet{
 		Keys: []jose.JSONWebKey{
 			{
-				Algorithm:    alg,
+				Algorithm:    j.alg,
 				Use:          "sig",
 				Key:          key,
 				KeyID:        id,
@@ -72,14 +82,14 @@ func generateJwksSecret(alg string, bits int) ([]byte, error) {
 }
 
 // generateRSAKey generates keypair for corresponding RSA Signature Algorithm.
-func generateRSAKey(bits int) (crypto.PrivateKey, error) {
-	if bits == 0 {
-		bits = 2048
+func (j *JWKS) generateRSAKey() (crypto.PrivateKey, error) {
+	if j.bits == 0 {
+		j.bits = 2048
 	}
-	if bits < 2048 {
+	if j.bits < 2048 {
 		return nil, errors.Errorf(`jwks: key size must be at least 2048 bit for algorithm`)
 	}
-	key, err := rsa.GenerateKey(rand.Reader, bits)
+	key, err := rsa.GenerateKey(rand.Reader, j.bits)
 	if err != nil {
 		return nil, errors.Wrap(err, "jwks: unable to generate RSA key")
 	}

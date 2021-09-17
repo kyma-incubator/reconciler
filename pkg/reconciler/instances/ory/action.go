@@ -24,8 +24,16 @@ const (
 	jwksBits     = 2048
 )
 
-type ReconcileAction struct {
+type oryAction struct {
 	step string
+}
+
+type preAction struct {
+	*oryAction
+}
+
+type postAction struct {
+	*oryAction
 }
 
 var (
@@ -33,7 +41,7 @@ var (
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
 )
 
-func (a *ReconcileAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
+func (a *preAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
 	logger := context.Logger
 	component := chart.NewComponentBuilder(version, oryChart).WithNamespace(oryNamespace).WithProfile(profile).WithConfiguration(config).Build()
 	values, err := context.ChartProvider.Configuration(component)
@@ -41,36 +49,44 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 		return errors.Wrap(err, "failed to retrieve Ory chart values")
 	}
 
-	kubeClient, err := context.KubeClient.Clientset()
+	client, err := context.KubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	switch a.step {
-	case "pre-install":
-		secretObject, err := db.PrepareSecret(dbNamespacedName, values)
-		if err != nil {
-			return errors.Wrap(err, "failed to prepare db credentials data for Ory Hydra")
-		}
-		if err := a.ensureOrySecret(context.Context, kubeClient, dbNamespacedName, *secretObject, logger); err != nil {
-			return errors.Wrap(err, "failed to ensure Ory secret")
-		}
-	case "post-install":
-		patchData, err := jwks.PreparePatchData(jwksAlg, jwksBits)
-		if err != nil {
-			return errors.Wrap(err, "failed to generate JWKS secret")
-		}
-		if err := a.patchSecret(context.Context, kubeClient, jwksNamespacedName, patchData, logger); err != nil {
-			return errors.Wrap(err, "failed to patch Ory secret")
-		}
+	secretObject, err := db.Get(dbNamespacedName, values)
+	if err != nil {
+		return errors.Wrap(err, "failed to prepare db credentials data for Ory Hydra")
+	}
+	if err := a.ensureOrySecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
+		return errors.Wrap(err, "failed to ensure Ory secret")
 	}
 
-	context.Logger.Infof("Action '%s' executed (passed version was '%s')", a.step, version)
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, version)
 
 	return nil
 }
 
-func (a *ReconcileAction) ensureOrySecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
+func (a *postAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
+	logger := context.Logger
+	client, err := context.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
+	}
+	patchData, err := jwks.Get(jwksAlg, jwksBits)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate JWKS secret")
+	}
+	if err := a.patchSecret(context.Context, client, jwksNamespacedName, patchData, logger); err != nil {
+		return errors.Wrap(err, "failed to patch Ory secret")
+	}
+
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, version)
+
+	return nil
+}
+
+func (a *preAction) ensureOrySecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
 	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -79,10 +95,10 @@ func (a *ReconcileAction) ensureOrySecret(ctx context.Context, client kubernetes
 		return errors.Wrap(err, "failed to get secret")
 	}
 
-	return nil
+	return err
 }
 
-func (a *ReconcileAction) patchSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, data []byte, logger *zap.SugaredLogger) error {
+func (a *postAction) patchSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, data []byte, logger *zap.SugaredLogger) error {
 	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to get secret")
@@ -93,7 +109,7 @@ func (a *ReconcileAction) patchSecret(ctx context.Context, client kubernetes.Int
 	}
 	logger.Infof("Secret %s patched", name.String())
 
-	return nil
+	return err
 }
 
 func createSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {

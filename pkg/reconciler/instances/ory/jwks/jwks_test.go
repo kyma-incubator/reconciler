@@ -12,7 +12,8 @@ func TestGenerateJwks(t *testing.T) {
 	for _, alg := range signingKeysAvailableAlgorithms() {
 		alg := alg
 		t.Run(fmt.Sprintf("alg=%s", alg), func(t *testing.T) {
-			data, err := generateJwksSecret(alg, 0)
+			j := new(alg, 0)
+			data, err := j.generateJwksSecret()
 			require.NoError(t, err)
 			t.Logf("%+v", data)
 		})
