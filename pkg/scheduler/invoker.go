@@ -41,7 +41,6 @@ func (p *InvokeParams) createReconciliationModel() *reconciler.Reconciliation {
 		Profile:         p.ClusterState.Configuration.KymaProfile,
 		Configuration:   mapConfiguration(p.ComponentToReconcile.Configuration),
 		Kubeconfig:      p.ClusterState.Cluster.Kubeconfig,
-		InstallCRD:      p.InstallCRD,
 		CorrelationID:   p.CorrelationID,
 		Repository: reconciler.Repository{
 			URL: p.ComponentToReconcile.URL,
