@@ -17,7 +17,7 @@ func (l *AnnotationsInterceptor) Intercept(resource *unstructured.Unstructured) 
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
-	annotations[ManagedByAnnotation] = AnnotationReconcilerValue
+	annotations[ManagedByAnnotation] = annotationReconcilerValue
 	resource.SetAnnotations(annotations)
 	return nil
 }
