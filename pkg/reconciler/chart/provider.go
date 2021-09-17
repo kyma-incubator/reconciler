@@ -108,6 +108,20 @@ func (p *Provider) RenderManifest(component *Component) (*Manifest, error) {
 	}, nil
 }
 
+func (p *Provider) Configuration(component *Component) (map[string]interface{}, error) {
+	ws, err := p.newWorkspace(component.version)
+	if err != nil {
+		return nil, err
+	}
+
+	helmClient, err := NewHelmClient(ws.ResourceDir, p.logger)
+	if err != nil {
+		return nil, err
+	}
+
+	return helmClient.Configuration(component)
+}
+
 func (p *Provider) newWorkspace(version string) (*workspace.Workspace, error) {
 	p.logger.Debugf("Getting workspace for Kyma '%s'", version)
 	ws, err := p.wsFactory.Get(version)
