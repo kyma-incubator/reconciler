@@ -11,6 +11,7 @@ const (
 )
 
 type Connection interface {
+	DB() *sql.DB
 	Encryptor() *Encryptor
 	QueryRow(query string, args ...interface{}) (DataRow, error)
 	Query(query string, args ...interface{}) (DataRows, error)
@@ -21,7 +22,7 @@ type Connection interface {
 }
 
 type ConnectionFactory interface {
-	Init() error
+	Init(migrate bool) error
 	NewConnection() (Connection, error)
 }
 
