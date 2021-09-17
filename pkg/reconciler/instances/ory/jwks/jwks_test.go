@@ -9,7 +9,7 @@ import (
 )
 
 func TestGenerateJwks(t *testing.T) {
-	for _, alg := range generateSigningKeysAvailableAlgorithms() {
+	for _, alg := range signingKeysAvailableAlgorithms() {
 		alg := alg
 		t.Run(fmt.Sprintf("alg=%s", alg), func(t *testing.T) {
 			data, err := generateJwksSecret(alg, 0)
@@ -19,7 +19,7 @@ func TestGenerateJwks(t *testing.T) {
 	}
 }
 
-func generateSigningKeysAvailableAlgorithms() []string {
+func signingKeysAvailableAlgorithms() []string {
 	return []string{
 		string(jose.RS256), string(jose.RS384), string(jose.RS512), string(jose.PS256), string(jose.PS384), string(jose.PS512),
 	}

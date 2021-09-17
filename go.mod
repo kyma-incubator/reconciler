@@ -19,21 +19,13 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/olekukonko/tablewriter v0.0.5
-<<<<<<< HEAD
-=======
-	github.com/onsi/gomega v1.8.1 // indirect
-<<<<<<< HEAD
-	github.com/ory/x v0.0.280
->>>>>>> 678f4ec (Add initial deployment of Ory chart)
-=======
->>>>>>> cbab9fb (Remove unneeded depedencies)
 	github.com/panjf2000/ants/v2 v2.4.6
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.8.1
-	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
+	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.7.0
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0

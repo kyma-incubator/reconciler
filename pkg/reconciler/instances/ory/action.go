@@ -60,7 +60,7 @@ func (a *ReconcileAction) Run(version, profile string, config []reconciler.Confi
 		if err != nil {
 			return errors.Wrap(err, "failed to generate JWKS secret")
 		}
-		if err := patchSecret(context.Context, kubeClient, jwksNamespacedName, patchData, logger); err != nil {
+		if err := a.patchSecret(context.Context, kubeClient, jwksNamespacedName, patchData, logger); err != nil {
 			return errors.Wrap(err, "failed to patch Ory secret")
 		}
 	}
@@ -81,8 +81,13 @@ func (a *ReconcileAction) ensureOrySecret(ctx context.Context, client kubernetes
 
 	return nil
 }
-func patchSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, data []byte, logger *zap.SugaredLogger) error {
-	_, err := client.CoreV1().Secrets(name.Namespace).Patch(ctx, name.Name, types.JSONPatchType, data, metav1.PatchOptions{})
+
+func (a *ReconcileAction) patchSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, data []byte, logger *zap.SugaredLogger) error {
+	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to get secret")
+	}
+	_, err = client.CoreV1().Secrets(name.Namespace).Patch(ctx, name.Name, types.JSONPatchType, data, metav1.PatchOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to patch the secret")
 	}
@@ -91,7 +96,6 @@ func patchSecret(ctx context.Context, client kubernetes.Interface, name types.Na
 	return nil
 }
 
-// createSecret creates a new Ory hydra credentials secret for accessing the database.
 func createSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
 	_, err := client.CoreV1().Secrets(name.Namespace).Create(ctx, &secret, metav1.CreateOptions{})
 	if err != nil {
