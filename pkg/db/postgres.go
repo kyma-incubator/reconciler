@@ -10,6 +10,11 @@ import (
 	//add Postgres driver:
 	_ "github.com/lib/pq"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+
+	//add migrator source:
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"go.uber.org/zap"
 )
 
@@ -36,6 +41,10 @@ func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQu
 		validator: validator,
 		logger:    logger,
 	}, nil
+}
+
+func (pc *PostgresConnection) DB() *sql.DB {
+	return pc.db
 }
 
 func (pc *PostgresConnection) Encryptor() *Encryptor {
@@ -96,12 +105,21 @@ type PostgresConnectionFactory struct {
 	Password      string
 	SslMode       bool
 	EncryptionKey string
+	MigrationsDir string
 	Debug         bool
 	blockQueries  bool
 }
 
-func (pcf *PostgresConnectionFactory) Init() error {
-	return pcf.checkPostgresIsolationLevel()
+func (pcf *PostgresConnectionFactory) Init(migrate bool) error {
+	if err := pcf.checkPostgresIsolationLevel(); err != nil {
+		return err
+	}
+	if migrate {
+		if err := pcf.migrateDatabase(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
@@ -161,5 +179,31 @@ func (pcf *PostgresConnectionFactory) checkPostgresIsolationLevel() error {
 
 	logger.Infof("Postgres isolation level is: %v", isoLevel)
 
+	return nil
+}
+
+func (pcf *PostgresConnectionFactory) migrateDatabase() error {
+	logger := log.NewLogger(pcf.Debug)
+	dbConn, err := pcf.NewConnection()
+	if err != nil {
+		return errors.Wrap(err, "not able to open DB connection to perform migration")
+	}
+	defer func() {
+		if err := dbConn.Close(); err != nil {
+			logger.Warnf("Failed to close DB connection which was used to perform migration: %s", err)
+		}
+	}()
+	driver, err := postgres.WithInstance(dbConn.DB(), &postgres.Config{})
+	if err != nil {
+		return errors.Wrap(err, "not able to instantiate postgres driver for migration")
+	}
+	m, err := migrate.NewWithDatabaseInstance("file://"+pcf.MigrationsDir, "postgres", driver)
+	if err != nil {
+		return errors.Wrap(err, "not able to instantiate migrator with database instance")
+	}
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return errors.Wrapf(err, "not able to execute migrations: %s", err)
+	}
+	logger.Info("Database migrated")
 	return nil
 }

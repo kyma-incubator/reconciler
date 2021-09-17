@@ -12,6 +12,7 @@ db:
     user: kyma
     password: kyma
     useSsl: false
+    migrationsDir: "./configs/db/postgres"
   sqlite:
     file: "reconciler.db"
     deploySchema: true
