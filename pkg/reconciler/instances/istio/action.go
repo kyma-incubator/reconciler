@@ -1,6 +1,11 @@
 package istio
 
 import (
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
@@ -8,6 +13,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"strings"
+	"helm.sh/helm/v3/pkg/chart/loader"
 )
 
 const (
@@ -59,7 +65,20 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 	} else {
-		if !canUpdate(ver) {
+		appVersion, err := getAppVersionFromChart(context, version)
+		if err != nil {
+			return err
+		}
+
+		if !isClientVersionAcceptable(ver, appVersion) {
+			return errors.Errorf("Istio could not be updated since the binary version: %s is not up to date: %s", ver.ClientVersion, appVersion)
+		}
+
+		if isDowngrade(ver, appVersion) {
+			return errors.Errorf("Istio does not need to be downgraded from version: %s to version: %s", ver.PilotVersion, appVersion)
+		}
+
+		if !canUpdate(ver, appVersion) {
 			return errors.New("Istio could not be updated due to the versions limitations")
 		}
 
@@ -88,6 +107,20 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
+// Gets the appVersion to upgrade to from Chart.yml using the helm client
+func getAppVersionFromChart(context *service.ActionContext, version string) (string, error) {
+	ws, err := context.WorkspaceFactory.Get(version)
+	if err != nil {
+		return "", err
+	}
+	chart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	if err != nil {
+		return "", err
+	}
+	return chart.Metadata.AppVersion, nil
+}
+
+// Checks if istio is already installed
 func shouldInstall(version actions.IstioVersion) bool {
 	if version.DataPlaneVersion == "" && version.PilotVersion == "" {
 		return true
@@ -96,17 +129,67 @@ func shouldInstall(version actions.IstioVersion) bool {
 	}
 }
 
-func canUpdate(version actions.IstioVersion) bool {
-	// mockup function
-	return false
+// Checks if istioctl version is up to date
+func isClientVersionAcceptable(version actions.IstioVersion, appVersion string) bool {
+	return version.ClientVersion == appVersion
 }
 
-func isMismatchPresent(version actions.IstioVersion) bool {
-	if version.PilotVersion != version.DataPlaneVersion {
-		return true
-	} else {
+// Checks if the update required is different by one minor version
+func canUpdate(version actions.IstioVersion, appVersion string) bool {
+	pilotVersionSlice := strings.Split(version.ClientVersion, ".")
+	appVersionSlice := strings.Split(appVersion, ".")
+
+	pilotMinorVersion, err := strconv.Atoi(pilotVersionSlice[1])
+	if err != nil {
 		return false
 	}
+	appMinorVersion, err := strconv.Atoi(appVersionSlice[1])
+	if err != nil {
+		return false
+	}
+	if appVersionSlice[0] == pilotVersionSlice[0] && appMinorVersion-pilotMinorVersion > 1 {
+		return false
+	}
+	return true
+}
+
+// Checks if there is mismatch between Pilot and DataPlane versions
+func isMismatchPresent(version actions.IstioVersion) bool {
+	return version.PilotVersion != version.DataPlaneVersion
+}
+
+// Check if we are downgrading Istio
+func isDowngrade(version actions.IstioVersion, appVersion string) bool {
+	pilotVersionSlice := strings.Split(version.ClientVersion, ".")
+	appVersionSlice := strings.Split(appVersion, ".")
+
+	pilotMinorVersion, err := strconv.Atoi(pilotVersionSlice[1])
+	if err != nil {
+		return false
+	}
+	appMinorVersion, err := strconv.Atoi(appVersionSlice[1])
+	if err != nil {
+		return false
+	}
+	pilotSubMinorVersion, err := strconv.Atoi(pilotVersionSlice[1])
+	if err != nil {
+		return false
+	}
+	appSubMinorVersion, err := strconv.Atoi(appVersionSlice[1])
+	if err != nil {
+		return false
+	}
+
+	if appVersionSlice[0] == pilotVersionSlice[0] {
+		if appMinorVersion >= pilotMinorVersion {
+			return false
+		} else if appMinorVersion == pilotMinorVersion {
+			if appSubMinorVersion >= pilotSubMinorVersion {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error) {
