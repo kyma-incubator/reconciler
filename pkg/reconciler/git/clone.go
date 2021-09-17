@@ -44,7 +44,10 @@ func checkout(repo *git.Repository, rev string, url string) error {
 		return errors.Wrap(err, "error getting the GIT worktree")
 	}
 
-	hash, err := resolveRevision(repo, url, rev)
+	var defaultLister refLister = remoteRefLister{}
+	var r = revisionResolver{url: url, repository: repo, refLister: defaultLister}
+
+	hash, err := r.resolveRevision(rev)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to resolve GIT revision '%s'", rev))
 	}

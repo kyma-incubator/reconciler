@@ -1,6 +1,10 @@
 package git
 
 import (
+	"github.com/alcortesm/tgz"
+	"github.com/go-git/go-git/v5"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/go-git/go-git/v5/plumbing"
@@ -11,76 +15,67 @@ type fakeRefLister struct {
 	refs []*plumbing.Reference
 }
 
-func (fl *fakeRefLister) List(repoURL string) ([]*plumbing.Reference, error) {
+func (fl fakeRefLister) List(repoURL string) ([]*plumbing.Reference, error) {
 	return fl.refs, nil
 }
 
+var fakeLister refLister = fakeRefLister{[]*plumbing.Reference{plumbing.NewHashReference(plumbing.NewBranchReferenceName("main"), plumbing.ZeroHash),
+	plumbing.NewHashReference(plumbing.NewBranchReferenceName("testBranch"), plumbing.ZeroHash),
+	plumbing.NewHashReference(plumbing.NewTagReferenceName("1.0"), plumbing.ZeroHash),
+	plumbing.NewHashReference(plumbing.ReferenceName("refs/pull/9999/head"), plumbing.ZeroHash)}}
+
 func TestResolveRefs(t *testing.T) {
+	localRepoRootPath, err := tgz.Extract("testdata/repo.tgz")
+	defer func() {
+		require.NoError(t, os.RemoveAll(localRepoRootPath))
+	}()
+	require.NoError(t, err)
+	require.NotEmpty(t, localRepoRootPath)
+
+	fakeRepo, err := git.PlainOpen(path.Join(localRepoRootPath, "repo"))
+
 	tests := []struct {
 		summary          string
-		givenRefs        []*plumbing.Reference
 		givenRevision    string
 		expectedRevision string
 		expectErr        bool
 		kind             string
+		resolver revisionResolver
 	}{
 		{
 			summary: "pull request uppercase",
-			givenRefs: []*plumbing.Reference{
-				plumbing.NewHashReference(plumbing.NewBranchReferenceName("main"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.NewBranchReferenceName("test-branch"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.NewTagReferenceName("1.0"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.ReferenceName("refs/pull/9999/head"), plumbing.ZeroHash),
-			},
 			givenRevision:    "PR-9999",
 			expectedRevision: plumbing.ZeroHash.String(),
 			kind:             "pr",
+			resolver: revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
 		},
 		{
 			summary: "branch request",
-			givenRefs: []*plumbing.Reference{
-				plumbing.NewHashReference(plumbing.NewBranchReferenceName("main"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.NewBranchReferenceName("testBranch"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.NewTagReferenceName("1.0"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.ReferenceName("refs/pull/9999/head"), plumbing.ZeroHash),
-			},
 			givenRevision:    "testBranch",
 			expectedRevision: plumbing.ZeroHash.String(),
 			kind:             "branch",
+			resolver: revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
 		},
 		{
 			summary: "failing pull request uppercase",
-			givenRefs: []*plumbing.Reference{
-				plumbing.NewHashReference(plumbing.NewBranchReferenceName("main"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.NewBranchReferenceName("test-branch"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.NewTagReferenceName("1.0"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.ReferenceName("refs/pull/9999/head"), plumbing.ZeroHash),
-			},
 			givenRevision: "PR-1234",
 			expectErr:     true,
 			kind:          "pr",
+			resolver: revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
 		},
 		{
 			summary: "failing branch request",
-			givenRefs: []*plumbing.Reference{
-				plumbing.NewHashReference(plumbing.NewBranchReferenceName("main"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.NewBranchReferenceName("test-branch"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.NewTagReferenceName("1.0"), plumbing.ZeroHash),
-				plumbing.NewHashReference(plumbing.ReferenceName("refs/pull/9999/head"), plumbing.ZeroHash),
-			},
 			givenRevision: "nonExistingBranch",
 			expectErr:     true,
 			kind:          "branch",
+			resolver: revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
 		},
 	}
 
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.summary, func(t *testing.T) {
-			defaultLister = &fakeRefLister{
-				refs: tc.givenRefs,
-			}
-			r, err := resolveRefs("github.com/fake-repo", tc.givenRevision, tc.kind)
+			r, err := tc.resolver.resolveRefs(tc.givenRevision, tc.kind)
 			if tc.expectErr {
 				require.Error(t, err)
 			} else {
