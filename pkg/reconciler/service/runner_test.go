@@ -34,7 +34,7 @@ type TestAction struct {
 	failAlways      bool
 }
 
-func (a *TestAction) Run(version, profile string, config []reconciler.Configuration, context *ActionContext) error {
+func (a *TestAction) Run(version, _ string, _ map[string]interface{}, context *ActionContext) error {
 	log := logger.NewLogger(true)
 
 	if context.KubeClient == nil {

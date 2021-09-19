@@ -1,12 +1,14 @@
 package connectivityproxy
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"testing"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,7 +32,7 @@ func TestAction(t *testing.T) {
 		action := CustomAction{
 			name: "testAction",
 			copyFactory: []CopyFactory{
-				func(context *service.ActionContext) *SecretCopy {
+				func(configs map[string]interface{}, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
 					invoked++
 					return &SecretCopy{
 						Namespace:       "namespace",
@@ -43,7 +45,7 @@ func TestAction(t *testing.T) {
 						},
 					}
 				},
-				func(context *service.ActionContext) *SecretCopy {
+				func(configs map[string]interface{}, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
 					invoked++
 					return &SecretCopy{
 						Namespace:       "namespace",
@@ -59,7 +61,16 @@ func TestAction(t *testing.T) {
 			},
 		}
 
-		err := action.Run("", "", nil, nil)
+		client := mocks.Client{}
+		client.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+
+		err := action.Run("", "", nil, &service.ActionContext{
+			KubeClient:       &client,
+			WorkspaceFactory: nil,
+			Context:          nil,
+			Logger:           nil,
+			ChartProvider:    nil,
+		})
 
 		require.NoError(t, err)
 		require.Equal(t, 2, invoked)

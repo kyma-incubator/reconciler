@@ -3,10 +3,15 @@ package git
 import (
 	"context"
 	"fmt"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8s "k8s.io/client-go/kubernetes"
+	"net/url"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	gitp "github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/pkg/errors"
@@ -14,10 +19,10 @@ import (
 
 type RemoteRepoCloner struct {
 	repo         *reconciler.Repository
-	auth         transport.AuthMethod
 	autoCheckout bool
 
-	repoClient RepoClient
+	repoClient         RepoClient
+	inClusterClientSet k8s.Interface
 }
 
 //go:generate mockery --name RepoClient --case=underscore
@@ -28,32 +33,27 @@ type RepoClient interface {
 	ResolveRevision(rev gitp.Revision) (*gitp.Hash, error)
 }
 
-func NewCloner(repoClient RepoClient, repo *reconciler.Repository,
-	autoCheckout bool) *RemoteRepoCloner {
-	var auth transport.AuthMethod
-	if repo != nil && repo.Token != "" {
-		auth = &http.BasicAuth{
-			Username: "xxx", // anything but an empty string
-			Password: repo.Token,
-		}
-	}
-
+func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface) (*RemoteRepoCloner, error) {
 	return &RemoteRepoCloner{
-		repo:         repo,
-		auth:         auth,
-		autoCheckout: autoCheckout,
-		repoClient:   repoClient,
-	}
+		repo:               repo,
+		autoCheckout:       autoCheckout,
+		repoClient:         repoClient,
+		inClusterClientSet: clientSet,
+	}, nil
 }
 
 // Clone clones the repository from the given remote URL to the given `path` in the local filesystem.
 func (r *RemoteRepoCloner) Clone(path string) error {
-	var err error
+	auth, err := r.buildAuth()
+	if err != nil {
+		return err
+	}
+
 	_, err = r.repoClient.Clone(context.Background(), path, false, &git.CloneOptions{
 		Depth:             0,
 		URL:               r.repo.URL,
 		NoCheckout:        !r.autoCheckout,
-		Auth:              r.auth,
+		Auth:              auth,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	})
 
@@ -95,4 +95,59 @@ func (r *RemoteRepoCloner) CloneAndCheckout(dstPath, rev string) error {
 	}
 
 	return r.Checkout(rev)
+}
+
+func (r *RemoteRepoCloner) buildAuth() (transport.AuthMethod, error) {
+	if r.repo.TokenNamespace == "" {
+		return nil, nil
+	}
+
+	if r.inClusterClientSet == nil {
+		return nil, nil
+	}
+
+	secretKey, err := mapSecretKey(r.repo.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	secret, err := r.inClusterClientSet.CoreV1().
+		Secrets(r.repo.TokenNamespace).
+		Get(context.Background(), secretKey, v1.GetOptions{})
+
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, err
+	}
+
+	if secret != nil {
+		return &http.BasicAuth{
+			Username: "xxx", // anything but an empty string
+			Password: strings.Trim(string(secret.Data["token"]), "\n"),
+		}, nil
+	}
+
+	return nil, nil
+}
+
+func mapSecretKey(URL string) (string, error) {
+	if !strings.HasPrefix(URL, "http") {
+		URL = "https://" + URL
+	}
+
+	URL = strings.ReplaceAll(URL, "www.", "")
+
+	parsed, err := url.Parse(URL)
+
+	if err != nil {
+		return "", err
+	}
+
+	if parsed.Scheme == "" {
+		return parsed.Path, nil
+	}
+
+	output := strings.ReplaceAll(parsed.Host, ":"+parsed.Port(), "")
+	output = strings.ReplaceAll(output, "www.", "")
+
+	return output, nil
 }

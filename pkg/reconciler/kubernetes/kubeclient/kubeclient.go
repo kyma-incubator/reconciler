@@ -41,6 +41,22 @@ type KubeClient struct {
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
 }
 
+func NewInClusterClientSet() (*kubernetes.Clientset, error) {
+	inClusterClient, err := NewInClusterClient()
+	if err != nil && err == rest.ErrNotInCluster {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	inClusterClientSet, err := inClusterClient.GetClientSet()
+	if err != nil {
+		return nil, err
+	}
+
+	return inClusterClientSet, nil
+}
+
 func NewInClusterClient() (*KubeClient, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {

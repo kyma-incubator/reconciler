@@ -1,12 +1,7 @@
 package reconciler
 
 import (
-	"context"
 	"fmt"
-	"github.com/pkg/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	core "k8s.io/client-go/kubernetes/typed/core/v1"
-	"net/url"
 	"strings"
 )
 
@@ -44,27 +39,19 @@ func NewStatus(status string) (Status, error) {
 
 //Reconciliation is the model for reconciliation calls
 type Reconciliation struct {
-	ComponentsReady []string        `json:"componentsReady"`
-	Component       string          `json:"component"`
-	Namespace       string          `json:"namespace"`
-	Version         string          `json:"version"`
-	Profile         string          `json:"profile"`
-	Configuration   []Configuration `json:"configuration"`
-	Kubeconfig      string          `json:"kubeconfig"`
-	CallbackURL     string          `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
-	CorrelationID   string          `json:"correlationID"`
-	Repository      Repository      `json:"repository"`
+	ComponentsReady []string               `json:"componentsReady"`
+	Component       string                 `json:"component"`
+	Namespace       string                 `json:"namespace"`
+	Version         string                 `json:"version"`
+	Profile         string                 `json:"profile"`
+	Configuration   map[string]interface{} `json:"configuration"`
+	Kubeconfig      string                 `json:"kubeconfig"`
+	CallbackURL     string                 `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
+	CorrelationID   string                 `json:"correlationID"`
+	Repository      Repository             `json:"repository"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
 	CallbackFunc func(msg *CallbackMessage) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
-}
-
-func (r *Reconciliation) ConfigsToMap() map[string]interface{} {
-	configs := make(map[string]interface{})
-	for i := 0; i < len(r.Configuration); i++ {
-		configs[r.Configuration[i].Key] = r.Configuration[i].Value
-	}
-	return configs
 }
 
 func (r *Reconciliation) String() string {
@@ -117,55 +104,8 @@ func (cb *CallbackMessage) String() string {
 }
 
 type Repository struct {
-	URL   string `json:"url"`
-	Token string `json:"-"`
-}
-
-func (r *Repository) ReadToken(clientSet core.CoreV1Interface, namespace interface{}) error {
-	secretKey, err := mapSecretKey(r.URL)
-	if err != nil {
-		return err
-	}
-
-	stringNamespace := fmt.Sprintf("%v", namespace)
-	if stringNamespace == "" {
-		stringNamespace = "default"
-	}
-
-	secret, err := clientSet.
-		Secrets(stringNamespace).
-		Get(context.Background(), secretKey, v1.GetOptions{})
-
-	if err != nil {
-		return err
-	}
-
-	r.Token = strings.Trim(string(secret.Data["token"]), "\n")
-
-	return nil
-}
-
-func mapSecretKey(URL string) (string, error) {
-	parsed, err := url.Parse(URL)
-
-	URL = strings.ReplaceAll(URL, "www.", "")
-
-	if !strings.HasPrefix(URL, "http") {
-		return "", errors.Errorf("Invalid URL configuration")
-	}
-
-	if err != nil {
-		return "", err
-	}
-
-	if parsed.Scheme == "" {
-		return parsed.Path, nil
-	}
-
-	output := strings.ReplaceAll(parsed.Host, ":"+parsed.Port(), "")
-	output = strings.ReplaceAll(output, "www.", "")
-
-	return output, nil
+	URL            string `json:"url"`
+	TokenNamespace string `json:"tokenNamespace"`
 }
 
 func (r *Repository) String() string {

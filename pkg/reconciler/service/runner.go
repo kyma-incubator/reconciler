@@ -13,7 +13,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/heartbeat"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/pkg/errors"
 )
 
@@ -82,27 +81,6 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return err
 	}
 
-	inClusterClient, err := kubeclient.NewInClusterClient()
-	if err != nil {
-		return err
-	}
-
-	inClusterClientSet, err := inClusterClient.GetClientSet()
-	if err != nil {
-		return err
-	}
-
-	clusterClientSet, err := kubeClient.Clientset()
-	if err != nil {
-		return err
-	}
-
-	configs := model.ConfigsToMap()
-	err = model.Repository.ReadToken(inClusterClientSet.CoreV1(), configs["repo.token.namespace"])
-	if err != nil {
-		return err
-	}
-
 	chartProvider, err := r.newChartProvider(&model.Repository)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create chart provider instance")
@@ -114,14 +92,11 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	}
 
 	actionHelper := &ActionContext{
-		InClusterClientSet: inClusterClientSet,
-		KubeClient:         kubeClient,
-		ClientSet:          clusterClientSet,
-		WorkspaceFactory:   wsFactory,
-		Context:            ctx,
-		Logger:             r.logger,
-		ChartProvider:      chartProvider,
-		ConfigsMap:         configs,
+		KubeClient:       kubeClient,
+		WorkspaceFactory: wsFactory,
+		Context:          ctx,
+		Logger:           r.logger,
+		ChartProvider:    chartProvider,
 	}
 
 	if r.preReconcileAction != nil {

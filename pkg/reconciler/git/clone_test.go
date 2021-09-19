@@ -2,6 +2,9 @@ package git
 
 import (
 	"context"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"os"
 	"path"
 	"testing"
@@ -62,7 +65,7 @@ func TestCloneRepo(t *testing.T) {
 	clonerMock.On("ResolveRevision",
 		gitp.Revision("1.0.0")).
 		Return(repo.ResolveRevision("1.0.0"))
-	cloner := NewCloner(clonerMock, &r, true)
+	cloner, _ := NewCloner(clonerMock, &r, true, fake.NewSimpleClientset())
 
 	headRef, err := repo.Head()
 	require.NoError(t, err)
@@ -81,26 +84,144 @@ func TestCloneRepo(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Add README\n", commit.Message)
 
-	t.Run("Should add auth data if token set", func(t *testing.T) {
+	t.Run("Should add auth data if token namespace set and token exists", func(t *testing.T) {
 		token := "tokeValue"
-		//client := mocks.RepoClient{}
-		autoCheckout := false
-		clonerMock.On("Clone", context.Background(), "/test", autoCheckout, &git.CloneOptions{
+
+		clonerMock.On("Clone", context.Background(), "/test", false, &git.CloneOptions{
 			Depth:      0,
 			URL:        repoURL,
-			NoCheckout: !autoCheckout,
+			NoCheckout: true,
 			Auth: &http.BasicAuth{
 				Username: "xxx", // anything but an empty string
 				Password: token,
 			},
 			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 		}).Return(repo, nil)
-		cloner := NewCloner(clonerMock, &reconciler.Repository{
-			URL:   repoURL,
-			Token: token,
-		}, autoCheckout)
+
+		cloner, _ := NewCloner(clonerMock, &reconciler.Repository{
+			URL:            repoURL,
+			TokenNamespace: "default",
+		}, false, clientWithToken("github.com", "default", "token", token))
 
 		err := cloner.Clone("/test")
 		assert.NoError(t, err)
 	})
+}
+
+func TestTokenRead(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Should read correct token secret", func(t *testing.T) {
+		client := clientWithToken("localhost", "default", "token", "tokenValue")
+
+		repo := reconciler.Repository{
+			URL:            "https://localhost",
+			TokenNamespace: "default",
+		}
+
+		cloner := RemoteRepoCloner{
+			repo:               &repo,
+			autoCheckout:       false,
+			repoClient:         nil,
+			inClusterClientSet: client,
+		}
+
+		auth, err := cloner.buildAuth()
+
+		assert.NoError(t, err)
+		assert.Equal(t, &http.BasicAuth{
+			Username: "xxx",
+			Password: "tokenValue",
+		}, auth)
+	})
+
+	t.Run("Should ignore error when token secret not found", func(t *testing.T) {
+		client := fake.NewSimpleClientset()
+
+		repo := reconciler.Repository{
+			URL:            "https://localhost",
+			TokenNamespace: "default",
+		}
+
+		cloner := RemoteRepoCloner{
+			repo:               &repo,
+			autoCheckout:       false,
+			repoClient:         nil,
+			inClusterClientSet: client,
+		}
+
+		_, err := cloner.buildAuth()
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("Should ignore error when clientset not set", func(t *testing.T) {
+		repo := reconciler.Repository{
+			URL:            "https://localhost",
+			TokenNamespace: "default",
+		}
+
+		cloner := RemoteRepoCloner{
+			repo:               &repo,
+			autoCheckout:       false,
+			repoClient:         nil,
+			inClusterClientSet: nil,
+		}
+
+		_, err := cloner.buildAuth()
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("Should ignore error when TokenNamespace not set", func(t *testing.T) {
+		repo := reconciler.Repository{
+			URL:            "https://localhost",
+			TokenNamespace: "",
+		}
+
+		cloner := RemoteRepoCloner{
+			repo:               &repo,
+			autoCheckout:       false,
+			repoClient:         nil,
+			inClusterClientSet: nil,
+		}
+
+		_, err := cloner.buildAuth()
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("Should parse URL", func(t *testing.T) {
+		assertParsed(t, "localhost", "localhost/path")
+		assertParsed(t, "localhost", "localhost")
+		assertParsed(t, "localhost", "localhost:8080")
+		assertParsed(t, "localhost", "http://localhost:8080")
+		assertParsed(t, "localhost", "www.localhost:8080")
+		assertParsed(t, "localhost", "https://www.localhost:8080")
+		assertParsed(t, "192.168.1.2", "192.168.1.2")
+		assertParsed(t, "192.168.1.2", "192.168.1.2:8080")
+	})
+}
+
+func clientWithToken(name, namespace, key, value string) *fake.Clientset {
+	client := fake.NewSimpleClientset(&v1.Secret{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Immutable: nil,
+		Data: map[string][]byte{
+			key: []byte(value),
+		},
+		StringData: nil,
+		Type:       "",
+	})
+	return client
+}
+
+func assertParsed(t *testing.T, expected string, url string) {
+	key, err := mapSecretKey(url)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, key)
 }

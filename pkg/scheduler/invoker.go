@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -33,17 +34,19 @@ func (p *InvokeParams) createReconciliationModel() *reconciler.Reconciliation {
 		version = p.ComponentToReconcile.Version
 	}
 
+	configuration := mapConfiguration(p.ComponentToReconcile.Configuration)
 	return &reconciler.Reconciliation{
 		ComponentsReady: p.ComponentsReady,
 		Component:       p.ComponentToReconcile.Component,
 		Namespace:       p.ComponentToReconcile.Namespace,
 		Version:         version,
 		Profile:         p.ClusterState.Configuration.KymaProfile,
-		Configuration:   mapConfiguration(p.ComponentToReconcile.Configuration),
+		Configuration:   configuration,
 		Kubeconfig:      p.ClusterState.Cluster.Kubeconfig,
 		CorrelationID:   p.CorrelationID,
 		Repository: reconciler.Repository{
-			URL: p.ComponentToReconcile.URL,
+			URL:            p.ComponentToReconcile.URL,
+			TokenNamespace: fmt.Sprint(configuration["repo.token.namespace"]),
 		},
 	}
 }

@@ -209,11 +209,8 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
 				Profile:         "",
-				Configuration: []reconciler.Configuration{
-					{
-						Key:   "initContainer",
-						Value: true,
-					},
+				Configuration: map[string]interface{}{
+					"initContainer": true,
 				},
 				Kubeconfig:    test.ReadKubeconfig(t),
 				CorrelationID: "test-correlation-id",
@@ -250,11 +247,8 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
 				Profile:         "",
-				Configuration: []reconciler.Configuration{
-					{
-						Key:   "breakHelmChart",
-						Value: true,
-					},
+				Configuration: map[string]interface{}{
+					"breakHelmChart": true,
 				},
 				Kubeconfig:    test.ReadKubeconfig(t),
 				CorrelationID: "test-correlation-id",

@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -39,7 +38,7 @@ type rafterValues struct {
 	ExistingSecret string `yaml:"existingSecret"`
 }
 
-func (a *CustomAction) Run(version, profile string, config []reconciler.Configuration, svcCtx *service.ActionContext) error {
+func (a *CustomAction) Run(version, _ string, _ map[string]interface{}, svcCtx *service.ActionContext) error {
 	values, err := readRafterControllerValues(svcCtx, version)
 	if err != nil {
 		return errors.Wrap(err, "failed to read Rafter controller `values.yaml` file")

@@ -3,6 +3,7 @@ package workspace
 import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"os"
 	"path/filepath"
 	"sync"
@@ -115,7 +116,12 @@ func (f *Factory) clone(version, dstDir string) error {
 	//clone sources
 	f.logger.Infof("Cloning repository '%s' with revision '%s' into workspace '%s'",
 		f.repository.URL, version, dstDir)
-	cloner := git.NewCloner(&git.Client{}, f.repository, true)
+	clientSet, err := kubeclient.NewInClusterClientSet()
+	if err != nil {
+		return err
+	}
+	cloner, _ := git.NewCloner(&git.Client{}, f.repository, true, clientSet)
+
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 			dstDir, f.repository.URL, version)
