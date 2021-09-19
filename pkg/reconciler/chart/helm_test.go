@@ -2,13 +2,14 @@ package chart
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"path/filepath"
+	"testing"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	"io/ioutil"
-	"path/filepath"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +32,7 @@ func TestHelm(t *testing.T) {
 		helm, err := NewHelmClient(chartDir, logger)
 		require.NoError(t, err)
 
-		got, err := helm.chartConfiguration(loadHelmChart(t, component), "")
+		got, err := helm.profileConfiguration(loadHelmChart(t, component), "", false)
 		require.NoError(t, err)
 
 		var expected map[string]interface{}
@@ -46,7 +47,7 @@ func TestHelm(t *testing.T) {
 		require.Equal(t, expected, got)
 	})
 
-	t.Run("Get chart configuration with profile", func(t *testing.T) {
+	t.Run("Get chart configuration with profile and without values", func(t *testing.T) {
 		component := NewComponentBuilder("main", componentName).
 			WithNamespace("testNamespace").
 			WithProfile(profileName).
@@ -55,7 +56,7 @@ func TestHelm(t *testing.T) {
 		helm, err := NewHelmClient(chartDir, logger)
 		require.NoError(t, err)
 
-		got, err := helm.chartConfiguration(loadHelmChart(t, component), profileName)
+		got, err := helm.profileConfiguration(loadHelmChart(t, component), profileName, false)
 		require.NoError(t, err)
 
 		var expected map[string]interface{}
@@ -70,6 +71,31 @@ func TestHelm(t *testing.T) {
 		require.Equal(t, expected, got)
 	})
 
+	t.Run("Get chart configuration with profile and with values", func(t *testing.T) {
+		component := NewComponentBuilder("main", componentName).
+			WithNamespace("testNamespace").
+			WithProfile(profileName).
+			Build()
+
+		helm, err := NewHelmClient(chartDir, logger)
+		require.NoError(t, err)
+
+		got, err := helm.profileConfiguration(loadHelmChart(t, component), profileName, true)
+		require.NoError(t, err)
+
+		var expected map[string]interface{}
+		err = json.Unmarshal([]byte(`{
+			"config": {
+				"key1": "value1 from profile.yaml",
+				"key2": "value2 from profile.yaml"
+			},
+			"profile": true,
+			"showKey2": false
+		}`), &expected)
+		require.NoError(t, err)
+		require.Equal(t, expected, got)
+	})
+
 	t.Run("Merge chart configuration with empty component configuration", func(t *testing.T) {
 		component := NewComponentBuilder("main", componentName).
 			WithNamespace("testNamespace").
@@ -79,9 +105,8 @@ func TestHelm(t *testing.T) {
 		helm, err := NewHelmClient(chartDir, logger)
 		require.NoError(t, err)
 
-		got, err := helm.mergeChartConfiguration(loadHelmChart(t, component), component)
+		got, err := helm.mergeChartConfiguration(loadHelmChart(t, component), component, false)
 		require.NoError(t, err)
-
 		var expected map[string]interface{}
 		err = json.Unmarshal([]byte(`{
 			"config": {
@@ -108,7 +133,7 @@ func TestHelm(t *testing.T) {
 		helm, err := NewHelmClient(chartDir, logger)
 		require.NoError(t, err)
 
-		got, err := helm.mergeChartConfiguration(loadHelmChart(t, component), component)
+		got, err := helm.mergeChartConfiguration(loadHelmChart(t, component), component, false)
 		require.NoError(t, err)
 
 		var expected map[string]interface{}
