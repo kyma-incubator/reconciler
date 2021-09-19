@@ -3,7 +3,6 @@ package ory
 import (
 	"context"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/jwks"
@@ -67,7 +66,7 @@ func (a *preAction) Run(version, profile string, config map[string]interface{}, 
 	return nil
 }
 
-func (a *postAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
+func (a *postAction) Run(version, _ string, _ map[string]interface{}, context *service.ActionContext) error {
 	logger := context.Logger
 	client, err := context.KubeClient.Clientset()
 	if err != nil {
