@@ -41,7 +41,7 @@ var (
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
 )
 
-func (a *preAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
+func (a *preAction) Run(version, profile string, config map[string]interface{}, context *service.ActionContext) error {
 	logger := context.Logger
 	component := chart.NewComponentBuilder(version, oryChart).WithNamespace(oryNamespace).WithProfile(profile).WithConfiguration(config).Build()
 	values, err := context.ChartProvider.Configuration(component)
