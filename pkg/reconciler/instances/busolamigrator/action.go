@@ -40,7 +40,7 @@ func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix strin
 	return &VirtSvcPreReconcilePatch{"pre-reconciler", virtualSvcs, suffix, client}
 }
 
-func (p *VirtSvcPreReconcilePatch) Run(version string, _ string, _ map[string]interface{}, helper *service.ActionContext) error {
+func (p *VirtSvcPreReconcilePatch) Run(version string, profile string, configuration map[string]interface{}, helper *service.ActionContext) error {
 	ctx := context.TODO()
 	logger := helper.Logger
 	clientSet, err := helper.KubeClient.Clientset()

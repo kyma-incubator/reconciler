@@ -10,7 +10,7 @@ type CustomAction struct {
 	copyFactory []CopyFactory
 }
 
-func (a *CustomAction) Run(_, _ string, configs map[string]interface{}, context *service.ActionContext) error {
+func (a *CustomAction) Run(version, profile string, configuration map[string]interface{}, context *service.ActionContext) error {
 
 	clientset, err := context.KubeClient.Clientset()
 	if err != nil {
@@ -23,7 +23,7 @@ func (a *CustomAction) Run(_, _ string, configs map[string]interface{}, context 
 	}
 
 	for _, create := range a.copyFactory {
-		operation := create(configs, inClusterClientSet, clientset)
+		operation := create(configuration, inClusterClientSet, clientset)
 		err := operation.Transfer()
 		if err != nil {
 			return err

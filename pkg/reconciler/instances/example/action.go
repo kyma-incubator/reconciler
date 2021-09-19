@@ -9,7 +9,7 @@ type CustomAction struct {
 	name string
 }
 
-func (a *CustomAction) Run(version, _ string, _ map[string]interface{}, context *service.ActionContext) error {
+func (a *CustomAction) Run(version, profile string, configuration map[string]interface{}, context *service.ActionContext) error {
 	if _, err := context.KubeClient.Clientset(); err != nil { //example how to retrieve native Kubernetes GO client
 		context.Logger.Errorf("Failed to retrieve native Kubernetes GO client")
 	}
