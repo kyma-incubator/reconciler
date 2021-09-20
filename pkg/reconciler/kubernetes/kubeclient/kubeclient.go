@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util"
 )
 
@@ -294,6 +295,33 @@ func (kube *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byt
 	metadata.Kind = gvk.Kind
 
 	return metadata, u, err
+}
+
+func (kube *KubeClient) DeleteNamespace(namespace string) error {
+	getter := NewRESTClientGetter(kube.config)
+	factory := cmdutil.NewFactory(getter)
+	r := factory.NewBuilder().
+		Unstructured().
+		NamespaceParam(namespace).DefaultNamespace().
+		LabelSelectorParam("").
+		FieldSelectorParam("").
+		RequestChunksOf(500).
+		ResourceTypeOrNameArgs(true, "all").
+		ContinueOnError().
+		Latest().
+		Flatten().
+		Do()
+	infos, err := r.Infos()
+	if err != nil {
+		return err
+	}
+	if len(infos) > 0 {
+		namespaceRes := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "Namespace"}
+		err = kube.dynamicClient.
+			Resource(namespaceRes).
+			Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+	}
+	return err
 }
 
 func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
