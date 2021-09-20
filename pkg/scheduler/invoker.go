@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -44,7 +45,7 @@ func (p *InvokeParams) createReconciliationModel() *reconciler.Reconciliation {
 		Configuration:   configuration,
 		Kubeconfig:      p.ClusterState.Cluster.Kubeconfig,
 		CorrelationID:   p.CorrelationID,
-		Repository: reconciler.Repository{
+		Repository: &reconciler.Repository{
 			URL:            p.ComponentToReconcile.URL,
 			TokenNamespace: fmt.Sprint(configuration["repo.token.namespace"]),
 		},
