@@ -14,11 +14,11 @@ import (
 const kindCRD = "CustomResourceDefinition"
 
 type Provider struct {
-	wsFactory *workspace.Factory
+	wsFactory workspace.Factory
 	logger    *zap.SugaredLogger
 }
 
-func NewProvider(wsFactory *workspace.Factory, logger *zap.SugaredLogger) (*Provider, error) {
+func NewProvider(wsFactory workspace.Factory, logger *zap.SugaredLogger) (*Provider, error) {
 	if wsFactory == nil {
 		return nil, fmt.Errorf("workspace factory cannot be nil")
 	}

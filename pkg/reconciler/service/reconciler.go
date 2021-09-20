@@ -24,9 +24,21 @@ const (
 )
 
 var (
-	wsFactory *workspace.Factory //singleton
+	wsFactory workspace.Factory //singleton
 	m         sync.Mutex
 )
+
+type ActionContext struct {
+	KubeClient       kubernetes.Client
+	WorkspaceFactory *workspace.Factory
+	Context          context.Context
+	Logger           *zap.SugaredLogger
+	ChartProvider    *chart.Provider
+}
+
+type Action interface {
+	Run(version, profile string, configuration []reconciler.Configuration, helper *ActionContext) error
+}
 
 type ComponentReconciler struct {
 	workspace             string
@@ -73,7 +85,7 @@ func UseGlobalWorkspaceFactory(workspaceFactory *workspace.Factory) error {
 	if wsFactory != nil {
 		return fmt.Errorf("workspace factory already defined: %s", wsFactory)
 	}
-	wsFactory = workspaceFactory
+	wsFactory = *workspaceFactory
 	return nil
 }
 
@@ -82,7 +94,7 @@ func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*ch
 	if err != nil {
 		return nil, err
 	}
-	return chart.NewProvider(wsFact, r.logger)
+	return chart.NewProvider(*wsFact, r.logger)
 }
 
 func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*workspace.Factory, error) {
@@ -95,7 +107,7 @@ func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*wo
 		wsFactory, err = workspace.NewFactory(repo, r.workspace, r.logger)
 	}
 
-	return wsFactory, err
+	return &wsFactory, err
 }
 
 func (r *ComponentReconciler) validate() error {

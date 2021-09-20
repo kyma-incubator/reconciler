@@ -9,7 +9,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace/mocks"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -120,16 +120,15 @@ func newFakeServiceContext(t *testing.T) *service.ActionContext {
 	// WorkspaceFactory into thinking that we don't need to
 	// clone the kyma repo. This is a temporary workaround
 	// since we can't currently mock WorkspaceFactory.
-	fakeFactory, err := workspace.NewFactory("./test_files", log.NewOptionalLogger(true))
-	require.NoError(t, err)
+	fakeFactory := workspacemocks.Factory{}
 	logger := log.NewOptionalLogger(true)
-	chartProvider, err := chart.NewProvider(fakeFactory, logger)
+	chartProvider, err := chart.NewProvider(&fakeFactory, logger)
 	require.NoError(t, err)
 
 	return &service.ActionContext{
 		KubeClient:       mockClient,
 		Context:          context.Background(),
-		WorkspaceFactory: fakeFactory,
+		WorkspaceFactory: &fakeFactory,
 		Logger:           logger,
 		ChartProvider:    chartProvider,
 	}
