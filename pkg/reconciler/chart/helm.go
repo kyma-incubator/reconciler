@@ -2,6 +2,8 @@ package chart
 
 import (
 	"fmt"
+	"path/filepath"
+
 	"github.com/imdario/mergo"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/pkg/errors"
@@ -11,7 +13,6 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"path/filepath"
 )
 
 type HelmClient struct {
@@ -35,7 +36,7 @@ func (c *HelmClient) Render(component *Component) (string, error) {
 		return "", err
 	}
 
-	config, err := c.mergeChartConfiguration(helmChart, component)
+	config, err := c.mergeChartConfiguration(helmChart, component, false)
 	if err != nil {
 		return "", err
 	}
@@ -83,8 +84,16 @@ func (c *HelmClient) newActionConfig(namespace string) (*action.Configuration, e
 	return cfg, nil
 }
 
-func (c *HelmClient) mergeChartConfiguration(chart *chart.Chart, component *Component) (map[string]interface{}, error) {
-	result, err := c.chartConfiguration(chart, component.profile)
+func (c *HelmClient) Configuration(component *Component) (map[string]interface{}, error) {
+	helmChart, err := loader.Load(filepath.Join(c.chartDir, component.name))
+	if err != nil {
+		return nil, err
+	}
+	return c.mergeChartConfiguration(helmChart, component, true)
+}
+
+func (c *HelmClient) mergeChartConfiguration(chart *chart.Chart, component *Component, withValues bool) (map[string]interface{}, error) {
+	result, err := c.profileConfiguration(chart, component.profile, withValues)
 	if err != nil {
 		return nil, err
 	}
@@ -96,13 +105,13 @@ func (c *HelmClient) mergeChartConfiguration(chart *chart.Chart, component *Comp
 
 	if err := mergo.Merge(&result, componentConfig, mergo.WithOverride); err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to merge profile configuration with component "+
-			"configuration for cpmponent '%s'", component.name))
+			"configuration for component '%s'", component.name))
 	}
 
 	return result, nil
 }
 
-func (c *HelmClient) chartConfiguration(ch *chart.Chart, profileName string) (map[string]interface{}, error) {
+func (c *HelmClient) profileConfiguration(ch *chart.Chart, profileName string, withValues bool) (map[string]interface{}, error) {
 	var profile *chart.File
 	for _, f := range ch.Files {
 		if (f.Name == fmt.Sprintf("profile-%s.yaml", profileName)) || (f.Name == fmt.Sprintf("%s.yaml", profileName)) {
@@ -116,6 +125,18 @@ func (c *HelmClient) chartConfiguration(ch *chart.Chart, profileName string) (ma
 		return ch.Values, nil
 	}
 
+	profileValues, err := chartutil.ReadValues(profile.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	if withValues {
+		if err := mergo.Merge(&ch.Values, profileValues.AsMap(), mergo.WithOverride); err != nil {
+			return nil, errors.Wrap(err, "failed to merge values.yaml with profile configuration")
+		}
+		return ch.Values, nil
+	}
+
 	//if a profile file was found, use the values from the <profile>.yaml
-	return chartutil.ReadValues(profile.Data)
+	return profileValues, nil
 }
