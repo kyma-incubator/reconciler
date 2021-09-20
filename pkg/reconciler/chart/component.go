@@ -2,7 +2,6 @@ package chart
 
 import (
 	"github.com/imdario/mergo"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"strings"
 )
 
@@ -65,10 +64,8 @@ func (cb *ComponentBuilder) WithNamespace(namespace string) *ComponentBuilder {
 	return cb
 }
 
-func (cb *ComponentBuilder) WithConfiguration(config []reconciler.Configuration) *ComponentBuilder {
-	for _, kvEntry := range config {
-		cb.component.configuration[kvEntry.Key] = kvEntry.Value
-	}
+func (cb *ComponentBuilder) WithConfiguration(config map[string]interface{}) *ComponentBuilder {
+	cb.component.configuration = config
 	return cb
 }
 

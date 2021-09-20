@@ -2,7 +2,6 @@ package chart
 
 import (
 	"encoding/json"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -32,23 +31,11 @@ func TestComponent(t *testing.T) {
 
 	t.Run("Test chart configuration processing", func(t *testing.T) {
 		component := NewComponentBuilder("main", "unittest-kyma").
-			WithConfiguration([]reconciler.Configuration{
-				{
-					Key:   "test.key1.subkey1",
-					Value: "test value 1",
-				},
-				{
-					Key:   "test.key1.subkey2",
-					Value: "test value 2",
-				},
-				{
-					Key:   "test.key2.subkey1",
-					Value: "test value 3",
-				},
-				{
-					Key:   "test.key2.subkey2",
-					Value: "test value 4",
-				},
+			WithConfiguration(map[string]interface{}{
+				"test.key1.subkey1": "test value 1",
+				"test.key1.subkey2": "test value 2",
+				"test.key2.subkey1": "test value 3",
+				"test.key2.subkey2": "test value 4",
 			}).
 			Build()
 

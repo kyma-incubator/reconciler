@@ -1,7 +1,6 @@
 package istio
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
@@ -17,7 +16,7 @@ const (
 type ReconcileAction struct {
 }
 
-func (a *ReconcileAction) Run(version, profile string, config []reconciler.Configuration, context *service.ActionContext) error {
+func (a *ReconcileAction) Run(version, profile string, config map[string]interface{}, context *service.ActionContext) error {
 	component := chart.NewComponentBuilder(version, istioChart).WithNamespace(istioNamespace).WithProfile(profile).WithConfiguration(config).Build()
 	manifest, err := context.ChartProvider.RenderManifest(component)
 	if err != nil {
