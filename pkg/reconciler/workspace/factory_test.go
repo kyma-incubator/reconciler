@@ -1,14 +1,15 @@
 package workspace
 
 import (
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/kyma-incubator/reconciler/pkg/test"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,6 +24,7 @@ func TestWorkspaceFactory(t *testing.T) {
 		}
 		require.NoError(t, wsf1.validate())
 		require.Equal(t, filepath.Join(wsf1.defaultStorageDir(), version), wsf1.workspaceDir(version))
+		require.Equal(t, defaultRepositoryURL, wsf1.repository.URL)
 
 		wsf2 := Factory{
 			logger:     logger,
@@ -30,13 +32,14 @@ func TestWorkspaceFactory(t *testing.T) {
 		}
 		require.NoError(t, wsf2.validate())
 		require.Equal(t, filepath.Join("/tmp", version), wsf2.workspaceDir(version))
+		require.Equal(t, defaultRepositoryURL, wsf1.repository.URL)
 	})
 
 	t.Run("Clone and delete workspace", func(t *testing.T) {
 		test.IntegrationTest(t)
 
 		workspaceDir := filepath.Join(".", "test", version)
-		wsf, err := NewFactory("test", log.NewLogger(true))
+		wsf, err := NewFactory(nil, "test", log.NewLogger(true))
 		require.NoError(t, err)
 
 		//cleanup at the beginning (if test was interrupted before)
@@ -70,7 +73,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 	t.Run("Use local workspace", func(t *testing.T) {
 		workspaceDir := filepath.Join(".", "test", "local")
-		wsf, err := NewFactory(workspaceDir, log.NewLogger(true))
+		wsf, err := NewFactory(&reconciler.Repository{}, workspaceDir, log.NewLogger(true))
 		require.NoError(t, err)
 		localWs, err := wsf.Get(VersionLocal)
 		require.NoError(t, err)

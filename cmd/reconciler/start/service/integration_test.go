@@ -78,7 +78,7 @@ func TestReconciler(t *testing.T) {
 
 func setGlobalWorkspaceFactory(t *testing.T) {
 	//use ./test folder as workspace
-	wsf, err := workspace.NewFactory("test", logger.NewLogger(true))
+	wsf, err := workspace.NewFactory(nil, "test", logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsf))
 }
@@ -209,11 +209,8 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
 				Profile:         "",
-				Configuration: []reconciler.Configuration{
-					{
-						Key:   "initContainer",
-						Value: true,
-					},
+				Configuration: map[string]interface{}{
+					"initContainer": true,
 				},
 				Kubeconfig:    test.ReadKubeconfig(t),
 				CorrelationID: "test-correlation-id",
@@ -250,11 +247,8 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
 				Profile:         "",
-				Configuration: []reconciler.Configuration{
-					{
-						Key:   "breakHelmChart",
-						Value: true,
-					},
+				Configuration: map[string]interface{}{
+					"breakHelmChart": true,
 				},
 				Kubeconfig:    test.ReadKubeconfig(t),
 				CorrelationID: "test-correlation-id",

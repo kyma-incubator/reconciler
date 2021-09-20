@@ -41,12 +41,41 @@ type KubeClient struct {
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
 }
 
+func NewInClusterClientSet() (*kubernetes.Clientset, error) {
+	inClusterClient, err := NewInClusterClient()
+	if err != nil && err == rest.ErrNotInCluster {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	inClusterClientSet, err := inClusterClient.GetClientSet()
+	if err != nil {
+		return nil, err
+	}
+
+	return inClusterClientSet, nil
+}
+
+func NewInClusterClient() (*KubeClient, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return newForConfig(config)
+}
+
 func NewKubeClient(kubeconfig string) (*KubeClient, error) {
 	config, err := getRestConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
+	return newForConfig(config)
+}
+
+func newForConfig(config *rest.Config) (*KubeClient, error) {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -93,6 +122,8 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 	helper := resource.NewHelper(restClient, restMapping)
 
 	setDefaultNamespaceIfScopedAndNoneSet(namespaceOverride, u, helper)
+
+	SetNamespaceIfScoped(namespaceOverride, u, helper)
 
 	info := &resource.Info{
 		Client:          restClient,
