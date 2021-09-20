@@ -71,3 +71,5 @@ coverage.out
 
 # Ignore backup files
 *.bak
+
+out.txt

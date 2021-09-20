@@ -81,12 +81,12 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return err
 	}
 
-	chartProvider, err := r.newChartProvider()
+	chartProvider, err := r.newChartProvider(&model.Repository)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create chart provider instance")
 	}
 
-	wsFactory, err := r.workspaceFactory()
+	wsFactory, err := r.workspaceFactory(&model.Repository)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (r *runner) install(ctx context.Context, chartProvider *chart.Provider, mod
 		return err
 	}
 
-	resources, err := kubeClient.Deploy(ctx, manifest, model.Namespace, &LabelInterceptor{})
+	resources, err := kubeClient.Deploy(ctx, manifest, model.Namespace, &LabelsInterceptor{Version: model.Version}, &AnnotationsInterceptor{})
 
 	if err == nil {
 		r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))

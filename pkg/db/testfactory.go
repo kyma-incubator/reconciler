@@ -1,31 +1,19 @@
 package db
 
 import (
-	"fmt"
-	"path"
-
-	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 )
 
 func NewTestConnectionFactory() (ConnectionFactory, error) {
-	configDir, err := resolveConfigsDir()
+	configFile, err := test.GetConfigFile()
 	if err != nil {
 		return nil, err
 	}
-	connFac, err := NewConnectionFactory(path.Join(configDir, "reconciler-unittest.yaml"), true)
-	if err != nil {
-		return nil, err
-	}
-	return connFac, connFac.Init()
-}
 
-func resolveConfigsDir() (string, error) {
-	configsDir := path.Join("..", "configs")
-	for i := 0; i < 5; i++ { //lookup for 'configs' directory by climbing directory tree up (max 5 higher dirs)
-		if file.DirExists(configsDir) {
-			return configsDir, nil
-		}
-		configsDir = path.Join("..", configsDir)
+	connFac, err := NewConnectionFactory(configFile, false, true)
+	if err != nil {
+		return nil, err
 	}
-	return "", fmt.Errorf("failed to resolve 'configs' directory")
+
+	return connFac, connFac.Init(false)
 }

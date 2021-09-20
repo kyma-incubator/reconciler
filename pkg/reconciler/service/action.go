@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
@@ -18,5 +18,5 @@ type ActionContext struct {
 }
 
 type Action interface {
-	Run(version, profile string, configuration []reconciler.Configuration, helper *ActionContext) error
+	Run(version, profile string, configuration map[string]interface{}, helper *ActionContext) error
 }

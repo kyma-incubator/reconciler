@@ -34,7 +34,7 @@ type TestAction struct {
 	failAlways      bool
 }
 
-func (a *TestAction) Run(version, profile string, config []reconciler.Configuration, context *ActionContext) error {
+func (a *TestAction) Run(version, _ string, _ map[string]interface{}, context *ActionContext) error {
 	log := logger.NewLogger(true)
 
 	if context.KubeClient == nil {
@@ -331,7 +331,8 @@ func newCleanupFunc(t *testing.T) func(bool) {
 		cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
 		//remove the cloned workspace
 		if deleteWorkspace {
-			wsf, err := ws.NewFactory("./test", logger.NewLogger(true))
+			wsf, err := ws.NewFactory(nil, "./test", logger.NewLogger(true))
+
 			require.NoError(t, err)
 
 			require.NoError(t, wsf.Delete(kymaVersion))

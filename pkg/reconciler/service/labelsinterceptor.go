@@ -6,18 +6,21 @@ import (
 
 const (
 	ManagedByLabel       = "reconciler.kyma-project.io/managed-by"
+	KymaVersionLabel     = "reconciler.kyma-project.io/origin-version"
 	LabelReconcilerValue = "reconciler"
 )
 
-type LabelInterceptor struct {
+type LabelsInterceptor struct {
+	Version string
 }
 
-func (l *LabelInterceptor) Intercept(resource *unstructured.Unstructured) error {
+func (l *LabelsInterceptor) Intercept(resource *unstructured.Unstructured) error {
 	labels := resource.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
 	}
 	labels[ManagedByLabel] = LabelReconcilerValue
+	labels[KymaVersionLabel] = l.Version
 	resource.SetLabels(labels)
 	return nil
 }

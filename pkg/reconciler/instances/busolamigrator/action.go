@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -41,7 +40,7 @@ func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix strin
 	return &VirtSvcPreReconcilePatch{"pre-reconciler", virtualSvcs, suffix, client}
 }
 
-func (p *VirtSvcPreReconcilePatch) Run(version string, profile string, configuration []reconciler.Configuration, helper *service.ActionContext) error {
+func (p *VirtSvcPreReconcilePatch) Run(version string, profile string, configuration map[string]interface{}, helper *service.ActionContext) error {
 	ctx := context.TODO()
 	logger := helper.Logger
 	clientSet, err := helper.KubeClient.Clientset()

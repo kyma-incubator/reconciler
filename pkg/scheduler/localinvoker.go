@@ -37,36 +37,32 @@ func (lri *localReconcilerInvoker) Invoke(params *InvokeParams) error {
 
 	lri.logger.Debugf("Calling the reconciler for a component %s, correlation ID: %s", component, params.CorrelationID)
 
-	model := &reconciler.Reconciliation{
-		ComponentsReady: params.ComponentsReady,
-		Component:       component,
-		Namespace:       params.ComponentToReconcile.Namespace,
-		Version:         params.ClusterState.Configuration.KymaVersion,
-		Profile:         params.ClusterState.Configuration.KymaProfile,
-		Configuration:   mapConfiguration(params.ComponentToReconcile.Configuration),
-		Kubeconfig:      params.ClusterState.Cluster.Kubeconfig,
-		CallbackFunc: func(msg *reconciler.CallbackMessage) error {
-			if lri.statusFunc != nil {
-				lri.statusFunc(component, msg)
-			}
-
-			switch msg.Status {
-			case reconciler.NotStarted, reconciler.Running:
-				return lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
-			case reconciler.Failed:
-				return lri.operationsReg.SetFailed(params.CorrelationID, params.SchedulingID,
-					fmt.Sprintf("Reconciler reported failure status: %s", msg.Error.Error()))
-			case reconciler.Success:
-				return lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
-			case reconciler.Error:
-				return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID,
-					fmt.Sprintf("Reconciler reported error status: %s", msg.Error.Error()))
-			}
-
-			return nil
-		},
-		CorrelationID: params.CorrelationID,
-	}
+	model := params.CreateLocalReconciliation(
+		lri.createCallbackFunc(params),
+	)
 
 	return componentReconciler.StartLocal(context.Background(), model, lri.logger)
+}
+
+func (lri *localReconcilerInvoker) createCallbackFunc(params *InvokeParams) func(msg *reconciler.CallbackMessage) error {
+	return func(msg *reconciler.CallbackMessage) error {
+		if lri.statusFunc != nil {
+			lri.statusFunc(params.ComponentToReconcile.Component, msg)
+		}
+
+		switch msg.Status {
+		case reconciler.NotStarted, reconciler.Running:
+			return lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
+		case reconciler.Failed:
+			return lri.operationsReg.SetFailed(params.CorrelationID, params.SchedulingID,
+				fmt.Sprintf("Reconciler reported failure status: %s", msg.Error.Error()))
+		case reconciler.Success:
+			return lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
+		case reconciler.Error:
+			return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID,
+				fmt.Sprintf("Reconciler reported error status: %s", msg.Error.Error()))
+		}
+
+		return nil
+	}
 }
