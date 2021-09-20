@@ -17,7 +17,7 @@ func SendHTTPError(w http.ResponseWriter, httpCode int, resp interface{}) {
 		w.WriteHeader(httpCode)
 		w.Header().Set("content-type", "application/json")
 		if _, err = w.Write(payload); err == nil {
-			log.Infof("Sending HTTP error response (httpCode %d): %s", httpCode, payload)
+			log.Warnf("Sending HTTP error response (httpCode %d): %s", httpCode, payload)
 			return
 		}
 		err = errors.Wrap(err, "Failed to write error payload to HTTP response writer")
