@@ -13,22 +13,34 @@ import (
 
 const kindCRD = "CustomResourceDefinition"
 
-type Provider struct {
+//go:generate mockery -name=Provider -outpkg=mock -case=underscore
+// Provider of manifests.
+type Provider interface {
+	// RenderCRD of the given version.
+	RenderCRD(version string) ([]*Manifest, error)
+
+	// RenderManifest of the given component.
+	RenderManifest(component *Component) (*Manifest, error)
+}
+
+// DefaultProvider provides a default implementation of Provider.
+type DefaultProvider struct {
 	wsFactory workspace.Factory
 	logger    *zap.SugaredLogger
 }
 
-func NewProvider(wsFactory workspace.Factory, logger *zap.SugaredLogger) (*Provider, error) {
+// NewDefaultProvider returns a new instance of DefaultProvider.
+func NewDefaultProvider(wsFactory workspace.Factory, logger *zap.SugaredLogger) (*DefaultProvider, error) {
 	if wsFactory == nil {
 		return nil, fmt.Errorf("workspace factory cannot be nil")
 	}
-	return &Provider{
+	return &DefaultProvider{
 		wsFactory: wsFactory,
 		logger:    logger,
 	}, nil
 }
 
-func (p *Provider) RenderCRD(version string) ([]*Manifest, error) {
+func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 	ws, err := p.newWorkspace(version)
 	if err != nil {
 		return nil, err
@@ -85,7 +97,7 @@ func (p *Provider) RenderCRD(version string) ([]*Manifest, error) {
 	return manifests, err
 }
 
-func (p *Provider) RenderManifest(component *Component) (*Manifest, error) {
+func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error) {
 	ws, err := p.newWorkspace(component.version)
 	if err != nil {
 		return nil, err
@@ -122,7 +134,7 @@ func (p *Provider) Configuration(component *Component) (map[string]interface{}, 
 	return helmClient.Configuration(component)
 }
 
-func (p *Provider) newWorkspace(version string) (*workspace.Workspace, error) {
+func (p *DefaultProvider) newWorkspace(version string) (*workspace.Workspace, error) {
 	p.logger.Debugf("Getting workspace for Kyma '%s'", version)
 	ws, err := p.wsFactory.Get(version)
 	if err != nil {

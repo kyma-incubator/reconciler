@@ -33,7 +33,7 @@ type ActionContext struct {
 	WorkspaceFactory *workspace.Factory
 	Context          context.Context
 	Logger           *zap.SugaredLogger
-	ChartProvider    *chart.Provider
+	ChartProvider    chart.Provider
 }
 
 type Action interface {
@@ -89,12 +89,12 @@ func UseGlobalWorkspaceFactory(workspaceFactory *workspace.Factory) error {
 	return nil
 }
 
-func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*chart.Provider, error) {
+func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*chart.DefaultProvider, error) {
 	wsFact, err := r.workspaceFactory(repo)
 	if err != nil {
 		return nil, err
 	}
-	return chart.NewProvider(*wsFact, r.logger)
+	return chart.NewDefaultProvider(*wsFact, r.logger)
 }
 
 func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*workspace.Factory, error) {

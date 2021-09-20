@@ -37,7 +37,7 @@ func TestProvider(t *testing.T) {
 
 	t.Parallel()
 
-	prov, err := NewProvider(wsFactory, log)
+	prov, err := NewDefaultProvider(wsFactory, log)
 	require.NoError(t, err)
 
 	t.Run("Render manifest", func(t *testing.T) {
