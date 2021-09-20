@@ -36,7 +36,6 @@ type webhookPatchJSONValue struct {
 	Values   []string `json:"values"`
 }
 
-// IstioVersion TODO
 type IstioVersion struct {
 	ClientVersion    string
 	PilotVersion     string

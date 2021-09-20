@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -305,5 +306,62 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
+	})
+}
+
+func TestMapVersionToStruct(t *testing.T) {
+	log, err := logger.NewLogger(false)
+	require.NoError(t, err)
+
+	t.Run("Empty byte array for version coomand returns an error", func(t *testing.T) {
+		// given
+		versionOutput := []byte("")
+
+		//when
+		_, err := mapVersionToStruct(versionOutput, log)
+
+		//then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "command is empty")
+	})
+
+	t.Run("If unmarshalled properly, the byte array must be converted to struct", func(t *testing.T) {
+		// given
+		versionOutput := []byte(istioctlMockCompleteVersion)
+		expectedStruct := IstioVersion{
+			ClientVersion:    "1.11.1",
+			PilotVersion:     "1.11.1",
+			DataPlaneVersion: "1.11.1",
+		}
+
+		//when
+		gotStruct, err := mapVersionToStruct(versionOutput, log)
+
+		//then
+		require.NoError(t, err)
+		require.EqualValues(t, expectedStruct, gotStruct)
+	})
+
+}
+
+func TestGetVersionFromJSON(t *testing.T) {
+	t.Run("should get all the expected versions when istio installed on the cluster", func(t *testing.T) {
+		// given
+		var version IstioVersionOutput
+		err := json.Unmarshal([]byte(istioctlMockCompleteVersion), &version)
+
+		// when
+		gotClient := getVersionFromJSON("client", version)
+		gotPilot := getVersionFromJSON("pilot", version)
+		gotDataPlane := getVersionFromJSON("dataPlane", version)
+		gotNothing := getVersionFromJSON("", version)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, "1.11.1", gotClient)
+		require.Equal(t, "1.11.1", gotPilot)
+		require.Equal(t, "1.11.1", gotDataPlane)
+		require.Equal(t, "", gotNothing)
+
 	})
 }

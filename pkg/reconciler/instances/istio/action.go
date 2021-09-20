@@ -120,21 +120,17 @@ func getAppVersionFromChart(context *service.ActionContext, version string) (str
 	return chart.Metadata.AppVersion, nil
 }
 
-// Checks if istio is already installed
+// shouldInstall checks if istio is already installed
 func shouldInstall(version actions.IstioVersion) bool {
-	if version.DataPlaneVersion == "" && version.PilotVersion == "" {
-		return true
-	} else {
-		return false
-	}
+	return version.DataPlaneVersion == "" && version.PilotVersion == ""
 }
 
-// Checks if istioctl version is up to date
+// isClientVersionAcceptable checks if istioctl version is up to date.
 func isClientVersionAcceptable(version actions.IstioVersion, appVersion string) bool {
 	return version.ClientVersion == appVersion
 }
 
-// Checks if the update required is different by one minor version
+// canUpdate checks if the update required is different by one minor version.
 func canUpdate(version actions.IstioVersion, appVersion string) bool {
 	pilotVersionSlice := strings.Split(version.ClientVersion, ".")
 	appVersionSlice := strings.Split(appVersion, ".")
@@ -153,12 +149,12 @@ func canUpdate(version actions.IstioVersion, appVersion string) bool {
 	return true
 }
 
-// Checks if there is mismatch between Pilot and DataPlane versions
+// isMismatchPresent checks if there is mismatch between Pilot and DataPlane versions.
 func isMismatchPresent(version actions.IstioVersion) bool {
 	return version.PilotVersion != version.DataPlaneVersion
 }
 
-// Check if we are downgrading Istio
+// isDowngrade checks if we are downgrading Istio.
 func isDowngrade(version actions.IstioVersion, appVersion string) bool {
 	pilotVersionSlice := strings.Split(version.ClientVersion, ".")
 	appVersionSlice := strings.Split(appVersion, ".")
@@ -171,17 +167,17 @@ func isDowngrade(version actions.IstioVersion, appVersion string) bool {
 	if err != nil {
 		return false
 	}
-	pilotSubMinorVersion, err := strconv.Atoi(pilotVersionSlice[1])
+	pilotSubMinorVersion, err := strconv.Atoi(pilotVersionSlice[2])
 	if err != nil {
 		return false
 	}
-	appSubMinorVersion, err := strconv.Atoi(appVersionSlice[1])
+	appSubMinorVersion, err := strconv.Atoi(appVersionSlice[2])
 	if err != nil {
 		return false
 	}
 
 	if appVersionSlice[0] == pilotVersionSlice[0] {
-		if appMinorVersion >= pilotMinorVersion {
+		if appMinorVersion > pilotMinorVersion {
 			return false
 		} else if appMinorVersion == pilotMinorVersion {
 			if appSubMinorVersion >= pilotSubMinorVersion {
