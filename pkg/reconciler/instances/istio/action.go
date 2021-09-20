@@ -82,7 +82,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.New("Istio could not be updated due to the versions limitations")
 		}
 
-		if !isMismatchPresent(ver) {
+		if isMismatchPresent(ver) {
 			context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
 		}
 
