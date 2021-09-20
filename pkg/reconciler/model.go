@@ -48,7 +48,7 @@ type Reconciliation struct {
 	Kubeconfig      string                 `json:"kubeconfig"`
 	CallbackURL     string                 `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
 	CorrelationID   string                 `json:"correlationID"`
-	Repository      Repository             `json:"repository"`
+	Repository      *Repository            `json:"repository"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
 	CallbackFunc func(msg *CallbackMessage) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
