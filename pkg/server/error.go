@@ -12,7 +12,7 @@ func SendHTTPError(w http.ResponseWriter, httpCode int, resp interface{}) {
 
 	payload, err := json.Marshal(resp)
 	if err != nil {
-		err = errors.Wrap(err, "Failed to encode HTTP error response to JSON")
+		err = errors.Wrap(err, "failed to encode HTTP error response to JSON")
 	} else {
 		w.WriteHeader(httpCode)
 		w.Header().Set("content-type", "application/json")
@@ -20,7 +20,7 @@ func SendHTTPError(w http.ResponseWriter, httpCode int, resp interface{}) {
 			log.Warnf("Sending HTTP error response (httpCode %d): %s", httpCode, payload)
 			return
 		}
-		err = errors.Wrap(err, "Failed to write error payload to HTTP response writer")
+		err = errors.Wrap(err, "failed to write error payload to HTTP response writer")
 	}
 
 	log.Errorf("Failed to process HTTP error response (fallback to %d - internal server error): %v",
