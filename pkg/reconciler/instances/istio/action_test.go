@@ -2,6 +2,12 @@ package istio
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	actionsmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/mocks"
+	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/mock"
 	"testing"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
@@ -97,35 +103,37 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 
 func Test_ReconcileAction_Run(t *testing.T) {
 
-	t.Run("should not perform istio reconcile action", func(t *testing.T) {
-		// TODO: uncomment when chartprovider mock is resolved
-		//// given
-		//performer := istiomocks.IstioPerformer{}
-		//commander := istioctlmocks.Commander{}
-		//action := ReconcileAction{performer: &performer, commander: &commander}
-		//
-		//// when
-		//err := action.Run("0.0.0", "profile", nil, newFakeServiceContext(t))
-		//
-		//// then
-		//require.Error(t, err) // it should not return error, refactor
+	t.Run("should not perform istio actions when provider returns an error ", func(t *testing.T) {
+		// given
+		fakeFactory := workspacemocks.Factory{}
+		fakeProvider := chartmocks.Provider{}
+		fakeProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Provider error"))
+		actionContext := newFakeServiceContext(&fakeFactory, &fakeProvider)
+		performer := actionsmocks.IstioPerformer{}
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
+
+		// when
+		err := action.Run("local", "profile", nil, actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, "Provider error", err.Error())
 	})
 
 }
 
-func newFakeServiceContext(t *testing.T) *service.ActionContext {
+func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *service.ActionContext {
 	mockClient := &k8smocks.Client{}
 	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
-	fakeFactory := workspacemocks.Factory{}
 	logger := log.NewOptionalLogger(true)
-	chartProvider := chartmocks.Provider{}
 
 	return &service.ActionContext{
 		KubeClient:       mockClient,
 		Context:          context.Background(),
-		WorkspaceFactory: &fakeFactory,
+		WorkspaceFactory: factory,
 		Logger:           logger,
-		ChartProvider:    &chartProvider,
+		ChartProvider:    provider,
 	}
 }
 
