@@ -119,7 +119,7 @@ func TestTokenRead(t *testing.T) {
 			TokenNamespace: "default",
 		}
 
-		cloner := RemoteRepoCloner{
+		cloner := Cloner{
 			repo:               &repo,
 			autoCheckout:       false,
 			repoClient:         nil,
@@ -143,7 +143,7 @@ func TestTokenRead(t *testing.T) {
 			TokenNamespace: "default",
 		}
 
-		cloner := RemoteRepoCloner{
+		cloner := Cloner{
 			repo:               &repo,
 			autoCheckout:       false,
 			repoClient:         nil,
@@ -161,7 +161,7 @@ func TestTokenRead(t *testing.T) {
 			TokenNamespace: "default",
 		}
 
-		cloner := RemoteRepoCloner{
+		cloner := Cloner{
 			repo:               &repo,
 			autoCheckout:       false,
 			repoClient:         nil,
@@ -179,7 +179,7 @@ func TestTokenRead(t *testing.T) {
 			TokenNamespace: "",
 		}
 
-		cloner := RemoteRepoCloner{
+		cloner := Cloner{
 			repo:               &repo,
 			autoCheckout:       false,
 			repoClient:         nil,
