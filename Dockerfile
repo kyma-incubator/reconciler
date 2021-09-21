@@ -14,7 +14,7 @@ RUN mkdir /user && \
 WORKDIR $SRC_DIR
 
 COPY configs /configs
-RUN CGO_ENABLED=0 go build -o /bin/reconciler ./cmd/main.go
+RUN CGO_ENABLED=0 go build -o /bin/reconciler -ldflags '-s -w' ./cmd/main.go
 
 RUN apk update && apk upgrade && \
     apk --no-cache add curl
