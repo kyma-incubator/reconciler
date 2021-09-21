@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"time"
 
 	startCmd "github.com/kyma-incubator/reconciler/cmd/reconciler/start"
@@ -18,7 +19,15 @@ import (
 
 const defaultTimeout = 10 * time.Minute //max time a rec onciliation process is allowed to take
 
-func NewCmd(o *cli.Options) *cobra.Command {
+func main() {
+	o := &cli.Options{}
+	cmd := newCmd(o)
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func newCmd(o *cli.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reconciler",
 		Short: "Administrate Kyma component reconcilers",

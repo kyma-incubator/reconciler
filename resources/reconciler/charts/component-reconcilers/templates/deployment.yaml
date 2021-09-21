@@ -22,7 +22,7 @@ spec:
     spec:
       serviceAccountName: component-reconcilers-{{ $component }}
       containers:
-      - image: "{{ $global.Values.global.image.repository }}:{{ $global.Values.global.image.tag }}"
+      - image: "{{ $global.Values.global.image.repository }}/component:{{ $global.Values.global.image.tag }}"
         imagePullPolicy: {{ $global.Values.global.image.pullPolicy }}
         args:
           - reconciler

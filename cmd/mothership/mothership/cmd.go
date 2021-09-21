@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	installCmd "github.com/kyma-incubator/reconciler/cmd/mothership/install"
-	startCmd "github.com/kyma-incubator/reconciler/cmd/mothership/start"
+	installCmd "github.com/kyma-incubator/reconciler/cmd/mothership/mothership/install"
+	startCmd "github.com/kyma-incubator/reconciler/cmd/mothership/mothership/start"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/spf13/cobra"
 )
