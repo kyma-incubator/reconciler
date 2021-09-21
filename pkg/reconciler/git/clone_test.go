@@ -103,7 +103,7 @@ func TestCloneRepo(t *testing.T) {
 			TokenNamespace: "default",
 		}, false, clientWithToken("github.com", "default", "token", token))
 
-		err := cloner.Clone("/test")
+		_, err := cloner.Clone("/test")
 		assert.NoError(t, err)
 	})
 }
