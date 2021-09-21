@@ -1,5 +1,6 @@
 APP_NAME = reconciler
-IMG_NAME := $(DOCKER_PUSH_REPOSITORY)$(DOCKER_PUSH_DIRECTORY)/$(APP_NAME)
+IMG_REPO := $(DOCKER_PUSH_REPOSITORY)$(DOCKER_PUSH_DIRECTORY)
+IMG_NAME := $(IMG_REPO)/$(APP_NAME)
 TAG := $(DOCKER_TAG)
 COMPONENTS := $(shell (go run scripts/reconcilernames.go))
 
@@ -43,8 +44,10 @@ docker-build:
 
 .PHONY: docker-push
 docker-push:
+ifdef IMG_REPO
 	docker tag $(APP_NAME) $(IMG_NAME):$(TAG)
 	docker push $(IMG_NAME):$(TAG)
+endif
 
 .PHONY: bump-primage
 bump-primage:
