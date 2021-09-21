@@ -12,6 +12,7 @@ ifeq ($(VERSION),stable)
 endif
 
 .DEFAULT_GOAL=all
+FLAGS = -ldflags '-s -w'
 
 .PHONY: resolve
 resolve:
