@@ -33,6 +33,7 @@ func TestResolveRefs(t *testing.T) {
 	require.NotEmpty(t, localRepoRootPath)
 
 	fakeRepo, err := git.PlainOpen(path.Join(localRepoRootPath, "repo"))
+	require.NoError(t, err)
 
 	tests := []struct {
 		summary          string
