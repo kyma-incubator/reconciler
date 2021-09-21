@@ -129,8 +129,7 @@ func (w *Worker) process(ctx context.Context, component *keb.Component, state cl
 func (w *Worker) callReconciler(ctx context.Context, component *keb.Component, state cluster.State, schedulingID string) error {
 	componentsReady, err := w.getDoneComponents(schedulingID)
 	if err == nil {
-		err = w.invoker.Invoke(&InvokeParams{
-			Ctx:                  ctx,
+		err = w.invoker.Invoke(ctx, &InvokeParams{
 			ComponentToReconcile: component,
 			ComponentsReady:      componentsReady,
 			ClusterState:         state,

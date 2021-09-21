@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -17,7 +18,7 @@ type remoteReconcilerInvoker struct {
 	mothershipPort   int
 }
 
-func (rri *remoteReconcilerInvoker) Invoke(params *InvokeParams) error {
+func (rri *remoteReconcilerInvoker) Invoke(ctx context.Context, params *InvokeParams) error {
 	payload := params.CreateRemoteReconciliation(fmt.Sprintf("%s://%s:%d/v1/operations/%s/callback/%s",
 		rri.mothershipScheme, rri.mothershipHost, rri.mothershipPort, params.SchedulingID, params.CorrelationID))
 

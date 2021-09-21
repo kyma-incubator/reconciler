@@ -10,7 +10,6 @@ import (
 )
 
 type InvokeParams struct {
-	Ctx                  context.Context
 	ComponentToReconcile *keb.Component
 	ComponentsReady      []string
 	ClusterState         cluster.State
@@ -55,5 +54,5 @@ func (p *InvokeParams) createReconciliationModel() *reconciler.Reconciliation {
 }
 
 type reconcilerInvoker interface {
-	Invoke(params *InvokeParams) error
+	Invoke(ctx context.Context, params *InvokeParams) error
 }
