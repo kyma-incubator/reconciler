@@ -2,6 +2,8 @@ package workspace
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"os"
 	"path/filepath"
 	"sync"
@@ -20,17 +22,17 @@ const (
 )
 
 type Factory struct {
-	storageDir    string
-	repositoryURL string
-	logger        *zap.SugaredLogger
-	mutex         sync.Mutex
+	storageDir string
+	logger     *zap.SugaredLogger
+	mutex      sync.Mutex
+	repository *reconciler.Repository
 }
 
-func NewFactory(storageDir string, logger *zap.SugaredLogger) (*Factory, error) {
+func NewFactory(repo *reconciler.Repository, storageDir string, logger *zap.SugaredLogger) (*Factory, error) {
 	factory := &Factory{
-		storageDir:    storageDir,
-		logger:        logger,
-		repositoryURL: defaultRepositoryURL,
+		storageDir: storageDir,
+		logger:     logger,
+		repository: repo,
 	}
 	return factory, factory.validate()
 }
@@ -45,6 +47,11 @@ func (f *Factory) validate() error {
 	}
 	if f.storageDir == "" {
 		f.storageDir = f.defaultStorageDir()
+	}
+	if f.repository == nil || f.repository.URL == "" {
+		f.repository = &reconciler.Repository{
+			URL: defaultRepositoryURL,
+		}
 	}
 	return nil
 }
@@ -107,11 +114,17 @@ func (f *Factory) clone(version, dstDir string) error {
 	}
 
 	//clone sources
-	f.logger.Infof("Cloning repository '%s' with revision '%s' into workspace directory '%s'",
-		f.repositoryURL, version, dstDir)
-	if err := git.CloneRepo(f.repositoryURL, dstDir, version); err != nil {
+	f.logger.Infof("Cloning repository '%s' with revision '%s' into workspace '%s'",
+		f.repository.URL, version, dstDir)
+	clientSet, err := kubeclient.NewInClusterClientSet()
+	if err != nil {
+		return err
+	}
+	cloner, _ := git.NewCloner(&git.Client{}, f.repository, true, clientSet)
+
+	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
-			dstDir, f.repositoryURL, version)
+			dstDir, f.repository.URL, version)
 		if removeErr := f.Delete(version); removeErr != nil {
 			err = errors.Wrap(err, removeErr.Error())
 		}

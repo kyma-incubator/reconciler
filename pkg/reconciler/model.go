@@ -39,15 +39,16 @@ func NewStatus(status string) (Status, error) {
 
 //Reconciliation is the model for reconciliation calls
 type Reconciliation struct {
-	ComponentsReady []string        `json:"componentsReady"`
-	Component       string          `json:"component"`
-	Namespace       string          `json:"namespace"`
-	Version         string          `json:"version"`
-	Profile         string          `json:"profile"`
-	Configuration   []Configuration `json:"configuration"`
-	Kubeconfig      string          `json:"kubeconfig"`
-	CallbackURL     string          `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
-	CorrelationID   string          `json:"correlationID"`
+	ComponentsReady []string               `json:"componentsReady"`
+	Component       string                 `json:"component"`
+	Namespace       string                 `json:"namespace"`
+	Version         string                 `json:"version"`
+	Profile         string                 `json:"profile"`
+	Configuration   map[string]interface{} `json:"configuration"`
+	Kubeconfig      string                 `json:"kubeconfig"`
+	CallbackURL     string                 `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
+	CorrelationID   string                 `json:"correlationID"`
+	Repository      *Repository            `json:"repository"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
 	CallbackFunc func(msg *CallbackMessage) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
@@ -100,4 +101,13 @@ type CallbackMessage struct {
 
 func (cb *CallbackMessage) String() string {
 	return fmt.Sprintf("CallbackMessage [status=%s,error=%v]", cb.Status, cb.Error)
+}
+
+type Repository struct {
+	URL            string `json:"url"`
+	TokenNamespace string `json:"tokenNamespace"`
+}
+
+func (r *Repository) String() string {
+	return r.URL
 }

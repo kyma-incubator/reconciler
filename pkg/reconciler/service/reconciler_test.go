@@ -5,17 +5,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/stretchr/testify/require"
 )
 
 type DummyAction struct {
 	receivedVersion string
 	receivedProfile string
-	receivedConfig  []reconciler.Configuration
+	receivedConfig  map[string]interface{}
 }
 
-func (da *DummyAction) Run(version, profile string, config []reconciler.Configuration, helper *ActionContext) error {
+func (da *DummyAction) Run(version, profile string, config map[string]interface{}, helper *ActionContext) error {
 	if helper.KubeClient != nil {
 		return fmt.Errorf("kubeClient is not expected in this test case")
 	}
