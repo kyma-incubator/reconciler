@@ -30,8 +30,7 @@ type Config struct {
 }
 
 func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (k8s.Client, error) {
-	//get kubeClient
-	client, err := kubeclient.NewKubeClient(kubeconfig)
+	client, err := kubeclient.NewKubeClient(kubeconfig, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -142,10 +141,10 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 		deployedResources = append(deployedResources, resource)
 
 		//if resource is watchable, add it to progress tracker
-		watchable, err := progress.NewWatchableResource(resource.Kind)
-		if err == nil { //add only watchable resources to progress tracker
-			pt.AddResource(watchable, resource.Namespace, resource.Name)
-		}
+		//watchable, err := progress.NewWatchableResource(resource.Kind)
+		//if err == nil { //add only watchable resources to progress tracker
+		//	pt.AddResource(watchable, resource.Namespace, resource.Name)
+		//}
 	}
 
 	g.logger.Debugf("Manifest processed: %d Kubernetes resources were successfully deployed",

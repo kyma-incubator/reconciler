@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"go.uber.org/zap"
 )
@@ -37,14 +36,14 @@ func NewWorker(
 	inventory cluster.Inventory,
 	operationsReg OperationsRegistry,
 	invoker reconcilerInvoker,
-	debug bool) (*Worker, error) {
+	logger *zap.SugaredLogger) (*Worker, error) {
 	return &Worker{
 		correlationID: uuid.NewString(),
 		config:        config,
 		inventory:     inventory,
 		operationsReg: operationsReg,
 		invoker:       invoker,
-		logger:        logger.NewLogger(debug),
+		logger:        logger,
 		errorsCount:   0,
 	}, nil
 }

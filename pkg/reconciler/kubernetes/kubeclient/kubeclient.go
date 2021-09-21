@@ -4,6 +4,7 @@ package kubeclient
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -41,8 +42,8 @@ type KubeClient struct {
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
 }
 
-func NewInClusterClientSet() (*kubernetes.Clientset, error) {
-	inClusterClient, err := NewInClusterClient()
+func NewInClusterClientSet(logger *zap.SugaredLogger) (*kubernetes.Clientset, error) {
+	inClusterClient, err := NewInClusterClient(logger)
 	if err != nil && err == rest.ErrNotInCluster {
 		return nil, nil
 	} else if err != nil {
@@ -57,21 +58,23 @@ func NewInClusterClientSet() (*kubernetes.Clientset, error) {
 	return inClusterClientSet, nil
 }
 
-func NewInClusterClient() (*KubeClient, error) {
+func NewInClusterClient(logger *zap.SugaredLogger) (*KubeClient, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
 
+	config.WarningHandler = &loggingWarningHandler{logger: logger}
 	return newForConfig(config)
 }
 
-func NewKubeClient(kubeconfig string) (*KubeClient, error) {
+func NewKubeClient(kubeconfig string, logger *zap.SugaredLogger) (*KubeClient, error) {
 	config, err := getRestConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
+	config.WarningHandler = &loggingWarningHandler{logger: logger}
 	return newForConfig(config)
 }
 
