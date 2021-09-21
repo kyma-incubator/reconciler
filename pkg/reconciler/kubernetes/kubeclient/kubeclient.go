@@ -346,8 +346,8 @@ func (kube *KubeClient) DeleteNamespace(namespace string) error {
 	if err != nil {
 		return err
 	}
-	if len(infos) > 0 {
-		namespaceRes := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "Namespace"}
+	if len(infos) == 0 {
+		namespaceRes := schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
 		err = kube.dynamicClient.
 			Resource(namespaceRes).
 			Delete(context.TODO(), namespace, metav1.DeleteOptions{})
