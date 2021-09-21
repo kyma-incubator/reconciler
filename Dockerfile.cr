@@ -14,14 +14,7 @@ RUN mkdir /user && \
 WORKDIR $SRC_DIR
 
 COPY configs /configs
-RUN CGO_ENABLED=0 go build -o /bin/reconciler -ldflags '-s -w' ./cmd/main.go
-
-RUN apk update && apk upgrade && \
-    apk --no-cache add curl
-RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.0-beta.1/migrate.linux-386.tar.gz -o migrate.tar.gz &&\
-    tar xvzf migrate.tar.gz migrate -C /bin/ &&\
-    ls -la /bin &&\
-    chmod +x /bin/migrate
+RUN CGO_ENABLED=0 go build -o /bin/reconciler -ldflags '-s -w' ./cmd/reconciler/main.go
 
 # Get latest CA certs
 FROM alpine:latest as certs
@@ -39,7 +32,6 @@ COPY --from=build /user/group /user/passwd /etc/
 
 # Add reconciler
 COPY --from=build /bin/reconciler /bin/reconciler
-COPY --from=build /bin/migrate /bin/migrate
 COPY --from=build /configs/ /configs/
 
 # Add istioctl tools
