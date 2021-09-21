@@ -2,8 +2,6 @@
 
 ## Overview
 
->**CAUTION:** This repository is in a very early stage. Use it at your own risk.
-
 The Reconciler is a central system to reconcile Kyma clusters.
 
 ## Run Reconciler locally (Mac OS)
@@ -25,13 +23,13 @@ Follow these steps to run Reconciler locally:
 
    > **CAUTION:** At the moment, reconciliation with default values will fail. You must specify additional parameters:
    > ```bash
-   > ./bin/mothership-darwin local global.ingress.domainName=example.com,global.domainName=example.com,tracing.authProxy.config.useDex=false,tracing.virtualservice.enabled=false,kiali.authProxy.config.useDex=false,kiali.virtualservice.enabled=false
+   > ./bin/mothership-darwin local --value global.ingress.domainName=example.com,global.domainName=example.com,tracing.authProxy.config.useDex=false,tracing.virtualservice.enabled=false,kiali.authProxy.config.useDex=false,kiali.virtualservice.enabled=false
    > ```
 
 
-   Alternatively, you can run Reconciler with the specified components:
+   You can also specify your own component list by using the `components` flag:
    ```bash
-   ./bin/mothership-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
+   ./bin/mothership-darwin local --components tracing,monitoring
    ```
 
 
