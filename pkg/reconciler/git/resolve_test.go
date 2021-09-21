@@ -41,35 +41,35 @@ func TestResolveRefs(t *testing.T) {
 		expectedRevision string
 		expectErr        bool
 		kind             string
-		resolver revisionResolver
+		resolver         revisionResolver
 	}{
 		{
-			summary: "pull request uppercase",
+			summary:          "pull request uppercase",
 			givenRevision:    "PR-9999",
 			expectedRevision: plumbing.ZeroHash.String(),
 			kind:             "pr",
-			resolver: revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
+			resolver:         revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
 		},
 		{
-			summary: "branch request",
+			summary:          "branch request",
 			givenRevision:    "testBranch",
 			expectedRevision: plumbing.ZeroHash.String(),
 			kind:             "branch",
-			resolver: revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
+			resolver:         revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
 		},
 		{
-			summary: "failing pull request uppercase",
+			summary:       "failing pull request uppercase",
 			givenRevision: "PR-1234",
 			expectErr:     true,
 			kind:          "pr",
-			resolver: revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
+			resolver:      revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
 		},
 		{
-			summary: "failing branch request",
+			summary:       "failing branch request",
 			givenRevision: "nonExistingBranch",
 			expectErr:     true,
 			kind:          "branch",
-			resolver: revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
+			resolver:      revisionResolver{url: "github.com/fake-repo", repository: fakeRepo, refLister: fakeLister},
 		},
 	}
 

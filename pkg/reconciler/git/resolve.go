@@ -12,11 +12,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-
 type revisionResolver struct {
 	repository *git.Repository
-	url string
-	refLister refLister
+	url        string
+	refLister  refLister
 }
 
 const prPrefix string = "PR-"

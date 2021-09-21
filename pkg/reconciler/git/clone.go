@@ -25,7 +25,6 @@ type Cloner struct {
 	inClusterClientSet k8s.Interface
 }
 
-
 //go:generate mockery --name RepoClient --case=underscore
 type RepoClient interface {
 	Clone(ctx context.Context, path string,
