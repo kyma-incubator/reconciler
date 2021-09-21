@@ -12,6 +12,8 @@ type CustomAction struct {
 
 func (a *CustomAction) Run(version, profile string, configuration map[string]interface{}, context *service.ActionContext) error {
 
+	// TODO: Implementation
+
 	clientset, err := context.KubeClient.Clientset()
 	if err != nil {
 		return err
