@@ -2,7 +2,7 @@
 db:
   driver: postgres
   encryption:
-    #Call `./bin/reconciler mothership install` to create or update the encryption key file
+    #Call `./bin/mothership mothership install` to create or update the encryption key file
     keyFile: "./encryption/reconciler.key"
   blockQueries: true
   postgres:

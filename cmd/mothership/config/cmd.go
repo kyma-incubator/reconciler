@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	createCmd "github.com/kyma-incubator/reconciler/cmd/config/create"
-	createKeyCmd "github.com/kyma-incubator/reconciler/cmd/config/create/key"
-	createValueCmd "github.com/kyma-incubator/reconciler/cmd/config/create/value"
-	getCmd "github.com/kyma-incubator/reconciler/cmd/config/get"
-	getBucketCmd "github.com/kyma-incubator/reconciler/cmd/config/get/bucket"
-	getKeyCmd "github.com/kyma-incubator/reconciler/cmd/config/get/key"
-	getValueCmd "github.com/kyma-incubator/reconciler/cmd/config/get/value"
+	createCmd "github.com/kyma-incubator/reconciler/cmd/mothership/config/create"
+	createKeyCmd "github.com/kyma-incubator/reconciler/cmd/mothership/config/create/key"
+	createValueCmd "github.com/kyma-incubator/reconciler/cmd/mothership/config/create/value"
+	getCmd "github.com/kyma-incubator/reconciler/cmd/mothership/config/get"
+	getBucketCmd "github.com/kyma-incubator/reconciler/cmd/mothership/config/get/bucket"
+	getKeyCmd "github.com/kyma-incubator/reconciler/cmd/mothership/config/get/key"
+	getValueCmd "github.com/kyma-incubator/reconciler/cmd/mothership/config/get/value"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/spf13/cobra"
 )

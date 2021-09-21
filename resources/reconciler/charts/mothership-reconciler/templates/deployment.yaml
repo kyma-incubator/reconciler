@@ -26,7 +26,7 @@ spec:
       {{- end }}
       {{- end }}
       initContainers:
-      - image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
+      - image: "{{ .Values.global.image.repository }}/mothership:{{ .Values.global.image.tag }}"
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         name: migrate
         args:
@@ -63,10 +63,10 @@ spec:
               name: reconciler-postgresql
               key: postgresql-reconciler-db-name
       containers:
-      - image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}"
+      - image: "{{ .Values.global.image.repository }}/mothership:{{ .Values.global.image.tag }}"
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         args:
-          - reconciler
+          - mothership
           - mothership
           - start
           - --reconcilers=components-configuration/component-reconcilers.json

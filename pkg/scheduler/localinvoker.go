@@ -17,7 +17,7 @@ type localReconcilerInvoker struct {
 	statusFunc    ReconcilerStatusFunc
 }
 
-func (lri *localReconcilerInvoker) Invoke(params *InvokeParams) error {
+func (lri *localReconcilerInvoker) Invoke(ctx context.Context, params *InvokeParams) error {
 	component := params.ComponentToReconcile.Component
 
 	//resolve component reconciler
@@ -41,7 +41,7 @@ func (lri *localReconcilerInvoker) Invoke(params *InvokeParams) error {
 		lri.createCallbackFunc(params),
 	)
 
-	return componentReconciler.StartLocal(context.Background(), model, lri.logger)
+	return componentReconciler.StartLocal(ctx, model, lri.logger)
 }
 
 func (lri *localReconcilerInvoker) createCallbackFunc(params *InvokeParams) func(msg *reconciler.CallbackMessage) error {
