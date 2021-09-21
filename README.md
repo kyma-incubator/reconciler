@@ -20,18 +20,18 @@ Follow these steps to run Reconciler locally:
 2. Run Reconciler with the default configuration. By default, Reconciler installs all components listed in the [`components.yaml`](https://github.com/kyma-project/kyma/blob/main/installation/resources/components.yaml) file.
 
    ```bash
-   ./bin/reconciler-darwin local 
+   ./bin/mothership-darwin local 
    ```
 
    > **CAUTION:** At the moment, reconciliation with default values will fail. You must specify additional parameters:
    > ```bash
-   > ./bin/reconciler-darwin local global.ingress.domainName=example.com,global.domainName=example.com,tracing.authProxy.config.useDex=false,tracing.virtualservice.enabled=false,kiali.authProxy.config.useDex=false,kiali.virtualservice.enabled=false
+   > ./bin/mothership-darwin local global.ingress.domainName=example.com,global.domainName=example.com,tracing.authProxy.config.useDex=false,tracing.virtualservice.enabled=false,kiali.authProxy.config.useDex=false,kiali.virtualservice.enabled=false
    > ```
 
 
    Alternatively, you can run Reconciler with the specified components:
    ```bash
-   ./bin/reconciler-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
+   ./bin/mothership-darwin local --components tracing,monitoring --value tracing.key=value,global.key=value
    ```
 
 
@@ -47,7 +47,7 @@ To execute unit tests, use the `make test` target:
 
 ### Integration test
 
-Integration tests have a higher resource consumption compared to unit tests. You must define the environment variable `KUBECONFIG`, which points to a test Kubernetes cluster. 
+Integration tests have a higher resource consumption compared to unit tests. You must define the environment variable `KUBECONFIG` that points to a test Kubernetes cluster. 
 
 Be aware that the integration test suite installs and deletes Kubernetes resources during the test run.
 
@@ -62,7 +62,7 @@ If a custom logic must be executed before, during, or after the reconciliation o
 
 The reconciler supports component reconcilers, which handle component-specific reconciliation runs.
 
-To add another component reconciler, execute following steps:
+To add another component reconciler, execute the following steps:
 
 1. **Create a component reconciler** by executing the script `pkg/reconciler/instances/reconcilerctl.sh`.
 
@@ -90,10 +90,10 @@ To add another component reconciler, execute following steps:
 
         # Build CLI
         cd $GOPATH/src/github.com/kyma-incubator/reconciler/
-        make build
+        make build-darwin
         
         # Start the component reconciler (for example, 'istio') as standalone service
-        ./bin/reconciler-darwin reconciler start istio
+        ./bin/reconciler-darwin start istio
         
         # To get a list of all configuration options for the component reconciler, call: 
-        ./bin/reconciler-darwin reconciler start istio --help
+        ./bin/reconciler-darwin start istio --help
