@@ -103,12 +103,12 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 
 func Test_ReconcileAction_Run(t *testing.T) {
 
-	t.Run("should not perform any istio action when provider returns an error ", func(t *testing.T) {
+	t.Run("should not perform any istio action when provider returned an error ", func(t *testing.T) {
 		// given
-		fakeFactory := workspacemocks.Factory{}
-		fakeProvider := chartmocks.Provider{}
-		fakeProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Provider error"))
-		actionContext := newFakeServiceContext(&fakeFactory, &fakeProvider)
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Provider error"))
+		actionContext := newFakeServiceContext(&factory, &provider)
 		performer := actionsmocks.IstioPerformer{}
 		commander := istioctlmocks.Commander{}
 		action := ReconcileAction{performer: &performer, commander: &commander}
@@ -118,16 +118,22 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		require.Contains(t, "Provider error", err.Error())
+		require.Contains(t, err.Error(), "Provider error")
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertNotCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
-	t.Run("should not perform any istio action when provider returns an error ", func(t *testing.T) {
+	t.Run("should not perform any istio action when commander version returned an error ", func(t *testing.T) {
 		// given
-		fakeFactory := workspacemocks.Factory{}
-		fakeProvider := chartmocks.Provider{}
-		fakeProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&fakeFactory, &fakeProvider)
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&factory, &provider)
 		performer := actionsmocks.IstioPerformer{}
+		performer.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioVersion{}, errors.New("Version error"))
 		commander := istioctlmocks.Commander{}
 		action := ReconcileAction{performer: &performer, commander: &commander}
 
@@ -136,7 +142,74 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		require.Contains(t, "Provider error", err.Error())
+		require.Contains(t, err.Error(), "Version error")
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should not perform istio install action when istio was not detected on the cluster and istio install returned an error", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&factory, &provider)
+		performer := actionsmocks.IstioPerformer{}
+		noIstioOnTheCluster := actions.IstioVersion{
+			ClientVersion:    "1.0",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+		performer.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(noIstioOnTheCluster, nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("Perfomer Install error"))
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
+
+		// when
+		err := action.Run("version", "profile", nil, actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Perfomer Install error")
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should not perform istio install action when istio was not detected on the cluster and istio patch returned an error", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&factory, &provider)
+		performer := actionsmocks.IstioPerformer{}
+		noIstioOnTheCluster := actions.IstioVersion{
+			ClientVersion:    "1.0",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(errors.New("Performer Patch error"))
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
+
+		// when
+		err := action.Run("version", "profile", nil, actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Performer Patch error")
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
 }
@@ -144,6 +217,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *service.ActionContext {
 	mockClient := &k8smocks.Client{}
 	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+	mockClient.On("Kubeconfig").Return("kubeconfig")
 	logger := log.NewOptionalLogger(true)
 
 	return &service.ActionContext{
