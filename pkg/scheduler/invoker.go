@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -53,5 +54,5 @@ func (p *InvokeParams) createReconciliationModel() *reconciler.Reconciliation {
 }
 
 type reconcilerInvoker interface {
-	Invoke(params *InvokeParams) error
+	Invoke(ctx context.Context, params *InvokeParams) error
 }

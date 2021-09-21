@@ -30,8 +30,7 @@ type Config struct {
 }
 
 func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (k8s.Client, error) {
-	//get kubeClient
-	client, err := kubeclient.NewKubeClient(kubeconfig)
+	client, err := kubeclient.NewKubeClient(kubeconfig, logger)
 	if err != nil {
 		return nil, err
 	}

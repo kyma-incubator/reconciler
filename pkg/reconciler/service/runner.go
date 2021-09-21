@@ -61,6 +61,10 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 		if err := heartbeatSender.Success(); err != nil {
 			return err
 		}
+	} else if ctx.Err() != nil {
+		r.logger.Infof("Reconciliation of component '%s' for version '%s' terminated because context was closed",
+			model.Component, model.Version)
+		return err
 	} else {
 		r.logger.Errorf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			model.Component, model.Version)

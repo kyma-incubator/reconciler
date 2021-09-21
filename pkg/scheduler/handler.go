@@ -27,7 +27,7 @@ func (h *ReconciliationHander) WithStatusUpdater(statusUpdater ClusterStatusUpda
 func (h *ReconciliationHander) Reconcile(ctx context.Context, seq *model.ReconciliationSequence, state *cluster.State, schedulingID string) error {
 	//Reconcile the prerequisites
 	for _, component := range seq.FirstInSequence {
-		err := h.reconcile(component, state, schedulingID)
+		err := h.reconcile(ctx, component, state, schedulingID)
 		if err != nil {
 			return err
 		}
@@ -38,21 +38,21 @@ func (h *ReconciliationHander) Reconcile(ctx context.Context, seq *model.Reconci
 	for _, c := range seq.InParallel {
 		component := c // https://golang.org/doc/faq#closures_and_goroutines
 		g.Go(func() error {
-			return h.reconcile(component, state, schedulingID)
+			return h.reconcile(ctx, component, state, schedulingID)
 		})
 	}
 
 	return g.Wait()
 }
 
-func (h *ReconciliationHander) reconcile(component *keb.Component, state *cluster.State, schedulingID string) error {
+func (h *ReconciliationHander) reconcile(ctx context.Context, component *keb.Component, state *cluster.State, schedulingID string) error {
 	worker, err := h.workerFactory.ForComponent(component.Component)
 	if err != nil {
 		h.statusUpdater.Update(component.Component, model.OperationStateError)
 		return fmt.Errorf("failed to create a worker: %s", err)
 	}
 
-	err = worker.Reconcile(component, *state, schedulingID)
+	err = worker.Reconcile(ctx, component, *state, schedulingID)
 	if err != nil {
 		h.statusUpdater.Update(component.Component, model.OperationStateError)
 		return fmt.Errorf("failed to reconcile a component: %s: %s", component.Component, err)
