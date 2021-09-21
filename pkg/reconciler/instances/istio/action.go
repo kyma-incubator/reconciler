@@ -36,7 +36,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	ver, err := a.performer.Version(context.KubeClient.Kubeconfig(), context.Logger, a.commander)
+	ver, err := a.performer.Version(context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
 		return errors.Wrap(err, "Could not fetch Istio version")
 	}
@@ -55,7 +55,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	err = performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
 		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
 
-		err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
+		err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not install Istio")
 		}
@@ -88,7 +88,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 
 		context.Logger.Infof("Istio version was detected on the cluster, updating from %s to %s...", ver.PilotVersion, ver.ClientVersion)
 
-		err = a.performer.Update(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
+		err = a.performer.Update(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not update Istio")
 		}

@@ -65,21 +65,21 @@ type DataPlaneVersion struct {
 	IstioVersion string `json:"IstioVersion,omitempty"`
 }
 
-//go:generate mockery -name=IstioPerformer
+//go:generate mockery -name=IstioPerformer -outpkg=mock -case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
 type IstioPerformer interface {
 
 	// Install Istio on the cluster.
-	Install(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error
+	Install(kubeConfig, manifest string, logger *zap.SugaredLogger) error
 
 	// PatchMutatingWebhook configuration.
 	PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster.
-	Update(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error
+	Update(kubeConfig, manifest string, logger *zap.SugaredLogger) error
 
 	// Version of Istio on the cluster.
-	Version(kubeConfig string, logger *zap.SugaredLogger, commander istioctl.Commander) (IstioVersion, error)
+	Version(kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
@@ -94,7 +94,7 @@ func NewDefaultIstioPerformer(commander istioctl.Commander) *DefaultIstioPerform
 	}
 }
 
-func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error {
+func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap.SugaredLogger) error {
 	istioOperator, err := extractIstioOperatorContextFrom(manifest)
 	if err != nil {
 		return err
@@ -102,7 +102,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap
 
 	logger.Info("Starting Istio installation...")
 
-	err = commander.Install(istioOperator, kubeConfig, logger)
+	err = c.commander.Install(istioOperator, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -140,7 +140,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Clien
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.SugaredLogger, commander istioctl.Commander) error {
+func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.SugaredLogger) error {
 	istioOperator, err := extractIstioOperatorContextFrom(manifest)
 	if err != nil {
 		return err
@@ -148,7 +148,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.
 
 	logger.Info("Starting Istio update...")
 
-	err = commander.Upgrade(istioOperator, kubeConfig, logger)
+	err = c.commander.Upgrade(istioOperator, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -158,7 +158,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLogger, commander istioctl.Commander) (IstioVersion, error) {
+func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error) {
 	version, err := c.commander.Version(kubeConfig, logger)
 	if err != nil {
 		return IstioVersion{}, err

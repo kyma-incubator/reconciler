@@ -103,7 +103,7 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 
 func Test_ReconcileAction_Run(t *testing.T) {
 
-	t.Run("should not perform istio actions when provider returns an error ", func(t *testing.T) {
+	t.Run("should not perform any istio action when provider returns an error ", func(t *testing.T) {
 		// given
 		fakeFactory := workspacemocks.Factory{}
 		fakeProvider := chartmocks.Provider{}
@@ -114,7 +114,25 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer, commander: &commander}
 
 		// when
-		err := action.Run("local", "profile", nil, actionContext)
+		err := action.Run("version", "profile", nil, actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, "Provider error", err.Error())
+	})
+
+	t.Run("should not perform any istio action when provider returns an error ", func(t *testing.T) {
+		// given
+		fakeFactory := workspacemocks.Factory{}
+		fakeProvider := chartmocks.Provider{}
+		fakeProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&fakeFactory, &fakeProvider)
+		performer := actionsmocks.IstioPerformer{}
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
+
+		// when
+		err := action.Run("version", "profile", nil, actionContext)
 
 		// then
 		require.Error(t, err)

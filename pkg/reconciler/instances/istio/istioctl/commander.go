@@ -16,7 +16,7 @@ const (
 	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
 )
 
-//go:generate mockery -name=Commander
+//go:generate mockery -name=Commander -outpkg=mock -case=underscore
 // Commander for istioctl binary.
 type Commander interface {
 

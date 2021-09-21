@@ -94,7 +94,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		err = wrapper.Install(kubeConfig, "", log, &cmder)
+		err = wrapper.Install(kubeConfig, "", log)
 
 		/// then
 		require.Error(t, err)
@@ -110,7 +110,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		err = wrapper.Install(kubeConfig, istioManifest, log, &cmder)
+		err = wrapper.Install(kubeConfig, istioManifest, log)
 
 		// then
 		require.Error(t, err)
@@ -126,7 +126,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		err = wrapper.Install(kubeConfig, istioManifest, log, &cmder)
+		err = wrapper.Install(kubeConfig, istioManifest, log)
 
 		// then
 		require.NoError(t, err)
@@ -189,7 +189,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		err = wrapper.Update(kubeConfig, "", log, &cmder)
+		err = wrapper.Update(kubeConfig, "", log)
 
 		/// then
 		require.Error(t, err)
@@ -205,7 +205,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		err = wrapper.Update(kubeConfig, istioManifest, log, &cmder)
+		err = wrapper.Update(kubeConfig, istioManifest, log)
 
 		// then
 		require.Error(t, err)
@@ -221,7 +221,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		err = wrapper.Update(kubeConfig, istioManifest, log, &cmder)
+		err = wrapper.Update(kubeConfig, istioManifest, log)
 
 		// then
 		require.NoError(t, err)
@@ -266,7 +266,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		ver, err := wrapper.Version(kubeConfig, log, &cmder)
+		ver, err := wrapper.Version(kubeConfig, log)
 
 		// then
 		require.Empty(t, ver)
@@ -282,7 +282,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		ver, err := wrapper.Version(kubeConfig, log, &cmder)
+		ver, err := wrapper.Version(kubeConfig, log)
 
 		// then
 		require.EqualValues(t, ver, IstioVersion{ClientVersion: "1.11.2"})
@@ -299,7 +299,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		ver, err := wrapper.Version(kubeConfig, log, &cmder)
+		ver, err := wrapper.Version(kubeConfig, log)
 
 		// then
 		require.EqualValues(t, ver, IstioVersion{ClientVersion: "1.11.1", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"})
