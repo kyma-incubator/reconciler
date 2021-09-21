@@ -70,6 +70,9 @@ func newCmd(o *cli.Options) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&reconcilerOpts.Workspace, "workspace", ".",
 		"Workspace directory used to cache Kyma sources")
 
+	cmd.PersistentFlags().BoolVarP(&reconcilerOpts.Verbose, "verbose", "v", false, "Show detailed information about the executed command actions")
+	cmd.PersistentFlags().BoolVar(&reconcilerOpts.NonInteractive, "non-interactive", false, "Enables the non-interactive shell mode")
+
 	startCommand := startCmd.NewCmd()
 	cmd.AddCommand(startCommand)
 	//register component reconcilers in start command:

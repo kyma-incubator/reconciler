@@ -26,7 +26,6 @@ spec:
         imagePullPolicy: {{ $global.Values.global.image.pullPolicy }}
         args:
           - reconciler
-          - reconciler
           - start
           - {{ $component }}
           - --workspace=/tmp/reconciler

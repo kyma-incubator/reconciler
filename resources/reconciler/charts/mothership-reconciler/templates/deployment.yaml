@@ -66,7 +66,7 @@ spec:
       - image: "{{ .Values.global.image.repository }}/mothership:{{ .Values.global.image.tag }}"
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         args:
-          - reconciler
+          - mothership
           - mothership
           - start
           - --reconcilers=components-configuration/component-reconcilers.json
