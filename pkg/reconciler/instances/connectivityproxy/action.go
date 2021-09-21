@@ -3,7 +3,6 @@ package connectivityproxy
 import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"go.uber.org/zap"
 )
 
 type CustomAction struct {
@@ -18,7 +17,7 @@ func (a *CustomAction) Run(version, profile string, configuration map[string]int
 		return err
 	}
 
-	inClusterClientSet, err := kubeclient.NewInClusterClientSet(zap.NewNop().Sugar())
+	inClusterClientSet, err := kubeclient.NewInClusterClientSet(context.Logger)
 	if err != nil {
 		return err
 	}
