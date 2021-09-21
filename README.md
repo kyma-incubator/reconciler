@@ -14,25 +14,16 @@ Follow these steps to run Reconciler locally:
    make build-darwin 
    ```
 
-
-2. Run Reconciler with the default configuration. By default, Reconciler installs all components listed in the [`components.yaml`](https://github.com/kyma-project/kyma/blob/main/installation/resources/components.yaml) file.
-
-   ```bash
-   ./bin/mothership-darwin local 
-   ```
-
+2. Run Reconciler.
    > **CAUTION:** At the moment, reconciliation with default values will fail. You must specify additional parameters:
-   > ```bash
-   > ./bin/mothership-darwin local --value global.ingress.domainName=example.com,global.domainName=example.com,tracing.authProxy.config.useDex=false,tracing.virtualservice.enabled=false,kiali.authProxy.config.useDex=false,kiali.virtualservice.enabled=false
-   > ```
-
-
-   You can also specify your own component list by using the `components` flag:
+   >   ```bash
+   >   ./bin/mothership-darwin local --value global.ingress.         domainName=example.com,global.domainName=example.com,tracing.authProxy.config.useDex=false,tracing.virtualservice.enabled=false,kiali.authProxy.config.useDex=false,kiali.virtualservice.enabled=false
+   >   ```
+   
+   We recommend to specify your own component list by using the `components` flag. By default, Reconciler installs all components listed in the [`components.yaml`](https://github.com/kyma-project/kyma/blob/main/installation/resources/components.yaml) file.
    ```bash
-   ./bin/mothership-darwin local --components tracing,monitoring
+    ./bin/mothership-darwin local --components tracing,monitoring
    ```
-
-
 
 ## Testing
 
