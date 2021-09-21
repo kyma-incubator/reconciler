@@ -1,6 +1,9 @@
 package istioctl
 
 import (
+	"os"
+	"os/exec"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -29,6 +32,8 @@ type Commander interface {
 	// Version wraps istioctl version command.
 	Version(kubeconfig string, logger *zap.SugaredLogger) ([]byte, error)
 }
+
+var execCommand = exec.Command
 
 // DefaultCommander provides a default implementation of Commander.
 type DefaultCommander struct {
@@ -65,7 +70,7 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 		}
 	}()
 
-	cmd := exec.Command(istioctlPath, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+	cmd := execCommand(istioctlPath, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -130,7 +135,7 @@ func (c *DefaultCommander) Upgrade(istioOperator, kubeconfig string, logger *zap
 		}
 	}()
 
-	cmd := exec.Command(istioctlPath, "upgrade", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+	cmd := execCommand(istioctlPath, "upgrade", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -159,7 +164,7 @@ func (c *DefaultCommander) Version(kubeconfig string, logger *zap.SugaredLogger)
 		}
 	}()
 
-	cmd := exec.Command(istioctlPath, "version", "--output", "json", "--kubeconfig", kubeconfigPath)
+	cmd := execCommand(istioctlPath, "version", "--output", "json", "--kubeconfig", kubeconfigPath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return []byte{}, err
