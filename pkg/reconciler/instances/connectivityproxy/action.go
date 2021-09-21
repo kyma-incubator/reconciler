@@ -17,7 +17,7 @@ func (a *CustomAction) Run(version, profile string, configuration map[string]int
 		return err
 	}
 
-	inClusterClientSet, err := kubeclient.NewInClusterClientSet()
+	inClusterClientSet, err := kubeclient.NewInClusterClientSet(context.Logger)
 	if err != nil {
 		return err
 	}

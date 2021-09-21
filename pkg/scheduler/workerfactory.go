@@ -63,7 +63,7 @@ func (rwf *remoteWorkerFactory) ForComponent(component string) (ReconciliationWo
 		}
 	}
 
-	return NewWorker(reconcilerCfg, rwf.inventory, rwf.operationsReg, rwf.invoker, rwf.debug)
+	return NewWorker(reconcilerCfg, rwf.inventory, rwf.operationsReg, rwf.invoker, rwf.logger)
 }
 
 type localWorkerFactory struct {
@@ -91,6 +91,5 @@ func newLocalWorkerFactory(
 }
 
 func (lwf *localWorkerFactory) ForComponent(component string) (ReconciliationWorker, error) {
-	//TODO: pass the logger to the worker instead of the debug flag
-	return NewWorker(&ComponentReconciler{}, lwf.inventory, lwf.operationsReg, lwf.invoker, true)
+	return NewWorker(&ComponentReconciler{}, lwf.inventory, lwf.operationsReg, lwf.invoker, lwf.logger)
 }

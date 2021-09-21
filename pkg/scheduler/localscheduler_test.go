@@ -2,16 +2,14 @@ package scheduler
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"testing"
 
 	"go.uber.org/zap"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
-	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/mock"
@@ -120,44 +118,32 @@ func TestLocalSchedulerOrder(t *testing.T) {
 func TestLocalSchedulerWithKubeCluster(t *testing.T) {
 	test.IntegrationTest(t)
 
-	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
+	l := logger.NewLogger(true)
+
+	//use a global workspace wsFactory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
 	//collisions when sharing the same directory)
-	wsFact, err := workspace.NewFactory(nil, workspaceDir, logger.NewLogger(true))
+	wsFactory, err := workspace.NewFactory(nil, workspaceDir, l)
 	require.NoError(t, err)
-	require.NoError(t, service.UseGlobalWorkspaceFactory(wsFact))
+	require.NoError(t, service.UseGlobalWorkspaceFactory(wsFactory))
 
 	//cleanup workspace
-	cleanupFct := func(t *testing.T) {
-		require.NoError(t, wsFact.Delete(kymaVersion))
+	cleanupFunc := func(t *testing.T) {
+		require.NoError(t, wsFactory.Delete(kymaVersion))
 	}
-	cleanupFct(t)
-	defer cleanupFct(t)
-
-	workerFactory := newLocalWorkerFactory(
-		zap.NewNop().Sugar(),
-		&cluster.MockInventory{},
-		NewInMemoryOperationsRegistry(),
-		func(component string, msg *reconciler.CallbackMessage) {
-			t.Logf("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
-		})
+	cleanupFunc(t)
+	defer cleanupFunc(t)
 
 	t.Run("Missing component reconciler", func(t *testing.T) {
 		//no initialization of component reconcilers happened - reconciliation has to fail
-		ls := LocalScheduler{
-			logger:        zap.NewNop().Sugar(),
-			workerFactory: workerFactory,
-		}
+		ls := NewLocalScheduler(WithLogger(l))
 		err := ls.Run(context.Background(), newCluster(t))
 		require.Error(t, err)
 	})
 
 	t.Run("Happy path", func(t *testing.T) {
 		initDefaultComponentReconciler(t)
-		ls := LocalScheduler{
-			logger:        zap.NewNop().Sugar(),
-			workerFactory: workerFactory,
-		}
+		ls := NewLocalScheduler(WithLogger(l))
 		err := ls.Run(context.Background(), newCluster(t))
 		require.NoError(t, err)
 	})
