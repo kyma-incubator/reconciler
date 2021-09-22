@@ -116,7 +116,7 @@ func (f *Factory) clone(version, dstDir string) error {
 	//clone sources
 	f.logger.Infof("Cloning repository '%s' with revision '%s' into workspace '%s'",
 		f.repository.URL, version, dstDir)
-	clientSet, err := kubeclient.NewInClusterClientSet()
+	clientSet, err := kubeclient.NewInClusterClientSet(f.logger)
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type RemoteRepoCloner struct {
+type Cloner struct {
 	repo         *reconciler.Repository
 	autoCheckout bool
 
@@ -33,8 +33,8 @@ type RepoClient interface {
 	ResolveRevision(rev gitp.Revision) (*gitp.Hash, error)
 }
 
-func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface) (*RemoteRepoCloner, error) {
-	return &RemoteRepoCloner{
+func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface) (*Cloner, error) {
+	return &Cloner{
 		repo:               repo,
 		autoCheckout:       autoCheckout,
 		repoClient:         repoClient,
@@ -43,13 +43,13 @@ func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout 
 }
 
 // Clone clones the repository from the given remote URL to the given `path` in the local filesystem.
-func (r *RemoteRepoCloner) Clone(path string) error {
+func (r *Cloner) Clone(path string) (*git.Repository, error) {
 	auth, err := r.buildAuth()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = r.repoClient.Clone(context.Background(), path, false, &git.CloneOptions{
+	return r.repoClient.Clone(context.Background(), path, false, &git.CloneOptions{
 		Depth:             0,
 		URL:               r.repo.URL,
 		NoCheckout:        !r.autoCheckout,
@@ -57,22 +57,21 @@ func (r *RemoteRepoCloner) Clone(path string) error {
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	})
 
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed to clone the repository '%s'", err))
-	}
-
-	return nil
 }
 
 // Checkout checks out the given revision.
 // revision can be 'main', a release version (e.g. 1.4.1), a commit hash (e.g. 34edf09a).
-func (r *RemoteRepoCloner) Checkout(rev string) error {
+func (r *Cloner) Checkout(rev string, repo *git.Repository) error {
 	w, err := r.repoClient.Worktree()
 	if err != nil {
 		return errors.Wrap(err, "error getting the GIT worktree")
 	}
 
-	hash, err := r.repoClient.ResolveRevision(gitp.Revision(rev))
+	// hash, err := r.repoClient.ResolveRevision(gitp.Revision(rev))
+	var defaultLister refLister = remoteRefLister{}
+	var resolver = revisionResolver{url: r.repo.URL, repository: repo, refLister: defaultLister}
+
+	hash, err := resolver.resolveRevision(rev)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to resolve GIT revision '%s'", rev))
 	}
@@ -85,19 +84,19 @@ func (r *RemoteRepoCloner) Checkout(rev string) error {
 	return nil
 }
 
-func (r *RemoteRepoCloner) CloneAndCheckout(dstPath, rev string) error {
+func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
 	if rev == "" {
 		return fmt.Errorf("GIT revision cannot be empty")
 	}
-	err := r.Clone(dstPath)
+	repo, err := r.Clone(dstPath)
 	if err != nil {
 		return errors.Wrapf(err, "Error downloading Git repository (%s)", r.repo)
 	}
 
-	return r.Checkout(rev)
+	return r.Checkout(rev, repo)
 }
 
-func (r *RemoteRepoCloner) buildAuth() (transport.AuthMethod, error) {
+func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 	if r.repo.TokenNamespace == "" {
 		return nil, nil
 	}
