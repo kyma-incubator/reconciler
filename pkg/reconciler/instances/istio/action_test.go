@@ -442,7 +442,7 @@ func TestIsClientVersionAcceptable(t *testing.T) {
 		}
 
 		//when
-		got := canUpdate(randomVersion)
+		got := isClientVersionAcceptable(randomVersion)
 
 		//then
 		require.Equal(t, false, got)
@@ -458,7 +458,7 @@ func TestIsClientVersionAcceptable(t *testing.T) {
 		}
 
 		//when
-		got := canUpdate(randomVersion)
+		got := isClientVersionAcceptable(randomVersion)
 
 		//then
 		require.Equal(t, true, got)
@@ -480,14 +480,22 @@ func TestCanUpdate(t *testing.T) {
 			PilotVersion:     "1.8.6",
 			DataPlaneVersion: "1.8.6",
 		}
+		noSubminorVersion := actions.IstioVersion{
+			ClientVersion:    "1.3",
+			TargetVersion:    "1.3",
+			PilotVersion:     "1.1",
+			DataPlaneVersion: "1.1",
+		}
 
 		//when
 		got1 := canUpdate(oneNineVersions)
 		got2 := canUpdate(oneEightVersions)
+		got3 := canUpdate(noSubminorVersion)
 
 		//then
 		require.Equal(t, false, got1)
 		require.Equal(t, false, got2)
+		require.Equal(t, false, got3)
 	})
 
 	t.Run("If the minor version difference is less than or equal to 1, we can update", func(t *testing.T) {

@@ -204,6 +204,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 	t.Run("should not update Istio when istioctl returned an error", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
 		wrapper := NewDefaultIstioPerformer(&cmder)
@@ -259,14 +260,14 @@ func Test_extractIstioOperatorContextFrom(t *testing.T) {
 }
 
 func Test_DefaultIstioPerformer_Version(t *testing.T) {
+	err := os.Setenv("ISTIOCTL_PATH", "path")
+	require.NoError(t, err)
 	kubeConfig := "kubeConfig"
 	log, err := logger.NewLogger(false)
 	require.NoError(t, err)
 
 	t.Run("should not proceed if the version command output returns an empty string", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
@@ -284,8 +285,6 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 
 	t.Run("should not proceed if the targetVersion is not obtained", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{}, nil)
@@ -303,8 +302,6 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 
 	t.Run("should get only the client version when istio is not yet installed on the cluster", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
@@ -323,8 +320,6 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 
 	t.Run("should get all the expected versions when istio installed on the cluster", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
@@ -339,6 +334,53 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
+	})
+}
+
+func TestGetTargetVersionFromChart(t *testing.T) {
+	branch := "branch"
+
+	t.Run("should not get target version when the workspace is not resolved", func(t *testing.T) {
+		//given
+		istioChart := "istio-configuration-test"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{}, nil)
+		//factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
+
+		//when
+		_, err := getTargetVersionFromChart(factory, branch, istioChart)
+
+		//then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no such file or directory")
+	})
+
+	t.Run("should not get target version when the istio Chart does not exist", func(t *testing.T) {
+		//given
+		istioChart := "istio-config"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
+
+		//when
+		_, err := getTargetVersionFromChart(factory, branch, istioChart)
+
+		//then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no such file or directory")
+	})
+
+	t.Run("should get target version when Chart.yml is resolved", func(t *testing.T) {
+		//given
+		istioChart := "istio-configuration-test"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
+
+		//when
+		targetVersion, err := getTargetVersionFromChart(factory, branch, istioChart)
+
+		//then
+		require.NoError(t, err)
+		require.EqualValues(t, "1.11.2", targetVersion)
 	})
 }
 
