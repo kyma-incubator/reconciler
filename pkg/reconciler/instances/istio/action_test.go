@@ -2,13 +2,14 @@ package istio
 
 import (
 	"context"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	actionsmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/mocks"
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
-	"testing"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
@@ -400,6 +401,7 @@ func TestShouldInstall(t *testing.T) {
 		//given
 		randomVersion := actions.IstioVersion{
 			ClientVersion:    "1.9.2",
+			TargetVersion:    "",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -415,6 +417,7 @@ func TestShouldInstall(t *testing.T) {
 		//given
 		randomVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
+			TargetVersion:    "",
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.1",
 		}

@@ -34,7 +34,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	ver, err := a.performer.Version(context.KubeClient.Kubeconfig(), context.Logger)
+	ver, err := a.performer.Version(context.WorkspaceFactory, version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
 		return errors.Wrap(err, "Could not fetch Istio version")
 	}

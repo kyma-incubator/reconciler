@@ -8,6 +8,8 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace/mocks"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -105,6 +107,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 	t.Run("should not install Istio when istioctl returned an error", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
 		wrapper := NewDefaultIstioPerformer(&cmder)
@@ -121,6 +124,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 	t.Run("should install Istio when istioctl command was successful", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
 		wrapper := NewDefaultIstioPerformer(&cmder)
@@ -216,6 +220,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 	t.Run("should update Istio when istioctl command was successful", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
 		wrapper := NewDefaultIstioPerformer(&cmder)
@@ -258,15 +263,18 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 	log, err := logger.NewLogger(false)
 	require.NoError(t, err)
 
-	t.Run("should not proceed if the version command returns an empty string", func(t *testing.T) {
+	t.Run("should not proceed if the version command output returns an empty string", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(""), nil)
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		ver, err := wrapper.Version(kubeConfig, log)
+		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
 
 		// then
 		require.Empty(t, ver)
@@ -274,18 +282,40 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		require.Contains(t, err.Error(), "command is empty")
 	})
 
+	t.Run("should not proceed if the targetVersion is not obtained", func(t *testing.T) {
+		// given
+		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
+		cmder := istioctlmocks.Commander{}
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{}, nil)
+		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(""), nil)
+		wrapper := NewDefaultIstioPerformer(&cmder)
+
+		// when
+		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
+
+		// then
+		require.Empty(t, ver)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Target Version could not be obtained")
+	})
+
 	t.Run("should get only the client version when istio is not yet installed on the cluster", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(istioctlMockSimpleVersion), nil)
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		ver, err := wrapper.Version(kubeConfig, log)
+		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, ver, IstioVersion{ClientVersion: "1.11.2", TargetVersion: "1.11.2"})
+		require.EqualValues(t, IstioVersion{ClientVersion: "1.11.2", TargetVersion: "1.11.2"}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -294,15 +324,18 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 	t.Run("should get all the expected versions when istio installed on the cluster", func(t *testing.T) {
 		// given
 		err := os.Setenv("ISTIOCTL_PATH", "path")
+		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(istioctlMockCompleteVersion), nil)
 		wrapper := NewDefaultIstioPerformer(&cmder)
 
 		// when
-		ver, err := wrapper.Version(kubeConfig, log)
+		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, ver, IstioVersion{ClientVersion: "1.11.1", TargetVersion: "1.11.1", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"})
+		require.EqualValues(t, IstioVersion{ClientVersion: "1.11.1", TargetVersion: "1.11.2", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -316,9 +349,10 @@ func TestMapVersionToStruct(t *testing.T) {
 	t.Run("Empty byte array for version coomand returns an error", func(t *testing.T) {
 		// given
 		versionOutput := []byte("")
+		targetVersion := "targetVersion"
 
 		//when
-		_, err := mapVersionToStruct(versionOutput, log)
+		_, err := mapVersionToStruct(versionOutput, targetVersion, log)
 
 		//then
 		require.Error(t, err)
@@ -328,14 +362,16 @@ func TestMapVersionToStruct(t *testing.T) {
 	t.Run("If unmarshalled properly, the byte array must be converted to struct", func(t *testing.T) {
 		// given
 		versionOutput := []byte(istioctlMockCompleteVersion)
+		targetVersion := "targetVersion"
 		expectedStruct := IstioVersion{
 			ClientVersion:    "1.11.1",
+			TargetVersion:    targetVersion,
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.1",
 		}
 
 		//when
-		gotStruct, err := mapVersionToStruct(versionOutput, log)
+		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion, log)
 
 		//then
 		require.NoError(t, err)

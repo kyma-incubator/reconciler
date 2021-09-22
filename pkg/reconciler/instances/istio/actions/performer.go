@@ -3,12 +3,16 @@ package actions
 import (
 	"bytes"
 	"encoding/json"
+	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+
+	"helm.sh/helm/v3/pkg/chart/loader"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -66,7 +70,7 @@ type DataPlaneVersion struct {
 	IstioVersion string `json:"IstioVersion,omitempty"`
 }
 
-//go:generate mockery -name=IstioPerformer -outpkg=mock -case=underscore
+//go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
 type IstioPerformer interface {
 
@@ -80,7 +84,7 @@ type IstioPerformer interface {
 	Update(kubeConfig, manifest string, logger *zap.SugaredLogger) error
 
 	// Version of Istio on the cluster.
-	Version(kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
+	Version(workspace workspace.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
@@ -159,18 +163,33 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error) {
-	version, err := c.commander.Version(kubeConfig, logger)
+func (c *DefaultIstioPerformer) Version(workspace workspace.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error) {
+	versionOutput, err := c.commander.Version(kubeConfig, logger)
 	if err != nil {
 		return IstioVersion{}, err
 	}
 
-	mappedIstioVersion, err := mapVersionToStruct(version, logger)
+	targetVersion, err := getTargetVersionFromChart(workspace, branchVersion, istioChart)
+	if err != nil {
+		return IstioVersion{}, errors.Wrap(err, "Target Version could not be obtained")
+	}
 
-	// remove later, just mock
-	mappedIstioVersion.TargetVersion = mappedIstioVersion.ClientVersion
+	mappedIstioVersion, err := mapVersionToStruct(versionOutput, targetVersion, logger)
 
 	return mappedIstioVersion, err
+}
+
+// Gets the appVersion to upgrade to from Chart.yml using the helm client
+func getTargetVersionFromChart(workspace workspace.Factory, branch string, istioChart string) (string, error) {
+	ws, err := workspace.Get(branch)
+	if err != nil {
+		return "", err
+	}
+	chart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	if err != nil {
+		return "", err
+	}
+	return chart.Metadata.AppVersion, nil
 }
 
 func extractIstioOperatorContextFrom(manifest string) (string, error) {
@@ -216,20 +235,20 @@ func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string
 	}
 }
 
-func mapVersionToStruct(raw []byte, logger *zap.SugaredLogger) (IstioVersion, error) {
-	//	If raw is empty
-	if len(raw) == 0 {
+func mapVersionToStruct(versionOutput []byte, targetVersion string, logger *zap.SugaredLogger) (IstioVersion, error) {
+	//	If versionOutput is empty
+	if len(versionOutput) == 0 {
 		return IstioVersion{}, errors.New("The result of the version command is empty!")
 	}
 
 	// Remove additional text not part of the json output
-	if index := bytes.IndexRune(raw, '{'); index != 0 {
-		raw = raw[bytes.IndexRune(raw, '{'):]
+	if index := bytes.IndexRune(versionOutput, '{'); index != 0 {
+		versionOutput = versionOutput[bytes.IndexRune(versionOutput, '{'):]
 	}
 
 	var version IstioVersionOutput
 	// Map the json output to the IstioVersionOutput struct
-	err := json.Unmarshal(raw, &version)
+	err := json.Unmarshal(versionOutput, &version)
 
 	if err != nil {
 		return IstioVersion{}, err
@@ -237,6 +256,7 @@ func mapVersionToStruct(raw []byte, logger *zap.SugaredLogger) (IstioVersion, er
 
 	return IstioVersion{
 		ClientVersion:    getVersionFromJSON("client", version),
+		TargetVersion:    targetVersion,
 		PilotVersion:     getVersionFromJSON("pilot", version),
 		DataPlaneVersion: getVersionFromJSON("dataPlane", version),
 	}, nil
