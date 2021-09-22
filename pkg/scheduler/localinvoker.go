@@ -55,12 +55,12 @@ func (lri *localReconcilerInvoker) createCallbackFunc(params *InvokeParams) func
 			return lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
 		case reconciler.Failed:
 			return lri.operationsReg.SetFailed(params.CorrelationID, params.SchedulingID,
-				fmt.Sprintf("Reconciler reported failure status: %s", msg.Error.Error()))
+				fmt.Sprintf("Reconciler reported failure status: %s", msg.Error))
 		case reconciler.Success:
 			return lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
 		case reconciler.Error:
 			return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID,
-				fmt.Sprintf("Reconciler reported error status: %s", msg.Error.Error()))
+				fmt.Sprintf("Reconciler reported error status: %s", msg.Error))
 		}
 
 		return nil
