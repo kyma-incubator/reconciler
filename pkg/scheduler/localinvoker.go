@@ -51,16 +51,16 @@ func (lri *localReconcilerInvoker) createCallbackFunc(params *InvokeParams) func
 		}
 
 		switch msg.Status {
-		case reconciler.NotStarted, reconciler.Running:
+		case reconciler.StatusNotstarted, reconciler.StatusRunning:
 			return lri.operationsReg.SetInProgress(params.CorrelationID, params.SchedulingID)
-		case reconciler.Failed:
+		case reconciler.StatusFailed:
 			return lri.operationsReg.SetFailed(params.CorrelationID, params.SchedulingID,
-				fmt.Sprintf("Reconciler reported failure status: %s", msg.Error.Error()))
-		case reconciler.Success:
+				fmt.Sprintf("Reconciler reported failure status: %s", msg.GetErrMessage()))
+		case reconciler.StatusSuccess:
 			return lri.operationsReg.SetDone(params.CorrelationID, params.SchedulingID)
-		case reconciler.Error:
+		case reconciler.StatusError:
 			return lri.operationsReg.SetError(params.CorrelationID, params.SchedulingID,
-				fmt.Sprintf("Reconciler reported error status: %s", msg.Error.Error()))
+				fmt.Sprintf("Reconciler reported error status: %s", msg.GetErrMessage()))
 		}
 
 		return nil

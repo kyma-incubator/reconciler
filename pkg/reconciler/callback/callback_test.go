@@ -19,7 +19,7 @@ func TestRemoteCallbackHandler(t *testing.T) {
 		rcb, err := NewRemoteCallbackHandler("https://httpbin.org/status/200", logger)
 		require.NoError(t, err)
 		require.NoError(t, rcb.Callback(&reconciler.CallbackMessage{
-			Status: reconciler.Running,
+			Status: reconciler.StatusRunning,
 			Error:  nil,
 		}))
 	})
@@ -28,7 +28,7 @@ func TestRemoteCallbackHandler(t *testing.T) {
 		rcb, err := NewRemoteCallbackHandler("https://httpbin.org/status/400", logger)
 		require.NoError(t, err)
 		require.Error(t, rcb.Callback(&reconciler.CallbackMessage{
-			Status: reconciler.Running,
+			Status: reconciler.StatusRunning,
 			Error:  nil,
 		}))
 	})
@@ -45,7 +45,7 @@ func TestLocalCallbackHandler(t *testing.T) {
 		}, logger)
 		require.NoError(t, err)
 		require.NoError(t, rcb.Callback(&reconciler.CallbackMessage{
-			Status: reconciler.Running,
+			Status: reconciler.StatusRunning,
 			Error:  nil,
 		}))
 		require.True(t, localFuncCalled)
@@ -57,7 +57,7 @@ func TestLocalCallbackHandler(t *testing.T) {
 		}, logger)
 		require.NoError(t, err)
 		require.Error(t, rcb.Callback(&reconciler.CallbackMessage{
-			Status: reconciler.Running,
+			Status: reconciler.StatusRunning,
 			Error:  nil,
 		}))
 	})
