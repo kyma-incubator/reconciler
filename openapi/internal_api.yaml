@@ -1,0 +1,73 @@
+openapi: 3.0.0
+info:
+  title: Reconciler mothership internal API
+  version: 1.0.0
+servers:
+  - url: http://{host}:{port}/{version}
+    variables:
+      host:
+        default: localhost
+        description: Host for server
+      port:
+        default: '8080'
+        description: Port for server
+      version:
+        enum:
+          - 'v1'
+        default: 'v1'
+
+paths:
+  /operations/{schedulingID}/callback/{correlationID}:
+    post:
+      description: test
+      parameters:
+        - name: schedulingID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: correlationID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/callbackMessage'
+      responses:
+        '200':
+          description: "Ok"
+        '400':
+          $ref: './external_api.yaml#/components/responses/BadRequest'
+        '404':
+          description: 'Given operation not found'
+          content:
+            application/json:
+              schema:
+                $ref: './external_api.yaml#/components/schemas/HTTPErrorResponse'
+        '500':
+          $ref: './external_api.yaml#/components/responses/InternalError'
+components:
+  schemas:
+    callbackMessage:
+      type: object
+      required: [ status ]
+      properties:
+        status:
+          $ref: '#/components/schemas/status'
+        # TODO: error can't be string in current implementation. need to change it to string instead of error
+        error:
+          type: string
+
+    status:
+      type: string
+      enum:
+        - notstarted
+        - error
+        - running
+        - success
+        - failed

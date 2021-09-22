@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -13,6 +11,8 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler"
+	"github.com/spf13/viper"
 
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -230,9 +230,9 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		resp.StatusChanges = append(resp.StatusChanges, &keb.StatusChange{
+		resp.StatusChanges = append(resp.StatusChanges, keb.StatusChange{
 			Started:  statusChange.Status.Created,
-			Duration: statusChange.Duration,
+			Duration: int64(statusChange.Duration),
 			Status:   kebClusterStatus,
 		})
 	}
@@ -312,16 +312,16 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch body.Status {
-	case reconciler.NotStarted, reconciler.Running:
+	case reconciler.StatusNotstarted, reconciler.StatusRunning:
 		err = o.Registry.OperationsRegistry().SetInProgress(correlationID, schedulingID)
-	case reconciler.Failed:
+	case reconciler.StatusFailed:
 		err = o.Registry.OperationsRegistry().SetFailed(correlationID, schedulingID,
-			fmt.Sprintf("Reconciler reported failure status: %s", body.Error))
-	case reconciler.Success:
+			fmt.Sprintf("Reconciler reported failure status: %v", body.Error))
+	case reconciler.StatusSuccess:
 		err = o.Registry.OperationsRegistry().SetDone(correlationID, schedulingID)
-	case reconciler.Error:
+	case reconciler.StatusError:
 		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID,
-			fmt.Sprintf("Reconciler reported error status: %s", body.Error))
+			fmt.Sprintf("Reconciler reported error status: %v", body.Error))
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest

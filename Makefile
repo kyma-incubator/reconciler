@@ -81,8 +81,28 @@ test-all: test
 clean:
 	rm -rf bin
 
+export OAPI_VALIDATOR=spectral
+export OAPI_VALIDATOR_OPS=lint --ruleset ./openapi/.spectral.json --display-only-failures
+
+.PHONY: validate-oapi-spec
+validate-oapi-spec:
+	$(OAPI_VALIDATOR) $(OAPI_VALIDATOR_OPS) ./openapi/external_api.yaml
+	$(OAPI_VALIDATOR) $(OAPI_VALIDATOR_OPS) ./openapi/internal_api.yaml
+
+export OAPI_GENERATOR=oapi-codegen
+export OAPI_GENERATOR_OPTS=-generate 'types,skip-prune'
+
+.PHONY: generate-oapi-models
+generate-oapi-models:
+	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o ./pkg/keb/model_gen.go -package keb ./openapi/external_api.yaml
+	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o ./pkg/reconciler/model_gen.go -package reconciler ./openapi/internal_api.yaml
+
+.PHONY: oapi
+oapi: validate-oapi-spec generate-oapi-models
+	@./scripts/git-check.sh
+
 .PHONY: all
-all: resolve build test lint docker-build docker-push
+all: resolve oapi build test lint docker-build docker-push
 
 .PHONY: release
 release: all
