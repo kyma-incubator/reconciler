@@ -6,10 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	cfgCmd "github.com/kyma-incubator/reconciler/cmd/config"
-	localCmd "github.com/kyma-incubator/reconciler/cmd/local"
-	msCmd "github.com/kyma-incubator/reconciler/cmd/mothership"
-	rclCmd "github.com/kyma-incubator/reconciler/cmd/reconciler"
+	cfgCmd "github.com/kyma-incubator/reconciler/cmd/mothership/config"
+	localCmd "github.com/kyma-incubator/reconciler/cmd/mothership/local"
+	msCmd "github.com/kyma-incubator/reconciler/cmd/mothership/mothership"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/cobra"
@@ -32,7 +31,6 @@ func main() {
 
 	cmd.AddCommand(cfgCmd.NewCmd(o))
 	cmd.AddCommand(msCmd.NewCmd(o))
-	cmd.AddCommand(rclCmd.NewCmd(o))
 	cmd.AddCommand(localCmd.NewCmd(localCmd.NewOptions(o)))
 
 	if err := cmd.Execute(); err != nil {

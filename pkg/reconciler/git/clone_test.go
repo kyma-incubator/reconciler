@@ -103,7 +103,7 @@ func TestCloneRepo(t *testing.T) {
 			TokenNamespace: "default",
 		}, false, clientWithToken("github.com", "default", "token", token))
 
-		err := cloner.Clone("/test")
+		_, err := cloner.Clone("/test")
 		assert.NoError(t, err)
 	})
 }
@@ -119,7 +119,7 @@ func TestTokenRead(t *testing.T) {
 			TokenNamespace: "default",
 		}
 
-		cloner := RemoteRepoCloner{
+		cloner := Cloner{
 			repo:               &repo,
 			autoCheckout:       false,
 			repoClient:         nil,
@@ -143,7 +143,7 @@ func TestTokenRead(t *testing.T) {
 			TokenNamespace: "default",
 		}
 
-		cloner := RemoteRepoCloner{
+		cloner := Cloner{
 			repo:               &repo,
 			autoCheckout:       false,
 			repoClient:         nil,
@@ -161,7 +161,7 @@ func TestTokenRead(t *testing.T) {
 			TokenNamespace: "default",
 		}
 
-		cloner := RemoteRepoCloner{
+		cloner := Cloner{
 			repo:               &repo,
 			autoCheckout:       false,
 			repoClient:         nil,
@@ -179,7 +179,7 @@ func TestTokenRead(t *testing.T) {
 			TokenNamespace: "",
 		}
 
-		cloner := RemoteRepoCloner{
+		cloner := Cloner{
 			repo:               &repo,
 			autoCheckout:       false,
 			repoClient:         nil,

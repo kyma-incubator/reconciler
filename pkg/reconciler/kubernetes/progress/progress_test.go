@@ -5,6 +5,7 @@ import (
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	k8s "github.com/kyma-incubator/reconciler/pkg/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +28,7 @@ func TestProgressTracker(t *testing.T) {
 
 	logger := log.NewLogger(true)
 
-	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t))
+	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
 	require.NoError(t, err)
 
 	clientSet, err := (&k8s.ClientBuilder{}).Build(true)
