@@ -38,6 +38,7 @@ type webhookPatchJSONValue struct {
 
 type IstioVersion struct {
 	ClientVersion    string
+	TargetVersion    string
 	PilotVersion     string
 	DataPlaneVersion string
 }
@@ -165,6 +166,9 @@ func (c *DefaultIstioPerformer) Version(kubeConfig string, logger *zap.SugaredLo
 	}
 
 	mappedIstioVersion, err := mapVersionToStruct(version, logger)
+
+	// remove later, just mock
+	mappedIstioVersion.TargetVersion = mappedIstioVersion.ClientVersion
 
 	return mappedIstioVersion, err
 }

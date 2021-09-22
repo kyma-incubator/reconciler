@@ -285,7 +285,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(kubeConfig, log)
 
 		// then
-		require.EqualValues(t, ver, IstioVersion{ClientVersion: "1.11.2"})
+		require.EqualValues(t, ver, IstioVersion{ClientVersion: "1.11.2", TargetVersion: "1.11.2"})
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -302,7 +302,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(kubeConfig, log)
 
 		// then
-		require.EqualValues(t, ver, IstioVersion{ClientVersion: "1.11.1", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"})
+		require.EqualValues(t, ver, IstioVersion{ClientVersion: "1.11.1", TargetVersion: "1.11.1", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"})
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)

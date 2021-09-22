@@ -212,6 +212,71 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
+	t.Run("should perform istio install action when istio was not detected on the cluster", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&factory, &provider)
+		performer := actionsmocks.IstioPerformer{}
+		noIstioOnTheCluster := actions.IstioVersion{
+			ClientVersion:    "1.0",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
+
+		// when
+		err := action.Run("version", "profile", nil, actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should not perform istio update action when istio was detected on the cluster and client version is lower than target version", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+			ResourceDir: "./test_files/resources/",
+		}, nil)
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&factory, &provider)
+		performer := actionsmocks.IstioPerformer{}
+		tooLowClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.0",
+			TargetVersion:    "1.2",
+			PilotVersion:     "1.1",
+			DataPlaneVersion: "1.1",
+		}
+		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
+
+		// when
+		err := action.Run("version", "profile", nil, actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Istio could not be updated")
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
 }
 
 func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *service.ActionContext {

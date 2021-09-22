@@ -1,7 +1,6 @@
 package istio
 
 import (
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
-	"strings"
 	"helm.sh/helm/v3/pkg/chart/loader"
 )
 
@@ -65,10 +63,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 	} else {
-		appVersion, err := getAppVersionFromChart(context, version)
-		if err != nil {
-			return err
-		}
+		appVersion := ver.TargetVersion
 
 		if !isClientVersionAcceptable(ver, appVersion) {
 			return errors.Errorf("Istio could not be updated since the binary version: %s is not up to date: %s", ver.ClientVersion, appVersion)
@@ -105,19 +100,6 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	return nil
-}
-
-// Gets the appVersion to upgrade to from Chart.yml using the helm client
-func getAppVersionFromChart(context *service.ActionContext, version string) (string, error) {
-	ws, err := context.WorkspaceFactory.Get(version)
-	if err != nil {
-		return "", err
-	}
-	chart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
-	if err != nil {
-		return "", err
-	}
-	return chart.Metadata.AppVersion, nil
 }
 
 // shouldInstall checks if istio is already installed
