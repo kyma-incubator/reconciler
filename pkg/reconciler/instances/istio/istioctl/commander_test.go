@@ -12,59 +12,30 @@ import (
 
 const versionOutput = "version 1.11.1"
 
-func TestInstallProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_INSTALL_PROCESS") != "1" {
+var testArgs []string
+
+func TestExecProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_EXEC_PROCESS") != "1" {
 		return
 	}
-	fmt.Fprint(os.Stdout, versionOutput)
+	if os.Getenv("COMMAND") == "version" {
+		fmt.Fprint(os.Stdout, versionOutput)
+	}
 	os.Exit(0)
 }
 
-func fakeExecInstallCommand(command string, args ...string) *exec.Cmd {
-	fmt.Println(command)
-	cs := []string{"-test.run=TestInstallProcess", "--", command}
+func fakeExecCommand(command string, args ...string) *exec.Cmd {
+	cs := []string{"-test.run=TestExecProcess", "--", command}
 	cs = append(cs, args...)
+	testArgs = args
 	cmd := exec.Command(os.Args[0], cs...)
-	cmd.Env = []string{"GO_WANT_INSTALL_PROCESS=1"}
-	return cmd
-}
-
-func TestUpgradeProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_UPGRADE_PROCESS") != "1" {
-		return
-	}
-	fmt.Fprint(os.Stdout, versionOutput)
-	os.Exit(0)
-}
-
-func fakeExecUpgradeCommand(command string, args ...string) *exec.Cmd {
-	fmt.Println(command)
-	cs := []string{"-test.run=TestUpgradeProcess", "--", command}
-	cs = append(cs, args...)
-	cmd := exec.Command(os.Args[0], cs...)
-	cmd.Env = []string{"GO_WANT_UPGRADE_PROCESS=1"}
-	return cmd
-}
-
-func TestVersionProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_VERSION_PROCESS") != "1" {
-		return
-	}
-	fmt.Fprint(os.Stdout, versionOutput)
-	os.Exit(0)
-}
-
-func fakeExecVersionCommand(command string, args ...string) *exec.Cmd {
-	fmt.Println(command)
-	cs := []string{"-test.run=TestVersionProcess", "--", command}
-	cs = append(cs, args...)
-	cmd := exec.Command(os.Args[0], cs...)
-	cmd.Env = []string{"GO_WANT_VERSION_PROCESS=1"}
+	cmd.Env = []string{"GO_WANT_EXEC_PROCESS=1"}
+	cmd.Env = append(cmd.Env, "COMMAND="+args[0])
 	return cmd
 }
 
 func Test_DefaultCommander_Install(t *testing.T) {
-	execCommand = fakeExecInstallCommand
+	execCommand = fakeExecCommand
 	kubeconfig := "kubeConfig"
 	istioOperator := "istioOperator"
 	log, err := logger.NewLogger(false)
@@ -94,11 +65,15 @@ func Test_DefaultCommander_Install(t *testing.T) {
 
 		/// then
 		require.NoError(t, errors)
+		require.EqualValues(t, testArgs[0], "apply")
+		require.EqualValues(t, testArgs[1], "-f")
+		require.EqualValues(t, testArgs[3], "--kubeconfig")
+		require.EqualValues(t, testArgs[5], "--skip-confirmation")
 	})
 }
 
 func Test_DefaultCommander_Upgrade(t *testing.T) {
-	execCommand = fakeExecUpgradeCommand
+	execCommand = fakeExecCommand
 	kubeconfig := "kubeConfig"
 	istioOperator := "istioOperator"
 	log, err := logger.NewLogger(false)
@@ -128,11 +103,15 @@ func Test_DefaultCommander_Upgrade(t *testing.T) {
 
 		/// then
 		require.NoError(t, errors)
+		require.EqualValues(t, testArgs[0], "upgrade")
+		require.EqualValues(t, testArgs[1], "-f")
+		require.EqualValues(t, testArgs[3], "--kubeconfig")
+		require.EqualValues(t, testArgs[5], "--skip-confirmation")
 	})
 }
 
 func Test_DefaultCommander_Version(t *testing.T) {
-	execCommand = fakeExecVersionCommand
+	execCommand = fakeExecCommand
 	kubeconfig := "kubeConfig"
 	log, err := logger.NewLogger(false)
 	require.NoError(t, err)
@@ -162,5 +141,8 @@ func Test_DefaultCommander_Version(t *testing.T) {
 		/// then
 		require.NoError(t, errors)
 		require.EqualValues(t, versionOutput, string(got))
+		require.EqualValues(t, testArgs[0], "version")
+		require.EqualValues(t, testArgs[2], "json")
+		require.EqualValues(t, testArgs[3], "--kubeconfig")
 	})
 }
