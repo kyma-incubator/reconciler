@@ -87,14 +87,15 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 	su.stopJob() //ensure previous interval-loop is stopped before starting a new loop
 
 	task := func(status reconciler.Status, rootCause error) error {
-		var errMsg *string
-		if rootCause != nil {
-			tmp := rootCause.Error()
-			errMsg = &tmp
-		}
 		err := su.callback.Callback(&reconciler.CallbackMessage{
 			Status: status,
-			Error:  errMsg,
+			Error: func(err error) *string {
+				errMsg := ""
+				if err != nil {
+					errMsg = err.Error()
+				}
+				return &errMsg
+			}(rootCause),
 		})
 		if err == nil {
 			su.logger.Debugf("Interval-callback with status-update ('%s') sent successfully", status)
