@@ -96,7 +96,7 @@ func (r *Reconciliation) Validate() error {
 
 type CallbackMessage struct {
 	Status Status `json:"status"`
-	Error  error  `json:"error"`
+	Error  string `json:"error"`
 }
 
 func (cb *CallbackMessage) String() string {
