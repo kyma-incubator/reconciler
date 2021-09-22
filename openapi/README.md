@@ -8,7 +8,8 @@ To successfully show Open API specs from several files in Swagger Editor, you ha
    ```
 
 2. Go to Swagger edit URL:
-`http://localhost:8081/?url=/docs/internal_api.yaml`
-
+```
+http://localhost:8081/?url=/docs/internal_api.yaml
+```
 
 For reference, see the [issue](https://github.com/swagger-api/swagger-editor/issues/1409) related to Swagger not being able to show specs from several files.
