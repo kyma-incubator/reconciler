@@ -89,7 +89,12 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 	task := func(status reconciler.Status, rootCause error) error {
 		err := su.callback.Callback(&reconciler.CallbackMessage{
 			Status: status,
-			Error:  rootCause.Error(),
+			Error: func(err error) string {
+				if err != nil {
+					return err.Error()
+				}
+				return ""
+			}(rootCause),
 		})
 		if err == nil {
 			su.logger.Debugf("Interval-callback with status-update ('%s') sent successfully", status)
