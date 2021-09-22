@@ -22,7 +22,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	clientgo "k8s.io/client-go/kubernetes"
 )
@@ -372,7 +371,7 @@ func newCallbackMock(t *testing.T) (*http.Server, chan *reconciler.CallbackMessa
 
 		callbackC <- &reconciler.CallbackMessage{
 			Status: status,
-			Error:  errors.New(fmt.Sprintf("%s", callbackData["error"])),
+			Error:  fmt.Sprintf("%s", callbackData["error"]),
 		}
 	})
 
