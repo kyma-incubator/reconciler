@@ -548,6 +548,22 @@ func TestIsMismatchPresent(t *testing.T) {
 
 func TestIsDowngrade(t *testing.T) {
 
+	t.Run("When there is no sub minor version", func(t *testing.T) {
+		//given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.11",
+			TargetVersion:    "1.12",
+			PilotVersion:     "1.11",
+			DataPlaneVersion: "1.11",
+		}
+
+		//when
+		got := isDowngrade(istioVersion)
+
+		//then
+		require.Equal(t, false, got)
+	})
+
 	t.Run("Lower app version compared to istio version is a downgrade", func(t *testing.T) {
 		//given
 		istioVersion := actions.IstioVersion{
