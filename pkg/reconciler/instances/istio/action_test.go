@@ -134,7 +134,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
 		actionContext := newFakeServiceContext(&factory, &provider)
 		performer := actionsmocks.IstioPerformer{}
-		performer.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioVersion{}, errors.New("Version error"))
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioVersion{}, errors.New("Version error"))
 		commander := istioctlmocks.Commander{}
 		action := ReconcileAction{performer: &performer, commander: &commander}
 
@@ -145,7 +145,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Version error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
-		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -163,7 +163,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
-		performer.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(noIstioOnTheCluster, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(noIstioOnTheCluster, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
 			Return(errors.New("Perfomer Install error"))
 		commander := istioctlmocks.Commander{}
@@ -176,7 +176,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Perfomer Install error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
-		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -194,7 +194,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
-		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(errors.New("Performer Patch error"))
 		commander := istioctlmocks.Commander{}
@@ -207,7 +207,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Performer Patch error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
-		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -225,7 +225,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
-		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		commander := istioctlmocks.Commander{}
@@ -237,7 +237,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
-		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -259,7 +259,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			PilotVersion:     "1.1",
 			DataPlaneVersion: "1.1",
 		}
-		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		commander := istioctlmocks.Commander{}
@@ -271,7 +271,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
-		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -293,7 +293,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			PilotVersion:     "1.1",
 			DataPlaneVersion: "1.1",
 		}
-		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		commander := istioctlmocks.Commander{}
@@ -305,7 +305,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
-		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -327,7 +327,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			PilotVersion:     "1.1",
 			DataPlaneVersion: "1.1",
 		}
-		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		commander := istioctlmocks.Commander{}
@@ -339,7 +339,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
-		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -361,9 +361,10 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			PilotVersion:     "1.1",
 			DataPlaneVersion: "1.1",
 		}
-		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		commander := istioctlmocks.Commander{}
 		action := ReconcileAction{performer: &performer, commander: &commander}
 
@@ -373,7 +374,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
-		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
