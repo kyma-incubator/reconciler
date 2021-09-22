@@ -63,18 +63,19 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 	} else {
-		appVersion := ver.TargetVersion
-
-		if !isClientVersionAcceptable(ver, appVersion) {
-			return errors.Errorf("Istio could not be updated since the binary version: %s is not up to date: %s", ver.ClientVersion, appVersion)
+		if !isClientVersionAcceptable(ver) {
+			context.Logger.Errorf("Istio could not be updated since the binary version: %s is not up to date: %s", ver.ClientVersion, ver.TargetVersion)
+			return nil
 		}
 
-		if isDowngrade(ver, appVersion) {
-			return errors.Errorf("Istio does not need to be downgraded from version: %s to version: %s", ver.PilotVersion, appVersion)
+		if isDowngrade(ver) {
+			context.Logger.Errorf("Downgrade detected from version: %s to version: %s - finishing...", ver.PilotVersion, ver.TargetVersion)
+			return nil
 		}
 
-		if !canUpdate(ver, appVersion) {
-			return errors.New("Istio could not be updated due to the versions limitations")
+		if !canUpdate(ver) {
+			context.Logger.Errorf("Istio could not be updated from version: %s to version: %s - upgrade can be formed by the most one minor version", ver.PilotVersion, ver.TargetVersion)
+			return nil
 		}
 
 		if isMismatchPresent(ver) {
@@ -108,14 +109,14 @@ func shouldInstall(version actions.IstioVersion) bool {
 }
 
 // isClientVersionAcceptable checks if istioctl version is up to date.
-func isClientVersionAcceptable(version actions.IstioVersion, appVersion string) bool {
-	return version.ClientVersion == appVersion
+func isClientVersionAcceptable(version actions.IstioVersion) bool {
+	return version.ClientVersion == version.TargetVersion
 }
 
 // canUpdate checks if the update required is different by one minor version.
-func canUpdate(version actions.IstioVersion, appVersion string) bool {
+func canUpdate(version actions.IstioVersion) bool {
 	pilotVersionSlice := strings.Split(version.ClientVersion, ".")
-	appVersionSlice := strings.Split(appVersion, ".")
+	appVersionSlice := strings.Split(version.TargetVersion, ".")
 
 	pilotMinorVersion, err := strconv.Atoi(pilotVersionSlice[1])
 	if err != nil {
@@ -137,9 +138,9 @@ func isMismatchPresent(version actions.IstioVersion) bool {
 }
 
 // isDowngrade checks if we are downgrading Istio.
-func isDowngrade(version actions.IstioVersion, appVersion string) bool {
+func isDowngrade(version actions.IstioVersion) bool {
 	pilotVersionSlice := strings.Split(version.ClientVersion, ".")
-	appVersionSlice := strings.Split(appVersion, ".")
+	appVersionSlice := strings.Split(version.TargetVersion, ".")
 
 	pilotMinorVersion, err := strconv.Atoi(pilotVersionSlice[1])
 	if err != nil {

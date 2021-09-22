@@ -268,13 +268,114 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run("version", "profile", nil, actionContext)
 
 		// then
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Istio could not be updated")
+		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should not perform istio update action when istio was detected on the cluster and downgrade is detected", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+			ResourceDir: "./test_files/resources/",
+		}, nil)
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&factory, &provider)
+		performer := actionsmocks.IstioPerformer{}
+		tooLowClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.2",
+			TargetVersion:    "0.9",
+			PilotVersion:     "1.1",
+			DataPlaneVersion: "1.1",
+		}
+		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
+
+		// when
+		err := action.Run("version", "profile", nil, actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should not perform istio update action when istio was detected on the cluster and more than one minor upgrade was detected", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+			ResourceDir: "./test_files/resources/",
+		}, nil)
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&factory, &provider)
+		performer := actionsmocks.IstioPerformer{}
+		tooLowClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.3",
+			TargetVersion:    "1.3",
+			PilotVersion:     "1.1",
+			DataPlaneVersion: "1.1",
+		}
+		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
+
+		// when
+		err := action.Run("version", "profile", nil, actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should perform istio update action when istio was detected on the cluster and all criteria are met", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+			ResourceDir: "./test_files/resources/",
+		}, nil)
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&factory, &provider)
+		performer := actionsmocks.IstioPerformer{}
+		tooLowClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.2",
+			TargetVersion:    "1.2",
+			PilotVersion:     "1.1",
+			DataPlaneVersion: "1.1",
+		}
+		performer.On("Version", mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		commander := istioctlmocks.Commander{}
+		action := ReconcileAction{performer: &performer, commander: &commander}
+
+		// when
+		err := action.Run("version", "profile", nil, actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
 }
@@ -292,10 +393,6 @@ func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *
 		Logger:           logger,
 		ChartProvider:    provider,
 	}
-}
-
-func TestGetAppVersionFromChart(t *testing.T) {
-
 }
 
 func TestShouldInstall(t *testing.T) {
@@ -335,13 +432,13 @@ func TestIsClientVersionAcceptable(t *testing.T) {
 		//given
 		randomVersion := actions.IstioVersion{
 			ClientVersion:    "1.9.2",
+			TargetVersion:    "1.11.2",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
-		appVersion := "1.11.2"
 
 		//when
-		got := canUpdate(randomVersion, appVersion)
+		got := canUpdate(randomVersion)
 
 		//then
 		require.Equal(t, false, got)
@@ -351,13 +448,13 @@ func TestIsClientVersionAcceptable(t *testing.T) {
 		//given
 		randomVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
-		appVersion := "1.11.2"
 
 		//when
-		got := canUpdate(randomVersion, appVersion)
+		got := canUpdate(randomVersion)
 
 		//then
 		require.Equal(t, true, got)
@@ -369,19 +466,20 @@ func TestCanUpdate(t *testing.T) {
 		//given
 		oneNineVersions := actions.IstioVersion{
 			ClientVersion:    "1.9.2",
+			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.9.2",
 			DataPlaneVersion: "1.9.2",
 		}
 		oneEightVersions := actions.IstioVersion{
 			ClientVersion:    "1.8.6",
+			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.8.6",
 			DataPlaneVersion: "1.8.6",
 		}
-		appVersion := "1.11.2"
 
 		//when
-		got1 := canUpdate(oneNineVersions, appVersion)
-		got2 := canUpdate(oneEightVersions, appVersion)
+		got1 := canUpdate(oneNineVersions)
+		got2 := canUpdate(oneEightVersions)
 
 		//then
 		require.Equal(t, false, got1)
@@ -392,19 +490,20 @@ func TestCanUpdate(t *testing.T) {
 		//given
 		oneTenVersions := actions.IstioVersion{
 			ClientVersion:    "1.10.2",
+			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.10.2",
 			DataPlaneVersion: "1.10.2",
 		}
 		oneElevenVersions := actions.IstioVersion{
 			ClientVersion:    "1.11.1",
+			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.1",
 		}
-		appVersion := "1.11.2"
 
 		//when
-		got1 := canUpdate(oneTenVersions, appVersion)
-		got2 := canUpdate(oneElevenVersions, appVersion)
+		got1 := canUpdate(oneTenVersions)
+		got2 := canUpdate(oneElevenVersions)
 
 		//then
 		require.Equal(t, true, got1)
@@ -450,13 +549,13 @@ func TestIsDowngrade(t *testing.T) {
 		//given
 		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.1",
 			PilotVersion:     "1.11.2",
 			DataPlaneVersion: "1.11.2",
 		}
-		appVersion := "1.11.1"
 
 		//when
-		got := isDowngrade(istioVersion, appVersion)
+		got := isDowngrade(istioVersion)
 
 		//then
 		require.Equal(t, true, got)
@@ -466,13 +565,13 @@ func TestIsDowngrade(t *testing.T) {
 		//given
 		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.11.2",
 			DataPlaneVersion: "1.11.2",
 		}
-		appVersion := "1.11.2"
 
 		//when
-		got := isDowngrade(istioVersion, appVersion)
+		got := isDowngrade(istioVersion)
 
 		//then
 		require.Equal(t, false, got)
@@ -482,13 +581,13 @@ func TestIsDowngrade(t *testing.T) {
 		//given
 		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.3",
 			PilotVersion:     "1.11.2",
 			DataPlaneVersion: "1.11.2",
 		}
-		appVersion := "1.11.3"
 
 		//when
-		got := isDowngrade(istioVersion, appVersion)
+		got := isDowngrade(istioVersion)
 
 		//then
 		require.Equal(t, false, got)
