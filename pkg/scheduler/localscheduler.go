@@ -68,14 +68,14 @@ func (ls *LocalScheduler) Run(ctx context.Context, c *keb.Cluster) error {
 	}
 
 	if components == nil {
-		ls.logger.Infof("No components to reconcile for cluster %s", c.Cluster)
+		ls.logger.Infof("No components to reconcile for cluster %s", c.RuntimeID)
 		return nil
 	}
 
 	handler := NewReconciliationHandler(ls.workerFactory)
 	err = handler.Reconcile(ctx, components, clusterState, schedulingID)
 	if err != nil {
-		return fmt.Errorf("failed to reconcile components for cluster %s: %s", c.Cluster, err)
+		return fmt.Errorf("failed to reconcile components for cluster %s: %s", c.RuntimeID, err)
 	}
 
 	return nil
@@ -94,7 +94,7 @@ func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 	}
 
 	clusterEntity := &model.ClusterEntity{
-		Cluster:    c.Cluster,
+		Cluster:    c.RuntimeID,
 		Runtime:    string(runtime),
 		Metadata:   string(metadata),
 		Kubeconfig: c.Kubeconfig,
@@ -112,7 +112,7 @@ func toLocalClusterState(c *keb.Cluster) (*cluster.State, error) {
 	}
 
 	configurationEntity := &model.ClusterConfigurationEntity{
-		Cluster:        c.Cluster,
+		Cluster:        c.RuntimeID,
 		KymaVersion:    c.KymaConfig.Version,
 		KymaProfile:    c.KymaConfig.Profile,
 		Components:     string(components),
