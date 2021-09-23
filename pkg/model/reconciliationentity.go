@@ -19,6 +19,10 @@ type ReconciliationEntity struct {
 	Updated             time.Time `db:""`
 }
 
+func (r *ReconciliationEntity) IsReconciling() bool {
+	return r.ClusterConfigStatus == 0
+}
+
 func (r *ReconciliationEntity) String() string {
 	return fmt.Sprintf("ReconciliationEntity [Cluster=%s,ClusterConfigVersion=%d,SchedulingID=%s]",
 		r.Cluster, r.ClusterConfig, r.SchedulingID)

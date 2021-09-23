@@ -8,6 +8,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/pkg/errors"
 	"time"
 )
 
@@ -190,6 +191,31 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 		return nil
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error) {
+	q, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{})
+	if err != nil {
+		return nil, err
+	}
+
+	//fire query
+	selectQ := q.Select()
+	if filter != nil {
+		if err := filter.FilterByQuery(selectQ); err != nil {
+			return nil, errors.Wrap(err, "failed to apply sql filter")
+		}
+	}
+	recons, err := selectQ.GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*model.ReconciliationEntity
+	for _, recon := range recons {
+		result = append(result, recon.(*model.ReconciliationEntity))
+	}
+	return result, nil
 }
 
 func (r *PersistentReconciliationRepository) GetOperations(schedulingID string) ([]*model.OperationEntity, error) {

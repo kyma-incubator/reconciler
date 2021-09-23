@@ -2,15 +2,21 @@ package reconciliation
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"sort"
 )
+
+type Filter interface {
+	FilterByQuery(q *db.Select) error
+	FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity //return nil to ignore instance in result
+}
 
 type Repository interface {
 	CreateReconciliation(state *cluster.State, prerequisites []string) (*model.ReconciliationEntity, error)
 	RemoveReconciliation(schedulingID string) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
-	//GetReconciliations(filters ...func(whereCond []map[string]interface{}, handler *db.ColumnHandler)) ([]*model.ReconciliationEntity, error)
+	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error
 	GetOperations(schedulingID string) ([]*model.OperationEntity, error)
 	GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error)

@@ -266,6 +266,41 @@ func TestReconciliationRepository(t *testing.T) {
 			},
 		},
 		{
+			name: "Get reconciliations with and without filter",
+			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				require.NoError(t, err)
+				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, nil)
+				require.NoError(t, err)
+
+				all, err := reconRepo.GetReconciliations(nil)
+				require.Len(t, all, 2)
+				require.NoError(t, err)
+
+				only2, err := reconRepo.GetReconciliations(&WithSchedulingID{reconEntity2.SchedulingID})
+				require.NoError(t, err)
+				require.Len(t, only2, 1)
+				require.Equal(t, reconEntity2.SchedulingID, only2[0].SchedulingID)
+
+				only1, err := reconRepo.GetReconciliations(&WithCluster{reconEntity1.Cluster})
+				require.NoError(t, err)
+				require.Len(t, only1, 1)
+				require.Equal(t, reconEntity1.SchedulingID, only1[0].SchedulingID)
+
+				err = reconRepo.FinishReconciliation(reconEntity1.SchedulingID, &model.ClusterStatusEntity{
+					ID: 123,
+				})
+				require.NoError(t, err)
+
+				recon, err := reconRepo.GetReconciliations(&CurrentlyReconciling{})
+				require.NoError(t, err)
+				require.Len(t, recon, 1)
+				require.Equal(t, reconEntity2.SchedulingID, recon[0].SchedulingID)
+
+				return []*model.ReconciliationEntity{reconEntity1, reconEntity2}
+			},
+		},
+		{
 			name: "Remove reconciliation",
 			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)

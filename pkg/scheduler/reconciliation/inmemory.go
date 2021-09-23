@@ -124,6 +124,20 @@ func (r *InMemoryReconciliationRepository) FinishReconciliation(schedulingID str
 		"cannot finish reconciliation", schedulingID)
 }
 
+func (r *InMemoryReconciliationRepository) GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var result []*model.ReconciliationEntity
+	for _, reconciliation := range r.reconciliations {
+		if filter != nil && filter.FilterByInstance(reconciliation) == nil {
+			continue
+		}
+		result = append(result, reconciliation)
+	}
+	return result, nil
+}
+
 func (r *InMemoryReconciliationRepository) GetOperations(schedulingID string) ([]*model.OperationEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
