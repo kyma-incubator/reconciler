@@ -200,8 +200,11 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace stri
 		g.logger.Warnf("Watching progress of deleted resources failed: %s", err)
 	}
 
-	//TODO: check if namespace is empty and if yes: remove it
-
+	if err = g.kubeClient.DeleteNamespace(namespace); err != nil {
+		g.logger.Errorf("Failed to delete namespace name='%s': %s",
+			namespace, err)
+		return deletedResources, err
+	}
 	return deletedResources, nil
 }
 func (g *kubeClientAdapter) newProgressTracker() (*progress.Tracker, error) {
