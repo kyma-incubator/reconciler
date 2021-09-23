@@ -13,7 +13,7 @@ import (
 
 const kindCRD = "CustomResourceDefinition"
 
-//go:generate mockery -name=Provider -outpkg=mock -case=underscore
+//go:generate mockery --name=Provider --outpkg=mock --case=underscore
 // Provider of manifests.
 type Provider interface {
 	// RenderCRD of the given version.

@@ -12,6 +12,29 @@ type Provider struct {
 	mock.Mock
 }
 
+// Configuration provides a mock function with given fields: component
+func (_m *Provider) Configuration(component *chart.Component) (map[string]interface{}, error) {
+	ret := _m.Called(component)
+
+	var r0 map[string]interface{}
+	if rf, ok := ret.Get(0).(func(*chart.Component) map[string]interface{}); ok {
+		r0 = rf(component)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]interface{})
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*chart.Component) error); ok {
+		r1 = rf(component)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // RenderCRD provides a mock function with given fields: version
 func (_m *Provider) RenderCRD(version string) ([]*chart.Manifest, error) {
 	ret := _m.Called(version)

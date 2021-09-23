@@ -18,7 +18,7 @@ import (
 func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 	simplePod := v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "name"}}
 	simpleCustomObject := pod.CustomObject{Name: "name"}
-	log := logger.NewOptionalLogger(true)
+	log := logger.NewLogger(true)
 	debug := true
 	fixRetryOpts := []retry.Option{
 		retry.Delay(1 * time.Second),

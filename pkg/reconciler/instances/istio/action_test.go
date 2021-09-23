@@ -386,7 +386,7 @@ func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *
 	mockClient := &k8smocks.Client{}
 	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
-	logger := log.NewOptionalLogger(true)
+	logger := log.NewLogger(true)
 
 	return &service.ActionContext{
 		KubeClient:       mockClient,

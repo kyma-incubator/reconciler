@@ -81,11 +81,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 	err := os.Setenv("ISTIOCTL_PATH", "path")
 	require.NoError(t, err)
 	kubeConfig := "kubeConfig"
-	manifest := "manifest"
-	kubeClient := mocks.Client{}
-	cmder := istioctlmocks.Commander{}
-	log, err := logger.NewLogger(false)
-	require.NoError(t, err)
+	log := logger.NewLogger(false)
 
 	t.Run("should not install when istio operator could not be found in manifest", func(t *testing.T) {
 		// given
@@ -181,8 +177,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 	err := os.Setenv("ISTIOCTL_PATH", "path")
 	require.NoError(t, err)
 	kubeConfig := "kubeConfig"
-	log, err := logger.NewLogger(false)
-	require.NoError(t, err)
+	log := logger.NewLogger(false)
 
 	t.Run("should not update when istio operator could not be found in manifest", func(t *testing.T) {
 		// given
@@ -263,8 +258,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 	err := os.Setenv("ISTIOCTL_PATH", "path")
 	require.NoError(t, err)
 	kubeConfig := "kubeConfig"
-	log, err := logger.NewLogger(false)
-	require.NoError(t, err)
+	log := logger.NewLogger(false)
 
 	t.Run("should not proceed if the version command output returns an empty string", func(t *testing.T) {
 		// given
@@ -385,8 +379,7 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 }
 
 func TestMapVersionToStruct(t *testing.T) {
-	log, err := logger.NewLogger(false)
-	require.NoError(t, err)
+	log := logger.NewLogger(false)
 
 	t.Run("Empty byte array for version coomand returns an error", func(t *testing.T) {
 		// given

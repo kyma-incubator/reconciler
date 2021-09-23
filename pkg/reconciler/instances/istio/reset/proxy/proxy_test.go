@@ -21,7 +21,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		RetriesCount:          5,
 		SleepAfterPodDeletion: 10,
 		Kubeclient:            fake.NewSimpleClientset(),
-		Log:                   log.NewOptionalLogger(true),
+		Log:                   log.NewLogger(true),
 	}
 
 	t.Run("should not return an error when no pods are present on the cluster", func(t *testing.T) {

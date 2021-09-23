@@ -38,8 +38,7 @@ func Test_DefaultCommander_Install(t *testing.T) {
 	execCommand = fakeExecCommand
 	kubeconfig := "kubeConfig"
 	istioOperator := "istioOperator"
-	log, err := logger.NewLogger(false)
-	require.NoError(t, err)
+	log := logger.NewLogger(false)
 	commander := DefaultCommander{}
 
 	t.Run("should not run the install command when istioctl binary could not be found in env", func(t *testing.T) {
@@ -76,8 +75,7 @@ func Test_DefaultCommander_Upgrade(t *testing.T) {
 	execCommand = fakeExecCommand
 	kubeconfig := "kubeConfig"
 	istioOperator := "istioOperator"
-	log, err := logger.NewLogger(false)
-	require.NoError(t, err)
+	log := logger.NewLogger(false)
 	commander := DefaultCommander{}
 
 	t.Run("should not run the upgrade command when istioctl binary could not be found in env", func(t *testing.T) {
@@ -113,8 +111,7 @@ func Test_DefaultCommander_Upgrade(t *testing.T) {
 func Test_DefaultCommander_Version(t *testing.T) {
 	execCommand = fakeExecCommand
 	kubeconfig := "kubeConfig"
-	log, err := logger.NewLogger(false)
-	require.NoError(t, err)
+	log := logger.NewLogger(false)
 	commander := DefaultCommander{}
 
 	t.Run("should not run the version command when istioctl binary could not be found in env", func(t *testing.T) {

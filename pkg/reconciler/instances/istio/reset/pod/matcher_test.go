@@ -15,7 +15,7 @@ import (
 )
 
 func Test_ParentKindMatcher_Match(t *testing.T) {
-	log := logger.NewOptionalLogger(true)
+	log := logger.NewLogger(true)
 	debug := true
 	fixRetryOpts := []retry.Option{
 		retry.Delay(1 * time.Second),
