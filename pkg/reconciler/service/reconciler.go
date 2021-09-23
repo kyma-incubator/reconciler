@@ -28,18 +28,6 @@ var (
 	m         sync.Mutex
 )
 
-type ActionContext struct {
-	KubeClient       kubernetes.Client
-	WorkspaceFactory *workspace.Factory
-	Context          context.Context
-	Logger           *zap.SugaredLogger
-	ChartProvider    chart.Provider
-}
-
-type Action interface {
-	Run(version, profile string, configuration []reconciler.Configuration, helper *ActionContext) error
-}
-
 type ComponentReconciler struct {
 	workspace             string
 	dependencies          []string

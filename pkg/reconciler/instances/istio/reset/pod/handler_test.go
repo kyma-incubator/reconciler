@@ -33,7 +33,7 @@ func Test_DeleteObjectHandler_Execute(t *testing.T) {
 	t.Run("should execute the DeleteObjectHandler successfully", func(t *testing.T) {
 		// given
 		customObject := fixCustomObject()
-		handler := DeleteObjectHandler{handlerCfg{log: log.NewOptionalLogger(true), debug: true}}
+		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 		var wg sync.WaitGroup
 		wg.Add(1)
 
@@ -52,7 +52,7 @@ func Test_RolloutHandler_Execute(t *testing.T) {
 	t.Run("should execute the handler successfully", func(t *testing.T) {
 		// given
 		pod := fixCustomObject()
-		handler := RolloutHandler{handlerCfg{log: log.NewOptionalLogger(true), debug: true}}
+		handler := RolloutHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 		var wg sync.WaitGroup
 		wg.Add(1)
 

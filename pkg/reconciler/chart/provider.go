@@ -21,6 +21,9 @@ type Provider interface {
 
 	// RenderManifest of the given component.
 	RenderManifest(component *Component) (*Manifest, error)
+
+	// Configuration of the given component.
+	Configuration(component *Component) (map[string]interface{}, error)
 }
 
 // DefaultProvider provides a default implementation of Provider.
@@ -120,7 +123,7 @@ func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error
 	}, nil
 }
 
-func (p *Provider) Configuration(component *Component) (map[string]interface{}, error) {
+func (p *DefaultProvider) Configuration(component *Component) (map[string]interface{}, error) {
 	ws, err := p.newWorkspace(component.version)
 	if err != nil {
 		return nil, err

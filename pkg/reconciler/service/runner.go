@@ -177,7 +177,7 @@ func (r *runner) renderManifest(chartProvider chart.Provider, model *reconciler.
 	return chartManifest.Manifest, nil
 }
 
-func (r *runner) renderCRDs(chartProvider *chart.Provider, model *reconciler.Reconciliation) (string, error) {
+func (r *runner) renderCRDs(chartProvider chart.Provider, model *reconciler.Reconciliation) (string, error) {
 	crdManifests, err := chartProvider.RenderCRD(model.Version)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to get CRD manifests for Kyma version '%s'", model.Version)
