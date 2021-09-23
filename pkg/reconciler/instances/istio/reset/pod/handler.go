@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-//go:generate mockery -name=Handler -outpkg=mocks -case=underscore
+//go:generate mockery --name=Handler --outpkg=mocks --case=underscore
 // Handler executes actions on the Kubernetes cluster
 type Handler interface {
 	Execute(CustomObject, *sync.WaitGroup)

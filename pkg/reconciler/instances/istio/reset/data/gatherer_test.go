@@ -1,7 +1,6 @@
 package data
 
 import (
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"testing"
 
 	"github.com/avast/retry-go"
@@ -16,15 +15,14 @@ func Test_Gatherer_GetAllPods(t *testing.T) {
 	firstPod := fixPodWith("application", "kyma", "istio/proxyv2:1.10.1", "Running")
 	secondPod := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Terminating")
 	retryOpts := getTestingRetryOptions()
-	log := log.NewOptionalLogger(true)
 
 	t.Run("should not get any pod from the cluster when there are no pods running", func(t *testing.T) {
 		// given
 		kubeClient := fake.NewSimpleClientset()
-		gatherer := DefaultGatherer{kubeClient: kubeClient, retryOpts: retryOpts, log: log}
+		gatherer := DefaultGatherer{}
 
 		// when
-		pods, err := gatherer.GetAllPods()
+		pods, err := gatherer.GetAllPods(kubeClient, retryOpts)
 
 		// then
 		require.NoError(t, err)
@@ -34,10 +32,10 @@ func Test_Gatherer_GetAllPods(t *testing.T) {
 	t.Run("should get all pods from the cluster when there are pods running", func(t *testing.T) {
 		// given
 		kubeClient := fake.NewSimpleClientset(firstPod, secondPod)
-		gatherer := DefaultGatherer{kubeClient: kubeClient, retryOpts: retryOpts, log: log}
+		gatherer := DefaultGatherer{}
 
 		// when
-		pods, err := gatherer.GetAllPods()
+		pods, err := gatherer.GetAllPods(kubeClient, retryOpts)
 
 		// then
 		require.NoError(t, err)

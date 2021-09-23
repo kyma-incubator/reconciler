@@ -1,46 +1,58 @@
 package proxy
 
 import (
+	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
+	"time"
 )
 
-// IstioProxyReset task
-type IstioProxyReset struct {
-	// Cfg required to perform the reset
-	cfg      config.IstioProxyConfig
+//go:generate mockery --name=IstioProxyReset --outpkg=mocks --case=underscore
+// IstioProxyReset performs istio proxy containers reset on objects in the k8s cluster.
+type IstioProxyReset interface {
+	// Run istio proxy containers reset using the config.
+	Run(cfg config.IstioProxyConfig) error
+}
+
+// DefaultIstioProxyReset provides a default implementation of the IstioProxyReset.
+type DefaultIstioProxyReset struct {
 	gatherer data.Gatherer
 	action   reset.Action
 }
 
-func NewIstioProxyReset(cfg config.IstioProxyConfig, gatherer data.Gatherer, action reset.Action) *IstioProxyReset {
-	return &IstioProxyReset{
-		cfg:      cfg,
+// NewDefaultIstioProxyReset creates a new instance of IstioProxyReset.
+func NewDefaultIstioProxyReset(gatherer data.Gatherer, action reset.Action) *DefaultIstioProxyReset {
+	return &DefaultIstioProxyReset{
 		gatherer: gatherer,
 		action:   action,
 	}
 }
 
-// Run proxy reset.
-func (i *IstioProxyReset) Run() error {
+func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	image := data.ExpectedImage{
-		Prefix:  i.cfg.ImagePrefix,
-		Version: i.cfg.ImageVersion,
+		Prefix:  cfg.ImagePrefix,
+		Version: cfg.ImageVersion,
 	}
 
-	pods, err := i.gatherer.GetAllPods()
+	retryOpts := []retry.Option{
+		retry.Delay(5 * time.Second),
+		retry.Attempts(uint(cfg.RetriesCount)),
+		retry.DelayType(retry.FixedDelay),
+	}
+
+	pods, err := i.gatherer.GetAllPods(cfg.Kubeclient, retryOpts)
 	if err != nil {
 		return err
 	}
 
-	i.cfg.Log.Infof("Retrieved %d pods total from the cluster", len(pods.Items))
+	cfg.Log.Infof("Retrieved %d pods total from the cluster", len(pods.Items))
 
 	podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*pods, image)
 
-	i.cfg.Log.Infof("Found %d matching pods", len(podsWithDifferentImage.Items))
+	cfg.Log.Infof("Found %d matching pods", len(podsWithDifferentImage.Items))
 
-	i.action.Reset(podsWithDifferentImage)
+	i.action.Reset(cfg.Kubeclient, retryOpts, podsWithDifferentImage, cfg.Log, cfg.Debug)
 
 	return nil
 }

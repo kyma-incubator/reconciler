@@ -4,6 +4,10 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
@@ -21,5 +25,13 @@ func init() {
 
 	commander := istioctl.DefaultCommander{}
 	performer := actions.NewDefaultIstioPerformer(&commander)
-	reconciler.WithReconcileAction(&ReconcileAction{commander: &commander, performer: performer})
+	gatherer := data.NewDefaultGatherer()
+	matcher := pod.NewParentKindMatcher()
+	action := reset.NewDefaultPodsResetAction(matcher)
+	istioProxyReset := proxy.NewDefaultIstioProxyReset(gatherer, action)
+	reconciler.WithReconcileAction(&ReconcileAction{
+		commander:       &commander,
+		istioProxyReset: istioProxyReset,
+		performer:       performer,
+	})
 }

@@ -1,6 +1,9 @@
 package config
 
-import "go.uber.org/zap"
+import (
+	"go.uber.org/zap"
+	"k8s.io/client-go/kubernetes"
+)
 
 // IstioProxyConfig stores input information for IstioProxyReset.
 type IstioProxyConfig struct {
@@ -19,8 +22,8 @@ type IstioProxyConfig struct {
 	// SleepAfterPodDeletion to avoid races
 	SleepAfterPodDeletion int
 
-	// Kubeconfig path
-	KubeconfigPath string
+	// Kubeclient for k8s cluster operations
+	Kubeclient kubernetes.Interface
 
 	// Debug mode
 	Debug bool

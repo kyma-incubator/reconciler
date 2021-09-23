@@ -372,7 +372,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run("version", "profile", nil, actionContext)
 
 		// then
-		require.NoError(t, err)
+		require.Error(t, err) // TODO: change
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))

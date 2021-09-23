@@ -1,6 +1,9 @@
 package reset
 
 import (
+	"github.com/avast/retry-go"
+	"go.uber.org/zap"
+	"k8s.io/client-go/kubernetes"
 	"sync"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
@@ -8,9 +11,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-//go:generate mockery -name=Action -outpkg=mocks -case=underscore
+//go:generate mockery --name=Action --outpkg=mocks --case=underscore
 type Action interface {
-	Reset(podsList v1.PodList)
+	Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool)
 }
 
 // DefaultResetAction assigns pods to handlers and executes them
@@ -26,8 +29,8 @@ func NewDefaultPodsResetAction(matcher pod.Matcher) *DefaultResetAction {
 	}
 }
 
-func (i *DefaultResetAction) Reset(podsList v1.PodList) {
-	handlersMap := i.matcher.GetHandlersMap(podsList)
+func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool) {
+	handlersMap := i.matcher.GetHandlersMap(kubeClient, retryOpts, podsList, log, debug)
 
 	for handler := range handlersMap {
 		for _, object := range handlersMap[handler] {

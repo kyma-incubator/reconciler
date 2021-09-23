@@ -8,47 +8,32 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
-//go:generate mockery -name=Matcher -outpkg=mocks -case=underscore
-// Matcher of Pod to the Handler..
+//go:generate mockery --name=Matcher --outpkg=mocks --case=underscore
+// Matcher of Pod to the Handler.
 type Matcher interface {
 	// GetHandlersMap by given pods list.
-	GetHandlersMap(v1.PodList) map[Handler][]CustomObject
+	GetHandlersMap(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool) map[Handler][]CustomObject
 }
 
 // ParentKindMatcher matches Pod to the Handler by the parent kind.
-type ParentKindMatcher struct {
-	kubeClient kubernetes.Interface
-	retryOpts  []retry.Option
-	log        *zap.SugaredLogger
-	debug      bool
+type ParentKindMatcher struct{}
+
+// NewParentKindMatcher creates a new instance of ParentKindMatcher.
+func NewParentKindMatcher() *ParentKindMatcher {
+	return &ParentKindMatcher{}
 }
 
-func NewParentKindMatcher(kubeConfigPath string, retryOpts []retry.Option, log *zap.SugaredLogger, debug bool) (*ParentKindMatcher, error) {
-	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-	if err != nil {
-		return nil, err
-	}
-
-	kubeClient, err := kubernetes.NewForConfig(restConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ParentKindMatcher{kubeClient: kubeClient, retryOpts: retryOpts, log: log, debug: debug}, nil
-}
-
-func (m *ParentKindMatcher) GetHandlersMap(podsList v1.PodList) map[Handler][]CustomObject {
+func (m *ParentKindMatcher) GetHandlersMap(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool) map[Handler][]CustomObject {
 	handlersMap := make(map[Handler][]CustomObject)
 	replicaSets := make(map[CustomObject][]CustomObject)
 
 	handlerCfg := handlerCfg{
-		kubeClient: m.kubeClient,
-		retryOpts:  m.retryOpts,
-		log:        m.log,
-		debug:      m.debug,
+		kubeClient: kubeClient,
+		retryOpts:  retryOpts,
+		log:        log,
+		debug:      debug,
 	}
 
 	noActionHandler := &NoActionHandler{handlerCfg}

@@ -1,9 +1,11 @@
 package pod
 
 import (
+	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	v1apps "k8s.io/api/apps/v1"
@@ -14,14 +16,21 @@ import (
 
 func Test_ParentKindMatcher_Match(t *testing.T) {
 	log := logger.NewOptionalLogger(true)
+	debug := true
+	fixRetryOpts := []retry.Option{
+		retry.Delay(1 * time.Second),
+		retry.Attempts(1),
+		retry.DelayType(retry.FixedDelay),
+	}
 
 	t.Run("should return NoActionHandler when pod has no owner", func(t *testing.T) {
 		// given
 		podList := fixPodListWithParentKind("")
+		kubeClient := fake.NewSimpleClientset()
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(*podList)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -34,10 +43,11 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 	t.Run("should return RolloutHandler when pod has unknown owner", func(t *testing.T) {
 		// given
 		podList := fixPodListWithParentKind("unknown")
+		kubeClient := fake.NewSimpleClientset()
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(*podList)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -59,10 +69,10 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 				Namespace: "namespace",
 			}}
 		kubeClient := fake.NewSimpleClientset(&replicaSetWithOwnerReferences)
-		matcher := ParentKindMatcher{kubeClient: kubeClient, log: log}
+		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(*podList)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -82,10 +92,10 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 				Namespace:       "namespace",
 			}}
 		kubeClient := fake.NewSimpleClientset(&replicaSetWithoutOwnerReferences)
-		matcher := ParentKindMatcher{kubeClient: kubeClient, log: log}
+		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(*podList)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -98,10 +108,11 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 	t.Run("should return DeleteObjectHandler when pod has an owner of ReplicationController kind", func(t *testing.T) {
 		// given
 		podList := fixPodListWithParentKind("ReplicationController")
+		kubeClient := fake.NewSimpleClientset()
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(*podList)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -124,10 +135,10 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 				Namespace: "namespace",
 			}}
 		kubeClient := fake.NewSimpleClientset(&replicaSetWithOwnerReferences)
-		matcher := ParentKindMatcher{kubeClient: kubeClient, log: log}
+		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(*podList)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
 
 		// then
 		require.Len(t, podList.Items, 2)
@@ -163,10 +174,10 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 			}}
 
 		kubeClient := fake.NewSimpleClientset(&replicaSetWithOwnerReferences, &replicaSetWithOwnerReferences2)
-		matcher := ParentKindMatcher{kubeClient: kubeClient, log: log}
+		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(*podList)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
 
 		// then
 		require.Len(t, podList.Items, 2)
