@@ -298,27 +298,51 @@ func (u *Update) Where(args map[string]interface{}) *Update {
 	return u
 }
 
+func (u *Update) ExecCount() (int64, error) {
+	defer u.reset()
+	colVals, err := u.colVals()
+	if err != nil {
+		return 0, err
+	}
+
+	rs, err := u.conn.Exec(u.buffer.String(), colVals...)
+	if err != nil {
+		return 0, err
+	}
+
+	return rs.RowsAffected()
+}
+
 func (u *Update) Exec() error {
 	defer u.reset()
-	if err := u.columnHandler.Validate(); err != nil {
+	colVals, err := u.colVals()
+	if err != nil {
 		return err
 	}
 
 	//finalize query by appending RETURNING
 	u.buffer.WriteString(fmt.Sprintf(" RETURNING %s", u.columnHandler.ColumnNamesCsv(false)))
 
-	colVals, err := u.columnHandler.ColumnValues(true)
+	row, err := u.conn.QueryRow(u.buffer.String(), colVals...)
 	if err != nil {
 		return err
+	}
+	return u.columnHandler.Unmarshal(row, u.entity)
+}
+
+func (u *Update) colVals() ([]interface{}, error) {
+	if err := u.columnHandler.Validate(); err != nil {
+		return nil, err
+	}
+
+	colVals, err := u.columnHandler.ColumnValues(true)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(u.args) > 0 {
 		colVals = append(colVals, u.args...)
 	}
 
-	row, err := u.conn.QueryRow(u.buffer.String(), colVals...)
-	if err != nil {
-		return err
-	}
-	return u.columnHandler.Unmarshal(row, u.entity)
+	return colVals, nil
 }

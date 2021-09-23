@@ -157,6 +157,41 @@ func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID stri
 	return reconEntity.(*model.ReconciliationEntity), nil
 }
 
+func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error {
+	dbOps := func() error {
+		//get running reconciliation
+		reconEntity, err := r.GetReconciliation(schedulingID)
+		if err != nil {
+			return err
+		}
+
+		//update reconciliation and remove lock
+		reconEntity.Lock = ""
+		reconEntity.ClusterConfigStatus = status.ID
+		reconEntity.Updated = time.Now()
+		updQ, err := db.NewQuery(r.Conn, reconEntity)
+		if err != nil {
+			return err
+		}
+		cnt, err := updQ.Update().
+			Where(
+				map[string]interface{}{
+					"SchedulingID":        schedulingID,
+					"ClusterConfigStatus": 0,
+				}).
+			ExecCount()
+		if err != nil {
+			return err
+		}
+		if cnt == 0 {
+			return fmt.Errorf("failed to update reconciliation with schedulingID '%s' "+
+				"(maybe updated by parallel running process)", schedulingID)
+		}
+		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
 func (r *PersistentReconciliationRepository) GetOperations(schedulingID string) ([]*model.OperationEntity, error) {
 	q, err := db.NewQuery(r.Conn, &model.OperationEntity{})
 	if err != nil {

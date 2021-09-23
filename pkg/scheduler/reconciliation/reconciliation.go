@@ -11,7 +11,7 @@ type Repository interface {
 	RemoveReconciliation(schedulingID string) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	//GetReconciliations(filters ...func(whereCond []map[string]interface{}, handler *db.ColumnHandler)) ([]*model.ReconciliationEntity, error)
-	//FinishReconciliation(schedulingID string, status model.ClusterStatus) error
+	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error
 	GetOperations(schedulingID string) ([]*model.OperationEntity, error)
 	GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error)
 	GetProcessableOperations() ([]*model.OperationEntity, error)
@@ -42,7 +42,7 @@ func findProcessableOperations(ops []*model.OperationEntity) []*model.OperationE
 		groupedByReconAndPrio[op.SchedulingID][op.Priority] = samePrioGroup
 	}
 
-	//find per reconcilation the processable ops in a prio-group (searching from highest to lowest prio-group)
+	//find per reconciliation the processable ops in a prio-group (searching from highest to lowest prio-group)
 	var result []*model.OperationEntity
 
 	for _, opsWithSamePrio := range groupedByReconAndPrio { //iterate of reconciliations

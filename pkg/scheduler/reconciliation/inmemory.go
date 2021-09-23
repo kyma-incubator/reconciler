@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/pkg/errors"
 	"sync"
 	"time"
 
@@ -97,6 +98,30 @@ func (r *InMemoryReconciliationRepository) GetReconciliation(schedulingID string
 		}
 	}
 	return nil, &repository.EntityNotFoundError{}
+}
+
+func (r *InMemoryReconciliationRepository) FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if status.ID == 0 {
+		return errors.New("invalid argument: provided status entity has no ID")
+	}
+
+	for _, recon := range r.reconciliations {
+		if recon.SchedulingID == schedulingID {
+			if recon.ClusterConfigStatus > 0 {
+				return fmt.Errorf("reconciliation with schedulingID '%s' is already finished", schedulingID)
+			}
+			recon.Lock = ""
+			recon.Updated = time.Now()
+			recon.ClusterConfigStatus = status.ID
+			return nil
+		}
+	}
+
+	return fmt.Errorf("no reconciliation found with schedulingID '%s': "+
+		"cannot finish reconciliation", schedulingID)
 }
 
 func (r *InMemoryReconciliationRepository) GetOperations(schedulingID string) ([]*model.OperationEntity, error) {

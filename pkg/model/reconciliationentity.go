@@ -10,7 +10,7 @@ import (
 const tblReconciliation string = "scheduler_reconciliations"
 
 type ReconciliationEntity struct {
-	Lock                string    `db:"notNull"`
+	Lock                string    `db:""`
 	Cluster             string    `db:"notNull"`
 	ClusterConfig       int64     `db:"notNull"`
 	ClusterConfigStatus int64     `db:""`

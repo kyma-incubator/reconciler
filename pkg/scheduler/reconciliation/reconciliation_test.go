@@ -246,6 +246,26 @@ func TestReconciliationRepository(t *testing.T) {
 			},
 		},
 		{
+			name: "Finish reconciliation",
+			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				require.NoError(t, err)
+
+				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, &model.ClusterStatusEntity{
+					ID: 9999,
+				})
+				require.NoError(t, err)
+
+				//finish a non-running reconciliation is not allowed
+				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, &model.ClusterStatusEntity{
+					ID: 9999,
+				})
+				require.Error(t, err)
+
+				return []*model.ReconciliationEntity{reconEntity}
+			},
+		},
+		{
 			name: "Remove reconciliation",
 			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
