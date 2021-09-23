@@ -81,11 +81,11 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 	return recon, nil
 }
 
-func UseGlobalWorkspaceFactory(workspaceFactory *workspace.Factory) error {
+func UseGlobalWorkspaceFactory(workspaceFactory workspace.Factory) error {
 	if wsFactory != nil {
 		return fmt.Errorf("workspace factory already defined: %s", wsFactory)
 	}
-	wsFactory = *workspaceFactory
+	wsFactory = workspaceFactory
 	return nil
 }
 
