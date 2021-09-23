@@ -82,7 +82,7 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	}
 
 	newClusterEntity := &model.ClusterEntity{
-		Cluster:    cluster.Cluster,
+		Cluster:    cluster.RuntimeID,
 		Runtime:    string(runtime),
 		Metadata:   string(metadata),
 		Kubeconfig: cluster.Kubeconfig,
@@ -90,10 +90,10 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	}
 
 	//check if a new version is required
-	oldClusterEntity, err := i.latestCluster(cluster.Cluster)
+	oldClusterEntity, err := i.latestCluster(cluster.RuntimeID)
 	if err == nil {
 		if oldClusterEntity.Equal(newClusterEntity) { //reuse existing cluster entity
-			i.Logger.Debugf("No differences found for cluster '%s': not creating new database entity", cluster.Cluster)
+			i.Logger.Debugf("No differences found for cluster '%s': not creating new database entity", cluster.RuntimeID)
 			return oldClusterEntity, nil
 		}
 	} else if !repository.IsNotFoundError(err) {
@@ -137,7 +137,7 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	oldConfigEntity, err := i.latestConfig(clusterEntity.Version)
 	if err == nil {
 		if oldConfigEntity.Equal(newConfigEntity) { //reuse existing config entity
-			i.Logger.Debugf("No differences found for configuration of cluster '%s': not creating new database entity", cluster.Cluster)
+			i.Logger.Debugf("No differences found for configuration of cluster '%s': not creating new database entity", cluster.RuntimeID)
 			return oldConfigEntity, nil
 		}
 	} else if !repository.IsNotFoundError(err) {
