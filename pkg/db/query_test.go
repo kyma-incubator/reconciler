@@ -61,8 +61,8 @@ func TestQuery(t *testing.T) {
 	})
 
 	t.Run("Update", func(t *testing.T) {
-		err = q.Update().Where(map[string]interface{}{"Col1": "col1Value"}).Exec()
+		err = q.Update().Where(map[string]interface{}{"Col1": "col1Value", "Col3": "col3Value"}).Exec()
 		require.NoError(t, err)
-		require.Equal(t, "UPDATE mockTable SET col_1=$1, col_3=$2 WHERE col_1=$3 RETURNING col_1, col_2, col_3", conn.query)
+		require.Equal(t, "UPDATE mockTable SET col_1=$1, col_3=$2 WHERE col_1=$3 AND col_3=$4 RETURNING col_1, col_2, col_3", conn.query)
 	})
 }

@@ -31,12 +31,13 @@ type Update struct {
 func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.State, components *model.ReconciliationSequence, logger *zap.SugaredLogger) ClusterStatusUpdater {
 	statusUpdater := ClusterStatusUpdater{inventory: inventory, clusterState: clusterState, logger: logger}
 	statusUpdater.statusMap = make(map[string]string)
-	for _, comp := range components.FirstInSequence {
-		statusUpdater.statusMap[comp.Component] = model.OperationStateInProgress
-	}
-	for _, comp := range components.InParallel {
-		statusUpdater.statusMap[comp.Component] = model.OperationStateInProgress
-	}
+	//FIXME
+	//for _, comp := range components.FirstInSequence {
+	//	statusUpdater.statusMap[comp.Component] = model.OperationStateInProgress
+	//}
+	//for _, comp := range components.InParallel {
+	//	statusUpdater.statusMap[comp.Component] = model.OperationStateInProgress
+	//}
 	statusUpdater.reconciling()
 	statusUpdater.updateChannel = make(chan Update, channelSize)
 	return statusUpdater

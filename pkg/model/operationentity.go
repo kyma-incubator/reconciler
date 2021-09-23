@@ -10,9 +10,10 @@ import (
 const tblOperation string = "scheduler_operations"
 
 type OperationEntity struct {
+	Priority      int64          `db:"notNull"`
 	SchedulingID  string         `db:"notNull"`
 	CorrelationID string         `db:"notNull"`
-	ConfigVersion int64          `db:"notNull"`
+	ClusterConfig int64          `db:"notNull"`
 	Component     string         `db:"notNull"`
 	State         OperationState `db:"notNull"`
 	Reason        string         `db:""`
@@ -21,8 +22,8 @@ type OperationEntity struct {
 }
 
 func (o *OperationEntity) String() string {
-	return fmt.Sprintf("OperationEntity [SchedulingID=%s,CorrelationID=%s,ConfigVersion=%d,Component=%s]",
-		o.SchedulingID, o.CorrelationID, o.ConfigVersion, o.Component)
+	return fmt.Sprintf("OperationEntity [SchedulingID=%s,CorrelationID=%s,ClusterConfig=%d,Component=%s,Prio=%d]",
+		o.SchedulingID, o.CorrelationID, o.ClusterConfig, o.Component, o.Priority)
 }
 
 func (*OperationEntity) New() db.DatabaseEntity {
@@ -31,6 +32,12 @@ func (*OperationEntity) New() db.DatabaseEntity {
 
 func (o *OperationEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&o)
+	marshaller.AddMarshaller("State", func(value interface{}) (interface{}, error) {
+		return fmt.Sprintf("%s", value), nil
+	})
+	marshaller.AddUnmarshaller("State", func(value interface{}) (interface{}, error) {
+		return NewOperationState(fmt.Sprintf("%s", value))
+	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	marshaller.AddUnmarshaller("Updated", convertTimestampToTime)
 	return marshaller

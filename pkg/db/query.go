@@ -311,6 +311,11 @@ func (u *Update) Exec() error {
 	if err != nil {
 		return err
 	}
+
+	if len(u.args) > 0 {
+		colVals = append(colVals, u.args...)
+	}
+
 	row, err := u.conn.QueryRow(u.buffer.String(), colVals...)
 	if err != nil {
 		return err

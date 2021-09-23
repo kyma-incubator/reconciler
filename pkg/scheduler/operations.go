@@ -65,7 +65,7 @@ func (or *PersistedOperationsRegistry) RegisterOperation(correlationID, scheduli
 		opEntity := &model.OperationEntity{
 			SchedulingID:  schedulingID,
 			CorrelationID: correlationID,
-			ConfigVersion: version,
+			ClusterConfig: version,
 			Component:     component,
 			State:         model.OperationStateNew,
 		}
@@ -178,7 +178,7 @@ func (or *PersistedOperationsRegistry) updateState(correlationID, schedulingID, 
 		q, err := db.NewQuery(or.Conn, &model.OperationEntity{
 			SchedulingID:  op.SchedulingID,
 			CorrelationID: op.CorrelationID,
-			ConfigVersion: op.ConfigVersion,
+			ClusterConfig: op.ClusterConfig,
 			Component:     op.Component,
 			State:         model.OperationState(state),
 			Reason:        reason,
@@ -252,7 +252,7 @@ func (or *InMemoryOperationsRegistry) RegisterOperation(correlationID, schedulin
 	op := model.OperationEntity{
 		SchedulingID:  schedulingID,
 		CorrelationID: correlationID,
-		ConfigVersion: version,
+		ClusterConfig: version,
 		Component:     component,
 		State:         model.OperationStateNew,
 		Created:       time.Now(),
@@ -329,7 +329,7 @@ func (or *InMemoryOperationsRegistry) update(correlationID, schedulingID, state,
 	or.registry[schedulingID][correlationID] = model.OperationEntity{
 		CorrelationID: correlationID,
 		SchedulingID:  schedulingID,
-		ConfigVersion: op.ConfigVersion,
+		ClusterConfig: op.ClusterConfig,
 		Component:     op.Component,
 		State:         model.OperationState(state),
 		Reason:        reason,

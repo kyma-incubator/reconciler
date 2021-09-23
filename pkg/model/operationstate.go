@@ -1,5 +1,10 @@
 package model
 
+import (
+	"fmt"
+	"strings"
+)
+
 type OperationState string
 
 const (
@@ -10,3 +15,24 @@ const (
 	OperationStateError       = "error"
 	OperationStateFailed      = "failed"
 )
+
+func NewOperationState(state string) (OperationState, error) {
+	var result OperationState
+	switch strings.ToLower(state) {
+	case OperationStateNew:
+		result = OperationStateNew
+	case OperationStateInProgress:
+		result = OperationStateInProgress
+	case OperationStateDone:
+		result = OperationStateDone
+	case OperationStateClientError:
+		result = OperationStateClientError
+	case OperationStateError:
+		result = OperationStateError
+	case OperationStateFailed:
+		result = OperationStateFailed
+	default:
+		return "", fmt.Errorf("operation state '%s' does not exist", state)
+	}
+	return result, nil
+}

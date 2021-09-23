@@ -1,0 +1,291 @@
+package reconciliation
+
+import (
+	"database/sql"
+	"fmt"
+	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"time"
+)
+
+type PersistentReconciliationRepository struct {
+	*repository.Repository
+}
+
+func NewPersistedReconciliationRepository(dbConnFact db.ConnectionFactory, debug bool) (Repository, error) {
+	repo, err := repository.NewRepository(dbConnFact, debug)
+	if err != nil {
+		return nil, err
+	}
+	return &PersistentReconciliationRepository{repo}, nil
+}
+
+func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, prerequisites []string) (*model.ReconciliationEntity, error) {
+	dbOps := func() (interface{}, error) {
+		reconEntity := &model.ReconciliationEntity{
+			Lock:                state.Cluster.Cluster,
+			Cluster:             state.Cluster.Cluster,
+			ClusterConfig:       state.Configuration.Version,
+			ClusterConfigStatus: 0,
+			SchedulingID:        uuid.NewString(),
+		}
+
+		//find existing reconciliation for this cluster
+		existingReconQ, err := db.NewQuery(r.Conn, reconEntity)
+		if err != nil {
+			return nil, err
+		}
+		existingRecon, err := existingReconQ.
+			Select().
+			Where(map[string]interface{}{
+				"Cluster":             state.Cluster.Cluster,
+				"ClusterConfigStatus": 0, //will be > 0 if reconciliation is finished
+			}).
+			GetOne()
+		if err == nil {
+			existingReconEntity := existingRecon.(*model.ReconciliationEntity)
+			r.Logger.Warnf("Found existing reconciliation for cluster '%s' (was created at '%s)' "+
+				"and cannot create another one", state.Cluster.Cluster, existingReconEntity.Created)
+			return nil, newDuplicateClusterReconciliationError(existingReconEntity)
+		}
+		if err != sql.ErrNoRows {
+			r.Logger.Errorf("Failed to check for existing reconciliations entities: %s", err)
+			return nil, err
+		}
+
+		createReconQ, err := db.NewQuery(r.Conn, reconEntity)
+		if err := createReconQ.Insert().Exec(); err != nil {
+			r.Logger.Errorf("Failed to create new reconciliation entity for cluster '%s': %s",
+				state.Cluster.Cluster, err)
+			return nil, err
+		}
+		r.Logger.Debugf("New reconciliation for cluster '%s' with schedulingID '%s' created",
+			state.Cluster.Cluster, reconEntity.SchedulingID)
+
+		//get reconciliation sequence
+		reconSeq, err := state.Configuration.GetReconciliationSequence(prerequisites)
+		if err != nil {
+			r.Logger.Errorf("Failed to retrieve component models for cluster '%s': %s", state.Cluster.Cluster, err)
+			return nil, err
+		}
+
+		//iterate over reconciliation sequence and create operations with proper priorities
+		for idx, components := range reconSeq.Queue {
+			priority := idx + 1
+			for _, component := range components {
+				createOpQ, err := db.NewQuery(r.Conn, &model.OperationEntity{
+					Priority:      int64(priority),
+					SchedulingID:  reconEntity.SchedulingID,
+					CorrelationID: uuid.NewString(),
+					ClusterConfig: reconEntity.ClusterConfig,
+					Component:     component.Component,
+					State:         model.OperationStateNew,
+					Updated:       time.Now(),
+				})
+				if err != nil {
+					return nil, err
+				}
+				if err := createOpQ.Insert().Exec(); err != nil {
+					r.Logger.Errorf("Failed to create operation for component '%s' with priority %d "+
+						"(required for reconciliation of cluster '%s'): %s",
+						component.Component, priority, state.Cluster.Cluster, err)
+					return nil, err
+				}
+				r.Logger.Debugf("Created operation for component '%s' with priority %d "+
+					"(required for reconciliation of cluster '%s')",
+					component.Component, priority, state.Cluster.Cluster)
+			}
+			r.Logger.Debugf("Created %d operations with priority %d for reconciliation "+
+				"of cluster '%s' with schedulingID '%s'",
+				len(components), priority, state.Cluster.Cluster, reconEntity.SchedulingID)
+		}
+
+		return reconEntity, nil
+	}
+	result, err := db.TransactionResult(r.Conn, dbOps, r.Logger)
+	if err != nil {
+		return nil, err
+	}
+	return result.(*model.ReconciliationEntity), nil
+}
+
+func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID string) error {
+	dbOps := func() error {
+		whereCond := map[string]interface{}{
+			"SchedulingID": schedulingID,
+		}
+
+		//delete operations
+		qDelOps, err := db.NewQuery(r.Conn, &model.OperationEntity{})
+		delOpsCnt, err := qDelOps.Delete().
+			Where(whereCond).
+			Exec()
+		if err != nil {
+			return err
+		}
+		r.Logger.Debugf("Deleted %d operations which were assigned to reconciliation with schedulingID '%s'",
+			delOpsCnt, schedulingID)
+
+		//delete reconciliation
+		qDelRecon, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{})
+		delCnt, err := qDelRecon.Delete().
+			Where(whereCond).
+			Exec()
+		r.Logger.Debugf("Deleted %d reconciliation with schedulingID '%s'", delCnt, schedulingID)
+		return err
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
+	q, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{})
+	if err != nil {
+		return nil, err
+	}
+	whereCond := map[string]interface{}{
+		"SchedulingID": schedulingID,
+	}
+	reconEntity, err := q.Select().
+		Where(whereCond).
+		GetOne()
+	if err != nil {
+		return nil, r.NewNotFoundError(err, reconEntity, whereCond)
+	}
+	return reconEntity.(*model.ReconciliationEntity), nil
+}
+
+func (r *PersistentReconciliationRepository) GetOperations(schedulingID string) ([]*model.OperationEntity, error) {
+	q, err := db.NewQuery(r.Conn, &model.OperationEntity{})
+	if err != nil {
+		return nil, err
+	}
+	whereCond := map[string]interface{}{
+		"SchedulingID": schedulingID,
+	}
+	opEntities, err := q.Select().
+		Where(whereCond).
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+	var result []*model.OperationEntity
+	for _, opEntity := range opEntities {
+		result = append(result, opEntity.(*model.OperationEntity))
+	}
+	return result, nil
+}
+
+func (r *PersistentReconciliationRepository) GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error) {
+	q, err := db.NewQuery(r.Conn, &model.OperationEntity{})
+	if err != nil {
+		return nil, err
+	}
+	whereCond := map[string]interface{}{
+		"CorrelationID": correlationID,
+		"SchedulingID":  schedulingID,
+	}
+	opEntity, err := q.Select().
+		Where(whereCond).
+		GetOne()
+	if err != nil {
+		return nil, r.NewNotFoundError(err, opEntity, whereCond)
+	}
+	return opEntity.(*model.OperationEntity), nil
+}
+
+func (r *PersistentReconciliationRepository) GetProcessableOperations() ([]*model.OperationEntity, error) {
+	//retrieve all non-finished operations
+	reconEntity := &model.ReconciliationEntity{}
+	colHdr, err := db.NewColumnHandler(reconEntity, r.Conn)
+	if err != nil {
+		return nil, err
+	}
+	schedulingIDCol, err := colHdr.ColumnName("SchedulingID")
+	if err != nil {
+		return nil, err
+	}
+	clCfgStatusCol, err := colHdr.ColumnName("ClusterConfigStatus")
+	if err != nil {
+		return nil, err
+	}
+	q, err := db.NewQuery(r.Conn, &model.OperationEntity{})
+	if err != nil {
+		return nil, err
+	}
+	ops, err := q.Select().
+		WhereIn(
+			"SchedulingID",
+			//consider only operations which are part of a running reconciliations
+			fmt.Sprintf("SELECT %s FROM %s WHERE %s=$1", schedulingIDCol, reconEntity.Table(), clCfgStatusCol),
+			0).
+		GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	var opEntites []*model.OperationEntity
+	for _, op := range ops {
+		opEntites = append(opEntites, op.(*model.OperationEntity))
+	}
+	return findProcessableOperations(opEntites), nil
+}
+
+func (r *PersistentReconciliationRepository) SetOperationInProgress(schedulingID, correlationID string) error {
+	return r.updateOperationState(schedulingID, correlationID, model.OperationStateInProgress, "")
+}
+
+func (r *PersistentReconciliationRepository) SetOperationDone(schedulingID, correlationID string) error {
+	return r.updateOperationState(schedulingID, correlationID, model.OperationStateDone, "")
+}
+
+func (r *PersistentReconciliationRepository) SetOperationError(schedulingID, correlationID, reason string) error {
+	return r.updateOperationState(schedulingID, correlationID, model.OperationStateError, reason)
+}
+
+func (r *PersistentReconciliationRepository) SetOperationClientError(schedulingID, correlationID, reason string) error {
+	return r.updateOperationState(schedulingID, correlationID, model.OperationStateClientError, reason)
+}
+
+func (r *PersistentReconciliationRepository) SetOperationFailed(schedulingID, correlationID, reason string) error {
+	return r.updateOperationState(schedulingID, correlationID, model.OperationStateFailed, reason)
+}
+
+func (r *PersistentReconciliationRepository) updateOperationState(schedulingID, correlationID string, state model.OperationState, reason string) error {
+	dbOps := func() error {
+		op, err := r.GetOperation(schedulingID, correlationID)
+		if err != nil {
+			if !repository.IsNotFoundError(err) {
+				return err
+			}
+			return fmt.Errorf("operation not found (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
+		}
+
+		if op.State == model.OperationStateDone || op.State == model.OperationStateError {
+			return fmt.Errorf("cannot update state of operation for component '%s' (schedulingID:%s/correlationID:'%s) "+
+				"to new state '%s' because operation is already in final state '%s'",
+				op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
+		}
+
+		//update fields
+		op.State = state
+		op.Reason = reason
+		op.Updated = time.Now()
+
+		q, err := db.NewQuery(r.Conn, op)
+		if err != nil {
+			return err
+		}
+		whereCond := map[string]interface{}{
+			"CorrelationID": correlationID,
+			"SchedulingID":  schedulingID,
+		}
+		return q.Update().
+			Where(whereCond).
+			Exec()
+
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}

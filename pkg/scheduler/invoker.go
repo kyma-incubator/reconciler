@@ -36,7 +36,7 @@ func (p *InvokeParams) createReconciliationModel() *reconciler.Reconciliation {
 		version = p.ComponentToReconcile.Version
 	}
 
-	configuration := mapConfiguration(p.ComponentToReconcile.Configuration)
+	configuration := p.ComponentToReconcile.ConfigurationAsMap()
 	return &reconciler.Reconciliation{
 		ComponentsReady: p.ComponentsReady,
 		Component:       p.ComponentToReconcile.Component,

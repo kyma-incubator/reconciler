@@ -27,7 +27,7 @@ func (v *Validator) Validate(query string) error {
 	if err != nil {
 		return errors.Wrap(err, "Regex validation failed")
 	}
-	matchUpdate, err := regexp.MatchString("UPDATE.*SET (\\w*\\s*=\\s*\\$\\d+(\\s*,\\s*)?)+(\\s*WHERE\\s*(\\w*\\s*=\\s*\\$\\d+(\\s*,\\s*)?(\\s+AND\\s+)?(\\s+OR\\s+)?)+)?$", query)
+	matchUpdate, err := regexp.MatchString("UPDATE.*SET (\\w*\\s*=\\s*\\$\\d+(\\s*,\\s*)?)+(\\s*WHERE\\s*(\\w*\\s*=\\s*\\$\\d+(\\s*,\\s*)?(\\s+AND\\s+)?(\\s+OR\\s+)?)+)?(\\s+RETURNING\\s+(\\w+(,\\s*)?)+)?$", query)
 	if err != nil {
 		return errors.Wrap(err, "Regex validation failed")
 	}

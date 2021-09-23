@@ -85,7 +85,7 @@ func (rs *RemoteScheduler) Run(ctx context.Context) error {
 
 func (rs *RemoteScheduler) schedule(ctx context.Context, state cluster.State) {
 	schedulingID := uuid.NewString()
-	components, err := state.Configuration.GetComponents(rs.mothershipCfg.PreComponents)
+	components, err := state.Configuration.GetReconciliationSequence(rs.mothershipCfg.PreComponents)
 	if err != nil {
 		rs.logger.Errorf("Failed to get components for cluster %s: %s", state.Cluster.Cluster, err)
 		return

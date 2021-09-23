@@ -7,7 +7,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
-	"golang.org/x/sync/errgroup"
 )
 
 type ReconciliationHander struct {
@@ -26,23 +25,25 @@ func (h *ReconciliationHander) WithStatusUpdater(statusUpdater ClusterStatusUpda
 
 func (h *ReconciliationHander) Reconcile(ctx context.Context, seq *model.ReconciliationSequence, state *cluster.State, schedulingID string) error {
 	//Reconcile the prerequisites
-	for _, component := range seq.FirstInSequence {
-		err := h.reconcile(ctx, component, state, schedulingID)
-		if err != nil {
-			return err
-		}
-	}
-
-	//Reconcile the rest
-	g, _ := errgroup.WithContext(ctx)
-	for _, c := range seq.InParallel {
-		component := c // https://golang.org/doc/faq#closures_and_goroutines
-		g.Go(func() error {
-			return h.reconcile(ctx, component, state, schedulingID)
-		})
-	}
-
-	return g.Wait()
+	//FIXME
+	//for _, component := range seq.FirstInSequence {
+	//	err := h.reconcile(ctx, component, state, schedulingID)
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
+	//
+	////Reconcile the rest
+	//g, _ := errgroup.WithContext(ctx)
+	//for _, c := range seq.InParallel {
+	//	component := c // https://golang.org/doc/faq#closures_and_goroutines
+	//	g.Go(func() error {
+	//		return h.reconcile(ctx, component, state, schedulingID)
+	//	})
+	//}
+	//
+	//return g.Wait()
+	return nil
 }
 
 func (h *ReconciliationHander) reconcile(ctx context.Context, component *keb.Component, state *cluster.State, schedulingID string) error {

@@ -62,7 +62,7 @@ func (ls *LocalScheduler) Run(ctx context.Context, c *keb.Cluster) error {
 		return fmt.Errorf("failed to convert to cluster state: %s", err)
 	}
 
-	components, err := clusterState.Configuration.GetComponents(ls.prereqs)
+	components, err := clusterState.Configuration.GetReconciliationSequence(ls.prereqs)
 	if err != nil {
 		return fmt.Errorf("failed to get components: %s", err)
 	}
