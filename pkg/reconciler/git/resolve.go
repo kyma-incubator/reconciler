@@ -64,10 +64,10 @@ func (r *revisionResolver) fetch(name string, kind string) error {
 	switch kind {
 	case "pr":
 		name = strings.TrimLeft(name, prPrefix)
-		refs := []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/pull/%s/head:refs/remotes/origin/pr/%s", name, name))}
+		refs := []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/pull/%s/head:refs/remote/origin/pr/%s", name, name))}
 		return r.repository.Fetch(&git.FetchOptions{RefSpecs: refs})
 	case "branch":
-		refs := []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/heads/%s:refs/remotes/origin/%s", name, name))}
+		refs := []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/heads/%s:refs/remote/origin/%s", name, name))}
 		return r.repository.Fetch(&git.FetchOptions{RefSpecs: refs})
 	default:
 		return errors.Errorf("Unknown Type: %s", kind)
