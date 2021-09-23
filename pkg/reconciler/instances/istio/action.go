@@ -1,8 +1,11 @@
 package istio
 
 import (
+	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
+	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"strconv"
@@ -97,19 +100,14 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not update Istio")
 		}
 
-		restConfig, err := clientcmd.BuildConfigFromFlags("", context.KubeClient.Kubeconfig())
-		if err != nil {
-			return err
-		}
-
-		kubeClient, err := kubernetes.NewForConfig(restConfig)
+		kubeClient, err := retrieveClientsetFrom(context.KubeClient.Kubeconfig(), context.Logger)
 		if err != nil {
 			return err
 		}
 
 		cfg := istioConfig.IstioProxyConfig{
 			ImagePrefix:           istioImagePrefix,
-			ImageVersion:          ver.TargetVersion, // TODO: consider adding '-distroless' to the image version under the hood
+			ImageVersion:          fmt.Sprintf("%s-distroless", ver.TargetVersion),
 			RetriesCount:          retriesCount,
 			DelayBetweenRetries:   delayBetweenRetries,
 			SleepAfterPodDeletion: sleepAfterPodDeletion,
@@ -234,4 +232,30 @@ func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error
 	}
 
 	return builder.String(), nil
+}
+
+func retrieveClientsetFrom(kubeConfig string, log *zap.SugaredLogger) (*kubernetes.Clientset, error) {
+	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		cleanupErr := kubeconfigCf()
+		if cleanupErr != nil {
+			log.Error(cleanupErr)
+		}
+	}()
+
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return kubeClient, nil
 }
