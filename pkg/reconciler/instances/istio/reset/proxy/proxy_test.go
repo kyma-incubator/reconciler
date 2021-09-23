@@ -20,7 +20,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		ImageVersion:          "1.10.2",
 		RetriesCount:          5,
 		SleepAfterPodDeletion: 10,
-		Kubeclient: fake.NewSimpleClientset(),
+		Kubeclient:            fake.NewSimpleClientset(),
 		Log:                   log.NewOptionalLogger(true),
 	}
 

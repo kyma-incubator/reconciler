@@ -109,7 +109,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		}
 
 		cfg := istioConfig.IstioProxyConfig{
-			ImagePrefix:            istioImagePrefix,
+			ImagePrefix:           istioImagePrefix,
 			ImageVersion:          ver.TargetVersion, // TODO: consider adding '-distroless' to the image version under the hood
 			RetriesCount:          retriesCount,
 			DelayBetweenRetries:   delayBetweenRetries,
