@@ -159,12 +159,3 @@ func (w *Worker) getDoneComponents(schedulingID string) ([]string, error) {
 	}
 	return result, nil
 }
-
-func mapConfiguration(kebCfg []keb.Configuration) map[string]interface{} {
-	configs := make(map[string]interface{}, len(kebCfg))
-	for _, k := range kebCfg {
-		configs[k.Key] = k.Value
-	}
-
-	return configs
-}
