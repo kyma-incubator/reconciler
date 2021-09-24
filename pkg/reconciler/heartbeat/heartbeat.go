@@ -65,7 +65,7 @@ func NewHeartbeatSender(ctx context.Context, callback cb.Handler, logger *zap.Su
 		config:          config,
 		restartInterval: make(chan bool),
 		callback:        callback,
-		status:          reconciler.NotStarted,
+		status:          reconciler.StatusNotstarted,
 		timeout:         time.NewTimer(config.Timeout),
 		logger:          logger,
 	}, nil
@@ -89,7 +89,13 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 	task := func(status reconciler.Status, rootCause error) error {
 		err := su.callback.Callback(&reconciler.CallbackMessage{
 			Status: status,
-			Error:  rootCause,
+			Error: func(err error) *string {
+				errMsg := ""
+				if err != nil {
+					errMsg = err.Error()
+				}
+				return &errMsg
+			}(rootCause),
 		})
 		if err == nil {
 			su.logger.Debugf("Interval-callback with status-update ('%s') sent successfully", status)
@@ -142,40 +148,40 @@ func (su *Sender) CurrentStatus() reconciler.Status {
 }
 
 func (su *Sender) stopJob() {
-	if su.status == reconciler.Running || su.status == reconciler.Failed {
+	if su.status == reconciler.StatusRunning || su.status == reconciler.StatusFailed {
 		su.restartInterval <- true
 	}
 }
 
 func (su *Sender) Running() error {
-	if err := su.statusChangeAllowed(reconciler.Running); err != nil {
+	if err := su.statusChangeAllowed(reconciler.StatusRunning); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.Running, nil, false) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
+	su.sendUpdate(reconciler.StatusRunning, nil, false) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
 	return nil
 }
 
 func (su *Sender) Failed(err error) error {
-	if err := su.statusChangeAllowed(reconciler.Failed); err != nil {
+	if err := su.statusChangeAllowed(reconciler.StatusFailed); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.Failed, err, false) //Failed is an interim status: use interval to send heartbeat-request to reconciler-controller
+	su.sendUpdate(reconciler.StatusFailed, err, false) //Failed is an interim status: use interval to send heartbeat-request to reconciler-controller
 	return nil
 }
 
 func (su *Sender) Success() error {
-	if err := su.statusChangeAllowed(reconciler.Success); err != nil {
+	if err := su.statusChangeAllowed(reconciler.StatusSuccess); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.Success, nil, true) //Success is a final status: use retry because heartbeat-requests are no longer needed
+	su.sendUpdate(reconciler.StatusSuccess, nil, true) //Success is a final status: use retry because heartbeat-requests are no longer needed
 	return nil
 }
 
 func (su *Sender) Error(err error) error {
-	if err := su.statusChangeAllowed(reconciler.Error); err != nil {
+	if err := su.statusChangeAllowed(reconciler.StatusError); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.Error, err, true) //Error is a final status: use retry because heartbeat-requests are no longer needed
+	su.sendUpdate(reconciler.StatusError, err, true) //Error is a final status: use retry because heartbeat-requests are no longer needed
 	return nil
 }
 
@@ -185,7 +191,7 @@ func (su *Sender) statusChangeAllowed(status reconciler.Status) error {
 			Message: fmt.Sprintf("Cannot change status to '%s' because context of heartbeat sender is closed", status),
 		}
 	}
-	if su.status == reconciler.Error || su.status == reconciler.Success {
+	if su.status == reconciler.StatusError || su.status == reconciler.StatusSuccess {
 		return fmt.Errorf("cannot switch in '%s' status because we are already in final status '%s'", status, su.status)
 	}
 	return nil

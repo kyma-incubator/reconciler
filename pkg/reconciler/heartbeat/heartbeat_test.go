@@ -70,23 +70,23 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 			Timeout:  10 * time.Second,
 		})
 		require.NoError(t, err)
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.NotStarted)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
 
 		require.NoError(t, heartbeatSender.Running())
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Running)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
 		time.Sleep(2 * time.Second)
 
 		require.NoError(t, heartbeatSender.Failed(errors.New("I'm currently failing")))
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Failed)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusFailed)
 		time.Sleep(2 * time.Second)
 
 		require.NoError(t, heartbeatSender.Success())
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Success)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusSuccess)
 		time.Sleep(2 * time.Second)
 
 		//check fired status updates
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 4) //anything >= 4 is sufficient to ensure the heartbeatSenders works
-		require.Equal(t, callbackHdlr.LatestStatus(), reconciler.Success)
+		require.Equal(t, callbackHdlr.LatestStatus(), reconciler.StatusSuccess)
 	})
 
 	t.Run("Test heartbeat sender with context timeout", func(t *testing.T) {
@@ -100,10 +100,10 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 			Timeout:  10 * time.Second,
 		})
 		require.NoError(t, err)
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.NotStarted)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
 
 		require.NoError(t, heartbeatSender.Running())
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Running)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
 
 		time.Sleep(3 * time.Second) //wait longer than timeout to simulate expired context
 
@@ -121,10 +121,10 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 			Timeout:  1 * time.Second,
 		})
 		require.NoError(t, err)
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.NotStarted)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
 
 		require.NoError(t, heartbeatSender.Running())
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.Running)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
 
 		time.Sleep(2 * time.Second) //wait longer than status update timeout to timeout
 

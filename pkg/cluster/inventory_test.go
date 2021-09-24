@@ -61,14 +61,14 @@ func TestInventory(t *testing.T) {
 	t.Run("Get latest cluster", func(t *testing.T) {
 		expectedCluster := newCluster(t, 1, maxVersion)
 
-		clusterState, err := inventory.GetLatest(expectedCluster.Cluster)
+		clusterState, err := inventory.GetLatest(expectedCluster.RuntimeID)
 		require.NoError(t, err)
 		compareState(t, clusterState, expectedCluster)
 	})
 
 	t.Run("Update cluster status", func(t *testing.T) {
 		cluster := newCluster(t, 1, maxVersion)
-		clusterState, err := inventory.GetLatest(cluster.Cluster)
+		clusterState, err := inventory.GetLatest(cluster.RuntimeID)
 		require.NoError(t, err)
 		require.Equal(t, clusterState.Status.Status, model.ClusterStatusReconcilePending)
 		oldStatusID := clusterState.Status.ID
@@ -87,12 +87,12 @@ func TestInventory(t *testing.T) {
 	t.Run("Delete a cluster", func(t *testing.T) {
 		//get cluster1
 		expectedCluster := newCluster(t, 1, 1)
-		_, err := inventory.GetLatest(expectedCluster.Cluster)
+		_, err := inventory.GetLatest(expectedCluster.RuntimeID)
 		require.NoError(t, err)
 		//delete cluster1
-		require.NoError(t, inventory.Delete(expectedCluster.Cluster))
+		require.NoError(t, inventory.Delete(expectedCluster.RuntimeID))
 		//cluster1 is now missing
-		_, err = inventory.GetLatest(expectedCluster.Cluster)
+		_, err = inventory.GetLatest(expectedCluster.RuntimeID)
 		require.Error(t, err)
 		require.True(t, repository.IsNotFoundError(err))
 	})
@@ -117,7 +117,7 @@ func TestInventory(t *testing.T) {
 		defer func() {
 			//cleanup
 			for _, cluster := range expectedClusters {
-				require.NoError(t, inventory.Delete(cluster.Cluster))
+				require.NoError(t, inventory.Delete(cluster.RuntimeID))
 			}
 		}()
 
@@ -196,7 +196,7 @@ func TestInventory(t *testing.T) {
 
 		defer func() {
 			//cleanup
-			for _, cluster := range []string{cluster1v3.Cluster, cluster2v2.Cluster, cluster3v1.Cluster} {
+			for _, cluster := range []string{cluster1v3.RuntimeID, cluster2v2.RuntimeID, cluster3v1.RuntimeID} {
 				require.NoError(t, inventory.Delete(cluster))
 			}
 		}()
@@ -231,7 +231,7 @@ func TestInventory(t *testing.T) {
 
 		defer func() {
 			//cleanup
-			require.NoError(t, inventory.Delete(newCluster.Cluster))
+			require.NoError(t, inventory.Delete(newCluster.RuntimeID))
 		}()
 		duration, err := time.ParseDuration("10h")
 		require.NoError(t, err)
@@ -283,7 +283,7 @@ func newCluster(t *testing.T, clusterID, clusterVersion int64) *keb.Cluster {
 	err = json.Unmarshal(data, cluster)
 	require.NoError(t, err)
 
-	cluster.Cluster = fmt.Sprintf("cluster%d", clusterID)
+	cluster.RuntimeID = fmt.Sprintf("cluster%d", clusterID)
 	cluster.RuntimeInput.Name = fmt.Sprintf("runtimeName%d", clusterVersion)
 	cluster.Metadata.GlobalAccountID = fmt.Sprintf("globalAccountId%d", clusterVersion)
 	cluster.KymaConfig.Profile = fmt.Sprintf("kymaProfile%d", clusterVersion)
@@ -296,7 +296,7 @@ func newCluster(t *testing.T, clusterID, clusterVersion int64) *keb.Cluster {
 func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 	// *** ClusterEntity ***
 	require.Equal(t, int64(1), state.Cluster.Contract)
-	require.Equal(t, cluster.Cluster, state.Cluster.Cluster)
+	require.Equal(t, cluster.RuntimeID, state.Cluster.Cluster)
 	//compare metadata
 	require.Equal(t, toJSON(t, cluster.Metadata), state.Cluster.Metadata) //compare metadata-string
 	metadata, err := state.Cluster.GetMetadata()
@@ -310,7 +310,7 @@ func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 
 	// *** ClusterConfigurationEntity ***
 	require.Equal(t, int64(1), state.Configuration.Contract)
-	require.Equal(t, cluster.Cluster, state.Configuration.Cluster)
+	require.Equal(t, cluster.RuntimeID, state.Configuration.Cluster)
 	require.Equal(t, cluster.KymaConfig.Profile, state.Configuration.KymaProfile)
 	require.Equal(t, cluster.KymaConfig.Version, state.Configuration.KymaVersion)
 	//compare components

@@ -60,22 +60,22 @@ func (c *ClusterStatusEntity) GetClusterStatus() (*ClusterStatus, error) {
 	return NewClusterStatus(c.Status)
 }
 
-func (c *ClusterStatusEntity) GetKEBClusterStatus() (keb.ClusterStatus, error) {
-	var kebStatus keb.ClusterStatus
+func (c *ClusterStatusEntity) GetKEBClusterStatus() (keb.Status, error) {
+	var kebStatus keb.Status
 	switch c.Status {
 	case ClusterStatusReconcilePending:
-		kebStatus = keb.ClusterStatusPending
+		kebStatus = keb.StatusReconcilePending
 
 	case ClusterStatusReconcileFailed:
-		kebStatus = keb.ClusterStatusReconciling
+		kebStatus = keb.StatusReconciling
 	case ClusterStatusReconciling:
-		kebStatus = keb.ClusterStatusReconciling
+		kebStatus = keb.StatusReconciling
 
 	case ClusterStatusReady:
-		kebStatus = keb.ClusterStatusReady
+		kebStatus = keb.StatusReady
 
 	case ClusterStatusError:
-		kebStatus = keb.ClusterStatusError
+		kebStatus = keb.StatusError
 
 	default:
 		return kebStatus, fmt.Errorf("cluster status '%s' not convertable to KEB cluster status", c.Status)
