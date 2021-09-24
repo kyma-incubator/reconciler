@@ -39,11 +39,11 @@ func (c *DefaultCommander) Install(istioCtlPath, istioOperatorPath, kubeconfigPa
 	// cmd.Wait() should be called only after we finish reading from stdout and stderr
 	var wg sync.WaitGroup
 	wg.Add(2)
-	go func(){
+	go func() {
 		defer wg.Done()
 		bufferAndLog(stdout, c.Logger)
 	}()
-	go func(){
+	go func() {
 		defer wg.Done()
 		bufferAndLog(stderr, c.Logger)
 	}()
