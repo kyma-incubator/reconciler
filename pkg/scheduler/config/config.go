@@ -1,4 +1,4 @@
-package scheduler
+package config
 
 //ComponentReconciler is the model used to describe the component reconciler configuration
 type ComponentReconciler struct {
