@@ -20,7 +20,7 @@ function send_reconciliation_request() {
   echo "sending reconciliation request to mothership-reconciler at: ${RECONCILE_API}"
   statusURL=$(curl --request POST -sL \
        --url "${RECONCILE_API}"\
-       --data @"${RECONCILE_PAYLOAD_FILE}" | jq -r .statusUrl)
+       --data @"${RECONCILE_PAYLOAD_FILE}" | jq -r .statusURL)
 
   export RECONCILE_STATUS_URL="${statusURL}"
 }
