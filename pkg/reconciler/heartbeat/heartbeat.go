@@ -91,7 +91,7 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 			Status: status,
 			Error: func(err error) string {
 				if err != nil {
-					err.Error()
+					return err.Error()
 				}
 				return ""
 			}(rootCause),

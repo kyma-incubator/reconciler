@@ -366,12 +366,7 @@ func newCallbackMock(t *testing.T) (*http.Server, chan *reconciler.CallbackMessa
 		callbackData := &reconciler.CallbackMessage{}
 		require.NoError(t, json.Unmarshal(body, &callbackData))
 
-		status, err := reconciler.NewStatus(fmt.Sprintf("%s", callbackData.Status))
-		require.NoError(t, err)
-		callbackC <- &reconciler.CallbackMessage{
-			Status: status,
-			Error:  callbackData.Error,
-		}
+		callbackC <- callbackData
 	})
 
 	srv := &http.Server{
