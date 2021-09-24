@@ -23,7 +23,10 @@ func (a *ReconcileAction) Run(version, profile string, config map[string]interfa
 		return err
 	}
 
-	performer, err := actions.NewDefaultIstioPerformer(context.KubeClient.Kubeconfig(), manifest.Manifest, context.KubeClient, context.Logger, &istioctl.DefaultCommander{})
+	commander := &istioctl.DefaultCommander{
+		Logger: context.Logger,
+	}
+	performer, err := actions.NewDefaultIstioPerformer(context.KubeClient.Kubeconfig(), manifest.Manifest, context.KubeClient, context.Logger, commander)
 	if err != nil {
 		return errors.Wrap(err, "Could not initialize DefaultIstioPerformer")
 	}
