@@ -46,7 +46,7 @@ function send_reconciliation_request() {
        --url "${RECONCILE_API}"\
        --data @"${RECONCILE_PAYLOAD_FILE}" | jq -r .statusURL)
 
-  statusURL=$(sed "s/mothership-reconciler/mothership-reconciler.reconciler/" <<< "${statusURL}")
+  statusURL=$(echo "${statusURL}" | sed "s/mothership-reconciler/mothership-reconciler.reconciler/")
   export RECONCILE_STATUS_URL="${statusURL}"
 }
 
