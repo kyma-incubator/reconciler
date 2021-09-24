@@ -9,7 +9,7 @@ set -e
 
 readonly RECONCILER_HOST="http://reconciler-mothership-reconciler.reconciler"
 readonly RECONCILER_TIMEOUT=1200 # in secs
-readonly RECONCILER_DELAY=2 # in secs
+readonly RECONCILER_DELAY=15 # in secs
 
 readonly RECONCILE_API="${RECONCILER_HOST}/v1/clusters"
 readonly RECONCILE_PAYLOAD_FILE="/tmp/body.json"
