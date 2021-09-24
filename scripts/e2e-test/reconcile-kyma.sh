@@ -22,7 +22,7 @@ readonly RECONCILE_PAYLOAD_FILE="/tmp/body.json"
 function wait_until_kyma_installed() {
   iterationsLeft=$(( RECONCILER_TIMEOUT/RECONCILER_DELAY ))
   while : ; do
-    status=$(curl -sL http://"$RECONCILE_STATUS_URL" | jq -r .status)
+    status=$(curl -sL "$RECONCILE_STATUS_URL" | jq -r .status)
     if [ "${status}" = "ready" ]; then
       echo "Kyma is installed"
       exit 0
@@ -46,7 +46,6 @@ function send_reconciliation_request() {
        --url "${RECONCILE_API}"\
        --data @"${RECONCILE_PAYLOAD_FILE}" | jq -r .statusURL)
 
-  statusURL=$(echo "${statusURL}" | sed "s/mothership-reconciler/mothership-reconciler.reconciler/")
   export RECONCILE_STATUS_URL="${statusURL}"
 }
 
