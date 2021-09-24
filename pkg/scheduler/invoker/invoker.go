@@ -1,4 +1,4 @@
-package scheduler
+package invoker
 
 import (
 	"context"
@@ -9,28 +9,31 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 )
 
-type InvokeParams struct {
-	ComponentToReconcile *keb.Component
-	ComponentsReady      []string
-	ClusterState         cluster.State
-	SchedulingID         string
-	CorrelationID        string
-	ReconcilerURL        string
+type Invoker interface {
+	Invoke(ctx context.Context, params *Params) error
 }
 
-func (p *InvokeParams) CreateLocalReconciliation(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Reconciliation {
+type Params struct {
+	ComponentToReconcile *keb.Component
+	ComponentsReady      []string
+	ClusterState         *cluster.State
+	SchedulingID         string
+	CorrelationID        string
+}
+
+func (p *Params) CreateLocalReconciliation(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Reconciliation {
 	model := p.createReconciliationModel()
 	model.CallbackFunc = callbackFunc
 	return model
 }
 
-func (p *InvokeParams) CreateRemoteReconciliation(callbackURL string) *reconciler.Reconciliation {
+func (p *Params) CreateRemoteReconciliation(callbackURL string) *reconciler.Reconciliation {
 	model := p.createReconciliationModel()
 	model.CallbackURL = callbackURL
 	return model
 }
 
-func (p *InvokeParams) createReconciliationModel() *reconciler.Reconciliation {
+func (p *Params) createReconciliationModel() *reconciler.Reconciliation {
 	version := p.ClusterState.Configuration.KymaVersion
 	if p.ComponentToReconcile.Version != "" {
 		version = p.ComponentToReconcile.Version
@@ -51,8 +54,4 @@ func (p *InvokeParams) createReconciliationModel() *reconciler.Reconciliation {
 			TokenNamespace: fmt.Sprint(configuration["repo.token.namespace"]),
 		},
 	}
-}
-
-type reconcilerInvoker interface {
-	Invoke(ctx context.Context, params *InvokeParams) error
 }

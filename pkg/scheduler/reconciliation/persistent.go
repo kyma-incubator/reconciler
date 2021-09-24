@@ -1,6 +1,7 @@
 package reconciliation
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
@@ -24,7 +25,7 @@ func NewPersistedReconciliationRepository(dbConnFact db.ConnectionFactory, debug
 	return &PersistentReconciliationRepository{repo}, nil
 }
 
-func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, prerequisites []string) (*model.ReconciliationEntity, error) {
+func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error) {
 	dbOps := func() (interface{}, error) {
 		reconEntity := &model.ReconciliationEntity{
 			Lock:                state.Cluster.Cluster,
@@ -67,7 +68,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			state.Cluster.Cluster, reconEntity.SchedulingID)
 
 		//get reconciliation sequence
-		reconSeq, err := state.Configuration.GetReconciliationSequence(prerequisites)
+		reconSeq, err := state.Configuration.GetReconciliationSequence(preComponents)
 		if err != nil {
 			r.Logger.Errorf("Failed to retrieve component models for cluster '%s': %s", state.Cluster.Cluster, err)
 			return nil, err
@@ -81,6 +82,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 					Priority:      int64(priority),
 					SchedulingID:  reconEntity.SchedulingID,
 					CorrelationID: uuid.NewString(),
+					Cluster:       reconEntity.Cluster,
 					ClusterConfig: reconEntity.ClusterConfig,
 					Component:     component.Component,
 					State:         model.OperationStateNew,
@@ -104,7 +106,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 				len(components), priority, state.Cluster.Cluster, reconEntity.SchedulingID)
 		}
 
-		return reconEntity, nil
+		return reconEntity, err
 	}
 	result, err := db.TransactionResult(r.Conn, dbOps, r.Logger)
 	if err != nil {
@@ -170,11 +172,11 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 		reconEntity.Lock = ""
 		reconEntity.ClusterConfigStatus = status.ID
 		reconEntity.Updated = time.Now()
-		updQ, err := db.NewQuery(r.Conn, reconEntity)
+		updReconQ, err := db.NewQuery(r.Conn, reconEntity)
 		if err != nil {
 			return err
 		}
-		cnt, err := updQ.Update().
+		cnt, err := updReconQ.Update().
 			Where(
 				map[string]interface{}{
 					"SchedulingID":        schedulingID,
@@ -188,6 +190,7 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 			return fmt.Errorf("failed to update reconciliation with schedulingID '%s' "+
 				"(maybe updated by parallel running process)", schedulingID)
 		}
+
 		return nil
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
@@ -218,23 +221,41 @@ func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) (
 	return result, nil
 }
 
-func (r *PersistentReconciliationRepository) GetOperations(schedulingID string) ([]*model.OperationEntity, error) {
+func (r *PersistentReconciliationRepository) GetOperations(schedulingID string, states ...model.OperationState) ([]*model.OperationEntity, error) {
 	q, err := db.NewQuery(r.Conn, &model.OperationEntity{})
 	if err != nil {
 		return nil, err
 	}
-	whereCond := map[string]interface{}{
-		"SchedulingID": schedulingID,
+
+	selectQ := q.Select().
+		Where(map[string]interface{}{
+			"SchedulingID": schedulingID,
+		})
+
+	if len(states) > 0 {
+		var args []interface{}
+		var buffer bytes.Buffer
+
+		//add state to args array and generate placeholder string for SQL stmt
+		for idx, state := range states {
+			args = append(args, state)
+			if buffer.Len() > 0 {
+				buffer.WriteRune(',')
+			}
+			buffer.WriteString(fmt.Sprintf("$%d", idx+2))
+		}
+
+		selectQ.WhereIn("State", buffer.String(), args...)
 	}
-	opEntities, err := q.Select().
-		Where(whereCond).
-		GetMany()
+
+	ops, err := selectQ.GetMany()
 	if err != nil {
 		return nil, err
 	}
+
 	var result []*model.OperationEntity
-	for _, opEntity := range opEntities {
-		result = append(result, opEntity.(*model.OperationEntity))
+	for _, op := range ops {
+		result = append(result, op.(*model.OperationEntity))
 	}
 	return result, nil
 }
@@ -294,27 +315,7 @@ func (r *PersistentReconciliationRepository) GetProcessableOperations() ([]*mode
 	return findProcessableOperations(opEntites), nil
 }
 
-func (r *PersistentReconciliationRepository) SetOperationInProgress(schedulingID, correlationID string) error {
-	return r.updateOperationState(schedulingID, correlationID, model.OperationStateInProgress, "")
-}
-
-func (r *PersistentReconciliationRepository) SetOperationDone(schedulingID, correlationID string) error {
-	return r.updateOperationState(schedulingID, correlationID, model.OperationStateDone, "")
-}
-
-func (r *PersistentReconciliationRepository) SetOperationError(schedulingID, correlationID, reason string) error {
-	return r.updateOperationState(schedulingID, correlationID, model.OperationStateError, reason)
-}
-
-func (r *PersistentReconciliationRepository) SetOperationClientError(schedulingID, correlationID, reason string) error {
-	return r.updateOperationState(schedulingID, correlationID, model.OperationStateClientError, reason)
-}
-
-func (r *PersistentReconciliationRepository) SetOperationFailed(schedulingID, correlationID, reason string) error {
-	return r.updateOperationState(schedulingID, correlationID, model.OperationStateFailed, reason)
-}
-
-func (r *PersistentReconciliationRepository) updateOperationState(schedulingID, correlationID string, state model.OperationState, reason string) error {
+func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reasons ...string) error {
 	dbOps := func() error {
 		op, err := r.GetOperation(schedulingID, correlationID)
 		if err != nil {
@@ -332,6 +333,10 @@ func (r *PersistentReconciliationRepository) updateOperationState(schedulingID, 
 
 		//update fields
 		op.State = state
+		reason, err := concatStateReasons(state, reasons)
+		if err != nil {
+			return err
+		}
 		op.Reason = reason
 		op.Updated = time.Now()
 

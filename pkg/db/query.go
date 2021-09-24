@@ -132,7 +132,7 @@ func (s *Select) Where(args map[string]interface{}) *Select {
 
 func (s *Select) WhereIn(field, subQuery string, args ...interface{}) *Select {
 	s.err = s.addWhereInCondition(field, subQuery)
-	s.args = args
+	s.args = append(s.args, args...)
 	return s
 }
 

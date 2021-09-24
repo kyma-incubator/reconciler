@@ -1,10 +1,12 @@
 package reconciliation
 
 import (
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"sort"
+	"strings"
 )
 
 type Filter interface {
@@ -13,19 +15,15 @@ type Filter interface {
 }
 
 type Repository interface {
-	CreateReconciliation(state *cluster.State, prerequisites []string) (*model.ReconciliationEntity, error)
+	CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error)
 	RemoveReconciliation(schedulingID string) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error
-	GetOperations(schedulingID string) ([]*model.OperationEntity, error)
+	GetOperations(schedulingID string, state ...model.OperationState) ([]*model.OperationEntity, error)
 	GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error)
 	GetProcessableOperations() ([]*model.OperationEntity, error)
-	SetOperationInProgress(schedulingID, correlationID string) error
-	SetOperationDone(schedulingID, correlationID string) error
-	SetOperationError(schedulingID, correlationID, reason string) error
-	SetOperationClientError(schedulingID, correlationID, reason string) error
-	SetOperationFailed(schedulingID, correlationID, reason string) error
+	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reason ...string) error
 }
 
 //findProcessableOperations returns all operations in all running reconciliation which are ready to be processed.
@@ -99,4 +97,11 @@ func findProcessableOperationsInGroup(ops []*model.OperationEntity) ([]*model.Op
 		}
 	}
 	return processables, opsInProgress == 0 && len(processables) == 0
+}
+
+func concatStateReasons(state model.OperationState, reasons []string) (string, error) {
+	if (state == model.OperationStateError || state == model.OperationStateFailed) && len(reasons) == 0 {
+		return "", fmt.Errorf("cannot set state to '%v' without providing a reason", state)
+	}
+	return strings.Join(reasons, ", "), nil
 }

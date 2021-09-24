@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS scheduler_operations (
     "priority" int NOT NULL,
 	"scheduling_id" char(36) NOT NULL,
 	"correlation_id" char(36) NOT NULL,
+    "cluster" text NOT NULL,
     "cluster_config" int NOT NULL,
     "component" text NOT NULL,
     "state" text NOT NULL,
@@ -117,5 +118,7 @@ CREATE TABLE IF NOT EXISTS scheduler_operations (
     "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT scheduler_operations_pk UNIQUE ("scheduling_id", "correlation_id"),
+    FOREIGN KEY("scheduling_id") REFERENCES scheduler_reconciliations("scheduling_id") ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY("cluster") REFERENCES inventory_clusters("cluster") ON UPDATE CASCADE,
     FOREIGN KEY("cluster_config") REFERENCES inventory_cluster_configs("version")
 )

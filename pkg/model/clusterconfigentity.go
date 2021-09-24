@@ -22,7 +22,7 @@ type ClusterConfigurationEntity struct {
 	Cluster        string `db:"notNull"`
 	ClusterVersion int64  `db:"notNull"`
 	KymaVersion    string `db:"notNull"`
-	KymaProfile    string `db:"notNull"`
+	KymaProfile    string `db:""`
 	Components     string `db:"notNull,encrypt"`
 	Administrators string
 	Contract       int64     `db:"notNull"`
@@ -66,6 +66,21 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	return false
 }
 
+func (c *ClusterConfigurationEntity) GetComponent(component string) (*keb.Component, error) {
+	reconSeq, err := c.GetReconciliationSequence(nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, compGroup := range reconSeq.Queue {
+		for _, comp := range compGroup {
+			if comp.Component == component {
+				return comp, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
 func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Component, error) {
 	if c.Components == "" {
 		return nil, nil
@@ -73,7 +88,7 @@ func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Component, error) {
 	return keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
 }
 
-func (c *ClusterConfigurationEntity) GetReconciliationSequence(prerequisites []string) (*ReconciliationSequence, error) {
+func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []string) (*ReconciliationSequence, error) {
 	//get component models
 	components, err := c.GetComponents()
 	if err != nil {
@@ -88,7 +103,7 @@ func (c *ClusterConfigurationEntity) GetReconciliationSequence(prerequisites []s
 
 	var inParallel []*keb.Component
 	for _, component := range components {
-		if contains(prerequisites, component.Component) {
+		if contains(preComponents, component.Component) {
 			sequence.Queue = append(sequence.Queue, []*keb.Component{
 				component,
 			})

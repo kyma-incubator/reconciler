@@ -1,0 +1,81 @@
+package worker
+
+import (
+	"context"
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/invoker"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/stretchr/testify/require"
+	"testing"
+	"time"
+)
+
+type testInvoker struct {
+	params []*invoker.Params
+}
+
+func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
+	i.params = append(i.params, params)
+	return nil
+}
+
+func TestWorkerPool(t *testing.T) {
+	test.IntegrationTest(t)
+
+	//create cluster inventory
+	dbConn, err := db.NewTestConnectionFactory()
+	require.NoError(t, err)
+	inventory, err := cluster.NewInventory(dbConn, true, &cluster.MetricsCollectorMock{})
+	require.NoError(t, err)
+
+	//add cluster to inventory
+	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
+		Kubeconfig: test.ReadKubeconfig(t),
+		KymaConfig: keb.KymaConfig{
+			Administrators: nil,
+			Components:     nil,
+			Profile:        "",
+			Version:        "1.2.3",
+		},
+		Metadata:     keb.Metadata{},
+		RuntimeID:    "testCluster",
+		RuntimeInput: keb.RuntimeInput{},
+	})
+	require.NoError(t, err)
+
+	//create reconciliation for cluster
+	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
+	reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
+	require.NoError(t, err)
+	opsProcessable, err := reconRepo.GetProcessableOperations()
+	require.Len(t, opsProcessable, 1)
+	require.NoError(t, err)
+
+	//create test invoker to be able to verify invoker calls
+	testInvoker := &testInvoker{}
+
+	//start worker pool
+	workerPool, err := NewWorkerPool(inventory, reconRepo, testInvoker, nil, logger.NewLogger(true))
+	require.NoError(t, err)
+
+	//create time limited context
+	ctx, cancelFct := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancelFct()
+
+	//ensure worker pool stops when context gets closed
+	startTime := time.Now()
+	require.NoError(t, workerPool.Run(ctx))
+	require.WithinDuration(t, startTime, time.Now(), 3*time.Second) //ensure workerPool is considering ctx
+
+	//verify that invoker was properly called
+	require.Len(t, testInvoker.params, 1)
+	require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
+	require.Equal(t, model.CRDComponent, testInvoker.params[0].ComponentToReconcile.Component) //CRDs is always the first component
+	require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
+	require.Equal(t, opsProcessable[0].CorrelationID, testInvoker.params[0].CorrelationID)
+}

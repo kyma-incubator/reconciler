@@ -5,7 +5,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
-	"github.com/pkg/errors"
 	"sync"
 	"time"
 
@@ -25,7 +24,7 @@ func NewInMemoryReconciliationRepository() Repository {
 	}
 }
 
-func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, prerequisites []string) (*model.ReconciliationEntity, error) {
+func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -37,16 +36,16 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	}
 
 	//create reconciliation
-	recon := &model.ReconciliationEntity{
+	reconEntity := &model.ReconciliationEntity{
 		Lock:          state.Cluster.Cluster,
 		Cluster:       state.Cluster.Cluster,
 		ClusterConfig: state.Configuration.Version,
 		SchedulingID:  uuid.NewString(),
 	}
-	r.reconciliations[state.Cluster.Cluster] = recon
+	r.reconciliations[state.Cluster.Cluster] = reconEntity
 
 	//create operations
-	reconSeq, err := state.Configuration.GetReconciliationSequence(prerequisites)
+	reconSeq, err := state.Configuration.GetReconciliationSequence(preComponents)
 	if err != nil {
 		return nil, err
 	}
@@ -55,14 +54,15 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 		for _, component := range components {
 			correlationID := uuid.NewString()
 
-			if _, ok := r.operations[recon.SchedulingID]; !ok {
-				r.operations[recon.SchedulingID] = make(map[string]*model.OperationEntity)
+			if _, ok := r.operations[reconEntity.SchedulingID]; !ok {
+				r.operations[reconEntity.SchedulingID] = make(map[string]*model.OperationEntity)
 			}
 
-			r.operations[recon.SchedulingID][correlationID] = &model.OperationEntity{
+			r.operations[reconEntity.SchedulingID][correlationID] = &model.OperationEntity{
 				Priority:      int64(priority),
-				SchedulingID:  recon.SchedulingID,
+				SchedulingID:  reconEntity.SchedulingID,
 				CorrelationID: correlationID,
+				Cluster:       reconEntity.Cluster,
 				ClusterConfig: state.Configuration.Version,
 				Component:     component.Component,
 				State:         model.OperationStateNew,
@@ -71,7 +71,8 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 			}
 		}
 	}
-	return recon, nil
+
+	return reconEntity, nil
 }
 
 func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID string) error {
@@ -104,10 +105,6 @@ func (r *InMemoryReconciliationRepository) FinishReconciliation(schedulingID str
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if status.ID == 0 {
-		return errors.New("invalid argument: provided status entity has no ID")
-	}
-
 	for _, recon := range r.reconciliations {
 		if recon.SchedulingID == schedulingID {
 			if recon.ClusterConfigStatus > 0 {
@@ -138,13 +135,22 @@ func (r *InMemoryReconciliationRepository) GetReconciliations(filter Filter) ([]
 	return result, nil
 }
 
-func (r *InMemoryReconciliationRepository) GetOperations(schedulingID string) ([]*model.OperationEntity, error) {
+func (r *InMemoryReconciliationRepository) GetOperations(schedulingID string, states ...model.OperationState) ([]*model.OperationEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	ops := r.operations[schedulingID]
 	var result []*model.OperationEntity
 	for _, op := range ops {
+		if len(states) > 0 {
+			for _, state := range states {
+				if op.State == state {
+					result = append(result, op)
+					break //break state loop
+				}
+			}
+			continue //continue with next operation
+		}
 		result = append(result, op)
 	}
 	return result, nil
@@ -175,27 +181,7 @@ func (r *InMemoryReconciliationRepository) GetProcessableOperations() ([]*model.
 	return findProcessableOperations(allOps), nil
 }
 
-func (r *InMemoryReconciliationRepository) SetOperationInProgress(schedulingID, correlationID string) error {
-	return r.updateOperation(schedulingID, correlationID, model.OperationStateInProgress, "")
-}
-
-func (r *InMemoryReconciliationRepository) SetOperationDone(schedulingID, correlationID string) error {
-	return r.updateOperation(schedulingID, correlationID, model.OperationStateDone, "")
-}
-
-func (r *InMemoryReconciliationRepository) SetOperationError(schedulingID, correlationID, reason string) error {
-	return r.updateOperation(schedulingID, correlationID, model.OperationStateError, reason)
-}
-
-func (r *InMemoryReconciliationRepository) SetOperationClientError(schedulingID, correlationID, reason string) error {
-	return r.updateOperation(schedulingID, correlationID, model.OperationStateClientError, reason)
-}
-
-func (r *InMemoryReconciliationRepository) SetOperationFailed(schedulingID, correlationID, reason string) error {
-	return r.updateOperation(schedulingID, correlationID, model.OperationStateFailed, reason)
-}
-
-func (r *InMemoryReconciliationRepository) updateOperation(schedulingID, correlationID, state, reason string) error {
+func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reasons ...string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -214,6 +200,10 @@ func (r *InMemoryReconciliationRepository) updateOperation(schedulingID, correla
 			op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
 	}
 
+	reason, err := concatStateReasons(state, reasons)
+	if err != nil {
+		return err
+	}
 	r.operations[schedulingID][correlationID] = &model.OperationEntity{
 		CorrelationID: correlationID,
 		SchedulingID:  schedulingID,

@@ -13,6 +13,7 @@ type OperationEntity struct {
 	Priority      int64          `db:"notNull"`
 	SchedulingID  string         `db:"notNull"`
 	CorrelationID string         `db:"notNull"`
+	Cluster       string         `db:"notNull"`
 	ClusterConfig int64          `db:"notNull"`
 	Component     string         `db:"notNull"`
 	State         OperationState `db:"notNull"`
@@ -22,8 +23,9 @@ type OperationEntity struct {
 }
 
 func (o *OperationEntity) String() string {
-	return fmt.Sprintf("OperationEntity [SchedulingID=%s,CorrelationID=%s,ClusterConfig=%d,Component=%s,Prio=%d]",
-		o.SchedulingID, o.CorrelationID, o.ClusterConfig, o.Component, o.Priority)
+	return fmt.Sprintf("OperationEntity [SchedulingID=%s,CorrelationID=%s,"+
+		"Cluster=%s,ClusterConfig=%d,Component=%s,Prio=%d]",
+		o.SchedulingID, o.CorrelationID, o.Cluster, o.ClusterConfig, o.Component, o.Priority)
 }
 
 func (*OperationEntity) New() db.DatabaseEntity {

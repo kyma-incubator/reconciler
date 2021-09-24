@@ -261,17 +261,11 @@ func listStatusesForStatusChanges(states []*StatusChange) []model.Status {
 	return result
 }
 
-type fakeMetricsCollector struct{}
-
-func (collector fakeMetricsCollector) OnClusterStateUpdate(state *State) error {
-	return nil
-}
-
 func newInventory(t *testing.T) Inventory {
 	connFact, err := db.NewTestConnectionFactory()
 	require.NoError(t, err)
 
-	inventory, err := NewInventory(connFact, true, fakeMetricsCollector{})
+	inventory, err := NewInventory(connFact, true, MetricsCollectorMock{})
 	require.NoError(t, err)
 	return inventory
 }

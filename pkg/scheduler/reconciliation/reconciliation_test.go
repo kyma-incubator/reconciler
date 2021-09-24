@@ -195,6 +195,7 @@ func resetOperationState(ops []*model.OperationEntity) {
 }
 
 func TestReconciliationRepository(t *testing.T) {
+
 	var testCases = []testCase{
 		{
 			name: "Create reconciliation",
@@ -288,7 +289,7 @@ func TestReconciliationRepository(t *testing.T) {
 				require.Equal(t, reconEntity1.SchedulingID, only1[0].SchedulingID)
 
 				err = reconRepo.FinishReconciliation(reconEntity1.SchedulingID, &model.ClusterStatusEntity{
-					ID: 123,
+					ID: 9999,
 				})
 				require.NoError(t, err)
 
@@ -322,12 +323,12 @@ func TestReconciliationRepository(t *testing.T) {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, []string{"comp3"})
 				require.NoError(t, err)
 
-				opsEntites, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				opsEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 				require.NoError(t, err)
-				require.Len(t, opsEntites, 4)
+				require.Len(t, opsEntities, 4)
 
 				//verify priorities
-				for _, opEntity := range opsEntites {
+				for _, opEntity := range opsEntities {
 					switch opEntity.Component {
 					case "CRDs":
 						require.Equal(t, int64(1), opEntity.Priority)
@@ -338,17 +339,72 @@ func TestReconciliationRepository(t *testing.T) {
 					}
 				}
 
-				op, err := reconRepo.GetOperation(reconEntity.SchedulingID, opsEntites[1].CorrelationID)
+				op, err := reconRepo.GetOperation(reconEntity.SchedulingID, opsEntities[1].CorrelationID)
 				require.NoError(t, err)
-				require.Equal(t, opsEntites[1], op)
+				require.Equal(t, opsEntities[1], op)
 
 				//ensure also operations are dropped
 				err = reconRepo.RemoveReconciliation(reconEntity.SchedulingID)
 				require.NoError(t, err)
 
-				opsEntites, err = reconRepo.GetOperations(reconEntity.SchedulingID)
+				opsEntities, err = reconRepo.GetOperations(reconEntity.SchedulingID)
 				require.NoError(t, err)
-				require.Empty(t, opsEntites)
+				require.Empty(t, opsEntities)
+
+				return []*model.ReconciliationEntity{reconEntity}
+			},
+		},
+		{
+			name: "Get operations with filter",
+			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				require.NoError(t, err)
+
+				opsEntitiesAll, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				require.NoError(t, err)
+				require.Len(t, opsEntitiesAll, 4)
+
+				opsEntitiesNew, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateNew)
+				require.NoError(t, err)
+				require.Len(t, opsEntitiesNew, 4)
+
+				err = reconRepo.UpdateOperationState(opsEntitiesAll[0].SchedulingID, opsEntitiesAll[0].CorrelationID,
+					model.OperationStateError, "err")
+				require.NoError(t, err)
+				opsEntitiesErr, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateError)
+				require.NoError(t, err)
+				require.Len(t, opsEntitiesErr, 1)
+				require.Equal(t, opsEntitiesAll[0].CorrelationID, opsEntitiesErr[0].CorrelationID)
+
+				err = reconRepo.UpdateOperationState(opsEntitiesAll[1].SchedulingID, opsEntitiesAll[1].CorrelationID,
+					model.OperationStateFailed, "err")
+				require.NoError(t, err)
+				opsEntitiesFailed, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateFailed)
+				require.NoError(t, err)
+				require.Len(t, opsEntitiesFailed, 1)
+				require.Equal(t, opsEntitiesAll[1].CorrelationID, opsEntitiesFailed[0].CorrelationID)
+
+				err = reconRepo.UpdateOperationState(opsEntitiesAll[2].SchedulingID, opsEntitiesAll[2].CorrelationID,
+					model.OperationStateDone)
+				require.NoError(t, err)
+				err = reconRepo.UpdateOperationState(opsEntitiesAll[3].SchedulingID, opsEntitiesAll[3].CorrelationID,
+					model.OperationStateDone)
+				require.NoError(t, err)
+				opsEntitiesDone, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateDone)
+				require.NoError(t, err)
+				require.Len(t, opsEntitiesDone, 2)
+				require.ElementsMatch(t, []string{
+					opsEntitiesAll[2].CorrelationID,
+					opsEntitiesAll[3].CorrelationID,
+				}, []string{
+					opsEntitiesDone[0].CorrelationID,
+					opsEntitiesDone[1].CorrelationID,
+				})
+
+				//no operation should be in state NEW anymore
+				opsEntitiesNew, err = reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateNew)
+				require.NoError(t, err)
+				require.Len(t, opsEntitiesNew, 0)
 
 				return []*model.ReconciliationEntity{reconEntity}
 			},
@@ -360,35 +416,37 @@ func TestReconciliationRepository(t *testing.T) {
 				require.NoError(t, err)
 
 				//get existing operations
-				opsEntites, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				opsEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 				require.NoError(t, err)
-				require.Len(t, opsEntites, 4)
+				require.Len(t, opsEntities, 4)
 
 				//only the operation with prio 1 has to be returned
-				opsEntitesPrio1, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio1, err := reconRepo.GetProcessableOperations()
 				require.NoError(t, err)
-				require.Len(t, opsEntitesPrio1, 1)
-				require.ElementsMatch(t, findOperationsByPrio(opsEntites, 1), opsEntitesPrio1)
+				require.Len(t, opsEntitiesPrio1, 1)
+				require.ElementsMatch(t, findOperationsByPrio(opsEntities, 1), opsEntitiesPrio1)
 
 				//mark processable prio 1 operation as done
-				for _, op := range opsEntitesPrio1 {
-					require.NoError(t, reconRepo.SetOperationDone(op.SchedulingID, op.CorrelationID))
+				for _, op := range opsEntitiesPrio1 {
+					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID,
+						model.OperationStateDone))
 				}
 
-				opsEntitesPrio2, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio2, err := reconRepo.GetProcessableOperations()
 				require.NoError(t, err)
-				require.Len(t, opsEntitesPrio2, 1)
-				require.ElementsMatch(t, findOperationsByPrio(opsEntites, 2), opsEntitesPrio2)
+				require.Len(t, opsEntitiesPrio2, 1)
+				require.ElementsMatch(t, findOperationsByPrio(opsEntities, 2), opsEntitiesPrio2)
 
 				//mark processable prio 2 operation to be in error state
-				for _, op := range opsEntitesPrio2 {
-					require.NoError(t, reconRepo.SetOperationError(op.SchedulingID, op.CorrelationID, "I failed"))
+				for _, op := range opsEntitiesPrio2 {
+					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID,
+						model.OperationStateError, "I failed"))
 				}
 
 				//one of the previous operations is in error state: no further operations have to be processed
-				opsEntitesPrio, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio, err := reconRepo.GetProcessableOperations()
 				require.NoError(t, err)
-				require.Empty(t, opsEntitesPrio)
+				require.Empty(t, opsEntitiesPrio)
 
 				return []*model.ReconciliationEntity{reconEntity}
 			},
@@ -402,44 +460,46 @@ func TestReconciliationRepository(t *testing.T) {
 				require.NoError(t, err)
 
 				//get existing operations
-				opsEntites1, err := reconRepo.GetOperations(reconEntity1.SchedulingID)
+				opsEntities1, err := reconRepo.GetOperations(reconEntity1.SchedulingID)
 				require.NoError(t, err)
-				require.Len(t, opsEntites1, 4)
-				opsEntites2, err := reconRepo.GetOperations(reconEntity2.SchedulingID)
+				require.Len(t, opsEntities1, 4)
+				opsEntities2, err := reconRepo.GetOperations(reconEntity2.SchedulingID)
 				require.NoError(t, err)
-				require.Len(t, opsEntites2, 2)
+				require.Len(t, opsEntities2, 2)
 
 				//only the operation with prio 1 has to be returned
-				opsEntitesPrio1, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio1, err := reconRepo.GetProcessableOperations()
 				var expectedOpsPrio1 []*model.OperationEntity
-				expectedOpsPrio1 = append(expectedOpsPrio1, findOperationsByPrio(opsEntites1, 1)...)
-				expectedOpsPrio1 = append(expectedOpsPrio1, findOperationsByPrio(opsEntites2, 1)...)
+				expectedOpsPrio1 = append(expectedOpsPrio1, findOperationsByPrio(opsEntities1, 1)...)
+				expectedOpsPrio1 = append(expectedOpsPrio1, findOperationsByPrio(opsEntities2, 1)...)
 				require.NoError(t, err)
-				require.Len(t, opsEntitesPrio1, 2)
-				require.ElementsMatch(t, expectedOpsPrio1, opsEntitesPrio1)
+				require.Len(t, opsEntitiesPrio1, 2)
+				require.ElementsMatch(t, expectedOpsPrio1, opsEntitiesPrio1)
 
 				//mark processable prio 1 operation as done
-				for _, op := range opsEntitesPrio1 {
-					require.NoError(t, reconRepo.SetOperationDone(op.SchedulingID, op.CorrelationID))
+				for _, op := range opsEntitiesPrio1 {
+					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID,
+						model.OperationStateDone))
 				}
 
-				opsEntitesPrio2, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio2, err := reconRepo.GetProcessableOperations()
 				var expectedOpsPrio2 []*model.OperationEntity
-				expectedOpsPrio2 = append(expectedOpsPrio2, findOperationsByPrio(opsEntites1, 2)...)
-				expectedOpsPrio2 = append(expectedOpsPrio2, findOperationsByPrio(opsEntites2, 2)...)
+				expectedOpsPrio2 = append(expectedOpsPrio2, findOperationsByPrio(opsEntities1, 2)...)
+				expectedOpsPrio2 = append(expectedOpsPrio2, findOperationsByPrio(opsEntities2, 2)...)
 				require.NoError(t, err)
-				require.Len(t, opsEntitesPrio2, 2)
-				require.ElementsMatch(t, expectedOpsPrio2, opsEntitesPrio2)
+				require.Len(t, opsEntitiesPrio2, 2)
+				require.ElementsMatch(t, expectedOpsPrio2, opsEntitiesPrio2)
 
 				//mark processable prio 2 operation to be in error state
-				for _, op := range opsEntitesPrio2 {
-					require.NoError(t, reconRepo.SetOperationError(op.SchedulingID, op.CorrelationID, "I failed"))
+				for _, op := range opsEntitiesPrio2 {
+					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID,
+						model.OperationStateError, "I failed"))
 				}
 
 				//one of the previous operations is in error state: no further operations have to be processed
-				opsEntitesPrio, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio, err := reconRepo.GetProcessableOperations()
 				require.NoError(t, err)
-				require.Empty(t, opsEntitesPrio)
+				require.Empty(t, opsEntitiesPrio)
 
 				return []*model.ReconciliationEntity{reconEntity1, reconEntity2}
 			},
@@ -450,39 +510,39 @@ func TestReconciliationRepository(t *testing.T) {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 
-				opsEntites, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				opsEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 				require.NoError(t, err)
-				require.Len(t, opsEntites, 4)
+				require.Len(t, opsEntities, 4)
 
-				sID := opsEntites[0].SchedulingID
-				cID := opsEntites[0].CorrelationID
+				sID := opsEntities[0].SchedulingID
+				cID := opsEntities[0].CorrelationID
 
-				require.NoError(t, reconRepo.SetOperationInProgress(sID, cID))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
 				op, _ := reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateInProgress, "")
+				verifyOperationstateMock(t, op, model.OperationStateInProgress)
 
-				require.NoError(t, reconRepo.SetOperationClientError(sID, cID, "client error reason"))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateClientError, "client error reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationstateMock(t, op, model.OperationStateClientError, "client error reason")
 
-				require.NoError(t, reconRepo.SetOperationInProgress(sID, cID))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
 				op, _ = reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateInProgress, "")
+				verifyOperationstateMock(t, op, model.OperationStateInProgress)
 
-				require.NoError(t, reconRepo.SetOperationFailed(sID, cID, "operation failed reason"))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateFailed, "operation failed reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationstateMock(t, op, model.OperationStateFailed, "operation failed reason")
 
-				require.NoError(t, reconRepo.SetOperationInProgress(sID, cID))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
 				op, _ = reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateInProgress, "")
+				verifyOperationstateMock(t, op, model.OperationStateInProgress)
 
-				require.NoError(t, reconRepo.SetOperationError(sID, cID, "operation error reason"))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateError, "operation error reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationstateMock(t, op, model.OperationStateError, "operation error reason")
 
 				//expect an error because operation is in final state
-				require.Error(t, reconRepo.SetOperationInProgress(sID, cID))
+				require.Error(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationstateMock(t, op, model.OperationStateError, "operation error reason")
 
@@ -512,8 +572,10 @@ func TestReconciliationRepository(t *testing.T) {
 
 }
 
-func verifyOperationstateMock(t *testing.T, op *model.OperationEntity, expectedstateMock model.OperationState, reason string) {
-	require.Equal(t, expectedstateMock, op.State)
+func verifyOperationstateMock(t *testing.T, op *model.OperationEntity, expectedState model.OperationState, reasons ...string) {
+	require.Equal(t, expectedState, op.State)
+	reason, err := concatStateReasons(expectedState, reasons)
+	require.NoError(t, err)
 	require.Equal(t, reason, op.Reason)
 }
 
