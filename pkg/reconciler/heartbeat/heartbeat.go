@@ -89,12 +89,11 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 	task := func(status reconciler.Status, rootCause error) error {
 		err := su.callback.Callback(&reconciler.CallbackMessage{
 			Status: status,
-			Error: func(err error) *string {
-				errMsg := ""
+			Error: func(err error) string {
 				if err != nil {
-					errMsg = err.Error()
+					err.Error()
 				}
-				return &errMsg
+				return ""
 			}(rootCause),
 		})
 		if err == nil {
