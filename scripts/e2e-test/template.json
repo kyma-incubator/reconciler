@@ -10,7 +10,7 @@
     }
   },
   "kymaConfig": {
-    "version": "1.24.0",
+    "version": "main",
     "profile": "Evaluation",
     "components": [
       {
@@ -90,7 +90,7 @@
       },
       {
         "component": "application-connector",
-        "namespace": "kyma-system",
+        "namespace": "kyma-integration",
         "configuration": []
       }
     ],
