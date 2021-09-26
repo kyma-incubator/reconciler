@@ -35,12 +35,12 @@ func (w *inventoryWatcher) Run(ctx context.Context, queue inventoryQueue) error 
 	ticker := time.NewTicker(w.config.WatchInterval)
 	for {
 		select {
+		case <-ticker.C:
+			w.processClustersToReconcile(queue)
 		case <-ctx.Done():
 			w.logger.Info("Stopping inventory watcher because parent context got closed")
 			ticker.Stop()
 			return nil
-		case <-ticker.C:
-			w.processClustersToReconcile(queue)
 		}
 	}
 }

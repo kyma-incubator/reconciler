@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -45,45 +46,35 @@ func (wc *Config) validate() error {
 }
 
 type Scheduler struct {
-	reconRepo     reconciliation.Repository
 	logger        *zap.SugaredLogger
 	preComponents []string
 }
 
-func NewScheduler(reconRepo reconciliation.Repository, preComponents []string, debug bool) *Scheduler {
+func NewScheduler(preComponents []string, debug bool) *Scheduler {
 	return &Scheduler{
-		reconRepo:     reconRepo,
 		preComponents: preComponents,
 		logger:        log.NewLogger(debug),
 	}
 }
 
-func (s *Scheduler) RunOnce(clusterState *cluster.State) error {
-	_, err := s.reconRepo.CreateReconciliation(clusterState, s.preComponents)
+func (s *Scheduler) RunOnce(clusterState *cluster.State, reconRepo reconciliation.Repository) error {
+	_, err := reconRepo.CreateReconciliation(clusterState, s.preComponents)
 	return err
 }
 
-func (s *Scheduler) Run(ctx context.Context, inventory cluster.Inventory, config *Config) error {
+func (s *Scheduler) Run(ctx context.Context, transition *scheduler.ClusterStatusTransition, config *Config) error {
 	if err := config.validate(); err != nil {
 		return err
 	}
 
 	queue := make(chan *cluster.State, config.ClusterQueueSize)
-	s.startInventoryWatcher(ctx, inventory, config, queue)
+	s.startInventoryWatcher(ctx, transition.Inventory(), config, queue)
 
 	for {
 		select {
 		case clusterState := <-queue:
-			_, err := s.reconRepo.CreateReconciliation(clusterState, s.preComponents)
-			if err != nil {
-				if reconciliation.IsDuplicateClusterReconciliationError(err) {
-					s.logger.Infof("Tried to add cluster '%s' to reconciliation queue but "+
-						"cluster is already enqueued", clusterState.Cluster.Cluster)
-				} else {
-					s.logger.Errorf("Failed to add cluster '%s' to reconciliation queue: %s",
-						clusterState.Cluster.Cluster, err)
-					break
-				}
+			if err := transition.StartReconciliation(clusterState, s.preComponents); err != nil {
+				s.logger.Warnf("Failed to start reconciliation for cluster '%s': %s", clusterState.Cluster.Cluster, err)
 			}
 		case <-ctx.Done():
 			s.logger.Debug("Stopping remote scheduler because parent context got closed")
