@@ -120,20 +120,21 @@ func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) error {
 }
 
 func (w *Pool) invokeProcessableOpsWithInterval(ctx context.Context, workerPool *ants.PoolWithFunc) error {
-	w.logger.Debugf("Start checking for processable operations each %.1f seconds", w.config.Interval.Seconds())
+	w.logger.Debugf("Start checking for processable operations each %.1f seconds",
+		w.config.OperationCheckInterval.Seconds())
 
 	//check now otherwise first check would happen by ticker (after the configured interval is over)
 	if err := w.invokeProcessableOps(workerPool); err != nil {
 		return err
 	}
 
-	ticker := time.NewTicker(w.config.Interval)
+	ticker := time.NewTicker(w.config.OperationCheckInterval)
 	for {
 		select {
 		case <-ticker.C:
 			if err := w.invokeProcessableOps(workerPool); err != nil {
 				w.logger.Warnf("Failed to invoke all processable operations but will retry after %.1f seconds again",
-					w.config.Interval.Seconds())
+					w.config.OperationCheckInterval.Seconds())
 			}
 		case <-ctx.Done():
 			w.logger.Info("Stopping interval checks of processable operations because parent context got closed")

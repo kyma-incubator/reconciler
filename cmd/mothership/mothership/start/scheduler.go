@@ -5,7 +5,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/service"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
 	"github.com/spf13/viper"
+	"time"
 )
 
 func startScheduler(ctx context.Context, o *Options, configFile string) error {
@@ -17,16 +19,26 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
 
 	runtimeBuilder.
-		WithSchedulerConfig(
-			&service.SchedulerConfig{
-				InventoryWatchInterval:   o.WatchInterval,
-				ClusterReconcileInterval: o.ClusterReconcileInterval,
-				ClusterQueueSize:         o.Workers,
-			}).
+		WithWorkerPoolConfig(&worker.Config{
+			PoolSize:               o.Workers,
+			OperationCheckInterval: 30 * time.Second,
+			InvokerMaxRetries:      10,
+			InvokerRetryDelay:      30 * time.Second,
+		}).
 		RunRemote(
 			o.Registry.Connnection(),
 			o.Registry.Inventory(),
 			schedulerCfg).
+		WithSchedulerConfig(
+			&service.SchedulerConfig{
+				InventoryWatchInterval:   o.WatchInterval,
+				ClusterReconcileInterval: o.ClusterReconcileInterval,
+				ClusterQueueSize:         10,
+			}).
+		WithBookkeeperConfig(&service.BookkeeperConfig{
+			OperationsWatchInterval: 30 * time.Second,
+			OrphanOperationTimeout:  6 * time.Minute,
+		}).
 		Run(ctx)
 
 	return nil

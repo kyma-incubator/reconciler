@@ -15,7 +15,6 @@ type RuntimeBuilder struct {
 	reconRepo        reconciliation.Repository
 	logger           *zap.SugaredLogger
 	preComponents    []string
-	schedulerConfig  *SchedulerConfig
 	workerPoolConfig *worker.Config
 }
 
@@ -23,18 +22,12 @@ func NewRuntimeBuilder(reconRepo reconciliation.Repository, logger *zap.SugaredL
 	return &RuntimeBuilder{
 		reconRepo:        reconRepo,
 		logger:           logger,
-		schedulerConfig:  &SchedulerConfig{},
 		workerPoolConfig: &worker.Config{},
 	}
 }
 
 func (rb *RuntimeBuilder) newWorkerPool(receiver worker.ClusterStateRetriever, invoke invoker.Invoker) (*worker.Pool, error) {
 	return worker.NewWorkerPool(receiver, rb.reconRepo, invoke, rb.workerPoolConfig, rb.logger)
-}
-
-func (rb *RuntimeBuilder) WithSchedulerConfig(cfg *SchedulerConfig) *RuntimeBuilder {
-	rb.schedulerConfig = cfg
-	return rb
 }
 
 func (rb *RuntimeBuilder) WithWorkerPoolConfig(cfg *worker.Config) *RuntimeBuilder {
@@ -53,7 +46,7 @@ func (rb *RuntimeBuilder) RunRemote(
 	inventory cluster.Inventory,
 	config *config.Config) *runRemote {
 
-	runR := &runRemote{rb, conn, inventory, config}
+	runR := &runRemote{rb, conn, inventory, config, &SchedulerConfig{}, &BookkeeperConfig{}}
 	runR.preComponents = config.Scheduler.PreComponents
 	return runR
 }
@@ -69,7 +62,10 @@ type runLocal struct {
 
 func (l *runLocal) Run(ctx context.Context, clusterState *cluster.State) error {
 	//enqueue cluster state and create reconciliation entity
-	if err := l.newScheduler().RunOnce(clusterState, l.reconRepo); err != nil {
+	if err := l.newScheduler().RunOnce(clusterState, l.reconRepo); err == nil {
+		l.logger.Debug("Local scheduler finished successfully")
+	} else {
+		l.logger.Errorf("Local scheduler returned an error: %s", err)
 		return err
 	}
 
@@ -80,7 +76,9 @@ func (l *runLocal) Run(ctx context.Context, clusterState *cluster.State) error {
 		l.logger.Errorf("Failed to create worker pool: %s", err)
 		return err
 	}
-	if err := workerPool.RunOnce(ctx); err != nil {
+	if err := workerPool.RunOnce(ctx); err == nil {
+		l.logger.Debug("Worker pool finished successfully")
+	} else {
 		l.logger.Errorf("Worker pool returned an error: %s", err)
 		return err
 	}
@@ -90,23 +88,43 @@ func (l *runLocal) Run(ctx context.Context, clusterState *cluster.State) error {
 
 type runRemote struct {
 	*RuntimeBuilder
-	conn      db.Connection
-	inventory cluster.Inventory
-	config    *config.Config
+	conn             db.Connection
+	inventory        cluster.Inventory
+	config           *config.Config
+	schedulerConfig  *SchedulerConfig
+	bookkeeperConfig *BookkeeperConfig
+}
+
+func (r *runRemote) WithSchedulerConfig(cfg *SchedulerConfig) *runRemote {
+	r.schedulerConfig = cfg
+	return r
+}
+
+func (r *runRemote) WithBookkeeperConfig(cfg *BookkeeperConfig) *runRemote {
+	r.bookkeeperConfig = cfg
+	return r
 }
 
 func (r *runRemote) Run(ctx context.Context) {
-	//TODO: start bookkeeper
+	go func() {
+		transition := newClusterStatusTransition(r.conn, r.inventory, r.reconRepo, r.logger)
+		if err := newBookkeeper(transition, r.bookkeeperConfig, r.logger).Run(ctx); err != nil {
+			r.logger.Fatalf("Bookkeeper returned an error: %s", err)
+		}
+	}()
 
 	//start worker pool
 	go func() {
 		remoteInvoker := invoker.NewRemoteReoncilerInvoker(r.reconRepo, r.config, r.logger)
 		workerPool, err := r.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker)
-		if err != nil {
-			r.logger.Fatalf("failed to create worker pool: %s", err)
+		if err == nil {
+			r.logger.Debug("Worker pool created")
+		} else {
+			r.logger.Fatalf("Failed to create worker pool: %s", err)
 		}
+
 		if err := workerPool.Run(ctx); err != nil {
-			r.logger.Fatalf("worker pool returned an error: %s", err)
+			r.logger.Fatalf("Worker pool returned an error: %s", err)
 		}
 	}()
 
@@ -114,7 +132,7 @@ func (r *runRemote) Run(ctx context.Context) {
 	go func() {
 		transition := newClusterStatusTransition(r.conn, r.inventory, r.reconRepo, r.logger)
 		if err := r.newScheduler().Run(ctx, transition, r.schedulerConfig); err != nil {
-			r.logger.Fatalf("scheduler returned an error: %s", err)
+			r.logger.Fatalf("Remote scheduler returned an error: %s", err)
 		}
 	}()
 }
