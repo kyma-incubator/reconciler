@@ -55,11 +55,10 @@ components:
   schemas:
     callbackMessage:
       type: object
-      required: [ status ]
+      required: [ status, error ]
       properties:
         status:
           $ref: '#/components/schemas/status'
-        # TODO: error can't be string in current implementation. need to change it to string instead of error
         error:
           type: string
 

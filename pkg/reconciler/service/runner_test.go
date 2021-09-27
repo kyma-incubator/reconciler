@@ -329,7 +329,7 @@ func newCleanupFunc(t *testing.T) func(bool) {
 		//remove all installed components
 		cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
 		cleanup.RemoveKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
-		cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "unittest-service")
+		cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default")
 		//remove the cloned workspace
 		if deleteWorkspace {
 			wsf, err := ws.NewFactory(nil, "./test", logger.NewLogger(true))
