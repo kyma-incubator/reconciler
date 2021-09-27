@@ -13,7 +13,7 @@ const tblCluster string = "inventory_clusters"
 
 type ClusterEntity struct {
 	Version    int64             `db:"readOnly"`
-	Cluster    string            `db:"notNull"`
+	RuntimeID  string    `db:"notNull"`
 	Runtime    *keb.RuntimeInput `db:"notNull"`
 	Metadata   *keb.Metadata     `db:"notNull"`
 	Kubeconfig string            `db:"notNull,encrypt"`
@@ -23,8 +23,7 @@ type ClusterEntity struct {
 }
 
 func (c *ClusterEntity) String() string {
-	return fmt.Sprintf("ClusterEntity [Cluster=%s,Version=%d]",
-		c.Cluster, c.Version)
+	return fmt.Sprintf("ClusterEntity [RuntimeID=%s,Version=%d]", c.RuntimeID, c.Version)
 }
 
 func (c *ClusterEntity) New() db.DatabaseEntity {
@@ -60,7 +59,7 @@ func (c *ClusterEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherClProp, ok := other.(*ClusterEntity)
 	if ok {
-		return c.Cluster == otherClProp.Cluster &&
+		return c.RuntimeID == otherClProp.RuntimeID &&
 			c.Runtime == otherClProp.Runtime &&
 			c.Metadata == otherClProp.Metadata &&
 			c.Contract == otherClProp.Contract

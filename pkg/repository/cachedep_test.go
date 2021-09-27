@@ -82,7 +82,7 @@ func TestCacheDependencyManager(t *testing.T) {
 
 	t.Run("Invalidate dependencies by cluster", func(t *testing.T) {
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
-			err := cacheDep.Invalidate().WithCluster("testCluster2").Exec(true)
+			err := cacheDep.Invalidate().WithRuntimeID("testCluster2").Exec(true)
 			require.NoError(t, err)
 
 			deps, err := cacheDep.Get().Exec()
@@ -124,7 +124,7 @@ func TestCacheDependencyManager(t *testing.T) {
 				testDeps[2],
 			})
 
-			depsByCluster, err := cacheDep.Get().WithCluster("testCluster1").Exec()
+			depsByCluster, err := cacheDep.Get().WithRuntimeID("testCluster1").Exec()
 			require.NoError(t, err)
 			compareCacheDepEntities(t, depsByCluster, []*model.CacheDependencyEntity{
 				testDeps[0], testDeps[1], testDeps[2],
@@ -154,9 +154,9 @@ func TestCacheDependencyManager(t *testing.T) {
 func withTestData(t *testing.T, testFunc func(*testing.T, []*model.CacheEntryEntity, []*model.CacheDependencyEntity)) {
 	entity1, deps1 := importCacheEntry(t,
 		&model.CacheEntryEntity{
-			Label:   "testCacheEntry1",
-			Cluster: "testCluster1",
-			Data:    "test cache data1",
+			Label:     "testCacheEntry1",
+			RuntimeID: "testCluster1",
+			Data:      "test cache data1",
 		},
 		[]*model.ValueEntity{
 			{
@@ -174,9 +174,9 @@ func withTestData(t *testing.T, testFunc func(*testing.T, []*model.CacheEntryEnt
 		})
 	entity2, deps2 := importCacheEntry(t,
 		&model.CacheEntryEntity{
-			Label:   "testCacheEntry2",
-			Cluster: "testCluster2",
-			Data:    "test cache data2",
+			Label:     "testCacheEntry2",
+			RuntimeID: "testCluster2",
+			Data:      "test cache data2",
 		},
 		[]*model.ValueEntity{
 			{
@@ -221,9 +221,14 @@ func compareCacheDepEntities(t *testing.T, got, expected []*model.CacheDependenc
 	for idx := range expected {
 		expectedValue := []interface{}{}
 		gotValue := []interface{}{}
-		for _, field := range []string{"Key", "Bucket", "Label", "Cluster", "CacheID"} {
-			expectedValue = append(expectedValue, structs.New(expected[idx]).Field(field).Value())
-			gotValue = append(gotValue, structs.New(got[idx]).Field(field).Value())
+		for _, fieldName := range []string{"Key", "Bucket", "Label", "CacheID", "RuntimeID"} {
+			field, ok := structs.New(expected[idx]).FieldOk(fieldName)
+			require.True(t, ok, "field: %s not found in expected struct:%v", fieldName, expected[idx])
+			expectedValue = append(expectedValue, field.Value())
+
+			field, ok = structs.New(got[idx]).FieldOk(fieldName)
+			require.True(t, ok, "field: %s not found in got struct: %v", fieldName, got[idx])
+			gotValue = append(gotValue, field.Value())
 		}
 		require.ElementsMatch(t, expectedValue, gotValue)
 	}

@@ -20,7 +20,7 @@ type ReconciliationSequence struct {
 
 type ClusterConfigurationEntity struct {
 	Version        int64            `db:"readOnly"`
-	Cluster        string           `db:"notNull"`
+	RuntimeID      string `db:"notNull"`
 	ClusterVersion int64            `db:"notNull"`
 	KymaVersion    string           `db:"notNull"`
 	KymaProfile    string           `db:""`
@@ -32,8 +32,8 @@ type ClusterConfigurationEntity struct {
 }
 
 func (c *ClusterConfigurationEntity) String() string {
-	return fmt.Sprintf("ClusterConfigurationEntity [Version=%d,Cluster=%s,ClusterVersion=%d]",
-		c.Version, c.Cluster, c.ClusterVersion)
+	return fmt.Sprintf("ClusterConfigurationEntity [Version=%d,RuntimeID=%s,ClusterVersion=%d]",
+		c.Version, c.RuntimeID, c.ClusterVersion)
 }
 
 func (c *ClusterConfigurationEntity) New() db.DatabaseEntity {
@@ -70,7 +70,7 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherClProp, ok := other.(*ClusterConfigurationEntity)
 	if ok {
-		return c.Cluster == otherClProp.Cluster &&
+		return c.RuntimeID == otherClProp.RuntimeID &&
 			c.ClusterVersion == otherClProp.ClusterVersion &&
 			c.KymaVersion == otherClProp.KymaVersion &&
 			c.KymaProfile == otherClProp.KymaProfile &&
