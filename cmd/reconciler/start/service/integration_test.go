@@ -363,18 +363,10 @@ func newCallbackMock(t *testing.T) (*http.Server, chan *reconciler.CallbackMessa
 
 		t.Logf("Callback mock server received following callback request: %s", string(body))
 
-		callbackData := make(map[string]interface{})
+		callbackData := &reconciler.CallbackMessage{}
 		require.NoError(t, json.Unmarshal(body, &callbackData))
 
-		status, err := reconciler.NewStatus(fmt.Sprintf("%s", callbackData["status"]))
-		require.NoError(t, err)
-		callbackC <- &reconciler.CallbackMessage{
-			Status: status,
-			Error: func() *string {
-				errMsg := fmt.Sprintf("%v", callbackData["error"])
-				return &errMsg
-			}(),
-		}
+		callbackC <- callbackData
 	})
 
 	srv := &http.Server{
