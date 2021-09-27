@@ -2,22 +2,20 @@ package service
 
 import (
 	"context"
-	"fmt"
-
 	"go.uber.org/zap"
 
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/heartbeat"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 	"github.com/pkg/errors"
 )
 
 type runner struct {
 	*ComponentReconciler
+	install *Install
+
 	logger *zap.SugaredLogger
 }
 
@@ -112,7 +110,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	}
 
 	if r.reconcileAction == nil {
-		if err := r.install(ctx, chartProvider, model, kubeClient); err != nil {
+		if err := r.install.Invoke(ctx, chartProvider, model, kubeClient); err != nil {
 			r.logger.Warnf("Default-reconciliation of '%s' with version '%s' failed: %s",
 				model.Component, model.Version, err)
 			return err
@@ -134,56 +132,4 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	}
 
 	return nil
-}
-
-func (r *runner) install(ctx context.Context, chartProvider *chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
-	var err error
-	var manifest string
-	if model.Component == "CRDs" {
-		manifest, err = r.renderCRDs(chartProvider, model)
-	} else {
-		manifest, err = r.renderManifest(chartProvider, model)
-	}
-	if err != nil {
-		return err
-	}
-
-	resources, err := kubeClient.Deploy(ctx, manifest, model.Namespace, &LabelsInterceptor{Version: model.Version}, &AnnotationsInterceptor{})
-
-	if err == nil {
-		r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
-	} else {
-		r.logger.Warnf("Failed to deploy manifests on target cluster: %s", err)
-	}
-
-	return err
-}
-
-func (r *runner) renderManifest(chartProvider *chart.Provider, model *reconciler.Reconciliation) (string, error) {
-	component := chart.NewComponentBuilder(model.Version, model.Component).
-		WithProfile(model.Profile).
-		WithNamespace(model.Namespace).
-		WithConfiguration(model.Configuration).
-		Build()
-
-	//get manifest of component
-	chartManifest, err := chartProvider.RenderManifest(component)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to get manifest for component '%s' in Kyma version '%s'",
-			model.Component, model.Version)
-		r.logger.Errorf("%s: %s", msg, err)
-		return "", errors.Wrap(err, msg)
-	}
-
-	return chartManifest.Manifest, nil
-}
-
-func (r *runner) renderCRDs(chartProvider *chart.Provider, model *reconciler.Reconciliation) (string, error) {
-	crdManifests, err := chartProvider.RenderCRD(model.Version)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to get CRD manifests for Kyma version '%s'", model.Version)
-		r.logger.Errorf("%s: %s", msg, err)
-		return "", errors.Wrap(err, msg)
-	}
-	return chart.MergeManifests(crdManifests...), nil
 }
