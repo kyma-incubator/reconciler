@@ -17,8 +17,8 @@ type PersistentReconciliationRepository struct {
 	*repository.Repository
 }
 
-func NewPersistedReconciliationRepository(dbConnFact db.ConnectionFactory, debug bool) (Repository, error) {
-	repo, err := repository.NewRepository(dbConnFact, debug)
+func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repository, error) {
+	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {
 		return nil, err
 	}
@@ -319,10 +319,10 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 	dbOps := func() error {
 		op, err := r.GetOperation(schedulingID, correlationID)
 		if err != nil {
-			if !repository.IsNotFoundError(err) {
-				return err
+			if repository.IsNotFoundError(err) {
+				r.Logger.Warnf("operation not found (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
 			}
-			return fmt.Errorf("operation not found (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
+			return err
 		}
 
 		if op.State == model.OperationStateDone || op.State == model.OperationStateError {

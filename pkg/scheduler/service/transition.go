@@ -15,7 +15,7 @@ type ClusterStatusTransition struct {
 	logger    *zap.SugaredLogger
 }
 
-func NewClusterStatusTransition(
+func newClusterStatusTransition(
 	conn db.Connection,
 	inventory cluster.Inventory,
 	reconRepo reconciliation.Repository,

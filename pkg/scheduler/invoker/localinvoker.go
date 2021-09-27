@@ -3,6 +3,7 @@ package invoker
 import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -36,14 +37,14 @@ func (i *localReconcilerInvoker) Invoke(ctx context.Context, params *Params) err
 		i.logger.Debugf("Found dedicated reconciler for component '%s'", component)
 	} else {
 		i.logger.Debugf("No dedicated reconciler found for component '%s': "+
-			"using '%s' reconciler as fallback", component, fallbackComponentReconciler)
-		compRecon, err = reconRegistry.GetReconciler(fallbackComponentReconciler)
+			"using '%s' reconciler as fallback", component, config.FallbackComponentReconciler)
+		compRecon, err = reconRegistry.GetReconciler(config.FallbackComponentReconciler)
 		if err != nil {
 			return &NoFallbackReconcilerDefinedError{}
 		}
 	}
 
-	i.logger.Debugf("Calling reconciler for component '%s' locally (schedulingID:%s,correlationID:%s)",
+	i.logger.Debugf("Calling reconciler for component '%s' locally (schedulingID:%s/correlationID:%s)",
 		component, params.SchedulingID, params.CorrelationID)
 
 	reconModel := params.newLocalReconciliationModel(i.newCallbackFunc(params))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"github.com/spf13/viper"
 
 	"github.com/gorilla/mux"
@@ -313,19 +313,21 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	switch body.Status {
 	case reconciler.StatusNotstarted, reconciler.StatusRunning:
-		err = o.Registry.OperationsRegistry().SetInProgress(correlationID, schedulingID)
+		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
+			model.OperationStateInProgress)
 	case reconciler.StatusFailed:
-		err = o.Registry.OperationsRegistry().SetFailed(correlationID, schedulingID,
-			fmt.Sprintf("Reconciler reported failure status: %v", body.Error))
+		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
+			model.OperationStateFailed, *body.Error)
 	case reconciler.StatusSuccess:
-		err = o.Registry.OperationsRegistry().SetDone(correlationID, schedulingID)
+		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
+			model.OperationStateDone)
 	case reconciler.StatusError:
-		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID,
-			fmt.Sprintf("Reconciler reported error status: %v", body.Error))
+		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
+			model.OperationStateError, *body.Error)
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
-		if scheduler.IsOperationNotFoundError(err) {
+		if repository.IsNotFoundError(err) {
 			httpCode = http.StatusNotFound
 		}
 		server.SendHTTPError(w, httpCode, &reconciler.HTTPErrorResponse{

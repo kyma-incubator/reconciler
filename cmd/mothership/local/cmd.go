@@ -1,18 +1,20 @@
 package cmd
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	schedulerSvc "github.com/kyma-incubator/reconciler/pkg/scheduler/service"
 	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 
-	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	//Register all reconcilers
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"github.com/spf13/cobra"
 )
 
@@ -64,25 +66,39 @@ func RunLocal(o *Options) error {
 	}
 	defaultComponentsYaml := filepath.Join(ws.InstallationResourceDir, "components.yaml")
 
-	printStatus :=
-		func(component string, msg *reconciler.CallbackMessage) {
-			l.Infof("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
-		}
+	printStatus := func(component string, msg *reconciler.CallbackMessage) {
+		l.Infof("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
+	}
 
 	comps, err := o.Components(defaultComponentsYaml)
 	if err != nil {
 		return err
 	}
-	ls := scheduler.NewLocalScheduler(
-		scheduler.WithLogger(l),
-		scheduler.WithStatusFunc(printStatus))
-	return ls.Run(
-		cli.NewContext(),
-		&keb.Cluster{
+
+	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), l)
+
+	return runtimeBuilder.RunLocal([]string{}, printStatus).Run(cli.NewContext(), &cluster.State{
+		Cluster: &model.ClusterEntity{
+			Version:    1,
+			Cluster:    "local",
 			Kubeconfig: o.kubeconfig,
-			KymaConfig: keb.KymaConfig{
-				Version:    o.version,
-				Profile:    o.profile,
-				Components: comps},
-		})
+			Contract:   1,
+		},
+		Configuration: &model.ClusterConfigurationEntity{
+			Version:        1,
+			Cluster:        "local",
+			ClusterVersion: 1,
+			KymaVersion:    o.version,
+			KymaProfile:    o.profile,
+			Components:     comps,
+			Contract:       1,
+		},
+		Status: &model.ClusterStatusEntity{
+			ID:             1,
+			Cluster:        "local",
+			ClusterVersion: 1,
+			ConfigVersion:  1,
+			Status:         model.ClusterStatusReconcilePending,
+		},
+	})
 }

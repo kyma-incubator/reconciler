@@ -2,8 +2,6 @@ package worker
 
 import (
 	"context"
-	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/invoker"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
@@ -12,50 +10,8 @@ import (
 	"time"
 )
 
-const (
-	defaultPoolSize          = 500
-	defaultInterval          = 30 * time.Second
-	defaultInvokerMaxRetries = 5
-	defaultInvokerRetryDelay = 5 * time.Second
-)
-
-type Config struct {
-	PoolSize          int
-	Interval          time.Duration
-	InvokerMaxRetries int
-	InvokerRetryDelay time.Duration
-}
-
-func (c *Config) validate() error {
-	if c.PoolSize < 0 {
-		return fmt.Errorf("pool size cannot be < 0 (was %d)", c.PoolSize)
-	}
-	if c.PoolSize == 0 {
-		c.PoolSize = defaultPoolSize
-	}
-	if c.Interval < 0 {
-		return fmt.Errorf("interval cannot be < 0 (was %.1f sec)", c.Interval.Seconds())
-	}
-	if c.Interval == 0 {
-		c.Interval = defaultInterval
-	}
-	if c.InvokerMaxRetries < 0 {
-		return fmt.Errorf("invoker retries cannot be < 0 (was %d)", c.InvokerMaxRetries)
-	}
-	if c.InvokerMaxRetries == 0 {
-		c.InvokerMaxRetries = defaultInvokerMaxRetries
-	}
-	if c.InvokerRetryDelay < 0 {
-		return fmt.Errorf("invoker retry delay cannot be < 0 (was %.1f sec)", c.InvokerRetryDelay.Seconds())
-	}
-	if c.InvokerRetryDelay == 0 {
-		c.InvokerRetryDelay = defaultInvokerRetryDelay
-	}
-	return nil
-}
-
 type Pool struct {
-	inventory cluster.Inventory
+	retriever ClusterStateRetriever
 	reconRepo reconciliation.Repository
 	invoker   invoker.Invoker
 	config    *Config
@@ -63,7 +19,7 @@ type Pool struct {
 }
 
 func NewWorkerPool(
-	inventory cluster.Inventory,
+	retriever ClusterStateRetriever,
 	repo reconciliation.Repository,
 	invoker invoker.Invoker,
 	config *Config,
@@ -78,7 +34,7 @@ func NewWorkerPool(
 	}
 
 	return &Pool{
-		inventory: inventory,
+		retriever: retriever,
 		reconRepo: repo,
 		invoker:   invoker,
 		config:    config,
@@ -118,7 +74,7 @@ func (w *Pool) startWorkerPool(ctx context.Context) (*ants.PoolWithFunc, error) 
 }
 
 func (w *Pool) assignWorker(ctx context.Context, opEntity *model.OperationEntity) {
-	clusterState, err := w.inventory.Get(opEntity.Cluster, opEntity.ClusterConfig)
+	clusterState, err := w.retriever.Get(opEntity)
 	if err != nil {
 		w.logger.Errorf("Not able to assign operation '%s' to worker because state "+
 			"of cluster '%s' could not be retrieved: %s", opEntity, opEntity.Cluster, err)

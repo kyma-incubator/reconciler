@@ -14,13 +14,12 @@ import (
 )
 
 func NewTestOptions(t *testing.T) *cli.Options {
-	dbConnFac, err := db.NewTestConnectionFactory()
-	require.NoError(t, err)
-
 	cliOptions := &cli.Options{
 		Verbose: true,
 	}
-	cliOptions.Registry, err = app.NewApplicationRegistry(dbConnFac, true)
+
+	var err error
+	cliOptions.Registry, err = app.NewApplicationRegistry(db.NewTestConnectionFactory(t), true)
 	require.NoError(t, err)
 
 	return cliOptions

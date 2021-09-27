@@ -43,24 +43,24 @@ func (wc *Config) validate() error {
 	return nil
 }
 
-type Scheduler struct {
+type scheduler struct {
 	logger        *zap.SugaredLogger
 	preComponents []string
 }
 
-func NewScheduler(preComponents []string, logger *zap.SugaredLogger) *Scheduler {
-	return &Scheduler{
+func newScheduler(preComponents []string, logger *zap.SugaredLogger) *scheduler {
+	return &scheduler{
 		preComponents: preComponents,
 		logger:        logger,
 	}
 }
 
-func (s *Scheduler) RunOnce(clusterState *cluster.State, reconRepo reconciliation.Repository) error {
+func (s *scheduler) RunOnce(clusterState *cluster.State, reconRepo reconciliation.Repository) error {
 	_, err := reconRepo.CreateReconciliation(clusterState, s.preComponents)
 	return err
 }
 
-func (s *Scheduler) Run(ctx context.Context, transition *ClusterStatusTransition, config *Config) error {
+func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition, config *Config) error {
 	if err := config.validate(); err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (s *Scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 
 }
 
-func (s *Scheduler) startInventoryWatcher(ctx context.Context, inventory cluster.Inventory, config *Config, queue chan *cluster.State) {
+func (s *scheduler) startInventoryWatcher(ctx context.Context, inventory cluster.Inventory, config *Config, queue chan *cluster.State) {
 	s.logger.Infof("Starting inventory watcher")
 
 	go func(ctx context.Context,

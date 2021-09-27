@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -15,21 +16,19 @@ import (
 	"strings"
 )
 
-const callbackURLTemplate = "%s/v1/operations/%s/callback/%s"
+const callbackURLTemplate = "%s://%s:%d/v1/operations/%s/callback/%s"
 
 type remoteReconcilerInvoker struct {
-	reconRepo     reconciliation.Repository
-	mothershipURL string
-	reconcilerCfg ComponentReconcilersConfig
-	logger        *zap.SugaredLogger
+	reconRepo reconciliation.Repository
+	config    *config.Config
+	logger    *zap.SugaredLogger
 }
 
-func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, mothershipURL string, reconcilerCfg ComponentReconcilersConfig, logger *zap.SugaredLogger) *remoteReconcilerInvoker {
+func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, cfg *config.Config, logger *zap.SugaredLogger) *remoteReconcilerInvoker {
 	return &remoteReconcilerInvoker{
-		reconRepo:     reconRepo,
-		mothershipURL: mothershipURL,
-		reconcilerCfg: reconcilerCfg,
-		logger:        logger,
+		reconRepo: reconRepo,
+		config:    cfg,
+		logger:    logger,
 	}
 }
 
@@ -51,7 +50,7 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 	}
 
 	i.logger.Debugf("HTTP request to reconciler of component '%s' returned with status '%s' [%d] "+
-		"(schedulingID:%s,correlationID:%s) ",
+		"(schedulingID:%s/correlationID:%s) ",
 		params.ComponentToReconcile.Component, resp.Status, resp.StatusCode, params.SchedulingID, params.CorrelationID)
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
@@ -82,7 +81,12 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Response, error) {
 	component := params.ComponentToReconcile.Component
 
-	callbackURL := fmt.Sprintf(callbackURLTemplate, i.mothershipURL, params.SchedulingID, params.CorrelationID)
+	callbackURL := fmt.Sprintf(callbackURLTemplate,
+		i.config.Scheme,
+		i.config.Host,
+		i.config.Port,
+		params.SchedulingID,
+		params.CorrelationID)
 	payload := params.newRemoteReconciliationModel(callbackURL)
 
 	jsonPayload, err := json.Marshal(payload)
@@ -90,19 +94,19 @@ func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 		return nil, fmt.Errorf("failed to marshal HTTP payload to call reconciler of component '%s': %s", component, err)
 	}
 
-	compRecon, ok := i.reconcilerCfg[component]
+	compRecon, ok := i.config.Scheduler.Reconcilers[component]
 	if ok {
 		i.logger.Debugf("Found dedicated reconciler for component '%s'", component)
 	} else {
 		i.logger.Debugf("No dedicated reconciler found for component '%s': "+
-			"using '%s' component reconciler as fallback", component, fallbackComponentReconciler)
-		compRecon, ok = i.reconcilerCfg[fallbackComponentReconciler]
+			"using '%s' component reconciler as fallback", component, config.FallbackComponentReconciler)
+		compRecon, ok = i.config.Scheduler.Reconcilers[config.FallbackComponentReconciler]
 		if !ok {
 			return nil, &NoFallbackReconcilerDefinedError{}
 		}
 	}
 
-	i.logger.Debugf("Calling remote reconciler via HTTP (URL: %s) for component '%s' (schedulingID:%s,correlationID:%s)",
+	i.logger.Debugf("Calling remote reconciler via HTTP (URL: %s) for component '%s' (schedulingID:%s/correlationID:%s)",
 		compRecon.URL, params.ComponentToReconcile.Component, params.SchedulingID, params.CorrelationID)
 
 	resp, err := http.Post(compRecon.URL, "application/json", bytes.NewBuffer(jsonPayload))

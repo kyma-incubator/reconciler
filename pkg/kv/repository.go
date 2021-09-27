@@ -12,8 +12,8 @@ type Repository struct {
 	*repository.Repository
 }
 
-func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
-	repo, err := repository.NewRepository(dbFac, debug)
+func NewRepository(conn db.Connection, debug bool) (*Repository, error) {
+	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {
 		return nil, err
 	}
@@ -476,10 +476,6 @@ func (cer *Repository) DeleteBucket(bucket string) error {
 		return err
 	}
 	return cer.Transactional(dbOps)
-}
-
-func (cer *Repository) Close() error {
-	return cer.Conn.Close()
 }
 
 type InvalidDataTypeError struct {

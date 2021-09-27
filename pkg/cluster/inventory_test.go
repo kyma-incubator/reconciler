@@ -262,10 +262,7 @@ func listStatusesForStatusChanges(states []*StatusChange) []model.Status {
 }
 
 func newInventory(t *testing.T) Inventory {
-	connFact, err := db.NewTestConnectionFactory()
-	require.NoError(t, err)
-
-	inventory, err := NewInventory(connFact, true, MetricsCollectorMock{})
+	inventory, err := NewInventory(db.NewTestConnection(t), true, MetricsCollectorMock{})
 	require.NoError(t, err)
 	return inventory
 }

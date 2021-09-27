@@ -15,21 +15,21 @@ const (
 	defaultProgressTimeout = 1 * time.Hour
 )
 
-type ClusterStatusUpdater struct {
+type clusterStatusUpdater struct {
 	inventory     cluster.Inventory
 	clusterState  cluster.State
-	updateChannel chan Update
+	updateChannel chan update
 	statusMap     map[string]string
 	logger        *zap.SugaredLogger
 }
 
-type Update struct {
+type update struct {
 	component      string
 	operationState string
 }
 
-func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.State, components *model.ReconciliationSequence, logger *zap.SugaredLogger) ClusterStatusUpdater {
-	statusUpdater := ClusterStatusUpdater{inventory: inventory, clusterState: clusterState, logger: logger}
+func newClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.State, components *model.ReconciliationSequence, logger *zap.SugaredLogger) clusterStatusUpdater {
+	statusUpdater := clusterStatusUpdater{inventory: inventory, clusterState: clusterState, logger: logger}
 	statusUpdater.statusMap = make(map[string]string)
 	//FIXME
 	//for _, comp := range components.FirstInSequence {
@@ -39,11 +39,11 @@ func NewClusterStatusUpdater(inventory cluster.Inventory, clusterState cluster.S
 	//	statusUpdater.statusMap[comp.Component] = model.OperationStateInProgress
 	//}
 	statusUpdater.reconciling()
-	statusUpdater.updateChannel = make(chan Update, channelSize)
+	statusUpdater.updateChannel = make(chan update, channelSize)
 	return statusUpdater
 }
 
-func (su *ClusterStatusUpdater) Run(ctx context.Context) {
+func (su *clusterStatusUpdater) Run(ctx context.Context) {
 	timeout := time.After(defaultProgressTimeout)
 	for {
 		select {
@@ -68,13 +68,13 @@ func (su *ClusterStatusUpdater) Run(ctx context.Context) {
 	}
 }
 
-func (su *ClusterStatusUpdater) Update(component string, operationState string) {
+func (su *clusterStatusUpdater) Update(component string, operationState string) {
 	if su.updateChannel != nil {
-		su.updateChannel <- Update{component, operationState}
+		su.updateChannel <- update{component, operationState}
 	}
 }
 
-func (su *ClusterStatusUpdater) reconciling() {
+func (su *clusterStatusUpdater) reconciling() {
 	if err := su.statusChangeAllowed(model.ClusterStatusReconciling); err != nil {
 		su.logger.Warn(err)
 		return
@@ -82,7 +82,7 @@ func (su *ClusterStatusUpdater) reconciling() {
 	su.sendUpdate(model.ClusterStatusReconciling)
 }
 
-func (su *ClusterStatusUpdater) success() {
+func (su *clusterStatusUpdater) success() {
 	if err := su.statusChangeAllowed(model.ClusterStatusReady); err != nil {
 		su.logger.Warn(err)
 		return
@@ -92,7 +92,7 @@ func (su *ClusterStatusUpdater) success() {
 	}
 }
 
-func (su *ClusterStatusUpdater) error() {
+func (su *clusterStatusUpdater) error() {
 	if err := su.statusChangeAllowed(model.ClusterStatusError); err != nil {
 		su.logger.Warn(err)
 		return
@@ -100,14 +100,14 @@ func (su *ClusterStatusUpdater) error() {
 	su.sendUpdate(model.ClusterStatusError)
 }
 
-func (su *ClusterStatusUpdater) sendUpdate(status model.Status) {
+func (su *clusterStatusUpdater) sendUpdate(status model.Status) {
 	_, err := su.inventory.UpdateStatus(&su.clusterState, status)
 	if err != nil {
 		su.logger.Infof("Failed to update cluster status as ready: %s", err)
 	}
 }
 
-func (su *ClusterStatusUpdater) statusChangeAllowed(status model.Status) error {
+func (su *clusterStatusUpdater) statusChangeAllowed(status model.Status) error {
 	latestState, err := su.inventory.GetLatest(su.clusterState.Cluster.Cluster)
 	if err != nil {
 		return fmt.Errorf("failed to get the latest cluster status: %s", err)
@@ -119,7 +119,7 @@ func (su *ClusterStatusUpdater) statusChangeAllowed(status model.Status) error {
 	return nil
 }
 
-func (su *ClusterStatusUpdater) isAllDone() bool {
+func (su *clusterStatusUpdater) isAllDone() bool {
 	for _, state := range su.statusMap {
 		if state != model.OperationStateDone {
 			return false
@@ -128,7 +128,7 @@ func (su *ClusterStatusUpdater) isAllDone() bool {
 	return true
 }
 
-func (su *ClusterStatusUpdater) isAllInEndState() bool {
+func (su *clusterStatusUpdater) isAllInEndState() bool {
 	for _, state := range su.statusMap {
 		if state != model.OperationStateDone && state != model.OperationStateError {
 			return false

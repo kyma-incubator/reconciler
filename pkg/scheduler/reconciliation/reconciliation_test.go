@@ -580,10 +580,7 @@ func verifyOperationstateMock(t *testing.T, op *model.OperationEntity, expectedS
 }
 
 func newPersistentRepository(t *testing.T) Repository {
-	dbConnFact, err := db.NewTestConnectionFactory()
-	require.NoError(t, err)
-
-	reconRepo, err := NewPersistedReconciliationRepository(dbConnFact, true)
+	reconRepo, err := NewPersistedReconciliationRepository(db.NewTestConnection(t), true)
 	require.NoError(t, err)
 
 	return reconRepo

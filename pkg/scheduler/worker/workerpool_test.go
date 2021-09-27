@@ -28,9 +28,7 @@ func TestWorkerPool(t *testing.T) {
 	test.IntegrationTest(t)
 
 	//create cluster inventory
-	dbConn, err := db.NewTestConnectionFactory()
-	require.NoError(t, err)
-	inventory, err := cluster.NewInventory(dbConn, true, &cluster.MetricsCollectorMock{})
+	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 
 	//add cluster to inventory
@@ -60,7 +58,7 @@ func TestWorkerPool(t *testing.T) {
 	testInvoker := &testInvoker{}
 
 	//start worker pool
-	workerPool, err := NewWorkerPool(inventory, reconRepo, testInvoker, nil, logger.NewLogger(true))
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, reconRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	//create time limited context

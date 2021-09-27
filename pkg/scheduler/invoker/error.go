@@ -1,21 +1,16 @@
 package invoker
 
-import "fmt"
-
-const fallbackComponentReconciler = "base"
-
-type ComponentReconciler struct {
-	URL string `json:"url"`
-}
-
-type ComponentReconcilersConfig map[string]*ComponentReconciler
+import (
+	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
+)
 
 type NoFallbackReconcilerDefinedError struct {
 }
 
 func (err *NoFallbackReconcilerDefinedError) Error() string {
 	return fmt.Sprintf("Fallback component reconciler '%s' is missing: "+
-		"check local component reconciler initialization", fallbackComponentReconciler)
+		"check local component reconciler initialization", config.FallbackComponentReconciler)
 }
 
 func IsNoFallbackReconcilerDefinedError(err error) bool {
