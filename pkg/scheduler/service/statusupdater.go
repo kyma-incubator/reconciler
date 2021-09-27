@@ -1,4 +1,4 @@
-package bookkeeper
+package service
 
 import (
 	"context"

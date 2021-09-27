@@ -1,4 +1,4 @@
-package scheduler
+package service
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"

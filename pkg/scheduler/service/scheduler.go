@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -50,10 +48,10 @@ type Scheduler struct {
 	preComponents []string
 }
 
-func NewScheduler(preComponents []string, debug bool) *Scheduler {
+func NewScheduler(preComponents []string, logger *zap.SugaredLogger) *Scheduler {
 	return &Scheduler{
 		preComponents: preComponents,
-		logger:        log.NewLogger(debug),
+		logger:        logger,
 	}
 }
 
@@ -62,7 +60,7 @@ func (s *Scheduler) RunOnce(clusterState *cluster.State, reconRepo reconciliatio
 	return err
 }
 
-func (s *Scheduler) Run(ctx context.Context, transition *scheduler.ClusterStatusTransition, config *Config) error {
+func (s *Scheduler) Run(ctx context.Context, transition *ClusterStatusTransition, config *Config) error {
 	if err := config.validate(); err != nil {
 		return err
 	}
