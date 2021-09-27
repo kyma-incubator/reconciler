@@ -1,6 +1,7 @@
 openapi: 3.0.0
 info:
   title: Reconciler mothership external API
+  description: External API describe communication between the mothership component and external client
   version: 1.0.0
 servers:
   - url: http://{host}:{port}/{version}
@@ -105,8 +106,32 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /clusters/{cluster}/status:
+    put:
+      description: update exisiting cluster status
+      parameters:
+        - name: cluster
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/statusUpdate'
+      responses:
+        '201':
+          $ref: '#/components/responses/Ok'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/ClusterNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
     get:
-      description: 'Get cluster status'
+      description: get cluster status
       parameters:
         - name: cluster
           required: true
@@ -318,11 +343,20 @@ components:
           format: int64
         status:
           $ref: '#/components/schemas/status'
+    
+    statusUpdate:
+      type: object
+      required: [ status ]
+      properties:
+        status:
+          $ref: '#/components/schemas/status'
 
     status:
       type: string
       enum:
         - reconcile_pending
+        - reconcile_failed
+        - reconcile_disabled
         - ready
         - error
         - reconciling

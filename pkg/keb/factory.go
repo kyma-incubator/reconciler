@@ -25,6 +25,14 @@ func (mf *ModelFactory) load(model interface{}, data []byte) (interface{}, error
 	}
 }
 
+func (mf *ModelFactory) Status(data []byte) (*StatusUpdate, error) {
+	model, err := mf.load(&StatusUpdate{}, data)
+	if err != nil {
+		return nil, err
+	}
+	return model.(*StatusUpdate), err
+}
+
 func (mf *ModelFactory) Metadata(data []byte) (*Metadata, error) {
 	model, err := mf.load(&Metadata{}, data)
 	if err != nil {

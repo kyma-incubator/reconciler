@@ -2,10 +2,10 @@ package model
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 )
 
 const tblStatuses string = "inventory_cluster_config_statuses"
@@ -76,6 +76,9 @@ func (c *ClusterStatusEntity) GetKEBClusterStatus() (keb.Status, error) {
 
 	case ClusterStatusError:
 		kebStatus = keb.StatusError
+
+	case ClusterStatusReconcileDisabled:
+		kebStatus = keb.StatusReconcileDisabled
 
 	default:
 		return kebStatus, fmt.Errorf("cluster status '%s' not convertable to KEB cluster status", c.Status)
