@@ -10,26 +10,26 @@ import (
 )
 
 const (
-	defaultQueueSize                = 10
-	defaultWatchInterval            = 1 * time.Minute
+	defaultQueueSize                = 50
+	defaultInventoryWatchInterval   = 1 * time.Minute
 	defaultClusterReconcileInterval = 15 * time.Minute
 )
 
-type Config struct {
-	WatchInterval            time.Duration
+type SchedulerConfig struct {
+	InventoryWatchInterval   time.Duration
 	ClusterReconcileInterval time.Duration
 	ClusterQueueSize         int
 }
 
-func (wc *Config) validate() error {
-	if wc.WatchInterval < 0 {
-		return errors.New("watch interval cannot cannot be < 0")
+func (wc *SchedulerConfig) validate() error {
+	if wc.InventoryWatchInterval < 0 {
+		return errors.New("inventory watch interval cannot be < 0")
 	}
-	if wc.WatchInterval == 0 {
-		wc.WatchInterval = defaultWatchInterval
+	if wc.InventoryWatchInterval == 0 {
+		wc.InventoryWatchInterval = defaultInventoryWatchInterval
 	}
 	if wc.ClusterReconcileInterval < 0 {
-		return errors.New("cluster reconciliation interval cannot cannot be < 0")
+		return errors.New("cluster reconciliation interval cannot be < 0")
 	}
 	if wc.ClusterReconcileInterval == 0 {
 		wc.ClusterReconcileInterval = defaultClusterReconcileInterval
@@ -63,7 +63,7 @@ func (s *scheduler) RunOnce(clusterState *cluster.State, reconRepo reconciliatio
 	return err
 }
 
-func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition, config *Config) error {
+func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition, config *SchedulerConfig) error {
 	if err := config.validate(); err != nil {
 		return err
 	}
@@ -85,14 +85,14 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 
 }
 
-func (s *scheduler) startInventoryWatcher(ctx context.Context, inventory cluster.Inventory, config *Config, queue chan *cluster.State) {
+func (s *scheduler) startInventoryWatcher(ctx context.Context, inventory cluster.Inventory, config *SchedulerConfig, queue chan *cluster.State) {
 	s.logger.Infof("Starting inventory watcher")
 
 	go func(ctx context.Context,
 		clInv cluster.Inventory,
 		logger *zap.SugaredLogger,
 		queue chan *cluster.State,
-		cfg *Config) {
+		cfg *SchedulerConfig) {
 
 		watcher, err := newInventoryWatch(clInv, logger, cfg)
 		if err != nil {

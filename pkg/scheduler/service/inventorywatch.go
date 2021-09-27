@@ -10,7 +10,7 @@ import (
 
 type inventoryQueue chan<- *cluster.State
 
-func newInventoryWatch(inventory cluster.Inventory, logger *zap.SugaredLogger, config *Config) (*inventoryWatcher, error) {
+func newInventoryWatch(inventory cluster.Inventory, logger *zap.SugaredLogger, config *SchedulerConfig) (*inventoryWatcher, error) {
 	return &inventoryWatcher{
 		inventory: inventory,
 		config:    config,
@@ -20,7 +20,7 @@ func newInventoryWatch(inventory cluster.Inventory, logger *zap.SugaredLogger, c
 
 type inventoryWatcher struct {
 	inventory cluster.Inventory
-	config    *Config
+	config    *SchedulerConfig
 	logger    *zap.SugaredLogger
 }
 
@@ -29,10 +29,10 @@ func (w *inventoryWatcher) Inventory() cluster.Inventory {
 }
 
 func (w *inventoryWatcher) Run(ctx context.Context, queue inventoryQueue) error {
-	w.logger.Debugf("Start watching cluster inventory with an watch-interval of %.1f secs", w.config.WatchInterval.Seconds())
+	w.logger.Debugf("Start watching cluster inventory with an watch-interval of %.1f secs", w.config.InventoryWatchInterval.Seconds())
 
 	w.processClustersToReconcile(queue) //check for clusters now, otherwise first check would be trigger by ticker
-	ticker := time.NewTicker(w.config.WatchInterval)
+	ticker := time.NewTicker(w.config.InventoryWatchInterval)
 	for {
 		select {
 		case <-ticker.C:

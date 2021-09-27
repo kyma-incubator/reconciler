@@ -279,6 +279,14 @@ func (r *PersistentReconciliationRepository) GetOperation(schedulingID, correlat
 }
 
 func (r *PersistentReconciliationRepository) GetProcessableOperations() ([]*model.OperationEntity, error) {
+	opEntities, err := r.GetReconcilingOperations()
+	if err != nil {
+		return nil, err
+	}
+	return findProcessableOperations(opEntities), nil
+}
+
+func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*model.OperationEntity, error) {
 	//retrieve all non-finished operations
 	reconEntity := &model.ReconciliationEntity{}
 	colHdr, err := db.NewColumnHandler(reconEntity, r.Conn)
@@ -308,11 +316,11 @@ func (r *PersistentReconciliationRepository) GetProcessableOperations() ([]*mode
 		return nil, err
 	}
 
-	var opEntites []*model.OperationEntity
+	var opEntities []*model.OperationEntity
 	for _, op := range ops {
-		opEntites = append(opEntites, op.(*model.OperationEntity))
+		opEntities = append(opEntities, op.(*model.OperationEntity))
 	}
-	return findProcessableOperations(opEntites), nil
+	return opEntities, nil
 }
 
 func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reasons ...string) error {

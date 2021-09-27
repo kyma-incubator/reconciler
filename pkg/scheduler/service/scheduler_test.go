@@ -64,8 +64,8 @@ func TestScheduler(t *testing.T) {
 			},
 			reconRepo: reconRepo,
 			logger:    logger.NewLogger(true),
-		}, &Config{
-			WatchInterval:            250 * time.Millisecond,
+		}, &SchedulerConfig{
+			InventoryWatchInterval:   250 * time.Millisecond,
 			ClusterReconcileInterval: 100 * time.Second,
 			ClusterQueueSize:         5,
 		})

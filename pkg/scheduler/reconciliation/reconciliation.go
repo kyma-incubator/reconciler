@@ -22,7 +22,10 @@ type Repository interface {
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error
 	GetOperations(schedulingID string, state ...model.OperationState) ([]*model.OperationEntity, error)
 	GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error)
+	//GetProcessableOperations returns all operations which can be assigned to a worker
 	GetProcessableOperations() ([]*model.OperationEntity, error)
+	//GetReconcilingOperations returns all operations which are part of currently running reconciliations
+	GetReconcilingOperations() ([]*model.OperationEntity, error)
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reason ...string) error
 }
 

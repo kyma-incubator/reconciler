@@ -172,13 +172,21 @@ func (r *InMemoryReconciliationRepository) GetOperation(schedulingID, correlatio
 }
 
 func (r *InMemoryReconciliationRepository) GetProcessableOperations() ([]*model.OperationEntity, error) {
+	allOps, err := r.GetReconcilingOperations()
+	if err != nil {
+		return nil, err
+	}
+	return findProcessableOperations(allOps), nil
+}
+
+func (r *InMemoryReconciliationRepository) GetReconcilingOperations() ([]*model.OperationEntity, error) {
 	var allOps []*model.OperationEntity
 	for _, mapOpsByCorrID := range r.operations {
 		for _, op := range mapOpsByCorrID {
 			allOps = append(allOps, op)
 		}
 	}
-	return findProcessableOperations(allOps), nil
+	return allOps, nil
 }
 
 func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reasons ...string) error {

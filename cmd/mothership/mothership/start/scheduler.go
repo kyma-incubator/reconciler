@@ -18,8 +18,8 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 
 	runtimeBuilder.
 		WithSchedulerConfig(
-			&service.Config{
-				WatchInterval:            o.WatchInterval,
+			&service.SchedulerConfig{
+				InventoryWatchInterval:   o.WatchInterval,
 				ClusterReconcileInterval: o.ClusterReconcileInterval,
 				ClusterQueueSize:         o.Workers,
 			}).

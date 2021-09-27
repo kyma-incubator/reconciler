@@ -195,7 +195,6 @@ func resetOperationState(ops []*model.OperationEntity) {
 }
 
 func TestReconciliationRepository(t *testing.T) {
-
 	var testCases = []testCase{
 		{
 			name: "Create reconciliation",
@@ -500,6 +499,22 @@ func TestReconciliationRepository(t *testing.T) {
 				opsEntitiesPrio, err := reconRepo.GetProcessableOperations()
 				require.NoError(t, err)
 				require.Empty(t, opsEntitiesPrio)
+
+				return []*model.ReconciliationEntity{reconEntity1, reconEntity2}
+			},
+		},
+		{
+			name: "Get reconciling operations",
+			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, []string{"comp1"})
+				require.NoError(t, err)
+				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, nil)
+				require.NoError(t, err)
+
+				//get existing operations
+				opsRecon, err := reconRepo.GetReconcilingOperations()
+				require.NoError(t, err)
+				require.Len(t, opsRecon, 6)
 
 				return []*model.ReconciliationEntity{reconEntity1, reconEntity2}
 			},

@@ -15,7 +15,7 @@ type RuntimeBuilder struct {
 	reconRepo        reconciliation.Repository
 	logger           *zap.SugaredLogger
 	preComponents    []string
-	schedulerConfig  *Config
+	schedulerConfig  *SchedulerConfig
 	workerPoolConfig *worker.Config
 }
 
@@ -23,7 +23,7 @@ func NewRuntimeBuilder(reconRepo reconciliation.Repository, logger *zap.SugaredL
 	return &RuntimeBuilder{
 		reconRepo:        reconRepo,
 		logger:           logger,
-		schedulerConfig:  &Config{},
+		schedulerConfig:  &SchedulerConfig{},
 		workerPoolConfig: &worker.Config{},
 	}
 }
@@ -32,7 +32,7 @@ func (rb *RuntimeBuilder) newWorkerPool(receiver worker.ClusterStateRetriever, i
 	return worker.NewWorkerPool(receiver, rb.reconRepo, invoke, rb.workerPoolConfig, rb.logger)
 }
 
-func (rb *RuntimeBuilder) WithSchedulerConfig(cfg *Config) *RuntimeBuilder {
+func (rb *RuntimeBuilder) WithSchedulerConfig(cfg *SchedulerConfig) *RuntimeBuilder {
 	rb.schedulerConfig = cfg
 	return rb
 }

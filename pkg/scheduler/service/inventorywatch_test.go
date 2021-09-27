@@ -20,7 +20,12 @@ func TestInventoryWatch(t *testing.T) {
 	queue := make(chan *cluster.State, 1)
 
 	//create inventory watcher
-	inventoryWatch, err := newInventoryWatch(inventory, logger.NewLogger(true), &Config{WatchInterval: 500 * time.Millisecond})
+	inventoryWatch, err := newInventoryWatch(
+		inventory,
+		logger.NewLogger(true),
+		&SchedulerConfig{
+			InventoryWatchInterval: 500 * time.Millisecond,
+		})
 	require.NoError(t, err)
 
 	//stop inventory watcher at the end of the unittest by closing the context
@@ -46,7 +51,12 @@ func TestInventoryWatch_ShouldStopOnCtxClose(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.TODO(), 1500*time.Millisecond)
 	defer cancelFn()
 
-	inventoryWatch, err := newInventoryWatch(inventory, logger.NewLogger(true), &Config{WatchInterval: 500 * time.Millisecond})
+	inventoryWatch, err := newInventoryWatch(
+		inventory,
+		logger.NewLogger(true),
+		&SchedulerConfig{
+			InventoryWatchInterval: 500 * time.Millisecond,
+		})
 	require.NoError(t, err)
 
 	startTime := time.Now()

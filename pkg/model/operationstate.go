@@ -14,6 +14,7 @@ const (
 	OperationStateClientError = "client_error"
 	OperationStateError       = "error"
 	OperationStateFailed      = "failed"
+	OperationStateOrphan      = "orphan"
 )
 
 func NewOperationState(state string) (OperationState, error) {
@@ -31,6 +32,8 @@ func NewOperationState(state string) (OperationState, error) {
 		result = OperationStateError
 	case OperationStateFailed:
 		result = OperationStateFailed
+	case OperationStateOrphan:
+		result = OperationStateOrphan
 	default:
 		return "", fmt.Errorf("operation state '%s' does not exist", state)
 	}

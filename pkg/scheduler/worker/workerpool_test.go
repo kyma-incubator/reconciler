@@ -25,7 +25,7 @@ func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
 }
 
 func TestWorkerPool(t *testing.T) {
-	test.IntegrationTest(t)
+	test.IntegrationTest(t) //required because a valid Kubeconfig is required to create test cluster entry
 
 	//create cluster inventory
 	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
