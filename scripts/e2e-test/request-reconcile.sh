@@ -20,7 +20,7 @@ function send_reconciliation_request() {
   echo "sending reconciliation request to mothership-reconciler at: ${RECONCILE_API}"
   statusURL=$(curl --request POST -sL \
        --url "${RECONCILE_API}"\
-       --data @"${RECONCILE_PAYLOAD_FILE}" | jq -r .statusUrl)
+       --data @"${RECONCILE_PAYLOAD_FILE}" | jq -r .statusURL)
 
   export RECONCILE_STATUS_URL="${statusURL}"
 }
@@ -28,7 +28,7 @@ function send_reconciliation_request() {
 # Checks if the reconciler returned status url is valid or not
 function check_reconcile_status_url() {
   echo "RECONCILE_STATUS_URL: ${RECONCILE_STATUS_URL}"
-  if [[ ! $RECONCILE_STATUS_URL ]]; then
+  if [[ ! $RECONCILE_STATUS_URL ]] || [[ "$RECONCILE_STATUS_URL" == "null" ]]; then
     echo "reconciliation request failed: RECONCILE_STATUS_URL is invalid"
     exit 1
   fi

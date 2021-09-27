@@ -16,82 +16,162 @@
       {
         "component": "cluster-essentials",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+              "key": "global.domainName",
+              "value": "example.com"
+          }
+        ]
       },
       {
         "component": "istio",
         "namespace": "istio-system",
-        "configuration": []
+        "configuration": [
+          {
+              "key": "global.domainName",
+              "value": "example.com"
+          }
+        ]
       },
       {
         "component": "logging",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+              "key": "global.domainName",
+              "value": "example.com"
+          }
+        ]
       },
       {
         "component": "tracing",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+              "key": "global.domainName",
+              "value": "example.com"
+          }
+        ]
       },
       {
         "component": "kiali",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+              "key": "global.domainName",
+              "value": "example.com"
+          }
+        ]
       },
       {
         "component": "monitoring",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+              "key": "global.domainName",
+              "value": "example.com"
+          }
+        ]
       },
       {
         "component": "eventing",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       },
       {
         "component": "ory",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       },
       {
         "component": "api-gateway",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       },
       {
         "component": "service-catalog",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       },
       {
         "component": "service-catalog-addons",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       },
       {
         "component": "rafter",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       },
       {
         "component": "helm-broker",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       },
       {
         "component": "cluster-users",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       },
       {
         "component": "serverless",
         "namespace": "kyma-system",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       },
       {
         "component": "application-connector",
         "namespace": "kyma-integration",
-        "configuration": []
+        "configuration": [
+          {
+            "key": "global.domainName",
+            "value": "example.com"
+          }
+        ]
       }
     ],
     "administrators": [
