@@ -58,6 +58,10 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 		return err
 	}
 
+	bk.logger.Infof("Starting bookkeeper: interval for updating reconciliation statuses and orphan operations "+
+		"is %.1f secs / timeout for orphan operations is %.1f secs",
+		bk.config.OperationsWatchInterval.Seconds(), bk.config.OrphanOperationTimeout.Seconds())
+
 	ticker := time.NewTicker(bk.config.OperationsWatchInterval)
 	for {
 		select {
@@ -67,37 +71,43 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 				bk.logger.Errorf("Failed to retrieve operations of currently running reconciliations: %s", err)
 				continue
 			}
+
+			//define reconciliation status by checking all running operations
 			filterResults, err := bk.processReconciliations(ops)
 			if err != nil {
 				bk.logger.Errorf("Processing of reconciliations statuses failed: %s", err)
 				continue
 			}
+			bk.logger.Debugf("Bookkeeper processed %d running reconciliations with %d operations",
+				len(filterResults), len(ops))
 
 			//finish reconciliations
 			for _, filterResult := range filterResults {
 				reconResult := filterResult.GetResult()
 
-				bk.logger.Debugf("Update reconcilation '%s': status is '%s'",
-					filterResult.schedulingID, filterResult.GetResult())
+				if reconResult == model.ClusterStatusReady || reconResult == model.ClusterStatusError {
+					bk.logger.Debugf("Bookkeeper is updating reconciliation '%s': final status is '%s'",
+						filterResult.schedulingID, filterResult.GetResult())
 
-				if err := bk.transition.FinishReconciliation(filterResult.schedulingID, reconResult); err != nil {
-					bk.logger.Errorf("Bookeeper failed to update cluster status: %s", err)
+					if err := bk.transition.FinishReconciliation(filterResult.schedulingID, reconResult); err != nil {
+						bk.logger.Errorf("Bookkeeper failed to update status of reconciliation "+
+							"(schedulingID:%s) to '%s': %s", filterResult.schedulingID, reconResult, err)
+					}
 				}
 
 				//reset orphaned operations
 				for _, orphanOp := range filterResult.GetOrphans() {
-					bk.logger.Debugf("Marking operation '%s' (schedulingID:%s/correlationID:%s) as orphaned",
-						orphanOp.SchedulingID, orphanOp.SchedulingID, orphanOp.CorrelationID)
+					bk.logger.Debugf("Bookkeeper is marking operation '%s' as orphan "+
+						"(last update happend %.2f minutes ago)", orphanOp, time.Now().Sub(orphanOp.Updated).Minutes())
+
 					if err := bk.transition.ReconciliationRepository().UpdateOperationState(
 						orphanOp.SchedulingID, orphanOp.CorrelationID, model.OperationStateOrphan); err != nil {
-						bk.logger.Errorf("Failed to update status of orphan operation '%s' "+
-							"(schedulingID:%s/correlationID:%s): %s",
-							orphanOp, orphanOp.SchedulingID, orphanOp.CorrelationID, err)
+						bk.logger.Errorf("Failed to update status of orphan operation '%s': %s", orphanOp, err)
 					}
 				}
 			}
 		case <-ctx.Done():
-			bk.logger.Debug("Stop cluster status updater because parent context got closed")
+			bk.logger.Debug("Stopping bookkeeper because parent context got closed")
 			ticker.Stop()
 			return nil
 		}
@@ -116,6 +126,7 @@ func (bk *bookkeeper) processReconciliations(ops []*model.OperationEntity) (map[
 			return nil, err
 		}
 	}
+
 	return reconStatuses, nil
 }
 
