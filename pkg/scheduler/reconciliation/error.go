@@ -11,7 +11,7 @@ type DuplicateClusterReconciliationError struct {
 }
 
 func (err *DuplicateClusterReconciliationError) Error() string {
-	return fmt.Sprintf("cluster '%s' is already added to reconciliation (schedulingID '%s')",
+	return fmt.Sprintf("cluster '%s' is already considered for reconciliation (schedulingID:%s)",
 		err.cluster, err.schedulingID)
 }
 

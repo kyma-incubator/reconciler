@@ -106,6 +106,7 @@ func (r *runRemote) WithBookkeeperConfig(cfg *BookkeeperConfig) *runRemote {
 }
 
 func (r *runRemote) Run(ctx context.Context) {
+	//start bookkeeper
 	go func() {
 		transition := newClusterStatusTransition(r.conn, r.inventory, r.reconRepo, r.logger)
 		if err := newBookkeeper(transition, r.bookkeeperConfig, r.logger).Run(ctx); err != nil {

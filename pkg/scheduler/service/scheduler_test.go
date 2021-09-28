@@ -61,6 +61,10 @@ func TestScheduler(t *testing.T) {
 				ClustersToReconcileResult: []*cluster.State{
 					clusterState,
 				},
+				UpdateStatusResult: func() *cluster.State {
+					clusterState.Status.Status = model.ClusterStatusReconciling
+					return clusterState
+				}(),
 			},
 			reconRepo: reconRepo,
 			logger:    logger.NewLogger(true),

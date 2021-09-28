@@ -44,7 +44,7 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 			if reconciliation.IsDuplicateClusterReconciliationError(err) {
 				t.logger.Infof("Tried to add cluster '%s' to reconciliation queue but "+
 					"cluster was already enqueued", clusterState.Cluster.Cluster)
-				return nil
+				return err
 			} else {
 				t.logger.Errorf("Failed to add cluster '%s' to reconciliation queue: %s",
 					clusterState.Cluster.Cluster, err)
