@@ -1,8 +1,13 @@
 package service
 
 import (
+	"context"
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -12,6 +17,60 @@ type testCase struct {
 	operations      []*model.OperationEntity
 	expectedResults map[string]model.Status
 	expectedOrphans []string //contains correlation IDs
+}
+
+func TestBookkeeper(t *testing.T) {
+	dbConn := db.NewTestConnection(t) //share one db-connection between inventory and recon-repo (required for tx)
+
+	//prepare inventory
+	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
+	require.NoError(t, err)
+	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
+		Kubeconfig: "123",
+		KymaConfig: keb.KymaConfig{
+			Components: nil,
+			Profile:    "",
+			Version:    "1.2.3",
+		},
+		RuntimeID: "testCluster",
+	})
+	require.NoError(t, err)
+
+	//trigger reconciliation for cluster
+	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
+	require.NoError(t, err)
+	reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, reconEntity.Lock)
+	require.True(t, reconEntity.IsReconciling())
+
+	//mark all operations to be finished
+	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+	require.NoError(t, err)
+	for _, opEntity := range opEntities {
+		err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone)
+		require.NoError(t, err)
+	}
+
+	//initialize bookkeeper
+	bk := newBookkeeper(
+		newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true)),
+		&BookkeeperConfig{
+			OperationsWatchInterval: 1 * time.Second,
+			OrphanOperationTimeout:  2 * time.Second,
+		},
+		logger.NewLogger(true))
+
+	//run bookkeeper
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) //stop bookkeeper after 2 sec
+	defer cancel()
+	require.NoError(t, bk.Run(ctx))
+
+	//verify bookkeeper results
+	reconEntityUpdated, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
+	require.NoError(t, err)
+	require.Empty(t, reconEntityUpdated.Lock)
+	require.False(t, reconEntityUpdated.IsReconciling())
 }
 
 func TestBookkeeper_processClusterStateAndOrphans(t *testing.T) {

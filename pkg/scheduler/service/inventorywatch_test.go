@@ -12,7 +12,20 @@ import (
 )
 
 func TestInventoryWatch(t *testing.T) {
-	clusterStateExpected := mockState()
+	clusterStateExpected := &cluster.State{
+		Cluster: &model.ClusterEntity{
+			Version: 1,
+			Cluster: "testCluster",
+		},
+		Configuration: &model.ClusterConfigurationEntity{
+			Version:        1,
+			Cluster:        "testCluster",
+			ClusterVersion: 1,
+		},
+		Status: &model.ClusterStatusEntity{
+			Cluster: "testCluster",
+		},
+	}
 
 	//feed mock inventory
 	inventory := &cluster.MockInventory{}
@@ -62,21 +75,4 @@ func TestInventoryWatch_ShouldStopOnCtxClose(t *testing.T) {
 	startTime := time.Now()
 	require.NoError(t, inventoryWatch.Run(ctx, queue))
 	require.WithinDuration(t, startTime, time.Now(), 2*time.Second)
-}
-
-func mockState() *cluster.State {
-	return &cluster.State{
-		Cluster: &model.ClusterEntity{
-			Version: 1,
-			Cluster: "testCluster",
-		},
-		Configuration: &model.ClusterConfigurationEntity{
-			Version:        1,
-			Cluster:        "testCluster",
-			ClusterVersion: 1,
-		},
-		Status: &model.ClusterStatusEntity{
-			Cluster: "testCluster",
-		},
-	}
 }
