@@ -2,11 +2,13 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/invoker"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
 )
@@ -22,6 +24,14 @@ type worker struct {
 func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model.OperationEntity) error {
 	w.logger.Debugf("Start processing of operation '%s'", op)
 	if w.isProcessable(op) {
+		//mark operation to be now in progress
+		err := w.reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateInProgress)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("worker failed to update state of operation "+
+				"(schedulingID:%s/correlationID:%s) to '%s'",
+				op.SchedulingID, op.CorrelationID, model.OperationStateInProgress))
+		}
+
 		compsReady, err := w.componentsReady(op)
 		if err != nil {
 			return err
@@ -74,7 +84,7 @@ func (w *worker) componentsReady(op *model.OperationEntity) ([]string, error) {
 }
 
 func (w *worker) isProcessable(op *model.OperationEntity) bool {
-	return op.State == model.OperationStateNew ||
-		op.State == model.OperationStateClientError ||
-		op.State == model.OperationStateFailed
+	return op.State != model.OperationStateDone &&
+		op.State != model.OperationStateError &&
+		op.State != model.OperationStateInProgress
 }
