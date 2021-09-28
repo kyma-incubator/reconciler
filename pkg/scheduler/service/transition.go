@@ -52,12 +52,12 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 			}
 		}
 		//set cluster status to reconciling
-		_, err = t.inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
+		newClusterState, err := t.inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
 		if err == nil {
 			t.logger.Debugf("Added cluster '%s' to reconcilication queue (reconciliation entity: %s)",
 				clusterState.Cluster.Cluster, reconEntity)
-			t.logger.Debugf("Set status of cluster '%s' to '%s'",
-				clusterState.Cluster.Cluster, model.ClusterStatusReconciling)
+			t.logger.Debugf("Set status of cluster '%s' to '%s' (cluster status entity: %s)",
+				clusterState.Cluster.Cluster, model.ClusterStatusReconciling, newClusterState.Status)
 		} else {
 			t.logger.Errorf("Failed to update status of cluster '%s' to '%s': %s",
 				clusterState.Cluster.Cluster, model.ClusterStatusReconciling, err)
@@ -76,6 +76,13 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 				schedulingID, err)
 			return err
 		}
+
+		if !reconEntity.IsReconciling() {
+			t.logger.Infof("Tried to finish reconciliation '%s' but it is no longer marked to be in progress "+
+				"(maybe finished by parallel process in between)", reconEntity)
+			return nil
+		}
+
 		clusterState, err := t.inventory.Get(reconEntity.Cluster, reconEntity.ClusterConfig)
 		if err != nil {
 			t.logger.Errorf("Failed to retrieve cluster state for cluster '%s' (configVersion: %d): %s",
