@@ -334,12 +334,17 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		}
 
 		if op.State == model.OperationStateDone || op.State == model.OperationStateError {
-			return fmt.Errorf("cannot update state of operation for component '%s' (schedulingID:%s/correlationID:'%s) "+
-				"to new state '%s' because operation is already in final state '%s'",
-				op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
+			return fmt.Errorf("cannot update state of operation '%s' to new state '%s' "+
+				"because operation is already in final state '%s'", op.Component, state, op.State)
 		}
 
-		//update fields
+		if op.State == model.OperationStateInProgress && state == model.OperationStateInProgress {
+			return fmt.Errorf("cannot update state of operation '%s' to '%s' because operation is already in state '%s' "+
+				"(duplicate in-progress assignment not allowed)", op.Component, state, op.State)
+		}
+
+		//update operation-entity
+		opStateOld := op.State //required in where-condition later on
 		op.State = state
 		reason, err := concatStateReasons(state, reasons)
 		if err != nil {
@@ -348,6 +353,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		op.Reason = reason
 		op.Updated = time.Now()
 
+		//prepare update query
 		q, err := db.NewQuery(r.Conn, op)
 		if err != nil {
 			return err
@@ -355,11 +361,19 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		whereCond := map[string]interface{}{
 			"CorrelationID": correlationID,
 			"SchedulingID":  schedulingID,
+			"State":         opStateOld, //ensure update will affect only operations which were not updated in between
 		}
-		return q.Update().
+		cnt, err := q.Update().
 			Where(whereCond).
-			Exec()
+			ExecCount()
 
+		if cnt == 0 {
+			return fmt.Errorf("update of operation '%s' was not successful: "+
+				"seems the operation does no longer match the where-conditions (no row was updated)",
+				op)
+		}
+
+		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
