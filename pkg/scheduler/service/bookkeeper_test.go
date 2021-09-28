@@ -64,7 +64,10 @@ func TestBookkeeper(t *testing.T) {
 	//run bookkeeper
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) //stop bookkeeper after 2 sec
 	defer cancel()
+
+	start := time.Now()
 	require.NoError(t, bk.Run(ctx))
+	require.WithinDuration(t, time.Now(), start, 5500*time.Millisecond) //verify bookkeeper stops when ctx gets closed
 
 	//verify bookkeeper results
 	reconEntityUpdated, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)

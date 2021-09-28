@@ -58,9 +58,11 @@ func TestScheduler(t *testing.T) {
 		err := scheduler.Run(ctx, &ClusterStatusTransition{
 			conn: db.NewTestConnection(t),
 			inventory: &cluster.MockInventory{
+				//this will cause the creation of a reconciliation for the same cluster multiple times:
 				ClustersToReconcileResult: []*cluster.State{
 					clusterState,
 				},
+				//simulate an updated cluster status (required when transition updates the cluster status)
 				UpdateStatusResult: func() *cluster.State {
 					clusterState.Status.Status = model.ClusterStatusReconciling
 					return clusterState
