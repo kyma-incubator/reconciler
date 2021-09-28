@@ -6,6 +6,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
+	"strings"
 )
 
 const (
@@ -44,5 +45,31 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 	}
 
+	_, err = context.KubeClient.Deploy(context.Context, generateNewManifestWithoutIstioOperatorFrom(manifest.Manifest), istioNamespace, nil)
+	if err != nil {
+		return errors.Wrap(err, "Could not deploy Istio resources")
+	}
+
 	return nil
+}
+
+func generateNewManifestWithoutIstioOperatorFrom(manifest string) string {
+	separator := "---"
+	defs := strings.Split(manifest, separator)
+	builder := strings.Builder{}
+
+	if manifest == "" {
+		return ""
+	}
+
+	for _, def := range defs {
+		if !strings.Contains(def, "kind:") || strings.Contains(def, "IstioOperator") {
+			continue
+		}
+
+		builder.WriteString(separator)
+		builder.WriteString(def)
+	}
+
+	return builder.String()
 }
