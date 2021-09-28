@@ -59,7 +59,7 @@ func (i *localReconcilerInvoker) newCallbackFunc(params *Params) func(msg *recon
 				params.ComponentToReconcile.Component)
 		} else {
 			i.logger.Debugf("Caller provided status-func: sending status-update '%s' (error: '%s') for component '%s' to caller",
-				msg.Status, *msg.Error, params.ComponentToReconcile.Component)
+				msg.Status, msg.Error, params.ComponentToReconcile.Component)
 			i.statusFunc(params.ComponentToReconcile.Component, msg)
 		}
 
@@ -69,13 +69,13 @@ func (i *localReconcilerInvoker) newCallbackFunc(params *Params) func(msg *recon
 				model.OperationStateInProgress)
 		case reconciler.StatusFailed:
 			return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-				model.OperationStateFailed, *msg.Error)
+				model.OperationStateFailed, msg.Error)
 		case reconciler.StatusSuccess:
 			return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
 				model.OperationStateDone)
 		case reconciler.StatusError:
 			return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-				model.OperationStateError, *msg.Error)
+				model.OperationStateError, msg.Error)
 		}
 
 		return nil

@@ -317,13 +317,13 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 			model.OperationStateInProgress)
 	case reconciler.StatusFailed:
 		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
-			model.OperationStateFailed, *body.Error)
+			model.OperationStateFailed, body.Error)
 	case reconciler.StatusSuccess:
 		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
 			model.OperationStateDone)
 	case reconciler.StatusError:
 		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
-			model.OperationStateError, *body.Error)
+			model.OperationStateError, body.Error)
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest

@@ -18,8 +18,8 @@ const (
 
 // CallbackMessage defines model for callbackMessage.
 type CallbackMessage struct {
-	Error  *string `json:"error,omitempty"`
-	Status Status  `json:"status"`
+	Error  string `json:"error"`
+	Status Status `json:"status"`
 }
 
 // Status defines model for status.
