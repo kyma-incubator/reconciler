@@ -58,8 +58,8 @@ func (i *localReconcilerInvoker) newCallbackFunc(params *Params) func(msg *recon
 			i.logger.Debugf("Status-func undefined: no status updates for component '%s' will be send to caller",
 				params.ComponentToReconcile.Component)
 		} else {
-			i.logger.Debugf("Caller provided status-func: sending status-updates for component '%s' to caller",
-				params.ComponentToReconcile.Component)
+			i.logger.Debugf("Caller provided status-func: sending status-update '%s' (error: '%s') for component '%s' to caller",
+				msg.Status, *msg.Error, params.ComponentToReconcile.Component)
 			i.statusFunc(params.ComponentToReconcile.Component, msg)
 		}
 
