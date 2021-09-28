@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 )
 
@@ -54,28 +55,59 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		params.ComponentToReconcile.Component, resp.Status, resp.StatusCode, params.SchedulingID, params.CorrelationID)
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
-		var respModel *reconciler.HTTPReconciliationResponse
-		if err := i.marshalHTTPResponse(body, respModel, params); err != nil {
-			return err
+		//component-reconciler started reconciliation
+		respModel := &reconciler.HTTPReconciliationResponse{}
+		err := i.marshalHTTPResponse(body, respModel, params)
+		if err == nil {
+			return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
+				model.OperationStateInProgress)
 		}
-		return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-			model.OperationStateInProgress)
-	} else if resp.StatusCode == http.StatusPreconditionRequired {
-		var respModel *reconciler.HTTPMissingDependenciesResponse
-		if err := i.marshalHTTPResponse(body, respModel, params); err != nil {
-			return err
-		}
-		return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-			model.OperationStateFailed, fmt.Sprintf("dependencies are missing: '%s'",
-				strings.Join(respModel.Dependencies.Missing, "', '")))
-	} else {
-		var respModel *reconciler.HTTPErrorResponse
-		if err := i.marshalHTTPResponse(body, respModel, params); err != nil {
-			return err
-		}
-		return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-			model.OperationStateFailed, respModel.Error)
+		i.reportUnmarshalError(resp.StatusCode, body, err)
 	}
+
+	if resp.StatusCode == http.StatusPreconditionRequired {
+		//component-reconciler can not start because dependencies are missing
+		respModel := &reconciler.HTTPMissingDependenciesResponse{}
+		err := i.marshalHTTPResponse(body, respModel, params)
+		if err == nil {
+			return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
+				model.OperationStateFailed, fmt.Sprintf("dependencies are missing: '%s'",
+					strings.Join(respModel.Dependencies.Missing, "', '")))
+		}
+		i.reportUnmarshalError(resp.StatusCode, body, err)
+	}
+
+	if resp.StatusCode >= 400 && resp.StatusCode <= 499 {
+		//component-reconciler can not start because dependencies are missing
+		respModel := &reconciler.HTTPErrorResponse{}
+		err := i.marshalHTTPResponse(body, respModel, params)
+		if err == nil {
+			return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
+				model.OperationStateFailed, respModel.Error)
+		}
+		i.reportUnmarshalError(resp.StatusCode, body, err)
+	}
+
+	//component-reconciler responded an error: try to handle it as an error response
+	respModel := &reconciler.HTTPErrorResponse{}
+	var errorReason string
+
+	err = i.marshalHTTPResponse(body, respModel, params)
+	if err == nil {
+		errorReason = respModel.Error
+	} else {
+		i.reportUnmarshalError(resp.StatusCode, body, err)
+		errorReason = fmt.Sprintf("received unsupported reconciler response (HTTP code: %d): %s",
+			resp.StatusCode, string(body))
+	}
+
+	return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
+		model.OperationStateClientError, errorReason)
+}
+
+func (i *remoteReconcilerInvoker) reportUnmarshalError(httpCode int, body []byte, err error) {
+	i.logger.Warnf("Failed to unmarshal reconciler response (HTTP-code: %d / Body: %s): %s",
+		httpCode, string(body), err)
 }
 
 func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Response, error) {
@@ -110,7 +142,15 @@ func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 		compRecon.URL, params.ComponentToReconcile.Component, params.SchedulingID, params.CorrelationID)
 
 	resp, err := http.Post(compRecon.URL, "application/json", bytes.NewBuffer(jsonPayload))
-	if err != nil {
+	if err == nil {
+		respDump, err := httputil.DumpResponse(resp, true)
+		if err == nil {
+			i.logger.Debugf("Received response from HTTP component reconciler '%s' (%s): %s",
+				params.ComponentToReconcile.Component, compRecon.URL, string(respDump))
+		} else {
+			i.logger.Warnf("Failed to dump HTTP response from component reconciler: %s", err)
+		}
+	} else {
 		return resp, errors.Wrap(err, fmt.Sprintf("failed to call remote reconciler (URL: %s)", compRecon.URL))
 	}
 
@@ -121,8 +161,16 @@ func (i *remoteReconcilerInvoker) marshalHTTPResponse(body []byte, respModel int
 	if err := json.Unmarshal(body, respModel); err != nil {
 		i.logger.Errorf("Failed to unmarshal HTTP response of reconciler for component '%s': %s",
 			params.ComponentToReconcile.Component, err)
-		return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
+
+		//update the operation to be failed caused by client error
+		errUpdState := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
 			model.OperationStateClientError, err.Error())
+		if errUpdState != nil {
+			err = errors.Wrap(err, fmt.Sprintf("failed to update state of operation (scheudlingID:%s/correlationID:%s) to '%s': %s",
+				params.SchedulingID, params.CorrelationID, model.OperationStateClientError, errUpdState))
+		}
+
+		return err
 	}
 	return nil
 }

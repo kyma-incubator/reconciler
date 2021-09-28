@@ -8,31 +8,31 @@ import (
 type OperationState string
 
 const (
-	OperationStateNew         = "new"
-	OperationStateInProgress  = "in_progress"
-	OperationStateDone        = "done"
-	OperationStateClientError = "client_error"
-	OperationStateError       = "error"
-	OperationStateFailed      = "failed"
-	OperationStateOrphan      = "orphan"
+	OperationStateNew         OperationState = "new"
+	OperationStateInProgress  OperationState = "in_progress"
+	OperationStateDone        OperationState = "done"
+	OperationStateClientError OperationState = "client_error"
+	OperationStateError       OperationState = "error"
+	OperationStateFailed      OperationState = "failed"
+	OperationStateOrphan      OperationState = "orphan"
 )
 
 func NewOperationState(state string) (OperationState, error) {
 	var result OperationState
 	switch strings.ToLower(state) {
-	case OperationStateNew:
+	case string(OperationStateNew):
 		result = OperationStateNew
-	case OperationStateInProgress:
+	case string(OperationStateInProgress):
 		result = OperationStateInProgress
-	case OperationStateDone:
+	case string(OperationStateDone):
 		result = OperationStateDone
-	case OperationStateClientError:
+	case string(OperationStateClientError):
 		result = OperationStateClientError
-	case OperationStateError:
+	case string(OperationStateError):
 		result = OperationStateError
-	case OperationStateFailed:
+	case string(OperationStateFailed):
 		result = OperationStateFailed
-	case OperationStateOrphan:
+	case string(OperationStateOrphan):
 		result = OperationStateOrphan
 	default:
 		return "", fmt.Errorf("operation state '%s' does not exist", state)
