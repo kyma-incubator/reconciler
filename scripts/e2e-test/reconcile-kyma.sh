@@ -22,13 +22,15 @@ readonly RECONCILE_PAYLOAD_FILE="/tmp/body.json"
 function wait_until_kyma_installed() {
   iterationsLeft=$(( RECONCILER_TIMEOUT/RECONCILER_DELAY ))
   while : ; do
-    status=$(curl -sL "$RECONCILE_STATUS_URL" | jq -r .status)
+    reconcileStatusResponse=$(curl -sL "${RECONCILE_STATUS_URL}")
+    status=$(echo "${reconcileStatusResponse}" | jq -r .status)
     if [ "${status}" = "ready" ]; then
       echo "Kyma is installed"
       exit 0
     fi
 
     if [ "$RECONCILER_TIMEOUT" -ne 0 ] && [ "$iterationsLeft" -le 0 ]; then
+      echo "reconcileStatusResponse: ${reconcileStatusResponse}"
       echo "timeout reached on Kyma installation error. Exiting"
       exit 1
     fi
@@ -42,9 +44,11 @@ function wait_until_kyma_installed() {
 # Sends HTTP POST request to mothership-reconciler to trigger reconciliation of Kyma
 function send_reconciliation_request() {
   echo "sending reconciliation request to mothership-reconciler at: ${RECONCILE_API}"
-  statusURL=$(curl --request POST -sL \
+  reconciliationResponse=$(curl --request POST -sL \
        --url "${RECONCILE_API}"\
-       --data @"${RECONCILE_PAYLOAD_FILE}" | jq -r .statusURL)
+       --data @"${RECONCILE_PAYLOAD_FILE}")
+  statusURL=$(echo "{reconciliationResponse}" | jq -r .statusURL)
+  echo "reconciliationResponse: ${reconciliationResponse}"
 
   export RECONCILE_STATUS_URL="${statusURL}"
 }
