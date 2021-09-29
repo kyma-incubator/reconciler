@@ -23,7 +23,7 @@ type customAction struct {
 	success bool
 }
 
-func (a *customAction) Run(_, _ string, _ map[string]interface{}, _ *service.ActionContext) error {
+func (a *customAction) Run(_ *service.ActionContext) error {
 	if a.success {
 		return nil
 	}

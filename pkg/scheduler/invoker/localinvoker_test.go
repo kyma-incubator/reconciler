@@ -19,7 +19,7 @@ type unittestReconcileAction struct {
 	simulateError bool
 }
 
-func (a *unittestReconcileAction) Run(_, _ string, _ map[string]interface{}, _ *service.ActionContext) error {
+func (a *unittestReconcileAction) Run(_ *service.ActionContext) error {
 	if a.simulateError {
 		return errors.New("reconciliation failed")
 	}
