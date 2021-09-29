@@ -19,16 +19,16 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
 
 	runtimeBuilder.
+		RunRemote(
+			o.Registry.Connnection(),
+			o.Registry.Inventory(),
+			schedulerCfg).
 		WithWorkerPoolConfig(&worker.Config{
 			PoolSize:               o.Workers,
 			OperationCheckInterval: 30 * time.Second,
 			InvokerMaxRetries:      10,
 			InvokerRetryDelay:      30 * time.Second,
 		}).
-		RunRemote(
-			o.Registry.Connnection(),
-			o.Registry.Inventory(),
-			schedulerCfg).
 		WithSchedulerConfig(
 			&service.SchedulerConfig{
 				InventoryWatchInterval:   o.WatchInterval,
