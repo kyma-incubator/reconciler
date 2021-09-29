@@ -2,11 +2,13 @@ package actions
 
 import (
 	"encoding/json"
-	"os"
+	"k8s.io/client-go/kubernetes/fake"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
+	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace/mocks"
@@ -40,8 +42,8 @@ metadata:
 {
 	"clientVersion": {
 	"version": "1.11.2",
-	"revision": "96710172e1e47cee227e7e8dd591a318fdfe0326",
-	"golang_version": "go1.16.7",
+	"revision": "revision",
+	"golang_version": "go1.16.0",
 	"status": "Clean",
 	"tag": "1.11.2"
 	}
@@ -50,7 +52,7 @@ metadata:
 	istioctlMockCompleteVersion = `{
 		"clientVersion": {
 		  "version": "1.11.1",
-		  "revision": "ce6205d503e5c5e41af496ebbe01ece7dc6c3547",
+		  "revision": "revision",
 		  "golang_version": "go1.16.7",
 		  "status": "Clean",
 		  "tag": "1.11.1"
@@ -60,7 +62,7 @@ metadata:
 			"Component": "pilot",
 			"Info": {
 			  "version": "1.11.1",
-			  "revision": "ce6205d503e5c5e41af496ebbe01ece7dc6c3547",
+			  "revision": "revision",
 			  "golang_version": "",
 			  "status": "Clean",
 			  "tag": "1.11.1"
@@ -69,7 +71,7 @@ metadata:
 		],
 		"dataPlaneVersion": [
 		  {
-			"ID": "istio-ingressgateway-59ccd8f5-cpwxx.istio-system",
+			"ID": "id",
 			"IstioVersion": "1.11.1"
 		  }
 		]
@@ -78,21 +80,19 @@ metadata:
 
 func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
-	err := os.Setenv("ISTIOCTL_PATH", "path")
-	require.NoError(t, err)
 	kubeConfig := "kubeConfig"
 	log := logger.NewLogger(false)
 
 	t.Run("should not install when istio operator could not be found in manifest", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err = wrapper.Install(kubeConfig, "", log)
+		err := wrapper.Install(kubeConfig, "", log)
 
 		/// then
 		require.Error(t, err)
@@ -102,14 +102,14 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
 	t.Run("should not install Istio when istioctl returned an error", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err = wrapper.Install(kubeConfig, istioManifest, log)
+		err := wrapper.Install(kubeConfig, istioManifest, log)
 
 		// then
 		require.Error(t, err)
@@ -119,14 +119,14 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
 	t.Run("should install Istio when istioctl command was successful", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err = wrapper.Install(kubeConfig, istioManifest, log)
+		err := wrapper.Install(kubeConfig, istioManifest, log)
 
 		// then
 		require.NoError(t, err)
@@ -137,19 +137,19 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
 func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 
-	err := os.Setenv("ISTIOCTL_PATH", "path")
-	require.NoError(t, err)
 	log := logger.NewLogger(false)
 
 	t.Run("should not patch MutatingWebhookConfiguration when kubeclient had returned an error", func(t *testing.T) {
 		// given
-		cmder := istioctlmocks.Commander{}
-		wrapper := NewDefaultIstioPerformer(&cmder)
 		kubeClient := mocks.Client{}
 		kubeClient.On("PatchUsingStrategy", "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(errors.New("kubeclient error"))
+		cmder := istioctlmocks.Commander{}
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err = wrapper.PatchMutatingWebhook(&kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(&kubeClient, log)
 
 		// then
 		require.Error(t, err)
@@ -158,13 +158,15 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 
 	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error", func(t *testing.T) {
 		// given
-		cmder := istioctlmocks.Commander{}
-		wrapper := NewDefaultIstioPerformer(&cmder)
 		kubeClient := mocks.Client{}
 		kubeClient.On("PatchUsingStrategy", "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(nil)
+		cmder := istioctlmocks.Commander{}
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err = wrapper.PatchMutatingWebhook(&kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(&kubeClient, log)
 
 		// then
 		require.NoError(t, err)
@@ -174,21 +176,19 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 
 func Test_DefaultIstioPerformer_Update(t *testing.T) {
 
-	err := os.Setenv("ISTIOCTL_PATH", "path")
-	require.NoError(t, err)
 	kubeConfig := "kubeConfig"
 	log := logger.NewLogger(false)
 
 	t.Run("should not update when istio operator could not be found in manifest", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err = wrapper.Update(kubeConfig, "", log)
+		err := wrapper.Update(kubeConfig, "", log)
 
 		/// then
 		require.Error(t, err)
@@ -198,14 +198,14 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 
 	t.Run("should not update Istio when istioctl returned an error", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err = wrapper.Update(kubeConfig, istioManifest, log)
+		err := wrapper.Update(kubeConfig, istioManifest, log)
 
 		// then
 		require.Error(t, err)
@@ -215,14 +215,14 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 
 	t.Run("should update Istio when istioctl command was successful", func(t *testing.T) {
 		// given
-		err := os.Setenv("ISTIOCTL_PATH", "path")
-		require.NoError(t, err)
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err = wrapper.Update(kubeConfig, istioManifest, log)
+		err := wrapper.Update(kubeConfig, istioManifest, log)
 
 		// then
 		require.NoError(t, err)
@@ -254,9 +254,82 @@ func Test_extractIstioOperatorContextFrom(t *testing.T) {
 
 }
 
+func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
+
+	kubeConfig := "kubeconfig"
+	log := logger.NewLogger(false)
+
+	t.Run("should return error when kubeclient could not be retrieved", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil, errors.New("Kubeclient error"))
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
+		version := IstioVersion{
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.2.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.1.0",
+		}
+
+		// when
+		err := wrapper.ResetProxy(kubeConfig, version, log)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Kubeclient error")
+	})
+
+	t.Run("should return error when istio proxy reset returned an error", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		proxy := proxymocks.IstioProxyReset{}
+		proxy.On("Run", mock.Anything).Return(errors.New("Proxy reset error"))
+		provider := clientsetmocks.Provider{}
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
+		version := IstioVersion{
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.2.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.1.0",
+		}
+
+		// when
+		err := wrapper.ResetProxy(kubeConfig, version, log)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Proxy reset error")
+	})
+
+	t.Run("should return no error when istio proxy reset was successful", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		proxy := proxymocks.IstioProxyReset{}
+		proxy.On("Run", mock.Anything).Return(nil)
+		provider := clientsetmocks.Provider{}
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
+		version := IstioVersion{
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.2.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.1.0",
+		}
+
+		// when
+		err := wrapper.ResetProxy(kubeConfig, version, log)
+
+		// then
+		require.NoError(t, err)
+	})
+
+}
+
 func Test_DefaultIstioPerformer_Version(t *testing.T) {
-	err := os.Setenv("ISTIOCTL_PATH", "path")
-	require.NoError(t, err)
+
 	kubeConfig := "kubeConfig"
 	log := logger.NewLogger(false)
 
@@ -266,7 +339,9 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(""), nil)
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
 		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
@@ -283,7 +358,9 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(""), nil)
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
 		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
@@ -300,7 +377,9 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(istioctlMockSimpleVersion), nil)
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
 		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
@@ -318,7 +397,9 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(istioctlMockCompleteVersion), nil)
-		wrapper := NewDefaultIstioPerformer(&cmder)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
 		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
@@ -339,7 +420,6 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 		istioChart := "istio-configuration-test"
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{}, nil)
-		//factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 
 		//when
 		_, err := getTargetVersionFromChart(factory, branch, istioChart)

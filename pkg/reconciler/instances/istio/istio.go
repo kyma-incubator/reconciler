@@ -3,6 +3,7 @@ package istio
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
@@ -24,14 +25,13 @@ func init() {
 	}
 
 	commander := istioctl.DefaultCommander{}
-	performer := actions.NewDefaultIstioPerformer(&commander)
 	gatherer := data.NewDefaultGatherer()
 	matcher := pod.NewParentKindMatcher()
+	provider := clientset.DefaultProvider{}
 	action := reset.NewDefaultPodsResetAction(matcher)
 	istioProxyReset := proxy.NewDefaultIstioProxyReset(gatherer, action)
+	performer := actions.NewDefaultIstioPerformer(&commander, istioProxyReset, &provider)
 	reconciler.WithReconcileAction(&ReconcileAction{
-		commander:       &commander,
-		istioProxyReset: istioProxyReset,
 		performer:       performer,
 	})
 }

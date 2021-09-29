@@ -1,13 +1,7 @@
 package istio
 
 import (
-	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
-	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"go.uber.org/zap"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"strconv"
 	"strings"
 
@@ -23,15 +17,9 @@ import (
 const (
 	istioNamespace        = "istio-system"
 	istioChart            = "istio-configuration"
-	istioImagePrefix      = "eu.gcr.io/kyma-project/external/istio/proxyv2"
-	retriesCount          = 5
-	delayBetweenRetries   = 10
-	sleepAfterPodDeletion = 10
 )
 
 type ReconcileAction struct {
-	commander       istioctl.Commander
-	istioProxyReset proxy.IstioProxyReset
 	performer       actions.IstioPerformer
 }
 
@@ -85,25 +73,9 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not update Istio")
 		}
 
-		kubeClient, err := retrieveClientsetFrom(context.KubeClient.Kubeconfig(), context.Logger)
+		err = a.performer.ResetProxy(context.KubeClient.Kubeconfig(), ver, context.Logger)
 		if err != nil {
-			return err
-		}
-
-		cfg := istioConfig.IstioProxyConfig{
-			ImagePrefix:           istioImagePrefix,
-			ImageVersion:          fmt.Sprintf("%s-distroless", ver.TargetVersion),
-			RetriesCount:          retriesCount,
-			DelayBetweenRetries:   delayBetweenRetries,
-			SleepAfterPodDeletion: sleepAfterPodDeletion,
-			Kubeclient:            kubeClient,
-			Debug:                 true,
-			Log:                   context.Logger,
-		}
-
-		err = a.istioProxyReset.Run(cfg)
-		if err != nil {
-			return errors.Wrap(err, "Istio proxy reset error")
+			return errors.Wrap(err, "Could not reset Istio proxy")
 		}
 	}
 
