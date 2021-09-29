@@ -83,15 +83,15 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 
 			//finish reconciliations
 			for _, filterResult := range filterResults {
-				reconResult := filterResult.GetResult()
+				newClusterStatus := filterResult.GetResult()
 
-				if reconResult == model.ClusterStatusReady || reconResult == model.ClusterStatusError {
+				if newClusterStatus == model.ClusterStatusReady || newClusterStatus == model.ClusterStatusError {
 					bk.logger.Debugf("Bookkeeper is updating reconciliation '%s': final status is '%s'",
 						filterResult.schedulingID, filterResult.GetResult())
 
-					if err := bk.transition.FinishReconciliation(filterResult.schedulingID, reconResult); err != nil {
+					if err := bk.transition.FinishReconciliation(filterResult.schedulingID, newClusterStatus); err != nil {
 						bk.logger.Errorf("Bookkeeper failed to update status of reconciliation "+
-							"(schedulingID:%s) to '%s': %s", filterResult.schedulingID, reconResult, err)
+							"(schedulingID:%s) to '%s': %s", filterResult.schedulingID, newClusterStatus, err)
 					}
 				}
 

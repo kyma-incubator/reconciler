@@ -28,9 +28,15 @@ func TestBookkeeper(t *testing.T) {
 	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
 		Kubeconfig: "123",
 		KymaConfig: keb.KymaConfig{
-			Components: nil,
-			Profile:    "",
-			Version:    "1.2.3",
+			Components: []keb.Component{
+				{
+					Component:     "dummy",
+					Configuration: nil,
+					Namespace:     "kyma-system",
+				},
+			},
+			Profile: "",
+			Version: "1.2.3",
 		},
 		RuntimeID: "testCluster",
 	})
@@ -59,7 +65,8 @@ func TestBookkeeper(t *testing.T) {
 			OperationsWatchInterval: 1 * time.Second,
 			OrphanOperationTimeout:  2 * time.Second,
 		},
-		logger.NewLogger(true))
+		logger.NewLogger(true),
+	)
 
 	//run bookkeeper
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) //stop bookkeeper after 2 sec
