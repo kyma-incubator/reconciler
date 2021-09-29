@@ -87,15 +87,15 @@ export OAPI_VALIDATOR_OPS=lint --ruleset ./openapi/.spectral.json --display-only
 export OAPI_GENERATOR=oapi-codegen
 export OAPI_GENERATOR_OPTS=-generate 'types,skip-prune'
 
-pkg/keb/model_gen.go: openapi/external_api.yaml
+oapi-keb: openapi/external_api.yaml
 	$(OAPI_VALIDATOR) $(OAPI_VALIDATOR_OPS) $^
 	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o $@ -package keb $^
 
-pkg/reconciler/model_gen.go: openapi/internal_api.yaml
+oapi-reconciler: openapi/internal_api.yaml
 	$(OAPI_VALIDATOR) $(OAPI_VALIDATOR_OPS) $^
 	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o $@ -package reconciler $^
 
-oapi: pkg/keb/model_gen.go pkg/reconciler/model_gen.go
+oapi: oapi-keb oapi-reconciler
 	@./scripts/git-check.sh
 
 .PHONY: all
