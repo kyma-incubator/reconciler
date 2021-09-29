@@ -10,7 +10,7 @@ type CustomAction struct {
 	copyFactory []CopyFactory
 }
 
-func (a *CustomAction) Run(version, profile string, configuration map[string]interface{}, context *service.ActionContext) error {
+func (a *CustomAction) Run(context *service.ActionContext) error {
 
 	// TODO: Implementation
 
@@ -25,7 +25,7 @@ func (a *CustomAction) Run(version, profile string, configuration map[string]int
 	}
 
 	for _, create := range a.copyFactory {
-		operation := create(configuration, inClusterClientSet, clientset)
+		operation := create(context.Model.Configuration, inClusterClientSet, clientset)
 		err := operation.Transfer()
 		if err != nil {
 			return err

@@ -99,10 +99,11 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		Context:          ctx,
 		Logger:           r.logger,
 		ChartProvider:    chartProvider,
+		Model:            model,
 	}
 
 	if r.preReconcileAction != nil {
-		if err := r.preReconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
+		if err := r.preReconcileAction.Run(actionHelper); err != nil {
 			r.logger.Warnf("Pre-reconciliation action of '%s' with version '%s' failed: %s",
 				model.Component, model.Version, err)
 			return err
@@ -116,7 +117,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 			return err
 		}
 	} else {
-		if err := r.reconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
+		if err := r.reconcileAction.Run(actionHelper); err != nil {
 			r.logger.Warnf("Reconciliation action of '%s' with version '%s' failed: %s",
 				model.Component, model.Version, err)
 			return err
@@ -124,7 +125,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 	}
 
 	if r.postReconcileAction != nil {
-		if err := r.postReconcileAction.Run(model.Version, model.Profile, model.Configuration, actionHelper); err != nil {
+		if err := r.postReconcileAction.Run(actionHelper); err != nil {
 			r.logger.Warnf("Post-reconciliation action of '%s' with version '%s' failed: %s",
 				model.Component, model.Version, err)
 			return err
