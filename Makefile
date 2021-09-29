@@ -89,11 +89,11 @@ export OAPI_GENERATOR_OPTS=-generate 'types,skip-prune'
 
 oapi-keb: openapi/external_api.yaml
 	$(OAPI_VALIDATOR) $(OAPI_VALIDATOR_OPS) $^
-	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o $@ -package keb $^
+	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o ./pkg/keb/model_gen.go -package keb $^
 
 oapi-reconciler: openapi/internal_api.yaml
 	$(OAPI_VALIDATOR) $(OAPI_VALIDATOR_OPS) $^
-	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o $@ -package reconciler $^
+	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o ./pkg/reconciler/model_gen.go -package reconciler $^
 
 oapi: oapi-keb oapi-reconciler
 	@./scripts/git-check.sh
