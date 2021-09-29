@@ -16,14 +16,20 @@ const (
 type ReconcileAction struct {
 }
 
-func (a *ReconcileAction) Run(version, profile string, config map[string]interface{}, context *service.ActionContext) error {
-	component := chart.NewComponentBuilder(version, istioChart).WithNamespace(istioNamespace).WithProfile(profile).WithConfiguration(config).Build()
+func (a *ReconcileAction) Run(context *service.ActionContext) error {
+	component := chart.NewComponentBuilder(context.Model.Version, istioChart).
+		WithNamespace(istioNamespace).
+		WithProfile(context.Model.Profile).
+		WithConfiguration(context.Model.Configuration).Build()
 	manifest, err := context.ChartProvider.RenderManifest(component)
 	if err != nil {
 		return err
 	}
 
-	performer, err := actions.NewDefaultIstioPerformer(context.KubeClient.Kubeconfig(), manifest.Manifest, context.KubeClient, context.Logger, &istioctl.DefaultCommander{})
+	commander := &istioctl.DefaultCommander{
+		Logger: context.Logger,
+	}
+	performer, err := actions.NewDefaultIstioPerformer(context.KubeClient.Kubeconfig(), manifest.Manifest, context.KubeClient, context.Logger, commander)
 	if err != nil {
 		return errors.Wrap(err, "Could not initialize DefaultIstioPerformer")
 	}

@@ -40,7 +40,7 @@ func NewVirtualServicePreInstallPatch(virtualSvcs []VirtualSvcMeta, suffix strin
 	return &VirtSvcPreReconcilePatch{"pre-reconciler", virtualSvcs, suffix, client}
 }
 
-func (p *VirtSvcPreReconcilePatch) Run(version string, profile string, configuration map[string]interface{}, helper *service.ActionContext) error {
+func (p *VirtSvcPreReconcilePatch) Run(helper *service.ActionContext) error {
 	ctx := context.TODO()
 	logger := helper.Logger
 	clientSet, err := helper.KubeClient.Clientset()
@@ -49,7 +49,7 @@ func (p *VirtSvcPreReconcilePatch) Run(version string, profile string, configura
 	}
 	restClient := clientSet.Discovery().RESTClient()
 
-	logger.Infof("Launching pre install busola migrator job, version: %s ", version)
+	logger.Infof("Launching pre install busola migrator job, version: %s ", helper.Model.Version)
 	for _, virtSvcToPatch := range p.virtSvcsToPatch {
 		logger.Infof("Patching virtual service: %s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		if err := p.patchVirtSvc(ctx, restClient, virtSvcToPatch.Name, virtSvcToPatch.Namespace, logger); err != nil {

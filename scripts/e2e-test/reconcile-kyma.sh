@@ -9,7 +9,7 @@ set -e
 
 readonly RECONCILER_HOST="http://reconciler-mothership-reconciler.reconciler"
 readonly RECONCILER_TIMEOUT=1200 # in secs
-readonly RECONCILER_DELAY=2 # in secs
+readonly RECONCILER_DELAY=15 # in secs
 
 readonly RECONCILE_API="${RECONCILER_HOST}/v1/clusters"
 readonly RECONCILE_PAYLOAD_FILE="/tmp/body.json"
@@ -22,7 +22,7 @@ readonly RECONCILE_PAYLOAD_FILE="/tmp/body.json"
 function wait_until_kyma_installed() {
   iterationsLeft=$(( RECONCILER_TIMEOUT/RECONCILER_DELAY ))
   while : ; do
-    status=$(curl -sL http://"$RECONCILE_STATUS_URL" | jq -r .status)
+    status=$(curl -sL "$RECONCILE_STATUS_URL" | jq -r .status)
     if [ "${status}" = "ready" ]; then
       echo "Kyma is installed"
       exit 0
@@ -44,7 +44,7 @@ function send_reconciliation_request() {
   echo "sending reconciliation request to mothership-reconciler at: ${RECONCILE_API}"
   statusURL=$(curl --request POST -sL \
        --url "${RECONCILE_API}"\
-       --data @"${RECONCILE_PAYLOAD_FILE}" | jq -r .statusUrl)
+       --data @"${RECONCILE_PAYLOAD_FILE}" | jq -r .statusURL)
 
   export RECONCILE_STATUS_URL="${statusURL}"
 }
@@ -52,7 +52,7 @@ function send_reconciliation_request() {
 # Checks if the reconciler returned status url is valid or not
 function check_reconcile_status_url() {
   echo "RECONCILE_STATUS_URL: ${RECONCILE_STATUS_URL}"
-  if [[ ! $RECONCILE_STATUS_URL ]]; then
+  if [[ ! $RECONCILE_STATUS_URL ]] || [[ "$RECONCILE_STATUS_URL" == "null" ]]; then
     echo "reconciliation request failed: RECONCILE_STATUS_URL is invalid"
     exit 1
   fi
