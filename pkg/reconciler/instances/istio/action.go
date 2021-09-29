@@ -1,9 +1,11 @@
 package istio
 
 import (
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"strings"
@@ -45,7 +47,9 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 	}
 
-	_, err = context.KubeClient.Deploy(context.Context, generateNewManifestWithoutIstioOperatorFrom(manifest.Manifest), istioNamespace, nil)
+	generated := generateNewManifestWithoutIstioOperatorFrom(manifest.Manifest)
+	fmt.Println(generated)
+	_, err = context.KubeClient.Deploy(context.Context, generated, istioNamespace, nil)
 	if err != nil {
 		return errors.Wrap(err, "Could not deploy Istio resources")
 	}
@@ -54,21 +58,24 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 }
 
 func generateNewManifestWithoutIstioOperatorFrom(manifest string) string {
-	separator := "---"
-	defs := strings.Split(manifest, separator)
-	builder := strings.Builder{}
-
-	if manifest == "" {
+	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
+	if err != nil {
 		return ""
 	}
 
-	for _, def := range defs {
-		if !strings.Contains(def, "kind:") || strings.Contains(def, "IstioOperator") {
+	builder := strings.Builder{}
+	for _, unstruct := range unstructs {
+		if unstruct.GetKind() == "IstioOperator" {
 			continue
 		}
 
-		builder.WriteString(separator)
-		builder.WriteString(def)
+		unstructBytes, err := unstruct.MarshalJSON()
+		if err != nil {
+			return ""
+		}
+
+		builder.WriteString("---\n")
+		builder.WriteString(string(unstructBytes))
 	}
 
 	return builder.String()
