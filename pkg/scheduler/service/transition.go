@@ -43,11 +43,11 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 		reconEntity, err := t.reconRepo.CreateReconciliation(clusterState, preComponents)
 		if err != nil {
 			if reconciliation.IsDuplicateClusterReconciliationError(err) {
-				t.logger.Infof("Tried to add cluster '%s' to reconciliation queue but "+
+				t.logger.Infof("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
 					"cluster was already enqueued", clusterState.Cluster.Cluster)
 				return err
 			} else {
-				t.logger.Errorf("Failed to add cluster '%s' to reconciliation queue: %s",
+				t.logger.Errorf("Cluster transition failed to add cluster '%s' to reconciliation queue: %s",
 					clusterState.Cluster.Cluster, err)
 				return err
 			}
@@ -55,12 +55,12 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 		//set cluster status to reconciling
 		newClusterState, err := t.inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
 		if err == nil {
-			t.logger.Debugf("Added cluster '%s' to reconcilication queue (reconciliation entity: %s)",
+			t.logger.Debugf("Cluster transition added cluster '%s' to reconcilication queue (reconciliation entity: %s)",
 				clusterState.Cluster.Cluster, reconEntity)
-			t.logger.Debugf("Set status of cluster '%s' to '%s' (cluster status entity: %s)",
+			t.logger.Debugf("Cluster transition set status of cluster '%s' to '%s' (cluster status entity: %s)",
 				clusterState.Cluster.Cluster, model.ClusterStatusReconciling, newClusterState.Status)
 		} else {
-			t.logger.Errorf("Failed to update status of cluster '%s' to '%s': %s",
+			t.logger.Errorf("Cluster transition failed to update status of cluster '%s' to '%s': %s",
 				clusterState.Cluster.Cluster, model.ClusterStatusReconciling, err)
 		}
 

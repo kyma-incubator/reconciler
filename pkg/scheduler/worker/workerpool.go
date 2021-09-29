@@ -142,7 +142,7 @@ func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) error {
 }
 
 func (w *Pool) invokeProcessableOpsWithInterval(ctx context.Context, workerPool *ants.PoolWithFunc) error {
-	w.logger.Debugf("Worker pool starts checking for processable operations each %.1f seconds",
+	w.logger.Debugf("Worker pool starts watching for processable operations each %.1f secs",
 		w.config.OperationCheckInterval.Seconds())
 
 	//check now otherwise first check would happen by ticker (after the configured interval is over)
