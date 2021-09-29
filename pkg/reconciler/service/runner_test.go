@@ -34,15 +34,15 @@ type TestAction struct {
 	failAlways      bool
 }
 
-func (a *TestAction) Run(version, _ string, _ map[string]interface{}, context *ActionContext) error {
+func (a *TestAction) Run(context *ActionContext) error {
 	log := logger.NewLogger(true)
 
 	if context.KubeClient == nil {
 		return fmt.Errorf("kubeClient is expected but was nil")
 	}
 
-	log.Debugf("Action '%s': received version '%s'", a.name, version)
-	a.receivedVersion = version
+	log.Debugf("Action '%s': received version '%s'", a.name, context.Model.Version)
+	a.receivedVersion = context.Model.Version
 
 	if a.delay > 0 {
 		log.Debugf("Action '%s': simulating delay of %v secs", a.name, a.delay.Seconds())
