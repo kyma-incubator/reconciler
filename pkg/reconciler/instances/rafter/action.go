@@ -38,8 +38,8 @@ type rafterValues struct {
 	ExistingSecret string `yaml:"existingSecret"`
 }
 
-func (a *CustomAction) Run(version, profile string, configuration map[string]interface{}, svcCtx *service.ActionContext) error {
-	values, err := readRafterControllerValues(svcCtx, version)
+func (a *CustomAction) Run(svcCtx *service.ActionContext) error {
+	values, err := readRafterControllerValues(svcCtx, svcCtx.Model.Version)
 	if err != nil {
 		return errors.Wrap(err, "failed to read Rafter controller `values.yaml` file")
 	}
@@ -55,7 +55,7 @@ func (a *CustomAction) Run(version, profile string, configuration map[string]int
 	if err := a.ensureRafterSecret(svcCtx.Context, kubeClient, values); err != nil {
 		return errors.Wrap(err, "failed to ensure Rafter secret")
 	}
-	svcCtx.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, version)
+	svcCtx.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, svcCtx.Model.Version)
 
 	return nil
 }
