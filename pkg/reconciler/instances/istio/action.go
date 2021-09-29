@@ -45,15 +45,6 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	if canInstall(ver) {
-		commander := &istioctl.DefaultCommander{
-		Logger: context.Logger,
-	}
-	performer, err := actions.NewDefaultIstioPerformer(context.KubeClient.Kubeconfig(), manifest.Manifest, context.KubeClient, context.Logger, commander)
-	if err != nil {
-		return errors.Wrap(err, "Could not initialize DefaultIstioPerformer")
-	}
-
-	err = performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger, a.commander)
 		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
 
 		err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger)

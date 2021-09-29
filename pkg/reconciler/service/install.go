@@ -14,7 +14,7 @@ type Install struct {
 	logger *zap.SugaredLogger
 }
 
-func (r *Install) Invoke(ctx context.Context, chartProvider *chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
+func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
 	var err error
 	var manifest string
 	if model.Component == "CRDs" {
@@ -37,7 +37,7 @@ func (r *Install) Invoke(ctx context.Context, chartProvider *chart.Provider, mod
 	return err
 }
 
-func (r *Install) renderManifest(chartProvider *chart.Provider, model *reconciler.Reconciliation) (string, error) {
+func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler.Reconciliation) (string, error) {
 	component := chart.NewComponentBuilder(model.Version, model.Component).
 		WithProfile(model.Profile).
 		WithNamespace(model.Namespace).
@@ -56,7 +56,7 @@ func (r *Install) renderManifest(chartProvider *chart.Provider, model *reconcile
 	return chartManifest.Manifest, nil
 }
 
-func (r *Install) renderCRDs(chartProvider *chart.Provider, model *reconciler.Reconciliation) (string, error) {
+func (r *Install) renderCRDs(chartProvider chart.Provider, model *reconciler.Reconciliation) (string, error) {
 	crdManifests, err := chartProvider.RenderCRD(model.Version)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to get CRD manifests for Kyma version '%s'", model.Version)
