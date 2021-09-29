@@ -97,42 +97,45 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 			}(rootCause),
 		})
 		if err == nil {
-			su.logger.Debugf("Interval-callback with status-update ('%s') sent successfully", status)
+			su.logger.Debugf("Heartbeat sent interval-callback with status-update ('%s') successfully", status)
 		} else {
-			su.logger.Warnf("Interval-callback with status-update ('%s') to mothersip-reconciler failed: %s", status, err)
+			su.logger.Warnf("Heartbeat failed to send interval-callback with status-update ('%s') "+
+				"to mothersip-reconciler: %s", status, err)
 		}
 		return err
 	}
 
 	go func(status reconciler.Status, rootCause error, interval time.Duration, timeout time.Duration, onlyOnce bool) {
-		su.logger.Debugf("Starting new update loop for status '%s' (update only once: %t / root cause: %v)",
+		su.logger.Debugf("Heartbeat started new update loop for status '%s' (update only once: %t / root cause: %v)",
 			status, onlyOnce, rootCause)
 		if err := task(status, rootCause); err == nil && onlyOnce {
-			su.logger.Debugf("Status '%s' successfully communicated: stopping update loop", status)
+			su.logger.Debugf("Heartbeat communicated status '%s' successfully: stopping update loop", status)
 			return
 		}
 		su.timeout.Reset(timeout)
 		for {
 			select {
 			case <-su.restartInterval:
-				su.logger.Debugf("Stop running update loop for status '%s'", status)
+				su.logger.Debugf("Heartbeat stops running update loop for status '%s'", status)
 				return
 			case <-su.ctx.Done():
-				su.logger.Debugf("Stopping update loop for status '%s' because context was closed", status)
+				su.logger.Debugf("Heartbeat is stopping update loop for status '%s' because context was closed", status)
 				su.closeContext()
 				return
 			case <-su.timeout.C:
-				su.logger.Debugf("Stopping update loop for status '%s' because timeout of %.1f secs reached",
-					status, timeout.Seconds())
+				su.logger.Debugf("Heartbeat is stopping update loop for status '%s' because timeout "+
+					"of %.1f secs reached", status, timeout.Seconds())
 				su.closeContext()
 				return
 			case <-time.NewTicker(interval).C:
-				su.logger.Debugf("Update loop for status '%s' executes callback", status)
+				su.logger.Debugf("Heartbeat sends update by executing callback with status '%s'", status)
 				err := task(status, rootCause)
 				if err != nil {
-					su.logger.Warnf("Update loop for status '%s' failed when executing the callback: %s", status, err)
+					su.logger.Warnf("Heartbeat failed to send update by executing callback with status '%s' "+
+						"(but will retry): %s", status, err)
 				} else if onlyOnce {
-					su.logger.Debugf("Status '%s' successfully communicated after retry: stopping update loop", status)
+					su.logger.Debugf("Hearbeat communicated status '%s' successfully after retry: "+
+						"stopping update loop", status)
 					return
 				}
 			}

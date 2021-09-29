@@ -50,7 +50,7 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		return fmt.Errorf("failed to read response body: %s", err)
 	}
 
-	i.logger.Debugf("HTTP request to reconciler of component '%s' returned with status '%s' [%d] "+
+	i.logger.Debugf("Remote invoker received HTTP reponse from reconciler of component '%s' with status '%s' [%d] "+
 		"(schedulingID:%s/correlationID:%s) ",
 		params.ComponentToReconcile.Component, resp.Status, resp.StatusCode, params.SchedulingID, params.CorrelationID)
 
@@ -59,8 +59,7 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		respModel := &reconciler.HTTPReconciliationResponse{}
 		err := i.marshalHTTPResponse(body, respModel, params)
 		if err == nil {
-			return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-				model.OperationStateInProgress)
+			return i.updateOperationState(params, model.OperationStateInProgress)
 		}
 		i.reportUnmarshalError(resp.StatusCode, body, err)
 	}
@@ -70,9 +69,8 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		respModel := &reconciler.HTTPMissingDependenciesResponse{}
 		err := i.marshalHTTPResponse(body, respModel, params)
 		if err == nil {
-			return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-				model.OperationStateFailed, fmt.Sprintf("dependencies are missing: '%s'",
-					strings.Join(respModel.Dependencies.Missing, "', '")))
+			return i.updateOperationState(params, model.OperationStateFailed,
+				fmt.Sprintf("dependencies are missing: '%s'", strings.Join(respModel.Dependencies.Missing, "', '")))
 		}
 		i.reportUnmarshalError(resp.StatusCode, body, err)
 	}
@@ -82,8 +80,7 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		respModel := &reconciler.HTTPErrorResponse{}
 		err := i.marshalHTTPResponse(body, respModel, params)
 		if err == nil {
-			return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-				model.OperationStateFailed, respModel.Error)
+			return i.updateOperationState(params, model.OperationStateFailed, respModel.Error)
 		}
 		i.reportUnmarshalError(resp.StatusCode, body, err)
 	}
@@ -101,12 +98,11 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 			resp.StatusCode, string(body))
 	}
 
-	return i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-		model.OperationStateClientError, errorReason)
+	return i.updateOperationState(params, model.OperationStateClientError, errorReason)
 }
 
 func (i *remoteReconcilerInvoker) reportUnmarshalError(httpCode int, body []byte, err error) {
-	i.logger.Warnf("Failed to unmarshal reconciler response (HTTP-code: %d / Body: %s): %s",
+	i.logger.Warnf("Remote invoker: Failed to unmarshal reconciler response (HTTP-code: %d / Body: %s): %s",
 		httpCode, string(body), err)
 }
 
@@ -128,27 +124,30 @@ func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 
 	compRecon, ok := i.config.Scheduler.Reconcilers[component]
 	if ok {
-		i.logger.Debugf("Found dedicated reconciler for component '%s'", component)
+		i.logger.Debugf("Remote invoker found dedicated reconciler for component '%s'", component)
 	} else {
-		i.logger.Debugf("No dedicated reconciler found for component '%s': "+
+		i.logger.Debugf("Remote invoker found no dedicated reconciler for component '%s': "+
 			"using '%s' component reconciler as fallback", component, config.FallbackComponentReconciler)
 		compRecon, ok = i.config.Scheduler.Reconcilers[config.FallbackComponentReconciler]
 		if !ok {
+			i.logger.Errorf("Fallback reconciler '%s' not found in scheduler configuration",
+				config.FallbackComponentReconciler)
 			return nil, &NoFallbackReconcilerDefinedError{}
 		}
 	}
 
-	i.logger.Debugf("Calling remote reconciler via HTTP (URL: %s) for component '%s' (schedulingID:%s/correlationID:%s)",
+	i.logger.Debugf("Remote invoker is calling remote reconciler via HTTP (URL: %s) "+
+		"for component '%s' (schedulingID:%s/correlationID:%s)",
 		compRecon.URL, params.ComponentToReconcile.Component, params.SchedulingID, params.CorrelationID)
 
 	resp, err := http.Post(compRecon.URL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err == nil {
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err == nil {
-			i.logger.Debugf("Received response from HTTP component reconciler '%s' (%s): %s",
+			i.logger.Debugf("Remote invoker received response from HTTP component reconciler '%s' (%s): %s",
 				params.ComponentToReconcile.Component, compRecon.URL, string(respDump))
 		} else {
-			i.logger.Warnf("Failed to dump HTTP response from component reconciler: %s", err)
+			i.logger.Warnf("Remote invoker failed to dump HTTP response from component reconciler: %s", err)
 		}
 	} else {
 		return resp, errors.Wrap(err, fmt.Sprintf("failed to call remote reconciler (URL: %s)", compRecon.URL))
@@ -159,18 +158,31 @@ func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 
 func (i *remoteReconcilerInvoker) marshalHTTPResponse(body []byte, respModel interface{}, params *Params) error {
 	if err := json.Unmarshal(body, respModel); err != nil {
-		i.logger.Errorf("Failed to unmarshal HTTP response of reconciler for component '%s': %s",
+		i.logger.Errorf("Remote invoker failed to unmarshal HTTP response of reconciler for component '%s': %s",
 			params.ComponentToReconcile.Component, err)
 
 		//update the operation to be failed caused by client error
-		errUpdState := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID,
-			model.OperationStateClientError, err.Error())
+		errUpdState := i.updateOperationState(params, model.OperationStateClientError, err.Error())
 		if errUpdState != nil {
 			err = errors.Wrap(err, fmt.Sprintf("failed to update state of operation (scheudlingID:%s/correlationID:%s) to '%s': %s",
 				params.SchedulingID, params.CorrelationID, model.OperationStateClientError, errUpdState))
 		}
 
 		return err
+	}
+	return nil
+}
+
+func (i *remoteReconcilerInvoker) updateOperationState(params *Params, state model.OperationState, reasons ...string) error {
+	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, strings.Join(reasons, ", "))
+	if err != nil {
+		if reconciliation.IsRedundantOperationStateUpdateError(err) {
+			i.logger.Debugf("Remote invoker tried an redundant update of operation (scheudlingID:%s/correlationID:%s) "+
+				"to state '%s'", params.SchedulingID, params.CorrelationID, state)
+		} else {
+			return errors.Wrap(err, fmt.Sprintf("remote invoker failed to update operation "+
+				"(scheudlingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
+		}
 	}
 	return nil
 }

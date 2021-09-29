@@ -56,6 +56,7 @@ func newScheduler(preComponents []string, logger *zap.SugaredLogger) *scheduler 
 }
 
 func (s *scheduler) RunOnce(clusterState *cluster.State, reconRepo reconciliation.Repository) error {
+	s.logger.Debugf("Starting local scheduler")
 	reconEntity, err := reconRepo.CreateReconciliation(clusterState, s.preComponents)
 	if err == nil {
 		s.logger.Debugf("Reconciliation entity created: '%s", reconEntity)

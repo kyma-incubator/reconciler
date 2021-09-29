@@ -8,8 +8,8 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/invoker"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
@@ -22,53 +22,62 @@ type worker struct {
 }
 
 func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model.OperationEntity) error {
-	w.logger.Debugf("Start processing of operation '%s'", op)
-	if w.isProcessable(op) {
-		//mark operation to be now in progress
-		err := w.reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateInProgress)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("worker failed to update state of operation "+
-				"(schedulingID:%s/correlationID:%s) to '%s'",
-				op.SchedulingID, op.CorrelationID, model.OperationStateInProgress))
-		}
-
-		compsReady, err := w.componentsReady(op)
-		if err != nil {
-			return err
-		}
-
-		comp, err := clusterState.Configuration.GetComponent(op.Component)
-		if err != nil {
-			return err
-		}
-
-		retryable := func() error {
-			return w.invoker.Invoke(ctx, &invoker.Params{
-				ComponentToReconcile: comp,
-				ComponentsReady:      compsReady,
-				SchedulingID:         op.SchedulingID,
-				CorrelationID:        op.CorrelationID,
-				ClusterState:         clusterState,
-			})
-		}
-
-		//retry calling the invoker if error was returned
-		err = retry.Do(retryable,
-			retry.Attempts(uint(w.maxRetries)),
-			retry.Delay(w.retryDelay),
-			retry.LastErrorOnly(false),
-			retry.Context(ctx))
-
-		if err != nil {
-			w.logger.Warnf("Giving up processing of operation '%s' because worker retrieved consistenly errors "+
-				"when calling invoker: %s", op, err)
-		}
-		return err
-	} else {
-		w.logger.Warnf("Worker stopped processing of operation '%s' because operation is in non-processable state '%s'",
+	if !w.isProcessable(op) {
+		w.logger.Warnf("Worker cannot start processing of operation '%s' because it is in non-processable state '%s'",
 			op, op.State)
 		return nil
 	}
+
+	w.logger.Debugf("Worker starts processing of operation '%s'", op)
+
+	//mark operation to be now in progress (this avoids that it will be picked up by another worker)
+	if err := w.updateOperationState(op, model.OperationStateInProgress); err != nil {
+		return err
+	}
+
+	compsReady, err := w.componentsReady(op)
+	if err != nil {
+		return err
+	}
+
+	comp, err := clusterState.Configuration.GetComponent(op.Component)
+	if err != nil {
+		return err
+	}
+
+	retryable := func() error {
+		w.logger.Debugf("Worker calls invoker for operation '%s' (in retryable function)", op)
+		return w.invoker.Invoke(ctx, &invoker.Params{
+			ComponentToReconcile: comp,
+			ComponentsReady:      compsReady,
+			SchedulingID:         op.SchedulingID,
+			CorrelationID:        op.CorrelationID,
+			ClusterState:         clusterState,
+		})
+	}
+
+	//retry calling the invoker if error was returned
+	err = retry.Do(retryable,
+		retry.Attempts(uint(w.maxRetries)),
+		retry.Delay(w.retryDelay),
+		retry.LastErrorOnly(false),
+		retry.Context(ctx))
+
+	if err == nil {
+		w.logger.Debugf("Worker finished processing of operation '%s' successfully", op)
+	} else {
+		w.logger.Warnf("Worker stops processing operation '%s' because invoker "+
+			"returned consistenly errors (%d retries): %s", op, w.maxRetries, err)
+	}
+	return err
+}
+
+func (w *worker) updateOperationState(op *model.OperationEntity, state model.OperationState, reasons ...string) error {
+	reason := strings.Join(reasons, ", ")
+	if err := w.reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, state, reason); err != nil {
+		return fmt.Errorf("worker failed to update operation '%s' to state '%s': %s", op, state, err)
+	}
+	return nil
 }
 
 func (w *worker) componentsReady(op *model.OperationEntity) ([]string, error) {

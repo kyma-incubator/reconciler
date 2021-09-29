@@ -208,10 +208,8 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 			op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
 	}
 
-	if op.State == model.OperationStateInProgress && state == model.OperationStateInProgress {
-		return fmt.Errorf("cannot update state of operation for component '%s' (schedulingID:%s/correlationID:'%s) "+
-			"to '%s' because operation is already in state '%s' (duplicate in-progress assignment not allowed)",
-			op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
+	if op.State == state {
+		return newRedundantOperationStateUpdateError(op)
 	}
 
 	reason, err := concatStateReasons(state, reasons)

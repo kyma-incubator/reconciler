@@ -73,36 +73,36 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 	dbOp := func() error {
 		reconEntity, err := t.reconRepo.GetReconciliation(schedulingID)
 		if err != nil {
-			t.logger.Errorf("Failed to retrieve reconciliation entity with schedulingID '%s': %s",
+			t.logger.Errorf("Cluster transition failed to retrieve reconciliation entity with schedulingID '%s': %s",
 				schedulingID, err)
 			return err
 		}
 
 		if !reconEntity.IsReconciling() {
-			t.logger.Infof("Tried to finish reconciliation '%s' but it is no longer marked to be in progress "+
+			t.logger.Infof("Cluster transition tried to finish reconciliation '%s' but it is no longer marked to be in progress "+
 				"(maybe finished by parallel process in between)", reconEntity)
 			return fmt.Errorf("reconciliation '%s' is already finished", reconEntity)
 		}
 
 		clusterState, err := t.inventory.Get(reconEntity.Cluster, reconEntity.ClusterConfig)
 		if err != nil {
-			t.logger.Errorf("Failed to retrieve cluster state for cluster '%s' (configVersion: %d): %s",
-				reconEntity.Cluster, reconEntity.ClusterConfig, err)
+			t.logger.Errorf("Cluster transition failed to retrieve cluster state for cluster '%s' "+
+				"(configVersion: %d): %s", reconEntity.Cluster, reconEntity.ClusterConfig, err)
 			return err
 		}
 		clusterState, err = t.inventory.UpdateStatus(clusterState, status)
 		if err != nil {
-			t.logger.Errorf("Failed to update status of cluster '%s' to '%s': %s",
+			t.logger.Errorf("Cluster transition failed to update status of cluster '%s' to '%s': %s",
 				clusterState.Cluster.Cluster, status, err)
 			return err
 		}
 		err = t.reconRepo.FinishReconciliation(schedulingID, clusterState.Status)
 		if err == nil {
-			t.logger.Debugf("Reconciliation of cluster '%s' (schedulingID '%s') finished: new cluster status is '%s'",
-				clusterState.Cluster.Cluster, schedulingID, clusterState.Status.Status)
+			t.logger.Debugf("Cluster transition finished reconciliation of cluster '%s' (schedulingID '%s'): "+
+				"new cluster status is '%s'", clusterState.Cluster.Cluster, schedulingID, clusterState.Status.Status)
 		} else {
-			t.logger.Errorf("Failed to finish reconciliation with schedulingID '%s' of cluster '%s': %s",
-				schedulingID, clusterState.Cluster.Cluster, err)
+			t.logger.Errorf("Cluster transition failed to finish reconciliation with schedulingID '%s' "+
+				"of cluster '%s': %s", schedulingID, clusterState.Cluster.Cluster, err)
 		}
 		return err
 	}

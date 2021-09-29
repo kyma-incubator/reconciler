@@ -338,9 +338,8 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 				"because operation is already in final state '%s'", op.Component, state, op.State)
 		}
 
-		if op.State == model.OperationStateInProgress && state == model.OperationStateInProgress {
-			return fmt.Errorf("cannot update state of operation '%s' to '%s' because operation is already in state '%s' "+
-				"(duplicate in-progress assignment not allowed)", op.Component, state, op.State)
+		if op.State == state {
+			return newRedundantOperationStateUpdateError(op)
 		}
 
 		//update operation-entity
