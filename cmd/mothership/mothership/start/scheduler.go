@@ -50,6 +50,6 @@ func parseSchedulerConfig(configFile string) (*config.Config, error) {
 		return &config.Config{}, err
 	}
 
-	var cfg *config.Config
-	return cfg, viper.UnmarshalKey("mothership", cfg)
+	var cfg config.Config
+	return &cfg, viper.UnmarshalKey("mothership", &cfg)
 }

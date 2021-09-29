@@ -50,4 +50,5 @@ func InitViper(t *testing.T) {
 
 	viper.SetConfigFile(configFile)
 	require.NoError(t, viper.ReadInConfig())
+	require.NotEmpty(t, viper.ConfigFileUsed())
 }

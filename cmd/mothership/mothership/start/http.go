@@ -342,8 +342,9 @@ func updateOperationState(o *Options, correlationID string, schedulingID string,
 			o.Logger().Debugf("REST endpoint tried an redundant update of operation "+
 				"(schedulingID:%s/correlationID:%s) to state '%s'", schedulingID, correlationID, state)
 		} else {
-			return errors.Wrap(err, fmt.Sprintf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
-				"to state '%s'", schedulingID, correlationID, state))
+			o.Logger().Debugf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+				"to state '%s': %s", schedulingID, correlationID, state, err)
+			return err
 		}
 	}
 	return nil
