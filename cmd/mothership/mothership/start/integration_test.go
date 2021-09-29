@@ -69,12 +69,15 @@ var (
 			if keb.StatusReconcilePending != respModel.StatusChanges[0].Status {
 				var buffer bytes.Buffer
 				for _, statusChange := range respModel.StatusChanges {
-					buffer.WriteRune(',')
+					if buffer.Len() > 0 {
+						buffer.WriteRune(',')
+					}
 					buffer.WriteString(string(statusChange.Status))
 				}
 				t.Logf("Unexpected ordering of cluster status changes: %s", buffer.String())
 			}
-			require.Equal(t, keb.StatusReconcilePending, respModel.StatusChanges[0].Status)
+			//check last element in slice (ordering in slice is DESC => latest event at the beginning)
+			require.Equal(t, keb.StatusReconcilePending, respModel.StatusChanges[len(respModel.StatusChanges)-1].Status)
 		}
 	}
 )
