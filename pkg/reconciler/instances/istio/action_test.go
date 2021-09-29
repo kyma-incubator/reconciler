@@ -397,8 +397,8 @@ func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *
 	}
 }
 
-func TestShouldInstall(t *testing.T) {
-	t.Run("If client version and pilot version values are empty, we install", func(t *testing.T) {
+func Test_canInstall(t *testing.T) {
+	t.Run("should install when client and pilot versions are empty", func(t *testing.T) {
 		//given
 		randomVersion := actions.IstioVersion{
 			ClientVersion:    "1.9.2",
@@ -408,13 +408,13 @@ func TestShouldInstall(t *testing.T) {
 		}
 
 		//when
-		got := shouldInstall(randomVersion)
+		got := canInstall(randomVersion)
 
 		//then
 		require.Equal(t, true, got)
 	})
 
-	t.Run("If client version and pilot version values are not empty, we update", func(t *testing.T) {
+	t.Run("should update when client and pilot versions values are not empty", func(t *testing.T) {
 		//given
 		randomVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
@@ -424,102 +424,110 @@ func TestShouldInstall(t *testing.T) {
 		}
 
 		//when
-		got := shouldInstall(randomVersion)
+		got := canInstall(randomVersion)
 
 		//then
 		require.Equal(t, false, got)
 	})
 }
 
-func TestIsClientVersionAcceptable(t *testing.T) {
-	t.Run("Istioctl version and appVersion are not the same", func(t *testing.T) {
+func Test_canUpdate(t *testing.T) {
+	logger := log.NewLogger(true)
+
+	t.Run("should not allow update when client version is more than one minor behind the target version", func(t *testing.T) {
 		//given
-		randomVersion := actions.IstioVersion{
-			ClientVersion:    "1.9.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "",
-			DataPlaneVersion: "",
+		version := actions.IstioVersion{
+			ClientVersion:    "1.0.0",
+			TargetVersion:    "1.2.0",
+			PilotVersion:     "1.0.0",
+			DataPlaneVersion: "1.0.0",
 		}
 
 		//when
-		got := isClientVersionAcceptable(randomVersion)
+		result := canUpdate(version, logger)
 
 		//then
-		require.Equal(t, false, got)
+		require.False(t, result)
 	})
 
-	t.Run("Istioctl version and appVersion are the same", func(t *testing.T) {
+	t.Run("should not allow update when downgrade scenario is detected for pilot", func(t *testing.T) {
 		//given
-		randomVersion := actions.IstioVersion{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "",
-			DataPlaneVersion: "",
+		version := actions.IstioVersion{
+			ClientVersion:    "1.1.0",
+			TargetVersion:    "1.1.0",
+			PilotVersion:     "1.2.0",
+			DataPlaneVersion: "1.1.0",
 		}
 
 		//when
-		got := isClientVersionAcceptable(randomVersion)
+		result := canUpdate(version, logger)
 
 		//then
-		require.Equal(t, true, got)
-	})
-}
-
-func TestCanUpdate(t *testing.T) {
-	t.Run("If the minor version difference is 2 or more, we cannot update", func(t *testing.T) {
-		//given
-		oneNineVersions := actions.IstioVersion{
-			ClientVersion:    "1.9.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.9.2",
-			DataPlaneVersion: "1.9.2",
-		}
-		oneEightVersions := actions.IstioVersion{
-			ClientVersion:    "1.8.6",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.8.6",
-			DataPlaneVersion: "1.8.6",
-		}
-		noSubminorVersion := actions.IstioVersion{
-			ClientVersion:    "1.3",
-			TargetVersion:    "1.3",
-			PilotVersion:     "1.1",
-			DataPlaneVersion: "1.1",
-		}
-
-		//when
-		got1 := canUpdate(oneNineVersions)
-		got2 := canUpdate(oneEightVersions)
-		got3 := canUpdate(noSubminorVersion)
-
-		//then
-		require.Equal(t, false, got1)
-		require.Equal(t, false, got2)
-		require.Equal(t, false, got3)
+		require.False(t, result)
 	})
 
-	t.Run("If the minor version difference is less than or equal to 1, we can update", func(t *testing.T) {
+	t.Run("should not allow update when downgrade scenario is detected for data plane", func(t *testing.T) {
 		//given
-		oneTenVersions := actions.IstioVersion{
-			ClientVersion:    "1.10.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.10.2",
-			DataPlaneVersion: "1.10.2",
-		}
-		oneElevenVersions := actions.IstioVersion{
-			ClientVersion:    "1.11.1",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.11.1",
-			DataPlaneVersion: "1.11.1",
+		version := actions.IstioVersion{
+			ClientVersion:    "1.1.0",
+			TargetVersion:    "1.1.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.2.0",
 		}
 
 		//when
-		got1 := canUpdate(oneTenVersions)
-		got2 := canUpdate(oneElevenVersions)
+		result := canUpdate(version, logger)
 
 		//then
-		require.Equal(t, true, got1)
-		require.Equal(t, true, got2)
+		require.False(t, result)
+	})
+
+	t.Run("should not allow update when more than one minor upgrade is detected for pilot", func(t *testing.T) {
+		//given
+		version := actions.IstioVersion{
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.2.0",
+			PilotVersion:     "1.0.0",
+			DataPlaneVersion: "1.1.0",
+		}
+
+		//when
+		result := canUpdate(version, logger)
+
+		//then
+		require.False(t, result)
+	})
+
+	t.Run("should not allow update when more than one minor upgrade is detected for data plane", func(t *testing.T) {
+		//given
+		version := actions.IstioVersion{
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.2.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.0.0",
+		}
+
+		//when
+		result := canUpdate(version, logger)
+
+		//then
+		require.False(t, result)
+	})
+
+	t.Run("should allow update when less than one minor upgrade is detected for pilot and data plane ", func(t *testing.T) {
+		//given
+		version := actions.IstioVersion{
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.2.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.1.0",
+		}
+
+		//when
+		result := canUpdate(version, logger)
+
+		//then
+		require.True(t, result)
 	})
 }
 
@@ -549,73 +557,6 @@ func TestIsMismatchPresent(t *testing.T) {
 
 		//when
 		got := isMismatchPresent(sameVersions)
-
-		//then
-		require.Equal(t, false, got)
-	})
-}
-
-func TestIsDowngrade(t *testing.T) {
-
-	t.Run("When there is no sub minor version", func(t *testing.T) {
-		//given
-		istioVersion := actions.IstioVersion{
-			ClientVersion:    "1.11",
-			TargetVersion:    "1.12",
-			PilotVersion:     "1.11",
-			DataPlaneVersion: "1.11",
-		}
-
-		//when
-		got := isDowngrade(istioVersion)
-
-		//then
-		require.Equal(t, false, got)
-	})
-
-	t.Run("Lower app version compared to istio version is a downgrade", func(t *testing.T) {
-		//given
-		istioVersion := actions.IstioVersion{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.1",
-			PilotVersion:     "1.11.2",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		//when
-		got := isDowngrade(istioVersion)
-
-		//then
-		require.Equal(t, true, got)
-	})
-
-	t.Run("Similar app and istio versions is not a downgrade", func(t *testing.T) {
-		//given
-		istioVersion := actions.IstioVersion{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.11.2",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		//when
-		got := isDowngrade(istioVersion)
-
-		//then
-		require.Equal(t, false, got)
-	})
-
-	t.Run("Higher app version compared to istio version is a downgrade", func(t *testing.T) {
-		//given
-		istioVersion := actions.IstioVersion{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.3",
-			PilotVersion:     "1.11.2",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		//when
-		got := isDowngrade(istioVersion)
 
 		//then
 		require.Equal(t, false, got)
