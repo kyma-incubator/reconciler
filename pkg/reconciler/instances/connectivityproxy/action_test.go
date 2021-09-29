@@ -66,12 +66,13 @@ func TestAction(t *testing.T) {
 		client := mocks.Client{}
 		client.On("Clientset").Return(fake.NewSimpleClientset(), nil)
 
-		err := action.Run("", "", nil, &service.ActionContext{
+		err := action.Run(&service.ActionContext{
 			KubeClient:       &client,
 			WorkspaceFactory: nil,
 			Context:          nil,
 			Logger:           nil,
 			ChartProvider:    nil,
+			Model:            nil,
 		})
 
 		require.NoError(t, err)

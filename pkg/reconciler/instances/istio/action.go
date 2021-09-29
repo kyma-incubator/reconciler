@@ -16,8 +16,11 @@ const (
 type ReconcileAction struct {
 }
 
-func (a *ReconcileAction) Run(version, profile string, config map[string]interface{}, context *service.ActionContext) error {
-	component := chart.NewComponentBuilder(version, istioChart).WithNamespace(istioNamespace).WithProfile(profile).WithConfiguration(config).Build()
+func (a *ReconcileAction) Run(context *service.ActionContext) error {
+	component := chart.NewComponentBuilder(context.Model.Version, istioChart).
+		WithNamespace(istioNamespace).
+		WithProfile(context.Model.Profile).
+		WithConfiguration(context.Model.Configuration).Build()
 	manifest, err := context.ChartProvider.RenderManifest(component)
 	if err != nil {
 		return err

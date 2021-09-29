@@ -40,9 +40,13 @@ var (
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
 )
 
-func (a *preAction) Run(version, profile string, config map[string]interface{}, context *service.ActionContext) error {
+func (a *preAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
-	component := chart.NewComponentBuilder(version, oryChart).WithNamespace(oryNamespace).WithProfile(profile).WithConfiguration(config).Build()
+	component := chart.NewComponentBuilder(context.Model.Version, oryChart).
+		WithNamespace(oryNamespace).
+		WithProfile(context.Model.Profile).
+		WithConfiguration(context.Model.Configuration).Build()
+
 	values, err := context.ChartProvider.Configuration(component)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve Ory chart values")
@@ -61,12 +65,12 @@ func (a *preAction) Run(version, profile string, config map[string]interface{}, 
 		return errors.Wrap(err, "failed to ensure Ory secret")
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, version)
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Model.Version)
 
 	return nil
 }
 
-func (a *postAction) Run(version, _ string, _ map[string]interface{}, context *service.ActionContext) error {
+func (a *postAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
 	client, err := context.KubeClient.Clientset()
 	if err != nil {
@@ -80,7 +84,7 @@ func (a *postAction) Run(version, _ string, _ map[string]interface{}, context *s
 		return errors.Wrap(err, "failed to patch Ory secret")
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, version)
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Model.Version)
 
 	return nil
 }

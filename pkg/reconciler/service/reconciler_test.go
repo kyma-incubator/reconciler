@@ -14,13 +14,13 @@ type DummyAction struct {
 	receivedConfig  map[string]interface{}
 }
 
-func (da *DummyAction) Run(version, profile string, config map[string]interface{}, helper *ActionContext) error {
+func (da *DummyAction) Run(helper *ActionContext) error {
 	if helper.KubeClient != nil {
 		return fmt.Errorf("kubeClient is not expected in this test case")
 	}
-	da.receivedVersion = version
-	da.receivedProfile = profile
-	da.receivedConfig = config
+	da.receivedVersion = helper.Model.Version
+	da.receivedProfile = helper.Model.Profile
+	da.receivedConfig = helper.Model.Configuration
 	return nil
 }
 
