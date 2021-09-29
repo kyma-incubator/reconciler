@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -80,7 +81,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 		if !reconEntity.IsReconciling() {
 			t.logger.Infof("Tried to finish reconciliation '%s' but it is no longer marked to be in progress "+
 				"(maybe finished by parallel process in between)", reconEntity)
-			return nil
+			return fmt.Errorf("reconciliation '%s' is already finished", reconEntity)
 		}
 
 		clusterState, err := t.inventory.Get(reconEntity.Cluster, reconEntity.ClusterConfig)
