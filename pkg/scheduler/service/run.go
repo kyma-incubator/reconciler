@@ -35,8 +35,8 @@ func (rb *RuntimeBuilder) WithWorkerPoolConfig(cfg *worker.Config) *RuntimeBuild
 	return rb
 }
 
-func (rb *RuntimeBuilder) RunLocal(preComponents []string, statusFunc invoker.ReconcilerStatusFunc) *runLocal {
-	runL := &runLocal{rb, statusFunc}
+func (rb *RuntimeBuilder) RunLocal(preComponents []string, statusFunc invoker.ReconcilerStatusFunc) *RunLocal {
+	runL := &RunLocal{rb, statusFunc}
 	runL.preComponents = preComponents
 	return runL
 }
@@ -44,9 +44,9 @@ func (rb *RuntimeBuilder) RunLocal(preComponents []string, statusFunc invoker.Re
 func (rb *RuntimeBuilder) RunRemote(
 	conn db.Connection,
 	inventory cluster.Inventory,
-	config *config.Config) *runRemote {
+	config *config.Config) *RunRemote {
 
-	runR := &runRemote{rb, conn, inventory, config, &SchedulerConfig{}, &BookkeeperConfig{}}
+	runR := &RunRemote{rb, conn, inventory, config, &SchedulerConfig{}, &BookkeeperConfig{}}
 	runR.preComponents = config.Scheduler.PreComponents
 	return runR
 }
@@ -55,12 +55,12 @@ func (rb *RuntimeBuilder) newScheduler() *scheduler {
 	return newScheduler(rb.preComponents, rb.logger)
 }
 
-type runLocal struct {
+type RunLocal struct {
 	*RuntimeBuilder
 	statusFunc invoker.ReconcilerStatusFunc
 }
 
-func (l *runLocal) Run(ctx context.Context, clusterState *cluster.State) error {
+func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) error {
 	//enqueue cluster state and create reconciliation entity
 	if err := l.newScheduler().RunOnce(clusterState, l.reconRepo); err == nil {
 		l.logger.Debug("Local scheduler finished successfully")
@@ -86,7 +86,7 @@ func (l *runLocal) Run(ctx context.Context, clusterState *cluster.State) error {
 	return nil
 }
 
-type runRemote struct {
+type RunRemote struct {
 	*RuntimeBuilder
 	conn             db.Connection
 	inventory        cluster.Inventory
@@ -95,17 +95,17 @@ type runRemote struct {
 	bookkeeperConfig *BookkeeperConfig
 }
 
-func (r *runRemote) WithSchedulerConfig(cfg *SchedulerConfig) *runRemote {
+func (r *RunRemote) WithSchedulerConfig(cfg *SchedulerConfig) *RunRemote {
 	r.schedulerConfig = cfg
 	return r
 }
 
-func (r *runRemote) WithBookkeeperConfig(cfg *BookkeeperConfig) *runRemote {
+func (r *RunRemote) WithBookkeeperConfig(cfg *BookkeeperConfig) *RunRemote {
 	r.bookkeeperConfig = cfg
 	return r
 }
 
-func (r *runRemote) Run(ctx context.Context) {
+func (r *RunRemote) Run(ctx context.Context) {
 	//start bookkeeper
 	go func() {
 		transition := newClusterStatusTransition(r.conn, r.inventory, r.reconRepo, r.logger)

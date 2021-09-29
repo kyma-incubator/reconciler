@@ -11,14 +11,13 @@ import (
 )
 
 type ApplicationRegistry struct {
-	debug             bool
-	logger            *zap.SugaredLogger
-	connectionFactory db.ConnectionFactory
-	connection        db.Connection
-	inventory         cluster.Inventory
-	kvRepository      *kv.Repository
-	reconRepository   reconciliation.Repository
-	initialized       bool
+	debug           bool
+	logger          *zap.SugaredLogger
+	connection      db.Connection
+	inventory       cluster.Inventory
+	kvRepository    *kv.Repository
+	reconRepository reconciliation.Repository
+	initialized     bool
 }
 
 func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*ApplicationRegistry, error) {
@@ -27,10 +26,9 @@ func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*ApplicationRe
 		return nil, err
 	}
 	registry := &ApplicationRegistry{
-		debug:             debug,
-		connectionFactory: cf,
-		connection:        conn,
-		logger:            logger.NewLogger(debug),
+		debug:      debug,
+		connection: conn,
+		logger:     logger.NewLogger(debug),
 	}
 	return registry, registry.init()
 }
