@@ -1,7 +1,6 @@
 package istio
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -46,9 +45,10 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 
 	t.Run("should generate empty manifest from empty input manifest", func(t *testing.T) {
 		// when
-		result := generateNewManifestWithoutIstioOperatorFrom("")
+		result, err := generateNewManifestWithoutIstioOperatorFrom("")
 
 		// then
+		require.NoError(t, err)
 		require.Empty(t, result)
 	})
 
@@ -59,9 +59,10 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 		require.NotContains(t, istioManifestWithoutIstioOperator, "IstioOperator")
 
 		// when
-		result := generateNewManifestWithoutIstioOperatorFrom(istioManifestWithoutIstioOperator)
+		result, err := generateNewManifestWithoutIstioOperatorFrom(istioManifestWithoutIstioOperator)
 
 		// then
+		require.NoError(t, err)
 		require.Contains(t, result, "Kind1")
 		require.Contains(t, result, "Kind2")
 		require.NotContains(t, result, "IstioOperator")
@@ -74,10 +75,10 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 		require.Contains(t, istioManifest, "IstioOperator")
 
 		// when
-		result := generateNewManifestWithoutIstioOperatorFrom(istioManifest)
-		fmt.Println(result)
+		result, err := generateNewManifestWithoutIstioOperatorFrom(istioManifest)
 
 		// then
+		require.NoError(t, err)
 		require.Contains(t, result, "Kind1")
 		require.Contains(t, result, "Kind2")
 		require.NotContains(t, result, "IstioOperator")

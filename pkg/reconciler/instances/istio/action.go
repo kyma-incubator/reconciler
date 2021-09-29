@@ -1,7 +1,6 @@
 package istio
 
 import (
-	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
@@ -47,8 +46,11 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 	}
 
-	generated := generateNewManifestWithoutIstioOperatorFrom(manifest.Manifest)
-	fmt.Println(generated)
+	generated, err := generateNewManifestWithoutIstioOperatorFrom(manifest.Manifest)
+	if err != nil {
+		return errors.Wrap(err, "Could not generate manifest without Istio Operator")
+	}
+
 	_, err = context.KubeClient.Deploy(context.Context, generated, istioNamespace, nil)
 	if err != nil {
 		return errors.Wrap(err, "Could not deploy Istio resources")
@@ -57,10 +59,10 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func generateNewManifestWithoutIstioOperatorFrom(manifest string) string {
+func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error) {
 	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
 	if err != nil {
-		return ""
+		return "", err
 	}
 
 	builder := strings.Builder{}
@@ -71,12 +73,12 @@ func generateNewManifestWithoutIstioOperatorFrom(manifest string) string {
 
 		unstructBytes, err := unstruct.MarshalJSON()
 		if err != nil {
-			return ""
+			return "", err
 		}
 
 		builder.WriteString("---\n")
 		builder.WriteString(string(unstructBytes))
 	}
 
-	return builder.String()
+	return builder.String(), nil
 }
