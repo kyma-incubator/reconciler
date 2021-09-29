@@ -84,6 +84,10 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 			//finish reconciliations
 			for _, filterResult := range filterResults {
 				newClusterStatus := filterResult.GetResult()
+				bk.logger.Debugf("Bookkeeper evaluted cluster status of reconciliation '%s' to '%s' "+
+					"(ops-statuses were: done=%d/error=%d/other=%d)",
+					filterResult.schedulingID, newClusterStatus,
+					len(filterResult.done), len(filterResult.error), len(filterResult.other))
 
 				if newClusterStatus == model.ClusterStatusReady || newClusterStatus == model.ClusterStatusError {
 					bk.logger.Debugf("Bookkeeper is updating reconciliation '%s': final status is '%s'",

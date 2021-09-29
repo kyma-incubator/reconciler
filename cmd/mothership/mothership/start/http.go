@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -313,17 +314,13 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	switch body.Status {
 	case reconciler.StatusNotstarted, reconciler.StatusRunning:
-		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
-			model.OperationStateInProgress)
+		err = updateOperationState(o, correlationID, schedulingID, model.OperationStateInProgress)
 	case reconciler.StatusFailed:
-		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
-			model.OperationStateFailed, body.Error)
+		err = updateOperationState(o, correlationID, schedulingID, model.OperationStateFailed, body.Error)
 	case reconciler.StatusSuccess:
-		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
-			model.OperationStateDone)
+		err = updateOperationState(o, correlationID, schedulingID, model.OperationStateDone)
 	case reconciler.StatusError:
-		err = o.Registry.ReconciliationRepository().UpdateOperationState(correlationID, schedulingID,
-			model.OperationStateError, body.Error)
+		err = updateOperationState(o, correlationID, schedulingID, model.OperationStateError, body.Error)
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
@@ -335,6 +332,21 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+}
+
+func updateOperationState(o *Options, correlationID string, schedulingID string, state model.OperationState, reason ...string) error {
+	err := o.Registry.ReconciliationRepository().UpdateOperationState(
+		correlationID, schedulingID, state, strings.Join(reason, ", "))
+	if err != nil {
+		if reconciliation.IsRedundantOperationStateUpdateError(err) {
+			o.Logger().Debugf("REST endpoint tried an redundant update of operation "+
+				"(schedulingID:%s/correlationID:%s) to state '%s'", schedulingID, correlationID, state)
+		} else {
+			return errors.Wrap(err, fmt.Sprintf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+				"to state '%s'", schedulingID, correlationID, state))
+		}
+	}
+	return nil
 }
 
 func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State) {
