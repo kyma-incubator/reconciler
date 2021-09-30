@@ -1,4 +1,4 @@
-package istio_configuration
+package istio
 
 import (
 	"go.uber.org/zap"
@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/actions"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"

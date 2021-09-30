@@ -1,14 +1,14 @@
-package istio_configuration
+package istio
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/actions"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/clientset"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/istioctl"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/data"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/pod"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/pod/reset"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/proxy"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 

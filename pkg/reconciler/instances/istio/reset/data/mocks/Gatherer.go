@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	data "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/data"
+	data "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	kubernetes "k8s.io/client-go/kubernetes"
 
 	mock "github.com/stretchr/testify/mock"

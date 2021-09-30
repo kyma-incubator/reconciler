@@ -5,7 +5,7 @@ package mocks
 import (
 	sync "sync"
 
-	pod "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/pod"
+	pod "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
 	mock "github.com/stretchr/testify/mock"
 )
 

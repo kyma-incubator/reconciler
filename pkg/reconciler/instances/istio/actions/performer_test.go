@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/clientset/mocks"
-	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/istioctl/mocks"
-	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/proxy/mocks"
+	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
+	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
+	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace/mocks"
@@ -344,7 +344,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
+		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
 		require.Empty(t, ver)
@@ -363,7 +363,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
+		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
 		require.Empty(t, ver)
@@ -382,7 +382,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
+		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
 		require.EqualValues(t, IstioVersion{ClientVersion: "1.11.2", TargetVersion: "1.11.2"}, ver)
@@ -402,7 +402,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		ver, err := wrapper.Version(factory, "version", "istio-configuration-test", kubeConfig, log)
+		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
 		require.EqualValues(t, IstioVersion{ClientVersion: "1.11.1", TargetVersion: "1.11.2", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"}, ver)
@@ -417,7 +417,7 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 
 	t.Run("should not get target version when the workspace is not resolved", func(t *testing.T) {
 		//given
-		istioChart := "istio-configuration-test"
+		istioChart := "istio-test"
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{}, nil)
 
@@ -445,7 +445,7 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 
 	t.Run("should get target version when Chart.yml is resolved", func(t *testing.T) {
 		//given
-		istioChart := "istio-configuration-test"
+		istioChart := "istio-test"
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 

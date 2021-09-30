@@ -6,7 +6,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sync"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/pod"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
 
 	v1 "k8s.io/api/core/v1"
 )

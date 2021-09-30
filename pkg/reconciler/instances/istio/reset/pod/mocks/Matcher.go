@@ -6,7 +6,7 @@ import (
 	mock "github.com/stretchr/testify/mock"
 	kubernetes "k8s.io/client-go/kubernetes"
 
-	pod "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/pod"
+	pod "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
 
 	retry "github.com/avast/retry-go"
 

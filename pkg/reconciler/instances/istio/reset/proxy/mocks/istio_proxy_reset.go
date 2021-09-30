@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	config "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/config"
+	config "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	mock "github.com/stretchr/testify/mock"
 )
 

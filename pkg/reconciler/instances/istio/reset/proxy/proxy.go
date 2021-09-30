@@ -2,9 +2,9 @@ package proxy
 
 import (
 	"github.com/avast/retry-go"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/config"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/data"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/pod/reset"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
 	"time"
 )
 

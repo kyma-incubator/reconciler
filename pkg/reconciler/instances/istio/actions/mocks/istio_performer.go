@@ -3,7 +3,7 @@
 package mock
 
 import (
-	actions "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/actions"
+	actions "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	kubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	mock "github.com/stretchr/testify/mock"

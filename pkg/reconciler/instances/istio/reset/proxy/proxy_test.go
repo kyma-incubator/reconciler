@@ -6,9 +6,9 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"testing"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/config"
-	datamocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/data/mocks"
-	podresetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/reset/pod/reset/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
+	datamocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data/mocks"
+	podresetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"

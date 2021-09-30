@@ -1,4 +1,4 @@
-package istio_configuration
+package istio
 
 import (
 	"context"
@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-	actionsmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/actions/mocks"
+	actionsmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio-configuration/actions"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace/mocks"
