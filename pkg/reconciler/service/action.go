@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -15,8 +16,9 @@ type ActionContext struct {
 	Context          context.Context
 	Logger           *zap.SugaredLogger
 	ChartProvider    *chart.Provider
+	Model            *reconciler.Reconciliation
 }
 
 type Action interface {
-	Run(version, profile string, configuration map[string]interface{}, helper *ActionContext) error
+	Run(helper *ActionContext) error
 }

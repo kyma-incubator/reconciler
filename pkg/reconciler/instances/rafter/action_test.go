@@ -2,6 +2,7 @@ package rafter
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"testing"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
@@ -148,12 +149,12 @@ func TestActionRun(t *testing.T) {
 		test := testCase
 		t.Run(test.Name, func(t *testing.T) {
 
-			fakeContext := newFakeServiceContext(t)
+			fakeContext := newFakeServiceContext(t, test.Version)
 			customAction := CustomAction{
 				name: "test-action",
 			}
 
-			err := customAction.Run(test.Version, "", nil, fakeContext)
+			err := customAction.Run(fakeContext)
 			assert.NoError(t, err)
 
 			fakeClient, _ := fakeContext.KubeClient.Clientset()
@@ -178,7 +179,7 @@ func TestRandAlphaNum(t *testing.T) {
 	}
 }
 
-func newFakeServiceContext(t *testing.T) *service.ActionContext {
+func newFakeServiceContext(t *testing.T, version string) *service.ActionContext {
 	mockClient := &mocks.Client{}
 	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
 	// We create './test_files/0.0.0/success.yaml' to trick the
@@ -194,6 +195,9 @@ func newFakeServiceContext(t *testing.T) *service.ActionContext {
 		Context:          context.Background(),
 		WorkspaceFactory: fakeFactory,
 		Logger:           log.NewLogger(true),
+		Model: &reconciler.Reconciliation{
+			Version: version,
+		},
 	}
 }
 
