@@ -2,6 +2,7 @@ package istio
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -113,7 +114,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer}
 
 		// when
-		err := action.Run("version", "profile", nil, actionContext)
+		err := action.Run(actionContext)
 
 		// then
 		require.Error(t, err)
@@ -137,7 +138,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer}
 
 		// when
-		err := action.Run("version", "profile", nil, actionContext)
+		err := action.Run(actionContext)
 
 		// then
 		require.Error(t, err)
@@ -168,7 +169,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer}
 
 		// when
-		err := action.Run("version", "profile", nil, actionContext)
+		err := action.Run(actionContext)
 
 		// then
 		require.Error(t, err)
@@ -199,7 +200,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer}
 
 		// when
-		err := action.Run("version", "profile", nil, actionContext)
+		err := action.Run(actionContext)
 
 		// then
 		require.Error(t, err)
@@ -230,7 +231,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer}
 
 		// when
-		err := action.Run("version", "profile", nil, actionContext)
+		err := action.Run(actionContext)
 
 		// then
 		require.NoError(t, err)
@@ -264,7 +265,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer}
 
 		// when
-		err := action.Run("version", "profile", nil, actionContext)
+		err := action.Run(actionContext)
 
 		// then
 		require.NoError(t, err)
@@ -298,7 +299,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer}
 
 		// when
-		err := action.Run("version", "profile", nil, actionContext)
+		err := action.Run(actionContext)
 
 		// then
 		require.NoError(t, err)
@@ -332,7 +333,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer}
 
 		// when
-		err := action.Run("version", "profile", nil, actionContext)
+		err := action.Run(actionContext)
 
 		// then
 		require.NoError(t, err)
@@ -368,7 +369,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		action := ReconcileAction{performer: &performer}
 
 		// when
-		err := action.Run("version", "profile", nil, actionContext)
+		err := action.Run(actionContext)
 
 		// then
 		require.Error(t, err)
@@ -388,6 +389,12 @@ func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *
 	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
 	logger := log.NewLogger(true)
+	model := reconciler.Reconciliation{
+		Component:       "component",
+		Namespace:       "namespace",
+		Version:         "version",
+		Profile:         "profile",
+	}
 
 	return &service.ActionContext{
 		KubeClient:       mockClient,
@@ -395,6 +402,7 @@ func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *
 		WorkspaceFactory: factory,
 		Logger:           logger,
 		ChartProvider:    provider,
+		Model: &model,
 	}
 }
 
