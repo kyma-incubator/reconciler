@@ -523,7 +523,7 @@ func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) (
 
 	clusterStatuses, err := q.Select().
 		WhereIn("ID", fmt.Sprintf("SELECT %s FROM %s WHERE %s", idColName, clusterStatusEntity.Table(), sqlCond)).
-		OrderBy(map[string]string{"Created": "DESC"}).
+		OrderBy(map[string]string{"ID": "DESC"}).
 		GetMany()
 	if err != nil {
 		return nil, err
