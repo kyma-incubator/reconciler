@@ -47,7 +47,7 @@ function send_reconciliation_request() {
   reconciliationResponse=$(curl --request POST -sL \
        --url "${RECONCILE_API}"\
        --data @"${RECONCILE_PAYLOAD_FILE}")
-  statusURL=$(echo "{reconciliationResponse}" | jq -r .statusURL)
+  statusURL=$(echo "${reconciliationResponse}" | jq -r .statusURL)
   echo "reconciliationResponse: ${reconciliationResponse}"
 
   export RECONCILE_STATUS_URL="${statusURL}"
