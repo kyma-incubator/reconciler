@@ -261,7 +261,6 @@ func startMothershipReconciler(ctx context.Context, t *testing.T) int {
 
 	go func(ctx context.Context) {
 		o := NewOptions(cliTest.NewTestOptions(t))
-		o.ReconcilersCfgPath = filepath.Join("test", "component-reconcilers.json")
 		o.WatchInterval = 1 * time.Second
 		o.Port = serverPort
 
