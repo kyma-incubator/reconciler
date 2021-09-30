@@ -76,8 +76,7 @@ var (
 				}
 				t.Logf("Unexpected ordering of cluster status changes: %s", buffer.String())
 			}
-			//check last element in slice (ordering in slice is DESC => latest event at the beginning)
-			require.Equal(t, keb.StatusReconcilePending, respModel.StatusChanges[len(respModel.StatusChanges)-1].Status)
+			require.Equal(t, keb.StatusReconcilePending, respModel.StatusChanges[0].Status)
 		}
 	}
 )
