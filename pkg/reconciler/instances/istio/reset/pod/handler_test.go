@@ -1,10 +1,10 @@
 package pod
 
 import (
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
-	"sync"
 	"testing"
 	"time"
+
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,15 +15,12 @@ func Test_NoActionHandler_Execute(t *testing.T) {
 		// given
 		customObject := fixCustomObject()
 		handler := NoActionHandler{}
-		var wg sync.WaitGroup
-		wg.Add(1)
 
 		// when
-		handler.Execute(*customObject, &wg)
+		handler.Execute(*customObject)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -34,15 +31,12 @@ func Test_DeleteObjectHandler_Execute(t *testing.T) {
 		// given
 		customObject := fixCustomObject()
 		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
-		var wg sync.WaitGroup
-		wg.Add(1)
 
 		// when
-		handler.Execute(*customObject, &wg)
+		handler.Execute(*customObject)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -53,15 +47,12 @@ func Test_RolloutHandler_Execute(t *testing.T) {
 		// given
 		pod := fixCustomObject()
 		handler := RolloutHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
-		var wg sync.WaitGroup
-		wg.Add(1)
 
 		// when
-		handler.Execute(*pod, &wg)
+		handler.Execute(*pod)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})

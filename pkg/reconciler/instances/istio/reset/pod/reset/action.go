@@ -1,10 +1,11 @@
 package reset
 
 import (
+	"sync"
+
 	"github.com/avast/retry-go"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
-	"sync"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
 
@@ -34,10 +35,7 @@ func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []
 
 	for handler := range handlersMap {
 		for _, object := range handlersMap[handler] {
-			i.wg.Add(1)
-			go handler.Execute(object, &i.wg)
+			handler.Execute(object)
 		}
 	}
-
-	i.wg.Wait()
 }
