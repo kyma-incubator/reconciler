@@ -31,7 +31,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			Lock:                state.Cluster.Cluster,
 			Cluster:             state.Cluster.Cluster,
 			ClusterConfig:       state.Configuration.Version,
-			ClusterConfigStatus: 0,
+			ClusterConfigStatus: state.Status.ID,
 			SchedulingID:        uuid.NewString(),
 		}
 
@@ -43,8 +43,8 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		existingRecon, err := existingReconQ.
 			Select().
 			Where(map[string]interface{}{
-				"Cluster":             state.Cluster.Cluster,
-				"ClusterConfigStatus": 0, //will be > 0 if reconciliation is finished
+				"Cluster":  state.Cluster.Cluster,
+				"Finished": false,
 			}).
 			GetOne()
 		if err == nil {
@@ -169,7 +169,8 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 		}
 
 		//update reconciliation and remove lock
-		reconEntity.Lock = ""
+		reconEntity.Lock = fmt.Sprintf("unlock-%s", reconEntity.SchedulingID)
+		reconEntity.Finished = true
 		reconEntity.ClusterConfigStatus = status.ID
 		reconEntity.Updated = time.Now()
 		updReconQ, err := db.NewQuery(r.Conn, reconEntity)
@@ -179,8 +180,8 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 		cnt, err := updReconQ.Update().
 			Where(
 				map[string]interface{}{
-					"SchedulingID":        schedulingID,
-					"ClusterConfigStatus": 0,
+					"SchedulingID": schedulingID,
+					"Finished":     false,
 				}).
 			ExecCount()
 		if err != nil {
@@ -297,7 +298,7 @@ func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*mode
 	if err != nil {
 		return nil, err
 	}
-	clCfgStatusCol, err := colHdr.ColumnName("ClusterConfigStatus")
+	FinishedCol, err := colHdr.ColumnName("Finished")
 	if err != nil {
 		return nil, err
 	}
@@ -309,8 +310,7 @@ func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*mode
 		WhereIn(
 			"SchedulingID",
 			//consider only operations which are part of a running reconciliations
-			fmt.Sprintf("SELECT %s FROM %s WHERE %s=$1", schedulingIDCol, reconEntity.Table(), clCfgStatusCol),
-			0).
+			fmt.Sprintf("SELECT %s FROM %s WHERE %s=$1", schedulingIDCol, reconEntity.Table(), FinishedCol), false).
 		GetMany()
 	if err != nil {
 		return nil, err

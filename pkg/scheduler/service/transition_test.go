@@ -49,7 +49,7 @@ func TestTransition(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.Len(t, reconEntities, 1)
-		require.True(t, reconEntities[0].IsReconciling())
+		require.False(t, reconEntities[0].Finished)
 
 		//verify cluster status
 		clusterState, err := inventory.GetLatest(clusterState.Cluster.Cluster)
@@ -64,7 +64,7 @@ func TestTransition(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.Len(t, reconEntities, 1)
-		require.True(t, reconEntities[0].IsReconciling())
+		require.False(t, reconEntities[0].Finished)
 
 		//finish the reconciliation
 		err = transition.FinishReconciliation(reconEntities[0].SchedulingID, model.ClusterStatusReady)
@@ -77,7 +77,7 @@ func TestTransition(t *testing.T) {
 		//verify that reconciliation is finished
 		reconEntity, err := reconRepo.GetReconciliation(reconEntities[0].SchedulingID)
 		require.NoError(t, err)
-		require.False(t, reconEntity.IsReconciling())
+		require.True(t, reconEntity.Finished)
 
 		//verify cluster status
 		clusterState, err := inventory.GetLatest(clusterState.Cluster.Cluster)

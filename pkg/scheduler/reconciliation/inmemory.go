@@ -37,10 +37,11 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 
 	//create reconciliation
 	reconEntity := &model.ReconciliationEntity{
-		Lock:          state.Cluster.Cluster,
-		Cluster:       state.Cluster.Cluster,
-		ClusterConfig: state.Configuration.Version,
-		SchedulingID:  uuid.NewString(),
+		Lock:                state.Cluster.Cluster,
+		Cluster:             state.Cluster.Cluster,
+		ClusterConfig:       state.Configuration.Version,
+		ClusterConfigStatus: state.Status.ID,
+		SchedulingID:        uuid.NewString(),
 	}
 	r.reconciliations[state.Cluster.Cluster] = reconEntity
 
@@ -107,12 +108,13 @@ func (r *InMemoryReconciliationRepository) FinishReconciliation(schedulingID str
 
 	for _, recon := range r.reconciliations {
 		if recon.SchedulingID == schedulingID {
-			if recon.ClusterConfigStatus > 0 {
+			if recon.Finished {
 				return fmt.Errorf("reconciliation with schedulingID '%s' is already finished", schedulingID)
 			}
 			recon.Lock = ""
-			recon.Updated = time.Now()
+			recon.Finished = true
 			recon.ClusterConfigStatus = status.ID
+			recon.Updated = time.Now()
 			return nil
 		}
 	}

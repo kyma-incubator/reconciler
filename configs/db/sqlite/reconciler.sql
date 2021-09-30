@@ -92,11 +92,12 @@ CREATE TABLE IF NOT EXISTS inventory_cluster_config_statuses (
 );
 
 CREATE TABLE IF NOT EXISTS scheduler_reconciliations (
-    "scheduling_id" char(36) NOT NULL PRIMARY KEY,
+    "scheduling_id" text NOT NULL PRIMARY KEY,
     "lock" text UNIQUE, --make sure just one cluster can be reconciled at the same time
     "cluster" text NOT NULL,
     "cluster_config" int NOT NULL,
     "cluster_config_status" int,
+    "finished" boolean DEFAULT FALSE,
     "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY("lock") REFERENCES inventory_clusters("cluster"),
@@ -108,8 +109,8 @@ CREATE TABLE IF NOT EXISTS scheduler_reconciliations (
 --DDL for scheduler operations:
 CREATE TABLE IF NOT EXISTS scheduler_operations (
     "priority" int NOT NULL,
-	"scheduling_id" char(36) NOT NULL,
-	"correlation_id" char(36) NOT NULL,
+	"scheduling_id" text NOT NULL,
+	"correlation_id" text NOT NULL,
     "cluster" text NOT NULL,
     "cluster_config" int NOT NULL,
     "component" text NOT NULL,

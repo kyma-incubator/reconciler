@@ -46,13 +46,13 @@ type CurrentlyReconciling struct {
 
 func (cr *CurrentlyReconciling) FilterByQuery(q *db.Select) error {
 	q.Where(map[string]interface{}{
-		"ClusterConfigStatus": 0,
+		"Finished": false,
 	})
 	return nil
 }
 
 func (cr *CurrentlyReconciling) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
-	if i.ClusterConfigStatus == 0 {
+	if !i.Finished {
 		return i
 	}
 	return nil

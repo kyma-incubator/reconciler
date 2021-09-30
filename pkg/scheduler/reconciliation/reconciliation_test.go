@@ -2,8 +2,10 @@ package reconciliation
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/stretchr/testify/require"
@@ -12,64 +14,8 @@ import (
 
 type testCase struct {
 	name    string
-	testFct func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity
+	testFct func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity
 }
-
-var (
-	stateMock1 = &cluster.State{
-		Cluster: &model.ClusterEntity{
-			Cluster: "testCluster1",
-		},
-		Configuration: &model.ClusterConfigurationEntity{
-			Contract: 1,
-			Version:  123,
-			Components: `[
-				{
-					"component": "comp1",
-					"namespace": "kyma-system",
-					"configuration": [
-						{
-							"key": "limitRange.default.memory",
-							"value": "256Mi"
-						},
-						{
-							"key": "limitRange.max.memory",
-							"value": "8Gi"
-						}
-					]
-				},
-				{
-					"component": "comp2",
-					"namespace": "istio-system",
-					"configuration": []
-				},
-				{
-					"component": "comp3",
-					"namespace": "kyma-system",
-					"configuration": []
-				}
-			]`,
-		},
-		Status: &model.ClusterStatusEntity{},
-	}
-	stateMock2 = &cluster.State{
-		Cluster: &model.ClusterEntity{
-			Cluster: "testCluster2",
-		},
-		Configuration: &model.ClusterConfigurationEntity{
-			Contract: 1,
-			Version:  123,
-			Components: `[
-				{
-					"component": "comp4",
-					"namespace": "kyma-system",
-					"configuration": []
-				}
-			]`,
-		},
-		Status: &model.ClusterStatusEntity{},
-	}
-)
 
 func TestReconciliationFindProcessableOps(t *testing.T) {
 	ops := []*model.OperationEntity{
@@ -198,7 +144,7 @@ func TestReconciliationRepository(t *testing.T) {
 	var testCases = []testCase{
 		{
 			name: "Create reconciliation",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 
 				require.NoError(t, err)
@@ -212,7 +158,7 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Get existing reconciliation",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 				reconGot, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
@@ -224,7 +170,7 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Get non-existing reconciliation",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				_, err := reconRepo.GetReconciliation("dont exist")
 				require.Error(t, err)
 				require.True(t, repository.IsNotFoundError(err))
@@ -234,7 +180,7 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Create duplicate reconciliation",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 
@@ -247,19 +193,15 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Finish reconciliation",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 
-				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, &model.ClusterStatusEntity{
-					ID: 9999,
-				})
+				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, stateMock1.Status)
 				require.NoError(t, err)
 
 				//finish a non-running reconciliation is not allowed
-				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, &model.ClusterStatusEntity{
-					ID: 9999,
-				})
+				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, stateMock1.Status)
 				require.Error(t, err)
 
 				return []*model.ReconciliationEntity{reconEntity}
@@ -267,15 +209,15 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Get reconciliations with and without filter",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, nil)
 				require.NoError(t, err)
 
 				all, err := reconRepo.GetReconciliations(nil)
-				require.Len(t, all, 2)
 				require.NoError(t, err)
+				require.Len(t, filterReconciliationsBySchedulingID(all, reconEntity1, reconEntity2), 2)
 
 				only2, err := reconRepo.GetReconciliations(&WithSchedulingID{reconEntity2.SchedulingID})
 				require.NoError(t, err)
@@ -287,13 +229,12 @@ func TestReconciliationRepository(t *testing.T) {
 				require.Len(t, only1, 1)
 				require.Equal(t, reconEntity1.SchedulingID, only1[0].SchedulingID)
 
-				err = reconRepo.FinishReconciliation(reconEntity1.SchedulingID, &model.ClusterStatusEntity{
-					ID: 9999,
-				})
+				err = reconRepo.FinishReconciliation(reconEntity1.SchedulingID, stateMock1.Status)
 				require.NoError(t, err)
 
-				recon, err := reconRepo.GetReconciliations(&CurrentlyReconciling{})
+				reconAll, err := reconRepo.GetReconciliations(&CurrentlyReconciling{})
 				require.NoError(t, err)
+				recon := filterReconciliationsBySchedulingID(reconAll, reconEntity2)
 				require.Len(t, recon, 1)
 				require.Equal(t, reconEntity2.SchedulingID, recon[0].SchedulingID)
 
@@ -302,7 +243,7 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Remove reconciliation",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 
@@ -318,7 +259,7 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Get operations",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, []string{"comp3"})
 				require.NoError(t, err)
 
@@ -355,7 +296,7 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Get operations with filter",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 
@@ -410,7 +351,7 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Get processable operations using 1 reconciliation",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, []string{"comp1"})
 				require.NoError(t, err)
 
@@ -420,8 +361,10 @@ func TestReconciliationRepository(t *testing.T) {
 				require.Len(t, opsEntities, 4)
 
 				//only the operation with prio 1 has to be returned
-				opsEntitiesPrio1, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio1All, err := reconRepo.GetProcessableOperations()
 				require.NoError(t, err)
+				opsEntitiesPrio1 := filterOpsBySchedulingID(opsEntitiesPrio1All, reconEntity)
+
 				require.Len(t, opsEntitiesPrio1, 1)
 				require.ElementsMatch(t, findOperationsByPrio(opsEntities, 1), opsEntitiesPrio1)
 
@@ -431,8 +374,9 @@ func TestReconciliationRepository(t *testing.T) {
 						model.OperationStateDone))
 				}
 
-				opsEntitiesPrio2, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio2All, err := reconRepo.GetProcessableOperations()
 				require.NoError(t, err)
+				opsEntitiesPrio2 := filterOpsBySchedulingID(opsEntitiesPrio2All, reconEntity)
 				require.Len(t, opsEntitiesPrio2, 1)
 				require.ElementsMatch(t, findOperationsByPrio(opsEntities, 2), opsEntitiesPrio2)
 
@@ -443,8 +387,9 @@ func TestReconciliationRepository(t *testing.T) {
 				}
 
 				//one of the previous operations is in error state: no further operations have to be processed
-				opsEntitiesPrio, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrioAll, err := reconRepo.GetProcessableOperations()
 				require.NoError(t, err)
+				opsEntitiesPrio := filterOpsBySchedulingID(opsEntitiesPrioAll, reconEntity)
 				require.Empty(t, opsEntitiesPrio)
 
 				return []*model.ReconciliationEntity{reconEntity}
@@ -452,7 +397,7 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Get processable operations using 2 reconciliation",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, []string{"comp1"})
 				require.NoError(t, err)
 				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, nil)
@@ -467,7 +412,9 @@ func TestReconciliationRepository(t *testing.T) {
 				require.Len(t, opsEntities2, 2)
 
 				//only the operation with prio 1 has to be returned
-				opsEntitiesPrio1, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio1All, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio1 := filterOpsBySchedulingID(opsEntitiesPrio1All, reconEntity1, reconEntity2)
+
 				var expectedOpsPrio1 []*model.OperationEntity
 				expectedOpsPrio1 = append(expectedOpsPrio1, findOperationsByPrio(opsEntities1, 1)...)
 				expectedOpsPrio1 = append(expectedOpsPrio1, findOperationsByPrio(opsEntities2, 1)...)
@@ -481,7 +428,8 @@ func TestReconciliationRepository(t *testing.T) {
 						model.OperationStateDone))
 				}
 
-				opsEntitiesPrio2, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio2All, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio2 := filterOpsBySchedulingID(opsEntitiesPrio2All, reconEntity1, reconEntity2)
 				var expectedOpsPrio2 []*model.OperationEntity
 				expectedOpsPrio2 = append(expectedOpsPrio2, findOperationsByPrio(opsEntities1, 2)...)
 				expectedOpsPrio2 = append(expectedOpsPrio2, findOperationsByPrio(opsEntities2, 2)...)
@@ -496,7 +444,8 @@ func TestReconciliationRepository(t *testing.T) {
 				}
 
 				//one of the previous operations is in error state: no further operations have to be processed
-				opsEntitiesPrio, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrioAll, err := reconRepo.GetProcessableOperations()
+				opsEntitiesPrio := filterOpsBySchedulingID(opsEntitiesPrioAll, reconEntity1, reconEntity2)
 				require.NoError(t, err)
 				require.Empty(t, opsEntitiesPrio)
 
@@ -505,14 +454,15 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Get reconciling operations",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, []string{"comp1"})
 				require.NoError(t, err)
 				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, nil)
 				require.NoError(t, err)
 
 				//get existing operations
-				opsRecon, err := reconRepo.GetReconcilingOperations()
+				opsReconAll, err := reconRepo.GetReconcilingOperations()
+				opsRecon := filterOpsBySchedulingID(opsReconAll, reconEntity1, reconEntity2)
 				require.NoError(t, err)
 				require.Len(t, opsRecon, 6)
 
@@ -521,7 +471,7 @@ func TestReconciliationRepository(t *testing.T) {
 		},
 		{
 			name: "Set operation states",
-			testFct: func(t *testing.T, reconRepo Repository) []*model.ReconciliationEntity {
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) []*model.ReconciliationEntity {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 
@@ -534,7 +484,7 @@ func TestReconciliationRepository(t *testing.T) {
 
 				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
 				op, _ := reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateInProgress)
+				verifyOperationState(t, op, model.OperationStateInProgress)
 
 				//duplicate in-progress assignment not allowed
 				err = reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress)
@@ -543,28 +493,28 @@ func TestReconciliationRepository(t *testing.T) {
 
 				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateClientError, "client error reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateClientError, "client error reason")
+				verifyOperationState(t, op, model.OperationStateClientError, "client error reason")
 
 				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
 				op, _ = reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateInProgress)
+				verifyOperationState(t, op, model.OperationStateInProgress)
 
 				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateFailed, "operation failed reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateFailed, "operation failed reason")
+				verifyOperationState(t, op, model.OperationStateFailed, "operation failed reason")
 
 				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
 				op, _ = reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateInProgress)
+				verifyOperationState(t, op, model.OperationStateInProgress)
 
 				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateError, "operation error reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateError, "operation error reason")
+				verifyOperationState(t, op, model.OperationStateError, "operation error reason")
 
 				//expect an error because operation is in final state
 				require.Error(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
 				op, _ = reconRepo.GetOperation(sID, cID)
-				verifyOperationstateMock(t, op, model.OperationStateError, "operation error reason")
+				verifyOperationState(t, op, model.OperationStateError, "operation error reason")
 
 				return []*model.ReconciliationEntity{reconEntity}
 			},
@@ -575,16 +525,22 @@ func TestReconciliationRepository(t *testing.T) {
 		"persistent": newPersistentRepository(t),
 		"in-memory":  NewInMemoryReconciliationRepository()}
 
+	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
+	require.NoError(t, err)
+
 	for _, testCase := range testCases {
 		for repoName, repo := range repos {
 			t.Run(fmt.Sprintf("%s: %s", repoName, testCase.name), func(t *testing.T) {
-				reconEntities := testCase.testFct(t, repo)
+				stateMock1, stateMock2 := createClusterStates(t, inventory)
+				reconEntities := testCase.testFct(t, repo, stateMock1, stateMock2)
 
 				//cleanup
 				for _, reconEntity := range reconEntities {
 					if reconEntity != nil {
 						require.NoError(t, repo.RemoveReconciliation(reconEntity.SchedulingID))
 					}
+					require.NoError(t, inventory.Delete(stateMock1.Cluster.Cluster))
+					require.NoError(t, inventory.Delete(stateMock2.Cluster.Cluster))
 				}
 			})
 		}
@@ -592,7 +548,90 @@ func TestReconciliationRepository(t *testing.T) {
 
 }
 
-func verifyOperationstateMock(t *testing.T, op *model.OperationEntity, expectedState model.OperationState, reasons ...string) {
+func filterReconciliationsBySchedulingID(recons []*model.ReconciliationEntity, filters ...*model.ReconciliationEntity) []*model.ReconciliationEntity {
+	var result []*model.ReconciliationEntity
+	for _, recon := range recons {
+		for _, filter := range filters {
+			if recon.SchedulingID == filter.SchedulingID {
+				result = append(result, recon)
+			}
+		}
+	}
+	return result
+}
+
+func filterOpsBySchedulingID(ops []*model.OperationEntity, reconEntities ...*model.ReconciliationEntity) []*model.OperationEntity {
+	var result []*model.OperationEntity
+	for _, opsEntity := range ops {
+		for _, reconEntity := range reconEntities {
+			if opsEntity.SchedulingID == reconEntity.SchedulingID {
+				result = append(result, opsEntity)
+			}
+		}
+	}
+	return result
+}
+
+func createClusterStates(t *testing.T, inventory cluster.Inventory) (*cluster.State, *cluster.State) {
+	clusterID1 := uuid.NewString()
+	stateMock1, err := inventory.CreateOrUpdate(1, &keb.Cluster{
+		Kubeconfig: "abc",
+		KymaConfig: keb.KymaConfig{
+			Components: []keb.Component{
+				{
+					Component: "comp1",
+					Configuration: []keb.Configuration{
+						{
+							Key:   "limitRange.default.memory",
+							Value: "256m",
+						},
+					},
+					Namespace: "kyma-system",
+				},
+				{
+					Component:     "comp2",
+					Configuration: nil,
+					Namespace:     "istio-system",
+				},
+				{
+					Component:     "comp3",
+					Configuration: nil,
+					Namespace:     "kyma-system",
+				},
+			},
+			Version: "1.2.3",
+		},
+		Metadata:  keb.Metadata{},
+		RuntimeID: clusterID1,
+		RuntimeInput: keb.RuntimeInput{
+			Name: clusterID1,
+		},
+	})
+	require.NoError(t, err)
+
+	clusterID2 := uuid.NewString()
+	stateMock2, err := inventory.CreateOrUpdate(1, &keb.Cluster{
+		Kubeconfig: "abc",
+		KymaConfig: keb.KymaConfig{
+			Components: []keb.Component{
+				{
+					Component: "comp4",
+					Namespace: "kyma-system",
+				},
+			},
+			Version: "1.2.3",
+		},
+		Metadata:  keb.Metadata{},
+		RuntimeID: clusterID2,
+		RuntimeInput: keb.RuntimeInput{
+			Name: clusterID2,
+		},
+	})
+	require.NoError(t, err)
+	return stateMock1, stateMock2
+}
+
+func verifyOperationState(t *testing.T, op *model.OperationEntity, expectedState model.OperationState, reasons ...string) {
 	require.Equal(t, expectedState, op.State)
 	reason, err := concatStateReasons(expectedState, reasons)
 	require.NoError(t, err)

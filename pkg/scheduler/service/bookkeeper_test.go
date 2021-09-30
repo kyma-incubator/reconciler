@@ -48,7 +48,7 @@ func TestBookkeeper(t *testing.T) {
 	reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, reconEntity.Lock)
-	require.True(t, reconEntity.IsReconciling())
+	require.False(t, reconEntity.Finished)
 
 	//mark all operations to be finished
 	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
@@ -80,7 +80,7 @@ func TestBookkeeper(t *testing.T) {
 	reconEntityUpdated, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
 	require.NoError(t, err)
 	require.Empty(t, reconEntityUpdated.Lock)
-	require.False(t, reconEntityUpdated.IsReconciling())
+	require.True(t, reconEntityUpdated.Finished)
 }
 
 func TestBookkeeper_processClusterStateAndOrphans(t *testing.T) {

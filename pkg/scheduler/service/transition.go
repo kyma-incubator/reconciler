@@ -78,7 +78,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 			return err
 		}
 
-		if !reconEntity.IsReconciling() {
+		if reconEntity.Finished {
 			t.logger.Infof("Cluster transition tried to finish reconciliation '%s' but it is no longer marked to be in progress "+
 				"(maybe finished by parallel process in between)", reconEntity)
 			return fmt.Errorf("reconciliation '%s' is already finished", reconEntity)

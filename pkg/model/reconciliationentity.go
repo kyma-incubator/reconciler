@@ -10,17 +10,14 @@ import (
 const tblReconciliation string = "scheduler_reconciliations"
 
 type ReconciliationEntity struct {
-	Lock                string    `db:""`
+	Lock                string    `db:"notNull"`
 	Cluster             string    `db:"notNull"`
 	ClusterConfig       int64     `db:"notNull"`
-	ClusterConfigStatus int64     `db:""`
+	ClusterConfigStatus int64     `db:"notNull"`
+	Finished            bool      `db:"notNull"`
 	SchedulingID        string    `db:"notNull"`
 	Created             time.Time `db:"readOnly"`
 	Updated             time.Time `db:""`
-}
-
-func (r *ReconciliationEntity) IsReconciling() bool {
-	return r.ClusterConfigStatus == 0
 }
 
 func (r *ReconciliationEntity) String() string {
