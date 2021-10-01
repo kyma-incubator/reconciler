@@ -1,6 +1,7 @@
 package pod
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -16,11 +17,18 @@ func Test_NoActionHandler_Execute(t *testing.T) {
 		customObject := fixCustomObject()
 		handler := NoActionHandler{}
 
+		var wg sync.WaitGroup
+		wg.Add(1)
+		d := func() *sync.WaitGroup {
+			return &wg
+		}
+
 		// when
-		handler.Execute(*customObject)
+		handler.Execute(*customObject, d)
 
 		// then
 		require.Eventually(t, func() bool {
+			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -32,11 +40,18 @@ func Test_DeleteObjectHandler_Execute(t *testing.T) {
 		customObject := fixCustomObject()
 		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 
+		var wg sync.WaitGroup
+		wg.Add(1)
+		d := func() *sync.WaitGroup {
+			return &wg
+		}
+
 		// when
-		handler.Execute(*customObject)
+		handler.Execute(*customObject, d)
 
 		// then
 		require.Eventually(t, func() bool {
+			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -48,11 +63,18 @@ func Test_RolloutHandler_Execute(t *testing.T) {
 		pod := fixCustomObject()
 		handler := RolloutHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 
+		var wg sync.WaitGroup
+		wg.Add(1)
+		d := func() *sync.WaitGroup {
+			return &wg
+		}
+
 		// when
-		handler.Execute(*pod)
+		handler.Execute(*pod, d)
 
 		// then
 		require.Eventually(t, func() bool {
+			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})

@@ -63,7 +63,11 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {simpleCustomObject}}
 
-		handler.On("Execute", mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
+			wg := args.Get(1).(pod.GetSyncWG)
+			// wg.Done() must be called manually during execute
+			wg().Done()
+		})
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).Return(handlersMap)
 
 		// when
@@ -81,7 +85,11 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {simpleCustomObject, simpleCustomObject}}
 
-		handler.On("Execute", mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
+			wg := args.Get(1).(pod.GetSyncWG)
+			// wg.Done() must be called manually during execute
+			wg().Done()
+		})
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).Return(handlersMap)
 
 		// when
@@ -100,8 +108,16 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler2 := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler1: {simpleCustomObject}, &handler2: {simpleCustomObject}}
 
-		handler1.On("Execute", mock.AnythingOfType("pod.CustomObject")).Return(nil)
-		handler2.On("Execute", mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler1.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
+			wg := args.Get(1).(pod.GetSyncWG)
+			// wg.Done() must be called manually during execute
+			wg().Done()
+		})
+		handler2.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
+			wg := args.Get(1).(pod.GetSyncWG)
+			// wg.Done() must be called manually during execute
+			wg().Done()
+		})
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).Return(handlersMap)
 
 		// when

@@ -3,6 +3,7 @@ package pod
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -13,10 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+type GetSyncWG func() *sync.WaitGroup
+
 //go:generate mockery --name=Handler --outpkg=mocks --case=underscore
 // Handler executes actions on the Kubernetes cluster
 type Handler interface {
-	Execute(CustomObject)
+	Execute(CustomObject, GetSyncWG)
 }
 
 type handlerCfg struct {
@@ -32,7 +35,9 @@ type NoActionHandler struct {
 	handlerCfg
 }
 
-func (i *NoActionHandler) Execute(object CustomObject) {
+func (i *NoActionHandler) Execute(object CustomObject, wg GetSyncWG) {
+	defer wg().Done()
+
 	if i.debug {
 		i.log.Infof("Not doing any action for: %s %s %s", object.Kind, object.Namespace, object.Name)
 	}
@@ -42,7 +47,9 @@ type DeleteObjectHandler struct {
 	handlerCfg
 }
 
-func (i *DeleteObjectHandler) Execute(object CustomObject) {
+func (i *DeleteObjectHandler) Execute(object CustomObject, wg GetSyncWG) {
+	defer wg().Done()
+
 	i.log.Infof("Deleting pod %s %s", object.Name, object.Namespace)
 	if !i.debug {
 		err := retry.Do(func() error {
@@ -66,9 +73,10 @@ type RolloutHandler struct {
 	handlerCfg
 }
 
-func (i *RolloutHandler) Execute(object CustomObject) {
-	i.log.Infof("Doing rollout for %s %s %s", object.Kind, object.Namespace, object.Name)
+func (i *RolloutHandler) Execute(object CustomObject, wg GetSyncWG) {
+	defer wg().Done()
 
+	i.log.Infof("Doing rollout for %s %s %s", object.Kind, object.Namespace, object.Name)
 	if !i.debug {
 		err := retry.Do(func() error {
 			err := doRollout(object, i.kubeClient)

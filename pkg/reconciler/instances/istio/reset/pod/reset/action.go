@@ -20,14 +20,20 @@ type Action interface {
 // DefaultResetAction assigns pods to handlers and executes them
 type DefaultResetAction struct {
 	matcher pod.Matcher
-	wg      sync.WaitGroup
+	wg      *sync.WaitGroup
 }
 
 func NewDefaultPodsResetAction(matcher pod.Matcher) *DefaultResetAction {
+	waitGroup := sync.WaitGroup{}
+
 	return &DefaultResetAction{
 		matcher: matcher,
-		wg:      sync.WaitGroup{},
+		wg:      &waitGroup,
 	}
+}
+
+func (i *DefaultResetAction) GetWG() *sync.WaitGroup {
+	return i.wg
 }
 
 func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool) {
@@ -35,7 +41,10 @@ func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []
 
 	for handler := range handlersMap {
 		for _, object := range handlersMap[handler] {
-			handler.Execute(object)
+			i.wg.Add(1)
+			handler.Execute(object, i.GetWG)
 		}
 	}
+
+	i.GetWG().Wait()
 }
