@@ -95,7 +95,7 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 
 	actionHelper := &ActionContext{
 		KubeClient:       kubeClient,
-		WorkspaceFactory: wsFactory,
+		WorkspaceFactory: *wsFactory,
 		Context:          ctx,
 		Logger:           r.logger,
 		ChartProvider:    chartProvider,
