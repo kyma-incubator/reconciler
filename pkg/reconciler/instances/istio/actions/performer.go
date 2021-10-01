@@ -184,7 +184,7 @@ func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, version IstioVersi
 		DelayBetweenRetries:   delayBetweenRetries,
 		SleepAfterPodDeletion: sleepAfterPodDeletion,
 		Kubeclient:            kubeClient,
-		Debug:                 true,
+		Debug:                 false,
 		Log:                   logger,
 	}
 
