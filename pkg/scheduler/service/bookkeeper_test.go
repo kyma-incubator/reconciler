@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -38,7 +39,7 @@ func TestBookkeeper(t *testing.T) {
 			Profile: "",
 			Version: "1.2.3",
 		},
-		RuntimeID: "testCluster",
+		RuntimeID: uuid.NewString(),
 	})
 	require.NoError(t, err)
 
@@ -79,8 +80,16 @@ func TestBookkeeper(t *testing.T) {
 	//verify bookkeeper results
 	reconEntityUpdated, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
 	require.NoError(t, err)
-	require.Empty(t, reconEntityUpdated.Lock)
 	require.True(t, reconEntityUpdated.Finished)
+
+	//cleanup
+	t.Log("Cleaning up test context")
+	require.NoError(t, inventory.Delete(clusterState.Cluster.Cluster))
+	recons, err := reconRepo.GetReconciliations(&reconciliation.WithCluster{Cluster: clusterState.Cluster.Cluster})
+	require.NoError(t, err)
+	for _, recon := range recons {
+		require.NoError(t, reconRepo.RemoveReconciliation(recon.SchedulingID))
+	}
 }
 
 func TestBookkeeper_processClusterStateAndOrphans(t *testing.T) {

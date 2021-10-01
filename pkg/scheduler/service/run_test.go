@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -41,13 +42,13 @@ func TestRuntimeBuilder(t *testing.T) {
 	t.Run("Run local with success", func(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{true})
 		receivedUpdates := runLocal(t)
-		require.Equal(t, receivedUpdates[len(receivedUpdates)-1].Status, reconciler.StatusSuccess)
+		require.Equal(t, reconciler.StatusSuccess, receivedUpdates[len(receivedUpdates)-1].Status)
 	})
 
 	t.Run("Run local with error", func(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{false})
 		receivedUpdates := runLocal(t)
-		require.Equal(t, receivedUpdates[len(receivedUpdates)-1].Status, reconciler.StatusError)
+		require.Equal(t, reconciler.StatusError, receivedUpdates[len(receivedUpdates)-1].Status)
 	})
 
 	t.Run("Run remote with success", func(t *testing.T) {
@@ -73,13 +74,23 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status) {
 			Profile:    "",
 			Version:    "1.2.3",
 		},
-		RuntimeID: "testCluster",
+		RuntimeID: uuid.NewString(),
 	})
 	require.NoError(t, err)
 
 	//create reconciliation repository
 	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 	require.NoError(t, err)
+
+	//cleanup
+	defer func() {
+		require.NoError(t, inventory.Delete(clusterState.Cluster.Cluster))
+		recons, err := reconRepo.GetReconciliations(&reconciliation.WithCluster{Cluster: clusterState.Cluster.Cluster})
+		require.NoError(t, err)
+		for _, recon := range recons {
+			require.NoError(t, reconRepo.RemoveReconciliation(recon.SchedulingID))
+		}
+	}()
 
 	//configure remote runner
 	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(true))
@@ -176,9 +187,14 @@ func runLocal(t *testing.T) []*reconciler.CallbackMessage {
 			Profile:    "",
 			Version:    "1.2.3",
 		},
-		RuntimeID: "testCluster",
+		RuntimeID: uuid.NewString(),
 	})
 	require.NoError(t, err)
+
+	//cleanup
+	defer func() {
+		require.NoError(t, inventory.Delete(clusterState.Cluster.Cluster))
+	}()
 
 	//create reconciliation repository
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()

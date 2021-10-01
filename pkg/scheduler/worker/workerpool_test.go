@@ -46,6 +46,11 @@ func TestWorkerPool(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	//cleanup created cluster
+	defer func() {
+		require.NoError(t, inventory.Delete(clusterState.Cluster.Cluster))
+	}()
+
 	//create reconciliation for cluster
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 	reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
