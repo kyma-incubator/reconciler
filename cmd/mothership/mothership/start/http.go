@@ -314,13 +314,13 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	switch body.Status {
 	case reconciler.StatusNotstarted, reconciler.StatusRunning:
-		err = updateOperationState(o, correlationID, schedulingID, model.OperationStateInProgress)
+		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateInProgress)
 	case reconciler.StatusFailed:
-		err = updateOperationState(o, correlationID, schedulingID, model.OperationStateFailed, body.Error)
+		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateFailed, body.Error)
 	case reconciler.StatusSuccess:
-		err = updateOperationState(o, correlationID, schedulingID, model.OperationStateDone)
+		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateDone)
 	case reconciler.StatusError:
-		err = updateOperationState(o, correlationID, schedulingID, model.OperationStateError, body.Error)
+		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateError, body.Error)
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
@@ -334,9 +334,9 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func updateOperationState(o *Options, correlationID string, schedulingID string, state model.OperationState, reason ...string) error {
+func updateOperationState(o *Options, schedulingID, correlationID string, state model.OperationState, reason ...string) error {
 	err := o.Registry.ReconciliationRepository().UpdateOperationState(
-		correlationID, schedulingID, state, strings.Join(reason, ", "))
+		schedulingID, correlationID, state, strings.Join(reason, ", "))
 	if err != nil {
 		if reconciliation.IsRedundantOperationStateUpdateError(err) {
 			o.Logger().Debugf("REST endpoint tried an redundant update of operation "+

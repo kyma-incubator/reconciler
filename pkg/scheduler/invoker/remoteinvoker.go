@@ -130,7 +130,7 @@ func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 			"using '%s' component reconciler as fallback", component, config.FallbackComponentReconciler)
 		compRecon, ok = i.config.Scheduler.Reconcilers[config.FallbackComponentReconciler]
 		if !ok {
-			i.logger.Errorf("Fallback reconciler '%s' not found in scheduler configuration",
+			i.logger.Errorf("Remote invoker could not find fallback reconciler '%s' in scheduler configuration",
 				config.FallbackComponentReconciler)
 			return nil, &NoFallbackReconcilerDefinedError{}
 		}
