@@ -59,6 +59,9 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		}
 
 		createReconQ, err := db.NewQuery(r.Conn, reconEntity)
+		if err != nil {
+			return nil, err
+		}
 		if err := createReconQ.Insert().Exec(); err != nil {
 			r.Logger.Errorf("Failed to create new reconciliation entity for cluster '%s': %s",
 				state.Cluster.Cluster, err)
@@ -123,6 +126,9 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 
 		//delete operations
 		qDelOps, err := db.NewQuery(r.Conn, &model.OperationEntity{})
+		if err != nil {
+			return err
+		}
 		delOpsCnt, err := qDelOps.Delete().
 			Where(whereCond).
 			Exec()
@@ -134,6 +140,9 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 
 		//delete reconciliation
 		qDelRecon, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{})
+		if err != nil {
+			return err
+		}
 		delCnt, err := qDelRecon.Delete().
 			Where(whereCond).
 			Exec()

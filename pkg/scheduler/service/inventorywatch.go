@@ -10,12 +10,12 @@ import (
 
 type inventoryQueue chan<- *cluster.State
 
-func newInventoryWatch(inventory cluster.Inventory, logger *zap.SugaredLogger, config *SchedulerConfig) (*inventoryWatcher, error) {
+func newInventoryWatch(inventory cluster.Inventory, logger *zap.SugaredLogger, config *SchedulerConfig) *inventoryWatcher {
 	return &inventoryWatcher{
 		inventory: inventory,
 		config:    config,
 		logger:    logger,
-	}, nil
+	}
 }
 
 type inventoryWatcher struct {

@@ -46,11 +46,10 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 				t.logger.Infof("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
 					"cluster was already enqueued", clusterState.Cluster.Cluster)
 				return err
-			} else {
-				t.logger.Errorf("Cluster transition failed to add cluster '%s' to reconciliation queue: %s",
-					clusterState.Cluster.Cluster, err)
-				return err
 			}
+			t.logger.Errorf("Cluster transition failed to add cluster '%s' to reconciliation queue: %s",
+				clusterState.Cluster.Cluster, err)
+			return err
 		}
 		//set cluster status to reconciling
 		newClusterState, err := t.inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)

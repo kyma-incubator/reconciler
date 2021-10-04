@@ -502,25 +502,29 @@ func TestReconciliationRepository(t *testing.T) {
 
 	for _, testCase := range testCases {
 		for repoName, repo := range repos {
-			t.Run(fmt.Sprintf("%s: %s", repoName, testCase.name), func(t *testing.T) {
-				//prepare test context
-				t.Log("Preparing test context: deleting all reconciliations")
-				removeExistingReconciliations(t, repos) //cleanup before
-
-				//run test
-				t.Log("Executing test case")
-				stateMock1, stateMock2 := createClusterStates(t, inventory)
-				testCase.testFct(t, repo, stateMock1, stateMock2)
-
-				//cleanup
-				t.Log("Cleaning up test context: deleting all reconciliations")
-				require.NoError(t, inventory.Delete(stateMock1.Cluster.Cluster))
-				require.NoError(t, inventory.Delete(stateMock2.Cluster.Cluster))
-				removeExistingReconciliations(t, repos) //cleanup after
-			})
+			//prepare test context
+			t.Log("Preparing test context: deleting all reconciliations")
+			removeExistingReconciliations(t, repos) //cleanup before
+			t.Run(fmt.Sprintf("%s: %s", repoName, testCase.name), newTestFct(testCase, inventory, repo))
+			removeExistingReconciliations(t, repos) //cleanup after
 		}
 	}
 
+}
+
+func newTestFct(testCase testCase, inventory cluster.Inventory, repo Repository) func(t *testing.T) {
+	return func(t *testing.T) {
+
+		//run test
+		t.Log("Executing test case")
+		stateMock1, stateMock2 := createClusterStates(t, inventory)
+		testCase.testFct(t, repo, stateMock1, stateMock2)
+
+		//cleanup
+		t.Log("Cleaning up test context: deleting all reconciliations")
+		require.NoError(t, inventory.Delete(stateMock1.Cluster.Cluster))
+		require.NoError(t, inventory.Delete(stateMock2.Cluster.Cluster))
+	}
 }
 
 func removeExistingReconciliations(t *testing.T, repos map[string]Repository) {

@@ -102,7 +102,7 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 				//reset orphaned operations
 				for _, orphanOp := range filterResult.GetOrphans() {
 					bk.logger.Debugf("Bookkeeper is marking operation '%s' as orphan "+
-						"(last update happend %.2f minutes ago)", orphanOp, time.Now().Sub(orphanOp.Updated).Minutes())
+						"(last update happened %.2f minutes ago)", orphanOp, time.Since(orphanOp.Updated).Minutes())
 
 					if err := bk.transition.ReconciliationRepository().UpdateOperationState(
 						orphanOp.SchedulingID, orphanOp.CorrelationID, model.OperationStateOrphan); err != nil {

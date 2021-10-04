@@ -67,7 +67,7 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 		w.logger.Debugf("Worker finished processing of operation '%s' successfully", op)
 	} else {
 		w.logger.Warnf("Worker stops processing operation '%s' because invoker "+
-			"returned consistenly errors (%d retries): %s", op, w.maxRetries, err)
+			"returned consistently errors (%d retries): %s", op, w.maxRetries, err)
 	}
 	return err
 }

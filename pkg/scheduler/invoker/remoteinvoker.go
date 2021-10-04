@@ -19,21 +19,21 @@ import (
 
 const callbackURLTemplate = "%s://%s:%d/v1/operations/%s/callback/%s"
 
-type remoteReconcilerInvoker struct {
+type RemoteReconcilerInvoker struct {
 	reconRepo reconciliation.Repository
 	config    *config.Config
 	logger    *zap.SugaredLogger
 }
 
-func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, cfg *config.Config, logger *zap.SugaredLogger) *remoteReconcilerInvoker {
-	return &remoteReconcilerInvoker{
+func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, cfg *config.Config, logger *zap.SugaredLogger) *RemoteReconcilerInvoker {
+	return &RemoteReconcilerInvoker{
 		reconRepo: reconRepo,
 		config:    cfg,
 		logger:    logger,
 	}
 }
 
-func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) error {
+func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) error {
 	resp, err := i.sendHTTPRequest(params)
 	if err != nil {
 		return err
@@ -97,12 +97,12 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 	return i.updateOperationState(params, model.OperationStateClientError, errorReason)
 }
 
-func (i *remoteReconcilerInvoker) reportUnmarshalError(httpCode int, body []byte, err error) {
+func (i *RemoteReconcilerInvoker) reportUnmarshalError(httpCode int, body []byte, err error) {
 	i.logger.Warnf("Remote invoker: Failed to unmarshal reconciler response (HTTP-code: %d / Body: %s): %s",
 		httpCode, string(body), err)
 }
 
-func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Response, error) {
+func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Response, error) {
 	component := params.ComponentToReconcile.Component
 
 	callbackURL := fmt.Sprintf(callbackURLTemplate,
@@ -140,7 +140,7 @@ func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 	if err == nil {
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err == nil {
-			i.logger.Debugf("Remote invoker received HTTP reponse from reconciler of component '%s' with status '%s' [%d] "+
+			i.logger.Debugf("Remote invoker received HTTP response from reconciler of component '%s' with status '%s' [%d] "+
 				"(schedulingID:%s/correlationID:%s): %s",
 				params.ComponentToReconcile.Component, resp.Status, resp.StatusCode,
 				params.SchedulingID, params.CorrelationID, string(respDump))
@@ -154,7 +154,7 @@ func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 	return resp, nil
 }
 
-func (i *remoteReconcilerInvoker) marshalHTTPResponse(body []byte, respModel interface{}, params *Params) error {
+func (i *RemoteReconcilerInvoker) marshalHTTPResponse(body []byte, respModel interface{}, params *Params) error {
 	if err := json.Unmarshal(body, respModel); err != nil {
 		i.logger.Errorf("Remote invoker failed to unmarshal HTTP response of reconciler for component '%s': %s",
 			params.ComponentToReconcile.Component, err)
@@ -171,7 +171,7 @@ func (i *remoteReconcilerInvoker) marshalHTTPResponse(body []byte, respModel int
 	return nil
 }
 
-func (i *remoteReconcilerInvoker) updateOperationState(params *Params, state model.OperationState, reasons ...string) error {
+func (i *RemoteReconcilerInvoker) updateOperationState(params *Params, state model.OperationState, reasons ...string) error {
 	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, strings.Join(reasons, ", "))
 	if err != nil {
 		if reconciliation.IsRedundantOperationStateUpdateError(err) {

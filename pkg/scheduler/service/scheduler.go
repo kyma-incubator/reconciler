@@ -96,10 +96,7 @@ func (s *scheduler) startInventoryWatcher(ctx context.Context, inventory cluster
 		queue chan *cluster.State,
 		cfg *SchedulerConfig) {
 
-		watcher, err := newInventoryWatch(clInv, logger, cfg)
-		if err != nil {
-			logger.Fatalf("Failed to start inventory watcher: %s", err)
-		}
+		watcher := newInventoryWatch(clInv, logger, cfg)
 		if err := watcher.Run(ctx, queue); err != nil {
 			logger.Errorf("Inventory watcher returned an error: %s", err)
 		}

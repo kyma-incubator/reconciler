@@ -17,21 +17,21 @@ import (
 //ReconcilerStatusFunc can be passed by caller to retrieve status updates
 type ReconcilerStatusFunc func(component string, msg *reconciler.CallbackMessage)
 
-type localReconcilerInvoker struct {
+type LocalReconcilerInvoker struct {
 	reconRepo  reconciliation.Repository
 	logger     *zap.SugaredLogger
 	statusFunc ReconcilerStatusFunc
 }
 
-func NewLocalReconcilerInvoker(reconRepo reconciliation.Repository, statusFunc ReconcilerStatusFunc, logger *zap.SugaredLogger) *localReconcilerInvoker {
-	return &localReconcilerInvoker{
+func NewLocalReconcilerInvoker(reconRepo reconciliation.Repository, statusFunc ReconcilerStatusFunc, logger *zap.SugaredLogger) *LocalReconcilerInvoker {
+	return &LocalReconcilerInvoker{
 		reconRepo:  reconRepo,
 		logger:     logger,
 		statusFunc: statusFunc,
 	}
 }
 
-func (i *localReconcilerInvoker) Invoke(ctx context.Context, params *Params) error {
+func (i *LocalReconcilerInvoker) Invoke(ctx context.Context, params *Params) error {
 	component := params.ComponentToReconcile.Component
 
 	//resolve component reconciler
@@ -58,7 +58,7 @@ func (i *localReconcilerInvoker) Invoke(ctx context.Context, params *Params) err
 	return compRecon.StartLocal(ctx, reconModel, i.logger)
 }
 
-func (i *localReconcilerInvoker) newCallbackFunc(params *Params) func(msg *reconciler.CallbackMessage) error {
+func (i *LocalReconcilerInvoker) newCallbackFunc(params *Params) func(msg *reconciler.CallbackMessage) error {
 	return func(msg *reconciler.CallbackMessage) error {
 		if i.statusFunc == nil {
 			i.logger.Debugf("Local invoker has no Status-func configured: "+
@@ -94,7 +94,7 @@ func (i *localReconcilerInvoker) newCallbackFunc(params *Params) func(msg *recon
 	}
 }
 
-func (i *localReconcilerInvoker) updateOperationState(msg *reconciler.CallbackMessage, params *Params, state model.OperationState) error {
+func (i *LocalReconcilerInvoker) updateOperationState(msg *reconciler.CallbackMessage, params *Params, state model.OperationState) error {
 	i.logger.Debugf("Local invoker is updating operation (scheudlingID:%s/correlationID:%s) to state '%s' "+
 		"(error: '%s')", params.SchedulingID, params.CorrelationID, state, msg.Error)
 	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, msg.Error)

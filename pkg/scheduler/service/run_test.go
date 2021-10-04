@@ -150,29 +150,26 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 
 	//simulate a successfully finished operation
 	ticker := time.NewTicker(1 * time.Second)
-	for {
-		select {
-		case <-ticker.C:
-			//try to get the reconciliation entity for the cluster
-			reconEntities, err := reconRepo.GetReconciliations(&reconciliation.WithCluster{Cluster: clusterState.Cluster.Cluster})
-			if len(reconEntities) == 0 {
-				continue
-			}
-			require.NoError(t, err)
-			require.Len(t, reconEntities, 1)
-
-			//get operations of this reconciliation
-			opEntities, err := reconRepo.GetOperations(reconEntities[0].SchedulingID)
-			require.NoError(t, err)
-			//set all operations to DONE
-			for _, opEntity := range opEntities {
-				t.Log("Updating operations to state DONE")
-				err = reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
-					opState, "dummy reason")
-				require.NoError(t, err)
-			}
-			return
+	for range ticker.C {
+		//try to get the reconciliation entity for the cluster
+		reconEntities, err := reconRepo.GetReconciliations(&reconciliation.WithCluster{Cluster: clusterState.Cluster.Cluster})
+		if len(reconEntities) == 0 {
+			continue
 		}
+		require.NoError(t, err)
+		require.Len(t, reconEntities, 1)
+
+		//get operations of this reconciliation
+		opEntities, err := reconRepo.GetOperations(reconEntities[0].SchedulingID)
+		require.NoError(t, err)
+		//set all operations to DONE
+		for _, opEntity := range opEntities {
+			t.Log("Updating operations to state DONE")
+			err = reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
+				opState, "dummy reason")
+			require.NoError(t, err)
+		}
+		return
 	}
 }
 
