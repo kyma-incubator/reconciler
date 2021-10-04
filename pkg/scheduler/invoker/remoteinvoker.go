@@ -53,7 +53,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
 		//component-reconciler started reconciliation
 		respModel := &reconciler.HTTPReconciliationResponse{}
-		err := i.marshalHTTPResponse(body, respModel, params)
+		err := i.unmarshalHTTPResponse(body, respModel, params)
 		if err == nil {
 			return i.updateOperationState(params, model.OperationStateInProgress)
 		}
@@ -63,7 +63,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 	if resp.StatusCode == http.StatusPreconditionRequired {
 		//component-reconciler can not start because dependencies are missing
 		respModel := &reconciler.HTTPMissingDependenciesResponse{}
-		err := i.marshalHTTPResponse(body, respModel, params)
+		err := i.unmarshalHTTPResponse(body, respModel, params)
 		if err == nil {
 			return i.updateOperationState(params, model.OperationStateFailed,
 				fmt.Sprintf("dependencies are missing: '%s'", strings.Join(respModel.Dependencies.Missing, "', '")))
@@ -74,7 +74,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 	if resp.StatusCode >= 400 && resp.StatusCode <= 499 {
 		//component-reconciler can not start because dependencies are missing
 		respModel := &reconciler.HTTPErrorResponse{}
-		err := i.marshalHTTPResponse(body, respModel, params)
+		err := i.unmarshalHTTPResponse(body, respModel, params)
 		if err == nil {
 			return i.updateOperationState(params, model.OperationStateFailed, respModel.Error)
 		}
@@ -85,7 +85,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 	respModel := &reconciler.HTTPErrorResponse{}
 	var errorReason string
 
-	err = i.marshalHTTPResponse(body, respModel, params)
+	err = i.unmarshalHTTPResponse(body, respModel, params)
 	if err == nil {
 		errorReason = respModel.Error
 	} else {
@@ -154,7 +154,7 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 	return resp, nil
 }
 
-func (i *RemoteReconcilerInvoker) marshalHTTPResponse(body []byte, respModel interface{}, params *Params) error {
+func (i *RemoteReconcilerInvoker) unmarshalHTTPResponse(body []byte, respModel interface{}, params *Params) error {
 	if err := json.Unmarshal(body, respModel); err != nil {
 		i.logger.Errorf("Remote invoker failed to unmarshal HTTP response of reconciler for component '%s': %s",
 			params.ComponentToReconcile.Component, err)
