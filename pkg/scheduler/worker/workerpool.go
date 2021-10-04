@@ -75,6 +75,8 @@ func (w *Pool) invokeProcessableOpsOnce(ctx context.Context, workerPool *ants.Po
 		case <-ticker.C:
 			runningWorkers := workerPool.Running()
 			if runningWorkers == 0 {
+				w.logger.Debug("Worker pool has no running workers")
+
 				invoked, err := w.invokeProcessableOps(workerPool)
 				if err != nil {
 					return errors.Wrap(err, "worker pool failed to assign processable operations to workers")
