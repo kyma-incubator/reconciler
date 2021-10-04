@@ -50,10 +50,6 @@ func (i *remoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		return fmt.Errorf("failed to read response body: %s", err)
 	}
 
-	i.logger.Debugf("Remote invoker received HTTP reponse from reconciler of component '%s' with status '%s' [%d] "+
-		"(schedulingID:%s/correlationID:%s) ",
-		params.ComponentToReconcile.Component, resp.Status, resp.StatusCode, params.SchedulingID, params.CorrelationID)
-
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
 		//component-reconciler started reconciliation
 		respModel := &reconciler.HTTPReconciliationResponse{}
@@ -144,8 +140,10 @@ func (i *remoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 	if err == nil {
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err == nil {
-			i.logger.Debugf("Remote invoker received response from HTTP component reconciler '%s' (%s): %s",
-				params.ComponentToReconcile.Component, compRecon.URL, string(respDump))
+			i.logger.Debugf("Remote invoker received HTTP reponse from reconciler of component '%s' with status '%s' [%d] "+
+				"(schedulingID:%s/correlationID:%s): %s",
+				params.ComponentToReconcile.Component, resp.Status, resp.StatusCode,
+				params.SchedulingID, params.CorrelationID, string(respDump))
 		} else {
 			i.logger.Warnf("Remote invoker failed to dump HTTP response from component reconciler: %s", err)
 		}

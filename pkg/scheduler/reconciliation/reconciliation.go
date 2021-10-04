@@ -87,15 +87,9 @@ func findProcessableOperationsInGroup(ops []*model.OperationEntity) ([]*model.Op
 	var opsInProgress int
 	var processables []*model.OperationEntity
 	for _, op := range ops {
-		switch op.State {
-		case model.OperationStateInProgress:
-			opsInProgress++
-			continue
-		case model.OperationStateDone:
-			continue
-		case model.OperationStateError:
-			return nil, false
-		default:
+		if op.State == model.OperationStateNew ||
+			op.State == model.OperationStateOrphan ||
+			op.State == model.OperationStateClientError {
 			processables = append(processables, op)
 		}
 	}
