@@ -67,7 +67,7 @@ func RunLocal(o *Options) error {
 	defaultComponentsYaml := filepath.Join(ws.InstallationResourceDir, "components.yaml")
 
 	printStatus := func(component string, msg *reconciler.CallbackMessage) {
-		l.Infof("Component %s has status %s (error: %v)", component, msg.Status, msg.Error)
+		l.Infof("Component '%s' has status %s (reason: '%v')", component, msg.Status, msg.Error)
 	}
 
 	comps, err := o.Components(defaultComponentsYaml)
