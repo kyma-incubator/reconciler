@@ -82,7 +82,7 @@ func TestReconciliationFindProcessableOps(t *testing.T) {
 			require.ElementsMatch(t, []*model.OperationEntity{ops[0], ops[4]}, opsGot)
 		},
 		"Find prio1 with failure": func(t *testing.T) {
-			ops[0].State = model.OperationStateFailed
+			ops[0].State = model.OperationStateOrphan
 			opsGot := findProcessableOperations(ops)
 			require.Len(t, opsGot, 2)
 			require.ElementsMatch(t, []*model.OperationEntity{ops[0], ops[4]}, opsGot)

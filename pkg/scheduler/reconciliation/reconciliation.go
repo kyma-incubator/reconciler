@@ -86,12 +86,23 @@ func prios(opsByPrio map[int64][]*model.OperationEntity) []int64 {
 func findProcessableOperationsInGroup(ops []*model.OperationEntity) ([]*model.OperationEntity, bool) {
 	var opsInProgress int
 	var processables []*model.OperationEntity
+
 	for _, op := range ops {
-		if op.State == model.OperationStateNew ||
-			op.State == model.OperationStateOrphan ||
-			op.State == model.OperationStateClientError {
-			processables = append(processables, op)
+		//if one of the components is in error state, stop processing of remaining tasks
+		if op.State == model.OperationStateError {
+			return nil, false
 		}
+		//ignore component which were already successfully processed
+		if op.State == model.OperationStateDone {
+			continue
+		}
+		//ignore operations which are currently in progress
+		if op.State == model.OperationStateInProgress || op.State == model.OperationStateFailed {
+			opsInProgress++
+			continue
+		}
+		//none of the previous criteria were met: operation is waiting to be processed
+		processables = append(processables, op)
 	}
 	return processables, opsInProgress == 0 && len(processables) == 0
 }
