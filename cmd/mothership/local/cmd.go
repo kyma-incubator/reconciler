@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -67,7 +68,11 @@ func RunLocal(o *Options) error {
 	defaultComponentsYaml := filepath.Join(ws.InstallationResourceDir, "components.yaml")
 
 	printStatus := func(component string, msg *reconciler.CallbackMessage) {
-		l.Infof("Component '%s' has status %s (reason: '%v')", component, msg.Status, msg.Error)
+		errMsg := ""
+		if msg.Error != "" {
+			errMsg = fmt.Sprintf(" (error: %s)", msg.Error)
+		}
+		l.Infof("Component '%s' has status '%s'%s", component, msg.Status, errMsg)
 	}
 
 	comps, err := o.Components(defaultComponentsYaml)
