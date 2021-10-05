@@ -70,8 +70,9 @@ func TestRemoteInvoker(t *testing.T) {
 
 	t.Run("Invoke component-reconciler: happy path", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+
 		startServer(ctx, t)
+		defer shotdownServer(cancel, t)
 
 		cfg := &config.Config{
 			Scheme: "https",
@@ -94,8 +95,9 @@ func TestRemoteInvoker(t *testing.T) {
 
 	t.Run("Invoke component-reconciler: return 400 error", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+
 		startServer(ctx, t)
+		defer shotdownServer(cancel, t)
 
 		cfg := &config.Config{
 			Scheme: "https",
@@ -118,8 +120,9 @@ func TestRemoteInvoker(t *testing.T) {
 
 	t.Run("Invoke component-reconciler: return 500 error with error JSON response", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+
 		startServer(ctx, t)
+		defer shotdownServer(cancel, t)
 
 		cfg := &config.Config{
 			Scheme: "https",
@@ -142,8 +145,9 @@ func TestRemoteInvoker(t *testing.T) {
 
 	t.Run("Invoke component-reconciler: return 500 error with invalid error response", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+
 		startServer(ctx, t)
+		defer shotdownServer(cancel, t)
 
 		cfg := &config.Config{
 			Scheme: "https",
@@ -177,6 +181,11 @@ func invokeRemoteInvoker(reconRepo reconciliation.Repository, op *model.Operatio
 		SchedulingID:    op.SchedulingID,
 		CorrelationID:   op.CorrelationID,
 	})
+}
+
+func shotdownServer(cancel context.CancelFunc, t *testing.T) {
+	cancel()
+	test.WaitForFreeTCPSocket(t, "127.0.0.1", 80, 5*time.Second)
 }
 
 func startServer(ctx context.Context, t *testing.T) {
@@ -229,7 +238,10 @@ func startServer(ctx context.Context, t *testing.T) {
 			Port:   80,
 			Router: router,
 		}).Start(ctx)
-		require.NoError(t, err)
+		if err != nil {
+			//race condition: can occur if a new context got closed too fast
+			require.IsType(t, err, context.DeadlineExceeded)
+		}
 	}()
 	test.WaitForTCPSocket(t, "127.0.0.1", 80, 5*time.Second)
 }

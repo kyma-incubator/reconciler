@@ -25,21 +25,41 @@ func NewTestOptions(t *testing.T) *cli.Options {
 	return cliOptions
 }
 
+func WaitForFreeTCPSocket(t *testing.T, host string, port int, timeout time.Duration) {
+	connectToTCPSocket(t, host, port, false, timeout)
+}
+
 func WaitForTCPSocket(t *testing.T, host string, port int, timeout time.Duration) {
+	connectToTCPSocket(t, host, port, true, timeout)
+}
+
+func connectToTCPSocket(t *testing.T, host string, port int, expectPortAllocated bool, timeout time.Duration) {
 	check := time.NewTimer(1 * time.Second)
 	destAddr := fmt.Sprintf("%s:%d", host, port)
 	for {
 		select {
 		case <-check.C:
 			_, err := net.Dial("tcp", destAddr)
-			if err == nil {
-				return
+			if expectPortAllocated {
+				if err == nil {
+					return
+				}
+			} else {
+				if err != nil {
+					return
+				}
 			}
 		case <-time.After(timeout):
-			t.Logf("Timeout reached: could not open TCP connection to '%s' within %.1f seconds",
-				destAddr, timeout.Seconds())
+			if expectPortAllocated {
+				t.Logf("Timeout reached: could not open TCP connection to '%s' within %.1f seconds",
+					destAddr, timeout.Seconds())
+			} else {
+				t.Logf("Timeout reached: TCP socket '%s' was not freed up within %.1f seconds",
+					destAddr, timeout.Seconds())
+			}
 			check.Stop()
-			t.Fail()
+			t.FailNow()
+			return
 		}
 	}
 }
