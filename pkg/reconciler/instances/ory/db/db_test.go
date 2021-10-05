@@ -3,9 +3,9 @@ package db
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
-	"gotest.tools/assert"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -38,6 +38,20 @@ const (
                 dbName: db4hydra
                 dbType: postgres`
 
+	mysqlDBYaml = `
+        global:
+          ory:
+            hydra:
+              persistence:
+                enabled: true
+                gcloud:
+                  enabled: false
+                user: hydra
+                password: secretpw
+                dbUrl: mydb.mynamespace:1234
+                dbName: db4hydra
+                dbType: mysql`
+
 	customDBYaml = `
         global:
           ory:
@@ -48,9 +62,9 @@ const (
                   enabled: false
                 user: hydra
                 password: secretpw
-                dbUrl: mydb.mynamespace.svc.cluster.local:1234
+                dbUrl: mydb.mynamespace:1234
                 dbName: db4hydra
-                dbType: mysql`
+                dbType: cockroach`
 
 	noDBYaml = `
         global:
@@ -101,6 +115,26 @@ func TestDBSecret(t *testing.T) {
 		assert.Equal(t, secret.StringData["dsn"], dsnExpected)
 		assert.Equal(t, secret.StringData["gcp-sa.json"], "testsa")
 
+	})
+
+	t.Run("Deployment with mysql DB", func(t *testing.T) {
+		// given
+		t.Parallel()
+		name := types.NamespacedName{Name: "test-mysqlDB-secret", Namespace: "test"}
+		var values map[string]interface{}
+		err := yaml.Unmarshal([]byte(mysqlDBYaml), &values)
+		require.NoError(t, err)
+
+		// when
+		cfg, errNew := new(values)
+		dsnExpected := cfg.prepareMySQLDSN()
+		secret, errGet := Get(name, values)
+
+		// then
+		require.NoError(t, errNew)
+		require.NoError(t, errGet)
+		assert.Equal(t, secret.StringData["dsn"], dsnExpected)
+		assert.Equal(t, secret.StringData["dbPassword"], "secretpw")
 	})
 
 	t.Run("Deployment with Custom DB", func(t *testing.T) {
