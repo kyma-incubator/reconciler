@@ -27,4 +27,4 @@ mothership:
         url: "http://localhost:8081/v1/run"
     preComponents:
       - cluster-essentials
-      - istio
+      - istio-configuration
