@@ -60,9 +60,18 @@ func (c *Config) preparePostgresDSN() string {
 	return fmt.Sprintf(dsnTemplate, "postgres", c.Global.PostgresCfg.User, c.Global.PostgresCfg.Password, postgresURL, c.Global.PostgresCfg.DBName, dsnOpts)
 }
 
+func (c *Config) prepareGenericDSN() string {
+	return fmt.Sprintf(dsnTemplate, c.Global.Ory.Hydra.Persistence.DBType, c.Global.Ory.Hydra.Persistence.Username, c.Global.Ory.Hydra.Persistence.Password, c.Global.Ory.Hydra.Persistence.URL, c.Global.Ory.Hydra.Persistence.DBName, dsnOpts)
+}
+
 func (c *Config) prepareStringData() map[string]string {
 	if c.Global.Ory.Hydra.Persistence.Enabled {
-		return map[string]string{"secretsSystem": generateRandomString(32), "secretsCookie": generateRandomString(32), "dsn": c.preparePostgresDSN(), "postgresql-password": c.Global.PostgresCfg.Password, "postgresql-replication-password": generateRandomString(10)}
+		if c.Global.Ory.Hydra.Persistence.PostgresqlFlag.Enabled {
+			return map[string]string{"secretsSystem": generateRandomString(32), "secretsCookie": generateRandomString(32), "dsn": c.preparePostgresDSN(), "postgresql-password": c.Global.PostgresCfg.Password, "postgresql-replication-password": generateRandomString(10)}
+		}
+		if c.Global.Ory.Hydra.Persistence.Gcloud.Enabled {
+			return map[string]string{"secretsSystem": generateRandomString(32), "secretsCookie": generateRandomString(32), "gcp-sa.json": c.Global.Ory.Hydra.Persistence.Gcloud.SAJson, "dsn": c.prepareGenericDSN()}
+		}
 	}
 
 	return map[string]string{"secretsSystem": generateRandomString(32), "secretsCookie": generateRandomString(32), "dsn": "memory"}
