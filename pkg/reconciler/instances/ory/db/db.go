@@ -72,6 +72,7 @@ func (c *Config) prepareStringData() map[string]string {
 		if c.Global.Ory.Hydra.Persistence.Gcloud.Enabled {
 			return map[string]string{"secretsSystem": generateRandomString(32), "secretsCookie": generateRandomString(32), "gcp-sa.json": c.Global.Ory.Hydra.Persistence.Gcloud.SAJson, "dsn": c.prepareGenericDSN()}
 		}
+		return map[string]string{"secretsSystem": generateRandomString(32), "secretsCookie": generateRandomString(32), "dsn": c.prepareGenericDSN(), "dbPassword": c.Global.Ory.Hydra.Persistence.Password}
 	}
 
 	return map[string]string{"secretsSystem": generateRandomString(32), "secretsCookie": generateRandomString(32), "dsn": "memory"}
