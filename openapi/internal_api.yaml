@@ -22,7 +22,7 @@ paths:
       description: test
       parameters:
         - name: schedulingID
-          required: true
+          required: false
           in: path
           schema:
             type: string

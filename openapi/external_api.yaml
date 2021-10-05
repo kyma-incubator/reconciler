@@ -53,7 +53,7 @@ paths:
       description: delete cluster
       parameters:
         - name: cluster
-          required: true
+          required: false
           in: path
           schema:
             type: string
