@@ -75,14 +75,14 @@ func RunLocal(o *Options) error {
 		l.Infof("Component '%s' has status '%s'%s", component, msg.Status, errMsg)
 	}
 
-	comps, err := o.Components(defaultComponentsYaml)
+	preComps, comps, err := o.Components(defaultComponentsYaml)
 	if err != nil {
 		return err
 	}
 
 	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), l)
 
-	return runtimeBuilder.RunLocal([]string{}, printStatus).Run(cli.NewContext(), &cluster.State{
+	return runtimeBuilder.RunLocal(preComps, printStatus).Run(cli.NewContext(), &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version:    1,
 			Cluster:    "local",

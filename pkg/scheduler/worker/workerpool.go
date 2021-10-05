@@ -8,6 +8,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
@@ -133,7 +134,13 @@ func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) (int, error) 
 	}
 
 	opsCnt := len(ops)
-	w.logger.Debugf("Worker pool found %d processable operations", opsCnt)
+	w.logger.Debugf("Worker pool found %d processable operations: %s", opsCnt, func() string {
+		var opNames []string
+		for _, op := range ops {
+			opNames = append(opNames, op.Component)
+		}
+		return strings.Join(opNames, ", ")
+	}())
 	if opsCnt == 0 {
 		return 0, nil
 	}
