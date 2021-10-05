@@ -27,6 +27,8 @@ func (a *unittestReconcileAction) Run(_ *service.ActionContext) error {
 }
 
 func TestLocalInvoker(t *testing.T) {
+	test.IntegrationTest(t)
+
 	t.Run("Run local reconciler: successfully finished reconciliation", func(t *testing.T) {
 		reconRepo, opEntity := runLocalReconciler(t, false)
 		requireOperationState(t, reconRepo, opEntity, model.OperationStateDone)
