@@ -81,7 +81,7 @@ func TestRemoteInvoker(t *testing.T) {
 				PreComponents: nil,
 				Reconcilers: map[string]config.ComponentReconciler{
 					"base": {
-						URL: "http://localhost/200",
+						URL: "http://127.0.0.1:5555/200",
 					},
 				},
 			},
@@ -101,7 +101,7 @@ func TestRemoteInvoker(t *testing.T) {
 				PreComponents: nil,
 				Reconcilers: map[string]config.ComponentReconciler{
 					"base": {
-						URL: "http://localhost/400",
+						URL: "http://127.0.0.1:5555/400",
 					},
 				},
 			},
@@ -121,7 +121,7 @@ func TestRemoteInvoker(t *testing.T) {
 				PreComponents: nil,
 				Reconcilers: map[string]config.ComponentReconciler{
 					"base": {
-						URL: "http://localhost/500nice",
+						URL: "http://127.0.0.1:5555/500nice",
 					},
 				},
 			},
@@ -141,7 +141,7 @@ func TestRemoteInvoker(t *testing.T) {
 				PreComponents: nil,
 				Reconcilers: map[string]config.ComponentReconciler{
 					"base": {
-						URL: "http://localhost/500bad",
+						URL: "http://127.0.0.1:5555/500bad",
 					},
 				},
 			},
@@ -169,7 +169,7 @@ func invokeRemoteInvoker(reconRepo reconciliation.Repository, op *model.Operatio
 
 func shotdownServer(cancel context.CancelFunc, t *testing.T) {
 	cancel()
-	test.WaitForFreeTCPSocket(t, "127.0.0.1", 80, 5*time.Second)
+	test.WaitForFreeTCPSocket(t, "127.0.0.1", 5555, 5*time.Second)
 }
 
 func startServer(ctx context.Context, t *testing.T) {
@@ -219,10 +219,10 @@ func startServer(ctx context.Context, t *testing.T) {
 		//start server
 		err := (&server.Webserver{
 			Logger: logger.NewLogger(true),
-			Port:   80,
+			Port:   5555,
 			Router: router,
 		}).Start(ctx)
 		require.NoError(t, err)
 	}()
-	test.WaitForTCPSocket(t, "127.0.0.1", 80, 5*time.Second)
+	test.WaitForTCPSocket(t, "127.0.0.1", 5555, 5*time.Second)
 }
