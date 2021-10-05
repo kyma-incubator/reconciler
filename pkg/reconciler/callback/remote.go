@@ -34,7 +34,7 @@ func NewRemoteCallbackHandler(callbackURL string, logger *zap.SugaredLogger) (Ha
 
 func (cb *RemoteCallbackHandler) Callback(msg *reconciler.CallbackMessage) error {
 	if cb.callbackURL == "" { //test cases often don't provide a callback URL
-		cb.logger.Warn("Empty callback-URL provided: remote callback not executed")
+		cb.logger.Warn("Remote callback handler got an empty callback-URL provided: remote callback not executed")
 		return nil
 	}
 
@@ -45,21 +45,20 @@ func (cb *RemoteCallbackHandler) Callback(msg *reconciler.CallbackMessage) error
 
 	resp, err := http.Post(cb.callbackURL, "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
-		cb.logger.Errorf("Callback request failed: %s", err)
+		cb.logger.Errorf("Remote callback handler failed to send HTTP request: %s", err)
 		return err
 	}
 	//dump request for debugging purposes
 	dumpResp, dumpErr := httputil.DumpResponse(resp, true)
 	if dumpErr == nil {
-		cb.logger.Debugf("HTTP response dump: %s", string(dumpResp))
+		cb.logger.Debugf("Remote callback handler is dumping HTTP response dump: %s", string(dumpResp))
 	} else {
-		cb.logger.Debugf("Failed to generate HTTP response dump: %s", dumpErr)
+		cb.logger.Debugf("Remote callback handler failed to generate HTTP response dump: %s", dumpErr)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("Callback request ('%s')  failed with '%d' HTTP response code",
-			msg,
-			resp.StatusCode)
+		msg := fmt.Sprintf("Remote callack handler failed to send request [HTTP response code: %d]: %s",
+			resp.StatusCode, msg)
 		cb.logger.Info(msg)
 		return fmt.Errorf(msg)
 	}

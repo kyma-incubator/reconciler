@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -11,7 +13,6 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler"
 	"github.com/spf13/viper"
 
 	"github.com/gorilla/mux"
@@ -313,19 +314,17 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	switch body.Status {
 	case reconciler.StatusNotstarted, reconciler.StatusRunning:
-		err = o.Registry.OperationsRegistry().SetInProgress(correlationID, schedulingID)
+		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateInProgress)
 	case reconciler.StatusFailed:
-		err = o.Registry.OperationsRegistry().SetFailed(correlationID, schedulingID,
-			fmt.Sprintf("Reconciler reported failure status: %v", body.Error))
+		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateFailed, body.Error)
 	case reconciler.StatusSuccess:
-		err = o.Registry.OperationsRegistry().SetDone(correlationID, schedulingID)
+		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateDone)
 	case reconciler.StatusError:
-		err = o.Registry.OperationsRegistry().SetError(correlationID, schedulingID,
-			fmt.Sprintf("Reconciler reported error status: %v", body.Error))
+		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateError, body.Error)
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
-		if scheduler.IsOperationNotFoundError(err) {
+		if repository.IsNotFoundError(err) {
 			httpCode = http.StatusNotFound
 		}
 		server.SendHTTPError(w, httpCode, &reconciler.HTTPErrorResponse{
@@ -333,6 +332,22 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+}
+
+func updateOperationState(o *Options, schedulingID, correlationID string, state model.OperationState, reason ...string) error {
+	err := o.Registry.ReconciliationRepository().UpdateOperationState(
+		schedulingID, correlationID, state, strings.Join(reason, ", "))
+	if err != nil {
+		if reconciliation.IsRedundantOperationStateUpdateError(err) {
+			o.Logger().Debugf("REST endpoint tried an redundant update of operation "+
+				"(schedulingID:%s/correlationID:%s) to state '%s'", schedulingID, correlationID, state)
+		} else {
+			o.Logger().Debugf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+				"to state '%s': %s", schedulingID, correlationID, state, err)
+			return err
+		}
+	}
+	return nil
 }
 
 func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State) {

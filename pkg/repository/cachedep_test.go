@@ -9,24 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	cacheDep = newCacheDep()
-)
-
-func newCacheDep() *cacheDependencyManager {
-	//init dependency manager
-	connFac, err := db.NewTestConnectionFactory()
-	if err != nil {
-		panic(err)
-	}
-	conn, err := connFac.NewConnection()
-	if err != nil {
-		panic(err)
-	}
-	return newCacheDependencyManager(conn, true)
-}
+var cacheDep *cacheDependencyManager
 
 func TestCacheDependencyManager(t *testing.T) {
+	cacheDep = newCacheDependencyManager(db.NewTestConnection(t), true)
+
 	t.Run("Create dependencies", func(t *testing.T) {
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
 			deps, err := cacheDep.Get().Exec()

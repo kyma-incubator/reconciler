@@ -118,6 +118,14 @@ func (ch *ColumnHandler) Validate() error {
 				}
 			case reflect.Bool:
 				//nothing to check
+			case reflect.Ptr:
+				if col.value == nil {
+					invalidFields = append(invalidFields, col.field.Name())
+				}
+			case reflect.Struct:
+				if col.value == nil {
+					invalidFields = append(invalidFields, col.field.Name())
+				}
 			default:
 				return fmt.Errorf("field '%s' of entity '%s' has type '%s' - this type is not supported yet",
 					col.field.Name(), ch.entity, col.field.Kind())

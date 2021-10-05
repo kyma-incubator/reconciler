@@ -91,16 +91,35 @@ CREATE TABLE IF NOT EXISTS inventory_cluster_config_statuses (
 	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS scheduler_reconciliations (
+    "scheduling_id" text NOT NULL PRIMARY KEY,
+    "lock" text UNIQUE, --make sure just one cluster can be reconciled at the same time
+    "cluster" text NOT NULL,
+    "cluster_config" int NOT NULL,
+    "cluster_config_status" int,
+    "finished" boolean DEFAULT FALSE,
+    "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY("lock") REFERENCES inventory_clusters("cluster"),
+    FOREIGN KEY("cluster") REFERENCES inventory_clusters("cluster") ON UPDATE CASCADE,
+    FOREIGN KEY("cluster_config") REFERENCES inventory_cluster_configs("version"),
+    FOREIGN KEY("cluster_config_status") REFERENCES inventory_cluster_config_statuses("id")
+);
+
 --DDL for scheduler operations:
 CREATE TABLE IF NOT EXISTS scheduler_operations (
-	"scheduling_id" char(36) NOT NULL PRIMARY KEY,
-	"correlation_id" char(36) NOT NULL,
-	"config_version" int NOT NULL,
+    "priority" int NOT NULL,
+	"scheduling_id" text NOT NULL,
+	"correlation_id" text NOT NULL,
+    "cluster" text NOT NULL,
+    "cluster_config" int NOT NULL,
     "component" text NOT NULL,
     "state" text NOT NULL,
 	"reason" text,
     "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT scheduler_operations_pk UNIQUE ("scheduling_id", "correlation_id"),
-    FOREIGN KEY("config_version") REFERENCES inventory_cluster_configs("version") ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY("scheduling_id") REFERENCES scheduler_reconciliations("scheduling_id") ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY("cluster") REFERENCES inventory_clusters("cluster") ON UPDATE CASCADE,
+    FOREIGN KEY("cluster_config") REFERENCES inventory_cluster_configs("version")
 )

@@ -32,8 +32,8 @@ type metricsCollector interface {
 	OnClusterStateUpdate(state *State) error
 }
 
-func NewInventory(dbFac db.ConnectionFactory, debug bool, collector metricsCollector) (Inventory, error) {
-	repo, err := repository.NewRepository(dbFac, debug)
+func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (Inventory, error) {
+	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {
 		return nil, err
 	}

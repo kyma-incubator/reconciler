@@ -53,4 +53,19 @@ func TestValidator(t *testing.T) {
 		err := validator.Validate(query)
 		require.Error(t, err)
 	})
+	t.Run("Validate valid update query", func(t *testing.T) {
+		query := "UPDATE xyz SET abc=$1, xyz=$2, jkl=$3 WHERE a=$4 AND b=$5"
+		err := validator.Validate(query)
+		require.NoError(t, err)
+	})
+	t.Run("Validate valid update query with RETURNING", func(t *testing.T) {
+		query := "UPDATE xyz SET abc=$1, xyz=$2, jkl=$3 WHERE a=$4 AND b=$5 RETURNING a, b,c"
+		err := validator.Validate(query)
+		require.NoError(t, err)
+	})
+	t.Run("Validate invalid update query with RETURNING", func(t *testing.T) {
+		query := "UPDATE xyz SET abc=$1, xyz=$2, jkl='abc' WHERE a=$4 AND b=$5 RETURNING a, b,c"
+		err := validator.Validate(query)
+		require.Error(t, err)
+	})
 }

@@ -87,6 +87,7 @@ type httpMethod string
 type testCase struct {
 	name             string
 	url              string
+	dynamicURL       func() string
 	method           httpMethod
 	payload          string
 	expectedHTTPCode int
@@ -97,6 +98,7 @@ type testCase struct {
 func TestMothership(t *testing.T) {
 	test.IntegrationTest(t)
 
+	//start mothership service
 	ctx := context.Background()
 	defer ctx.Done()
 
@@ -105,8 +107,13 @@ func TestMothership(t *testing.T) {
 
 	tests := []*testCase{
 		{
+			name:   "Delete old relicts before test starts",
+			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName),
+			method: httpDelete,
+		},
+		{
 			name:             "Create cluster:happy path",
-			url:              fmt.Sprintf("%s/%s", baseURL, "clusters"),
+			url:              fmt.Sprintf("%s/clusters", baseURL),
 			method:           httpPost,
 			payload:          payload(t, "create_cluster.json", test.ReadKubeconfig(t)),
 			expectedHTTPCode: 200,
@@ -115,7 +122,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Create cluster: non-working kubeconfig",
-			url:              fmt.Sprintf("%s/%s", baseURL, "clusters"),
+			url:              fmt.Sprintf("%s/clusters", baseURL),
 			method:           httpPost,
 			payload:          payload(t, "create_cluster_invalid_kubeconfig.json", ""),
 			expectedHTTPCode: 400,
@@ -124,7 +131,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Create cluster: invalid JSON payload",
-			url:              fmt.Sprintf("%s/%s", baseURL, "clusters"),
+			url:              fmt.Sprintf("%s/clusters", baseURL),
 			method:           httpPost,
 			payload:          payload(t, "invalid.json", ""),
 			expectedHTTPCode: 400,
@@ -133,7 +140,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Create cluster: empty body",
-			url:              fmt.Sprintf("%s/%s", baseURL, "clusters"),
+			url:              fmt.Sprintf("%s/clusters", baseURL),
 			method:           httpPost,
 			payload:          payload(t, "empty.json", ""),
 			expectedHTTPCode: 400,
@@ -141,8 +148,17 @@ func TestMothership(t *testing.T) {
 			verifier:         requireErrorResponseFct,
 		},
 		{
-			name:             "Get cluster status: happy path",
-			url:              fmt.Sprintf("%s/%s/configs/%d/status", fmt.Sprintf("%s/%s", baseURL, "clusters"), clusterName, 1),
+			name: "Get cluster status: happy path",
+			dynamicURL: func() string {
+				resp := callMothership(t, &testCase{
+					url:              fmt.Sprintf("%s/clusters/%s/status", baseURL, clusterName),
+					method:           httpGet,
+					expectedHTTPCode: 200,
+					responseModel:    &keb.HTTPClusterResponse{},
+				})
+				respModel := resp.(*keb.HTTPClusterResponse)
+				return fmt.Sprintf("%s/clusters/%s/configs/%d/status", baseURL, clusterName, respModel.ConfigurationVersion)
+			},
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.HTTPClusterResponse{},
@@ -150,7 +166,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get cluster status: using non-existing cluster",
-			url:              fmt.Sprintf("%s/%s/configs/%d/status", fmt.Sprintf("%s/%s", baseURL, "clusters"), "idontexist", 1),
+			url:              fmt.Sprintf("%s/clusters/%s/configs/%d/status", baseURL, "idontexist", 1),
 			method:           httpGet,
 			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
@@ -158,7 +174,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get cluster status: using non-existing version",
-			url:              fmt.Sprintf("%s/%s/configs/%d/status", fmt.Sprintf("%s/%s", baseURL, "clusters"), clusterName, 9999),
+			url:              fmt.Sprintf("%s/clusters/%s/configs/%d/status", baseURL, clusterName, 9999),
 			method:           httpGet,
 			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
@@ -166,7 +182,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get cluster: happy path",
-			url:              fmt.Sprintf("%s/%s/status", fmt.Sprintf("%s/%s", baseURL, "clusters"), clusterName),
+			url:              fmt.Sprintf("%s/clusters/%s/status", baseURL, clusterName),
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.HTTPClusterResponse{},
@@ -174,7 +190,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get cluster: using non-existing cluster",
-			url:              fmt.Sprintf("%s/%s/status", fmt.Sprintf("%s/%s", baseURL, "clusters"), "idontexist"),
+			url:              fmt.Sprintf("%s/clusters/%s/status", baseURL, "idontexist"),
 			method:           httpGet,
 			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
@@ -182,7 +198,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of status changes: without offset",
-			url:              fmt.Sprintf("%s/%s/statusChanges", fmt.Sprintf("%s/%s", baseURL, "clusters"), clusterName),
+			url:              fmt.Sprintf("%s/clusters/%s/statusChanges", baseURL, clusterName),
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.HTTPClusterStatusResponse{},
@@ -190,7 +206,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of status changes: with url-param offset",
-			url:              fmt.Sprintf("%s/%s/statusChanges?offset=6h", fmt.Sprintf("%s/%s", baseURL, "clusters"), clusterName),
+			url:              fmt.Sprintf("%s/clusters/%s/statusChanges?offset=6h", baseURL, clusterName),
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.HTTPClusterStatusResponse{},
@@ -198,7 +214,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of status changes: using non-existing cluster",
-			url:              fmt.Sprintf("%s/%s/statusChanges?offset=6h", fmt.Sprintf("%s/%s", baseURL, "clusters"), "I dont exist"),
+			url:              fmt.Sprintf("%s/clusters/%s/statusChanges?offset=6h", baseURL, "I-dont-exist"),
 			method:           httpGet,
 			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
@@ -206,7 +222,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of status changes: using invalid offset",
-			url:              fmt.Sprintf("%s/%s/statusChanges?offset=4y", fmt.Sprintf("%s/%s", baseURL, "clusters"), clusterName),
+			url:              fmt.Sprintf("%s/clusters/%s/statusChanges?offset=4y", baseURL, clusterName),
 			method:           httpGet,
 			expectedHTTPCode: 400,
 			responseModel:    &keb.HTTPErrorResponse{},
@@ -238,6 +254,11 @@ func TestMothership(t *testing.T) {
 			responseModel:    &keb.HTTPErrorResponse{},
 			verifier:         requireErrorResponseFct,
 		},
+		{
+			name:   "Cleanup test context",
+			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName),
+			method: httpDelete,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -261,9 +282,9 @@ func startMothershipReconciler(ctx context.Context, t *testing.T) int {
 
 	go func(ctx context.Context) {
 		o := NewOptions(cliTest.NewTestOptions(t))
-		o.ReconcilersCfgPath = filepath.Join("test", "component-reconcilers.json")
 		o.WatchInterval = 1 * time.Second
 		o.Port = serverPort
+		o.Verbose = true
 
 		t.Log("Starting mothership reconciler")
 		require.NoError(t, Run(ctx, o))
@@ -278,17 +299,22 @@ func callMothership(t *testing.T, testCase *testCase) interface{} {
 	response, err := sendRequest(t, testCase)
 	require.NoError(t, err)
 
-	if testCase.expectedHTTPCode != response.StatusCode {
-		dump, err := httputil.DumpResponse(response, true)
-		require.NoError(t, err)
-		t.Log(string(dump))
+	if testCase.expectedHTTPCode > 0 {
+		if testCase.expectedHTTPCode != response.StatusCode {
+			dump, err := httputil.DumpResponse(response, true)
+			require.NoError(t, err)
+			t.Log(string(dump))
+		}
+		require.Equal(t, testCase.expectedHTTPCode, response.StatusCode, "Returned HTTP response code was unexpected")
 	}
-	require.Equal(t, testCase.expectedHTTPCode, response.StatusCode, "Returned HTTP response code was unexpected")
 
 	responseBody, err := ioutil.ReadAll(response.Body)
 	require.NoError(t, response.Body.Close())
 	require.NoError(t, err)
 
+	if testCase.responseModel == nil {
+		return nil
+	}
 	require.NoError(t, json.Unmarshal(responseBody, testCase.responseModel))
 	return testCase.responseModel
 }
@@ -298,15 +324,20 @@ func sendRequest(t *testing.T, testCase *testCase) (*http.Response, error) {
 		Timeout: 10 * time.Second,
 	}
 
+	destURL := testCase.url
+	if testCase.dynamicURL != nil {
+		destURL = testCase.dynamicURL()
+	}
+
 	var response *http.Response
 	var err error
 	switch testCase.method {
 	case httpGet:
-		response, err = client.Get(testCase.url)
+		response, err = client.Get(destURL)
 	case httpPost:
-		response, err = client.Post(testCase.url, "application/json", strings.NewReader(testCase.payload))
+		response, err = client.Post(destURL, "application/json", strings.NewReader(testCase.payload))
 	case httpDelete:
-		req, err := http.NewRequest(http.MethodDelete, testCase.url, nil)
+		req, err := http.NewRequest(http.MethodDelete, destURL, nil)
 		require.NoError(t, err)
 		response, err = client.Do(req)
 		require.NoError(t, err)
