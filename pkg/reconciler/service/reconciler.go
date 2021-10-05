@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	wsFactory *workspace.Factory //singleton
+	wsFactory workspace.Factory //singleton
 	m         sync.Mutex
 )
 
@@ -69,7 +69,7 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 	return recon, nil
 }
 
-func UseGlobalWorkspaceFactory(workspaceFactory *workspace.Factory) error {
+func UseGlobalWorkspaceFactory(workspaceFactory workspace.Factory) error {
 	if wsFactory != nil {
 		return fmt.Errorf("workspace factory already defined: %s", wsFactory)
 	}
@@ -77,12 +77,12 @@ func UseGlobalWorkspaceFactory(workspaceFactory *workspace.Factory) error {
 	return nil
 }
 
-func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*chart.Provider, error) {
+func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*chart.DefaultProvider, error) {
 	wsFact, err := r.workspaceFactory(repo)
 	if err != nil {
 		return nil, err
 	}
-	return chart.NewProvider(wsFact, r.logger)
+	return chart.NewDefaultProvider(*wsFact, r.logger)
 }
 
 func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*workspace.Factory, error) {
@@ -95,7 +95,7 @@ func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*wo
 		wsFactory, err = workspace.NewFactory(repo, r.workspace, r.logger)
 	}
 
-	return wsFactory, err
+	return &wsFactory, err
 }
 
 func (r *ComponentReconciler) validate() error {

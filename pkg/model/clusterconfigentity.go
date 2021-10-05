@@ -8,14 +8,21 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 )
 
-const tblConfiguration string = "inventory_cluster_configs"
+const (
+	CRDComponent            = "CRDs"
+	tblConfiguration string = "inventory_cluster_configs"
+)
+
+type ReconciliationSequence struct {
+	Queue [][]*keb.Component
+}
 
 type ClusterConfigurationEntity struct {
 	Version        int64  `db:"readOnly"`
 	Cluster        string `db:"notNull"`
 	ClusterVersion int64  `db:"notNull"`
 	KymaVersion    string `db:"notNull"`
-	KymaProfile    string `db:"notNull"`
+	KymaProfile    string `db:""`
 	Components     string `db:"notNull,encrypt"`
 	Administrators string
 	Contract       int64     `db:"notNull"`
@@ -59,31 +66,53 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	return false
 }
 
-type ReconciliationSequence struct {
-	FirstInSequence []*keb.Component
-	InParallel      []*keb.Component
+func (c *ClusterConfigurationEntity) GetComponent(component string) (*keb.Component, error) {
+	reconSeq, err := c.GetReconciliationSequence(nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, compGroup := range reconSeq.Queue {
+		for _, comp := range compGroup {
+			if comp.Component == component {
+				return comp, nil
+			}
+		}
+	}
+	return nil, nil
 }
 
-func (c *ClusterConfigurationEntity) GetComponents(prerequisites []string) (*ReconciliationSequence, error) {
+func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Component, error) {
 	if c.Components == "" {
 		return nil, nil
 	}
+	return keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
+}
 
-	sequence := &ReconciliationSequence{}
-	crds := &keb.Component{Component: "CRDs", Namespace: "default"}
-	sequence.FirstInSequence = append(sequence.FirstInSequence, crds)
-
-	components, err := keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
+func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []string) (*ReconciliationSequence, error) {
+	//get component models
+	components, err := c.GetComponents()
 	if err != nil {
 		return nil, err
 	}
 
+	//group components depending on their reconciliation order
+	sequence := &ReconciliationSequence{}
+	sequence.Queue = append(sequence.Queue, []*keb.Component{
+		{Component: CRDComponent, Namespace: "default"},
+	})
+
+	var inParallel []*keb.Component
 	for _, component := range components {
-		if contains(prerequisites, component.Component) {
-			sequence.FirstInSequence = append(sequence.FirstInSequence, component)
+		if contains(preComponents, component.Component) {
+			sequence.Queue = append(sequence.Queue, []*keb.Component{
+				component,
+			})
 		} else {
-			sequence.InParallel = append(sequence.InParallel, component)
+			inParallel = append(inParallel, component)
 		}
+	}
+	if len(inParallel) > 0 {
+		sequence.Queue = append(sequence.Queue, inParallel)
 	}
 
 	return sequence, nil

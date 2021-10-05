@@ -337,9 +337,7 @@ func TestRepositoryValues(t *testing.T) {
 }
 
 func newKeyValueRepo(t *testing.T) *Repository {
-	connFact, err := db.NewTestConnectionFactory()
-	require.NoError(t, err)
-	ceRepo, err := NewRepository(connFact, true)
+	ceRepo, err := NewRepository(db.NewTestConnection(t), true)
 	require.NoError(t, err)
 	return ceRepo
 }

@@ -54,7 +54,10 @@ func (mf *ModelFactory) Components(data []byte) ([]*Component, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := []*Component{}
+	var result []*Component
+	if untypedModels == nil {
+		return result, nil
+	}
 	for _, untypedModel := range untypedModels.([]interface{}) {
 		typedModel := &Component{}
 		err := mapstructure.Decode(untypedModel, typedModel)

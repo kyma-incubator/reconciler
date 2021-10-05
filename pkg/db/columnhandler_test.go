@@ -9,15 +9,9 @@ import (
 )
 
 func TestColumnHandler(t *testing.T) {
-	connFact, err := NewTestConnectionFactory()
-	require.NoError(t, err)
-
-	conn, err := connFact.NewConnection()
-	require.NoError(t, err)
-
 	t.Run("Validate model", func(t *testing.T) {
 		validate := func(t *testing.T, testStruct *validateMe, expectValid bool) {
-			colHdr, err := NewColumnHandler(testStruct, conn)
+			colHdr, err := NewColumnHandler(testStruct, NewTestConnection(t))
 			require.NoError(t, err)
 			err = colHdr.Validate()
 			if expectValid {
@@ -54,7 +48,7 @@ func TestColumnHandler(t *testing.T) {
 		Col2: true,
 		Col3: 123456789,
 	}
-	colHdr, err := NewColumnHandler(testStruct, conn)
+	colHdr, err := NewColumnHandler(testStruct, NewTestConnection(t))
 	require.NoError(t, err)
 	require.NoError(t, colHdr.Validate())
 
@@ -172,7 +166,7 @@ func (fake *validateMe) Table() string {
 	return "validateMe"
 }
 
-func (fake *validateMe) Equal(other DatabaseEntity) bool {
+func (fake *validateMe) Equal(_ DatabaseEntity) bool {
 	return false
 }
 
