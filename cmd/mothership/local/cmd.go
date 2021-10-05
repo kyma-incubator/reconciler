@@ -70,7 +70,7 @@ func RunLocal(o *Options) error {
 	printStatus := func(component string, msg *reconciler.CallbackMessage) {
 		errMsg := ""
 		if msg.Error != "" {
-			errMsg = fmt.Sprintf(" (error: %s)", msg.Error)
+			errMsg = fmt.Sprintf(" (reason: %s)", msg.Error)
 		}
 		l.Infof("Component '%s' has status '%s'%s", component, msg.Status, errMsg)
 	}
