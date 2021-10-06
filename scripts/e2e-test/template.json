@@ -24,7 +24,7 @@
         ]
       },
       {
-        "component": "istio",
+        "component": "istio-configuration",
         "namespace": "istio-system",
         "configuration": [
           {
