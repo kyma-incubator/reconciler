@@ -45,9 +45,7 @@ type KubeClient struct {
 
 func NewInClusterClientSet(logger *zap.SugaredLogger) (*kubernetes.Clientset, error) {
 	inClusterClient, err := NewInClusterClient(logger)
-	if err != nil && err == rest.ErrNotInCluster {
-		return nil, nil
-	} else if err != nil {
+	if err != nil {
 		logger.Infof("Not able to create an In Cluster Client")
 		return nil, nil
 	}
