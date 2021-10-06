@@ -111,7 +111,14 @@ func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []s
 					&component,
 				})
 			} else {
-				inParallel = append(inParallel, &component)
+				comp := keb.Component{
+					URL:           component.URL,
+					Component:     component.Component,
+					Configuration: component.Configuration,
+					Namespace:     component.Namespace,
+					Version:       component.Version,
+				}
+				inParallel = append(inParallel, &comp)
 			}
 		}
 	}
