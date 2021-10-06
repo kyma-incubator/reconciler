@@ -289,15 +289,10 @@ func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 	require.Equal(t, int64(1), state.Cluster.Contract)
 	require.Equal(t, cluster.RuntimeID, state.Cluster.Cluster)
 	//compare metadata
-	require.Equal(t, toJSON(t, cluster.Metadata), state.Cluster.Metadata) //compare metadata-string
-	metadata, err := state.Cluster.GetMetadata()
-	require.NoError(t, err)
-	require.Equal(t, &cluster.Metadata, metadata) //compare metadata-object
+	require.Equal(t, &cluster.Metadata, state.Cluster.Metadata) //compare metadata-string
+
 	//compare runtime
-	require.Equal(t, toJSON(t, cluster.RuntimeInput), state.Cluster.Runtime) //compare runtime-string
-	runtime, err := state.Cluster.GetRuntime()
-	require.NoError(t, err)
-	require.Equal(t, &cluster.RuntimeInput, runtime) //compare runtime-object
+	require.Equal(t, &cluster.RuntimeInput, state.Cluster.Runtime) //compare runtime-string
 
 	// *** ClusterConfigurationEntity ***
 	require.Equal(t, int64(1), state.Configuration.Contract)
@@ -305,20 +300,11 @@ func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 	require.Equal(t, cluster.KymaConfig.Profile, state.Configuration.KymaProfile)
 	require.Equal(t, cluster.KymaConfig.Version, state.Configuration.KymaVersion)
 	//compare components
-	require.Equal(t, toJSON(t, cluster.KymaConfig.Components), state.Configuration.Components) //compare components-string
-	components, err := state.Configuration.GetComponents()
-	require.NoError(t, err)
-	require.Len(t, components, 7)
+	require.Equal(t, &cluster.KymaConfig.Components, state.Configuration.Components) //compare components-string
 	require.Len(t, cluster.KymaConfig.Components, 7)
-	for _, comp := range components { //compare components-objects
-		require.Contains(t, cluster.KymaConfig.Components, *comp)
-	}
 
 	//compare administrators
-	require.Equal(t, toJSON(t, cluster.KymaConfig.Administrators), state.Configuration.Administrators) //compare admins-string
-	admins, err := state.Configuration.GetAdministrators()
-	require.NoError(t, err)
-	require.Equal(t, cluster.KymaConfig.Administrators, admins) //compare components-object
+	require.Equal(t, &cluster.KymaConfig.Administrators, state.Configuration.Administrators) //compare admins-string
 
 	// *** ClusterStatusEntity ***
 	require.Equal(t, model.ClusterStatusReconcilePending, state.Status.Status)
