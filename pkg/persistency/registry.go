@@ -1,4 +1,4 @@
-package app
+package persistency
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type ApplicationRegistry struct {
+type Registry struct {
 	debug           bool
 	logger          *zap.SugaredLogger
 	connection      db.Connection
@@ -20,12 +20,12 @@ type ApplicationRegistry struct {
 	initialized     bool
 }
 
-func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*ApplicationRegistry, error) {
+func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
 	conn, err := cf.NewConnection()
 	if err != nil {
 		return nil, err
 	}
-	registry := &ApplicationRegistry{
+	registry := &Registry{
 		debug:      debug,
 		connection: conn,
 		logger:     logger.NewLogger(debug),
@@ -33,7 +33,7 @@ func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*ApplicationRe
 	return registry, registry.init()
 }
 
-func (or *ApplicationRegistry) init() error {
+func (or *Registry) init() error {
 	if or.initialized {
 		return nil
 	}
@@ -54,30 +54,30 @@ func (or *ApplicationRegistry) init() error {
 	return nil
 }
 
-func (or *ApplicationRegistry) Close() error {
+func (or *Registry) Close() error {
 	if !or.initialized {
 		return nil
 	}
 	return or.connection.Close()
 }
 
-func (or *ApplicationRegistry) Connnection() db.Connection {
+func (or *Registry) Connnection() db.Connection {
 	return or.connection
 }
 
-func (or *ApplicationRegistry) Inventory() cluster.Inventory {
+func (or *Registry) Inventory() cluster.Inventory {
 	return or.inventory
 }
 
-func (or *ApplicationRegistry) KVRepository() *kv.Repository {
+func (or *Registry) KVRepository() *kv.Repository {
 	return or.kvRepository
 }
 
-func (or *ApplicationRegistry) ReconciliationRepository() reconciliation.Repository {
+func (or *Registry) ReconciliationRepository() reconciliation.Repository {
 	return or.reconRepository
 }
 
-func (or *ApplicationRegistry) initRepository() (*kv.Repository, error) {
+func (or *Registry) initRepository() (*kv.Repository, error) {
 	repository, err := kv.NewRepository(or.connection, or.debug)
 	if err != nil {
 		or.logger.Errorf("Failed to create configuration entry repository: %s", err)
@@ -85,7 +85,7 @@ func (or *ApplicationRegistry) initRepository() (*kv.Repository, error) {
 	return repository, err
 }
 
-func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
+func (or *Registry) initInventory() (cluster.Inventory, error) {
 	collector := metrics.NewReconciliationStatusCollector()
 	inventory, err := cluster.NewInventory(or.connection, or.debug, collector)
 	if err != nil {
@@ -94,7 +94,7 @@ func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
 	return inventory, err
 }
 
-func (or *ApplicationRegistry) initReconciliationRepository() (reconciliation.Repository, error) {
+func (or *Registry) initReconciliationRepository() (reconciliation.Repository, error) {
 	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(or.connection, or.debug)
 	if err != nil {
 		or.logger.Errorf("Failed to create reconciliation repository: %s", err)

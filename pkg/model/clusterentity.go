@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,14 +12,14 @@ import (
 const tblCluster string = "inventory_clusters"
 
 type ClusterEntity struct {
-	Version    int64     `db:"readOnly"`
-	Cluster    string    `db:"notNull"`
-	Runtime    string    `db:"notNull"`
-	Metadata   string    `db:"notNull"`
-	Kubeconfig string    `db:"notNull,encrypt"`
-	Contract   int64     `db:"notNull"`
-	Deleted    bool      `db:"notNull"`
-	Created    time.Time `db:"readOnly"`
+	Version    int64             `db:"readOnly"`
+	Cluster    string            `db:"notNull"`
+	Runtime    *keb.RuntimeInput `db:"notNull"`
+	Metadata   *keb.Metadata     `db:"notNull"`
+	Kubeconfig string            `db:"notNull,encrypt"`
+	Contract   int64             `db:"notNull"`
+	Deleted    bool              `db:"notNull"`
+	Created    time.Time         `db:"readOnly"`
 }
 
 func (c *ClusterEntity) String() string {
@@ -33,6 +34,19 @@ func (c *ClusterEntity) New() db.DatabaseEntity {
 func (c *ClusterEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
+	marshaller.AddUnmarshaller("Runtime", func(value interface{}) (interface{}, error) {
+		var runtimeInput *keb.RuntimeInput
+		err := json.Unmarshal([]byte(value.(string)), &runtimeInput)
+		return runtimeInput, err
+	})
+	marshaller.AddUnmarshaller("Metadata", func(value interface{}) (interface{}, error) {
+		var metadata *keb.Metadata
+		err := json.Unmarshal([]byte(value.(string)), &metadata)
+		return metadata, err
+	})
+
+	marshaller.AddMarshaller("Runtime", convertInterfaceToString)
+	marshaller.AddMarshaller("Metadata", convertInterfaceToString)
 	return marshaller
 }
 
@@ -52,18 +66,4 @@ func (c *ClusterEntity) Equal(other db.DatabaseEntity) bool {
 			c.Contract == otherClProp.Contract
 	}
 	return false
-}
-
-func (c *ClusterEntity) GetRuntime() (*keb.RuntimeInput, error) {
-	if c.Runtime == "" {
-		return &keb.RuntimeInput{}, nil
-	}
-	return keb.NewModelFactory(c.Contract).Runtime([]byte(c.Runtime))
-}
-
-func (c *ClusterEntity) GetMetadata() (*keb.Metadata, error) {
-	if c.Metadata == "" {
-		return &keb.Metadata{}, nil
-	}
-	return keb.NewModelFactory(c.Contract).Metadata([]byte(c.Metadata))
 }

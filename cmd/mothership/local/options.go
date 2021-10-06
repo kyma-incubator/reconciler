@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -106,7 +105,7 @@ func componentsFromStrings(list []string, values []string) ([]keb.Component, err
 	return comps, nil
 }
 
-func (o *Options) Components(defaultComponentsFile string) ([]string, string, error) {
+func (o *Options) Components(defaultComponentsFile string) ([]string, []keb.Component, error) {
 	var preComps []string
 
 	comps := o.components
@@ -118,15 +117,14 @@ func (o *Options) Components(defaultComponentsFile string) ([]string, string, er
 		var err error
 		preComps, comps, err = componentsFromFile(cFile)
 		if err != nil {
-			return preComps, "", err
+			return preComps, nil, err
 		}
 	}
 	mergedComps, err := componentsFromStrings(comps, o.values)
 	if err != nil {
-		return preComps, "", err
+		return preComps, nil, err
 	}
-	compsString, err := json.Marshal(mergedComps)
-	return preComps, string(compsString), err
+	return preComps, mergedComps, err
 }
 
 func (o *Options) Validate() error {

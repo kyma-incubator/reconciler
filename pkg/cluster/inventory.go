@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -72,19 +71,10 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 }
 
 func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity, error) {
-	metadata, err := json.Marshal(cluster.Metadata)
-	if err != nil {
-		return nil, err
-	}
-	runtime, err := json.Marshal(cluster.RuntimeInput)
-	if err != nil {
-		return nil, err
-	}
-
 	newClusterEntity := &model.ClusterEntity{
 		Cluster:    cluster.RuntimeID,
-		Runtime:    string(runtime),
-		Metadata:   string(metadata),
+		Runtime:    &cluster.RuntimeInput,
+		Metadata:   &cluster.Metadata,
 		Kubeconfig: cluster.Kubeconfig,
 		Contract:   contractVersion,
 	}
@@ -115,21 +105,13 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 }
 
 func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *keb.Cluster, clusterEntity *model.ClusterEntity) (*model.ClusterConfigurationEntity, error) {
-	components, err := json.Marshal(cluster.KymaConfig.Components)
-	if err != nil {
-		return nil, err
-	}
-	administrators, err := json.Marshal(cluster.KymaConfig.Administrators)
-	if err != nil {
-		return nil, err
-	}
 	newConfigEntity := &model.ClusterConfigurationEntity{
 		Cluster:        clusterEntity.Cluster,
 		ClusterVersion: clusterEntity.Version,
 		KymaVersion:    cluster.KymaConfig.Version,
 		KymaProfile:    cluster.KymaConfig.Profile,
-		Components:     string(components),
-		Administrators: string(administrators),
+		Components:     &cluster.KymaConfig.Components,
+		Administrators: &cluster.KymaConfig.Administrators,
 		Contract:       contractVersion,
 	}
 

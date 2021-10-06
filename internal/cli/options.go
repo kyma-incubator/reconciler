@@ -7,8 +7,8 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/spf13/viper"
 
-	"github.com/kyma-incubator/reconciler/pkg/app"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/persistency"
 	"go.uber.org/zap"
 )
 
@@ -19,7 +19,7 @@ type Options struct {
 	NonInteractive bool
 	OutputFormat   string
 	logger         *zap.SugaredLogger
-	Registry       *app.ApplicationRegistry //will be initialized during CLI bootstrap in main.go
+	Registry       *persistency.Registry //will be initialized during CLI bootstrap in main.go
 }
 
 func (o *Options) String() string {
@@ -49,7 +49,7 @@ func (o *Options) InitApplicationRegistry(forceInitialization bool) error {
 		if err != nil {
 			return err
 		}
-		o.Registry, err = app.NewApplicationRegistry(dbConnFact, o.Verbose)
+		o.Registry, err = persistency.NewApplicationRegistry(dbConnFact, o.Verbose)
 		return err
 	}
 	return nil

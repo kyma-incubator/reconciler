@@ -95,7 +95,7 @@ func RunLocal(o *Options) error {
 			ClusterVersion: 1,
 			KymaVersion:    o.version,
 			KymaProfile:    o.profile,
-			Components:     comps,
+			Components:     &comps,
 			Contract:       1,
 		},
 		Status: &model.ClusterStatusEntity{

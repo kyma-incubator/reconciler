@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -21,4 +22,13 @@ func convertTimestampToTime(value interface{}) (interface{}, error) {
 	}
 	return nil, fmt.Errorf("failed to convert value '%s' (kind: %s) for field 'Created' to Time struct",
 		value, reflect.TypeOf(value).Kind())
+}
+
+//convertInterfaceToString is converting the value of interface instance to text db-column
+func convertInterfaceToString(value interface{}) (interface{}, error) {
+	encodingJson, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	return string(encodingJson), err
 }
