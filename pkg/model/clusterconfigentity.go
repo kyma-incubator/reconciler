@@ -105,20 +105,14 @@ func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []s
 
 	var inParallel []*keb.Component
 	if c.Components != nil {
-		for _, component := range *c.Components {
+		components := *c.Components
+		for index, component := range components {
 			if contains(preComponents, component.Component) {
 				sequence.Queue = append(sequence.Queue, []*keb.Component{
-					&component,
+					&components[index],
 				})
 			} else {
-				comp := keb.Component{
-					URL:           component.URL,
-					Component:     component.Component,
-					Configuration: component.Configuration,
-					Namespace:     component.Namespace,
-					Version:       component.Version,
-				}
-				inParallel = append(inParallel, &comp)
+				inParallel = append(inParallel, &components[index])
 			}
 		}
 	}

@@ -309,9 +309,3 @@ func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 	// *** ClusterStatusEntity ***
 	require.Equal(t, model.ClusterStatusReconcilePending, state.Status.Status)
 }
-
-func toJSON(t *testing.T, model interface{}) string {
-	result, err := json.Marshal(model)
-	require.NoError(t, err)
-	return string(result)
-}
