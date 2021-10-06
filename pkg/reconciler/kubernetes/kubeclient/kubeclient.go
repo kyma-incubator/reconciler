@@ -48,7 +48,8 @@ func NewInClusterClientSet(logger *zap.SugaredLogger) (*kubernetes.Clientset, er
 	if err != nil && err == rest.ErrNotInCluster {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		logger.Infof("Not able to create in cluster client")
+		return nil, nil
 	}
 
 	inClusterClientSet, err := inClusterClient.GetClientSet()
