@@ -62,8 +62,8 @@ func (c *Config) preparePostgresDSN() string {
 }
 
 func (c *Config) prepareMySQLDSN() string {
-	dbUrl := fmt.Sprintf("tcp(%s)", c.Global.Ory.Hydra.Persistence.URL)
-	return fmt.Sprintf(dsnTemplate, c.Global.Ory.Hydra.Persistence.DBType, c.Global.Ory.Hydra.Persistence.Username, c.Global.Ory.Hydra.Persistence.Password, dbUrl, c.Global.Ory.Hydra.Persistence.DBName, mysqlDsnOpts)
+	dbURL := fmt.Sprintf("tcp(%s)", c.Global.Ory.Hydra.Persistence.URL)
+	return fmt.Sprintf(dsnTemplate, c.Global.Ory.Hydra.Persistence.DBType, c.Global.Ory.Hydra.Persistence.Username, c.Global.Ory.Hydra.Persistence.Password, dbURL, c.Global.Ory.Hydra.Persistence.DBName, mysqlDsnOpts)
 }
 
 func (c *Config) prepareGenericDSN() string {
