@@ -90,7 +90,7 @@ func (w *Pool) invokeProcessableOpsOnce(ctx context.Context, workerPool *ants.Po
 				w.logger.Debugf("Worker pool is waiting for %d workers to be finished", runningWorkers)
 			}
 		case <-ctx.Done():
-			w.logger.Debugf("Stopping worker pool because parent context got closed")
+			w.logger.Info("Stopping worker pool because parent context got closed")
 			workerPool.Release()
 			return nil
 		}
@@ -146,7 +146,9 @@ func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) (int, error) 
 	}
 
 	for idx, op := range ops {
-		if err := workerPool.Invoke(op); err != nil {
+		if err := workerPool.Invoke(op); err == nil {
+			w.logger.Infof("Worker pool assigned worker to operation '%s'", op)
+		} else {
 			w.logger.Warnf("Worker pool failed to assign processable operation '%s' to a worker: %s", op, err)
 			return idx + 1, err
 		}

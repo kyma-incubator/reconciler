@@ -80,14 +80,16 @@ func (l *RunLocal) WithWorkerPoolSize(size int) *RunLocal {
 
 func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) error {
 	//enqueue cluster state and create reconciliation entity
+	l.logger().Info("Starting local scheduler")
 	if err := l.runtimeBuilder.newScheduler().RunOnce(clusterState, l.reconciliationRepository()); err == nil {
-		l.logger().Debug("Local scheduler finished successfully")
+		l.logger().Info("Local scheduler finished successfully")
 	} else {
 		l.logger().Errorf("Local scheduler returned an error: %s", err)
 		return err
 	}
 
 	//start worker pool
+	l.logger().Info("Starting worker pool")
 	localInvoker := invoker.NewLocalReconcilerInvoker(l.runtimeBuilder.reconRepo, l.statusFunc, l.logger())
 	workerPool, err := l.runtimeBuilder.newWorkerPool(&worker.PassThroughRetriever{State: clusterState}, localInvoker)
 	if err != nil {
@@ -95,7 +97,7 @@ func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) error {
 		return err
 	}
 	if err := workerPool.RunOnce(ctx); err == nil {
-		l.logger().Debug("Worker pool finished successfully")
+		l.logger().Info("Worker pool finished successfully")
 	} else {
 		l.logger().Errorf("Worker pool returned an error: %s", err)
 		return err
@@ -150,7 +152,7 @@ func (r *RunRemote) Run(ctx context.Context) {
 		remoteInvoker := invoker.NewRemoteReoncilerInvoker(r.reconciliationRepository(), r.config, r.logger())
 		workerPool, err := r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker)
 		if err == nil {
-			r.logger().Debug("Worker pool created")
+			r.logger().Info("Worker pool created")
 		} else {
 			r.logger().Fatalf("Failed to create worker pool: %s", err)
 		}

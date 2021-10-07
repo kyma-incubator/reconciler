@@ -54,7 +54,7 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 		//set cluster status to reconciling
 		newClusterState, err := t.inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
 		if err == nil {
-			t.logger.Debugf("Cluster transition added cluster '%s' to reconcilication queue (reconciliation entity: %s)",
+			t.logger.Infof("Cluster transition finished: cluster '%s' added to reconciliation queue (reconciliation entity: %s)",
 				clusterState.Cluster.Cluster, reconEntity)
 			t.logger.Debugf("Cluster transition set status of cluster '%s' to '%s' (cluster status entity: %s)",
 				clusterState.Cluster.Cluster, model.ClusterStatusReconciling, newClusterState.Status)
