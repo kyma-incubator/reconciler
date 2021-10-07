@@ -99,15 +99,10 @@ func (i *LocalReconcilerInvoker) updateOperationState(msg *reconciler.CallbackMe
 		"(error: '%s')", params.SchedulingID, params.CorrelationID, state, msg.Error)
 	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, msg.Error)
 	if err != nil {
-		if reconciliation.IsRedundantOperationStateUpdateError(err) {
-			i.logger.Debugf("Local invoker tried an redundant update of operation "+
-				"(scheudlingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state)
-		} else {
-			//return only the error if it's not caused by a redundant update
-			return errors.Wrap(err, fmt.Sprintf("local invoker failed to update operation "+
-				"(scheudlingID:%s/correlationID:%s) to state '%s'",
-				params.SchedulingID, params.CorrelationID, state))
-		}
+		//return only the error if it's not caused by a redundant update
+		return errors.Wrap(err, fmt.Sprintf("local invoker failed to update operation "+
+			"(scheudlingID:%s/correlationID:%s) to state '%s'",
+			params.SchedulingID, params.CorrelationID, state))
 	}
 	return nil
 }

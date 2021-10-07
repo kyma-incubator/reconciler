@@ -82,7 +82,7 @@ func TestProgressTracker(t *testing.T) {
 	t.Run("Test progress tracking to state 'ready'", func(t *testing.T) {
 		// get progress tracker
 		pt, err := NewProgressTracker(clientSet, logger,
-			Config{Interval: 1 * time.Second, Timeout: 30 * time.Second})
+			Config{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
 		require.NoError(t, err)
 
 		addWatchable(t, resources, pt)
@@ -90,7 +90,7 @@ func TestProgressTracker(t *testing.T) {
 		//depending on bandwidth, the installation should be finished latest after 30sec
 		startTime := time.Now()
 		require.NoError(t, pt.Watch(context.TODO(), ReadyState))
-		require.WithinDuration(t, startTime, time.Now(), 30*time.Second)
+		require.WithinDuration(t, startTime, time.Now(), 1*time.Minute)
 	})
 
 	t.Run("Test progress tracking to state 'terminated'", func(t *testing.T) {
