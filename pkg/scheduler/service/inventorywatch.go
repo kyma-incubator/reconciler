@@ -29,7 +29,8 @@ func (w *inventoryWatcher) Inventory() cluster.Inventory {
 }
 
 func (w *inventoryWatcher) Run(ctx context.Context, queue inventoryQueue) error {
-	w.logger.Debugf("Start watching cluster inventory with an watch-interval of %.1f secs", w.config.InventoryWatchInterval.Seconds())
+	w.logger.Infof("Starting inventory watcher with an watch-interval of %.1f secs",
+		w.config.InventoryWatchInterval.Seconds())
 
 	w.processClustersToReconcile(queue) //check for clusters now, otherwise first check would be trigger by ticker
 	ticker := time.NewTicker(w.config.InventoryWatchInterval)
@@ -59,7 +60,7 @@ func (w *inventoryWatcher) processClustersToReconcile(queue inventoryQueue) {
 			w.logger.Warn("Found nil cluster state when processing the list of clusters to reconcile")
 			continue
 		}
-		w.logger.Debugf("Adding cluster '%s' to scheduling queue", clusterState.Cluster.Cluster)
+		w.logger.Infof("Inventory watcher added cluster '%s' to scheduling queue", clusterState.Cluster.Cluster)
 		queue <- clusterState
 	}
 }
