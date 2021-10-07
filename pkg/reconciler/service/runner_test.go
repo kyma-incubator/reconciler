@@ -108,7 +108,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
@@ -132,7 +132,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, apiGatewayComponent, kymaVersion, "default")
 		cbh := newCallbackHandler(t)
 
@@ -156,7 +156,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
@@ -180,7 +180,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
+		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, apiGatewayComponent, kymaVersion, "default")
 		cbh := newCallbackHandler(t)
 
@@ -200,7 +200,7 @@ func TestRunner(t *testing.T) {
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 5*time.Minute) //long timeout required for slow Github clones
+		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
