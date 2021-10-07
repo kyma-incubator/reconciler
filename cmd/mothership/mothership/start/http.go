@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/model"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -338,16 +337,10 @@ func updateOperationState(o *Options, schedulingID, correlationID string, state 
 	err := o.Registry.ReconciliationRepository().UpdateOperationState(
 		schedulingID, correlationID, state, strings.Join(reason, ", "))
 	if err != nil {
-		if reconciliation.IsRedundantOperationStateUpdateError(err) {
-			o.Logger().Debugf("REST endpoint tried an redundant update of operation "+
-				"(schedulingID:%s/correlationID:%s) to state '%s'", schedulingID, correlationID, state)
-		} else {
-			o.Logger().Debugf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
-				"to state '%s': %s", schedulingID, correlationID, state, err)
-			return err
-		}
+		o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+			"to state '%s': %s", schedulingID, correlationID, state, err)
 	}
-	return nil
+	return err
 }
 
 func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State) {

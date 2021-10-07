@@ -460,11 +460,6 @@ func TestReconciliationRepository(t *testing.T) {
 				op, _ := reconRepo.GetOperation(sID, cID)
 				verifyOperationState(t, op, model.OperationStateInProgress)
 
-				//duplicate in-progress assignment not allowed
-				err = reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress)
-				require.Error(t, err)
-				require.True(t, IsRedundantOperationStateUpdateError(err))
-
 				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateClientError, "client error reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationState(t, op, model.OperationStateClientError, "client error reason")

@@ -347,10 +347,6 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 				"because operation is already in final state '%s'", op.Component, state, op.State)
 		}
 
-		if op.State == state {
-			return newRedundantOperationStateUpdateError(op)
-		}
-
 		//update operation-entity
 		opStateOld := op.State //required in where-condition later on
 		op.State = state
