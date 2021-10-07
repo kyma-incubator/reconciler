@@ -210,10 +210,6 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 			op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
 	}
 
-	if op.State == state {
-		return newRedundantOperationStateUpdateError(op)
-	}
-
 	reason, err := concatStateReasons(state, reasons)
 	if err != nil {
 		return err
