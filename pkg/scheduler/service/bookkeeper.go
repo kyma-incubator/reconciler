@@ -78,8 +78,6 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 				bk.logger.Errorf("Processing of reconciliations statuses failed: %s", err)
 				continue
 			}
-			bk.logger.Debugf("Bookkeeper processed %d running reconciliations with %d operations",
-				len(filterResults), len(ops))
 
 			//finish reconciliations
 			for _, filterResult := range filterResults {
@@ -90,7 +88,7 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 					len(filterResult.done), len(filterResult.error), len(filterResult.other))
 
 				if newClusterStatus == model.ClusterStatusReady || newClusterStatus == model.ClusterStatusError {
-					bk.logger.Debugf("Bookkeeper is updating reconciliation '%s': final status is '%s'",
+					bk.logger.Infof("Bookkeeper is updating reconciliation '%s': final status is '%s'",
 						filterResult.schedulingID, filterResult.GetResult())
 
 					if err := bk.transition.FinishReconciliation(filterResult.schedulingID, newClusterStatus); err != nil {
@@ -101,7 +99,7 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 
 				//reset orphaned operations
 				for _, orphanOp := range filterResult.GetOrphans() {
-					bk.logger.Debugf("Bookkeeper is marking operation '%s' as orphan "+
+					bk.logger.Infof("Bookkeeper is marking operation '%s' as orphan "+
 						"(last update happened %.2f minutes ago)", orphanOp, time.Since(orphanOp.Updated).Minutes())
 
 					if err := bk.transition.ReconciliationRepository().UpdateOperationState(
@@ -111,7 +109,7 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 				}
 			}
 		case <-ctx.Done():
-			bk.logger.Debug("Stopping bookkeeper because parent context got closed")
+			bk.logger.Info("Stopping bookkeeper because parent context got closed")
 			ticker.Stop()
 			return nil
 		}
@@ -119,6 +117,7 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 }
 
 func (bk *bookkeeper) processReconciliations(ops []*model.OperationEntity) (map[string]*reconciliationStatus, error) {
+	start := time.Now()
 	reconStatuses := make(map[string]*reconciliationStatus)
 	for _, op := range ops {
 		reconStatus, ok := reconStatuses[op.SchedulingID]
@@ -130,6 +129,9 @@ func (bk *bookkeeper) processReconciliations(ops []*model.OperationEntity) (map[
 			return nil, err
 		}
 	}
+
+	bk.logger.Infof("Bookkeeper processed %d running reconciliations with %d operations in %.1f secs",
+		len(reconStatuses), len(ops), time.Since(start).Seconds())
 
 	return reconStatuses, nil
 }
