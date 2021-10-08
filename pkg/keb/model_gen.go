@@ -13,6 +13,10 @@ const (
 
 	StatusReady Status = "ready"
 
+	StatusReconcileDisabled Status = "reconcile_disabled"
+
+	StatusReconcileFailed Status = "reconcile_failed"
+
 	StatusReconcilePending Status = "reconcile_pending"
 
 	StatusReconciling Status = "reconciling"
@@ -131,6 +135,11 @@ type StatusChange struct {
 	Status   Status    `json:"status"`
 }
 
+// StatusUpdate defines model for statusUpdate.
+type StatusUpdate struct {
+	Status Status `json:"status"`
+}
+
 // BadRequest defines model for BadRequest.
 type BadRequest HTTPErrorResponse
 
@@ -149,6 +158,9 @@ type PostClustersJSONBody Cluster
 // PutClustersJSONBody defines parameters for PutClusters.
 type PutClustersJSONBody Cluster
 
+// PutClustersClusterStatusJSONBody defines parameters for PutClustersClusterStatus.
+type PutClustersClusterStatusJSONBody StatusUpdate
+
 // GetReconcilesParams defines parameters for GetReconciles.
 type GetReconcilesParams struct {
 	RuntimeIDs *[]string `json:"runtimeIDs,omitempty"`
@@ -161,3 +173,6 @@ type PostClustersJSONRequestBody PostClustersJSONBody
 
 // PutClustersJSONRequestBody defines body for PutClusters for application/json ContentType.
 type PutClustersJSONRequestBody PutClustersJSONBody
+
+// PutClustersClusterStatusJSONRequestBody defines body for PutClustersClusterStatus for application/json ContentType.
+type PutClustersClusterStatusJSONRequestBody PutClustersClusterStatusJSONBody

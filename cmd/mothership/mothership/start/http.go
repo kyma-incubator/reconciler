@@ -4,25 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
-	"github.com/spf13/viper"
-
-	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/kyma-incubator/reconciler/pkg/server"
+
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -56,6 +56,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramCluster),
 		callHandler(o, getLatestCluster)).
 		Methods("GET")
+
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramCluster),
+		callHandler(o, updateLatestCluster)).
+		Methods("PUT")
 
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges", paramContractVersion, paramCluster), //supports offset-param
@@ -157,6 +162,65 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	sendResponse(w, r, clusterState)
+}
+
+func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	clusterName, err := params.String(paramCluster)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	contractV, err := params.Int64(paramContractVersion)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Contract version undefined").Error(),
+		})
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
+		})
+		return
+	}
+
+	status, err := keb.NewModelFactory(contractV).Status(reqBody)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
+		})
+		return
+	}
+
+	clusterState, err := o.Registry.Inventory().GetLatest(clusterName)
+	if err != nil {
+		httpCode := http.StatusInternalServerError
+		if repository.IsNotFoundError(err) {
+			httpCode = http.StatusNotFound
+		}
+		server.SendHTTPError(w, httpCode, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Could not update cluster state").Error(),
+		})
+		return
+	}
+
+	clusterState, err = o.Registry.Inventory().UpdateStatus(clusterState, model.Status(status.Status))
+	if err != nil {
+		httpCode := http.StatusInternalServerError
+		if repository.IsNotFoundError(err) {
+			httpCode = http.StatusNotFound
+		}
+		server.SendHTTPError(w, httpCode, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Could not update cluster state").Error(),
+		})
+		return
+	}
+
 	sendResponse(w, r, clusterState)
 }
 
