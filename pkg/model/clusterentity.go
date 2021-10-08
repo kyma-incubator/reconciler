@@ -45,8 +45,8 @@ func (c *ClusterEntity) Marshaller() *db.EntityMarshaller {
 		return metadata, err
 	})
 
-	marshaller.AddMarshaller("Runtime", convertInterfaceToString)
-	marshaller.AddMarshaller("Metadata", convertInterfaceToString)
+	marshaller.AddMarshaller("Runtime", convertInterfaceToJsonString)
+	marshaller.AddMarshaller("Metadata", convertInterfaceToJsonString)
 	return marshaller
 }
 

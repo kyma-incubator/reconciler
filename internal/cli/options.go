@@ -49,7 +49,7 @@ func (o *Options) InitApplicationRegistry(forceInitialization bool) error {
 		if err != nil {
 			return err
 		}
-		o.Registry, err = persistency.NewApplicationRegistry(dbConnFact, o.Verbose)
+		o.Registry, err = persistency.NewRegistry(dbConnFact, o.Verbose)
 		return err
 	}
 	return nil

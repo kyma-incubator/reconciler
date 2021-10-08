@@ -24,8 +24,8 @@ func convertTimestampToTime(value interface{}) (interface{}, error) {
 		value, reflect.TypeOf(value).Kind())
 }
 
-//convertInterfaceToString is converting the value of interface instance to text db-column
-func convertInterfaceToString(value interface{}) (interface{}, error) {
+//convertInterfaceToJsonString is converting the value of interface instance to text db-column
+func convertInterfaceToJsonString(value interface{}) (interface{}, error) {
 	encodingJSON, err := json.Marshal(value)
 	if err != nil {
 		return nil, err

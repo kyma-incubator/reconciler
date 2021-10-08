@@ -55,8 +55,8 @@ func (c *ClusterConfigurationEntity) Marshaller() *db.EntityMarshaller {
 		return mapConfig, err
 	})
 
-	marshaller.AddMarshaller("Components", convertInterfaceToString)
-	marshaller.AddMarshaller("Administrators", convertInterfaceToString)
+	marshaller.AddMarshaller("Components", convertInterfaceToJsonString)
+	marshaller.AddMarshaller("Administrators", convertInterfaceToJsonString)
 	return marshaller
 }
 

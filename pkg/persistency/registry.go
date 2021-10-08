@@ -20,7 +20,7 @@ type Registry struct {
 	initialized     bool
 }
 
-func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
+func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
 	conn, err := cf.NewConnection()
 	if err != nil {
 		return nil, err
