@@ -37,6 +37,9 @@ type HTTPErrorResponse struct {
 	Error string `json:"error"`
 }
 
+// HTTPReconcilerStatus defines model for HTTPReconcilerStatus.
+type HTTPReconcilerStatus []Reconciliation
+
 // Cluster defines model for cluster.
 type Cluster struct {
 	// valid kubeconfig to cluster
@@ -81,6 +84,37 @@ type Metadata struct {
 	SubAccountID    string `json:"subAccountID"`
 }
 
+// Operation defines model for operation.
+type Operation struct {
+	Component     string    `json:"component"`
+	CorrelationID string    `json:"correlationID"`
+	Created       time.Time `json:"created"`
+	Priority      int64     `json:"priority"`
+	Reason        string    `json:"reason"`
+	SchedulingID  string    `json:"schedulingID"`
+	State         string    `json:"state"`
+	Updated       time.Time `json:"updated"`
+}
+
+// ReconcilerStatus defines model for reconcilerStatus.
+type ReconcilerStatus struct {
+	Cluster  string    `json:"cluster"`
+	Created  time.Time `json:"created"`
+	Metadata Metadata  `json:"metadata"`
+	Status   string    `json:"status"`
+}
+
+// Reconciliation defines model for reconciliation.
+type Reconciliation struct {
+	Created      time.Time `json:"created"`
+	Lock         string    `json:"lock"`
+	RuntimeID    string    `json:"runtimeID"`
+	SchedulingID string    `json:"schedulingID"`
+	ShootName    string    `json:"shootName"`
+	Status       Status    `json:"status"`
+	Updated      time.Time `json:"updated"`
+}
+
 // RuntimeInput defines model for runtimeInput.
 type RuntimeInput struct {
 	Description string `json:"description"`
@@ -114,6 +148,13 @@ type PostClustersJSONBody Cluster
 
 // PutClustersJSONBody defines parameters for PutClusters.
 type PutClustersJSONBody Cluster
+
+// GetReconcilesParams defines parameters for GetReconciles.
+type GetReconcilesParams struct {
+	RuntimeIDs *[]string `json:"runtimeIDs,omitempty"`
+	Statuses   *[]Status `json:"statuses,omitempty"`
+	Shoots     *[]string `json:"shoots,omitempty"`
+}
 
 // PostClustersJSONRequestBody defines body for PostClusters for application/json ContentType.
 type PostClustersJSONRequestBody PostClustersJSONBody
