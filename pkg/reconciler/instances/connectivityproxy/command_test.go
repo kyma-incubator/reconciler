@@ -172,7 +172,7 @@ func TestCommandRemove(t *testing.T) {
 			WithConfiguration(reconciliation.Configuration).
 			Build()
 
-		provider := &chartmocks.ChartProvider{}
+		provider := &chartmocks.Provider{}
 		provider.On("RenderManifest", component).
 			Return(&chart.Manifest{
 				Type:     chart.HelmChart,
