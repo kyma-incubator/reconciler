@@ -1,6 +1,7 @@
 openapi: 3.0.0
 info:
   title: Reconciler mothership external API
+  description: External API describing communication between the mothership component and external client
   version: 1.0.0
 servers:
   - url: http://{host}:{port}/{version}
@@ -17,9 +18,45 @@ servers:
         default: 'v1'
 
 paths:
+  /reconciles:
+    get:
+      description: 'Get list of current working reconcilers; not implemented yet'
+      parameters:
+        - name: runtimeIDs
+          required: false
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+        - name: statuses
+          required: false
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/status'
+        - name: shoots
+          required: false
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: 'Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPReconcilerStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /clusters:
     put:
-      description: update exisiting cluster
+      description: update existing cluster
       requestBody:
         content:
           application/json:
@@ -69,8 +106,32 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /clusters/{cluster}/status:
+    put:
+      description: update exisiting cluster status
+      parameters:
+        - name: cluster
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/statusUpdate'
+      responses:
+        '201':
+          $ref: '#/components/responses/Ok'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/ClusterNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
     get:
-      description: 'Get cluster status'
+      description: get cluster status
       parameters:
         - name: cluster
           required: true
@@ -200,6 +261,75 @@ components:
           type: string
           format: uri
 
+    HTTPReconcilerStatus:
+      type: array
+      items:
+        $ref: '#/components/schemas/reconciliation'
+
+    reconciliation:
+      type: object
+      required: [ lock, runtimeID, shootName, schedulingID, created, updated, status ]
+      properties:
+        lock:
+          type: string
+        runtimeID:
+          type: string
+        shootName:
+          type: string
+        schedulingID:
+          type: string
+          format: uuid
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+        status:
+          $ref:
+            '#/components/schemas/status'
+
+
+    operation:
+      type: object
+      required: [ priority, schedulingID, correlationID, component, state, reason, created, updated ]
+      properties:
+        priority:
+          type: integer
+          format: int64
+        schedulingID:
+          type: string
+          format: uuid
+        correlationID:
+          type: string
+          format: uuid
+        component:
+          type: string
+        state:
+          type: string # TODO: this should be enum
+        reason:
+          type: string
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+
+    reconcilerStatus:
+      type: object
+      required: [ cluster, metadata, created, status ]
+      properties:
+        cluster:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/metadata'
+        created:
+          type: string
+          format: date-time
+        status:
+          type: string
+
     statusChange:
       type: object
       required: [ started, duration,status ]
@@ -213,11 +343,20 @@ components:
           format: int64
         status:
           $ref: '#/components/schemas/status'
+    
+    statusUpdate:
+      type: object
+      required: [ status ]
+      properties:
+        status:
+          $ref: '#/components/schemas/status'
 
     status:
       type: string
       enum:
         - reconcile_pending
+        - reconcile_failed
+        - reconcile_disabled
         - ready
         - error
         - reconciling
