@@ -156,12 +156,6 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 	su.status = status
 }
 
-func (su *Sender) Finalize() {
-	su.m.Lock()
-	defer su.m.Unlock()
-
-}
-
 func (su *Sender) CurrentStatus() reconciler.Status {
 	return su.status
 }
