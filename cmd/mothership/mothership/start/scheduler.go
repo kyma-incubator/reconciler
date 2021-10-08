@@ -26,8 +26,8 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 		WithWorkerPoolConfig(&worker.Config{
 			PoolSize:               o.Workers,
 			OperationCheckInterval: 30 * time.Second,
-			InvokerMaxRetries:      10,
-			InvokerRetryDelay:      30 * time.Second,
+			InvokerMaxRetries:      2,
+			InvokerRetryDelay:      10 * time.Second,
 		}).
 		WithSchedulerConfig(
 			&service.SchedulerConfig{

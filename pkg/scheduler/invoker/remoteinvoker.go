@@ -148,6 +148,8 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 			i.logger.Warnf("Remote invoker failed to dump HTTP response from component reconciler: %s", err)
 		}
 	} else {
+		i.logger.Warnf("Remote invoker failed to send HTTP request to component reconciler '%s': %s",
+			compRecon.URL, err)
 		return resp, errors.Wrap(err, fmt.Sprintf("failed to call remote reconciler (URL: %s)", compRecon.URL))
 	}
 
