@@ -3,6 +3,8 @@ package adapter
 import (
 	"context"
 	"fmt"
+	"github.com/docker/docker/client"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +33,7 @@ type Config struct {
 }
 
 func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (k8s.Client, error) {
-	client, err := kubeclient.NewKubeClient(kubeconfig, logger)
+	kubeClient, err := kubeclient.NewKubeClient(kubeconfig, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +44,7 @@ func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *C
 
 	return &kubeClientAdapter{
 		kubeconfig: kubeconfig,
-		kubeClient: *client,
+		kubeClient: *kubeClient,
 		logger:     logger,
 		config:     config,
 	}, nil
@@ -220,4 +223,42 @@ func (g *kubeClientAdapter) newProgressTracker() (*progress.Tracker, error) {
 
 func (g *kubeClientAdapter) Clientset() (kubernetes.Interface, error) {
 	return g.kubeClient.GetClientSet()
+}
+
+func (g *kubeClientAdapter) ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	return g.kubeClient.ListResource(resource, lo)
+}
+
+func (g *kubeClientAdapter) GetStatefulSet(ctx context.Context, name, namespace string) (*v1apps.StatefulSet, error) {
+	clientset, err := g.Clientset()
+	if err != nil {
+		return nil, errors.Wrap(err, "Error retrieving clientSet")
+	}
+
+	app, err := clientset.AppsV1().
+		StatefulSets(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+
+	if !client.IsErrNotFound(err) {
+		return nil, errors.Wrap(err, "Unable to load deployment")
+	}
+
+	return app, err
+}
+
+func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error) {
+	clientset, err := g.Clientset()
+	if err != nil {
+		return nil, errors.Wrap(err, "Error retrieving clientSet")
+	}
+
+	secret, bindingErr := clientset.CoreV1().
+		Secrets(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+
+	if !client.IsErrNotFound(bindingErr) {
+		return nil, errors.Wrap(bindingErr, "Error while retrieving bindings")
+	}
+
+	return secret, nil
 }
