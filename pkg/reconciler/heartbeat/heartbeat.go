@@ -134,8 +134,8 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 							return
 						}
 					case <-giveUp.C:
-						su.logger.Errorf("Heartbeat failed to communicated status '%s': timeout occcurred",
-							reconciler.StatusError)
+						su.logger.Errorf("Heartbeat failed to communicated status '%s' after context got closed: "+
+							"timeout occcurred", reconciler.StatusError)
 						return
 					}
 				}
