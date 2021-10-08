@@ -402,7 +402,7 @@ func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) 
 
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	statusFilter := &statusFilter{
-		allowedStatuses: []model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed, model.ClusterStatusReconcileDisabled},
+		allowedStatuses: []model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed, model.ClusterStatusError, model.ClusterStatusReconcileDisabled},
 	}
 	return i.filterClusters(statusFilter)
 }

@@ -132,10 +132,10 @@ func TestInventory(t *testing.T) {
 		//check clusters which are not ready
 		statesNotReady, err := inventory.ClustersNotReady()
 		require.NoError(t, err)
-		require.Len(t, statesNotReady, 2)
+		require.Len(t, statesNotReady, 3)
 		require.ElementsMatch(t,
 			listStatuses(statesNotReady),
-			[]model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed})
+			[]model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed, model.ClusterStatusError})
 	})
 
 	t.Run("Edge-case: cluster has interim states and only latest state has to be replied)", func(t *testing.T) {
@@ -181,7 +181,7 @@ func TestInventory(t *testing.T) {
 		cluster3State1b, err := inventory.UpdateStatus(cluster3State1a, model.ClusterStatusReady)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReady, cluster3State1b.Status.Status)
-		expectedCluster3State1c, err := inventory.UpdateStatus(cluster3State1b, model.ClusterStatusError)
+		expectedCluster3State1c, err := inventory.UpdateStatus(cluster3State1b, model.ClusterStatusError) //<- EXPECTED STATE
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusError, expectedCluster3State1c.Status.Status)
 
@@ -193,15 +193,6 @@ func TestInventory(t *testing.T) {
 		expectedCluster2State2b, err := inventory.UpdateStatus(cluster2State2a, model.ClusterStatusReconcileFailed) //<- EXPECTED STATE
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcileFailed, expectedCluster2State2b.Status.Status)
-
-		//create cluster4, version1, status: ReconcileDisabled
-		cluster4v1 := newCluster(t, int64(4), 1)
-		cluster4State1a, err := inventory.CreateOrUpdate(1, cluster4v1)
-		require.NoError(t, err)
-		require.Equal(t, model.ClusterStatusReconcilePending, cluster4State1a.Status.Status)
-		cluster4State1b, err := inventory.UpdateStatus(cluster4State1a, model.ClusterStatusReconcileDisabled) //<- EXPECTED STATE
-		require.Equal(t, model.ClusterStatusReconcileDisabled, cluster4State1b.Status.Status)
-		require.NoError(t, err)
 
 		defer func() {
 			//cleanup
@@ -220,7 +211,7 @@ func TestInventory(t *testing.T) {
 		statesNotReady, err := inventory.ClustersNotReady()
 		require.NoError(t, err)
 		require.Len(t, statesNotReady, 2)
-		require.ElementsMatch(t, []*State{expectedCluster2State2b, cluster4State1b}, statesNotReady)
+		require.ElementsMatch(t, []*State{expectedCluster2State2b, expectedCluster3State1c}, statesNotReady)
 
 		//TODO: test for clusters which are inside and outside of filter interval
 	})
