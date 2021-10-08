@@ -37,7 +37,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 			}).
 		WithBookkeeperConfig(&service.BookkeeperConfig{
 			OperationsWatchInterval: 30 * time.Second,
-			OrphanOperationTimeout:  6 * time.Minute,
+			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		Run(ctx)
 

@@ -12,7 +12,7 @@ import (
 
 const (
 	defaultOperationsWatchInterval = 30 * time.Second
-	defaultOrphanOperationTimeout  = 5 * time.Minute
+	defaultOrphanOperationTimeout  = 10 * time.Minute
 )
 
 type BookkeeperConfig struct {
@@ -122,7 +122,7 @@ func (bk *bookkeeper) processReconciliations(ops []*model.OperationEntity) (map[
 	for _, op := range ops {
 		reconStatus, ok := reconStatuses[op.SchedulingID]
 		if !ok {
-			reconStatus = newReconciliationStatus(op.SchedulingID, bk.config.OrphanOperationTimeout)
+			reconStatus = newReconciliationStatus(op.SchedulingID, bk.config.OrphanOperationTimeout, bk.logger)
 			reconStatuses[op.SchedulingID] = reconStatus
 		}
 		if err := reconStatus.Add(op); err != nil {
@@ -137,6 +137,7 @@ func (bk *bookkeeper) processReconciliations(ops []*model.OperationEntity) (map[
 }
 
 type reconciliationStatus struct {
+	logger        *zap.SugaredLogger
 	schedulingID  string
 	orphanTimeout time.Duration
 	done          []*model.OperationEntity
@@ -144,8 +145,9 @@ type reconciliationStatus struct {
 	other         []*model.OperationEntity
 }
 
-func newReconciliationStatus(schedulingID string, orphanTimeout time.Duration) *reconciliationStatus {
+func newReconciliationStatus(schedulingID string, orphanTimeout time.Duration, logger *zap.SugaredLogger) *reconciliationStatus {
 	return &reconciliationStatus{
+		logger:        logger,
 		schedulingID:  schedulingID,
 		orphanTimeout: orphanTimeout,
 	}
@@ -182,7 +184,12 @@ func (rs *reconciliationStatus) GetResult() model.Status {
 func (rs *reconciliationStatus) GetOrphans() []*model.OperationEntity {
 	var orphaned []*model.OperationEntity
 	for _, op := range rs.other {
-		if time.Since(op.Updated) >= rs.orphanTimeout {
+		lastUpdateAgo := time.Now().UTC().Sub(op.Updated)
+		opIsOrphan := lastUpdateAgo >= rs.orphanTimeout
+		rs.logger.Debugf("Reconciliation result verified operation '%s': "+
+			"last updated is %f.1f secs ago (orphan-timeout: %.1f secs / op is orphan: %t)",
+			op, lastUpdateAgo.Seconds(), rs.orphanTimeout.Seconds(), opIsOrphan)
+		if opIsOrphan {
 			orphaned = append(orphaned, op)
 		}
 	}

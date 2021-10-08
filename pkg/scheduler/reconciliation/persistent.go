@@ -89,7 +89,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 					ClusterConfig: reconEntity.ClusterConfig,
 					Component:     component.Component,
 					State:         model.OperationStateNew,
-					Updated:       time.Now(),
+					Updated:       time.Now().UTC(),
 				})
 				if err != nil {
 					return nil, err
@@ -181,7 +181,7 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 		reconEntity.Lock = fmt.Sprintf("unlock-%s", reconEntity.SchedulingID)
 		reconEntity.Finished = true
 		reconEntity.ClusterConfigStatus = status.ID
-		reconEntity.Updated = time.Now()
+		reconEntity.Updated = time.Now().UTC()
 		updReconQ, err := db.NewQuery(r.Conn, reconEntity)
 		if err != nil {
 			return err
@@ -355,7 +355,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			return err
 		}
 		op.Reason = reason
-		op.Updated = time.Now()
+		op.Updated = time.Now().UTC()
 
 		//prepare update query
 		q, err := db.NewQuery(r.Conn, op)
