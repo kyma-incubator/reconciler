@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 )
 
@@ -73,7 +74,12 @@ func modelForVersion(contractVersion string) (*reconciler.Reconciliation, error)
 }
 
 func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o *reconCli.Options, workerPool *service.WorkerPool) {
-	o.Logger().Debug("Start processing reconciliation request")
+	dump, err := httputil.DumpRequest(req, true)
+	if err == nil {
+		o.Logger().Debug("Start processing reconciliation request: %s", string(dump))
+	} else {
+		o.Logger().Warnf("REST endpoint failed to dump http request for debugging purposes: %s", err)
+	}
 
 	//marshal model
 	model, err := newModel(req)

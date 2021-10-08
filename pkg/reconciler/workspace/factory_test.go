@@ -19,14 +19,14 @@ func TestWorkspaceFactory(t *testing.T) {
 	logger := log.NewLogger(true)
 
 	t.Run("Test validation", func(t *testing.T) {
-		wsf1 := Factory{
+		wsf1 := DefaultFactory{
 			logger: logger,
 		}
 		require.NoError(t, wsf1.validate())
 		require.Equal(t, filepath.Join(wsf1.defaultStorageDir(), version), wsf1.workspaceDir(version))
 		require.Equal(t, defaultRepositoryURL, wsf1.repository.URL)
 
-		wsf2 := Factory{
+		wsf2 := DefaultFactory{
 			logger:     logger,
 			storageDir: "/tmp",
 		}
@@ -87,6 +87,6 @@ func checkWorkspaceDirectories(t *testing.T, ws *Workspace) {
 	require.True(t, file.DirExists(ws.InstallationResourceCrdDir))
 }
 
-func testDelete(t *testing.T, wsf *Factory) {
+func testDelete(t *testing.T, wsf Factory) {
 	require.NoError(t, wsf.Delete(version))
 }

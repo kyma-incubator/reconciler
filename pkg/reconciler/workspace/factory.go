@@ -21,15 +21,25 @@ const (
 	wsReadyIndicatorFile = "workspace-ready.yaml"
 )
 
-type Factory struct {
+//go:generate mockery -name=Factory -outpkg=mock -case=underscore
+// Factory of workspace.
+type Factory interface {
+	// Get workspace of the given version.
+	Get(version string) (*Workspace, error)
+
+	// Delete workspace of the given version.
+	Delete(version string) error
+}
+
+type DefaultFactory struct {
 	storageDir string
 	logger     *zap.SugaredLogger
 	mutex      sync.Mutex
 	repository *reconciler.Repository
 }
 
-func NewFactory(repo *reconciler.Repository, storageDir string, logger *zap.SugaredLogger) (*Factory, error) {
-	factory := &Factory{
+func NewFactory(repo *reconciler.Repository, storageDir string, logger *zap.SugaredLogger) (*DefaultFactory, error) {
+	factory := &DefaultFactory{
 		storageDir: storageDir,
 		logger:     logger,
 		repository: repo,
@@ -37,11 +47,11 @@ func NewFactory(repo *reconciler.Repository, storageDir string, logger *zap.Suga
 	return factory, factory.validate()
 }
 
-func (f *Factory) String() string {
+func (f *DefaultFactory) String() string {
 	return fmt.Sprintf("WorkspaceFactory [storageDir=%s]", f.storageDir)
 }
 
-func (f *Factory) validate() error {
+func (f *DefaultFactory) validate() error {
 	if f.logger == nil {
 		return fmt.Errorf("no logger provided: please set field Logger")
 	}
@@ -56,11 +66,11 @@ func (f *Factory) validate() error {
 	return nil
 }
 
-func (f *Factory) workspaceDir(version string) string {
+func (f *DefaultFactory) workspaceDir(version string) string {
 	return filepath.Join(f.storageDir, version) //add Kyma version as subdirectory
 }
 
-func (f *Factory) defaultStorageDir() string {
+func (f *DefaultFactory) defaultStorageDir() string {
 	//define work dir, priority: "$HOME", "cwd()", "."
 	baseDir, err := os.UserHomeDir()
 	if err != nil {
@@ -72,7 +82,7 @@ func (f *Factory) defaultStorageDir() string {
 	return filepath.Join(baseDir, ".kyma", "reconciler", "versions")
 }
 
-func (f *Factory) Get(version string) (*Workspace, error) {
+func (f *DefaultFactory) Get(version string) (*Workspace, error) {
 	if err := f.validate(); err != nil {
 		return nil, err
 	}
@@ -95,7 +105,7 @@ func (f *Factory) Get(version string) (*Workspace, error) {
 	return newWorkspace(wsDir)
 }
 
-func (f *Factory) clone(version, dstDir string) error {
+func (f *DefaultFactory) clone(version, dstDir string) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -146,7 +156,7 @@ func (f *Factory) clone(version, dstDir string) error {
 	return nil
 }
 
-func (f *Factory) Delete(version string) error {
+func (f *DefaultFactory) Delete(version string) error {
 	if err := f.validate(); err != nil {
 		return err
 	}

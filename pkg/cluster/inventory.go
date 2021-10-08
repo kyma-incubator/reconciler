@@ -32,8 +32,8 @@ type metricsCollector interface {
 	OnClusterStateUpdate(state *State) error
 }
 
-func NewInventory(dbFac db.ConnectionFactory, debug bool, collector metricsCollector) (Inventory, error) {
-	repo, err := repository.NewRepository(dbFac, debug)
+func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (Inventory, error) {
+	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +402,7 @@ func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) 
 
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	statusFilter := &statusFilter{
-		allowedStatuses: []model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed, model.ClusterStatusError},
+		allowedStatuses: []model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed, model.ClusterStatusError, model.ClusterStatusReconcileDisabled},
 	}
 	return i.filterClusters(statusFilter)
 }
@@ -523,7 +523,7 @@ func (i *DefaultInventory) StatusChanges(cluster string, offset time.Duration) (
 
 	clusterStatuses, err := q.Select().
 		WhereIn("ID", fmt.Sprintf("SELECT %s FROM %s WHERE %s", idColName, clusterStatusEntity.Table(), sqlCond)).
-		OrderBy(map[string]string{"Created": "DESC"}).
+		OrderBy(map[string]string{"ID": "DESC"}).
 		GetMany()
 	if err != nil {
 		return nil, err

@@ -12,11 +12,11 @@ import (
 
 type ActionContext struct {
 	KubeClient       kubernetes.Client
-	WorkspaceFactory *workspace.Factory
+	WorkspaceFactory workspace.Factory
 	Context          context.Context
 	Logger           *zap.SugaredLogger
-	ChartProvider    chart.Provider
 	Model            *reconciler.Reconciliation
+	ChartProvider    chart.Provider
 }
 
 type Action interface {

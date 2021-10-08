@@ -2,18 +2,24 @@ package db
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/stretchr/testify/require"
+	"testing"
 )
 
-func NewTestConnectionFactory() (ConnectionFactory, error) {
+func NewTestConnectionFactory(t *testing.T) ConnectionFactory {
 	configFile, err := test.GetConfigFile()
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	connFac, err := NewConnectionFactory(configFile, false, true)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
-	return connFac, connFac.Init(false)
+	require.NoError(t, connFac.Init(false))
+	return connFac
+}
+
+func NewTestConnection(t *testing.T) Connection {
+	connFac := NewTestConnectionFactory(t)
+	conn, err := connFac.NewConnection()
+	require.NoError(t, err)
+	return conn
 }

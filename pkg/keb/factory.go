@@ -25,6 +25,14 @@ func (mf *ModelFactory) load(model interface{}, data []byte) (interface{}, error
 	}
 }
 
+func (mf *ModelFactory) Status(data []byte) (*StatusUpdate, error) {
+	model, err := mf.load(&StatusUpdate{}, data)
+	if err != nil {
+		return nil, err
+	}
+	return model.(*StatusUpdate), err
+}
+
 func (mf *ModelFactory) Metadata(data []byte) (*Metadata, error) {
 	model, err := mf.load(&Metadata{}, data)
 	if err != nil {
@@ -54,7 +62,10 @@ func (mf *ModelFactory) Components(data []byte) ([]*Component, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := []*Component{}
+	var result []*Component
+	if untypedModels == nil {
+		return result, nil
+	}
 	for _, untypedModel := range untypedModels.([]interface{}) {
 		typedModel := &Component{}
 		err := mapstructure.Decode(untypedModel, typedModel)

@@ -69,9 +69,9 @@ spec:
           - mothership
           - mothership
           - start
-          - --reconcilers=components-configuration/component-reconcilers.json
           - --config=mothership-configuration/reconciler.yaml
           - --create-encryption-key
+          - --verbose
         name: mothership-reconciler
         ports:
         - name: http
@@ -112,17 +112,12 @@ spec:
         volumeMounts:
         - name: encryption-key
           mountPath: "/encryption"
-        - name: component-reconcilers-configuration
-          mountPath: "/components-configuration"
         - name: mothership-reconciler-configuration
           mountPath: "/mothership-configuration"
       volumes:
       - name: encryption-key
         emptyDir:
           medium: Memory
-      - name: component-reconcilers-configuration
-        configMap:
-          name: component-reconcilers
       - name: mothership-reconciler-configuration
         configMap:
           name: mothership-reconciler

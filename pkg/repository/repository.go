@@ -15,12 +15,7 @@ type Repository struct {
 	CacheDep *cacheDependencyManager
 }
 
-func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
-	conn, err := dbFac.NewConnection()
-	if err != nil {
-		return nil, err
-	}
-
+func NewRepository(conn db.Connection, debug bool) (*Repository, error) {
 	return &Repository{
 		Conn:     conn,
 		Logger:   log.NewLogger(debug),

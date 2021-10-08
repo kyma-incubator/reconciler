@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -41,29 +42,31 @@ func (o *Options) Kubeconfig() string {
 	return o.kubeconfig
 }
 
-func componentsFromFile(path string) ([]string, error) {
-	var defaultComponents []string
+func componentsFromFile(path string) ([]string, []string, error) {
+	var preComps []string
+	var defaultComps []string
 
 	compList, err := components.NewComponentList(path)
 	if err != nil {
-		return defaultComponents, err
+		return preComps, defaultComps, err
 	}
 
 	for _, c := range compList.Prerequisites {
+		preComps = append(preComps, c.Name)
 		if c.Namespace != "" {
-			defaultComponents = append(defaultComponents, c.Name+"@"+c.Namespace)
+			defaultComps = append(defaultComps, c.Name+"@"+c.Namespace)
 		} else {
-			defaultComponents = append(defaultComponents, c.Name)
+			defaultComps = append(defaultComps, c.Name)
 		}
 	}
 	for _, c := range compList.Components {
 		if c.Namespace != "" {
-			defaultComponents = append(defaultComponents, c.Name+"@"+c.Namespace)
+			defaultComps = append(defaultComps, c.Name+"@"+c.Namespace)
 		} else {
-			defaultComponents = append(defaultComponents, c.Name)
+			defaultComps = append(defaultComps, c.Name)
 		}
 	}
-	return defaultComponents, nil
+	return preComps, defaultComps, nil
 }
 
 func componentsFromStrings(list []string, values []string) ([]keb.Component, error) {
@@ -103,7 +106,9 @@ func componentsFromStrings(list []string, values []string) ([]keb.Component, err
 	return comps, nil
 }
 
-func (o *Options) Components(defaultComponentsFile string) ([]keb.Component, error) {
+func (o *Options) Components(defaultComponentsFile string) ([]string, string, error) {
+	var preComps []string
+
 	comps := o.components
 	if len(o.components) == 0 {
 		cFile := o.componentsFile
@@ -111,12 +116,17 @@ func (o *Options) Components(defaultComponentsFile string) ([]keb.Component, err
 			cFile = defaultComponentsFile
 		}
 		var err error
-		comps, err = componentsFromFile(cFile)
+		preComps, comps, err = componentsFromFile(cFile)
 		if err != nil {
-			return nil, err
+			return preComps, "", err
 		}
 	}
-	return componentsFromStrings(comps, o.values)
+	mergedComps, err := componentsFromStrings(comps, o.values)
+	if err != nil {
+		return preComps, "", err
+	}
+	compsString, err := json.Marshal(mergedComps)
+	return preComps, string(compsString), err
 }
 
 func (o *Options) Validate() error {

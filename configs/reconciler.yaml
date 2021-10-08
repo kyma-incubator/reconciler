@@ -1,6 +1,6 @@
 ---
 db:
-  driver: postgres
+  driver: sqlite
   encryption:
     #Call `./bin/mothership mothership install` to create or update the encryption key file
     keyFile: "./encryption/reconciler.key"
@@ -21,6 +21,10 @@ mothership:
   scheme: http
   host: localhost
   port: 8080
-preComponents:
-  - cluster-essentials
-  - istio
+  scheduler:
+    reconcilers:
+      base:
+        url: "http://localhost:8081/v1/run"
+    preComponents:
+      - cluster-essentials
+      - istio-configuration

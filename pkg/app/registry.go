@@ -6,25 +6,29 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"go.uber.org/zap"
 )
 
 type ApplicationRegistry struct {
-	debug             bool
-	logger            *zap.SugaredLogger
-	connectionFactory db.ConnectionFactory
-	inventory         cluster.Inventory
-	kvRepository      *kv.Repository
-	operations        scheduler.OperationsRegistry
-	initialized       bool
+	debug           bool
+	logger          *zap.SugaredLogger
+	connection      db.Connection
+	inventory       cluster.Inventory
+	kvRepository    *kv.Repository
+	reconRepository reconciliation.Repository
+	initialized     bool
 }
 
 func NewApplicationRegistry(cf db.ConnectionFactory, debug bool) (*ApplicationRegistry, error) {
+	conn, err := cf.NewConnection()
+	if err != nil {
+		return nil, err
+	}
 	registry := &ApplicationRegistry{
-		debug:             debug,
-		connectionFactory: cf,
-		logger:            logger.NewLogger(debug),
+		debug:      debug,
+		connection: conn,
+		logger:     logger.NewLogger(debug),
 	}
 	return registry, registry.init()
 }
@@ -41,7 +45,9 @@ func (or *ApplicationRegistry) init() error {
 	if or.kvRepository, err = or.initRepository(); err != nil {
 		return err
 	}
-	or.initOperationsRegistry()
+	if or.reconRepository, err = or.initReconciliationRepository(); err != nil {
+		return err
+	}
 
 	or.initialized = true
 
@@ -52,10 +58,11 @@ func (or *ApplicationRegistry) Close() error {
 	if !or.initialized {
 		return nil
 	}
-	if err := or.kvRepository.Close(); err != nil {
-		return err
-	}
-	return nil
+	return or.connection.Close()
+}
+
+func (or *ApplicationRegistry) Connnection() db.Connection {
+	return or.connection
 }
 
 func (or *ApplicationRegistry) Inventory() cluster.Inventory {
@@ -66,43 +73,31 @@ func (or *ApplicationRegistry) KVRepository() *kv.Repository {
 	return or.kvRepository
 }
 
-func (or *ApplicationRegistry) OperationsRegistry() scheduler.OperationsRegistry {
-	return or.operations
+func (or *ApplicationRegistry) ReconciliationRepository() reconciliation.Repository {
+	return or.reconRepository
 }
 
 func (or *ApplicationRegistry) initRepository() (*kv.Repository, error) {
-	var err error
-
-	var repository *kv.Repository
-	if or.connectionFactory == nil {
-		or.logger.Fatal("Failed to create configuration entry repository because connection factory is undefined")
-	}
-	repository, err = kv.NewRepository(or.connectionFactory, or.debug)
+	repository, err := kv.NewRepository(or.connection, or.debug)
 	if err != nil {
 		or.logger.Errorf("Failed to create configuration entry repository: %s", err)
-		return nil, err
 	}
-
-	return repository, nil
+	return repository, err
 }
 
 func (or *ApplicationRegistry) initInventory() (cluster.Inventory, error) {
-	var err error
-
-	if or.connectionFactory == nil {
-		or.logger.Fatal("Failed to create cluster inventory because connection factory is undefined")
-	}
 	collector := metrics.NewReconciliationStatusCollector()
-	or.inventory, err = cluster.NewInventory(or.connectionFactory, or.debug, collector)
+	inventory, err := cluster.NewInventory(or.connection, or.debug, collector)
 	if err != nil {
 		or.logger.Errorf("Failed to create cluster inventory: %s", err)
-		return nil, err
 	}
-
-	return or.inventory, nil
+	return inventory, err
 }
 
-func (or *ApplicationRegistry) initOperationsRegistry() scheduler.OperationsRegistry {
-	or.operations = scheduler.NewInMemoryOperationsRegistry()
-	return or.operations
+func (or *ApplicationRegistry) initReconciliationRepository() (reconciliation.Repository, error) {
+	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(or.connection, or.debug)
+	if err != nil {
+		or.logger.Errorf("Failed to create reconciliation repository: %s", err)
+	}
+	return reconRepo, err
 }

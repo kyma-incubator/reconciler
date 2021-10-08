@@ -73,3 +73,6 @@ coverage.out
 *.bak
 
 out.txt
+
+# ignore workspace sub-directory
+.workspace

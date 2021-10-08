@@ -10,8 +10,8 @@ type Repository struct {
 	*repository.Repository
 }
 
-func NewRepository(dbFac db.ConnectionFactory, debug bool) (*Repository, error) {
-	repo, err := repository.NewRepository(dbFac, debug)
+func NewRepository(conn db.Connection, debug bool) (*Repository, error) {
+	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {
 		return nil, err
 	}
