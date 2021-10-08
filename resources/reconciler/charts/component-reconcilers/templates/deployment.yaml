@@ -29,6 +29,7 @@ spec:
           - start
           - {{ $component }}
           - --workspace=/tmp/reconciler
+          - --verbose
         name: reconciler
         ports:
         - name: http

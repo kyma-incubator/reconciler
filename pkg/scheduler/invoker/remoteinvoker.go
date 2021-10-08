@@ -174,13 +174,8 @@ func (i *RemoteReconcilerInvoker) unmarshalHTTPResponse(body []byte, respModel i
 func (i *RemoteReconcilerInvoker) updateOperationState(params *Params, state model.OperationState, reasons ...string) error {
 	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, strings.Join(reasons, ", "))
 	if err != nil {
-		if reconciliation.IsRedundantOperationStateUpdateError(err) {
-			i.logger.Debugf("Remote invoker tried an redundant update of operation (scheudlingID:%s/correlationID:%s) "+
-				"to state '%s'", params.SchedulingID, params.CorrelationID, state)
-		} else {
-			return errors.Wrap(err, fmt.Sprintf("remote invoker failed to update operation "+
-				"(scheudlingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
-		}
+		return errors.Wrap(err, fmt.Sprintf("remote invoker failed to update operation "+
+			"(scheudlingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
 	}
 	return nil
 }
