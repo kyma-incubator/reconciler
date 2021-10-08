@@ -3,7 +3,6 @@ package heartbeat
 import (
 	"context"
 	"fmt"
-	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/pkg/errors"
 	"os"
@@ -110,29 +109,9 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		require.True(t, heartbeatSender.isContextClosed()) //verify that status-updater received timeout
 
 		//check fired status updates
-		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything > 1 is sufficient to ensure the heartbeatSenders worked
-	})
-
-	t.Run("Test heartbeat sender with heartbeat sender timeout", func(t *testing.T) {
-		callbackHdlr := newTestCallbackHandler(t)
-
-		heartbeatSender, err := NewHeartbeatSender(context.Background(), callbackHdlr, logger, Config{
-			Interval: 500 * time.Millisecond,
-			Timeout:  1 * time.Second,
-		})
-		require.NoError(t, err)
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
-
-		require.NoError(t, heartbeatSender.Running())
-		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
-
-		time.Sleep(2 * time.Second) //wait longer than status update timeout to timeout
-
-		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 2) //anything >= 2 is sufficient to ensure the statusUpdaters worked
-
-		err = heartbeatSender.Failed(errors.New("I'm failing"))
-		require.Error(t, err)
-		require.IsType(t, &e.ContextClosedError{}, err) //status changes have to fail after status-updater was interrupted
+		statuses := callbackHdlr.Statuses()
+		require.GreaterOrEqual(t, len(statuses), 2) //anything >= 2 is sufficient to ensure the heartbeatSenders worked
+		require.Equal(t, statuses[len(statuses)-1], reconciler.StatusError)
 	})
 
 }
