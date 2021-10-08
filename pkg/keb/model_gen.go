@@ -160,6 +160,7 @@ type PutClustersJSONBody Cluster
 
 // PutClustersClusterStatusJSONBody defines parameters for PutClustersClusterStatus.
 type PutClustersClusterStatusJSONBody StatusUpdate
+
 // GetReconcilesParams defines parameters for GetReconciles.
 type GetReconcilesParams struct {
 	RuntimeIDs *[]string `json:"runtimeIDs,omitempty"`
