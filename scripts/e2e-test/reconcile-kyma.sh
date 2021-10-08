@@ -31,14 +31,12 @@ function wait_until_kyma_installed() {
 
     if [ "${status}" = "error" ]; then
       echo "Failed to reconcile Kyma. Exiting"
-      kubectl logs -n reconciler -l app.kubernetes.io/name=mothership-reconciler
       exit 1
     fi
 
     if [ "$RECONCILER_TIMEOUT" -ne 0 ] && [ "$iterationsLeft" -le 0 ]; then
       echo "reconcileStatusResponse: ${reconcileStatusResponse}"
       echo "Timeout reached on Kyma reconciliation. Exiting"
-      kubectl logs -n reconciler -l app.kubernetes.io/name=mothership-reconciler
       exit 1
     fi
 
