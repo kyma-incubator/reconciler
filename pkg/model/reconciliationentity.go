@@ -11,7 +11,7 @@ const tblReconciliation string = "scheduler_reconciliations"
 
 type ReconciliationEntity struct {
 	Lock                string    `db:"notNull"`
-	Cluster             string    `db:"notNull"`
+	RuntimeID           string    `db:"notNull"`
 	ClusterConfig       int64     `db:"notNull"`
 	ClusterConfigStatus int64     `db:"notNull"`
 	Finished            bool      `db:"notNull"`
@@ -22,7 +22,7 @@ type ReconciliationEntity struct {
 
 func (r *ReconciliationEntity) String() string {
 	return fmt.Sprintf("ReconciliationEntity [Cluster=%s,ClusterConfigVersion=%d,SchedulingID=%s]",
-		r.Cluster, r.ClusterConfig, r.SchedulingID)
+		r.RuntimeID, r.ClusterConfig, r.SchedulingID)
 }
 
 func (*ReconciliationEntity) New() db.DatabaseEntity {
@@ -48,5 +48,5 @@ func (r *ReconciliationEntity) Equal(other db.DatabaseEntity) bool {
 	if !ok {
 		return false
 	}
-	return r.Cluster == otherOpProp.Cluster && r.SchedulingID == otherOpProp.SchedulingID
+	return r.RuntimeID == otherOpProp.RuntimeID && r.SchedulingID == otherOpProp.SchedulingID
 }

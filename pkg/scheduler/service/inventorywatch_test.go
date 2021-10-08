@@ -15,15 +15,15 @@ func TestInventoryWatch(t *testing.T) {
 	clusterStateExpected := &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version: 1,
-			Cluster: "testCluster",
+			RuntimeID: "testCluster",
 		},
 		Configuration: &model.ClusterConfigurationEntity{
 			Version:        1,
-			Cluster:        "testCluster",
+			RuntimeID:        "testCluster",
 			ClusterVersion: 1,
 		},
 		Status: &model.ClusterStatusEntity{
-			Cluster: "testCluster",
+			RuntimeID: "testCluster",
 		},
 	}
 
