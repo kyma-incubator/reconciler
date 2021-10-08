@@ -46,7 +46,6 @@ func (su *Config) validate() error {
 type Sender struct {
 	ctx             context.Context
 	ctxClosed       bool //indicate whether the process was interrupted by parent context
-	timeout         *time.Timer
 	config          Config
 	status          reconciler.Status //current status
 	callback        cb.Handler        //callback-handler which trigger the callback logic to inform reconciler-controller
@@ -66,7 +65,6 @@ func NewHeartbeatSender(ctx context.Context, callback cb.Handler, logger *zap.Su
 		restartInterval: make(chan bool),
 		callback:        callback,
 		status:          reconciler.StatusNotstarted,
-		timeout:         time.NewTimer(config.Timeout),
 		logger:          logger,
 	}, nil
 }
@@ -97,42 +95,55 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 			}(rootCause),
 		})
 		if err == nil {
-			su.logger.Debugf("Heartbeat sent interval-callback with status-update ('%s') successfully", status)
+			su.logger.Debugf("Heartbeat communicated status '%s' successfully to mothership-reconciler", status)
 		} else {
-			su.logger.Warnf("Heartbeat failed to send interval-callback with status-update ('%s') "+
-				"to mothersip-reconciler: %s", status, err)
+			su.logger.Warnf("Heartbeat failed to communciate status update '%s' "+
+				"to mothership-reconciler: %s", status, err)
 		}
 		return err
 	}
 
 	go func(status reconciler.Status, rootCause error, interval time.Duration, timeout time.Duration, onlyOnce bool) {
-		su.logger.Debugf("Heartbeat started new update loop for status '%s' (update only once: %t / root cause: %v)",
-			status, onlyOnce, rootCause)
+		su.logger.Debugf("Heartbeat starts sending status '%s'", status)
 		if err := task(status, rootCause); err == nil && onlyOnce {
-			su.logger.Debugf("Heartbeat communicated status '%s' successfully: stopping update loop", status)
 			return
 		}
-		su.timeout.Reset(timeout)
+
 		for {
 			select {
 			case <-su.restartInterval:
-				su.logger.Debugf("Heartbeat stops running update loop for status '%s'", status)
+				su.logger.Debugf("Heartbeat stops sending status '%s'", status)
 				return
 			case <-su.ctx.Done():
-				su.logger.Debugf("Heartbeat is stopping update loop for status '%s' because context was closed", status)
+				su.logger.Debugf("Heartbeat starts sending status '%s' (previous status was '%s') "+
+					"because parent context got closed", reconciler.StatusError, status)
 				su.closeContext()
-				return
-			case <-su.timeout.C:
-				su.logger.Debugf("Heartbeat is stopping update loop for status '%s' because timeout "+
-					"of %.1f secs reached", status, timeout.Seconds())
-				su.closeContext()
-				return
+
+				//send error resonse
+				if err := task(reconciler.StatusError, su.ctx.Err()); err == nil { //trigger response before interval starts
+					return
+				}
+
+				//error could not be send, retry in loop
+				ticker := time.NewTicker(interval)
+				giveUp := time.NewTimer(timeout)
+				for {
+					select {
+					case <-ticker.C:
+						if err := task(reconciler.StatusError, su.ctx.Err()); err == nil {
+							return
+						}
+					case <-giveUp.C:
+						su.logger.Errorf("Heartbeat failed to communicated status '%s': timeout occcurred",
+							reconciler.StatusError)
+						return
+					}
+				}
 			case <-time.NewTicker(interval).C:
-				su.logger.Debugf("Heartbeat sends update by executing callback with status '%s'", status)
 				err := task(status, rootCause)
 				if err != nil {
-					su.logger.Warnf("Heartbeat failed to send update by executing callback with status '%s' "+
-						"(but will retry): %s", status, err)
+					su.logger.Warnf("Heartbeat failed to communciate status '%s' "+
+						"but will retry: %s", status, err)
 				} else if onlyOnce {
 					su.logger.Debugf("Hearbeat communicated status '%s' successfully after retry: "+
 						"stopping update loop", status)
@@ -143,6 +154,12 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 	}(status, reason, su.config.Interval, su.config.Timeout, onlyOnce)
 
 	su.status = status
+}
+
+func (su *Sender) Finalize() {
+	su.m.Lock()
+	defer su.m.Unlock()
+
 }
 
 func (su *Sender) CurrentStatus() reconciler.Status {

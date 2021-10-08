@@ -96,7 +96,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		callbackHdlr := newTestCallbackHandler(t)
 
 		heartbeatSender, err := NewHeartbeatSender(ctx, callbackHdlr, logger, Config{
-			Interval: 1 * time.Second,
+			Interval: 500 * time.Millisecond,
 			Timeout:  10 * time.Second,
 		})
 		require.NoError(t, err)
