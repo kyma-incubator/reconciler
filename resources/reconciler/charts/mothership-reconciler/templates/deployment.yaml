@@ -71,6 +71,7 @@ spec:
           - start
           - --config=mothership-configuration/reconciler.yaml
           - --create-encryption-key
+          - --verbose
         name: mothership-reconciler
         ports:
         - name: http
