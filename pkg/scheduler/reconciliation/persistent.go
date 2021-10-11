@@ -43,8 +43,8 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		existingRecon, err := existingReconQ.
 			Select().
 			Where(map[string]interface{}{
-				"RuntimeID":  state.Cluster.RuntimeID,
-				"Finished": false,
+				"RuntimeID": state.Cluster.RuntimeID,
+				"Finished":  false,
 			}).
 			GetOne()
 		if err == nil {

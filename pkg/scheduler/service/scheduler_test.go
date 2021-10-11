@@ -18,13 +18,13 @@ func TestScheduler(t *testing.T) {
 	clusterState = &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version:    1,
-			RuntimeID:    "testCluster",
+			RuntimeID:  "testCluster",
 			Kubeconfig: "xyz",
 			Contract:   1,
 		},
 		Configuration: &model.ClusterConfigurationEntity{
 			Version:        1,
-			RuntimeID:        "testCluster",
+			RuntimeID:      "testCluster",
 			ClusterVersion: 1,
 			Contract:       1,
 			KymaVersion:    "1.24.0",
@@ -32,7 +32,7 @@ func TestScheduler(t *testing.T) {
 		},
 		Status: &model.ClusterStatusEntity{
 			ID:             1,
-			RuntimeID:        "testCluster",
+			RuntimeID:      "testCluster",
 			ClusterVersion: 1,
 			ConfigVersion:  1,
 			Status:         model.ClusterStatusReconcilePending,

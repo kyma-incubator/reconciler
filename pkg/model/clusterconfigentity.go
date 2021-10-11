@@ -20,7 +20,7 @@ type ReconciliationSequence struct {
 
 type ClusterConfigurationEntity struct {
 	Version        int64            `db:"readOnly"`
-	RuntimeID      string `db:"notNull"`
+	RuntimeID      string           `db:"notNull"`
 	ClusterVersion int64            `db:"notNull"`
 	KymaVersion    string           `db:"notNull"`
 	KymaProfile    string           `db:""`

@@ -14,12 +14,12 @@ import (
 func TestInventoryWatch(t *testing.T) {
 	clusterStateExpected := &cluster.State{
 		Cluster: &model.ClusterEntity{
-			Version: 1,
+			Version:   1,
 			RuntimeID: "testCluster",
 		},
 		Configuration: &model.ClusterConfigurationEntity{
 			Version:        1,
-			RuntimeID:        "testCluster",
+			RuntimeID:      "testCluster",
 			ClusterVersion: 1,
 		},
 		Status: &model.ClusterStatusEntity{

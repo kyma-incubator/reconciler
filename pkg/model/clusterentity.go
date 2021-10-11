@@ -13,7 +13,7 @@ const tblCluster string = "inventory_clusters"
 
 type ClusterEntity struct {
 	Version    int64             `db:"readOnly"`
-	RuntimeID  string    `db:"notNull"`
+	RuntimeID  string            `db:"notNull"`
 	Runtime    *keb.RuntimeInput `db:"notNull"`
 	Metadata   *keb.Metadata     `db:"notNull"`
 	Kubeconfig string            `db:"notNull,encrypt"`
