@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	version            = "1.24.0"
+	version            = "1.20.0"
 	workspaceInHomeDir = "reconciliation-test"
 )
 
@@ -50,6 +50,8 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		//cleanup at the beginning (if test was interrupted before)
 		testDelete(t, wsf)
+		//cleanup at the end (if test finishes regularly)
+		defer testDelete(t, wsf)
 
 		ws, err := wsf.Get(version)
 		require.NoError(t, err)
