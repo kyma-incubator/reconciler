@@ -97,7 +97,7 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 		if err == nil {
 			su.logger.Debugf("Heartbeat communicated status '%s' successfully to mothership-reconciler", status)
 		} else {
-			su.logger.Warnf("Heartbeat failed to communciate status update '%s' "+
+			su.logger.Warnf("Heartbeat failed to communicate status update '%s' "+
 				"to mothership-reconciler: %s", status, err)
 		}
 		return err
@@ -142,7 +142,7 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 			case <-time.NewTicker(interval).C:
 				err := task(status, rootCause)
 				if err != nil {
-					su.logger.Warnf("Heartbeat failed to communciate status '%s' "+
+					su.logger.Warnf("Heartbeat failed to communicate status '%s' "+
 						"but will retry: %s", status, err)
 				} else if onlyOnce {
 					su.logger.Debugf("Hearbeat communicated status '%s' successfully after retry: "+
