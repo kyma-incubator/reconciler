@@ -72,19 +72,9 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 
 func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity, error) {
 	newClusterEntity := &model.ClusterEntity{
-		Cluster: cluster.RuntimeID,
-		Runtime: &model.Runtime{
-			Description: cluster.RuntimeInput.Description,
-			Name:        cluster.RuntimeInput.Name,
-		},
-		Metadata: &model.Metadata{
-			GlobalAccountID: cluster.Metadata.GlobalAccountID,
-			InstanceID:      cluster.Metadata.InstanceID,
-			ServiceID:       cluster.Metadata.ServiceID,
-			ServicePlanID:   cluster.Metadata.ServicePlanID,
-			ShootName:       cluster.Metadata.ShootName,
-			SubAccountID:    cluster.Metadata.SubAccountID,
-		},
+		Cluster:    cluster.RuntimeID,
+		Runtime:    &cluster.RuntimeInput,
+		Metadata:   &cluster.Metadata,
 		Kubeconfig: cluster.Kubeconfig,
 		Contract:   contractVersion,
 	}
