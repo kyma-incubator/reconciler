@@ -53,7 +53,7 @@ func TestInventory(t *testing.T) {
 	// 	expectedVersion := int64(4) //NOT WORKING FOR POSTGRES
 	// 	expectedCluster := newCluster(t, 1, expectedVersion)
 
-	// 	clusterState, err := inventory.Get(expectedCluster.Cluster, expectedVersion)
+	// 	clusterState, err := inventory.Get(expectedCluster.RuntimeID, expectedVersion)
 	// 	require.NoError(t, err)
 	// 	compareState(t, clusterState, expectedCluster)
 	// })
@@ -235,7 +235,7 @@ func TestInventory(t *testing.T) {
 		}()
 		duration, err := time.ParseDuration("10h")
 		require.NoError(t, err)
-		changes, err := inventory.StatusChanges("cluster1", duration)
+		changes, err := inventory.StatusChanges("runtime1", duration)
 		require.NoError(t, err)
 
 		require.Len(t, changes, 6)
@@ -267,14 +267,14 @@ func newInventory(t *testing.T) Inventory {
 	return inventory
 }
 
-func newCluster(t *testing.T, clusterID, clusterVersion int64) *keb.Cluster {
+func newCluster(t *testing.T, runtimeID, clusterVersion int64) *keb.Cluster {
 	cluster := &keb.Cluster{}
 	data, err := ioutil.ReadFile(clusterJSONFile)
 	require.NoError(t, err)
 	err = json.Unmarshal(data, cluster)
 	require.NoError(t, err)
 
-	cluster.RuntimeID = fmt.Sprintf("cluster%d", clusterID)
+	cluster.RuntimeID = fmt.Sprintf("runtime%d", runtimeID)
 	cluster.RuntimeInput.Name = fmt.Sprintf("runtimeName%d", clusterVersion)
 	cluster.Metadata.GlobalAccountID = fmt.Sprintf("globalAccountId%d", clusterVersion)
 	cluster.KymaConfig.Profile = fmt.Sprintf("kymaProfile%d", clusterVersion)
@@ -287,45 +287,25 @@ func newCluster(t *testing.T, clusterID, clusterVersion int64) *keb.Cluster {
 func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 	// *** ClusterEntity ***
 	require.Equal(t, int64(1), state.Cluster.Contract)
-	require.Equal(t, cluster.RuntimeID, state.Cluster.Cluster)
+	require.Equal(t, cluster.RuntimeID, state.Cluster.RuntimeID)
 	//compare metadata
-	require.Equal(t, toJSON(t, cluster.Metadata), state.Cluster.Metadata) //compare metadata-string
-	metadata, err := state.Cluster.GetMetadata()
-	require.NoError(t, err)
-	require.Equal(t, &cluster.Metadata, metadata) //compare metadata-object
+	require.Equal(t, &cluster.Metadata, state.Cluster.Metadata) //compare metadata-string
+
 	//compare runtime
-	require.Equal(t, toJSON(t, cluster.RuntimeInput), state.Cluster.Runtime) //compare runtime-string
-	runtime, err := state.Cluster.GetRuntime()
-	require.NoError(t, err)
-	require.Equal(t, &cluster.RuntimeInput, runtime) //compare runtime-object
+	require.Equal(t, &cluster.RuntimeInput, state.Cluster.Runtime) //compare runtime-string
 
 	// *** ClusterConfigurationEntity ***
 	require.Equal(t, int64(1), state.Configuration.Contract)
-	require.Equal(t, cluster.RuntimeID, state.Configuration.Cluster)
+	require.Equal(t, cluster.RuntimeID, state.Configuration.RuntimeID)
 	require.Equal(t, cluster.KymaConfig.Profile, state.Configuration.KymaProfile)
 	require.Equal(t, cluster.KymaConfig.Version, state.Configuration.KymaVersion)
 	//compare components
-	require.Equal(t, toJSON(t, cluster.KymaConfig.Components), state.Configuration.Components) //compare components-string
-	components, err := state.Configuration.GetComponents()
-	require.NoError(t, err)
-	require.Len(t, components, 7)
+	require.Equal(t, &cluster.KymaConfig.Components, state.Configuration.Components) //compare components-string
 	require.Len(t, cluster.KymaConfig.Components, 7)
-	for _, comp := range components { //compare components-objects
-		require.Contains(t, cluster.KymaConfig.Components, *comp)
-	}
 
 	//compare administrators
-	require.Equal(t, toJSON(t, cluster.KymaConfig.Administrators), state.Configuration.Administrators) //compare admins-string
-	admins, err := state.Configuration.GetAdministrators()
-	require.NoError(t, err)
-	require.Equal(t, cluster.KymaConfig.Administrators, admins) //compare components-object
+	require.Equal(t, &cluster.KymaConfig.Administrators, state.Configuration.Administrators) //compare admins-string
 
 	// *** ClusterStatusEntity ***
 	require.Equal(t, model.ClusterStatusReconcilePending, state.Status.Status)
-}
-
-func toJSON(t *testing.T, model interface{}) string {
-	result, err := json.Marshal(model)
-	require.NoError(t, err)
-	return string(result)
 }

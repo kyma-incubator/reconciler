@@ -24,10 +24,12 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 			o.Registry.Inventory(),
 			schedulerCfg).
 		WithWorkerPoolConfig(&worker.Config{
-			PoolSize:               o.Workers,
+			PoolSize: o.Workers,
+			//check-interval should be greater than "max-retires * retry-delay" to avoid queuing
+			//of workers in case that component-reconciler isn't reachable
 			OperationCheckInterval: 30 * time.Second,
-			InvokerMaxRetries:      10,
-			InvokerRetryDelay:      30 * time.Second,
+			InvokerMaxRetries:      2,
+			InvokerRetryDelay:      10 * time.Second,
 		}).
 		WithSchedulerConfig(
 			&service.SchedulerConfig{
@@ -37,7 +39,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 			}).
 		WithBookkeeperConfig(&service.BookkeeperConfig{
 			OperationsWatchInterval: 30 * time.Second,
-			OrphanOperationTimeout:  6 * time.Minute,
+			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		Run(ctx)
 

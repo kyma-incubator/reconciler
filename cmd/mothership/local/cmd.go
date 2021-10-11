@@ -85,22 +85,22 @@ func RunLocal(o *Options) error {
 	return runtimeBuilder.RunLocal(preComps, printStatus).Run(cli.NewContext(), &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version:    1,
-			Cluster:    "local",
+			RuntimeID:  "local",
 			Kubeconfig: o.kubeconfig,
 			Contract:   1,
 		},
 		Configuration: &model.ClusterConfigurationEntity{
 			Version:        1,
-			Cluster:        "local",
+			RuntimeID:      "local",
 			ClusterVersion: 1,
 			KymaVersion:    o.version,
 			KymaProfile:    o.profile,
-			Components:     comps,
+			Components:     &comps,
 			Contract:       1,
 		},
 		Status: &model.ClusterStatusEntity{
 			ID:             1,
-			Cluster:        "local",
+			RuntimeID:      "local",
 			ClusterVersion: 1,
 			ConfigVersion:  1,
 			Status:         model.ClusterStatusReconcilePending,

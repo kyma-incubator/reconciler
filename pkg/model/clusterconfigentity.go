@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -18,21 +19,21 @@ type ReconciliationSequence struct {
 }
 
 type ClusterConfigurationEntity struct {
-	Version        int64  `db:"readOnly"`
-	Cluster        string `db:"notNull"`
-	ClusterVersion int64  `db:"notNull"`
-	KymaVersion    string `db:"notNull"`
-	KymaProfile    string `db:""`
-	Components     string `db:"notNull,encrypt"`
-	Administrators string
+	Version        int64            `db:"readOnly"`
+	RuntimeID      string           `db:"notNull"`
+	ClusterVersion int64            `db:"notNull"`
+	KymaVersion    string           `db:"notNull"`
+	KymaProfile    string           `db:""`
+	Components     *[]keb.Component `db:"notNull"`
+	Administrators *[]string
 	Contract       int64     `db:"notNull"`
 	Deleted        bool      `db:"notNull"`
 	Created        time.Time `db:"readOnly"`
 }
 
 func (c *ClusterConfigurationEntity) String() string {
-	return fmt.Sprintf("ClusterConfigurationEntity [Version=%d,Cluster=%s,ClusterVersion=%d]",
-		c.Version, c.Cluster, c.ClusterVersion)
+	return fmt.Sprintf("ClusterConfigurationEntity [Version=%d,RuntimeID=%s,ClusterVersion=%d]",
+		c.Version, c.RuntimeID, c.ClusterVersion)
 }
 
 func (c *ClusterConfigurationEntity) New() db.DatabaseEntity {
@@ -42,6 +43,20 @@ func (c *ClusterConfigurationEntity) New() db.DatabaseEntity {
 func (c *ClusterConfigurationEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
+
+	marshaller.AddUnmarshaller("Components", func(value interface{}) (interface{}, error) {
+		var mapConfig *[]keb.Component
+		err := json.Unmarshal([]byte(value.(string)), &mapConfig)
+		return mapConfig, err
+	})
+	marshaller.AddUnmarshaller("Administrators", func(value interface{}) (interface{}, error) {
+		var mapConfig *[]string
+		err := json.Unmarshal([]byte(value.(string)), &mapConfig)
+		return mapConfig, err
+	})
+
+	marshaller.AddMarshaller("Components", convertInterfaceToJSONString)
+	marshaller.AddMarshaller("Administrators", convertInterfaceToJSONString)
 	return marshaller
 }
 
@@ -55,7 +70,7 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 	}
 	otherClProp, ok := other.(*ClusterConfigurationEntity)
 	if ok {
-		return c.Cluster == otherClProp.Cluster &&
+		return c.RuntimeID == otherClProp.RuntimeID &&
 			c.ClusterVersion == otherClProp.ClusterVersion &&
 			c.KymaVersion == otherClProp.KymaVersion &&
 			c.KymaProfile == otherClProp.KymaProfile &&
@@ -81,20 +96,7 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) (*keb.Compon
 	return nil, nil
 }
 
-func (c *ClusterConfigurationEntity) GetComponents() ([]*keb.Component, error) {
-	if c.Components == "" {
-		return nil, nil
-	}
-	return keb.NewModelFactory(c.Contract).Components([]byte(c.Components))
-}
-
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []string) (*ReconciliationSequence, error) {
-	//get component models
-	components, err := c.GetComponents()
-	if err != nil {
-		return nil, err
-	}
-
 	//group components depending on their reconciliation order
 	sequence := &ReconciliationSequence{}
 	sequence.Queue = append(sequence.Queue, []*keb.Component{
@@ -102,13 +104,16 @@ func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []s
 	})
 
 	var inParallel []*keb.Component
-	for _, component := range components {
-		if contains(preComponents, component.Component) {
-			sequence.Queue = append(sequence.Queue, []*keb.Component{
-				component,
-			})
-		} else {
-			inParallel = append(inParallel, component)
+	if c.Components != nil {
+		components := *c.Components
+		for index, component := range components {
+			if contains(preComponents, component.Component) {
+				sequence.Queue = append(sequence.Queue, []*keb.Component{
+					&components[index],
+				})
+			} else {
+				inParallel = append(inParallel, &components[index])
+			}
 		}
 	}
 	if len(inParallel) > 0 {
@@ -116,13 +121,6 @@ func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []s
 	}
 
 	return sequence, nil
-}
-
-func (c *ClusterConfigurationEntity) GetAdministrators() ([]string, error) {
-	if c.Administrators == "" {
-		return []string{}, nil
-	}
-	return keb.NewModelFactory(c.Contract).Administrators([]byte(c.Administrators))
 }
 
 func contains(items []string, item string) bool {

@@ -25,18 +25,23 @@ function wait_until_kyma_installed() {
     reconcileStatusResponse=$(curl -sL "${RECONCILE_STATUS_URL}")
     status=$(echo "${reconcileStatusResponse}" | jq -r .status)
     if [ "${status}" = "ready" ]; then
-      echo "Kyma is installed"
+      echo "Kyma is reconciled"
       exit 0
+    fi
+
+    if [ "${status}" = "error" ]; then
+      echo "Failed to reconcile Kyma. Exiting"
+      exit 1
     fi
 
     if [ "$RECONCILER_TIMEOUT" -ne 0 ] && [ "$iterationsLeft" -le 0 ]; then
       echo "reconcileStatusResponse: ${reconcileStatusResponse}"
-      echo "timeout reached on Kyma installation error. Exiting"
+      echo "Timeout reached on Kyma reconciliation. Exiting"
       exit 1
     fi
 
     sleep $RECONCILER_DELAY
-    echo "waiting to get Kyma installed, current status: ${status} ...."
+    echo "Waiting for reconciliation to finish, current status: ${status} ...."
     iterationsLeft=$(( iterationsLeft-1 ))
   done
 }

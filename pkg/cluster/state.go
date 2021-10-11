@@ -13,6 +13,6 @@ type State struct {
 }
 
 func (s *State) String() string {
-	return fmt.Sprintf("State [Cluster=%s,ClusterVersion=%d,ConfigVersion=%d,Status=%s]",
-		s.Cluster.Cluster, s.Cluster.Version, s.Configuration.Version, s.Status.Status)
+	return fmt.Sprintf("State [RuntimeID=%s,ClusterVersion=%d,ConfigVersion=%d,Status=%s]",
+		s.Cluster.RuntimeID, s.Cluster.Version, s.Configuration.Version, s.Status.Status)
 }

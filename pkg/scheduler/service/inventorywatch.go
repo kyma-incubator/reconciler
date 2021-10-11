@@ -60,7 +60,7 @@ func (w *inventoryWatcher) processClustersToReconcile(queue inventoryQueue) {
 			w.logger.Warn("Found nil cluster state when processing the list of clusters to reconcile")
 			continue
 		}
-		w.logger.Infof("Inventory watcher added cluster '%s' to scheduling queue", clusterState.Cluster.Cluster)
+		w.logger.Infof("Inventory watcher added runtime '%s' to scheduling queue", clusterState.Cluster.RuntimeID)
 		queue <- clusterState
 	}
 }
