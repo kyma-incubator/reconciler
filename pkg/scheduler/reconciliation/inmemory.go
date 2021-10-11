@@ -67,8 +67,8 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 				ClusterConfig: state.Configuration.Version,
 				Component:     component.Component,
 				State:         model.OperationStateNew,
-				Created:       time.Now(),
-				Updated:       time.Now(),
+				Created:       time.Now().UTC(),
+				Updated:       time.Now().UTC(),
 			}
 		}
 	}
@@ -114,7 +114,7 @@ func (r *InMemoryReconciliationRepository) FinishReconciliation(schedulingID str
 			recon.Lock = ""
 			recon.Finished = true
 			recon.ClusterConfigStatus = status.ID
-			recon.Updated = time.Now()
+			recon.Updated = time.Now().UTC()
 			return nil
 		}
 	}
@@ -214,16 +214,11 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	if err != nil {
 		return err
 	}
-	r.operations[schedulingID][correlationID] = &model.OperationEntity{
-		CorrelationID: correlationID,
-		SchedulingID:  schedulingID,
-		ClusterConfig: op.ClusterConfig,
-		Component:     op.Component,
-		State:         model.OperationState(state),
-		Reason:        reason,
-		Created:       op.Created,
-		Updated:       time.Now(),
-	}
+
+	//update operation
+	op.State = state
+	op.Reason = reason
+	op.Updated = time.Now().UTC()
 
 	return nil
 }
