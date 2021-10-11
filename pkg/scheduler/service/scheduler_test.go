@@ -28,7 +28,7 @@ func TestScheduler(t *testing.T) {
 			ClusterVersion: 1,
 			Contract:       1,
 			KymaVersion:    "1.24.0",
-			Components:     "[]",
+			Components:     nil,
 		},
 		Status: &model.ClusterStatusEntity{
 			ID:             1,

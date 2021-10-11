@@ -70,7 +70,7 @@ func TestBookkeeper(t *testing.T) {
 	)
 
 	//run bookkeeper
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) //stop bookkeeper after 2 sec
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) //stop bookkeeper after 5 sec
 	defer cancel()
 
 	start := time.Now()
