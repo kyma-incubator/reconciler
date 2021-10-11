@@ -69,6 +69,8 @@ func TestRunner(t *testing.T) {
 	cleanup(t)
 
 	t.Run("Run with pre-, post- and custom install-action", func(t *testing.T) {
+		SetWorkspaceFactoryForHomeDir(t)
+
 		//create install actions
 		preAct := &TestAction{
 			name:  "pre-install",
@@ -98,11 +100,7 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with pre- and post-action but default install-action (without CRDs) for cluster-users component", func(t *testing.T) {
-		dirname, err := os.UserHomeDir()
-		require.NoError(t, err)
-		wsf, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
-		require.NoError(t, err)
-		require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
+		SetWorkspaceFactoryForHomeDir(t)
 
 		//create install actions
 		preAct := &TestAction{
@@ -119,7 +117,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//successful run
-		err = runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh)
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -128,6 +126,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with pre- and post-action but default install-action (without CRDs) for api-gateway component", func(t *testing.T) {
+		SetWorkspaceFactoryForHomeDir(t)
+
 		//create install actions
 		preAct := &TestAction{
 			name:  "pre-install",
@@ -152,6 +152,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with pre- and post-action but default install-action (with CRDs) for cluster-users component", func(t *testing.T) {
+		SetWorkspaceFactoryForHomeDir(t)
+
 		//create install actions
 		preAct := &TestAction{
 			name:  "pre-install",
@@ -176,6 +178,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with pre- and post-action but default install-action (with CRDs) for api-gateway component", func(t *testing.T) {
+		SetWorkspaceFactoryForHomeDir(t)
+
 		//create install actions
 		preAct := &TestAction{
 			name:  "pre-install",
@@ -200,6 +204,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run without pre- and post-action", func(t *testing.T) {
+		SetWorkspaceFactoryForHomeDir(t)
+
 		//create install actions
 		instAct := &TestAction{
 			name:  "install",
@@ -219,6 +225,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with permanently failing pre-action", func(t *testing.T) {
+		SetWorkspaceFactoryForHomeDir(t)
+
 		//create install actions
 		preAct := &TestAction{
 			name:       "pre-install",
@@ -240,6 +248,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with permanently failing install-action", func(t *testing.T) {
+		SetWorkspaceFactoryForHomeDir(t)
+
 		//create install actions
 		install := &TestAction{
 			name:       "install",
@@ -261,6 +271,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with permanently failing post-action", func(t *testing.T) {
+		SetWorkspaceFactoryForHomeDir(t)
+
 		//create install actions
 		install := &TestAction{
 			name:  "install",
@@ -304,6 +316,14 @@ func TestRunner(t *testing.T) {
 		require.WithinDuration(t, time.Now(), start, 1500*time.Millisecond)
 	})
 
+}
+
+func SetWorkspaceFactoryForHomeDir(t *testing.T) {
+	dirname, err := os.UserHomeDir()
+	require.NoError(t, err)
+	wsf, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
+	require.NoError(t, err)
+	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 }
 
 func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
