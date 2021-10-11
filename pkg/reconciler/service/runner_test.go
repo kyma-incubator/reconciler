@@ -98,6 +98,12 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with pre- and post-action but default install-action (without CRDs) for cluster-users component", func(t *testing.T) {
+		dirname, err := os.UserHomeDir()
+		require.NoError(t, err)
+		wsf, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
+		require.NoError(t, err)
+		require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
+
 		//create install actions
 		preAct := &TestAction{
 			name:  "pre-install",
@@ -113,7 +119,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, cbh)
+		err = runner.Run(context.Background(), model, cbh)
 		require.NoError(t, err)
 
 		//all actions have to be executed
