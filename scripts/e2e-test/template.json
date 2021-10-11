@@ -10,7 +10,7 @@
     }
   },
   "kymaConfig": {
-    "version": "main",
+    "version": "PR-12189",
     "profile": "Evaluation",
     "components": [
       {
