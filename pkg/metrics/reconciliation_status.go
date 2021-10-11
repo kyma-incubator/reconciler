@@ -51,7 +51,7 @@ func (c *ReconciliationStatusCollector) OnClusterStateUpdate(state *cluster.Stat
 	}
 
 	c.reconciliationStatusGauge.
-		WithLabelValues(state.Cluster.Cluster, state.Cluster.Runtime.Name, fmt.Sprintf("%d", state.Cluster.Version), fmt.Sprintf("%d", state.Configuration.Version)).
+		WithLabelValues(state.Cluster.RuntimeID, state.Cluster.Runtime.Name, fmt.Sprintf("%d", state.Cluster.Version), fmt.Sprintf("%d", state.Configuration.Version)).
 		Set(status.ID)
 
 	return nil

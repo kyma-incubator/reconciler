@@ -12,17 +12,17 @@ import (
 const tblCache string = "config_cache"
 
 type CacheEntryEntity struct {
-	ID       int64     `db:"readOnly"`
-	Label    string    `db:"notNull"`
-	Cluster  string    `db:"notNull"`
-	Data     string    `db:"notNull"`
-	Checksum string    `db:"notNull"`
-	Created  time.Time `db:"readOnly"`
+	ID        int64     `db:"readOnly"`
+	Label     string    `db:"notNull"`
+	RuntimeID string    `db:"notNull"`
+	Data      string    `db:"notNull"`
+	Checksum  string    `db:"notNull"`
+	Created   time.Time `db:"readOnly"`
 }
 
 func (ce *CacheEntryEntity) String() string {
-	return fmt.Sprintf("CacheEntryEntity [ID=%d,Label=%s,Cluster=%s,Checksum=%s]",
-		ce.ID, ce.Label, ce.Cluster, ce.NewChecksum())
+	return fmt.Sprintf("CacheEntryEntity [ID=%d,Label=%s,RuntimeID=%s,Checksum=%s]",
+		ce.ID, ce.Label, ce.RuntimeID, ce.NewChecksum())
 }
 
 func (ce *CacheEntryEntity) New() db.DatabaseEntity {
@@ -62,7 +62,7 @@ func (ce *CacheEntryEntity) Equal(other db.DatabaseEntity) bool {
 	otherEntry, ok := other.(*CacheEntryEntity)
 	if ok {
 		return ce.Label == otherEntry.Label &&
-			ce.Cluster == otherEntry.Cluster &&
+			ce.RuntimeID == otherEntry.RuntimeID &&
 			ce.NewChecksum() == otherEntry.NewChecksum()
 	}
 	return false

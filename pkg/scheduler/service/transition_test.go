@@ -41,8 +41,8 @@ func TestTransition(t *testing.T) {
 
 	//cleanup at the end of the execution
 	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.Cluster))
-		recons, err := reconRepo.GetReconciliations(&reconciliation.WithCluster{Cluster: clusterState.Cluster.Cluster})
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+		recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 		require.NoError(t, err)
 		for _, recon := range recons {
 			require.NoError(t, reconRepo.RemoveReconciliation(recon.SchedulingID))
@@ -59,14 +59,14 @@ func TestTransition(t *testing.T) {
 
 		//verify created reconciliation
 		reconEntities, err := reconRepo.GetReconciliations(
-			&reconciliation.WithCluster{Cluster: clusterState.Cluster.Cluster},
+			&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID},
 		)
 		require.NoError(t, err)
 		require.Len(t, reconEntities, 1)
 		require.False(t, reconEntities[0].Finished)
 
 		//verify cluster status
-		clusterState, err := inventory.GetLatest(clusterState.Cluster.Cluster)
+		clusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
 		require.NoError(t, err)
 		require.Equal(t, clusterState.Status.Status, model.ClusterStatusReconciling)
 	})
@@ -74,7 +74,7 @@ func TestTransition(t *testing.T) {
 	t.Run("Finish Reconciliation", func(t *testing.T) {
 		//get reconciliation entity
 		reconEntities, err := reconRepo.GetReconciliations(
-			&reconciliation.WithCluster{Cluster: clusterState.Cluster.Cluster},
+			&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID},
 		)
 		require.NoError(t, err)
 		require.Len(t, reconEntities, 1)
@@ -94,7 +94,7 @@ func TestTransition(t *testing.T) {
 		require.True(t, reconEntity.Finished)
 
 		//verify cluster status
-		clusterState, err := inventory.GetLatest(clusterState.Cluster.Cluster)
+		clusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
 		require.NoError(t, err)
 		require.Equal(t, clusterState.Status.Status, model.ClusterStatusReady)
 	})

@@ -18,13 +18,13 @@ func TestScheduler(t *testing.T) {
 	clusterState = &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version:    1,
-			Cluster:    "testCluster",
+			RuntimeID:  "testCluster",
 			Kubeconfig: "xyz",
 			Contract:   1,
 		},
 		Configuration: &model.ClusterConfigurationEntity{
 			Version:        1,
-			Cluster:        "testCluster",
+			RuntimeID:      "testCluster",
 			ClusterVersion: 1,
 			Contract:       1,
 			KymaVersion:    "1.24.0",
@@ -32,7 +32,7 @@ func TestScheduler(t *testing.T) {
 		},
 		Status: &model.ClusterStatusEntity{
 			ID:             1,
-			Cluster:        "testCluster",
+			RuntimeID:      "testCluster",
 			ClusterVersion: 1,
 			ConfigVersion:  1,
 			Status:         model.ClusterStatusReconcilePending,
@@ -85,12 +85,12 @@ func TestScheduler(t *testing.T) {
 }
 
 func requirecReconciliationEntity(t *testing.T, reconRepo reconciliation.Repository) {
-	recons, err := reconRepo.GetReconciliations(&reconciliation.WithCluster{Cluster: "testCluster"})
+	recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: "testCluster"})
 	require.NoError(t, err)
 	require.Len(t, recons, 1)
-	require.Equal(t, recons[0].Cluster, clusterState.Cluster.Cluster)
+	require.Equal(t, recons[0].RuntimeID, clusterState.Cluster.RuntimeID)
 	ops, err := reconRepo.GetOperations(recons[0].SchedulingID)
 	require.NoError(t, err)
 	require.Len(t, ops, 1)
-	require.Equal(t, ops[0].Cluster, clusterState.Cluster.Cluster)
+	require.Equal(t, ops[0].RuntimeID, clusterState.Cluster.RuntimeID)
 }

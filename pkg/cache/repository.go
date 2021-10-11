@@ -36,12 +36,12 @@ func (cr *Repository) All() ([]*model.CacheEntryEntity, error) {
 	return result, nil
 }
 
-func (cr *Repository) Get(label, cluster string) (*model.CacheEntryEntity, error) {
+func (cr *Repository) Get(label, runtimeID string) (*model.CacheEntryEntity, error) {
 	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
 	if err != nil {
 		return nil, err
 	}
-	whereCond := map[string]interface{}{"Label": label, "Cluster": cluster}
+	whereCond := map[string]interface{}{"Label": label, "RuntimeID": runtimeID}
 	entity, err := q.Select().
 		Where(whereCond).
 		GetOne()
@@ -68,7 +68,7 @@ func (cr *Repository) GetByID(id int64) (*model.CacheEntryEntity, error) {
 
 func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity) (*model.CacheEntryEntity, error) {
 	//Get exiting cache entry
-	inCache, err := cr.Get(cacheEntry.Label, cacheEntry.Cluster)
+	inCache, err := cr.Get(cacheEntry.Label, cacheEntry.RuntimeID)
 	if err != nil && !repository.IsNotFoundError(err) {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model
 		//check if the existing cache entry is still valid otherwise invalidate it
 		if inCache.Equal(cacheEntry) {
 			cr.Logger.Debugf("No differences found for cache entry '%s' (cluster '%s'): not creating new database entity",
-				cacheEntry.Label, cacheEntry.Cluster)
+				cacheEntry.Label, cacheEntry.RuntimeID)
 			return inCache, nil
 		}
 		cr.Logger.Debugf("Existing cache entry '%s' is outdated and will be invalidated", inCache)
@@ -108,10 +108,10 @@ func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model
 	return cacheEntryEntity, err
 }
 
-func (cr *Repository) Invalidate(label, cluster string) error {
+func (cr *Repository) Invalidate(label, runtimeID string) error {
 	dbOps := func() error {
 		//invalidate the cache entity and drop all tracked dependencies
-		if err := cr.CacheDep.Invalidate().WithLabel(label).WithCluster(cluster).Exec(false); err != nil {
+		if err := cr.CacheDep.Invalidate().WithLabel(label).WithRuntimeID(runtimeID).Exec(false); err != nil {
 			return err
 		}
 
@@ -122,7 +122,7 @@ func (cr *Repository) Invalidate(label, cluster string) error {
 			return err
 		}
 		deleted, err := q.Delete().
-			Where(map[string]interface{}{"Label": label, "Cluster": cluster}).
+			Where(map[string]interface{}{"Label": label, "RuntimeID": runtimeID}).
 			Exec()
 		cr.Logger.Debugf("Deleted %d cache entries which had no dependencies", deleted)
 		return err

@@ -61,11 +61,11 @@ func (r *record) Exec(newTx bool) error {
 		//track deps in DB
 		for _, value := range r.cacheDeps {
 			q, err := db.NewQuery(r.conn, &model.CacheDependencyEntity{
-				Bucket:  value.Bucket,
-				Key:     value.Key,
-				Label:   r.cacheEntry.Label,
-				Cluster: r.cacheEntry.Cluster,
-				CacheID: r.cacheEntry.ID,
+				Bucket:    value.Bucket,
+				Key:       value.Key,
+				Label:     r.cacheEntry.Label,
+				RuntimeID: r.cacheEntry.RuntimeID,
+				CacheID:   r.cacheEntry.ID,
 			})
 			if err != nil {
 				return err
@@ -102,8 +102,8 @@ func (i *invalidate) WithLabel(label string) *invalidate {
 	return i.with("Label", label)
 }
 
-func (i *invalidate) WithCluster(cluster string) *invalidate {
-	return i.with("Cluster", cluster)
+func (i *invalidate) WithRuntimeID(runtimeID string) *invalidate {
+	return i.with("RuntimeID", runtimeID)
 }
 
 func (i *invalidate) WithCacheID(cacheID int64) *invalidate {
@@ -209,8 +209,8 @@ func (c *get) WithLabel(label string) *get {
 	return c.with("Label", label)
 }
 
-func (c *get) WithCluster(cluster string) *get {
-	return c.with("Cluster", cluster)
+func (c *get) WithRuntimeID(runtimeID string) *get {
+	return c.with("RuntimeID", runtimeID)
 }
 
 func (c *get) WithCacheID(cacheID int64) *get {

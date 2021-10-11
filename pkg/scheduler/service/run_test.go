@@ -84,8 +84,8 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status) {
 
 	//cleanup
 	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.Cluster))
-		recons, err := reconRepo.GetReconciliations(&reconciliation.WithCluster{Cluster: clusterState.Cluster.Cluster})
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+		recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 		require.NoError(t, err)
 		for _, recon := range recons {
 			require.NoError(t, reconRepo.RemoveReconciliation(recon.SchedulingID))
@@ -130,7 +130,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status) {
 
 	time.Sleep(3 * time.Second) //give the bookkeeper some time to update the reconciliation
 
-	newClusterState, err := inventory.GetLatest(clusterState.Cluster.Cluster)
+	newClusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
 	require.NoError(t, err)
 	require.Equal(t, newClusterState.Status.Status, expectedClusterStatus)
 }
@@ -152,7 +152,7 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 	ticker := time.NewTicker(1 * time.Second)
 	for range ticker.C {
 		//try to get the reconciliation entity for the cluster
-		reconEntities, err := reconRepo.GetReconciliations(&reconciliation.WithCluster{Cluster: clusterState.Cluster.Cluster})
+		reconEntities, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 		if len(reconEntities) == 0 {
 			continue
 		}
@@ -190,7 +190,7 @@ func runLocal(t *testing.T) []*reconciler.CallbackMessage {
 
 	//cleanup
 	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.Cluster))
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
 	}()
 
 	//create reconciliation repository
