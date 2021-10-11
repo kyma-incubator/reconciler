@@ -7,11 +7,12 @@ import (
 type Status string
 
 const (
-	ClusterStatusReconcilePending Status = "reconcile_pending"
-	ClusterStatusReconcileFailed  Status = "reconcile_failed"
-	ClusterStatusReconciling      Status = "reconciling"
-	ClusterStatusError            Status = "error"
-	ClusterStatusReady            Status = "ready"
+	ClusterStatusReconcilePending  Status = "reconcile_pending"
+	ClusterStatusReconcileFailed   Status = "reconcile_failed"
+	ClusterStatusReconcileDisabled Status = "reconcile_disabled"
+	ClusterStatusReconciling       Status = "reconciling"
+	ClusterStatusError             Status = "error"
+	ClusterStatusReady             Status = "ready"
 )
 
 type ClusterStatus struct {
@@ -41,6 +42,9 @@ func NewClusterStatus(status Status) (*ClusterStatus, error) {
 	case ClusterStatusReconcileFailed:
 		clusterStatus.Status = ClusterStatusReconcileFailed
 		clusterStatus.ID = 4
+	case ClusterStatusReconcileDisabled:
+		clusterStatus.Status = ClusterStatusReconcileDisabled
+		clusterStatus.ID = 5
 	default:
 		return clusterStatus, fmt.Errorf("ClusterStatus '%s' is unknown", status)
 	}

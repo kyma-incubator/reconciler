@@ -1,6 +1,7 @@
 openapi: 3.0.0
 info:
-  title: Reconciler mothership internal API
+  title: Reconciler mothership internal API 
+  description: Internal API describing communication between the mothership and reconcile component
   version: 1.0.0
 servers:
   - url: http://{host}:{port}/{version}
