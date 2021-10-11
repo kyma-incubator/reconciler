@@ -53,11 +53,8 @@ func (a *preAction) Run(context *service.ActionContext) (err error) {
 		return err
 	}
 
-	// get the Eventing controller and publisher deployments
-	var publisherDeployment, controllerDeployment *v1.Deployment
-	if publisherDeployment, err = getDeployment(context, clientset, publisherDeploymentName); err != nil && !errors.IsNotFound(err) {
-		return err
-	}
+	// get the Eventing controller deployment
+	var controllerDeployment *v1.Deployment
 	if controllerDeployment, err = getDeployment(context, clientset, controllerDeploymentName); err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -70,6 +67,12 @@ func (a *preAction) Run(context *service.ActionContext) (err error) {
 	if controllerDeployment != nil && controllerDeployment.Labels[managedByLabelKey] == managedByLabelValue {
 		log.With(logKeyReason, "Eventing controller deployment is already managed by Kyma reconciler").Info("Action skipped")
 		return nil
+	}
+
+	// get the Eventing publisher deployment
+	var publisherDeployment *v1.Deployment
+	if publisherDeployment, err = getDeployment(context, clientset, publisherDeploymentName); err != nil && !errors.IsNotFound(err) {
+		return err
 	}
 
 	// prepare progress tracker for the Eventing controller and publisher deployments
@@ -188,9 +191,7 @@ func deleteDeploymentsAndWait(context *service.ActionContext, clientset kubernet
 			continue
 		}
 
-		err := clientset.AppsV1().Deployments(deployment.Namespace).Delete(context.Context, deployment.Name, metav1.DeleteOptions{
-			PropagationPolicy: deletionPropagationPtr(metav1.DeletePropagationForeground),
-		})
+		err := clientset.AppsV1().Deployments(deployment.Namespace).Delete(context.Context, deployment.Name, metav1.DeleteOptions{})
 		if errors.IsNotFound(err) {
 			continue
 		}
@@ -209,11 +210,6 @@ func deleteDeploymentsAndWait(context *service.ActionContext, clientset kubernet
 	log.Info("Eventing deployments are deleted")
 
 	return nil
-}
-
-// deletionPropagationPtr returns a pointer to the given deletion propagation value.
-func deletionPropagationPtr(deletionPropagation metav1.DeletionPropagation) *metav1.DeletionPropagation {
-	return &deletionPropagation
 }
 
 // findContainerByName returns a Kubernetes deployment container given its name.
