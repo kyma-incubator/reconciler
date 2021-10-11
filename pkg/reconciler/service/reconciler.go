@@ -77,6 +77,11 @@ func UseGlobalWorkspaceFactory(workspaceFactory workspace.Factory) error {
 	return nil
 }
 
+func RefreshGlobalWorkspaceFactory(workspaceFactory workspace.Factory) error {
+	wsFactory = workspaceFactory
+	return nil
+}
+
 func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*chart.DefaultProvider, error) {
 	wsFact, err := r.workspaceFactory(repo)
 	if err != nil {
@@ -90,8 +95,10 @@ func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*wo
 	defer m.Unlock()
 
 	var err error
-	r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
-	wsFactory, err = workspace.NewFactory(repo, r.workspace, r.logger)
+	if wsFactory == nil {
+		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
+		wsFactory, err = workspace.NewFactory(repo, r.workspace, r.logger)
+	}
 
 	return &wsFactory, err
 }

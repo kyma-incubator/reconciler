@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,7 +26,7 @@ const (
 	apiGatewayComponent   = "api-gateway"
 	fakeComponent         = "component-1"
 	workspaceInHomeDir    = "reconciliation-test"
-	workspaceInProjectDir = "./test"
+	workspaceInProjectDir = "test"
 )
 
 type TestAction struct {
@@ -280,7 +281,11 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
-		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Second, workspaceInProjectDir)
+		wsf, err := workspace.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
+		require.NoError(t, err)
+		require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
+
+		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Second)
 		model := newModel(t, fakeComponent, fakeKymaVersion, "")
 		cbh := newCallbackHandler(t)
 
@@ -288,7 +293,7 @@ func TestRunner(t *testing.T) {
 		start := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
-		err := runner.Run(ctx, model, cbh)
+		err = runner.Run(ctx, model, cbh)
 		require.Error(t, err)
 		require.WithinDuration(t, time.Now(), start, 1500*time.Millisecond)
 	})
@@ -329,12 +334,17 @@ func cleanup(t *testing.T) {
 
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-	recon.Debug().WithWorkspace(filepath.Join(dirname, workspaceInHomeDir))
+	wsf, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
+	require.NoError(t, err)
+	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
+
 	cleanup := NewTestCleanup(recon, kubeClient)
 	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
 	cleanup.RemoveKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
 
-	recon.Debug().WithWorkspace(workspaceInProjectDir)
+	wsf, err = workspace.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
+	require.NoError(t, err)
+	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 	cleanup = NewTestCleanup(recon, kubeClient)
 	cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default")
 }
