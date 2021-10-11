@@ -306,16 +306,13 @@ func TestRunner(t *testing.T) {
 
 }
 
-func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration, workspace ...string) *runner {
+func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
 	workspaceDir := filepath.Join(dirname, workspaceInHomeDir)
-	if len(workspace) > 0 {
-		workspaceDir = workspace[0]
-	}
 
 	recon.Debug().
 		WithWorkspace(workspaceDir).
