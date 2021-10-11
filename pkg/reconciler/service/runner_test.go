@@ -24,7 +24,7 @@ const (
 	clusterUsersComponent = "cluster-users"
 	apiGatewayComponent   = "api-gateway"
 	fakeComponent         = "component-1"
-	workspaceInHomeDir    = "reconcilation-test"
+	workspaceInHomeDir    = "reconciliation-test"
 	workspaceInProjectDir = "./test"
 )
 

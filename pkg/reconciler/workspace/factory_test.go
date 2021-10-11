@@ -15,7 +15,7 @@ import (
 
 const (
 	version            = "1.24.0"
-	workspaceInHomeDir = "reconcilation-test"
+	workspaceInHomeDir = "reconciliation-test"
 )
 
 func TestWorkspaceFactory(t *testing.T) {

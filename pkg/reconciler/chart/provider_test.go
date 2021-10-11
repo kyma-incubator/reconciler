@@ -18,7 +18,7 @@ import (
 const (
 	kymaVersion        = "1.24.0"
 	kymaNamespace      = "kyma-system"
-	workspaceInHomeDir = "reconcilation-test"
+	workspaceInHomeDir = "reconciliation-test"
 )
 
 func TestProvider(t *testing.T) {
