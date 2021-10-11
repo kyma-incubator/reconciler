@@ -21,7 +21,7 @@ import (
 
 const (
 	istioOperatorKind     = "IstioOperator"
-	istioImagePrefix      = "eu.gcr.io/kyma-project/external/istio/proxyv2"
+	istioImagePrefix      = "istio/proxyv2"
 	retriesCount          = 5
 	delayBetweenRetries   = 10
 	sleepAfterPodDeletion = 10
