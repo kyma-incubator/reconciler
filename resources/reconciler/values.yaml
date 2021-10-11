@@ -13,7 +13,7 @@ global:
       reconcilerDBName: "reconciler"
   image:
     repository: eu.gcr.io/kyma-project/incubator/reconciler
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     tag: PR-229
   components: []
 
