@@ -12,14 +12,28 @@ import (
 const tblCluster string = "inventory_clusters"
 
 type ClusterEntity struct {
-	Version    int64             `db:"readOnly"`
-	Cluster    string            `db:"notNull"`
-	Runtime    *keb.RuntimeInput `db:"notNull"`
-	Metadata   *keb.Metadata     `db:"notNull"`
-	Kubeconfig string            `db:"notNull,encrypt"`
-	Contract   int64             `db:"notNull"`
-	Deleted    bool              `db:"notNull"`
-	Created    time.Time         `db:"readOnly"`
+	Version    int64     `db:"readOnly"`
+	Cluster    string    `db:"notNull"`
+	Runtime    *Runtime  `db:"notNull"`
+	Metadata   *Metadata `db:"notNull"`
+	Kubeconfig string    `db:"notNull,encrypt"`
+	Contract   int64     `db:"notNull"`
+	Deleted    bool      `db:"notNull"`
+	Created    time.Time `db:"readOnly"`
+}
+
+type Runtime struct {
+	Description string `json:"description"`
+	Name        string `json:"name"`
+}
+
+type Metadata struct {
+	GlobalAccountID string `json:"globalAccountID"`
+	InstanceID      string `json:"instanceID"`
+	ServiceID       string `json:"serviceID"`
+	ServicePlanID   string `json:"servicePlanID"`
+	ShootName       string `json:"shootName"`
+	SubAccountID    string `json:"subAccountID"`
 }
 
 func (c *ClusterEntity) String() string {
