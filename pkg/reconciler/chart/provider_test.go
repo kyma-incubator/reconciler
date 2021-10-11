@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	kymaVersion        = "1.24.0"
+	kymaVersion        = "main"
 	kymaNamespace      = "kyma-system"
 	workspaceInHomeDir = "reconciliation-test"
 )
