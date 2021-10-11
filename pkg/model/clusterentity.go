@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
 )
 
 const tblCluster string = "inventory_clusters"
@@ -49,12 +48,12 @@ func (c *ClusterEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&c)
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	marshaller.AddUnmarshaller("Runtime", func(value interface{}) (interface{}, error) {
-		var runtimeInput *keb.RuntimeInput
-		err := json.Unmarshal([]byte(value.(string)), &runtimeInput)
-		return runtimeInput, err
+		var runtime *Runtime
+		err := json.Unmarshal([]byte(value.(string)), &runtime)
+		return runtime, err
 	})
 	marshaller.AddUnmarshaller("Metadata", func(value interface{}) (interface{}, error) {
-		var metadata *keb.Metadata
+		var metadata *Metadata
 		err := json.Unmarshal([]byte(value.(string)), &metadata)
 		return metadata, err
 	})
