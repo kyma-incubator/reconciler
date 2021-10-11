@@ -2,6 +2,7 @@ package chart
 
 import (
 	"github.com/kyma-incubator/reconciler/internal/components"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -15,8 +16,9 @@ import (
 )
 
 const (
-	kymaVersion   = "main"
-	kymaNamespace = "kyma-system"
+	kymaVersion        = "1.24.0"
+	kymaNamespace      = "kyma-system"
+	workspaceInHomeDir = "reconcilation-test"
 )
 
 func TestProvider(t *testing.T) {
@@ -24,16 +26,10 @@ func TestProvider(t *testing.T) {
 
 	log := logger.NewLogger(true)
 
-	wsFactory, err := workspace.NewFactory(nil, "test", log)
+	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-
-	cleanupFct := func(t *testing.T) {
-		require.NoError(t, wsFactory.Delete(kymaVersion))
-	}
-
-	//cleanup before test runs (to delete relicts of previous test executions) and after test is finished
-	cleanupFct(t)
-	defer cleanupFct(t)
+	wsFactory, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), log)
+	require.NoError(t, err)
 
 	t.Parallel()
 

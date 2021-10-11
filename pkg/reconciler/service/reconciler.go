@@ -90,10 +90,8 @@ func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*wo
 	defer m.Unlock()
 
 	var err error
-	if wsFactory == nil {
-		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
-		wsFactory, err = workspace.NewFactory(repo, r.workspace, r.logger)
-	}
+	r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
+	wsFactory, err = workspace.NewFactory(repo, r.workspace, r.logger)
 
 	return &wsFactory, err
 }

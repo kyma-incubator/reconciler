@@ -13,7 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const version = "1.20.0"
+const (
+	version            = "1.24.0"
+	workspaceInHomeDir = "reconcilation-test"
+)
 
 func TestWorkspaceFactory(t *testing.T) {
 	logger := log.NewLogger(true)
@@ -38,14 +41,15 @@ func TestWorkspaceFactory(t *testing.T) {
 	t.Run("Clone and delete workspace", func(t *testing.T) {
 		test.IntegrationTest(t)
 
-		workspaceDir := filepath.Join(".", "test", version)
-		wsf, err := NewFactory(nil, "test", log.NewLogger(true))
+		dirname, err := os.UserHomeDir()
+		require.NoError(t, err)
+
+		workspaceDir := filepath.Join(dirname, workspaceInHomeDir, version)
+		wsf, err := NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), log.NewLogger(true))
 		require.NoError(t, err)
 
 		//cleanup at the beginning (if test was interrupted before)
 		testDelete(t, wsf)
-		//cleanup at the end (if test finishes regularly)
-		defer testDelete(t, wsf)
 
 		ws, err := wsf.Get(version)
 		require.NoError(t, err)

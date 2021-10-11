@@ -3,17 +3,17 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
-	ws "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 )
@@ -24,6 +24,8 @@ const (
 	clusterUsersComponent = "cluster-users"
 	apiGatewayComponent   = "api-gateway"
 	fakeComponent         = "component-1"
+	workspaceInHomeDir    = "reconcilation-test"
+	workspaceInProjectDir = "./test"
 )
 
 type TestAction struct {
@@ -63,10 +65,7 @@ func (a *TestAction) Run(context *ActionContext) error {
 func TestRunner(t *testing.T) {
 	test.IntegrationTest(t)
 
-	//cleanup
-	cleanup := newCleanupFunc(t)
-	cleanup(false)      //cleanup before test runs
-	defer cleanup(true) //cleanup after test is finished
+	cleanup(t)
 
 	t.Run("Run with pre-, post- and custom install-action", func(t *testing.T) {
 		//create install actions
@@ -281,7 +280,7 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
-		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Second)
+		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Second, workspaceInProjectDir)
 		model := newModel(t, fakeComponent, fakeKymaVersion, "")
 		cbh := newCallbackHandler(t)
 
@@ -296,12 +295,19 @@ func TestRunner(t *testing.T) {
 
 }
 
-func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
+func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration, workspace ...string) *runner {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 
+	dirname, err := os.UserHomeDir()
+	require.NoError(t, err)
+	workspaceDir := filepath.Join(dirname, workspaceInHomeDir)
+	if len(workspace) > 0 {
+		workspaceDir = workspace[0]
+	}
+
 	recon.Debug().
-		WithWorkspace("./test").
+		WithWorkspace(workspaceDir).
 		WithRetry(3, 1*time.Second).
 		WithWorkers(5, timeout).
 		WithHeartbeatSenderConfig(interval, timeout).
@@ -314,31 +320,23 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 	return &runner{recon, &Install{newLogger}, newLogger}
 }
 
-func newCleanupFunc(t *testing.T) func(bool) {
+func cleanup(t *testing.T) {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
-
-	recon.Debug().WithWorkspace("./test") //use test-subfolder to cache Kyma sources
 
 	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 
+	dirname, err := os.UserHomeDir()
+	require.NoError(t, err)
+	recon.Debug().WithWorkspace(filepath.Join(dirname, workspaceInHomeDir))
 	cleanup := NewTestCleanup(recon, kubeClient)
+	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
+	cleanup.RemoveKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
 
-	return func(deleteWorkspace bool) {
-		//remove all installed components
-		cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
-		cleanup.RemoveKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
-		cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default")
-		//remove the cloned workspace
-		if deleteWorkspace {
-			wsf, err := ws.NewFactory(nil, "./test", logger.NewLogger(true))
-
-			require.NoError(t, err)
-
-			require.NoError(t, wsf.Delete(kymaVersion))
-		}
-	}
+	recon.Debug().WithWorkspace(workspaceInProjectDir)
+	cleanup = NewTestCleanup(recon, kubeClient)
+	cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default")
 }
 
 func newModel(t *testing.T, kymaComponent, kymaVersion string, namespace string) *reconciler.Reconciliation {
