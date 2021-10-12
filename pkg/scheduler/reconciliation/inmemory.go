@@ -2,11 +2,12 @@ package reconciliation
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
-	"sync"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
 )
@@ -41,7 +42,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 		RuntimeID:           state.Cluster.RuntimeID,
 		ClusterConfig:       state.Configuration.Version,
 		ClusterConfigStatus: state.Status.ID,
-		SchedulingID:        uuid.NewString(),
+		SchedulingID:        fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
 	}
 	r.reconciliations[state.Cluster.RuntimeID] = reconEntity
 
@@ -53,7 +54,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	for idx, components := range reconSeq.Queue {
 		priority := idx + 1
 		for _, component := range components {
-			correlationID := uuid.NewString()
+			correlationID := fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString())
 
 			if _, ok := r.operations[reconEntity.SchedulingID]; !ok {
 				r.operations[reconEntity.SchedulingID] = make(map[string]*model.OperationEntity)
