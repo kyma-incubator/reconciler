@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS inventory_cluster_config_statuses (
 	"cluster_version" int NOT NULL,
 	"config_version" int NOT NULL,
 	"status" text NOT NULL,
+    "details" text,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );

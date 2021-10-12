@@ -10,6 +10,7 @@ type State struct {
 	Cluster       *model.ClusterEntity
 	Configuration *model.ClusterConfigurationEntity
 	Status        *model.ClusterStatusEntity
+	Details       string
 }
 
 func (s *State) String() string {

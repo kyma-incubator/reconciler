@@ -444,5 +444,6 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTP
 					clusterState.Cluster.Cluster, clusterState.Configuration.Version)
 			}(),
 		}).String(),
+		Details: &clusterState.Details,
 	}, nil
 }

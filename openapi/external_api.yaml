@@ -260,6 +260,8 @@ components:
         statusURL:
           type: string
           format: uri
+        details:
+          type: string
 
     HTTPReconcilerStatus:
       type: array
