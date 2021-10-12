@@ -20,7 +20,7 @@ const (
 	postgresURL  = "ory-postgresql.kyma-system.svc.cluster.local:5432"
 )
 
-func new(chartValues map[string]interface{}) (*Config, error) {
+func newDBConfig(chartValues map[string]interface{}) (*Config, error) {
 	data, err := yaml.Marshal(chartValues)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to marshal Ory chart values")
@@ -35,9 +35,9 @@ func new(chartValues map[string]interface{}) (*Config, error) {
 	return val, nil
 }
 
-// Get creates Kubernetes Secret object matching the provided helm values.
-func Get(name types.NamespacedName, values map[string]interface{}) (*v1.Secret, error) {
-	cfg, err := new(values)
+// Get fetches Kubernetes Secret object with data matching the provided Helm values to the Reconciler.
+func Get(name types.NamespacedName, chartValues map[string]interface{}) (*v1.Secret, error) {
+	cfg, err := newDBConfig(chartValues)
 	if err != nil {
 		return nil, err
 	}

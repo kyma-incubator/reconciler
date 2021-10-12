@@ -72,6 +72,16 @@ const (
             hydra:
               persistence:
                 enabled: false`
+
+	wrongYaml = `
+    ---       
+        global:
+          oryt:
+            hydra:
+             persistence:
+                enabled: true
+                postgresql:
+                  enabled: true`
 )
 
 func TestDBSecret(t *testing.T) {
@@ -79,13 +89,12 @@ func TestDBSecret(t *testing.T) {
 		// given
 		t.Parallel()
 		name := types.NamespacedName{Name: "test-postgres-secret", Namespace: "test"}
-		var values map[string]interface{}
-		err := yaml.Unmarshal([]byte(postgresYaml), &values)
+		values, err := unmarshalTestValues(postgresYaml)
 		require.NoError(t, err)
+		cfg, errNew := newDBConfig(values)
+		dsnExpected := cfg.preparePostgresDSN()
 
 		// when
-		cfg, errNew := new(values)
-		dsnExpected := cfg.preparePostgresDSN()
 		secret, errGet := Get(name, values)
 
 		// then
@@ -100,13 +109,12 @@ func TestDBSecret(t *testing.T) {
 		// given
 		t.Parallel()
 		name := types.NamespacedName{Name: "test-gcloud-secret", Namespace: "test"}
-		var values map[string]interface{}
-		err := yaml.Unmarshal([]byte(gcloudYaml), &values)
+		values, err := unmarshalTestValues(gcloudYaml)
 		require.NoError(t, err)
+		cfg, errNew := newDBConfig(values)
+		dsnExpected := cfg.prepareGenericDSN()
 
 		// when
-		cfg, errNew := new(values)
-		dsnExpected := cfg.prepareGenericDSN()
 		secret, errGet := Get(name, values)
 
 		// then
@@ -121,13 +129,12 @@ func TestDBSecret(t *testing.T) {
 		// given
 		t.Parallel()
 		name := types.NamespacedName{Name: "test-mysqlDB-secret", Namespace: "test"}
-		var values map[string]interface{}
-		err := yaml.Unmarshal([]byte(mysqlDBYaml), &values)
+		values, err := unmarshalTestValues(mysqlDBYaml)
 		require.NoError(t, err)
+		cfg, errNew := newDBConfig(values)
+		dsnExpected := cfg.prepareMySQLDSN()
 
 		// when
-		cfg, errNew := new(values)
-		dsnExpected := cfg.prepareMySQLDSN()
 		secret, errGet := Get(name, values)
 
 		// then
@@ -141,13 +148,12 @@ func TestDBSecret(t *testing.T) {
 		// given
 		t.Parallel()
 		name := types.NamespacedName{Name: "test-customDB-secret", Namespace: "test"}
-		var values map[string]interface{}
-		err := yaml.Unmarshal([]byte(customDBYaml), &values)
+		values, err := unmarshalTestValues(customDBYaml)
 		require.NoError(t, err)
+		cfg, errNew := newDBConfig(values)
+		dsnExpected := cfg.prepareGenericDSN()
 
 		// when
-		cfg, errNew := new(values)
-		dsnExpected := cfg.prepareGenericDSN()
 		secret, errGet := Get(name, values)
 
 		// then
@@ -161,8 +167,7 @@ func TestDBSecret(t *testing.T) {
 		// given
 		t.Parallel()
 		name := types.NamespacedName{Name: "test-memory-secret", Namespace: "test"}
-		var values map[string]interface{}
-		err := yaml.Unmarshal([]byte(noDBYaml), &values)
+		values, err := unmarshalTestValues(noDBYaml)
 		require.NoError(t, err)
 
 		// when
@@ -173,4 +178,20 @@ func TestDBSecret(t *testing.T) {
 		assert.Equal(t, secret.StringData["dsn"], "memory")
 	})
 
+	t.Run("Deployment with yaml values error", func(t *testing.T) {
+		t.Parallel()
+		values, err := unmarshalTestValues(wrongYaml)
+		assert.Nil(t, values)
+		assert.Error(t, err)
+	})
+
+}
+
+func unmarshalTestValues(yamlValues string) (map[string]interface{}, error) {
+	var values map[string]interface{}
+	err := yaml.Unmarshal([]byte(yamlValues), &values)
+	if err != nil {
+		return nil, err
+	}
+	return values, nil
 }
