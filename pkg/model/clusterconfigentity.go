@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -14,6 +15,8 @@ const (
 	tblConfiguration string = "inventory_cluster_configs"
 )
 
+var crdComponent = &keb.Component{Component: CRDComponent, Namespace: "default"}
+
 type ReconciliationSequence struct {
 	Queue [][]*keb.Component
 }
@@ -24,8 +27,8 @@ type ClusterConfigurationEntity struct {
 	ClusterVersion int64            `db:"notNull"`
 	KymaVersion    string           `db:"notNull"`
 	KymaProfile    string           `db:""`
-	Components     *[]keb.Component `db:"notNull"`
-	Administrators *[]string
+	Components     []*keb.Component `db:"notNull"`
+	Administrators []string
 	Contract       int64     `db:"notNull"`
 	Deleted        bool      `db:"notNull"`
 	Created        time.Time `db:"readOnly"`
@@ -45,14 +48,20 @@ func (c *ClusterConfigurationEntity) Marshaller() *db.EntityMarshaller {
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 
 	marshaller.AddUnmarshaller("Components", func(value interface{}) (interface{}, error) {
-		var mapConfig *[]keb.Component
-		err := json.Unmarshal([]byte(value.(string)), &mapConfig)
-		return mapConfig, err
+		var comps []keb.Component
+		err := json.Unmarshal([]byte(value.(string)), &comps)
+		return func() []*keb.Component {
+			var result []*keb.Component
+			for idx := range comps {
+				result = append(result, &comps[idx])
+			}
+			return result
+		}(), err
 	})
 	marshaller.AddUnmarshaller("Administrators", func(value interface{}) (interface{}, error) {
-		var mapConfig *[]string
-		err := json.Unmarshal([]byte(value.(string)), &mapConfig)
-		return mapConfig, err
+		var result []string
+		err := json.Unmarshal([]byte(value.(string)), &result)
+		return result, err
 	})
 
 	marshaller.AddMarshaller("Components", convertInterfaceToJSONString)
@@ -74,45 +83,42 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 			c.ClusterVersion == otherClProp.ClusterVersion &&
 			c.KymaVersion == otherClProp.KymaVersion &&
 			c.KymaProfile == otherClProp.KymaProfile &&
-			c.Components == otherClProp.Components &&
-			c.Administrators == otherClProp.Administrators &&
+			reflect.DeepEqual(c.Components, otherClProp.Components) &&
+			reflect.DeepEqual(c.Administrators, otherClProp.Administrators) &&
 			c.Contract == otherClProp.Contract
 	}
 	return false
 }
 
-func (c *ClusterConfigurationEntity) GetComponent(component string) (*keb.Component, error) {
-	reconSeq, err := c.GetReconciliationSequence(nil)
-	if err != nil {
-		return nil, err
+func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Component {
+	if component == CRDComponent { //CRD is an artificial component which doesn't exist in the component list of any cluster
+		return crdComponent
 	}
-	for _, compGroup := range reconSeq.Queue {
-		for _, comp := range compGroup {
-			if comp.Component == component {
-				return comp, nil
-			}
+	for _, comp := range c.Components {
+		if comp.Component == component {
+			return comp
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []string) (*ReconciliationSequence, error) {
 	//group components depending on their reconciliation order
 	sequence := &ReconciliationSequence{}
 	sequence.Queue = append(sequence.Queue, []*keb.Component{
-		{Component: CRDComponent, Namespace: "default"},
+		crdComponent,
 	})
 
 	var inParallel []*keb.Component
 	if c.Components != nil {
-		components := *c.Components
+		components := c.Components
 		for index, component := range components {
 			if contains(preComponents, component.Component) {
 				sequence.Queue = append(sequence.Queue, []*keb.Component{
-					&components[index],
+					components[index],
 				})
 			} else {
-				inParallel = append(inParallel, &components[index])
+				inParallel = append(inParallel, components[index])
 			}
 		}
 	}
