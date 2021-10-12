@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/pkg/errors"
-	"time"
 )
 
 type PersistentReconciliationRepository struct {
@@ -32,7 +33,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			RuntimeID:           state.Cluster.RuntimeID,
 			ClusterConfig:       state.Configuration.Version,
 			ClusterConfigStatus: state.Status.ID,
-			SchedulingID:        uuid.NewString(),
+			SchedulingID:        fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
 		}
 
 		//find existing reconciliation for this cluster
@@ -84,7 +85,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 				createOpQ, err := db.NewQuery(r.Conn, &model.OperationEntity{
 					Priority:      int64(priority),
 					SchedulingID:  reconEntity.SchedulingID,
-					CorrelationID: uuid.NewString(),
+					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
 					RuntimeID:     reconEntity.RuntimeID,
 					ClusterConfig: reconEntity.ClusterConfig,
 					Component:     component.Component,
