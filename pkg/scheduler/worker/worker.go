@@ -40,9 +40,10 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 		return err
 	}
 
-	comp, err := clusterState.Configuration.GetComponent(op.Component)
-	if err != nil {
-		return err
+	comp := clusterState.Configuration.GetComponent(op.Component)
+	if comp == nil {
+		return fmt.Errorf("cluster '%s' has no component '%s' configured",
+			clusterState.Cluster.RuntimeID, op.Component)
 	}
 
 	retryable := func() error {

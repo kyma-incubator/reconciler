@@ -32,6 +32,10 @@ func NewLocalReconcilerInvoker(reconRepo reconciliation.Repository, statusFunc R
 }
 
 func (i *LocalReconcilerInvoker) Invoke(ctx context.Context, params *Params) error {
+	if params.ComponentToReconcile == nil {
+		return fmt.Errorf("illegal state: local invoker was called without providing a component to reconcile "+
+			"(schedulingID:%s/correlationID:%s)", params.SchedulingID, params.CorrelationID)
+	}
 	component := params.ComponentToReconcile.Component
 
 	//resolve component reconciler
