@@ -6,7 +6,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -176,19 +175,13 @@ func TestEventingReconcilerPreAction(t *testing.T) {
 			err = action.Run(actionContext)
 			require.NoError(t, err)
 
-			if gotPublisherDeployment, err := getDeployment(actionContext, k8sClient, publisherDeploymentName); tc.wantPublisherDeployment == nil {
-				require.True(t, errors.IsNotFound(err))
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.wantPublisherDeployment, gotPublisherDeployment)
-			}
+			gotPublisherDeployment, err := getDeployment(actionContext, k8sClient, publisherDeploymentName)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantPublisherDeployment, gotPublisherDeployment)
 
-			if gotControllerDeployment, err := getDeployment(actionContext, k8sClient, controllerDeploymentName); tc.wantControllerDeployment == nil {
-				require.True(t, errors.IsNotFound(err))
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.wantControllerDeployment, gotControllerDeployment)
-			}
+			gotControllerDeployment, err := getDeployment(actionContext, k8sClient, controllerDeploymentName)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantControllerDeployment, gotControllerDeployment)
 		})
 	}
 }

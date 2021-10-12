@@ -55,7 +55,7 @@ func (a *preAction) Run(context *service.ActionContext) (err error) {
 
 	// get the Eventing controller deployment
 	var controllerDeployment *v1.Deployment
-	if controllerDeployment, err = getDeployment(context, clientset, controllerDeploymentName); err != nil && !errors.IsNotFound(err) {
+	if controllerDeployment, err = getDeployment(context, clientset, controllerDeploymentName); err != nil {
 		return err
 	}
 
@@ -71,8 +71,14 @@ func (a *preAction) Run(context *service.ActionContext) (err error) {
 
 	// get the Eventing publisher deployment
 	var publisherDeployment *v1.Deployment
-	if publisherDeployment, err = getDeployment(context, clientset, publisherDeploymentName); err != nil && !errors.IsNotFound(err) {
+	if publisherDeployment, err = getDeployment(context, clientset, publisherDeploymentName); err != nil {
 		return err
+	}
+
+	// skip action if Eventing is not installed
+	if publisherDeployment == nil && controllerDeployment == nil {
+		log.With(logKeyReason, "Eventing is not installed").Info("Action skipped")
+		return nil
 	}
 
 	// prepare progress tracker for the Eventing controller and publisher deployments
@@ -107,7 +113,14 @@ func (a *preAction) contextLogger(context *service.ActionContext) *zap.SugaredLo
 
 // getDeployment returns a Kubernetes deployment given its name.
 func getDeployment(context *service.ActionContext, clientset kubernetes.Interface, name string) (*v1.Deployment, error) {
-	return clientset.AppsV1().Deployments(namespace).Get(context.Context, name, metav1.GetOptions{})
+	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Context, name, metav1.GetOptions{})
+	if err == nil {
+		return deployment, nil
+	}
+	if errors.IsNotFound(err) {
+		return nil, nil
+	}
+	return nil, err
 }
 
 // getDeploymentProgressTracker returns a progress tracker for the given deployments.
