@@ -54,7 +54,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	for idx, components := range reconSeq.Queue {
 		priority := idx + 1
 		for _, component := range components {
-			correlationID := uuid.NewString()
+			correlationID := fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString())
 
 			if _, ok := r.operations[reconEntity.SchedulingID]; !ok {
 				r.operations[reconEntity.SchedulingID] = make(map[string]*model.OperationEntity)

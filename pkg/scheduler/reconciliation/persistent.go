@@ -85,7 +85,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 				createOpQ, err := db.NewQuery(r.Conn, &model.OperationEntity{
 					Priority:      int64(priority),
 					SchedulingID:  reconEntity.SchedulingID,
-					CorrelationID: uuid.NewString(),
+					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
 					RuntimeID:     reconEntity.RuntimeID,
 					ClusterConfig: reconEntity.ClusterConfig,
 					Component:     component.Component,
