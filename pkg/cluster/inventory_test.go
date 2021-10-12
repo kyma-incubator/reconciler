@@ -300,11 +300,17 @@ func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 	require.Equal(t, cluster.KymaConfig.Profile, state.Configuration.KymaProfile)
 	require.Equal(t, cluster.KymaConfig.Version, state.Configuration.KymaVersion)
 	//compare components
-	require.Equal(t, &cluster.KymaConfig.Components, state.Configuration.Components) //compare components-string
+	require.ElementsMatch(t, func() []*keb.Component {
+		var result []*keb.Component
+		for idx := range cluster.KymaConfig.Components {
+			result = append(result, &cluster.KymaConfig.Components[idx])
+		}
+		return result
+	}(), state.Configuration.Components)
 	require.Len(t, cluster.KymaConfig.Components, 7)
 
 	//compare administrators
-	require.Equal(t, &cluster.KymaConfig.Administrators, state.Configuration.Administrators) //compare admins-string
+	require.Equal(t, cluster.KymaConfig.Administrators, state.Configuration.Administrators) //compare admins-string
 
 	// *** ClusterStatusEntity ***
 	require.Equal(t, model.ClusterStatusReconcilePending, state.Status.Status)
