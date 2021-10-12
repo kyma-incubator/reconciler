@@ -110,8 +110,14 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 		ClusterVersion: clusterEntity.Version,
 		KymaVersion:    cluster.KymaConfig.Version,
 		KymaProfile:    cluster.KymaConfig.Profile,
-		Components:     &cluster.KymaConfig.Components,
-		Administrators: &cluster.KymaConfig.Administrators,
+		Components: func() []*keb.Component {
+			var result []*keb.Component
+			for idx := range cluster.KymaConfig.Components {
+				result = append(result, &cluster.KymaConfig.Components[idx])
+			}
+			return result
+		}(),
+		Administrators: cluster.KymaConfig.Administrators,
 		Contract:       contractVersion,
 	}
 

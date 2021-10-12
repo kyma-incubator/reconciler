@@ -37,6 +37,14 @@ func TestColumnHandler(t *testing.T) {
 		testStruct.F64 = 123.5
 		validate(t, testStruct, false)
 
+		//invalid
+		testStruct.Slc = []string{} //empty slice is not sufficient for NotNull
+		validate(t, testStruct, false)
+
+		//invalid
+		testStruct.Slc = []string{"test"}
+		validate(t, testStruct, false)
+
 		//valid
 		testStruct.S = "now I'm valid"
 		validate(t, testStruct, true)
@@ -147,11 +155,12 @@ func splitAndTrimCsv(csv string) []string {
 
 //mock DB entity used to test the validation logic
 type validateMe struct {
-	S   string  `db:"notNull"`
-	B   bool    `db:"notNull"`
-	I   int     `db:"notNull"`
-	I64 int64   `db:"notNull"`
-	F64 float64 `db:"notNull"`
+	S   string   `db:"notNull"`
+	B   bool     `db:"notNull"`
+	I   int      `db:"notNull"`
+	I64 int64    `db:"notNull"`
+	F64 float64  `db:"notNull"`
+	Slc []string `db:"notNull"`
 }
 
 func (fake *validateMe) String() string {

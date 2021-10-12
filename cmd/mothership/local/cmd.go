@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -82,7 +83,7 @@ func RunLocal(o *Options) error {
 
 	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), l)
 
-	return runtimeBuilder.RunLocal(preComps, printStatus).Run(cli.NewContext(), &cluster.State{
+	reconResult, err := runtimeBuilder.RunLocal(preComps, printStatus).Run(cli.NewContext(), &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version:    1,
 			RuntimeID:  "local",
@@ -95,7 +96,7 @@ func RunLocal(o *Options) error {
 			ClusterVersion: 1,
 			KymaVersion:    o.version,
 			KymaProfile:    o.profile,
-			Components:     &comps,
+			Components:     comps,
 			Contract:       1,
 		},
 		Status: &model.ClusterStatusEntity{
@@ -106,4 +107,22 @@ func RunLocal(o *Options) error {
 			Status:         model.ClusterStatusReconcilePending,
 		},
 	})
+	if err != nil {
+		return err //general issue occurred
+	}
+
+	if reconResult.GetResult() == model.ClusterStatusError { //verify reconciliation result
+		var failedOpsCnt int
+		var failedOps bytes.Buffer
+		for _, op := range reconResult.GetOperations() {
+			if op.State != model.OperationStateDone {
+				failedOps.WriteString(fmt.Sprintf("\n\t- component '%s' failed with status '%s': %s\n",
+					op.Component, op.State, op.Reason))
+				failedOpsCnt++
+			}
+		}
+		return fmt.Errorf("reconciliation of %d component(s) failed: %s", failedOpsCnt, failedOps.String())
+	}
+
+	return nil
 }
