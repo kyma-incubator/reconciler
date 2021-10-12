@@ -13,7 +13,10 @@ import (
 //go:generate mockery --name=Gatherer --outpkg=mocks --case=underscore
 // Gatherer gathers data from the Kubernetes cluster.
 type Gatherer interface {
+	// GetAllPods from the cluster and return them as a v1.PodList.
 	GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
+
+	// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
 	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
 }
 
@@ -54,11 +57,11 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 
 	for _, pod := range inputPodsList.Items {
 		for _, container := range pod.Spec.Containers {
-			hasPrefix := strings.HasPrefix(container.Image, image.Prefix)
+			containsPrefix := strings.Contains(container.Image, image.Prefix)
 			hasSuffix := strings.HasSuffix(container.Image, image.Version)
 			isTerminating := pod.Status.Phase == "Terminating"
 
-			if hasPrefix && !hasSuffix && !isTerminating {
+			if containsPrefix && !hasSuffix && !isTerminating {
 				outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 			}
 		}
