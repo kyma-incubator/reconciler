@@ -337,6 +337,42 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 	})
 
+	t.Run("should not return error when istio was reconciled to the same version and proxies reset was successful", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+			ResourceDir: "./test_files/resources/",
+		}, nil)
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		actionContext := newFakeServiceContext(&factory, &provider)
+		performer := actionsmocks.IstioPerformer{}
+		tooLowClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.2.0",
+			PilotVersion:     "1.2.0",
+			DataPlaneVersion: "1.2.0",
+		}
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger).Return(nil)
+		action := ReconcileAction{performer: &performer}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+	})
+
 }
 
 func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *service.ActionContext {
@@ -486,6 +522,22 @@ func Test_canUpdate(t *testing.T) {
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.1.0",
 			DataPlaneVersion: "1.1.0",
+		}
+
+		//when
+		result := canUpdate(version, logger)
+
+		//then
+		require.True(t, result)
+	})
+
+	t.Run("should allow update when all versions match", func(t *testing.T) {
+		//given
+		version := actions.IstioVersion{
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.2.0",
+			PilotVersion:     "1.2.0",
+			DataPlaneVersion: "1.2.0",
 		}
 
 		//when
