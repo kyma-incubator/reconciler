@@ -8,12 +8,12 @@ import (
 )
 
 type createdIntervalFilter struct {
-	cluster  string
-	interval time.Duration
+	runtimeID string
+	interval  time.Duration
 }
 
 func (rif *createdIntervalFilter) Filter(dbType db.Type, statusColHdr *db.ColumnHandler) (string, error) {
-	clusterColName, err := statusColHdr.ColumnName("Cluster")
+	runtimeIDColName, err := statusColHdr.ColumnName("RuntimeID")
 	if err != nil {
 		return "", err
 	}
@@ -24,10 +24,10 @@ func (rif *createdIntervalFilter) Filter(dbType db.Type, statusColHdr *db.Column
 	switch dbType {
 	case db.Postgres:
 		return fmt.Sprintf(`%s = '%s' AND %s >= NOW() - INTERVAL '%.0f SECOND'`,
-			clusterColName, rif.cluster, createdColName, rif.interval.Seconds()), nil
+			runtimeIDColName, rif.runtimeID, createdColName, rif.interval.Seconds()), nil
 	case db.SQLite:
 		return fmt.Sprintf(`%s = '%s' AND %s >= DATETIME('now', '-%.0f SECONDS')`,
-			clusterColName, rif.cluster, createdColName, rif.interval.Seconds()), nil
+			runtimeIDColName, rif.runtimeID, createdColName, rif.interval.Seconds()), nil
 	default:
 		return "", fmt.Errorf("database type '%s' is not supported by this filter", dbType)
 	}

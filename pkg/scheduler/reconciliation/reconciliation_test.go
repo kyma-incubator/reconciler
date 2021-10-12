@@ -155,8 +155,8 @@ func TestReconciliationRepository(t *testing.T) {
 
 				require.NoError(t, err)
 				require.NotEmpty(t, reconEntity.SchedulingID)
-				require.Equal(t, stateMock1.Cluster.Cluster, reconEntity.Lock)
-				require.Equal(t, stateMock1.Cluster.Cluster, reconEntity.Cluster)
+				require.Equal(t, stateMock1.Cluster.RuntimeID, reconEntity.Lock)
+				require.Equal(t, stateMock1.Cluster.RuntimeID, reconEntity.RuntimeID)
 				require.Equal(t, stateMock1.Configuration.Version, reconEntity.ClusterConfig)
 			},
 		},
@@ -220,7 +220,7 @@ func TestReconciliationRepository(t *testing.T) {
 				require.Len(t, only2, 1)
 				require.Equal(t, reconEntity2.SchedulingID, only2[0].SchedulingID)
 
-				only1, err := reconRepo.GetReconciliations(&WithCluster{reconEntity1.Cluster})
+				only1, err := reconRepo.GetReconciliations(&WithRuntimeID{reconEntity1.RuntimeID})
 				require.NoError(t, err)
 				require.Len(t, only1, 1)
 				require.Equal(t, reconEntity1.SchedulingID, only1[0].SchedulingID)
@@ -517,8 +517,8 @@ func newTestFct(testCase testCase, inventory cluster.Inventory, repo Repository)
 
 		//cleanup
 		t.Log("Cleaning up test context: deleting all reconciliations")
-		require.NoError(t, inventory.Delete(stateMock1.Cluster.Cluster))
-		require.NoError(t, inventory.Delete(stateMock2.Cluster.Cluster))
+		require.NoError(t, inventory.Delete(stateMock1.Cluster.RuntimeID))
+		require.NoError(t, inventory.Delete(stateMock2.Cluster.RuntimeID))
 	}
 }
 

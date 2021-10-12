@@ -31,15 +31,15 @@ func (i *MockInventory) UpdateStatus(State *State, status model.Status) (*State,
 	return i.UpdateStatusResult, nil
 }
 
-func (i *MockInventory) Delete(cluster string) error {
+func (i *MockInventory) Delete(runtimeID string) error {
 	return i.DeleteResult
 }
 
-func (i *MockInventory) Get(cluster string, configVersion int64) (*State, error) {
+func (i *MockInventory) Get(runtimeID string, configVersion int64) (*State, error) {
 	return i.GetResult, nil
 }
 
-func (i *MockInventory) GetLatest(cluster string) (*State, error) {
+func (i *MockInventory) GetLatest(runtimeID string) (*State, error) {
 	return i.GetLatestResult, nil
 }
 
@@ -51,7 +51,7 @@ func (i *MockInventory) ClustersNotReady() ([]*State, error) {
 	return i.ClustersNotReadyResult, nil
 }
 
-func (i *MockInventory) StatusChanges(cluster string, offset time.Duration) ([]*StatusChange, error) {
+func (i *MockInventory) StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error) {
 	return i.ChangesResult, nil
 }
 

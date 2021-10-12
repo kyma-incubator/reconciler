@@ -17,7 +17,7 @@ func (err *DuplicateClusterReconciliationError) Error() string {
 
 func newDuplicateClusterReconciliationError(entity *model.ReconciliationEntity) error {
 	return &DuplicateClusterReconciliationError{
-		cluster:      entity.Cluster,
+		cluster:      entity.RuntimeID,
 		schedulingID: entity.SchedulingID,
 	}
 }

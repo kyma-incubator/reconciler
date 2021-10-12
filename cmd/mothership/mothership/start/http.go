@@ -27,7 +27,7 @@ import (
 
 const (
 	paramContractVersion = "contractVersion"
-	paramCluster         = "cluster"
+	paramRuntimeID       = "runtimeID"
 	paramConfigVersion   = "configVersion"
 	paramOffset          = "offset"
 	paramSchedulingID    = "schedulingID"
@@ -43,27 +43,27 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Methods("PUT", "POST")
 
 	router.HandleFunc(
-		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramCluster),
+		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramRuntimeID),
 		callHandler(o, deleteCluster)).
 		Methods("DELETE")
 
 	router.HandleFunc(
-		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramCluster, paramConfigVersion),
+		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getCluster)).
 		Methods("GET")
 
 	router.HandleFunc(
-		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramCluster),
+		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, getLatestCluster)).
 		Methods("GET")
 
 	router.HandleFunc(
-		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramCluster),
+		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, updateLatestCluster)).
 		Methods("PUT")
 
 	router.HandleFunc(
-		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges", paramContractVersion, paramCluster), //supports offset-param
+		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges", paramContractVersion, paramRuntimeID), //supports offset-param
 		callHandler(o, statusChanges)).
 		Methods("GET")
 
@@ -135,7 +135,7 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	clusterName, err := params.String(paramCluster)
+	runtimeID, err := params.String(paramRuntimeID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: err.Error(),
@@ -149,7 +149,7 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	clusterState, err := o.Registry.Inventory().Get(clusterName, configVersion)
+	clusterState, err := o.Registry.Inventory().Get(runtimeID, configVersion)
 	if err != nil {
 		var httpCode int
 		if repository.IsNotFoundError(err) {
@@ -167,7 +167,7 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	clusterName, err := params.String(paramCluster)
+	clusterName, err := params.String(paramRuntimeID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: err.Error(),
@@ -226,14 +226,14 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	clusterName, err := params.String(paramCluster)
+	runtimeID, err := params.String(paramRuntimeID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: err.Error(),
 		})
 		return
 	}
-	clusterState, err := o.Registry.Inventory().GetLatest(clusterName)
+	clusterState, err := o.Registry.Inventory().GetLatest(runtimeID)
 	if err != nil {
 		httpCode := http.StatusInternalServerError
 		if repository.IsNotFoundError(err) {
@@ -250,7 +250,7 @@ func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 
-	clusterName, err := params.String(paramCluster)
+	runtimeID, err := params.String(paramRuntimeID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: err.Error(),
@@ -273,7 +273,7 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	statusChanges, err := o.Registry.Inventory().StatusChanges(clusterName, duration)
+	statusChanges, err := o.Registry.Inventory().StatusChanges(runtimeID, duration)
 	if err != nil {
 		httpCode := http.StatusInternalServerError
 		if repository.IsNotFoundError(err) {
@@ -313,22 +313,22 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func deleteCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
-	clusterName, err := params.String(paramCluster)
+	runtimeID, err := params.String(paramRuntimeID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: err.Error(),
 		})
 		return
 	}
-	if _, err := o.Registry.Inventory().GetLatest(clusterName); repository.IsNotFoundError(err) {
+	if _, err := o.Registry.Inventory().GetLatest(runtimeID); repository.IsNotFoundError(err) {
 		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
-			Error: errors.Wrap(err, fmt.Sprintf("Deletion impossible: Cluster '%s' not found", clusterName)).Error(),
+			Error: errors.Wrap(err, fmt.Sprintf("Deletion impossible: Cluster '%s' not found", runtimeID)).Error(),
 		})
 		return
 	}
-	if err := o.Registry.Inventory().Delete(clusterName); err != nil {
+	if err := o.Registry.Inventory().Delete(runtimeID); err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
-			Error: errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", clusterName)).Error(),
+			Error: errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", runtimeID)).Error(),
 		})
 		return
 	}
@@ -431,7 +431,7 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTP
 	}
 
 	return &keb.HTTPClusterResponse{
-		Cluster:              clusterState.Cluster.Cluster,
+		Cluster:              clusterState.Cluster.RuntimeID,
 		ClusterVersion:       clusterState.Cluster.Version,
 		ConfigurationVersion: clusterState.Configuration.Version,
 		Status:               kebStatus,
@@ -441,7 +441,7 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTP
 			Path: func() string {
 				apiVersion := strings.Split(r.URL.RequestURI(), "/")[1]
 				return fmt.Sprintf("%s/clusters/%s/configs/%d/status", apiVersion,
-					clusterState.Cluster.Cluster, clusterState.Configuration.Version)
+					clusterState.Cluster.RuntimeID, clusterState.Configuration.Version)
 			}(),
 		}).String(),
 	}, nil
