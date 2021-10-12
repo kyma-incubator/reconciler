@@ -44,23 +44,23 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 		if err != nil {
 			if reconciliation.IsDuplicateClusterReconciliationError(err) {
 				t.logger.Infof("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
-					"cluster was already enqueued", clusterState.Cluster.Cluster)
+					"cluster was already enqueued", clusterState.Cluster.RuntimeID)
 				return err
 			}
 			t.logger.Errorf("Cluster transition failed to add cluster '%s' to reconciliation queue: %s",
-				clusterState.Cluster.Cluster, err)
+				clusterState.Cluster.RuntimeID, err)
 			return err
 		}
 		//set cluster status to reconciling
 		newClusterState, err := t.inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
 		if err == nil {
-			t.logger.Infof("Cluster transition finished: cluster '%s' added to reconciliation queue (reconciliation entity: %s)",
-				clusterState.Cluster.Cluster, reconEntity)
-			t.logger.Debugf("Cluster transition set status of cluster '%s' to '%s' (cluster status entity: %s)",
-				clusterState.Cluster.Cluster, model.ClusterStatusReconciling, newClusterState.Status)
+			t.logger.Infof("Cluster transition finished: runtime '%s' added to reconciliation queue (reconciliation entity: %s)",
+				clusterState.Cluster.RuntimeID, reconEntity)
+			t.logger.Debugf("Cluster transition set status of runtime '%s' to '%s' (cluster status entity: %s)",
+				clusterState.Cluster.RuntimeID, model.ClusterStatusReconciling, newClusterState.Status)
 		} else {
-			t.logger.Errorf("Cluster transition failed to update status of cluster '%s' to '%s': %s",
-				clusterState.Cluster.Cluster, model.ClusterStatusReconciling, err)
+			t.logger.Errorf("Cluster transition failed to update status of runtime '%s' to '%s': %s",
+				clusterState.Cluster.RuntimeID, model.ClusterStatusReconciling, err)
 		}
 
 		return err
@@ -83,25 +83,25 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 			return fmt.Errorf("reconciliation '%s' is already finished", reconEntity)
 		}
 
-		clusterState, err := t.inventory.Get(reconEntity.Cluster, reconEntity.ClusterConfig)
+		clusterState, err := t.inventory.Get(reconEntity.RuntimeID, reconEntity.ClusterConfig)
 		if err != nil {
 			t.logger.Errorf("Cluster transition failed to retrieve cluster state for cluster '%s' "+
-				"(configVersion: %d): %s", reconEntity.Cluster, reconEntity.ClusterConfig, err)
+				"(configVersion: %d): %s", reconEntity.RuntimeID, reconEntity.ClusterConfig, err)
 			return err
 		}
 		clusterState, err = t.inventory.UpdateStatus(clusterState, status)
 		if err != nil {
-			t.logger.Errorf("Cluster transition failed to update status of cluster '%s' to '%s': %s",
-				clusterState.Cluster.Cluster, status, err)
+			t.logger.Errorf("Cluster transition failed to update status of runtime '%s' to '%s': %s",
+				clusterState.Cluster.RuntimeID, status, err)
 			return err
 		}
 		err = t.reconRepo.FinishReconciliation(schedulingID, clusterState.Status)
 		if err == nil {
-			t.logger.Debugf("Cluster transition finished reconciliation of cluster '%s' (schedulingID '%s'): "+
-				"new cluster status is '%s'", clusterState.Cluster.Cluster, schedulingID, clusterState.Status.Status)
+			t.logger.Debugf("Cluster transition finished reconciliation of runtime '%s' (schedulingID '%s'): "+
+				"new cluster status is '%s'", clusterState.Cluster.RuntimeID, schedulingID, clusterState.Status.Status)
 		} else {
 			t.logger.Errorf("Cluster transition failed to finish reconciliation with schedulingID '%s' "+
-				"of cluster '%s': %s", schedulingID, clusterState.Cluster.Cluster, err)
+				"of runtime '%s': %s", schedulingID, clusterState.Cluster.RuntimeID, err)
 		}
 		return err
 	}

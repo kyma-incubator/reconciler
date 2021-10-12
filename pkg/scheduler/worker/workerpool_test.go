@@ -48,7 +48,7 @@ func TestWorkerPool(t *testing.T) {
 
 	//cleanup created cluster
 	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.Cluster))
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
 	}()
 
 	//create reconciliation for cluster

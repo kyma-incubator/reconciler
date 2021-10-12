@@ -28,22 +28,22 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if existingRecon, ok := r.reconciliations[state.Cluster.Cluster]; ok {
+	if existingRecon, ok := r.reconciliations[state.Cluster.RuntimeID]; ok {
 		return nil, &DuplicateClusterReconciliationError{
-			cluster:      existingRecon.Cluster,
+			cluster:      existingRecon.RuntimeID,
 			schedulingID: existingRecon.SchedulingID,
 		}
 	}
 
 	//create reconciliation
 	reconEntity := &model.ReconciliationEntity{
-		Lock:                state.Cluster.Cluster,
-		Cluster:             state.Cluster.Cluster,
+		Lock:                state.Cluster.RuntimeID,
+		RuntimeID:           state.Cluster.RuntimeID,
 		ClusterConfig:       state.Configuration.Version,
 		ClusterConfigStatus: state.Status.ID,
 		SchedulingID:        uuid.NewString(),
 	}
-	r.reconciliations[state.Cluster.Cluster] = reconEntity
+	r.reconciliations[state.Cluster.RuntimeID] = reconEntity
 
 	//create operations
 	reconSeq, err := state.Configuration.GetReconciliationSequence(preComponents)
@@ -63,7 +63,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 				Priority:      int64(priority),
 				SchedulingID:  reconEntity.SchedulingID,
 				CorrelationID: correlationID,
-				Cluster:       reconEntity.Cluster,
+				RuntimeID:     reconEntity.RuntimeID,
 				ClusterConfig: state.Configuration.Version,
 				Component:     component.Component,
 				State:         model.OperationStateNew,
@@ -82,7 +82,7 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID str
 
 	for _, recon := range r.reconciliations {
 		if recon.SchedulingID == schedulingID {
-			delete(r.reconciliations, recon.Cluster)
+			delete(r.reconciliations, recon.RuntimeID)
 			break
 		}
 	}

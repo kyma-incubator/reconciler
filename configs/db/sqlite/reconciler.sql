@@ -31,11 +31,11 @@ CREATE TABLE IF NOT EXISTS config_values (
 CREATE TABLE IF NOT EXISTS config_cache (
 	"id" integer PRIMARY KEY AUTOINCREMENT, --just another unique identifer for a cache entry
 	"label" text NOT NULL,
-	"cluster" text NOT NULL,
+	"runtime_id" text NOT NULL,
 	"data" text NOT NULL,
 	"checksum" text NOT NULL,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT config_cache_pk UNIQUE ("label", "cluster")
+	CONSTRAINT config_cache_pk UNIQUE ("label", "runtime_id")
 );
 
 --DDL for configuration cache-dependency entities:
@@ -44,11 +44,11 @@ CREATE TABLE IF NOT EXISTS config_cachedeps (
 	"bucket" text NOT NULL,
 	"key" text NOT NULL,
 	"label" text NOT NULL,
-	"cluster" text NOT NULL,
+	"runtime_id" text NOT NULL,
 	"cache_id" integer NOT NULL,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT config_cachedep_pk UNIQUE ("bucket", "key", "label", "cluster"),
-	FOREIGN KEY ("label", "cluster") REFERENCES config_cache ("label", "cluster") ON DELETE CASCADE
+	CONSTRAINT config_cachedep_pk UNIQUE ("bucket", "key", "label", "runtime_id"),
+	FOREIGN KEY ("label", "runtime_id") REFERENCES config_cache ("label", "runtime_id") ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS config_cachedeps_idx_cacheid ON config_cachedeps ("cache_id");
@@ -56,19 +56,19 @@ CREATE INDEX IF NOT EXISTS config_cachedeps_idx_cacheid ON config_cachedeps ("ca
 --DDL for cluster inventory:
 CREATE TABLE IF NOT EXISTS inventory_clusters (
 	"version" integer PRIMARY KEY AUTOINCREMENT, --can also be used as unique identifier for a cluster
-	"cluster" text NOT NULL,
+	"runtime_id" text NOT NULL,
 	"runtime" text NOT NULL,
 	"metadata" text NOT NULL,
 	"kubeconfig" text NOT NULL,
 	"contract" int NOT NULL,
 	"deleted" boolean DEFAULT FALSE,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT inventory_clusters_pk UNIQUE ("cluster", "version")
+	CONSTRAINT inventory_clusters_pk UNIQUE ("runtime_id", "version")
 );
 
 CREATE TABLE IF NOT EXISTS inventory_cluster_configs (
 	"version" integer PRIMARY KEY AUTOINCREMENT, --can also be used as unique identifier for a cluster config
-	"cluster" text NOT NULL,
+	"runtime_id" text NOT NULL,
 	"cluster_version" int NOT NULL,
 	"kyma_version" text NOT NULL,
 	"kyma_profile" text,
@@ -77,31 +77,31 @@ CREATE TABLE IF NOT EXISTS inventory_cluster_configs (
 	"contract" int NOT NULL,
 	"deleted" boolean DEFAULT FALSE,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT inventory_cluster_configs_pk UNIQUE ("cluster", "cluster_version", "version"),
-	FOREIGN KEY("cluster", "cluster_version") REFERENCES inventory_clusters("cluster", "version") ON UPDATE CASCADE ON DELETE CASCADE
+	CONSTRAINT inventory_cluster_configs_pk UNIQUE ("runtime_id", "cluster_version", "version"),
+	FOREIGN KEY("runtime_id", "cluster_version") REFERENCES inventory_clusters("runtime_id", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS inventory_cluster_config_statuses (
 	"id" integer PRIMARY KEY AUTOINCREMENT,
-	"cluster" text NOT NULL,
+	"runtime_id" text NOT NULL,
 	"cluster_version" int NOT NULL,
 	"config_version" int NOT NULL,
 	"status" text NOT NULL,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY("cluster", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("cluster", "cluster_version", "version") ON UPDATE CASCADE ON DELETE CASCADE
+	FOREIGN KEY("runtime_id", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("runtime_id", "cluster_version", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS scheduler_reconciliations (
     "scheduling_id" text NOT NULL PRIMARY KEY,
     "lock" text UNIQUE, --make sure just one cluster can be reconciled at the same time
-    "cluster" text NOT NULL,
+    "runtime_id" text NOT NULL,
     "cluster_config" int NOT NULL,
     "cluster_config_status" int,
     "finished" boolean DEFAULT FALSE,
     "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY("lock") REFERENCES inventory_clusters("cluster"),
-    FOREIGN KEY("cluster") REFERENCES inventory_clusters("cluster") ON UPDATE CASCADE,
+    FOREIGN KEY("lock") REFERENCES inventory_clusters("runtime_id"),
+    FOREIGN KEY("runtime_id") REFERENCES inventory_clusters("runtime_id") ON UPDATE CASCADE,
     FOREIGN KEY("cluster_config") REFERENCES inventory_cluster_configs("version"),
     FOREIGN KEY("cluster_config_status") REFERENCES inventory_cluster_config_statuses("id")
 );
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS scheduler_operations (
     "priority" int NOT NULL,
 	"scheduling_id" text NOT NULL,
 	"correlation_id" text NOT NULL,
-    "cluster" text NOT NULL,
+    "runtime_id" text NOT NULL,
     "cluster_config" int NOT NULL,
     "component" text NOT NULL,
     "state" text NOT NULL,
@@ -120,6 +120,6 @@ CREATE TABLE IF NOT EXISTS scheduler_operations (
     "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT scheduler_operations_pk UNIQUE ("scheduling_id", "correlation_id"),
     FOREIGN KEY("scheduling_id") REFERENCES scheduler_reconciliations("scheduling_id") ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY("cluster") REFERENCES inventory_clusters("cluster") ON UPDATE CASCADE,
+    FOREIGN KEY("runtime_id") REFERENCES inventory_clusters("runtime_id") ON UPDATE CASCADE,
     FOREIGN KEY("cluster_config") REFERENCES inventory_cluster_configs("version")
 )

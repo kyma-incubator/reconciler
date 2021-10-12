@@ -10,17 +10,17 @@ import (
 const tblCacheDeps string = "config_cachedeps"
 
 type CacheDependencyEntity struct {
-	Bucket  string    `db:"notNull"`
-	Key     string    `db:"notNull"`
-	Label   string    `db:"notNull"`
-	Cluster string    `db:"notNull"`
-	CacheID int64     `db:"notNull"`
-	Created time.Time `db:"readOnly"`
+	Bucket    string    `db:"notNull"`
+	Key       string    `db:"notNull"`
+	Label     string    `db:"notNull"`
+	RuntimeID string    `db:"notNull"`
+	CacheID   int64     `db:"notNull"`
+	Created   time.Time `db:"readOnly"`
 }
 
 func (cde *CacheDependencyEntity) String() string {
-	return fmt.Sprintf("CacheDependencyEntity [Bucket=%s,Key=%s,Label=%s,Cluster=%s,CacheID=%d]",
-		cde.Bucket, cde.Key, cde.Label, cde.Cluster, cde.CacheID)
+	return fmt.Sprintf("CacheDependencyEntity [Bucket=%s,Key=%s,Label=%s,RuntimeID=%s,CacheID=%d]",
+		cde.Bucket, cde.Key, cde.Label, cde.RuntimeID, cde.CacheID)
 }
 
 func (cde *CacheDependencyEntity) New() db.DatabaseEntity {
@@ -46,7 +46,7 @@ func (cde *CacheDependencyEntity) Equal(other db.DatabaseEntity) bool {
 		return cde.Bucket == otherDep.Bucket &&
 			cde.Key == otherDep.Key &&
 			cde.Label == otherDep.Label &&
-			cde.Cluster == otherDep.Cluster
+			cde.RuntimeID == otherDep.RuntimeID
 	}
 	return false
 }
