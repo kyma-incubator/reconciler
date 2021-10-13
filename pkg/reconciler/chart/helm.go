@@ -1,7 +1,11 @@
 package chart
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/imdario/mergo"
@@ -30,10 +34,57 @@ func NewHelmClient(chartDir string, logger *zap.SugaredLogger) (*HelmClient, err
 	}, nil
 }
 
-func (c *HelmClient) Render(component *Component) (string, error) {
-	helmChart, err := loader.Load(filepath.Join(c.chartDir, component.name))
+func (c *HelmClient) downloadComponentChart(component *Component) error {
+	buf := bytes.NewBuffer(nil)
+
+	// Set a helm specific user agent so that a repo server and metrics can
+	// separate helm calls from other tools interacting with repos.
+	req, err := http.NewRequest("GET", component.url, nil)
 	if err != nil {
-		return "", err
+		return err
+	}
+
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		return errors.Errorf("failed to fetch %s : %s", component.url, resp.Status)
+	}
+
+	_, err = io.Copy(buf, resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	destfile := filepath.Join(c.chartDir, component.name)
+	if err := os.WriteFile(destfile, buf.Bytes(), 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *HelmClient) Render(component *Component) (string, error) {
+	var helmChart *chart.Chart
+	var err error
+	if component.url != "" {
+		err = c.downloadComponentChart(component)
+		if err != nil {
+			return "", err
+		}
+		helmChart, err = loader.LoadFile(filepath.Join(c.chartDir, component.name)) //Loads archieved chart
+		if err != nil {
+			return "", err
+		}
+	} else {
+		helmChart, err = loader.Load(filepath.Join(c.chartDir, component.name))
+		if err != nil {
+			return "", err
+		}
 	}
 
 	config, err := c.mergeChartConfiguration(helmChart, component, false)
@@ -66,7 +117,6 @@ func (c *HelmClient) newTemplatingAction(component *Component) (*action.Install,
 	tplAction.Atomic = true
 	tplAction.Wait = true
 	tplAction.CreateNamespace = true
-	tplAction.RepoURL = component.url
 	tplAction.DryRun = true
 	tplAction.Replace = true     // Skip the name check
 	tplAction.IncludeCRDs = true //include CRDs in the templated output
