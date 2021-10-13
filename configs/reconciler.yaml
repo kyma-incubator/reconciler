@@ -1,6 +1,6 @@
 ---
 db:
-  driver: sqlite
+  driver: postgres
   encryption:
     #Call `./bin/mothership mothership install` to create or update the encryption key file
     keyFile: "./encryption/reconciler.key"
