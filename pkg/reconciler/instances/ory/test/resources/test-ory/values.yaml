@@ -1,6 +1,7 @@
 global:
   postgresql:
     postgresqlDatabase: testdb
+    postgresqlPassword: tester1
     postgresqlUsername: tester
   ory:
     hydra:

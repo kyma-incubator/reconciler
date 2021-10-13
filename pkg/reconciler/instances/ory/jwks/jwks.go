@@ -27,13 +27,13 @@ type JWKS struct {
 	bits int
 }
 
-func new(alg string, bits int) *JWKS {
+func newJwks(alg string, bits int) *JWKS {
 	return &JWKS{alg, bits}
 }
 
 // Get generates a JSON Web Key Set with RSA Signature Algorithm and returns the JSON encoded patch for Ory secret.
 func Get(alg string, bits int) ([]byte, error) {
-	cfg := new(alg, bits)
+	cfg := newJwks(alg, bits)
 	data, err := cfg.generateJwksSecret()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to generate key key")
