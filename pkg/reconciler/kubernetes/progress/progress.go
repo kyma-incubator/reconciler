@@ -255,12 +255,7 @@ func (pt *Tracker) daemonsetInState(inState State, object *resource) (bool, erro
 		if err != nil {
 			return false, err
 		}
-		for _, condition := range daemonSet.Status.Conditions {
-			if condition.Status != v1.ConditionTrue {
-				return false, nil
-			}
-		}
-		return true, err
+		return daemonSet.Status.NumberUnavailable == 0, nil
 	case TerminatedState:
 		if err != nil && errors.IsNotFound(err) {
 			return true, nil
