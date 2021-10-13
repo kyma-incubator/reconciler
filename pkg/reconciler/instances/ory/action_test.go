@@ -127,12 +127,14 @@ func TestOryDbSecret(t *testing.T) {
 
 			err = a.ensureOrySecret(ctx, k8sClient, name, *secretObject, logger)
 			assert.NoError(t, err)
+
 			secret, err := k8sClient.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 			if !test.PreCreateSecret {
 				require.NoError(t, err)
 				assert.Equal(t, name.Name, secret.Name)
 				assert.Equal(t, name.Namespace, secret.Namespace)
 				assert.NotNil(t, secret.StringData)
+				assert.Equal(t, secret.StringData["postgresql-password"], "testerpw")
 
 			} else {
 				require.NoError(t, err)
