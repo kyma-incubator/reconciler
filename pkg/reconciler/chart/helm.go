@@ -66,6 +66,7 @@ func (c *HelmClient) newTemplatingAction(component *Component) (*action.Install,
 	tplAction.Atomic = true
 	tplAction.Wait = true
 	tplAction.CreateNamespace = true
+	tplAction.RepoURL = component.url
 	tplAction.DryRun = true
 	tplAction.Replace = true     // Skip the name check
 	tplAction.IncludeCRDs = true //include CRDs in the templated output
