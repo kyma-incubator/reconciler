@@ -14,7 +14,7 @@ type InventoryRetriever struct {
 }
 
 func (r *InventoryRetriever) Get(op *model.OperationEntity) (*cluster.State, error) {
-	return r.Inventory.Get(op.Cluster, op.ClusterConfig)
+	return r.Inventory.Get(op.RuntimeID, op.ClusterConfig)
 }
 
 type PassThroughRetriever struct {

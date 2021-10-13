@@ -65,7 +65,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not deploy Istio resources")
 		}
 	} else if canUpdate(ver, context.Logger) {
-		context.Logger.Infof("Istio version was detected on the cluster, updating from %s to %s...", ver.PilotVersion, ver.ClientVersion)
+		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
 
 		err = a.performer.Update(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger)
 		if err != nil {
@@ -163,11 +163,6 @@ func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
 
 	if pilotVsTarget == -1 || dataPlaneVsTarget == -1 {
 		logger.Errorf("Downgrade detected from pilot: %s and data plane: %s to version: %s - finishing...", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
-		return false
-	}
-
-	if pilotVsTarget == 0 && dataPlaneVsTarget == 0 {
-		logger.Errorf("Current version: %s is the same as target version: %s - finishing...", ver.PilotVersion, ver.TargetVersion)
 		return false
 	}
 

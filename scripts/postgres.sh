@@ -15,7 +15,7 @@ readonly POSTGRES_DB="kyma"
 readonly POSTGRES_START_DELAY=3
 readonly MIGRATE_PATH="${CWD}/../configs/db/postgres"
 
-# Get Postress container ID
+# Get Postgres container ID
 function containerId() {
   docker ps --filter "name=$CONTAINER_NAME" --format "{{.ID}}"
 }
@@ -121,8 +121,10 @@ function stop() {
 # Delete Postgres data directory
 function reset() {
   stop
+  echo "Cleaning the database"
   rm -rf "$POSTGRES_DATA_DIR"
   mkdir -p "$POSTGRES_DATA_DIR"
+  echo "Database clean up finished"
   start 30 #start with a waitFor period of 30 sec (DB-creation on FS can take longer for the first time)
 }
 

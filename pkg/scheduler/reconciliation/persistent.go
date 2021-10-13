@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/pkg/errors"
-	"time"
 )
 
 type PersistentReconciliationRepository struct {
@@ -28,11 +29,11 @@ func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repos
 func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error) {
 	dbOps := func() (interface{}, error) {
 		reconEntity := &model.ReconciliationEntity{
-			Lock:                state.Cluster.Cluster,
-			Cluster:             state.Cluster.Cluster,
+			Lock:                state.Cluster.RuntimeID,
+			RuntimeID:           state.Cluster.RuntimeID,
 			ClusterConfig:       state.Configuration.Version,
 			ClusterConfigStatus: state.Status.ID,
-			SchedulingID:        uuid.NewString(),
+			SchedulingID:        fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
 		}
 
 		//find existing reconciliation for this cluster
@@ -43,14 +44,14 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		existingRecon, err := existingReconQ.
 			Select().
 			Where(map[string]interface{}{
-				"Cluster":  state.Cluster.Cluster,
-				"Finished": false,
+				"RuntimeID": state.Cluster.RuntimeID,
+				"Finished":  false,
 			}).
 			GetOne()
 		if err == nil {
 			existingReconEntity := existingRecon.(*model.ReconciliationEntity)
 			r.Logger.Warnf("Found existing reconciliation for cluster '%s' (was created at '%s)' "+
-				"and cannot create another one", state.Cluster.Cluster, existingReconEntity.Created)
+				"and cannot create another one", state.Cluster.RuntimeID, existingReconEntity.Created)
 			return nil, newDuplicateClusterReconciliationError(existingReconEntity)
 		}
 		if err != sql.ErrNoRows {
@@ -63,17 +64,17 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			return nil, err
 		}
 		if err := createReconQ.Insert().Exec(); err != nil {
-			r.Logger.Errorf("Failed to create new reconciliation entity for cluster '%s': %s",
-				state.Cluster.Cluster, err)
+			r.Logger.Errorf("Failed to create new reconciliation entity for runtime '%s': %s",
+				state.Cluster.RuntimeID, err)
 			return nil, err
 		}
-		r.Logger.Debugf("New reconciliation for cluster '%s' with schedulingID '%s' created",
-			state.Cluster.Cluster, reconEntity.SchedulingID)
+		r.Logger.Debugf("New reconciliation for runtime '%s' with schedulingID '%s' created",
+			state.Cluster.RuntimeID, reconEntity.SchedulingID)
 
 		//get reconciliation sequence
 		reconSeq, err := state.Configuration.GetReconciliationSequence(preComponents)
 		if err != nil {
-			r.Logger.Errorf("Failed to retrieve component models for cluster '%s': %s", state.Cluster.Cluster, err)
+			r.Logger.Errorf("Failed to retrieve component models for runtime '%s': %s", state.Cluster.RuntimeID, err)
 			return nil, err
 		}
 
@@ -84,29 +85,29 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 				createOpQ, err := db.NewQuery(r.Conn, &model.OperationEntity{
 					Priority:      int64(priority),
 					SchedulingID:  reconEntity.SchedulingID,
-					CorrelationID: uuid.NewString(),
-					Cluster:       reconEntity.Cluster,
+					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
+					RuntimeID:     reconEntity.RuntimeID,
 					ClusterConfig: reconEntity.ClusterConfig,
 					Component:     component.Component,
 					State:         model.OperationStateNew,
-					Updated:       time.Now(),
+					Updated:       time.Now().UTC(),
 				})
 				if err != nil {
 					return nil, err
 				}
 				if err := createOpQ.Insert().Exec(); err != nil {
 					r.Logger.Errorf("Failed to create operation for component '%s' with priority %d "+
-						"(required for reconciliation of cluster '%s'): %s",
-						component.Component, priority, state.Cluster.Cluster, err)
+						"(required for reconciliation of runtime '%s'): %s",
+						component.Component, priority, state.Cluster.RuntimeID, err)
 					return nil, err
 				}
 				r.Logger.Debugf("Created operation for component '%s' with priority %d "+
-					"(required for reconciliation of cluster '%s')",
-					component.Component, priority, state.Cluster.Cluster)
+					"(required for reconciliation of runtime '%s')",
+					component.Component, priority, state.Cluster.RuntimeID)
 			}
 			r.Logger.Debugf("Created %d operations with priority %d for reconciliation "+
 				"of cluster '%s' with schedulingID '%s'",
-				len(components), priority, state.Cluster.Cluster, reconEntity.SchedulingID)
+				len(components), priority, state.Cluster.RuntimeID, reconEntity.SchedulingID)
 		}
 
 		return reconEntity, err
@@ -181,7 +182,7 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 		reconEntity.Lock = fmt.Sprintf("unlock-%s", reconEntity.SchedulingID)
 		reconEntity.Finished = true
 		reconEntity.ClusterConfigStatus = status.ID
-		reconEntity.Updated = time.Now()
+		reconEntity.Updated = time.Now().UTC()
 		updReconQ, err := db.NewQuery(r.Conn, reconEntity)
 		if err != nil {
 			return err
@@ -355,7 +356,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			return err
 		}
 		op.Reason = reason
-		op.Updated = time.Now()
+		op.Updated = time.Now().UTC()
 
 		//prepare update query
 		q, err := db.NewQuery(r.Conn, op)

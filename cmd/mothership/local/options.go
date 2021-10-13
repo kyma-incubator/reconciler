@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -69,8 +68,9 @@ func componentsFromFile(path string) ([]string, []string, error) {
 	return preComps, defaultComps, nil
 }
 
-func componentsFromStrings(list []string, values []string) ([]keb.Component, error) {
-	var comps []keb.Component
+func componentsFromStrings(list []string, values []string) ([]*keb.Component, error) {
+	var comps []*keb.Component
+
 	vals := map[string]interface{}{}
 	for _, value := range values {
 		err := strvals.ParseInto(value, vals)
@@ -78,6 +78,7 @@ func componentsFromStrings(list []string, values []string) ([]keb.Component, err
 			return nil, fmt.Errorf("can't parse value %s", value)
 		}
 	}
+
 	for _, item := range list {
 		s := strings.Split(item, "@")
 		name := s[0]
@@ -85,6 +86,7 @@ func componentsFromStrings(list []string, values []string) ([]keb.Component, err
 		if len(s) >= 2 {
 			namespace = s[1]
 		}
+
 		var configuration []keb.Configuration
 		if vals[name] != nil {
 			val := vals[name]
@@ -98,15 +100,17 @@ func componentsFromStrings(list []string, values []string) ([]keb.Component, err
 				return nil, fmt.Errorf("expected nested values for component %s, got value %s", name, val)
 			}
 		}
+
 		if vals["global"] != nil {
 			configuration = append(configuration, keb.Configuration{Key: "global", Value: vals["global"]})
 		}
-		comps = append(comps, keb.Component{Component: name, Namespace: namespace, Configuration: configuration})
+		comps = append(comps, &keb.Component{Component: name, Namespace: namespace, Configuration: configuration})
 	}
+
 	return comps, nil
 }
 
-func (o *Options) Components(defaultComponentsFile string) ([]string, string, error) {
+func (o *Options) Components(defaultComponentsFile string) ([]string, []*keb.Component, error) {
 	var preComps []string
 
 	comps := o.components
@@ -118,15 +122,16 @@ func (o *Options) Components(defaultComponentsFile string) ([]string, string, er
 		var err error
 		preComps, comps, err = componentsFromFile(cFile)
 		if err != nil {
-			return preComps, "", err
+			return preComps, nil, err
 		}
 	}
+
 	mergedComps, err := componentsFromStrings(comps, o.values)
 	if err != nil {
-		return preComps, "", err
+		return preComps, nil, err
 	}
-	compsString, err := json.Marshal(mergedComps)
-	return preComps, string(compsString), err
+
+	return preComps, mergedComps, err
 }
 
 func (o *Options) Validate() error {
@@ -134,6 +139,7 @@ func (o *Options) Validate() error {
 	if err != nil {
 		return err
 	}
+
 	if o.kubeconfigFile == "" {
 		envKubeconfig, ok := os.LookupEnv("KUBECONFIG")
 		if !ok {
@@ -141,14 +147,17 @@ func (o *Options) Validate() error {
 		}
 		o.kubeconfigFile = envKubeconfig
 	}
+
 	if !file.Exists(o.kubeconfigFile) {
 		return fmt.Errorf("reference kubeconfig file '%s' not found", o.kubeconfigFile)
 	}
+
 	content, err := ioutil.ReadFile(o.kubeconfigFile)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to read kubeconfig file '%s'", o.kubeconfigFile))
 	}
 	o.kubeconfig = string(content)
+
 	if len(o.components) > 0 && o.componentsFile != "" {
 		return fmt.Errorf("use one of 'components' or 'component-file' flag")
 	}

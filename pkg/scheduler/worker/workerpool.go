@@ -108,7 +108,7 @@ func (w *Pool) assignWorker(ctx context.Context, opEntity *model.OperationEntity
 	clusterState, err := w.retriever.Get(opEntity)
 	if err != nil {
 		w.logger.Errorf("Worker pool is not able to assign operation '%s' to worker because state "+
-			"of cluster '%s' could not be retrieved: %s", opEntity, opEntity.Cluster, err)
+			"of cluster '%s' could not be retrieved: %s", opEntity, opEntity.RuntimeID, err)
 		return
 	}
 

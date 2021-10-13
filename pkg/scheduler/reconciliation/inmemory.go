@@ -2,11 +2,12 @@ package reconciliation
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
-	"sync"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
 )
@@ -28,22 +29,22 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if existingRecon, ok := r.reconciliations[state.Cluster.Cluster]; ok {
+	if existingRecon, ok := r.reconciliations[state.Cluster.RuntimeID]; ok {
 		return nil, &DuplicateClusterReconciliationError{
-			cluster:      existingRecon.Cluster,
+			cluster:      existingRecon.RuntimeID,
 			schedulingID: existingRecon.SchedulingID,
 		}
 	}
 
 	//create reconciliation
 	reconEntity := &model.ReconciliationEntity{
-		Lock:                state.Cluster.Cluster,
-		Cluster:             state.Cluster.Cluster,
+		Lock:                state.Cluster.RuntimeID,
+		RuntimeID:           state.Cluster.RuntimeID,
 		ClusterConfig:       state.Configuration.Version,
 		ClusterConfigStatus: state.Status.ID,
-		SchedulingID:        uuid.NewString(),
+		SchedulingID:        fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
 	}
-	r.reconciliations[state.Cluster.Cluster] = reconEntity
+	r.reconciliations[state.Cluster.RuntimeID] = reconEntity
 
 	//create operations
 	reconSeq, err := state.Configuration.GetReconciliationSequence(preComponents)
@@ -53,7 +54,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	for idx, components := range reconSeq.Queue {
 		priority := idx + 1
 		for _, component := range components {
-			correlationID := uuid.NewString()
+			correlationID := fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString())
 
 			if _, ok := r.operations[reconEntity.SchedulingID]; !ok {
 				r.operations[reconEntity.SchedulingID] = make(map[string]*model.OperationEntity)
@@ -63,12 +64,12 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 				Priority:      int64(priority),
 				SchedulingID:  reconEntity.SchedulingID,
 				CorrelationID: correlationID,
-				Cluster:       reconEntity.Cluster,
+				RuntimeID:     reconEntity.RuntimeID,
 				ClusterConfig: state.Configuration.Version,
 				Component:     component.Component,
 				State:         model.OperationStateNew,
-				Created:       time.Now(),
-				Updated:       time.Now(),
+				Created:       time.Now().UTC(),
+				Updated:       time.Now().UTC(),
 			}
 		}
 	}
@@ -82,7 +83,7 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID str
 
 	for _, recon := range r.reconciliations {
 		if recon.SchedulingID == schedulingID {
-			delete(r.reconciliations, recon.Cluster)
+			delete(r.reconciliations, recon.RuntimeID)
 			break
 		}
 	}
@@ -114,7 +115,7 @@ func (r *InMemoryReconciliationRepository) FinishReconciliation(schedulingID str
 			recon.Lock = ""
 			recon.Finished = true
 			recon.ClusterConfigStatus = status.ID
-			recon.Updated = time.Now()
+			recon.Updated = time.Now().UTC()
 			return nil
 		}
 	}
@@ -214,16 +215,11 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	if err != nil {
 		return err
 	}
-	r.operations[schedulingID][correlationID] = &model.OperationEntity{
-		CorrelationID: correlationID,
-		SchedulingID:  schedulingID,
-		ClusterConfig: op.ClusterConfig,
-		Component:     op.Component,
-		State:         model.OperationState(state),
-		Reason:        reason,
-		Created:       op.Created,
-		Updated:       time.Now(),
-	}
+
+	//update operation
+	op.State = state
+	op.Reason = reason
+	op.Updated = time.Now().UTC()
 
 	return nil
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 
 const (
 	defaultOperationsWatchInterval = 30 * time.Second
-	defaultOrphanOperationTimeout  = 5 * time.Minute
+	defaultOrphanOperationTimeout  = 10 * time.Minute
 )
 
 type BookkeeperConfig struct {
@@ -99,6 +98,10 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 
 				//reset orphaned operations
 				for _, orphanOp := range filterResult.GetOrphans() {
+					if orphanOp.State == model.OperationStateOrphan {
+						//don't update orphan operations which are already marked as 'orphan'
+						continue
+					}
 					bk.logger.Infof("Bookkeeper is marking operation '%s' as orphan "+
 						"(last update happened %.2f minutes ago)", orphanOp, time.Since(orphanOp.Updated).Minutes())
 
@@ -116,16 +119,16 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 	}
 }
 
-func (bk *bookkeeper) processReconciliations(ops []*model.OperationEntity) (map[string]*reconciliationStatus, error) {
+func (bk *bookkeeper) processReconciliations(ops []*model.OperationEntity) (map[string]*ReconciliationResult, error) {
 	start := time.Now()
-	reconStatuses := make(map[string]*reconciliationStatus)
+	reconStatuses := make(map[string]*ReconciliationResult)
 	for _, op := range ops {
 		reconStatus, ok := reconStatuses[op.SchedulingID]
 		if !ok {
-			reconStatus = newReconciliationStatus(op.SchedulingID, bk.config.OrphanOperationTimeout)
+			reconStatus = newReconciliationResult(op.SchedulingID, bk.config.OrphanOperationTimeout, bk.logger)
 			reconStatuses[op.SchedulingID] = reconStatus
 		}
-		if err := reconStatus.Add(op); err != nil {
+		if err := reconStatus.AddOperation(op); err != nil {
 			return nil, err
 		}
 	}
@@ -134,57 +137,4 @@ func (bk *bookkeeper) processReconciliations(ops []*model.OperationEntity) (map[
 		len(reconStatuses), len(ops), time.Since(start).Seconds())
 
 	return reconStatuses, nil
-}
-
-type reconciliationStatus struct {
-	schedulingID  string
-	orphanTimeout time.Duration
-	done          []*model.OperationEntity
-	error         []*model.OperationEntity
-	other         []*model.OperationEntity
-}
-
-func newReconciliationStatus(schedulingID string, orphanTimeout time.Duration) *reconciliationStatus {
-	return &reconciliationStatus{
-		schedulingID:  schedulingID,
-		orphanTimeout: orphanTimeout,
-	}
-}
-
-func (rs *reconciliationStatus) Add(op *model.OperationEntity) error {
-	if op.SchedulingID != rs.schedulingID {
-		return fmt.Errorf("cannot add operation with schedulingID '%s' "+
-			"to reconciliation status with schedulingID '%s'", op.SchedulingID, rs.schedulingID)
-	}
-
-	switch op.State {
-	case model.OperationStateDone:
-		rs.done = append(rs.done, op)
-	case model.OperationStateError:
-		rs.error = append(rs.error, op)
-	default:
-		rs.other = append(rs.other, op)
-	}
-
-	return nil
-}
-
-func (rs *reconciliationStatus) GetResult() model.Status {
-	if len(rs.error) > 0 {
-		return model.ClusterStatusError
-	}
-	if len(rs.other) > 0 {
-		return model.ClusterStatusReconciling
-	}
-	return model.ClusterStatusReady
-}
-
-func (rs *reconciliationStatus) GetOrphans() []*model.OperationEntity {
-	var orphaned []*model.OperationEntity
-	for _, op := range rs.other {
-		if time.Since(op.Updated) >= rs.orphanTimeout {
-			orphaned = append(orphaned, op)
-		}
-	}
-	return orphaned
 }

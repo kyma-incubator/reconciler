@@ -11,19 +11,19 @@ import (
 var clusterStateMock = &cluster.State{
 	Cluster: &model.ClusterEntity{
 		Version:    1,
-		Cluster:    "testCluster",
+		RuntimeID:  "testCluster",
 		Contract:   1,
 		Kubeconfig: "abc...",
 	},
 	Configuration: &model.ClusterConfigurationEntity{
 		Version:        1,
-		Cluster:        "testCluster",
+		RuntimeID:      "testCluster",
 		ClusterVersion: 1,
 		KymaVersion:    "1.2.3",
 	},
 	Status: &model.ClusterStatusEntity{
 		ID:             1,
-		Cluster:        "testCluster",
+		RuntimeID:      "testCluster",
 		ClusterVersion: 1,
 		ConfigVersion:  1,
 		Status:         model.ClusterStatusReconcilePending,

@@ -50,13 +50,8 @@ func (c *ReconciliationStatusCollector) OnClusterStateUpdate(state *cluster.Stat
 		return err
 	}
 
-	runtime, err := state.Cluster.GetRuntime()
-	if err != nil {
-		return err
-	}
-
 	c.reconciliationStatusGauge.
-		WithLabelValues(state.Cluster.Cluster, runtime.Name, fmt.Sprintf("%d", state.Cluster.Version), fmt.Sprintf("%d", state.Configuration.Version)).
+		WithLabelValues(state.Cluster.RuntimeID, state.Cluster.Runtime.Name, fmt.Sprintf("%d", state.Cluster.Version), fmt.Sprintf("%d", state.Configuration.Version)).
 		Set(status.ID)
 
 	return nil

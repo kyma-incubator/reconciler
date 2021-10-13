@@ -33,7 +33,7 @@ func TestRepository(t *testing.T) {
 		cacheEntry1, err = repo.Add(cacheEntry1, cacheDeps)
 		require.True(t, db.IsInvalidEntityError(err))
 
-		cacheEntry1.Cluster = "abc"
+		cacheEntry1.RuntimeID = "abc"
 		cacheEntry1, err = repo.Add(cacheEntry1, cacheDeps)
 		require.True(t, db.IsInvalidEntityError(err))
 
@@ -50,9 +50,9 @@ func TestRepository(t *testing.T) {
 
 		//create entry2 (has cache dependencies)
 		cacheEntry2 := &model.CacheEntryEntity{
-			Label:   "cacheentry2",
-			Cluster: "xyz",
-			Data:    "The second cached data goes here", //md5: 3bb77817db259eed817165ef8d891e61
+			Label:     "cacheentry2",
+			RuntimeID: "xyz",
+			Data:      "The second cached data goes here", //md5: 3bb77817db259eed817165ef8d891e61
 		}
 		cacheEntry2, err = repo.Add(cacheEntry2, cacheDeps)
 		require.NoError(t, err)
@@ -62,9 +62,9 @@ func TestRepository(t *testing.T) {
 
 		//create entry3 (has NO cache dependencies)
 		cacheEntry3 := &model.CacheEntryEntity{
-			Label:   "cacheentry3",
-			Cluster: "foo",
-			Data:    "The third cached data goes here", //md5: dbdb486dafb60e21872b71ea14a0659c
+			Label:     "cacheentry3",
+			RuntimeID: "foo",
+			Data:      "The third cached data goes here", //md5: dbdb486dafb60e21872b71ea14a0659c
 		}
 		cacheEntry3, err = repo.Add(cacheEntry3, nil)
 		require.NoError(t, err)
@@ -81,9 +81,9 @@ func TestRepository(t *testing.T) {
 
 	t.Run("Creating cache entry twice", func(t *testing.T) {
 		cacheEntry, err := repo.Add(&model.CacheEntryEntity{
-			Label:   "cacheentry1",
-			Cluster: "abc",
-			Data:    "The cached data goes here",
+			Label:     "cacheentry1",
+			RuntimeID: "abc",
+			Data:      "The cached data goes here",
 		}, cacheDeps)
 		require.NoError(t, err)
 		require.Equal(t, "a3daa753769a78e732d763d143235d87", cacheEntry.NewChecksum())
@@ -110,9 +110,9 @@ func TestRepository(t *testing.T) {
 
 	t.Run("Update cache entry", func(t *testing.T) {
 		cacheEntry, err := repo.Add(&model.CacheEntryEntity{
-			Label:   "cacheentry1",
-			Cluster: "abc",
-			Data:    "This is the updated cache entry", //md5: 38776bd2eb877254ff1350e1f088b1fd
+			Label:     "cacheentry1",
+			RuntimeID: "abc",
+			Data:      "This is the updated cache entry", //md5: 38776bd2eb877254ff1350e1f088b1fd
 		}, cacheDeps)
 		require.NoError(t, err)
 		require.Equal(t, "38776bd2eb877254ff1350e1f088b1fd", cacheEntry.NewChecksum())
@@ -122,12 +122,12 @@ func TestRepository(t *testing.T) {
 
 	t.Run("Invalidate cache entry by label and cluster (deleted by deps)", func(t *testing.T) {
 		//delete first entry
-		entry1, err := repo.Get(cacheEntries[0].Label, cacheEntries[0].Cluster) //ensure entry exists
+		entry1, err := repo.Get(cacheEntries[0].Label, cacheEntries[0].RuntimeID) //ensure entry exists
 		require.NotEmpty(t, entry1)
 		require.NoError(t, err)
-		err = repo.Invalidate(entry1.Label, entry1.Cluster) //invalidate it
+		err = repo.Invalidate(entry1.Label, entry1.RuntimeID) //invalidate it
 		require.NoError(t, err)
-		_, err = repo.Get(cacheEntries[0].Label, cacheEntries[0].Cluster) //ensure entry1 no longer exists
+		_, err = repo.Get(cacheEntries[0].Label, cacheEntries[0].RuntimeID) //ensure entry1 no longer exists
 		require.True(t, repository.IsNotFoundError(err))
 	})
 

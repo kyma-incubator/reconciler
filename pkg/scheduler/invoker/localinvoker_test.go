@@ -35,8 +35,8 @@ func TestLocalInvoker(t *testing.T) {
 	})
 
 	t.Run("Run local reconciler: failing reconciliation", func(t *testing.T) {
-		reconRepo, opEntity := runLocalReconciler(t, true)
-		requireOperationState(t, reconRepo, opEntity, model.OperationStateFailed)
+		reconRepo, opEntity := runLocalReconciler(t, true) //will lead to context timeout => op-state has to be 'error'
+		requireOperationState(t, reconRepo, opEntity, model.OperationStateError)
 	})
 
 }

@@ -102,7 +102,10 @@ oapi: validate-oapi-spec generate-oapi-models
 	@./scripts/git-check.sh
 
 .PHONY: all
-all: resolve oapi build test lint docker-build docker-push
+all: resolve oapi lint build test docker-build docker-push
 
 .PHONY: release
 release: all
+
+.PHONY: verify
+verify: resolve validate-oapi-spec generate-oapi-models lint build-linux test

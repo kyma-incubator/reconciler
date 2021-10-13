@@ -126,6 +126,10 @@ func (ch *ColumnHandler) Validate() error {
 				if col.value == nil {
 					invalidFields = append(invalidFields, col.field.Name())
 				}
+			case reflect.Slice:
+				if col.value == nil || reflect.ValueOf(col.value).Len() == 0 {
+					invalidFields = append(invalidFields, col.field.Name())
+				}
 			default:
 				return fmt.Errorf("field '%s' of entity '%s' has type '%s' - this type is not supported yet",
 					col.field.Name(), ch.entity, col.field.Kind())

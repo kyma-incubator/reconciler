@@ -23,19 +23,19 @@ func (ws *WithSchedulingID) FilterByInstance(i *model.ReconciliationEntity) *mod
 	return nil
 }
 
-type WithCluster struct {
-	Cluster string
+type WithRuntimeID struct {
+	RuntimeID string
 }
 
-func (wc *WithCluster) FilterByQuery(q *db.Select) error {
+func (wc *WithRuntimeID) FilterByQuery(q *db.Select) error {
 	q.Where(map[string]interface{}{
-		"Cluster": wc.Cluster,
+		"RuntimeID": wc.RuntimeID,
 	})
 	return nil
 }
 
-func (wc *WithCluster) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
-	if i.Cluster == wc.Cluster {
+func (wc *WithRuntimeID) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
+	if i.RuntimeID == wc.RuntimeID {
 		return i
 	}
 	return nil
