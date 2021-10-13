@@ -75,7 +75,14 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 
 			for _, recon := range recons {
 				reconResult, err := bk.newReconciliationResult(recon)
-				if err != nil {
+				if err == nil {
+					bk.logger.Debugf("Bookkeeper evaluated reconciliation (schedulingID:%s) for cluster '%s' "+
+						"to cluster status '%s': Done=%s / Error=%s / Other=%s",
+						recon.SchedulingID, recon.RuntimeID, reconResult.GetResult(),
+						bk.componentList(reconResult.done),
+						bk.componentList(reconResult.error),
+						bk.componentList(reconResult.other))
+				} else {
 					bk.logger.Errorf("Bookkeeper failed to retrieve operations for reconciliation '%s' "+
 						"(but will continue processing): %s", recon, err)
 					continue
