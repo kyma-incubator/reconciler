@@ -34,40 +34,6 @@ func NewHelmClient(chartDir string, logger *zap.SugaredLogger) (*HelmClient, err
 	}, nil
 }
 
-func (c *HelmClient) downloadComponentChart(component *Component) error {
-	buf := bytes.NewBuffer(nil)
-
-	// Set a helm specific user agent so that a repo server and metrics can
-	// separate helm calls from other tools interacting with repos.
-	req, err := http.NewRequest("GET", component.url, nil)
-	if err != nil {
-		return err
-	}
-
-	client := &http.Client{}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 200 {
-		return errors.Errorf("failed to fetch %s : %s", component.url, resp.Status)
-	}
-
-	_, err = io.Copy(buf, resp.Body)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	destfile := filepath.Join(c.chartDir, fmt.Sprintf("%s.tgz", component.name))
-	if err := os.WriteFile(destfile, buf.Bytes(), 0644); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (c *HelmClient) Render(component *Component) (string, error) {
 	var helmChart *chart.Chart
 	var err error
@@ -103,6 +69,36 @@ func (c *HelmClient) Render(component *Component) (string, error) {
 	}
 
 	return helmRelease.Manifest, nil
+}
+
+func (c *HelmClient) downloadComponentChart(component *Component) error {
+	req, err := http.NewRequest("GET", component.url, nil)
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		return errors.Errorf("failed to fetch %s : %s", component.url, resp.Status)
+	}
+
+	buf := bytes.NewBuffer(nil)
+	_, err = io.Copy(buf, resp.Body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	destfile := filepath.Join(c.chartDir, fmt.Sprintf("%s.tgz", component.name))
+	if err := os.WriteFile(destfile, buf.Bytes(), 0644); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *HelmClient) newTemplatingAction(component *Component) (*action.Install, error) {
