@@ -15,4 +15,6 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory"
 	//import required to register component reconciler 'rafter' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/rafter"
+	//import required to register component reconciler 'eventing' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing"
 )
