@@ -114,7 +114,7 @@ func TestReconciliationResult(t *testing.T) {
 				},
 				{
 					Priority:      1,
-					SchedulingID:  "2",
+					SchedulingID:  "schedulingID",
 					CorrelationID: "1.2",
 					State:         model.OperationStateInProgress,
 					Updated:       time.Now(),
