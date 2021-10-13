@@ -60,7 +60,7 @@ func (c *HelmClient) downloadComponentChart(component *Component) error {
 	}
 	defer resp.Body.Close()
 
-	destfile := filepath.Join(c.chartDir, component.name)
+	destfile := filepath.Join(c.chartDir, fmt.Sprintf("%s.tgz", component.name))
 	if err := os.WriteFile(destfile, buf.Bytes(), 0644); err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (c *HelmClient) Render(component *Component) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		helmChart, err = loader.LoadFile(filepath.Join(c.chartDir, component.name)) //Loads archieved chart
+		helmChart, err = loader.LoadFile(filepath.Join(c.chartDir, fmt.Sprintf("%s.tgz", component.name))) //Loads archieved chart
 		if err != nil {
 			return "", err
 		}
