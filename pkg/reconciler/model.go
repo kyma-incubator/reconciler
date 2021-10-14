@@ -33,6 +33,7 @@ type Reconciliation struct {
 	Component       string                 `json:"component"`
 	Namespace       string                 `json:"namespace"`
 	Version         string                 `json:"version"`
+	URL             string                 `json:"url"`
 	Profile         string                 `json:"profile"`
 	Configuration   map[string]interface{} `json:"configuration"`
 	Kubeconfig      string                 `json:"kubeconfig"`
