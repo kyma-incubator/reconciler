@@ -10,14 +10,28 @@ import (
 func TestOverlappingNestedValues(t *testing.T) {
 	list := []string{"api-gateway"}
 	values := []string{"global.ingress.domainName=example.com", "global.domainName=example.com", "api-gateway.config.defaultDomain=example.com"}
-	expected := []keb.Component{
-		{Component: "api-gateway", Namespace: "kyma-system",
+	expected := []*keb.Component{
+		{
+			Component: "api-gateway", Namespace: "kyma-system",
 			Configuration: []keb.Configuration{
-				{Key: "config",
-					Value: map[string]interface{}{"defaultDomain": "example.com"}},
-				{Key: "global",
-					Value: map[string]interface{}{"domainName": "example.com",
-						"ingress": map[string]interface{}{"domainName": "example.com"}}}}}}
+				{
+					Key: "config",
+					Value: map[string]interface{}{
+						"defaultDomain": "example.com",
+					},
+				},
+				{
+					Key: "global",
+					Value: map[string]interface{}{
+						"domainName": "example.com",
+						"ingress": map[string]interface{}{
+							"domainName": "example.com",
+						},
+					},
+				},
+			},
+		},
+	}
 
 	cfg, err := componentsFromStrings(list, values)
 	require.NoError(t, err)

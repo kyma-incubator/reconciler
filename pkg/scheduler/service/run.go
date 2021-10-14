@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
@@ -78,14 +79,14 @@ func (l *RunLocal) WithWorkerPoolSize(size int) *RunLocal {
 	return l
 }
 
-func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) error {
+func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*ReconciliationResult, error) {
 	//enqueue cluster state and create reconciliation entity
 	l.logger().Info("Starting local scheduler")
 	if err := l.runtimeBuilder.newScheduler().RunOnce(clusterState, l.reconciliationRepository()); err == nil {
 		l.logger().Info("Local scheduler finished successfully")
 	} else {
 		l.logger().Errorf("Local scheduler returned an error: %s", err)
-		return err
+		return nil, err
 	}
 
 	//start worker pool
@@ -94,16 +95,37 @@ func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) error {
 	workerPool, err := l.runtimeBuilder.newWorkerPool(&worker.PassThroughRetriever{State: clusterState}, localInvoker)
 	if err != nil {
 		l.logger().Errorf("Failed to create worker pool: %s", err)
-		return err
+		return nil, err
 	}
 	if err := workerPool.RunOnce(ctx); err == nil {
 		l.logger().Info("Worker pool finished successfully")
 	} else {
 		l.logger().Errorf("Worker pool returned an error: %s", err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	//retrieve reconciliation model
+	recons, err := l.reconciliationRepository().GetReconciliations(&reconciliation.WithRuntimeID{
+		RuntimeID: clusterState.Cluster.RuntimeID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(recons) != 1 {
+		return nil, fmt.Errorf("illegal state detected: found %d reconciliations for cluster with runtimeID '%s'",
+			len(recons), clusterState.Cluster.RuntimeID)
+	}
+
+	//retrieve operation models
+	ops, err := l.reconciliationRepository().GetOperations(recons[0].SchedulingID)
+	if err != nil {
+		return nil, err
+	}
+
+	//evaluate reconciliation result
+	reconResult := newReconciliationResult(recons[0].SchedulingID, 1*time.Hour, l.logger())
+	err = reconResult.AddOperations(ops)
+	return reconResult, err
 }
 
 type RunRemote struct {
