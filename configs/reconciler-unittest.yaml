@@ -25,3 +25,4 @@ mothership:
     preComponents:
       - cluster-essentials
       - istio-configuration
+      - certificates
