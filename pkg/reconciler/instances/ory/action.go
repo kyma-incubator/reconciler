@@ -57,6 +57,17 @@ func (a *preAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
+	_, err = a.getDBConfigSecret(context.Context, client, dbNamespacedName, logger)
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return errors.Wrap(err, "Could not get DB secret")
+		}
+		logger.Info("Ory DB secret does not exist, creating it now")
+	} else {
+		logger.Info("Ory DB secret exists ")
+		return nil
+	}
+
 	secretObject, err := db.Get(dbNamespacedName, values)
 	if err != nil {
 		return errors.Wrap(err, "failed to prepare db credentials data for Ory Hydra")
@@ -87,6 +98,14 @@ func (a *postAction) Run(context *service.ActionContext) error {
 	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
 	return nil
+}
+
+func (a *preAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) (v1.Secret, error) {
+	secret, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
+
+	logger.Infof("Secret:\n %s \nError: \n %s", secret, err)
+
+	return *secret, err
 }
 
 func (a *preAction) ensureOrySecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
