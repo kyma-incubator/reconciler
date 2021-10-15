@@ -460,6 +460,9 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	if err != nil {
 		return nil, err
 	}
+	if statusIdsSQL == "" { //no status entities found to reconcile
+		return nil, nil
+	}
 
 	statusFilterSQL, err := i.buildStatusFilterSQL(filters, statusColHandler)
 	if err != nil {
@@ -479,7 +482,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	var result []*State
 	for _, clusterStatus := range clusterStatuses {
 		clStateEntity := clusterStatus.(*model.ClusterStatusEntity)
-		state, err := i.Get(clStateEntity.RuntimeID, clStateEntity.ClusterVersion)
+		state, err := i.Get(clStateEntity.RuntimeID, clStateEntity.ConfigVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -532,6 +535,10 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 		subQuery.WriteRune(')')
 	}
 	subQuery.WriteString(fmt.Sprintf(" GROUP BY %s", columnMap["ClusterVersion"]))
+
+	if len(args) == 0 {
+		return "", args, nil //no cluster status IDs found, return empty SQL stmt
+	}
 
 	return subQuery.String(), args, nil
 }
