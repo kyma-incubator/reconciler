@@ -45,6 +45,7 @@ func (p *Params) newReconciliationModel() *reconciler.Reconciliation {
 		Component:       p.ComponentToReconcile.Component,
 		Namespace:       p.ComponentToReconcile.Namespace,
 		Version:         version,
+		URL:             p.ComponentToReconcile.URL,
 		Profile:         p.ClusterState.Configuration.KymaProfile,
 		Configuration:   configuration,
 		Kubeconfig:      p.ClusterState.Cluster.Kubeconfig,
