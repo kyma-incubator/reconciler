@@ -1,10 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
-	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -79,9 +80,9 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 					bk.logger.Debugf("Bookkeeper evaluated reconciliation (schedulingID:%s) for cluster '%s' "+
 						"to cluster status '%s': Done=%s / Error=%s / Other=%s",
 						recon.SchedulingID, recon.RuntimeID, reconResult.GetResult(),
-						bk.componentList(reconResult.done),
-						bk.componentList(reconResult.error),
-						bk.componentList(reconResult.other))
+						bk.componentList(reconResult.done, false),
+						bk.componentList(reconResult.error, true),
+						bk.componentList(reconResult.other, true))
 				} else {
 					bk.logger.Errorf("Bookkeeper failed to retrieve operations for reconciliation '%s' "+
 						"(but will continue processing): %s", recon, err)
@@ -145,10 +146,22 @@ func (bk *bookkeeper) newReconciliationResult(recon *model.ReconciliationEntity)
 	return reconResult, nil
 }
 
-func (bk *bookkeeper) componentList(ops []*model.OperationEntity) string {
-	var compNames []string
+func (bk *bookkeeper) componentList(ops []*model.OperationEntity, withReason bool) string {
+	var buffer bytes.Buffer
 	for _, op := range ops {
-		compNames = append(compNames, op.Component)
+		if buffer.Len() > 0 {
+			buffer.WriteRune(',')
+		}
+		buffer.WriteString(op.Component)
+		if withReason && bk.operationHasFailureState(op) {
+			buffer.WriteString(fmt.Sprintf("[%s]", op.Reason))
+		}
 	}
-	return strings.Join(compNames, ",")
+	return buffer.String()
+}
+
+func (bk *bookkeeper) operationHasFailureState(op *model.OperationEntity) bool {
+	return op.State == model.OperationStateError ||
+		op.State == model.OperationStateFailed ||
+		op.State == model.OperationStateClientError
 }
