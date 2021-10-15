@@ -472,9 +472,8 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, clusterStatusEntity *model.ClusterStatusEntity) (string, []interface{}, error) {
 	var args []interface{}
 
+	//SQL to retrieve the latest statuses => max(config_version) within max(cluster_version):
 	/*
-		SQL to retrieve the latest config-version of the latest cluster-version:
-
 		select cluster_version, max(config_version) from inventory_cluster_config_statuses where cluster_version in (
 			select max(cluster_version) from inventory_cluster_config_statuses group by runtime_id
 		) group by cluster_version
@@ -489,7 +488,12 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 		return "", args, errors.Wrap(err, "failed to retrieve cluster-status-idents")
 	}
 
-	//generate sub-query for clusterStatusEntities
+	//SQL to retrieve entity-IDs for previously retrieved latest statuses:
+	/*
+		select max(id) from inventory_cluster_config_statuses where
+			(cluster_version=x and config_version=y) or (cluster_version=a and config_version=v) or ...
+		 group by cluster_version
+	*/
 	var subQuery bytes.Buffer
 	subQuery.WriteString(fmt.Sprintf("SELECT MAX(%s) FROM %s WHERE ", columnMap["ID"], clusterStatusEntity.Table()))
 	for dataRows.Next() {
