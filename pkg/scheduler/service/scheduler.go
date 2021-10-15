@@ -77,7 +77,7 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 		case clusterState := <-queue:
 			if err := transition.StartReconciliation(clusterState, s.preComponents); err != nil {
 				if reconciliation.IsDuplicateClusterReconciliationError(err) {
-					s.logger.Info("Scheduler failed to start reconciliation process for cluster '%s' because "+
+					s.logger.Infof("Scheduler failed to start reconciliation process for cluster '%s' because "+
 						"another reconciliation is already running for this cluster (will try again later)",
 						clusterState.Cluster.RuntimeID)
 				} else {
