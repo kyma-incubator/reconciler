@@ -3,8 +3,8 @@ package test
 import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/internal/cli"
+	"github.com/kyma-incubator/reconciler/internal/persistency"
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/persistency"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
