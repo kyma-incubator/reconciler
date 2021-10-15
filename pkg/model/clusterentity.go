@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -60,8 +61,8 @@ func (c *ClusterEntity) Equal(other db.DatabaseEntity) bool {
 	otherClProp, ok := other.(*ClusterEntity)
 	if ok {
 		return c.RuntimeID == otherClProp.RuntimeID &&
-			c.Runtime == otherClProp.Runtime &&
-			c.Metadata == otherClProp.Metadata &&
+			reflect.DeepEqual(c.Runtime, otherClProp.Runtime) &&
+			reflect.DeepEqual(c.Metadata, otherClProp.Metadata) &&
 			c.Contract == otherClProp.Contract
 	}
 	return false

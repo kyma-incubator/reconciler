@@ -35,6 +35,9 @@ func TestInventory(t *testing.T) {
 		//create same entry again (no new version should be created)
 		clusterStateNew, err := inventory.CreateOrUpdate(1, expectedCluster)
 		require.NoError(t, err)
+		require.Equal(t, clusterState.Cluster.Version, clusterStateNew.Cluster.Version)
+		require.Equal(t, clusterState.Configuration.Version, clusterStateNew.Configuration.Version)
+		require.Equal(t, clusterState.Status.ID, clusterStateNew.Status.ID)
 		compareState(t, clusterStateNew, expectedCluster)
 	})
 

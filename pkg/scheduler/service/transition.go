@@ -97,11 +97,14 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 		}
 		err = t.reconRepo.FinishReconciliation(schedulingID, clusterState.Status)
 		if err == nil {
-			t.logger.Debugf("Cluster transition finished reconciliation of runtime '%s' (schedulingID '%s'): "+
-				"new cluster status is '%s'", clusterState.Cluster.RuntimeID, schedulingID, clusterState.Status.Status)
+			t.logger.Debugf("Cluster transition finished reconciliation (schedulingID '%s') of runtime '%s' (cluster-version %d / config-version %d): "+
+				"new cluster status is '%s'", schedulingID, clusterState.Cluster.RuntimeID,
+				clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status)
 		} else {
-			t.logger.Errorf("Cluster transition failed to finish reconciliation with schedulingID '%s' "+
-				"of runtime '%s': %s", schedulingID, clusterState.Cluster.RuntimeID, err)
+			t.logger.Errorf("Cluster transition failed to finish reconciliation (schedulingID '%s') of runtime '%s' "+
+				"(cluster-version %d / config-version %d): %s",
+				schedulingID, clusterState.Cluster.RuntimeID,
+				clusterState.Cluster.Version, clusterState.Configuration.Version, err)
 		}
 		return err
 	}
