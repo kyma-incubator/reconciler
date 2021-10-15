@@ -241,6 +241,25 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 			return err
 		}
 
+		//update cluster-name of all referenced cluster-status entities
+		statusEntity := &model.ClusterStatusEntity{}
+		statusColHandler, err := db.NewColumnHandler(statusEntity, i.Conn)
+		if err != nil {
+			return err
+		}
+		statusClusterColName, err := statusColHandler.ColumnName("RuntimeID")
+		if err != nil {
+			return err
+		}
+		statusDelColName, err := statusColHandler.ColumnName("Deleted")
+		if err != nil {
+			return err
+		}
+		statusUpdateSQL := fmt.Sprintf(updateSQLTpl, statusEntity.Table(), statusClusterColName, statusDelColName, statusClusterColName, statusClusterColName)
+		if _, err := i.Conn.Exec(statusUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
+			return err
+		}
+
 		//done
 		return nil
 	}
@@ -450,6 +469,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	clusterStatuses, err := q.Select().
 		WhereIn("ID", statusIdsSQL, statusIdsArgs...). //query latest cluster states (= max(configVersion) within max(clusterVersion))
 		WhereRaw(statusFilterSQL).                     //filter these states also by provided criteria (by statuses, reconcile-interval etc.)
+		Where(map[string]interface{}{"Deleted": false}).
 		GetMany()
 	if err != nil {
 		return nil, err
@@ -533,8 +553,7 @@ func (i *DefaultInventory) buildStatusFilterSQL(filters []statusSQLFilter, statu
 		sqlFilterStmt.WriteString(sqlCond)
 		sqlFilterStmt.WriteRune(')')
 	}
-	statusFilterStmt := sqlFilterStmt.String()
-	return statusFilterStmt, nil
+	return sqlFilterStmt.String(), nil
 }
 
 func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error) {

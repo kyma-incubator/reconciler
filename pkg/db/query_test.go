@@ -35,10 +35,11 @@ func TestQuery(t *testing.T) {
 		subQ := "SELECT col FROM table WHERE y=z"
 		_, err := q.Select().
 			WhereIn("Col1", subQ).
-			WhereRaw("col_2='valueX' OR col_2='valueY'").
+			WhereRaw("col_2=$1 OR col_2=$2", "valueX", "valueY").
+			Where(map[string]interface{}{"Col1": false}).
 			GetOne()
 		require.NoError(t, err)
-		require.Equal(t, fmt.Sprintf("SELECT col_1, col_2, col_3 FROM mockTable WHERE col_1 IN (%s) AND (col_2='valueX' OR col_2='valueY')", subQ), conn.query)
+		require.Equal(t, fmt.Sprintf("SELECT col_1, col_2, col_3 FROM mockTable WHERE col_1 IN (%s) AND (col_2=$1 OR col_2=$2) AND col_1=$3", subQ), conn.query)
 	})
 
 	t.Run("Delete", func(t *testing.T) {

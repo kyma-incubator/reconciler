@@ -132,8 +132,10 @@ func (s *Select) WhereRaw(stmt string, args ...interface{}) *Select {
 	return s
 }
 
-func (s *Select) Where(args map[string]interface{}) *Select {
-	s.args, s.err = s.addWhereCondition(args, 0)
+func (s *Select) Where(conds map[string]interface{}) *Select {
+	args, err := s.addWhereCondition(conds, len(s.args))
+	s.args = append(s.args, args...)
+	s.err = err
 	return s
 }
 
