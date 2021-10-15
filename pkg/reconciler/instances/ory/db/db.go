@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +30,6 @@ func newDBConfig(chartValues map[string]interface{}) (*Config, error) {
 	val := &Config{}
 	if err := yaml.Unmarshal(data, &val); err != nil {
 		return nil, errors.Wrap(err, "failed to parse Ory values")
-
 	}
 
 	return val, nil
@@ -55,6 +55,48 @@ func Get(name types.NamespacedName, chartValues map[string]interface{}) (*v1.Sec
 		},
 		StringData: data,
 	}, nil
+}
+
+// UpdateSecret overwrites secret with new values from config
+func IsUpdate(name types.NamespacedName, chartValues map[string]interface{}, secret *v1.Secret, logger *zap.SugaredLogger) (bool, error) {
+	cfg, err := newDBConfig(chartValues)
+	if err != nil {
+		return false, err
+	}
+
+	newConfig := cfg.compareSecretData(secret, logger)
+	logger.Info(newConfig)
+
+	if len(newConfig) > 0 {
+		secret.StringData = newConfig
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (c *Config) compareSecretData(secret *v1.Secret, logger *zap.SugaredLogger) map[string]string {
+	data := make(map[string]string)
+
+	// Persistence will be disabled if it wasn't already
+	logger.Infof("CURRENT DSN: %s", string(secret.Data["dsn"]))
+	logger.Infof("CURRENT pers: %s", c.Global.Ory.Hydra.Persistence.Enabled)
+	if !c.Global.Ory.Hydra.Persistence.Enabled && string(secret.Data["dsn"]) != "memory" {
+		logger.Info("Disabling persistence for Ory Hydra")
+		return c.generateSecretDataMemory()
+	}
+
+	// We need to start from dbtype in values, then check keys in secret
+	// for key, value := range secret.Data {
+	// 	logger.Infof("SECRET: %s %s", key, string(value))
+	// 	data[key] = string(value)
+	// 	switch key {
+	// 	case "dsn":
+	// 		if value == c.
+	// 	}
+	// }
+
+	return data
 }
 
 func (c *Config) preparePostgresDSN() string {
@@ -84,6 +126,10 @@ func (c *Config) prepareStringData() map[string]string {
 		return map[string]string{"secretsSystem": generateRandomString(32), "secretsCookie": generateRandomString(32), "dsn": c.prepareGenericDSN(), "dbPassword": c.Global.Ory.Hydra.Persistence.Password}
 	}
 
+	return c.generateSecretDataMemory()
+}
+
+func (c *Config) generateSecretDataMemory() map[string]string {
 	return map[string]string{"secretsSystem": generateRandomString(32), "secretsCookie": generateRandomString(32), "dsn": "memory"}
 }
 

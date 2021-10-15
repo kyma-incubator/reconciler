@@ -57,21 +57,32 @@ func (a *preAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	_, err = a.getDBConfigSecret(context.Context, client, dbNamespacedName, logger)
+	secretObject, err := a.getDBConfigSecret(context.Context, client, dbNamespacedName, logger)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrap(err, "Could not get DB secret")
 		}
+
 		logger.Info("Ory DB secret does not exist, creating it now")
+		secretObject, err = db.Get(dbNamespacedName, values)
+		if err != nil {
+			return errors.Wrap(err, "failed to create db credentials data for Ory Hydra")
+		}
 	} else {
-		logger.Info("Ory DB secret exists ")
-		return nil
+		logger.Info("Ory DB secret exists, looking for differences")
+		isUpdate, err := db.IsUpdate(dbNamespacedName, values, secretObject, logger)
+		if err != nil {
+			return errors.Wrap(err, "failed to update db credentials data for Ory Hydra")
+		}
+		if !isUpdate {
+			logger.Info("Ory DB secret is the same as values, no need to update")
+			return nil
+		} else {
+			logger.Info("Ory DB secret is different than values, updating it")
+		}
 	}
 
-	secretObject, err := db.Get(dbNamespacedName, values)
-	if err != nil {
-		return errors.Wrap(err, "failed to prepare db credentials data for Ory Hydra")
-	}
+	// secretObject, err := db.Get(dbNamespacedName, values)
 	if err := a.ensureOrySecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
 		return errors.Wrap(err, "failed to ensure Ory secret")
 	}
@@ -100,12 +111,10 @@ func (a *postAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *preAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) (v1.Secret, error) {
+func (a *preAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) (*v1.Secret, error) {
 	secret, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 
-	logger.Infof("Secret:\n %s \nError: \n %s", secret, err)
-
-	return *secret, err
+	return secret, err
 }
 
 func (a *preAction) ensureOrySecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
