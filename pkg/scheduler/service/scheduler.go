@@ -81,7 +81,7 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 						"another reconciliation is already running for this cluster (will try again later)",
 						clusterState.Cluster.RuntimeID)
 				} else {
-					s.logger.Warnf("Scheduler failed to start reconciliation process for cluster '%s': %s",
+					s.logger.Errorf("Scheduler failed to start reconciliation process for cluster '%s': %s",
 						clusterState.Cluster.RuntimeID, err)
 				}
 
