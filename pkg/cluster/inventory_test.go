@@ -213,12 +213,14 @@ func TestInventory(t *testing.T) {
 		//create cluster4, clusterVersion1, clusterConfigVersion1-2, status: Ready
 		cluster4v1v2 := newCluster(t, int64(4), 1, true)
 		clusterState4v1v2, err := inventory.CreateOrUpdate(1, cluster4v1v2)
+		require.NoError(t, err)
 		_, err = inventory.UpdateStatus(clusterState4v1v2, model.ClusterStatusReady)
 		require.NoError(t, err)
 
 		//create cluster4, clusterVersion2, clusterConfigVersion1-1, status: ReconcilePending
 		cluster4v2v1 := newCluster(t, int64(4), 2, false)
 		clusterState4v2v1, err := inventory.CreateOrUpdate(1, cluster4v2v1)
+		require.NoError(t, err)
 		_, err = inventory.UpdateStatus(clusterState4v2v1, model.ClusterStatusReady)
 		require.NoError(t, err)
 
