@@ -311,7 +311,7 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 		WithProgressTrackerConfig(interval, timeout)
 
 	newLogger := logger.NewLogger(true)
-	return &runner{recon, &Install{newLogger}, newLogger}
+	return &runner{recon, NewInstall(newLogger), newLogger}
 }
 
 func newCleanupFunc(t *testing.T) func(bool) {

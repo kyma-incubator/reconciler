@@ -11,7 +11,11 @@ import (
 )
 
 type Install struct {
-	Logger *zap.SugaredLogger
+	logger *zap.SugaredLogger
+}
+
+func NewInstall(logger *zap.SugaredLogger) *Install {
+	return &Install{logger: logger}
 }
 
 //go:generate mockery --name=Operation --output=mocks --outpkg=mock --case=underscore
@@ -34,9 +38,9 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, mode
 	resources, err := kubeClient.Deploy(ctx, manifest, model.Namespace, &LabelsInterceptor{Version: model.Version}, &AnnotationsInterceptor{})
 
 	if err == nil {
-		r.Logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
+		r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
 	} else {
-		r.Logger.Warnf("Failed to deploy manifests on target cluster: %s", err)
+		r.logger.Warnf("Failed to deploy manifests on target cluster: %s", err)
 	}
 
 	return err
@@ -54,7 +58,7 @@ func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler
 	if err != nil {
 		msg := fmt.Sprintf("Failed to get manifest for component '%s' in Kyma version '%s'",
 			model.Component, model.Version)
-		r.Logger.Errorf("%s: %s", msg, err)
+		r.logger.Errorf("%s: %s", msg, err)
 		return "", errors.Wrap(err, msg)
 	}
 
@@ -65,7 +69,7 @@ func (r *Install) renderCRDs(chartProvider chart.Provider, model *reconciler.Rec
 	crdManifests, err := chartProvider.RenderCRD(model.Version)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to get CRD manifests for Kyma version '%s'", model.Version)
-		r.Logger.Errorf("%s: %s", msg, err)
+		r.logger.Errorf("%s: %s", msg, err)
 		return "", errors.Wrap(err, msg)
 	}
 	return chart.MergeManifests(crdManifests...), nil

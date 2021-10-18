@@ -19,7 +19,8 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 
 	context.Logger.Info("Checking statefulset")
-	app, err := context.KubeClient.GetStatefulSet(context.Context, context.Model.Component, context.Model.Namespace)
+	app, err := context.KubeClient.
+		GetStatefulSet(context.Context, context.Model.Component, context.Model.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "Error while retrieving app")
 	}

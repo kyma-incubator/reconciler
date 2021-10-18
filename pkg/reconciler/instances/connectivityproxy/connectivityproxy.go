@@ -6,7 +6,7 @@ import (
 	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	service "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
 const (
@@ -36,7 +36,7 @@ func init() {
 				targetClientSetFactory: func(context *service.ActionContext) (k8s.Interface, error) {
 					return context.KubeClient.Clientset()
 				},
-				install: &service.Install{Logger: log},
+				install: service.NewInstall(log),
 				copyFactory: []CopyFactory{
 					registrySecretCopy,
 					istioSecretCopy,
