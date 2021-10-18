@@ -3,7 +3,6 @@ package adapter
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/client"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"time"
@@ -239,11 +238,13 @@ func (g *kubeClientAdapter) GetStatefulSet(ctx context.Context, name, namespace 
 		StatefulSets(namespace).
 		Get(ctx, name, metav1.GetOptions{})
 
-	if !client.IsErrNotFound(err) {
+	if err != nil && !k8serr.IsNotFound(err) {
 		return nil, errors.Wrap(err, "Unable to load deployment")
+	} else if err != nil && k8serr.IsNotFound(err) {
+		return nil, nil
 	}
 
-	return app, err
+	return app, nil
 }
 
 func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error) {
@@ -256,8 +257,10 @@ func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace strin
 		Secrets(namespace).
 		Get(ctx, name, metav1.GetOptions{})
 
-	if !client.IsErrNotFound(bindingErr) {
+	if bindingErr != nil && !k8serr.IsNotFound(bindingErr) {
 		return nil, errors.Wrap(bindingErr, "Error while retrieving bindings")
+	} else if bindingErr != nil && k8serr.IsNotFound(bindingErr) {
+		return nil, nil
 	}
 
 	return secret, nil

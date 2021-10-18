@@ -1,9 +1,9 @@
 package connectivityproxy
 
 import (
-	"github.com/docker/docker/client"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"reflect"
@@ -52,7 +52,7 @@ func (si *Search) findByCriteria(criteria []Locator) (*unstructured.Unstructured
 func (c *Locator) find() (*unstructured.Unstructured, error) {
 	resources, err := c.client.ListResource(strings.ToLower(c.resource), metav1.ListOptions{})
 
-	if err != nil && client.IsErrNotFound(err) {
+	if err != nil && k8serr.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {
 		return nil, errors.Wrap(err, "Error while listing resources")
@@ -65,7 +65,8 @@ func (c *Locator) find() (*unstructured.Unstructured, error) {
 		var uns Map = obj
 		currentValue := uns.getValue(fields...)
 
-		if reflect.TypeOf(currentValue) != reflect.TypeOf(c.referenceValue) {
+		if currentValue != nil && c.referenceValue != nil &&
+			reflect.TypeOf(currentValue) != reflect.TypeOf(c.referenceValue) {
 			return nil, errors.New("Invalid types")
 		}
 

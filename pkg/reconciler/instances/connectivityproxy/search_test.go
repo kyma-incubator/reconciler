@@ -1,7 +1,9 @@
 package connectivityproxy
 
 import (
-	"github.com/docker/docker/errdefs"
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	mockKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -48,6 +50,22 @@ func TestServiceInstancesFilter(t *testing.T) {
 				},
 			},
 		},
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "servicecatalog.k8s.io/v1beta1",
+				"kind":       "ServiceBinding",
+				"metadata": map[string]interface{}{
+					"name":      "sweet-kepler-with-nil",
+					"namespace": "default",
+				},
+				"spec": map[string]interface{}{
+					"secretName": nil,
+					"instanceRef": map[string]interface{}{
+						"name": "connectivity-virtuous-prompt",
+					},
+				},
+			},
+		},
 	}
 
 	client := &mockKubernetes.Client{}
@@ -65,7 +83,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 		Return(nil, errors.New("Test error"))
 
 	client.On("ListResource", mock2.AnythingOfType("string"), v1.ListOptions{}).
-		Return(nil, errdefs.NotFound(errors.New("Not found")))
+		Return(nil, k8serr.NewNotFound(schema.GroupResource{}, "test-message"))
 
 	t.Run("Should find service instance", func(t *testing.T) {
 
@@ -223,5 +241,21 @@ func TestServiceInstancesFilter(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, &bindings[0], result)
+	})
+
+	t.Run("Should find by nil value", func(t *testing.T) {
+		s := Search{}
+
+		result, err := s.findByCriteria([]Locator{
+			{
+				referenceValue: nil,
+				resource:       "servicebinding",
+				field:          "spec.secretName",
+				client:         client,
+				searchNextBy:   "metadata.name",
+			},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, &bindings[1], result)
 	})
 }
