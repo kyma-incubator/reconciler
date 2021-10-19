@@ -289,12 +289,12 @@ func (r *PersistentReconciliationRepository) GetOperation(schedulingID, correlat
 	return opEntity.(*model.OperationEntity), nil
 }
 
-func (r *PersistentReconciliationRepository) GetProcessableOperations() ([]*model.OperationEntity, error) {
+func (r *PersistentReconciliationRepository) GetProcessableOperations(maxParallelOpsPerRecon int) ([]*model.OperationEntity, error) {
 	opEntities, err := r.GetReconcilingOperations()
 	if err != nil {
 		return nil, err
 	}
-	return findProcessableOperations(opEntities), nil
+	return findProcessableOperations(opEntities, maxParallelOpsPerRecon), nil
 }
 
 func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*model.OperationEntity, error) {
