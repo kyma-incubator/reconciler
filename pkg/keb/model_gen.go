@@ -24,11 +24,17 @@ const (
 
 // HTTPClusterResponse defines model for HTTPClusterResponse.
 type HTTPClusterResponse struct {
-	Cluster              string `json:"cluster"`
-	ClusterVersion       int64  `json:"clusterVersion"`
-	ConfigurationVersion int64  `json:"configurationVersion"`
-	Status               Status `json:"status"`
-	StatusURL            string `json:"statusURL"`
+	Cluster              string    `json:"cluster"`
+	ClusterVersion       int64     `json:"clusterVersion"`
+	ConfigurationVersion int64     `json:"configurationVersion"`
+	Status               Status    `json:"status"`
+	Failures             []Failure `json:"failures"`
+	StatusURL            string    `json:"statusURL"`
+}
+
+type Failure struct {
+	Component string `json:"component`
+	Reason    string `json:"reason"`
 }
 
 // HTTPClusterStatusResponse defines model for HTTPClusterStatusResponse.

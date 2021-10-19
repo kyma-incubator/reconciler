@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -130,7 +131,7 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//respond status URL
-	sendResponse(w, r, clusterState)
+	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
 }
 
 func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -162,7 +163,7 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	sendResponse(w, r, clusterState)
+	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
 }
 
 func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -221,7 +222,7 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, r, clusterState)
+	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
 }
 
 func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -244,7 +245,7 @@ func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	sendResponse(w, r, clusterState)
+	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
 }
 
 func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -407,8 +408,8 @@ func updateOperationState(o *Options, schedulingID, correlationID string, state 
 	return err
 }
 
-func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State) {
-	respModel, err := newClusterResponse(r, clusterState)
+func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) {
+	respModel, err := newClusterResponse(r, clusterState, reconciliationRepository)
 	if err != nil {
 		server.SendHTTPError(w, 500, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "failed to generate cluster response model").Error(),
@@ -424,17 +425,36 @@ func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.
 	}
 }
 
-func newClusterResponse(r *http.Request, clusterState *cluster.State) (*keb.HTTPClusterResponse, error) {
+func newClusterResponse(r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) (*keb.HTTPClusterResponse, error) {
 	kebStatus, err := clusterState.Status.GetKEBClusterStatus()
 	if err != nil {
 		return nil, err
 	}
 
+	reconciliations, err := reconciliationRepository.GetReconciliations(&reconciliation.WithRuntimeID{clusterState.Cluster.RuntimeID})
+	if err != nil {
+		return nil, err
+	}
+	operations, err := reconciliationRepository.GetOperations(reconciliations[0].SchedulingID)
+	if err != nil {
+		return nil, err
+	}
+
+	var failures []keb.Failure
+	for _, operation := range operations {
+		if operation.State.IsError() {
+			failures = append(failures, keb.Failure{
+				Component: operation.Component,
+				Reason:    operation.Reason,
+			})
+		}
+	}
 	return &keb.HTTPClusterResponse{
 		Cluster:              clusterState.Cluster.RuntimeID,
 		ClusterVersion:       clusterState.Cluster.Version,
 		ConfigurationVersion: clusterState.Configuration.Version,
 		Status:               kebStatus,
+		Failures:             failures,
 		StatusURL: (&url.URL{
 			Scheme: viper.GetString("mothership.scheme"),
 			Host:   fmt.Sprintf("%s:%s", viper.GetString("mothership.host"), viper.GetString("mothership.port")),

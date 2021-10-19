@@ -254,6 +254,10 @@ components:
         configurationVersion:
           type: integer
           format: int64
+        failures:
+          type: array
+          items:
+            $ref: '#/components/schemas/failure'
         status:
           $ref: '#/components/schemas/status'
         statusURL:
@@ -359,6 +363,15 @@ components:
         - ready
         - error
         - reconciling
+
+    failure:
+      type: object
+      required: [ component, reason ]
+      properties:
+        component:
+          type: string
+        reason:
+          type: string
 
     cluster:
       type: object
