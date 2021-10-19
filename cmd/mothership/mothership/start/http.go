@@ -431,7 +431,7 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 		return nil, err
 	}
 
-	reconciliations, err := reconciliationRepository.GetReconciliations(&reconciliation.WithRuntimeID{clusterState.Cluster.RuntimeID})
+	reconciliations, err := reconciliationRepository.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +454,7 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 		ClusterVersion:       clusterState.Cluster.Version,
 		ConfigurationVersion: clusterState.Configuration.Version,
 		Status:               kebStatus,
-		Failures:             failures,
+		Failures:             &failures,
 		StatusURL: (&url.URL{
 			Scheme: viper.GetString("mothership.scheme"),
 			Host:   fmt.Sprintf("%s:%s", viper.GetString("mothership.host"), viper.GetString("mothership.port")),
