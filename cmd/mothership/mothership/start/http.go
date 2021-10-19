@@ -34,7 +34,7 @@ const (
 	paramSchedulingID    = "schedulingID"
 	paramCorrelationID   = "correlationID"
 
-	paramStatuses   = "statuses"
+	paramStatus     = "status"
 	paramRuntimeIDs = "runtimeID"
 	paramCluster    = "cluster"
 )
@@ -254,7 +254,7 @@ func contains(slice []string, value string) bool {
 }
 
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
-	statuses := r.URL.Query()[paramStatuses]
+	statuses := r.URL.Query()[paramStatus]
 
 	// validate statuseses
 	for _, statusStr := range statuses {

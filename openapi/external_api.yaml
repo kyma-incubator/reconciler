@@ -48,7 +48,7 @@ paths:
             items:
               type: string
               format: uuid
-        - name: statuses
+        - name: status
           required: false
           in: query
           schema:
