@@ -277,7 +277,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of reconciliations: no runtime id",
-			url:              fmt.Sprintf("%s/reconciliations?runtimeIDs=none", baseURL),
+			url:              fmt.Sprintf("%s/reconciliations?runtimeID=none", baseURL),
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.ReconcilationsOKResponse{},
@@ -294,7 +294,34 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of reconciliations: filter by runtimeId",
-			url:              fmt.Sprintf("%s/reconciliations?runtimeIDs=e2etest-cluster2", baseURL),
+			url:              fmt.Sprintf("%s/reconciliations?runtimeID=e2etest-cluster2", baseURL),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.ReconcilationsOKResponse{},
+			verifier:         oneReconciliation,
+			// no need for waiting in initFn
+		},
+		{
+			name:             "Get list of reconciliations: filter by multiple runtimeId",
+			url:              fmt.Sprintf("%s/reconciliations?runtimeID=e2etest-cluster2&runtimeID=unknown", baseURL),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.ReconcilationsOKResponse{},
+			verifier:         oneReconciliation,
+			// no need for waiting in initFn
+		},
+		{
+			name:             "Get list of reconciliations: filter by multiple runtimeId",
+			url:              fmt.Sprintf("%s/reconciliations?runtimeID=unknown&runtimeID=e2etest-cluster2", baseURL),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.ReconcilationsOKResponse{},
+			verifier:         oneReconciliation,
+			// no need for waiting in initFn
+		},
+		{
+			name:             "Get list of reconciliations: filter by status",
+			url:              fmt.Sprintf("%s/reconciliations?statuses=reconciling&runtimeID=e2etest-cluster2", baseURL),
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.ReconcilationsOKResponse{},

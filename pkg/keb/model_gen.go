@@ -175,8 +175,8 @@ type PutClustersRuntimeIDStatusJSONBody StatusUpdate
 
 // GetReconciliationsParams defines parameters for GetReconciliations.
 type GetReconciliationsParams struct {
-	RuntimeIDs *[]string `json:"runtimeIDs,omitempty"`
-	Statuses   *[]Status `json:"statuses,omitempty"`
+	RuntimeID *[]string `json:"runtimeID,omitempty"`
+	Statuses  *[]Status `json:"statuses,omitempty"`
 }
 
 // PostClustersJSONRequestBody defines body for PostClusters for application/json ContentType.

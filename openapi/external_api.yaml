@@ -40,7 +40,7 @@ paths:
     get:
       description: 'Get list of current working reconcilers'
       parameters:
-        - name: runtimeIDs
+        - name: runtimeID
           required: false
           in: query
           schema:

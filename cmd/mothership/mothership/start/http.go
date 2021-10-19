@@ -35,7 +35,7 @@ const (
 	paramCorrelationID   = "correlationID"
 
 	paramStatuses   = "statuses"
-	paramRuntimeIDs = "runtimeIDs"
+	paramRuntimeIDs = "runtimeID"
 	paramCluster    = "cluster"
 )
 
