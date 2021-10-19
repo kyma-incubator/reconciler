@@ -99,7 +99,7 @@ func TestRunner(t *testing.T) {
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
-	t.Run("Run with pre- and post-action but default install-action (without CRDs) for cluster-users component", func(t *testing.T) {
+	t.Run("Run with pre- and post-action but default install-action for cluster-users component", func(t *testing.T) {
 		SetWorkspaceFactoryForHomeDir(t)
 
 		//create install actions
@@ -125,59 +125,7 @@ func TestRunner(t *testing.T) {
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
-	t.Run("Run with pre- and post-action but default install-action (without CRDs) for api-gateway component", func(t *testing.T) {
-		SetWorkspaceFactoryForHomeDir(t)
-
-		//create install actions
-		preAct := &TestAction{
-			name:  "pre-install",
-			delay: 1 * time.Second,
-		}
-		postAct := &TestAction{
-			name:  "post-install",
-			delay: 1 * time.Second,
-		}
-
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, apiGatewayComponent, kymaVersion, "default")
-		cbh := newCallbackHandler(t)
-
-		//successful run
-		err := runner.Run(context.Background(), model, cbh)
-		require.NoError(t, err)
-
-		//all actions have to be executed
-		require.Equal(t, kymaVersion, preAct.receivedVersion)
-		require.Equal(t, kymaVersion, postAct.receivedVersion)
-	})
-
-	t.Run("Run with pre- and post-action but default install-action (with CRDs) for cluster-users component", func(t *testing.T) {
-		SetWorkspaceFactoryForHomeDir(t)
-
-		//create install actions
-		preAct := &TestAction{
-			name:  "pre-install",
-			delay: 1 * time.Second,
-		}
-		postAct := &TestAction{
-			name:  "post-install",
-			delay: 1 * time.Second,
-		}
-
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, clusterUsersComponent, kymaVersion, "")
-		cbh := newCallbackHandler(t)
-
-		//successful run
-		err := runner.Run(context.Background(), model, cbh)
-		require.NoError(t, err)
-
-		//all actions have to be executed
-		require.Equal(t, kymaVersion, preAct.receivedVersion)
-		require.Equal(t, kymaVersion, postAct.receivedVersion)
-	})
-
-	t.Run("Run with pre- and post-action but default install-action (with CRDs) for api-gateway component", func(t *testing.T) {
+	t.Run("Run with pre- and post-action but default install-action for api-gateway component", func(t *testing.T) {
 		SetWorkspaceFactoryForHomeDir(t)
 
 		//create install actions
