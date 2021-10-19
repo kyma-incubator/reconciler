@@ -431,24 +431,27 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 		return nil, err
 	}
 
+	var failures []keb.Failure
 	reconciliations, err := reconciliationRepository.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 	if err != nil {
 		return nil, err
 	}
-	operations, err := reconciliationRepository.GetOperations(reconciliations[0].SchedulingID)
-	if err != nil {
-		return nil, err
-	}
+	if len(reconciliations) > 0 {
+		operations, err := reconciliationRepository.GetOperations(reconciliations[0].SchedulingID)
+		if err != nil {
+			return nil, err
+		}
 
-	var failures []keb.Failure
-	for _, operation := range operations {
-		if operation.State.IsError() {
-			failures = append(failures, keb.Failure{
-				Component: operation.Component,
-				Reason:    operation.Reason,
-			})
+		for _, operation := range operations {
+			if operation.State.IsError() {
+				failures = append(failures, keb.Failure{
+					Component: operation.Component,
+					Reason:    operation.Reason,
+				})
+			}
 		}
 	}
+
 	return &keb.HTTPClusterResponse{
 		Cluster:              clusterState.Cluster.RuntimeID,
 		ClusterVersion:       clusterState.Cluster.Version,
