@@ -57,7 +57,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 
-		err = deployIstioResources(manifest.Manifest, context.KubeClient, context.Context, context.Logger)
+		err = deployIstioResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not deloy Istio resources")
 		}
@@ -74,7 +74,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not reset Istio proxy")
 		}
 
-		err = deployIstioResources(manifest.Manifest, context.KubeClient, context.Context, context.Logger)
+		err = deployIstioResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not deploy Istio resources")
 		}
@@ -211,7 +211,7 @@ func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error
 	return builder.String(), nil
 }
 
-func deployIstioResources(manifest string, client kubernetes.Client, context context.Context, logger *zap.SugaredLogger) error {
+func deployIstioResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
 	generated, err := generateNewManifestWithoutIstioOperatorFrom(manifest)
 	if err != nil {
 		return errors.Wrap(err, "Could not generate manifest without Istio Operator")
