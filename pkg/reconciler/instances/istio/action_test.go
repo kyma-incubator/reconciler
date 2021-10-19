@@ -9,6 +9,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	actionsmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 
@@ -57,6 +58,12 @@ metadata:
 `
 )
 
+var _ = func() interface{} {
+	//This code only executes during test run
+	_skip_bootstrap = true
+	return nil
+}()
+
 func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should not perform any istio action when provider returned an error ", func(t *testing.T) {
@@ -92,7 +99,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioVersion{}, errors.New("Version error"))
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioStatus{}, errors.New("Version error"))
 		action := ReconcileAction{performer: &performer}
 
 		// when
@@ -118,14 +125,14 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		noIstioOnTheCluster := actions.IstioVersion{
+		noIstioOnTheCluster := actions.IstioStatus{
 			ClientVersion:    "1.0",
 			TargetVersion:    "1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(noIstioOnTheCluster, nil)
-		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
 			Return(errors.New("Perfomer Install error"))
 		action := ReconcileAction{performer: &performer}
 
@@ -152,14 +159,14 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		noIstioOnTheCluster := actions.IstioVersion{
+		noIstioOnTheCluster := actions.IstioStatus{
 			ClientVersion:    "1.0",
 			TargetVersion:    "1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
-		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(errors.New("Performer Patch error"))
 		action := ReconcileAction{performer: &performer}
 
@@ -171,7 +178,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Contains(t, err.Error(), "Performer Patch error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
@@ -185,14 +192,14 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		noIstioOnTheCluster := actions.IstioVersion{
+		noIstioOnTheCluster := actions.IstioStatus{
 			ClientVersion:    "1.0",
 			TargetVersion:    "1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
-		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		action := ReconcileAction{performer: &performer}
 
@@ -203,7 +210,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
@@ -221,7 +228,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		tooLowClientVersion := actions.IstioVersion{
+		tooLowClientVersion := actions.IstioStatus{
 			ClientVersion:    "1.0",
 			TargetVersion:    "1.2",
 			PilotVersion:     "1.1",
@@ -257,7 +264,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		tooHighPilotAndDataPlaneVersion := actions.IstioVersion{
+		tooHighPilotAndDataPlaneVersion := actions.IstioStatus{
 			ClientVersion:    "0.9",
 			TargetVersion:    "0.9",
 			PilotVersion:     "1.1",
@@ -293,7 +300,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		tooLowPilotAndDataPlaneVersion := actions.IstioVersion{
+		tooLowPilotAndDataPlaneVersion := actions.IstioStatus{
 			ClientVersion:    "1.3",
 			TargetVersion:    "1.3",
 			PilotVersion:     "1.1",
@@ -329,17 +336,17 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.1.0",
 			DataPlaneVersion: "1.1.0",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(istioVersion, nil)
-		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
-		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger).Return(errors.New("Proxy reset error"))
+		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Proxy reset error"))
 		action := ReconcileAction{performer: &performer}
 
 		// when
@@ -352,8 +359,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -368,17 +375,17 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.2.0",
 			DataPlaneVersion: "1.2.0",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(istioVersion, nil)
-		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
-		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger).Return(nil)
+		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		action := ReconcileAction{performer: &performer}
 
 		// when
@@ -389,9 +396,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
 		kubeClient.AssertCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 }
@@ -425,13 +432,13 @@ func newFakeKubeClient() *k8smocks.Client {
 }
 func Test_UninstallAction(t *testing.T) {
 
-	noIstioOnTheCluster := actions.IstioVersion{
+	noIstioOnTheCluster := actions.IstioStatus{
 		ClientVersion:    "1.0",
 		PilotVersion:     "",
 		DataPlaneVersion: "",
 	}
 
-	istioAvailable := actions.IstioVersion{
+	istioAvailable := actions.IstioStatus{
 		ClientVersion:    "1.0",
 		PilotVersion:     "1.0",
 		DataPlaneVersion: "1.0",
@@ -448,7 +455,7 @@ func Test_UninstallAction(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType(
 			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
 			Return(istioAvailable, nil)
-		performer.On("Uninstall", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		performer.On("Uninstall", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
 
 		action := UninstallAction{performer: &performer}
@@ -460,7 +467,7 @@ func Test_UninstallAction(t *testing.T) {
 		require.NoError(t, err)
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.
 			AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Uninstall", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Uninstall", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
 	t.Run("should not perform istio uninstall action when istio was not detected on the cluster", func(t *testing.T) {
@@ -511,7 +518,7 @@ func Test_canUnInstall(t *testing.T) {
 
 	t.Run("should uninstall when istio is installed", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.9.2",
 			TargetVersion:    "",
 			PilotVersion:     "",
@@ -527,7 +534,7 @@ func Test_canUnInstall(t *testing.T) {
 
 	t.Run("should not uninstall when istio is not installed", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "",
 			PilotVersion:     "",
@@ -543,7 +550,7 @@ func Test_canUnInstall(t *testing.T) {
 
 	t.Run("should not uninstall when istio ctl is not installed", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.11.2",
@@ -558,7 +565,7 @@ func Test_canUnInstall(t *testing.T) {
 	})
 	t.Run("should not matter to uninstall if client version and data plane diverge", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.9.0",
 			TargetVersion:    "1.20.2",
 			PilotVersion:     "1.11.2",
@@ -576,7 +583,7 @@ func Test_canUnInstall(t *testing.T) {
 func Test_canInstall(t *testing.T) {
 	t.Run("should install when client and pilot versions are empty", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.9.2",
 			TargetVersion:    "",
 			PilotVersion:     "",
@@ -592,7 +599,7 @@ func Test_canInstall(t *testing.T) {
 
 	t.Run("should update when client and pilot versions values are not empty", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "",
 			PilotVersion:     "1.11.1",
@@ -610,7 +617,7 @@ func Test_canInstall(t *testing.T) {
 func Test_canUpdate(t *testing.T) {
 	t.Run("should not allow update when client version is more than one minor behind the target version", func(t *testing.T) {
 		// given
-		version := actions.IstioVersion{
+		version := actions.IstioStatus{
 			ClientVersion:    "1.0.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.0.0",
@@ -626,7 +633,7 @@ func Test_canUpdate(t *testing.T) {
 
 	t.Run("should allow update when permissible downgrade scenario is detected for pilot", func(t *testing.T) {
 		// given
-		version := actions.IstioVersion{
+		version := actions.IstioStatus{
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.0",
 			PilotVersion:     "1.2.0",
@@ -642,7 +649,7 @@ func Test_canUpdate(t *testing.T) {
 
 	t.Run("should not allow update when downgrade scenario is detected for pilot", func(t *testing.T) {
 		// given
-		version := actions.IstioVersion{
+		version := actions.IstioStatus{
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.0",
 			PilotVersion:     "1.3.0",
@@ -658,7 +665,7 @@ func Test_canUpdate(t *testing.T) {
 
 	t.Run("should allow update when permissible downgrade scenario is detected for data plane", func(t *testing.T) {
 		// given
-		version := actions.IstioVersion{
+		version := actions.IstioStatus{
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.0",
 			PilotVersion:     "1.1.0",
@@ -674,7 +681,7 @@ func Test_canUpdate(t *testing.T) {
 
 	t.Run("should not allow update when downgrade scenario is detected for data plane", func(t *testing.T) {
 		// given
-		version := actions.IstioVersion{
+		version := actions.IstioStatus{
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.0",
 			PilotVersion:     "1.1.0",
@@ -690,7 +697,7 @@ func Test_canUpdate(t *testing.T) {
 
 	t.Run("should not allow update when more than one minor upgrade is detected for pilot", func(t *testing.T) {
 		// given
-		version := actions.IstioVersion{
+		version := actions.IstioStatus{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.0.0",
@@ -706,7 +713,7 @@ func Test_canUpdate(t *testing.T) {
 
 	t.Run("should not allow update when more than one minor upgrade is detected for data plane", func(t *testing.T) {
 		// given
-		version := actions.IstioVersion{
+		version := actions.IstioStatus{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.1.0",
@@ -722,7 +729,7 @@ func Test_canUpdate(t *testing.T) {
 
 	t.Run("should allow update when less than one minor upgrade is detected for pilot and data plane ", func(t *testing.T) {
 		// given
-		version := actions.IstioVersion{
+		version := actions.IstioStatus{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.1.0",
@@ -738,7 +745,7 @@ func Test_canUpdate(t *testing.T) {
 
 	t.Run("should allow update when all versions match", func(t *testing.T) {
 		// given
-		version := actions.IstioVersion{
+		version := actions.IstioStatus{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.2.0",
@@ -756,7 +763,7 @@ func Test_canUpdate(t *testing.T) {
 func Test_isMismatchPresent(t *testing.T) {
 	t.Run("Different Pilot and DataPlane versions is a mismatch", func(t *testing.T) {
 		// given
-		differentVersions := actions.IstioVersion{
+		differentVersions := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.2",
@@ -771,7 +778,7 @@ func Test_isMismatchPresent(t *testing.T) {
 
 	t.Run("Same Pilot and DataPlane versions is not a mismatch", func(t *testing.T) {
 		// given
-		sameVersions := actions.IstioVersion{
+		sameVersions := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			PilotVersion:     "1.11.2",
 			DataPlaneVersion: "1.11.2",
@@ -788,7 +795,7 @@ func Test_isMismatchPresent(t *testing.T) {
 func Test_isClientCompatible(t *testing.T) {
 	t.Run("should return true when client and target versions are the same", func(t *testing.T) {
 		// given
-		exactSameClientVersion := actions.IstioVersion{
+		exactSameClientVersion := actions.IstioStatus{
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.0",
 			PilotVersion:     "",
@@ -804,7 +811,7 @@ func Test_isClientCompatible(t *testing.T) {
 
 	t.Run("should return true when client and target versions are of the same minor and different patch and client version is higher than target", func(t *testing.T) {
 		// given
-		sameMinorClientVersion := actions.IstioVersion{
+		sameMinorClientVersion := actions.IstioStatus{
 			ClientVersion:    "1.1.1",
 			TargetVersion:    "1.1.0",
 			PilotVersion:     "",
@@ -820,7 +827,7 @@ func Test_isClientCompatible(t *testing.T) {
 
 	t.Run("should return true when client and target versions are of the same minor and different patch and target version is higher than client", func(t *testing.T) {
 		// given
-		sameMinorClientVersion := actions.IstioVersion{
+		sameMinorClientVersion := actions.IstioStatus{
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.1",
 			PilotVersion:     "",
@@ -836,7 +843,7 @@ func Test_isClientCompatible(t *testing.T) {
 
 	t.Run("should return true when client and target versions are among one minor and of the same patch and client version is higher than target", func(t *testing.T) {
 		// given
-		oneHigherMinorClientVersion := actions.IstioVersion{
+		oneHigherMinorClientVersion := actions.IstioStatus{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.1.0",
 			PilotVersion:     "",
@@ -852,7 +859,7 @@ func Test_isClientCompatible(t *testing.T) {
 
 	t.Run("should return true when client and target versions are among one minor and of the same patch and target version is higher than client", func(t *testing.T) {
 		// given
-		oneLowerMinorClientVersion := actions.IstioVersion{
+		oneLowerMinorClientVersion := actions.IstioStatus{
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "",
@@ -868,7 +875,7 @@ func Test_isClientCompatible(t *testing.T) {
 
 	t.Run("should return false when client and target versions are not among one minor and target version is higher than client", func(t *testing.T) {
 		// given
-		twoLowerMinorClientVersion := actions.IstioVersion{
+		twoLowerMinorClientVersion := actions.IstioStatus{
 			ClientVersion:    "1.0.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "",
@@ -884,7 +891,7 @@ func Test_isClientCompatible(t *testing.T) {
 
 	t.Run("should return false when client and target versions are not among one minor and client version is higher than target", func(t *testing.T) {
 		// given
-		greaterThanOneMinorClientVersion := actions.IstioVersion{
+		greaterThanOneMinorClientVersion := actions.IstioStatus{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.0.0",
 			PilotVersion:     "",
@@ -903,7 +910,7 @@ func Test_isComponentCompatible(t *testing.T) {
 	componentName := "component"
 	t.Run("Equal target and pilot component version is compatible", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.11.2",
@@ -919,7 +926,7 @@ func Test_isComponentCompatible(t *testing.T) {
 
 	t.Run("Same major and minor of target and pilot component version is compatible", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.11.6",
@@ -935,7 +942,7 @@ func Test_isComponentCompatible(t *testing.T) {
 
 	t.Run("Upgrade scenario of Pilot component with one minor lower version is compatible", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.10.6",
@@ -951,7 +958,7 @@ func Test_isComponentCompatible(t *testing.T) {
 
 	t.Run("Downgrade scenario of Pilot component with one minor higher version is compatible", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.12.6",
@@ -967,7 +974,7 @@ func Test_isComponentCompatible(t *testing.T) {
 
 	t.Run("Upgrade scenario of Pilot component with more than one minor lower version is NOT compatible", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.9.6",
@@ -983,7 +990,7 @@ func Test_isComponentCompatible(t *testing.T) {
 
 	t.Run("Downgrade scenario of Pilot component with more than one minor higher version is NOT compatible", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioVersion{
+		istioVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.13.6",
@@ -1001,7 +1008,7 @@ func Test_isComponentCompatible(t *testing.T) {
 func Test_amongOneMinor(t *testing.T) {
 	t.Run("Downgrade of PilotVersion with same minor version is permitted", func(t *testing.T) {
 		// given
-		sameMinorPilotVersion := actions.IstioVersion{
+		sameMinorPilotVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.11.6",
@@ -1019,7 +1026,7 @@ func Test_amongOneMinor(t *testing.T) {
 
 	t.Run("Upgrade of PilotVersion with same minor version is permitted", func(t *testing.T) {
 		// given
-		sameMinorPilotVersion := actions.IstioVersion{
+		sameMinorPilotVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.11.1",
@@ -1037,7 +1044,7 @@ func Test_amongOneMinor(t *testing.T) {
 
 	t.Run("Downgrade of PilotVersion with one minor version is permitted", func(t *testing.T) {
 		// given
-		oneMinorPilotVersion := actions.IstioVersion{
+		oneMinorPilotVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.12.6",
@@ -1055,7 +1062,7 @@ func Test_amongOneMinor(t *testing.T) {
 
 	t.Run("Upgrade of PilotVersion with one minor version is permitted", func(t *testing.T) {
 		// given
-		oneMinorPilotVersion := actions.IstioVersion{
+		oneMinorPilotVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.10.1",
@@ -1073,7 +1080,7 @@ func Test_amongOneMinor(t *testing.T) {
 
 	t.Run("Downgrade of PilotVersion with more than one minor version is NOT permitted", func(t *testing.T) {
 		// given
-		greaterThanOneMinorPilotVersion := actions.IstioVersion{
+		greaterThanOneMinorPilotVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.13.6",
@@ -1091,7 +1098,7 @@ func Test_amongOneMinor(t *testing.T) {
 
 	t.Run("Upgrade of PilotVersion with more than one minor version is NOT permitted", func(t *testing.T) {
 		// given
-		lesserThanOneMinorPilotVersion := actions.IstioVersion{
+		lesserThanOneMinorPilotVersion := actions.IstioStatus{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.9.1",
@@ -1112,7 +1119,7 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 
 	t.Run("should generate empty manifest from empty input manifest", func(t *testing.T) {
 		// when
-		result, err := generateNewManifestWithoutIstioOperatorFrom("")
+		result, err := manifest.GenerateNewManifestWithoutIstioOperatorFrom("")
 
 		// then
 		require.NoError(t, err)
@@ -1126,7 +1133,7 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 		require.NotContains(t, istioManifestWithoutIstioOperator, "IstioOperator")
 
 		// when
-		result, err := generateNewManifestWithoutIstioOperatorFrom(istioManifestWithoutIstioOperator)
+		result, err := manifest.GenerateNewManifestWithoutIstioOperatorFrom(istioManifestWithoutIstioOperator)
 
 		// then
 		require.NoError(t, err)
@@ -1142,7 +1149,7 @@ func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 		require.Contains(t, istioManifest, "IstioOperator")
 
 		// when
-		result, err := generateNewManifestWithoutIstioOperatorFrom(istioManifest)
+		result, err := manifest.GenerateNewManifestWithoutIstioOperatorFrom(istioManifest)
 
 		// then
 		require.NoError(t, err)

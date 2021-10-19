@@ -2,20 +2,12 @@ package istioctl
 
 import (
 	"bufio"
-	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"sync"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
-)
-
-const (
-	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
-	istioctlBinaryPathMaxLen = 4096
 )
 
 //go:generate mockery --name=Commander --outpkg=mocks --case=underscore
@@ -38,13 +30,15 @@ type Commander interface {
 var execCommand = exec.Command
 
 // DefaultCommander provides a default implementation of Commander.
-type DefaultCommander struct{}
+type DefaultCommander struct {
+	istioctl IstioctlBinary
+}
+
+func NewDefaultCommander(istioctl IstioctlBinary) DefaultCommander {
+	return DefaultCommander{istioctl}
+}
 
 func (c *DefaultCommander) Uninstall(kubeconfig string, logger *zap.SugaredLogger) error {
-	istioctlPath, err := resolveIstioctlPath()
-	if err != nil {
-		return err
-	}
 
 	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
 	if err != nil {
@@ -58,28 +52,12 @@ func (c *DefaultCommander) Uninstall(kubeconfig string, logger *zap.SugaredLogge
 		}
 	}()
 
-	cmd := execCommand(istioctlPath, "x", "uninstall", "--purge", "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+	cmd := execCommand(c.istioctl.path, "x", "uninstall", "--purge", "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 
 	return c.execute(cmd, logger)
 }
 
 func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
-	istioctlPath, err := resolveIstioctlPath()
-	if err != nil {
-		return err
-	}
-
-	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		cleanupErr := istioOperatorCf()
-		if cleanupErr != nil {
-			logger.Error(cleanupErr)
-		}
-	}()
 
 	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
 	if err != nil {
@@ -93,16 +71,36 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 		}
 	}()
 
-	cmd := execCommand(istioctlPath, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		cleanupErr := istioOperatorCf()
+		if cleanupErr != nil {
+			logger.Error(cleanupErr)
+		}
+	}()
+
+	cmd := execCommand(c.istioctl.path, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 
 	return c.execute(cmd, logger)
 }
 
 func (c *DefaultCommander) Upgrade(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
-	istioctlPath, err := resolveIstioctlPath()
+
+	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		cleanupErr := kubeconfigCf()
+		if cleanupErr != nil {
+			logger.Error(cleanupErr)
+		}
+	}()
 
 	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
 	if err != nil {
@@ -116,28 +114,12 @@ func (c *DefaultCommander) Upgrade(istioOperator, kubeconfig string, logger *zap
 		}
 	}()
 
-	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		cleanupErr := kubeconfigCf()
-		if cleanupErr != nil {
-			logger.Error(cleanupErr)
-		}
-	}()
-
-	cmd := execCommand(istioctlPath, "upgrade", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+	cmd := execCommand(c.istioctl.path, "upgrade", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 
 	return c.execute(cmd, logger)
 }
 
 func (c *DefaultCommander) Version(kubeconfig string, logger *zap.SugaredLogger) ([]byte, error) {
-	istioctlPath, err := resolveIstioctlPath()
-	if err != nil {
-		return []byte{}, err
-	}
 
 	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
 	if err != nil {
@@ -151,7 +133,7 @@ func (c *DefaultCommander) Version(kubeconfig string, logger *zap.SugaredLogger)
 		}
 	}()
 
-	cmd := execCommand(istioctlPath, "version", "--output", "json", "--kubeconfig", kubeconfigPath)
+	cmd := execCommand(c.istioctl.path, "version", "--output", "json", "--kubeconfig", kubeconfigPath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return []byte{}, err
@@ -166,9 +148,6 @@ func (c *DefaultCommander) execute(cmd *exec.Cmd, logger *zap.SugaredLogger) err
 		return err
 	}
 	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
 
 	if err := cmd.Start(); err != nil {
 		return err
@@ -199,18 +178,4 @@ func bufferAndLog(r io.Reader, logger *zap.SugaredLogger) {
 	for scanner.Scan() {
 		logger.Info(scanner.Text())
 	}
-}
-
-func resolveIstioctlPath() (string, error) {
-	// TODO: Check if the binary is present and executable
-	path := os.Getenv(istioctlBinaryPathEnvKey)
-	if len(path) > istioctlBinaryPathMaxLen {
-		return "", errors.New(fmt.Sprintf("ISTIOCTL_PATH env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathMaxLen))
-	}
-
-	if path == "" {
-		return "", errors.New("Istioctl binary could not be found under ISTIOCTL_PATH env variable")
-	}
-
-	return path, nil
 }

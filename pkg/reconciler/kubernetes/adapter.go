@@ -3,8 +3,9 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	batchv1 "k8s.io/api/batch/v1"
 	"time"
+
+	batchv1 "k8s.io/api/batch/v1"
 
 	"strings"
 
@@ -453,6 +454,7 @@ func toResource(m *internal.Metadata) *Resource {
 	}
 }
 
+//Unmarshalls given manifest in YAML format into k8s.io Unstructured data type.
 func ToUnstructured(manifest []byte, async bool) ([]*unstructured.Unstructured, error) {
 	// expose the internal unstructured converter
 	return internal.ToUnstructured(manifest, async)
