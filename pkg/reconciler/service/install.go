@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -51,6 +52,7 @@ func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler
 		WithProfile(model.Profile).
 		WithNamespace(model.Namespace).
 		WithConfiguration(model.Configuration).
+		WithURL(model.URL).
 		Build()
 
 	//get manifest of component

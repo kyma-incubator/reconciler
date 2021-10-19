@@ -77,6 +77,11 @@ func UseGlobalWorkspaceFactory(workspaceFactory workspace.Factory) error {
 	return nil
 }
 
+func RefreshGlobalWorkspaceFactory(workspaceFactory workspace.Factory) error {
+	wsFactory = workspaceFactory
+	return nil
+}
+
 func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*chart.DefaultProvider, error) {
 	wsFact, err := r.workspaceFactory(repo)
 	if err != nil {

@@ -2,13 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/internal/persistency"
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/spf13/viper"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/persistency"
 	"go.uber.org/zap"
 )
 

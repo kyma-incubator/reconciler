@@ -1,11 +1,13 @@
 package chart
 
 import (
-	"github.com/imdario/mergo"
 	"strings"
+
+	"github.com/imdario/mergo"
 )
 
 type Component struct {
+	url           string
 	version       string
 	name          string
 	profile       string
@@ -66,6 +68,11 @@ func (cb *ComponentBuilder) WithNamespace(namespace string) *ComponentBuilder {
 
 func (cb *ComponentBuilder) WithConfiguration(config map[string]interface{}) *ComponentBuilder {
 	cb.component.configuration = config
+	return cb
+}
+
+func (cb *ComponentBuilder) WithURL(url string) *ComponentBuilder {
+	cb.component.url = url
 	return cb
 }
 
