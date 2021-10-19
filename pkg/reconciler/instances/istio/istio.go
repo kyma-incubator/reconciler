@@ -24,13 +24,15 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	commander := istioctl.DefaultCommander{}
+	paths := []string{"a", "b", "c"}
+	istioctlResolver, err := istioctl.NewDefaultIstioctlResolver(paths, istioctl.DefaultVersionChecker{})
+
 	gatherer := data.NewDefaultGatherer()
 	matcher := pod.NewParentKindMatcher()
 	provider := clientset.DefaultProvider{}
 	action := reset.NewDefaultPodsResetAction(matcher)
 	istioProxyReset := proxy.NewDefaultIstioProxyReset(gatherer, action)
-	performer := actions.NewDefaultIstioPerformer(&commander, istioProxyReset, &provider)
+	performer := actions.NewDefaultIstioPerformer(istioctlResolver, istioProxyReset, &provider)
 	reconciler.WithReconcileAction(&ReconcileAction{
 		performer: performer,
 	})
