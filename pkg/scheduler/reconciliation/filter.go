@@ -2,7 +2,6 @@ package reconciliation
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -45,7 +44,8 @@ func (wc *WithRuntimeIDs) FilterByQuery(q *db.Select) error {
 		values = fmt.Sprintf("%s$%d,", values, i+1)
 	}
 
-	q.WhereIn("RuntimeID", values, strings.Join(wc.RuntimeIDs, ","))
+	runtimeIDs := toInterfaceSlice(wc.RuntimeIDs)
+	q.WhereIn("RuntimeID", values, runtimeIDs...)
 	return nil
 }
 
@@ -96,4 +96,13 @@ func (cr *CurrentlyReconciling) FilterByInstance(i *model.ReconciliationEntity) 
 		return i
 	}
 	return nil
+}
+
+func toInterfaceSlice(args []string) []interface{} {
+	argsLen := len(args)
+	result := make([]interface{}, argsLen)
+	for i := 0; i < argsLen; i++ {
+		result[i] = args[i]
+	}
+	return result
 }
