@@ -1,6 +1,8 @@
 package istio
 
 import (
+	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -55,14 +57,9 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 
-		generated, err := generateNewManifestWithoutIstioOperatorFrom(manifest.Manifest)
+		err = deployIstioResources(manifest.Manifest, context.KubeClient, context.Context, context.Logger)
 		if err != nil {
-			return errors.Wrap(err, "Could not generate manifest without Istio Operator")
-		}
-
-		_, err = context.KubeClient.Deploy(context.Context, generated, istioNamespace, nil)
-		if err != nil {
-			return errors.Wrap(err, "Could not deploy Istio resources")
+			return errors.Wrap(err, "Could not deloy Istio resources")
 		}
 	} else if canUpdate(ver, context.Logger) {
 		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
@@ -75,6 +72,11 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		err = a.performer.ResetProxy(context.KubeClient.Kubeconfig(), ver, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not reset Istio proxy")
+		}
+
+		err = deployIstioResources(manifest.Manifest, context.KubeClient, context.Context, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not deploy Istio resources")
 		}
 	}
 
@@ -207,4 +209,19 @@ func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error
 	}
 
 	return builder.String(), nil
+}
+
+func deployIstioResources(manifest string, client kubernetes.Client, context context.Context, logger *zap.SugaredLogger) error {
+	generated, err := generateNewManifestWithoutIstioOperatorFrom(manifest)
+	if err != nil {
+		return errors.Wrap(err, "Could not generate manifest without Istio Operator")
+	}
+
+	logger.Infof("Deploying other Istio resources...")
+	_, err = client.Deploy(context, generated, istioNamespace, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
