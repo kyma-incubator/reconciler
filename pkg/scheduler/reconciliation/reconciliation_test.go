@@ -84,9 +84,17 @@ func TestReconciliationFindProcessableOps(t *testing.T) {
 		{
 			Priority:      2,
 			SchedulingID:  "2",
-			CorrelationID: "2.2",
+			CorrelationID: "2.2.1",
 			ClusterConfig: 0,
 			Component:     "2b",
+			State:         model.OperationStateNew,
+		},
+		{
+			Priority:      2,
+			SchedulingID:  "2",
+			CorrelationID: "2.2.2",
+			ClusterConfig: 0,
+			Component:     "3b",
 			State:         model.OperationStateNew,
 		},
 	}
@@ -107,14 +115,15 @@ func TestReconciliationFindProcessableOps(t *testing.T) {
 			ops[0].State = model.OperationStateDone
 			ops[6].State = model.OperationStateDone
 			opsGot := findProcessableOperations(ops, 0)
-			require.Len(t, opsGot, 2)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[1], ops[7]}, opsGot)
+			require.Len(t, opsGot, 3)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[1], ops[7], ops[8]}, opsGot)
 		},
-		"Find prio2 with in_progress": func(t *testing.T) {
+		"Find prio2 with in progress": func(t *testing.T) {
 			ops[0].State = model.OperationStateDone
 			ops[1].State = model.OperationStateInProgress
 			ops[6].State = model.OperationStateDone
 			ops[7].State = model.OperationStateInProgress
+			ops[8].State = model.OperationStateInProgress
 			opsGot := findProcessableOperations(ops, 0)
 			require.Empty(t, opsGot)
 		},
@@ -123,8 +132,8 @@ func TestReconciliationFindProcessableOps(t *testing.T) {
 			ops[1].State = model.OperationStateDone
 			ops[6].State = model.OperationStateDone
 			opsGot := findProcessableOperations(ops, 0)
-			require.Len(t, opsGot, 5)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[4], ops[5], ops[7]}, opsGot)
+			require.Len(t, opsGot, 6)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[4], ops[5], ops[7], ops[8]}, opsGot)
 		},
 		"Find prio3 with throttling": func(t *testing.T) {
 			ops[0].State = model.OperationStateDone
@@ -132,16 +141,16 @@ func TestReconciliationFindProcessableOps(t *testing.T) {
 			ops[6].State = model.OperationStateDone
 
 			opsGot4 := findProcessableOperations(ops, 4)
-			require.Len(t, opsGot4, 5)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[4], ops[5], ops[7]}, opsGot4)
+			require.Len(t, opsGot4, 6)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[4], ops[5], ops[7], ops[8]}, opsGot4)
 
 			opsGot3 := findProcessableOperations(ops, 3)
-			require.Len(t, opsGot3, 4)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[4], ops[7]}, opsGot3)
+			require.Len(t, opsGot3, 5)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[4], ops[7], ops[8]}, opsGot3)
 
 			opsGot2 := findProcessableOperations(ops, 2)
-			require.Len(t, opsGot2, 3)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[7]}, opsGot2)
+			require.Len(t, opsGot2, 4)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[7], ops[8]}, opsGot2)
 
 			opsGot1 := findProcessableOperations(ops, 1)
 			require.Len(t, opsGot1, 2)
