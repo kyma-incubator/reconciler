@@ -88,8 +88,11 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 						"(but will continue processing): %s", recon, err)
 					continue
 				}
-				bk.finishReconciliation(reconResult)
-				bk.markOrphanOperations(reconResult)
+				if !bk.finishReconciliation(reconResult) {
+					//check for orphan operations only if reconciliation isn't finished
+					bk.markOrphanOperations(reconResult)
+				}
+
 			}
 		case <-ctx.Done():
 			bk.logger.Info("Stopping bookkeeper because parent context got closed")
@@ -117,7 +120,7 @@ func (bk *bookkeeper) markOrphanOperations(reconResult *ReconciliationResult) {
 	}
 }
 
-func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) {
+func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bool {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
 
@@ -126,12 +129,15 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) {
 			bk.logger.Infof("Bookkeeper updated cluster '%s' to status '%s' "+
 				"(triggered by reconciliation with schedulingID '%s')",
 				recon.RuntimeID, newClusterStatus, recon.SchedulingID)
+			return true
 		} else {
 			bk.logger.Errorf("Bookkeeper failed to update cluster '%s' to status '%s' "+
 				"(triggered by reconciliation with schedulingID '%s'): %s",
 				recon.RuntimeID, newClusterStatus, recon.SchedulingID, err)
 		}
 	}
+
+	return false
 }
 
 func (bk *bookkeeper) newReconciliationResult(recon *model.ReconciliationEntity) (*ReconciliationResult, error) {
