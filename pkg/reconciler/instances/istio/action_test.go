@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -64,7 +65,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		factory := workspacemocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Provider error"))
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		action := ReconcileAction{performer: &performer}
 
@@ -80,6 +82,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should not perform any istio action when commander version returned an error ", func(t *testing.T) {
@@ -87,7 +90,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		factory := workspacemocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioVersion{}, errors.New("Version error"))
 		action := ReconcileAction{performer: &performer}
@@ -104,6 +108,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should not perform istio install action when istio was not detected on the cluster and istio install returned an error", func(t *testing.T) {
@@ -111,7 +116,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		factory := workspacemocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioVersion{
 			ClientVersion:    "1.0",
@@ -135,6 +141,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should not perform istio install action when istio was not detected on the cluster and istio patch returned an error", func(t *testing.T) {
@@ -142,7 +149,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		factory := workspacemocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioVersion{
 			ClientVersion:    "1.0",
@@ -166,6 +174,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should perform istio install action when istio was not detected on the cluster", func(t *testing.T) {
@@ -173,7 +182,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		factory := workspacemocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioVersion{
 			ClientVersion:    "1.0",
@@ -196,6 +206,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should not perform istio update action when istio was detected on the cluster and client version is lower than target version", func(t *testing.T) {
@@ -206,7 +217,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}, nil)
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooLowClientVersion := actions.IstioVersion{
 			ClientVersion:    "1.0",
@@ -230,6 +242,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should not perform istio update action when istio was detected on the cluster and downgrade is detected", func(t *testing.T) {
@@ -240,7 +253,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}, nil)
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooLowClientVersion := actions.IstioVersion{
 			ClientVersion:    "1.2",
@@ -264,6 +278,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should not perform istio update action when istio was detected on the cluster and more than one minor upgrade was detected", func(t *testing.T) {
@@ -274,7 +289,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}, nil)
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooLowClientVersion := actions.IstioVersion{
 			ClientVersion:    "1.3",
@@ -298,6 +314,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should return error when istio was updated but proxies were not reset", func(t *testing.T) {
@@ -308,7 +325,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}, nil)
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooLowClientVersion := actions.IstioVersion{
 			ClientVersion:    "1.2.0",
@@ -335,6 +353,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should not return error when istio was reconciled to the same version and proxies reset was successful", func(t *testing.T) {
@@ -345,7 +364,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}, nil)
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
-		actionContext := newFakeServiceContext(&factory, &provider)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooLowClientVersion := actions.IstioVersion{
 			ClientVersion:    "1.2.0",
@@ -371,15 +391,12 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 }
 
-func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *service.ActionContext {
-	mockClient := &k8smocks.Client{}
-	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
-	mockClient.On("Kubeconfig").Return("kubeconfig")
-	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
 	logger := log.NewLogger(true)
 	model := reconciler.Reconciliation{
 		Component: "component",
@@ -389,13 +406,22 @@ func newFakeServiceContext(factory workspace.Factory, provider chart.Provider) *
 	}
 
 	return &service.ActionContext{
-		KubeClient:       mockClient,
+		KubeClient:       client,
 		Context:          context.Background(),
 		WorkspaceFactory: factory,
 		Logger:           logger,
 		ChartProvider:    provider,
 		Model:            &model,
 	}
+}
+
+func newFakeKubeClient() *k8smocks.Client {
+	mockClient := &k8smocks.Client{}
+	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+	mockClient.On("Kubeconfig").Return("kubeconfig")
+	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	return mockClient
 }
 
 func Test_canInstall(t *testing.T) {

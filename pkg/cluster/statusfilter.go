@@ -17,7 +17,7 @@ type statusFilter struct {
 	allowedStatuses []model.Status
 }
 
-func (sf *statusFilter) Filter(dbType db.Type, statusColHdr *db.ColumnHandler) (string, error) {
+func (sf *statusFilter) Filter(_ db.Type, statusColHdr *db.ColumnHandler) (string, error) {
 	statusColName, err := statusColHdr.ColumnName("Status")
 	if err != nil {
 		return "", err
