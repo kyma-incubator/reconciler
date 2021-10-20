@@ -31,8 +31,6 @@ func init() {
 
 	//configure reconciler
 	reconciler.
-		//list dependencies (these components have to be available before this component reconciler is able to run)
-		WithDependencies("istio").
 		//register reconciler pre-action (executed BEFORE reconciliation happens)
 		WithPreReconcileAction(&VirtSvcPreReconcilePatch{
 			name:            "pre-action",
