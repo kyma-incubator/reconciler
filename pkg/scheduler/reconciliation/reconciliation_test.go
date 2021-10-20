@@ -58,6 +58,22 @@ func TestReconciliationFindProcessableOps(t *testing.T) {
 			State:         model.OperationStateNew,
 		},
 		{
+			Priority:      3,
+			SchedulingID:  "1",
+			CorrelationID: "1.3.3",
+			ClusterConfig: 0,
+			Component:     "5a",
+			State:         model.OperationStateNew,
+		},
+		{
+			Priority:      3,
+			SchedulingID:  "1",
+			CorrelationID: "1.3.4",
+			ClusterConfig: 0,
+			Component:     "6a",
+			State:         model.OperationStateNew,
+		},
+		{
 			Priority:      1,
 			SchedulingID:  "2",
 			CorrelationID: "2.1",
@@ -79,48 +95,69 @@ func TestReconciliationFindProcessableOps(t *testing.T) {
 		"Find prio1": func(t *testing.T) {
 			opsGot := findProcessableOperations(ops, 0)
 			require.Len(t, opsGot, 2)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[0], ops[4]}, opsGot)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[0], ops[6]}, opsGot)
 		},
 		"Find prio1 with failure": func(t *testing.T) {
 			ops[0].State = model.OperationStateOrphan
 			opsGot := findProcessableOperations(ops, 0)
 			require.Len(t, opsGot, 2)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[0], ops[4]}, opsGot)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[0], ops[6]}, opsGot)
 		},
 		"Find prio2": func(t *testing.T) {
 			ops[0].State = model.OperationStateDone
-			ops[4].State = model.OperationStateDone
+			ops[6].State = model.OperationStateDone
 			opsGot := findProcessableOperations(ops, 0)
 			require.Len(t, opsGot, 2)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[1], ops[5]}, opsGot)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[1], ops[7]}, opsGot)
 		},
-		"Find prio2 with in progress": func(t *testing.T) {
+		"Find prio2 with in_progress": func(t *testing.T) {
 			ops[0].State = model.OperationStateDone
 			ops[1].State = model.OperationStateInProgress
-			ops[4].State = model.OperationStateDone
-			ops[5].State = model.OperationStateInProgress
+			ops[6].State = model.OperationStateDone
+			ops[7].State = model.OperationStateInProgress
 			opsGot := findProcessableOperations(ops, 0)
 			require.Empty(t, opsGot)
 		},
 		"Find prio3": func(t *testing.T) {
 			ops[0].State = model.OperationStateDone
 			ops[1].State = model.OperationStateDone
-			ops[4].State = model.OperationStateDone
+			ops[6].State = model.OperationStateDone
 			opsGot := findProcessableOperations(ops, 0)
-			require.Len(t, opsGot, 3)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[5]}, opsGot)
+			require.Len(t, opsGot, 5)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[4], ops[5], ops[7]}, opsGot)
+		},
+		"Find prio3 with throttling": func(t *testing.T) {
+			ops[0].State = model.OperationStateDone
+			ops[1].State = model.OperationStateDone
+			ops[6].State = model.OperationStateDone
+
+			opsGot4 := findProcessableOperations(ops, 4)
+			require.Len(t, opsGot4, 5)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[4], ops[5], ops[7]}, opsGot4)
+
+			opsGot3 := findProcessableOperations(ops, 3)
+			require.Len(t, opsGot3, 4)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[4], ops[7]}, opsGot3)
+
+			opsGot2 := findProcessableOperations(ops, 2)
+			require.Len(t, opsGot2, 3)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[3], ops[7]}, opsGot2)
+
+			opsGot1 := findProcessableOperations(ops, 1)
+			require.Len(t, opsGot1, 2)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[2], ops[7]}, opsGot1)
 		},
 		"Find with error at prio 1": func(t *testing.T) {
 			ops[0].State = model.OperationStateError
-			ops[4].State = model.OperationStateError
+			ops[6].State = model.OperationStateError
 			opsGot := findProcessableOperations(ops, 0)
 			require.Empty(t, opsGot)
 		},
 		"Find with error at prio 2": func(t *testing.T) {
 			ops[0].State = model.OperationStateDone
 			ops[1].State = model.OperationStateError
-			ops[4].State = model.OperationStateDone
-			ops[5].State = model.OperationStateError
+			ops[6].State = model.OperationStateDone
+			ops[7].State = model.OperationStateError
 			opsGot := findProcessableOperations(ops, 0)
 			require.Empty(t, opsGot)
 		},
@@ -129,7 +166,7 @@ func TestReconciliationFindProcessableOps(t *testing.T) {
 			ops[1].State = model.OperationStateDone
 			ops[2].State = model.OperationStateError
 			opsGot := findProcessableOperations(ops, 0)
-			require.ElementsMatch(t, []*model.OperationEntity{ops[4]}, opsGot)
+			require.ElementsMatch(t, []*model.OperationEntity{ops[6]}, opsGot)
 		},
 	}
 
