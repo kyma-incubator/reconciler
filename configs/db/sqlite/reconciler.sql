@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS inventory_cluster_config_statuses (
 	"cluster_version" int NOT NULL,
 	"config_version" int NOT NULL,
 	"status" text NOT NULL,
+	"deleted" boolean DEFAULT FALSE,
 	"created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY("runtime_id", "cluster_version", "config_version") REFERENCES inventory_cluster_configs("runtime_id", "cluster_version", "version") ON UPDATE CASCADE ON DELETE CASCADE
 );
@@ -109,13 +110,13 @@ CREATE TABLE IF NOT EXISTS scheduler_reconciliations (
 --DDL for scheduler operations:
 CREATE TABLE IF NOT EXISTS scheduler_operations (
     "priority" int NOT NULL,
-	"scheduling_id" text NOT NULL,
-	"correlation_id" text NOT NULL,
+    "scheduling_id" text NOT NULL,
+    "correlation_id" text NOT NULL,
     "runtime_id" text NOT NULL,
     "cluster_config" int NOT NULL,
     "component" text NOT NULL,
     "state" text NOT NULL,
-	"reason" text,
+    "reason" text,
     "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT scheduler_operations_pk UNIQUE ("scheduling_id", "correlation_id"),
