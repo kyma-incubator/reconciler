@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -85,6 +86,8 @@ const (
 )
 
 func TestDBSecret(t *testing.T) {
+	logger := zaptest.NewLogger(t).Sugar()
+
 	t.Run("Deployment with Postgres SQL in cluster", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -95,7 +98,7 @@ func TestDBSecret(t *testing.T) {
 		dsnExpected := cfg.preparePostgresDSN()
 
 		// when
-		secret, errGet := Get(name, values)
+		secret, errGet := Get(name, values, logger)
 
 		// then
 		require.NoError(t, errNew)
@@ -115,7 +118,7 @@ func TestDBSecret(t *testing.T) {
 		dsnExpected := cfg.prepareGenericDSN()
 
 		// when
-		secret, errGet := Get(name, values)
+		secret, errGet := Get(name, values, logger)
 
 		// then
 		require.NoError(t, errNew)
@@ -135,7 +138,7 @@ func TestDBSecret(t *testing.T) {
 		dsnExpected := cfg.prepareMySQLDSN()
 
 		// when
-		secret, errGet := Get(name, values)
+		secret, errGet := Get(name, values, logger)
 
 		// then
 		require.NoError(t, errNew)
@@ -154,7 +157,7 @@ func TestDBSecret(t *testing.T) {
 		dsnExpected := cfg.prepareGenericDSN()
 
 		// when
-		secret, errGet := Get(name, values)
+		secret, errGet := Get(name, values, logger)
 
 		// then
 		require.NoError(t, errNew)
@@ -171,7 +174,7 @@ func TestDBSecret(t *testing.T) {
 		require.NoError(t, err)
 
 		// when
-		secret, err := Get(name, values)
+		secret, err := Get(name, values, logger)
 
 		// then
 		require.NoError(t, err)

@@ -116,7 +116,7 @@ func TestOryDbSecret(t *testing.T) {
 			values, err := helm.Configuration(component)
 			require.NoError(t, err)
 
-			secretObject, err := db.Get(name, values)
+			secretObject, err := db.Get(name, values, logger)
 			require.NoError(t, err)
 
 			if test.PreCreateSecret {

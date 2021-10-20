@@ -64,10 +64,14 @@ func (a *preAction) Run(context *service.ActionContext) error {
 		}
 
 		logger.Info("Ory DB secret does not exist, creating it now")
-		secretObject, err = db.Get(dbNamespacedName, values)
+		secretObject, err = db.Get(dbNamespacedName, values, logger)
 		if err != nil {
 			return errors.Wrap(err, "failed to create db credentials data for Ory Hydra")
 		}
+		if err := a.ensureOrySecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
+			return errors.Wrap(err, "failed to ensure Ory secret")
+		}
+
 	} else {
 		logger.Info("Ory DB secret exists, looking for differences")
 		isUpdate, err := db.IsUpdate(dbNamespacedName, values, secretObject, logger)
@@ -79,16 +83,14 @@ func (a *preAction) Run(context *service.ActionContext) error {
 			return nil
 		} else {
 			logger.Info("Ory DB secret is different than values, updating it")
+			if err := a.updateSecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
+				return errors.Wrap(err, "failed to update Ory secret")
+			}
+			return nil
 		}
 	}
 
-	// secretObject, err := db.Get(dbNamespacedName, values)
-	if err := a.ensureOrySecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
-		return errors.Wrap(err, "failed to ensure Ory secret")
-	}
-
 	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
-
 	return nil
 }
 
@@ -126,6 +128,15 @@ func (a *preAction) ensureOrySecret(ctx context.Context, client kubernetes.Inter
 		return errors.Wrap(err, "failed to get secret")
 	}
 
+	return err
+}
+
+func (a *preAction) updateSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
+	_, err := client.CoreV1().Secrets(name.Namespace).Update(ctx, &secret, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to update the secret")
+	}
+	logger.Infof("Secret %s updated", name.String())
 	return err
 }
 
