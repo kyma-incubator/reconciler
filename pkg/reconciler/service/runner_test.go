@@ -20,10 +20,9 @@ import (
 )
 
 const (
-	kymaVersion           = "1.24.0" //if changed: please update also ./test/.gitignore file!
+	kymaVersion           = "1.24.7" //if changed: please update also ./test/.gitignore file!
 	fakeKymaVersion       = "0.0.0"
 	clusterUsersComponent = "cluster-users"
-	apiGatewayComponent   = "api-gateway"
 	fakeComponent         = "component-1"
 	workspaceInHomeDir    = "reconciliation-test"
 	workspaceInProjectDir = "test"
@@ -67,25 +66,28 @@ func TestRunner(t *testing.T) {
 	test.IntegrationTest(t)
 
 	cleanup(t)
+	defer func() {
+		cleanup(t)
+	}()
 
-	t.Run("Run with pre-, post- and custom install-action", func(t *testing.T) {
+	t.Run("Run with pre-, post- and custom reconcile-action", func(t *testing.T) {
 		SetWorkspaceFactoryForHomeDir(t)
 
-		//create install actions
+		//create actions
 		preAct := &TestAction{
-			name:  "pre-install",
+			name:  "pre",
 			delay: 1 * time.Second,
 		}
-		instAct := &TestAction{
-			name:  "install",
+		reconcileAct := &TestAction{
+			name:  "reconcile",
 			delay: 1 * time.Second,
 		}
 		postAct := &TestAction{
-			name:  "post-install",
+			name:  "post",
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, instAct, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, preAct, reconcileAct, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
@@ -95,20 +97,20 @@ func TestRunner(t *testing.T) {
 
 		//all actions have to be executed
 		require.Equal(t, kymaVersion, preAct.receivedVersion)
-		require.Equal(t, kymaVersion, instAct.receivedVersion)
+		require.Equal(t, kymaVersion, reconcileAct.receivedVersion)
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
-	t.Run("Run with pre- and post-action but default install-action for cluster-users component", func(t *testing.T) {
+	t.Run("Run with pre- and post-action but default reconcile-action for cluster-users component", func(t *testing.T) {
 		SetWorkspaceFactoryForHomeDir(t)
 
-		//create install actions
+		//create actions
 		preAct := &TestAction{
-			name:  "pre-install",
+			name:  "pre",
 			delay: 1 * time.Second,
 		}
 		postAct := &TestAction{
-			name:  "post-install",
+			name:  "post",
 			delay: 1 * time.Second,
 		}
 
@@ -125,42 +127,16 @@ func TestRunner(t *testing.T) {
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
-	t.Run("Run with pre- and post-action but default install-action for api-gateway component", func(t *testing.T) {
+	t.Run("Run with reconcile-action for cluster-users component", func(t *testing.T) {
 		SetWorkspaceFactoryForHomeDir(t)
 
-		//create install actions
-		preAct := &TestAction{
-			name:  "pre-install",
-			delay: 1 * time.Second,
-		}
-		postAct := &TestAction{
-			name:  "post-install",
+		//create reconcile action
+		reconcileAct := &TestAction{
+			name:  "reconcile",
 			delay: 1 * time.Second,
 		}
 
-		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, apiGatewayComponent, kymaVersion, "default")
-		cbh := newCallbackHandler(t)
-
-		//successful run
-		err := runner.Run(context.Background(), model, cbh)
-		require.NoError(t, err)
-
-		//all actions have to be executed
-		require.Equal(t, kymaVersion, preAct.receivedVersion)
-		require.Equal(t, kymaVersion, postAct.receivedVersion)
-	})
-
-	t.Run("Run without pre- and post-action", func(t *testing.T) {
-		SetWorkspaceFactoryForHomeDir(t)
-
-		//create install actions
-		instAct := &TestAction{
-			name:  "install",
-			delay: 1 * time.Second,
-		}
-
-		runner := newRunner(t, nil, instAct, nil, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
+		runner := newRunner(t, nil, reconcileAct, nil, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
 		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
@@ -168,16 +144,16 @@ func TestRunner(t *testing.T) {
 		err := runner.Run(context.Background(), model, cbh)
 		require.NoError(t, err)
 
-		//install action has to be executed
-		require.Equal(t, kymaVersion, instAct.receivedVersion)
+		//reconcile action has to be executed
+		require.Equal(t, kymaVersion, reconcileAct.receivedVersion)
 	})
 
-	t.Run("Run with permanently failing pre-action", func(t *testing.T) {
+	t.Run("Run with permanently failing pre-action for cluster-users component", func(t *testing.T) {
 		SetWorkspaceFactoryForHomeDir(t)
 
-		//create install actions
+		//create actions
 		preAct := &TestAction{
-			name:       "pre-install",
+			name:       "pre",
 			delay:      1 * time.Second,
 			failAlways: true,
 			fail:       true,
@@ -191,22 +167,22 @@ func TestRunner(t *testing.T) {
 		err := runner.Run(context.Background(), model, cbh)
 		require.Error(t, err)
 
-		//pre-install action has to be executed
+		//pre action has to be executed
 		require.Equal(t, kymaVersion, preAct.receivedVersion)
 	})
 
-	t.Run("Run with permanently failing install-action", func(t *testing.T) {
+	t.Run("Run with permanently failing reconcile-action for cluster-users component", func(t *testing.T) {
 		SetWorkspaceFactoryForHomeDir(t)
 
-		//create install actions
-		install := &TestAction{
-			name:       "install",
+		//create actions
+		reconcileAct := &TestAction{
+			name:       "reconcile",
 			delay:      1 * time.Second,
 			failAlways: true,
 			fail:       true,
 		}
 
-		runner := newRunner(t, nil, install, nil, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, nil, reconcileAct, nil, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
@@ -214,26 +190,26 @@ func TestRunner(t *testing.T) {
 		err := runner.Run(context.Background(), model, cbh)
 		require.Error(t, err)
 
-		//install action has to be executed
-		require.Equal(t, kymaVersion, install.receivedVersion)
+		//reconcile action has to be executed
+		require.Equal(t, kymaVersion, reconcileAct.receivedVersion)
 	})
 
-	t.Run("Run with permanently failing post-action", func(t *testing.T) {
+	t.Run("Run with permanently failing post-action for cluster-users component", func(t *testing.T) {
 		SetWorkspaceFactoryForHomeDir(t)
 
-		//create install actions
-		install := &TestAction{
-			name:  "install",
+		//create actions
+		reconcileAct := &TestAction{
+			name:  "reconcile",
 			delay: 1 * time.Second,
 		}
 		postAct := &TestAction{
-			name:       "post-install",
+			name:       "post",
 			delay:      1 * time.Second,
 			failAlways: true,
 			fail:       true,
 		}
 
-		runner := newRunner(t, nil, install, postAct, 10*time.Second, 1*time.Minute)
+		runner := newRunner(t, nil, reconcileAct, postAct, 10*time.Second, 1*time.Minute)
 		model := newModel(t, clusterUsersComponent, kymaVersion, "")
 		cbh := newCallbackHandler(t)
 
@@ -241,8 +217,8 @@ func TestRunner(t *testing.T) {
 		err := runner.Run(context.Background(), model, cbh)
 		require.Error(t, err)
 
-		//install and post-install action have to be executed
-		require.Equal(t, kymaVersion, install.receivedVersion)
+		//reconcile and post action have to be executed
+		require.Equal(t, kymaVersion, reconcileAct.receivedVersion)
 		require.Equal(t, kymaVersion, postAct.receivedVersion)
 	})
 
@@ -274,7 +250,7 @@ func SetWorkspaceFactoryForHomeDir(t *testing.T) {
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 }
 
-func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout time.Duration) *runner {
+func newRunner(t *testing.T, preAct, reconcileAct, postAct Action, interval, timeout time.Duration) *runner {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 
@@ -288,7 +264,7 @@ func newRunner(t *testing.T, preAct, instAct, postAct Action, interval, timeout 
 		WithWorkers(5, timeout).
 		WithHeartbeatSenderConfig(interval, timeout).
 		WithPreReconcileAction(preAct).
-		WithReconcileAction(instAct).
+		WithReconcileAction(reconcileAct).
 		WithPostReconcileAction(postAct).
 		WithProgressTrackerConfig(interval, timeout)
 
@@ -311,7 +287,6 @@ func cleanup(t *testing.T) {
 
 	cleanup := NewTestCleanup(recon, kubeClient)
 	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
-	cleanup.RemoveKymaComponent(t, kymaVersion, apiGatewayComponent, "default")
 
 	wsf, err = workspace.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
 	require.NoError(t, err)
