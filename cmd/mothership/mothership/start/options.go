@@ -19,6 +19,7 @@ type Options struct {
 	OrphanOperationTimeout   time.Duration
 	ClusterReconcileInterval time.Duration
 	CreateEncyptionKey       bool
+	MaxParallelOperations    int
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -31,6 +32,7 @@ func NewOptions(o *cli.Options) *Options {
 		0 * time.Minute, //Orphan timeout
 		0 * time.Second, //ClusterReconcileInterval
 		false,           //CreateEncyptionKey
+		0,               //MaxParallelOperations
 	}
 }
 
@@ -49,6 +51,9 @@ func (o *Options) Validate() error {
 	}
 	if o.ClusterReconcileInterval <= 0 {
 		return errors.New("cluster reconciliation interval cannot be <= 0")
+	}
+	if o.MaxParallelOperations < 0 {
+		return errors.New("maximal parallel reconciled components per cluster cannot be < 0")
 	}
 	return ssl.VerifyKeyPair(o.SSLCrt, o.SSLKey)
 }

@@ -50,8 +50,9 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			GetOne()
 		if err == nil {
 			existingReconEntity := existingRecon.(*model.ReconciliationEntity)
-			r.Logger.Warnf("Found existing reconciliation for cluster '%s' (was created at '%s)' "+
-				"and cannot create another one", state.Cluster.RuntimeID, existingReconEntity.Created)
+			r.Logger.Infof("Found existing reconciliation for cluster '%s' (cluster-version:%d/config-version:%d) "+
+				"which was created at '%s': cannot create another one",
+				state.Cluster.RuntimeID, state.Cluster.Version, state.Configuration.Version, existingReconEntity.Created)
 			return nil, newDuplicateClusterReconciliationError(existingReconEntity)
 		}
 		if err != sql.ErrNoRows {
@@ -289,12 +290,12 @@ func (r *PersistentReconciliationRepository) GetOperation(schedulingID, correlat
 	return opEntity.(*model.OperationEntity), nil
 }
 
-func (r *PersistentReconciliationRepository) GetProcessableOperations() ([]*model.OperationEntity, error) {
+func (r *PersistentReconciliationRepository) GetProcessableOperations(maxParallelOpsPerRecon int) ([]*model.OperationEntity, error) {
 	opEntities, err := r.GetReconcilingOperations()
 	if err != nil {
 		return nil, err
 	}
-	return findProcessableOperations(opEntities), nil
+	return findProcessableOperations(opEntities, maxParallelOpsPerRecon), nil
 }
 
 func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*model.OperationEntity, error) {

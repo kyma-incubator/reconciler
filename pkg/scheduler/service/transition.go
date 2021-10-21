@@ -39,28 +39,30 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 
 func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.State, preComponents []string) error {
 	dbOp := func() error {
-		//create reconciliation entity
-		reconEntity, err := t.reconRepo.CreateReconciliation(clusterState, preComponents)
-		if err != nil {
-			if reconciliation.IsDuplicateClusterReconciliationError(err) {
-				t.logger.Infof("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
-					"cluster was already enqueued", clusterState.Cluster.RuntimeID)
-				return err
-			}
-			t.logger.Errorf("Cluster transition failed to add cluster '%s' to reconciliation queue: %s",
-				clusterState.Cluster.RuntimeID, err)
-			return err
-		}
 		//set cluster status to reconciling
 		newClusterState, err := t.inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
 		if err == nil {
-			t.logger.Infof("Cluster transition finished: runtime '%s' added to reconciliation queue (reconciliation entity: %s)",
-				clusterState.Cluster.RuntimeID, reconEntity)
 			t.logger.Debugf("Cluster transition set status of runtime '%s' to '%s' (cluster status entity: %s)",
-				clusterState.Cluster.RuntimeID, model.ClusterStatusReconciling, newClusterState.Status)
+				newClusterState.Cluster.RuntimeID, model.ClusterStatusReconciling, newClusterState.Status)
 		} else {
 			t.logger.Errorf("Cluster transition failed to update status of runtime '%s' to '%s': %s",
 				clusterState.Cluster.RuntimeID, model.ClusterStatusReconciling, err)
+		}
+
+		//create reconciliation entity
+		reconEntity, err := t.reconRepo.CreateReconciliation(newClusterState, preComponents)
+		if err == nil {
+			t.logger.Infof("Cluster transition finished: runtime '%s' added to reconciliation queue (reconciliation entity: %s)",
+				newClusterState.Cluster.RuntimeID, reconEntity)
+		} else {
+			if reconciliation.IsDuplicateClusterReconciliationError(err) {
+				t.logger.Infof("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
+					"cluster was already enqueued", newClusterState.Cluster.RuntimeID)
+				return err
+			}
+			t.logger.Errorf("Cluster transition failed to add cluster '%s' to reconciliation queue: %s",
+				newClusterState.Cluster.RuntimeID, err)
+			return err
 		}
 
 		return err
