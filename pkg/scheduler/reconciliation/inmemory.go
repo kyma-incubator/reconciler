@@ -174,12 +174,12 @@ func (r *InMemoryReconciliationRepository) GetOperation(schedulingID, correlatio
 	return op, nil
 }
 
-func (r *InMemoryReconciliationRepository) GetProcessableOperations() ([]*model.OperationEntity, error) {
+func (r *InMemoryReconciliationRepository) GetProcessableOperations(maxParallelOpsPerRecon int) ([]*model.OperationEntity, error) {
 	allOps, err := r.GetReconcilingOperations()
 	if err != nil {
 		return nil, err
 	}
-	return findProcessableOperations(allOps), nil
+	return findProcessableOperations(allOps, maxParallelOpsPerRecon), nil
 }
 
 func (r *InMemoryReconciliationRepository) GetReconcilingOperations() ([]*model.OperationEntity, error) {

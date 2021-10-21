@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	defaultMaxParallelOperations  = 25
 	defaultPoolSize               = 500
 	defaultOperationCheckInterval = 30 * time.Second
 	defaultInvokerMaxRetries      = 5
@@ -13,6 +14,7 @@ const (
 )
 
 type Config struct {
+	MaxParallelOperations  int //maximal parallel operations per cluster (respectively reconciliation)
 	PoolSize               int
 	OperationCheckInterval time.Duration
 	InvokerMaxRetries      int
@@ -20,6 +22,12 @@ type Config struct {
 }
 
 func (c *Config) validate() error {
+	if c.MaxParallelOperations < 0 {
+		return fmt.Errorf("parallel operations per reconciliation cannot be < 0 (was %d)", c.MaxParallelOperations)
+	}
+	if c.MaxParallelOperations == 0 {
+		c.MaxParallelOperations = defaultMaxParallelOperations
+	}
 	if c.PoolSize < 0 {
 		return fmt.Errorf("pool size cannot be < 0 (was %d)", c.PoolSize)
 	}
