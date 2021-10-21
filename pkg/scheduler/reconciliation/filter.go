@@ -106,3 +106,21 @@ func toInterfaceSlice(args []string) []interface{} {
 	}
 	return result
 }
+
+type WithClusterConfigStatus struct {
+	ClusterConfigStatus int64
+}
+
+func (wc *WithClusterConfigStatus) FilterByQuery(q *db.Select) error {
+	q.Where(map[string]interface{}{
+		"ClusterConfigStatus": wc.ClusterConfigStatus,
+	})
+	return nil
+}
+
+func (wc *WithClusterConfigStatus) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
+	if i.ClusterConfigStatus == wc.ClusterConfigStatus {
+		return i
+	}
+	return nil
+}
