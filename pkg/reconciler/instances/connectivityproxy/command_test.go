@@ -119,7 +119,7 @@ func TestCommandInstall(t *testing.T) {
 		actionContext := &service.ActionContext{
 			Context: context.Background(),
 			Model: &reconciler.Reconciliation{
-				Configuration: nil,
+				Configuration: make(map[string]interface{}),
 			},
 		}
 

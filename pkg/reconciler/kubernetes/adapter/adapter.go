@@ -229,6 +229,10 @@ func (g *kubeClientAdapter) ListResource(resource string, lo metav1.ListOptions)
 }
 
 func (g *kubeClientAdapter) GetStatefulSet(ctx context.Context, name, namespace string) (*v1apps.StatefulSet, error) {
+	if namespace == "" {
+		namespace = "default"
+	}
+
 	clientset, err := g.Clientset()
 	if err != nil {
 		return nil, errors.Wrap(err, "Error retrieving clientSet")
@@ -248,6 +252,10 @@ func (g *kubeClientAdapter) GetStatefulSet(ctx context.Context, name, namespace 
 }
 
 func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error) {
+	if namespace == "" {
+		namespace = "default"
+	}
+
 	clientset, err := g.Clientset()
 	if err != nil {
 		return nil, errors.Wrap(err, "Error retrieving clientSet")

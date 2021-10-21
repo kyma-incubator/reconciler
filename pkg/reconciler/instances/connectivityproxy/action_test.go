@@ -45,7 +45,7 @@ func TestAction(t *testing.T) {
 	}
 
 	t.Run("Should install app if binding exists and app is missing - operator", func(t *testing.T) {
-		kubeClient.On("GetStatefulSet", context.Context, "test-component", "default").
+		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").
 			Return(nil, nil)
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(secret, nil)
@@ -58,7 +58,7 @@ func TestAction(t *testing.T) {
 	})
 
 	t.Run("Should install app if binding exists and app is missing - catalog", func(t *testing.T) {
-		kubeClient.On("GetStatefulSet", context.Context, "test-component", "default").
+		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").
 			Return(nil, nil)
 		loader.On("FindBindingOperator", context).Return(nil, nil)
 		loader.On("FindBindingCatalog", context).Return(binding, nil)
@@ -72,7 +72,7 @@ func TestAction(t *testing.T) {
 	})
 
 	t.Run("Should remove app if binding is missing and app is existing", func(t *testing.T) {
-		kubeClient.On("GetStatefulSet", context.Context, "test-component", "default").
+		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").
 			Return(statefulset, nil)
 		loader.On("FindBindingOperator", context).Return(nil, nil)
 		loader.On("FindBindingCatalog", context).Return(nil, nil)
@@ -84,7 +84,7 @@ func TestAction(t *testing.T) {
 	})
 
 	t.Run("Should do nothing if binding and app exists ", func(t *testing.T) {
-		kubeClient.On("GetStatefulSet", context.Context, "test-component", "default").
+		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").
 			Return(statefulset, nil)
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 
@@ -93,7 +93,7 @@ func TestAction(t *testing.T) {
 	})
 
 	t.Run("Should do nothing if binding and app missing ", func(t *testing.T) {
-		kubeClient.On("GetStatefulSet", context.Context, "test-component", "default").
+		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").
 			Return(statefulset, nil)
 		loader.On("FindBindingOperator", context).Return(nil, nil)
 		loader.On("FindBindingCatalog", context).Return(nil, nil)
@@ -103,7 +103,7 @@ func TestAction(t *testing.T) {
 	})
 
 	t.Run("Should install when secret not found", func(t *testing.T) {
-		kubeClient.On("GetStatefulSet", context.Context, "test-component", "default").
+		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").
 			Return(nil, nil)
 
 		loader.On("FindBindingOperator", context).Return(binding, nil)

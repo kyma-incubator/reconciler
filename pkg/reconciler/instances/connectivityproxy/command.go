@@ -28,12 +28,7 @@ type CommandActions struct {
 
 func (a *CommandActions) Install(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) error {
 	for key, value := range bindingSecret.Data {
-		configuration := context.Model.Configuration
-		if configuration == nil {
-			context.Model.Configuration = make(map[string]interface{})
-			configuration = context.Model.Configuration
-		}
-		configuration[key] = value
+		context.Model.Configuration[key] = value
 	}
 
 	err := a.install.Invoke(context.Context, context.ChartProvider, context.Model, context.KubeClient)

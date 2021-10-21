@@ -14,10 +14,6 @@ type CustomAction struct {
 func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Info("Staring invocation of " + context.Model.Component + " reconciliation")
 
-	if context.Model.Namespace == "" {
-		context.Model.Namespace = "default"
-	}
-
 	context.Logger.Info("Checking statefulset")
 	app, err := context.KubeClient.
 		GetStatefulSet(context.Context, context.Model.Component, context.Model.Namespace)
