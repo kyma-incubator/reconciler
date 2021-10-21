@@ -22,6 +22,7 @@ func NewParams(r *http.Request) *Params {
 		params: params,
 	}
 }
+
 func (p *Params) String(name string) (string, error) {
 	result, ok := p.params[name]
 	if !ok {
