@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	kymaVersion           = "1.24.0" //if changed: please update also ./test/.gitignore file!
+	kymaVersion           = "1.24.7" //if changed: please update also ./test/.gitignore file!
 	fakeKymaVersion       = "0.0.0"
 	clusterUsersComponent = "cluster-users"
 	apiGatewayComponent   = "api-gateway"

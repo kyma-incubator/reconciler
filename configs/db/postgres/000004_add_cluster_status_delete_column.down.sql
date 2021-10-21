@@ -1,0 +1,1 @@
+ALTER TABLE inventory_cluster_config_statuses DROP COLUMN "deleted";

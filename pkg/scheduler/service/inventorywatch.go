@@ -49,7 +49,8 @@ func (w *inventoryWatcher) Run(ctx context.Context, queue inventoryQueue) error 
 func (w *inventoryWatcher) processClustersToReconcile(queue inventoryQueue) {
 	clusterStates, err := w.inventory.ClustersToReconcile(w.config.ClusterReconcileInterval)
 	if err != nil {
-		w.logger.Errorf("Error while fetching clusters to reconcile from inventory (using reconcile interval of %.0f secs): %s",
+		w.logger.Errorf("Inventory watchers failed to fetch clusters to reconcile from inventory "+
+			"(using reconcile interval of %.0f secs): %s",
 			w.config.ClusterReconcileInterval.Seconds(), err)
 		return
 	}
@@ -57,10 +58,11 @@ func (w *inventoryWatcher) processClustersToReconcile(queue inventoryQueue) {
 	w.logger.Debugf("Inventory watcher found %d clusters which require a reconciliation", len(clusterStates))
 	for _, clusterState := range clusterStates {
 		if clusterState == nil {
-			w.logger.Warn("Found nil cluster state when processing the list of clusters to reconcile")
+			w.logger.Warn("Inventory watcher found nil cluster state when processing the list of clusters to reconcile")
 			continue
 		}
-		w.logger.Infof("Inventory watcher added runtime '%s' to scheduling queue", clusterState.Cluster.RuntimeID)
+		w.logger.Infof("Inventory watcher added runtime '%s' (cluster-version:%d/config-version:%d) to scheduling queue",
+			clusterState.Cluster.RuntimeID, clusterState.Cluster.Version, clusterState.Configuration.Version)
 		queue <- clusterState
 	}
 }

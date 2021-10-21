@@ -50,8 +50,9 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			GetOne()
 		if err == nil {
 			existingReconEntity := existingRecon.(*model.ReconciliationEntity)
-			r.Logger.Warnf("Found existing reconciliation for cluster '%s' (was created at '%s)' "+
-				"and cannot create another one", state.Cluster.RuntimeID, existingReconEntity.Created)
+			r.Logger.Infof("Found existing reconciliation for cluster '%s' (cluster-version:%d/config-version:%d) "+
+				"which was created at '%s': cannot create another one",
+				state.Cluster.RuntimeID, state.Cluster.Version, state.Configuration.Version, existingReconEntity.Created)
 			return nil, newDuplicateClusterReconciliationError(existingReconEntity)
 		}
 		if err != sql.ErrNoRows {
