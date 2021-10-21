@@ -57,7 +57,7 @@ func (a *preAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	secretObject, err := a.getDBConfigSecret(context.Context, client, dbNamespacedName, logger)
+	secretObject, err := a.getDBConfigSecret(context.Context, client, dbNamespacedName)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrap(err, "Could not get DB secret")
@@ -80,13 +80,11 @@ func (a *preAction) Run(context *service.ActionContext) error {
 		}
 		if !isUpdate {
 			logger.Info("Ory DB secret is the same as values, no need to update")
-			return nil
 		} else {
 			logger.Info("Ory DB secret is different than values, updating it")
 			if err := a.updateSecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
 				return errors.Wrap(err, "failed to update Ory secret")
 			}
-			return nil
 		}
 	}
 
@@ -113,7 +111,7 @@ func (a *postAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *preAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) (*v1.Secret, error) {
+func (a *preAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (*v1.Secret, error) {
 	secret, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
 		return secret, errors.Wrap(err, "failed to get Ory DB secret")
@@ -128,7 +126,7 @@ func (a *preAction) ensureOrySecret(ctx context.Context, client kubernetes.Inter
 		if kerrors.IsNotFound(err) {
 			return createSecret(ctx, client, name, secret, logger)
 		}
-		return errors.Wrap(err, "failed to get secret")
+		return errors.Wrap(err, "failed to get Ory DB secret")
 	}
 
 	return err
