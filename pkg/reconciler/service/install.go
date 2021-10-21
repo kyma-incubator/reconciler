@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -21,33 +22,41 @@ func NewInstall(logger *zap.SugaredLogger) *Install {
 
 //go:generate mockery --name=Operation --output=mocks --outpkg=mock --case=underscore
 type Operation interface {
-	Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error
+	Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Task, kubeClient kubernetes.Client) error
 }
 
-func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
+func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task *reconciler.Task, kubeClient kubernetes.Client) error {
 	var err error
 	var manifest string
-	if model.Component == "CRDs" {
-		manifest, err = r.renderCRDs(chartProvider, model)
+	if task.Component == model.CRDComponent { // [x] Use constant
+		manifest, err = r.renderCRDs(chartProvider, task)
 	} else {
-		manifest, err = r.renderManifest(chartProvider, model)
+		manifest, err = r.renderManifest(chartProvider, task)
 	}
 	if err != nil {
 		return err
 	}
 
-	resources, err := kubeClient.Deploy(ctx, manifest, model.Namespace, &LabelsInterceptor{Version: model.Version}, &AnnotationsInterceptor{})
-
-	if err == nil {
-		r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
+	if task.Type == model.OperationTypeDelete && task.Component != model.CRDComponent {
+		resources, err := kubeClient.Delete(ctx, manifest, task.Namespace)
+		if err == nil {
+			r.logger.Debugf("Deletion of manifest finished successfully: %d resources deleted", len(resources))
+		} else {
+			r.logger.Warnf("Failed to delete manifests on target cluster: %s", err)
+		}
 	} else {
-		r.logger.Warnf("Failed to deploy manifests on target cluster: %s", err)
+		resources, err := kubeClient.Deploy(ctx, manifest, task.Namespace, &LabelsInterceptor{Version: task.Version}, &AnnotationsInterceptor{})
+		if err == nil {
+			r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
+		} else {
+			r.logger.Warnf("Failed to deploy manifests on target cluster: %s", err)
+		}
 	}
 
 	return err
 }
 
-func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler.Reconciliation) (string, error) {
+func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler.Task) (string, error) {
 	component := chart.NewComponentBuilder(model.Version, model.Component).
 		WithProfile(model.Profile).
 		WithNamespace(model.Namespace).
@@ -67,7 +76,7 @@ func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler
 	return chartManifest.Manifest, nil
 }
 
-func (r *Install) renderCRDs(chartProvider chart.Provider, model *reconciler.Reconciliation) (string, error) {
+func (r *Install) renderCRDs(chartProvider chart.Provider, model *reconciler.Task) (string, error) {
 	crdManifests, err := chartProvider.RenderCRD(model.Version)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to get CRD manifests for Kyma version '%s'", model.Version)

@@ -26,6 +26,7 @@ import (
 	clientgo "k8s.io/client-go/kubernetes"
 )
 
+// BONFIRE add deletion
 const (
 	urlCallbackHTTPBin = "https://httpbin.org/post"
 	urlCallbackMock    = "http://localhost:11111/callback"
@@ -45,7 +46,7 @@ const (
 
 type testCase struct {
 	name               string
-	model              *reconciler.Reconciliation
+	model              *reconciler.Task
 	expectedHTTPCode   int
 	expectedResponse   interface{}
 	verifyCallbacksFct func(t *testing.T, callbacks []*reconciler.CallbackMessage)
@@ -144,7 +145,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 	testCases := []testCase{
 		{
 			name: "Missing dependencies",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "def"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
@@ -164,7 +165,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Invalid request: mandatory fields missing",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
@@ -183,7 +184,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Install component from scratch",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
@@ -202,7 +203,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Try to apply impossible change: add container to running pod",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
@@ -220,7 +221,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Try to reconcile unreachable cluster",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
@@ -240,7 +241,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Try to deploy defective HELM chart",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
@@ -258,7 +259,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Simulate non-available mothership",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,

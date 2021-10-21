@@ -21,19 +21,19 @@ type Params struct {
 	CorrelationID        string
 }
 
-func (p *Params) newLocalReconciliationModel(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Reconciliation {
+func (p *Params) newLocalReconciliationModel(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Task {
 	model := p.newReconciliationModel()
 	model.CallbackFunc = callbackFunc
 	return model
 }
 
-func (p *Params) newRemoteReconciliationModel(callbackURL string) *reconciler.Reconciliation {
+func (p *Params) newRemoteReconciliationModel(callbackURL string) *reconciler.Task {
 	model := p.newReconciliationModel()
 	model.CallbackURL = callbackURL
 	return model
 }
 
-func (p *Params) newReconciliationModel() *reconciler.Reconciliation {
+func (p *Params) newReconciliationModel() *reconciler.Task {
 	version := p.ClusterState.Configuration.KymaVersion
 	if p.ComponentToReconcile.Version != "" {
 		version = p.ComponentToReconcile.Version
@@ -45,7 +45,7 @@ func (p *Params) newReconciliationModel() *reconciler.Reconciliation {
 		tokenNamespace = ""
 	}
 
-	return &reconciler.Reconciliation{
+	return &reconciler.Task{
 		ComponentsReady: p.ComponentsReady,
 		Component:       p.ComponentToReconcile.Component,
 		Namespace:       p.ComponentToReconcile.Namespace,

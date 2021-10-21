@@ -9,6 +9,8 @@ import (
 
 const tblOperation string = "scheduler_operations"
 
+// [x] Add operation field (reconcile/delete) + enum + marshallers
+// [x] database migration files
 type OperationEntity struct {
 	Priority      int64          `db:"notNull"`
 	SchedulingID  string         `db:"notNull"`
@@ -16,6 +18,7 @@ type OperationEntity struct {
 	RuntimeID     string         `db:"notNull"`
 	ClusterConfig int64          `db:"notNull"`
 	Component     string         `db:"notNull"`
+	Type          OperationType  `db:"notNull"`
 	State         OperationState `db:"notNull"`
 	Reason        string         `db:""`
 	Created       time.Time      `db:"readOnly"`
@@ -24,8 +27,8 @@ type OperationEntity struct {
 
 func (o *OperationEntity) String() string {
 	return fmt.Sprintf("OperationEntity [SchedulingID=%s,CorrelationID=%s,"+
-		"RuntimeID=%s,ClusterConfig=%d,Component=%s,Prio=%d]",
-		o.SchedulingID, o.CorrelationID, o.RuntimeID, o.ClusterConfig, o.Component, o.Priority)
+		"RuntimeID=%s,ClusterConfig=%d,Component=%s,Prio=%d,State=%s]",
+		o.SchedulingID, o.CorrelationID, o.RuntimeID, o.ClusterConfig, o.Component, o.Priority, o.Type)
 }
 
 func (*OperationEntity) New() db.DatabaseEntity {
@@ -34,6 +37,12 @@ func (*OperationEntity) New() db.DatabaseEntity {
 
 func (o *OperationEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&o)
+	marshaller.AddMarshaller("Type", func(value interface{}) (interface{}, error) {
+		return fmt.Sprintf("%s", value), nil
+	})
+	marshaller.AddUnmarshaller("Type", func(value interface{}) (interface{}, error) {
+		return NewOperationType(fmt.Sprintf("%s", value))
+	})
 	marshaller.AddMarshaller("State", func(value interface{}) (interface{}, error) {
 		return fmt.Sprintf("%s", value), nil
 	})

@@ -49,7 +49,7 @@ func (p *VirtSvcPreReconcilePatch) Run(helper *service.ActionContext) error {
 	}
 	restClient := clientSet.Discovery().RESTClient()
 
-	logger.Infof("Launching pre install busola migrator job, version: %s ", helper.Model.Version)
+	logger.Infof("Launching pre install busola migrator job, version: %s ", helper.Task.Version)
 	for _, virtSvcToPatch := range p.virtSvcsToPatch {
 		logger.Infof("Patching virtual service: %s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		if err := p.patchVirtSvc(ctx, restClient, virtSvcToPatch.Name, virtSvcToPatch.Namespace, logger); err != nil {

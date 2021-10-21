@@ -29,6 +29,10 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if len(state.Configuration.Components) == 0 {
+		return nil, newEmptyComponentsReconciliationError(state)
+	}
+
 	if existingRecon, ok := r.reconciliations[state.Cluster.RuntimeID]; ok {
 		return nil, &DuplicateClusterReconciliationError{
 			cluster:      existingRecon.RuntimeID,
@@ -47,18 +51,21 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	r.reconciliations[state.Cluster.RuntimeID] = reconEntity
 
 	//create operations
-	reconSeq, err := state.Configuration.GetReconciliationSequence(preComponents)
-	if err != nil {
-		return nil, err
+	reconSeq := state.Configuration.GetReconciliationSequence(preComponents)
+
+	if _, ok := r.operations[reconEntity.SchedulingID]; !ok {
+		r.operations[reconEntity.SchedulingID] = make(map[string]*model.OperationEntity)
 	}
+
+	opType := model.OperationTypeReconcile
+	if state.Status.Status == model.ClusterStatusDeletePending || state.Status.Status == model.ClusterStatusDeleting {
+		opType = model.OperationTypeDelete
+	}
+
 	for idx, components := range reconSeq.Queue {
 		priority := idx + 1
 		for _, component := range components {
 			correlationID := fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString())
-
-			if _, ok := r.operations[reconEntity.SchedulingID]; !ok {
-				r.operations[reconEntity.SchedulingID] = make(map[string]*model.OperationEntity)
-			}
 
 			r.operations[reconEntity.SchedulingID][correlationID] = &model.OperationEntity{
 				Priority:      int64(priority),
@@ -68,6 +75,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 				ClusterConfig: state.Configuration.Version,
 				Component:     component.Component,
 				State:         model.OperationStateNew,
+				Type:          opType,
 				Created:       time.Now().UTC(),
 				Updated:       time.Now().UTC(),
 			}

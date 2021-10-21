@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -39,8 +40,15 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 
 func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.State, preComponents []string) error {
 	dbOp := func() error {
-		//set cluster status to reconciling
-		newClusterState, err := t.inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
+		// [x] add deleting when necessary
+		//set cluster status to reconciling or deleting depending on previous state
+		var targetState model.Status
+		if clusterState.Status.Status == model.ClusterStatusReconcilePending {
+			targetState = model.ClusterStatusReconciling
+		} else if clusterState.Status.Status == model.ClusterStatusDeletePending {
+			targetState = model.ClusterStatusDeleting
+		}
+		newClusterState, err := t.inventory.UpdateStatus(clusterState, targetState)
 		if err == nil {
 			t.logger.Debugf("Starting reconciliation for cluster '%s': set cluster status to '%s'",
 				newClusterState.Cluster.RuntimeID, model.ClusterStatusReconciling)
@@ -63,6 +71,18 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 				t.logger.Errorf("Starting reconciliation for runtime '%s' failed: "+
 					"could not add runtime to reconciliation queue: %s", newClusterState.Cluster.RuntimeID, err)
 			}
+			if reconciliation.IsEmptyComponentsReconciliationError(err) {
+				t.logger.Errorf("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
+					"cluster has no components", newClusterState.Cluster.RuntimeID)
+				t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
+				return err
+			}
+			t.logger.Errorf("Cluster transition failed to add cluster '%s' to reconciliation queue: %s",
+				newClusterState.Cluster.RuntimeID, err)
+			return err
+		} else {
+			t.logger.Infof("Cluster transition finished: runtime '%s' added to reconciliation queue (reconciliation entity: %s)",
+				newClusterState.Cluster.RuntimeID, reconEntity)
 		}
 
 		return err
@@ -111,8 +131,13 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 				"(schedulingID:%s/clusterVersion:%d/configVersion:%d) : %s",
 				clusterState.Cluster.RuntimeID, schedulingID,
 				clusterState.Cluster.Version, clusterState.Configuration.Version, err)
+			return err
 		}
-		return err
+
+		if status == model.ClusterStatusDeleted {
+			return t.inventory.Delete(clusterState.Cluster.RuntimeID)
+		}
+		return nil
 	}
 	return db.Transaction(t.conn, dbOp, t.logger)
 }

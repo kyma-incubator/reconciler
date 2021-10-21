@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -16,8 +19,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 type customAction struct {
@@ -49,7 +50,7 @@ func TestRuntimeBuilder(t *testing.T) {
 	t.Run("Run local with error", func(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{false})
 		reconResult, receivedUpdates := runLocal(t, 5*time.Second)
-		require.Equal(t, reconResult.GetResult(), model.ClusterStatusError)
+		require.Equal(t, reconResult.GetResult(), model.ClusterStatusReconcileError)
 		require.Equal(t, reconciler.StatusError, receivedUpdates[len(receivedUpdates)-1].Status)
 	})
 
@@ -58,7 +59,7 @@ func TestRuntimeBuilder(t *testing.T) {
 	})
 
 	t.Run("Run remote with error", func(t *testing.T) {
-		runRemote(t, model.ClusterStatusError, 5*time.Second)
+		runRemote(t, model.ClusterStatusReconcileError, 5*time.Second)
 	})
 
 }
@@ -143,7 +144,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expectedClusterStatus model.Status) {
 	var opState model.OperationState
 	switch expectedClusterStatus {
-	case model.ClusterStatusError:
+	case model.ClusterStatusReconcileError:
 		opState = model.OperationStateError
 	case model.ClusterStatusReady:
 		opState = model.OperationStateDone

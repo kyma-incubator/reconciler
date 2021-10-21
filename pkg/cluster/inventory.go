@@ -3,8 +3,9 @@ package cluster
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -15,6 +16,7 @@ import (
 type Inventory interface {
 	CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error)
 	UpdateStatus(State *State, status model.Status) (*State, error)
+	MarkForDeletion(runtimeID string) (*State, error)
 	Delete(runtimeID string) error
 	Get(runtimeID string, configVersion int64) (*State, error)
 	GetLatest(runtimeID string) (*State, error)
@@ -46,6 +48,9 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 }
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
+	if len(cluster.KymaConfig.Components) == 0 {
+		return nil, fmt.Errorf("Error creating cluster with RuntimeID: %s, component list is empty.", cluster.RuntimeID)
+	}
 	dbOps := func() (interface{}, error) {
 		clusterEntity, err := i.createCluster(contractVersion, cluster)
 		if err != nil {
@@ -208,6 +213,16 @@ func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*Sta
 	return state, nil
 }
 
+// [x] add mark for deletion -> status delete-pending
+func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
+	clusterState, err := i.GetLatest(runtimeID)
+	if err != nil {
+		return nil, err
+	}
+	return i.UpdateStatus(clusterState, model.ClusterStatusDeletePending)
+}
+
+// move current impl to bookkeeper
 func (i *DefaultInventory) Delete(runtimeID string) error {
 	dbOps := func() error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID)
@@ -416,6 +431,7 @@ func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity
 	return clusterEntity.(*model.ClusterEntity), nil
 }
 
+// [x] consider clusters marked for deletion
 func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
 	var filters []statusSQLFilter
 	if reconcileInterval > 0 {
@@ -424,14 +440,17 @@ func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) 
 		})
 	}
 	filters = append(filters, &statusFilter{
-		allowedStatuses: []model.Status{model.ClusterStatusReconcilePending, model.ClusterStatusReconcileFailed},
+		allowedStatuses: []model.Status{model.ClusterStatusReconcilePending, model.ClusterStatusDeletePending},
 	})
 	return i.filterClusters(filters...)
 }
 
+// [x] consider clusters marked for deletion
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	statusFilter := &statusFilter{
-		allowedStatuses: []model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed, model.ClusterStatusError, model.ClusterStatusReconcileDisabled},
+		allowedStatuses: []model.Status{
+			model.ClusterStatusReconciling, model.ClusterStatusReconcileError, model.ClusterStatusReconcileDisabled,
+			model.ClusterStatusDeleting, model.ClusterStatusDeleteError},
 	}
 	return i.filterClusters(statusFilter)
 }

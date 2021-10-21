@@ -3,12 +3,13 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	schedulerSvc "github.com/kyma-incubator/reconciler/pkg/scheduler/service"
-	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 
@@ -111,7 +112,7 @@ func RunLocal(o *Options) error {
 		return err //general issue occurred
 	}
 
-	if reconResult.GetResult() == model.ClusterStatusError { //verify reconciliation result
+	if reconResult.GetResult() == model.ClusterStatusReconcileError { //verify reconciliation result
 		var failedOpsCnt int
 		var failedOps bytes.Buffer
 		for _, op := range reconResult.GetOperations() {
