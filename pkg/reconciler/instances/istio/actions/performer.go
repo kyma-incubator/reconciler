@@ -213,7 +213,7 @@ func (c *DefaultIstioPerformer) Version(workspace workspace.Factory, branchVersi
 }
 
 func getTargetVersionFromChart(workspace workspace.Factory, branch string, istioChart string) (string, error) {
-	ws, err := workspace.Get(branch)
+	ws, err := workspace.Get(branch, "", "")
 	if err != nil {
 		return "", err
 	}

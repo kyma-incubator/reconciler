@@ -53,7 +53,7 @@ func TestWorkspaceFactory(t *testing.T) {
 		//cleanup at the end (if test finishes regularly)
 		defer testDelete(t, wsf)
 
-		ws, err := wsf.Get(version)
+		ws, err := wsf.Get(version, "", "")
 		require.NoError(t, err)
 
 		require.Equal(t, filepath.Join(workspaceDir, resDir), ws.ResourceDir)
@@ -69,7 +69,7 @@ func TestWorkspaceFactory(t *testing.T) {
 		require.NoError(t, err)
 
 		//trigger re-cloning
-		ws, err = wsf.Get(version)
+		ws, err = wsf.Get(version, "", "")
 		require.NoError(t, err)
 
 		//check again all the required files including success file
@@ -81,7 +81,7 @@ func TestWorkspaceFactory(t *testing.T) {
 		workspaceDir := filepath.Join(".", "test", "local")
 		wsf, err := NewFactory(&reconciler.Repository{}, workspaceDir, log.NewLogger(true))
 		require.NoError(t, err)
-		localWs, err := wsf.Get(VersionLocal)
+		localWs, err := wsf.Get(VersionLocal, "", "")
 		require.NoError(t, err)
 		checkWorkspaceDirectories(t, localWs)
 	})

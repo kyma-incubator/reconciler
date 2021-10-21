@@ -62,7 +62,7 @@ func RunLocal(o *Options) error {
 		return err
 	}
 
-	ws, err := wsFact.Get(o.version)
+	ws, err := wsFact.Get(o.version, "", "")
 	if err != nil {
 		return err
 	}

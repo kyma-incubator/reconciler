@@ -109,7 +109,7 @@ func createRafterSecret(ctx context.Context, secretName string, values *rafterVa
 }
 
 func readRafterControllerValues(ctx *service.ActionContext, version string) (*rafterValues, error) {
-	ws, err := ctx.WorkspaceFactory.Get(version)
+	ws, err := ctx.WorkspaceFactory.Get(version, "", "")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to retrieve Kyma workspace for rafter action")
 	}

@@ -25,7 +25,7 @@ const (
 // Factory of workspace.
 type Factory interface {
 	// Get workspace of the given version.
-	Get(version string) (*Workspace, error)
+	Get(version, repository, componentName string) (*Workspace, error)
 
 	// Delete workspace of the given version.
 	Delete(version string) error
@@ -82,7 +82,7 @@ func (f *DefaultFactory) defaultStorageDir() string {
 	return filepath.Join(baseDir, ".kyma", "reconciler", "versions")
 }
 
-func (f *DefaultFactory) Get(version string) (*Workspace, error) {
+func (f *DefaultFactory) Get(version, repository, componentName string) (*Workspace, error) {
 	if err := f.validate(); err != nil {
 		return nil, err
 	}
@@ -93,11 +93,15 @@ func (f *DefaultFactory) Get(version string) (*Workspace, error) {
 	}
 
 	wsDir := f.workspaceDir(version)
+	if repository != "" {
+		wsDir = f.workspaceDir(version + "-" + componentName)
+
+	}
 
 	wsReadyFile := filepath.Join(wsDir, wsReadyIndicatorFile)
 	//ensure Kyma sources are available
 	if !file.Exists(wsReadyFile) {
-		if err := f.clone(version, wsDir); err != nil {
+		if err := f.clone(version, repository, wsDir); err != nil {
 			return nil, err
 		}
 	}
@@ -105,7 +109,7 @@ func (f *DefaultFactory) Get(version string) (*Workspace, error) {
 	return newWorkspace(wsDir)
 }
 
-func (f *DefaultFactory) clone(version, dstDir string) error {
+func (f *DefaultFactory) clone(version, repository, dstDir string) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -130,7 +134,16 @@ func (f *DefaultFactory) clone(version, dstDir string) error {
 	if err != nil {
 		return err
 	}
-	cloner, _ := git.NewCloner(&git.Client{}, f.repository, true, clientSet)
+
+	repo := f.repository
+	if repository != "" {
+		repo = &reconciler.Repository{
+			URL: repository,
+			//TokenNamespace: fmt.Sprint(configuration["repo.token.namespace"]),
+		}
+	}
+
+	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet)
 
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",

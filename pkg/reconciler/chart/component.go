@@ -12,6 +12,7 @@ type Component struct {
 	name          string
 	profile       string
 	namespace     string
+	repositoryURL string
 	configuration map[string]interface{}
 }
 

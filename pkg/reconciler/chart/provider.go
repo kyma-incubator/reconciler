@@ -44,7 +44,7 @@ func NewDefaultProvider(wsFactory workspace.Factory, logger *zap.SugaredLogger) 
 }
 
 func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
-	ws, err := p.newWorkspace(version)
+	ws, err := p.newWorkspace(version, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 }
 
 func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error) {
-	ws, err := p.newWorkspace(component.version)
+	ws, err := p.newWorkspace(component.version, component.repositoryURL, component.name)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error
 }
 
 func (p *DefaultProvider) Configuration(component *Component) (map[string]interface{}, error) {
-	ws, err := p.newWorkspace(component.version)
+	ws, err := p.newWorkspace(component.version, component.repositoryURL, component.name)
 	if err != nil {
 		return nil, err
 	}
@@ -137,11 +137,11 @@ func (p *DefaultProvider) Configuration(component *Component) (map[string]interf
 	return helmClient.Configuration(component)
 }
 
-func (p *DefaultProvider) newWorkspace(version string) (*workspace.Workspace, error) {
-	p.logger.Debugf("Getting workspace for Kyma '%s'", version)
-	ws, err := p.wsFactory.Get(version)
+func (p *DefaultProvider) newWorkspace(version, repository, componentName string) (*workspace.Workspace, error) {
+	p.logger.Debugf("Getting workspace for Kyma '%s', repository: '%s'", version, repository)
+	ws, err := p.wsFactory.Get(version, repository, componentName)
 	if err != nil {
-		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s': %s", version, err)
+		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s', repository: '%s': %s", version, repository, err)
 	}
 	return ws, err
 }
