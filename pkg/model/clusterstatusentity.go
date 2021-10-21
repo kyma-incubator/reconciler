@@ -16,6 +16,7 @@ type ClusterStatusEntity struct {
 	ClusterVersion int64     `db:"notNull"`
 	ConfigVersion  int64     `db:"notNull"`
 	Status         Status    `db:"notNull"`
+	Deleted        bool      `db:"notNull"`
 	Created        time.Time `db:"readOnly"`
 }
 
