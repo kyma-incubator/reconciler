@@ -115,6 +115,9 @@ func (a *postAction) Run(context *service.ActionContext) error {
 
 func (a *preAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) (*v1.Secret, error) {
 	secret, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
+	if err != nil {
+		return secret, errors.Wrap(err, "failed to get Ory DB secret")
+	}
 
 	return secret, err
 }

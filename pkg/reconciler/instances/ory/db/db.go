@@ -85,10 +85,10 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 		if dsn == "memory" {
 			logger.Info("Ory Hydra persistence is already disabled")
 			return data
-		} else {
-			logger.Info("Disabling persistence for Ory Hydra")
-			return c.generateSecretDataMemory(secretsSystem)
 		}
+
+		logger.Info("Disabling persistence for Ory Hydra")
+		return c.generateSecretDataMemory(secretsSystem)
 	}
 
 	// postgresql persistence is enabled and it's dsn needs an update
