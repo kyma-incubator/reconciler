@@ -15,6 +15,12 @@ type Install struct {
 	logger *zap.SugaredLogger
 }
 
+func NewInstall(logger *zap.SugaredLogger) *Install {
+	return &Install{
+		logger: logger,
+	}
+}
+
 func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
 	var err error
 	var manifest string
