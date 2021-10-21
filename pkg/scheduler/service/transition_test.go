@@ -50,6 +50,7 @@ func TestTransition(t *testing.T) {
 	}()
 
 	t.Run("Start Reconciliation", func(t *testing.T) {
+		oldClusterStateID := clusterState.Status.ID
 		err := transition.StartReconciliation(clusterState, nil)
 		require.NoError(t, err)
 
@@ -63,6 +64,7 @@ func TestTransition(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.Len(t, reconEntities, 1)
+		require.Greater(t, reconEntities[0].ClusterConfigStatus, oldClusterStateID) //verify new cluster-status ID is used
 		require.False(t, reconEntities[0].Finished)
 
 		//verify cluster status
