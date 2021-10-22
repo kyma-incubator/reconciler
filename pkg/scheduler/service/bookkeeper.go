@@ -125,16 +125,16 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bo
 	newClusterStatus := reconResult.GetResult()
 
 	if newClusterStatus == model.ClusterStatusReady || newClusterStatus == model.ClusterStatusError {
-		if err := bk.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus); err == nil {
+		err := bk.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
+		if err == nil {
 			bk.logger.Infof("Bookkeeper updated cluster '%s' to status '%s' "+
 				"(triggered by reconciliation with schedulingID '%s')",
 				recon.RuntimeID, newClusterStatus, recon.SchedulingID)
 			return true
-		} else {
-			bk.logger.Errorf("Bookkeeper failed to update cluster '%s' to status '%s' "+
-				"(triggered by reconciliation with schedulingID '%s'): %s",
-				recon.RuntimeID, newClusterStatus, recon.SchedulingID, err)
 		}
+		bk.logger.Errorf("Bookkeeper failed to update cluster '%s' to status '%s' "+
+			"(triggered by reconciliation with schedulingID '%s'): %s",
+			recon.RuntimeID, newClusterStatus, recon.SchedulingID, err)
 	}
 
 	return false

@@ -88,7 +88,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, reconcileAct, postAct, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion)
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -115,7 +115,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, postAct, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, clusterUsersComponent, kymaVersion, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion)
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -137,7 +137,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, reconcileAct, nil, 10*time.Second, 8*time.Minute) //long timeout required for slow Github clones
-		model := newModel(t, clusterUsersComponent, kymaVersion, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion)
 		cbh := newCallbackHandler(t)
 
 		//successful run
@@ -160,7 +160,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, preAct, nil, nil, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion)
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -183,7 +183,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, reconcileAct, nil, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion)
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -210,7 +210,7 @@ func TestRunner(t *testing.T) {
 		}
 
 		runner := newRunner(t, nil, reconcileAct, postAct, 10*time.Second, 1*time.Minute)
-		model := newModel(t, clusterUsersComponent, kymaVersion, "")
+		model := newModel(t, clusterUsersComponent, kymaVersion)
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -228,7 +228,7 @@ func TestRunner(t *testing.T) {
 		require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 
 		runner := newRunner(t, nil, nil, nil, 1*time.Second, 2*time.Second)
-		model := newModel(t, fakeComponent, fakeKymaVersion, "")
+		model := newModel(t, fakeComponent, fakeKymaVersion)
 		cbh := newCallbackHandler(t)
 
 		//failing run
@@ -295,12 +295,11 @@ func cleanup(t *testing.T) {
 	cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default")
 }
 
-func newModel(t *testing.T, kymaComponent, kymaVersion string, namespace string) *reconciler.Reconciliation {
+func newModel(t *testing.T, kymaComponent, kymaVersion string) *reconciler.Reconciliation {
 	return &reconciler.Reconciliation{
 		Component:  kymaComponent,
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
-		Namespace:  namespace,
 		//global parameters - required by some Kyma components
 		Configuration: reconTest.NewGlobalComponentConfiguration(),
 	}
