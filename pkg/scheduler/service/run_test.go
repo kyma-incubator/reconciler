@@ -101,7 +101,9 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		Host:   "httpbin.org",
 		Port:   443,
 		Scheduler: config.SchedulerConfig{
-			PreComponents: nil,
+			PreComponents: []string{
+				"dummyComponent",
+			},
 			Reconcilers: map[string]config.ComponentReconciler{
 				"base": {
 					URL: "https://httpbin.org/post",
@@ -126,7 +128,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	remoteRunner.Run(ctx)
+	require.NoError(t, remoteRunner.Run(ctx))
 
 	setOperationState(t, reconRepo, expectedClusterStatus)
 
