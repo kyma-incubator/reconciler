@@ -1,11 +1,14 @@
 package proxy
 
 import (
+	"time"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
-	"time"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 //go:generate mockery --name=IstioProxyReset --outpkg=mocks --case=underscore
@@ -13,6 +16,9 @@ import (
 type IstioProxyReset interface {
 	// Run istio proxy containers reset using the config.
 	Run(cfg config.IstioProxyConfig) error
+
+	// WaitUntilProxiesReady polls toget the current status of istio-proxy containers in the list of matched pods.
+	WaitUntilProxiesReady(podsList v1.PodList, retryInterval time.Duration, timeout time.Duration) error
 }
 
 // DefaultIstioProxyReset provides a default implementation of the IstioProxyReset.
@@ -36,7 +42,7 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	}
 
 	retryOpts := []retry.Option{
-		retry.Delay(5 * time.Second),
+		retry.Delay(time.Duration(cfg.DelayBetweenRetries) * time.Second),
 		retry.Attempts(uint(cfg.RetriesCount)),
 		retry.DelayType(retry.FixedDelay),
 	}
@@ -54,5 +60,49 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 
 	i.action.Reset(cfg.Kubeclient, retryOpts, podsWithDifferentImage, cfg.Log, cfg.Debug)
 
+	if len(podsWithDifferentImage.Items) != 0 {
+		cfg.Log.Info("Wait until all Istio proxies are running")
+
+		err = i.WaitUntilProxiesReady(podsWithDifferentImage, time.Duration(cfg.DelayBetweenRetries)*time.Second, time.Duration(cfg.Timeout)*time.Minute)
+		if err != nil {
+			return err
+		}
+
+		cfg.Log.Info("All proxies are up and running")
+	}
+
 	return nil
+}
+
+func (i *DefaultIstioProxyReset) WaitUntilProxiesReady(podsList v1.PodList, retryInterval time.Duration, timeout time.Duration) error {
+	err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+		ready := areProxiesReady(podsList)
+		return ready, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func areProxiesReady(podsList v1.PodList) bool {
+	for _, pod := range podsList.Items {
+		status := getContainerStatus(pod.Status.ContainerStatuses, "istio-proxy")
+		if !status.Ready {
+			return false
+		}
+	}
+
+	return true
+}
+
+func getContainerStatus(statuses []v1.ContainerStatus, name string) v1.ContainerStatus {
+	for i := range statuses {
+		if statuses[i].Name == name {
+			return statuses[i]
+		}
+	}
+
+	return v1.ContainerStatus{}
 }

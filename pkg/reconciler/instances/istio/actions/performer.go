@@ -26,8 +26,9 @@ const (
 	istioOperatorKind     = "IstioOperator"
 	istioImagePrefix      = "istio/proxyv2"
 	retriesCount          = 5
-	delayBetweenRetries   = 10
+	delayBetweenRetries   = 5
 	sleepAfterPodDeletion = 10
+	timeout               = 5
 )
 
 type VersionType string
@@ -211,6 +212,7 @@ func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, version IstioVersi
 		RetriesCount:          retriesCount,
 		DelayBetweenRetries:   delayBetweenRetries,
 		SleepAfterPodDeletion: sleepAfterPodDeletion,
+		Timeout:               timeout,
 		Kubeclient:            kubeClient,
 		Debug:                 false,
 		Log:                   logger,

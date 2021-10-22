@@ -2,9 +2,10 @@ package proxy
 
 import (
 	"errors"
+	"testing"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	datamocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data/mocks"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_IstioProxyReset_Run(t *testing.T) {
@@ -19,7 +21,9 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		ImagePrefix:           "istio/proxyv2",
 		ImageVersion:          "1.10.2",
 		RetriesCount:          5,
+		DelayBetweenRetries:   2,
 		SleepAfterPodDeletion: 10,
+		Timeout:               1,
 		Kubeclient:            fake.NewSimpleClientset(),
 		Log:                   log.NewLogger(true),
 	}
@@ -46,12 +50,30 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		action.AssertNumberOfCalls(t, "Reset", 1)
 	})
 
-	t.Run("should not return an error when pods are present on the cluster", func(t *testing.T) {
+	t.Run("should not return an error when pods with Istio-proxy are present on the cluster", func(t *testing.T) {
 		// given
+		testPod := v1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Pod",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-pod",
+				Namespace: "default",
+			},
+			Status: v1.PodStatus{
+				ContainerStatuses: []v1.ContainerStatus{
+					{
+						Name:  "istio-proxy",
+						Ready: true,
+					},
+				},
+			},
+		}
 		gatherer := datamocks.Gatherer{}
 		gatherer.On("GetAllPods", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(&v1.PodList{Items: []v1.Pod{{}}}, nil)
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
-			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{Items: []v1.Pod{{}}})
+			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{Items: []v1.Pod{testPod}})
 
 		action := podresetmocks.Action{}
 		action.On("Reset", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).
