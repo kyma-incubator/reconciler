@@ -50,13 +50,13 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			GetOne()
 		if err == nil {
 			existingReconEntity := existingRecon.(*model.ReconciliationEntity)
-			r.Logger.Infof("Found existing reconciliation for cluster '%s' (configVersion:%d) "+
+			r.Logger.Infof("ReconRepo found existing reconciliation for cluster '%s' (configVersion:%d) "+
 				"which was created at '%s': cannot create another one",
 				existingReconEntity.RuntimeID, existingReconEntity.ClusterConfig, existingReconEntity.Created)
 			return nil, newDuplicateClusterReconciliationError(existingReconEntity)
 		}
 		if err != sql.ErrNoRows {
-			r.Logger.Errorf("Failed to check for existing reconciliations entities: %s", err)
+			r.Logger.Errorf("ReconRepo failed to check for existing reconciliations entities: %s", err)
 			return nil, err
 		}
 
@@ -65,17 +65,18 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			return nil, err
 		}
 		if err := createReconQ.Insert().Exec(); err != nil {
-			r.Logger.Errorf("Failed to create new reconciliation entity for runtime '%s': %s",
+			r.Logger.Errorf("ReconRepo failed to create new reconciliation entity for runtime '%s': %s",
 				state.Cluster.RuntimeID, err)
 			return nil, err
 		}
-		r.Logger.Debugf("New reconciliation for runtime '%s' with schedulingID '%s' created",
+		r.Logger.Debugf("ReconRepo created new reconciliation for runtime '%s' with schedulingID '%s'",
 			state.Cluster.RuntimeID, reconEntity.SchedulingID)
 
 		//get reconciliation sequence
 		reconSeq, err := state.Configuration.GetReconciliationSequence(preComponents)
 		if err != nil {
-			r.Logger.Errorf("Failed to retrieve component models for runtime '%s': %s", state.Cluster.RuntimeID, err)
+			r.Logger.Errorf("ReconRepo failed to retrieve component models for runtime '%s': %s",
+				state.Cluster.RuntimeID, err)
 			return nil, err
 		}
 
@@ -100,7 +101,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 				}
 
 				if err := createOpQ.Insert().Exec(); err != nil {
-					r.Logger.Errorf("Failed to create operation for component '%s' with priority %d "+
+					r.Logger.Errorf("ReconRepo failed to create operation for component '%s' with priority %d "+
 						"(schedulingID:%s/runtimeID:%s): %s",
 						component.Component, priority, reconEntity.SchedulingID, state.Cluster.RuntimeID, err)
 					return nil, err
@@ -114,7 +115,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			}
 		}
 
-		r.Logger.Infof("Created reconciliation (schedulingID:%s) for cluster '%s' including following operations: %s",
+		r.Logger.Infof("ReconRepo created reconciliation (schedulingID:%s) for cluster '%s' including following operations: %s",
 			reconEntity.SchedulingID, reconEntity.RuntimeID, opsList.String())
 
 		return reconEntity, err
@@ -143,7 +144,7 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 		if err != nil {
 			return err
 		}
-		r.Logger.Debugf("Deleted %d operations which were assigned to reconciliation with schedulingID '%s'",
+		r.Logger.Debugf("ReconRepo deleted %d operations which were assigned to reconciliation with schedulingID '%s'",
 			delOpsCnt, schedulingID)
 
 		//delete reconciliation
@@ -345,7 +346,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		op, err := r.GetOperation(schedulingID, correlationID)
 		if err != nil {
 			if repository.IsNotFoundError(err) {
-				r.Logger.Warnf("operation not found (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
+				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
 			}
 			return err
 		}
