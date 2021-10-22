@@ -2,6 +2,7 @@ package chart
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/internal/components"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"io/ioutil"
@@ -44,7 +45,9 @@ func NewDefaultProvider(wsFactory workspace.Factory, logger *zap.SugaredLogger) 
 }
 
 func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
-	ws, err := p.newWorkspace(version, "", "")
+	ws, err := p.newWorkspace(&Component{
+		version: version,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +104,7 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 }
 
 func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error) {
-	ws, err := p.newWorkspace(component.version, component.repositoryURL, component.name)
+	ws, err := p.newWorkspace(component)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +127,7 @@ func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error
 }
 
 func (p *DefaultProvider) Configuration(component *Component) (map[string]interface{}, error) {
-	ws, err := p.newWorkspace(component.version, component.repositoryURL, component.name)
+	ws, err := p.newWorkspace(component)
 	if err != nil {
 		return nil, err
 	}
@@ -137,11 +140,27 @@ func (p *DefaultProvider) Configuration(component *Component) (map[string]interf
 	return helmClient.Configuration(component)
 }
 
-func (p *DefaultProvider) newWorkspace(version, repository, componentName string) (*workspace.Workspace, error) {
-	p.logger.Debugf("Getting workspace for Kyma '%s', repository: '%s'", version, repository)
-	ws, err := p.wsFactory.Get(version, repository, componentName)
+func (p *DefaultProvider) newWorkspace(component *Component) (*workspace.Workspace, error) {
+	var ws *workspace.Workspace
+	var err error
+	if component.url != "" {
+		p.logger.Debugf("Getting workspace for Kyma '%s', url repository: ", component.version, component.url)
+		configuration, err := component.Configuration()
+		if err != nil {
+			return nil, err
+		}
+		c := components.Component{
+			Name:          component.name,
+			URL:           component.url,
+			Configuration: configuration,
+		}
+		ws, err = p.wsFactory.Get(component.version, &c)
+	} else {
+		p.logger.Debugf("Getting workspace for Kyma '%s'", component.version)
+		ws, err = p.wsFactory.Get(component.version)
+	}
 	if err != nil {
-		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s', repository: '%s': %s", version, repository, err)
+		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s': %s", component.version, err)
 	}
 	return ws, err
 }

@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/internal/components"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"os"
@@ -25,7 +26,7 @@ const (
 // Factory of workspace.
 type Factory interface {
 	// Get workspace of the given version.
-	Get(version, repository, componentName string) (*Workspace, error)
+	Get(version string, component ...*components.Component) (*Workspace, error)
 
 	// Delete workspace of the given version.
 	Delete(version string) error
@@ -82,7 +83,7 @@ func (f *DefaultFactory) defaultStorageDir() string {
 	return filepath.Join(baseDir, ".kyma", "reconciler", "versions")
 }
 
-func (f *DefaultFactory) Get(version, repository, componentName string) (*Workspace, error) {
+func (f *DefaultFactory) Get(version string, component ...*components.Component) (*Workspace, error) {
 	if err := f.validate(); err != nil {
 		return nil, err
 	}
@@ -93,15 +94,15 @@ func (f *DefaultFactory) Get(version, repository, componentName string) (*Worksp
 	}
 
 	wsDir := f.workspaceDir(version)
-	if repository != "" {
-		wsDir = f.workspaceDir(version + "-" + componentName)
+	if len(component) > 0 {
+		wsDir = f.workspaceDir(version + "-" + component[0].Name)
 
 	}
 
 	wsReadyFile := filepath.Join(wsDir, wsReadyIndicatorFile)
 	//ensure Kyma sources are available
 	if !file.Exists(wsReadyFile) {
-		if err := f.clone(version, repository, wsDir); err != nil {
+		if err := f.clone(version, wsDir, component...); err != nil {
 			return nil, err
 		}
 	}
@@ -109,7 +110,7 @@ func (f *DefaultFactory) Get(version, repository, componentName string) (*Worksp
 	return newWorkspace(wsDir)
 }
 
-func (f *DefaultFactory) clone(version, repository, dstDir string) error {
+func (f *DefaultFactory) clone(version, dstDir string, component ...*components.Component) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -136,11 +137,19 @@ func (f *DefaultFactory) clone(version, repository, dstDir string) error {
 	}
 
 	repo := f.repository
-	if repository != "" {
-		repo = &reconciler.Repository{
-			URL: repository,
-			//TokenNamespace: fmt.Sprint(configuration["repo.token.namespace"]),
+	if len(component) > 0 {
+		tokenNamespace := component[0].Configuration["repo.token.namespace"]
+		if tokenNamespace != nil {
+			repo = &reconciler.Repository{
+				URL:            component[0].Name,
+				TokenNamespace: fmt.Sprint(tokenNamespace),
+			}
+		} else {
+			repo = &reconciler.Repository{
+				URL: component[0].Name,
+			}
 		}
+
 	}
 
 	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet)

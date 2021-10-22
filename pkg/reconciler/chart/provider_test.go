@@ -37,7 +37,7 @@ func TestProvider(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Render manifest", func(t *testing.T) {
-		ws, err := wsFactory.Get(kymaVersion, "", "")
+		ws, err := wsFactory.Get(kymaVersion)
 		require.NoError(t, err)
 
 		for _, component := range componentList(t, filepath.Join(ws.InstallationResourceDir, "components.yaml")) {
@@ -77,7 +77,8 @@ func componentList(t *testing.T, compListFile string) []*Component {
 
 func newComponent(comp components.Component) *Component {
 	compBuilder := NewComponentBuilder(kymaVersion, comp.Name).
-		WithConfiguration(reconTest.NewGlobalComponentConfiguration())
+		WithConfiguration(reconTest.NewGlobalComponentConfiguration()).
+		WithURL(comp.URL)
 
 	if comp.Namespace == "" {
 		compBuilder.WithNamespace(kymaNamespace)
