@@ -1,7 +1,6 @@
 package test
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -13,8 +12,7 @@ const (
 
 func IntegrationTest(t *testing.T) {
 	if !isIntegrationTestEnabled() {
-		fmt.Println("")
-		//t.Skipf("Integration tests disabled: skipping parts of test case '%s'", t.Name())
+		t.Skipf("Integration tests disabled: skipping parts of test case '%s'", t.Name())
 	}
 }
 
