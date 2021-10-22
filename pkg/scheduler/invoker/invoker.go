@@ -40,6 +40,11 @@ func (p *Params) newReconciliationModel() *reconciler.Reconciliation {
 	}
 
 	configuration := p.ComponentToReconcile.ConfigurationAsMap()
+	tokenNamespace := configuration["repo.token.namespace"]
+	if tokenNamespace == nil {
+		tokenNamespace = ""
+	}
+
 	return &reconciler.Reconciliation{
 		ComponentsReady: p.ComponentsReady,
 		Component:       p.ComponentToReconcile.Component,
@@ -52,7 +57,7 @@ func (p *Params) newReconciliationModel() *reconciler.Reconciliation {
 		CorrelationID:   p.CorrelationID,
 		Repository: &reconciler.Repository{
 			URL:            p.ComponentToReconcile.URL,
-			TokenNamespace: fmt.Sprint(configuration["repo.token.namespace"]),
+			TokenNamespace: fmt.Sprint(tokenNamespace),
 		},
 	}
 }

@@ -43,7 +43,7 @@ type KubeClient struct {
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
 }
 
-func NewInClusterClientSet(logger *zap.SugaredLogger) (*kubernetes.Clientset, error) {
+func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, error) {
 	inClusterClient, err := NewInClusterClient(logger)
 	if err != nil {
 		logger.Infof("Not able to create an In Cluster Client")
