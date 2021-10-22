@@ -34,6 +34,11 @@ func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, cfg *config.
 }
 
 func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) error {
+	//mark the operation to be in progress (required to avoid that other invokers will also pick it up)
+	if err := i.updateOperationState(params, model.OperationStateInProgress); err != nil {
+		return err
+	}
+
 	resp, err := i.sendHTTPRequest(params)
 	if err != nil {
 		return err
@@ -55,7 +60,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		respModel := &reconciler.HTTPReconciliationResponse{}
 		err := i.unmarshalHTTPResponse(body, respModel, params)
 		if err == nil {
-			return i.updateOperationState(params, model.OperationStateInProgress)
+			return nil //request successfully fired
 		}
 		i.reportUnmarshalError(resp.StatusCode, body, err)
 	}
@@ -152,6 +157,9 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 			compRecon.URL, err)
 		return resp, errors.Wrap(err, fmt.Sprintf("failed to call remote reconciler (URL: %s)", compRecon.URL))
 	}
+
+	i.logger.Infof("Remote invoker called reconcilation of component '%s' on remote component reconciler '%s': %d",
+		component, compRecon.URL, resp.StatusCode)
 
 	return resp, nil
 }
