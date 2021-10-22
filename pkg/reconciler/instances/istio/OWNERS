@@ -1,0 +1,8 @@
+approvers:
+  - Tomasz-Smelcerz-SAP
+  - strekm
+  - mjakobczyk
+  - werdes72
+
+labels:
+- area/security
