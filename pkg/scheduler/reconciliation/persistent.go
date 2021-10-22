@@ -80,6 +80,8 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		}
 
 		//iterate over reconciliation sequence and create operations with proper priorities
+		var opsList bytes.Buffer
+
 		for idx, components := range reconSeq.Queue {
 			priority := idx + 1
 			for _, component := range components {
@@ -96,20 +98,24 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 				if err != nil {
 					return nil, err
 				}
+
 				if err := createOpQ.Insert().Exec(); err != nil {
 					r.Logger.Errorf("Failed to create operation for component '%s' with priority %d "+
-						"(required for reconciliation of runtime '%s'): %s",
-						component.Component, priority, state.Cluster.RuntimeID, err)
+						"(schedulingID:%s/runtimeID:%s): %s",
+						component.Component, priority, reconEntity.SchedulingID, state.Cluster.RuntimeID, err)
 					return nil, err
 				}
-				r.Logger.Debugf("Created operation for component '%s' with priority %d "+
-					"(required for reconciliation of runtime '%s')",
-					component.Component, priority, state.Cluster.RuntimeID)
+
+				//list created ops in log-msg
+				if opsList.Len() > 0 {
+					opsList.WriteRune(',')
+				}
+				opsList.WriteString(fmt.Sprintf("%s@%s[%d]", component.Component, component.Namespace, priority))
 			}
-			r.Logger.Debugf("Created %d operations with priority %d for reconciliation "+
-				"of cluster '%s' with schedulingID '%s'",
-				len(components), priority, state.Cluster.RuntimeID, reconEntity.SchedulingID)
 		}
+
+		r.Logger.Infof("Created reconciliation (schedulingID:%s) for cluster '%s' including following operations: %s",
+			reconEntity.SchedulingID, reconEntity.RuntimeID, opsList.String())
 
 		return reconEntity, err
 	}
