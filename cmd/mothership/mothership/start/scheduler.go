@@ -18,13 +18,14 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 
 	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
 
-	runtimeBuilder.
+	return runtimeBuilder.
 		RunRemote(
 			o.Registry.Connnection(),
 			o.Registry.Inventory(),
 			schedulerCfg).
 		WithWorkerPoolConfig(&worker.Config{
-			PoolSize: o.Workers,
+			MaxParallelOperations: o.MaxParallelOperations,
+			PoolSize:              o.Workers,
 			//check-interval should be greater than "max-retires * retry-delay" to avoid queuing
 			//of workers in case that component-reconciler isn't reachable
 			OperationCheckInterval: 30 * time.Second,
@@ -42,8 +43,6 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		Run(ctx)
-
-	return nil
 }
 
 func parseSchedulerConfig(configFile string) (*config.Config, error) {

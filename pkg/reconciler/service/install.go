@@ -15,6 +15,15 @@ type Install struct {
 	logger *zap.SugaredLogger
 }
 
+func NewInstall(logger *zap.SugaredLogger) *Install {
+	return &Install{logger: logger}
+}
+
+//go:generate mockery --name=Operation --output=mocks --outpkg=mock --case=underscore
+type Operation interface {
+	Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error
+}
+
 func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Reconciliation, kubeClient kubernetes.Client) error {
 	var err error
 	var manifest string

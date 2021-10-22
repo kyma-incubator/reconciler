@@ -126,8 +126,9 @@ func (w *Pool) assignWorker(ctx context.Context, opEntity *model.OperationEntity
 }
 
 func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) (int, error) {
-	w.logger.Debug("Worker pool is checking for processable operations")
-	ops, err := w.reconRepo.GetProcessableOperations()
+	w.logger.Debugf("Worker pool is checking for processable operations (max parallel ops per cluster: %d)",
+		w.config.MaxParallelOperations)
+	ops, err := w.reconRepo.GetProcessableOperations(w.config.MaxParallelOperations)
 	if err != nil {
 		w.logger.Warnf("Worker pool failed to retrieve processable operations: %s", err)
 		return 0, err
