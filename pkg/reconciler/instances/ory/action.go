@@ -154,7 +154,7 @@ func (a *preAction) rolloutHydraDeployment(ctx context.Context, client kubernete
 	if err != nil {
 		return errors.Wrap(err, "Failed to rollout ory hydra")
 	}
-
+	logger.Info("ory-hydra restarted")
 	return nil
 }
 
