@@ -168,10 +168,14 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		require.NoError(t, err)
 		//set all operations to DONE
 		for _, opEntity := range opEntities {
-			t.Log("Updating operations to state DONE")
 			err = reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
 				opState, "dummy reason")
-			require.NoError(t, err)
+			if err != nil {
+				latestOpEntity, err := reconRepo.GetOperation(opEntity.SchedulingID, opEntity.CorrelationID)
+				require.NoError(t, err)
+				t.Logf("Failed to updated operation state: %s -> latest operation state is '%s'",
+					err, latestOpEntity.State)
+			}
 		}
 		return
 	}

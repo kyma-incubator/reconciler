@@ -351,7 +351,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			return err
 		}
 
-		if op.State == model.OperationStateDone || op.State == model.OperationStateError {
+		if op.State.IsFinal() {
 			return fmt.Errorf("cannot update state of operation '%s' to new state '%s' "+
 				"because operation is already in final state '%s'", op.Component, state, op.State)
 		}
@@ -381,8 +381,8 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			ExecCount()
 
 		if cnt == 0 {
-			return fmt.Errorf("update of operation '%s' to state '%s' failed: "+
-				"seems the operation does no longer match the where-conditions (no row was updated)",
+			return fmt.Errorf("update of operation '%s' to state '%s' failed: no row was updated "+
+				"(probably race-condition: operation does no longer match where-conditions)",
 				op, state)
 		}
 
