@@ -74,7 +74,7 @@ func TestEncryptor(t *testing.T) {
 
 }
 
-func TestReadEncryptionKey(t *testing.T) {
+func TestReadKeyFile(t *testing.T) {
 	t.Run("Read valid key", func(t *testing.T) {
 		key, err := readKeyFile(filepath.Join("test", "valid.key"))
 		require.NoError(t, err)
