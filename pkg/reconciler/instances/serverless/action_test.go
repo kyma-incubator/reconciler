@@ -24,7 +24,23 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
+const (
+	existingUsername    = "efSDg452SFG56gf"
+	existingPassword    = "KAuP5kfDopdPTI7456efg45g"
+	existingRollme      = "tidD8"
+	existingHTTPSSecret = "DU846Dikfhdka948Rpdneu"
+)
+
 func TestServerlessReconcilation(t *testing.T) {
+
+	correctSecretData := map[string][]byte{
+		"username": []byte(existingUsername),
+		"password": []byte(existingPassword),
+	}
+	correctAnnotations := map[string]string{"rollme": existingRollme}
+	correctEnvs := []corev1.EnvVar{
+		{Name: registryHttpSecretEnvKey, Value: existingHTTPSSecret},
+	}
 
 	testCases := []struct {
 		name                             string
@@ -36,14 +52,64 @@ func TestServerlessReconcilation(t *testing.T) {
 			name:                            "No docker registry secret found",
 			expectedReconcilerConfiguration: map[string]interface{}{},
 		},
-		//  {
-		//  	name:                            "Secret found",
-		//  	existingSecret: ,
-		//  	expectedReconcilerConfiguration: map[string]interface{}{
-		//  		"dockerRegistry.username" : "",
-		//  		"dockerRegistry.password" : "",
-		//  	},
-		//  },
+		{
+			name:                            "Empty docker registry secret found",
+			existingSecret:                  fixedSecretWith(map[string][]byte{}),
+			expectedReconcilerConfiguration: map[string]interface{}{},
+		},
+		{
+			name:                            "Docker registry secret with empty strings found",
+			existingSecret:                  fixedSecretWith(map[string][]byte{"username": []byte(""), "password": []byte("")}),
+			expectedReconcilerConfiguration: map[string]interface{}{},
+		},
+		{
+			name:           "Secret with correct data found, no Deployment found",
+			existingSecret: fixedSecretWith(correctSecretData),
+			expectedReconcilerConfiguration: map[string]interface{}{
+				"dockerRegistry.username": existingUsername,
+				"dockerRegistry.password": existingPassword,
+			},
+		},
+		{
+			name:                             "Both Secret and Deployment with correct data found",
+			existingSecret:                   fixedSecretWith(correctSecretData),
+			existingDockerRegistryDeployment: fixedDeploymentWith(correctAnnotations, correctEnvs),
+			expectedReconcilerConfiguration: map[string]interface{}{
+				"dockerRegistry.username":            existingUsername,
+				"dockerRegistry.password":            existingPassword,
+				"docker-registry.registryHTTPSecret": existingHTTPSSecret,
+				"docker-registry.rollme":             existingRollme,
+			},
+		},
+		{
+			name:                             "Secret and Deployment ( empty data ) found",
+			existingSecret:                   fixedSecretWith(correctSecretData),
+			existingDockerRegistryDeployment: fixedDeploymentWith(map[string]string{}, []corev1.EnvVar{}),
+			expectedReconcilerConfiguration: map[string]interface{}{
+				"dockerRegistry.username": existingUsername,
+				"dockerRegistry.password": existingPassword,
+			},
+		},
+		{
+			name:                             "Secret and Deployment ( nill data ) found",
+			existingSecret:                   fixedSecretWith(correctSecretData),
+			existingDockerRegistryDeployment: fixedDeploymentWith(nil, nil),
+			expectedReconcilerConfiguration: map[string]interface{}{
+				"dockerRegistry.username": existingUsername,
+				"dockerRegistry.password": existingPassword,
+			},
+		},
+		{
+			name:           "Secret and Deployment ( empty strings ) found",
+			existingSecret: fixedSecretWith(correctSecretData),
+			existingDockerRegistryDeployment: fixedDeploymentWith(map[string]string{"rollme": ""}, []corev1.EnvVar{
+				{Name: registryHttpSecretEnvKey, Value: ""},
+			}),
+			expectedReconcilerConfiguration: map[string]interface{}{
+				"dockerRegistry.username": existingUsername,
+				"dockerRegistry.password": existingPassword,
+			},
+		},
 	}
 
 	setup := func() (kubernetes.Interface, ServerlessReconcileCustomAction, *service.ActionContext) {
@@ -72,9 +138,11 @@ func TestServerlessReconcilation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+
 			var err error
 			k8sClient, action, actionContext := setup()
 
+			//GIVEN
 			if tc.existingSecret != nil {
 				_, err := createSecret(actionContext.Context, k8sClient, tc.existingSecret)
 				require.NoError(t, err)
@@ -85,9 +153,11 @@ func TestServerlessReconcilation(t *testing.T) {
 				require.NoError(t, err)
 			}
 
+			//WHEN
 			err = action.Run(actionContext)
-			require.NoError(t, err)
 
+			//THEN
+			require.NoError(t, err)
 			assert.Equal(t, tc.expectedReconcilerConfiguration, actionContext.Model.Configuration)
 		})
 	}
@@ -100,4 +170,40 @@ func createSecret(ctx context.Context, client kubernetes.Interface, secret *core
 
 func createDeployment(ctx context.Context, client kubernetes.Interface, deployment *appsv1.Deployment) (*appsv1.Deployment, error) {
 	return client.AppsV1().Deployments(deployment.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
+}
+
+func fixedSecretWith(data map[string][]byte) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serverlessSecretName,
+			Namespace: serverlessNamespace,
+		},
+		Data: data,
+	}
+}
+
+func fixedDeploymentWith(annotations map[string]string, envs []corev1.EnvVar) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serverlessDockerRegistryDeploymentName,
+			Namespace: serverlessNamespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "irrelevant",
+					Annotations: annotations,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "irrelevant",
+							Image: "irrelevant",
+							Env:   envs,
+						},
+					},
+				},
+			},
+		},
+	}
 }
