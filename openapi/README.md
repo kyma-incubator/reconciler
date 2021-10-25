@@ -1,7 +1,7 @@
 # Prerequisites
 
-- [oapi-codegen](https://github.com/deepmap/oapi-codegen)
-- [spectral](https://github.com/stoplightio/spectral)
+- [oapi-codegen](https://github.com/deepmap/oapi-codegen) (v1.8.2)
+- [spectral](https://github.com/stoplightio/spectral) (v6.0.0)
 
 ## Generation and validation
 
