@@ -16,7 +16,7 @@ const (
 	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
 )
 
-//go:generate mockery --name=Commander --outpkg=mock --case=underscore
+//go:generate mockery --name=Commander --outpkg=mocks --case=underscore
 // Commander for istioctl binary.
 // TODO: instead of wrapping istioctl shouldn't we use Istio's `clietn-go`?
 // https://istio.io/latest/blog/2019/announcing-istio-client-go/#how-to-use-client-go
