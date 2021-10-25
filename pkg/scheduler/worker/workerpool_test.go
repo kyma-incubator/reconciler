@@ -55,7 +55,7 @@ func TestWorkerPool(t *testing.T) {
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 	reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
 	require.NoError(t, err)
-	opsProcessable, err := reconRepo.GetProcessableOperations()
+	opsProcessable, err := reconRepo.GetProcessableOperations(0)
 	require.Len(t, opsProcessable, 1)
 	require.NoError(t, err)
 

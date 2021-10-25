@@ -444,6 +444,10 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	if err != nil {
 		return nil, err
 	}
+	deletedColName, err := statusColHandler.ColumnName("Deleted")
+	if err != nil {
+		return nil, err
+	}
 
 	q, err := db.NewQuery(i.Conn, clusterStatusEntity)
 	if err != nil {
@@ -455,6 +459,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 		"RuntimeID":      runtimeIDColName,
 		"ClusterVersion": clusterVersionColName,
 		"ConfigVersion":  configVersionColName,
+		"Deleted":        deletedColName,
 	}
 	statusIdsSQL, statusIdsArgs, err := i.buildLatestStatusIdsSQL(columnMap, clusterStatusEntity)
 	if err != nil {
@@ -501,11 +506,13 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 			select max(cluster_version) from inventory_cluster_config_statuses group by runtime_id
 		) group by cluster_version
 	*/
-	dataRows, err := i.Conn.Query(fmt.Sprintf(
-		"SELECT %s, MAX(%s) FROM %s WHERE %s IN (SELECT MAX(%s) FROM %s GROUP BY %s) GROUP BY %s ",
-		columnMap["ClusterVersion"], columnMap["ConfigVersion"], clusterStatusEntity.Table(), columnMap["ClusterVersion"],
-		columnMap["ClusterVersion"], clusterStatusEntity.Table(), columnMap["RuntimeID"],
-		columnMap["ClusterVersion"]))
+	dataRows, err := i.Conn.Query(
+		fmt.Sprintf(
+			"SELECT %s, MAX(%s) FROM %s WHERE %s IN (SELECT MAX(%s) FROM %s WHERE %s=$1 GROUP BY %s) GROUP BY %s ",
+			columnMap["ClusterVersion"], columnMap["ConfigVersion"], clusterStatusEntity.Table(), columnMap["ClusterVersion"],
+			columnMap["ClusterVersion"], clusterStatusEntity.Table(), columnMap["Deleted"], columnMap["RuntimeID"],
+			columnMap["ClusterVersion"]),
+		false)
 
 	if err != nil {
 		return "", args, errors.Wrap(err, "failed to retrieve cluster-status-idents")

@@ -160,7 +160,10 @@ func (r *RunRemote) WithBookkeeperConfig(cfg *BookkeeperConfig) *RunRemote {
 	return r
 }
 
-func (r *RunRemote) Run(ctx context.Context) {
+func (r *RunRemote) Run(ctx context.Context) error {
+	if err := r.config.Validate(); err != nil {
+		return err
+	}
 	//start bookkeeper
 	go func() {
 		transition := newClusterStatusTransition(r.conn, r.inventory, r.reconciliationRepository(), r.logger())
@@ -191,4 +194,6 @@ func (r *RunRemote) Run(ctx context.Context) {
 			r.logger().Fatalf("Remote scheduler returned an error: %s", err)
 		}
 	}()
+
+	return nil
 }
