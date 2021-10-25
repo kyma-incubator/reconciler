@@ -94,25 +94,32 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 	// postgresql persistence is enabled and it's dsn needs an update
 	if c.Global.Ory.Hydra.Persistence.PostgresqlFlag.Enabled {
 		secretPostgresqlPassword := string(secret.Data["postgresql-password"])
-		if secretPostgresqlPassword != "" {
+		if secretPostgresqlPassword != "" && c.Global.PostgresCfg.Password == "" {
 			c.Global.PostgresCfg.Password = secretPostgresqlPassword
 		}
 		if c.preparePostgresDSN() != dsn {
 			logger.Info("Enabling postgresql persistence")
 			return c.generateSecretDataPostgresql(secretsSystem)
 		}
+		return data
 	}
 
 	// mysql persistence is enabled and it's dsn needs an update
-	if c.Global.Ory.Hydra.Persistence.DBType == "mysql" && c.prepareMySQLDSN() != dsn {
-		logger.Info("Enabling mysql persistence")
-		return c.generateSecretDataMysql(secretsSystem)
+	if c.Global.Ory.Hydra.Persistence.DBType == "mysql" {
+		if c.prepareMySQLDSN() != dsn {
+			logger.Info("Enabling mysql persistence")
+			return c.generateSecretDataMysql(secretsSystem)
+		}
+		return data
 	}
 
 	// gcloud persistence is enabled and it's dsn needs an update
-	if c.Global.Ory.Hydra.Persistence.Gcloud.Enabled && c.prepareGenericDSN() != dsn {
-		logger.Info("Enabling gcloud persistence")
-		return c.generateSecretDataGcloud(secretsSystem)
+	if c.Global.Ory.Hydra.Persistence.Gcloud.Enabled {
+		if c.prepareGenericDSN() != dsn {
+			logger.Info("Enabling gcloud persistence")
+			return c.generateSecretDataGcloud(secretsSystem)
+		}
+		return data
 	}
 
 	// custom db persistence is enabled and it's dsn needs an update

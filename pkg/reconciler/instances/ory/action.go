@@ -2,6 +2,8 @@ package ory
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
@@ -85,6 +87,10 @@ func (a *preAction) Run(context *service.ActionContext) error {
 			if err := a.updateSecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
 				return errors.Wrap(err, "failed to update Ory secret")
 			}
+			logger.Info("Rolling out ory hydra")
+			if err := a.rolloutHydraDeployment(context.Context, client, logger); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -139,6 +145,17 @@ func (a *preAction) updateSecret(ctx context.Context, client kubernetes.Interfac
 	}
 	logger.Infof("Secret %s updated", name.String())
 	return err
+}
+
+func (a *preAction) rolloutHydraDeployment(ctx context.Context, client kubernetes.Interface, logger *zap.SugaredLogger) error {
+	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
+
+	_, err := client.AppsV1().Deployments("kyma-system").Patch(context.Background(), "ory-hydra", types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to rollout ory hydra")
+	}
+
+	return nil
 }
 
 func (a *postAction) patchSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, data []byte, logger *zap.SugaredLogger) error {
