@@ -150,7 +150,7 @@ func (a *preAction) updateSecret(ctx context.Context, client kubernetes.Interfac
 func (a *preAction) rolloutHydraDeployment(ctx context.Context, client kubernetes.Interface, logger *zap.SugaredLogger) error {
 	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
 
-	_, err := client.AppsV1().Deployments("kyma-system").Patch(context.Background(), "ory-hydra", types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+	_, err := client.AppsV1().Deployments("kyma-system").Patch(ctx, "ory-hydra", types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to rollout ory hydra")
 	}
