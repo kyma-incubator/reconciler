@@ -39,7 +39,7 @@ func TestServerlessReconcilation(t *testing.T) {
 	}
 	correctAnnotations := map[string]string{"rollme": existingRollme}
 	correctEnvs := []corev1.EnvVar{
-		{Name: registryHTTPSecretEnvKey, Value: existingHTTPSSecret},
+		{Name: registryHTTPEnvKey, Value: existingHTTPSSecret},
 	}
 
 	testCases := []struct {
@@ -103,7 +103,7 @@ func TestServerlessReconcilation(t *testing.T) {
 			name:           "Secret and Deployment ( empty strings ) found",
 			existingSecret: fixedSecretWith(correctSecretData),
 			existingDockerRegistryDeployment: fixedDeploymentWith(map[string]string{"rollme": ""}, []corev1.EnvVar{
-				{Name: registryHTTPSecretEnvKey, Value: ""},
+				{Name: registryHTTPEnvKey, Value: ""},
 			}),
 			expectedReconcilerConfiguration: map[string]interface{}{
 				"dockerRegistry.username": existingUsername,

@@ -13,7 +13,7 @@ const (
 	serverlessNamespace                    = "kyma-system"
 	serverlessSecretName                   = "serverless-registry-config-default"
 	serverlessDockerRegistryDeploymentName = "serverless-docker-registry"
-	registryHTTPSecretEnvKey               = "REGISTRY_HTTP_SECRET"
+	registryHTTPEnvKey                     = "REGISTRY_HTTP_SECRET"
 )
 
 type ReconcileCustomAction struct {
@@ -56,7 +56,7 @@ func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 
 			envs := deployment.Spec.Template.Spec.Containers[0].Env
 			for _, v := range envs {
-				if v.Name == registryHTTPSecretEnvKey && v.Value != "" {
+				if v.Name == registryHTTPEnvKey && v.Value != "" {
 					svcCtx.Model.Configuration["docker-registry.registryHTTPSecret"] = v.Value
 				}
 			}
