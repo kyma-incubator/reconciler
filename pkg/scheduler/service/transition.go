@@ -80,7 +80,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 		}
 
 		if reconEntity.Finished {
-			t.logger.Debugf("Finishing reconciliation for cluster '%s' failed: reconcilation entity (schedulingID:%s) "+
+			t.logger.Debugf("Finishing reconciliation for cluster '%s' failed: reconciliation entity (schedulingID:%s) "+
 				"is already finished (maybe finished by parallel process in between)",
 				reconEntity.RuntimeID, reconEntity.SchedulingID)
 			return fmt.Errorf("failed to finish reconciliation '%s': it is already finished", reconEntity)
