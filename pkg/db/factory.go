@@ -23,14 +23,15 @@ func NewConnectionFactory(configFile string, migrate bool, debug bool) (Connecti
 
 	dbToUse := viper.GetString("db.driver")
 	blockQueries := viper.GetBool("db.blockQueries")
+	logQueries := viper.GetBool("db.logQueries")
 
 	switch dbToUse {
 	case "postgres":
-		connFact := createPostgresConnectionFactory(encKey, debug, blockQueries)
+		connFact := createPostgresConnectionFactory(encKey, debug, blockQueries, logQueries)
 		return connFact, connFact.Init(migrate)
 
 	case "sqlite":
-		connFact, err := createSqliteConnectionFactory(encKey, debug, blockQueries)
+		connFact, err := createSqliteConnectionFactory(encKey, debug, blockQueries, logQueries)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +67,7 @@ func readEncryptionKey() (string, error) {
 	return string(encKeyBytes), nil
 }
 
-func createSqliteConnectionFactory(encKey string, debug bool, blockQueries bool) (*SqliteConnectionFactory, error) {
+func createSqliteConnectionFactory(encKey string, debug bool, blockQueries, logQueries bool) (*sqliteConnectionFactory, error) {
 	dbFile := viper.GetString("db.sqlite.file")
 	//ensure directory structure of db-file exists
 	dbFileDir := filepath.Dir(dbFile)
@@ -75,20 +76,21 @@ func createSqliteConnectionFactory(encKey string, debug bool, blockQueries bool)
 			return nil, err
 		}
 	}
-	connFact := &SqliteConnectionFactory{
-		File:          dbFile,
-		Debug:         debug,
-		Reset:         viper.GetBool("db.sqlite.resetDatabase"),
-		EncryptionKey: encKey,
+	connFact := &sqliteConnectionFactory{
+		file:          dbFile,
+		debug:         debug,
+		reset:         viper.GetBool("db.sqlite.resetDatabase"),
+		encryptionKey: encKey,
 		blockQueries:  blockQueries,
+		logQueries:    logQueries,
 	}
 	if viper.GetBool("db.sqlite.deploySchema") {
-		connFact.SchemaFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), "db", "sqlite", "reconciler.sql")
+		connFact.schemaFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), "db", "sqlite", "reconciler.sql")
 	}
 	return connFact, nil
 }
 
-func createPostgresConnectionFactory(encKey string, debug bool, blockQueries bool) *PostgresConnectionFactory {
+func createPostgresConnectionFactory(encKey string, _ bool, blockQueries, logQueries bool) *postgresConnectionFactory {
 	host := viper.GetString("db.postgres.host")
 	port := viper.GetInt("db.postgres.port")
 	database := viper.GetString("db.postgres.database")
@@ -119,16 +121,16 @@ func createPostgresConnectionFactory(encKey string, debug bool, blockQueries boo
 		migrationsDir = viper.GetString("DATABASE_MIGRATIONS_DIR")
 	}
 
-	return &PostgresConnectionFactory{
-		Host:          host,
-		Port:          port,
-		Database:      database,
-		User:          user,
-		Password:      password,
-		SslMode:       sslMode,
-		EncryptionKey: encKey,
-		MigrationsDir: migrationsDir,
-		Debug:         debug,
+	return &postgresConnectionFactory{
+		host:          host,
+		port:          port,
+		database:      database,
+		user:          user,
+		password:      password,
+		sslMode:       sslMode,
+		encryptionKey: encKey,
+		migrationsDir: migrationsDir,
 		blockQueries:  blockQueries,
+		logQueries:    logQueries,
 	}
 }

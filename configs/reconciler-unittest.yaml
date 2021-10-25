@@ -3,6 +3,8 @@ db:
   driver: sqlite
   encryption:
     keyFile: "./encryption/unittest.key"
+  blockQueries: true
+  logQueries: true
   postgres:
     host: "localhost"
     database: "kyma"
