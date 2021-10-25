@@ -39,3 +39,7 @@ func NewOperationState(state string) (OperationState, error) {
 	}
 	return result, nil
 }
+
+func (o OperationState) IsError() bool {
+	return o == OperationStateError || o == OperationStateFailed || o == OperationStateClientError
+}

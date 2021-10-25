@@ -3,6 +3,9 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	v1apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -29,4 +32,8 @@ type Client interface {
 	Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error)
 	PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) error
 	Clientset() (kubernetes.Interface, error)
+
+	GetStatefulSet(ctx context.Context, name, namespace string) (*v1apps.StatefulSet, error)
+	GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error)
+	ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error)
 }
