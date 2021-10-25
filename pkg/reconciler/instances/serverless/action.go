@@ -13,14 +13,14 @@ const (
 	serverlessNamespace                    = "kyma-system"
 	serverlessSecretName                   = "serverless-registry-config-default"
 	serverlessDockerRegistryDeploymentName = "serverless-docker-registry"
-	registryHttpSecretEnvKey               = "REGISTRY_HTTP_SECRET"
+	registryHTTPSecretEnvKey               = "REGISTRY_HTTP_SECRET"
 )
 
-type ServerlessReconcileCustomAction struct {
+type ReconcileCustomAction struct {
 	name string
 }
 
-func (a *ServerlessReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
+func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 
 	logger := svcCtx.Logger
 	k8sClient, err := svcCtx.KubeClient.Clientset()
@@ -56,7 +56,7 @@ func (a *ServerlessReconcileCustomAction) Run(svcCtx *service.ActionContext) err
 
 			envs := deployment.Spec.Template.Spec.Containers[0].Env
 			for _, v := range envs {
-				if v.Name == registryHttpSecretEnvKey && v.Value != "" {
+				if v.Name == registryHTTPSecretEnvKey && v.Value != "" {
 					svcCtx.Model.Configuration["docker-registry.registryHTTPSecret"] = v.Value
 				}
 			}

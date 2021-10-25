@@ -19,7 +19,7 @@ func init() {
 
 	//configure reconciler
 	reconciler.
-		WithReconcileAction(&ServerlessReconcileCustomAction{
+		WithReconcileAction(&ReconcileCustomAction{
 			name: "preserve-docker-registry-secret",
 		})
 }

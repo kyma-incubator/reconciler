@@ -25,10 +25,10 @@ import (
 )
 
 const (
-	existingUsername    = "efSDg452SFG56gf"
-	existingPassword    = "KAuP5kfDopdPTI7456efg45g"
+	existingUsername    = "some_username"
+	existingPassword    = "some_password"
 	existingRollme      = "tidD8"
-	existingHTTPSSecret = "DU846Dikfhdka948Rpdneu"
+	existingHTTPSSecret = "some_http_secret"
 )
 
 func TestServerlessReconcilation(t *testing.T) {
@@ -39,7 +39,7 @@ func TestServerlessReconcilation(t *testing.T) {
 	}
 	correctAnnotations := map[string]string{"rollme": existingRollme}
 	correctEnvs := []corev1.EnvVar{
-		{Name: registryHttpSecretEnvKey, Value: existingHTTPSSecret},
+		{Name: registryHTTPSecretEnvKey, Value: existingHTTPSSecret},
 	}
 
 	testCases := []struct {
@@ -103,7 +103,7 @@ func TestServerlessReconcilation(t *testing.T) {
 			name:           "Secret and Deployment ( empty strings ) found",
 			existingSecret: fixedSecretWith(correctSecretData),
 			existingDockerRegistryDeployment: fixedDeploymentWith(map[string]string{"rollme": ""}, []corev1.EnvVar{
-				{Name: registryHttpSecretEnvKey, Value: ""},
+				{Name: registryHTTPSecretEnvKey, Value: ""},
 			}),
 			expectedReconcilerConfiguration: map[string]interface{}{
 				"dockerRegistry.username": existingUsername,
@@ -112,10 +112,10 @@ func TestServerlessReconcilation(t *testing.T) {
 		},
 	}
 
-	setup := func() (kubernetes.Interface, ServerlessReconcileCustomAction, *service.ActionContext) {
+	setup := func() (kubernetes.Interface, ReconcileCustomAction, *service.ActionContext) {
 		k8sClient := fake.NewSimpleClientset()
 
-		action := ServerlessReconcileCustomAction{}
+		action := ReconcileCustomAction{}
 		mockClient := mocks.Client{}
 		mockClient.On("Clientset").Return(k8sClient, nil)
 		mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*rkubernetes.Resource{}, nil)
