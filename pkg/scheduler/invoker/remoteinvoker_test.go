@@ -69,7 +69,7 @@ func TestRemoteInvoker(t *testing.T) {
 		require.Error(t, err)
 
 		//no change expected because comp-reconciler could not be reached
-		requireOperationState(t, reconRepo, opEntity, model.OperationStateNew)
+		requireOperationState(t, reconRepo, opEntity, model.OperationStateInProgress)
 	})
 
 	t.Run("Invoke component-reconciler: happy path", func(t *testing.T) {
