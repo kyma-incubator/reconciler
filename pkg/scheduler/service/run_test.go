@@ -117,7 +117,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	})
 	remoteRunner.WithWorkerPoolConfig(&worker.Config{
 		PoolSize:               10,
-		OperationCheckInterval: 1 * time.Second,
+		OperationCheckInterval: 2 * time.Second,
 		InvokerMaxRetries:      2,
 		InvokerRetryDelay:      2 * time.Second,
 	})
@@ -171,8 +171,8 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 			err = reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
 				opState, "dummy reason")
 			if err != nil {
-				latestOpEntity, err := reconRepo.GetOperation(opEntity.SchedulingID, opEntity.CorrelationID)
-				require.NoError(t, err)
+				latestOpEntity, errGetOp := reconRepo.GetOperation(opEntity.SchedulingID, opEntity.CorrelationID)
+				require.NoError(t, errGetOp)
 				t.Logf("Failed to updated operation state: %s -> latest operation state is '%s'",
 					err, latestOpEntity.State)
 			}
