@@ -202,7 +202,7 @@ func (i *RemoteReconcilerInvoker) updateOperationState(params *Params, state mod
 	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, strings.Join(reasons, ", "))
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("remote invoker failed to update operation "+
-			"(scheudlingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
+			"(schedulingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
 	}
 	return nil
 }
