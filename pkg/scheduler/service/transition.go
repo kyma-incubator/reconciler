@@ -74,7 +74,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 	dbOp := func() error {
 		reconEntity, err := t.reconRepo.GetReconciliation(schedulingID)
 		if err != nil {
-			t.logger.Errorf("Finising reconciliation failed: could not retrieve reconciliation entity "+
+			t.logger.Errorf("Finishing reconciliation failed: could not retrieve reconciliation entity "+
 				"(schedulingID:%s): %s", schedulingID, err)
 			return err
 		}
