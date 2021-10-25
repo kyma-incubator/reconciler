@@ -20,7 +20,7 @@ func NewInstall(logger *zap.SugaredLogger) *Install {
 	return &Install{logger: logger}
 }
 
-//go:generate mockery --name=Operation --output=mocks --outpkg=mock --case=underscore
+//go:generate mockery --name=Operation --output=mocks --outpkg=mocks --case=underscore
 type Operation interface {
 	Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Task, kubeClient kubernetes.Client) error
 }
@@ -28,7 +28,7 @@ type Operation interface {
 func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task *reconciler.Task, kubeClient kubernetes.Client) error {
 	var err error
 	var manifest string
-	if task.Component == model.CRDComponent { // [x] Use constant
+	if task.Component == model.CRDComponent {
 		manifest, err = r.renderCRDs(chartProvider, task)
 	} else {
 		manifest, err = r.renderManifest(chartProvider, task)

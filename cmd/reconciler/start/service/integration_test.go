@@ -15,6 +15,7 @@ import (
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
@@ -26,7 +27,6 @@ import (
 	clientgo "k8s.io/client-go/kubernetes"
 )
 
-// BONFIRE add deletion
 const (
 	urlCallbackHTTPBin = "https://httpbin.org/post"
 	urlCallbackMock    = "http://localhost:11111/callback"
@@ -150,6 +150,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         "1.2.3",
+				Type:            model.OperationTypeReconcile,
 				Profile:         "unittest",
 				Configuration:   nil,
 				Kubeconfig:      "xyz",
@@ -170,6 +171,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         "1.2.3",
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      "",
@@ -189,6 +191,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      test.ReadKubeconfig(t),
@@ -208,6 +211,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration: map[string]interface{}{
 					"initContainer": true,
@@ -226,6 +230,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig: func() string {
@@ -246,6 +251,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration: map[string]interface{}{
 					"breakHelmChart": true,
@@ -264,6 +270,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      test.ReadKubeconfig(t),

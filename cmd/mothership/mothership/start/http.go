@@ -509,7 +509,6 @@ func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// [x] support delete http method
 func deleteCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	runtimeID, err := params.String(paramRuntimeID)

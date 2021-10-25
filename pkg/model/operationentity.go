@@ -9,8 +9,6 @@ import (
 
 const tblOperation string = "scheduler_operations"
 
-// [x] Add operation field (reconcile/delete) + enum + marshallers
-// [x] database migration files
 type OperationEntity struct {
 	Priority      int64          `db:"notNull"`
 	SchedulingID  string         `db:"notNull"`
@@ -27,8 +25,8 @@ type OperationEntity struct {
 
 func (o *OperationEntity) String() string {
 	return fmt.Sprintf("OperationEntity [SchedulingID=%s,CorrelationID=%s,"+
-		"RuntimeID=%s,ClusterConfig=%d,Component=%s,Prio=%d,State=%s]",
-		o.SchedulingID, o.CorrelationID, o.RuntimeID, o.ClusterConfig, o.Component, o.Priority, o.Type)
+		"RuntimeID=%s,ClusterConfig=%d,Component=%s,Prio=%d,State=%s,Type=%s]",
+		o.SchedulingID, o.CorrelationID, o.RuntimeID, o.ClusterConfig, o.Component, o.Priority, o.State, o.Type)
 }
 
 func (*OperationEntity) New() db.DatabaseEntity {

@@ -16,7 +16,6 @@ type Filter interface {
 }
 
 type Repository interface {
-	// [x] create operations based on either delete-pending or reconcile status
 	CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error)
 	RemoveReconciliation(schedulingID string) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
@@ -25,7 +24,6 @@ type Repository interface {
 	GetOperations(schedulingID string, state ...model.OperationState) ([]*model.OperationEntity, error)
 	GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error)
 	//GetProcessableOperations returns all operations which can be assigned to a worker
-	// [x] reverse queue when deleting in prios
 	GetProcessableOperations(maxParallelOpsPerRecon int) ([]*model.OperationEntity, error)
 	//GetReconcilingOperations returns all operations which are part of currently running reconciliations
 	GetReconcilingOperations() ([]*model.OperationEntity, error)
@@ -134,7 +132,7 @@ func findProcessableOperationsInGroup(ops []*model.OperationEntity, maxParallelO
 			if freeCapacity <= 0 {
 				processables = nil
 			} else {
-				processables = processables[0:freeCapacity]
+				processables = processables[:freeCapacity]
 			}
 		}
 	}

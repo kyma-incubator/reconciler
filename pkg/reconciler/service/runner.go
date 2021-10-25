@@ -75,7 +75,6 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	return err
 }
 
-// [x] include deletion
 func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 	kubeClient, err := adapter.NewKubernetesClient(task.Kubeconfig, r.logger, &adapter.Config{
 		ProgressInterval: r.progressTrackerConfig.interval,

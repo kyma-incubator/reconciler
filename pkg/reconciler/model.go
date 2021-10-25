@@ -29,7 +29,6 @@ func NewStatus(status string) (Status, error) {
 	}
 }
 
-// [x] Add operation type and rename struct
 //Task the reconciler has to complete when called
 type Task struct {
 	ComponentsReady []string               `json:"componentsReady"`

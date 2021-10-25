@@ -213,7 +213,6 @@ func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*Sta
 	return state, nil
 }
 
-// [x] add mark for deletion -> status delete-pending
 func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
 	clusterState, err := i.GetLatest(runtimeID)
 	if err != nil {
@@ -431,7 +430,6 @@ func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity
 	return clusterEntity.(*model.ClusterEntity), nil
 }
 
-// [x] consider clusters marked for deletion
 func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
 	var filters []statusSQLFilter
 	if reconcileInterval > 0 {
@@ -445,7 +443,6 @@ func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) 
 	return i.filterClusters(filters...)
 }
 
-// [x] consider clusters marked for deletion
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	statusFilter := &statusFilter{
 		allowedStatuses: []model.Status{

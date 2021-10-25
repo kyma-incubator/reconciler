@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-type Status string // [x] Add deletion status: delete-pending, deleting, deleted, delete-error
+type Status string
 
 const (
 	ClusterStatusDeletePending     Status = "delete_pending"

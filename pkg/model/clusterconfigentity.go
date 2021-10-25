@@ -102,7 +102,6 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 	return nil
 }
 
-// [x] write unit test
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []string) *ReconciliationSequence {
 	//group components depending on their reconciliation order
 	sequence := &ReconciliationSequence{}
