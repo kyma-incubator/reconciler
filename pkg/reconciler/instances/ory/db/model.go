@@ -38,6 +38,7 @@ type Persistence struct {
 	Username       string         `yaml:"user"`
 	URL            string         `yaml:"dbUrl"`
 	DBName         string         `yaml:"dbName"`
+	SecretsSystem  string         `yaml:"secretsSystem"`
 }
 
 // PostgresqlFlag is a boolean to control whether PostgresSQL needs to be deployed

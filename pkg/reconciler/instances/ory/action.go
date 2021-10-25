@@ -71,7 +71,7 @@ func (a *preAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "failed to create db credentials data for Ory Hydra")
 		}
 		if err := a.ensureOrySecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
-			return errors.Wrap(err, "failed to ensure Ory secret")
+			return err
 		}
 
 	} else {

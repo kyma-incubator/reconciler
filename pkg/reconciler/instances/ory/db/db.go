@@ -53,7 +53,7 @@ func Get(name types.NamespacedName, chartValues map[string]interface{}, logger *
 	}, nil
 }
 
-// UpdateSecret overwrites secret with new values from config
+// IsUpdate overwrites secret with new values from config and returns true if secret was changed
 func IsUpdate(name types.NamespacedName, chartValues map[string]interface{}, secret *v1.Secret, logger *zap.SugaredLogger) (bool, error) {
 	cfg, err := newDBConfig(chartValues)
 	if err != nil {
@@ -74,13 +74,11 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 	data := make(map[string]string)
 	dsn := string(secret.Data["dsn"])
 
-	// TODO: Maybe it's better to store secretsSystem in Config (c.Global.Ory.Hydra.Persistence.SecretsSystem)
-	secretsSystem := string(secret.Data["secretsSystem"])
-	if secretsSystem == "" {
-		secretsSystem = generateRandomString(32)
+	c.Global.Ory.Hydra.Persistence.SecretsSystem = string(secret.Data["secretsSystem"])
+	if c.Global.Ory.Hydra.Persistence.SecretsSystem == "" {
+		c.Global.Ory.Hydra.Persistence.SecretsSystem = generateRandomString(32)
 	}
 
-	// Persistence will be disabled if it wasn't already
 	if !c.Global.Ory.Hydra.Persistence.Enabled {
 		if dsn == "memory" {
 			logger.Info("Ory Hydra persistence is already disabled")
@@ -88,10 +86,9 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 		}
 
 		logger.Info("Disabling persistence for Ory Hydra")
-		return c.generateSecretDataMemory(secretsSystem)
+		return c.generateSecretDataMemory()
 	}
 
-	// postgresql persistence is enabled and it's dsn needs an update
 	if c.Global.Ory.Hydra.Persistence.PostgresqlFlag.Enabled {
 		secretPostgresqlPassword := string(secret.Data["postgresql-password"])
 		if secretPostgresqlPassword != "" && c.Global.PostgresCfg.Password == "" {
@@ -99,33 +96,30 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 		}
 		if c.preparePostgresDSN() != dsn {
 			logger.Info("Enabling postgresql persistence")
-			return c.generateSecretDataPostgresql(secretsSystem)
+			return c.generateSecretDataPostgresql()
 		}
 		return data
 	}
 
-	// mysql persistence is enabled and it's dsn needs an update
 	if c.Global.Ory.Hydra.Persistence.DBType == "mysql" {
 		if c.prepareMySQLDSN() != dsn {
 			logger.Info("Enabling mysql persistence")
-			return c.generateSecretDataMysql(secretsSystem)
+			return c.generateSecretDataMysql()
 		}
 		return data
 	}
 
-	// gcloud persistence is enabled and it's dsn needs an update
 	if c.Global.Ory.Hydra.Persistence.Gcloud.Enabled {
 		if c.prepareGenericDSN() != dsn {
 			logger.Info("Enabling gcloud persistence")
-			return c.generateSecretDataGcloud(secretsSystem)
+			return c.generateSecretDataGcloud()
 		}
 		return data
 	}
 
-	// custom db persistence is enabled and it's dsn needs an update
 	if c.prepareGenericDSN() != dsn {
 		logger.Info("Enabling custom db persistence")
-		return c.generateSecretDataGeneric(secretsSystem)
+		return c.generateSecretDataGeneric()
 	}
 
 	return data
@@ -150,39 +144,39 @@ func (c *Config) prepareGenericDSN() string {
 }
 
 func (c *Config) prepareStringData() map[string]string {
-	secretsSystem := generateRandomString(32)
+	c.Global.Ory.Hydra.Persistence.SecretsSystem = generateRandomString(32)
 
 	if c.Global.Ory.Hydra.Persistence.Enabled {
 		if c.Global.Ory.Hydra.Persistence.PostgresqlFlag.Enabled {
-			return c.generateSecretDataPostgresql(secretsSystem)
+			return c.generateSecretDataPostgresql()
 		}
 		if c.Global.Ory.Hydra.Persistence.DBType == "mysql" {
-			return c.generateSecretDataMysql(secretsSystem)
+			return c.generateSecretDataMysql()
 		}
 		if c.Global.Ory.Hydra.Persistence.Gcloud.Enabled {
-			return c.generateSecretDataGcloud(secretsSystem)
+			return c.generateSecretDataGcloud()
 		}
-		return c.generateSecretDataGeneric(secretsSystem)
+		return c.generateSecretDataGeneric()
 	}
 
-	return c.generateSecretDataMemory(secretsSystem)
+	return c.generateSecretDataMemory()
 }
 
-func (c *Config) generateSecretDataMemory(secretsSystem string) map[string]string {
+func (c *Config) generateSecretDataMemory() map[string]string {
 	return map[string]string{
-		"secretsSystem": secretsSystem,
+		"secretsSystem": c.Global.Ory.Hydra.Persistence.SecretsSystem,
 		"secretsCookie": generateRandomString(32),
 		"dsn":           "memory",
 	}
 }
 
-func (c *Config) generateSecretDataPostgresql(secretsSystem string) map[string]string {
+func (c *Config) generateSecretDataPostgresql() map[string]string {
 	if c.Global.PostgresCfg.Password == "" {
 		c.Global.PostgresCfg.Password = generateRandomString(10)
 	}
 
 	return map[string]string{
-		"secretsSystem":                   secretsSystem,
+		"secretsSystem":                   c.Global.Ory.Hydra.Persistence.SecretsSystem,
 		"secretsCookie":                   generateRandomString(32),
 		"dsn":                             c.preparePostgresDSN(),
 		"postgresql-password":             c.Global.PostgresCfg.Password,
@@ -190,27 +184,27 @@ func (c *Config) generateSecretDataPostgresql(secretsSystem string) map[string]s
 	}
 }
 
-func (c *Config) generateSecretDataMysql(secretsSystem string) map[string]string {
+func (c *Config) generateSecretDataMysql() map[string]string {
 	return map[string]string{
-		"secretsSystem": secretsSystem,
+		"secretsSystem": c.Global.Ory.Hydra.Persistence.SecretsSystem,
 		"secretsCookie": generateRandomString(32),
 		"dsn":           c.prepareMySQLDSN(),
 		"dbPassword":    c.Global.Ory.Hydra.Persistence.Password,
 	}
 }
 
-func (c *Config) generateSecretDataGcloud(secretsSystem string) map[string]string {
+func (c *Config) generateSecretDataGcloud() map[string]string {
 	return map[string]string{
-		"secretsSystem": secretsSystem,
+		"secretsSystem": c.Global.Ory.Hydra.Persistence.SecretsSystem,
 		"secretsCookie": generateRandomString(32),
 		"gcp-sa.json":   c.Global.Ory.Hydra.Persistence.Gcloud.SAJson,
 		"dsn":           c.prepareGenericDSN(),
 	}
 }
 
-func (c *Config) generateSecretDataGeneric(secretsSystem string) map[string]string {
+func (c *Config) generateSecretDataGeneric() map[string]string {
 	return map[string]string{
-		"secretsSystem": secretsSystem,
+		"secretsSystem": c.Global.Ory.Hydra.Persistence.SecretsSystem,
 		"secretsCookie": generateRandomString(32),
 		"dsn":           c.prepareGenericDSN(),
 		"dbPassword":    c.Global.Ory.Hydra.Persistence.Password,
