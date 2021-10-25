@@ -189,7 +189,7 @@ func (i *RemoteReconcilerInvoker) unmarshalHTTPResponse(body []byte, respModel i
 		//update the operation to be failed caused by client error
 		errUpdState := i.updateOperationState(params, model.OperationStateClientError, err.Error())
 		if errUpdState != nil {
-			err = errors.Wrap(err, fmt.Sprintf("failed to update state of operation (scheudlingID:%s/correlationID:%s) to '%s': %s",
+			err = errors.Wrap(err, fmt.Sprintf("failed to update state of operation (schedulingID:%s/correlationID:%s) to '%s': %s",
 				params.SchedulingID, params.CorrelationID, model.OperationStateClientError, errUpdState))
 		}
 
