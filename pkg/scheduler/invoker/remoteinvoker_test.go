@@ -46,7 +46,7 @@ func TestRemoteInvoker(t *testing.T) {
 				Reconcilers:   nil,
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(t, reconRepo, opEntity, cfg)
 		require.Error(t, err)
 		require.True(t, IsNoFallbackReconcilerDefinedError(err))
 	})
@@ -65,7 +65,7 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(t, reconRepo, opEntity, cfg)
 		require.Error(t, err)
 
 		//no change expected because comp-reconciler could not be reached
@@ -86,7 +86,7 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(t, reconRepo, opEntity, cfg)
 		require.NoError(t, err)
 
 		requireOperationState(t, reconRepo, opEntity, model.OperationStateInProgress)
@@ -106,7 +106,7 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(t, reconRepo, opEntity, cfg)
 		require.NoError(t, err)
 
 		requireOperationState(t, reconRepo, opEntity, model.OperationStateFailed)
@@ -126,7 +126,7 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(t, reconRepo, opEntity, cfg)
 		require.NoError(t, err)
 
 		requireOperationState(t, reconRepo, opEntity, model.OperationStateClientError)
@@ -146,14 +146,17 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(t, reconRepo, opEntity, cfg)
 		require.NoError(t, err)
 
 		requireOperationState(t, reconRepo, opEntity, model.OperationStateClientError)
 	})
 }
 
-func invokeRemoteInvoker(reconRepo reconciliation.Repository, op *model.OperationEntity, cfg *config.Config) error {
+func invokeRemoteInvoker(t *testing.T, reconRepo reconciliation.Repository, op *model.OperationEntity, cfg *config.Config) error {
+	//reset operation state
+	require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateNew))
+
 	invoker := NewRemoteReoncilerInvoker(reconRepo, cfg, logger.NewLogger(true))
 	return invoker.Invoke(context.Background(), &Params{
 		ComponentToReconcile: &keb.Component{

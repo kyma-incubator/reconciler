@@ -381,9 +381,9 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			ExecCount()
 
 		if cnt == 0 {
-			return fmt.Errorf("update of operation '%s' was not successful: "+
+			return fmt.Errorf("update of operation '%s' to state '%s' failed: "+
 				"seems the operation does no longer match the where-conditions (no row was updated)",
-				op)
+				op, state)
 		}
 
 		return err

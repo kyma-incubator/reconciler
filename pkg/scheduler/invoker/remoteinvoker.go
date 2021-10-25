@@ -34,6 +34,10 @@ func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, cfg *config.
 }
 
 func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) error {
+	if err := i.ensureOperationNotInProgress(params); err != nil {
+		return err
+	}
+
 	//mark the operation to be in progress (required to avoid that other invokers will also pick it up)
 	if err := i.updateOperationState(params, model.OperationStateInProgress); err != nil {
 		return err
@@ -100,6 +104,19 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 	}
 
 	return i.updateOperationState(params, model.OperationStateClientError, errorReason)
+}
+
+func (i *RemoteReconcilerInvoker) ensureOperationNotInProgress(params *Params) error {
+	op, err := i.reconRepo.GetOperation(params.SchedulingID, params.CorrelationID)
+	if err != nil {
+		return errors.Wrap(err, "invoker failed to retrieve operation to verify its state")
+	}
+	if op.State == model.OperationStateInProgress {
+		return fmt.Errorf("invoker cannot pickup operation (schedulingID:%s/correlationID:%s/component:%s) because "+
+			"operation is already in state '%s'", op.SchedulingID, op.CorrelationID, op.Component,
+			model.OperationStateInProgress)
+	}
+	return nil
 }
 
 func (i *RemoteReconcilerInvoker) reportUnmarshalError(httpCode int, body []byte, err error) {
