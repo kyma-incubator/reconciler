@@ -2,6 +2,7 @@ package db
 
 import (
 	"github.com/stretchr/testify/require"
+	"path/filepath"
 	"testing"
 )
 
@@ -71,6 +72,29 @@ func TestEncryptor(t *testing.T) {
 		require.Equal(t, decData1, decData2)
 	})
 
+}
+
+func TestReadKeyFile(t *testing.T) {
+	t.Run("Read valid key", func(t *testing.T) {
+		key, err := readKeyFile(filepath.Join("test", "valid.key"))
+		require.NoError(t, err)
+		require.NotEmpty(t, key)
+	})
+	t.Run("Read missing key", func(t *testing.T) {
+		key, err := readKeyFile(filepath.Join("test", "donexist.key"))
+		require.Error(t, err)
+		require.Empty(t, key)
+	})
+	t.Run("Read wrong length key", func(t *testing.T) {
+		key, err := readKeyFile(filepath.Join("test", "wronglength.key"))
+		require.Error(t, err)
+		require.Empty(t, key)
+	})
+	t.Run("Read invalid key", func(t *testing.T) {
+		key, err := readKeyFile(filepath.Join("test", "invalid.key"))
+		require.Error(t, err)
+		require.Empty(t, key)
+	})
 }
 
 func newEncryptor(t *testing.T) *Encryptor {
