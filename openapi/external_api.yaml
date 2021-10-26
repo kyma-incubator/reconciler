@@ -412,6 +412,7 @@ components:
         - delete_pending
         - delete_error
         - deleting
+        - deleted
 
     failure:
       type: object

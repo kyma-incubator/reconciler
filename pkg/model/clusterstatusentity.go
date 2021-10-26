@@ -75,6 +75,17 @@ func (c *ClusterStatusEntity) GetKEBClusterStatus() (keb.Status, error) {
 
 	case ClusterStatusReconcileError:
 		kebStatus = keb.StatusError
+	case ClusterStatusDeletePending:
+		kebStatus = keb.StatusDeletePending
+
+	case ClusterStatusDeleting:
+		kebStatus = keb.StatusDeleting
+
+	case ClusterStatusDeleted:
+		kebStatus = keb.StatusDeleted
+
+	case ClusterStatusDeleteError:
+		kebStatus = keb.StatusDeleteError
 
 	case ClusterStatusReconcileDisabled:
 		kebStatus = keb.StatusReconcileDisabled

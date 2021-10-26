@@ -13,6 +13,8 @@ const (
 
 	StatusDeletePending Status = "delete_pending"
 
+	StatusDeleted Status = "deleted"
+
 	StatusDeleting Status = "deleting"
 
 	StatusError Status = "error"
