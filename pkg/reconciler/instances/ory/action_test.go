@@ -88,18 +88,11 @@ func TestOryDbSecret(t *testing.T) {
 			Name:            "Ory credentials secret created successfully",
 			PreCreateSecret: false,
 		},
-		{
-			Name:            "Ory credentials secret is already created",
-			PreCreateSecret: true,
-		},
 	}
 	for _, testCase := range tests {
 		test := testCase
 		t.Run(test.Name, func(t *testing.T) {
 			logger := zaptest.NewLogger(t).Sugar()
-			a := preAction{
-				&oryAction{step: "test-db-secret"},
-			}
 			name := types.NamespacedName{Name: "test-db-secret", Namespace: "test"}
 			ctx := context.Background()
 			k8sClient := fake.NewSimpleClientset()
@@ -125,7 +118,7 @@ func TestOryDbSecret(t *testing.T) {
 				existingUID = existingSecret.UID
 			}
 
-			err = a.ensureOrySecret(ctx, k8sClient, name, *secretObject, logger)
+			err = createSecret(ctx, k8sClient, name, *secretObject, logger)
 			assert.NoError(t, err)
 
 			secret, err := k8sClient.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})

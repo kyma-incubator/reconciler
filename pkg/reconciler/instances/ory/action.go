@@ -70,7 +70,7 @@ func (a *preAction) Run(context *service.ActionContext) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to create db credentials data for Ory Hydra")
 		}
-		if err := a.ensureOrySecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
+		if err := createSecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
 			return err
 		}
 
@@ -127,18 +127,6 @@ func (a *preAction) getDBConfigSecret(ctx context.Context, client kubernetes.Int
 	}
 
 	return secret, err
-}
-
-func (a *preAction) ensureOrySecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
-	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return createSecret(ctx, client, name, secret, logger)
-		}
-		return errors.Wrap(err, "failed to get Ory DB secret")
-	}
-
-	return err
 }
 
 func (a *preAction) updateSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
