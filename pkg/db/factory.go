@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -56,15 +55,7 @@ func readEncryptionKey() (string, error) {
 		encKeyFile = viper.GetString("DATABASE_ENCRYPTION_KEYFILE")
 	}
 
-	if !file.Exists(encKeyFile) {
-		return "", fmt.Errorf("encryption key file '%s' not found", encKeyFile)
-	}
-
-	encKeyBytes, err := ioutil.ReadFile(encKeyFile)
-	if err != nil {
-		return "", err
-	}
-	return string(encKeyBytes), nil
+	return readKeyFile(encKeyFile)
 }
 
 func createSqliteConnectionFactory(encKey string, debug bool, blockQueries, logQueries bool) (*sqliteConnectionFactory, error) {

@@ -205,7 +205,7 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 		return &repository.EntityNotFoundError{}
 	}
 
-	if op.State == model.OperationStateDone || op.State == model.OperationStateError {
+	if op.State.IsFinal() {
 		return fmt.Errorf("cannot update state of operation for component '%s' (schedulingID:%s/correlationID:'%s) "+
 			"to new state '%s' because operation is already in final state '%s'",
 			op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
