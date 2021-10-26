@@ -285,7 +285,7 @@ components:
         failures:
           type: array
           items:
-            $ref: '#/components/schemas/failure'
+            $ref: "#/components/schemas/failure"
         status:
           $ref: "#/components/schemas/status"
         statusURL:
@@ -415,7 +415,7 @@ components:
 
     failure:
       type: object
-      required: [ component, reason ]
+      required: [component, reason]
       properties:
         component:
           type: string
