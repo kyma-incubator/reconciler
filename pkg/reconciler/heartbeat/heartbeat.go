@@ -120,7 +120,12 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 				su.closeContext()
 
 				//send error resonse
-				if err := task(reconciler.StatusError, su.ctx.Err()); err == nil { //trigger response before interval starts
+				reconcilerStatus := reconciler.StatusFailed
+				if su.ctx.Err() == context.DeadlineExceeded { //operation not finished withing given time range: error!
+					reconcilerStatus = reconciler.StatusError
+				}
+
+				if err := task(reconcilerStatus, su.ctx.Err()); err == nil { //trigger response before interval starts
 					return
 				}
 
@@ -130,12 +135,12 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 				for {
 					select {
 					case <-ticker.C:
-						if err := task(reconciler.StatusError, su.ctx.Err()); err == nil {
+						if err := task(reconcilerStatus, su.ctx.Err()); err == nil {
 							return
 						}
 					case <-giveUp.C:
-						su.logger.Errorf("Heartbeat failed to communicated status '%s' after context got closed: "+
-							"timeout occcurred", reconciler.StatusError)
+						su.logger.Errorf("Heartbeat failed to communicated status '%s' after context got closed "+
+							"(ctx error: %s): timeout occcurred", reconcilerStatus, su.ctx.Err())
 						return
 					}
 				}
