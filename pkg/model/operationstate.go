@@ -39,3 +39,15 @@ func NewOperationState(state string) (OperationState, error) {
 	}
 	return result, nil
 }
+
+func (o OperationState) IsError() bool {
+	return o == OperationStateError || o == OperationStateFailed || o == OperationStateClientError
+}
+
+func (o OperationState) IsFinal() bool {
+	return o == OperationStateError || o == OperationStateDone
+}
+
+func (o OperationState) IsTemporary() bool {
+	return !o.IsFinal()
+}

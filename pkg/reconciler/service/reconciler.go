@@ -251,6 +251,6 @@ func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconcil
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 		defer cancel()
-		return (&runner{r, &Install{logger}, logger}).Run(timeoutCtx, model, callback)
+		return (&runner{r, NewInstall(logger), logger}).Run(timeoutCtx, model, callback)
 	}
 }

@@ -65,15 +65,25 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 			Status:        clusterStatusEntity,
 		}, nil
 	}
-	stateEntity, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+
+	state, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+	if err != nil {
+		i.Logger.Errorf("Inventory failed to create/update cluster with runtimeID '%s': %s", cluster.RuntimeID, err)
+		return nil, err
+	}
+
+	stateEntity := state.(*State)
+	err = i.metricsCollector.OnClusterStateUpdate(stateEntity)
 	if err != nil {
 		return nil, err
 	}
-	err = i.metricsCollector.OnClusterStateUpdate(stateEntity.(*State))
-	if err != nil {
-		return nil, err
-	}
-	return stateEntity.(*State), nil
+
+	i.Logger.Infof("Inventory created/updated cluster with runtimeID '%s' "+
+		"(clusterVersion:%d/configVersion:%d/status:%s)",
+		stateEntity.Cluster.RuntimeID,
+		stateEntity.Cluster.Version, stateEntity.Configuration.Version, stateEntity.Status.Status)
+
+	return stateEntity, nil
 }
 
 func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Cluster) (*model.ClusterEntity, error) {
@@ -263,7 +273,13 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 		//done
 		return nil
 	}
-	return db.Transaction(i.Conn, dbOps, i.Logger)
+	err := db.Transaction(i.Conn, dbOps, i.Logger)
+	if err == nil {
+		i.Logger.Infof("Inventory deleted cluster with runtimeID '%s'", runtimeID)
+	} else {
+		i.Logger.Errorf("Inventory failed to delete cluster with runtimeID '%s': %s", runtimeID, err)
+	}
+	return err
 }
 
 func (i *DefaultInventory) Get(runtimeID string, configVersion int64) (*State, error) {

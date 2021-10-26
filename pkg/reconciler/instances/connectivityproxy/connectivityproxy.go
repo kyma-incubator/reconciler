@@ -2,10 +2,11 @@ package connectivityproxy
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	service "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
 const (
@@ -27,11 +28,19 @@ func init() {
 	}
 
 	reconciler.
-		WithPreReconcileAction(&CustomAction{
-			name: "pre-action",
-			copyFactory: []CopyFactory{
-				registrySecretCopy,
-				istioSecretCopy,
+		WithReconcileAction(&CustomAction{
+			Name:   "action",
+			Loader: &K8sLoader{},
+			Commands: &CommandActions{
+				clientSetFactory: kubeclient.NewInClusterClientSet,
+				targetClientSetFactory: func(context *service.ActionContext) (k8s.Interface, error) {
+					return context.KubeClient.Clientset()
+				},
+				install: service.NewInstall(log),
+				copyFactory: []CopyFactory{
+					registrySecretCopy,
+					istioSecretCopy,
+				},
 			},
 		})
 }

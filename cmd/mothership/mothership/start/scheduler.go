@@ -18,7 +18,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 
 	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
 
-	runtimeBuilder.
+	return runtimeBuilder.
 		RunRemote(
 			o.Registry.Connnection(),
 			o.Registry.Inventory(),
@@ -43,8 +43,6 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		Run(ctx)
-
-	return nil
 }
 
 func parseSchedulerConfig(configFile string) (*config.Config, error) {
