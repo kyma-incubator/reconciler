@@ -94,7 +94,7 @@ type IstioPerformer interface {
 	Version(workspace workspace.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
 
 	// Uninstall Istio from the cluster and its corresponding resources.
-	Uninstall(kubeConfig string, log *zap.SugaredLogger) error
+	Uninstall(kubeClientSet reconcilerKubeClient.Client, log *zap.SugaredLogger) error
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
@@ -113,21 +113,20 @@ func NewDefaultIstioPerformer(commander istioctl.Commander, istioProxyReset prox
 	}
 }
 
-func (c *DefaultIstioPerformer) Uninstall(kubeConfig string, log *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Uninstall(kubeClientSet reconcilerKubeClient.Client, log *zap.SugaredLogger) error {
 	log.Info("Starting Istio uninstallation...")
-	err := c.commander.Uninstall(kubeConfig, log)
+	err := c.commander.Uninstall(kubeClientSet.Kubeconfig(), log)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
-	log.Info("cleaning up istio-namespace")
-	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, log)
+	kubeClient, err := kubeClientSet.Clientset()
 	if err != nil {
 		return err
 	}
-	namespaceClient := kubeClient.CoreV1().Namespaces()
+
 	policy := metav1.DeletePropagationForeground
-	err = namespaceClient.Delete(context.TODO(), "istio-system", metav1.DeleteOptions{
+	err = kubeClient.CoreV1().Namespaces().Delete(context.TODO(), "istio-system", metav1.DeleteOptions{
 		PropagationPolicy: &policy,
 	})
 	if err != nil {

@@ -60,13 +60,13 @@ func (_m *IstioPerformer) ResetProxy(kubeConfig string, version actions.IstioVer
 	return r0
 }
 
-// Uninstall provides a mock function with given fields: kubeConfig, log
-func (_m *IstioPerformer) Uninstall(kubeConfig string, log *zap.SugaredLogger) error {
-	ret := _m.Called(kubeConfig, log)
+// Uninstall provides a mock function with given fields: kubeClientSet, log
+func (_m *IstioPerformer) Uninstall(kubeClientSet kubernetes.Client, log *zap.SugaredLogger) error {
+	ret := _m.Called(kubeClientSet, log)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *zap.SugaredLogger) error); ok {
-		r0 = rf(kubeConfig, log)
+	if rf, ok := ret.Get(0).(func(kubernetes.Client, *zap.SugaredLogger) error); ok {
+		r0 = rf(kubeClientSet, log)
 	} else {
 		r0 = ret.Error(0)
 	}

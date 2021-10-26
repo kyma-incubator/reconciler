@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -95,7 +97,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		// when
 		err := wrapper.Install(kubeConfig, "", log)
 
-		/// then
+		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Istio Operator definition could not be found")
 		cmder.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -137,8 +139,11 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 }
 
 func Test_DefaultIstioPerformer_Uninstall(t *testing.T) {
-
-	kubeConfig := "kubeConfig"
+	kc := &mocks.Client{}
+	kc.On("Kubeconfig").Return("kubeconfig")
+	kc.On("Clientset").Return(fake.NewSimpleClientset(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: "istio-system"},
+	}), nil)
 	log := logger.NewLogger(false)
 
 	t.Run("should not uninstall Istio when istioctl returned an error", func(t *testing.T) {
@@ -150,7 +155,7 @@ func Test_DefaultIstioPerformer_Uninstall(t *testing.T) {
 		var wrapper IstioPerformer = NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err := wrapper.Uninstall(kubeConfig, log)
+		err := wrapper.Uninstall(kc, log)
 
 		// then
 		require.Error(t, err)
@@ -161,17 +166,17 @@ func Test_DefaultIstioPerformer_Uninstall(t *testing.T) {
 	t.Run("should uninstall Istio when istioctl command was successful", func(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
-		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		cmder.On("Uninstall", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
 		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
 
 		// when
-		err := wrapper.Install(kubeConfig, istioManifest, log)
+		err := wrapper.Uninstall(kc, log)
 
 		// then
 		require.NoError(t, err)
-		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		cmder.AssertCalled(t, "Uninstall", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
 }
@@ -231,7 +236,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		// when
 		err := wrapper.Update(kubeConfig, "", log)
 
-		/// then
+		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Istio Operator definition could not be found")
 		cmder.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -457,43 +462,43 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 	branch := "branch"
 
 	t.Run("should not get target version when the workspace is not resolved", func(t *testing.T) {
-		//given
+		// given
 		istioChart := "istio-test"
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{}, nil)
 
-		//when
+		// when
 		_, err := getTargetVersionFromChart(factory, branch, istioChart)
 
-		//then
+		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no such file or directory")
 	})
 
 	t.Run("should not get target version when the istio Chart does not exist", func(t *testing.T) {
-		//given
+		// given
 		istioChart := "istio-config"
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 
-		//when
+		// when
 		_, err := getTargetVersionFromChart(factory, branch, istioChart)
 
-		//then
+		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no such file or directory")
 	})
 
 	t.Run("should get target version when Chart.yml is resolved", func(t *testing.T) {
-		//given
+		// given
 		istioChart := "istio-test"
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
 
-		//when
+		// when
 		targetVersion, err := getTargetVersionFromChart(factory, branch, istioChart)
 
-		//then
+		// then
 		require.NoError(t, err)
 		require.EqualValues(t, "1.11.2", targetVersion)
 	})
@@ -506,10 +511,10 @@ func TestMapVersionToStruct(t *testing.T) {
 		versionOutput := []byte("")
 		targetVersion := "targetVersion"
 
-		//when
+		// when
 		_, err := mapVersionToStruct(versionOutput, targetVersion)
 
-		//then
+		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "command is empty")
 	})
@@ -525,10 +530,10 @@ func TestMapVersionToStruct(t *testing.T) {
 			DataPlaneVersion: "1.11.1",
 		}
 
-		//when
+		// when
 		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion)
 
-		//then
+		// then
 		require.NoError(t, err)
 		require.EqualValues(t, expectedStruct, gotStruct)
 	})
