@@ -2,8 +2,9 @@ package actions
 
 import (
 	"encoding/json"
-	"k8s.io/client-go/kubernetes/fake"
 	"testing"
+
+	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
@@ -118,6 +119,46 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 	})
 
 	t.Run("should install Istio when istioctl command was successful", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		wrapper := NewDefaultIstioPerformer(&cmder, &proxy, &provider)
+
+		// when
+		err := wrapper.Install(kubeConfig, istioManifest, log)
+
+		// then
+		require.NoError(t, err)
+		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+}
+
+func Test_DefaultIstioPerformer_Uninstall(t *testing.T) {
+
+	kubeConfig := "kubeConfig"
+	log := logger.NewLogger(false)
+
+	t.Run("should not uninstall Istio when istioctl returned an error", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Uninstall", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		var wrapper IstioPerformer = NewDefaultIstioPerformer(&cmder, &proxy, &provider)
+
+		// when
+		err := wrapper.Uninstall(kubeConfig, log)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "istioctl error")
+		cmder.AssertCalled(t, "Uninstall", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should uninstall Istio when istioctl command was successful", func(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
