@@ -13,9 +13,10 @@ type Global struct {
 
 // PostgresSQL specific values like username, default database name and password.
 type PostgresCfg struct {
-	User     string `yaml:"postgresqlUsername"`
-	DBName   string `yaml:"postgresqlDatabase"`
-	Password string `yaml:"postgresqlPassword"`
+	User                string `yaml:"postgresqlUsername"`
+	DBName              string `yaml:"postgresqlDatabase"`
+	Password            string `yaml:"postgresqlPassword"`
+	ReplicationPassword string `yaml:"replicationPassword"`
 }
 
 // Ory specific values
@@ -39,6 +40,7 @@ type Persistence struct {
 	URL            string         `yaml:"dbUrl"`
 	DBName         string         `yaml:"dbName"`
 	SecretsSystem  string         `yaml:"secretsSystem"`
+	SecretsCookie  string         `yaml:"secretsCookie"`
 }
 
 // PostgresqlFlag is a boolean to control whether PostgresSQL needs to be deployed

@@ -76,14 +76,17 @@ func (a *preAction) Run(context *service.ActionContext) error {
 
 	} else {
 		logger.Info("Ory DB secret exists, looking for differences")
-		isUpdate, err := db.IsUpdate(dbNamespacedName, values, secretObject, logger)
+		newSecretData, err := db.Update(values, secretObject, logger)
 		if err != nil {
 			return errors.Wrap(err, "failed to update db credentials data for Ory Hydra")
 		}
-		if !isUpdate {
+
+		if len(newSecretData) == 0 {
 			logger.Info("Ory DB secret is the same as values, no need to update")
 		} else {
 			logger.Info("Ory DB secret is different than values, updating it")
+			secretObject.StringData = newSecretData
+
 			if err := a.updateSecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
 				return errors.Wrap(err, "failed to update Ory secret")
 			}
