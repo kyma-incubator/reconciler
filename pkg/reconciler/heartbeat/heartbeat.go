@@ -115,21 +115,22 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 				su.logger.Debugf("Heartbeat stops sending status '%s'", status)
 				return
 			case <-su.ctx.Done():
-				su.logger.Debugf("Heartbeat starts sending status '%s' (previous status was '%s') "+
-					"because parent context got closed", reconciler.StatusError, status)
-				su.closeContext()
-
 				//send error resonse
 				var reconcilerStatus reconciler.Status
 				if su.ctx.Err() == context.DeadlineExceeded { //operation not finished within given time range: error!
 					reconcilerStatus = reconciler.StatusError
-					su.logger.Warnf("Heartbeat context got closed caused by timeout")
+					su.logger.Warnf("Heartbeat context got closed caused by timeout: sending status '%s'",
+						reconcilerStatus)
 				} else {
 					reconcilerStatus = reconciler.StatusFailed
-					su.logger.Infof("Heartbeat context got closed by parent context")
+					su.logger.Infof("Heartbeat context got closed by parent context: sending status '%s'",
+						reconcilerStatus)
 				}
 
-				if err := task(reconcilerStatus, su.ctx.Err()); err == nil { //trigger response before interval starts
+				su.closeContext()
+
+				//try to send status before interval starts (to avoid waiting period until first interval tick is reached)
+				if err := task(reconcilerStatus, su.ctx.Err()); err == nil {
 					return
 				}
 
