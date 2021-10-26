@@ -59,38 +59,8 @@ func (c *DefaultCommander) Uninstall(kubeconfig string, logger *zap.SugaredLogge
 	}()
 
 	cmd := execCommand(istioctlPath, "x", "uninstall", "--purge", "--kubeconfig", kubeconfigPath, "--skip-confirmation")
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
 
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	// cmd.Wait() should be called only after we finish reading from stdout and stderr
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		bufferAndLog(stdout, logger)
-	}()
-	go func() {
-		defer wg.Done()
-		bufferAndLog(stderr, logger)
-	}()
-
-	wg.Wait()
-
-	if err := cmd.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return c.execute(cmd, logger)
 }
 
 func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
@@ -124,38 +94,8 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 	}()
 
 	cmd := execCommand(istioctlPath, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
 
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	// cmd.Wait() should be called only after we finish reading from stdout and stderr
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		bufferAndLog(stdout, logger)
-	}()
-	go func() {
-		defer wg.Done()
-		bufferAndLog(stderr, logger)
-	}()
-
-	wg.Wait()
-
-	if err := cmd.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return c.execute(cmd, logger)
 }
 
 func (c *DefaultCommander) Upgrade(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
@@ -189,6 +129,38 @@ func (c *DefaultCommander) Upgrade(istioOperator, kubeconfig string, logger *zap
 	}()
 
 	cmd := execCommand(istioctlPath, "upgrade", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+
+	return c.execute(cmd, logger)
+}
+
+func (c *DefaultCommander) Version(kubeconfig string, logger *zap.SugaredLogger) ([]byte, error) {
+	istioctlPath, err := resolveIstioctlPath()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	defer func() {
+		cleanupErr := kubeconfigCf()
+		if cleanupErr != nil {
+			logger.Error(cleanupErr)
+		}
+	}()
+
+	cmd := execCommand(istioctlPath, "version", "--output", "json", "--kubeconfig", kubeconfigPath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return out, nil
+}
+
+func (c *DefaultCommander) execute(cmd *exec.Cmd, logger *zap.SugaredLogger) error {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -219,35 +191,7 @@ func (c *DefaultCommander) Upgrade(istioOperator, kubeconfig string, logger *zap
 	if err := cmd.Wait(); err != nil {
 		return err
 	}
-
 	return nil
-}
-
-func (c *DefaultCommander) Version(kubeconfig string, logger *zap.SugaredLogger) ([]byte, error) {
-	istioctlPath, err := resolveIstioctlPath()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	defer func() {
-		cleanupErr := kubeconfigCf()
-		if cleanupErr != nil {
-			logger.Error(cleanupErr)
-		}
-	}()
-
-	cmd := execCommand(istioctlPath, "version", "--output", "json", "--kubeconfig", kubeconfigPath)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	return out, nil
 }
 
 func bufferAndLog(r io.Reader, logger *zap.SugaredLogger) {
