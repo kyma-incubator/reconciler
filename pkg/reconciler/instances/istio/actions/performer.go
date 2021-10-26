@@ -93,7 +93,7 @@ type IstioPerformer interface {
 	// Version of Istio on the cluster.
 	Version(workspace workspace.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
 
-	// Uninstall Istio
+	// Uninstall Istio from the cluster and its corresponding resources.
 	Uninstall(kubeConfig string, log *zap.SugaredLogger) error
 }
 
