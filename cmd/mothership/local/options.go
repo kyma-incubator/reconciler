@@ -52,10 +52,10 @@ func componentsFromFile(path string) ([]string, []string, error) {
 
 	for _, c := range compList.Prerequisites {
 		preComps = append(preComps, c.Name)
-		defaultComps = append(defaultComps, fmt.Sprintf("%s@%s@%s", c.Name, c.Namespace, c.URL))
+		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s}", c.Name, c.Namespace, c.URL))
 	}
 	for _, c := range compList.Components {
-		defaultComps = append(defaultComps, fmt.Sprintf("%s@%s@%s", c.Name, c.Namespace, c.URL))
+		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s}", c.Name, c.Namespace, c.URL))
 	}
 	return preComps, defaultComps, nil
 }
@@ -72,15 +72,18 @@ func componentsFromStrings(list []string, values []string) ([]*keb.Component, er
 	}
 
 	for _, item := range list {
-		s := strings.Split(item, "@")
-		name := s[0]
+		if strings.HasPrefix(item, "{") {
+			item = item[1 : len(item)-1]
+		}
+		s := strings.Split(item, ",")
+		name := strings.TrimSpace(s[0])
 		namespace := components.KymaNamespace
 		url := ""
 		if len(s) > 1 {
-			if s[1] != "" {
-				namespace = s[1]
+			if strings.TrimSpace(s[1]) != "" {
+				namespace = strings.TrimSpace(s[1])
 			}
-			url = s[2]
+			url = setUrlRepository(s[2])
 		}
 		var configuration []keb.Configuration
 		if vals[name] != nil {
@@ -103,6 +106,11 @@ func componentsFromStrings(list []string, values []string) ([]*keb.Component, er
 	}
 
 	return comps, nil
+}
+
+func setUrlRepository(url string) string {
+	// TODO add support for credentials
+	return strings.TrimSpace(url)
 }
 
 func (o *Options) Components(defaultComponentsFile string) ([]string, []*keb.Component, error) {
