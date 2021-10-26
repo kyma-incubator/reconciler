@@ -18,14 +18,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type PostgresConnection struct {
+type postgresConnection struct {
 	db        *sql.DB
 	encryptor *Encryptor
 	validator *Validator
 	logger    *zap.SugaredLogger
 }
 
-func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQueries bool) (*PostgresConnection, error) {
+func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQueries bool) (*postgresConnection, error) {
 	logger := log.NewLogger(debug)
 
 	encryptor, err := NewEncryptor(encryptionKey)
@@ -35,7 +35,7 @@ func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQu
 
 	validator := NewValidator(blockQueries, logger)
 
-	return &PostgresConnection{
+	return &postgresConnection{
 		db:        db,
 		encryptor: encryptor,
 		validator: validator,
@@ -43,15 +43,15 @@ func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQu
 	}, nil
 }
 
-func (pc *PostgresConnection) DB() *sql.DB {
+func (pc *postgresConnection) DB() *sql.DB {
 	return pc.db
 }
 
-func (pc *PostgresConnection) Encryptor() *Encryptor {
+func (pc *postgresConnection) Encryptor() *Encryptor {
 	return pc.encryptor
 }
 
-func (pc *PostgresConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
+func (pc *postgresConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
 	pc.logger.Debugf("Postgres QueryRow(): %s | %v", query, args)
 	if err := pc.validator.Validate(query); err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func (pc *PostgresConnection) QueryRow(query string, args ...interface{}) (DataR
 	return pc.db.QueryRow(query, args...), nil
 }
 
-func (pc *PostgresConnection) Query(query string, args ...interface{}) (DataRows, error) {
+func (pc *postgresConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	pc.logger.Debugf("Postgres Query(): %s | %v", query, args)
 	if err := pc.validator.Validate(query); err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func (pc *PostgresConnection) Query(query string, args ...interface{}) (DataRows
 	return rows, err
 }
 
-func (pc *PostgresConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
+func (pc *postgresConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
 	pc.logger.Debugf("Postgres Exec(): %s | %v", query, args)
 	if err := pc.validator.Validate(query); err != nil {
 		return nil, err
@@ -83,34 +83,35 @@ func (pc *PostgresConnection) Exec(query string, args ...interface{}) (sql.Resul
 	return result, err
 }
 
-func (pc *PostgresConnection) Begin() (*sql.Tx, error) {
+func (pc *postgresConnection) Begin() (*sql.Tx, error) {
 	pc.logger.Debug("Postgres Begin()")
 	return pc.db.Begin()
 }
 
-func (pc *PostgresConnection) Close() error {
+func (pc *postgresConnection) Close() error {
 	pc.logger.Debug("Postgres Close()")
 	return pc.db.Close()
 }
 
-func (pc *PostgresConnection) Type() Type {
+func (pc *postgresConnection) Type() Type {
 	return Postgres
 }
 
-type PostgresConnectionFactory struct {
-	Host          string
-	Port          int
-	Database      string
-	User          string
-	Password      string
-	SslMode       bool
-	EncryptionKey string
-	MigrationsDir string
-	Debug         bool
+type postgresConnectionFactory struct {
+	host          string
+	port          int
+	database      string
+	user          string
+	password      string
+	sslMode       bool
+	encryptionKey string
+	migrationsDir string
+	debug         bool
 	blockQueries  bool
+	logQueries    bool
 }
 
-func (pcf *PostgresConnectionFactory) Init(migrate bool) error {
+func (pcf *postgresConnectionFactory) Init(migrate bool) error {
 	if err := pcf.checkPostgresIsolationLevel(); err != nil {
 		return err
 	}
@@ -122,16 +123,16 @@ func (pcf *PostgresConnectionFactory) Init(migrate bool) error {
 	return nil
 }
 
-func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
+func (pcf *postgresConnectionFactory) NewConnection() (Connection, error) {
 	sslMode := "disable"
-	if pcf.SslMode {
+	if pcf.sslMode {
 		sslMode = "require"
 	}
 
 	db, err := sql.Open(
 		"postgres",
 		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-			pcf.Host, pcf.Port, pcf.User, pcf.Password, pcf.Database, sslMode))
+			pcf.host, pcf.port, pcf.user, pcf.password, pcf.database, sslMode))
 
 	if err == nil {
 		err = db.Ping()
@@ -141,11 +142,11 @@ func (pcf *PostgresConnectionFactory) NewConnection() (Connection, error) {
 		return nil, err
 	}
 
-	return newPostgresConnection(db, pcf.EncryptionKey, pcf.Debug, pcf.blockQueries)
+	return newPostgresConnection(db, pcf.encryptionKey, pcf.logQueries, pcf.blockQueries)
 }
 
-func (pcf *PostgresConnectionFactory) checkPostgresIsolationLevel() error {
-	logger := log.NewLogger(pcf.Debug)
+func (pcf *postgresConnectionFactory) checkPostgresIsolationLevel() error {
+	logger := log.NewLogger(pcf.debug)
 
 	dbConn, err := pcf.NewConnection()
 	if err != nil {
@@ -182,8 +183,8 @@ func (pcf *PostgresConnectionFactory) checkPostgresIsolationLevel() error {
 	return nil
 }
 
-func (pcf *PostgresConnectionFactory) migrateDatabase() error {
-	logger := log.NewLogger(pcf.Debug)
+func (pcf *postgresConnectionFactory) migrateDatabase() error {
+	logger := log.NewLogger(pcf.debug)
 	dbConn, err := pcf.NewConnection()
 	if err != nil {
 		return errors.Wrap(err, "not able to open DB connection to perform migration")
@@ -197,7 +198,7 @@ func (pcf *PostgresConnectionFactory) migrateDatabase() error {
 	if err != nil {
 		return errors.Wrap(err, "not able to instantiate postgres driver for migration")
 	}
-	m, err := migrate.NewWithDatabaseInstance("file://"+pcf.MigrationsDir, "postgres", driver)
+	m, err := migrate.NewWithDatabaseInstance("file://"+pcf.migrationsDir, "postgres", driver)
 	if err != nil {
 		return errors.Wrap(err, "not able to instantiate migrator with database instance")
 	}

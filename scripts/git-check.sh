@@ -5,6 +5,7 @@ AMOUNT=$(git status --porcelain | wc -l)
 if [ "${AMOUNT}" -ne 0 ]; then
   echo "following files was changed after generating models from Open API specs"
   echo "$OUT"
+  git diff
   exit "${AMOUNT}"
 fi
 echo "No files have changed"

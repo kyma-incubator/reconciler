@@ -24,11 +24,12 @@ const (
 
 // HTTPClusterResponse defines model for HTTPClusterResponse.
 type HTTPClusterResponse struct {
-	Cluster              string `json:"cluster"`
-	ClusterVersion       int64  `json:"clusterVersion"`
-	ConfigurationVersion int64  `json:"configurationVersion"`
-	Status               Status `json:"status"`
-	StatusURL            string `json:"statusURL"`
+	Cluster              string     `json:"cluster"`
+	ClusterVersion       int64      `json:"clusterVersion"`
+	ConfigurationVersion int64      `json:"configurationVersion"`
+	Failures             *[]Failure `json:"failures,omitempty"`
+	Status               Status     `json:"status"`
+	StatusURL            string     `json:"statusURL"`
 }
 
 // HTTPClusterStatusResponse defines model for HTTPClusterStatusResponse.
@@ -74,6 +75,12 @@ type Configuration struct {
 	Key    string      `json:"key"`
 	Secret bool        `json:"secret"`
 	Value  interface{} `json:"value"`
+}
+
+// Failure defines model for failure.
+type Failure struct {
+	Component string `json:"component"`
+	Reason    string `json:"reason"`
 }
 
 // KymaConfig defines model for kymaConfig.
