@@ -121,7 +121,7 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 
 				//send error resonse
 				var reconcilerStatus reconciler.Status
-				if su.ctx.Err() == context.DeadlineExceeded { //operation not finished withing given time range: error!
+				if su.ctx.Err() == context.DeadlineExceeded { //operation not finished within given time range: error!
 					reconcilerStatus = reconciler.StatusError
 					su.logger.Warnf("Heartbeat context got closed caused by timeout")
 				} else {
