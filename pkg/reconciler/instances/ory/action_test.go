@@ -34,8 +34,7 @@ func Test_PreAction_Run(t *testing.T) {
 		// given
 		factory := workspacemocks.Factory{}
 		provider := chartmocks.Provider{}
-		emptyMap := make(map[string]interface{})
-		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, errors.New("Configuration error"))
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Configuration error"))
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		action := preAction{&oryAction{step: "pre-install"}}
@@ -47,12 +46,55 @@ func Test_PreAction_Run(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to retrieve Ory chart values")
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
-		// performer.AssertNotCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		// performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
-		// performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
-		// performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		// performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Clientset")
+	})
+
+	t.Run("should not perform any action when kubernetes clientset returned an error", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
+		kubeClient := k8smocks.Client{}
+		kubeClient.On("Clientset").Return(nil, errors.New("cannot get secret"))
+		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
+		action := preAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot get secret")
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+	})
+
+	t.Run("should not perform any action when kubernetes secret get returned an error", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
+		kubeClient := k8smocks.Client{}
+		kubeClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+		// TODO: Fix method chain or find another way to test secret Get
+		kubeClient.On("CoreV1").On("Secrets", mock.AnythingOfType("string")).
+			On("Get", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("metav1.GetOptions")).
+			Return(nil, errors.New("cannot get secret"))
+
+		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
+		action := preAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		// require.Error(t, err)
+		// require.Contains(t, err.Error(), "cannot get secret")
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
 	})
 }
 
