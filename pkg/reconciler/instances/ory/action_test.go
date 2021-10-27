@@ -317,7 +317,7 @@ func newFakeKubeClient(clientSet *fake.Clientset) *k8smocks.Client {
 
 func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
 	logger := log.NewLogger(true)
-	model := reconciler.Reconciliation{
+	task := reconciler.Task{
 		Component: "component",
 		Namespace: "namespace",
 		Version:   "version",
@@ -330,7 +330,7 @@ func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, c
 		WorkspaceFactory: factory,
 		Logger:           logger,
 		ChartProvider:    provider,
-		Model:            &model,
+		Task:             &task,
 	}
 }
 
