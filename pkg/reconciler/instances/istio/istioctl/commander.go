@@ -32,6 +32,10 @@ type DefaultCommander struct {
 	istioctl IstioctlBinary
 }
 
+func NewDefaultCommander(istioctl IstioctlBinary) DefaultCommander {
+	return DefaultCommander{istioctl}
+}
+
 func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
 
 	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)

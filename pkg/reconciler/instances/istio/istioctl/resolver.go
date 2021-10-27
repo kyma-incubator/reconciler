@@ -15,10 +15,11 @@ type Version struct {
 	patch int
 }
 
-func VersionFromString(token string) (Version, error) {
-	parts := strings.Split(strings.TrimSpace(token), ".")
+//Returns a Version from passed semantic version in the format: "major.minor.patch", where all components must be positive integers
+func VersionFromString(semver string) (Version, error) {
+	parts := strings.Split(strings.TrimSpace(semver), ".")
 	if len(parts) != 3 {
-		return Version{}, errors.New("Invalid istioctl version format: \"" + token + "\"")
+		return Version{}, errors.New("Invalid istioctl version format: \"" + semver + "\"")
 	}
 
 	major, err := strconv.Atoi(parts[0])

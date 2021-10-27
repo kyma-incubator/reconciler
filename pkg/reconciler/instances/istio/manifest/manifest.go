@@ -1,4 +1,4 @@
-package istio
+package manifest
 
 import (
 	"errors"
@@ -11,7 +11,7 @@ const (
 	istioOperatorKind = "IstioOperator"
 )
 
-func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error) {
+func GenerateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error) {
 	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		return "", err
@@ -35,7 +35,7 @@ func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error
 	return builder.String(), nil
 }
 
-func extractIstioOperatorContextFrom(manifest string) (string, error) {
+func ExtractIstioOperatorContextFrom(manifest string) (string, error) {
 	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		return "", err
