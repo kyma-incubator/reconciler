@@ -75,16 +75,10 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 	for {
 		select {
 		case clusterState := <-queue:
-			if err := transition.StartReconciliation(clusterState, s.preComponents); err != nil {
-				if reconciliation.IsDuplicateClusterReconciliationError(err) {
-					s.logger.Infof("Scheduler failed to start reconciliation process for cluster '%s' because "+
-						"another reconciliation is already running for this cluster (will try again later)",
-						clusterState.Cluster.RuntimeID)
-				} else {
-					s.logger.Errorf("Scheduler failed to start reconciliation process for cluster '%s': %s",
-						clusterState.Cluster.RuntimeID, err)
-				}
-
+			if err := transition.StartReconciliation(clusterState, s.preComponents); err == nil {
+				s.logger.Infof("Scheduler triggered reconciliation for cluster '%s' "+
+					"(clusterVersion:%d/configVersion:%d/status:%s)", clusterState.Cluster.RuntimeID,
+					clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status)
 			}
 		case <-ctx.Done():
 			s.logger.Debug("Stopping remote scheduler because parent context got closed")

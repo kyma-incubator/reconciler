@@ -166,12 +166,20 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		//get operations of this reconciliation
 		opEntities, err := reconRepo.GetOperations(reconEntities[0].SchedulingID)
 		require.NoError(t, err)
-		//set all operations to DONE
+
+		//set all operations to a final state
 		for _, opEntity := range opEntities {
-			t.Log("Updating operations to state DONE")
 			err = reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
 				opState, "dummy reason")
-			require.NoError(t, err)
+
+			if err != nil { //probably a race condition (because invoker is updating ops-states in background as well)
+				latestOpEntity, errGetOp := reconRepo.GetOperation(opEntity.SchedulingID, opEntity.CorrelationID)
+				require.NoError(t, errGetOp)
+				t.Logf("Failed to updated operation state: %s -> latest operation state is '%s'. Will try again...",
+					err, latestOpEntity.State)
+				require.NoError(t, reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
+					opState, "dummy reason"))
+			}
 		}
 		return
 	}

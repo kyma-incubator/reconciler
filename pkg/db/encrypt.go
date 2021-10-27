@@ -7,12 +7,15 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/pkg/errors"
 	"io"
+	"io/ioutil"
 	"strings"
 )
 
 const keyIDLength = 15
+const KeyLength = 32
 
 type Encryptor struct {
 	keyID [16]byte
@@ -37,7 +40,7 @@ func NewEncryptor(key string) (*Encryptor, error) {
 
 //NewEncryptionKey generates a random 32 byte key for AES-256
 func NewEncryptionKey() (string, error) {
-	bytes := make([]byte, 32)
+	bytes := make([]byte, KeyLength)
 	_, err := rand.Read(bytes)
 	return hex.EncodeToString(bytes), err
 }
@@ -92,4 +95,22 @@ func (e *Encryptor) Decrypt(encData string) (string, error) {
 //Decryptable verifies whether the encrypted data can be decrypted by this Encryptor instance
 func (e *Encryptor) Decryptable(encData string) bool {
 	return strings.HasPrefix(encData, e.KeyID()) //KeyID prefix of encrypted data has to match with current KeyID
+}
+
+func readKeyFile(encKeyFile string) (string, error) {
+	if !file.Exists(encKeyFile) {
+		return "", fmt.Errorf("encryption key file '%s' not found", encKeyFile)
+	}
+	encKeyBytes, err := ioutil.ReadFile(encKeyFile)
+	if err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("failed to read encryption key file '%s'", encKeyFile))
+	}
+	length, err := hex.Decode(make([]byte, KeyLength), encKeyBytes)
+	if err != nil {
+		return "", errors.Wrap(err, "encryption key is not a valid HEX string")
+	}
+	if length != KeyLength {
+		return "", fmt.Errorf("encryption key has to be %d bytes long (was %d)", KeyLength, length)
+	}
+	return string(encKeyBytes), nil
 }
