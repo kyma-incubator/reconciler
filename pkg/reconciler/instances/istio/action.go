@@ -8,6 +8,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
+	manifestutils "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 )
@@ -44,26 +45,26 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	ver, err := a.performer.Version(context.WorkspaceFactory, context.Model.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
+	istioVersion, err := a.performer.Version(context.WorkspaceFactory, context.Model.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
 		return errors.Wrap(err, "Could not fetch Istio version")
 	}
 
-	context.Logger.Infof("Detected: istioctl version %s, target Istio version: %s", ver.ClientVersion, ver.TargetVersion)
+	context.Logger.Infof("Detected: istioctl version %s, target Istio version: %s", istioVersion.ClientVersion, istioVersion.TargetVersion)
 
-	if isMismatchPresent(ver) {
-		context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
+	if isMismatchPresent(istioVersion) {
+		context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", istioVersion.PilotVersion, istioVersion.DataPlaneVersion)
 	}
 
-	istioOperatorManifest, err := extractIstioOperatorContextFrom(manifest.Manifest)
+	istioOperatorManifest, err := manifestutils.ExtractIstioOperatorContextFrom(manifest.Manifest)
 	if err != nil {
 		return errors.Wrap(err, "Could not generate Istio Operator manifest")
 	}
 
-	if canInstall(ver) {
+	if canInstall(istioVersion) {
 		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
 
-		err = a.performer.Install(context.KubeClient.Kubeconfig(), istioOperatorManifest, context.Logger)
+		err = a.performer.Install(context.KubeClient.Kubeconfig(), istioOperatorManifest, istioVersion.TargetVersion, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not install Istio")
 		}
@@ -73,7 +74,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 
-		generated, err := generateNewManifestWithoutIstioOperatorFrom(manifest.Manifest)
+		generated, err := manifestutils.GenerateNewManifestWithoutIstioOperatorFrom(manifest.Manifest)
 		if err != nil {
 			return errors.Wrap(err, "Could not generate manifest without Istio Operator")
 		}
@@ -82,15 +83,15 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		if err != nil {
 			return errors.Wrap(err, "Could not deploy Istio resources")
 		}
-	} else if canUpdate(ver, context.Logger) {
-		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
+	} else if canUpdate(istioVersion, context.Logger) {
+		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioVersion.PilotVersion, istioVersion.DataPlaneVersion, istioVersion.TargetVersion)
 
-		err = a.performer.Update(context.KubeClient.Kubeconfig(), istioOperatorManifest, context.Logger)
+		err = a.performer.Update(context.KubeClient.Kubeconfig(), istioOperatorManifest, istioVersion.TargetVersion, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not update Istio")
 		}
 
-		err = a.performer.ResetProxy(context.KubeClient.Kubeconfig(), ver, context.Logger)
+		err = a.performer.ResetProxy(context.KubeClient.Kubeconfig(), istioVersion, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not reset Istio proxy")
 		}
