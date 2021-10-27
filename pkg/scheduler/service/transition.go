@@ -7,6 +7,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -66,7 +67,12 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 			if reconciliation.IsEmptyComponentsReconciliationError(err) {
 				t.logger.Errorf("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
 					"cluster has no components", newClusterState.Cluster.RuntimeID)
-				t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
+				_, updateErr := t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
+				if updateErr != nil {
+					t.logger.Errorf("Error updating cluster '%s': could not update cluster status to '%s': %s",
+						clusterState.Cluster.RuntimeID, model.ClusterStatusReconcileError, updateErr)
+					return errors.Wrap(updateErr, err.Error())
+				}
 				return err
 			}
 			if reconciliation.IsDuplicateClusterReconciliationError(err) {

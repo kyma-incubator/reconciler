@@ -49,7 +49,7 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
 	if len(cluster.KymaConfig.Components) == 0 {
-		return nil, fmt.Errorf("Error creating cluster with RuntimeID: %s, component list is empty.", cluster.RuntimeID)
+		return nil, fmt.Errorf("error creating cluster with RuntimeID: %s, component list is empty", cluster.RuntimeID)
 	}
 	dbOps := func() (interface{}, error) {
 		clusterEntity, err := i.createCluster(contractVersion, cluster)

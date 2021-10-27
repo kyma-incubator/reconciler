@@ -195,10 +195,10 @@ func TestGetReconciliationSequence(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result := test.entity.GetReconciliationSequence(test.preComps)
-			require.Equal(t, test.expected, result)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.entity.GetReconciliationSequence(tc.preComps)
+			require.Equal(t, tc.expected, result)
 		})
 	}
 }
