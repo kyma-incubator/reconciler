@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
 )
@@ -22,8 +24,8 @@ type IstioProxyConfig struct {
 	// SleepAfterPodDeletion to avoid races
 	SleepAfterPodDeletion int
 
-	// Timeout in minutes for waiting on status after reset
-	Timeout int
+	// Timeout for waiting on status after reset
+	Timeout time.Duration
 
 	// Kubeclient for k8s cluster operations
 	Kubeclient kubernetes.Interface

@@ -3,8 +3,10 @@ package proxy
 import (
 	"errors"
 	"testing"
+	"time"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
@@ -23,7 +25,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		RetriesCount:          5,
 		DelayBetweenRetries:   2,
 		SleepAfterPodDeletion: 10,
-		Timeout:               1,
+		Timeout:               1 * time.Second,
 		Kubeclient:            fake.NewSimpleClientset(),
 		Log:                   log.NewLogger(true),
 	}
@@ -50,7 +52,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		action.AssertNumberOfCalls(t, "Reset", 1)
 	})
 
-	t.Run("should not return an error when pods with Istio-proxy are present on the cluster", func(t *testing.T) {
+	t.Run("should not return an error when pods with Istio-proxy are present on the cluster and are ready", func(t *testing.T) {
 		// given
 		testPod := v1.Pod{
 			TypeMeta: metav1.TypeMeta{
@@ -85,6 +87,49 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
+		gatherer.AssertNumberOfCalls(t, "GetAllPods", 1)
+		gatherer.AssertNumberOfCalls(t, "GetPodsWithDifferentImage", 1)
+		action.AssertNumberOfCalls(t, "Reset", 1)
+	})
+
+	t.Run("should return an error when pods with Istio-proxy are present but are not ready", func(t *testing.T) {
+		// given
+		testPod := v1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Pod",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-pod",
+				Namespace: "default",
+			},
+			Status: v1.PodStatus{
+				ContainerStatuses: []v1.ContainerStatus{
+					{
+						Name:  "istio-proxy",
+						Ready: false,
+					},
+				},
+			},
+		}
+		expectedError := errors.New("timed out waiting for the condition")
+		gatherer := datamocks.Gatherer{}
+		gatherer.On("GetAllPods", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(&v1.PodList{Items: []v1.Pod{{}}}, nil)
+		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
+			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{Items: []v1.Pod{testPod}})
+
+		action := podresetmocks.Action{}
+		action.On("Reset", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).
+			Return(nil)
+		istioProxyReset := NewDefaultIstioProxyReset(&gatherer, &action)
+
+		// when
+		err := istioProxyReset.Run(cfg)
+
+		// then
+		require.Error(t, err)
+		assert.Equal(t, expectedError, err)
+
 		gatherer.AssertNumberOfCalls(t, "GetAllPods", 1)
 		gatherer.AssertNumberOfCalls(t, "GetPodsWithDifferentImage", 1)
 		action.AssertNumberOfCalls(t, "Reset", 1)

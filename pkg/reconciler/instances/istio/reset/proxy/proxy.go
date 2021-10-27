@@ -18,7 +18,7 @@ type IstioProxyReset interface {
 	Run(cfg config.IstioProxyConfig) error
 
 	// WaitUntilProxiesReady polls toget the current status of istio-proxy containers in the list of matched pods.
-	WaitUntilProxiesReady(podsList v1.PodList, retryInterval time.Duration, timeout time.Duration) error
+	WaitUntilProxiesReady(podsList v1.PodList, cfg config.IstioProxyConfig) error
 }
 
 // DefaultIstioProxyReset provides a default implementation of the IstioProxyReset.
@@ -60,29 +60,28 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 
 	i.action.Reset(cfg.Kubeclient, retryOpts, podsWithDifferentImage, cfg.Log, cfg.Debug)
 
-	if len(podsWithDifferentImage.Items) != 0 {
+	err = i.WaitUntilProxiesReady(podsWithDifferentImage, cfg)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *DefaultIstioProxyReset) WaitUntilProxiesReady(podsList v1.PodList, cfg config.IstioProxyConfig) error {
+	if len(podsList.Items) != 0 {
 		cfg.Log.Info("Wait until all Istio proxies are running")
 
-		err = i.WaitUntilProxiesReady(podsWithDifferentImage, time.Duration(cfg.DelayBetweenRetries)*time.Second, time.Duration(cfg.Timeout)*time.Minute)
+		err := wait.Poll(time.Duration(cfg.DelayBetweenRetries)*time.Second, cfg.Timeout, func() (done bool, err error) {
+			ready := areProxiesReady(podsList)
+			return ready, nil
+		})
 		if err != nil {
 			return err
 		}
 
 		cfg.Log.Info("All proxies are up and running")
 	}
-
-	return nil
-}
-
-func (i *DefaultIstioProxyReset) WaitUntilProxiesReady(podsList v1.PodList, retryInterval time.Duration, timeout time.Duration) error {
-	err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
-		ready := areProxiesReady(podsList)
-		return ready, nil
-	})
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

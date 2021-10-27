@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
@@ -28,7 +29,7 @@ const (
 	retriesCount          = 5
 	delayBetweenRetries   = 5
 	sleepAfterPodDeletion = 10
-	timeout               = 5
+	timeout               = 5 * time.Minute
 )
 
 type VersionType string
