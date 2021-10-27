@@ -37,7 +37,10 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 		return err
 	}
 
-	if task.Type == model.OperationTypeDelete && task.Component != model.CRDComponent {
+	if task.Type == model.OperationTypeDelete {
+		if task.Component == model.CRDComponent {
+			return nil
+		}
 		resources, err := kubeClient.Delete(ctx, manifest, task.Namespace)
 		if err == nil {
 			r.logger.Debugf("Deletion of manifest finished successfully: %d resources deleted", len(resources))

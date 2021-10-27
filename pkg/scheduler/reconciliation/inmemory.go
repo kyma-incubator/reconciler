@@ -58,7 +58,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	}
 
 	opType := model.OperationTypeReconcile
-	if state.Status.Status == model.ClusterStatusDeletePending || state.Status.Status == model.ClusterStatusDeleting {
+	if state.Status.Status.IsDeletion() {
 		opType = model.OperationTypeDelete
 	}
 

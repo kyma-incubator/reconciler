@@ -80,7 +80,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		reconSeq := state.Configuration.GetReconciliationSequence(preComponents)
 
 		opType := model.OperationTypeReconcile
-		if state.Status.Status == model.ClusterStatusDeletePending || state.Status.Status == model.ClusterStatusDeleting {
+		if state.Status.Status.IsDeletion() {
 			opType = model.OperationTypeDelete
 		}
 

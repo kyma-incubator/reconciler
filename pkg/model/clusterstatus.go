@@ -18,6 +18,13 @@ const (
 	ClusterStatusReady             Status = "ready"
 )
 
+func (s Status) IsDeletion() bool {
+	return s == ClusterStatusDeletePending || s == ClusterStatusDeleting
+}
+func (s Status) IsFinal() bool {
+	return s == ClusterStatusReady || s == ClusterStatusReconcileError || s == ClusterStatusDeleted || s == ClusterStatusDeleteError
+}
+
 type ClusterStatus struct {
 	ID     float64 //required for monitoring metrics, has to be unique!
 	Status Status

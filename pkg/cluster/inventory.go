@@ -221,7 +221,6 @@ func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
 	return i.UpdateStatus(clusterState, model.ClusterStatusDeletePending)
 }
 
-// move current impl to bookkeeper
 func (i *DefaultInventory) Delete(runtimeID string) error {
 	dbOps := func() error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID)

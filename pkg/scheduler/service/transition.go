@@ -63,6 +63,12 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 			t.logger.Debugf("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
 				"(reconciliation entity: %s)", newClusterState.Cluster.RuntimeID, reconEntity)
 		} else {
+			if reconciliation.IsEmptyComponentsReconciliationError(err) {
+				t.logger.Errorf("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
+					"cluster has no components", newClusterState.Cluster.RuntimeID)
+				t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
+				return err
+			}
 			if reconciliation.IsDuplicateClusterReconciliationError(err) {
 				t.logger.Debugf("Cancelling reconciliation for cluster '%s': cluster is already enqueued",
 					newClusterState.Cluster.RuntimeID)
@@ -70,18 +76,6 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 				t.logger.Errorf("Starting reconciliation for runtime '%s' failed: "+
 					"could not add runtime to reconciliation queue: %s", newClusterState.Cluster.RuntimeID, err)
 			}
-			if reconciliation.IsEmptyComponentsReconciliationError(err) {
-				t.logger.Errorf("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
-					"cluster has no components", newClusterState.Cluster.RuntimeID)
-				t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
-				return err
-			}
-			t.logger.Errorf("Cluster transition failed to add cluster '%s' to reconciliation queue: %s",
-				newClusterState.Cluster.RuntimeID, err)
-			return err
-		} else {
-			t.logger.Infof("Cluster transition finished: runtime '%s' added to reconciliation queue (reconciliation entity: %s)",
-				newClusterState.Cluster.RuntimeID, reconEntity)
 		}
 
 		return err
