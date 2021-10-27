@@ -2,6 +2,7 @@ package istioctl
 
 import (
 	"fmt"
+	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
@@ -131,7 +132,7 @@ type DefaultVersionChecker struct {
 
 func (dvc DefaultVersionChecker) GetIstioVersion(pathToBinary string) (Version, error) {
 
-	cmd := execCommand(pathToBinary, "version", "-s")
+	cmd := exec.Command(pathToBinary, "version", "-s")
 	out, err := cmd.Output()
 	if err != nil {
 		return Version{}, err

@@ -1,6 +1,7 @@
 package istioctl_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
@@ -77,4 +78,26 @@ func Test_DefaultIstioctlResolver(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, "No matching Istioctl binary found for version: 1.3.0", err.Error())
 	})
+}
+
+func Test_DefaultVersionChecker(t *testing.T) {
+	t.Run("should return istioctl version from actual invocation", func(t *testing.T) {
+		t.Skip("MANUAL TEST!")
+
+		//given
+		vc := istioctl.DefaultVersionChecker{}
+		path := os.Getenv("ISTIOCTL_BINARY_PATH_TEST")
+		require.NotEmpty(t, path)
+
+		expectedVersion := os.Getenv("ISTIOCTL_BINARY_VERSION_TEST")
+		require.NotEmpty(t, expectedVersion)
+
+		//when
+		version, err := vc.GetIstioVersion(path)
+
+		//then
+		require.NoError(t, err)
+		require.Equal(t, expectedVersion, version.String())
+	})
+
 }
