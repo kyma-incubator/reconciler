@@ -112,30 +112,6 @@ func TestServerlessReconcilation(t *testing.T) {
 		},
 	}
 
-	setup := func() (kubernetes.Interface, ReconcileCustomAction, *service.ActionContext) {
-		k8sClient := fake.NewSimpleClientset()
-
-		action := ReconcileCustomAction{}
-		mockClient := mocks.Client{}
-		mockClient.On("Clientset").Return(k8sClient, nil)
-		mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*rkubernetes.Resource{}, nil)
-		configuration := map[string]interface{}{}
-		mockProvider := pmock.Provider{}
-		mockManifest := chart.Manifest{
-			Manifest: "",
-		}
-		mockProvider.On("RenderManifest", mock.Anything).Return(&mockManifest, nil)
-
-		actionContext := &service.ActionContext{
-			KubeClient:    &mockClient,
-			Context:       context.TODO(),
-			Logger:        logger.NewLogger(false),
-			ChartProvider: &mockProvider,
-			Model:         &reconciler.Reconciliation{Version: "test", Configuration: configuration},
-		}
-		return k8sClient, action, actionContext
-	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 
@@ -206,4 +182,28 @@ func fixedDeploymentWith(annotations map[string]string, envs []corev1.EnvVar) *a
 			},
 		},
 	}
+}
+
+func setup() (kubernetes.Interface, ReconcileCustomAction, *service.ActionContext) {
+	k8sClient := fake.NewSimpleClientset()
+
+	action := ReconcileCustomAction{}
+	mockClient := mocks.Client{}
+	mockClient.On("Clientset").Return(k8sClient, nil)
+	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*rkubernetes.Resource{}, nil)
+	configuration := map[string]interface{}{}
+	mockProvider := pmock.Provider{}
+	mockManifest := chart.Manifest{
+		Manifest: "",
+	}
+	mockProvider.On("RenderManifest", mock.Anything).Return(&mockManifest, nil)
+
+	actionContext := &service.ActionContext{
+		KubeClient:    &mockClient,
+		Context:       context.TODO(),
+		Logger:        logger.NewLogger(false),
+		ChartProvider: &mockProvider,
+		Model:         &reconciler.Reconciliation{Version: "test", Configuration: configuration},
+	}
+	return k8sClient, action, actionContext
 }
