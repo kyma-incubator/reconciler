@@ -2,6 +2,7 @@ package serverless
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -36,6 +37,10 @@ func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 		logger.Infof("Secret %s found in namespace: %s. Attempting to reusing existing credentials for %s", serverlessSecretName, serverlessNamespace, serverlessDockerRegistryDeploymentName)
 		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "username", "dockerRegistry.username")
 		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "password", "dockerRegistry.password")
+		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "isInternal", "dockerRegistry.enableInternal")
+		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "registryAddress", "dockerRegistry.registryAddress")
+		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "serverAddress", "dockerRegistry.serverAddress")
+
 		deployment, err := k8sClient.AppsV1().Deployments(serverlessNamespace).Get(svcCtx.Context, serverlessDockerRegistryDeploymentName, metav1.GetOptions{})
 		if err != nil {
 			logger.Errorf("Error while fetching existing docker registry deployment [%s]... Deployment will be re-generated", err.Error())
@@ -64,7 +69,11 @@ func setOverrideFromSecret(logger *zap.SugaredLogger, secret *v1.Secret, configu
 		return
 	}
 	if secretValue != "" {
-		configuration[override] = secretValue
+		if secretValue == "true" || secretValue == "false" {
+			configuration[override], _ = strconv.ParseBool(secretValue)
+		} else {
+			configuration[override] = secretValue
+		}
 	}
 }
 

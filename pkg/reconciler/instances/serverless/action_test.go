@@ -25,18 +25,32 @@ import (
 )
 
 const (
-	existingUsername    = "some_username"
-	existingPassword    = "some_password"
-	existingRollme      = "tidD8"
-	existingHTTPSSecret = "some_http_secret"
+	existingUsername        = "some_username"
+	existingPassword        = "some_password"
+	existingRollme          = "tidD8"
+	existingHTTPSSecret     = "some_http_secret"
+	existingRegistryAddress = "some_registry_address"
+	existingServerAddress   = "some_server_address"
 )
 
 func TestServerlessReconcilation(t *testing.T) {
 
 	correctSecretData := map[string][]byte{
-		"username": []byte(existingUsername),
-		"password": []byte(existingPassword),
+		"username":        []byte(existingUsername),
+		"password":        []byte(existingPassword),
+		"isInternal":      []byte("false"),
+		"registryAddress": []byte(existingRegistryAddress),
+		"serverAddress":   []byte(existingServerAddress),
 	}
+
+	expectedOverridesForCorrectSecretData := map[string]interface{}{
+		"dockerRegistry.username":        existingUsername,
+		"dockerRegistry.password":        existingPassword,
+		"dockerRegistry.enableInternal":  false,
+		"dockerRegistry.registryAddress": existingRegistryAddress,
+		"dockerRegistry.serverAddress":   existingServerAddress,
+	}
+
 	correctAnnotations := map[string]string{"rollme": existingRollme}
 	correctEnvs := []corev1.EnvVar{
 		{Name: registryHTTPEnvKey, Value: existingHTTPSSecret},
@@ -58,17 +72,32 @@ func TestServerlessReconcilation(t *testing.T) {
 			expectedReconcilerConfiguration: map[string]interface{}{},
 		},
 		{
+			name: "Test true boolean override",
+			existingSecret: fixedSecretWith(map[string][]byte{
+				"isInternal": []byte("true"),
+			}),
+			expectedReconcilerConfiguration: map[string]interface{}{
+				"dockerRegistry.enableInternal": true,
+			},
+		},
+		{
+			name: "Test false boolean override",
+			existingSecret: fixedSecretWith(map[string][]byte{
+				"isInternal": []byte("false"),
+			}),
+			expectedReconcilerConfiguration: map[string]interface{}{
+				"dockerRegistry.enableInternal": false,
+			},
+		},
+		{
 			name:                            "Docker registry secret with empty strings found",
 			existingSecret:                  fixedSecretWith(map[string][]byte{"username": []byte(""), "password": []byte("")}),
 			expectedReconcilerConfiguration: map[string]interface{}{},
 		},
 		{
-			name:           "Secret with correct data found, no Deployment found",
-			existingSecret: fixedSecretWith(correctSecretData),
-			expectedReconcilerConfiguration: map[string]interface{}{
-				"dockerRegistry.username": existingUsername,
-				"dockerRegistry.password": existingPassword,
-			},
+			name:                            "Secret with correct data found, no Deployment found",
+			existingSecret:                  fixedSecretWith(correctSecretData),
+			expectedReconcilerConfiguration: expectedOverridesForCorrectSecretData,
 		},
 		{
 			name:                             "Both Secret and Deployment with correct data found",
@@ -77,6 +106,9 @@ func TestServerlessReconcilation(t *testing.T) {
 			expectedReconcilerConfiguration: map[string]interface{}{
 				"dockerRegistry.username":            existingUsername,
 				"dockerRegistry.password":            existingPassword,
+				"dockerRegistry.enableInternal":      false,
+				"dockerRegistry.registryAddress":     existingRegistryAddress,
+				"dockerRegistry.serverAddress":       existingServerAddress,
 				"docker-registry.registryHTTPSecret": existingHTTPSSecret,
 				"docker-registry.rollme":             existingRollme,
 			},
@@ -85,19 +117,13 @@ func TestServerlessReconcilation(t *testing.T) {
 			name:                             "Secret and Deployment ( empty data ) found",
 			existingSecret:                   fixedSecretWith(correctSecretData),
 			existingDockerRegistryDeployment: fixedDeploymentWith(map[string]string{}, []corev1.EnvVar{}),
-			expectedReconcilerConfiguration: map[string]interface{}{
-				"dockerRegistry.username": existingUsername,
-				"dockerRegistry.password": existingPassword,
-			},
+			expectedReconcilerConfiguration:  expectedOverridesForCorrectSecretData,
 		},
 		{
 			name:                             "Secret and Deployment ( nill data ) found",
 			existingSecret:                   fixedSecretWith(correctSecretData),
 			existingDockerRegistryDeployment: fixedDeploymentWith(nil, nil),
-			expectedReconcilerConfiguration: map[string]interface{}{
-				"dockerRegistry.username": existingUsername,
-				"dockerRegistry.password": existingPassword,
-			},
+			expectedReconcilerConfiguration:  expectedOverridesForCorrectSecretData,
 		},
 		{
 			name:           "Secret and Deployment ( empty strings ) found",
@@ -105,10 +131,7 @@ func TestServerlessReconcilation(t *testing.T) {
 			existingDockerRegistryDeployment: fixedDeploymentWith(map[string]string{"rollme": ""}, []corev1.EnvVar{
 				{Name: registryHTTPEnvKey, Value: ""},
 			}),
-			expectedReconcilerConfiguration: map[string]interface{}{
-				"dockerRegistry.username": existingUsername,
-				"dockerRegistry.password": existingPassword,
-			},
+			expectedReconcilerConfiguration: expectedOverridesForCorrectSecretData,
 		},
 	}
 
