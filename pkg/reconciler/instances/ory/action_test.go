@@ -5,18 +5,56 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/jwks"
+	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace/mocks"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
+	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+func Test_PreAction_Run(t *testing.T) {
+	t.Run("should not perform any action when chart configuration returned an error", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, errors.New("Configuration error"))
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to retrieve Ory chart values")
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		// performer.AssertNotCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		// performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		// performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+		// performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		// performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		kubeClient.AssertNotCalled(t, "Clientset")
+	})
+}
 
 const (
 	profileName   = "profile"
@@ -138,7 +176,7 @@ func TestOryDbSecret(t *testing.T) {
 	}
 }
 
-func preCreateSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (*v1.Secret, error) {
+func preCreateSecret(ctx context.Context, client k8s.Interface, name types.NamespacedName) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name.Name,
@@ -148,4 +186,32 @@ func preCreateSecret(ctx context.Context, client kubernetes.Interface, name type
 	}
 
 	return client.CoreV1().Secrets(name.Namespace).Create(ctx, secret, metav1.CreateOptions{})
+}
+
+func newFakeKubeClient() *k8smocks.Client {
+	mockClient := &k8smocks.Client{}
+	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+	mockClient.On("Kubeconfig").Return("kubeconfig")
+	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	return mockClient
+}
+
+func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
+	logger := log.NewLogger(true)
+	model := reconciler.Reconciliation{
+		Component: "component",
+		Namespace: "namespace",
+		Version:   "version",
+		Profile:   "profile",
+	}
+
+	return &service.ActionContext{
+		KubeClient:       client,
+		Context:          context.Background(),
+		WorkspaceFactory: factory,
+		Logger:           logger,
+		ChartProvider:    provider,
+		Model:            &model,
+	}
 }
