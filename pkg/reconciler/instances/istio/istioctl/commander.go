@@ -11,12 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-/*
-const (
-	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
-)
-*/
-
 //go:generate mockery --name=Commander --outpkg=mock --case=underscore
 // Commander for istioctl binary.
 type Commander interface {
@@ -35,7 +29,7 @@ var execCommand = exec.Command
 
 // DefaultCommander provides a default implementation of Commander.
 type DefaultCommander struct {
-	istioctl istioctlBinary
+	istioctl IstioctlBinary
 }
 
 func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
@@ -189,14 +183,3 @@ func bufferAndLog(r io.Reader, logger *zap.SugaredLogger) {
 		logger.Info(scanner.Text())
 	}
 }
-
-/*
-func resolveIstioctlPath() (string, error) {
-	path := os.Getenv(istioctlBinaryPathEnvKey)
-	if path == "" {
-		return "", errors.New("Istioctl binary could not be found under ISTIOCTL_PATH env variable")
-	}
-
-	return path, nil
-}
-*/

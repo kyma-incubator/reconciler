@@ -9,41 +9,41 @@ import (
 	"github.com/pkg/errors"
 )
 
-type IstioVersion struct {
+type Version struct {
 	major int
 	minor int
 	patch int
 }
 
-func istioVersionFromString(token string) (IstioVersion, error) {
+func VersionFromString(token string) (Version, error) {
 	parts := strings.Split(strings.TrimSpace(token), ".")
 	if len(parts) != 3 {
-		return IstioVersion{}, errors.New("Invalid istioctl version format: \"" + token + "\"")
+		return Version{}, errors.New("Invalid istioctl version format: \"" + token + "\"")
 	}
 
 	major, err := strconv.Atoi(parts[0])
 	if err != nil {
-		return IstioVersion{}, errors.New("Invalid istioctl major version: \"" + parts[0] + "\"")
+		return Version{}, errors.New("Invalid istioctl major version: \"" + parts[0] + "\"")
 	}
 
 	minor, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return IstioVersion{}, errors.New("Invalid istioctl minor version: \"" + parts[1] + "\"")
+		return Version{}, errors.New("Invalid istioctl minor version: \"" + parts[1] + "\"")
 	}
 
 	patch, err := strconv.Atoi(parts[2])
 	if err != nil {
-		return IstioVersion{}, errors.New("Invalid istioctl patch version: \"" + parts[2] + "\"")
+		return Version{}, errors.New("Invalid istioctl patch version: \"" + parts[2] + "\"")
 	}
 
-	return IstioVersion{major, minor, patch}, nil
+	return Version{major, minor, patch}, nil
 }
 
-func (v IstioVersion) String() string {
+func (v Version) String() string {
 	return fmt.Sprintf("%d.%d.%d", v.major, v.minor, v.patch)
 }
 
-func (this IstioVersion) SmallerThan(other IstioVersion) bool {
+func (this Version) SmallerThan(other Version) bool {
 	if this.major < other.major {
 		return true
 	} else if this.major > other.major {
@@ -59,40 +59,36 @@ func (this IstioVersion) SmallerThan(other IstioVersion) bool {
 	}
 }
 
-func (this IstioVersion) BiggerThan(other IstioVersion) bool {
+func (this Version) BiggerThan(other Version) bool {
 	return !(this.EqualTo(other) || this.SmallerThan(other))
 }
 
-func (this IstioVersion) EqualTo(other IstioVersion) bool {
+func (this Version) EqualTo(other Version) bool {
 	return this.major == other.major && this.minor == other.minor && this.patch == other.patch
 }
 
 //go:generate mockery --name=IstioctlResolver --outpkg=mock --case=underscore
-// Provides a Commander for given istio version
+// Finds IstioctlBinary for given Version
 type IstioctlResolver interface {
-	GetCommander(version IstioVersion) (Commander, error)
+	FindIstioctl(version Version) (*IstioctlBinary, error)
 }
 
 type DefaultIstioctlResolver struct {
-	sortedBinaries []istioctlBinary
+	sortedBinaries []IstioctlBinary
 }
 
-func (d *DefaultIstioctlResolver) GetCommander(version IstioVersion) (Commander, error) {
-	return nil, nil
-}
-
-type VersionChecker interface {
-	GetIstioVersion(pathToBinary string) (IstioVersion, error)
+func (d *DefaultIstioctlResolver) FindIstioctl(version Version) (*IstioctlBinary, error) {
+	return d.findMatchingBinary(version)
 }
 
 func NewDefaultIstioctlResolver(paths []string, vc VersionChecker) (*DefaultIstioctlResolver, error) {
-	binariesList := []istioctlBinary{}
+	binariesList := []IstioctlBinary{}
 	for _, path := range paths {
 		version, err := vc.GetIstioVersion(path)
 		if err != nil {
 			return nil, err
 		}
-		binariesList = append(binariesList, istioctlBinary{version, path})
+		binariesList = append(binariesList, IstioctlBinary{version, path})
 	}
 
 	sortBinaries(binariesList)
@@ -102,10 +98,14 @@ func NewDefaultIstioctlResolver(paths []string, vc VersionChecker) (*DefaultIsti
 	}, nil
 }
 
-func (d *DefaultIstioctlResolver) findMatchingBinary(version IstioVersion) (*istioctlBinary, error) {
-	matching := []istioctlBinary{}
+func (d *DefaultIstioctlResolver) findMatchingBinary(version Version) (*IstioctlBinary, error) {
+	matching := []IstioctlBinary{}
 
 	for _, binary := range d.sortedBinaries {
+		if binary.version.EqualTo(version) {
+			return &binary, nil
+		}
+
 		if binary.version.major == version.major && binary.version.minor == version.minor {
 			matching = append(matching, binary)
 		}
@@ -119,32 +119,45 @@ func (d *DefaultIstioctlResolver) findMatchingBinary(version IstioVersion) (*ist
 	return &matching[len(matching)-1], nil
 }
 
+//go:generate mockery --name=VersionChecker --outpkg=istioctl --case=underscore
+type VersionChecker interface {
+	GetIstioVersion(pathToBinary string) (Version, error)
+}
+
 // Default implementation that executes istioctl to find out it's version
 type DefaultVersionChecker struct {
 }
 
-func (dvc DefaultVersionChecker) GetIstioVersion(pathToBinary string) (IstioVersion, error) {
+func (dvc DefaultVersionChecker) GetIstioVersion(pathToBinary string) (Version, error) {
 
 	cmd := execCommand(pathToBinary, "version", "-s")
 	out, err := cmd.Output()
 	if err != nil {
-		return IstioVersion{}, err
+		return Version{}, err
 	}
 
-	return istioVersionFromString(string(out))
+	return VersionFromString(string(out))
 }
 
 // Represents a istioctl binary with a specific version
-type istioctlBinary struct {
-	version IstioVersion
+type IstioctlBinary struct {
+	version Version
 	path    string
 }
 
-func (this istioctlBinary) SmallerThan(other istioctlBinary) bool {
+func (this IstioctlBinary) SmallerThan(other IstioctlBinary) bool {
 	return this.version.SmallerThan(other.version)
 }
 
-func sortBinaries(binaries []istioctlBinary) {
+func (this IstioctlBinary) Path() string {
+	return this.path
+}
+
+func (this IstioctlBinary) Version() Version {
+	return this.version
+}
+
+func sortBinaries(binaries []IstioctlBinary) {
 	sort.SliceStable(binaries, func(i, j int) bool {
 		return binaries[i].SmallerThan(binaries[j])
 	})
