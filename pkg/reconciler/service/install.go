@@ -46,6 +46,7 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 			r.logger.Debugf("Deletion of manifest finished successfully: %d resources deleted", len(resources))
 		} else {
 			r.logger.Warnf("Failed to delete manifests on target cluster: %s", err)
+			return err
 		}
 	} else {
 		resources, err := kubeClient.Deploy(ctx, manifest, task.Namespace, &LabelsInterceptor{Version: task.Version}, &AnnotationsInterceptor{})
@@ -53,10 +54,10 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 			r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
 		} else {
 			r.logger.Warnf("Failed to deploy manifests on target cluster: %s", err)
+			return err
 		}
 	}
-
-	return err
+	return nil
 }
 
 func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler.Task) (string, error) {
