@@ -22,19 +22,6 @@ type ReconcileAction struct {
 	performer actions.IstioPerformer
 }
 
-type IstioOperation struct {
-}
-
-func (io *IstioOperation) shouldInstall() (bool, error) {
-	return false, nil
-}
-func (io *IstioOperation) shouldReinstall() (bool, error) {
-	return false, nil
-}
-func (io *IstioOperation) shouldUpdate() (bool, error) {
-	return false, nil
-}
-
 func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	component := chart.NewComponentBuilder(context.Model.Version, istioChart).
 		WithNamespace(istioNamespace).
