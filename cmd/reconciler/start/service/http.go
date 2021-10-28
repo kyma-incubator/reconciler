@@ -63,6 +63,10 @@ func newModel(req *http.Request) (*reconciler.Reconciliation, error) {
 		return nil, err
 	}
 
+	if model.Configuration == nil {
+		model.Configuration = map[string]interface{}{}
+	}
+
 	return model, err
 }
 
