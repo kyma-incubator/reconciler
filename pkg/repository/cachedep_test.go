@@ -200,7 +200,11 @@ func withTestData(t *testing.T, testFunc func(*testing.T, []*model.CacheEntryEnt
 
 func importCacheEntry(t *testing.T, cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity) (*model.CacheEntryEntity, []*model.CacheDependencyEntity) {
 	testLogger := zap.NewExample().Sugar()
-	defer testLogger.Sync()
+	defer func() {
+		if err := testLogger.Sync(); err != nil {
+			t.Logf("while flushing logs: %s", err)
+		}
+	}()
 
 	q, err := db.NewQuery(cacheDep.conn, cacheEntry, testLogger)
 	require.NoError(t, err)

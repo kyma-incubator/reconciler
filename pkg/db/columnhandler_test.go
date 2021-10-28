@@ -11,7 +11,11 @@ import (
 
 func TestColumnHandler(t *testing.T) {
 	testLogger := zap.NewExample().Sugar()
-	defer testLogger.Sync()
+	defer func() {
+		if err := testLogger.Sync(); err != nil {
+			t.Logf("while flushing logs: %s", err)
+		}
+	}()
 
 	t.Run("Validate model", func(t *testing.T) {
 		validate := func(t *testing.T, testStruct *validateMe, expectValid bool) {

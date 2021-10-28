@@ -10,7 +10,11 @@ import (
 
 func TestQuery(t *testing.T) {
 	testLogger := zap.NewExample().Sugar()
-	defer testLogger.Sync()
+	defer func() {
+		if err := testLogger.Sync(); err != nil {
+			t.Logf("while flushing logs: %s", err)
+		}
+	}()
 
 	conn := &MockConnection{}
 	q, err := NewQuery(conn, &MockDbEntity{
