@@ -62,17 +62,17 @@ func readSecretKey(secret *v1.Secret, secretKey string) (string, error) {
 	return string(secretValue), nil
 }
 
-func setOverrideFromSecret(logger *zap.SugaredLogger, secret *v1.Secret, configuration map[string]interface{}, secretKey string, override string) {
+func setOverrideFromSecret(logger *zap.SugaredLogger, secret *v1.Secret, configuration map[string]interface{}, secretKey string, overridePath string) {
 	secretValue, err := readSecretKey(secret, secretKey)
 	if err != nil {
-		logger.Errorf("Error while fetching %s from secret... Override [%s] will be generated : [%s]", secretKey, override, err.Error())
+		logger.Errorf("Error while fetching %s from secret... Override for path [%s] will be generated : [%s]", secretKey, overridePath, err.Error())
 		return
 	}
 	if secretValue != "" {
 		if secretValue == "true" || secretValue == "false" {
-			configuration[override], _ = strconv.ParseBool(secretValue)
+			configuration[overridePath], _ = strconv.ParseBool(secretValue)
 		} else {
-			configuration[override] = secretValue
+			configuration[overridePath] = secretValue
 		}
 	}
 }
