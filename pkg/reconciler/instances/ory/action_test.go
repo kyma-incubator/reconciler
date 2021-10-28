@@ -367,3 +367,37 @@ func unmarshalTestValues(yamlValues string) (map[string]interface{}, error) {
 	}
 	return values, nil
 }
+
+func fixSecretMemory() *v1.Secret {
+	secret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dbNamespacedName.Name,
+			Namespace: dbNamespacedName.Namespace,
+		},
+		Data: map[string][]byte{
+			"dsn":           []byte("memory"),
+			"secretsCookie": []byte("_DgTMSAn8aE427KrGysSZmHlnymMjJi_HZQOApffD4k="),
+			"secretsSystem": []byte("qHXECns_5v_ZifBf6nGLbQd0KozZWKg7oiqTIQ1JHNo="),
+		},
+	}
+	return &secret
+}
+
+func fixOryHydraDeployment() *v1apps.Deployment {
+	return &v1apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "ory-hydra",
+			Namespace:  dbNamespacedName.Namespace,
+			Generation: 1,
+		},
+	}
+}
+
+func unmarshalTestValues(yamlValues string) (map[string]interface{}, error) {
+	var values map[string]interface{}
+	err := yaml.Unmarshal([]byte(yamlValues), &values)
+	if err != nil {
+		return nil, err
+	}
+	return values, nil
+}
