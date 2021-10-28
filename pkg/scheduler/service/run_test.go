@@ -21,6 +21,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// set debugLogging to control the debug logging for all components in the test
+const debugLogging = true
+
 type customAction struct {
 	success bool
 }
@@ -43,14 +46,14 @@ func TestRuntimeBuilder(t *testing.T) {
 	t.Run("Run local with success (waiting for CRDs)", func(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{true})
 		reconResult, receivedUpdates := runLocal(t, 30*time.Second)
-		require.Equal(t, reconResult.GetResult(), model.ClusterStatusReady)
+		require.Equal(t, model.ClusterStatusReady, reconResult.GetResult())
 		require.Equal(t, reconciler.StatusSuccess, receivedUpdates[len(receivedUpdates)-1].Status)
 	})
 
 	t.Run("Run local with error", func(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{false})
 		reconResult, receivedUpdates := runLocal(t, 5*time.Second)
-		require.Equal(t, reconResult.GetResult(), model.ClusterStatusReconcileError)
+		require.Equal(t, model.ClusterStatusReconcileError, reconResult.GetResult())
 		require.Equal(t, reconciler.StatusError, receivedUpdates[len(receivedUpdates)-1].Status)
 	})
 
@@ -68,21 +71,26 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	dbConn := db.NewTestConnection(t)
 
 	//create cluster entity
-	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
+	inventory, err := cluster.NewInventory(dbConn, debugLogging, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 	clusterState, err = inventory.CreateOrUpdate(1, &keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),
 		KymaConfig: keb.KymaConfig{
-			Components: nil,
-			Profile:    "",
-			Version:    "1.2.3",
+			Components: []keb.Component{
+				{
+					Component: "TestComp1",
+					Namespace: "NS1",
+				},
+			},
+			Profile: "",
+			Version: "1.2.3",
 		},
 		RuntimeID: uuid.NewString(),
 	})
 	require.NoError(t, err)
 
 	//create reconciliation repository
-	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
+	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, debugLogging)
 	require.NoError(t, err)
 
 	//cleanup
@@ -96,7 +104,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	}()
 
 	//configure remote runner
-	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(true))
+	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
 	remoteRunner := runtimeBuilder.RunRemote(dbConn, inventory, &config.Config{
 		Scheme: "https",
 		Host:   "httpbin.org",
@@ -188,14 +196,19 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 
 func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*reconciler.CallbackMessage) {
 	//create cluster entity
-	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
+	inventory, err := cluster.NewInventory(db.NewTestConnection(t), debugLogging, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),
 		KymaConfig: keb.KymaConfig{
-			Components: nil,
-			Profile:    "",
-			Version:    "1.2.3",
+			Components: []keb.Component{
+				{
+					Component: "TestComp1",
+					Namespace: "NS1",
+				},
+			},
+			Profile: "",
+			Version: "1.2.3",
 		},
 		RuntimeID: uuid.NewString(),
 	})
@@ -211,7 +224,7 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 
 	//configure local runner
 	var receivedUpdates []*reconciler.CallbackMessage
-	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(true))
+	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
 	localRunner := runtimeBuilder.RunLocal(nil, func(component string, msg *reconciler.CallbackMessage) {
 		receivedUpdates = append(receivedUpdates, msg)
 	})

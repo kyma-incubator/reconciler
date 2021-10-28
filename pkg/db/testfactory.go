@@ -1,9 +1,10 @@
 package db
 
 import (
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func NewTestConnectionFactory(t *testing.T) ConnectionFactory {

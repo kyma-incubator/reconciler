@@ -204,19 +204,22 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	operations, ok := r.operations[schedulingID]
+	_, ok := r.operations[schedulingID]
 	if !ok {
 		return &repository.EntityNotFoundError{}
 	}
-	op, ok := operations[correlationID]
+	op, ok := r.operations[schedulingID][correlationID]
 	if !ok {
 		return &repository.EntityNotFoundError{}
 	}
 
-	if op.State.IsFinal() {
+	// copy the operation to avoid having data races while writing
+	opCopy := *op
+
+	if opCopy.State.IsFinal() {
 		return fmt.Errorf("cannot update state of operation for component '%s' (schedulingID:%s/correlationID:'%s) "+
 			"to new state '%s' because operation is already in final state '%s'",
-			op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
+			opCopy.Component, opCopy.SchedulingID, opCopy.CorrelationID, state, opCopy.State)
 	}
 
 	reason, err := concatStateReasons(state, reasons)
@@ -225,9 +228,11 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	}
 
 	//update operation
-	op.State = state
-	op.Reason = reason
-	op.Updated = time.Now().UTC()
+	opCopy.State = state
+	opCopy.Reason = reason
+	opCopy.Updated = time.Now().UTC()
+
+	r.operations[schedulingID][correlationID] = &opCopy
 
 	return nil
 }
