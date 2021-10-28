@@ -5,13 +5,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestQuery(t *testing.T) {
+	testLogger := zap.NewExample().Sugar()
+	defer testLogger.Sync()
+
 	conn := &MockConnection{}
 	q, err := NewQuery(conn, &MockDbEntity{
 		Col1: "dummy",
-	})
+	}, testLogger)
 	require.NoError(t, err)
 
 	t.Run("Insert", func(t *testing.T) {

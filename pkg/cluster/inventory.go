@@ -3,8 +3,9 @@ package cluster
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -108,7 +109,7 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	}
 
 	//create new version
-	q, err := db.NewQuery(i.Conn, newClusterEntity)
+	q, err := db.NewQuery(i.Conn, newClusterEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +151,7 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	}
 
 	//create new version
-	q, err := db.NewQuery(i.Conn, newConfigEntity)
+	q, err := db.NewQuery(i.Conn, newConfigEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +184,7 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 	}
 
 	//create new status
-	q, err := db.NewQuery(i.Conn, newStatusEntity)
+	q, err := db.NewQuery(i.Conn, newStatusEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +216,7 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 
 		//update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
-		clusterColHandler, err := db.NewColumnHandler(clusterEntity, i.Conn)
+		clusterColHandler, err := db.NewColumnHandler(clusterEntity, i.Conn, i.Logger)
 		if err != nil {
 			return err
 		}
@@ -234,7 +235,7 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 
 		//update cluster-name of all referenced cluster-config entities
 		configEntity := &model.ClusterConfigurationEntity{}
-		configColHandler, err := db.NewColumnHandler(configEntity, i.Conn)
+		configColHandler, err := db.NewColumnHandler(configEntity, i.Conn, i.Logger)
 		if err != nil {
 			return err
 		}
@@ -253,7 +254,7 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 
 		//update cluster-name of all referenced cluster-status entities
 		statusEntity := &model.ClusterStatusEntity{}
-		statusColHandler, err := db.NewColumnHandler(statusEntity, i.Conn)
+		statusColHandler, err := db.NewColumnHandler(statusEntity, i.Conn, i.Logger)
 		if err != nil {
 			return err
 		}
@@ -324,7 +325,7 @@ func (i *DefaultInventory) GetLatest(runtimeID string) (*State, error) {
 }
 
 func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStatusEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{})
+	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +343,7 @@ func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStat
 }
 
 func (i *DefaultInventory) config(runtimeID string, configVersion int64) (*model.ClusterConfigurationEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
+	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +361,7 @@ func (i *DefaultInventory) config(runtimeID string, configVersion int64) (*model
 }
 
 func (i *DefaultInventory) latestConfig(clusterVersion int64) (*model.ClusterConfigurationEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{})
+	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +379,7 @@ func (i *DefaultInventory) latestConfig(clusterVersion int64) (*model.ClusterCon
 }
 
 func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterEntity{})
+	q, err := db.NewQuery(i.Conn, &model.ClusterEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +397,7 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 }
 
 func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterEntity{})
+	q, err := db.NewQuery(i.Conn, &model.ClusterEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -440,7 +441,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	//get DDL for sub-query
 	clusterStatusEntity := &model.ClusterStatusEntity{}
 
-	statusColHandler, err := db.NewColumnHandler(clusterStatusEntity, i.Conn)
+	statusColHandler, err := db.NewColumnHandler(clusterStatusEntity, i.Conn, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +466,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 		return nil, err
 	}
 
-	q, err := db.NewQuery(i.Conn, clusterStatusEntity)
+	q, err := db.NewQuery(i.Conn, clusterStatusEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -590,7 +591,7 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	clusterStatusEntity := &model.ClusterStatusEntity{}
 
 	//build sub-query
-	statusColHandler, err := db.NewColumnHandler(clusterStatusEntity, i.Conn)
+	statusColHandler, err := db.NewColumnHandler(clusterStatusEntity, i.Conn, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -609,7 +610,7 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	}
 
 	//query status entities (using sub-query in WHERE condition)
-	q, err := db.NewQuery(i.Conn, clusterStatusEntity)
+	q, err := db.NewQuery(i.Conn, clusterStatusEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}
