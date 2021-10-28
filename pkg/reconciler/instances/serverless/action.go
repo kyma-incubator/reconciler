@@ -28,7 +28,7 @@ func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 	logger := svcCtx.Logger
 	k8sClient, err := svcCtx.KubeClient.Clientset()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "while getting clientset")
 	}
 	secret, err := k8sClient.CoreV1().Secrets(serverlessNamespace).Get(svcCtx.Context, serverlessSecretName, metav1.GetOptions{})
 	if err != nil {
