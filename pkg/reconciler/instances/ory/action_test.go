@@ -7,6 +7,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"gopkg.in/yaml.v2"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -22,11 +23,30 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+)
+
+const (
+	memoryYaml = `
+    global:
+      ory:
+        hydra:
+          persistence:
+            enabled: false`
+
+	postgresqlYaml = `
+    global:
+      ory:
+        hydra:
+          persistence:
+            enabled: true
+            postgresql:
+              enabled: true`
 )
 
 func Test_PreAction_Run(t *testing.T) {
@@ -35,7 +55,8 @@ func Test_PreAction_Run(t *testing.T) {
 		factory := workspacemocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Configuration error"))
-		kubeClient := newFakeKubeClient()
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		action := preAction{&oryAction{step: "pre-install"}}
 
@@ -70,20 +91,15 @@ func Test_PreAction_Run(t *testing.T) {
 		kubeClient.AssertCalled(t, "Clientset")
 	})
 
-	t.Run("should not perform any action when kubernetes secret get returned an error", func(t *testing.T) {
+	t.Run("should create ory secret when secret does not exist", func(t *testing.T) {
 		// given
 		factory := workspacemocks.Factory{}
 		provider := chartmocks.Provider{}
 		emptyMap := make(map[string]interface{})
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
-		kubeClient := k8smocks.Client{}
-		kubeClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
-		// TODO: Fix method chain or find another way to test secret Get
-		kubeClient.On("CoreV1").On("Secrets", mock.AnythingOfType("string")).
-			On("Get", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("metav1.GetOptions")).
-			Return(nil, errors.New("cannot get secret"))
-
-		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		action := preAction{&oryAction{step: "pre-install"}}
 
 		// when
@@ -91,10 +107,70 @@ func Test_PreAction_Run(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		// require.Error(t, err)
-		// require.Contains(t, err.Error(), "cannot get secret")
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
+		secret, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, dbNamespacedName.Name, secret.Name)
+		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
+		require.Equal(t, "memory", secret.StringData["dsn"])
+	})
+
+	t.Run("should not update ory secret when secret exist and has a valid data", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		values, err := unmarshalTestValues(memoryYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		existingSecret := fixSecretMemory()
+		clientSet := fake.NewSimpleClientset(existingSecret)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		secret, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, dbNamespacedName.Name, secret.Name)
+		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
+		require.Equal(t, "", secret.StringData["dsn"])
+		require.Equal(t, []byte("memory"), secret.Data["dsn"])
+	})
+
+	t.Run("should update ory secret when secret exist and has an outdated values", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		values, err := unmarshalTestValues(postgresqlYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		existingSecret := fixSecretMemory()
+		hydraDeployment := fixOryHydraDeployment()
+		clientSet := fake.NewSimpleClientset(existingSecret, hydraDeployment)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		secret, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, dbNamespacedName.Name, secret.Name)
+		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
+		require.Contains(t, secret.StringData["dsn"], "postgres")
+		require.NotContains(t, secret.StringData["dsn"], "memory")
 	})
 }
 
@@ -230,9 +306,9 @@ func preCreateSecret(ctx context.Context, client k8s.Interface, name types.Names
 	return client.CoreV1().Secrets(name.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 }
 
-func newFakeKubeClient() *k8smocks.Client {
+func newFakeKubeClient(clientSet *fake.Clientset) *k8smocks.Client {
 	mockClient := &k8smocks.Client{}
-	mockClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+	mockClient.On("Clientset").Return(clientSet, nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
 	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -256,4 +332,38 @@ func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, c
 		ChartProvider:    provider,
 		Model:            &model,
 	}
+}
+
+func fixSecretMemory() *v1.Secret {
+	secret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dbNamespacedName.Name,
+			Namespace: dbNamespacedName.Namespace,
+		},
+		Data: map[string][]byte{
+			"dsn":           []byte("memory"),
+			"secretsCookie": []byte("_DgTMSAn8aE427KrGysSZmHlnymMjJi_HZQOApffD4k="),
+			"secretsSystem": []byte("qHXECns_5v_ZifBf6nGLbQd0KozZWKg7oiqTIQ1JHNo="),
+		},
+	}
+	return &secret
+}
+
+func fixOryHydraDeployment() *v1apps.Deployment {
+	return &v1apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "ory-hydra",
+			Namespace:  dbNamespacedName.Namespace,
+			Generation: 1,
+		},
+	}
+}
+
+func unmarshalTestValues(yamlValues string) (map[string]interface{}, error) {
+	var values map[string]interface{}
+	err := yaml.Unmarshal([]byte(yamlValues), &values)
+	if err != nil {
+		return nil, err
+	}
+	return values, nil
 }
