@@ -1,6 +1,10 @@
 package istio
 
 import (
+	"errors"
+	"os"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
@@ -12,7 +16,10 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-const ReconcilerName = "istio-configuration"
+const (
+	ReconcilerName           = "istio-configuration"
+	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
+)
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
@@ -24,7 +31,12 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	paths := []string{"a", "b", "c"}
+	pathsConfig := os.Getenv(istioctlBinaryPathEnvKey)
+	paths, err := parsePaths(pathsConfig)
+	if err != nil {
+		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err.Error())
+	}
+
 	//istioctlResolver, err := istioctl.NewDefaultIstioctlResolver(paths, istioctl.DefaultVersionChecker{})
 	commanderResolver, err := newDefaultCommanderResolver(paths)
 	if err != nil {
@@ -43,6 +55,7 @@ func init() {
 }
 
 //Provides runtime wiring between istioctl.DefaultVersionChecker, istioctl.DefaultIstioctlResolver and istioctl.DefaultCommander
+//Implements actions.CommanderResolver
 type defaultCommanderResolver struct {
 	paths               []string
 	istioBinaryResolver istioctl.IstioctlResolver
@@ -69,4 +82,24 @@ func newDefaultCommanderResolver(paths []string) (actions.CommanderResolver, err
 		paths:               paths,
 		istioBinaryResolver: istioBinaryResolver,
 	}, nil
+}
+
+//The input must contain a list of full/absolute filesystem paths of istioctl binaries.
+//Entries must be separated by a colon character ':'
+func parsePaths(input string) ([]string, error) {
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
+		return nil, errors.New("No istioctl paths defined")
+	}
+	pathdefs := strings.Split(trimmed, ":")
+	res := []string{}
+	for _, path := range pathdefs {
+		//TODO: Consider "sanitization": UTF -> ASCII, only allowed characters, etc.
+		val := strings.TrimSpace(path)
+		if val == "" {
+			return nil, errors.New("Invalid (empty) path provided")
+		}
+		res = append(res, val)
+	}
+	return res, nil
 }
