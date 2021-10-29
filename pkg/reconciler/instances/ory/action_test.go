@@ -342,8 +342,8 @@ func fixSecretMemory() *v1.Secret {
 		},
 		Data: map[string][]byte{
 			"dsn":           []byte("memory"),
-			"secretsCookie": []byte("_DgTMSAn8aE427KrGysSZmHlnymMjJi_HZQOApffD4k="),
-			"secretsSystem": []byte("qHXECns_5v_ZifBf6nGLbQd0KozZWKg7oiqTIQ1JHNo="),
+			"secretsCookie": []byte("somesecretcookie"),
+			"secretsSystem": []byte("somesecretsystem"),
 		},
 	}
 	return &secret
