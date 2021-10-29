@@ -68,6 +68,11 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			// wg.Done() must be called manually during execute
 			wg().Done()
 		})
+		handler.On("WaitForResources", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
+			wg := args.Get(1).(pod.GetSyncWG)
+			// wg.Done() must be called manually during execute
+			wg().Done()
+		})
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).Return(handlersMap)
 
 		// when
@@ -86,6 +91,11 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {simpleCustomObject, simpleCustomObject}}
 
 		handler.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
+			wg := args.Get(1).(pod.GetSyncWG)
+			// wg.Done() must be called manually during execute
+			wg().Done()
+		})
+		handler.On("WaitForResources", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
 			wg := args.Get(1).(pod.GetSyncWG)
 			// wg.Done() must be called manually during execute
 			wg().Done()
@@ -113,7 +123,17 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			// wg.Done() must be called manually during execute
 			wg().Done()
 		})
+		handler1.On("WaitForResources", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
+			wg := args.Get(1).(pod.GetSyncWG)
+			// wg.Done() must be called manually during execute
+			wg().Done()
+		})
 		handler2.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
+			wg := args.Get(1).(pod.GetSyncWG)
+			// wg.Done() must be called manually during execute
+			wg().Done()
+		})
+		handler2.On("WaitForResources", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
 			wg := args.Get(1).(pod.GetSyncWG)
 			// wg.Done() must be called manually during execute
 			wg().Done()

@@ -16,3 +16,17 @@ type Handler struct {
 func (_m *Handler) Execute(_a0 pod.CustomObject, _a1 pod.GetSyncWG) {
 	_m.Called(_a0, _a1)
 }
+
+// WaitForResources provides a mock function with given fields: _a0, _a1
+func (_m *Handler) WaitForResources(_a0 pod.CustomObject, _a1 pod.GetSyncWG) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(pod.CustomObject, pod.GetSyncWG) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

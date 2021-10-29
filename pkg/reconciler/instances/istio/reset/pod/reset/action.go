@@ -43,6 +43,11 @@ func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []
 		for _, object := range handlersMap[handler] {
 			i.wg.Add(1)
 			handler.Execute(object, i.GetWG)
+			i.wg.Add(1)
+			err := handler.WaitForResources(object, i.GetWG)
+			if err != nil {
+				log.Error(err)
+			}
 		}
 	}
 
