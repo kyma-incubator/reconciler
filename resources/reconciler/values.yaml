@@ -3,12 +3,11 @@ global:
     enabled: true
   component-reconcilers:
     enabled: true
-  database:
-    manageSecrets: true
     embedded:
       enabled: true
       reconciler:
         name: "reconciler"
+
       #TODO remove below after migration to separate user will be done
       reconcilerDBName: "reconciler"
   image:
@@ -27,3 +26,9 @@ global:
 #  oathkeeper:
 #    host: ory-oathkeeper-proxy.kyma-system.svc.cluster.local
 #    port: 4455
+
+postgresql:
+  database:
+    username: kyma
+    password: kyma
+    databaseName: kyma

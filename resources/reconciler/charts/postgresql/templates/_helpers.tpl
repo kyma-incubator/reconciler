@@ -205,17 +205,6 @@ Get the password secret.
 {{- end -}}
 
 {{/*
-Return true if a secret object should be created
-*/}}
-{{- define "postgresql.createSecret" -}}
-{{- if .Values.global.postgresql.existingSecret }}
-{{- else if .Values.existingSecret -}}
-{{- else -}}
-    {{- true -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Get the configuration ConfigMap name.
 */}}
 {{- define "postgresql.configurationCM" -}}

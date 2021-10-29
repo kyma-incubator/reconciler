@@ -138,21 +138,23 @@ spec:
           value: {{ .Values.replication.applicationName }}
         {{- end }}
         - name: POSTGRES_USER
-          value: {{ include "postgresql.username" . | quote }}
-        {{- if .Values.usePasswordFile }}
-        - name: POSTGRES_PASSWORD_FILE
-          value: "/opt/bitnami/postgresql/secrets/postgresql-password"
-        {{- else }}
+          value: "postgres"
+#          valueFrom:
+#            secretKeyRef:
+#              name: postgresql-secret
+#              key: postgresql-username
         - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ template "postgresql.secretName" . }}
-              key: postgresql-password
-        {{- end }}
-        {{- if (include "postgresql.database" .) }}
+          value: postgres
+#          valueFrom:
+#            secretKeyRef:
+#              name: postgresql-secret
+#              key: postgresql-password
         - name: POSTGRES_DB
-          value: {{ (include "postgresql.database" .) | quote }}
-        {{- end }}
+          value: "postgres"
+#          valueFrom:
+#            secretKeyRef:
+#              name: postgresql-secret
+#              key: postgresql-database
 {{- if .Values.extraEnv }}
 {{ tpl (toYaml .Values.extraEnv) $ | indent 8 }}
 {{- end }}

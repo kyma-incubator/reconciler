@@ -7,11 +7,11 @@ db:
   blockQueries: true
   logQueries: false
   postgres:
-    host: "localhost"
-    database: "kyma"
+    host: "reconciler-postgresql"
+    database: "postgres"
     port: 5432
-    user: kyma
-    password: kyma
+    user: postgres
+    password: postgres
     useSsl: false
     migrationsDir: "./configs/db/postgres"
   sqlite:

@@ -50,15 +50,19 @@ spec:
         {{- end }}
         env:
         - name: RECONCILER_DATABASE_USER
-          valueFrom:
-            secretKeyRef:
-              name: reconciler-postgresql
-              key: postgresql-username
+          value: postgres
+#          valueFrom:
+#            secretKeyRef:
+#              name: reconciler-postgresql
+#              key: postgresql-username
+        - name: RECONCILER_DATABASE_DATABASE
+          value: postgres
         - name: RECONCILER_DATABASE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: reconciler-postgresql
-              key: postgresql-password
+          value: postgres
+#          valueFrom:
+#            secretKeyRef:
+#              name: reconciler-postgresql
+#              key: postgresql-password
         - name: RECONCILER_DATABASE_HOST
           valueFrom:
             secretKeyRef:
@@ -69,11 +73,6 @@ spec:
             secretKeyRef:
               name: reconciler-postgresql
               key: postgresql-servicePort
-        - name: RECONCILER_DATABASE_NAME
-          valueFrom:
-            secretKeyRef:
-              name: reconciler-postgresql
-              key: postgresql-reconcilerDatabaseName
         volumeMounts:
         - name: encryption-key
           mountPath: "/configs/encryption"
