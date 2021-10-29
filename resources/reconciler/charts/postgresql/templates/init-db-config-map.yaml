@@ -6,4 +6,4 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   init-reconciler-db.sql: |
-    CREATE DATABASE kyma;
+    CREATE DATABASE {{ .Values.global.database.embedded.reconciler.name }};

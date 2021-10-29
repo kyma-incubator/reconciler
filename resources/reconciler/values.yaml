@@ -3,13 +3,15 @@ global:
     enabled: true
   component-reconcilers:
     enabled: true
+  database:
+    manageSecrets: true
     embedded:
       enabled: true
       reconciler:
-        name: "reconciler"
-
+        name: "kyma"
       #TODO remove below after migration to separate user will be done
       reconcilerDBName: "reconciler"
+    
   image:
     repository: eu.gcr.io/kyma-project/incubator/reconciler
     pullPolicy: IfNotPresent

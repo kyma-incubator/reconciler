@@ -8,10 +8,10 @@ db:
   logQueries: false
   postgres:
     host: "reconciler-postgresql"
-    database: "postgres"
+    database: "kyma"
     port: 5432
     user: postgres
-    password: postgres
+    password: "85yNIeELq9"
     useSsl: false
     migrationsDir: "./configs/db/postgres"
   sqlite:
