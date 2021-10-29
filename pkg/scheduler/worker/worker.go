@@ -68,14 +68,6 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 	return err
 }
 
-func (w *worker) updateOperationState(op *model.OperationEntity, state model.OperationState, reasons ...string) error {
-	reason := strings.Join(reasons, ", ")
-	if err := w.reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, state, reason); err != nil {
-		return fmt.Errorf("worker failed to update operation '%s' to state '%s': %s", op, state, err)
-	}
-	return nil
-}
-
 func (w *worker) componentsReady(op *model.OperationEntity) ([]string, error) {
 	opsReady, err := w.reconRepo.GetOperations(op.SchedulingID, model.OperationStateDone)
 	if err != nil {
