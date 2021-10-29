@@ -30,11 +30,6 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 
 	w.logger.Debugf("Worker starts processing of operation '%s'", op)
 
-	//mark operation to be now in progress (this avoids that it will be picked up by another worker)
-	if err := w.updateOperationState(op, model.OperationStateInProgress); err != nil {
-		return err
-	}
-
 	compsReady, err := w.componentsReady(op)
 	if err != nil {
 		return err
