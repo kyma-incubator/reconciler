@@ -25,51 +25,16 @@ spec:
         - name: {{ . }}
       {{- end }}
       {{- end }}
-      initContainers:
-      - image: "{{ .Values.global.image.repository }}/mothership:{{ .Values.global.image.tag }}"
-        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
-        name: migrate
-        args:
-          - migrate
-          - -database
-          - "postgres://$(RECONCILER_DATABASE_USER):$(RECONCILER_DATABASE_PASSWORD)@$(RECONCILER_DATABASE_HOST):$(RECONCILER_DATABASE_PORT)/$(RECONCILER_DATABASE_NAME)?sslmode=disable"
-          - -path 
-          - "configs/db/postgres" 
-          - up
-        env:
-        - name: RECONCILER_DATABASE_USER
-          valueFrom:
-            secretKeyRef:
-              name: reconciler-postgresql
-              key: postgresql-reconciler-username
-        - name: RECONCILER_DATABASE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: reconciler-postgresql
-              key: postgresql-reconciler-password
-        - name: RECONCILER_DATABASE_HOST
-          valueFrom:
-            secretKeyRef:
-              name: reconciler-postgresql
-              key: postgresql-serviceName
-        - name: RECONCILER_DATABASE_PORT
-          valueFrom:
-            secretKeyRef:
-              name: reconciler-postgresql
-              key: postgresql-servicePort
-        - name: RECONCILER_DATABASE_NAME
-          valueFrom:
-            secretKeyRef:
-              name: reconciler-postgresql
-              key: postgresql-reconciler-db-name
       containers:
       - image: "{{ .Values.global.image.repository }}/mothership:{{ .Values.global.image.tag }}"
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        command:
+          - /bin/mothership
         args:
           - mothership
-          - mothership
           - start
-          - --config=mothership-configuration/reconciler.yaml
+          - --config=/configs/reconciler.yaml
+          - --migrate-database
           - --create-encryption-key
           - --verbose
         name: mothership-reconciler
@@ -88,12 +53,12 @@ spec:
           valueFrom:
             secretKeyRef:
               name: reconciler-postgresql
-              key: postgresql-reconciler-username
+              key: postgresql-username
         - name: RECONCILER_DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
               name: reconciler-postgresql
-              key: postgresql-reconciler-password
+              key: postgresql-password
         - name: RECONCILER_DATABASE_HOST
           valueFrom:
             secretKeyRef:
@@ -108,10 +73,10 @@ spec:
           valueFrom:
             secretKeyRef:
               name: reconciler-postgresql
-              key: postgresql-reconciler-db-name
+              key: postgresql-reconcilerDatabaseName
         volumeMounts:
         - name: encryption-key
-          mountPath: "/encryption"
+          mountPath: "/configs/encryption"
         - name: mothership-reconciler-configuration
           mountPath: "/mothership-configuration"
       volumes:
