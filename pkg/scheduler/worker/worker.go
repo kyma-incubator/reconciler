@@ -9,7 +9,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/invoker"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
