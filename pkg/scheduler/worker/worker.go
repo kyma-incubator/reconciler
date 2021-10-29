@@ -9,7 +9,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/invoker"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -29,11 +28,6 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 	}
 
 	w.logger.Debugf("Worker starts processing of operation '%s'", op)
-
-	//mark operation to be now in progress (this avoids that it will be picked up by another worker)
-	if err := w.updateOperationState(op, model.OperationStateInProgress); err != nil {
-		return err
-	}
 
 	compsReady, err := w.componentsReady(op)
 	if err != nil {
@@ -71,14 +65,6 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 			"returned consistently errors (%d retries): %s", op, w.maxRetries, err)
 	}
 	return err
-}
-
-func (w *worker) updateOperationState(op *model.OperationEntity, state model.OperationState, reasons ...string) error {
-	reason := strings.Join(reasons, ", ")
-	if err := w.reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, state, reason); err != nil {
-		return fmt.Errorf("worker failed to update operation '%s' to state '%s': %s", op, state, err)
-	}
-	return nil
 }
 
 func (w *worker) componentsReady(op *model.OperationEntity) ([]string, error) {
