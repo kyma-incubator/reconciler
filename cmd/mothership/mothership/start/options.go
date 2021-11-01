@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/kyma-incubator/reconciler/pkg/ssl"
@@ -20,6 +21,8 @@ type Options struct {
 	ClusterReconcileInterval time.Duration
 	CreateEncyptionKey       bool
 	MaxParallelOperations    int
+	AuditLog                 bool
+	AuditLogFile             string
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -33,6 +36,8 @@ func NewOptions(o *cli.Options) *Options {
 		0 * time.Second, //ClusterReconcileInterval
 		false,           //CreateEncyptionKey
 		0,               //MaxParallelOperations
+		false,           // AuditLog
+		"",              //AuditLogFIle
 	}
 }
 
@@ -54,6 +59,9 @@ func (o *Options) Validate() error {
 	}
 	if o.MaxParallelOperations < 0 {
 		return errors.New("maximal parallel reconciled components per cluster cannot be < 0")
+	}
+	if o.AuditLog && o.AuditLogFile == "" {
+		return errors.New("audit log file must be set if audit logging is enable")
 	}
 	return ssl.VerifyKeyPair(o.SSLCrt, o.SSLKey)
 }
