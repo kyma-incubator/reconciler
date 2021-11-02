@@ -73,13 +73,10 @@ type Patcher struct {
 	OpenapiSchema openapi.Resources
 }
 
-// Patch tries to patch an OpenAPI resource. On success, returns the merge patch as well
+// Replace tries to patch an OpenAPI resource. On success, returns the merge patch as well
 // the final patched object. On failure, returns an error.
-func (p *Patcher) Patch(current runtime.Object, modified []byte,
-	namespace, name string) ([]byte, runtime.Object, error) {
-	var getErr error
-
-	patchBytes, patchObject, err := p.patchSimple(current, modified, namespace, name)
+func (p *Patcher) Replace(new runtime.Object, namespace, name string) (runtime.Object, error) {
+	patchBytes, err := p.Helper.Replace(namespace, name, true, new)
 
 	if p.Retries == 0 {
 		p.Retries = maxPatchRetry
@@ -89,20 +86,10 @@ func (p *Patcher) Patch(current runtime.Object, modified []byte,
 		if i > triesBeforeBackOff {
 			p.BackOff.Sleep(backOffPeriod)
 		}
-
-		current, getErr = p.Helper.Get(namespace, name)
-		if getErr != nil {
-			return nil, nil, getErr
-		}
-
-		patchBytes, patchObject, err = p.patchSimple(current, modified, namespace, name)
+		patchBytes, err = p.Helper.Replace(namespace, name, true, new)
 	}
 
-	if err != nil && (errors.IsConflict(err) || errors.IsInvalid(err)) && p.Force {
-		patchBytes, patchObject, err = p.deleteAndCreate(current, modified, namespace, name)
-	}
-
-	return patchBytes, patchObject, err
+	return patchBytes, err
 }
 
 func (p *Patcher) patchSimple(obj runtime.Object, modified []byte, namespace, name string) ([]byte, runtime.Object, error) {
