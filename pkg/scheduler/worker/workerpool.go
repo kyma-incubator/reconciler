@@ -2,14 +2,15 @@ package worker
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/invoker"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/panjf2000/ants/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type Pool struct {

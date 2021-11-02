@@ -10,17 +10,17 @@ servers:
         default: localhost
         description: Host for server
       port:
-        default: '8080'
+        default: "8080"
         description: Port for server
       version:
         enum:
-          - 'v1'
-        default: 'v1'
+          - "v1"
+        default: "v1"
 
 paths:
   /reconciliations/{schedulingID}/info:
     get:
-      description: 'Get details of a reconciliation'
+      description: "Get details of a reconciliation"
       parameters:
         - name: schedulingID
           required: true
@@ -29,16 +29,16 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
-          $ref: '#/components/responses/ReconcilationOperationsOKResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "200":
+          $ref: "#/components/responses/ReconcilationOperationsOKResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /reconciliations:
     get:
-      description: 'Get list of current working reconcilers'
+      description: "Get list of current working reconcilers"
       parameters:
         - name: runtimeID
           required: false
@@ -54,14 +54,14 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/components/schemas/status'
+              $ref: "#/components/schemas/status"
       responses:
-        '200':
-          $ref: '#/components/responses/ReconcilationsOKResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "200":
+          $ref: "#/components/responses/ReconcilationsOKResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /clusters:
     put:
@@ -70,14 +70,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/cluster'
+              $ref: "#/components/schemas/cluster"
       responses:
-        '200':
-          $ref: '#/components/responses/Ok'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "200":
+          $ref: "#/components/responses/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
     post:
       description: create new cluster
@@ -85,14 +85,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/cluster'
+              $ref: "#/components/schemas/cluster"
       responses:
-        '200':
-          $ref: '#/components/responses/Ok'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "200":
+          $ref: "#/components/responses/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /clusters/{runtimeID}:
     delete:
@@ -105,14 +105,14 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
-          $ref: '#/components/responses/Ok'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/ClusterNotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "200":
+          $ref: "#/components/responses/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/ClusterNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /clusters/{runtimeID}/status:
     put:
@@ -128,16 +128,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/statusUpdate'
+              $ref: "#/components/schemas/statusUpdate"
       responses:
-        '201':
-          $ref: '#/components/responses/Ok'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/ClusterNotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "201":
+          $ref: "#/components/responses/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/ClusterNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     get:
       description: get cluster status
       parameters:
@@ -148,14 +148,14 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
-          $ref: '#/components/responses/Ok'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/ClusterNotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "200":
+          $ref: "#/components/responses/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/ClusterNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /clusters/{runtimeID}/config/{configVersion}/status:
     get:
@@ -173,14 +173,14 @@ paths:
           schema:
             type: string
       responses:
-        '200':
-          $ref: '#/components/responses/Ok'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/ClusterNotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "200":
+          $ref: "#/components/responses/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/ClusterNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /clusters/{runtimeID}/statusChanges:
     get:
@@ -193,84 +193,85 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
-          description: 'Return list of status changes in cluster'
+        "200":
+          description: "Return list of status changes in cluster"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPClusterStatusResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'        
-        '404':
-          $ref: '#/components/responses/ClusterNotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/HTTPClusterStatusResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/ClusterNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
 components:
   responses:
     Ok:
-      description: 'Ok'
+      description: "Ok"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/HTTPClusterResponse'
+            $ref: "#/components/schemas/HTTPClusterResponse"
 
     ReconcilationsOKResponse:
-      description: 'OK'
+      description: "OK"
       content:
         application/json:
           schema:
-            $ref:  '#/components/schemas/HTTPReconcilerStatus'
+            $ref: "#/components/schemas/HTTPReconcilerStatus"
 
     ReconcilationOperationsOKResponse:
-      description: 'OK'
+      description: "OK"
       content:
         application/json:
           schema:
-            $ref:  '#/components/schemas/HTTPReconciliationOperations'
+            $ref: "#/components/schemas/HTTPReconciliationOperations"
 
     InternalError:
-      description: 'Internal server error'
+      description: "Internal server error"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/HTTPErrorResponse'
+            $ref: "#/components/schemas/HTTPErrorResponse"
 
     BadRequest:
-      description: 'Bad request'
+      description: "Bad request"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/HTTPErrorResponse'
+            $ref: "#/components/schemas/HTTPErrorResponse"
 
-    # TODO rename to not found            
+    # TODO rename to not found
     ClusterNotFound:
-      description: 'Given cluster not found'
+      description: "Given cluster not found"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/HTTPErrorResponse'
+            $ref: "#/components/schemas/HTTPErrorResponse"
 
   schemas:
     HTTPClusterStatusResponse:
       type: object
-      required: [ statusChanges ]
+      required: [statusChanges]
       properties:
         statusChanges:
           type: array
           items:
-            $ref: '#/components/schemas/statusChange'
+            $ref: "#/components/schemas/statusChange"
 
     HTTPErrorResponse:
       type: object
-      required: [ error ]
+      required: [error]
       properties:
         error:
           type: string
 
     HTTPClusterResponse:
       type: object
-      required: [ cluster, clusterVersion, configurationVersion, status, statusURL ]
+      required:
+        [cluster, clusterVersion, configurationVersion, status, statusURL]
       properties:
         cluster:
           type: string
@@ -284,9 +285,9 @@ components:
         failures:
           type: array
           items:
-            $ref: '#/components/schemas/failure'
+            $ref: "#/components/schemas/failure"
         status:
-          $ref: '#/components/schemas/status'
+          $ref: "#/components/schemas/status"
         statusURL:
           type: string
           format: uri
@@ -295,20 +296,21 @@ components:
       type: object
       properties:
         cluster:
-          $ref: '#/components/schemas/cluster'            
+          $ref: "#/components/schemas/cluster"
         operations:
           type: array
           items:
-            $ref: '#/components/schemas/operation'
-    
+            $ref: "#/components/schemas/operation"
+
     HTTPReconcilerStatus:
       type: array
       items:
-        $ref: '#/components/schemas/reconciliation'
+        $ref: "#/components/schemas/reconciliation"
 
     reconciliation:
       type: object
-      required: [ lock, runtimeID, shootName, schedulingID, created, updated, status ]
+      required:
+        [lock, runtimeID, shootName, schedulingID, created, updated, status]
       properties:
         lock:
           type: string
@@ -324,12 +326,21 @@ components:
           type: string
           format: date-time
         status:
-          $ref:
-            '#/components/schemas/status'
+          $ref: "#/components/schemas/status"
 
     operation:
       type: object
-      required: [ priority, schedulingID, correlationID, component, state, reason, created, updated ]
+      required:
+        [
+          priority,
+          schedulingID,
+          correlationID,
+          component,
+          state,
+          reason,
+          created,
+          updated,
+        ]
       properties:
         priority:
           type: integer
@@ -353,16 +364,16 @@ components:
           type: string
           format: date-time
         clusterMetadata:
-          $ref: '#/components/schemas/cluster'
+          $ref: "#/components/schemas/cluster"
 
     reconcilerStatus:
       type: object
-      required: [ cluster, metadata, created, status ]
+      required: [cluster, metadata, created, status]
       properties:
         cluster:
           type: string
         metadata:
-          $ref: '#/components/schemas/metadata'
+          $ref: "#/components/schemas/metadata"
         created:
           type: string
           format: date-time
@@ -371,7 +382,7 @@ components:
 
     statusChange:
       type: object
-      required: [ started, duration,status ]
+      required: [started, duration, status]
       properties:
         started:
           type: string
@@ -381,28 +392,31 @@ components:
           type: integer
           format: int64
         status:
-          $ref: '#/components/schemas/status'
+          $ref: "#/components/schemas/status"
 
     statusUpdate:
       type: object
-      required: [ status ]
+      required: [status]
       properties:
         status:
-          $ref: '#/components/schemas/status'
+          $ref: "#/components/schemas/status"
 
     status:
       type: string
       enum:
         - reconcile_pending
-        - reconcile_failed
         - reconcile_disabled
         - ready
         - error
         - reconciling
+        - delete_pending
+        - delete_error
+        - deleting
+        - deleted
 
     failure:
       type: object
-      required: [ component, reason ]
+      required: [component, reason]
       properties:
         component:
           type: string
@@ -411,24 +425,24 @@ components:
 
     cluster:
       type: object
-      required: [ runtimeID, runtimeInput, kymaConfig, metadata, kubeconfig ]
+      required: [runtimeID, runtimeInput, kymaConfig, metadata, kubeconfig]
       properties:
         runtimeID:
           type: string
           format: uuid
         runtimeInput:
-          $ref: '#/components/schemas/runtimeInput'
+          $ref: "#/components/schemas/runtimeInput"
         kymaConfig:
-          $ref: '#/components/schemas/kymaConfig'
+          $ref: "#/components/schemas/kymaConfig"
         metadata:
-          $ref: '#/components/schemas/metadata'
+          $ref: "#/components/schemas/metadata"
         kubeconfig:
-          description: 'valid kubeconfig to cluster'
+          description: "valid kubeconfig to cluster"
           type: string
 
     runtimeInput:
       type: object
-      required: [ name, description ]
+      required: [name, description]
       properties:
         name:
           type: string
@@ -437,7 +451,7 @@ components:
 
     kymaConfig:
       type: object
-      required: [ version, profile, components, administrators ]
+      required: [version, profile, components, administrators]
       properties:
         version:
           type: string
@@ -446,7 +460,7 @@ components:
         components:
           type: array
           items:
-            $ref: '#/components/schemas/component'
+            $ref: "#/components/schemas/component"
         administrators:
           type: array
           items:
@@ -454,7 +468,15 @@ components:
 
     metadata:
       type: object
-      required: [ globalAccountID, subAccountID, serviceID, servicePlanID, shootName, instanceID ]
+      required:
+        [
+          globalAccountID,
+          subAccountID,
+          serviceID,
+          servicePlanID,
+          shootName,
+          instanceID,
+        ]
       properties:
         globalAccountID:
           type: string
@@ -471,7 +493,7 @@ components:
 
     component:
       type: object
-      required: [ component, namespace, configuration, URL, version ]
+      required: [component, namespace, configuration, URL, version]
       properties:
         component:
           type: string
@@ -480,7 +502,7 @@ components:
         configuration:
           type: array
           items:
-            $ref: '#/components/schemas/configuration'
+            $ref: "#/components/schemas/configuration"
         URL:
           type: string
           format: uri
@@ -489,7 +511,7 @@ components:
 
     configuration:
       type: object
-      required: [ key, value, secret ]
+      required: [key, value, secret]
       properties:
         key:
           type: string

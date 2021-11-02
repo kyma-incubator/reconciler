@@ -5,16 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httputil"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"net/http"
-	"net/http/httputil"
-	"strings"
 )
 
 const callbackURLTemplate = "%s://%s:%d/v1/operations/%s/callback/%s"
@@ -133,7 +134,7 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 		i.config.Port,
 		params.SchedulingID,
 		params.CorrelationID)
-	payload := params.newRemoteReconciliationModel(callbackURL)
+	payload := params.newRemoteTask(callbackURL)
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {

@@ -27,6 +27,10 @@ func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repos
 }
 
 func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error) {
+	if len(state.Configuration.Components) == 0 {
+		return nil, newEmptyComponentsReconciliationError(state)
+	}
+
 	dbOps := func() (interface{}, error) {
 		reconEntity := &model.ReconciliationEntity{
 			Lock:                state.Cluster.RuntimeID,
@@ -73,11 +77,11 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			state.Cluster.RuntimeID, reconEntity.SchedulingID)
 
 		//get reconciliation sequence
-		reconSeq, err := state.Configuration.GetReconciliationSequence(preComponents)
-		if err != nil {
-			r.Logger.Errorf("ReconRepo failed to retrieve component models for runtime '%s': %s",
-				state.Cluster.RuntimeID, err)
-			return nil, err
+		reconSeq := state.Configuration.GetReconciliationSequence(preComponents)
+
+		opType := model.OperationTypeReconcile
+		if state.Status.Status.IsDeletion() {
+			opType = model.OperationTypeDelete
 		}
 
 		//iterate over reconciliation sequence and create operations with proper priorities
@@ -94,6 +98,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 					ClusterConfig: reconEntity.ClusterConfig,
 					Component:     component.Component,
 					State:         model.OperationStateNew,
+					Type:          opType,
 					Updated:       time.Now().UTC(),
 				})
 				if err != nil {

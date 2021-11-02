@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS scheduler_operations (
     "runtime_id" text NOT NULL,
     "cluster_config" int NOT NULL,
     "component" text NOT NULL,
+    "type" text NOT NULL,
     "state" text NOT NULL,
     "reason" text,
     "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

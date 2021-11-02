@@ -2,11 +2,12 @@ package reconciliation
 
 import (
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
-	"sort"
-	"strings"
 )
 
 type Filter interface {
@@ -29,10 +30,11 @@ type Repository interface {
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reason ...string) error
 }
 
-//findProcessableOperations returns all operations in all running reconciliation which are ready to be processed.
+//findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.
 //The priority of an operation is considered (1=highest priority, 2-x=lower priorities).
 //An operation with a high priority has first to be finished before operations with a lower priority
 //are considered as processable.
+// For deletion operations, the priority is reversed, as deletion has to be done backwards.
 func findProcessableOperations(ops []*model.OperationEntity, maxParallelOpsPerRecon int) []*model.OperationEntity {
 	//group ops per reconciliation and their prio
 	groupedByReconAndPrio := make(map[string]map[int64][]*model.OperationEntity) //key1:schedulingID, key2:prio
@@ -49,11 +51,14 @@ func findProcessableOperations(ops []*model.OperationEntity, maxParallelOpsPerRe
 		groupedByReconAndPrio[op.SchedulingID][op.Priority] = samePrioGroup
 	}
 
-	//find per reconciliation the processable ops in a prio-group (searching from highest to lowest prio-group)
+	//find per reconciliation the processable ops in a prio-group
+	// Reconciliation: searching from highest to lowest prio-group.
+	// Deletion: searching from lowest to highest prio-group.
 	var result []*model.OperationEntity
 
 	for _, opsWithSamePrio := range groupedByReconAndPrio { //iterate of reconciliations
-		for _, prio := range prios(opsWithSamePrio) { //iterate over prio-groups
+		reverse := opGroupType(opsWithSamePrio) == model.OperationTypeDelete // in case of deletion priorities are reversed.
+		for _, prio := range prios(opsWithSamePrio, reverse) {               //iterate over prio-groups
 			processable, checkNextGroup := findProcessableOperationsInGroup(opsWithSamePrio[prio], maxParallelOpsPerRecon)
 			if checkNextGroup {
 				continue
@@ -65,17 +70,32 @@ func findProcessableOperations(ops []*model.OperationEntity, maxParallelOpsPerRe
 	return result
 }
 
-func prios(opsByPrio map[int64][]*model.OperationEntity) []int64 {
+// prios sorts the priorities in the map. If reverse is provided, priorities will go from lower to higher.
+func prios(opsByPrio map[int64][]*model.OperationEntity, reverse bool) []int64 {
 	var prios []int64
 	for prio := range opsByPrio {
 		prios = append(prios, prio)
 	}
 
 	sort.Slice(prios, func(p, q int) bool {
+		if reverse {
+			return prios[p] > prios[q]
+		}
 		return prios[p] < prios[q]
 	})
 
 	return prios
+}
+
+//opGroupType finds out the operation type on a group of operations with the same scheduling ID.
+// Since priorities can be arbitrary keys, a key can't be hardcoded and the map needs to be iterated and immediately return after the first iteration.
+func opGroupType(opsByPrio map[int64][]*model.OperationEntity) model.OperationType {
+	for _, ops := range opsByPrio {
+		if len(ops) > 0 {
+			return ops[0].Type
+		}
+	}
+	return model.OperationTypeReconcile
 }
 
 //findProcessableOperationsInGroup returns all operations in the group which are processable.
@@ -112,7 +132,7 @@ func findProcessableOperationsInGroup(ops []*model.OperationEntity, maxParallelO
 			if freeCapacity <= 0 {
 				processables = nil
 			} else {
-				processables = processables[0:freeCapacity]
+				processables = processables[:freeCapacity]
 			}
 		}
 	}

@@ -2,14 +2,16 @@ package service
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 var clusterState *cluster.State
@@ -28,7 +30,12 @@ func TestScheduler(t *testing.T) {
 			ClusterVersion: 1,
 			Contract:       1,
 			KymaVersion:    "1.24.0",
-			Components:     nil,
+			Components: []*keb.Component{
+				{
+					Component: "testComp1",
+					Version:   "1",
+				},
+			},
 		},
 		Status: &model.ClusterStatusEntity{
 			ID:             1,
@@ -91,6 +98,6 @@ func requirecReconciliationEntity(t *testing.T, reconRepo reconciliation.Reposit
 	require.Equal(t, recons[0].RuntimeID, clusterState.Cluster.RuntimeID)
 	ops, err := reconRepo.GetOperations(recons[0].SchedulingID)
 	require.NoError(t, err)
-	require.Len(t, ops, 1)
+	require.Len(t, ops, 2)
 	require.Equal(t, ops[0].RuntimeID, clusterState.Cluster.RuntimeID)
 }

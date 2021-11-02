@@ -2,8 +2,9 @@ package rafter
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"testing"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
@@ -195,7 +196,7 @@ func newFakeServiceContext(t *testing.T, version string) *service.ActionContext 
 		Context:          context.Background(),
 		WorkspaceFactory: fakeFactory,
 		Logger:           log.NewLogger(true),
-		Model: &reconciler.Reconciliation{
+		Task: &reconciler.Task{
 			Version: version,
 		},
 	}

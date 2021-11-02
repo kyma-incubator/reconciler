@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
@@ -10,7 +12,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
 	"go.uber.org/zap"
-	"time"
 )
 
 type RuntimeBuilder struct {
@@ -28,8 +29,8 @@ func NewRuntimeBuilder(reconRepo reconciliation.Repository, logger *zap.SugaredL
 	}
 }
 
-func (rb *RuntimeBuilder) newWorkerPool(receiver worker.ClusterStateRetriever, invoke invoker.Invoker) (*worker.Pool, error) {
-	return worker.NewWorkerPool(receiver, rb.reconRepo, invoke, rb.workerPoolConfig, rb.logger)
+func (rb *RuntimeBuilder) newWorkerPool(retriever worker.ClusterStateRetriever, invoke invoker.Invoker) (*worker.Pool, error) {
+	return worker.NewWorkerPool(retriever, rb.reconRepo, invoke, rb.workerPoolConfig, rb.logger)
 }
 
 func (rb *RuntimeBuilder) RunLocal(preComponents []string, statusFunc invoker.ReconcilerStatusFunc) *RunLocal {

@@ -152,7 +152,7 @@ func TestEventingReconcilerPreAction(t *testing.T) {
 			KubeClient: &mockClient,
 			Context:    context.TODO(),
 			Logger:     logger.NewLogger(false),
-			Model:      &reconciler.Reconciliation{Version: "test"},
+			Task:       &reconciler.Task{Version: "test"},
 		}
 		return k8sClient, action, actionContext
 	}

@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"strings"
+
 	"go.uber.org/zap"
 
 	"github.com/avast/retry-go"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/heartbeat"
@@ -19,7 +22,7 @@ type runner struct {
 	logger *zap.SugaredLogger
 }
 
-func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler) error {
+func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler) error {
 	heartbeatSender, err := heartbeat.NewHeartbeatSender(ctx, callback, r.logger, heartbeat.Config{
 		Interval: r.heartbeatSenderConfig.interval,
 		Timeout:  r.heartbeatSenderConfig.timeout,
@@ -28,23 +31,21 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 		return err
 	}
 
-	retryable := func(heartbeatSender *heartbeat.Sender) func() error {
-		return func() error {
-			if err := heartbeatSender.Running(); err != nil {
-				r.logger.Warnf("Failed to start status updater: %s", err)
-				return err
-			}
-			err := r.reconcile(ctx, model)
-			if err != nil {
-				r.logger.Warnf("Failing reconciliation of '%s' in version '%s' with profile '%s': %s",
-					model.Component, model.Version, model.Profile, err)
-				if heartbeatErr := heartbeatSender.Failed(err); heartbeatErr != nil {
-					err = errors.Wrap(err, heartbeatErr.Error())
-				}
-			}
+	retryable := func() error {
+		if err := heartbeatSender.Running(); err != nil {
+			r.logger.Warnf("Failed to start status updater: %s", err)
 			return err
 		}
-	}(heartbeatSender)
+		err := r.reconcile(ctx, task)
+		if err != nil {
+			r.logger.Warnf("Failing reconciliation of '%s' in version '%s' with profile '%s': %s",
+				task.Component, task.Version, task.Profile, err)
+			if heartbeatErr := heartbeatSender.Failed(err); heartbeatErr != nil {
+				err = errors.Wrap(err, heartbeatErr.Error())
+			}
+		}
+		return err
+	}
 
 	//retry the reconciliation in case of an error
 	err = retry.Do(retryable,
@@ -55,17 +56,17 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 
 	if err == nil {
 		r.logger.Infof("Reconciliation of component '%s' for version '%s' finished successfully",
-			model.Component, model.Version)
+			task.Component, task.Version)
 		if err := heartbeatSender.Success(); err != nil {
 			return err
 		}
 	} else if ctx.Err() != nil {
 		r.logger.Infof("Reconciliation of component '%s' for version '%s' terminated because context was closed",
-			model.Component, model.Version)
+			task.Component, task.Version)
 		return err
 	} else {
 		r.logger.Errorf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
-			model.Component, model.Version)
+			task.Component, task.Version)
 		if heartbeatErr := heartbeatSender.Error(err); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
 		}
@@ -74,8 +75,8 @@ func (r *runner) Run(ctx context.Context, model *reconciler.Reconciliation, call
 	return err
 }
 
-func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation) error {
-	kubeClient, err := adapter.NewKubernetesClient(model.Kubeconfig, r.logger, &adapter.Config{
+func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
+	kubeClient, err := adapter.NewKubernetesClient(task.Kubeconfig, r.logger, &adapter.Config{
 		ProgressInterval: r.progressTrackerConfig.interval,
 		ProgressTimeout:  r.progressTrackerConfig.timeout,
 	})
@@ -83,12 +84,12 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		return err
 	}
 
-	chartProvider, err := r.newChartProvider(model.Repository)
+	chartProvider, err := r.newChartProvider(task.Repository)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create chart provider instance")
 	}
 
-	wsFactory, err := r.workspaceFactory(model.Repository)
+	wsFactory, err := r.workspaceFactory(task.Repository)
 	if err != nil {
 		return err
 	}
@@ -99,35 +100,41 @@ func (r *runner) reconcile(ctx context.Context, model *reconciler.Reconciliation
 		Context:          ctx,
 		Logger:           r.logger,
 		ChartProvider:    chartProvider,
-		Model:            model,
+		Task:             task,
 	}
 
-	if r.preReconcileAction != nil {
-		if err := r.preReconcileAction.Run(actionHelper); err != nil {
-			r.logger.Warnf("Pre-reconciliation action of '%s' with version '%s' failed: %s",
-				model.Component, model.Version, err)
+	// Identify the right action set to use (reconcile/delete)
+	pre, act, post := r.preReconcileAction, r.reconcileAction, r.postReconcileAction
+	if task.Type == model.OperationTypeDelete {
+		pre, act, post = r.preDeleteAction, r.deleteAction, r.postDeleteAction
+	}
+
+	if pre != nil {
+		if err := pre.Run(actionHelper); err != nil {
+			r.logger.Warnf("Pre-%s action of '%s' with version '%s' failed: %s",
+				task.Type, task.Component, task.Version, err)
 			return err
 		}
 	}
 
-	if r.reconcileAction == nil {
-		if err := r.install.Invoke(ctx, chartProvider, model, kubeClient); err != nil {
-			r.logger.Warnf("Default-reconciliation of '%s' with version '%s' failed: %s",
-				model.Component, model.Version, err)
+	if act == nil {
+		if err := r.install.Invoke(ctx, chartProvider, task, kubeClient); err != nil {
+			r.logger.Warnf("Default-%s action of '%s' with version '%s' failed: %s",
+				task.Type, task.Component, task.Version, err)
 			return err
 		}
 	} else {
-		if err := r.reconcileAction.Run(actionHelper); err != nil {
-			r.logger.Warnf("Reconciliation action of '%s' with version '%s' failed: %s",
-				model.Component, model.Version, err)
+		if err := act.Run(actionHelper); err != nil {
+			r.logger.Warnf("%s action of '%s' with version '%s' failed: %s",
+				strings.Title(string(task.Type)), task.Component, task.Version, err)
 			return err
 		}
 	}
 
-	if r.postReconcileAction != nil {
+	if post != nil {
 		if err := r.postReconcileAction.Run(actionHelper); err != nil {
-			r.logger.Warnf("Post-reconciliation action of '%s' with version '%s' failed: %s",
-				model.Component, model.Version, err)
+			r.logger.Warnf("Post-%s action of '%s' with version '%s' failed: %s",
+				task.Type, task.Component, task.Version, err)
 			return err
 		}
 	}

@@ -3,11 +3,12 @@ package invoker
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
-	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	reconRegistry "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
@@ -57,7 +58,7 @@ func (i *LocalReconcilerInvoker) Invoke(ctx context.Context, params *Params) err
 	i.logger.Debugf("Local invoker is calling reconciler for component '%s' (schedulingID:%s/correlationID:%s)",
 		component, params.SchedulingID, params.CorrelationID)
 
-	reconModel := params.newLocalReconciliationModel(i.newCallbackFunc(params))
+	reconModel := params.newLocalTask(i.newCallbackFunc(params))
 
 	return compRecon.StartLocal(ctx, reconModel, i.logger)
 }

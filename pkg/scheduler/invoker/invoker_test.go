@@ -1,9 +1,10 @@
 package invoker
 
 import (
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestInvoker(t *testing.T) {
@@ -28,7 +29,7 @@ func TestInvoker(t *testing.T) {
 			CorrelationID:   "",
 		}
 
-		model := params.newReconciliationModel()
+		model := params.newTask()
 		assert.Equal(t, "", model.Repository.TokenNamespace)
 	})
 }
