@@ -18,6 +18,7 @@ type MockInventory struct {
 	GetResult                 *State
 	GetLatestResult           *State
 	CreateOrUpdateResult      *State
+	MarkForDeletionResult     *State
 	DeleteResult              error
 	UpdateStatusResult        *State
 	ChangesResult             []*StatusChange
@@ -29,6 +30,10 @@ func (i *MockInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Clust
 
 func (i *MockInventory) UpdateStatus(State *State, status model.Status) (*State, error) {
 	return i.UpdateStatusResult, nil
+}
+
+func (i *MockInventory) MarkForDeletion(runtimeID string) (*State, error) {
+	return i.MarkForDeletionResult, nil
 }
 
 func (i *MockInventory) Delete(runtimeID string) error {

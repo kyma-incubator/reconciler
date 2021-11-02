@@ -30,5 +30,5 @@ func convertInterfaceToJSONString(value interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return string(encodingJSON), err
+	return string(encodingJSON), nil
 }

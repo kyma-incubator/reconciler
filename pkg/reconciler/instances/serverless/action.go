@@ -35,20 +35,20 @@ func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 		logger.Errorf("Error while fetching existing docker registry secret [%s]... Secret will be re-generated", err.Error())
 	} else if secret != nil {
 		logger.Infof("Secret %s found in namespace: %s. Attempting to reusing existing credentials for %s", serverlessSecretName, serverlessNamespace, serverlessDockerRegistryDeploymentName)
-		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "username", "dockerRegistry.username")
-		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "password", "dockerRegistry.password")
-		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "isInternal", "dockerRegistry.enableInternal")
-		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "registryAddress", "dockerRegistry.registryAddress")
-		setOverrideFromSecret(logger, secret, svcCtx.Model.Configuration, "serverAddress", "dockerRegistry.serverAddress")
+		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "username", "dockerRegistry.username")
+		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "password", "dockerRegistry.password")
+		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "isInternal", "dockerRegistry.enableInternal")
+		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "registryAddress", "dockerRegistry.registryAddress")
+		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "serverAddress", "dockerRegistry.serverAddress")
 
 		deployment, err := k8sClient.AppsV1().Deployments(serverlessNamespace).Get(svcCtx.Context, serverlessDockerRegistryDeploymentName, metav1.GetOptions{})
 		if err != nil {
 			logger.Errorf("Error while fetching existing docker registry deployment [%s]... Deployment will be re-generated", err.Error())
 		} else if deployment != nil {
-			setOverridesFromDeployment(deployment, svcCtx.Model.Configuration)
+			setOverridesFromDeployment(deployment, svcCtx.Task.Configuration)
 		}
 	}
-	return service.NewInstall(svcCtx.Logger).Invoke(svcCtx.Context, svcCtx.ChartProvider, svcCtx.Model, svcCtx.KubeClient)
+	return service.NewInstall(svcCtx.Logger).Invoke(svcCtx.Context, svcCtx.ChartProvider, svcCtx.Task, svcCtx.KubeClient)
 }
 
 func readSecretKey(secret *v1.Secret, secretKey string) (string, error) {

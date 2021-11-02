@@ -2,10 +2,11 @@ package istio
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"go.uber.org/zap"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
@@ -24,16 +25,16 @@ type ReconcileAction struct {
 }
 
 func (a *ReconcileAction) Run(context *service.ActionContext) error {
-	component := chart.NewComponentBuilder(context.Model.Version, istioChart).
+	component := chart.NewComponentBuilder(context.Task.Version, istioChart).
 		WithNamespace(istioNamespace).
-		WithProfile(context.Model.Profile).
-		WithConfiguration(context.Model.Configuration).Build()
+		WithProfile(context.Task.Profile).
+		WithConfiguration(context.Task.Configuration).Build()
 	manifest, err := context.ChartProvider.RenderManifest(component)
 	if err != nil {
 		return err
 	}
 
-	ver, err := a.performer.Version(context.WorkspaceFactory, context.Model.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
+	ver, err := a.performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
 		return errors.Wrap(err, "Could not fetch Istio version")
 	}

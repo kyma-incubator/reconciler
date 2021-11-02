@@ -9,13 +9,19 @@ import (
 
 // Defines values for Status.
 const (
+	StatusDeleteError Status = "delete_error"
+
+	StatusDeletePending Status = "delete_pending"
+
+	StatusDeleted Status = "deleted"
+
+	StatusDeleting Status = "deleting"
+
 	StatusError Status = "error"
 
 	StatusReady Status = "ready"
 
 	StatusReconcileDisabled Status = "reconcile_disabled"
-
-	StatusReconcileFailed Status = "reconcile_failed"
 
 	StatusReconcilePending Status = "reconcile_pending"
 

@@ -2,6 +2,9 @@ package invoker
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -11,8 +14,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 type unittestReconcileAction struct {
@@ -61,7 +62,7 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 	//retrieve ops of reconciliation entity
 	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 	require.NoError(t, err)
-	require.Len(t, opEntities, 1)
+	require.Len(t, opEntities, 2)
 	opEntity := opEntities[0]
 
 	//create callback fct for receiving reconciler feedbacks

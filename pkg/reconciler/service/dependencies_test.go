@@ -1,9 +1,10 @@
 package service
 
 import (
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestDependencyChecker(t *testing.T) {
@@ -12,17 +13,17 @@ func TestDependencyChecker(t *testing.T) {
 
 	require.ElementsMatch(t,
 		[]string{"a", "b"},
-		depChecker.newDependencyCheck(&reconciler.Reconciliation{
+		depChecker.newDependencyCheck(&reconciler.Task{
 			ComponentsReady: []string{"x", "y", "z"},
 		}).Missing)
 	require.ElementsMatch(t,
 		[]string{"b"},
-		depChecker.newDependencyCheck(&reconciler.Reconciliation{
+		depChecker.newDependencyCheck(&reconciler.Task{
 			ComponentsReady: []string{"a", "y", "z"},
 		}).Missing)
 	require.ElementsMatch(t,
 		[]string{},
-		depChecker.newDependencyCheck(&reconciler.Reconciliation{
+		depChecker.newDependencyCheck(&reconciler.Task{
 			ComponentsReady: []string{"a", "b", "z"},
 		}).Missing)
 }

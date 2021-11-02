@@ -3,6 +3,8 @@ package reconciler
 import (
 	"fmt"
 	"strings"
+
+	"github.com/kyma-incubator/reconciler/pkg/model"
 )
 
 type Configuration struct {
@@ -27,8 +29,8 @@ func NewStatus(status string) (Status, error) {
 	}
 }
 
-//Reconciliation is the model for reconciliation calls
-type Reconciliation struct {
+//Task the reconciler has to complete when called
+type Task struct {
 	ComponentsReady []string               `json:"componentsReady"`
 	Component       string                 `json:"component"`
 	Namespace       string                 `json:"namespace"`
@@ -40,17 +42,18 @@ type Reconciliation struct {
 	CallbackURL     string                 `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
 	CorrelationID   string                 `json:"correlationID"`
 	Repository      *Repository            `json:"repository"`
+	Type            model.OperationType    `json:"type"` // Supported task types are: reconcile, delete
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
 	CallbackFunc func(msg *CallbackMessage) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process
 }
 
-func (r *Reconciliation) String() string {
-	return fmt.Sprintf("Reconciliation [Component:%s,Version:%s,Namespace:%s,Profile:%s]",
-		r.Component, r.Version, r.Namespace, r.Profile)
+func (r *Task) String() string {
+	return fmt.Sprintf("Reconciliation [Component:%s,Version:%s,Namespace:%s,Profile:%s,Type:%s]",
+		r.Component, r.Version, r.Namespace, r.Profile, r.Type)
 }
 
-func (r *Reconciliation) Validate() error {
+func (r *Task) Validate() error {
 	//check mandatory fields are defined
 	var errFields []string
 	r.Component = strings.TrimSpace(r.Component)
@@ -76,6 +79,9 @@ func (r *Reconciliation) Validate() error {
 	r.CorrelationID = strings.TrimSpace(r.CorrelationID)
 	if r.CorrelationID == "" {
 		errFields = append(errFields, "CorrelationID")
+	}
+	if r.Type == "" {
+		errFields = append(errFields, "Type")
 	}
 	//return aggregated error msg
 	var err error

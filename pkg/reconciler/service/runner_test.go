@@ -3,11 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 
@@ -43,8 +44,8 @@ func (a *TestAction) Run(context *ActionContext) error {
 		return fmt.Errorf("kubeClient is expected but was nil")
 	}
 
-	log.Debugf("Action '%s': received version '%s'", a.name, context.Model.Version)
-	a.receivedVersion = context.Model.Version
+	log.Debugf("Action '%s': received version '%s'", a.name, context.Task.Version)
+	a.receivedVersion = context.Task.Version
 
 	if a.delay > 0 {
 		log.Debugf("Action '%s': simulating delay of %v secs", a.name, a.delay.Seconds())
@@ -295,8 +296,8 @@ func cleanup(t *testing.T) {
 	cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default")
 }
 
-func newModel(t *testing.T, kymaComponent, kymaVersion string) *reconciler.Reconciliation {
-	return &reconciler.Reconciliation{
+func newModel(t *testing.T, kymaComponent, kymaVersion string) *reconciler.Task {
+	return &reconciler.Task{
 		Component:  kymaComponent,
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),

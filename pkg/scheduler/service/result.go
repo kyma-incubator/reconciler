@@ -2,10 +2,11 @@ package service
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ReconciliationResult struct {
@@ -64,13 +65,33 @@ func (rs *ReconciliationResult) GetOperations() []*model.OperationEntity {
 }
 
 func (rs *ReconciliationResult) GetResult() model.Status {
+	isDelete := true
+	for _, op := range rs.GetOperations() {
+		if op.Type != model.OperationTypeDelete {
+			isDelete = false
+			break
+		}
+	}
 	if len(rs.error) > 0 {
-		return model.ClusterStatusError
+		if isDelete {
+			return model.ClusterStatusDeleteError
+		}
+		return model.ClusterStatusReconcileError
 	}
 	if len(rs.other) > 0 {
+		if isDelete {
+			return model.ClusterStatusDeleting
+		}
 		return model.ClusterStatusReconciling
 	}
-	return model.ClusterStatusReady
+	if len(rs.done) > 0 {
+		if isDelete {
+			return model.ClusterStatusDeleted
+		}
+		return model.ClusterStatusReady
+	}
+	// this should never be returned
+	return model.ClusterStatusReconcileError
 }
 
 func (rs *ReconciliationResult) GetOrphans() []*model.OperationEntity {

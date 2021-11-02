@@ -33,10 +33,14 @@ type ComponentReconciler struct {
 	dependencies          []string
 	heartbeatSenderConfig heartbeatSenderConfig
 	progressTrackerConfig progressTrackerConfig
-	//actions:
+	//reconcile actions:
 	preReconcileAction  Action
 	reconcileAction     Action
 	postReconcileAction Action
+	//delete actions:
+	preDeleteAction  Action
+	deleteAction     Action
+	postDeleteAction Action
 	//retry:
 	maxRetries int
 	retryDelay time.Duration
@@ -205,6 +209,21 @@ func (r *ComponentReconciler) WithPostReconcileAction(postReconcileAction Action
 	return r
 }
 
+func (r *ComponentReconciler) WithPreDeleteAction(preDeleteAction Action) *ComponentReconciler {
+	r.preDeleteAction = preDeleteAction
+	return r
+}
+
+func (r *ComponentReconciler) WithDeleteAction(deleteAction Action) *ComponentReconciler {
+	r.deleteAction = deleteAction
+	return r
+}
+
+func (r *ComponentReconciler) WithPostDeleteAction(postDeleteAction Action) *ComponentReconciler {
+	r.postDeleteAction = postDeleteAction
+	return r
+}
+
 func (r *ComponentReconciler) WithHeartbeatSenderConfig(interval, timeout time.Duration) *ComponentReconciler {
 	r.heartbeatSenderConfig.interval = interval
 	r.heartbeatSenderConfig.timeout = timeout
@@ -217,7 +236,7 @@ func (r *ComponentReconciler) WithProgressTrackerConfig(interval, timeout time.D
 	return r
 }
 
-func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.Reconciliation, logger *zap.SugaredLogger) error {
+func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.Task, logger *zap.SugaredLogger) error {
 	//ensure model is valid
 	if err := model.Validate(); err != nil {
 		return err
@@ -246,7 +265,7 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) (*WorkerPool, err
 		Build(ctx)
 }
 
-func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Reconciliation, callback callback.Handler, logger *zap.SugaredLogger) func() error {
+func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Task, callback callback.Handler, logger *zap.SugaredLogger) func() error {
 	r.logger.Debugf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds())
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
