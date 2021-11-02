@@ -157,7 +157,7 @@ func TestServerlessReconcilation(t *testing.T) {
 
 			//THEN
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedReconcilerConfiguration, actionContext.Model.Configuration)
+			assert.Equal(t, tc.expectedReconcilerConfiguration, actionContext.Task.Configuration)
 		})
 	}
 
@@ -226,7 +226,7 @@ func setup() (kubernetes.Interface, ReconcileCustomAction, *service.ActionContex
 		Context:       context.TODO(),
 		Logger:        logger.NewLogger(false),
 		ChartProvider: &mockProvider,
-		Model:         &reconciler.Reconciliation{Version: "test", Configuration: configuration},
+		Task:          &reconciler.Task{Version: "test", Configuration: configuration},
 	}
 	return k8sClient, action, actionContext
 }

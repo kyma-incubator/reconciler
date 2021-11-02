@@ -5,12 +5,15 @@ import "github.com/pkg/errors"
 func ToStatus(in string) (Status, error) {
 
 	for _, status := range []Status{
-		StatusReconciling,
 		StatusReconcilePending,
-		StatusReconcileFailed,
+		StatusReconciling,
 		StatusReady,
 		StatusError,
-		StatusReconcileFailed,
+		StatusReconcileDisabled,
+		StatusDeletePending,
+		StatusDeleting,
+		StatusDeleted,
+		StatusDeleteError,
 	} {
 		if in == string(status) {
 			return status, nil

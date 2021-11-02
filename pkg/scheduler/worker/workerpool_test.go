@@ -2,6 +2,9 @@ package worker
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -11,8 +14,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 type testInvoker struct {
@@ -36,9 +37,13 @@ func TestWorkerPool(t *testing.T) {
 		Kubeconfig: test.ReadKubeconfig(t),
 		KymaConfig: keb.KymaConfig{
 			Administrators: nil,
-			Components:     nil,
-			Profile:        "",
-			Version:        "1.2.3",
+			Components: []keb.Component{
+				{
+					Component: "TestComp1",
+				},
+			},
+			Profile: "",
+			Version: "1.2.3",
 		},
 		Metadata:     keb.Metadata{},
 		RuntimeID:    "testCluster",

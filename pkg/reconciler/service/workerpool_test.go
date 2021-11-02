@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"testing"
-	"time"
 )
 
 func TestWorkerPool(t *testing.T) {
@@ -39,8 +40,8 @@ func TestWorkerPool(t *testing.T) {
 	})
 }
 
-func newRunnerFct() func(context.Context, *reconciler.Reconciliation, callback.Handler, *zap.SugaredLogger) func() error {
-	return func(ctx context.Context, reconciliation *reconciler.Reconciliation, handler callback.Handler, logger *zap.SugaredLogger) func() error {
+func newRunnerFct() func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error {
+	return func(ctx context.Context, reconciliation *reconciler.Task, handler callback.Handler, logger *zap.SugaredLogger) func() error {
 		return func() error {
 			return nil
 		}

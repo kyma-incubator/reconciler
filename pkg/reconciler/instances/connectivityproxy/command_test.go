@@ -2,6 +2,9 @@ package connectivityproxy
 
 import (
 	"context"
+	"fmt"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
@@ -15,7 +18,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
 
 func TestCommand(t *testing.T) {
@@ -82,7 +84,7 @@ func TestCommand(t *testing.T) {
 			Context:          nil,
 			Logger:           nil,
 			ChartProvider:    nil,
-			Model:            &reconciler.Reconciliation{},
+			Task:             &reconciler.Task{},
 		})
 
 		require.NoError(t, err)
@@ -98,7 +100,7 @@ func TestCommandInstall(t *testing.T) {
 		}
 
 		delegateMock := &serviceMocks.Operation{}
-		delegateMock.On("Invoke", actionContext.Context, nil, (*reconciler.Reconciliation)(nil), nil).
+		delegateMock.On("Invoke", actionContext.Context, nil, (*reconciler.Task)(nil), nil).
 			Return(nil)
 
 		commands := CommandActions{
@@ -118,14 +120,14 @@ func TestCommandInstall(t *testing.T) {
 
 		actionContext := &service.ActionContext{
 			Context: context.Background(),
-			Model: &reconciler.Reconciliation{
+			Task: &reconciler.Task{
 				Configuration: make(map[string]interface{}),
 			},
 		}
 
 		delegateMock := &serviceMocks.Operation{}
 		delegateMock.On("Invoke", actionContext.Context, nil,
-			mock.AnythingOfType("*reconciler.Reconciliation"),
+			mock.AnythingOfType(fmt.Sprintf("%T", &reconciler.Task{})), // print the type of the object (*reconciler.Task)
 			nil).
 			Return(nil)
 
@@ -145,7 +147,7 @@ func TestCommandInstall(t *testing.T) {
 		require.Equal(t, map[string]interface{}{
 			"key-1": []byte("value-1"),
 			"key-2": []byte("value-2"),
-		}, actionContext.Model.Configuration)
+		}, actionContext.Task.Configuration)
 		require.NoError(t, err)
 	})
 }
@@ -153,7 +155,7 @@ func TestCommandInstall(t *testing.T) {
 func TestCommandRemove(t *testing.T) {
 	t.Run("Should remove correct component", func(t *testing.T) {
 
-		reconciliation := &reconciler.Reconciliation{
+		task := &reconciler.Task{
 			ComponentsReady: nil,
 			Component:       "test-component",
 			Namespace:       "default",
@@ -166,17 +168,17 @@ func TestCommandRemove(t *testing.T) {
 			Repository:      nil,
 			CallbackFunc:    nil,
 		}
-		component := chart.NewComponentBuilder(reconciliation.Version, reconciliation.Component).
-			WithNamespace(reconciliation.Namespace).
-			WithProfile(reconciliation.Profile).
-			WithConfiguration(reconciliation.Configuration).
+		component := chart.NewComponentBuilder(task.Version, task.Component).
+			WithNamespace(task.Namespace).
+			WithProfile(task.Profile).
+			WithConfiguration(task.Configuration).
 			Build()
 
 		provider := &chartmocks.Provider{}
 		provider.On("RenderManifest", component).
 			Return(&chart.Manifest{
 				Type:     chart.HelmChart,
-				Name:     reconciliation.Component,
+				Name:     task.Component,
 				Manifest: "test-manifest",
 			}, nil)
 
@@ -186,11 +188,11 @@ func TestCommandRemove(t *testing.T) {
 			Context:          context.Background(),
 			Logger:           nil,
 			ChartProvider:    provider,
-			Model:            reconciliation,
+			Task:             task,
 		}
 
 		client := &mocks.Client{}
-		client.On("Delete", actionContext.Context, "test-manifest", reconciliation.Namespace).
+		client.On("Delete", actionContext.Context, "test-manifest", task.Namespace).
 			Return(nil, nil)
 		actionContext.KubeClient = client
 

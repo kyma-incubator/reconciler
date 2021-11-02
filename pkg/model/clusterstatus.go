@@ -7,13 +7,23 @@ import (
 type Status string
 
 const (
+	ClusterStatusDeletePending     Status = "delete_pending"
+	ClusterStatusDeleting          Status = "deleting"
+	ClusterStatusDeleteError       Status = "delete_error"
+	ClusterStatusDeleted           Status = "deleted"
 	ClusterStatusReconcilePending  Status = "reconcile_pending"
-	ClusterStatusReconcileFailed   Status = "reconcile_failed"
 	ClusterStatusReconcileDisabled Status = "reconcile_disabled"
 	ClusterStatusReconciling       Status = "reconciling"
-	ClusterStatusError             Status = "error"
+	ClusterStatusReconcileError    Status = "error"
 	ClusterStatusReady             Status = "ready"
 )
+
+func (s Status) IsDeletion() bool {
+	return s == ClusterStatusDeletePending || s == ClusterStatusDeleting
+}
+func (s Status) IsFinal() bool {
+	return s == ClusterStatusReady || s == ClusterStatusReconcileError || s == ClusterStatusDeleted || s == ClusterStatusDeleteError
+}
 
 type ClusterStatus struct {
 	ID     float64 //required for monitoring metrics, has to be unique!
@@ -27,26 +37,27 @@ func (s *ClusterStatus) String() string {
 func NewClusterStatus(status Status) (*ClusterStatus, error) {
 	clusterStatus := &ClusterStatus{}
 	switch status {
-	case ClusterStatusError:
-		clusterStatus.Status = ClusterStatusError
+	case ClusterStatusReconcileError:
 		clusterStatus.ID = 0
 	case ClusterStatusReady:
-		clusterStatus.Status = ClusterStatusReady
 		clusterStatus.ID = 1
 	case ClusterStatusReconcilePending:
-		clusterStatus.Status = ClusterStatusReconcilePending
 		clusterStatus.ID = 2
 	case ClusterStatusReconciling:
-		clusterStatus.Status = ClusterStatusReconciling
 		clusterStatus.ID = 3
-	case ClusterStatusReconcileFailed:
-		clusterStatus.Status = ClusterStatusReconcileFailed
-		clusterStatus.ID = 4
 	case ClusterStatusReconcileDisabled:
-		clusterStatus.Status = ClusterStatusReconcileDisabled
+		clusterStatus.ID = 4
+	case ClusterStatusDeletePending:
 		clusterStatus.ID = 5
+	case ClusterStatusDeleting:
+		clusterStatus.ID = 6
+	case ClusterStatusDeleteError:
+		clusterStatus.ID = 7
+	case ClusterStatusDeleted:
+		clusterStatus.ID = 8
 	default:
 		return clusterStatus, fmt.Errorf("ClusterStatus '%s' is unknown", status)
 	}
+	clusterStatus.Status = status
 	return clusterStatus, nil
 }

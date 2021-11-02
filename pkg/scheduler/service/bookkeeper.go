@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"go.uber.org/zap"
@@ -124,7 +125,7 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bo
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
 
-	if newClusterStatus == model.ClusterStatusReady || newClusterStatus == model.ClusterStatusError {
+	if newClusterStatus.IsFinal() {
 		err := bk.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
 		if err == nil {
 			bk.logger.Infof("Bookkeeper updated cluster '%s' to status '%s' "+

@@ -2,13 +2,14 @@ package connectivityproxy
 
 import (
 	"context"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/stretchr/testify/require"
 	apiCoreV1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"testing"
 )
 
 func TestLoader(t *testing.T) {
@@ -25,7 +26,7 @@ func TestLoader(t *testing.T) {
 
 		actionContext := &service.ActionContext{
 			Context: background,
-			Model: &reconciler.Reconciliation{
+			Task: &reconciler.Task{
 				Namespace: namespace,
 			},
 			KubeClient: client,

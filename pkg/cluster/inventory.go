@@ -16,6 +16,7 @@ import (
 type Inventory interface {
 	CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error)
 	UpdateStatus(State *State, status model.Status) (*State, error)
+	MarkForDeletion(runtimeID string) (*State, error)
 	Delete(runtimeID string) error
 	Get(runtimeID string, configVersion int64) (*State, error)
 	GetLatest(runtimeID string) (*State, error)
@@ -47,6 +48,9 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 }
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
+	if len(cluster.KymaConfig.Components) == 0 {
+		return nil, fmt.Errorf("error creating cluster with RuntimeID: %s, component list is empty", cluster.RuntimeID)
+	}
 	dbOps := func() (interface{}, error) {
 		clusterEntity, err := i.createCluster(contractVersion, cluster)
 		if err != nil {
@@ -207,6 +211,14 @@ func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*Sta
 		return state, err
 	}
 	return state, nil
+}
+
+func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
+	clusterState, err := i.GetLatest(runtimeID)
+	if err != nil {
+		return nil, err
+	}
+	return i.UpdateStatus(clusterState, model.ClusterStatusDeletePending)
 }
 
 func (i *DefaultInventory) Delete(runtimeID string) error {
@@ -425,14 +437,16 @@ func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) 
 		})
 	}
 	filters = append(filters, &statusFilter{
-		allowedStatuses: []model.Status{model.ClusterStatusReconcilePending, model.ClusterStatusReconcileFailed},
+		allowedStatuses: []model.Status{model.ClusterStatusReconcilePending, model.ClusterStatusDeletePending},
 	})
 	return i.filterClusters(filters...)
 }
 
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	statusFilter := &statusFilter{
-		allowedStatuses: []model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileFailed, model.ClusterStatusError, model.ClusterStatusReconcileDisabled},
+		allowedStatuses: []model.Status{
+			model.ClusterStatusReconciling, model.ClusterStatusReconcileError, model.ClusterStatusReconcileDisabled,
+			model.ClusterStatusDeleting, model.ClusterStatusDeleteError},
 	}
 	return i.filterClusters(statusFilter)
 }

@@ -14,7 +14,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		context.Logger.Errorf("Failed to retrieve native Kubernetes GO client")
 	}
 
-	context.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, context.Model.Version)
+	context.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, context.Task.Version)
 
 	return nil
 }
