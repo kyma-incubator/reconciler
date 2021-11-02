@@ -10,24 +10,24 @@ const (
 	actionName = "post-action"
 )
 
-// postAction represents an action that runs after the Eventing reconciliation phase.
-// It is composed of postAction steps.
-type postAction struct {
+// PostAction represents an action that runs after the Eventing reconciliation phase.
+// It is composed of PostAction steps.
+type PostAction struct {
 	steps step.Steps
 }
 
-// New returns a new postAction instance.
-func New() *postAction {
-	return &postAction{
+// New returns a new PostAction instance.
+func New() *PostAction {
+	return &PostAction{
 		steps: step.Steps{
-			// TODO: add postAction steps here
+			// add PostAction steps here
 		},
 	}
 }
 
-// Run reconciler postAction logic for Eventing. It executes the postAction steps in order
+// Run reconciler PostAction logic for Eventing. It executes the PostAction steps in order
 // and returns a non-nil error if any step was unsuccessful.
-func (a *postAction) Run(context *service.ActionContext) (err error) {
+func (a *PostAction) Run(context *service.ActionContext) (err error) {
 	// prepare logger
 	logger := log.ContextLogger(context, log.WithAction(actionName))
 

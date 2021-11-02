@@ -10,24 +10,24 @@ const (
 	actionName = "pre-action"
 )
 
-// preAction represents an action that runs before the Eventing reconciliation phase.
-// It is composed of preAction steps.
-type preAction struct {
+// PreAction represents an action that runs before the Eventing reconciliation phase.
+// It is composed of PreAction steps.
+type PreAction struct {
 	steps step.Steps
 }
 
-// New returns a new preAction instance.
-func New() *preAction {
-	return &preAction{
+// New returns a new PreAction instance.
+func New() *PreAction {
+	return &PreAction{
 		steps: step.Steps{
 			new(migrateEventTypePrefixConfigStep),
 		},
 	}
 }
 
-// Run reconciler preAction logic for Eventing. It executes the preAction steps in order
+// Run reconciler PreAction logic for Eventing. It executes the PreAction steps in order
 // and returns a non-nil error if any step was unsuccessful.
-func (a *preAction) Run(context *service.ActionContext) (err error) {
+func (a *PreAction) Run(context *service.ActionContext) (err error) {
 	// prepare logger
 	logger := log.ContextLogger(context, log.WithAction(actionName))
 

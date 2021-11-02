@@ -44,7 +44,7 @@ const (
 // compile-time check
 var _ step.Step = &migrateEventTypePrefixConfigStep{}
 
-// migrateEventTypePrefixConfigStep represents a preAction step that upgrades Kyma Eventing from version 1.X to 2.X.
+// migrateEventTypePrefixConfigStep represents a PreAction step that upgrades Kyma Eventing from version 1.X to 2.X.
 // This is achieved by making sure that the Eventing controller and publisher do not have the old environment
 // variables from Kyma 1.X Eventing, which would prevent upgrading to Kyma 2.X Eventing.
 type migrateEventTypePrefixConfigStep struct{}

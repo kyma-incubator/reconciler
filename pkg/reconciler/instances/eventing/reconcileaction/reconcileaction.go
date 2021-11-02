@@ -10,24 +10,24 @@ const (
 	actionName = "reconcile-action"
 )
 
-// reconcileAction represents an action that runs in the Eventing reconciliation phase.
-// It is composed of reconcileAction steps.
-type reconcileAction struct {
+// ReconcileAction represents an action that runs in the Eventing reconciliation phase.
+// It is composed of ReconcileAction steps.
+type ReconcileAction struct {
 	steps step.Steps
 }
 
-// New returns a new reconcileAction instance.
-func New() *reconcileAction {
-	return &reconcileAction{
+// New returns a new ReconcileAction instance.
+func New() *ReconcileAction {
+	return &ReconcileAction{
 		steps: step.Steps{
-			// TODO: add reconcileAction steps here
+			// add ReconcileAction steps here
 		},
 	}
 }
 
-// Run reconciler reconcileAction logic for Eventing. It executes the reconcileAction steps in order
+// Run reconciler ReconcileAction logic for Eventing. It executes the ReconcileAction steps in order
 // and returns a non-nil error if any step was unsuccessful.
-func (a *reconcileAction) Run(context *service.ActionContext) (err error) {
+func (a *ReconcileAction) Run(context *service.ActionContext) (err error) {
 	// prepare logger
 	logger := log.ContextLogger(context, log.WithAction(actionName))
 
