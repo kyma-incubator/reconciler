@@ -10,7 +10,7 @@ global:
       reconciler:
         name: "kyma"
       #TODO remove below after migration to separate user will be done
-      reconcilerDBName: "reconciler"
+      #reconcilerDBName: "reconciler"
     
   image:
     repository: eu.gcr.io/kyma-project/incubator/reconciler

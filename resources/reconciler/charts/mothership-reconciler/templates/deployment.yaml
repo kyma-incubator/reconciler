@@ -70,7 +70,6 @@ spec:
         args:
           - mothership
           - start
-          - --config=/configs/reconciler.yaml
           - --migrate-database
           - --create-encryption-key
           - --verbose
