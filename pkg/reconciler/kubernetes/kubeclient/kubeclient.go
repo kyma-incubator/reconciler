@@ -161,7 +161,7 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		_ = info.Refresh(obj, true)
 	}
 
-	patchedObject, err := patcher.Replace(info.Object, info.Namespace, info.Name)
+	patchedObject, err := patcher.replace(info.Object, info.Namespace, info.Name)
 	if err != nil {
 		return metadata, err
 	}
