@@ -1,6 +1,8 @@
 package connectivityproxy_test
 
 import (
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy"
@@ -12,7 +14,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
 
 func TestAction(t *testing.T) {
@@ -27,7 +28,7 @@ func TestAction(t *testing.T) {
 		Context:          nil,
 		Logger:           logger.NewLogger(true),
 		ChartProvider:    nil,
-		Model: &reconciler.Reconciliation{
+		Task: &reconciler.Task{
 			Component: "test-component",
 		},
 	}

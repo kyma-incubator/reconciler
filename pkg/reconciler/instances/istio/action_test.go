@@ -2,9 +2,10 @@ package istio
 
 import (
 	"context"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	actionsmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/mocks"
@@ -398,7 +399,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
 	logger := log.NewLogger(true)
-	model := reconciler.Reconciliation{
+	model := reconciler.Task{
 		Component: "component",
 		Namespace: "namespace",
 		Version:   "version",
@@ -411,7 +412,7 @@ func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, c
 		WorkspaceFactory: factory,
 		Logger:           logger,
 		ChartProvider:    provider,
-		Model:            &model,
+		Task:             &model,
 	}
 }
 

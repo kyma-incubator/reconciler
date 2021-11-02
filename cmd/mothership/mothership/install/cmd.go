@@ -8,7 +8,7 @@ import (
 func NewCmd(o *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: "Install Kyma mothershop reconciler",
+		Short: "Install Kyma mothership reconciler",
 		Long:  "CLI tool for installing the Kyma mothership reconciler",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := o.Validate(); err != nil {

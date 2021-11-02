@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
@@ -45,7 +47,7 @@ const (
 
 type testCase struct {
 	name               string
-	model              *reconciler.Reconciliation
+	model              *reconciler.Task
 	expectedHTTPCode   int
 	expectedResponse   interface{}
 	verifyCallbacksFct func(t *testing.T, callbacks []*reconciler.CallbackMessage)
@@ -59,10 +61,8 @@ func TestReconciler(t *testing.T) {
 	kubeClient := newKubeClient(t)
 	recon := newComponentReconciler(t) //register and configure a new component reconciler
 
-	//cleanup old pods after and before test execution
-	cleanup := service.NewTestCleanup(recon, kubeClient)
-	cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace)       //cleanup before
-	defer cleanup.RemoveKymaComponent(t, componentVersion, componentName, componentNamespace) //cleanup after
+	//cleanup old pods before test execution in case previous execution failed before/during the delete test
+	service.NewTestCleanup(recon, kubeClient).RemoveKymaComponent(t, componentVersion, componentName, componentNamespace)
 
 	//create runtime context which is cancelled at the end of the test
 	ctx, cancel := context.WithCancel(context.Background())
@@ -144,11 +144,12 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 	testCases := []testCase{
 		{
 			name: "Missing dependencies",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "def"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         "1.2.3",
+				Type:            model.OperationTypeReconcile,
 				Profile:         "unittest",
 				Configuration:   nil,
 				Kubeconfig:      "xyz",
@@ -164,11 +165,12 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Invalid request: mandatory fields missing",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         "1.2.3",
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      "",
@@ -183,11 +185,12 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Install component from scratch",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      test.ReadKubeconfig(t),
@@ -196,17 +199,18 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			expectedHTTPCode: http.StatusOK,
 			expectedResponse: &reconciler.HTTPReconciliationResponse{},
 			verifyResponseFct: func(t *testing.T, i interface{}) {
-				expectRunningPod(t, kubeClient) //wait until pod is ready
+				expectPodInState(t, progress.ReadyState, kubeClient) //wait until pod is ready
 			},
 			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
 		{
 			name: "Try to apply impossible change: add container to running pod",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration: map[string]interface{}{
 					"initContainer": true,
@@ -220,11 +224,12 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Try to reconcile unreachable cluster",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig: func() string {
@@ -240,11 +245,12 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Try to deploy defective HELM chart",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration: map[string]interface{}{
 					"breakHelmChart": true,
@@ -258,11 +264,12 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 		},
 		{
 			name: "Simulate non-available mothership",
-			model: &reconciler.Reconciliation{
+			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig:      test.ReadKubeconfig(t),
@@ -274,6 +281,26 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			verifyCallbacksFct: func(t *testing.T, callbacks []*reconciler.CallbackMessage) {
 				require.Empty(t, callbacks)
 			},
+		},
+		{
+			name: "Delete component",
+			model: &reconciler.Task{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				Type:            model.OperationTypeDelete,
+				Profile:         "",
+				Configuration:   nil,
+				Kubeconfig:      test.ReadKubeconfig(t),
+				CorrelationID:   "test-correlation-id",
+			},
+			expectedHTTPCode: http.StatusOK,
+			expectedResponse: &reconciler.HTTPReconciliationResponse{},
+			verifyResponseFct: func(t *testing.T, i interface{}) {
+				expectPodInState(t, progress.TerminatedState, kubeClient) // check that deletion was successful
+			},
+			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
 	}
 
@@ -403,16 +430,16 @@ Loop:
 	return received
 }
 
-func expectRunningPod(t *testing.T, kubeClient kubernetes.Client) {
+func expectPodInState(t *testing.T, state progress.State, kubeClient kubernetes.Client) {
 	clientSet, err := kubeClient.Clientset()
 	require.NoError(t, err)
 
 	watchable, err := progress.NewWatchableResource("pod")
 	require.NoError(t, err)
 
-	t.Logf("Waiting for pod '%s' to reach READY state", componentPod)
+	t.Logf("Waiting for pod '%s' to reach %s state", componentPod, strings.ToUpper(string(state)))
 	prog := newProgressTracker(t, clientSet)
 	prog.AddResource(watchable, componentNamespace, componentPod)
-	require.NoError(t, prog.Watch(context.TODO(), progress.ReadyState))
-	t.Logf("Pod '%s' reached READY state", componentPod)
+	require.NoError(t, prog.Watch(context.TODO(), state))
+	t.Logf("Pod '%s' reached %s state", componentPod, strings.ToUpper(string(state)))
 }

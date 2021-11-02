@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -523,12 +524,14 @@ func deleteCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if err := o.Registry.Inventory().Delete(runtimeID); err != nil {
+	state, err := o.Registry.Inventory().MarkForDeletion(runtimeID)
+	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", runtimeID)).Error(),
 		})
 		return
 	}
+	sendResponse(w, r, state, o.Registry.ReconciliationRepository())
 }
 
 func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -628,7 +631,8 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 	}
 
 	var failures []keb.Failure
-	if clusterState.Status.Status == model.ClusterStatusError || clusterState.Status.Status == model.ClusterStatusReconcileFailed || clusterState.Status.Status == model.ClusterStatusReconciling {
+	if clusterState.Status.Status == model.ClusterStatusReconcileError || clusterState.Status.Status == model.ClusterStatusDeleteError ||
+		clusterState.Status.Status == model.ClusterStatusReconciling || clusterState.Status.Status == model.ClusterStatusDeleting {
 		reconciliations, err := reconciliationRepository.GetReconciliations(&reconciliation.WithClusterConfigStatus{ClusterConfigStatus: clusterState.Status.ID})
 		if err != nil {
 			return nil, err

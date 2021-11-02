@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httputil"
+	"strings"
+
 	"github.com/gorilla/mux"
 	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	"net/http"
-	"net/http/httputil"
-	"strings"
 )
 
 const (
@@ -42,7 +43,7 @@ func newRouter(ctx context.Context, o *reconCli.Options, workerPool *service.Wor
 	return router
 }
 
-func newModel(req *http.Request) (*reconciler.Reconciliation, error) {
+func newModel(req *http.Request) (*reconciler.Task, error) {
 	params := server.NewParams(req)
 	contractVersion, err := params.String(paramContractVersion)
 	if err != nil {
@@ -63,14 +64,18 @@ func newModel(req *http.Request) (*reconciler.Reconciliation, error) {
 		return nil, err
 	}
 
+	if model.Configuration == nil {
+		model.Configuration = map[string]interface{}{}
+	}
+
 	return model, err
 }
 
-func modelForVersion(contractVersion string) (*reconciler.Reconciliation, error) {
+func modelForVersion(contractVersion string) (*reconciler.Task, error) {
 	if contractVersion == "" {
 		return nil, fmt.Errorf("contract version cannot be empty")
 	}
-	return &reconciler.Reconciliation{}, nil //change this function if multiple contract versions have to be supported
+	return &reconciler.Task{}, nil //change this function if multiple contract versions have to be supported
 }
 
 func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o *reconCli.Options, workerPool *service.WorkerPool) {

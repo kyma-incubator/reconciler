@@ -2,11 +2,14 @@ package actions
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
-	"path/filepath"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
@@ -89,6 +92,9 @@ type IstioPerformer interface {
 
 	// Version of Istio on the cluster.
 	Version(workspace workspace.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
+
+	// Uninstall Istio from the cluster and its corresponding resources.
+	Uninstall(kubeClientSet reconcilerKubeClient.Client, log *zap.SugaredLogger) error
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
@@ -105,6 +111,28 @@ func NewDefaultIstioPerformer(commander istioctl.Commander, istioProxyReset prox
 		istioProxyReset: istioProxyReset,
 		provider:        provider,
 	}
+}
+
+func (c *DefaultIstioPerformer) Uninstall(kubeClientSet reconcilerKubeClient.Client, log *zap.SugaredLogger) error {
+	log.Info("Starting Istio uninstallation...")
+	err := c.commander.Uninstall(kubeClientSet.Kubeconfig(), log)
+	if err != nil {
+		return errors.Wrap(err, "Error occurred when calling istioctl")
+	}
+
+	kubeClient, err := kubeClientSet.Clientset()
+	if err != nil {
+		return err
+	}
+
+	policy := metav1.DeletePropagationForeground
+	err = kubeClient.CoreV1().Namespaces().Delete(context.TODO(), "istio-system", metav1.DeleteOptions{
+		PropagationPolicy: &policy,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap.SugaredLogger) error {

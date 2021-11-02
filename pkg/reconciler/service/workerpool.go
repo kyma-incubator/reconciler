@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
@@ -19,11 +20,11 @@ type WorkerPool struct {
 	debug        bool
 	logger       *zap.SugaredLogger
 	antsPool     *ants.Pool
-	newRunnerFct func(context.Context, *reconciler.Reconciliation, callback.Handler, *zap.SugaredLogger) func() error
+	newRunnerFct func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error
 	depChecker   *dependencyChecker
 }
 
-func newWorkerPoolBuilder(depChecker *dependencyChecker, newRunnerFct func(context.Context, *reconciler.Reconciliation, callback.Handler, *zap.SugaredLogger) func() error) *workPoolBuilder {
+func newWorkerPoolBuilder(depChecker *dependencyChecker, newRunnerFct func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error) *workPoolBuilder {
 	return &workPoolBuilder{
 		poolSize: defaultWorkers,
 		workerPool: &WorkerPool{
@@ -65,11 +66,11 @@ func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
 	return pb.workerPool, nil
 }
 
-func (wa *WorkerPool) CheckDependencies(model *reconciler.Reconciliation) *DependencyCheck {
+func (wa *WorkerPool) CheckDependencies(model *reconciler.Task) *DependencyCheck {
 	return wa.depChecker.newDependencyCheck(model)
 }
 
-func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Reconciliation) error {
+func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Task) error {
 	//enrich logger with correlation ID and component name
 	loggerNew := logger.NewLogger(wa.debug).With(
 		zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID},

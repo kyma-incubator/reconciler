@@ -6,6 +6,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 )
 
@@ -21,19 +22,19 @@ type Params struct {
 	CorrelationID        string
 }
 
-func (p *Params) newLocalReconciliationModel(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Reconciliation {
-	model := p.newReconciliationModel()
+func (p *Params) newLocalTask(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Task {
+	model := p.newTask()
 	model.CallbackFunc = callbackFunc
 	return model
 }
 
-func (p *Params) newRemoteReconciliationModel(callbackURL string) *reconciler.Reconciliation {
-	model := p.newReconciliationModel()
+func (p *Params) newRemoteTask(callbackURL string) *reconciler.Task {
+	model := p.newTask()
 	model.CallbackURL = callbackURL
 	return model
 }
 
-func (p *Params) newReconciliationModel() *reconciler.Reconciliation {
+func (p *Params) newTask() *reconciler.Task {
 	version := p.ClusterState.Configuration.KymaVersion
 	if p.ComponentToReconcile.Version != "" {
 		version = p.ComponentToReconcile.Version
@@ -45,7 +46,12 @@ func (p *Params) newReconciliationModel() *reconciler.Reconciliation {
 		tokenNamespace = ""
 	}
 
-	return &reconciler.Reconciliation{
+	taskType := model.OperationTypeReconcile
+	if p.ClusterState.Status.Status.IsDeletion() {
+		taskType = model.OperationTypeDelete
+	}
+
+	return &reconciler.Task{
 		ComponentsReady: p.ComponentsReady,
 		Component:       p.ComponentToReconcile.Component,
 		Namespace:       p.ComponentToReconcile.Namespace,
@@ -59,5 +65,6 @@ func (p *Params) newReconciliationModel() *reconciler.Reconciliation {
 			URL:            p.ComponentToReconcile.URL,
 			TokenNamespace: fmt.Sprint(tokenNamespace),
 		},
+		Type: taskType,
 	}
 }

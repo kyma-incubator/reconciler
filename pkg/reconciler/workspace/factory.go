@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -22,7 +25,7 @@ const (
 	wsReadyIndicatorFile = "workspace-ready.yaml"
 )
 
-//go:generate mockery -name=Factory -outpkg=mock -case=underscore
+//go:generate mockery --name=Factory --outpkg=mock --case=underscore
 // Factory of workspace.
 type Factory interface {
 	// Get workspace of the given version.

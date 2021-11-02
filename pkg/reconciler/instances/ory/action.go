@@ -42,10 +42,10 @@ var (
 
 func (a *preAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
-	component := chart.NewComponentBuilder(context.Model.Version, oryChart).
+	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
 		WithNamespace(oryNamespace).
-		WithProfile(context.Model.Profile).
-		WithConfiguration(context.Model.Configuration).Build()
+		WithProfile(context.Task.Profile).
+		WithConfiguration(context.Task.Configuration).Build()
 
 	values, err := context.ChartProvider.Configuration(component)
 	if err != nil {
@@ -65,7 +65,7 @@ func (a *preAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "failed to ensure Ory secret")
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Model.Version)
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
 	return nil
 }
@@ -84,7 +84,7 @@ func (a *postAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "failed to patch Ory secret")
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Model.Version)
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
 	return nil
 }

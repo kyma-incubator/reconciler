@@ -115,12 +115,22 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 				su.logger.Debugf("Heartbeat stops sending status '%s'", status)
 				return
 			case <-su.ctx.Done():
-				su.logger.Debugf("Heartbeat starts sending status '%s' (previous status was '%s') "+
-					"because parent context got closed", reconciler.StatusError, status)
 				su.closeContext()
 
 				//send error resonse
-				if err := task(reconciler.StatusError, su.ctx.Err()); err == nil { //trigger response before interval starts
+				var reconcilerStatus reconciler.Status
+				if su.ctx.Err() == context.DeadlineExceeded { //operation not finished within given time range: error!
+					reconcilerStatus = reconciler.StatusError
+					su.logger.Warnf("Heartbeat context got closed caused by timeout: sending status '%s'",
+						reconcilerStatus)
+				} else {
+					reconcilerStatus = reconciler.StatusFailed
+					su.logger.Infof("Heartbeat context got closed by parent context: sending status '%s'",
+						reconcilerStatus)
+				}
+
+				//try to send status before interval starts (to avoid waiting period until first interval tick is reached)
+				if err := task(reconcilerStatus, su.ctx.Err()); err == nil {
 					return
 				}
 
@@ -130,12 +140,12 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 				for {
 					select {
 					case <-ticker.C:
-						if err := task(reconciler.StatusError, su.ctx.Err()); err == nil {
+						if err := task(reconcilerStatus, su.ctx.Err()); err == nil {
 							return
 						}
 					case <-giveUp.C:
-						su.logger.Errorf("Heartbeat failed to communicated status '%s' after context got closed: "+
-							"timeout occcurred", reconciler.StatusError)
+						su.logger.Errorf("Heartbeat failed to communicated status '%s' after context got closed "+
+							"(ctx error: %s): timeout occcurred", reconcilerStatus, su.ctx.Err())
 						return
 					}
 				}
