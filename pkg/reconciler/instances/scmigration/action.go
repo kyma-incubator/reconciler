@@ -4,17 +4,19 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-//TODO: please implement component specific action logic here
-type CustomAction struct {
-	name string
+type reconcileAction struct {
+	// TODO add prometheus metrics
 }
 
-func (a *CustomAction) Run(context *service.ActionContext) error {
-	if _, err := context.KubeClient.Clientset(); err != nil { //scmigration how to retrieve native Kubernetes GO client
-		context.Logger.Errorf("Failed to retrieve native Kubernetes GO client")
+func (a *reconcileAction) Run(ac *service.ActionContext) error {
+	if _, err := ac.KubeClient.Clientset(); err != nil {
+		ac.Logger.Errorf("Failed to retrieve native Kubernetes GO client")
 	}
 
-	context.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, context.Task.Version)
-
-	return nil
+	ac.Logger.Infof("Action 'reconcileAction' executed (passed version was '%s')", ac.Task.Version)
+	m, err := newMigrator(ac)
+	if err != nil {
+		return err
+	}
+	return m.migrateBTPOperator()
 }
