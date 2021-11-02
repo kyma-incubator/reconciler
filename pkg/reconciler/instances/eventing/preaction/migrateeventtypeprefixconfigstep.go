@@ -12,8 +12,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/action"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/step"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
@@ -42,7 +42,7 @@ const (
 )
 
 // compile-time check
-var _ step.Step = &migrateEventTypePrefixConfigStep{}
+var _ action.Step = &migrateEventTypePrefixConfigStep{}
 
 // migrateEventTypePrefixConfigStep represents a PreAction step that upgrades Kyma Eventing from version 1.X to 2.X.
 // This is achieved by making sure that the Eventing controller and publisher do not have the old environment

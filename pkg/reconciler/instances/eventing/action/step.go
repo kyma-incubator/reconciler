@@ -1,4 +1,4 @@
-package step
+package action
 
 import (
 	"go.uber.org/zap"
