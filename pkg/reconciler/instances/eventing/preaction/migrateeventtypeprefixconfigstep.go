@@ -1,4 +1,4 @@
-package eventing
+package preaction
 
 import (
 	"strings"
@@ -12,11 +12,15 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/step"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
 const (
+	migrateEventTypePrefixConfigStepName = "MigrateEventTypePrefixConfig"
+
 	namespace = "kyma-system"
 
 	controllerDeploymentName          = "eventing-controller"
@@ -37,16 +41,19 @@ const (
 	progressTrackerTimeout  = 2 * time.Minute
 )
 
-// preAction represents an action that should run before reconciling the Eventing component.
-// The current preAction implementation should take care of upgrading Kyma Eventing from version 1.X to 2.X.
+// compile-time check
+var _ step.Step = &migrateEventTypePrefixConfigStep{}
+
+// migrateEventTypePrefixConfigStep represents a preAction step that upgrades Kyma Eventing from version 1.X to 2.X.
 // This is achieved by making sure that the Eventing controller and publisher do not have the old environment
 // variables from Kyma 1.X Eventing, which would prevent upgrading to Kyma 2.X Eventing.
-type preAction struct {
-	name string
-}
+type migrateEventTypePrefixConfigStep struct{}
 
-// Run Eventing reconciler action logic. It returns a non-nil error if the action was unsuccessful.
-func (a *preAction) Run(context *service.ActionContext) (err error) {
+// Execute the migrateEventTypePrefixConfigStep and returns an error upon failure.
+func (m *migrateEventTypePrefixConfigStep) Execute(context *service.ActionContext, logger *zap.SugaredLogger) (err error) {
+	// decorate logger
+	logger = logger.With(log.KeyStep, migrateEventTypePrefixConfigStepName)
+
 	// prepare Kubernetes clientset
 	var clientset kubernetes.Interface
 	if clientset, err = context.KubeClient.Clientset(); err != nil {
@@ -59,13 +66,10 @@ func (a *preAction) Run(context *service.ActionContext) (err error) {
 		return err
 	}
 
-	// prepare logger
-	log := a.contextLogger(context)
-
 	// skip action if the Eventing controller deployment is already managed by the Kyma reconciler
 	// this means that Kyma Eventing is already upgraded to version 2.X
 	if controllerDeployment != nil && controllerDeployment.Labels[managedByLabelKey] == managedByLabelValue {
-		log.With(logKeyReason, "Eventing controller deployment is already managed by Kyma reconciler").Info("Action skipped")
+		logger.With(log.KeyReason, "Eventing controller deployment is already managed by Kyma reconciler").Info("Step skipped")
 		return nil
 	}
 
@@ -77,38 +81,29 @@ func (a *preAction) Run(context *service.ActionContext) (err error) {
 
 	// skip action if Eventing is not installed
 	if publisherDeployment == nil && controllerDeployment == nil {
-		log.With(logKeyReason, "Eventing is not installed").Info("Action skipped")
+		logger.With(log.KeyReason, "Eventing is not installed").Info("Step skipped")
 		return nil
 	}
 
 	// prepare progress tracker for the Eventing controller and publisher deployments
-	tracker, err := getDeploymentProgressTracker(clientset, log, publisherDeployment, controllerDeployment)
+	tracker, err := getDeploymentProgressTracker(clientset, logger, publisherDeployment, controllerDeployment)
 	if err != nil {
 		return err
 	}
 
 	// check the current state of the Eventing publisher deployment
 	if publisherDeployment != nil && !containerHasDesiredEnvValue(publisherDeployment, publisherDeploymentContainerName, publisherDeploymentEnvName, configMapName, configMapKey) {
-		return deleteDeploymentsAndWait(context, clientset, log, tracker, publisherDeployment, controllerDeployment)
+		return deleteDeploymentsAndWait(context, clientset, logger, tracker, publisherDeployment, controllerDeployment)
 	}
 
 	// check the current state of the Eventing controller deployment
 	if controllerDeployment != nil && !containerHasDesiredEnvValue(controllerDeployment, controllerDeploymentContainerName, controllerDeploymentEnvName, configMapName, configMapKey) {
-		return deleteDeploymentsAndWait(context, clientset, log, tracker, publisherDeployment, controllerDeployment)
+		return deleteDeploymentsAndWait(context, clientset, logger, tracker, publisherDeployment, controllerDeployment)
 	}
 
 	// current state of the Eventing controller and publisher deployments is matching the desired state
-	log.With(logKeyReason, "desired state and actual state are matching").Info("Action skipped")
+	logger.With(log.KeyReason, "desired state and actual state are matching").Info("Step skipped")
 	return nil
-}
-
-// contextLogger returns a structured logger with action context.
-func (a *preAction) contextLogger(context *service.ActionContext) *zap.SugaredLogger {
-	return context.Logger.With(
-		logKeyAction, a.name,
-		logKeyReconciler, ReconcilerName,
-		logKeyVersion, context.Task.Version,
-	)
 }
 
 // getDeployment returns a Kubernetes deployment given its name.
@@ -196,8 +191,8 @@ func containerHasEnvValueFromConfigMap(deployment *v1.Deployment, containerName,
 
 // deleteDeploymentsAndWait deletes the given Kubernetes deployments one by one then blocks
 // until the deployments are completely deleted or the timeout is reached.
-func deleteDeploymentsAndWait(context *service.ActionContext, clientset kubernetes.Interface, log *zap.SugaredLogger, tracker *progress.Tracker, deployments ...*v1.Deployment) error {
-	log.With(logKeyReason, "desired state and actual state are not matching").Info("Action executed")
+func deleteDeploymentsAndWait(context *service.ActionContext, clientset kubernetes.Interface, logger *zap.SugaredLogger, tracker *progress.Tracker, deployments ...*v1.Deployment) error {
+	logger.With(log.KeyReason, "desired state and actual state are not matching").Info("Step executed")
 
 	for _, deployment := range deployments {
 		if deployment == nil {
@@ -212,15 +207,15 @@ func deleteDeploymentsAndWait(context *service.ActionContext, clientset kubernet
 			return err
 		}
 
-		log.Infof("Deployment deleted '%s/%s'", deployment.Namespace, deployment.Name)
+		logger.Infof("Deployment deleted '%s/%s'", deployment.Namespace, deployment.Name)
 	}
 
 	// wait until deployments are completely deleted or timeout
-	log.Info("Waiting for Eventing deployments to be deleted")
+	logger.Info("Waiting for Eventing deployments to be deleted")
 	if err := tracker.Watch(context.Context, progress.TerminatedState); err != nil {
 		return err
 	}
-	log.Info("Eventing deployments are deleted")
+	logger.Info("Eventing deployments are deleted")
 
 	return nil
 }
