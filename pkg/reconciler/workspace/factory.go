@@ -9,9 +9,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
-
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
