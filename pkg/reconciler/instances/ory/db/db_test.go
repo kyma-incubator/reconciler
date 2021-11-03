@@ -180,7 +180,7 @@ func TestDBSecret(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, secret.StringData["dsn"], "memory")
+		assert.Equal(t, "memory", secret.StringData["dsn"])
 	})
 
 	t.Run("Deployment with yaml values error", func(t *testing.T) {

@@ -172,13 +172,7 @@ func (c *Config) prepareStringData() map[string]string {
 		return c.generateSecretDataGeneric()
 	}
 
-	return map[string]string{
-		"secretsSystem":                   c.Global.Ory.Hydra.Persistence.SecretsSystem,
-		"secretsCookie":                   generateRandomString(32),
-		"dsn":                             c.preparePostgresDSN(),
-		"postgresql-password":             c.Global.PostgresCfg.Password,
-		"postgresql-replication-password": generateRandomString(10),
-	}
+	return c.generateSecretDataMemory()
 }
 
 func (c *Config) generateSecretDataMemory() map[string]string {
