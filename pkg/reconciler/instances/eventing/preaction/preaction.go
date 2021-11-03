@@ -11,6 +11,7 @@ const (
 // New returns a new Action instance configured to run pre reconciliation phase.
 func New() *action.Action {
 	return action.New(actionName, action.Steps{
+		// add PreAction steps here
 		new(migrateEventTypePrefixConfigStep),
 	})
 }

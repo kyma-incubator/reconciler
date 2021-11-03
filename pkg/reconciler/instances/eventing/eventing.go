@@ -4,7 +4,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/postaction"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/preaction"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/reconcileaction"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
@@ -25,6 +24,5 @@ func init() {
 	logger.With(log.KeyResult, log.ValueSuccess).Debug("Initialize component reconciler")
 	reconciler.WithDependencies(istio.ReconcilerName).
 		WithPreReconcileAction(preaction.New()).
-		WithReconcileAction(reconcileaction.New()).
 		WithPostReconcileAction(postaction.New())
 }
