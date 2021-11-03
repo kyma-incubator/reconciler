@@ -137,6 +137,10 @@ func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) (er
 			ready := isDaemonSetReady(ds)
 			return ready, nil
 		})
+		if err != nil {
+			return err
+		}
+		i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 	case "Deployment":
 		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
 			dep, err := i.kubeClient.AppsV1().Deployments(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
@@ -146,6 +150,10 @@ func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) (er
 			ready := isDeploymentReady(dep, i.kubeClient)
 			return ready, nil
 		})
+		if err != nil {
+			return err
+		}
+		i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 	case "ReplicaSet":
 		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
 			rs, err := i.kubeClient.AppsV1().ReplicaSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
@@ -155,6 +163,10 @@ func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) (er
 			ready := isReplicaSetReady(rs)
 			return ready, nil
 		})
+		if err != nil {
+			return err
+		}
+		i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 	case "StatefulSet":
 		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
 			sts, err := i.kubeClient.AppsV1().StatefulSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
@@ -164,6 +176,10 @@ func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) (er
 			ready := isStatefulSetReady(sts)
 			return ready, nil
 		})
+		if err != nil {
+			return err
+		}
+		i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 	default:
 		err = fmt.Errorf("kind %s not found", object.Kind)
 	}

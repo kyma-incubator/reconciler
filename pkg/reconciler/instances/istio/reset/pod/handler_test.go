@@ -8,6 +8,7 @@ import (
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	"github.com/stretchr/testify/require"
+	v1apps "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -59,7 +60,7 @@ func Test_DeleteObjectHandler_Execute(t *testing.T) {
 }
 
 func Test_RolloutHandler_Execute(t *testing.T) {
-	t.Run("should execute the handler successfully", func(t *testing.T) {
+	t.Run("should execute the RolloutHandler successfully", func(t *testing.T) {
 		// given
 		pod := fixCustomObject()
 		handler := RolloutHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
@@ -81,7 +82,7 @@ func Test_RolloutHandler_Execute(t *testing.T) {
 	})
 }
 func Test_NoActionHandler_WaitForResources(t *testing.T) {
-	t.Run("should execute the NoActionHandler successfully", func(t *testing.T) {
+	t.Run("should run the WaitForResources with NoActionHandler successfully", func(t *testing.T) {
 		// given
 		customObject := fixCustomObject()
 		handler := NoActionHandler{}
@@ -105,7 +106,7 @@ func Test_NoActionHandler_WaitForResources(t *testing.T) {
 }
 
 func Test_DeleteObjectHandler_WaitForResources(t *testing.T) {
-	t.Run("should execute the DeleteObjectHandler successfully", func(t *testing.T) {
+	t.Run("should run the WaitForResources with DeleteObjectHandler successfully", func(t *testing.T) {
 		// given
 		customObject := fixCustomObject()
 		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
@@ -128,15 +129,23 @@ func Test_DeleteObjectHandler_WaitForResources(t *testing.T) {
 	})
 }
 
-func Test_RolloutHandler_WaitForResources(t *testing.T) {
-	t.Run("should execute the handler successfully", func(t *testing.T) {
+func Test_RolloutHandler_WaitForResources_ReplicaSet(t *testing.T) {
+	t.Run("should run the WaitForResources with RolloutHandler successfully on ReplicaSet", func(t *testing.T) {
 		// given
 		fixWaitOpts := WaitOptions{
 			Interval: 1 * time.Second,
 			Timeout:  1 * time.Minute,
 		}
 		pod := fixCustomObject()
-		kubeClient := fake.NewSimpleClientset()
+		replicaSetWithOwnerReferences := v1apps.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{
+					{Name: "name", Kind: "kind"},
+				},
+				Name:      "testObject",
+				Namespace: "testNamespace",
+			}}
+		kubeClient := fake.NewSimpleClientset(&replicaSetWithOwnerReferences)
 		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
 
 		var wg sync.WaitGroup
@@ -156,7 +165,91 @@ func Test_RolloutHandler_WaitForResources(t *testing.T) {
 		}, time.Second, 10*time.Millisecond)
 	})
 }
+func Test_RolloutHandler_WaitForResources_DaemonSet(t *testing.T) {
+	t.Run("should run the WaitForResources with RolloutHandler successfully on DaemonSet", func(t *testing.T) {
+		// given
+		fixWaitOpts := WaitOptions{
+			Interval: 1 * time.Second,
+			Timeout:  1 * time.Minute,
+		}
+		pod := &CustomObject{
+			Name:      "test-ds",
+			Namespace: "testns",
+			Kind:      "DaemonSet",
+		}
+		daemonSetWithOwnerReferences := v1apps.DaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{
+					{Name: "name", Kind: "kind"},
+				},
+				Name:      "test-ds",
+				Namespace: "testns",
+			}}
+		kubeClient := fake.NewSimpleClientset(&daemonSetWithOwnerReferences)
+		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
 
+		var wg sync.WaitGroup
+		wg.Add(1)
+		d := func() *sync.WaitGroup {
+			return &wg
+		}
+
+		// when
+		err := handler.WaitForResources(*pod, d)
+		require.NoError(t, err)
+
+		// then
+		require.Eventually(t, func() bool {
+			wg.Wait()
+			return true
+		}, time.Second, 10*time.Millisecond)
+	})
+}
+func Test_RolloutHandler_WaitForResources_StatefulSet(t *testing.T) {
+	t.Run("should run the WaitForResources with RolloutHandler successfully on StatefulSet", func(t *testing.T) {
+		// given
+		fixWaitOpts := WaitOptions{
+			Interval: 1 * time.Second,
+			Timeout:  1 * time.Minute,
+		}
+		pod := &CustomObject{
+			Name:      "test-sts",
+			Namespace: "testns",
+			Kind:      "StatefulSet",
+		}
+		replicas := int32(1)
+		statefulSetWithOwnerReferences := &v1apps.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-sts",
+				Namespace: "testns",
+			},
+			Spec: v1apps.StatefulSetSpec{
+				Replicas: &replicas,
+			},
+			Status: v1apps.StatefulSetStatus{
+				ReadyReplicas: 1,
+			},
+		}
+		kubeClient := fake.NewSimpleClientset(statefulSetWithOwnerReferences)
+		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		d := func() *sync.WaitGroup {
+			return &wg
+		}
+
+		// when
+		err := handler.WaitForResources(*pod, d)
+		require.NoError(t, err)
+
+		// then
+		require.Eventually(t, func() bool {
+			wg.Wait()
+			return true
+		}, time.Second, 10*time.Millisecond)
+	})
+}
 func Test_getParentObjectFromOwnerReferences(t *testing.T) {
 	t.Run("should return empty parentObject when there is no owner references", func(t *testing.T) {
 		// given
@@ -211,3 +304,7 @@ func fixCustomObject() *CustomObject {
 		Kind:      "ReplicaSet",
 	}
 }
+
+/* func fixReplicaSet() *ReplicaSet {
+	return &ReplicaSet{}
+} */
