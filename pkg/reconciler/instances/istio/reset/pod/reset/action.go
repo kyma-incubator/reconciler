@@ -14,7 +14,7 @@ import (
 
 //go:generate mockery --name=Action --outpkg=mocks --case=underscore
 type Action interface {
-	Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool)
+	Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions)
 }
 
 // DefaultResetAction assigns pods to handlers and executes them
@@ -36,8 +36,8 @@ func (i *DefaultResetAction) GetWG() *sync.WaitGroup {
 	return i.wg
 }
 
-func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool) {
-	handlersMap := i.matcher.GetHandlersMap(kubeClient, retryOpts, podsList, log, debug)
+func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) {
+	handlersMap := i.matcher.GetHandlersMap(kubeClient, retryOpts, podsList, log, debug, waitOpts)
 
 	for handler := range handlersMap {
 		for _, object := range handlersMap[handler] {

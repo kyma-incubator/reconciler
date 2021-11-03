@@ -25,16 +25,21 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		retry.Attempts(1),
 		retry.DelayType(retry.FixedDelay),
 	}
+	fixWaitOpts := pod.WaitOptions{
+		Timeout:  5 * time.Minute,
+		Interval: 5 * time.Second,
+	}
 	kubeClient := fake.NewSimpleClientset()
 
 	t.Run("should not execute any handler for an empty list of pods when no handlers are available", func(t *testing.T) {
 		// given
 		matcher := mocks.Matcher{}
 		action := NewDefaultPodsResetAction(&matcher)
-		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).Return(nil)
+		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
+			Return(nil)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug)
+		action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
 
 		// then
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
@@ -46,10 +51,11 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		action := NewDefaultPodsResetAction(&matcher)
 		handler := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {}}
-		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).Return(handlersMap)
+		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
+			Return(handlersMap)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug)
+		action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
 
 		// then
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
@@ -73,14 +79,16 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			// wg.Done() must be called manually during execute
 			wg().Done()
 		})
-		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).Return(handlersMap)
+		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
+			Return(handlersMap)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod}}, log, debug)
+		action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod}}, log, debug, fixWaitOpts)
 
 		// then
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
 		handler.AssertNumberOfCalls(t, "Execute", 1)
+		handler.AssertNumberOfCalls(t, "WaitForResources", 1)
 	})
 
 	t.Run("should execute the handler twice for two pods", func(t *testing.T) {
@@ -100,14 +108,16 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			// wg.Done() must be called manually during execute
 			wg().Done()
 		})
-		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).Return(handlersMap)
+		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
+			Return(handlersMap)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug)
+		action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
 
 		// then
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
 		handler.AssertNumberOfCalls(t, "Execute", 2)
+		handler.AssertNumberOfCalls(t, "WaitForResources", 2)
 	})
 
 	t.Run("should execute two handlers for two pods", func(t *testing.T) {
@@ -138,14 +148,17 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			// wg.Done() must be called manually during execute
 			wg().Done()
 		})
-		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool")).Return(handlersMap)
+		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
+			Return(handlersMap)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug)
+		action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
 
 		// then
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
 		handler1.AssertNumberOfCalls(t, "Execute", 1)
 		handler2.AssertNumberOfCalls(t, "Execute", 1)
+		handler1.AssertNumberOfCalls(t, "WaitForResources", 1)
+		handler2.AssertNumberOfCalls(t, "WaitForResources", 1)
 	})
 }

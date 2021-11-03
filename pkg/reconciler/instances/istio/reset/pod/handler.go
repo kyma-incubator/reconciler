@@ -25,11 +25,17 @@ type Handler interface {
 	WaitForResources(CustomObject, GetSyncWG) error
 }
 
+type WaitOptions struct {
+	Interval time.Duration
+	Timeout  time.Duration
+}
+
 type handlerCfg struct {
 	kubeClient kubernetes.Interface
 	retryOpts  []retry.Option
 	log        *zap.SugaredLogger
 	debug      bool
+	waitOpts   WaitOptions
 }
 
 // NoActionHandler that logs information about the pod and does not
@@ -123,7 +129,7 @@ func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) (er
 	i.log.Infof("Waiting for %s/%s/%s to be ready", object.Kind, object.Namespace, object.Name)
 	switch object.Kind {
 	case "DaemonSet":
-		err = wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
 			ds, err := i.kubeClient.AppsV1().DaemonSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
 			if err != nil {
 				return false, err
@@ -132,7 +138,7 @@ func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) (er
 			return ready, nil
 		})
 	case "Deployment":
-		err = wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
 			dep, err := i.kubeClient.AppsV1().Deployments(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
 			if err != nil {
 				return false, err
@@ -141,7 +147,7 @@ func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) (er
 			return ready, nil
 		})
 	case "ReplicaSet":
-		err = wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
 			rs, err := i.kubeClient.AppsV1().ReplicaSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
 			if err != nil {
 				return false, err
@@ -150,7 +156,7 @@ func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) (er
 			return ready, nil
 		})
 	case "StatefulSet":
-		err = wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
 			sts, err := i.kubeClient.AppsV1().StatefulSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
 			if err != nil {
 				return false, err

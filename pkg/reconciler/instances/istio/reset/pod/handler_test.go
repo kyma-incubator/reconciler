@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func Test_NoActionHandler_Execute(t *testing.T) {
@@ -71,6 +72,82 @@ func Test_RolloutHandler_Execute(t *testing.T) {
 
 		// when
 		handler.Execute(*pod, d)
+
+		// then
+		require.Eventually(t, func() bool {
+			wg.Wait()
+			return true
+		}, time.Second, 10*time.Millisecond)
+	})
+}
+func Test_NoActionHandler_WaitForResources(t *testing.T) {
+	t.Run("should execute the NoActionHandler successfully", func(t *testing.T) {
+		// given
+		customObject := fixCustomObject()
+		handler := NoActionHandler{}
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		d := func() *sync.WaitGroup {
+			return &wg
+		}
+
+		// when
+		err := handler.WaitForResources(*customObject, d)
+		require.NoError(t, err)
+
+		// then
+		require.Eventually(t, func() bool {
+			wg.Wait()
+			return true
+		}, time.Second, 10*time.Millisecond)
+	})
+}
+
+func Test_DeleteObjectHandler_WaitForResources(t *testing.T) {
+	t.Run("should execute the DeleteObjectHandler successfully", func(t *testing.T) {
+		// given
+		customObject := fixCustomObject()
+		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		d := func() *sync.WaitGroup {
+			return &wg
+		}
+
+		// when
+		err := handler.WaitForResources(*customObject, d)
+		require.NoError(t, err)
+
+		// then
+		require.Eventually(t, func() bool {
+			wg.Wait()
+			return true
+		}, time.Second, 10*time.Millisecond)
+	})
+}
+
+func Test_RolloutHandler_WaitForResources(t *testing.T) {
+	t.Run("should execute the handler successfully", func(t *testing.T) {
+		// given
+		fixWaitOpts := WaitOptions{
+			Interval: 1 * time.Second,
+			Timeout:  1 * time.Minute,
+		}
+		pod := fixCustomObject()
+		kubeClient := fake.NewSimpleClientset()
+		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		d := func() *sync.WaitGroup {
+			return &wg
+		}
+
+		// when
+		err := handler.WaitForResources(*pod, d)
+		require.NoError(t, err)
 
 		// then
 		require.Eventually(t, func() bool {

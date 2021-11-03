@@ -24,6 +24,9 @@ type IstioProxyConfig struct {
 	// SleepAfterPodDeletion to avoid races
 	SleepAfterPodDeletion int
 
+	// Interval for polling ready status after Proxy Reset.
+	Interval time.Duration
+
 	// Timeout for waiting on status after reset
 	Timeout time.Duration
 

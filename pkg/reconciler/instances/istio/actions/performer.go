@@ -30,6 +30,7 @@ const (
 	delayBetweenRetries   = 5
 	sleepAfterPodDeletion = 10
 	timeout               = 5 * time.Minute
+	interval              = 5 * time.Second
 )
 
 type VersionType string
@@ -214,6 +215,7 @@ func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, version IstioVersi
 		DelayBetweenRetries:   delayBetweenRetries,
 		SleepAfterPodDeletion: sleepAfterPodDeletion,
 		Timeout:               timeout,
+		Interval:              interval,
 		Kubeclient:            kubeClient,
 		Debug:                 false,
 		Log:                   logger,
