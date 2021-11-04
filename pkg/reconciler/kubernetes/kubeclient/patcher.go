@@ -7,7 +7,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -62,8 +62,7 @@ type Patcher struct {
 	OpenapiSchema openapi.Resources
 }
 
-func (p *Patcher) replace(new runtime.Object, namespace, name string) (runtime.Object, error) {
-	// try to replace object
+func (p *Patcher) replaceObj(new runtime.Object, namespace, name string) (runtime.Object, error) {
 	var result runtime.Object
 	var err error
 
@@ -80,110 +79,62 @@ func (p *Patcher) replace(new runtime.Object, namespace, name string) (runtime.O
 		// replace is done
 		return true, nil
 	})
-	// object was replaced with no errors
-	if err == nil {
-		return result, nil
-	}
+
+	return result, err
+}
+
+func (p *Patcher) getResourceVersion(namespace, name string) (string, error) {
+	var getResult runtime.Object
+	var err error
+
+	err = wait.ExponentialBackoff(p.Backoff, func() (done bool, err error) {
+		getResult, err = p.Helper.Get(namespace, name)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	})
+
 	// fail if error cannot be recovered
-	if errors.IsInvalid(err) {
-		return nil, err
-	}
-	// get current configuration
-	var current runtime.Object
-	err = wait.ExponentialBackoff(p.Backoff, func() (bool, error) {
-		current, err = p.Helper.Get(namespace, name)
-		if err != nil {
-			return false, err
-		}
-		return true, nil
-	})
-	// deletion failed
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	// try to delete current object
-	err = wait.ExponentialBackoff(p.Backoff, func() (bool, error) {
-		options := asDeleteOptions(p.Cascade, p.GracePeriod)
 
-		_, err := p.Helper.DeleteWithOptions(namespace, name, &options)
-		if err != nil {
-			return false, err
-		}
-
-		return true, nil
-	})
-	// deletion failed
+	resMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(getResult)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	// wait deleted
-	err = wait.PollImmediate(time.Second, time.Duration(0), func() (bool, error) {
-		_, err := p.Helper.Get(namespace, name)
-		if errors.IsNotFound(err) {
-			return true, nil
-		}
-		return false, err
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	result, err = p.Helper.Create(namespace, true, new)
-	if err == nil {
-		return result, nil
-	}
-	// Retrieve the original configuration of the object from the annotation.
-	return p.Helper.Create(namespace, true, current)
+	resU := unstructured.Unstructured{Object: resMap}
+	return resU.GetResourceVersion(), nil
 }
 
-func asDeleteOptions(cascade bool, gracePeriod int) metav1.DeleteOptions {
-	options := metav1.DeleteOptions{}
-	if gracePeriod >= 0 {
-		options = *metav1.NewDeleteOptions(int64(gracePeriod))
+func (p *Patcher) replace(new runtime.Object, namespace, name string) (runtime.Object, error) {
+	newMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(new)
+	if err != nil {
+		return nil, err
+	}
+	newU := unstructured.Unstructured{Object: newMap}
+
+	if p.ResourceVersion != nil {
+		newU.SetResourceVersion(*p.ResourceVersion)
+	} else {
+		resourceVersion, err := p.getResourceVersion(namespace, name)
+		if err != nil {
+			return nil, err
+		}
+		newU.SetResourceVersion(resourceVersion)
 	}
 
-	policy := metav1.DeletePropagationForeground
-	if !cascade {
-		policy = metav1.DeletePropagationOrphan
+	// object was replaced with no errors
+	result, err := p.replaceObj(&newU, namespace, name)
+	// happy path
+	if err == nil || errors.IsInvalid(err) {
+		return result, err
 	}
 
-	options.PropagationPolicy = &policy
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(newU.Object, &newU); err != nil {
+		return nil, err
+	}
 
-	return options
+	return p.replace(&newU, namespace, name)
 }
-
-// func (p *Patcher) deleteAndCreate(original runtime.Object, modified []byte, namespace, name string) ([]byte, runtime.Object, error) {
-// 	if err := p.delete(namespace, name); err != nil {
-// 		return modified, nil, err
-// 	}
-// 	// TODO: use wait
-// 	if err := wait.PollImmediate(1*time.Second, p.Timeout, func() (bool, error) {
-// 		if _, err := p.Helper.Get(namespace, name); !errors.IsNotFound(err) {
-// 			return false, err
-// 		}
-
-// 		return true, nil
-// 	}); err != nil {
-// 		return modified, nil, err
-// 	}
-
-// 	versionedObject, _, err := unstructured.UnstructuredJSONScheme.Decode(modified, nil, nil)
-// 	if err != nil {
-// 		return modified, nil, err
-// 	}
-
-// 	createdObject, err := p.Helper.Create(namespace, true, versionedObject)
-// 	if err != nil {
-// 		// restore the original object if we fail to create the new one
-// 		// but still propagate and advertise error to user
-// 		recreated, recreateErr := p.Helper.Create(namespace, true, original)
-// 		if recreateErr != nil {
-// 			err = fmt.Errorf("An error occurred force-replacing the existing object with the newly provided one:\n\n%v.\n\nAdditionally, an error occurred attempting to restore the original object:\n\n%v", err, recreateErr)
-// 		} else {
-// 			createdObject = recreated
-// 		}
-// 	}
-
-// 	return modified, createdObject, err
-// }
