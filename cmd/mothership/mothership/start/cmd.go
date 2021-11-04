@@ -21,12 +21,11 @@ func NewCmd(o *Options) *cobra.Command {
 			//create enc-key before starting application registry (otherwise registry bootstrap will fail)
 			if o.CreateEncyptionKey {
 				encKeyFile, err := cli.NewEncryptionKey(true)
-				if err == nil {
-					o.Logger().Infof("New encryption key file created: %s", encKeyFile)
-				} else {
+				if err != nil {
 					o.Logger().Warnf("Failed to create encryption key file '%s'", encKeyFile)
 					return err
 				}
+				o.Logger().Infof("New encryption key file created: %s", encKeyFile)
 			}
 
 			if err := o.InitApplicationRegistry(true); err != nil {

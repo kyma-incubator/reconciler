@@ -18,6 +18,40 @@ servers:
         default: "v1"
 
 paths:
+  /operations/{schedulingID}/{correlationID}/status:
+    post:
+      description: Set status of given operation. Status can only be set to DONE, when operation is in NEW state
+      parameters:
+        - name: schedulingID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: correlationID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/operationStatusUpdate'
+      responses:
+        '200':
+          description: "Ok"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: 'Given operation not found'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /reconciliations/{schedulingID}/info:
     get:
       description: "Get details of a reconciliation"
@@ -365,6 +399,15 @@ components:
           format: date-time
         clusterMetadata:
           $ref: "#/components/schemas/cluster"
+
+    operationStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/status'
+        reason:
+          type: string
 
     reconcilerStatus:
       type: object

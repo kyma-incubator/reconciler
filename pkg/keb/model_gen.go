@@ -120,6 +120,12 @@ type Operation struct {
 	Updated         time.Time `json:"updated"`
 }
 
+// OperationStatusUpdate defines model for operationStatusUpdate.
+type OperationStatusUpdate struct {
+	Reason *string `json:"reason,omitempty"`
+	Status Status  `json:"status"`
+}
+
 // ReconcilerStatus defines model for reconcilerStatus.
 type ReconcilerStatus struct {
 	Cluster  string    `json:"cluster"`
@@ -186,6 +192,9 @@ type PutClustersJSONBody Cluster
 // PutClustersRuntimeIDStatusJSONBody defines parameters for PutClustersRuntimeIDStatus.
 type PutClustersRuntimeIDStatusJSONBody StatusUpdate
 
+// PostOperationsSchedulingIDCorrelationIDStatusJSONBody defines parameters for PostOperationsSchedulingIDCorrelationIDStatus.
+type PostOperationsSchedulingIDCorrelationIDStatusJSONBody OperationStatusUpdate
+
 // GetReconciliationsParams defines parameters for GetReconciliations.
 type GetReconciliationsParams struct {
 	RuntimeID *[]string `json:"runtimeID,omitempty"`
@@ -200,3 +209,6 @@ type PutClustersJSONRequestBody PutClustersJSONBody
 
 // PutClustersRuntimeIDStatusJSONRequestBody defines body for PutClustersRuntimeIDStatus for application/json ContentType.
 type PutClustersRuntimeIDStatusJSONRequestBody PutClustersRuntimeIDStatusJSONBody
+
+// PostOperationsSchedulingIDCorrelationIDStatusJSONRequestBody defines body for PostOperationsSchedulingIDCorrelationIDStatus for application/json ContentType.
+type PostOperationsSchedulingIDCorrelationIDStatusJSONRequestBody PostOperationsSchedulingIDCorrelationIDStatusJSONBody
