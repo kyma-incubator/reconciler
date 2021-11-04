@@ -584,7 +584,7 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	if op.State != model.OperationStateNew {
 		server.SendHTTPError(w, http.StatusPreconditionFailed, &reconciler.HTTPErrorResponse{
-			Error: fmt.Sprintf("Operation status is in state: %s, should be in: %s", op.State, model.OperationStateNew),
+			Error: fmt.Sprintf("Stopping Operation in status: %s, is not possible. Should be in: %s", op.State, model.OperationStateNew),
 		})
 		return
 	}

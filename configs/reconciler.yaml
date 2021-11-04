@@ -25,7 +25,7 @@ mothership:
   scheduler:
     reconcilers:
       base:
-        url: "http://localhost:8090/v1/run"
+        url: "http://localhost:8081/v1/run"
     preComponents:
       - cluster-essentials
       - istio-configuration

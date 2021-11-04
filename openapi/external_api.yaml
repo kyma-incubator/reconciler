@@ -20,7 +20,7 @@ servers:
 paths:
   /operations/{schedulingID}/{correlationID}/stop:
     post:
-      description: Set status of given operation to DONE only when operation is in NEW state
+      description: Stop executing of operation if status is NEW
       parameters:
         - name: schedulingID
           required: true
