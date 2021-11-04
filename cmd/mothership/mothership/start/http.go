@@ -557,7 +557,7 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var statusUpdate keb.OperationStatusUpdate
+	var stopOperation keb.OperationStop
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
@@ -566,7 +566,7 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = json.Unmarshal(reqBody, &statusUpdate)
+	err = json.Unmarshal(reqBody, &stopOperation)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
@@ -588,12 +588,8 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	var reason string = ""
-	if statusUpdate.Reason != nil {
-		reason = *statusUpdate.Reason
-	}
 
-	err = updateOperationState(o, schedulingID, correlationID, model.OperationStateDone, reason)
+	err = updateOperationState(o, schedulingID, correlationID, model.OperationStateDone, stopOperation.Reason)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "while updating operation status").Error(),

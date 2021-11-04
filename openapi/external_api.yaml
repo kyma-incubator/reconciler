@@ -18,9 +18,9 @@ servers:
         default: "v1"
 
 paths:
-  /operations/{schedulingID}/{correlationID}/status:
+  /operations/{schedulingID}/{correlationID}/stop:
     post:
-      description: Set status of given operation. Status can only be set to DONE, when operation is in NEW state
+      description: Set status of given operation to DONE only when operation is in NEW state
       parameters:
         - name: schedulingID
           required: true
@@ -38,7 +38,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/operationStatusUpdate'
+              $ref: '#/components/schemas/operationStop'
       responses:
         '200':
           description: "Ok"
@@ -288,7 +288,7 @@ components:
   schemas:
     HTTPClusterStatusResponse:
       type: object
-      required: [statusChanges]
+      required: [ statusChanges ]
       properties:
         statusChanges:
           type: array
@@ -297,7 +297,7 @@ components:
 
     HTTPErrorResponse:
       type: object
-      required: [error]
+      required: [ error ]
       properties:
         error:
           type: string
@@ -305,7 +305,7 @@ components:
     HTTPClusterResponse:
       type: object
       required:
-        [cluster, clusterVersion, configurationVersion, status, statusURL]
+        [ cluster, clusterVersion, configurationVersion, status, statusURL ]
       properties:
         cluster:
           type: string
@@ -344,7 +344,7 @@ components:
     reconciliation:
       type: object
       required:
-        [lock, runtimeID, shootName, schedulingID, created, updated, status]
+        [ lock, runtimeID, shootName, schedulingID, created, updated, status ]
       properties:
         lock:
           type: string
@@ -366,14 +366,14 @@ components:
       type: object
       required:
         [
-          priority,
-          schedulingID,
-          correlationID,
-          component,
-          state,
-          reason,
-          created,
-          updated,
+            priority,
+            schedulingID,
+            correlationID,
+            component,
+            state,
+            reason,
+            created,
+            updated,
         ]
       properties:
         priority:
@@ -400,18 +400,16 @@ components:
         clusterMetadata:
           $ref: "#/components/schemas/cluster"
 
-    operationStatusUpdate:
+    operationStop:
       type: object
-      required: [status]
+      required: [ reason ]
       properties:
-        status:
-          $ref: '#/components/schemas/status'
         reason:
           type: string
 
     reconcilerStatus:
       type: object
-      required: [cluster, metadata, created, status]
+      required: [ cluster, metadata, created, status ]
       properties:
         cluster:
           type: string
@@ -425,7 +423,7 @@ components:
 
     statusChange:
       type: object
-      required: [started, duration, status]
+      required: [ started, duration, status ]
       properties:
         started:
           type: string
@@ -439,7 +437,7 @@ components:
 
     statusUpdate:
       type: object
-      required: [status]
+      required: [ status ]
       properties:
         status:
           $ref: "#/components/schemas/status"
@@ -459,7 +457,7 @@ components:
 
     failure:
       type: object
-      required: [component, reason]
+      required: [ component, reason ]
       properties:
         component:
           type: string
@@ -468,7 +466,7 @@ components:
 
     cluster:
       type: object
-      required: [runtimeID, runtimeInput, kymaConfig, metadata, kubeconfig]
+      required: [ runtimeID, runtimeInput, kymaConfig, metadata, kubeconfig ]
       properties:
         runtimeID:
           type: string
@@ -485,7 +483,7 @@ components:
 
     runtimeInput:
       type: object
-      required: [name, description]
+      required: [ name, description ]
       properties:
         name:
           type: string
@@ -494,7 +492,7 @@ components:
 
     kymaConfig:
       type: object
-      required: [version, profile, components, administrators]
+      required: [ version, profile, components, administrators ]
       properties:
         version:
           type: string
@@ -513,12 +511,12 @@ components:
       type: object
       required:
         [
-          globalAccountID,
-          subAccountID,
-          serviceID,
-          servicePlanID,
-          shootName,
-          instanceID,
+            globalAccountID,
+            subAccountID,
+            serviceID,
+            servicePlanID,
+            shootName,
+            instanceID,
         ]
       properties:
         globalAccountID:
@@ -536,7 +534,7 @@ components:
 
     component:
       type: object
-      required: [component, namespace, configuration, URL, version]
+      required: [ component, namespace, configuration, URL, version ]
       properties:
         component:
           type: string
@@ -554,7 +552,7 @@ components:
 
     configuration:
       type: object
-      required: [key, value, secret]
+      required: [ key, value, secret ]
       properties:
         key:
           type: string
