@@ -3,10 +3,12 @@
 package kubeclient
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -108,13 +110,74 @@ func (p *Patcher) getResourceVersion(namespace, name string) (string, error) {
 	return resU.GetResourceVersion(), nil
 }
 
+func (p *Patcher) delete(namespace, name string) error {
+	options := asDeleteOptions(p.Cascade, p.GracePeriod)
+	err := wait.ExponentialBackoff(p.Backoff, func() (done bool, err error) {
+		if _, err := p.Helper.DeleteWithOptions(namespace, name, &options); err != nil {
+			return false, err
+		}
+		return true, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return wait.PollImmediate(time.Second, p.Timeout, func() (done bool, err error) {
+		if _, err := p.Helper.Get(namespace, name); !errors.IsNotFound(err) {
+			return false, err
+		}
+		return true, nil
+	})
+}
+
+func (p *Patcher) createObj(obj runtime.Object, namespace string) (runtime.Object, error) {
+	var result runtime.Object
+	err := wait.ExponentialBackoff(p.Backoff, func() (done bool, err error) {
+		result, err = p.Helper.Create(namespace, true, obj)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	})
+	return result, err
+}
+
+func (p *Patcher) recreateObject(obj runtime.Object, namespace, name string) (runtime.Object, error) {
+	// try to delete resource
+	if err := p.delete(namespace, name); err != nil {
+		return nil, err
+	}
+
+	return p.createObj(obj, namespace)
+}
+
 func (p *Patcher) replace(new runtime.Object, namespace, name string) (runtime.Object, error) {
+	var result runtime.Object
+	var err error
+
+	for i := 0; i < maxPatchRetry; i++ {
+		result, err = p.simpleReplace(new, namespace, name)
+		if !errors.IsInvalid(err) {
+			break
+		}
+	}
+	if err != nil {
+		return result, nil
+	}
+	return result, err
+}
+
+var errInvalidResource error = fmt.Errorf("invalid resource")
+
+func (p *Patcher) simpleReplace(new runtime.Object, namespace, name string) (runtime.Object, error) {
+	// prepare new resource configuration
 	newMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(new)
 	if err != nil {
 		return nil, err
 	}
-	newU := unstructured.Unstructured{Object: newMap}
 
+	newU := unstructured.Unstructured{Object: newMap}
+	// update resource version
 	if p.ResourceVersion != nil {
 		newU.SetResourceVersion(*p.ResourceVersion)
 	} else {
@@ -125,16 +188,36 @@ func (p *Patcher) replace(new runtime.Object, namespace, name string) (runtime.O
 		newU.SetResourceVersion(resourceVersion)
 	}
 
-	// object was replaced with no errors
+	// replace resource
 	result, err := p.replaceObj(&newU, namespace, name)
 	// happy path
-	if err == nil || errors.IsInvalid(err) {
+	if err == nil {
 		return result, err
 	}
 
-	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(newU.Object, &newU); err != nil {
-		return nil, err
+	if errors.IsConflict(err) && p.ResourceVersion != nil {
+		return nil, errInvalidResource
 	}
 
-	return p.replace(&newU, namespace, name)
+	if errors.IsInvalid(err) {
+		return p.recreateObject(new, namespace, name)
+	}
+
+	return nil, err
+}
+
+func asDeleteOptions(cascade bool, gracePeriod int) metav1.DeleteOptions {
+	options := metav1.DeleteOptions{}
+	if gracePeriod >= 0 {
+		options = *metav1.NewDeleteOptions(int64(gracePeriod))
+	}
+
+	policy := metav1.DeletePropagationForeground
+	if !cascade {
+		policy = metav1.DeletePropagationOrphan
+	}
+
+	options.PropagationPolicy = &policy
+
+	return options
 }
