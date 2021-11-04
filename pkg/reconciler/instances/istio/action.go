@@ -20,8 +20,31 @@ const (
 	istioChart     = "istio-configuration"
 )
 
-type ReconcileAction struct {
+type IstioAction struct {
 	performer actions.IstioPerformer
+}
+
+type ReconcileAction struct {
+	*IstioAction
+}
+
+type UninstallAction struct {
+	*IstioAction
+}
+
+func (a *UninstallAction) Run(context *service.ActionContext) error {
+	context.Logger.Debugf("Uninstall action of istio triggered")
+	ver, err := getInstalledVersion(context, a.IstioAction)
+
+	if canUninstall(ver) {
+		err = a.performer.Uninstall(context.KubeClient, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not uninstall istio")
+		}
+	} else {
+		context.Logger.Warnf("Istio is not installed, could not unstall it")
+	}
+	return nil
 }
 
 func (a *ReconcileAction) Run(context *service.ActionContext) error {
@@ -34,12 +57,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	ver, err := a.performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
-	if err != nil {
-		return errors.Wrap(err, "Could not fetch Istio version")
-	}
-
-	context.Logger.Infof("Detected: istioctl version %s, target Istio version: %s", ver.ClientVersion, ver.TargetVersion)
+	ver, err := getInstalledVersion(context, a.IstioAction)
 
 	if isMismatchPresent(ver) {
 		context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
@@ -147,7 +165,24 @@ func newHelperVersionFrom(versionInString string) helperVersion {
 }
 
 func canInstall(version actions.IstioVersion) bool {
-	return version.DataPlaneVersion == "" && version.PilotVersion == ""
+	return !isInstalled(version)
+}
+
+func isInstalled(version actions.IstioVersion) bool {
+	return !(version.DataPlaneVersion == "" && version.PilotVersion == "")
+}
+
+func canUninstall(istioVersion actions.IstioVersion) bool {
+	return isInstalled(istioVersion) && istioVersion.ClientVersion != ""
+}
+
+func getInstalledVersion(context *service.ActionContext, action *IstioAction) (actions.IstioVersion, error) {
+	ver, err := action.performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
+	if err != nil {
+		return actions.IstioVersion{}, errors.Wrap(err, "Could not fetch Istio version")
+	}
+	context.Logger.Infof("Detected: istioctl version %s, target Istio version: %s", ver.ClientVersion, ver.TargetVersion)
+	return ver, nil
 }
 
 func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
