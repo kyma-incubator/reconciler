@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: inttest-comprecon
+---
+{{ if .Values.v1k }}
+  apiVersion: apps/v1k
+{{ else }}
+  apiVersion: apps/v1
+{{ end }}
+kind: Deployment
+metadata:
+  name: dummy-deployment
+  namespace: inttest-comprecon
+  labels:
+    app: dummy-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dummy-app
+  template:
+    metadata:
+      labels:
+        app: dummy-app
+    spec:
+      containers:
+        - name: dummy-pod
+          image: debian
+          command: ["/bin/sh"]
+          args: ["-c", "sleep 20"]
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5
+    {{ if .Values.breakHelmChart }}
+    This will break the yaml format
+    {{ end }}

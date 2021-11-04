@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/kubectl/pkg/util/openapi"
 )
 
 const (
@@ -31,16 +30,13 @@ var backoff = wait.Backoff{
 }
 
 func newPatcher(helper *resource.Helper) *Patcher {
-	var openapiSchema openapi.Resources
-
 	return &Patcher{
-		Helper:        helper,
-		Overwrite:     true,
-		Force:         false,
-		Cascade:       true,
-		Timeout:       time.Duration(0),
-		GracePeriod:   -1,
-		OpenapiSchema: openapiSchema,
+		Helper:      helper,
+		Overwrite:   true,
+		Force:       false,
+		Cascade:     true,
+		Timeout:     time.Duration(0),
+		GracePeriod: -1,
 	}
 }
 
@@ -55,8 +51,6 @@ type Patcher struct {
 
 	// If set, forces the patch against a specific resourceVersion
 	ResourceVersion *string
-
-	OpenapiSchema openapi.Resources
 }
 
 func (p *Patcher) replaceObj(new runtime.Object, namespace, name string) (runtime.Object, error) {
@@ -64,7 +58,7 @@ func (p *Patcher) replaceObj(new runtime.Object, namespace, name string) (runtim
 	var err error
 
 	err = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		result, err = p.Helper.Replace(namespace, name, true, new)
+		result, err = p.Helper.Replace(namespace, name, p.Overwrite, new)
 		// detect unretryable errors
 		if errors.IsConflict(err) || errors.IsInvalid(err) {
 			return true, err
