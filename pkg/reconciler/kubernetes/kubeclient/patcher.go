@@ -18,10 +18,10 @@ import (
 const (
 	// maxPatchRetry is the maximum number of conflicts retry for during a patch operation before returning failure
 	maxPatchRetry = 5
-	// backOffPeriod is the period to back off when kubeClient patch results in error.
-	backOffPeriod = 1 * time.Second
-	// how many times we can retry before back off
-	triesBeforeBackOff = 1
+	// // backOffPeriod is the period to back off when kubeClient patch results in error.
+	// backOffPeriod = 1 * time.Second
+	// // how many times we can retry before back off
+	// triesBeforeBackOff = 1
 )
 
 var backoff = wait.Backoff{
