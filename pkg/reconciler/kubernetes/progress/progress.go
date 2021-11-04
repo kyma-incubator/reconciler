@@ -3,7 +3,9 @@ package progress
 import (
 	"context"
 	"fmt"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"time"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
@@ -249,13 +251,30 @@ func (pt *Tracker) podInState(inState State, object *resource) (bool, error) {
 
 func (pt *Tracker) daemonsetInState(inState State, object *resource) (bool, error) {
 	daemonSetClient := pt.client.AppsV1().DaemonSets(object.namespace)
-	daemonSet, err := daemonSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
+	ds, err := daemonSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	switch inState {
 	case ReadyState:
 		if err != nil {
 			return false, err
 		}
-		return daemonSet.Status.NumberUnavailable == 0, nil
+
+		if ds.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
+			return true, nil
+		}
+
+		if ds.Status.UpdatedNumberScheduled != ds.Status.DesiredNumberScheduled {
+			return false, nil
+		}
+
+		maxUnavailable, err := intstr.GetScaledValueFromIntOrPercent(ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable, int(ds.Status.DesiredNumberScheduled), true)
+		if err != nil {
+			maxUnavailable = int(ds.Status.DesiredNumberScheduled)
+		}
+
+		actualReady := int(ds.Status.NumberReady)
+		expectedReady := int(ds.Status.DesiredNumberScheduled) - maxUnavailable
+		return actualReady >= expectedReady, nil
+
 	case TerminatedState:
 		if err != nil && errors.IsNotFound(err) {
 			return true, nil

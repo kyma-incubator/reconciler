@@ -3,10 +3,10 @@ package progress
 import (
 	"context"
 	e "github.com/kyma-incubator/reconciler/pkg/error"
-	k8s "github.com/kyma-incubator/reconciler/pkg/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"go.uber.org/zap"
 	"io/ioutil"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -31,10 +31,9 @@ func TestProgressTracker(t *testing.T) {
 	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
 	require.NoError(t, err)
 
-	clientSet, err := (&k8s.ClientBuilder{}).Build(true)
-	require.NoError(t, err)
+	clientSet, err := kubeClient.GetClientSet()
 
-	resources := readManifest(t)
+	resources := readManifest(t, "all.yaml")
 	require.Len(t, resources, 6)
 
 	cleanup := func() {
@@ -116,8 +115,66 @@ func TestProgressTracker(t *testing.T) {
 		//Expect NO error as resources are watched until they disappeared
 		require.NoError(t, pt2.Watch(ctx, TerminatedState))
 		t.Log("Test successfully finished: checking for TERMINATED state finished without an error")
-
 	})
+}
+
+func TestDaemonSetRollingUpdate(t *testing.T) {
+	test.IntegrationTest(t)
+
+	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	clientSet, err := kubeClient.GetClientSet()
+	require.NoError(t, err)
+
+	testNs := "test-progress-daemonset"
+	cleanup := func() {
+		t.Log("Cleanup test resources")
+		clientSet.CoreV1().Namespaces().Delete(ctx, testNs, metav1.DeleteOptions{})
+	}
+	defer cleanup()
+
+	logger := log.NewLogger(true)
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testNs,
+		},
+	}
+
+	clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+
+	t.Log("Deploying daemon set")
+
+	ds := readManifest(t, "ds-before-rolling-update.yaml")[0]
+	_, err = kubeClient.ApplyWithNamespaceOverride(ds, testNs)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	tracker, err := NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	require.NoError(t, err)
+
+	tracker.AddResource(DaemonSet, ds.GetNamespace(), ds.GetName())
+
+	err = tracker.Watch(ctx, ReadyState)
+	require.NoError(t, err)
+
+	t.Log("Updating daemon set")
+
+	ds = readManifest(t, "ds-after-rolling-update.yaml")[0]
+	_, err = kubeClient.ApplyWithNamespaceOverride(ds, testNs)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	tracker, err = NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	require.NoError(t, err)
+
+	tracker.AddResource(DaemonSet, ds.GetNamespace(), ds.GetName())
+
+	err = tracker.Watch(ctx, ReadyState)
+
+	require.NoError(t, err)
 }
 
 func addWatchable(t *testing.T, resources []*unstructured.Unstructured, pt *Tracker) {
@@ -134,8 +191,8 @@ func addWatchable(t *testing.T, resources []*unstructured.Unstructured, pt *Trac
 	require.Equal(t, 5, cntWatchable) //pod and a deployment has to be added as watchable
 }
 
-func readManifest(t *testing.T) []*unstructured.Unstructured {
-	manifest, err := ioutil.ReadFile(filepath.Join("test", "unittest.yaml"))
+func readManifest(t *testing.T, filename string) []*unstructured.Unstructured {
+	manifest, err := ioutil.ReadFile(filepath.Join("testdata", filename))
 	require.NoError(t, err)
 
 	var result []*unstructured.Unstructured
