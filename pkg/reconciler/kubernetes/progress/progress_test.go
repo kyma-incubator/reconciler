@@ -32,6 +32,7 @@ func TestProgressTracker(t *testing.T) {
 	require.NoError(t, err)
 
 	clientSet, err := kubeClient.GetClientSet()
+	require.NoError(t, err)
 
 	resources := readManifest(t, "all.yaml")
 	require.Len(t, resources, 6)
@@ -132,7 +133,8 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	testNs := "test-progress-daemonset"
 	cleanup := func() {
 		t.Log("Cleanup test resources")
-		clientSet.CoreV1().Namespaces().Delete(ctx, testNs, metav1.DeleteOptions{})
+		err := clientSet.CoreV1().Namespaces().Delete(ctx, testNs, metav1.DeleteOptions{})
+		require.NoError(t, err)
 	}
 	defer cleanup()
 
@@ -143,7 +145,8 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 		},
 	}
 
-	clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+	_, err = clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+	require.NoError(t, err)
 
 	t.Log("Deploying daemon set")
 
