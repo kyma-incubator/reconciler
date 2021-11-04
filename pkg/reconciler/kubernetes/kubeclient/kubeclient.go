@@ -139,7 +139,7 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		ResourceVersion: restMapping.Resource.Version,
 	}
 
-	patcher := newPatcher(info, helper)
+	patcher := newPatcher(helper)
 
 	if err := info.Get(); err != nil {
 		if !k8serrors.IsNotFound(err) {

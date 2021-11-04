@@ -30,7 +30,7 @@ var backoff = wait.Backoff{
 	Jitter:   0.1,
 }
 
-func newPatcher(info *resource.Info, helper *resource.Helper) *Patcher {
+func newPatcher(helper *resource.Helper) *Patcher {
 	var openapiSchema openapi.Resources
 
 	return &Patcher{
