@@ -138,13 +138,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	}
 	defer cleanup()
 
-	logger := log.NewLogger(true)
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: testNs,
-		},
-	}
-
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}
 	_, err = clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	require.NoError(t, err)
 
@@ -155,11 +149,11 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
+	logger := log.NewLogger(true)
 	tracker, err := NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
 	tracker.AddResource(DaemonSet, ds.GetNamespace(), ds.GetName())
-
 	err = tracker.Watch(ctx, ReadyState)
 	require.NoError(t, err)
 
@@ -174,9 +168,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	tracker.AddResource(DaemonSet, ds.GetNamespace(), ds.GetName())
-
 	err = tracker.Watch(ctx, ReadyState)
-
 	require.NoError(t, err)
 }
 
@@ -199,13 +191,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	}
 	defer cleanup()
 
-	logger := log.NewLogger(true)
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: testNs,
-		},
-	}
-
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}
 	_, err = clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	require.NoError(t, err)
 
@@ -216,11 +202,11 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
+	logger := log.NewLogger(true)
 	tracker, err := NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
 	tracker.AddResource(StatefulSet, ss.GetNamespace(), ss.GetName())
-
 	err = tracker.Watch(ctx, ReadyState)
 	require.NoError(t, err)
 
@@ -235,9 +221,60 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	tracker.AddResource(StatefulSet, ss.GetNamespace(), ss.GetName())
-
 	err = tracker.Watch(ctx, ReadyState)
+	require.NoError(t, err)
+}
 
+func TestDeploymentRollingUpdate(t *testing.T) {
+	test.IntegrationTest(t)
+
+	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	clientSet, err := kubeClient.GetClientSet()
+	require.NoError(t, err)
+
+	testNs := "test-progress-deployment"
+	cleanup := func() {
+		t.Log("Cleanup test resources")
+		err := clientSet.CoreV1().Namespaces().Delete(ctx, testNs, metav1.DeleteOptions{})
+		require.NoError(t, err)
+	}
+	defer cleanup()
+
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}
+	_, err = clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	t.Log("Deploying deployment")
+
+	dep := readManifest(t, "dep-before-rolling-update.yaml")[0]
+	_, err = kubeClient.ApplyWithNamespaceOverride(dep, testNs)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	logger := log.NewLogger(true)
+	tracker, err := NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	require.NoError(t, err)
+
+	tracker.AddResource(Deployment, dep.GetNamespace(), dep.GetName())
+	err = tracker.Watch(ctx, ReadyState)
+	require.NoError(t, err)
+
+	t.Log("Updating deployment")
+
+	dep = readManifest(t, "dep-after-rolling-update.yaml")[0]
+	_, err = kubeClient.ApplyWithNamespaceOverride(dep, testNs)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	tracker, err = NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	require.NoError(t, err)
+
+	tracker.AddResource(Deployment, dep.GetNamespace(), dep.GetName())
+	err = tracker.Watch(ctx, ReadyState)
 	require.NoError(t, err)
 }
 
