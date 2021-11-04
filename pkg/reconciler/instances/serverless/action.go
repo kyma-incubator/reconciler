@@ -1,14 +1,10 @@
 package serverless
 
 import (
-	"fmt"
-	"strconv"
-
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/utils"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,11 +31,11 @@ func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 		logger.Errorf("Error while fetching existing docker registry secret [%s]... Secret will be re-generated", err.Error())
 	} else if secret != nil {
 		logger.Infof("Secret %s found in namespace: %s. Attempting to reusing existing credentials for %s", serverlessSecretName, serverlessNamespace, serverlessDockerRegistryDeploymentName)
-		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "username", "dockerRegistry.username")
-		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "password", "dockerRegistry.password")
-		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "isInternal", "dockerRegistry.enableInternal")
-		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "registryAddress", "dockerRegistry.registryAddress")
-		setOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "serverAddress", "dockerRegistry.serverAddress")
+		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "username", "dockerRegistry.username")
+		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "password", "dockerRegistry.password")
+		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "isInternal", "dockerRegistry.enableInternal")
+		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "registryAddress", "dockerRegistry.registryAddress")
+		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "serverAddress", "dockerRegistry.serverAddress")
 
 		deployment, err := k8sClient.AppsV1().Deployments(serverlessNamespace).Get(svcCtx.Context, serverlessDockerRegistryDeploymentName, metav1.GetOptions{})
 		if err != nil {
@@ -49,32 +45,6 @@ func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 		}
 	}
 	return service.NewInstall(svcCtx.Logger).Invoke(svcCtx.Context, svcCtx.ChartProvider, svcCtx.Task, svcCtx.KubeClient)
-}
-
-func readSecretKey(secret *v1.Secret, secretKey string) (string, error) {
-	if secret.Data == nil {
-		return "", errors.New(fmt.Sprintf("failed to read %s from nil secret data", secretKey))
-	}
-	secretValue, ok := secret.Data[secretKey]
-	if !ok {
-		return "", errors.New(fmt.Sprintf("%s is not found in secret", secretKey))
-	}
-	return string(secretValue), nil
-}
-
-func setOverrideFromSecret(logger *zap.SugaredLogger, secret *v1.Secret, configuration map[string]interface{}, secretKey string, overridePath string) {
-	secretValue, err := readSecretKey(secret, secretKey)
-	if err != nil {
-		logger.Errorf("Error while fetching %s from secret... Override for path [%s] will be generated : [%s]", secretKey, overridePath, err.Error())
-		return
-	}
-	if secretValue != "" {
-		if secretValue == "true" || secretValue == "false" {
-			configuration[overridePath], _ = strconv.ParseBool(secretValue)
-		} else {
-			configuration[overridePath] = secretValue
-		}
-	}
 }
 
 func setOverridesFromDeployment(deployment *appsv1.Deployment, configuration map[string]interface{}) {
