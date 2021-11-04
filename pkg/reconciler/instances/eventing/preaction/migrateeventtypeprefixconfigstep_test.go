@@ -1,7 +1,8 @@
-package eventing
+package preaction
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -143,9 +144,9 @@ func TestEventingReconcilerPreAction(t *testing.T) {
 		},
 	}
 
-	setup := func() (kubernetes.Interface, preAction, *service.ActionContext) {
+	setup := func() (kubernetes.Interface, migrateEventTypePrefixConfigStep, *service.ActionContext) {
 		k8sClient := fake.NewSimpleClientset()
-		action := preAction{name: actionName}
+		action := migrateEventTypePrefixConfigStep{}
 		mockClient := mocks.Client{}
 		mockClient.On("Clientset").Return(k8sClient, nil)
 		actionContext := &service.ActionContext{
@@ -172,7 +173,7 @@ func TestEventingReconcilerPreAction(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			err = action.Run(actionContext)
+			err = action.Execute(actionContext, log.ContextLogger(actionContext, log.WithAction(actionName)))
 			require.NoError(t, err)
 
 			gotPublisherDeployment, err := getDeployment(actionContext, k8sClient, publisherDeploymentName)
