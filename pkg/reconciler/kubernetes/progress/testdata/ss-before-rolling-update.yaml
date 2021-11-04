@@ -19,7 +19,7 @@ spec:
           args:
             - /bin/sh
             - -c
-            - sleep 60000
+            - sleep 30000
           readinessProbe:
             exec:
               command:
@@ -28,8 +28,8 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
   volumeClaimTemplates:
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 50Mi
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Mi

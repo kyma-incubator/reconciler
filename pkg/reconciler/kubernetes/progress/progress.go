@@ -150,9 +150,9 @@ func (pt *Tracker) isInState(targetState State) (bool, error) {
 		case Deployment:
 			componentInState, err = pt.deploymentInState(targetState, object)
 		case DaemonSet:
-			componentInState, err = pt.daemonsetInState(targetState, object)
+			componentInState, err = pt.daemonSetInState(targetState, object)
 		case StatefulSet:
-			componentInState, err = pt.statefulsetInState(targetState, object)
+			componentInState, err = pt.statefulSetInState(targetState, object)
 		case Job:
 			componentInState, err = pt.jobInState(targetState, object)
 		}
@@ -196,7 +196,7 @@ func (pt *Tracker) deploymentInState(inState State, object *resource) (bool, err
 
 }
 
-func (pt *Tracker) statefulsetInState(inState State, object *resource) (bool, error) {
+func (pt *Tracker) statefulSetInState(inState State, object *resource) (bool, error) {
 	statefulSetClient := pt.client.AppsV1().StatefulSets(object.namespace)
 	statefulSet, err := statefulSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	switch inState {
@@ -249,7 +249,7 @@ func (pt *Tracker) podInState(inState State, object *resource) (bool, error) {
 
 }
 
-func (pt *Tracker) daemonsetInState(inState State, object *resource) (bool, error) {
+func (pt *Tracker) daemonSetInState(inState State, object *resource) (bool, error) {
 	daemonSetClient := pt.client.AppsV1().DaemonSets(object.namespace)
 	ds, err := daemonSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	switch inState {
