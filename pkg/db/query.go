@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type Query struct {
@@ -13,10 +15,11 @@ type Query struct {
 	columnHandler *ColumnHandler
 	buffer        bytes.Buffer
 	whereClause   bool
+	Logger        *zap.SugaredLogger
 }
 
-func NewQuery(conn Connection, entity DatabaseEntity) (*Query, error) {
-	columnHandler, err := NewColumnHandler(entity, conn)
+func NewQuery(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger) (*Query, error) {
+	columnHandler, err := NewColumnHandler(entity, conn, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -24,6 +27,7 @@ func NewQuery(conn Connection, entity DatabaseEntity) (*Query, error) {
 		conn:          conn,
 		entity:        entity,
 		columnHandler: columnHandler,
+		Logger:        logger,
 	}, nil
 }
 
@@ -230,7 +234,7 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	var result []DatabaseEntity
 	for rows.Next() {
 		entity := s.entity.New()
-		colHdlr, err := NewColumnHandler(entity, s.conn)
+		colHdlr, err := NewColumnHandler(entity, s.conn, s.Query.Logger)
 		if err != nil {
 			return result, err
 		}

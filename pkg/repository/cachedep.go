@@ -66,7 +66,7 @@ func (r *record) Exec(newTx bool) error {
 				Label:     r.cacheEntry.Label,
 				RuntimeID: r.cacheEntry.RuntimeID,
 				CacheID:   r.cacheEntry.ID,
-			})
+			}, r.logger)
 			if err != nil {
 				return err
 			}
@@ -118,7 +118,7 @@ func (i *invalidate) with(colName string, colValue interface{}) *invalidate {
 func (i *invalidate) Exec(newTx bool) error {
 	dbOps := func() error {
 		//get cache dependencies
-		depQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{})
+		depQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{}, i.logger)
 		if err != nil {
 			return err
 		}
@@ -142,7 +142,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		i.logger.Debugf("Identified %d cache entities which match selector '%v': %s", cntUniqueIds, i.selector, cacheEntityIdsCSV)
 
 		//drop all cache entities
-		cacheQuery, err := db.NewQuery(i.conn, &model.CacheEntryEntity{})
+		cacheQuery, err := db.NewQuery(i.conn, &model.CacheEntryEntity{}, i.logger)
 		if err != nil {
 			return err
 		}
@@ -153,7 +153,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		i.logger.Debugf("Deleted %d cache entries matching selector '%v'", deletedEntries, i.selector)
 
 		//drop all cache dependencies of the dropped cache entities
-		cacheDepQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{})
+		cacheDepQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{}, i.logger)
 		if err != nil {
 			return err
 		}
@@ -223,7 +223,7 @@ func (c *get) with(colName string, colValue interface{}) *get {
 }
 
 func (c *get) Exec() ([]*model.CacheDependencyEntity, error) {
-	cntQuery, err := db.NewQuery(c.conn, &model.CacheDependencyEntity{})
+	cntQuery, err := db.NewQuery(c.conn, &model.CacheDependencyEntity{}, c.logger)
 	if err != nil {
 		return nil, err
 	}
