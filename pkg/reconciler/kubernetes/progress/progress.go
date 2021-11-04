@@ -204,11 +204,41 @@ func (pt *Tracker) statefulSetInState(inState State, object *resource) (bool, er
 		if err != nil {
 			return false, err
 		}
-		for _, condition := range statefulSet.Status.Conditions {
-			if condition.Status != v1.ConditionTrue {
-				return false, nil
-			}
+
+		if statefulSet.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
+			return true, nil
 		}
+
+		var partition int
+		var replicas = 1
+
+		// here we need to check partitions
+		// see: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+		if statefulSet.Spec.UpdateStrategy.RollingUpdate != nil && statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+			partition = int(*statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition)
+		}
+
+		if statefulSet.Spec.Replicas != nil {
+			replicas = int(*statefulSet.Spec.Replicas)
+		}
+
+		expectedReplicas := replicas - partition
+
+		if int(statefulSet.Status.UpdatedReplicas) != expectedReplicas {
+			return false, nil
+		}
+
+		if int(statefulSet.Status.ReadyReplicas) != replicas {
+			return false, nil
+		}
+
+		// TODO delete old code
+		//for _, condition := range statefulSet.Status.Conditions {
+		//	if condition.Status != v1.ConditionTrue {
+		//		return false, nil
+		//	}
+		//}
+
 		return true, err
 	case TerminatedState:
 		if err != nil && errors.IsNotFound(err) {
@@ -246,31 +276,30 @@ func (pt *Tracker) podInState(inState State, object *resource) (bool, error) {
 	default:
 		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
-
 }
 
 func (pt *Tracker) daemonSetInState(inState State, object *resource) (bool, error) {
 	daemonSetClient := pt.client.AppsV1().DaemonSets(object.namespace)
-	ds, err := daemonSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
+	daemonSet, err := daemonSetClient.Get(context.TODO(), object.name, metav1.GetOptions{})
 	switch inState {
 	case ReadyState:
 		if err != nil {
 			return false, err
 		}
-		if ds.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
+		if daemonSet.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
 			return true, nil
 		}
-		if ds.Status.UpdatedNumberScheduled != ds.Status.DesiredNumberScheduled {
+		if daemonSet.Status.UpdatedNumberScheduled != daemonSet.Status.DesiredNumberScheduled {
 			return false, nil
 		}
 
-		maxUnavailable, err := intstr.GetScaledValueFromIntOrPercent(ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable, int(ds.Status.DesiredNumberScheduled), true)
+		maxUnavailable, err := intstr.GetScaledValueFromIntOrPercent(daemonSet.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable, int(daemonSet.Status.DesiredNumberScheduled), true)
 		if err != nil {
-			maxUnavailable = int(ds.Status.DesiredNumberScheduled)
+			maxUnavailable = int(daemonSet.Status.DesiredNumberScheduled)
 		}
 
-		actualReady := int(ds.Status.NumberReady)
-		expectedReady := int(ds.Status.DesiredNumberScheduled) - maxUnavailable
+		actualReady := int(daemonSet.Status.NumberReady)
+		expectedReady := int(daemonSet.Status.DesiredNumberScheduled) - maxUnavailable
 		return actualReady >= expectedReady, nil
 
 	case TerminatedState:
@@ -281,7 +310,6 @@ func (pt *Tracker) daemonSetInState(inState State, object *resource) (bool, erro
 	default:
 		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
-
 }
 
 func (pt *Tracker) jobInState(inState State, object *resource) (bool, error) {

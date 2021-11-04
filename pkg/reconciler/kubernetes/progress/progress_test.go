@@ -186,7 +186,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	clientSet, err := kubeClient.GetClientSet()
 	require.NoError(t, err)
@@ -214,7 +214,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	ss := readManifest(t, "ss-before-rolling-update.yaml")[0]
 	_, err = kubeClient.ApplyWithNamespaceOverride(ss, testNs)
 	require.NoError(t, err)
-	time.Sleep(time.Second)
+	time.Sleep(3 * time.Second)
 
 	tracker, err := NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
@@ -224,7 +224,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	err = tracker.Watch(ctx, ReadyState)
 	require.NoError(t, err)
 
-	t.Log("Updating daemon set")
+	t.Log("Updating stateful set")
 
 	ss = readManifest(t, "ss-after-rolling-update.yaml")[0]
 	_, err = kubeClient.ApplyWithNamespaceOverride(ss, testNs)
