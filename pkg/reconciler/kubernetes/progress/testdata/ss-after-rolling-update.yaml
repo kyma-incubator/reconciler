@@ -28,7 +28,9 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
   volumeClaimTemplates:
-    - spec:
+    - metadata:
+        name: sleeper-data
+      spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:

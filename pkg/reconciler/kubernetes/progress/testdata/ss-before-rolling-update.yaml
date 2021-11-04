@@ -28,8 +28,10 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
   volumeClaimTemplates:
-      - spec:
-          accessModes: [ "ReadWriteOnce" ]
-          resources:
-            requests:
-              storage: 50Mi
+    - metadata:
+        name: sleeper-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Mi
