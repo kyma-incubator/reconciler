@@ -45,7 +45,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 	router := mux.NewRouter()
 
 	router.HandleFunc(
-		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/status", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, updateOperationStatus)).
 		Methods("POST")
 
