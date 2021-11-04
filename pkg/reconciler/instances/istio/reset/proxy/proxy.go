@@ -59,7 +59,10 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 
 	cfg.Log.Infof("Found %d matching pods", len(podsWithDifferentImage.Items))
 
-	i.action.Reset(cfg.Kubeclient, retryOpts, podsWithDifferentImage, cfg.Log, cfg.Debug, waitOpts)
+	err = i.action.Reset(cfg.Kubeclient, retryOpts, podsWithDifferentImage, cfg.Log, cfg.Debug, waitOpts)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

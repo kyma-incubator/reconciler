@@ -45,8 +45,6 @@ type NoActionHandler struct {
 }
 
 func (i *NoActionHandler) Execute(object CustomObject, wg GetSyncWG) {
-	defer wg().Done()
-
 	if i.debug {
 		i.log.Infof("Not doing any action for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
 	}
@@ -67,8 +65,6 @@ type DeleteObjectHandler struct {
 }
 
 func (i *DeleteObjectHandler) Execute(object CustomObject, wg GetSyncWG) {
-	defer wg().Done()
-
 	i.log.Infof("Deleting pod %s/%s", object.Namespace, object.Name)
 	if !i.debug {
 		err := retry.Do(func() error {
@@ -103,8 +99,6 @@ type RolloutHandler struct {
 }
 
 func (i *RolloutHandler) Execute(object CustomObject, wg GetSyncWG) {
-	defer wg().Done()
-
 	i.log.Infof("Doing rollout for %s/%s/%s", object.Kind, object.Namespace, object.Name)
 	if !i.debug {
 		err := retry.Do(func() error {
@@ -123,69 +117,35 @@ func (i *RolloutHandler) Execute(object CustomObject, wg GetSyncWG) {
 	}
 }
 
-func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) (err error) {
+func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) error {
 	defer wg().Done()
 
 	i.log.Infof("Waiting for %s/%s/%s to be ready", object.Kind, object.Namespace, object.Name)
 	switch object.Kind {
 	case "DaemonSet":
-		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
-			ds, err := i.kubeClient.AppsV1().DaemonSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
-			ready := isDaemonSetReady(ds)
-			return ready, nil
-		})
+		err := i.waitForDaemonSet(object)
 		if err != nil {
 			return err
 		}
-		i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 	case "Deployment":
-		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
-			dep, err := i.kubeClient.AppsV1().Deployments(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
-			ready := isDeploymentReady(dep, i.kubeClient)
-			return ready, nil
-		})
+		err := i.waitForDeployment(object)
 		if err != nil {
 			return err
 		}
-		i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
-	case "ReplicaSet":
-		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
-			rs, err := i.kubeClient.AppsV1().ReplicaSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
-			ready := isReplicaSetReady(rs)
-			return ready, nil
-		})
-		if err != nil {
-			return err
-		}
-		i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 	case "StatefulSet":
-		err = wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
-			sts, err := i.kubeClient.AppsV1().StatefulSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, err
-			}
-			ready := isStatefulSetReady(sts)
-			return ready, nil
-		})
+		err := i.waitForStatefulSet(object)
 		if err != nil {
 			return err
 		}
-		i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
+	case "ReplicaSet":
+		err := i.waitForReplicaSet(object)
+		if err != nil {
+			return err
+		}
 	default:
-		err = fmt.Errorf("kind %s not found", object.Kind)
-	}
-
-	if err != nil {
-		return err
+		if i.debug {
+			i.log.Infof("Not waiting for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
+		}
 	}
 
 	return nil
@@ -297,4 +257,72 @@ func isReplicaSetReady(rs *v1.ReplicaSet) bool {
 	}
 
 	return true
+}
+
+func (i *RolloutHandler) waitForDeployment(object CustomObject) error {
+	err := wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
+		dep, err := i.kubeClient.AppsV1().Deployments(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		ready := isDeploymentReady(dep, i.kubeClient)
+		return ready, nil
+	})
+	if err != nil {
+		return err
+	}
+	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
+
+	return nil
+}
+
+func (i *RolloutHandler) waitForDaemonSet(object CustomObject) error {
+	err := wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
+		ds, err := i.kubeClient.AppsV1().DaemonSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		ready := isDaemonSetReady(ds)
+		return ready, nil
+	})
+	if err != nil {
+		return err
+	}
+	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
+
+	return nil
+}
+
+func (i *RolloutHandler) waitForStatefulSet(object CustomObject) error {
+	err := wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
+		sts, err := i.kubeClient.AppsV1().StatefulSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		ready := isStatefulSetReady(sts)
+		return ready, nil
+	})
+	if err != nil {
+		return err
+	}
+	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
+
+	return nil
+}
+
+func (i *RolloutHandler) waitForReplicaSet(object CustomObject) error {
+	err := wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
+		rs, err := i.kubeClient.AppsV1().ReplicaSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		ready := isReplicaSetReady(rs)
+		return ready, nil
+	})
+	if err != nil {
+		return err
+	}
+	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
+
+	return nil
 }

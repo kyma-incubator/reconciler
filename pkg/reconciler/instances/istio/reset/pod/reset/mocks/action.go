@@ -21,6 +21,15 @@ type Action struct {
 }
 
 // Reset provides a mock function with given fields: kubeClient, retryOpts, podsList, log, debug, waitOpts
-func (_m *Action) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) {
-	_m.Called(kubeClient, retryOpts, podsList, log, debug, waitOpts)
+func (_m *Action) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) error {
+	ret := _m.Called(kubeClient, retryOpts, podsList, log, debug, waitOpts)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(kubernetes.Interface, []retry.Option, v1.PodList, *zap.SugaredLogger, bool, pod.WaitOptions) error); ok {
+		r0 = rf(kubeClient, retryOpts, podsList, log, debug, waitOpts)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }

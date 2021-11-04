@@ -14,7 +14,7 @@ import (
 
 //go:generate mockery --name=Action --outpkg=mocks --case=underscore
 type Action interface {
-	Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions)
+	Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) error
 }
 
 // DefaultResetAction assigns pods to handlers and executes them
@@ -36,20 +36,31 @@ func (i *DefaultResetAction) GetWG() *sync.WaitGroup {
 	return i.wg
 }
 
-func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) {
+func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) error {
 	handlersMap := i.matcher.GetHandlersMap(kubeClient, retryOpts, podsList, log, debug, waitOpts)
+	errorCh := make(chan error)
 
 	for handler := range handlersMap {
 		for _, object := range handlersMap[handler] {
 			i.wg.Add(1)
-			handler.Execute(object, i.GetWG)
-			i.wg.Add(1)
-			err := handler.WaitForResources(object, i.GetWG)
-			if err != nil {
-				log.Error(err)
-			}
+			go func(object pod.CustomObject, wg *sync.WaitGroup) {
+				handler.Execute(object, i.GetWG)
+				err := handler.WaitForResources(object, i.GetWG)
+				if err != nil {
+					errorCh <- err
+					return
+				}
+			}(object, i.wg)
 		}
 	}
 
 	i.GetWG().Wait()
+	close(errorCh)
+
+	err := <-errorCh
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -30,7 +30,7 @@ const (
 	delayBetweenRetries   = 5
 	sleepAfterPodDeletion = 10
 	timeout               = 5 * time.Minute
-	interval              = 5 * time.Second
+	interval              = 10 * time.Second
 )
 
 type VersionType string

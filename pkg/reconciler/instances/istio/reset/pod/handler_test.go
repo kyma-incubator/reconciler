@@ -20,7 +20,6 @@ func Test_NoActionHandler_Execute(t *testing.T) {
 		handler := NoActionHandler{}
 
 		var wg sync.WaitGroup
-		wg.Add(1)
 		d := func() *sync.WaitGroup {
 			return &wg
 		}
@@ -43,7 +42,6 @@ func Test_DeleteObjectHandler_Execute(t *testing.T) {
 		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 
 		var wg sync.WaitGroup
-		wg.Add(1)
 		d := func() *sync.WaitGroup {
 			return &wg
 		}
@@ -66,7 +64,6 @@ func Test_RolloutHandler_Execute(t *testing.T) {
 		handler := RolloutHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 
 		var wg sync.WaitGroup
-		wg.Add(1)
 		d := func() *sync.WaitGroup {
 			return &wg
 		}
@@ -94,6 +91,7 @@ func Test_NoActionHandler_WaitForResources(t *testing.T) {
 		}
 
 		// when
+		handler.Execute(*customObject, d)
 		err := handler.WaitForResources(*customObject, d)
 		require.NoError(t, err)
 
@@ -304,7 +302,3 @@ func fixCustomObject() *CustomObject {
 		Kind:      "ReplicaSet",
 	}
 }
-
-/* func fixReplicaSet() *ReplicaSet {
-	return &ReplicaSet{}
-} */
