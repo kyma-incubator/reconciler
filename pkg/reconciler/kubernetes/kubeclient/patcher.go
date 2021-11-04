@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,10 +34,8 @@ func newPatcher(info *resource.Info, helper *resource.Helper) *Patcher {
 	var openapiSchema openapi.Resources
 
 	return &Patcher{
-		Mapping:       info.Mapping,
 		Helper:        helper,
 		Overwrite:     true,
-		Backoff:       backoff,
 		Force:         false,
 		Cascade:       true,
 		Timeout:       time.Duration(0),
@@ -48,11 +45,8 @@ func newPatcher(info *resource.Info, helper *resource.Helper) *Patcher {
 }
 
 type Patcher struct {
-	Mapping *meta.RESTMapping
-	Helper  *resource.Helper
-
+	Helper    *resource.Helper
 	Overwrite bool
-	wait.Backoff
 
 	Force       bool
 	Cascade     bool
@@ -69,7 +63,7 @@ func (p *Patcher) replaceObj(new runtime.Object, namespace, name string) (runtim
 	var result runtime.Object
 	var err error
 
-	err = wait.ExponentialBackoff(p.Backoff, func() (bool, error) {
+	err = wait.ExponentialBackoff(backoff, func() (bool, error) {
 		result, err = p.Helper.Replace(namespace, name, true, new)
 		// detect unretryable errors
 		if errors.IsConflict(err) || errors.IsInvalid(err) {
@@ -90,7 +84,7 @@ func (p *Patcher) getResourceVersion(namespace, name string) (string, error) {
 	var getResult runtime.Object
 	var err error
 
-	err = wait.ExponentialBackoff(p.Backoff, func() (done bool, err error) {
+	err = wait.ExponentialBackoff(backoff, func() (done bool, err error) {
 		getResult, err = p.Helper.Get(namespace, name)
 
 		if errors.IsNotFound(err) {
@@ -119,7 +113,7 @@ func (p *Patcher) getResourceVersion(namespace, name string) (string, error) {
 
 func (p *Patcher) delete(namespace, name string) error {
 	options := asDeleteOptions(p.Cascade, p.GracePeriod)
-	err := wait.ExponentialBackoff(p.Backoff, func() (done bool, err error) {
+	err := wait.ExponentialBackoff(backoff, func() (done bool, err error) {
 		if _, err := p.Helper.DeleteWithOptions(namespace, name, &options); err != nil {
 			return false, err
 		}
@@ -139,7 +133,7 @@ func (p *Patcher) delete(namespace, name string) error {
 
 func (p *Patcher) createObj(obj runtime.Object, namespace string) (runtime.Object, error) {
 	var result runtime.Object
-	err := wait.ExponentialBackoff(p.Backoff, func() (done bool, err error) {
+	err := wait.ExponentialBackoff(backoff, func() (done bool, err error) {
 		result, err = p.Helper.Create(namespace, true, obj)
 		if err != nil {
 			return false, err
