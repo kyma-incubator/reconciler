@@ -1,6 +1,7 @@
 package connectivityproxy
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 )
@@ -13,6 +14,20 @@ type CustomAction struct {
 
 func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Info("Staring invocation of " + context.Task.Component + " reconciliation")
+
+	host := context.KubeClient.GetHost()
+	if host == "" {
+		return errors.Errorf("Host cannot be empty")
+	}
+	context.Task.Configuration["kubeHost"] = host
+
+	if context.Task.Type == model.OperationTypeDelete {
+		context.Logger.Info("Requested cluster removal - removing component")
+		if err := a.Commands.Remove(context); err != nil {
+			return err
+		}
+		return nil
+	}
 
 	context.Logger.Info("Checking statefulset")
 	app, err := context.KubeClient.
@@ -35,7 +50,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 	}
 
-	if binding != nil && app == nil {
+	if (binding != nil && app == nil) || (binding != nil && app != nil) {
 		context.Logger.Info("Reading secret")
 		bindingSecret, err := a.Loader.FindSecret(context, binding)
 		if err != nil {

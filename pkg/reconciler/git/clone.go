@@ -97,8 +97,9 @@ func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
 }
 
 func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
+	tokenNamespace := "default"
 	if r.repo.TokenNamespace == "" {
-		return nil, nil
+		tokenNamespace = r.repo.TokenNamespace
 	}
 
 	if r.inClusterClientSet == nil {
@@ -111,7 +112,7 @@ func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 	}
 
 	secret, err := r.inClusterClientSet.CoreV1().
-		Secrets(r.repo.TokenNamespace).
+		Secrets(tokenNamespace).
 		Get(context.Background(), secretKey, v1.GetOptions{})
 
 	if err != nil && !apierrors.IsNotFound(err) {

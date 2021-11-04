@@ -1,6 +1,7 @@
 package connectivityproxy
 
 import (
+	"encoding/json"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -27,8 +28,16 @@ type CommandActions struct {
 }
 
 func (a *CommandActions) Install(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) error {
-	for key, value := range bindingSecret.Data {
-		context.Task.Configuration[key] = value
+	for key, val := range bindingSecret.Data {
+		var unmarshalled map[string]interface{}
+
+		if err := json.Unmarshal(val, &unmarshalled); err != nil {
+			context.Task.Configuration["binding."+key] = val
+		} else {
+			for uKey, uVal := range unmarshalled {
+				context.Task.Configuration["binding."+uKey] = uVal
+			}
+		}
 	}
 
 	err := a.install.Invoke(context.Context, context.ChartProvider, context.Task, context.KubeClient)
@@ -51,7 +60,7 @@ func (a *CommandActions) CopyResources(context *service.ActionContext) error {
 	}
 
 	for _, create := range a.copyFactory {
-		operation := create(context.Task.Configuration, inCluster, clientset)
+		operation := create(context.Task, inCluster, clientset)
 
 		if err := operation.Transfer(); err != nil {
 			return err

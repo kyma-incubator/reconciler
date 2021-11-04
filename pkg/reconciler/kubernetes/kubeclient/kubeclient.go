@@ -357,6 +357,14 @@ func (kube *KubeClient) DeleteNamespace(namespace string) error {
 	return err
 }
 
+func (kube *KubeClient) GetHost() string {
+	if kube.config == nil {
+		return ""
+	}
+
+	return kube.config.Host
+}
+
 func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
 	restConfig.ContentConfig = resource.UnstructuredPlusDefaultContentConfig()
 	restConfig.GroupVersion = &gv

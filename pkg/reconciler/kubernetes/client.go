@@ -36,4 +36,6 @@ type Client interface {
 	GetStatefulSet(ctx context.Context, name, namespace string) (*v1apps.StatefulSet, error)
 	GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error)
 	ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error)
+
+	GetHost() string
 }

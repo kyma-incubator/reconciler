@@ -29,7 +29,8 @@ func TestAction(t *testing.T) {
 		Logger:           logger.NewLogger(true),
 		ChartProvider:    nil,
 		Task: &reconciler.Task{
-			Component: "test-component",
+			Component:     "test-component",
+			Configuration: make(map[string]interface{}),
 		},
 	}
 
@@ -48,6 +49,9 @@ func TestAction(t *testing.T) {
 	t.Run("Should install app if binding exists and app is missing - operator", func(t *testing.T) {
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").
 			Return(nil, nil)
+		kubeClient.On("GetHost").
+			Return("tmp host")
+
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 

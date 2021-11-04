@@ -273,3 +273,7 @@ func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace strin
 
 	return secret, nil
 }
+
+func (g *kubeClientAdapter) GetHost() string {
+	return g.kubeClient.GetHost()
+}

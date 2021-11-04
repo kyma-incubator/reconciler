@@ -46,7 +46,7 @@ func TestCommand(t *testing.T) {
 			},
 			install: nil,
 			copyFactory: []CopyFactory{
-				func(configs map[string]interface{}, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
+				func(task *reconciler.Task, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
 					invoked++
 					return &SecretCopy{
 						Namespace:       "namespace",
@@ -59,7 +59,7 @@ func TestCommand(t *testing.T) {
 						},
 					}
 				},
-				func(configs map[string]interface{}, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
+				func(task *reconciler.Task, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
 					invoked++
 					return &SecretCopy{
 						Namespace:       "namespace",
@@ -145,8 +145,8 @@ func TestCommandInstall(t *testing.T) {
 
 		err := commands.Install(actionContext, secret)
 		require.Equal(t, map[string]interface{}{
-			"key-1": []byte("value-1"),
-			"key-2": []byte("value-2"),
+			"binding.key-1": []byte("value-1"),
+			"binding.key-2": []byte("value-2"),
 		}, actionContext.Task.Configuration)
 		require.NoError(t, err)
 	})
