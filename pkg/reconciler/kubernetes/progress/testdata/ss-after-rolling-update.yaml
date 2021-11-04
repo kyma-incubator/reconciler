@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: DaemonSet
+kind: StatefulSet
 metadata:
   name: sleeper
   labels:
@@ -27,3 +27,9 @@ spec:
                 - /tmp
             initialDelaySeconds: 5
             periodSeconds: 5
+  volumeClaimTemplates:
+    - spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Mi

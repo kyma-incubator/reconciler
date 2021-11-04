@@ -28,8 +28,8 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
   volumeClaimTemplates:
-      spec:
-        accessModes: [ "ReadWriteOnce" ]
-        resources:
-          requests:
-            storage: 50Mi
+      - spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 50Mi

@@ -209,7 +209,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	_, err = clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	t.Log("Deploying daemon set")
+	t.Log("Deploying stateful set")
 
 	ss := readManifest(t, "ss-before-rolling-update.yaml")[0]
 	_, err = kubeClient.ApplyWithNamespaceOverride(ss, testNs)

@@ -257,11 +257,9 @@ func (pt *Tracker) daemonSetInState(inState State, object *resource) (bool, erro
 		if err != nil {
 			return false, err
 		}
-
 		if ds.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
 			return true, nil
 		}
-
 		if ds.Status.UpdatedNumberScheduled != ds.Status.DesiredNumberScheduled {
 			return false, nil
 		}
