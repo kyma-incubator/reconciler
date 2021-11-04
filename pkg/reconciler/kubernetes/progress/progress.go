@@ -179,12 +179,20 @@ func (pt *Tracker) deploymentInState(inState State, object *resource) (bool, err
 		if err != nil {
 			return false, err
 		}
-		for _, condition := range deployment.Status.Conditions {
-			if condition.Status != v1.ConditionTrue {
-				return false, nil
-			}
+
+		if deployment.Spec.Paused {
+			return false, nil
 		}
-		return true, err
+
+		replicaSet, err := GetNewReplicaSet(deployment, pt.client.AppsV1())
+		if err != nil || replicaSet == nil {
+			return false, err
+		}
+
+		if !(replicaSet.Status.ReadyReplicas >= 1) {
+			return false, err
+		}
+		return true, nil
 	case TerminatedState:
 		if err != nil && errors.IsNotFound(err) {
 			return true, nil
@@ -193,7 +201,6 @@ func (pt *Tracker) deploymentInState(inState State, object *resource) (bool, err
 	default:
 		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
-
 }
 
 func (pt *Tracker) statefulSetInState(inState State, object *resource) (bool, error) {
