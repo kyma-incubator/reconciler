@@ -3,7 +3,6 @@
 package kubeclient
 
 import (
-	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -25,19 +24,21 @@ const (
 	triesBeforeBackOff = 1
 )
 
+var backoff = wait.Backoff{
+	Steps:    3,
+	Duration: 500 * time.Millisecond,
+	Factor:   1.0,
+	Jitter:   0.1,
+}
+
 func newPatcher(info *resource.Info, helper *resource.Helper) *Patcher {
 	var openapiSchema openapi.Resources
 
 	return &Patcher{
-		Mapping:   info.Mapping,
-		Helper:    helper,
-		Overwrite: true,
-		Backoff: wait.Backoff{
-			Steps:    maxPatchRetry,
-			Duration: backOffPeriod,
-			Factor:   1.0,
-			Jitter:   0.1,
-		},
+		Mapping:       info.Mapping,
+		Helper:        helper,
+		Overwrite:     true,
+		Backoff:       backoff,
 		Force:         false,
 		Cascade:       true,
 		Timeout:       time.Duration(0),
@@ -91,9 +92,15 @@ func (p *Patcher) getResourceVersion(namespace, name string) (string, error) {
 
 	err = wait.ExponentialBackoff(p.Backoff, func() (done bool, err error) {
 		getResult, err = p.Helper.Get(namespace, name)
+
+		if errors.IsNotFound(err) {
+			return true, err
+		}
+
 		if err != nil {
 			return false, err
 		}
+
 		return true, nil
 	})
 
@@ -151,23 +158,29 @@ func (p *Patcher) recreateObject(obj runtime.Object, namespace, name string) (ru
 	return p.createObj(obj, namespace)
 }
 
-func (p *Patcher) replace(new runtime.Object, namespace, name string) (runtime.Object, error) {
-	var result runtime.Object
-	var err error
-
+func (p *Patcher) replace(new runtime.Object, namespace, name string) (result runtime.Object, err error) {
 	for i := 0; i < maxPatchRetry; i++ {
 		result, err = p.simpleReplace(new, namespace, name)
-		if !errors.IsInvalid(err) {
+
+		if err == nil {
+			return result, err
+		}
+
+		if errors.IsConflict(err) && p.ResourceVersion != nil {
+			break
+		}
+
+		if !errors.IsConflict(err) {
 			break
 		}
 	}
-	if err != nil {
-		return result, nil
-	}
-	return result, err
-}
 
-var errInvalidResource error = fmt.Errorf("invalid resource")
+	if err != nil && (errors.IsConflict(err) || errors.IsInvalid(err)) && p.Force {
+		return p.recreateObject(new, namespace, name)
+	}
+
+	return
+}
 
 func (p *Patcher) simpleReplace(new runtime.Object, namespace, name string) (runtime.Object, error) {
 	// prepare new resource configuration
@@ -177,6 +190,7 @@ func (p *Patcher) simpleReplace(new runtime.Object, namespace, name string) (run
 	}
 
 	newU := unstructured.Unstructured{Object: newMap}
+
 	// update resource version
 	if p.ResourceVersion != nil {
 		newU.SetResourceVersion(*p.ResourceVersion)
@@ -188,22 +202,8 @@ func (p *Patcher) simpleReplace(new runtime.Object, namespace, name string) (run
 		newU.SetResourceVersion(resourceVersion)
 	}
 
-	// replace resource
-	result, err := p.replaceObj(&newU, namespace, name)
-	// happy path
-	if err == nil {
-		return result, err
-	}
-
-	if errors.IsConflict(err) && p.ResourceVersion != nil {
-		return nil, errInvalidResource
-	}
-
-	if errors.IsInvalid(err) {
-		return p.recreateObject(new, namespace, name)
-	}
-
-	return nil, err
+	// try to replace object
+	return p.replaceObj(&newU, namespace, name)
 }
 
 func asDeleteOptions(cascade bool, gracePeriod int) metav1.DeleteOptions {
