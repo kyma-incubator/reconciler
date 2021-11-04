@@ -35,14 +35,16 @@ type UninstallAction struct {
 func (a *UninstallAction) Run(context *service.ActionContext) error {
 	context.Logger.Debugf("Uninstall action of istio triggered")
 	ver, err := getInstalledVersion(context, a.IstioAction)
-
+	if err != nil {
+		return err
+	}
 	if canUninstall(ver) {
 		err = a.performer.Uninstall(context.KubeClient, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not uninstall istio")
 		}
 	} else {
-		context.Logger.Warnf("Istio is not installed, could not unstall it")
+		context.Logger.Warnf("Istio is not installed, can not uninstall it")
 	}
 	return nil
 }
@@ -58,6 +60,9 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	ver, err := getInstalledVersion(context, a.IstioAction)
+	if err != nil {
+		return err
+	}
 
 	if isMismatchPresent(ver) {
 		context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)

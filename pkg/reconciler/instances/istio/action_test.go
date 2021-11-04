@@ -520,7 +520,7 @@ func Test_canInstall(t *testing.T) {
 		got := canInstall(randomVersion)
 
 		//then
-		require.Equal(t, true, got)
+		require.Equal(t, false, got)
 	})
 }
 
