@@ -2,7 +2,6 @@ APP_NAME = reconciler
 IMG_REPO := $(DOCKER_PUSH_REPOSITORY)$(DOCKER_PUSH_DIRECTORY)
 IMG_NAME := $(IMG_REPO)/$(APP_NAME)
 TAG := $(DOCKER_TAG)
-COMPONENTS := $(shell (go run scripts/reconcilernames.go))
 
 ifndef VERSION
 	VERSION = ${shell git describe --tags --always}
