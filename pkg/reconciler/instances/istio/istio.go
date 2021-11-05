@@ -31,6 +31,6 @@ func init() {
 	action := reset.NewDefaultPodsResetAction(matcher)
 	istioProxyReset := proxy.NewDefaultIstioProxyReset(gatherer, action)
 	performer := actions.NewDefaultIstioPerformer(&commander, istioProxyReset, &provider)
-	reconciler.WithReconcileAction(&ReconcileAction{&IstioAction{performer: performer}}).
-		WithDeleteAction(&UninstallAction{&IstioAction{performer: performer}})
+	reconciler.WithReconcileAction(NewReconcileAction(performer)).
+		WithDeleteAction(NewUninstallAction(performer))
 }

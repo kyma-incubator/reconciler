@@ -20,21 +20,25 @@ const (
 	istioChart     = "istio-configuration"
 )
 
-type IstioAction struct {
+type reconcileAction struct {
 	performer actions.IstioPerformer
 }
 
-type ReconcileAction struct {
-	*IstioAction
+func NewReconcileAction(performer actions.IstioPerformer) *reconcileAction {
+	return &reconcileAction{performer: performer}
 }
 
-type UninstallAction struct {
-	*IstioAction
+type uninstallAction struct {
+	performer actions.IstioPerformer
 }
 
-func (a *UninstallAction) Run(context *service.ActionContext) error {
+func NewUninstallAction(performer actions.IstioPerformer) *uninstallAction {
+	return &uninstallAction{performer: performer}
+}
+
+func (a *uninstallAction) Run(context *service.ActionContext) error {
 	context.Logger.Debugf("Uninstall action of istio triggered")
-	ver, err := getInstalledVersion(context, a.IstioAction)
+	ver, err := getInstalledVersion(context, a.performer)
 	if err != nil {
 		return err
 	}
@@ -50,7 +54,7 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *ReconcileAction) Run(context *service.ActionContext) error {
+func (a *reconcileAction) Run(context *service.ActionContext) error {
 	component := chart.NewComponentBuilder(context.Task.Version, istioChart).
 		WithNamespace(istioNamespace).
 		WithProfile(context.Task.Profile).
@@ -60,7 +64,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	ver, err := getInstalledVersion(context, a.IstioAction)
+	ver, err := getInstalledVersion(context, a.performer)
 	if err != nil {
 		return err
 	}
@@ -182,8 +186,8 @@ func canUninstall(istioVersion actions.IstioVersion) bool {
 	return isInstalled(istioVersion) && istioVersion.ClientVersion != ""
 }
 
-func getInstalledVersion(context *service.ActionContext, action *IstioAction) (actions.IstioVersion, error) {
-	ver, err := action.performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
+func getInstalledVersion(context *service.ActionContext, peformer actions.IstioPerformer) (actions.IstioVersion, error) {
+	ver, err := peformer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
 		return actions.IstioVersion{}, errors.Wrap(err, "Could not fetch Istio version")
 	}
