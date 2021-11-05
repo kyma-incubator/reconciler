@@ -27,12 +27,12 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		retry.DelayType(retry.FixedDelay),
 	}
 	fixWaitOpts := pod.WaitOptions{
-		Timeout:  5 * time.Minute,
-		Interval: 5 * time.Second,
+		Timeout:  time.Duration(5) * time.Minute,
+		Interval: time.Duration(5) * time.Second,
 	}
 	kubeClient := fake.NewSimpleClientset()
 
-	t.Run("should not ExecuteAndWaitFor any handler for an empty list of pods when no handlers are available", func(t *testing.T) {
+	t.Run("should not reset any pod from an empty list of pods when no handlers are available", func(t *testing.T) {
 		// given
 		matcher := mocks.Matcher{}
 		action := NewDefaultPodsResetAction(&matcher)
@@ -47,7 +47,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
 	})
 
-	t.Run("should not ExecuteAndWaitFor any handler for an empty list of pods when a single handler is available", func(t *testing.T) {
+	t.Run("should not reset any pod for an empty list of pods when a single handler is available", func(t *testing.T) {
 		// given
 		matcher := mocks.Matcher{}
 		action := NewDefaultPodsResetAction(&matcher)
@@ -65,7 +65,22 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler.AssertNumberOfCalls(t, "ExecuteAndWaitFor", 0)
 	})
 
-	t.Run("should ExecuteAndWaitFor the handler for a single pod when a single handler is available", func(t *testing.T) {
+	t.Run("should not reset any pod from list of pods when no single handler is available", func(t *testing.T) {
+		// given
+		matcher := mocks.Matcher{}
+		action := NewDefaultPodsResetAction(&matcher)
+		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
+			Return(nil)
+
+		// when
+		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
+
+		// then
+		require.NoError(t, err)
+		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
+	})
+
+	t.Run("should reset the single pod from the list of pods when a single handler is available", func(t *testing.T) {
 		// given
 		matcher := mocks.Matcher{}
 		action := NewDefaultPodsResetAction(&matcher)
@@ -85,7 +100,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler.AssertNumberOfCalls(t, "ExecuteAndWaitFor", 1)
 	})
 
-	t.Run("should ExecuteAndWaitFor the handler twice for two pods", func(t *testing.T) {
+	t.Run("should reset two pods from the list of pods when a singler handler is available", func(t *testing.T) {
 		// given
 		matcher := mocks.Matcher{}
 		action := NewDefaultPodsResetAction(&matcher)
@@ -105,7 +120,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler.AssertNumberOfCalls(t, "ExecuteAndWaitFor", 2)
 	})
 
-	t.Run("should ExecuteAndWaitFor two handlers for two pods", func(t *testing.T) {
+	t.Run("should reset two pods from the list of pods when two handlers are available", func(t *testing.T) {
 		// given
 		matcher := mocks.Matcher{}
 		action := NewDefaultPodsResetAction(&matcher)

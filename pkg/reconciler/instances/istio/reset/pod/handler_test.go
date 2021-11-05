@@ -5,6 +5,7 @@ import (
 	"time"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/stretchr/testify/require"
 	v1apps "k8s.io/api/apps/v1"
@@ -12,92 +13,71 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func Test_NoActionHandler_Execute(t *testing.T) {
+func Test_NoActionHandler_ExecuteAndWaitFor(t *testing.T) {
 	t.Run("should execute the NoActionHandler successfully", func(t *testing.T) {
 		// given
 		customObject := fixCustomObject()
 		handler := NoActionHandler{}
+		g := new(errgroup.Group)
 
 		// when
-		err := handler.ExecuteAndWaitFor(*customObject)
-		require.NoError(t, err)
+		g.Go(func() error {
+			err := handler.ExecuteAndWaitFor(*customObject)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 
 		// then
-		require.Eventually(t, func() bool {
-			return true
-		}, time.Second, 10*time.Millisecond)
+		err := g.Wait()
+		require.NoError(t, err)
 	})
 }
-
-func Test_DeleteObjectHandler_Execute(t *testing.T) {
+func Test_DeleteObjectHandler_ExecuteAndWaitFor(t *testing.T) {
 	t.Run("should execute the DeleteObjectHandler successfully", func(t *testing.T) {
 		// given
 		customObject := fixCustomObject()
 		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
+		g := new(errgroup.Group)
 
 		// when
-		err := handler.ExecuteAndWaitFor(*customObject)
-		require.NoError(t, err)
+		g.Go(func() error {
+			err := handler.ExecuteAndWaitFor(*customObject)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 
 		// then
-		require.Eventually(t, func() bool {
-			return true
-		}, time.Second, 10*time.Millisecond)
+		err := g.Wait()
+		require.NoError(t, err)
 	})
 }
-
-func Test_RolloutHandler_Execute(t *testing.T) {
+func Test_RolloutHandler_ExecuteAndWaitFor(t *testing.T) {
 	t.Run("should execute the RolloutHandler successfully", func(t *testing.T) {
 		// given
 		pod := fixCustomObject()
 		handler := RolloutHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
+		g := new(errgroup.Group)
 
 		// when
-		err := handler.ExecuteAndWaitFor(*pod)
-		require.NoError(t, err)
+		g.Go(func() error {
+			err := handler.ExecuteAndWaitFor(*pod)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 
 		// then
-		require.Eventually(t, func() bool {
-			return true
-		}, time.Second, 10*time.Millisecond)
-	})
-}
-func Test_NoActionHandler_WaitForResources(t *testing.T) {
-	t.Run("should run the WaitForResources with NoActionHandler successfully", func(t *testing.T) {
-		// given
-		customObject := fixCustomObject()
-		handler := NoActionHandler{}
-
-		// when
-		err := handler.ExecuteAndWaitFor(*customObject)
+		err := g.Wait()
 		require.NoError(t, err)
-
-		// then
-		require.Eventually(t, func() bool {
-			return true
-		}, time.Second, 10*time.Millisecond)
 	})
 }
-
-func Test_DeleteObjectHandler_WaitForResources(t *testing.T) {
-	t.Run("should run the WaitForResources with DeleteObjectHandler successfully", func(t *testing.T) {
-		// given
-		customObject := fixCustomObject()
-		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
-
-		// when
-		err := handler.ExecuteAndWaitFor(*customObject)
-		require.NoError(t, err)
-
-		// then
-		require.Eventually(t, func() bool {
-			return true
-		}, time.Second, 10*time.Millisecond)
-	})
-}
-
-func Test_RolloutHandler_WaitForResources_ReplicaSet(t *testing.T) {
-	t.Run("should run the WaitForResources with RolloutHandler successfully on ReplicaSet", func(t *testing.T) {
+func Test_RolloutHandler_WaitFor_ReplicaSet(t *testing.T) {
+	t.Run("should execute the RolloutHandler successfully on ReplicaSet", func(t *testing.T) {
 		// given
 		fixWaitOpts := WaitOptions{
 			Interval: 1 * time.Second,
@@ -114,19 +94,21 @@ func Test_RolloutHandler_WaitForResources_ReplicaSet(t *testing.T) {
 			}}
 		kubeClient := fake.NewSimpleClientset(&replicaSetWithOwnerReferences)
 		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
-
-		// when
 		err := handler.ExecuteAndWaitFor(*pod)
 		require.NoError(t, err)
 
+		// when
+		err = handler.WaitForResources(*pod)
+
 		// then
+		require.NoError(t, err)
 		require.Eventually(t, func() bool {
-			return true
+			return isReplicaSetReady(&replicaSetWithOwnerReferences)
 		}, time.Second, 10*time.Millisecond)
 	})
 }
-func Test_RolloutHandler_WaitForResources_DaemonSet(t *testing.T) {
-	t.Run("should run the WaitForResources with RolloutHandler successfully on DaemonSet", func(t *testing.T) {
+func Test_RolloutHandler_WaitFor_DaemonSet(t *testing.T) {
+	t.Run("should execute RolloutHandler successfully on DaemonSet", func(t *testing.T) {
 		// given
 		fixWaitOpts := WaitOptions{
 			Interval: 1 * time.Second,
@@ -147,19 +129,21 @@ func Test_RolloutHandler_WaitForResources_DaemonSet(t *testing.T) {
 			}}
 		kubeClient := fake.NewSimpleClientset(&daemonSetWithOwnerReferences)
 		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
-
-		// when
 		err := handler.ExecuteAndWaitFor(*pod)
 		require.NoError(t, err)
 
+		// when
+		err = handler.WaitForResources(*pod)
+
 		// then
+		require.NoError(t, err)
 		require.Eventually(t, func() bool {
-			return true
+			return isDaemonSetReady(&daemonSetWithOwnerReferences)
 		}, time.Second, 10*time.Millisecond)
 	})
 }
-func Test_RolloutHandler_WaitForResources_StatefulSet(t *testing.T) {
-	t.Run("should run the WaitForResources with RolloutHandler successfully on StatefulSet", func(t *testing.T) {
+func Test_RolloutHandler_WaitFor_StatefulSet(t *testing.T) {
+	t.Run("should execute RolloutHandler successfully on StatefulSet", func(t *testing.T) {
 		// given
 		fixWaitOpts := WaitOptions{
 			Interval: 1 * time.Second,
@@ -185,14 +169,16 @@ func Test_RolloutHandler_WaitForResources_StatefulSet(t *testing.T) {
 		}
 		kubeClient := fake.NewSimpleClientset(statefulSetWithOwnerReferences)
 		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
-
-		// when
 		err := handler.ExecuteAndWaitFor(*pod)
 		require.NoError(t, err)
 
+		// when
+		err = handler.WaitForResources(*pod)
+
 		// then
+		require.NoError(t, err)
 		require.Eventually(t, func() bool {
-			return true
+			return isStatefulSetReady(statefulSetWithOwnerReferences)
 		}, time.Second, 10*time.Millisecond)
 	})
 }

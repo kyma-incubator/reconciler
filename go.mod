@@ -31,11 +31,8 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0
-<<<<<<< HEAD
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0
-=======
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
->>>>>>> e332b0c (Refactor code, unify method Execute and WaitForResources, use errGroup instead of WaitGroup)
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	helm.sh/helm/v3 v3.6.3
