@@ -206,7 +206,8 @@ func (a *preDeleteAction) deleteSecret(ctx context.Context, client kubernetes.In
 	err := client.CoreV1().Secrets(name.Namespace).Delete(ctx, name.Name, metav1.DeleteOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return errors.Wrap(err, "failed to get secret")
+			logger.Infof("Secret %s does not exist anymore", name.String())
+			return nil
 		}
 		return errors.Wrap(err, "failed to delete the secret")
 	}
