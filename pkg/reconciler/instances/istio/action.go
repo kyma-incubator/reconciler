@@ -43,6 +43,7 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 		if err != nil {
 			return errors.Wrap(err, "Could not uninstall istio")
 		}
+		context.Logger.Infof("Isitio successfully uninstalled")
 	} else {
 		context.Logger.Warnf("Istio is not installed, can not uninstall it")
 	}

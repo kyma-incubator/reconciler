@@ -424,7 +424,79 @@ func newFakeKubeClient() *k8smocks.Client {
 
 	return mockClient
 }
+func Test_UninstallAction(t *testing.T) {
+	noIstioOnTheCluster := actions.IstioVersion{
+		ClientVersion:    "1.0",
+		PilotVersion:     "",
+		DataPlaneVersion: "",
+	}
+	istioAvailable := actions.IstioVersion{
+		ClientVersion:    "1.0",
+		PilotVersion:     "1.0",
+		DataPlaneVersion: "1.0",
+	}
+	t.Run("should perform istio uninstall action when istio is available", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType(
+			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(istioAvailable, nil)
+		//performer.On("Uninstall", mock.Anything, mock.Anything).Return(nil)
+		performer.On("Uninstall", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		action := UninstallAction{&IstioAction{performer: &performer}}
 
+		// when
+		err := action.Run(actionContext)
+		// then
+		require.NoError(t, err)
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.
+			AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Uninstall", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+	t.Run("should not perform istio uninstall action when istio was not detected on the cluster", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType(
+			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(noIstioOnTheCluster, nil)
+		action := UninstallAction{&IstioAction{performer: &performer}}
+
+		// when
+		err := action.Run(actionContext)
+		// then
+		require.NoError(t, err)
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Uninstall", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+	})
+	t.Run("should not perform istio uninstall action when there is an error detecting istio version", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType(
+			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(noIstioOnTheCluster, errors.New("error in detecting istio version"))
+		action := UninstallAction{&IstioAction{performer: &performer}}
+
+		// when
+		err := action.Run(actionContext)
+		// then
+		require.Error(t, err)
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Uninstall", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+	})
+
+}
 func Test_canUnInstall(t *testing.T) {
 	t.Run("should uninstall when istio is installed", func(t *testing.T) {
 		//given

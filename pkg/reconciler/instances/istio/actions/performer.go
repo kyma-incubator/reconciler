@@ -121,7 +121,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet reconcilerKubeClient.Cli
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
-
+	log.Debugf("Istio uninstall triggered")
 	kubeClient, err := kubeClientSet.Clientset()
 	if err != nil {
 		return err
@@ -134,6 +134,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet reconcilerKubeClient.Cli
 	if err != nil {
 		return err
 	}
+	log.Debugf("Istio namespace deleted")
 	return nil
 }
 
