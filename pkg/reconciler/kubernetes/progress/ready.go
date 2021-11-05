@@ -2,10 +2,8 @@ package progress
 
 import (
 	"context"
-	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	appsclient "k8s.io/client-go/kubernetes/typed/apps/v1"
@@ -15,23 +13,10 @@ import (
 const expectedReadyReplicas = 1
 const expectedReadyDaemonSet = 1
 
-func errUnsupportedState(state State) error { return fmt.Errorf("state '%s' not supported", state) }
-
-func deploymentInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
+func isDeploymentReady(ctx context.Context, client kubernetes.Interface, object *resource) (bool, error) {
 	deployment, err := client.AppsV1().Deployments(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
-		if inState == TerminatedState && errors.IsNotFound(err) {
-			return true, nil
-		}
 		return false, err
-	}
-
-	if inState == TerminatedState {
-		return false, nil
-	}
-
-	if inState != ReadyState {
-		return false, errUnsupportedState(inState)
 	}
 
 	replicaSet, err := getLatestReplicaSet(ctx, deployment, client.AppsV1())
@@ -44,23 +29,10 @@ func deploymentInState(ctx context.Context, client kubernetes.Interface, inState
 	return isReady, nil
 }
 
-// TODO describe flow
-// see: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
-func statefulSetInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
+func isStatefulSetReady(ctx context.Context, client kubernetes.Interface, object *resource) (bool, error) {
 	statefulSet, err := client.AppsV1().StatefulSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
-		if inState == TerminatedState && errors.IsNotFound(err) {
-			return true, nil
-		}
 		return false, err
-	}
-
-	if inState == TerminatedState {
-		return false, nil
-	}
-
-	if inState != ReadyState {
-		return false, errUnsupportedState(inState)
 	}
 
 	var partition, replicas = 0, 1
@@ -81,28 +53,17 @@ func statefulSetInState(ctx context.Context, client kubernetes.Interface, inStat
 	return isReady, nil
 }
 
-func podInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
+func isPodReady(ctx context.Context, client kubernetes.Interface, object *resource) (bool, error) {
 	pod, err := client.CoreV1().Pods(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
-		if inState == TerminatedState && errors.IsNotFound(err) {
-			return true, nil
-		}
 		return false, err
 	}
 
-	if inState == TerminatedState {
-		return false, nil
-	}
-
-	if inState != ReadyState {
-		return false, errUnsupportedState(inState)
-	}
-
-	if pod.Status.Phase != v1.PodRunning {
+	if pod.Status.Phase != corev1.PodRunning {
 		return false, nil
 	}
 	for _, condition := range pod.Status.Conditions {
-		if condition.Status != v1.ConditionTrue {
+		if condition.Status != corev1.ConditionTrue {
 			return false, nil
 		}
 	}
@@ -110,54 +71,28 @@ func podInState(ctx context.Context, client kubernetes.Interface, inState State,
 	return pod.ObjectMeta.DeletionTimestamp == nil, nil
 }
 
-func daemonSetInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
+func isDaemonSetReady(ctx context.Context, client kubernetes.Interface, object *resource) (bool, error) {
 	daemonSet, err := client.AppsV1().DaemonSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
-		if inState == TerminatedState && errors.IsNotFound(err) {
-			return true, nil
-		}
 		return false, err
-	}
-
-	if inState == TerminatedState {
-		return false, nil
-	}
-
-	if inState != ReadyState {
-		return false, errUnsupportedState(inState)
 	}
 
 	if daemonSet.Status.UpdatedNumberScheduled != daemonSet.Status.DesiredNumberScheduled {
 		return false, nil
 	}
 
-	fmt.Printf("daemonSet.Status.UpdatedNumberScheduled: %v", daemonSet.Status.UpdatedNumberScheduled)
-	fmt.Printf("daemonSet.Status.DesiredNumberScheduled: %v", daemonSet.Status.DesiredNumberScheduled)
-	fmt.Printf("daemonSet.Status.NumberReady: %v", daemonSet.Status.NumberReady)
-
 	isReady := int(daemonSet.Status.NumberReady) >= expectedReadyDaemonSet
-	return isReady , nil
+	return isReady, nil
 }
 
-func jobInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
+func isJobReady(ctx context.Context, client kubernetes.Interface, object *resource) (bool, error) {
 	job, err := client.BatchV1().Jobs(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
-		if inState == TerminatedState && errors.IsNotFound(err) {
-			return true, nil
-		}
 		return false, err
 	}
 
-	if inState == TerminatedState {
-		return false, nil
-	}
-
-	if inState != ReadyState {
-		return false, errUnsupportedState(inState)
-	}
-
 	for _, condition := range job.Status.Conditions {
-		if condition.Status != v1.ConditionTrue {
+		if condition.Status != corev1.ConditionTrue {
 			return false, nil
 		}
 	}

@@ -52,7 +52,7 @@ func TestProgressTracker(t *testing.T) {
 	defer cleanup() //cleanup after test is finished
 
 	//install test resources
-	t.Log("Deploying test resources")
+	t.Log("Creating test resources")
 	for _, resource := range resources {
 		deployedResource, err := kubeClient.Apply(resource)
 		require.NoError(t, err)
@@ -142,7 +142,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	_, err = clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	t.Log("Deploying daemon set")
+	t.Log("Creating daemon set")
 
 	ds := readManifest(t, "ds-before-rolling-update.yaml")[0]
 	_, err = kubeClient.ApplyWithNamespaceOverride(ds, testNs)
@@ -195,7 +195,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	_, err = clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	t.Log("Deploying stateful set")
+	t.Log("Creating stateful set")
 
 	ss := readManifest(t, "ss-before-rolling-update.yaml")[0]
 	_, err = kubeClient.ApplyWithNamespaceOverride(ss, testNs)
@@ -248,7 +248,7 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 	_, err = clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	t.Log("Deploying deployment")
+	t.Log("Creating deployment")
 
 	dep := readManifest(t, "dep-before-rolling-update.yaml")[0]
 	_, err = kubeClient.ApplyWithNamespaceOverride(dep, testNs)

@@ -3,6 +3,8 @@ package progress
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
@@ -84,29 +86,29 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 	}
 
 	//initial installation status check
-	ready, err := pt.isInState(ctx, targetState)
+	inState, err := pt.allWatchableInState(ctx, targetState)
 	if err != nil {
 		pt.logger.Warnf("Failed to verify initial Kubernetes resource state: %v", err)
 	}
-	if ready {
+	if inState {
 		//we are already done
 		pt.logger.Debugf("Watchable resources are already in target state '%s': no recurring checks triggered", targetState)
 		return nil
 	}
 
 	//start verifying the installation status in an interval
-	readyCheck := time.NewTicker(pt.interval)
+	timer := time.NewTicker(pt.interval)
 	timeout := time.After(pt.timeout)
 	for {
 		select {
-		case <-readyCheck.C:
-			ready, err := pt.isInState(ctx, targetState)
+		case <-timer.C:
+			inState, err := pt.allWatchableInState(ctx, targetState)
 			if err != nil {
 				pt.logger.Warnf("Failed to check progress of resource transition to state '%s' "+
 					"but will retry until timeout is reached: %s", targetState, err)
 			}
-			if ready {
-				readyCheck.Stop()
+			if inState {
+				timer.Stop()
 				pt.logger.Debugf("Watchable resources reached target state '%s'", targetState)
 				return nil
 			}
@@ -135,33 +137,77 @@ func (pt *Tracker) AddResource(kind WatchableResource, namespace, name string) {
 	})
 }
 
-func (pt *Tracker) isInState(ctx context.Context, targetState State) (bool, error) {
-	var err error
-	componentInState := true
+func (pt *Tracker) allWatchableInState(ctx context.Context, targetState State) (bool, error) {
+	switch targetState {
+	case ReadyState:
+		return pt.isInReadyState(ctx)
+	case TerminatedState:
+		return pt.isInTerminatedState(ctx)
+	default:
+		return false, fmt.Errorf("state '%s' not supported", targetState)
+	}
+}
+
+func (pt *Tracker) isInReadyState(ctx context.Context) (bool, error) {
 	for _, object := range pt.objects {
+		var err error
+		ready := true
+
 		switch object.kind {
 		case Pod:
-			componentInState, err = podInState(ctx, pt.client, targetState, object)
+			ready, err = isPodReady(ctx, pt.client, object)
 		case Deployment:
-			componentInState, err = deploymentInState(ctx, pt.client, targetState, object)
+			ready, err = isDeploymentReady(ctx, pt.client, object)
 		case DaemonSet:
-			componentInState, err = daemonSetInState(ctx, pt.client, targetState, object)
+			ready, err = isDaemonSetReady(ctx, pt.client, object)
 		case StatefulSet:
-			componentInState, err = statefulSetInState(ctx, pt.client, targetState, object)
+			ready, err = isStatefulSetReady(ctx, pt.client, object)
 		case Job:
-			componentInState, err = jobInState(ctx, pt.client, targetState, object)
+			ready, err = isJobReady(ctx, pt.client, object)
 		}
-		pt.logger.Debugf("%s resource '%s:%s' is in state '%s': %t",
-			object.kind, object.name, object.namespace, targetState, componentInState)
+
 		if err != nil {
-			pt.logger.Errorf("Failed to retrieve state of %v: %s", object, err)
+			pt.logger.Errorf("Failed to get resource of %v: %s", object, err)
 			return false, err
 		}
-		if !componentInState { //at least one component is not ready
-			pt.logger.Debugf("Resource transition to state '%s' is still ongoing", targetState)
+		if !ready {
+			pt.logger.Debugf("Transition of %s to ready state is still ongoing", object.name)
 			return false, nil
 		}
 	}
-	pt.logger.Debugf("Resource transition to state '%s' finished successfully", targetState)
-	return componentInState, nil
+
+	pt.logger.Debug("All resources are ready\n")
+	return true, nil
+
+}
+
+func (pt *Tracker) isInTerminatedState(ctx context.Context) (bool, error) {
+	for _, object := range pt.objects {
+		var err error
+
+		switch object.kind {
+		case Pod:
+			_, err = pt.client.CoreV1().Pods(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+		case Deployment:
+			_, err = pt.client.AppsV1().Deployments(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+		case DaemonSet:
+			_, err = pt.client.AppsV1().DaemonSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+		case StatefulSet:
+			_, err = pt.client.AppsV1().StatefulSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+		case Job:
+			_, err = pt.client.BatchV1().Jobs(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+		}
+
+		if err == nil {
+			pt.logger.Debugf("Termination of %s is still ongoing", object.name)
+			return false, nil
+		}
+		if !errors.IsNotFound(err) {
+			pt.logger.Errorf("Failed to get resource %v: %s", object, err)
+			return false, err
+		}
+	}
+
+	pt.logger.Debug("All resources are terminated")
+	return true, nil
 }
