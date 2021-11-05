@@ -119,7 +119,7 @@ func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 		return nil, err
 	}
 
-	if secret != nil {
+	if secret != nil && err == nil {
 		return &http.BasicAuth{
 			Username: "xxx", // anything but an empty string
 			Password: strings.Trim(string(secret.Data["token"]), "\n"),
