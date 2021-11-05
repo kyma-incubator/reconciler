@@ -237,12 +237,12 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	testNs := "test-progress-deployment"
-	cleanup := func() {
-		t.Log("Cleanup test resources")
-		err := clientSet.CoreV1().Namespaces().Delete(ctx, testNs, metav1.DeleteOptions{})
-		require.NoError(t, err)
-	}
-	defer cleanup()
+	//cleanup := func() {
+	//	t.Log("Cleanup test resources")
+	//	err := clientSet.CoreV1().Namespaces().Delete(ctx, testNs, metav1.DeleteOptions{})
+	//	require.NoError(t, err)
+	//}
+	//defer cleanup()
 
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}
 	_, err = clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})

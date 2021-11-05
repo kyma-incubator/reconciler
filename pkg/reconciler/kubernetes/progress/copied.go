@@ -32,15 +32,18 @@ func GetNewReplicaSet(deployment *apps.Deployment, c appsclient.AppsV1Interface)
 	if err != nil {
 		return nil, err
 	}
-
-	replicaSets := make([]*apps.ReplicaSet, 0, len(all.Items))
-	for _, rs := range all.Items {
-		if metav1.IsControlledBy(&rs, deployment) {
-			replicaSets = append(replicaSets, &rs)
+	var replicaSets []*apps.ReplicaSet
+	for i := range all.Items {
+		if metav1.IsControlledBy(&all.Items[i], deployment) {
+			replicaSets = append(replicaSets, &all.Items[i])
 		}
+	}
+
+	if len(replicaSets) == 0 {
+		return nil, nil
 	}
 
 	sort.Sort(ReplicaSetsByCreationTimestamp(replicaSets))
 
-	return replicaSets[0], nil
+	return replicaSets[len(replicaSets) - 1], nil
 }

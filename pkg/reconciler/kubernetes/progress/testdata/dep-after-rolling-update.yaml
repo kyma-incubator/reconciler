@@ -8,6 +8,7 @@ spec:
   selector:
     matchLabels:
       app: sleeper
+  replicas: 4
   template:
     metadata:
       labels:

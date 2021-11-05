@@ -179,18 +179,12 @@ func (pt *Tracker) deploymentInState(inState State, object *resource) (bool, err
 		if err != nil {
 			return false, err
 		}
-
-		if deployment.Spec.Paused {
-			return false, nil
-		}
-
 		replicaSet, err := GetNewReplicaSet(deployment, pt.client.AppsV1())
 		if err != nil || replicaSet == nil {
 			return false, err
 		}
-
-		if !(replicaSet.Status.ReadyReplicas >= 1) {
-			return false, err
+		if replicaSet.Status.ReadyReplicas < 1 {
+			return false, nil
 		}
 		return true, nil
 	case TerminatedState:
