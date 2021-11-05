@@ -194,10 +194,11 @@ func getLatestReplicaSet(ctx context.Context, deployment *appsv1.Deployment, cli
 	}
 
 	sort.Sort(replicaSetsByCreationTimestamp(ownedReplicaSets))
-	return ownedReplicaSets[len(ownedReplicaSets) - 1], nil
+	return ownedReplicaSets[len(ownedReplicaSets)-1], nil
 }
 
 type replicaSetsByCreationTimestamp []*appsv1.ReplicaSet
+
 func (o replicaSetsByCreationTimestamp) Len() int      { return len(o) }
 func (o replicaSetsByCreationTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
 func (o replicaSetsByCreationTimestamp) Less(i, j int) bool {
