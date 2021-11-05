@@ -2,16 +2,17 @@ package progress
 
 import (
 	"context"
+	"io/ioutil"
+	"strings"
+
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	k8s "github.com/kyma-incubator/reconciler/pkg/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"strings"
 
 	"path/filepath"
 	"testing"
@@ -35,7 +36,7 @@ func TestProgressTracker(t *testing.T) {
 	require.NoError(t, err)
 
 	resources := readManifest(t)
-	require.Len(t, resources, 6)
+	require.Len(t, resources, 5)
 
 	cleanup := func() {
 		t.Log("Cleanup test resources")
@@ -131,7 +132,7 @@ func addWatchable(t *testing.T, resources []*unstructured.Unstructured, pt *Trac
 			cntWatchable++
 		}
 	}
-	require.Equal(t, 5, cntWatchable) //pod and a deployment has to be added as watchable
+	require.Equal(t, 4, cntWatchable) //pod and a deployment has to be added as watchable
 }
 
 func readManifest(t *testing.T) []*unstructured.Unstructured {
