@@ -7,15 +7,16 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	appsclient "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"sort"
 )
 
+const expectedReadyReplicas = 1
+const expectedReadyDaemonSet = 1
+
 func deploymentInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
-	deploymentsClient := client.AppsV1().Deployments(object.namespace)
-	deployment, err := deploymentsClient.Get(ctx, object.name, metav1.GetOptions{})
+	deployment, err := client.AppsV1().Deployments(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	switch inState {
 	case ReadyState:
 		if err != nil {
@@ -25,9 +26,8 @@ func deploymentInState(ctx context.Context, client kubernetes.Interface, inState
 		if err != nil || replicaSet == nil {
 			return false, err
 		}
-		// TODO clarify with reconiler team
-		// maybe use MaximumUnavailable
-		if replicaSet.Status.ReadyReplicas < 1 {
+		// TODO clarify with reconciler team
+		if replicaSet.Status.ReadyReplicas < expectedReadyReplicas {
 			return false, nil
 		}
 		return true, nil
@@ -42,8 +42,7 @@ func deploymentInState(ctx context.Context, client kubernetes.Interface, inState
 }
 
 func statefulSetInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
-	statefulSetClient := client.AppsV1().StatefulSets(object.namespace)
-	statefulSet, err := statefulSetClient.Get(ctx, object.name, metav1.GetOptions{})
+	statefulSet, err := client.AppsV1().StatefulSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	switch inState {
 	case ReadyState:
 		if err != nil {
@@ -86,8 +85,7 @@ func statefulSetInState(ctx context.Context, client kubernetes.Interface, inStat
 }
 
 func podInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
-	podsClient := client.CoreV1().Pods(object.namespace)
-	pod, err := podsClient.Get(ctx, object.name, metav1.GetOptions{})
+	pod, err := client.CoreV1().Pods(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	switch inState {
 	case ReadyState:
 		if err != nil {
@@ -114,8 +112,7 @@ func podInState(ctx context.Context, client kubernetes.Interface, inState State,
 }
 
 func daemonSetInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
-	daemonSetClient := client.AppsV1().DaemonSets(object.namespace)
-	daemonSet, err := daemonSetClient.Get(ctx, object.name, metav1.GetOptions{})
+	daemonSet, err := client.AppsV1().DaemonSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	switch inState {
 	case ReadyState:
 		if err != nil {
@@ -128,14 +125,8 @@ func daemonSetInState(ctx context.Context, client kubernetes.Interface, inState 
 			return false, nil
 		}
 
-		maxUnavailable, err := intstr.GetScaledValueFromIntOrPercent(daemonSet.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable, int(daemonSet.Status.DesiredNumberScheduled), true)
-		if err != nil {
-			maxUnavailable = int(daemonSet.Status.DesiredNumberScheduled)
-		}
-
 		actualReady := int(daemonSet.Status.NumberReady)
-		expectedReady := int(daemonSet.Status.DesiredNumberScheduled) - maxUnavailable
-		return actualReady >= expectedReady, nil
+		return actualReady >= expectedReadyDaemonSet, nil
 
 	case TerminatedState:
 		if err != nil && errors.IsNotFound(err) {
@@ -148,8 +139,7 @@ func daemonSetInState(ctx context.Context, client kubernetes.Interface, inState 
 }
 
 func jobInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
-	jobClient := client.BatchV1().Jobs(object.namespace)
-	job, err := jobClient.Get(ctx, object.name, metav1.GetOptions{})
+	job, err := client.BatchV1().Jobs(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	switch inState {
 	case ReadyState:
 		if err != nil {
