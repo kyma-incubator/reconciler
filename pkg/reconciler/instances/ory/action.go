@@ -131,12 +131,15 @@ func (a *preDeleteAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	secretExists, err := a.dbSecretExists(context.Context, client, dbNamespacedName, logger)
+	secretExists, err := a.dbSecretExists(context.Context, client, dbNamespacedName)
 	if err != nil {
-		return errors.Wrap(err, "failed to get DB secret")
+		return errors.Wrapf(err, "failed to get DB secret %s", dbNamespacedName.Name)
 	}
 	if secretExists {
-		a.deleteSecret(context.Context, client, dbNamespacedName, logger)
+		err = a.deleteSecret(context.Context, client, dbNamespacedName, logger)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete DB secret %s", dbNamespacedName.Name)
+		}
 	} else {
 		logger.Infof("DB Secret %s does not exist", dbNamespacedName.Name)
 	}
@@ -188,7 +191,7 @@ func (a *postInstallAction) patchSecret(ctx context.Context, client kubernetes.I
 	return err
 }
 
-func (a *preDeleteAction) dbSecretExists(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) (bool, error) {
+func (a *preDeleteAction) dbSecretExists(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (bool, error) {
 	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
