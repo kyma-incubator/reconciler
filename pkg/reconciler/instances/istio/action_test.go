@@ -69,7 +69,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -95,7 +95,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioVersion{}, errors.New("Version error"))
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -128,7 +128,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(noIstioOnTheCluster, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
 			Return(errors.New("Perfomer Install error"))
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -161,7 +161,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(errors.New("Performer Patch error"))
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -194,7 +194,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -230,7 +230,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -266,7 +266,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -302,7 +302,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -340,7 +340,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger).Return(errors.New("Proxy reset error"))
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -379,7 +379,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger).Return(nil)
-		action := reconcileAction{performer: &performer}
+		action := ReconcileAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -446,7 +446,7 @@ func Test_UninstallAction(t *testing.T) {
 			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
 			Return(istioAvailable, nil)
 		performer.On("Uninstall", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
-		action := uninstallAction{performer: &performer}
+		action := UninstallAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -466,7 +466,7 @@ func Test_UninstallAction(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType(
 			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
 			Return(noIstioOnTheCluster, nil)
-		action := uninstallAction{performer: &performer}
+		action := UninstallAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)
@@ -485,7 +485,7 @@ func Test_UninstallAction(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType(
 			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
 			Return(noIstioOnTheCluster, errors.New("error in detecting istio version"))
-		action := uninstallAction{performer: &performer}
+		action := UninstallAction{performer: &performer}
 
 		// when
 		err := action.Run(actionContext)

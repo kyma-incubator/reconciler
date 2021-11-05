@@ -20,23 +20,23 @@ const (
 	istioChart     = "istio-configuration"
 )
 
-type reconcileAction struct {
+type ReconcileAction struct {
 	performer actions.IstioPerformer
 }
 
-func NewReconcileAction(performer actions.IstioPerformer) *reconcileAction {
-	return &reconcileAction{performer: performer}
+func NewReconcileAction(performer actions.IstioPerformer) *ReconcileAction {
+	return &ReconcileAction{performer: performer}
 }
 
-type uninstallAction struct {
+type UninstallAction struct {
 	performer actions.IstioPerformer
 }
 
-func NewUninstallAction(performer actions.IstioPerformer) *uninstallAction {
-	return &uninstallAction{performer: performer}
+func NewUninstallAction(performer actions.IstioPerformer) *UninstallAction {
+	return &UninstallAction{performer: performer}
 }
 
-func (a *uninstallAction) Run(context *service.ActionContext) error {
+func (a *UninstallAction) Run(context *service.ActionContext) error {
 	context.Logger.Debugf("Uninstall action of istio triggered")
 	ver, err := getInstalledVersion(context, a.performer)
 	if err != nil {
@@ -54,7 +54,7 @@ func (a *uninstallAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *reconcileAction) Run(context *service.ActionContext) error {
+func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	component := chart.NewComponentBuilder(context.Task.Version, istioChart).
 		WithNamespace(istioNamespace).
 		WithProfile(context.Task.Profile).
