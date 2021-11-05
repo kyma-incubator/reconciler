@@ -155,6 +155,9 @@ func (p *DefaultProvider) newWorkspace(component *Component) (*workspace.Workspa
 			Configuration: configuration,
 		}
 		ws, err = p.wsFactory.Get(component.version, &c)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		p.logger.Debugf("Getting workspace for Kyma '%s'", component.version)
 		ws, err = p.wsFactory.Get(component.version)

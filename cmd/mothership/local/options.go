@@ -83,7 +83,7 @@ func componentsFromStrings(list []string, values []string) ([]*keb.Component, er
 			if strings.TrimSpace(s[1]) != "" {
 				namespace = strings.TrimSpace(s[1])
 			}
-			url = setUrlRepository(s[2])
+			url = setURLRepository(s[2])
 		}
 		var configuration []keb.Configuration
 		if vals[name] != nil {
@@ -108,7 +108,7 @@ func componentsFromStrings(list []string, values []string) ([]*keb.Component, er
 	return comps, nil
 }
 
-func setUrlRepository(url string) string {
+func setURLRepository(url string) string {
 	// TODO add support for credentials
 	return strings.TrimSpace(url)
 }
