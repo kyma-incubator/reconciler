@@ -12,9 +12,9 @@ type Handler struct {
 	mock.Mock
 }
 
-// Execute provides a mock function with given fields: _a0, _a1
-func (_m *Handler) Execute(_a0 pod.CustomObject, _a1 pod.GetSyncWG) {
-	_m.Called(_a0, _a1)
+// Execute provides a mock function with given fields: _a0
+func (_m *Handler) Execute(_a0 pod.CustomObject) {
+	_m.Called(_a0)
 }
 
 // WaitForResources provides a mock function with given fields: _a0, _a1

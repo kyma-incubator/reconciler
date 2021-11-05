@@ -19,17 +19,11 @@ func Test_NoActionHandler_Execute(t *testing.T) {
 		customObject := fixCustomObject()
 		handler := NoActionHandler{}
 
-		var wg sync.WaitGroup
-		d := func() *sync.WaitGroup {
-			return &wg
-		}
-
 		// when
-		handler.Execute(*customObject, d)
+		handler.Execute(*customObject)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -41,17 +35,11 @@ func Test_DeleteObjectHandler_Execute(t *testing.T) {
 		customObject := fixCustomObject()
 		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 
-		var wg sync.WaitGroup
-		d := func() *sync.WaitGroup {
-			return &wg
-		}
-
 		// when
-		handler.Execute(*customObject, d)
+		handler.Execute(*customObject)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -63,17 +51,11 @@ func Test_RolloutHandler_Execute(t *testing.T) {
 		pod := fixCustomObject()
 		handler := RolloutHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 
-		var wg sync.WaitGroup
-		d := func() *sync.WaitGroup {
-			return &wg
-		}
-
 		// when
-		handler.Execute(*pod, d)
+		handler.Execute(*pod)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -91,7 +73,6 @@ func Test_NoActionHandler_WaitForResources(t *testing.T) {
 		}
 
 		// when
-		handler.Execute(*customObject, d)
 		err := handler.WaitForResources(*customObject, d)
 		require.NoError(t, err)
 

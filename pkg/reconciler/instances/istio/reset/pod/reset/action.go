@@ -44,7 +44,7 @@ func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []
 		for _, object := range handlersMap[handler] {
 			i.wg.Add(1)
 			go func(object pod.CustomObject, wg *sync.WaitGroup) {
-				handler.Execute(object, i.GetWG)
+				handler.Execute(object)
 				err := handler.WaitForResources(object, i.GetWG)
 				if err != nil {
 					errorCh <- err

@@ -6,6 +6,7 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
@@ -39,9 +40,10 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			Return(nil)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
+		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
 
 		// then
+		require.NoError(t, err)
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
 	})
 
@@ -55,9 +57,10 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			Return(handlersMap)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
+		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
 
 		// then
+		require.NoError(t, err)
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
 		handler.AssertNumberOfCalls(t, "Execute", 0)
 	})
@@ -69,7 +72,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {simpleCustomObject}}
 
-		handler.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil)
+		handler.On("Execute", mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		handler.On("WaitForResources", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
 			wg := args.Get(1).(pod.GetSyncWG)
 			// wg.Done() must be called manually during execute
@@ -79,9 +82,10 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			Return(handlersMap)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod}}, log, debug, fixWaitOpts)
+		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod}}, log, debug, fixWaitOpts)
 
 		// then
+		require.NoError(t, err)
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
 		handler.AssertNumberOfCalls(t, "Execute", 1)
 		handler.AssertNumberOfCalls(t, "WaitForResources", 1)
@@ -94,7 +98,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {simpleCustomObject, simpleCustomObject}}
 
-		handler.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil)
+		handler.On("Execute", mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		handler.On("WaitForResources", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
 			wg := args.Get(1).(pod.GetSyncWG)
 			// wg.Done() must be called manually during execute
@@ -104,9 +108,10 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			Return(handlersMap)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
+		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
 
 		// then
+		require.NoError(t, err)
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
 		handler.AssertNumberOfCalls(t, "Execute", 2)
 		handler.AssertNumberOfCalls(t, "WaitForResources", 2)
@@ -120,13 +125,13 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler2 := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler1: {simpleCustomObject}, &handler2: {simpleCustomObject}}
 
-		handler1.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil)
+		handler1.On("Execute", mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		handler1.On("WaitForResources", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
 			wg := args.Get(1).(pod.GetSyncWG)
 			// wg.Done() must be called manually during execute
 			wg().Done()
 		})
-		handler2.On("Execute", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil)
+		handler2.On("Execute", mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		handler2.On("WaitForResources", mock.AnythingOfType("pod.CustomObject"), mock.AnythingOfType("pod.GetSyncWG")).Return(nil).Run(func(args mock.Arguments) {
 			wg := args.Get(1).(pod.GetSyncWG)
 			// wg.Done() must be called manually during execute
@@ -136,9 +141,10 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			Return(handlersMap)
 
 		// when
-		action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
+		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
 
 		// then
+		require.NoError(t, err)
 		matcher.AssertNumberOfCalls(t, "GetHandlersMap", 1)
 		handler1.AssertNumberOfCalls(t, "Execute", 1)
 		handler2.AssertNumberOfCalls(t, "Execute", 1)
