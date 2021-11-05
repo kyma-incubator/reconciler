@@ -98,7 +98,7 @@ func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
 
 func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 	tokenNamespace := "default"
-	if r.repo.TokenNamespace == "" {
+	if r.repo.TokenNamespace != "" {
 		tokenNamespace = r.repo.TokenNamespace
 	}
 
