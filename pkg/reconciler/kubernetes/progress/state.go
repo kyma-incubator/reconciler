@@ -15,150 +15,153 @@ import (
 const expectedReadyReplicas = 1
 const expectedReadyDaemonSet = 1
 
+func errUnsupportedState(state State) error { return fmt.Errorf("state '%s' not supported", state) }
+
 func deploymentInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
 	deployment, err := client.AppsV1().Deployments(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
-	switch inState {
-	case ReadyState:
-		if err != nil {
-			return false, err
-		}
-		replicaSet, err := getLatestReplicaSet(ctx, deployment, client.AppsV1())
-		if err != nil || replicaSet == nil {
-			return false, err
-		}
-		// TODO clarify with reconciler team
-		if replicaSet.Status.ReadyReplicas < expectedReadyReplicas {
-			return false, nil
-		}
-		return true, nil
-	case TerminatedState:
-		if err != nil && errors.IsNotFound(err) {
+	if err != nil {
+		if inState == TerminatedState && errors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, err
-	default:
-		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
+
+	if inState == TerminatedState {
+		return false, nil
+	}
+
+	if inState != ReadyState {
+		return false, errUnsupportedState(inState)
+	}
+
+	replicaSet, err := getLatestReplicaSet(ctx, deployment, client.AppsV1())
+	if err != nil || replicaSet == nil {
+		return false, err
+	}
+
+	// TODO clarify with reconciler team about expected ready
+	isReady := replicaSet.Status.ReadyReplicas >= expectedReadyReplicas
+	return isReady, nil
 }
 
+// TODO describe flow
+// see: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
 func statefulSetInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
 	statefulSet, err := client.AppsV1().StatefulSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
-	switch inState {
-	case ReadyState:
-		if err != nil {
-			return false, err
-		}
-
-		if statefulSet.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
-			return true, nil
-		}
-
-		var partition, replicas = 0, 1
-		// here we need to check partitions
-		// see: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
-		if statefulSet.Spec.UpdateStrategy.RollingUpdate != nil && statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
-			partition = int(*statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition)
-		}
-
-		if statefulSet.Spec.Replicas != nil {
-			replicas = int(*statefulSet.Spec.Replicas)
-		}
-
-		expectedReplicas := replicas - partition
-
-		if int(statefulSet.Status.UpdatedReplicas) != expectedReplicas {
-			return false, nil
-		}
-
-		if int(statefulSet.Status.ReadyReplicas) != replicas {
-			return false, nil
-		}
-		return true, err
-	case TerminatedState:
-		if err != nil && errors.IsNotFound(err) {
+	if err != nil {
+		if inState == TerminatedState && errors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, err
-	default:
-		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
+
+	if inState == TerminatedState {
+		return false, nil
+	}
+
+	if inState != ReadyState {
+		return false, errUnsupportedState(inState)
+	}
+
+	var partition, replicas = 0, 1
+	if statefulSet.Spec.UpdateStrategy.RollingUpdate != nil && statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+		partition = int(*statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition)
+	}
+
+	if statefulSet.Spec.Replicas != nil {
+		replicas = int(*statefulSet.Spec.Replicas)
+	}
+
+	expectedReplicas := replicas - partition
+	if int(statefulSet.Status.UpdatedReplicas) != expectedReplicas {
+		return false, nil
+	}
+
+	isReady := int(statefulSet.Status.ReadyReplicas) == replicas
+	return isReady, nil
 }
 
 func podInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
 	pod, err := client.CoreV1().Pods(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
-	switch inState {
-	case ReadyState:
-		if err != nil {
-			return false, err
-		}
-		if pod.Status.Phase != v1.PodRunning {
-			return false, nil
-		}
-		for _, condition := range pod.Status.Conditions {
-			if condition.Status != v1.ConditionTrue {
-				return false, nil
-			}
-		}
-		//deletion timestamp determines whether pod is terminating or running (nil == running)
-		return pod.ObjectMeta.DeletionTimestamp == nil, nil
-	case TerminatedState:
-		if err != nil && errors.IsNotFound(err) {
+	if err != nil {
+		if inState == TerminatedState && errors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, err
-	default:
-		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
+
+	if inState == TerminatedState {
+		return false, nil
+	}
+
+	if inState != ReadyState {
+		return false, errUnsupportedState(inState)
+	}
+
+	if pod.Status.Phase != v1.PodRunning {
+		return false, nil
+	}
+	for _, condition := range pod.Status.Conditions {
+		if condition.Status != v1.ConditionTrue {
+			return false, nil
+		}
+	}
+	//deletion timestamp determines whether pod is terminating or running (nil == running)
+	return pod.ObjectMeta.DeletionTimestamp == nil, nil
 }
 
 func daemonSetInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
 	daemonSet, err := client.AppsV1().DaemonSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
-	switch inState {
-	case ReadyState:
-		if err != nil {
-			return false, err
-		}
-		if daemonSet.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
-			return true, nil
-		}
-		if daemonSet.Status.UpdatedNumberScheduled != daemonSet.Status.DesiredNumberScheduled {
-			return false, nil
-		}
-
-		actualReady := int(daemonSet.Status.NumberReady)
-		return actualReady >= expectedReadyDaemonSet, nil
-
-	case TerminatedState:
-		if err != nil && errors.IsNotFound(err) {
+	if err != nil {
+		if inState == TerminatedState && errors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, err
-	default:
-		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
+
+	if inState == TerminatedState {
+		return false, nil
+	}
+
+	if inState != ReadyState {
+		return false, errUnsupportedState(inState)
+	}
+
+	if daemonSet.Status.UpdatedNumberScheduled != daemonSet.Status.DesiredNumberScheduled {
+		return false, nil
+	}
+
+	fmt.Printf("daemonSet.Status.UpdatedNumberScheduled: %v", daemonSet.Status.UpdatedNumberScheduled)
+	fmt.Printf("daemonSet.Status.DesiredNumberScheduled: %v", daemonSet.Status.DesiredNumberScheduled)
+	fmt.Printf("daemonSet.Status.NumberReady: %v", daemonSet.Status.NumberReady)
+
+	isReady := int(daemonSet.Status.NumberReady) >= expectedReadyDaemonSet
+	return isReady , nil
 }
 
 func jobInState(ctx context.Context, client kubernetes.Interface, inState State, object *resource) (bool, error) {
 	job, err := client.BatchV1().Jobs(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
-	switch inState {
-	case ReadyState:
-		if err != nil {
-			return false, err
-		}
-		for _, condition := range job.Status.Conditions {
-			if condition.Status != v1.ConditionTrue {
-				return false, nil
-			}
-		}
-		return true, err
-	case TerminatedState:
-		if err != nil && errors.IsNotFound(err) {
+	if err != nil {
+		if inState == TerminatedState && errors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, err
-	default:
-		return false, fmt.Errorf("state '%s' not supported", inState)
 	}
+
+	if inState == TerminatedState {
+		return false, nil
+	}
+
+	if inState != ReadyState {
+		return false, errUnsupportedState(inState)
+	}
+
+	for _, condition := range job.Status.Conditions {
+		if condition.Status != v1.ConditionTrue {
+			return false, nil
+		}
+	}
+	return true, err
 }
 
 func getLatestReplicaSet(ctx context.Context, deployment *appsv1.Deployment, client appsclient.AppsV1Interface) (*appsv1.ReplicaSet, error) {
