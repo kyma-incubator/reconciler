@@ -14,51 +14,49 @@ import (
 )
 
 const (
-	// maxPatchRetry is the maximum number of conflicts retry for during a patch operation before returning failure
 	maxPatchRetry = 5
-	// // backOffPeriod is the period to back off when kubeClient patch results in error.
-	// backOffPeriod = 1 * time.Second
-	// // how many times we can retry before back off
-	// triesBeforeBackOff = 1
 )
 
-var backoff = wait.Backoff{
+var defaultBackoff = wait.Backoff{
 	Steps:    3,
 	Duration: 500 * time.Millisecond,
 	Factor:   1.0,
 	Jitter:   0.1,
 }
 
-func newPatcher(helper *resource.Helper) *Patcher {
-	return &Patcher{
-		Helper:      helper,
-		Overwrite:   true,
-		Force:       false,
-		Cascade:     true,
-		Timeout:     time.Duration(0),
-		GracePeriod: -1,
+func newReplace(helper *resource.Helper) replace {
+	r := replacer{
+		helper:      helper,
+		overwrite:   true,
+		force:       false,
+		cascade:     true,
+		timeout:     time.Duration(0),
+		gracePeriod: -1,
 	}
+	return r.replace
 }
 
-type Patcher struct {
-	Helper    *resource.Helper
-	Overwrite bool
+type replace func(new runtime.Object, namespace, name string) (result runtime.Object, err error)
 
-	Force       bool
-	Cascade     bool
-	Timeout     time.Duration
-	GracePeriod int
+type replacer struct {
+	helper    *resource.Helper
+	overwrite bool
+
+	force       bool
+	cascade     bool
+	timeout     time.Duration
+	gracePeriod int
 
 	// If set, forces the patch against a specific resourceVersion
-	ResourceVersion *string
+	resourceVersion *string
 }
 
-func (p *Patcher) replaceObj(new runtime.Object, namespace, name string) (runtime.Object, error) {
+func (p *replacer) replaceObj(new runtime.Object, namespace, name string) (runtime.Object, error) {
 	var result runtime.Object
 	var err error
 
-	err = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		result, err = p.Helper.Replace(namespace, name, p.Overwrite, new)
+	err = wait.ExponentialBackoff(defaultBackoff, func() (bool, error) {
+		result, err = p.helper.Replace(namespace, name, p.overwrite, new)
 		// detect unretryable errors
 		if errors.IsConflict(err) || errors.IsInvalid(err) {
 			return true, err
@@ -74,12 +72,12 @@ func (p *Patcher) replaceObj(new runtime.Object, namespace, name string) (runtim
 	return result, err
 }
 
-func (p *Patcher) getResourceVersion(namespace, name string) (string, error) {
+func (p *replacer) getResourceVersion(namespace, name string) (string, error) {
 	var getResult runtime.Object
 	var err error
 
-	err = wait.ExponentialBackoff(backoff, func() (done bool, err error) {
-		getResult, err = p.Helper.Get(namespace, name)
+	err = wait.ExponentialBackoff(defaultBackoff, func() (done bool, err error) {
+		getResult, err = p.helper.Get(namespace, name)
 
 		if errors.IsNotFound(err) {
 			return true, err
@@ -105,10 +103,10 @@ func (p *Patcher) getResourceVersion(namespace, name string) (string, error) {
 	return resU.GetResourceVersion(), nil
 }
 
-func (p *Patcher) delete(namespace, name string) error {
-	options := asDeleteOptions(p.Cascade, p.GracePeriod)
-	err := wait.ExponentialBackoff(backoff, func() (done bool, err error) {
-		if _, err := p.Helper.DeleteWithOptions(namespace, name, &options); err != nil {
+func (p *replacer) delete(namespace, name string) error {
+	options := asDeleteOptions(p.cascade, p.gracePeriod)
+	err := wait.ExponentialBackoff(defaultBackoff, func() (done bool, err error) {
+		if _, err := p.helper.DeleteWithOptions(namespace, name, &options); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -117,18 +115,18 @@ func (p *Patcher) delete(namespace, name string) error {
 		return err
 	}
 
-	return wait.PollImmediate(time.Second, p.Timeout, func() (done bool, err error) {
-		if _, err := p.Helper.Get(namespace, name); !errors.IsNotFound(err) {
+	return wait.PollImmediate(time.Second, p.timeout, func() (done bool, err error) {
+		if _, err := p.helper.Get(namespace, name); !errors.IsNotFound(err) {
 			return false, err
 		}
 		return true, nil
 	})
 }
 
-func (p *Patcher) createObj(obj runtime.Object, namespace string) (runtime.Object, error) {
+func (p *replacer) createObj(obj runtime.Object, namespace string) (runtime.Object, error) {
 	var result runtime.Object
-	err := wait.ExponentialBackoff(backoff, func() (done bool, err error) {
-		result, err = p.Helper.Create(namespace, true, obj)
+	err := wait.ExponentialBackoff(defaultBackoff, func() (done bool, err error) {
+		result, err = p.helper.Create(namespace, true, obj)
 		if err != nil {
 			return false, err
 		}
@@ -137,7 +135,7 @@ func (p *Patcher) createObj(obj runtime.Object, namespace string) (runtime.Objec
 	return result, err
 }
 
-func (p *Patcher) recreateObject(obj runtime.Object, namespace, name string) (runtime.Object, error) {
+func (p *replacer) recreateObject(obj runtime.Object, namespace, name string) (runtime.Object, error) {
 	// try to delete resource
 	if err := p.delete(namespace, name); err != nil {
 		return nil, err
@@ -146,7 +144,7 @@ func (p *Patcher) recreateObject(obj runtime.Object, namespace, name string) (ru
 	return p.createObj(obj, namespace)
 }
 
-func (p *Patcher) replace(new runtime.Object, namespace, name string) (result runtime.Object, err error) {
+func (p *replacer) replace(new runtime.Object, namespace, name string) (result runtime.Object, err error) {
 	for i := 0; i < maxPatchRetry; i++ {
 		result, err = p.simpleReplace(new, namespace, name)
 
@@ -154,7 +152,7 @@ func (p *Patcher) replace(new runtime.Object, namespace, name string) (result ru
 			return result, err
 		}
 
-		if errors.IsConflict(err) && p.ResourceVersion != nil {
+		if errors.IsConflict(err) && p.resourceVersion != nil {
 			break
 		}
 
@@ -163,14 +161,14 @@ func (p *Patcher) replace(new runtime.Object, namespace, name string) (result ru
 		}
 	}
 
-	if err != nil && (errors.IsConflict(err) || errors.IsInvalid(err)) && p.Force {
+	if err != nil && (errors.IsConflict(err) || errors.IsInvalid(err)) && p.force {
 		return p.recreateObject(new, namespace, name)
 	}
 
 	return
 }
 
-func (p *Patcher) simpleReplace(new runtime.Object, namespace, name string) (runtime.Object, error) {
+func (p *replacer) simpleReplace(new runtime.Object, namespace, name string) (runtime.Object, error) {
 	// prepare new resource configuration
 	newMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(new)
 	if err != nil {
@@ -180,8 +178,8 @@ func (p *Patcher) simpleReplace(new runtime.Object, namespace, name string) (run
 	newU := unstructured.Unstructured{Object: newMap}
 
 	// update resource version
-	if p.ResourceVersion != nil {
-		newU.SetResourceVersion(*p.ResourceVersion)
+	if p.resourceVersion != nil {
+		newU.SetResourceVersion(*p.resourceVersion)
 	} else {
 		resourceVersion, err := p.getResourceVersion(namespace, name)
 		if err != nil {

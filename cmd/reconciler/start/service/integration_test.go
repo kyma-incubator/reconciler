@@ -204,7 +204,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
 		{
-			name: "Try to apply impossible change: add container to running pod",
+			name: "Try to apply impossible change: change api version",
 			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,

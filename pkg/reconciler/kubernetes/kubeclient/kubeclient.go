@@ -139,8 +139,6 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		ResourceVersion: restMapping.Resource.Version,
 	}
 
-	patcher := newPatcher(helper)
-
 	if err := info.Get(); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return metadata, err
@@ -161,7 +159,8 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		_ = info.Refresh(obj, true)
 	}
 
-	patchedObject, err := patcher.replace(info.Object, info.Namespace, info.Name)
+	replace := newReplace(helper)
+	patchedObject, err := replace(info.Object, info.Namespace, info.Name)
 	if err != nil {
 		return metadata, err
 	}
