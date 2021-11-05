@@ -3,7 +3,6 @@ package pod
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -16,13 +15,12 @@ import (
 	kctlutil "k8s.io/kubectl/pkg/util/deployment"
 )
 
-type GetSyncWG func() *sync.WaitGroup
-
 //go:generate mockery --name=Handler --outpkg=mocks --case=underscore
-// Handler executes actions on the Kubernetes cluster
+// Handler executes actions on the Kubernetes objects.
 type Handler interface {
-	Execute(CustomObject)
-	WaitForResources(CustomObject, GetSyncWG) error
+	// Execute action on the Kubernetes object with regards of the type of handler.
+	// Returns error if action was unsuccessful or wait timeout was reached.
+	ExecuteAndWaitFor(CustomObject) error
 }
 
 type WaitOptions struct {
@@ -38,23 +36,27 @@ type handlerCfg struct {
 	waitOpts   WaitOptions
 }
 
+type parentObject struct {
+	Name string
+	Kind string
+}
+
+// CustomObject contains all necessary fields to do rollout.
+type CustomObject struct {
+	Name      string
+	Namespace string
+	Kind      string
+}
+
 // NoActionHandler that logs information about the pod and does not
 // perform any action on the cluster.
 type NoActionHandler struct {
 	handlerCfg
 }
 
-func (i *NoActionHandler) Execute(object CustomObject) {
+func (i *NoActionHandler) ExecuteAndWaitFor(object CustomObject) error {
 	if i.debug {
 		i.log.Infof("Not doing any action for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
-	}
-}
-
-func (i *NoActionHandler) WaitForResources(object CustomObject, wg GetSyncWG) error {
-	defer wg().Done()
-
-	if i.debug {
-		i.log.Infof("Not waiting for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
 	}
 
 	return nil
@@ -64,31 +66,27 @@ type DeleteObjectHandler struct {
 	handlerCfg
 }
 
-func (i *DeleteObjectHandler) Execute(object CustomObject) {
+func (i *DeleteObjectHandler) ExecuteAndWaitFor(object CustomObject) error {
 	i.log.Infof("Deleting pod %s/%s", object.Namespace, object.Name)
-	if !i.debug {
-		err := retry.Do(func() error {
-			err := i.kubeClient.CoreV1().Pods(object.Namespace).Delete(context.Background(), object.Name, metav1.DeleteOptions{})
-			if err != nil {
-				return err
-			}
-
-			i.log.Infof("Deleted pod %s/%s", object.Namespace, object.Name)
-			return nil
-		}, i.retryOpts...)
-
-		if err != nil {
-			i.log.Error(err)
-		}
-	}
-}
-
-func (i *DeleteObjectHandler) WaitForResources(object CustomObject, wg GetSyncWG) error {
-	defer wg().Done()
-
 	if i.debug {
-		i.log.Infof("Not waiting for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
+		return nil
 	}
+
+	err := retry.Do(func() error {
+		err := i.kubeClient.CoreV1().Pods(object.Namespace).Delete(context.Background(), object.Name, metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
+
+		i.log.Infof("Deleted pod %s/%s", object.Namespace, object.Name)
+		return nil
+	}, i.retryOpts...)
+
+	if err != nil {
+		return err
+	}
+
+	i.log.Infof("Not waiting for: %s/%s", object.Namespace, object.Name)
 
 	return nil
 }
@@ -98,28 +96,30 @@ type RolloutHandler struct {
 	handlerCfg
 }
 
-func (i *RolloutHandler) Execute(object CustomObject) {
+func (i *RolloutHandler) ExecuteAndWaitFor(object CustomObject) error {
 	i.log.Infof("Doing rollout for %s/%s/%s", object.Kind, object.Namespace, object.Name)
-	if !i.debug {
-		err := retry.Do(func() error {
-			err := doRollout(object, i.kubeClient)
-			if err != nil {
-				return err
-			}
-
-			i.log.Infof("Rolled out %s/%s/%s", object.Kind, object.Namespace, object.Name)
-			return nil
-		}, i.retryOpts...)
-
-		if err != nil {
-			i.log.Error(err)
-		}
+	if i.debug {
+		return nil
 	}
+
+	err := retry.Do(func() error {
+		err := doRollout(object, i.kubeClient)
+		if err != nil {
+			return err
+		}
+
+		i.log.Infof("Rolled out %s/%s/%s", object.Kind, object.Namespace, object.Name)
+		return nil
+	}, i.retryOpts...)
+
+	if err != nil {
+		return err
+	}
+
+	return i.WaitForResources(object)
 }
 
-func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) error {
-	defer wg().Done()
-
+func (i *RolloutHandler) WaitForResources(object CustomObject) error {
 	i.log.Infof("Waiting for %s/%s/%s to be ready", object.Kind, object.Namespace, object.Name)
 	switch object.Kind {
 	case "DaemonSet":
@@ -143,24 +143,10 @@ func (i *RolloutHandler) WaitForResources(object CustomObject, wg GetSyncWG) err
 			return err
 		}
 	default:
-		if i.debug {
-			i.log.Infof("Not waiting for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
-		}
+		i.log.Infof("Not waiting for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
 	}
 
 	return nil
-}
-
-type parentObject struct {
-	Name string
-	Kind string
-}
-
-// CustomObject contains all necessary fields to do rollout.
-type CustomObject struct {
-	Name      string
-	Namespace string
-	Kind      string
 }
 
 func getParentObjectFromOwnerReferences(ownerReferences []metav1.OwnerReference) parentObject {

@@ -1,10 +1,9 @@
 package reset
 
 import (
-	"sync"
-
 	"github.com/avast/retry-go"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
@@ -20,45 +19,31 @@ type Action interface {
 // DefaultResetAction assigns pods to handlers and executes them
 type DefaultResetAction struct {
 	matcher pod.Matcher
-	wg      *sync.WaitGroup
 }
 
 func NewDefaultPodsResetAction(matcher pod.Matcher) *DefaultResetAction {
-	waitGroup := sync.WaitGroup{}
-
 	return &DefaultResetAction{
 		matcher: matcher,
-		wg:      &waitGroup,
 	}
-}
-
-func (i *DefaultResetAction) GetWG() *sync.WaitGroup {
-	return i.wg
 }
 
 func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) error {
 	handlersMap := i.matcher.GetHandlersMap(kubeClient, retryOpts, podsList, log, debug, waitOpts)
-	errorCh := make(chan error)
+	g := new(errgroup.Group)
 
 	for handler := range handlersMap {
 		for _, object := range handlersMap[handler] {
-			i.wg.Add(1)
-			go func(object pod.CustomObject, wg *sync.WaitGroup) {
-				handler.Execute(object)
-				err := handler.WaitForResources(object, i.GetWG)
+			object := object
+			g.Go(func() error {
+				err := handler.ExecuteAndWaitFor(object)
 				if err != nil {
-					errorCh <- err
-					return
+					return err
 				}
-			}(object, i.wg)
+				return nil
+			})
 		}
 	}
-
-	i.GetWG().Wait()
-	close(errorCh)
-
-	err := <-errorCh
-	if err != nil {
+	if err := g.Wait(); err != nil {
 		return err
 	}
 

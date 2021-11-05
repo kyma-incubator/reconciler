@@ -1,7 +1,6 @@
 package pod
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -20,7 +19,8 @@ func Test_NoActionHandler_Execute(t *testing.T) {
 		handler := NoActionHandler{}
 
 		// when
-		handler.Execute(*customObject)
+		err := handler.ExecuteAndWaitFor(*customObject)
+		require.NoError(t, err)
 
 		// then
 		require.Eventually(t, func() bool {
@@ -36,7 +36,8 @@ func Test_DeleteObjectHandler_Execute(t *testing.T) {
 		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 
 		// when
-		handler.Execute(*customObject)
+		err := handler.ExecuteAndWaitFor(*customObject)
+		require.NoError(t, err)
 
 		// then
 		require.Eventually(t, func() bool {
@@ -52,7 +53,8 @@ func Test_RolloutHandler_Execute(t *testing.T) {
 		handler := RolloutHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 
 		// when
-		handler.Execute(*pod)
+		err := handler.ExecuteAndWaitFor(*pod)
+		require.NoError(t, err)
 
 		// then
 		require.Eventually(t, func() bool {
@@ -66,19 +68,12 @@ func Test_NoActionHandler_WaitForResources(t *testing.T) {
 		customObject := fixCustomObject()
 		handler := NoActionHandler{}
 
-		var wg sync.WaitGroup
-		wg.Add(1)
-		d := func() *sync.WaitGroup {
-			return &wg
-		}
-
 		// when
-		err := handler.WaitForResources(*customObject, d)
+		err := handler.ExecuteAndWaitFor(*customObject)
 		require.NoError(t, err)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -90,19 +85,12 @@ func Test_DeleteObjectHandler_WaitForResources(t *testing.T) {
 		customObject := fixCustomObject()
 		handler := DeleteObjectHandler{handlerCfg{log: log.NewLogger(true), debug: true}}
 
-		var wg sync.WaitGroup
-		wg.Add(1)
-		d := func() *sync.WaitGroup {
-			return &wg
-		}
-
 		// when
-		err := handler.WaitForResources(*customObject, d)
+		err := handler.ExecuteAndWaitFor(*customObject)
 		require.NoError(t, err)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -127,19 +115,12 @@ func Test_RolloutHandler_WaitForResources_ReplicaSet(t *testing.T) {
 		kubeClient := fake.NewSimpleClientset(&replicaSetWithOwnerReferences)
 		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
 
-		var wg sync.WaitGroup
-		wg.Add(1)
-		d := func() *sync.WaitGroup {
-			return &wg
-		}
-
 		// when
-		err := handler.WaitForResources(*pod, d)
+		err := handler.ExecuteAndWaitFor(*pod)
 		require.NoError(t, err)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -167,19 +148,12 @@ func Test_RolloutHandler_WaitForResources_DaemonSet(t *testing.T) {
 		kubeClient := fake.NewSimpleClientset(&daemonSetWithOwnerReferences)
 		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
 
-		var wg sync.WaitGroup
-		wg.Add(1)
-		d := func() *sync.WaitGroup {
-			return &wg
-		}
-
 		// when
-		err := handler.WaitForResources(*pod, d)
+		err := handler.ExecuteAndWaitFor(*pod)
 		require.NoError(t, err)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
@@ -212,19 +186,12 @@ func Test_RolloutHandler_WaitForResources_StatefulSet(t *testing.T) {
 		kubeClient := fake.NewSimpleClientset(statefulSetWithOwnerReferences)
 		handler := RolloutHandler{handlerCfg{kubeClient: kubeClient, log: log.NewLogger(true), debug: true, waitOpts: fixWaitOpts}}
 
-		var wg sync.WaitGroup
-		wg.Add(1)
-		d := func() *sync.WaitGroup {
-			return &wg
-		}
-
 		// when
-		err := handler.WaitForResources(*pod, d)
+		err := handler.ExecuteAndWaitFor(*pod)
 		require.NoError(t, err)
 
 		// then
 		require.Eventually(t, func() bool {
-			wg.Wait()
 			return true
 		}, time.Second, 10*time.Millisecond)
 	})
