@@ -2,6 +2,8 @@ package ory
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
@@ -57,16 +59,45 @@ func (a *preAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	secretObject, err := db.Get(dbNamespacedName, values)
+	secretObject, err := a.getDBConfigSecret(context.Context, client, dbNamespacedName)
 	if err != nil {
-		return errors.Wrap(err, "failed to prepare db credentials data for Ory Hydra")
-	}
-	if err := a.ensureOrySecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
-		return errors.Wrap(err, "failed to ensure Ory secret")
+		if !kerrors.IsNotFound(err) {
+			return errors.Wrap(err, "Could not get DB secret")
+		}
+
+		logger.Info("Ory DB secret does not exist, creating it now")
+		secretObject, err = db.Get(dbNamespacedName, values, logger)
+		if err != nil {
+			return errors.Wrap(err, "failed to create db credentials data for Ory Hydra")
+		}
+		if err := createSecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
+			return err
+		}
+
+	} else {
+		logger.Info("Ory DB secret exists, looking for differences")
+		newSecretData, err := db.Update(values, secretObject, logger)
+		if err != nil {
+			return errors.Wrap(err, "failed to update db credentials data for Ory Hydra")
+		}
+
+		if len(newSecretData) == 0 {
+			logger.Info("Ory DB secret is the same as values, no need to update")
+		} else {
+			logger.Info("Ory DB secret is different than values, updating it")
+			secretObject.StringData = newSecretData
+
+			if err := a.updateSecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
+				return errors.Wrap(err, "failed to update Ory secret")
+			}
+			logger.Info("Rolling out ory hydra")
+			if err := a.rolloutHydraDeployment(context.Context, client, logger); err != nil {
+				return err
+			}
+		}
 	}
 
 	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
-
 	return nil
 }
 
@@ -89,16 +120,33 @@ func (a *postAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *preAction) ensureOrySecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
-	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
+func (a *preAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (*v1.Secret, error) {
+	secret, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return createSecret(ctx, client, name, secret, logger)
-		}
-		return errors.Wrap(err, "failed to get secret")
+		return secret, errors.Wrap(err, "failed to get Ory DB secret")
 	}
 
+	return secret, err
+}
+
+func (a *preAction) updateSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
+	_, err := client.CoreV1().Secrets(name.Namespace).Update(ctx, &secret, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to update the secret")
+	}
+	logger.Infof("Secret %s updated", name.String())
 	return err
+}
+
+func (a *preAction) rolloutHydraDeployment(ctx context.Context, client kubernetes.Interface, logger *zap.SugaredLogger) error {
+	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
+
+	_, err := client.AppsV1().Deployments("kyma-system").Patch(ctx, "ory-hydra", types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to rollout ory hydra")
+	}
+	logger.Info("ory-hydra restarted")
+	return nil
 }
 
 func (a *postAction) patchSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, data []byte, logger *zap.SugaredLogger) error {

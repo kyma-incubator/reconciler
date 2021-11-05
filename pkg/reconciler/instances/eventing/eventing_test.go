@@ -10,7 +10,7 @@ import (
 
 func TestRunner(t *testing.T) {
 	t.Run("Should register Eventing reconciler", func(t *testing.T) {
-		reconciler, err := service.GetReconciler(ReconcilerName)
+		reconciler, err := service.GetReconciler(reconcilerName)
 		require.NoError(t, err)
 		require.NotNil(t, reconciler)
 	})
