@@ -29,11 +29,11 @@ type oryAction struct {
 	step string
 }
 
-type preInstallAction struct {
+type preReconcileAction struct {
 	*oryAction
 }
 
-type postInstallAction struct {
+type postReconcileAction struct {
 	*oryAction
 }
 
@@ -46,7 +46,7 @@ var (
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
 )
 
-func (a *preInstallAction) Run(context *service.ActionContext) error {
+func (a *preReconcileAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
 	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
 		WithNamespace(oryNamespace).
@@ -105,7 +105,7 @@ func (a *preInstallAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *postInstallAction) Run(context *service.ActionContext) error {
+func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
 	client, err := context.KubeClient.Clientset()
 	if err != nil {
@@ -148,7 +148,7 @@ func (a *preDeleteAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *preInstallAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (*v1.Secret, error) {
+func (a *preReconcileAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (*v1.Secret, error) {
 	secret, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
 		return secret, errors.Wrap(err, "failed to get Ory DB secret")
@@ -157,7 +157,7 @@ func (a *preInstallAction) getDBConfigSecret(ctx context.Context, client kuberne
 	return secret, err
 }
 
-func (a *preInstallAction) updateSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
+func (a *preReconcileAction) updateSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
 	_, err := client.CoreV1().Secrets(name.Namespace).Update(ctx, &secret, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to update the secret")
@@ -166,7 +166,7 @@ func (a *preInstallAction) updateSecret(ctx context.Context, client kubernetes.I
 	return err
 }
 
-func (a *preInstallAction) rolloutHydraDeployment(ctx context.Context, client kubernetes.Interface, logger *zap.SugaredLogger) error {
+func (a *preReconcileAction) rolloutHydraDeployment(ctx context.Context, client kubernetes.Interface, logger *zap.SugaredLogger) error {
 	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
 
 	_, err := client.AppsV1().Deployments("kyma-system").Patch(ctx, "ory-hydra", types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
@@ -177,7 +177,7 @@ func (a *preInstallAction) rolloutHydraDeployment(ctx context.Context, client ku
 	return nil
 }
 
-func (a *postInstallAction) patchSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, data []byte, logger *zap.SugaredLogger) error {
+func (a *postReconcileAction) patchSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, data []byte, logger *zap.SugaredLogger) error {
 	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to get secret")
@@ -205,6 +205,9 @@ func (a *preDeleteAction) dbSecretExists(ctx context.Context, client kubernetes.
 func (a *preDeleteAction) deleteSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) error {
 	err := client.CoreV1().Secrets(name.Namespace).Delete(ctx, name.Name, metav1.DeleteOptions{})
 	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return errors.Wrap(err, "failed to get secret")
+		}
 		return errors.Wrap(err, "failed to delete the secret")
 	}
 	logger.Infof("Secret %s deleted", name.String())

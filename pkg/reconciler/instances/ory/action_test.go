@@ -66,7 +66,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preInstallAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -87,7 +87,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("cannot get secret"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := preInstallAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -108,7 +108,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preInstallAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -135,7 +135,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingSecret)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preInstallAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err = action.Run(actionContext)
@@ -164,7 +164,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingSecret, hydraDeployment)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preInstallAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err = action.Run(actionContext)
@@ -277,7 +277,7 @@ func TestOryJwksSecret(t *testing.T) {
 		test := testCase
 		t.Run(test.Name, func(t *testing.T) {
 			logger := zaptest.NewLogger(t).Sugar()
-			a := postInstallAction{
+			a := postReconcileAction{
 				&oryAction{step: "test-jwks-secret"},
 			}
 			name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
