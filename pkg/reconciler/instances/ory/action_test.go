@@ -292,6 +292,7 @@ func TestOryJwksSecret(t *testing.T) {
 				existingSecret, err := preCreateSecret(ctx, k8sClient, name)
 				assert.NoError(t, err)
 				existingUID = existingSecret.UID
+				require.Equal(t, true, isEmpty(existingSecret))
 			}
 
 			err = a.patchSecret(ctx, k8sClient, name, patchData, logger)
@@ -305,14 +306,43 @@ func TestOryJwksSecret(t *testing.T) {
 				assert.Equal(t, name.Name, secret.Name)
 				assert.Equal(t, name.Namespace, secret.Namespace)
 				assert.NotNil(t, secret.Data)
-
 				assert.Equal(t, existingUID, secret.UID)
 			}
 
 		})
 	}
 }
+func TestOryJwksSecret_IsEmpty(t *testing.T) {
+	t.Run("should return true on empty Secret", func(t *testing.T) {
+		// given
+		name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
+		ctx := context.Background()
+		k8sClient := fake.NewSimpleClientset()
+		existingSecret, err := preCreateSecret(ctx, k8sClient, name)
 
+		// when
+		check := isEmpty(existingSecret)
+
+		// then
+		assert.NoError(t, err)
+		require.Equal(t, true, check)
+	})
+	t.Run("should return false on non-empty Secret", func(t *testing.T) {
+		// given
+		name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
+		ctx := context.Background()
+		k8sClient := fake.NewSimpleClientset()
+		existingSecret, err := preCreateSecret(ctx, k8sClient, name)
+		existingSecret.Data = map[string][]byte{"jwks.json": []byte("test")}
+
+		// when
+		check := isEmpty(existingSecret)
+
+		// then
+		assert.NoError(t, err)
+		require.Equal(t, false, check)
+	})
+}
 func TestOryDbSecret(t *testing.T) {
 	tests := []struct {
 		Name            string
