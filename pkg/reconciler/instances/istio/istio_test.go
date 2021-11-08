@@ -49,24 +49,22 @@ const istioctlMockCompleteVersion = `{
 
 func Test_RunUninstallAction(t *testing.T) {
 
-	t.Run("istio uninstall should also delete namespace", func(t *testing.T) {
+	t.Run("Istio uninstall should also delete namespace", func(t *testing.T) {
 
-		wsf, err := workspace.NewFactory(nil, "./test_files", log.NewLogger(true))
+		wsf, _ := workspace.NewFactory(nil, "./test_files", log.NewLogger(true))
 
 		actionContext := newActionContext(wsf)
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockCompleteVersion), nil)
 		commanderMock.On("Uninstall", mock.Anything, mock.Anything).Return(nil)
 		performer := actions.NewDefaultIstioPerformer(&commanderMock, nil, nil)
-
 		action := istio.NewUninstallAction(performer)
 
 		// when
-		err = action.Run(actionContext)
+		err := action.Run(actionContext)
 		// then
 		require.NoError(t, err)
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
-		commanderMock.AssertCalled(t, "Uninstall", mock.Anything, mock.Anything)
 		commanderMock.AssertCalled(t, "Uninstall", mock.Anything, mock.Anything)
 
 		//istio-system namespace should be deleted
