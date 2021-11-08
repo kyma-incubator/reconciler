@@ -202,12 +202,7 @@ func (pt *Tracker) statefulsetInState(inState State, object *resource) (bool, er
 		if err != nil {
 			return false, err
 		}
-		for _, condition := range statefulSet.Status.Conditions {
-			if condition.Status != v1.ConditionTrue {
-				return false, nil
-			}
-		}
-		return true, err
+		return statefulSet.Status.ReadyReplicas == statefulSet.Status.Replicas, nil
 	case TerminatedState:
 		if err != nil && errors.IsNotFound(err) {
 			return true, nil
