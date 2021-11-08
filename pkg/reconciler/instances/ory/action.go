@@ -63,7 +63,7 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	secretObject, err := a.getDBConfigSecret(context.Context, client, dbNamespacedName)
+	secretObject, err := getSecret(context.Context, client, dbNamespacedName)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrap(err, "Could not get DB secret")
@@ -102,6 +102,7 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
+
 	return nil
 }
 
@@ -111,12 +112,21 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
-	patchData, err := jwks.Get(jwksAlg, jwksBits)
+	secretObject, err := getSecret(context.Context, client, jwksNamespacedName)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate JWKS secret")
+		return errors.Wrap(err, "Could not get JWKS secret")
 	}
-	if err := a.patchSecret(context.Context, client, jwksNamespacedName, patchData, logger); err != nil {
-		return errors.Wrap(err, "failed to patch Ory secret")
+
+	if isEmpty(secretObject) {
+		patchData, err := jwks.Get(jwksAlg, jwksBits)
+		if err != nil {
+			return errors.Wrap(err, "failed to generate JWKS secret")
+		}
+		if err := a.patchSecret(context.Context, client, jwksNamespacedName, patchData, logger); err != nil {
+			return errors.Wrap(err, "failed to patch Ory secret")
+		}
+	} else {
+		logger.Info("Ory JWKS secret is already patched, skipping")
 	}
 
 	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
@@ -148,10 +158,14 @@ func (a *preDeleteAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *preReconcileAction) getDBConfigSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (*v1.Secret, error) {
+func isEmpty(secret *v1.Secret) bool {
+	return len(secret.Data) == 0
+}
+
+func getSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (*v1.Secret, error) {
 	secret, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
-		return secret, errors.Wrap(err, "failed to get Ory DB secret")
+		return secret, errors.Wrap(err, "failed to get Ory secret")
 	}
 
 	return secret, err
@@ -163,6 +177,7 @@ func (a *preReconcileAction) updateSecret(ctx context.Context, client kubernetes
 		return errors.Wrap(err, "failed to update the secret")
 	}
 	logger.Infof("Secret %s updated", name.String())
+
 	return err
 }
 
@@ -174,6 +189,7 @@ func (a *preReconcileAction) rolloutHydraDeployment(ctx context.Context, client 
 		return errors.Wrap(err, "Failed to rollout ory hydra")
 	}
 	logger.Info("ory-hydra restarted")
+
 	return nil
 }
 
