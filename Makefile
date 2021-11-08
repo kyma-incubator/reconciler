@@ -88,8 +88,13 @@ generate-oapi-models:
 	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o ./pkg/keb/model_gen.go -package keb ./openapi/external_api.yaml
 	$(OAPI_GENERATOR) $(OAPI_GENERATOR_OPTS) -o ./pkg/reconciler/model_gen.go -package reconciler ./openapi/internal_api.yaml
 
+.PHONY: generate-helpers
+generate-helpers: 
+	go run cmd/generators/model-helper/main.go -i pkg/keb/model_gen.go -o pkg/keb/helpers.go
+	go fmt pkg/keb/helpers.go
+
 .PHONY: oapi
-oapi: validate-oapi-spec generate-oapi-models
+oapi: validate-oapi-spec generate-oapi-models generate-helpers
 	@./scripts/git-check.sh
 
 .PHONY: all
