@@ -4,9 +4,10 @@ import (
 	"context"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	commandermocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
@@ -54,10 +55,12 @@ func Test_RunUninstallAction(t *testing.T) {
 		wsf, _ := workspace.NewFactory(nil, "./test_files", log.NewLogger(true))
 
 		actionContext := newActionContext(wsf)
+
+		provider := clientset.DefaultProvider{}
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockCompleteVersion), nil)
 		commanderMock.On("Uninstall", mock.Anything, mock.Anything).Return(nil)
-		performer := actions.NewDefaultIstioPerformer(&commanderMock, nil, nil)
+		performer := actions.NewDefaultIstioPerformer(&commanderMock, nil, &provider)
 		action := istio.NewUninstallAction(performer)
 
 		// when
@@ -79,7 +82,7 @@ func Test_RunUninstallAction(t *testing.T) {
 }
 
 func newActionContext(factory workspace.Factory) *service.ActionContext {
-	provider := chartmocks.Provider{}
+	provider, _ := chart.NewDefaultProvider(factory, log.NewLogger(true))
 	kubeClient := newFakeKubeClient()
 
 	logger := log.NewLogger(true)
@@ -94,7 +97,7 @@ func newActionContext(factory workspace.Factory) *service.ActionContext {
 		Context:          context.Background(),
 		WorkspaceFactory: factory,
 		Logger:           logger,
-		ChartProvider:    &provider,
+		ChartProvider:    provider,
 		Task:             &model,
 	}
 }
@@ -110,6 +113,7 @@ func newFakeKubeClient() *k8smocks.Client {
 	mockClient.On("Kubeconfig").Return("kubeconfig")
 	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockClient.On("CoreV1").Return(nil)
+	mockClient.On("Delete", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	return mockClient
 }

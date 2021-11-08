@@ -24,6 +24,7 @@ type ReconcileAction struct {
 	performer actions.IstioPerformer
 }
 
+// NewReconcileAction returns an instance of ReconcileAction
 func NewReconcileAction(performer actions.IstioPerformer) *ReconcileAction {
 	return &ReconcileAction{performer: performer}
 }
@@ -32,6 +33,7 @@ type UninstallAction struct {
 	performer actions.IstioPerformer
 }
 
+// NewUninstallAction returns an instance of UninstallAction
 func NewUninstallAction(performer actions.IstioPerformer) *UninstallAction {
 	return &UninstallAction{performer: performer}
 }
@@ -43,9 +45,21 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 		return err
 	}
 	if canUninstall(ver) {
-		err = a.performer.Uninstall(context.KubeClient, context.Logger)
+		err := a.performer.Uninstall(context.KubeClient, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not uninstall istio")
+		}
+		component := chart.NewComponentBuilder(context.Task.Version, istioChart).
+			WithNamespace(istioNamespace).
+			WithProfile(context.Task.Profile).
+			WithConfiguration(context.Task.Configuration).Build()
+		manifest, err := context.ChartProvider.RenderManifest(component)
+		if err != nil {
+			return err
+		}
+		err = unDeployIstioResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
+		if err != nil {
+			return err
 		}
 		context.Logger.Infof("Istio successfully uninstalled")
 	} else {
@@ -265,6 +279,21 @@ func deployIstioResources(context context.Context, manifest string, client kuber
 
 	logger.Infof("Deploying other Istio resources...")
 	_, err = client.Deploy(context, generated, istioNamespace, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func unDeployIstioResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
+	generated, err := generateNewManifestWithoutIstioOperatorFrom(manifest)
+	if err != nil {
+		return errors.Wrap(err, "Could not generate manifest without Istio Operator")
+	}
+
+	logger.Infof("Undeploying other Istio resources...")
+	_, err = client.Delete(context, generated, istioNamespace)
 	if err != nil {
 		return err
 	}
