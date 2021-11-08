@@ -35,7 +35,7 @@ func TestProgressTracker(t *testing.T) {
 	require.NoError(t, err)
 
 	resources := readManifest(t, "all.yaml")
-	require.Len(t, resources, 6)
+	require.Len(t, resources, 5)
 
 	cleanup := func() {
 		t.Log("Cleanup test resources")
