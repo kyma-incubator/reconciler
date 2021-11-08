@@ -1,11 +1,12 @@
 package service
 
 import (
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 type testCase struct {
@@ -40,7 +41,7 @@ func TestReconciliationResult(t *testing.T) {
 					Updated:       time.Now().Add(-2001 * time.Millisecond),
 				},
 			},
-			expectedResult:  model.ClusterStatusError,
+			expectedResult:  model.ClusterStatusReconcileError,
 			expectedOrphans: []string{"1.3"},
 		},
 		{
@@ -154,7 +155,7 @@ func TestReconciliationResult(t *testing.T) {
 					State:         model.OperationStateDone,
 				},
 			},
-			expectedResult: model.ClusterStatusError,
+			expectedResult: model.ClusterStatusReconcileError,
 		},
 	}
 

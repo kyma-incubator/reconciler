@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"go.uber.org/zap"
@@ -63,6 +64,12 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 	bk.logger.Infof("Starting bookkeeper: interval for updating reconciliation statuses and orphan operations "+
 		"is %.1f secs / timeout for orphan operations is %.1f secs",
 		bk.config.OperationsWatchInterval.Seconds(), bk.config.OrphanOperationTimeout.Seconds())
+
+	//IMPORTANT:
+	//Bookkeeper is not allowed to run directly when Run-fct is called: is has to wait until the first ticker was fired!
+	//This is important to give running component-reconciler the chance to send their heartbeat messages to mothership-
+	//reconciler in case of a mothership-reconciler downtime. If bookkeeper runs directly, it would mark all ongoing
+	//operations as orphan if mothership-reconciler was down for a few minutes.
 
 	ticker := time.NewTicker(bk.config.OperationsWatchInterval)
 	for {
@@ -124,7 +131,7 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bo
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
 
-	if newClusterStatus == model.ClusterStatusReady || newClusterStatus == model.ClusterStatusError {
+	if newClusterStatus.IsFinal() {
 		err := bk.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
 		if err == nil {
 			bk.logger.Infof("Bookkeeper updated cluster '%s' to status '%s' "+

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"testing"
+
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -10,7 +12,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestTransition(t *testing.T) {
@@ -24,9 +25,13 @@ func TestTransition(t *testing.T) {
 	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),
 		KymaConfig: keb.KymaConfig{
-			Components: nil,
-			Profile:    "",
-			Version:    "1.2.3",
+			Components: []keb.Component{
+				{
+					Component: "TestComp1",
+				},
+			},
+			Profile: "",
+			Version: "1.2.3",
 		},
 		RuntimeID: uuid.NewString(),
 	})

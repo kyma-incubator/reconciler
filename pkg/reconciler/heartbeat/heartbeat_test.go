@@ -114,4 +114,32 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		require.Equal(t, statuses[len(statuses)-1], reconciler.StatusError)
 	})
 
+	t.Run("Test heartbeat sender with context canceled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		callbackHdlr := newTestCallbackHandler(t)
+
+		heartbeatSender, err := NewHeartbeatSender(ctx, callbackHdlr, logger, Config{
+			Interval: 500 * time.Millisecond,
+			Timeout:  10 * time.Second,
+		})
+		require.NoError(t, err)
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
+
+		require.NoError(t, heartbeatSender.Running())
+		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
+
+		time.Sleep(3 * time.Second) //wait longer than timeout to simulate expired context
+		cancel()
+		time.Sleep(250 * time.Millisecond) //give heartbeat some time to close its context
+
+		require.True(t, heartbeatSender.isContextClosed()) //verify that status-updater received timeout
+
+		//check fired status updates
+		statuses := callbackHdlr.Statuses()
+		require.GreaterOrEqual(t, len(statuses), 2) //anything >= 2 is sufficient to ensure the heartbeatSenders worked
+		require.Equal(t, statuses[len(statuses)-1], reconciler.StatusFailed)
+	})
+
 }

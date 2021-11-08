@@ -24,7 +24,7 @@ type ReconciliationSequence struct {
 type ClusterConfigurationEntity struct {
 	Version        int64            `db:"readOnly"`
 	RuntimeID      string           `db:"notNull"`
-	ClusterVersion int64            `db:"notNull"`
+	ClusterVersion int64            `db:"notNull"` // Cluster entity primary key
 	KymaVersion    string           `db:"notNull"`
 	KymaProfile    string           `db:""`
 	Components     []*keb.Component `db:"notNull"`
@@ -102,7 +102,7 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 	return nil
 }
 
-func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []string) (*ReconciliationSequence, error) {
+func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []string) *ReconciliationSequence {
 	//group components depending on their reconciliation order
 	sequence := &ReconciliationSequence{}
 	sequence.Queue = append(sequence.Queue, []*keb.Component{
@@ -110,23 +110,21 @@ func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []s
 	})
 
 	var inParallel []*keb.Component
-	if c.Components != nil {
-		components := c.Components
-		for index, component := range components {
-			if contains(preComponents, component.Component) {
-				sequence.Queue = append(sequence.Queue, []*keb.Component{
-					components[index],
-				})
-			} else {
-				inParallel = append(inParallel, components[index])
-			}
+	for i := range c.Components {
+		if contains(preComponents, c.Components[i].Component) {
+			sequence.Queue = append(sequence.Queue, []*keb.Component{
+				c.Components[i],
+			})
+		} else {
+			inParallel = append(inParallel, c.Components[i])
 		}
 	}
+
 	if len(inParallel) > 0 {
 		sequence.Queue = append(sequence.Queue, inParallel)
 	}
 
-	return sequence, nil
+	return sequence
 }
 
 func contains(items []string, item string) bool {

@@ -18,9 +18,9 @@ func (da *DummyAction) Run(helper *ActionContext) error {
 	if helper.KubeClient != nil {
 		return fmt.Errorf("kubeClient is not expected in this test case")
 	}
-	da.receivedVersion = helper.Model.Version
-	da.receivedProfile = helper.Model.Profile
-	da.receivedConfig = helper.Model.Configuration
+	da.receivedVersion = helper.Task.Version
+	da.receivedProfile = helper.Task.Profile
+	da.receivedConfig = helper.Task.Configuration
 	return nil
 }
 
