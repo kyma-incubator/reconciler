@@ -3,3 +3,24 @@
 
 # All .md files
 *.md @kazydek @klaudiagrz @mmitoraj @majakurcius @alexandra-simeonova @superojla @nhingerl
+
+# Ory reconciler
+/pkg/reconciler/instances/ory/ @strekm @werdes72 @Tomasz-Smelcerz-SAP @mjakobczyk @dariusztutaj @cnvergence @veichtj @piotrkpc
+
+# Istio reconciler
+/pkg/reconciler/instances/istio/ @strekm @werdes72 @Tomasz-Smelcerz-SAP @mjakobczyk @dariusztutaj @cnvergence @veichtj @piotrkpc
+
+# Eventing reconciler
+/pkg/reconciler/instances/eventing/ @lilitgh @k15r @nachtmaar @marcobebway @radufa @sayanh @pxsalehi @mfaizanse
+
+# Serverless reconciler
+/pkg/reconciler/instances/serverless/ @m00g3n @pPrecel @dbadura @rJankowski93
+
+# Busola migrator reconciler
+/pkg/reconciler/instances/busolamigrator/ @m00g3n @pPrecel @dbadura @tgorgol @rJankowski93
+
+# Rafter reconciler
+/pkg/reconciler/instances/rafter/ @m00g3n @pPrecel @dbadura @rJankowski93
+
+# Connectivity Proxy reconciler
+/pkg/reconciler/instances/connectivityproxy/ @akgalwas @janmedrek @franpog859 @Maladie @rafalpotempa @koala7659 @ralikio
