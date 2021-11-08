@@ -512,7 +512,7 @@ func Test_canUnInstall(t *testing.T) {
 
 	t.Run("should uninstall when istio is installed", func(t *testing.T) {
 		// given
-		randomVersion := actions.IstioVersion{
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.9.2",
 			TargetVersion:    "",
 			PilotVersion:     "",
@@ -520,7 +520,7 @@ func Test_canUnInstall(t *testing.T) {
 		}
 
 		// when
-		got := canUninstall(randomVersion)
+		got := canUninstall(istioVersion)
 
 		// then
 		require.True(t, got)
@@ -528,7 +528,7 @@ func Test_canUnInstall(t *testing.T) {
 
 	t.Run("should not uninstall when istio is not installed", func(t *testing.T) {
 		// given
-		randomVersion := actions.IstioVersion{
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "",
 			PilotVersion:     "",
@@ -536,7 +536,7 @@ func Test_canUnInstall(t *testing.T) {
 		}
 
 		// when
-		got := canUninstall(randomVersion)
+		got := canUninstall(istioVersion)
 
 		// then
 		require.False(t, got)
@@ -544,7 +544,7 @@ func Test_canUnInstall(t *testing.T) {
 
 	t.Run("should not uninstall when istio ctl is not installed", func(t *testing.T) {
 		// given
-		randomVersion := actions.IstioVersion{
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.11.2",
@@ -552,14 +552,14 @@ func Test_canUnInstall(t *testing.T) {
 		}
 
 		// when
-		got := canUninstall(randomVersion)
+		got := canUninstall(istioVersion)
 
 		// then
 		require.False(t, got)
 	})
 	t.Run("should not matter to uninstall if client version and data plane diverge", func(t *testing.T) {
 		// given
-		randomVersion := actions.IstioVersion{
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.9.0",
 			TargetVersion:    "1.20.2",
 			PilotVersion:     "1.11.2",
@@ -567,7 +567,7 @@ func Test_canUnInstall(t *testing.T) {
 		}
 
 		// when
-		got := canUninstall(randomVersion)
+		got := canUninstall(istioVersion)
 
 		// then
 		require.True(t, got)
@@ -577,7 +577,7 @@ func Test_canUnInstall(t *testing.T) {
 func Test_canInstall(t *testing.T) {
 	t.Run("should install when client and pilot versions are empty", func(t *testing.T) {
 		// given
-		randomVersion := actions.IstioVersion{
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.9.2",
 			TargetVersion:    "",
 			PilotVersion:     "",
@@ -585,7 +585,7 @@ func Test_canInstall(t *testing.T) {
 		}
 
 		// when
-		got := canInstall(randomVersion)
+		got := canInstall(istioVersion)
 
 		// then
 		require.True(t, got)
@@ -593,7 +593,7 @@ func Test_canInstall(t *testing.T) {
 
 	t.Run("should update when client and pilot versions values are not empty", func(t *testing.T) {
 		// given
-		randomVersion := actions.IstioVersion{
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "",
 			PilotVersion:     "1.11.1",
@@ -601,7 +601,7 @@ func Test_canInstall(t *testing.T) {
 		}
 
 		// when
-		got := canInstall(randomVersion)
+		got := canInstall(istioVersion)
 
 		// then
 		require.False(t, got)
