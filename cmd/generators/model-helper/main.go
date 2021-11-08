@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"go/ast"
 	"go/importer"
@@ -40,9 +39,9 @@ func ToStatus(in string) (Status, error) {
 )
 
 func main() {
-	if err := parseFlags(); err != nil {
-		log.Fatal(err)
-	}
+	flag.StringVar(&inFilePath, "i", "", "the input file containing generated model")
+	flag.StringVar(&outFilePath, "o", "", "the output file the, where the helper methods will be generated to")
+	flag.Parse()
 
 	info := &types.Info{
 		Uses: make(map[*ast.Ident]types.Object),
@@ -105,14 +104,4 @@ func main() {
 	if err = tpl.Execute(f, data); err != nil {
 		log.Fatal(err)
 	}
-}
-
-var errInvalidArgument = errors.New("invalid argument")
-
-func parseFlags() error {
-	flag.StringVar(&inFilePath, "i", "", "the input file containig generated model")
-	flag.StringVar(&outFilePath, "o", "", "the output file the, where the helper methods will be generated to")
-	flag.Parse()
-
-	return nil
 }
