@@ -48,7 +48,7 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 		} else if clusterState.Status.Status.IsReconcileCandidate() {
 			targetState = model.ClusterStatusReconciling
 		} else {
-			return fmt.Errorf("cannot start reconcilation of cluster %s because cluster is in state '%s'",
+			return fmt.Errorf("cannot start reconciliation of cluster %s because cluster is in state '%s'",
 				clusterState.Cluster.RuntimeID, clusterState.Status.Status)
 		}
 

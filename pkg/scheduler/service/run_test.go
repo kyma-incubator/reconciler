@@ -73,7 +73,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	//create cluster entity
 	inventory, err := cluster.NewInventory(dbConn, debugLogging, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
-	clusterState, err = inventory.CreateOrUpdate(1, &keb.Cluster{
+	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),
 		KymaConfig: keb.KymaConfig{
 			Components: []keb.Component{
@@ -160,6 +160,8 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		t.Logf("Cannot map cluster state '%s' to an operation state", expectedClusterStatus)
 		t.FailNow()
 	}
+
+	clusterState := testClusterState()
 
 	//simulate a successfully finished operation
 	ticker := time.NewTicker(1 * time.Second)
