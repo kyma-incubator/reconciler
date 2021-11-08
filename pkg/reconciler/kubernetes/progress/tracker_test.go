@@ -289,7 +289,7 @@ func addWatchable(t *testing.T, resources []*unstructured.Unstructured, pt *Trac
 			cntWatchable++
 		}
 	}
-	require.Equal(t, 5, cntWatchable) //pod and a deployment has to be added as watchable
+	require.Equal(t, 4, cntWatchable)
 }
 
 func readManifest(t *testing.T, filename string) []*unstructured.Unstructured {
