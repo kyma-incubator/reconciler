@@ -44,6 +44,13 @@ paths:
           description: "Ok"
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          description: "Return forbidden when operation is in different state than new"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPErrorResponse'
+
         '404':
           description: 'Given operation not found'
           content:

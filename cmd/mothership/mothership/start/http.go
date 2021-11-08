@@ -576,6 +576,13 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	op, err := getOperationStatus(o, schedulingID, correlationID)
 	if err != nil {
+		if repository.IsNotFoundError(err) {
+			server.SendHTTPError(w, http.StatusNotFound, &reconciler.HTTPErrorResponse{
+				Error: "Couldn't find operation",
+			})
+			return
+		}
+
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to get operation").Error(),
 		})
@@ -583,8 +590,8 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if op.State != model.OperationStateNew {
-		server.SendHTTPError(w, http.StatusPreconditionFailed, &reconciler.HTTPErrorResponse{
-			Error: fmt.Sprintf("Stopping Operation in status: %s, is not possible. Should be in: %s", op.State, model.OperationStateNew),
+		server.SendHTTPError(w, http.StatusForbidden, &reconciler.HTTPErrorResponse{
+			Error: fmt.Sprintf("Operation is in status: %s. Should be in: %s in order to stop it.", op.State, model.OperationStateNew),
 		})
 		return
 	}
