@@ -6,12 +6,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestColumnHandler(t *testing.T) {
+	testLogger := zap.NewExample().Sugar()
+	defer func() {
+		if err := testLogger.Sync(); err != nil {
+			t.Logf("while flushing logs: %s", err)
+		}
+	}()
+
 	t.Run("Validate model", func(t *testing.T) {
 		validate := func(t *testing.T, testStruct *validateMe, expectValid bool) {
-			colHdr, err := NewColumnHandler(testStruct, NewTestConnection(t))
+			colHdr, err := NewColumnHandler(testStruct, NewTestConnection(t), testLogger)
 			require.NoError(t, err)
 			err = colHdr.Validate()
 			if expectValid {
@@ -56,7 +64,7 @@ func TestColumnHandler(t *testing.T) {
 		Col2: true,
 		Col3: 123456789,
 	}
-	colHdr, err := NewColumnHandler(testStruct, NewTestConnection(t))
+	colHdr, err := NewColumnHandler(testStruct, NewTestConnection(t), testLogger)
 	require.NoError(t, err)
 	require.NoError(t, colHdr.Validate())
 

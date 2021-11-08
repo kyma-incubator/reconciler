@@ -4,29 +4,39 @@ kind: Namespace
 metadata:
   name: inttest-comprecon
 ---
-apiVersion: v1
-kind: Pod
+{{ if .Values.v1k }}
+  apiVersion: apps/v1k
+{{ else }}
+  apiVersion: apps/v1
+{{ end }}
+kind: Deployment
 metadata:
-  name: dummy-pod
+  name: dummy-deployment
   namespace: inttest-comprecon
+  labels:
+    app: dummy-app
 spec:
-  containers:
-    - name: dummy-pod
-      image: debian
-      command: ["/bin/sh"]
-      args: ["-c", "sleep 20"]
-      readinessProbe:
-        exec:
-          command:
-            - find
-            - /tmp
-        initialDelaySeconds: 5
-        periodSeconds: 5
-{{ if .Values.initContainer }}
-  initContainers:
-    - name: init
-      image: hello-world:latest
-{{ end }}
-{{ if .Values.breakHelmChart }}
-This will break the yaml format
-{{ end }}
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dummy-app
+  template:
+    metadata:
+      labels:
+        app: dummy-app
+    spec:
+      containers:
+        - name: dummy-pod
+          image: debian
+          command: ["/bin/sh"]
+          args: ["-c", "sleep 20"]
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5
+    {{ if .Values.breakHelmChart }}
+    This will break the yaml format
+    {{ end }}

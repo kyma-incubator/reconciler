@@ -7,6 +7,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 var cacheDep *cacheDependencyManager
@@ -198,7 +199,14 @@ func withTestData(t *testing.T, testFunc func(*testing.T, []*model.CacheEntryEnt
 }
 
 func importCacheEntry(t *testing.T, cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity) (*model.CacheEntryEntity, []*model.CacheDependencyEntity) {
-	q, err := db.NewQuery(cacheDep.conn, cacheEntry)
+	testLogger := zap.NewExample().Sugar()
+	defer func() {
+		if err := testLogger.Sync(); err != nil {
+			t.Logf("while flushing logs: %s", err)
+		}
+	}()
+
+	q, err := db.NewQuery(cacheDep.conn, cacheEntry, testLogger)
 	require.NoError(t, err)
 
 	//create new cache entry entity

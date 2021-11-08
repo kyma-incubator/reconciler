@@ -86,3 +86,5 @@ To add another component reconciler, execute the following steps:
         
         # To get a list of all configuration options for the component reconciler, call: 
         ./bin/reconciler-darwin start istio --help
+
+4. **Add component name to the list** in the Helm chart [`values.yaml`](https://github.com/kyma-project/control-plane/blob/main/resources/kcp/values.yaml#L53) and update the image version to the latest one after you merge your changes.

@@ -43,10 +43,10 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 	dbOp := func() error {
 		//set cluster status to reconciling or deleting depending on previous state
 		var targetState model.Status
-		if clusterState.Status.Status == model.ClusterStatusReconcilePending {
-			targetState = model.ClusterStatusReconciling
-		} else if clusterState.Status.Status == model.ClusterStatusDeletePending {
+		if clusterState.Status.Status.IsAnyDeletion() {
 			targetState = model.ClusterStatusDeleting
+		} else {
+			targetState = model.ClusterStatusReconciling
 		}
 		newClusterState, err := t.inventory.UpdateStatus(clusterState, targetState)
 		if err == nil {
@@ -54,7 +54,7 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 				newClusterState.Cluster.RuntimeID, model.ClusterStatusReconciling)
 		} else {
 			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not update cluster status to '%s': %s",
-				clusterState.Cluster.RuntimeID, model.ClusterStatusReconciling, err)
+				clusterState.Cluster.RuntimeID, targetState, err)
 			return err
 		}
 
