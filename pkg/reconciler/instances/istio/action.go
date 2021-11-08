@@ -45,10 +45,6 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 		return err
 	}
 	if canUninstall(ver) {
-		err := a.performer.Uninstall(context.KubeClient, context.Logger)
-		if err != nil {
-			return errors.Wrap(err, "Could not uninstall istio")
-		}
 		component := chart.NewComponentBuilder(context.Task.Version, istioChart).
 			WithNamespace(istioNamespace).
 			WithProfile(context.Task.Profile).
@@ -57,9 +53,14 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 		if err != nil {
 			return err
 		}
-		err = unDeployIstioResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
+		//Before removing istio himself, undeploy all related objects like dashboards
+		err = unDeployIstioRelatedResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
 		if err != nil {
 			return err
+		}
+		err = a.performer.Uninstall(context.KubeClient, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not uninstall istio")
 		}
 		context.Logger.Infof("Istio successfully uninstalled")
 	} else {
@@ -286,14 +287,16 @@ func deployIstioResources(context context.Context, manifest string, client kuber
 	return nil
 }
 
-func unDeployIstioResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
-	generated, err := generateNewManifestWithoutIstioOperatorFrom(manifest)
+func unDeployIstioRelatedResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
+	logger.Infof("Undeploying istio related dashboards")
+	// the client can currently not handle deletion of objects having a different namespace as the one which is passed here
+	// therefore the deletion needs to be triggered twice
+	_, err := client.Delete(context, manifest, "kyma-system")
 	if err != nil {
-		return errors.Wrap(err, "Could not generate manifest without Istio Operator")
+		return err
 	}
-
-	logger.Infof("Undeploying other Istio resources...")
-	_, err = client.Delete(context, generated, istioNamespace)
+	logger.Infof("Undeploying other istio related resources")
+	_, err = client.Delete(context, manifest, istioNamespace)
 	if err != nil {
 		return err
 	}
