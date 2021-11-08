@@ -24,7 +24,6 @@ func isDeploymentReady(ctx context.Context, client kubernetes.Interface, object 
 		return false, err
 	}
 
-	// TODO clarify with reconciler team about expected ready
 	isReady := replicaSet.Status.ReadyReplicas >= expectedReadyReplicas
 	return isReady, nil
 }
