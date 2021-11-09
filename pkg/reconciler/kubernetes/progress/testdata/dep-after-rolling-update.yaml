@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sleeper
+  labels:
+    app: sleeper
+spec:
+  selector:
+    matchLabels:
+      app: sleeper
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: sleeper
+    spec:
+      containers:
+        - name: sleeper
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 60000
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5

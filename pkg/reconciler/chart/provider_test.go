@@ -77,7 +77,8 @@ func componentList(t *testing.T, compListFile string) []*Component {
 
 func newComponent(comp components.Component) *Component {
 	compBuilder := NewComponentBuilder(kymaVersion, comp.Name).
-		WithConfiguration(reconTest.NewGlobalComponentConfiguration())
+		WithConfiguration(reconTest.NewGlobalComponentConfiguration()).
+		WithURL(comp.URL)
 
 	if comp.Namespace == "" {
 		compBuilder.WithNamespace(kymaNamespace)
