@@ -158,6 +158,7 @@ func (c *Config) prepareGenericDSN() string {
 
 func (c *Config) prepareStringData() map[string]string {
 	c.Global.Ory.Hydra.Persistence.SecretsSystem = generateRandomString(32)
+	c.Global.Ory.Hydra.Persistence.SecretsCookie = generateRandomString(32)
 
 	if c.Global.Ory.Hydra.Persistence.Enabled {
 		if c.Global.Ory.Hydra.Persistence.PostgresqlFlag.Enabled {
