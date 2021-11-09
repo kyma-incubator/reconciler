@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"time"
 
+	"github.com/instrumenta/kubeval/kubeval"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
@@ -113,6 +114,11 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 		return nil, err
 	}
 
+	err = validateManifest(namespace, manifest)
+	if err != nil {
+		return nil, err
+	}
+
 	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		g.logger.Errorf("Failed to process manifest file: %s", err)
@@ -152,6 +158,13 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 	g.logger.Debugf("Manifest processed: %d Kubernetes resources were successfully deployed",
 		len(deployedResources))
 	return deployedResources, pt.Watch(ctx, progress.ReadyState)
+}
+
+func validateManifest(namespace string, manifest string) error {
+	config := kubeval.NewDefaultConfig()
+	config.DefaultNamespace = namespace
+	_, err := kubeval.Validate([]byte(manifest), config)
+	return err
 }
 
 func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace string) ([]*k8s.Resource, error) {
