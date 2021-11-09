@@ -4,22 +4,6 @@ kind: Namespace
 metadata:
   name: unittest-adapter
 ---
-apiVersion: v1
-kind: Pod
-metadata:
-  name: unittest-pod
-  labels:
-    app: unittest-pod
-  namespace: unittest-adapter
-spec:
-  containers:
-    - name: unittest-pod
-      image: alpine
-      args:
-        - /bin/sh
-        - -c
-        - sleep 30
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -35,11 +35,6 @@ var expectedResourcesWithNs = []*k8s.Resource{
 		Namespace: "unittest-adapter",
 	},
 	{
-		Kind:      "Pod",
-		Name:      "unittest-pod",
-		Namespace: "unittest-adapter",
-	},
-	{
 		Kind:      "StatefulSet",
 		Name:      "unittest-statefulset",
 		Namespace: "unittest-adapter",

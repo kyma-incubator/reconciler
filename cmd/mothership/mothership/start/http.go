@@ -97,6 +97,15 @@ func startWebserver(ctx context.Context, o *Options) error {
 	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
 	router.Handle("/metrics", promhttp.Handler())
 
+	if o.AuditLog && o.AuditLogFile != "" {
+		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = auditLogger.Sync() }() // make golint happy
+		auditLoggerMiddelware := NewAuditLoggerMiddelware(auditLogger)
+		router.Use(auditLoggerMiddelware)
+	}
 	//start server process
 	srv := &server.Webserver{
 		Logger:     o.Logger(),

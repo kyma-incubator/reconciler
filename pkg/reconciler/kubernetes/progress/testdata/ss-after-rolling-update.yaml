@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sleeper
+  labels:
+    app: sleeper
+spec:
+  selector:
+    matchLabels:
+      app: sleeper
+  template:
+    metadata:
+      labels:
+        app: sleeper
+    spec:
+      containers:
+        - name: sleeper
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 60000
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: sleeper-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Mi

@@ -39,10 +39,10 @@ const (
 	workerTimeout           = 1 * time.Minute
 	serverPort              = 9999
 
-	componentName      = "component-1"
-	componentNamespace = "inttest-comprecon"
-	componentVersion   = "0.0.0"
-	componentPod       = "dummy-pod"
+	componentName       = "component-1"
+	componentNamespace  = "inttest-comprecon"
+	componentVersion    = "0.0.0"
+	componentDeployment = "dummy-deployment"
 )
 
 type testCase struct {
@@ -204,7 +204,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
 		{
-			name: "Try to apply impossible change: add container to running pod",
+			name: "Try to apply impossible change: change api version",
 			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
 				Component:       componentName,
@@ -213,7 +213,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration: map[string]interface{}{
-					"initContainer": true,
+					"v1k": "true",
 				},
 				Kubeconfig:    test.ReadKubeconfig(t),
 				CorrelationID: "test-correlation-id",
@@ -434,12 +434,12 @@ func expectPodInState(t *testing.T, state progress.State, kubeClient kubernetes.
 	clientSet, err := kubeClient.Clientset()
 	require.NoError(t, err)
 
-	watchable, err := progress.NewWatchableResource("pod")
+	watchable, err := progress.NewWatchableResource("deployment")
 	require.NoError(t, err)
 
-	t.Logf("Waiting for pod '%s' to reach %s state", componentPod, strings.ToUpper(string(state)))
+	t.Logf("Waiting for deployment '%s' to reach %s state", componentDeployment, strings.ToUpper(string(state)))
 	prog := newProgressTracker(t, clientSet)
-	prog.AddResource(watchable, componentNamespace, componentPod)
+	prog.AddResource(watchable, componentNamespace, componentDeployment)
 	require.NoError(t, prog.Watch(context.TODO(), state))
-	t.Logf("Pod '%s' reached %s state", componentPod, strings.ToUpper(string(state)))
+	t.Logf("DEployment '%s' reached %s state", componentDeployment, strings.ToUpper(string(state)))
 }

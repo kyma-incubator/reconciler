@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/docker v20.10.8+incompatible // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
@@ -15,7 +16,6 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
-	github.com/jonboulle/clockwork v0.1.0
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-sqlite3 v1.14.7
@@ -31,6 +31,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	helm.sh/helm/v3 v3.6.3
@@ -38,7 +39,6 @@ require (
 	k8s.io/apimachinery v0.21.0
 	k8s.io/cli-runtime v0.21.0
 	k8s.io/client-go v0.21.0
-	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7
 	k8s.io/kubectl v0.21.0
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/yaml v1.2.0
