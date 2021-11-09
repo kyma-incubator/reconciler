@@ -201,8 +201,8 @@ func canUninstall(istioVersion actions.IstioVersion) bool {
 	return isInstalled(istioVersion) && istioVersion.ClientVersion != ""
 }
 
-func getInstalledVersion(context *service.ActionContext, peformer actions.IstioPerformer) (actions.IstioVersion, error) {
-	ver, err := peformer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
+func getInstalledVersion(context *service.ActionContext, performer actions.IstioPerformer) (actions.IstioVersion, error) {
+	ver, err := performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
 		return actions.IstioVersion{}, errors.Wrap(err, "Could not fetch Istio version")
 	}
