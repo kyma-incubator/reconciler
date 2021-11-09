@@ -289,8 +289,7 @@ func deployIstioResources(context context.Context, manifest string, client kuber
 
 func unDeployIstioRelatedResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
 	logger.Infof("Undeploying istio related dashboards")
-	// the client can currently not handle deletion of objects having a different namespace as the one which is passed here
-	// therefore the deletion needs to be triggered twice
+	//multiple calls necessary, please see: https://github.com/kyma-incubator/reconciler/issues/367
 	_, err := client.Delete(context, manifest, "kyma-system")
 	if err != nil {
 		return err
