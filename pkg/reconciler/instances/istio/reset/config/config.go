@@ -19,10 +19,7 @@ type IstioProxyConfig struct {
 	RetriesCount int
 
 	// DelayBetweenRetries in seconds
-	DelayBetweenRetries int
-
-	// SleepAfterPodDeletion to avoid races
-	SleepAfterPodDeletion int
+	DelayBetweenRetries time.Duration
 
 	// Interval for polling ready status after Proxy Reset.
 	Interval time.Duration

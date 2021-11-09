@@ -17,12 +17,11 @@ import (
 
 func Test_IstioProxyReset_Run(t *testing.T) {
 	cfg := config.IstioProxyConfig{
-		ImagePrefix:           "istio/proxyv2",
-		ImageVersion:          "1.10.2",
-		RetriesCount:          5,
-		SleepAfterPodDeletion: 10,
-		Kubeclient:            fake.NewSimpleClientset(),
-		Log:                   log.NewLogger(true),
+		ImagePrefix:  "istio/proxyv2",
+		ImageVersion: "1.10.2",
+		RetriesCount: 5,
+		Kubeclient:   fake.NewSimpleClientset(),
+		Log:          log.NewLogger(true),
 	}
 
 	t.Run("should not return an error when no pods are present on the cluster", func(t *testing.T) {

@@ -24,13 +24,12 @@ import (
 )
 
 const (
-	istioOperatorKind     = "IstioOperator"
-	istioImagePrefix      = "istio/proxyv2"
-	retriesCount          = 5
-	delayBetweenRetries   = 5
-	sleepAfterPodDeletion = 10
-	timeout               = 5 * time.Minute
-	interval              = 10 * time.Second
+	istioOperatorKind   = "IstioOperator"
+	istioImagePrefix    = "istio/proxyv2"
+	retriesCount        = 5
+	delayBetweenRetries = 5 * time.Second
+	timeout             = 5 * time.Minute
+	interval            = 12 * time.Second
 )
 
 type VersionType string
@@ -209,16 +208,15 @@ func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, version IstioVersi
 	}
 
 	cfg := istioConfig.IstioProxyConfig{
-		ImagePrefix:           istioImagePrefix,
-		ImageVersion:          fmt.Sprintf("%s-distroless", version.TargetVersion),
-		RetriesCount:          retriesCount,
-		DelayBetweenRetries:   delayBetweenRetries,
-		SleepAfterPodDeletion: sleepAfterPodDeletion,
-		Timeout:               timeout,
-		Interval:              interval,
-		Kubeclient:            kubeClient,
-		Debug:                 false,
-		Log:                   logger,
+		ImagePrefix:         istioImagePrefix,
+		ImageVersion:        fmt.Sprintf("%s-distroless", version.TargetVersion),
+		RetriesCount:        retriesCount,
+		DelayBetweenRetries: delayBetweenRetries,
+		Timeout:             timeout,
+		Interval:            interval,
+		Kubeclient:          kubeClient,
+		Debug:               false,
+		Log:                 logger,
 	}
 
 	err = c.istioProxyReset.Run(cfg)

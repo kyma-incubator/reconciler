@@ -1,8 +1,6 @@
 package proxy
 
 import (
-	"time"
-
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
@@ -43,7 +41,7 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	}
 
 	retryOpts := []retry.Option{
-		retry.Delay(time.Duration(cfg.DelayBetweenRetries) * time.Second),
+		retry.Delay(cfg.DelayBetweenRetries),
 		retry.Attempts(uint(cfg.RetriesCount)),
 		retry.DelayType(retry.FixedDelay),
 	}
