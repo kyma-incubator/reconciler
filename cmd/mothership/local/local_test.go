@@ -37,3 +37,16 @@ func TestOverlappingNestedValues(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, expected, cfg)
 }
+
+func TestSetCustomNamespaceAndUrl(t *testing.T) {
+	list := []string{"{api-gateway,api-gatewayNS,https://github.com/kyma-project/customKyma}"}
+	expected := []*keb.Component{
+		{
+			Component: "api-gateway", Namespace: "api-gatewayNS", URL: "https://github.com/kyma-project/customKyma",
+		},
+	}
+
+	cfg, err := componentsFromStrings(list, nil)
+	require.NoError(t, err)
+	require.EqualValues(t, expected, cfg)
+}
