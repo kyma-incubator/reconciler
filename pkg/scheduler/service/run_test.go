@@ -139,7 +139,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	defer cancel()
 	require.NoError(t, remoteRunner.Run(ctx))
 
-	setOperationState(t, reconRepo, expectedClusterStatus)
+	setOperationState(t, reconRepo, expectedClusterStatus, clusterState.Cluster.RuntimeID)
 
 	time.Sleep(3 * time.Second) //give the bookkeeper some time to update the reconciliation
 
@@ -149,7 +149,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 }
 
 //setOperationState will update all operation status accordingly to expected cluster state
-func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expectedClusterStatus model.Status) {
+func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expectedClusterStatus model.Status, runtimeID string) {
 	var opState model.OperationState
 	switch expectedClusterStatus {
 	case model.ClusterStatusReconcileError:
@@ -161,13 +161,11 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		t.FailNow()
 	}
 
-	clusterState := testClusterState()
-
 	//simulate a successfully finished operation
 	ticker := time.NewTicker(1 * time.Second)
 	for range ticker.C {
 		//try to get the reconciliation entity for the cluster
-		reconEntities, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
+		reconEntities, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: runtimeID})
 		if len(reconEntities) == 0 {
 			continue
 		}
