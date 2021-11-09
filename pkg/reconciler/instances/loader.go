@@ -7,6 +7,8 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/base"
 	//import required to register component reconciler 'busolamigrator' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/busolamigrator"
+	//import required to register component reconciler 'clusteressentials' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/clusteressentials"
 	//import required to register component reconciler 'connectivityproxy' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy"
 	//import required to register component reconciler 'eventing' in reconciler registry
