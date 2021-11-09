@@ -1,0 +1,1 @@
+Reconciler Helm Charts were moved to the [`control-plane` repository](https://github.com/kyma-project/control-plane/tree/main/resources/kcp/charts).

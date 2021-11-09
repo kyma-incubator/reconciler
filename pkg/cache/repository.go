@@ -19,7 +19,7 @@ func NewRepository(conn db.Connection, debug bool) (*Repository, error) {
 }
 
 func (cr *Repository) All() ([]*model.CacheEntryEntity, error) {
-	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
+	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{}, cr.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (cr *Repository) All() ([]*model.CacheEntryEntity, error) {
 }
 
 func (cr *Repository) Get(label, runtimeID string) (*model.CacheEntryEntity, error) {
-	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
+	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{}, cr.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (cr *Repository) Get(label, runtimeID string) (*model.CacheEntryEntity, err
 }
 
 func (cr *Repository) GetByID(id int64) (*model.CacheEntryEntity, error) {
-	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
+	q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{}, cr.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model
 
 	//create new cache entry and track its dependencies
 	dbOps := func() (interface{}, error) {
-		q, err := db.NewQuery(cr.Conn, cacheEntry)
+		q, err := db.NewQuery(cr.Conn, cacheEntry, cr.Logger)
 		if err != nil {
 			return cacheEntry, err
 		}
@@ -117,7 +117,7 @@ func (cr *Repository) Invalidate(label, runtimeID string) error {
 
 		//as cache dependencies are optional we cannot rely that the previous
 		//invalidation dropped the cache entity: delete the entity also explicitly
-		q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
+		q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{}, cr.Logger)
 		if err != nil {
 			return err
 		}
@@ -139,7 +139,7 @@ func (cr *Repository) InvalidateByID(id int64) error {
 
 		//as cache dependencies are optional we cannot rely that the previous
 		//invalidation dropped the cache entity: delete the entity also explicitly
-		q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{})
+		q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{}, cr.Logger)
 		if err != nil {
 			return err
 		}

@@ -4,8 +4,9 @@ package kubeclient
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"strings"
+
+	"go.uber.org/zap"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -138,16 +139,6 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		ResourceVersion: restMapping.Resource.Version,
 	}
 
-	patcher := newPatcher(info, helper)
-
-	// Get the modified configuration of the object. Embed the result
-	// as an annotation in the modified configuration, so that it will appear
-	// in the patch sent to the server.
-	modified, err := util.GetModifiedConfiguration(info.Object, true, unstructured.UnstructuredJSONScheme)
-	if err != nil {
-		return metadata, err
-	}
-
 	if err := info.Get(); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return metadata, err
@@ -168,12 +159,13 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		_ = info.Refresh(obj, true)
 	}
 
-	_, patchedObject, err := patcher.Patch(info.Object, modified, info.Namespace, info.Name)
+	replace := newReplace(helper)
+	replacedObject, err := replace(info.Object, info.Namespace, info.Name)
 	if err != nil {
 		return metadata, err
 	}
 
-	_ = info.Refresh(patchedObject, true)
+	_ = info.Refresh(replacedObject, true)
 
 	metadata.Name = u.GetName()
 	metadata.Namespace = u.GetNamespace()
