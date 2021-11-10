@@ -17,9 +17,7 @@ require (
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
 	github.com/instrumenta/kubeval v0.16.1
-	github.com/jonboulle/clockwork v0.1.0
 	github.com/lib/pq v1.10.0
-	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/olekukonko/tablewriter v0.0.5
