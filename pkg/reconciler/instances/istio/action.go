@@ -24,6 +24,51 @@ type ReconcileAction struct {
 	performer actions.IstioPerformer
 }
 
+// NewReconcileAction returns an instance of ReconcileAction
+func NewReconcileAction(performer actions.IstioPerformer) *ReconcileAction {
+	return &ReconcileAction{performer: performer}
+}
+
+type UninstallAction struct {
+	performer actions.IstioPerformer
+}
+
+// NewUninstallAction returns an instance of UninstallAction
+func NewUninstallAction(performer actions.IstioPerformer) *UninstallAction {
+	return &UninstallAction{performer: performer}
+}
+
+func (a *UninstallAction) Run(context *service.ActionContext) error {
+	context.Logger.Debugf("Uninstall action of istio triggered")
+	ver, err := getInstalledVersion(context, a.performer)
+	if err != nil {
+		return err
+	}
+	if canUninstall(ver) {
+		component := chart.NewComponentBuilder(context.Task.Version, istioChart).
+			WithNamespace(istioNamespace).
+			WithProfile(context.Task.Profile).
+			WithConfiguration(context.Task.Configuration).Build()
+		manifest, err := context.ChartProvider.RenderManifest(component)
+		if err != nil {
+			return err
+		}
+		//Before removing istio himself, undeploy all related objects like dashboards
+		err = unDeployIstioRelatedResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
+		if err != nil {
+			return err
+		}
+		err = a.performer.Uninstall(context.KubeClient, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not uninstall istio")
+		}
+		context.Logger.Infof("Istio successfully uninstalled")
+	} else {
+		context.Logger.Warnf("Istio is not installed, can not uninstall it")
+	}
+	return nil
+}
+
 func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	component := chart.NewComponentBuilder(context.Task.Version, istioChart).
 		WithNamespace(istioNamespace).
@@ -34,12 +79,10 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	ver, err := a.performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
+	ver, err := getInstalledVersion(context, a.performer)
 	if err != nil {
-		return errors.Wrap(err, "Could not fetch Istio version")
+		return err
 	}
-
-	context.Logger.Infof("Detected: istioctl version %s, target Istio version: %s", ver.ClientVersion, ver.TargetVersion)
 
 	if isMismatchPresent(ver) {
 		context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
@@ -147,7 +190,24 @@ func newHelperVersionFrom(versionInString string) helperVersion {
 }
 
 func canInstall(version actions.IstioVersion) bool {
-	return version.DataPlaneVersion == "" && version.PilotVersion == ""
+	return !isInstalled(version)
+}
+
+func isInstalled(version actions.IstioVersion) bool {
+	return !(version.DataPlaneVersion == "" && version.PilotVersion == "")
+}
+
+func canUninstall(istioVersion actions.IstioVersion) bool {
+	return isInstalled(istioVersion) && istioVersion.ClientVersion != ""
+}
+
+func getInstalledVersion(context *service.ActionContext, performer actions.IstioPerformer) (actions.IstioVersion, error) {
+	ver, err := performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
+	if err != nil {
+		return actions.IstioVersion{}, errors.Wrap(err, "Could not fetch Istio version")
+	}
+	context.Logger.Infof("Detected: istioctl version %s, target Istio version: %s", ver.ClientVersion, ver.TargetVersion)
+	return ver, nil
 }
 
 func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
@@ -220,6 +280,22 @@ func deployIstioResources(context context.Context, manifest string, client kuber
 
 	logger.Infof("Deploying other Istio resources...")
 	_, err = client.Deploy(context, generated, istioNamespace, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func unDeployIstioRelatedResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
+	logger.Infof("Undeploying istio related dashboards")
+	//multiple calls necessary, please see: https://github.com/kyma-incubator/reconciler/issues/367
+	_, err := client.Delete(context, manifest, "kyma-system")
+	if err != nil {
+		return err
+	}
+	logger.Infof("Undeploying other istio related resources")
+	_, err = client.Delete(context, manifest, istioNamespace)
 	if err != nil {
 		return err
 	}

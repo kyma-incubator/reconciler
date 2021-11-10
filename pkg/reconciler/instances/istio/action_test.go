@@ -424,38 +424,187 @@ func newFakeKubeClient() *k8smocks.Client {
 
 	return mockClient
 }
+func Test_UninstallAction(t *testing.T) {
+
+	noIstioOnTheCluster := actions.IstioVersion{
+		ClientVersion:    "1.0",
+		PilotVersion:     "",
+		DataPlaneVersion: "",
+	}
+
+	istioAvailable := actions.IstioVersion{
+		ClientVersion:    "1.0",
+		PilotVersion:     "1.0",
+		DataPlaneVersion: "1.0",
+	}
+
+	t.Run("should perform istio uninstall action when istio is available", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		kubeClient := newFakeKubeClient()
+		kubeClient.On("Delete", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType(
+			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(istioAvailable, nil)
+		performer.On("Uninstall", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+
+		action := UninstallAction{performer: &performer}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.
+			AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Uninstall", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should not perform istio uninstall action when istio was not detected on the cluster", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType(
+			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(noIstioOnTheCluster, nil)
+		action := UninstallAction{performer: &performer}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Uninstall", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+	})
+
+	t.Run("should not perform istio uninstall action when there is an error detecting istio version", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType(
+			"string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(noIstioOnTheCluster, errors.New("error in detecting istio version"))
+		action := UninstallAction{performer: &performer}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Could not fetch Istio version: error in detecting istio version")
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Uninstall", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+	})
+
+}
+func Test_canUnInstall(t *testing.T) {
+
+	t.Run("should uninstall when istio is installed", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.9.2",
+			TargetVersion:    "",
+			PilotVersion:     "",
+			DataPlaneVersion: "1.9.2",
+		}
+
+		// when
+		got := canUninstall(istioVersion)
+
+		// then
+		require.True(t, got)
+	})
+
+	t.Run("should not uninstall when istio is not installed", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+
+		// when
+		got := canUninstall(istioVersion)
+
+		// then
+		require.False(t, got)
+	})
+
+	t.Run("should not uninstall when istio ctl is not installed", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.11.2",
+			DataPlaneVersion: "1.11.2",
+		}
+
+		// when
+		got := canUninstall(istioVersion)
+
+		// then
+		require.False(t, got)
+	})
+	t.Run("should not matter to uninstall if client version and data plane diverge", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.9.0",
+			TargetVersion:    "1.20.2",
+			PilotVersion:     "1.11.2",
+			DataPlaneVersion: "1.11.2",
+		}
+
+		// when
+		got := canUninstall(istioVersion)
+
+		// then
+		require.True(t, got)
+	})
+}
 
 func Test_canInstall(t *testing.T) {
 	t.Run("should install when client and pilot versions are empty", func(t *testing.T) {
-		//given
-		randomVersion := actions.IstioVersion{
+		// given
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.9.2",
 			TargetVersion:    "",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
 
-		//when
-		got := canInstall(randomVersion)
+		// when
+		got := canInstall(istioVersion)
 
-		//then
-		require.Equal(t, true, got)
+		// then
+		require.True(t, got)
 	})
 
 	t.Run("should update when client and pilot versions values are not empty", func(t *testing.T) {
-		//given
-		randomVersion := actions.IstioVersion{
+		// given
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "",
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.1",
 		}
 
-		//when
-		got := canInstall(randomVersion)
+		// when
+		got := canInstall(istioVersion)
 
-		//then
-		require.Equal(t, false, got)
+		// then
+		require.False(t, got)
 	})
 }
 
@@ -463,7 +612,7 @@ func Test_canUpdate(t *testing.T) {
 	logger := log.NewLogger(true)
 
 	t.Run("should not allow update when client version is more than one minor behind the target version", func(t *testing.T) {
-		//given
+		// given
 		version := actions.IstioVersion{
 			ClientVersion:    "1.0.0",
 			TargetVersion:    "1.2.0",
@@ -471,15 +620,15 @@ func Test_canUpdate(t *testing.T) {
 			DataPlaneVersion: "1.0.0",
 		}
 
-		//when
+		// when
 		result := canUpdate(version, logger)
 
-		//then
+		// then
 		require.False(t, result)
 	})
 
 	t.Run("should not allow update when downgrade scenario is detected for pilot", func(t *testing.T) {
-		//given
+		// given
 		version := actions.IstioVersion{
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.0",
@@ -487,15 +636,15 @@ func Test_canUpdate(t *testing.T) {
 			DataPlaneVersion: "1.1.0",
 		}
 
-		//when
+		// when
 		result := canUpdate(version, logger)
 
-		//then
+		// then
 		require.False(t, result)
 	})
 
 	t.Run("should not allow update when downgrade scenario is detected for data plane", func(t *testing.T) {
-		//given
+		// given
 		version := actions.IstioVersion{
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.0",
@@ -503,15 +652,15 @@ func Test_canUpdate(t *testing.T) {
 			DataPlaneVersion: "1.2.0",
 		}
 
-		//when
+		// when
 		result := canUpdate(version, logger)
 
-		//then
+		// then
 		require.False(t, result)
 	})
 
 	t.Run("should not allow update when more than one minor upgrade is detected for pilot", func(t *testing.T) {
-		//given
+		// given
 		version := actions.IstioVersion{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
@@ -519,15 +668,15 @@ func Test_canUpdate(t *testing.T) {
 			DataPlaneVersion: "1.1.0",
 		}
 
-		//when
+		// when
 		result := canUpdate(version, logger)
 
-		//then
+		// then
 		require.False(t, result)
 	})
 
 	t.Run("should not allow update when more than one minor upgrade is detected for data plane", func(t *testing.T) {
-		//given
+		// given
 		version := actions.IstioVersion{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
@@ -535,15 +684,15 @@ func Test_canUpdate(t *testing.T) {
 			DataPlaneVersion: "1.0.0",
 		}
 
-		//when
+		// when
 		result := canUpdate(version, logger)
 
-		//then
+		// then
 		require.False(t, result)
 	})
 
 	t.Run("should allow update when less than one minor upgrade is detected for pilot and data plane ", func(t *testing.T) {
-		//given
+		// given
 		version := actions.IstioVersion{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
@@ -551,15 +700,15 @@ func Test_canUpdate(t *testing.T) {
 			DataPlaneVersion: "1.1.0",
 		}
 
-		//when
+		// when
 		result := canUpdate(version, logger)
 
-		//then
+		// then
 		require.True(t, result)
 	})
 
 	t.Run("should allow update when all versions match", func(t *testing.T) {
-		//given
+		// given
 		version := actions.IstioVersion{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
@@ -567,43 +716,43 @@ func Test_canUpdate(t *testing.T) {
 			DataPlaneVersion: "1.2.0",
 		}
 
-		//when
+		// when
 		result := canUpdate(version, logger)
 
-		//then
+		// then
 		require.True(t, result)
 	})
 }
 
-func TestIsMismatchPresent(t *testing.T) {
+func Test_isMismatchPresent(t *testing.T) {
 	t.Run("Different Pilot and DataPlane versions is a mismatch", func(t *testing.T) {
-		//given
+		// given
 		differentVersions := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.2",
 		}
 
-		//when
+		// when
 		got := isMismatchPresent(differentVersions)
 
 		//then
-		require.Equal(t, true, got)
+		require.True(t, got)
 	})
 
 	t.Run("Same Pilot and DataPlane versions is not a mismatch", func(t *testing.T) {
-		//given
+		// given
 		sameVersions := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			PilotVersion:     "1.11.2",
 			DataPlaneVersion: "1.11.2",
 		}
 
-		//when
+		// when
 		got := isMismatchPresent(sameVersions)
 
-		//then
-		require.Equal(t, false, got)
+		// then
+		require.False(t, got)
 	})
 }
 
