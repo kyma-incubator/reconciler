@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util"
 )
 
 type Metadata struct {
@@ -144,7 +143,7 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		}
 
 		// Then create the resource and skip the three-way merge
-		_, err := helper.Create(info.Namespace, true, u)
+		_, err := helper.Create(u.GetNamespace(), true, u)
 		if err != nil {
 			return metadata, err
 		}
