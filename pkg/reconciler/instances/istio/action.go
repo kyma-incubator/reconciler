@@ -201,12 +201,10 @@ func canUninstall(istioVersion actions.IstioVersion) bool {
 	return isInstalled(istioVersion) && istioVersion.ClientVersion != ""
 }
 
-func (h *helperVersion) isDowngradePermitted(pilotVersion *helperVersion, dataPlaneVersion *helperVersion) bool {
+func (h *helperVersion) isDowngradePermitted(second *helperVersion) bool {
 	// we permit one minor downgrade, please see: https://github.com/kyma-incubator/reconciler/issues/365
-	if h.major == pilotVersion.major || h.major == dataPlaneVersion.major {
-		if pilotVersion.minor-h.minor == 1 {
-			return true
-		} else if dataPlaneVersion.minor-h.minor == 1 {
+	if h.major == second.major {
+		if second.minor-h.minor == 0 || second.minor-h.minor == 1 {
 			return true
 		}
 	}
@@ -237,7 +235,7 @@ func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
 	dataPlaneVsTarget := targetHelperVersion.compare(&dataPlaneHelperVersion)
 
 	if pilotVsTarget == -1 || dataPlaneVsTarget == -1 {
-		if !targetHelperVersion.isDowngradePermitted(&pilotHelperVersion, &dataPlaneHelperVersion) {
+		if !targetHelperVersion.isDowngradePermitted(&pilotHelperVersion) || !targetHelperVersion.isDowngradePermitted(&dataPlaneHelperVersion) {
 			logger.Errorf("Downgrade detected from pilot: %s and data plane: %s to version: %s - finishing...", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
 			return false
 		}

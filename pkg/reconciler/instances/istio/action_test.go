@@ -664,7 +664,7 @@ func Test_canUpdate(t *testing.T) {
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.0",
 			PilotVersion:     "1.1.0",
-			DataPlaneVersion: "1.2.0",
+			DataPlaneVersion: "1.1.5",
 		}
 
 		// when
