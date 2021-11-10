@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
@@ -23,11 +24,12 @@ import (
 )
 
 const (
-	istioOperatorKind     = "IstioOperator"
-	istioImagePrefix      = "istio/proxyv2"
-	retriesCount          = 5
-	delayBetweenRetries   = 10
-	sleepAfterPodDeletion = 10
+	istioOperatorKind   = "IstioOperator"
+	istioImagePrefix    = "istio/proxyv2"
+	retriesCount        = 5
+	delayBetweenRetries = 5 * time.Second
+	timeout             = 5 * time.Minute
+	interval            = 12 * time.Second
 )
 
 type VersionType string
@@ -119,7 +121,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet reconcilerKubeClient.Cli
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
-
+	log.Info("Istio uninstall triggered")
 	kubeClient, err := kubeClientSet.Clientset()
 	if err != nil {
 		return err
@@ -132,6 +134,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet reconcilerKubeClient.Cli
 	if err != nil {
 		return err
 	}
+	log.Info("Istio namespace deleted")
 	return nil
 }
 
@@ -206,14 +209,15 @@ func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, version IstioVersi
 	}
 
 	cfg := istioConfig.IstioProxyConfig{
-		ImagePrefix:           istioImagePrefix,
-		ImageVersion:          fmt.Sprintf("%s-distroless", version.TargetVersion),
-		RetriesCount:          retriesCount,
-		DelayBetweenRetries:   delayBetweenRetries,
-		SleepAfterPodDeletion: sleepAfterPodDeletion,
-		Kubeclient:            kubeClient,
-		Debug:                 false,
-		Log:                   logger,
+		ImagePrefix:         istioImagePrefix,
+		ImageVersion:        fmt.Sprintf("%s-distroless", version.TargetVersion),
+		RetriesCount:        retriesCount,
+		DelayBetweenRetries: delayBetweenRetries,
+		Timeout:             timeout,
+		Interval:            interval,
+		Kubeclient:          kubeClient,
+		Debug:               false,
+		Log:                 logger,
 	}
 
 	err = c.istioProxyReset.Run(cfg)

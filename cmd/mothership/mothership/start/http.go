@@ -43,6 +43,12 @@ const (
 func startWebserver(ctx context.Context, o *Options) error {
 	//routing
 	router := mux.NewRouter()
+
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		callHandler(o, updateOperationStatus)).
+		Methods("POST")
+
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdateCluster)).
@@ -543,6 +549,73 @@ func deleteCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, r, state, o.Registry.ReconciliationRepository())
 }
 
+func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	correlationID, err := params.String(paramCorrelationID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	var stopOperation keb.OperationStop
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
+		})
+		return
+	}
+
+	err = json.Unmarshal(reqBody, &stopOperation)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
+		})
+		return
+	}
+
+	op, err := getOperationStatus(o, schedulingID, correlationID)
+	if err != nil {
+		if repository.IsNotFoundError(err) {
+			server.SendHTTPError(w, http.StatusNotFound, &reconciler.HTTPErrorResponse{
+				Error: "Couldn't find operation",
+			})
+			return
+		}
+
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to get operation").Error(),
+		})
+		return
+	}
+
+	if op.State != model.OperationStateNew {
+		server.SendHTTPError(w, http.StatusForbidden, &reconciler.HTTPErrorResponse{
+			Error: fmt.Sprintf("Operation is in status: %s. Should be in: %s in order to stop it.", op.State, model.OperationStateNew),
+		})
+		return
+	}
+
+	err = updateOperationState(o, schedulingID, correlationID, model.OperationStateDone, stopOperation.Reason)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "while updating operation status").Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	schedulingID, err := params.String(paramSchedulingID)
@@ -614,6 +687,14 @@ func updateOperationState(o *Options, schedulingID, correlationID string, state 
 			"to state '%s': %s", schedulingID, correlationID, state, err)
 	}
 	return err
+}
+
+func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.OperationEntity, error) {
+	op, err := o.Registry.ReconciliationRepository().GetOperation(schedulingID, correlationID)
+	if err != nil {
+		return nil, errors.Wrap(err, "while getting operation status")
+	}
+	return op, err
 }
 
 func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) {
