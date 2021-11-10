@@ -55,7 +55,7 @@ golangci::run_checks() {
 
   echo "Checks: ${LINTS[*]}"
   cd ${ROOT_PATH}
-  golangci-lint --disable-all --enable="${ENABLE}" --timeout=10m run --config $CURRENT_DIR/.golangci.yml
+  golangci-lint run --disable-all --enable="${ENABLE}" --timeout=10m --config $CURRENT_DIR/.golangci.yml --skip-dirs-use-default
 
   echo -e "${GREEN}√ run golangci-lint${NC}"
 }
