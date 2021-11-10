@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -143,7 +144,7 @@ func (p *DefaultProvider) Configuration(component *Component) (map[string]interf
 func (p *DefaultProvider) newWorkspace(component *Component) (*workspace.Workspace, error) {
 	var ws *workspace.Workspace
 	var err error
-	if component.url != "" {
+	if component.url != "" && strings.HasSuffix(component.url, ".git") {
 		p.logger.Debugf("Getting workspace for Kyma '%s', url repository: ", component.version, component.url)
 		configuration, err := component.Configuration()
 		if err != nil {

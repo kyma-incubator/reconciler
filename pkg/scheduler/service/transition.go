@@ -53,14 +53,13 @@ func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.Stat
 		}
 
 		newClusterState, err := t.inventory.UpdateStatus(clusterState, targetState)
-		if err == nil {
-			t.logger.Debugf("Starting reconciliation for cluster '%s': set cluster status to '%s'",
-				newClusterState.Cluster.RuntimeID, model.ClusterStatusReconciling)
-		} else {
+		if err != nil {
 			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not update cluster status to '%s': %s",
 				clusterState.Cluster.RuntimeID, targetState, err)
 			return err
 		}
+		t.logger.Debugf("Starting reconciliation for cluster '%s': set cluster status to '%s'",
+			newClusterState.Cluster.RuntimeID, model.ClusterStatusReconciling)
 
 		//create reconciliation entity
 		reconEntity, err := t.reconRepo.CreateReconciliation(newClusterState, preComponents)
