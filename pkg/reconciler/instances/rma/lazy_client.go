@@ -3,7 +3,7 @@ package rma
 import (
 	"sync"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+	reconK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
@@ -16,7 +16,7 @@ type KubeClient interface {
 }
 
 type LazyKubeClient struct {
-	client      *kubeclient.KubeClient
+	client      kubernetes.Interface
 	clientErr   error
 	configFlags *genericclioptions.ConfigFlags
 	initClient  sync.Once
@@ -25,7 +25,7 @@ type LazyKubeClient struct {
 
 func (c *LazyKubeClient) init() error {
 	c.initClient.Do(func() {
-		c.client, c.clientErr = kubeclient.NewInClusterClient(c.log)
+		c.client, c.clientErr = reconK8s.NewInClusterClientSet(c.log)
 		if c.clientErr != nil {
 			return
 		}
@@ -48,7 +48,7 @@ func (c *LazyKubeClient) ClientSet() (kubernetes.Interface, error) {
 	if err := c.init(); err != nil {
 		return nil, err
 	}
-	return c.client.GetClientSet()
+	return c.client, nil
 }
 
 func (c *LazyKubeClient) RESTClientGetter() (genericclioptions.RESTClientGetter, error) {

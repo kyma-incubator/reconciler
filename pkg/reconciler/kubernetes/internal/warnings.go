@@ -1,4 +1,4 @@
-package kubeclient
+package internal
 
 import (
 	"go.uber.org/zap"

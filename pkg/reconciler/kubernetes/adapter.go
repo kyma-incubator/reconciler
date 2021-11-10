@@ -1,15 +1,16 @@
-package adapter
+package kubernetes
 
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
-	"strings"
 	"time"
 
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/internal"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -31,7 +32,7 @@ metadata:
 
 type kubeClientAdapter struct {
 	kubeconfig string
-	kubeClient kubeclient.KubeClient
+	kubeClient *internal.KubeClient
 	logger     *zap.SugaredLogger
 	config     *Config
 }
@@ -41,22 +42,41 @@ type Config struct {
 	ProgressTimeout  time.Duration
 }
 
-func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (k8s.Client, error) {
-	kubeClient, err := kubeclient.NewKubeClient(kubeconfig, logger)
+func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (Client, error) {
+	kubeClient, err := internal.NewKubeClient(kubeconfig, logger)
 	if err != nil {
 		return nil, err
 	}
 
+	return adapt(kubeClient, kubeconfig, logger, config), err
+}
+
+func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, error) {
+	inClusterClient, err := internal.NewInClusterClient(logger)
+	if err != nil {
+		logger.Infof("Not able to create an In Cluster Client")
+		return nil, nil
+	}
+
+	inClusterClientSet, err := inClusterClient.GetClientSet()
+	if err != nil {
+		return nil, err
+	}
+
+	return inClusterClientSet, nil
+}
+
+func adapt(impl *internal.KubeClient, kubeconfig string, logger *zap.SugaredLogger, config *Config) *kubeClientAdapter {
 	if config == nil {
 		config = &Config{}
 	}
 
 	return &kubeClientAdapter{
 		kubeconfig: kubeconfig,
-		kubeClient: *kubeClient,
+		kubeClient: impl,
 		logger:     logger,
 		config:     config,
-	}, nil
+	}
 }
 
 func (g *kubeClientAdapter) Kubeconfig() string {
@@ -68,7 +88,7 @@ func (g *kubeClientAdapter) PatchUsingStrategy(kind, name, namespace string, p [
 	return err
 }
 
-func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace string, interceptors ...k8s.ResourceInterceptor) ([]*k8s.Resource, error) {
+func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error) {
 	if namespace == "" {
 		namespace = defaultNamespace
 	}
@@ -84,15 +104,15 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace stri
 	return deployedResources, err
 }
 
-func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namespace string, interceptors []k8s.ResourceInterceptor) ([]*k8s.Resource, error) {
-	var deployedResources []*k8s.Resource
+func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namespace string, interceptors []ResourceInterceptor) ([]*Resource, error) {
+	var deployedResources []*Resource
 
 	pt, err := g.newProgressTracker()
 	if err != nil {
 		return nil, err
 	}
 
-	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
+	unstructs, err := ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		g.logger.Errorf("Failed to process manifest data: %s", err)
 		g.logger.Debugf("Manifest data: %s", manifest)
@@ -115,12 +135,14 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 				return deployedResources, err
 			}
 		}
-		resource, err := g.kubeClient.ApplyWithNamespaceOverride(unstruct, namespace)
+		metadata, err := g.kubeClient.ApplyWithNamespaceOverride(unstruct, namespace)
 		if err != nil {
 			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
 			g.logger.Debugf("Used JSON data: %+v", unstruct)
 			return deployedResources, err
 		}
+
+		resource := toResource(metadata)
 
 		//add deploy resource to result
 		g.logger.Debugf("Kubernetes resource '%v' successfully deployed", resource)
@@ -165,7 +187,7 @@ func (g *kubeClientAdapter) addNamespaceUnstruct(unstructs []*unstructured.Unstr
 
 func (g *kubeClientAdapter) newNamespaceUnstruct(namespace string) (*unstructured.Unstructured, error) {
 	//create unstructured object for missing namespace
-	nsUnstructs, err := kubeclient.ToUnstructured([]byte(namespaceManifest), true)
+	nsUnstructs, err := ToUnstructured([]byte(namespaceManifest), true)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to create unstructured object for namespace '%s'",
 			namespace))
@@ -178,12 +200,12 @@ func (g *kubeClientAdapter) newNamespaceUnstruct(namespace string) (*unstructure
 	return nsUnstructs[0], nil
 }
 
-func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace string) ([]*k8s.Resource, error) {
+func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error) {
 	if namespace == "" {
 		namespace = defaultNamespace
 	}
 
-	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
+	unstructs, err := ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		g.logger.Errorf("Failed to process manifest file: %s", err)
 		g.logger.Debugf("Manifest file: %s", manifest)
@@ -196,20 +218,22 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace stri
 	}
 
 	//delete resource in reverse order
-	var deletedResources []*k8s.Resource
+	var deletedResources []*Resource
 	for i := len(unstructs) - 1; i >= 0; i-- {
 		unstruct := unstructs[i]
 
 		g.logger.Debugf("Deleting resource kind='%s', name='%s', namespace='%s'",
 			unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
 
-		resource, err := g.kubeClient.DeleteResourceByKindAndNameAndNamespace(
+		metadata, err := g.kubeClient.DeleteResourceByKindAndNameAndNamespace(
 			unstruct.GetKind(), unstruct.GetName(), namespace, metav1.DeleteOptions{})
 		if err != nil && !k8serr.IsNotFound(err) {
 			g.logger.Errorf("Failed to delete Kubernetes unstructured resource kind='%s', name='%s', namespace='%s': %s",
 				unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace(), err)
 			return deletedResources, err
 		}
+
+		resource := toResource(metadata)
 
 		//add deleted resource to result set
 		deletedResources = append(deletedResources, resource)
@@ -296,4 +320,12 @@ func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace strin
 	}
 
 	return secret, nil
+}
+
+func toResource(m *internal.Metadata) *Resource {
+	return &Resource{
+		Name:      m.Name,
+		Kind:      m.Kind,
+		Namespace: m.Namespace,
+	}
 }

@@ -2,13 +2,14 @@ package chart
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/internal/components"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/kyma-incubator/reconciler/internal/components"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
 	"go.uber.org/zap"
 )
@@ -78,7 +79,7 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 				return err
 			}
 
-			unstructs, err := kubeclient.ToUnstructured(crdData, true)
+			unstructs, err := k8s.ToUnstructured(crdData, true)
 			if err != nil {
 				return err
 			}
