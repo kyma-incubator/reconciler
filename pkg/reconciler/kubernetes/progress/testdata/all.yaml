@@ -41,6 +41,8 @@ kind: Job
 metadata:
   name: unittest-job
   namespace: unittest-progress
+  labels:
+    app: unittest-job
 spec:
   template:
     spec:
