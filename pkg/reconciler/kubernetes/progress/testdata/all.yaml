@@ -42,7 +42,13 @@ metadata:
   name: unittest-job
   namespace: unittest-progress
 spec:
+  selector:
+    matchLabels:
+      app: unittest-job
   template:
+    metadata:
+      labels:
+        app: unittest-job
     spec:
       containers:
         - name: unittest-job

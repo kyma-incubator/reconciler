@@ -42,8 +42,14 @@ metadata:
   name: unittest-job
   # namespace has to be set during deployment
 spec:
+  selector:
+    matchLabels:
+      app: unittest-job
   template:
     spec:
+      metadata:
+        labels:
+          app: unittest-job
       containers:
         - name: unittest-job
           image: alpine
