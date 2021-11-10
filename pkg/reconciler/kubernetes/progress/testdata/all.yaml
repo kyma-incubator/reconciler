@@ -1,0 +1,122 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: unittest-progress
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unittest-deployment
+  labels:
+    app: unittest-deployment
+  namespace: unittest-progress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: unittest-deployment
+  template:
+    metadata:
+      labels:
+        app: unittest-deployment
+    spec:
+      containers:
+      - name: unittest-deployment
+        image: alpine
+        args:
+          - /bin/sh
+          - -c
+          - sleep 30
+        readinessProbe:
+          exec:
+            command:
+              - find
+              - /tmp
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: unittest-job
+  namespace: unittest-progress
+spec:
+  template:
+    spec:
+      containers:
+        - name: unittest-job
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 30
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      restartPolicy: Never
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: unittest-daemonset
+  namespace: unittest-progress
+  labels:
+    k8s-app: unittest-daemonset
+spec:
+  selector:
+    matchLabels:
+      name: unittest-daemonset
+  template:
+    metadata:
+      labels:
+        name: unittest-daemonset
+    spec:
+      containers:
+        - name: unittest-daemonset
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 30
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: unittest-statefulset
+  namespace: unittest-progress
+spec:
+  selector:
+    matchLabels:
+      app: unittest-statefulset
+  serviceName: unittest-statefulset
+  template:
+    metadata:
+      labels:
+        app: unittest-statefulset
+    spec:
+      containers:
+        - name: unittest-statefulset
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 30
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5

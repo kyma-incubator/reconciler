@@ -25,6 +25,7 @@ import (
 	"go.uber.org/zap/zaptest"
 	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8s "k8s.io/client-go/kubernetes"
@@ -49,7 +50,14 @@ const (
               enabled: true`
 )
 
-func Test_PreAction_Run(t *testing.T) {
+const (
+	profileName   = "profile"
+	componentName = "test-ory"
+)
+
+var chartDir = filepath.Join("test", "resources")
+
+func Test_PreInstallAction_Run(t *testing.T) {
 	t.Run("should not perform any action when chart configuration returned an error", func(t *testing.T) {
 		// given
 		factory := workspacemocks.Factory{}
@@ -58,7 +66,7 @@ func Test_PreAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -79,7 +87,7 @@ func Test_PreAction_Run(t *testing.T) {
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("cannot get secret"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := preAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -100,7 +108,7 @@ func Test_PreAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -127,7 +135,7 @@ func Test_PreAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingSecret)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err = action.Run(actionContext)
@@ -156,7 +164,7 @@ func Test_PreAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingSecret, hydraDeployment)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
 
 		// when
 		err = action.Run(actionContext)
@@ -174,12 +182,82 @@ func Test_PreAction_Run(t *testing.T) {
 	})
 }
 
-const (
-	profileName   = "profile"
-	componentName = "test-ory"
-)
+func Test_PreDeleteAction_Run(t *testing.T) {
+	t.Run("should not perform any action when kubernetes clientset returned an error", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		kubeClient := k8smocks.Client{}
+		kubeClient.On("Clientset").Return(nil, errors.New("failed to retrieve native Kubernetes GO client"))
+		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
+		action := preDeleteAction{&oryAction{step: "pre-delete"}}
 
-var chartDir = filepath.Join("test", "resources")
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to retrieve native Kubernetes GO client")
+		kubeClient.AssertCalled(t, "Clientset")
+	})
+
+	t.Run("should not perform any action when getting secret returns an error", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		kubeClient := k8smocks.Client{}
+		kubeClient.On("Clientset").Return(nil, errors.New("Could not get DB secret"))
+		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
+		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Could not get DB secret")
+		kubeClient.AssertCalled(t, "Clientset")
+	})
+
+	t.Run("should not perform any action when secret does not exist", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertCalled(t, "Clientset")
+	})
+
+	t.Run("should delete ory secret when secret exists", func(t *testing.T) {
+		// given
+		factory := workspacemocks.Factory{}
+		provider := chartmocks.Provider{}
+		existingSecret := fixSecretMemory()
+		clientSet := fake.NewSimpleClientset(existingSecret)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		_, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		require.False(t, kerrors.IsNotFound(err))
+		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertCalled(t, "Clientset")
+		_, err = clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
+		require.True(t, kerrors.IsNotFound(err))
+	})
+}
 
 func TestOryJwksSecret(t *testing.T) {
 	tests := []struct {
@@ -199,7 +277,7 @@ func TestOryJwksSecret(t *testing.T) {
 		test := testCase
 		t.Run(test.Name, func(t *testing.T) {
 			logger := zaptest.NewLogger(t).Sugar()
-			a := postAction{
+			a := postReconcileAction{
 				&oryAction{step: "test-jwks-secret"},
 			}
 			name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
@@ -214,6 +292,7 @@ func TestOryJwksSecret(t *testing.T) {
 				existingSecret, err := preCreateSecret(ctx, k8sClient, name)
 				assert.NoError(t, err)
 				existingUID = existingSecret.UID
+				require.Equal(t, true, isEmpty(existingSecret))
 			}
 
 			err = a.patchSecret(ctx, k8sClient, name, patchData, logger)
@@ -227,14 +306,43 @@ func TestOryJwksSecret(t *testing.T) {
 				assert.Equal(t, name.Name, secret.Name)
 				assert.Equal(t, name.Namespace, secret.Namespace)
 				assert.NotNil(t, secret.Data)
-
 				assert.Equal(t, existingUID, secret.UID)
 			}
 
 		})
 	}
 }
+func TestOryJwksSecret_IsEmpty(t *testing.T) {
+	t.Run("should return true on empty Secret", func(t *testing.T) {
+		// given
+		name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
+		ctx := context.Background()
+		k8sClient := fake.NewSimpleClientset()
+		existingSecret, err := preCreateSecret(ctx, k8sClient, name)
 
+		// when
+		check := isEmpty(existingSecret)
+
+		// then
+		assert.NoError(t, err)
+		require.Equal(t, true, check)
+	})
+	t.Run("should return false on non-empty Secret", func(t *testing.T) {
+		// given
+		name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
+		ctx := context.Background()
+		k8sClient := fake.NewSimpleClientset()
+		existingSecret, err := preCreateSecret(ctx, k8sClient, name)
+		existingSecret.Data = map[string][]byte{"jwks.json": []byte("test")}
+
+		// when
+		check := isEmpty(existingSecret)
+
+		// then
+		assert.NoError(t, err)
+		require.Equal(t, false, check)
+	})
+}
 func TestOryDbSecret(t *testing.T) {
 	tests := []struct {
 		Name            string
