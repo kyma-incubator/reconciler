@@ -115,7 +115,7 @@ func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 		Secrets(tokenNamespace).
 		Get(context.Background(), secretKey, v1.GetOptions{})
 
-	if err != nil && !apierrors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) && !apierrors.IsForbidden(err) {
 		return nil, err
 	}
 

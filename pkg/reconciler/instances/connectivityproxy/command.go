@@ -12,9 +12,10 @@ import (
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	Install(*service.ActionContext, *apiCoreV1.Secret) error
-	CopyResources(context *service.ActionContext) error
-	Remove(context *service.ActionContext) error
+	Install(*service.ActionContext) error
+	CopyResources(*service.ActionContext) error
+	Remove(*service.ActionContext) error
+	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
 type NewInClusterClientSet func(logger *zap.SugaredLogger) (kubernetes.Interface, error)
@@ -27,7 +28,16 @@ type CommandActions struct {
 	copyFactory            []CopyFactory
 }
 
-func (a *CommandActions) Install(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) error {
+func (a *CommandActions) Install(context *service.ActionContext) error {
+	err := a.install.Invoke(context.Context, context.ChartProvider, context.Task, context.KubeClient)
+	if err != nil {
+		return errors.Wrap(err, "Error during installation")
+	}
+
+	return nil
+}
+
+func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
 	for key, val := range bindingSecret.Data {
 		var unmarshalled map[string]interface{}
 
@@ -39,13 +49,6 @@ func (a *CommandActions) Install(context *service.ActionContext, bindingSecret *
 			}
 		}
 	}
-
-	err := a.install.Invoke(context.Context, context.ChartProvider, context.Task, context.KubeClient)
-	if err != nil {
-		return errors.Wrap(err, "Error during installation")
-	}
-
-	return nil
 }
 
 func (a *CommandActions) CopyResources(context *service.ActionContext) error {

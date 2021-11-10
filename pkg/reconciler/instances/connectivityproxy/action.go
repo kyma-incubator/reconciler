@@ -57,6 +57,8 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Error while retrieving secret")
 		}
 
+		a.Commands.PopulateConfigs(context, bindingSecret)
+
 		context.Logger.Info("Copying resources to target cluster")
 		err = a.Commands.CopyResources(context)
 		if err != nil {
@@ -64,7 +66,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 
 		context.Logger.Info("Installing component")
-		if err := a.Commands.Install(context, bindingSecret); err != nil {
+		if err := a.Commands.Install(context); err != nil {
 			return errors.Wrap(err, "Error during installation")
 		}
 	} else if binding == nil && app != nil {

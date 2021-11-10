@@ -68,11 +68,11 @@ func istioSecretCopy(task *reconciler.Task, _, targetClientSet k8s.Interface) *S
 	configs := task.Configuration
 
 	istioNamespace := configs[istioConfigPrefix+".secret.namespace"]
-	if istioNamespace == "" {
+	if istioNamespace == nil || istioNamespace == "" {
 		istioNamespace = "istio-system"
 	}
 	istioSecretKey := configs[istioConfigPrefix+".secret.key"]
-	if istioSecretKey == "" {
+	if istioSecretKey == nil || istioSecretKey == "" {
 		istioSecretKey = "cacert"
 	}
 
@@ -81,7 +81,7 @@ func istioSecretCopy(task *reconciler.Task, _, targetClientSet k8s.Interface) *S
 		Name:            fmt.Sprintf("%v", configs[istioConfigPrefix+".secret.name"]),
 		targetClientSet: targetClientSet,
 		from: &FromURL{
-			URL: fmt.Sprintf("%v%v", configs["binding.url"], configs["CAs_signing_path"]),
+			URL: fmt.Sprintf("%v%v", configs["binding.url"], configs["binding.CAs_signing_path"]),
 			Key: fmt.Sprintf("%v", istioSecretKey),
 		},
 	}
