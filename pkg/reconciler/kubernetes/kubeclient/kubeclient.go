@@ -135,7 +135,6 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		Namespace:       u.GetNamespace(),
 		Name:            u.GetName(),
 		Source:          "",
-		Object:          u,
 		ResourceVersion: restMapping.Resource.Version,
 	}
 
@@ -151,16 +150,14 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		}
 
 		// Then create the resource and skip the three-way merge
-		obj, err := helper.Create(info.Namespace, true, info.Object)
+		_, err := helper.Create(info.Namespace, true, info.Object)
 		if err != nil {
 			return metadata, err
 		}
-
-		_ = info.Refresh(obj, true)
 	}
 
 	replace := newReplace(helper)
-	replacedObject, err := replace(info.Object, info.Namespace, info.Name)
+	replacedObject, err := replace(u, u.GetNamespace(), u.GetName())
 	if err != nil {
 		return metadata, err
 	}
