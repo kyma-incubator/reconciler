@@ -41,14 +41,10 @@ kind: Job
 metadata:
   name: unittest-job
   namespace: unittest-progress
+  labels:
+    app: unittest-job
 spec:
-  selector:
-    matchLabels:
-      app: unittest-job
   template:
-    metadata:
-      labels:
-        app: unittest-job
     spec:
       containers:
         - name: unittest-job
