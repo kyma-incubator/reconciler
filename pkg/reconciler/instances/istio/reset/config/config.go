@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
 )
@@ -17,10 +19,13 @@ type IstioProxyConfig struct {
 	RetriesCount int
 
 	// DelayBetweenRetries in seconds
-	DelayBetweenRetries int
+	DelayBetweenRetries time.Duration
 
-	// SleepAfterPodDeletion to avoid races
-	SleepAfterPodDeletion int
+	// Interval for polling ready status after Proxy Reset.
+	Interval time.Duration
+
+	// Timeout for waiting on status after reset
+	Timeout time.Duration
 
 	// Kubeclient for k8s cluster operations
 	Kubeclient kubernetes.Interface

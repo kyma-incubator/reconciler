@@ -21,9 +21,12 @@ const (
 func (s Status) IsDeletion() bool {
 	return s == ClusterStatusDeletePending || s == ClusterStatusDeleting
 }
+func (s Status) IsDeleteCandidate() bool {
+	return s == ClusterStatusDeletePending
+}
 
-func (s Status) IsAnyDeletion() bool {
-	return s == ClusterStatusDeletePending || s == ClusterStatusDeleting || s == ClusterStatusDeleteError || s == ClusterStatusDeleted
+func (s Status) IsReconcileCandidate() bool {
+	return s == ClusterStatusReconcilePending || s == ClusterStatusReady
 }
 
 func (s Status) IsFinal() bool {

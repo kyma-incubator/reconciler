@@ -45,6 +45,8 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().DurationVarP(&o.ClusterReconcileInterval, "reconcile-interval", "", 5*time.Minute, "Defines the time when a cluster will to be reconciled since his last successful reconciliation")
 	cmd.Flags().BoolVar(&o.CreateEncyptionKey, "create-encryption-key", false, "Create new encryption key file during startup")
 	cmd.Flags().BoolVar(&o.Migrate, "migrate-database", false, "Migrate database to the latest release")
+	cmd.Flags().BoolVar(&o.AuditLog, "audit-log", false, "Enable audit logging")
+	cmd.Flags().StringVar(&o.AuditLogFile, "audit-log-file", "/var/log/mothership-audit-log.log", "Path for mothership audit log file")
 	return cmd
 }
 
