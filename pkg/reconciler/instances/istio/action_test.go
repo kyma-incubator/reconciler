@@ -394,7 +394,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
-
 }
 
 func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
@@ -627,7 +626,7 @@ func Test_canUpdate(t *testing.T) {
 		require.False(t, result)
 	})
 
-	t.Run("should not allow update when downgrade scenario is detected for pilot", func(t *testing.T) {
+	t.Run("should allow update when permissible downgrade scenario is detected for pilot", func(t *testing.T) {
 		// given
 		version := actions.IstioVersion{
 			ClientVersion:    "1.1.0",
@@ -640,7 +639,39 @@ func Test_canUpdate(t *testing.T) {
 		result := canUpdate(version, logger)
 
 		// then
+		require.True(t, result)
+	})
+
+	t.Run("should not allow update when downgrade scenario is detected for pilot", func(t *testing.T) {
+		// given
+		version := actions.IstioVersion{
+			ClientVersion:    "1.1.0",
+			TargetVersion:    "1.1.0",
+			PilotVersion:     "1.3.0",
+			DataPlaneVersion: "1.1.0",
+		}
+
+		// when
+		result := canUpdate(version, logger)
+
+		// then
 		require.False(t, result)
+	})
+
+	t.Run("should allow update when permissible downgrade scenario is detected for data plane", func(t *testing.T) {
+		// given
+		version := actions.IstioVersion{
+			ClientVersion:    "1.1.0",
+			TargetVersion:    "1.1.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.2.0",
+		}
+
+		// when
+		result := canUpdate(version, logger)
+
+		// then
+		require.True(t, result)
 	})
 
 	t.Run("should not allow update when downgrade scenario is detected for data plane", func(t *testing.T) {
@@ -649,7 +680,7 @@ func Test_canUpdate(t *testing.T) {
 			ClientVersion:    "1.1.0",
 			TargetVersion:    "1.1.0",
 			PilotVersion:     "1.1.0",
-			DataPlaneVersion: "1.2.0",
+			DataPlaneVersion: "1.3.0",
 		}
 
 		// when
