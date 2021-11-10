@@ -143,12 +143,6 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 			return metadata, err
 		}
 
-		// Create the resource if it doesn't exist
-		// First, update the annotation used by kubectl kubeClient
-		if err := util.CreateApplyAnnotation(u, unstructured.UnstructuredJSONScheme); err != nil {
-			return metadata, err
-		}
-
 		// Then create the resource and skip the three-way merge
 		_, err := helper.Create(info.Namespace, true, u)
 		if err != nil {
