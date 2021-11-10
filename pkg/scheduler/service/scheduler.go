@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"time"
 )
 
 const (
@@ -79,6 +80,8 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 				s.logger.Infof("Scheduler triggered reconciliation for cluster '%s' "+
 					"(clusterVersion:%d/configVersion:%d/status:%s)", clusterState.Cluster.RuntimeID,
 					clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status)
+			} else {
+				s.logger.Error(err)
 			}
 		case <-ctx.Done():
 			s.logger.Debug("Stopping remote scheduler because parent context got closed")
