@@ -33,12 +33,12 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 
 	retryable := func() error {
 		if err := heartbeatSender.Running(); err != nil {
-			r.logger.Warnf("Failed to start status updater: %s", err)
+			r.logger.Warnf("Runner: failed to start status updater: %s", err)
 			return err
 		}
 		err := r.reconcile(ctx, task)
 		if err != nil {
-			r.logger.Warnf("Failing reconciliation of '%s' in version '%s' with profile '%s': %s",
+			r.logger.Warnf("Runner: failing reconciliation of '%s' in version '%s' with profile '%s': %s",
 				task.Component, task.Version, task.Profile, err)
 			if heartbeatErr := heartbeatSender.Failed(err); heartbeatErr != nil {
 				err = errors.Wrap(err, heartbeatErr.Error())
@@ -55,17 +55,17 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		retry.Context(ctx))
 
 	if err == nil {
-		r.logger.Infof("Reconciliation of component '%s' for version '%s' finished successfully",
+		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
 		if err := heartbeatSender.Success(); err != nil {
 			return err
 		}
 	} else if ctx.Err() != nil {
-		r.logger.Infof("Reconciliation of component '%s' for version '%s' terminated because context was closed",
+		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
 			task.Component, task.Version)
 		return err
 	} else {
-		r.logger.Errorf("Retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
+		r.logger.Errorf("Runner: retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			task.Component, task.Version)
 		if heartbeatErr := heartbeatSender.Error(err); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
@@ -111,7 +111,7 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 
 	if pre != nil {
 		if err := pre.Run(actionHelper); err != nil {
-			r.logger.Warnf("Pre-%s action of '%s' with version '%s' failed: %s",
+			r.logger.Debugf("Runner: Pre-%s action of '%s' with version '%s' failed: %s",
 				task.Type, task.Component, task.Version, err)
 			return err
 		}
@@ -119,13 +119,13 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 
 	if act == nil {
 		if err := r.install.Invoke(ctx, chartProvider, task, kubeClient); err != nil {
-			r.logger.Warnf("Default-%s action of '%s' with version '%s' failed: %s",
+			r.logger.Debugf("Runner: Default-%s action of '%s' with version '%s' failed: %s",
 				task.Type, task.Component, task.Version, err)
 			return err
 		}
 	} else {
 		if err := act.Run(actionHelper); err != nil {
-			r.logger.Warnf("%s action of '%s' with version '%s' failed: %s",
+			r.logger.Debugf("Runner: %s action of '%s' with version '%s' failed: %s",
 				strings.Title(string(task.Type)), task.Component, task.Version, err)
 			return err
 		}
@@ -133,7 +133,7 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 
 	if post != nil {
 		if err := r.postReconcileAction.Run(actionHelper); err != nil {
-			r.logger.Warnf("Post-%s action of '%s' with version '%s' failed: %s",
+			r.logger.Debugf("Runner: Post-%s action of '%s' with version '%s' failed: %s",
 				task.Type, task.Component, task.Version, err)
 			return err
 		}

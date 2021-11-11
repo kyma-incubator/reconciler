@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/imdario/mergo"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
@@ -37,7 +38,7 @@ func NewHelmClient(chartDir string, logger *zap.SugaredLogger) (*HelmClient, err
 func (c *HelmClient) Render(component *Component) (string, error) {
 	var helmChart *chart.Chart
 	var err error
-	if component.url != "" {
+	if component.url != "" && !strings.HasSuffix(component.url, ".git") {
 		err = c.downloadComponentChart(component)
 		if err != nil {
 			return "", err

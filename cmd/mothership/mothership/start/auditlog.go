@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 
@@ -86,7 +86,7 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger) {
 
 	// log auth/authn information if available
 	if jwtHeader := r.Header.Get(XJWTHeaderName); len(jwtHeader) != 0 {
-		decodedSeg, err := jwt.DecodeSegment(jwtHeader)
+		decodedSeg, err := base64.RawURLEncoding.DecodeString(jwtHeader)
 		if err != nil {
 			server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 				Error: errors.Wrap(err, fmt.Sprintf("Failed to parse %s header content ", XJWTHeaderName)).Error(),

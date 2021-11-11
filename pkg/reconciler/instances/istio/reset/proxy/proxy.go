@@ -4,8 +4,8 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
-	"time"
 )
 
 //go:generate mockery --name=IstioProxyReset --outpkg=mocks --case=underscore
@@ -35,8 +35,13 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		Version: cfg.ImageVersion,
 	}
 
+	waitOpts := pod.WaitOptions{
+		Interval: cfg.Interval,
+		Timeout:  cfg.Timeout,
+	}
+
 	retryOpts := []retry.Option{
-		retry.Delay(5 * time.Second),
+		retry.Delay(cfg.DelayBetweenRetries),
 		retry.Attempts(uint(cfg.RetriesCount)),
 		retry.DelayType(retry.FixedDelay),
 	}
@@ -52,7 +57,10 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 
 	cfg.Log.Infof("Found %d matching pods", len(podsWithDifferentImage.Items))
 
-	i.action.Reset(cfg.Kubeclient, retryOpts, podsWithDifferentImage, cfg.Log, cfg.Debug)
+	err = i.action.Reset(cfg.Kubeclient, retryOpts, podsWithDifferentImage, cfg.Log, cfg.Debug, waitOpts)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

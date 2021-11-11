@@ -3,6 +3,8 @@ package adapter
 import (
 	"context"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"path/filepath"
 	"testing"
 	"time"
@@ -51,6 +53,15 @@ var expectedResourcesWithNs = []*k8s.Resource{
 	},
 }
 
+var expectedLabels = map[string]string{"test-interceptor": "test-label"}
+
+type testInterceptor struct{}
+
+func (i *testInterceptor) Intercept(resource *unstructured.Unstructured) error {
+	resource.SetLabels(expectedLabels)
+	return nil
+}
+
 func TestKubernetesClient(t *testing.T) {
 	test.IntegrationTest(t)
 
@@ -66,9 +77,17 @@ func TestKubernetesClient(t *testing.T) {
 
 		//deploy
 		t.Log("Deploying test resources")
-		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter")
+		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{})
 		require.NoError(t, err)
 		require.ElementsMatch(t, expectedResourcesWithNs, deployedResources)
+
+		//check execution of interceptors
+		clientSet, err := kubeClient.Clientset()
+		require.NoError(t, err)
+		ns, err := clientSet.CoreV1().Namespaces().Get(context.TODO(), "unittest-adapter", metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotEmpty(t, ns.GetLabels()["test-interceptor"])
+		require.Equal(t, expectedLabels["test-interceptor"], ns.GetLabels()["test-interceptor"])
 
 		//delete (at the end of the test)
 		t.Log("Cleanup test resources")
