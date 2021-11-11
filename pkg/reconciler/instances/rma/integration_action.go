@@ -3,9 +3,10 @@ package rma
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"regexp"
 	"sync"
@@ -27,7 +28,7 @@ const (
 	RmiHelmDriver      = "secret"
 	RmiHelmMaxHistory  = 1
 	RmiChartName       = "rmi"
-	RmiChartUrlConfig  = "rmi.chartUrl"
+	RmiChartURLConfig  = "rmi.chartUrl"
 	RmiNamespaceConfig = "rmi.namespace"
 )
 
@@ -56,14 +57,16 @@ func NewIntegrationAction(name string, kubeClient *kubeclient.KubeClient) *Integ
 func (a *IntegrationAction) Run(context *service.ActionContext) error {
 	context.Logger.Infof("Performing %s action for shoot %s", a.name, context.Task.Metadata.ShootName)
 
-	chartUrl := getConfigString(context.Task.Configuration, RmiChartUrlConfig)
-	if chartUrl == "" {
-		err := fmt.Errorf("missing required configuration: %s", RmiChartUrlConfig)
+	chartURL := getConfigString(context.Task.Configuration, RmiChartURLConfig)
+	if chartURL == "" {
+		err := fmt.Errorf("missing required configuration: %s", RmiChartURLConfig)
+		context.Logger.Error(err)
 		return err
 	}
 	namespace := getConfigString(context.Task.Configuration, RmiNamespaceConfig)
 	if namespace == "" {
 		err := fmt.Errorf("missing required configuration: %s", RmiNamespaceConfig)
+		context.Logger.Error(err)
 		return err
 	}
 	releaseName := context.Task.Metadata.ShootName
@@ -85,13 +88,13 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 	case model.OperationTypeReconcile:
 		// If a release does not exist, run helm install
 		if err == driver.ErrReleaseNotFound {
-			return a.install(context, cfg, chartUrl, releaseName, namespace)
+			return a.install(context, cfg, chartURL, releaseName, namespace)
 		}
 
 		// If the release exists, only run helm upgrade if the integration chart version is different.
 		// This is necessary to avoid overloading of the control plane K8S API as reconciliation for all runtimes are scheduled periodically.
 		// Proceed also with the upgrade if any of the chart versions cannot reliably be determined
-		upgradeVersion := a.getChartVersionFromURL(chartUrl)
+		upgradeVersion := a.getChartVersionFromURL(chartURL)
 		releaseVersion := ""
 		if helmRelease.Chart != nil && helmRelease.Chart.Metadata != nil {
 			releaseVersion = helmRelease.Chart.Metadata.Version
@@ -106,7 +109,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 			context.Logger.Infof("%s-%s target version: %s release version/status: %s/%s, starting upgrade.", RmiChartName, releaseName, upgradeVersion, releaseVersion, helmRelease.Info.Status)
 		}
 
-		return a.upgrade(context, cfg, chartUrl, releaseName, namespace)
+		return a.upgrade(context, cfg, chartURL, releaseName, namespace)
 	case model.OperationTypeDelete:
 		if err == nil {
 			return a.delete(context, cfg, releaseName)
@@ -116,33 +119,34 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.Configuration, chartUrl, releaseName, namespace string) error {
+func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace string) error {
 	installAction := action.NewInstall(cfg)
 	installAction.ReleaseName = releaseName
 	installAction.Namespace = namespace
 	installAction.Timeout = 6 * time.Minute
 	installAction.Wait = true
 	installAction.Atomic = true
-	chart, err := a.fetchChart(context.Context, chartUrl)
+	chart, err := a.fetchChart(context.Context, chartURL)
 	if err != nil {
-		context.Logger.Errorf("failed to fetch RMI chart from %s: %s", chartUrl, err)
-		return err
+		return errors.Wrapf(err, "while fetching rmi chart from %s", chartURL)
 	}
 	username := context.Task.Metadata.InstanceID
-	password := generatePassword(16)
+	password, err := generatePassword(16)
+	if err != nil {
+		return errors.Wrap(err, "while generating new auth password")
+	}
 	overrides := generateOverrideMap(context, username, password)
 
 	_, err = installAction.Run(chart, overrides)
 	if err != nil {
-		context.Logger.Errorf("helm install %s failed: %s", releaseName, err)
-		return err
+		return errors.WithMessagef(err, "helm install %s-%s failed", RmiChartName, releaseName)
 	}
 
 	setAuthCredetialOverrides(context.Task.Configuration, username, password)
 	return nil
 }
 
-func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.Configuration, chartUrl, releaseName, namespace string) error {
+func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace string) error {
 
 	upgradeAction := action.NewUpgrade(cfg)
 	upgradeAction.Namespace = namespace
@@ -150,40 +154,37 @@ func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.
 	upgradeAction.Wait = true
 	upgradeAction.Atomic = true
 	upgradeAction.MaxHistory = RmiHelmMaxHistory
-	chart, err := a.fetchChart(context.Context, chartUrl)
+	chart, err := a.fetchChart(context.Context, chartURL)
 	if err != nil {
-		context.Logger.Errorf("failed to fetch RMI chart from %s: %s", chartUrl, err)
-		return err
+		return errors.Wrapf(err, "while fetching rmi chart from %s", chartURL)
 	}
 
 	username := context.Task.Metadata.InstanceID
 	password, err := a.fetchPasswordFromAuthSecret(context.Context, releaseName, namespace)
 	if err != nil {
-		context.Logger.Errorf("failed to fetch auth credentials from secret: %s", err)
-		return err
+		return errors.WithMessage(err, "failed to fetch auth credentials from secret")
 	}
 	overrides := generateOverrideMap(context, username, password)
 
 	_, err = upgradeAction.Run(releaseName, chart, overrides)
 	if err != nil {
-		context.Logger.Errorf("helm upgrade %s failed: %s", releaseName, err)
-		return err
+		return errors.WithMessagef(err, "helm upgrade %s-%s failed", RmiChartName, releaseName)
 	}
 
 	setAuthCredetialOverrides(context.Task.Configuration, username, password)
 	return nil
 }
 
-func (c *IntegrationAction) delete(context *service.ActionContext, cfg *action.Configuration, releaseName string) error {
+func (a *IntegrationAction) delete(context *service.ActionContext, cfg *action.Configuration, releaseName string) error {
 	uninstallAction := action.NewUninstall(cfg)
 	uninstallAction.Timeout = 5 * time.Minute
 
 	_, err := uninstallAction.Run(releaseName)
 	if err != nil {
-		context.Logger.Errorf("helm delete %s failed: %s", releaseName, err)
+		return errors.WithMessagef(err, "helm delete %s-%s failed", RmiChartName, releaseName)
 	}
 
-	return err
+	return nil
 }
 
 func (a *IntegrationAction) newActionConfig(context *service.ActionContext, namespace string) (*action.Configuration, error) {
@@ -196,13 +197,13 @@ func (a *IntegrationAction) newActionConfig(context *service.ActionContext, name
 	return cfg, nil
 }
 
-func (a *IntegrationAction) fetchChart(ctx context.Context, chartUrl string) (*chart.Chart, error) {
+func (a *IntegrationAction) fetchChart(ctx context.Context, chartURL string) (*chart.Chart, error) {
 	a.mux.Lock()
 	defer a.mux.Unlock()
 
-	archive := a.archives[chartUrl]
+	archive := a.archives[chartURL]
 	if archive == nil {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, chartUrl, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, chartURL, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +221,7 @@ func (a *IntegrationAction) fetchChart(ctx context.Context, chartUrl string) (*c
 			return nil, fmt.Errorf("http status %s", resp.Status)
 		}
 
-		a.archives[chartUrl] = archive
+		a.archives[chartURL] = archive
 	}
 
 	chart, err := loader.LoadArchive(bytes.NewReader(archive))
@@ -259,15 +260,18 @@ func (a *IntegrationAction) getChartVersionFromURL(chartUrl string) string {
 	return match[1]
 }
 
-func generatePassword(length int) string {
-	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	rand.Seed(time.Now().UnixNano())
-	bytes := make([]rune, length)
-	for i := range bytes {
-		bytes[i] = letterRunes[rand.Intn(len(letterRunes))]
+func generatePassword(n int) (string, error) {
+	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	ret := make([]byte, n)
+	for i := 0; i < n; i++ {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+		if err != nil {
+			return "", err
+		}
+		ret[i] = letters[num.Int64()]
 	}
 
-	return string(bytes)
+	return string(ret), nil
 }
 
 func generateOverrideMap(context *service.ActionContext, username, password string) map[string]interface{} {
