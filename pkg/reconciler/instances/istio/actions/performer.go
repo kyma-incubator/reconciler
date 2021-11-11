@@ -205,6 +205,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.
 func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, version IstioVersion, logger *zap.SugaredLogger) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
+		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
 		return err
 	}
 
