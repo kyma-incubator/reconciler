@@ -10,7 +10,6 @@ require (
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
@@ -23,9 +22,9 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/panjf2000/ants/v2 v2.4.6
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.7.1
+	github.com/prometheus/client_golang v1.11.0
 	github.com/spf13/cast v1.4.1 // indirect
-	github.com/spf13/cobra v1.1.3
+	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.7.0
@@ -35,12 +34,11 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	helm.sh/helm/v3 v3.6.3
-	k8s.io/api v0.21.0
-	k8s.io/apimachinery v0.21.0
-	k8s.io/cli-runtime v0.21.0
-	k8s.io/client-go v0.21.0
-	k8s.io/kubectl v0.21.0
-	rsc.io/letsencrypt v0.0.3 // indirect
+	helm.sh/helm/v3 v3.7.1
+	k8s.io/api v0.22.1
+	k8s.io/apimachinery v0.22.1
+	k8s.io/cli-runtime v0.22.1
+	k8s.io/client-go v0.22.1
+	k8s.io/kubectl v0.22.1
 	sigs.k8s.io/yaml v1.2.0
 )
