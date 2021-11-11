@@ -112,7 +112,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 		return a.upgrade(context, cfg, chartURL, releaseName, namespace)
 	case model.OperationTypeDelete:
 		if err == nil {
-			return a.delete(context, cfg, releaseName)
+			return a.delete(cfg, releaseName)
 		}
 	}
 
@@ -175,7 +175,7 @@ func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.
 	return nil
 }
 
-func (a *IntegrationAction) delete(context *service.ActionContext, cfg *action.Configuration, releaseName string) error {
+func (a *IntegrationAction) delete(cfg *action.Configuration, releaseName string) error {
 	uninstallAction := action.NewUninstall(cfg)
 	uninstallAction.Timeout = 5 * time.Minute
 
@@ -252,8 +252,8 @@ func (a *IntegrationAction) fetchPasswordFromAuthSecret(ctx context.Context, rel
 	return string(password), nil
 }
 
-func (a *IntegrationAction) getChartVersionFromURL(chartUrl string) string {
-	match := a.chartVerExpr.FindStringSubmatch(chartUrl)
+func (a *IntegrationAction) getChartVersionFromURL(chartURL string) string {
+	match := a.chartVerExpr.FindStringSubmatch(chartURL)
 	if len(match) < 2 {
 		return ""
 	}
