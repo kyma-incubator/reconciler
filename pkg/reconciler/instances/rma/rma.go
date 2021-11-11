@@ -2,7 +2,6 @@ package rma
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
@@ -18,12 +17,10 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	kubeClient, err := kubeclient.NewInClusterClient(log)
-	if err != nil {
-		log.Fatalf("Could not initialize in-cluster k8s client: %s")
-	}
+	kubeClient := &LazyKubeClient{log: log}
 	reconciler.
-		//register reconciler pre-reconcile action (executed BEFORE reconciliation happens) and post-delete action (executed AFTER deletion happens)
+		// register reconciler pre-reconcile action (executed BEFORE reconciliation happens)
 		WithPreReconcileAction(NewIntegrationAction("runtime-monitoring-integration-reconcile", kubeClient)).
+		// register reconciler post-delete action (executed AFTER deletion happens)
 		WithPostDeleteAction(NewIntegrationAction("runtime-monitoring-integration-delete", kubeClient))
 }

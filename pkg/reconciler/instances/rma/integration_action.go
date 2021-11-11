@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/action"
@@ -35,14 +34,13 @@ const (
 type IntegrationAction struct {
 	name         string
 	http         http.Client
-	kube         *kubeclient.KubeClient
+	kube         KubeClient
 	mux          sync.Mutex
 	archives     map[string][]byte
 	chartVerExpr *regexp.Regexp
 }
 
-func NewIntegrationAction(name string, kubeClient *kubeclient.KubeClient) *IntegrationAction {
-
+func NewIntegrationAction(name string, kubeClient KubeClient) *IntegrationAction {
 	return &IntegrationAction{
 		name: name,
 		kube: kubeClient,
@@ -190,7 +188,11 @@ func (a *IntegrationAction) delete(cfg *action.Configuration, releaseName string
 func (a *IntegrationAction) newActionConfig(context *service.ActionContext, namespace string) (*action.Configuration, error) {
 
 	cfg := new(action.Configuration)
-	if err := cfg.Init(a.kube.RESTClientGetter(), namespace, RmiHelmDriver, context.Logger.Debugf); err != nil {
+	getter, err := a.kube.RESTClientGetter()
+	if err != nil {
+		return cfg, err
+	}
+	if err := cfg.Init(getter, namespace, RmiHelmDriver, context.Logger.Debugf); err != nil {
 		return cfg, err
 	}
 
@@ -233,7 +235,7 @@ func (a *IntegrationAction) fetchChart(ctx context.Context, chartURL string) (*c
 }
 
 func (a *IntegrationAction) fetchPasswordFromAuthSecret(ctx context.Context, release, namespace string) (string, error) {
-	client, err := a.kube.GetClientSet()
+	client, err := a.kube.ClientSet()
 	if err != nil {
 		return "", err
 	}
