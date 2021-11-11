@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,22 +33,26 @@ func TestKubeclient(t *testing.T) {
 	defer deleteNamespace(t, kubeClient, false)
 
 	for _, unstruct := range unstructs {
-		t.Run(fmt.Sprintf("Replacing %s", unstruct.GetName()), func(t *testing.T) {
-			for i := 0; i <= replacements; i++ {
-				if i > 0 {
-					time.Sleep(1 * time.Second)
-					t.Logf("Replacing %s the %d time", unstruct.GetKind(), i)
-					unstruct.SetLabels(map[string]string{"replacements": fmt.Sprintf("%d", i)})
-				}
-				_, err = kubeClient.Apply(unstruct)
-				require.NoError(t, err)
-			}
-			k8sResourceUnstruct, err := kubeClient.Get(unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
-			require.NoError(t, err)
-			require.Equal(t, fmt.Sprintf("%d", replacements), k8sResourceUnstruct.GetLabels()["replacements"])
-		})
+		t.Run(fmt.Sprintf("Replacing %s", unstruct.GetName()), newTestFunc(kubeClient, unstruct))
 	}
 
+}
+
+func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured) func(t *testing.T) {
+	return func(t *testing.T) {
+		for i := 0; i <= replacements; i++ {
+			if i > 0 {
+				time.Sleep(1 * time.Second)
+				t.Logf("Replacing %s the %d time", unstruct.GetKind(), i)
+				unstruct.SetLabels(map[string]string{"replacements": fmt.Sprintf("%d", i)})
+			}
+			_, err := kubeClient.Apply(unstruct)
+			require.NoError(t, err)
+		}
+		k8sResourceUnstruct, err := kubeClient.Get(unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
+		require.NoError(t, err)
+		require.Equal(t, fmt.Sprintf("%d", replacements), k8sResourceUnstruct.GetLabels()["replacements"])
+	}
 }
 
 func deleteNamespace(t *testing.T, kubeClient *KubeClient, ignoreError bool) {
