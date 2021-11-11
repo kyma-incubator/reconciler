@@ -60,6 +60,7 @@ func (p *Params) newTask() *reconciler.Task {
 		Profile:         p.ClusterState.Configuration.KymaProfile,
 		Configuration:   configuration,
 		Kubeconfig:      p.ClusterState.Cluster.Kubeconfig,
+		Metadata:        *p.ClusterState.Cluster.Metadata,
 		CorrelationID:   p.CorrelationID,
 		Repository: &reconciler.Repository{
 			URL:            p.ComponentToReconcile.URL,
