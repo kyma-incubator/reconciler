@@ -16,6 +16,9 @@ var clusterStateMock = &cluster.State{
 		RuntimeID:  "testCluster",
 		Contract:   1,
 		Kubeconfig: "abc...",
+		Metadata: &keb.Metadata{
+			GlobalAccountID: "testID",
+		},
 	},
 	Configuration: &model.ClusterConfigurationEntity{
 		Version:        1,

@@ -41,6 +41,7 @@ type KubeClient struct {
 	dynamicClient dynamic.Interface
 	config        *rest.Config
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
+	getter        *SimpleRESTClientGetter
 }
 
 func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, error) {
@@ -93,6 +94,7 @@ func newForConfig(config *rest.Config) (*KubeClient, error) {
 		dynamicClient: dynamicClient,
 		config:        config,
 		mapper:        mapper,
+		getter:        NewRESTClientGetter(config),
 	}, nil
 }
 
@@ -171,6 +173,10 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 
 func (kube *KubeClient) GetClientSet() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(kube.config)
+}
+
+func (kube *KubeClient) RESTClientGetter() *SimpleRESTClientGetter {
+	return kube.getter
 }
 
 func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*k8s.Resource, error) {

@@ -24,3 +24,6 @@
 
 # Connectivity Proxy reconciler
 /pkg/reconciler/instances/connectivityproxy/ @akgalwas @janmedrek @franpog859 @Maladie @rafalpotempa @koala7659 @ralikio
+
+# Runtime Monitoring Agent (rma) reconciler
+/pkg/reconciler/instances/rma/ @ebensom @AdrianPei @fhivemind @lauraanddola @life0215 @lumi017 @Balazs23 @tobiscr @varbanv
