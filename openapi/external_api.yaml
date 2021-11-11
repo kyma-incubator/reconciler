@@ -522,8 +522,10 @@ components:
             subAccountID,
             serviceID,
             servicePlanID,
+            servicePlanName,
             shootName,
             instanceID,
+            region,
         ]
       properties:
         globalAccountID:
@@ -534,9 +536,13 @@ components:
           type: string
         servicePlanID:
           type: string
+        servicePlanName:
+          type: string
         shootName:
           type: string
         instanceID:
+          type: string
+        region:
           type: string
 
     component:
