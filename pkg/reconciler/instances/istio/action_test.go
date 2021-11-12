@@ -175,7 +175,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
-		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("should perform istio install action when istio was not detected on the cluster", func(t *testing.T) {
@@ -351,7 +350,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
@@ -389,8 +388,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
