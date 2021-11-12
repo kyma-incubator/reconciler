@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util"
 )
 
 type Metadata struct {
@@ -42,6 +41,7 @@ type KubeClient struct {
 	dynamicClient dynamic.Interface
 	config        *rest.Config
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
+	getter        *SimpleRESTClientGetter
 }
 
 func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, error) {
@@ -94,6 +94,7 @@ func newForConfig(config *rest.Config) (*KubeClient, error) {
 		dynamicClient: dynamicClient,
 		config:        config,
 		mapper:        mapper,
+		getter:        NewRESTClientGetter(config),
 	}, nil
 }
 
@@ -135,7 +136,6 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		Namespace:       u.GetNamespace(),
 		Name:            u.GetName(),
 		Source:          "",
-		Object:          u,
 		ResourceVersion: restMapping.Resource.Version,
 	}
 
@@ -144,23 +144,20 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 			return metadata, err
 		}
 
-		// Create the resource if it doesn't exist
-		// First, update the annotation used by kubectl kubeClient
-		if err := util.CreateApplyAnnotation(info.Object, unstructured.UnstructuredJSONScheme); err != nil {
-			return metadata, err
-		}
-
 		// Then create the resource and skip the three-way merge
-		obj, err := helper.Create(info.Namespace, true, info.Object)
+		_, err := helper.Create(u.GetNamespace(), true, u)
 		if err != nil {
 			return metadata, err
 		}
 
-		_ = info.Refresh(obj, true)
+		metadata.Name = u.GetName()
+		metadata.Namespace = u.GetNamespace()
+		metadata.Kind = u.GroupVersionKind().Kind
+		return metadata, nil
 	}
 
 	replace := newReplace(helper)
-	replacedObject, err := replace(info.Object, info.Namespace, info.Name)
+	replacedObject, err := replace(u, u.GetNamespace(), u.GetName())
 	if err != nil {
 		return metadata, err
 	}
@@ -176,6 +173,10 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 
 func (kube *KubeClient) GetClientSet() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(kube.config)
+}
+
+func (kube *KubeClient) RESTClientGetter() *SimpleRESTClientGetter {
+	return kube.getter
 }
 
 func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*k8s.Resource, error) {
