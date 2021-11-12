@@ -741,6 +741,10 @@ func TestReconciliationParallel( t *testing.T) {
 		errChannel := make(chan error, 100)
 		mockClusterState, _ := createClusterStates(t, inventory)
 
+		defer func() {
+			require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
+		}()
+
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 100; i++ {
 			go func() {
@@ -763,6 +767,10 @@ func TestReconciliationParallel( t *testing.T) {
 
 		errChannel := make(chan error, 100)
 		mockClusterState, _ := createClusterStates(t, inventory)
+
+		defer func() {
+			require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
+		}()
 
 		recon, err := repo.CreateReconciliation(mockClusterState, nil)
 		allOperations, err := repo.GetOperations(recon.SchedulingID)

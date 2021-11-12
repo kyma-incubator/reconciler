@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
 }
 
 func TestWorkerPool(t *testing.T) {
-	test.IntegrationTest(t) //required because a valid Kubeconfig is required to create test cluster entry
+	//test.IntegrationTest(t) //required because a valid Kubeconfig is required to create test cluster entry
 
 	//create cluster inventory
 	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
@@ -86,4 +87,120 @@ func TestWorkerPool(t *testing.T) {
 	require.Equal(t, model.CRDComponent, testInvoker.params[0].ComponentToReconcile.Component) //CRDs is always the first component
 	require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
 	require.Equal(t, opsProcessable[0].CorrelationID, testInvoker.params[0].CorrelationID)
+}
+
+func TestWorkerPoolParallel(t *testing.T) {
+
+	//create cluster inventory
+	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
+	require.NoError(t, err)
+
+	kebClusters := []*keb.Cluster{
+		{
+			Kubeconfig: "clusterA",
+			KymaConfig: keb.KymaConfig{
+				Administrators: nil,
+				Components: []keb.Component{
+					{
+						Component: "TestComp1",
+					},
+				},
+				Profile: "",
+				Version: "1.2.3",
+			},
+			Metadata:     keb.Metadata{},
+			RuntimeID:    "testClusterA",
+			RuntimeInput: keb.RuntimeInput{},
+		},
+		{
+			Kubeconfig: "clusterB",
+			KymaConfig: keb.KymaConfig{
+				Administrators: nil,
+				Components: []keb.Component{
+					{
+						Component: "TestComp1",
+					},
+				},
+				Profile: "",
+				Version: "1.2.3",
+			},
+			Metadata:     keb.Metadata{},
+			RuntimeID:    "testClusterB",
+			RuntimeInput: keb.RuntimeInput{},
+		},
+		{
+			Kubeconfig: "clusterC",
+			KymaConfig: keb.KymaConfig{
+				Administrators: nil,
+				Components: []keb.Component{
+					{
+						Component: "TestComp3",
+					},
+				},
+				Profile: "",
+				Version: "1.2.3",
+			},
+			Metadata:     keb.Metadata{},
+			RuntimeID:    "testClusterC",
+			RuntimeInput: keb.RuntimeInput{},
+		},
+	}
+
+	//add clusters to inventory
+	var clusterStates [3]*cluster.State
+	for i := range kebClusters {
+		clusterStates[i], err = inventory.CreateOrUpdate(1, kebClusters[i])
+	}
+	require.NoError(t, err)
+
+	//cleanup created cluster
+	defer func() {
+		for i := range clusterStates{
+			require.NoError(t, inventory.Delete(clusterStates[i].Cluster.RuntimeID))
+		}
+	}()
+
+	//create reconciliation for cluster
+	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
+	var reconEntities [3]*model.ReconciliationEntity
+	for i := range clusterStates {
+		reconEntities[i], err = reconRepo.CreateReconciliation(clusterStates[i], nil)
+	}
+	require.NoError(t, err)
+	opsProcessable, err := reconRepo.GetProcessableOperations(0)
+	require.Len(t, opsProcessable, 3)
+	require.NoError(t, err)
+
+	//create test invoker to be able to verify invoker calls
+	testInvoker := &testInvoker{}
+
+	//start worker pool
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, reconRepo, testInvoker, nil, logger.NewLogger(true))
+	require.NoError(t, err)
+
+	//create time limited context
+	ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFct()
+
+	errChannel := make(chan error)
+
+	startAt := time.Now().Add(1 * time.Second)
+	for i := 0; i < 50; i++ {
+		go func() {
+			time.Sleep(startAt.Sub(time.Now()))
+			err := workerPool.Run(ctx)
+			if err != nil {
+				errChannel <- err
+			}
+		}()
+	}
+	time.Sleep(5 *time.Second)
+
+	fmt.Printf("testInvoker: %#v\n", testInvoker.params)
+	//verify that invoker was properly called
+	require.Len(t, testInvoker.params, 3)
+	//require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
+	require.Equal(t, model.CRDComponent, testInvoker.params[0].ComponentToReconcile.Component) //CRDs is always the first component
+	//require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
+	//	require.Equal(t, opsProcessable[0].CorrelationID, testInvoker.params[0].CorrelationID)
 }

@@ -193,8 +193,8 @@ func TestSchedulerParallel(t *testing.T) {
 		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
 		require.NoError(t, err)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelFct()
 
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
