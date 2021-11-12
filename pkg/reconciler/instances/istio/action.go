@@ -240,6 +240,7 @@ func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
 			return false
 		}
 		logger.Infof("Valid Downgrade detected from pilot: %s and data plane: %s to version: %s", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
+		return true
 	}
 
 	if !maxOneMinorBehind(pilotHelperVersion, targetHelperVersion) || !maxOneMinorBehind(dataPlaneHelperVersion, targetHelperVersion) {
