@@ -113,11 +113,11 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			if err != nil {
 				return errors.Wrap(err, "Could not update Istio")
 			}
-      
-      err = a.performer.ResetProxy(context.KubeClient.Kubeconfig(), ver, context.Logger)
-      if err != nil {
-        return errors.Wrap(err, "Could not reset Istio proxy")
-      }
+
+			err = a.performer.ResetProxy(context.KubeClient.Kubeconfig(), ver, context.Logger)
+			if err != nil {
+				return errors.Wrap(err, "Could not reset Istio proxy")
+			}
 
 			err = deployIstioResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
 			if err != nil {
@@ -255,7 +255,7 @@ func getActionTypeFrom(comparison int) string {
 	case 1:
 		return "upgrade"
 	case 0:
-		return "reconcilation"
+		return "reconciliation"
 	case -1:
 		return "downgrade"
 	default:
