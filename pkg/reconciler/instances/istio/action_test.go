@@ -122,7 +122,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioVersion{
 			ClientVersion:    "1.0",
-			TargetVersion: "1.0",
+			TargetVersion:    "1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -156,7 +156,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioVersion{
 			ClientVersion:    "1.0",
-			TargetVersion: "1.0",
+			TargetVersion:    "1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -190,7 +190,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioVersion{
 			ClientVersion:    "1.0",
-			TargetVersion: "1.0",
+			TargetVersion:    "1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -239,8 +239,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "is not compatible")
+		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -261,13 +260,13 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		tooLowClientVersion := actions.IstioVersion{
+		tooHighPilotAndDataPlaneVersion := actions.IstioVersion{
 			ClientVersion:    "0.9",
 			TargetVersion:    "0.9",
 			PilotVersion:     "1.1",
 			DataPlaneVersion: "1.1",
 		}
-		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooHighPilotAndDataPlaneVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		action := ReconcileAction{performer: &performer}
@@ -297,13 +296,13 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		tooLowClientVersion := actions.IstioVersion{
+		tooLowPilotAndDataPlaneVersion := actions.IstioVersion{
 			ClientVersion:    "1.3",
 			TargetVersion:    "1.3",
 			PilotVersion:     "1.1",
 			DataPlaneVersion: "1.1",
 		}
-		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowPilotAndDataPlaneVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		action := ReconcileAction{performer: &performer}
@@ -333,13 +332,13 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		tooLowClientVersion := actions.IstioVersion{
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.1.0",
 			DataPlaneVersion: "1.1.0",
 		}
-		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(istioVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
@@ -372,13 +371,13 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		tooLowClientVersion := actions.IstioVersion{
+		istioVersion := actions.IstioVersion{
 			ClientVersion:    "1.2.0",
 			TargetVersion:    "1.2.0",
 			PilotVersion:     "1.2.0",
 			DataPlaneVersion: "1.2.0",
 		}
-		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(istioVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
 		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
@@ -791,7 +790,206 @@ func Test_isMismatchPresent(t *testing.T) {
 	})
 }
 
-func Test_maxOneMinorBehind(t *testing.T) {
+func Test_isClientCompatible(t *testing.T) {
+	logger := log.NewLogger(true)
+	t.Run("Client and Target with the exact same versions are compatible", func(t *testing.T) {
+		// given
+		exactSameClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+
+		// when
+		got := isClientCompatibleWithTargetVersion(exactSameClientVersion, logger)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Client and Target with the same major and one higher minor version are compatible", func(t *testing.T) {
+		// given
+		oneHigherMinorClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.12.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+
+		// when
+		got := isClientCompatibleWithTargetVersion(oneHigherMinorClientVersion, logger)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Lower Client with the same major and minor versions as target are NOT compatible", func(t *testing.T) {
+		// given
+		sameMinorClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.1",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+
+		// when
+		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion, logger)
+
+		//then
+		require.False(t, got)
+	})
+
+	t.Run("Client and Target with the same major and one lower minor version are NOT compatible", func(t *testing.T) {
+		// given
+		oneLowerMinorClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.10.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+
+		// when
+		got := isClientCompatibleWithTargetVersion(oneLowerMinorClientVersion, logger)
+
+		//then
+		require.False(t, got)
+	})
+
+	t.Run("Client and Target with the same major and one or more lower minor versions are NOT compatible", func(t *testing.T) {
+		// given
+		twoLowerMinorClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.9.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+
+		// when
+		got := isClientCompatibleWithTargetVersion(twoLowerMinorClientVersion, logger)
+
+		//then
+		require.False(t, got)
+	})
+
+	t.Run("Client and Target with the same major and greater than one minor versions are NOT compatible", func(t *testing.T) {
+		// given
+		greaterThanOneMinorClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.13.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+
+		// when
+		got := isClientCompatibleWithTargetVersion(greaterThanOneMinorClientVersion, logger)
+
+		//then
+		require.False(t, got)
+	})
+}
+
+func Test_isComponentCompatible(t *testing.T) {
+	componentName := "component"
+	logger := log.NewLogger(true)
+	t.Run("Equal target and pilot component version is compatible", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.11.2",
+			DataPlaneVersion: "1.11.2",
+		}
+
+		// when
+		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Same major and minor of target and pilot component version is compatible", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.11.6",
+			DataPlaneVersion: "1.11.2",
+		}
+
+		// when
+		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Upgrade scenario of Pilot component with one minor lower version is compatible", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.10.6",
+			DataPlaneVersion: "1.11.2",
+		}
+
+		// when
+		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Downgrade scenario of Pilot component with one minor higher version is compatible", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.12.6",
+			DataPlaneVersion: "1.11.2",
+		}
+
+		// when
+		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Upgrade scenario of Pilot component with more than one minor lower version is NOT compatible", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.9.6",
+			DataPlaneVersion: "1.11.2",
+		}
+
+		// when
+		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+
+		//then
+		require.False(t, got)
+	})
+
+	t.Run("Downgrade scenario of Pilot component with more than one minor higher version is NOT compatible", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.13.6",
+			DataPlaneVersion: "1.11.2",
+		}
+
+		// when
+		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+
+		//then
+		require.False(t, got)
+	})
+}
+
+func Test_amongOneMinor(t *testing.T) {
 	t.Run("Downgrade of PilotVersion with same minor version is permitted", func(t *testing.T) {
 		// given
 		sameMinorPilotVersion := actions.IstioVersion{
@@ -803,104 +1001,98 @@ func Test_maxOneMinorBehind(t *testing.T) {
 		pilotHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
 		targetHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
 
-
 		// when
-		got := maxOneMinorBehind(targetHelperVersion, pilotHelperVersion)
+		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
 		//then
 		require.True(t, got)
 	})
 
-	t.Run("Downgrade of DataPlaneVersion with same minor version is permitted", func(t *testing.T) {
+	t.Run("Upgrade of PilotVersion with same minor version is permitted", func(t *testing.T) {
 		// given
-		sameMinorDataPlaneVersion := actions.IstioVersion{
+		sameMinorPilotVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.11.2",
-			DataPlaneVersion: "1.11.8",
+			PilotVersion:     "1.11.1",
+			DataPlaneVersion: "1.11.2",
 		}
-		dataPlaneHelperVersion := newHelperVersionFrom(sameMinorDataPlaneVersion.DataPlaneVersion)
-		targetHelperVersion := newHelperVersionFrom(sameMinorDataPlaneVersion.TargetVersion)
-
+		pilotHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
+		targetHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
 
 		// when
-		got := maxOneMinorBehind(targetHelperVersion, dataPlaneHelperVersion)
+		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
 		//then
 		require.True(t, got)
 	})
 
-	t.Run("Downgrade of PilotVersion within one minor version is permitted", func(t *testing.T) {
+	t.Run("Downgrade of PilotVersion with one minor version is permitted", func(t *testing.T) {
 		// given
-		oneMinorGreaterPilotVersion := actions.IstioVersion{
+		oneMinorPilotVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.12.6",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion := newHelperVersionFrom(oneMinorGreaterPilotVersion.PilotVersion)
-		targetHelperVersion := newHelperVersionFrom(oneMinorGreaterPilotVersion.TargetVersion)
-
+		pilotHelperVersion := newHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
+		targetHelperVersion := newHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
 
 		// when
-		got := maxOneMinorBehind(targetHelperVersion, pilotHelperVersion)
+		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
 		//then
 		require.True(t, got)
 	})
 
-	t.Run("Downgrade of DataPlaneVersion within same minor version is permitted", func(t *testing.T) {
+	t.Run("Upgrade of PilotVersion with one minor version is permitted", func(t *testing.T) {
 		// given
-		oneMinorGreaterDataPlaneVersion := actions.IstioVersion{
+		oneMinorPilotVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.11.2",
-			DataPlaneVersion: "1.12.9",
+			PilotVersion:     "1.10.1",
+			DataPlaneVersion: "1.11.2",
 		}
-		dataPlaneHelperVersion := newHelperVersionFrom(oneMinorGreaterDataPlaneVersion.DataPlaneVersion)
-		targetHelperVersion := newHelperVersionFrom(oneMinorGreaterDataPlaneVersion.TargetVersion)
-
+		pilotHelperVersion := newHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
+		targetHelperVersion := newHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
 
 		// when
-		got := maxOneMinorBehind(targetHelperVersion, dataPlaneHelperVersion)
+		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
 		//then
 		require.True(t, got)
 	})
 
-	t.Run("Downgrade of PilotVersion greater than one minor version is not permitted", func(t *testing.T) {
+	t.Run("Downgrade of PilotVersion with more than one minor version is NOT permitted", func(t *testing.T) {
 		// given
-		twoMinorGreaterPilotVersion := actions.IstioVersion{
+		greaterThanOneMinorPilotVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
 			PilotVersion:     "1.13.6",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion := newHelperVersionFrom(twoMinorGreaterPilotVersion.PilotVersion)
-		targetHelperVersion := newHelperVersionFrom(twoMinorGreaterPilotVersion.TargetVersion)
-
+		pilotHelperVersion := newHelperVersionFrom(greaterThanOneMinorPilotVersion.PilotVersion)
+		targetHelperVersion := newHelperVersionFrom(greaterThanOneMinorPilotVersion.TargetVersion)
 
 		// when
-		got := maxOneMinorBehind(targetHelperVersion, pilotHelperVersion)
+		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
 		//then
 		require.False(t, got)
 	})
 
-	t.Run("Downgrade of DataPlaneVersion greater than one minor version is not permitted", func(t *testing.T) {
+	t.Run("Upgrade of PilotVersion with more than one minor version is NOT permitted", func(t *testing.T) {
 		// given
-		threeMinorGreaterDataPlaneVersion := actions.IstioVersion{
+		lesserThanOneMinorPilotVersion := actions.IstioVersion{
 			ClientVersion:    "1.11.2",
 			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.11.2",
-			DataPlaneVersion: "1.14.6",
+			PilotVersion:     "1.9.1",
+			DataPlaneVersion: "1.11.2",
 		}
-		dataPlaneHelperVersion := newHelperVersionFrom(threeMinorGreaterDataPlaneVersion.DataPlaneVersion)
-		targetHelperVersion := newHelperVersionFrom(threeMinorGreaterDataPlaneVersion.TargetVersion)
-
+		pilotHelperVersion := newHelperVersionFrom(lesserThanOneMinorPilotVersion.PilotVersion)
+		targetHelperVersion := newHelperVersionFrom(lesserThanOneMinorPilotVersion.TargetVersion)
 
 		// when
-		got := maxOneMinorBehind(targetHelperVersion, dataPlaneHelperVersion)
+		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
 		//then
 		require.False(t, got)
