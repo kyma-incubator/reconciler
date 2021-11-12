@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"sync"
 	"testing"
 	"time"
@@ -33,26 +34,19 @@ func dbConnection(t *testing.T) db.Connection {
 func TestSchedulerParallel(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 
+		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
+		require.NoError(t, err)
+		createClusterStates(t, inventory)
+
 		scheduler := newScheduler(nil, logger.NewLogger(true))
 		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
 		require.NoError(t, err)
-		inventory :=  &cluster.MockInventory{
-			ClustersToReconcileResult: []*cluster.State{
-				testClusterState("testClusterA", 1),
-				testClusterState("testClusterB", 2),
-				testClusterState("testClusterC", 3),
-			},
-			UpdateStatusResult: func() *cluster.State {
-				updatedState := testClusterState("testClusterA", 1)
-				updatedState.Status.Status = model.ClusterStatusReconciling
-				return updatedState
-			}(),
-		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		startAt := time.Now().Add(2 * time.Second)
-		for i := 0; i < 20; i++ {
+		startAt := time.Now().Add(1 * time.Second)
+		for i := 0; i < 50; i++ {
 			go func() {
 				time.Sleep(startAt.Sub(time.Now()))
 				err := scheduler.Run(ctx, &ClusterStatusTransition{
@@ -68,11 +62,11 @@ func TestSchedulerParallel(t *testing.T) {
 				require.NoError(t, err)
 			}()
 		}
-		time.Sleep(3 *time.Second)
+		time.Sleep(5 *time.Second)
 
 		recons, err := reconRepo.GetReconciliations(nil)
 		require.NoError(t, err)
-		require.Equal(t, 3, len(recons))
+		require.Equal(t, 2, len(recons))
 	})
 }
 
@@ -166,4 +160,62 @@ func testClusterState(clusterID string, statusID int64) *cluster.State {
 			Status:         model.ClusterStatusReconcilePending,
 		},
 	}
+}
+
+func createClusterStates(t *testing.T, inventory cluster.Inventory) {
+	clusterID1 := uuid.NewString()
+	_, err := inventory.CreateOrUpdate(1, &keb.Cluster{
+		Kubeconfig: "abc",
+		KymaConfig: keb.KymaConfig{
+			Components: []keb.Component{
+				{
+					Component: "comp1",
+					Configuration: []keb.Configuration{
+						{
+							Key:   "limitRange.default.memory",
+							Value: "256m",
+						},
+					},
+					Namespace: "kyma-system",
+				},
+				{
+					Component:     "comp2",
+					Configuration: nil,
+					Namespace:     "istio-system",
+				},
+				{
+					Component:     "comp3",
+					Configuration: nil,
+					Namespace:     "kyma-system",
+				},
+			},
+			Version: "1.2.3",
+		},
+		Metadata:  keb.Metadata{},
+		RuntimeID: clusterID1,
+		RuntimeInput: keb.RuntimeInput{
+			Name: clusterID1,
+		},
+	})
+	require.NoError(t, err)
+
+	clusterID2 := uuid.NewString()
+	_, err = inventory.CreateOrUpdate(1, &keb.Cluster{
+		Kubeconfig: "abc",
+		KymaConfig: keb.KymaConfig{
+			Components: []keb.Component{
+				{
+					Component: "comp4",
+					Namespace: "kyma-system",
+				},
+			},
+			Version: "1.2.3",
+		},
+		Metadata:  keb.Metadata{},
+		RuntimeID: clusterID2,
+		RuntimeInput: keb.RuntimeInput{
+			Name: clusterID2,
+		},
+	})
+	require.NoError(t, err)
 }

@@ -750,6 +750,6 @@ func TestReconciliationParallel( t *testing.T) {
 			}()
 		}
 		time.Sleep(5 *time.Second)
-		require.Equal(t,int(99), len(errChannel))
+		require.Equal(t, 99, len(errChannel))
 	})
 }
