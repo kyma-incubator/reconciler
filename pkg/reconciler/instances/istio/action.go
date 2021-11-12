@@ -88,6 +88,11 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
 	}
 
+	err = isClientCompatibleWithTargetVersion(ver)
+	if err != nil {
+		return err
+	}
+
 	if canInstall(ver) {
 		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
 
@@ -210,40 +215,59 @@ func getInstalledVersion(context *service.ActionContext, performer actions.Istio
 	return ver, nil
 }
 
-func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
+func isClientCompatibleWithTargetVersion(ver actions.IstioVersion) error {
 	clientHelperVersion := newHelperVersionFrom(ver.ClientVersion)
 	targetHelperVersion := newHelperVersionFrom(ver.TargetVersion)
-	pilotHelperVersion := newHelperVersionFrom(ver.PilotVersion)
-	dataPlaneHelperVersion := newHelperVersionFrom(ver.DataPlaneVersion)
 
-	if !maxOneMinorBehind(clientHelperVersion, targetHelperVersion) {
-		logger.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s", ver.ClientVersion, ver.TargetVersion)
+	if !amongOneMinor(clientHelperVersion, targetHelperVersion) {
+		 return errors.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s", ver.ClientVersion, ver.TargetVersion)
+	}
+
+	return nil
+}
+
+func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
+	if !isComponentCompatible(ver.PilotVersion, ver.TargetVersion, "Pilot", logger) {
 		return false
 	}
 
-	pilotVsTarget := targetHelperVersion.compare(&pilotHelperVersion)
-	dataPlaneVsTarget := targetHelperVersion.compare(&dataPlaneHelperVersion)
-
-	if pilotVsTarget == -1 || dataPlaneVsTarget == -1 {
-		if !maxOneMinorBehind(targetHelperVersion, pilotHelperVersion) || !maxOneMinorBehind(targetHelperVersion, dataPlaneHelperVersion) {
-			logger.Errorf("Downgrade detected from pilot: %s and data plane: %s to version: %s - finishing...", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
-			return false
-		}
-		logger.Infof("Valid Downgrade detected from pilot: %s and data plane: %s to version: %s", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
-		return true
-	}
-
-	if !maxOneMinorBehind(pilotHelperVersion, targetHelperVersion) || !maxOneMinorBehind(dataPlaneHelperVersion, targetHelperVersion) {
-		logger.Errorf("Istio could not be updated from pilot: %s and data plane: %s to version: %s - versions different exceed one minor version",
-			ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
+	if !isComponentCompatible(ver.DataPlaneVersion, ver.TargetVersion, "Data plane", logger) {
 		return false
 	}
 
 	return true
 }
 
-func maxOneMinorBehind(first, second helperVersion) bool {
-	return first.major == second.major && (second.minor == first.minor || second.minor - first.minor == 1)
+func isComponentCompatible(componentVersion, targetVersion, componentName string, logger *zap.SugaredLogger) bool {
+	componentHelperVersion := newHelperVersionFrom(componentVersion)
+	targetHelperVersion := newHelperVersionFrom(targetVersion)
+
+	componentVsTargetComparison := targetHelperVersion.compare(&componentHelperVersion)
+	if !amongOneMinor(componentHelperVersion, targetHelperVersion) {
+		logger.Errorf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
+			componentName, getActionTypeFrom(componentVsTargetComparison), componentVersion, targetVersion)
+		return false
+	}
+
+	return true
+}
+
+
+func getActionTypeFrom(comparison int) string {
+	switch comparison {
+	case 1:
+		return "upgrade"
+	case 0:
+		return "reconcilation"
+	case -1:
+		return "downgrade"
+	default:
+		return "unknown"
+	}
+}
+
+func amongOneMinor(first, second helperVersion) bool {
+	return first.major == second.major && (first.minor == second.minor || first.minor - second.minor == -1 || first.minor - second.minor == 1)
 }
 
 func isMismatchPresent(ver actions.IstioVersion) bool {

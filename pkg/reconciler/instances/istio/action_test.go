@@ -122,6 +122,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioVersion{
 			ClientVersion:    "1.0",
+			TargetVersion: "1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -155,6 +156,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioVersion{
 			ClientVersion:    "1.0",
+			TargetVersion: "1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -188,6 +190,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioVersion{
 			ClientVersion:    "1.0",
+			TargetVersion: "1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -236,7 +239,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.NoError(t, err)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "is not compatible")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -258,7 +262,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooLowClientVersion := actions.IstioVersion{
-			ClientVersion:    "1.2",
+			ClientVersion:    "0.9",
 			TargetVersion:    "0.9",
 			PilotVersion:     "1.1",
 			DataPlaneVersion: "1.1",
