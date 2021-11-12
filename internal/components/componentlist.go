@@ -16,10 +16,11 @@ type ComponentList struct {
 }
 
 type Component struct {
-	Name          string
-	Namespace     string
-	URL           string
-	Configuration map[string]interface{}
+	Name              string
+	Namespace         string
+	URL               string
+	Configuration     map[string]interface{}
+	FlatConfiguration map[string]interface{}
 }
 
 func NewComponentList(compListFile string) (*ComponentList, error) {

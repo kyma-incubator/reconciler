@@ -20,6 +20,7 @@ const (
 	VersionLocal         = "local"
 	defaultRepositoryURL = "https://github.com/kyma-project/kyma"
 	wsReadyIndicatorFile = "workspace-ready.yaml"
+	tokenNamespaceKey    = "repo.token.namespace"
 )
 
 //go:generate mockery --name=Factory --outpkg=mock --case=underscore
@@ -138,18 +139,17 @@ func (f *DefaultFactory) clone(version, dstDir string, component ...*components.
 
 	repo := f.repository
 	if len(component) > 0 {
-		tokenNamespace := component[0].Configuration["repo.token.namespace"]
+		tokenNamespace := component[0].FlatConfiguration[tokenNamespaceKey]
 		if tokenNamespace != nil {
 			repo = &reconciler.Repository{
-				URL:            component[0].Name,
+				URL:            component[0].URL,
 				TokenNamespace: fmt.Sprint(tokenNamespace),
 			}
 		} else {
 			repo = &reconciler.Repository{
-				URL: component[0].Name,
+				URL: component[0].URL,
 			}
 		}
-
 	}
 
 	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet)

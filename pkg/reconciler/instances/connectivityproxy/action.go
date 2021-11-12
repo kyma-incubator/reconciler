@@ -19,7 +19,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	if host == "" {
 		return errors.Errorf("Host cannot be empty")
 	}
-	context.Task.Configuration["kubeHost"] = host
+	context.Task.Configuration["global.kubeHost"] = host
 
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Info("Requested cluster removal - removing component")

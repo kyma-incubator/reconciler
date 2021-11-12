@@ -145,15 +145,16 @@ func (p *DefaultProvider) newWorkspace(component *Component) (*workspace.Workspa
 	var ws *workspace.Workspace
 	var err error
 	if component.url != "" && strings.HasSuffix(component.url, ".git") {
-		p.logger.Debugf("Getting workspace for Kyma '%s', url repository: ", component.version, component.url)
+		p.logger.Debugf("Getting workspace for Kyma '%s', url repository: %s", component.version, component.url)
 		configuration, err := component.Configuration()
 		if err != nil {
 			return nil, err
 		}
 		c := components.Component{
-			Name:          component.name,
-			URL:           component.url,
-			Configuration: configuration,
+			Name:              component.name,
+			URL:               component.url,
+			Configuration:     configuration,
+			FlatConfiguration: component.configuration,
 		}
 		ws, err = p.wsFactory.Get(component.version, &c)
 		if err != nil {
