@@ -109,7 +109,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 			return err
 		}
 		defer func() { _ = auditLogger.Sync() }() // make golint happy
-		auditLoggerMiddelware := NewAuditLoggerMiddelware(auditLogger, o.AuditLogTenantID)
+		auditLoggerMiddelware := NewAuditLoggerMiddelware(auditLogger, o)
 		router.Use(auditLoggerMiddelware)
 	}
 	//start server process

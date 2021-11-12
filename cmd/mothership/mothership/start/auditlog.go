@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -62,10 +63,10 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 	), err
 }
 
-func NewAuditLoggerMiddelware(l *zap.Logger, tenantID string) func(http.Handler) http.Handler {
+func NewAuditLoggerMiddelware(l *zap.Logger, o *Options) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			auditLogRequest(w, r, l, tenantID)
+			auditLogRequest(w, r, l, o)
 
 			next.ServeHTTP(w, r)
 		})
@@ -80,9 +81,10 @@ type data struct {
 	User            string `json:"user"`
 	JWTPayload      string `json:"jwtPayload"`
 	Tenant          string `json:"tenant"`
+	IP              string `json:"ip"`
 }
 
-func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, tenantID string) {
+func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *Options) {
 	params := server.NewParams(r)
 	contractV, err := params.Int64(paramContractVersion)
 	if err != nil {
@@ -97,7 +99,8 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, tena
 		Method:          r.Method,
 		URI:             r.RequestURI,
 		User:            "UNKOWEN_USER",
-		Tenant:          tenantID,
+		Tenant:          o.AuditLogTenantID,
+		IP:              "-",
 	}
 	if jwtPayload, err := getJWTPayload(r); err == nil {
 		logData.JWTPayload = jwtPayload
@@ -130,6 +133,13 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, tena
 		r.Body = ioutil.NopCloser(bytes.NewBuffer(reqBody))
 		logData.RequestBody = string(reqBody)
 	}
+
+	if ip, ok := os.LookupEnv("POD_IP"); ok {
+		logData.IP = ip
+	} else {
+		o.Logger().Debug("can't find reconciler pod IP")
+	}
+
 	data, err := json.Marshal(logData)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
@@ -141,7 +151,9 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, tena
 		With(zap.String("uuid", uuid.New().String())).
 		With(zap.String("user", logData.User)).
 		With(zap.String("data", string(data))).
-		With(zap.String("tenant", tenantID)).
+		With(zap.String("tenant", o.AuditLogTenantID)).
+		With(zap.String("ip", logData.IP)).
+		With(zap.String("category", "audit.security-events")). // comply with required log backend format
 		Info("")
 }
 
