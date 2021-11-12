@@ -22,54 +22,6 @@ var (
 	mu     sync.Mutex
 )
 
-func dbConnection(t *testing.T) db.Connection {
-	mu.Lock()
-	defer mu.Unlock()
-	if dbConn == nil {
-		dbConn = db.NewTestConnection(t)
-	}
-	return dbConn
-}
-
-func TestSchedulerParallel(t *testing.T) {
-	t.Run("", func(t *testing.T) {
-
-		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
-		require.NoError(t, err)
-		createClusterStates(t, inventory)
-
-		scheduler := newScheduler(nil, logger.NewLogger(true))
-		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
-		require.NoError(t, err)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		startAt := time.Now().Add(1 * time.Second)
-		for i := 0; i < 50; i++ {
-			go func() {
-				time.Sleep(startAt.Sub(time.Now()))
-				err := scheduler.Run(ctx, &ClusterStatusTransition{
-					conn: dbConnection(t),
-					inventory: inventory,
-					reconRepo: reconRepo,
-					logger:    logger.NewLogger(true),
-				}, &SchedulerConfig{
-					InventoryWatchInterval:   100 * time.Millisecond,
-					ClusterReconcileInterval: 100 * time.Second,
-					ClusterQueueSize:         10,
-				})
-				require.NoError(t, err)
-			}()
-		}
-		time.Sleep(5 *time.Second)
-
-		recons, err := reconRepo.GetReconciliations(nil)
-		require.NoError(t, err)
-		require.Equal(t, 2, len(recons))
-	})
-}
-
 func TestScheduler(t *testing.T) {
 	t.Run("Test run once", func(t *testing.T) {
 		clusterState := testClusterState("testCluster", 1)
@@ -218,4 +170,53 @@ func createClusterStates(t *testing.T, inventory cluster.Inventory) {
 		},
 	})
 	require.NoError(t, err)
+}
+
+
+func dbConnection(t *testing.T) db.Connection {
+	mu.Lock()
+	defer mu.Unlock()
+	if dbConn == nil {
+		dbConn = db.NewTestConnection(t)
+	}
+	return dbConn
+}
+
+func TestSchedulerParallel(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+
+		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
+		require.NoError(t, err)
+		createClusterStates(t, inventory)
+
+		scheduler := newScheduler(nil, logger.NewLogger(true))
+		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		startAt := time.Now().Add(1 * time.Second)
+		for i := 0; i < 50; i++ {
+			go func() {
+				time.Sleep(startAt.Sub(time.Now()))
+				err := scheduler.Run(ctx, &ClusterStatusTransition{
+					conn: dbConnection(t),
+					inventory: inventory,
+					reconRepo: reconRepo,
+					logger:    logger.NewLogger(true),
+				}, &SchedulerConfig{
+					InventoryWatchInterval:   100 * time.Millisecond,
+					ClusterReconcileInterval: 100 * time.Second,
+					ClusterQueueSize:         10,
+				})
+				require.NoError(t, err)
+			}()
+		}
+		time.Sleep(5 *time.Second)
+
+		recons, err := reconRepo.GetReconciliations(nil)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(recons))
+	})
 }
