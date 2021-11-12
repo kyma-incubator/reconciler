@@ -417,7 +417,7 @@ func getReconciliationInfo(o *Options, w http.ResponseWriter, r *http.Request) {
 			Created:       operation.Created,
 			Priority:      operation.Priority,
 			Reason:        operation.Reason,
-			SchedulingID:  operation.CorrelationID,
+			SchedulingID:  operation.SchedulingID,
 			State:         string(operation.State),
 			Updated:       operation.Updated,
 		}
