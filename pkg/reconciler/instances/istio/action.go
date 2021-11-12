@@ -201,16 +201,6 @@ func canUninstall(istioVersion actions.IstioVersion) bool {
 	return isInstalled(istioVersion) && istioVersion.ClientVersion != ""
 }
 
-func (h *helperVersion) isDowngradePermitted(second *helperVersion) bool {
-	// we permit one minor downgrade, please see: https://github.com/kyma-incubator/reconciler/issues/365
-	if h.major == second.major {
-		if second.minor-h.minor == 0 || second.minor-h.minor == 1 {
-			return true
-		}
-	}
-	return false
-}
-
 func getInstalledVersion(context *service.ActionContext, performer actions.IstioPerformer) (actions.IstioVersion, error) {
 	ver, err := performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
@@ -235,7 +225,7 @@ func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
 	dataPlaneVsTarget := targetHelperVersion.compare(&dataPlaneHelperVersion)
 
 	if pilotVsTarget == -1 || dataPlaneVsTarget == -1 {
-		if !targetHelperVersion.isDowngradePermitted(&pilotHelperVersion) || !targetHelperVersion.isDowngradePermitted(&dataPlaneHelperVersion) {
+		if !maxOneMinorBehind(targetHelperVersion, pilotHelperVersion) || !maxOneMinorBehind(targetHelperVersion, dataPlaneHelperVersion) {
 			logger.Errorf("Downgrade detected from pilot: %s and data plane: %s to version: %s - finishing...", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
 			return false
 		}
@@ -252,8 +242,8 @@ func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
 	return true
 }
 
-func maxOneMinorBehind(client, target helperVersion) bool {
-	return client.major == target.major && target.minor-client.minor <= 1
+func maxOneMinorBehind(first, second helperVersion) bool {
+	return first.major == second.major && (second.minor == first.minor || second.minor - first.minor == 1)
 }
 
 func isMismatchPresent(ver actions.IstioVersion) bool {

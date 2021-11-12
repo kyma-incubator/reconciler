@@ -787,6 +787,122 @@ func Test_isMismatchPresent(t *testing.T) {
 	})
 }
 
+func Test_maxOneMinorBehind(t *testing.T) {
+	t.Run("Downgrade of PilotVersion with same minor version is permitted", func(t *testing.T) {
+		// given
+		sameMinorPilotVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.11.6",
+			DataPlaneVersion: "1.11.2",
+		}
+		pilotHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
+		targetHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
+
+
+		// when
+		got := maxOneMinorBehind(targetHelperVersion, pilotHelperVersion)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Downgrade of DataPlaneVersion with same minor version is permitted", func(t *testing.T) {
+		// given
+		sameMinorDataPlaneVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.11.2",
+			DataPlaneVersion: "1.11.8",
+		}
+		dataPlaneHelperVersion := newHelperVersionFrom(sameMinorDataPlaneVersion.DataPlaneVersion)
+		targetHelperVersion := newHelperVersionFrom(sameMinorDataPlaneVersion.TargetVersion)
+
+
+		// when
+		got := maxOneMinorBehind(targetHelperVersion, dataPlaneHelperVersion)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Downgrade of PilotVersion within one minor version is permitted", func(t *testing.T) {
+		// given
+		oneMinorGreaterPilotVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.12.6",
+			DataPlaneVersion: "1.11.2",
+		}
+		pilotHelperVersion := newHelperVersionFrom(oneMinorGreaterPilotVersion.PilotVersion)
+		targetHelperVersion := newHelperVersionFrom(oneMinorGreaterPilotVersion.TargetVersion)
+
+
+		// when
+		got := maxOneMinorBehind(targetHelperVersion, pilotHelperVersion)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Downgrade of DataPlaneVersion within same minor version is permitted", func(t *testing.T) {
+		// given
+		oneMinorGreaterDataPlaneVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.11.2",
+			DataPlaneVersion: "1.12.9",
+		}
+		dataPlaneHelperVersion := newHelperVersionFrom(oneMinorGreaterDataPlaneVersion.DataPlaneVersion)
+		targetHelperVersion := newHelperVersionFrom(oneMinorGreaterDataPlaneVersion.TargetVersion)
+
+
+		// when
+		got := maxOneMinorBehind(targetHelperVersion, dataPlaneHelperVersion)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("Downgrade of PilotVersion greater than one minor version is not permitted", func(t *testing.T) {
+		// given
+		twoMinorGreaterPilotVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.13.6",
+			DataPlaneVersion: "1.11.2",
+		}
+		pilotHelperVersion := newHelperVersionFrom(twoMinorGreaterPilotVersion.PilotVersion)
+		targetHelperVersion := newHelperVersionFrom(twoMinorGreaterPilotVersion.TargetVersion)
+
+
+		// when
+		got := maxOneMinorBehind(targetHelperVersion, pilotHelperVersion)
+
+		//then
+		require.False(t, got)
+	})
+
+	t.Run("Downgrade of DataPlaneVersion greater than one minor version is not permitted", func(t *testing.T) {
+		// given
+		threeMinorGreaterDataPlaneVersion := actions.IstioVersion{
+			ClientVersion:    "1.11.2",
+			TargetVersion:    "1.11.2",
+			PilotVersion:     "1.11.2",
+			DataPlaneVersion: "1.14.6",
+		}
+		dataPlaneHelperVersion := newHelperVersionFrom(threeMinorGreaterDataPlaneVersion.DataPlaneVersion)
+		targetHelperVersion := newHelperVersionFrom(threeMinorGreaterDataPlaneVersion.TargetVersion)
+
+
+		// when
+		got := maxOneMinorBehind(targetHelperVersion, dataPlaneHelperVersion)
+
+		//then
+		require.False(t, got)
+	})
+}
+
 func Test_generateNewManifestWithoutIstioOperatorFrom(t *testing.T) {
 
 	t.Run("should generate empty manifest from empty input manifest", func(t *testing.T) {
