@@ -62,10 +62,10 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 	), err
 }
 
-func NewAuditLoggerMiddelware(l *zap.Logger) func(http.Handler) http.Handler {
+func NewAuditLoggerMiddelware(l *zap.Logger, tenantID string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			auditLogRequest(w, r, l)
+			auditLogRequest(w, r, l, tenantID)
 
 			next.ServeHTTP(w, r)
 		})
@@ -79,9 +79,10 @@ type data struct {
 	RequestBody     string `json:"requestBody"`
 	User            string `json:"user"`
 	JWTPayload      string `json:"jwtPayload"`
+	Tenant          string `json:"tenant"`
 }
 
-func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger) {
+func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, tenantID string) {
 	params := server.NewParams(r)
 	contractV, err := params.Int64(paramContractVersion)
 	if err != nil {
@@ -96,6 +97,7 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger) {
 		Method:          r.Method,
 		URI:             r.RequestURI,
 		User:            "UNKOWEN_USER",
+		Tenant:          tenantID,
 	}
 	if jwtPayload, err := getJWTPayload(r); err == nil {
 		logData.JWTPayload = jwtPayload
@@ -139,6 +141,7 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger) {
 		With(zap.String("uuid", uuid.New().String())).
 		With(zap.String("user", logData.User)).
 		With(zap.String("data", string(data))).
+		With(zap.String("tenant", tenantID)).
 		Info("")
 }
 
