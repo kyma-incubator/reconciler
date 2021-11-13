@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,7 +26,7 @@ const (
 	fakeKymaVersion       = "0.0.0"
 	clusterUsersComponent = "cluster-users"
 	fakeComponent         = "component-1"
-	workspaceInHomeDir    = "reconciliation-test"
+	workspaceInHomeDir    = "reconciliation-test" //TODO: use workspace in $HOME/.kyma - fix in WS factory!
 	workspaceInProjectDir = "test"
 )
 
@@ -224,7 +225,7 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
-		wsf, err := workspace.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
+		wsf, err := chart.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
 		require.NoError(t, err)
 		require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 
@@ -246,7 +247,7 @@ func TestRunner(t *testing.T) {
 func SetWorkspaceFactoryForHomeDir(t *testing.T) {
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-	wsf, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
+	wsf, err := chart.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 }
@@ -282,14 +283,14 @@ func cleanup(t *testing.T) {
 
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-	wsf, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
+	wsf, err := chart.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 
 	cleanup := NewTestCleanup(recon, kubeClient)
 	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
 
-	wsf, err = workspace.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
+	wsf, err = chart.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 	cleanup = NewTestCleanup(recon, kubeClient)

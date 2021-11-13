@@ -1,0 +1,341 @@
+package chart
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"path"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+	"github.com/mholt/archiver/v3"
+
+	"os"
+
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
+	file "github.com/kyma-incubator/reconciler/pkg/files"
+)
+
+const (
+	VersionLocal         = "local"
+	defaultRepositoryURL = "https://github.com/kyma-project/kyma"
+	wsReadyIndicatorFile = "workspace-ready.yaml"
+)
+
+//go:generate mockery --name=Factory --outpkg=mocks --case=underscore
+// Factory of workspace.
+type Factory interface {
+	// Get workspace of the given Kyma version.
+	Get(version string) (*KymaWorkspace, error)
+	// Delete workspace of the given Kyma version.
+	Delete(version string) error
+
+	GetExternalComponent(component *Component) (*Workspace, error)
+}
+
+type DefaultFactory struct {
+	storageDir        string
+	logger            *zap.SugaredLogger
+	mutexGet          sync.Mutex
+	mutexGetComponent sync.Mutex
+	kymaRepository    *reconciler.Repository
+}
+
+func NewFactory(repo *reconciler.Repository, storageDir string, logger *zap.SugaredLogger) (*DefaultFactory, error) {
+	factory := &DefaultFactory{
+		storageDir:     storageDir,
+		logger:         logger,
+		kymaRepository: repo,
+	}
+	return factory, factory.validate()
+}
+
+func (f *DefaultFactory) String() string {
+	return fmt.Sprintf("WorkspaceFactory [storageDir=%s]", f.storageDir)
+}
+
+func (f *DefaultFactory) validate() error {
+	if f.logger == nil {
+		return fmt.Errorf("no logger provided: please set field Logger")
+	}
+	if f.storageDir == "" {
+		f.storageDir = f.defaultStorageDir()
+	}
+	if f.kymaRepository == nil || f.kymaRepository.URL == "" {
+		f.kymaRepository = &reconciler.Repository{
+			URL: defaultRepositoryURL,
+		}
+	}
+	return nil
+}
+
+func (f *DefaultFactory) workspaceDir(version string) string {
+	return filepath.Join(f.storageDir, version) //add Kyma version as subdirectory
+}
+
+func (f *DefaultFactory) defaultStorageDir() string {
+	//define work dir, priority: "$HOME", "cwd()", "."
+	baseDir, err := os.UserHomeDir()
+	if err != nil {
+		baseDir, err = os.Getwd()
+		if err != nil {
+			baseDir = "."
+		}
+	}
+	return filepath.Join(baseDir, ".kyma", "reconciler", "workspaces")
+}
+
+func (f *DefaultFactory) Get(version string) (*KymaWorkspace, error) {
+	if err := f.validate(); err != nil {
+		return nil, err
+	}
+
+	if version == VersionLocal {
+		//storage should be used as workspace - no cloning required
+		return newKymaWorkspace(f.storageDir)
+	}
+
+	wsDir := f.workspaceDir(version)
+	if err := f.cloneKyma(version, wsDir); err != nil {
+		return nil, err
+	}
+
+	return newKymaWorkspace(wsDir)
+}
+
+func (f *DefaultFactory) cloneKyma(version, dstDir string) error {
+	f.mutexGet.Lock()
+	defer f.mutexGet.Unlock()
+
+	wsReadyFile := f.readyFile(dstDir)
+	if file.Exists(wsReadyFile) {
+		f.logger.Debugf("Workspace '%s' already exists", dstDir)
+		//race condition protection: it could happen that a previous go-routing was also triggering the clone of the Kyma version
+		return nil
+	}
+	if file.DirExists(dstDir) {
+		//if workspace exists but there is no success file, it is probably corrupted, so delete it
+		f.logger.Warnf("Deleting workspace '%s' because GIT clone does not contain all the required files", dstDir)
+		if err := os.RemoveAll(dstDir); err != nil {
+			return err
+		}
+	}
+
+	if err := f.clone(version, dstDir, dstDir, f.kymaRepository); err != nil {
+		return err
+	}
+
+	//clone ready for use
+	return nil
+}
+
+func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace, error) {
+	f.mutexGetComponent.Lock()
+	defer f.mutexGetComponent.Unlock()
+
+	if component == nil {
+		return nil, errors.New("cannot retrieve workspace because provided component was 'nil'")
+	}
+
+	version := fmt.Sprintf("%s-%s", component.version, component.name)
+	wsDir := f.workspaceDir(version)
+
+	wsReadyFile := filepath.Join(wsDir, wsReadyIndicatorFile)
+	if file.Exists(wsReadyFile) {
+		f.logger.Debugf("Workspace '%s' already exists", wsDir)
+		return newComponentWorkspace(wsDir, component.name)
+	}
+
+	if file.DirExists(wsDir) {
+		f.logger.Warnf("Deleting workspace '%s' because previous download does not contain all the required files", wsDir)
+		if err := os.RemoveAll(wsDir); err != nil {
+			return nil, err
+		}
+	}
+
+	f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
+		component.name, component.version, component.url, wsDir)
+
+	// detect if component should be cloned or downloaded and extracted from archive
+	var fetchComponent func(*Component, string) error = f.downloadComponent
+	if strings.HasSuffix(component.url, ".git") {
+		fetchComponent = f.cloneComponent
+	}
+
+	if err := fetchComponent(component, wsDir); err != nil {
+		return nil, err
+	}
+
+	return newComponentWorkspace(wsDir, component.name)
+}
+
+func (f *DefaultFactory) cloneComponent(component *Component, dstDir string) error {
+	repo := &reconciler.Repository{
+		URL: component.url,
+	}
+
+	tokenNamespace := component.configuration["repo.token.namespace"]
+	if tokenNamespace != nil {
+		repo.TokenNamespace = fmt.Sprintf("%s", tokenNamespace)
+	}
+
+	dstPath := path.Join(dstDir, component.name)
+	return f.clone(component.version, dstPath, dstDir, repo)
+}
+
+func (f *DefaultFactory) downloadComponent(component *Component, dstDir string) error {
+	// create dst dir
+	if err := os.MkdirAll(dstDir, 0700); err != nil {
+		f.logger.Warnf("Unable to create destination directory: %q", dstDir)
+	}
+
+	tmpFile, err := f.downloadArchive(component.url, dstDir)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		// delete downloaded file after unarchiving it
+		if err := os.Remove(tmpFile); err != nil {
+			f.logger.Warnf("Unable to remove archive file %q: %s", tmpFile, err)
+		}
+	}()
+
+	err = archiver.Unarchive(tmpFile, dstDir)
+	if err != nil {
+		return err
+	}
+
+	//create a marker file to flag success
+	fileHandler, err := os.Create(f.readyFile(dstDir))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		// make sure to try to close marker at the end
+		if err := fileHandler.Close(); err != nil {
+			f.logger.Warnf("Failed to close marker file: %s", err)
+		}
+	}()
+	return nil
+}
+
+func (f *DefaultFactory) downloadArchive(url, dstDir string) (string, error) {
+	f.logger.Infof("Downloading archive '%s' into workspace '%s'", url, dstDir)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode == 404 {
+		return "", fmt.Errorf("not found: %q", url)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			f.logger.Warnf("Failed to close HTTP response body stream of downloaded archive (url '%s'): %s", url, err)
+		}
+	}()
+
+	b := make([]byte, 255)
+	if _, err := resp.Body.Read(b); err != nil {
+		return "", err
+	}
+
+	mimeType := http.DetectContentType(b)
+	// the extension is required by the archiver
+	extension, err := extension(mimeType)
+	if err != nil {
+		return "", err
+	}
+
+	filenameTpl := fmt.Sprintf("component_*.%s", extension)
+	tmpFile, err := os.CreateTemp(dstDir, filenameTpl)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := tmpFile.Close(); err != nil {
+			f.logger.Warnf("Failed to close file handler for tmp-file '%s': %s", tmpFile.Name(), err)
+		}
+	}()
+
+	// first write bytes used to get the mime type
+	_, err = tmpFile.Write(b)
+	if err != nil {
+		return "", err
+	}
+	// write the rest of the archive
+	_, err = io.Copy(tmpFile, resp.Body)
+
+	return tmpFile.Name(), err
+}
+
+func extension(mimeType string) (string, error) {
+	switch mimeType {
+	case "application/x-gzip":
+		return "tar.gz", nil
+	case "application/zip":
+		return "zip", nil
+	case "application/x-rar-compressed":
+		return "rar", nil
+	default:
+		return "", fmt.Errorf("unsupported archive")
+	}
+}
+
+func (f *DefaultFactory) readyFile(dstDir string) string {
+	return filepath.Join(dstDir, wsReadyIndicatorFile)
+}
+
+func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, repo *reconciler.Repository) error {
+	f.logger.Infof("Cloning GIT repository '%s' with revision '%s' into workspace '%s'",
+		f.kymaRepository.URL, version, dstDir)
+
+	clientSet, err := kubeclient.NewInClusterClientSet(f.logger)
+	if err != nil {
+		return err
+	}
+
+	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet)
+
+	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
+		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
+			dstDir, repo.URL, version)
+		if removeErr := f.Delete(version); removeErr != nil {
+			err = errors.Wrap(err, removeErr.Error())
+		}
+		return err
+	}
+
+	//create a marker file to flag success
+	fileHandler, err := os.Create(f.readyFile(markerDir))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := fileHandler.Close(); err != nil {
+			f.logger.Warnf("Failed to close marker file: %s", err)
+		}
+	}()
+
+	return nil
+}
+
+func (f *DefaultFactory) Delete(version string) error {
+	if err := f.validate(); err != nil {
+		return err
+	}
+	wsDir := f.workspaceDir(version)
+	f.logger.Infof("Deleting workspace '%s'", wsDir)
+	err := os.RemoveAll(wsDir)
+	if err != nil {
+		f.logger.Warnf("Failed to delete workspace '%s': %s", wsDir, err)
+	}
+	return err
+}
