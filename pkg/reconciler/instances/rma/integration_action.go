@@ -53,7 +53,7 @@ func NewIntegrationAction(name string, kubeClient KubeClient) *IntegrationAction
 }
 
 func (a *IntegrationAction) Run(context *service.ActionContext) error {
-	context.Logger.Infof("Performing %s action for shoot %s", a.name, context.Task.Metadata.ShootName)
+	context.Logger.Debugf("Performing %s action for shoot %s", a.name, context.Task.Metadata.ShootName)
 
 	chartURL := getConfigString(context.Task.Configuration, RmiChartURLConfig)
 	if chartURL == "" {
@@ -101,7 +101,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 		case upgradeVersion == "" || releaseVersion == "":
 			context.Logger.Warnf("cannot reliably determine monitoring integration chart versions (release/upgrade: %s/%s). Proceeding with rmi upgrade...", releaseVersion, upgradeVersion)
 		case upgradeVersion == releaseVersion && helmRelease.Info.Status == release.StatusDeployed:
-			context.Logger.Infof("%s-%s target version matches release version, skipping upgrade.", RmiChartName, releaseName)
+			context.Logger.Debugf("%s-%s target version matches release version, skipping upgrade.", RmiChartName, releaseName)
 			return nil
 		default:
 			context.Logger.Infof("%s-%s target version: %s release version/status: %s/%s, starting upgrade.", RmiChartName, releaseName, upgradeVersion, releaseVersion, helmRelease.Info.Status)
