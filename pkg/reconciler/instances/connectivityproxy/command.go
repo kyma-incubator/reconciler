@@ -2,6 +2,8 @@ package connectivityproxy
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/iancoleman/strcase"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -41,11 +43,13 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 	for key, val := range bindingSecret.Data {
 		var unmarshalled map[string]interface{}
 
+		configKey := fmt.Sprintf("%s.%s.",
+			context.Task.Component, "config")
 		if err := json.Unmarshal(val, &unmarshalled); err != nil {
-			context.Task.Configuration["binding."+key] = val
+			context.Task.Configuration[configKey+strcase.ToCamel(key)] = val
 		} else {
 			for uKey, uVal := range unmarshalled {
-				context.Task.Configuration["binding."+uKey] = uVal
+				context.Task.Configuration[configKey+strcase.ToCamel(uKey)] = uVal
 			}
 		}
 	}
