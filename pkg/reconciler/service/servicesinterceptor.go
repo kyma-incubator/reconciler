@@ -26,22 +26,25 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured) (k8
 		return k8s.ErrorInterceptionResult, err
 	}
 
-	if !s.isClusterIPService(svc) || svc.Spec.ClusterIP != "" {
+	if !s.isClusterIPService(svc) || svc.Spec.ClusterIP != "" { //not a clusterIP service or clusterIP-field is defined
 		return k8s.ContinueInterceptionResult, nil
 	}
 
-	service, err := s.kubeClient.GetService(context.Background(), resource.GetName(), resource.GetNamespace())
+	svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), resource.GetNamespace())
 	if err != nil {
 		return k8s.ErrorInterceptionResult, err
 	}
 
-	svc.Spec.ClusterIP = service.Spec.ClusterIP
-	unstructObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
-	if err != nil {
-		return k8s.ErrorInterceptionResult, err
-	}
+	if svcInCluster != nil {
+		svc.Spec.ClusterIP = svcInCluster.Spec.ClusterIP //use cluster IP from K8s service resource
 
-	resource.Object = unstructObject
+		unstructObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
+		if err != nil {
+			return k8s.ErrorInterceptionResult, err
+		}
+
+		resource.Object = unstructObject
+	}
 
 	return k8s.ContinueInterceptionResult, nil
 }
