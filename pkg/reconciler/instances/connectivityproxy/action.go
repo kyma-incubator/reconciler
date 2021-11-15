@@ -4,6 +4,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
+	"strings"
 )
 
 type CustomAction struct {
@@ -19,7 +20,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	if host == "" {
 		return errors.Errorf("Host cannot be empty")
 	}
-	context.Task.Configuration["global.kubeHost"] = host
+	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://")
 
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Info("Requested cluster removal - removing component")

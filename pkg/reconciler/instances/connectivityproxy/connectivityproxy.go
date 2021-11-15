@@ -2,6 +2,7 @@ package connectivityproxy
 
 import (
 	"fmt"
+	"github.com/iancoleman/strcase"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	k8s "k8s.io/client-go/kubernetes"
@@ -76,12 +77,18 @@ func istioSecretCopy(task *reconciler.Task, _, targetClientSet k8s.Interface) *S
 		istioSecretKey = "cacert"
 	}
 
+	configKey := fmt.Sprintf("%s.%s.",
+		strcase.ToLowerCamel(task.Component),
+		"config")
+
 	return &SecretCopy{
 		Namespace:       fmt.Sprintf("%v", istioNamespace),
 		Name:            fmt.Sprintf("%v", configs[istioConfigPrefix+".secret.name"]),
 		targetClientSet: targetClientSet,
 		from: &FromURL{
-			URL: fmt.Sprintf("%v%v", configs["binding.url"], configs["binding.CAs_signing_path"]),
+			URL: fmt.Sprintf("%v%v",
+				configs[configKey+"url"],
+				configs[configKey+"casSigningPath"]),
 			Key: fmt.Sprintf("%v", istioSecretKey),
 		},
 	}
