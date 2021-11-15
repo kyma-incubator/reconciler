@@ -2,16 +2,15 @@ package connectivityproxy
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/iancoleman/strcase"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	apiCoreV1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"strings"
 )
+
+const BindingKey = "global.binding."
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
@@ -44,13 +43,11 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 	for key, val := range bindingSecret.Data {
 		var unmarshalled map[string]interface{}
 
-		configKey := fmt.Sprintf("%s.%s.",
-			context.Task.Component, "config")
 		if err := json.Unmarshal(val, &unmarshalled); err != nil {
-			context.Task.Configuration[configKey+strcase.ToLowerCamel(strings.ToLower(key))] = string(val)
+			context.Task.Configuration[BindingKey+key] = string(val)
 		} else {
 			for uKey, uVal := range unmarshalled {
-				context.Task.Configuration[configKey+strcase.ToLowerCamel(strings.ToLower(uKey))] = uVal
+				context.Task.Configuration[BindingKey+uKey] = uVal
 			}
 		}
 	}

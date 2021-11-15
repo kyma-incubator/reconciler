@@ -76,18 +76,14 @@ func istioSecretCopy(task *reconciler.Task, _, targetClientSet k8s.Interface) *S
 		istioSecretKey = "cacert"
 	}
 
-	configKey := fmt.Sprintf("%s.%s.",
-		task.Component,
-		"config")
-
 	return &SecretCopy{
 		Namespace:       fmt.Sprintf("%v", istioNamespace),
 		Name:            fmt.Sprintf("%v", configs[istioConfigPrefix+".secret.name"]),
 		targetClientSet: targetClientSet,
 		from: &FromURL{
 			URL: fmt.Sprintf("%v%v",
-				configs[configKey+"url"],
-				configs[configKey+"casSigningPath"]),
+				configs[BindingKey+"url"],
+				configs[BindingKey+"CAs_signing_path"]),
 			Key: fmt.Sprintf("%v", istioSecretKey),
 		},
 	}
