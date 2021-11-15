@@ -296,7 +296,7 @@ func (g *kubeClientAdapter) GetStatefulSet(ctx context.Context, name, namespace 
 
 	clientset, err := g.Clientset()
 	if err != nil {
-		return nil, errors.Wrap(err, "error retrieving clientSet")
+		return nil, errors.Wrap(err, "error retrieving statefulSet")
 	}
 
 	statefulSet, err := clientset.AppsV1().
@@ -317,7 +317,7 @@ func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace strin
 
 	clientset, err := g.Clientset()
 	if err != nil {
-		return nil, errors.Wrap(err, "error retrieving clientSet")
+		return nil, errors.Wrap(err, "error retrieving secret")
 	}
 
 	secret, err := clientset.CoreV1().
@@ -359,7 +359,7 @@ func (g *kubeClientAdapter) GetPod(ctx context.Context, name, namespace string) 
 
 	clientset, err := g.Clientset()
 	if err != nil {
-		return nil, errors.Wrap(err, "Error retrieving clientSet")
+		return nil, errors.Wrap(err, "error retrieving pod")
 	}
 
 	pod, err := clientset.CoreV1().
@@ -380,7 +380,7 @@ func (g *kubeClientAdapter) GetPersistentVolumeClaim(ctx context.Context, name, 
 
 	clientset, err := g.Clientset()
 	if err != nil {
-		return nil, errors.Wrap(err, "Error retrieving clientSet")
+		return nil, errors.Wrap(err, "error retrieving pvc")
 	}
 
 	pvc, err := clientset.CoreV1().
