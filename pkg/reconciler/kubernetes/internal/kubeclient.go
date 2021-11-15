@@ -1,6 +1,6 @@
 // solution from https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/client.go
 
-package kubeclient
+package internal
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,12 +27,13 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
+// metadata is an internal type to transfer data to the adapter
 type Metadata struct {
 	Name      string
 	Namespace string
+	Resource  string
 	Group     string
 	Version   string
-	Resource  string
 	Kind      string
 }
 
@@ -41,26 +41,10 @@ type KubeClient struct {
 	dynamicClient dynamic.Interface
 	config        *rest.Config
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
-	getter        *SimpleRESTClientGetter
 }
 
-func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, error) {
-	inClusterClient, err := NewInClusterClient(logger)
-	if err != nil {
-		logger.Infof("Not able to create an In Cluster Client")
-		return nil, nil
-	}
-
-	inClusterClientSet, err := inClusterClient.GetClientSet()
-	if err != nil {
-		return nil, err
-	}
-
-	return inClusterClientSet, nil
-}
-
-func NewInClusterClient(logger *zap.SugaredLogger) (*KubeClient, error) {
-	config, err := rest.InClusterConfig()
+func NewKubeClient(kubeconfig string, logger *zap.SugaredLogger) (*KubeClient, error) {
+	config, err := getRestConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +53,8 @@ func NewInClusterClient(logger *zap.SugaredLogger) (*KubeClient, error) {
 	return newForConfig(config)
 }
 
-func NewKubeClient(kubeconfig string, logger *zap.SugaredLogger) (*KubeClient, error) {
-	config, err := getRestConfig(kubeconfig)
+func NewInClusterClient(logger *zap.SugaredLogger) (*KubeClient, error) {
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -94,11 +78,10 @@ func newForConfig(config *rest.Config) (*KubeClient, error) {
 		dynamicClient: dynamicClient,
 		config:        config,
 		mapper:        mapper,
-		getter:        NewRESTClientGetter(config),
 	}, nil
 }
 
-func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*k8s.Resource, error) {
+func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*Metadata, error) {
 	return kube.ApplyWithNamespaceOverride(u, "")
 }
 
@@ -107,8 +90,8 @@ func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*k8s.Resource, erro
 // If namespaceOverride is empty it will NOT override the namespace set on the manifest.
 // We only override the namespace if the manifest is NOT cluster scoped (i.e. a ClusterRole) and namespaceOverride is NOT an
 // empty string.
-func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, namespaceOverride string) (*k8s.Resource, error) {
-	metadata := &k8s.Resource{}
+func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, namespaceOverride string) (*Metadata, error) {
+	metadata := &Metadata{}
 	gvk := u.GroupVersionKind()
 
 	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
@@ -128,7 +111,7 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 
 	setDefaultNamespaceIfScopedAndNoneSet(namespaceOverride, u, helper)
 
-	SetNamespaceIfScoped(namespaceOverride, u, helper)
+	setNamespaceIfScoped(namespaceOverride, u, helper)
 
 	info := &resource.Info{
 		Client:          restClient,
@@ -175,11 +158,7 @@ func (kube *KubeClient) GetClientSet() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(kube.config)
 }
 
-func (kube *KubeClient) RESTClientGetter() *SimpleRESTClientGetter {
-	return kube.getter
-}
-
-func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*k8s.Resource, error) {
+func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*Metadata, error) {
 	gvk, err := kube.mapper.KindFor(schema.GroupVersionResource{
 		Resource: kind,
 	})
@@ -220,7 +199,7 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 	if isNamespaceResource {
 		namespace = "" //namespace resources have always an empty namespace field
 	}
-	return &k8s.Resource{
+	return &Metadata{
 		Kind:      kind,
 		Name:      name,
 		Namespace: namespace,
@@ -271,12 +250,12 @@ func (kube *KubeClient) ListResource(resource string, lo metav1.ListOptions) (*u
 	return kube.dynamicClient.Resource(gvr).List(context.TODO(), lo)
 }
 
-func (kube *KubeClient) Patch(kind, name, namespace string, p []byte) (Metadata, *unstructured.Unstructured, error) {
+func (kube *KubeClient) Patch(kind, name, namespace string, p []byte) (*Metadata, *unstructured.Unstructured, error) {
 	return kube.PatchUsingStrategy(kind, name, namespace, p, types.StrategicMergePatchType)
 }
 
-func (kube *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) (Metadata, *unstructured.Unstructured, error) {
-	metadata := Metadata{}
+func (kube *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) (*Metadata, *unstructured.Unstructured, error) {
+	metadata := &Metadata{}
 	gvk, err := kube.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
 	if err != nil {
 		return metadata, nil, err
@@ -389,5 +368,11 @@ func setDefaultNamespaceIfScopedAndNoneSet(namespace string, u *unstructured.Uns
 			}
 			u.SetNamespace(namespace)
 		}
+	}
+}
+
+func setNamespaceIfScoped(namespace string, u *unstructured.Unstructured, helper *resource.Helper) {
+	if u.GetNamespace() == "" && helper.NamespaceScoped {
+		u.SetNamespace(namespace)
 	}
 }

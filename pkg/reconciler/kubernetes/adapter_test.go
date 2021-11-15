@@ -1,4 +1,4 @@
-package adapter
+package kubernetes
 
 import (
 	"context"
@@ -9,15 +9,13 @@ import (
 	"testing"
 	"time"
 
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
 )
 
-var expectedResourcesWithoutNs = []*k8s.Resource{
+var expectedResourcesWithoutNs = []*Resource{
 	{
 		Kind:      "Deployment",
 		Name:      "unittest-deployment",
@@ -25,7 +23,7 @@ var expectedResourcesWithoutNs = []*k8s.Resource{
 	},
 }
 
-var expectedResourcesWithNs = []*k8s.Resource{
+var expectedResourcesWithNs = []*Resource{
 	{
 		Kind:      "Namespace",
 		Name:      "unittest-adapter",

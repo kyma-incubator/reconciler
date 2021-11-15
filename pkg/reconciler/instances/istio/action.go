@@ -10,7 +10,6 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 )
@@ -279,7 +278,7 @@ func isMismatchPresent(ver actions.IstioVersion) bool {
 }
 
 func generateNewManifestWithoutIstioOperatorFrom(manifest string) (string, error) {
-	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
+	unstructs, err := kubernetes.ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		return "", err
 	}

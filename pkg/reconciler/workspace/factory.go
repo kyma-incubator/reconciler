@@ -2,12 +2,13 @@ package workspace
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/internal/components"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/kyma-incubator/reconciler/internal/components"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
 	"github.com/pkg/errors"
@@ -131,7 +132,7 @@ func (f *DefaultFactory) clone(version, dstDir string, component ...*components.
 	//clone sources
 	f.logger.Infof("Cloning repository '%s' with revision '%s' into workspace '%s'",
 		f.repository.URL, version, dstDir)
-	clientSet, err := kubeclient.NewInClusterClientSet(f.logger)
+	clientSet, err := k8s.NewInClusterClientSet(f.logger)
 	if err != nil {
 		return err
 	}

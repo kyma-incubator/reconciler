@@ -1,14 +1,14 @@
-package kubeclient
+package internal
 
 import (
 	"bufio"
 	"bytes"
-	"github.com/pkg/errors"
 	"io"
+
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/cli-runtime/pkg/resource"
 	yamlToJson "sigs.k8s.io/yaml"
 )
 
@@ -101,10 +101,4 @@ func newUnstructured(b []byte) (*unstructured.Unstructured, error) {
 	return &unstructured.Unstructured{
 		Object: m,
 	}, nil
-}
-
-func SetNamespaceIfScoped(namespace string, u *unstructured.Unstructured, helper *resource.Helper) {
-	if u.GetNamespace() == "" && helper.NamespaceScoped {
-		u.SetNamespace(namespace)
-	}
 }
