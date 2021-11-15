@@ -24,6 +24,7 @@ type Options struct {
 	components     []string
 	values         []string
 	componentsFile string
+	delete         bool
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -35,6 +36,7 @@ func NewOptions(o *cli.Options) *Options {
 		[]string{}, // components
 		[]string{}, // values
 		"",         // componentsFile
+		false,      // delete
 	}
 }
 func (o *Options) Kubeconfig() string {
