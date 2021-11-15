@@ -248,7 +248,7 @@ func isComponentCompatible(componentVersion, targetVersion, componentName string
 	componentVsTargetComparison := targetHelperVersion.compare(&componentHelperVersion)
 	if !amongOneMinor(componentHelperVersion, targetHelperVersion) {
 		logger.Errorf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
-			componentName, getActionTypeFrom(componentVsTargetComparison), componentVersion, targetVersion)
+			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion)
 		return false
 	}
 
