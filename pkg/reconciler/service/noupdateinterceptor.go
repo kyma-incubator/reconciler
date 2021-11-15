@@ -5,6 +5,7 @@ import (
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"reflect"
 	"strings"
 )
 
@@ -36,8 +37,12 @@ func (i *NoUpdateInterceptor) checkResourceExistence(
 			resource.GetKind(), resource.GetName(), resource.GetNamespace(), err)
 		return k8s.ErrorInterceptionResult, err
 	}
-	if res == nil {
+	if i.isNil(res) {
 		return k8s.ContinueInterceptionResult, nil
 	}
 	return k8s.IgnoreResourceInterceptionResult, nil
+}
+
+func (i *NoUpdateInterceptor) isNil(v interface{}) bool {
+	return v == nil || (reflect.ValueOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil())
 }
