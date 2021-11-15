@@ -19,10 +19,15 @@ import (
 
 type testInvoker struct {
 	params []*invoker.Params
+	reconRepo reconciliation.Repository
 }
 
 func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
 	i.params = append(i.params, params)
+	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, ""); err != nil {
+		return err
+	}
+	time.Sleep(100 *time.Second)
 	return nil
 }
 
@@ -57,19 +62,19 @@ func TestWorkerPool(t *testing.T) {
 		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
 	}()
 
-	//create reconciliation for cluster
-	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-	reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
-	require.NoError(t, err)
-	opsProcessable, err := reconRepo.GetProcessableOperations(0)
-	require.Len(t, opsProcessable, 1)
-	require.NoError(t, err)
-
 	//create test invoker to be able to verify invoker calls
 	testInvoker := &testInvoker{}
 
+	//create reconciliation for cluster
+	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
+	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, nil)
+	require.NoError(t, err)
+	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
+	require.Len(t, opsProcessable, 1)
+	require.NoError(t, err)
+
 	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, reconRepo, testInvoker, nil, logger.NewLogger(true))
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	//create time limited context
@@ -90,10 +95,6 @@ func TestWorkerPool(t *testing.T) {
 }
 
 func TestWorkerPoolParallel(t *testing.T) {
-
-	//create cluster inventory
-	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
-	require.NoError(t, err)
 
 	kebClusters := []*keb.Cluster{
 		{
@@ -146,6 +147,13 @@ func TestWorkerPoolParallel(t *testing.T) {
 		},
 	}
 
+	//create mock database connection
+	testDB := db.NewTestConnection(t)
+
+	//create cluster inventory
+	inventory, err := cluster.NewInventory(testDB, true, &cluster.MetricsCollectorMock{})
+	require.NoError(t, err)
+
 	//add clusters to inventory
 	var clusterStates [3]*cluster.State
 	for i := range kebClusters {
@@ -160,22 +168,24 @@ func TestWorkerPoolParallel(t *testing.T) {
 		}
 	}()
 
+	//create test invoker to be able to verify invoker calls and update operation state
+	testInvoker := &testInvoker{}
+
 	//create reconciliation for cluster
-	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-	var reconEntities [3]*model.ReconciliationEntity
+	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
+	require.NoError(t, err)
 	for i := range clusterStates {
-		reconEntities[i], err = reconRepo.CreateReconciliation(clusterStates[i], nil)
+		_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], nil)
 	}
 	require.NoError(t, err)
-	opsProcessable, err := reconRepo.GetProcessableOperations(0)
+	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
 	require.Len(t, opsProcessable, 3)
 	require.NoError(t, err)
 
-	//create test invoker to be able to verify invoker calls
-	testInvoker := &testInvoker{}
-
-	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, reconRepo, testInvoker, nil, logger.NewLogger(true))
+	//initialize worker pools
+	workerPools := [2]*Pool{}
+	workerPools[0], err = NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
+	workerPools[1], err = NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	//create time limited context
@@ -183,22 +193,35 @@ func TestWorkerPoolParallel(t *testing.T) {
 	defer cancelFct()
 
 	errChannel := make(chan error)
-
+	//start worker pools
 	startAt := time.Now().Add(1 * time.Second)
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 2; i++ {
+		i := i
 		go func() {
 			time.Sleep(startAt.Sub(time.Now()))
-			err := workerPool.Run(ctx)
+			err := workerPools[i].Run(ctx)
 			if err != nil {
 				errChannel <- err
 			}
 		}()
 	}
+
+	/*
+	err = workerPools[0].Run(ctx)
+	if err != nil {
+		errChannel <- err
+	}
+	time.Sleep(5 * time.Millisecond)
+	err = workerPools[1].Run(ctx)
+	if err != nil {
+		errChannel <- err
+	} */
 	time.Sleep(5 *time.Second)
+
 
 	fmt.Printf("testInvoker: %#v\n", testInvoker.params)
 	//verify that invoker was properly called
-	require.Len(t, testInvoker.params, 3)
+	require.Len(t, testInvoker.params, 3) // Irgendwie sind hier 150 invoker gestartet anstatt drei,....prüfen warum
 	//require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
 	require.Equal(t, model.CRDComponent, testInvoker.params[0].ComponentToReconcile.Component) //CRDs is always the first component
 	//require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
