@@ -20,7 +20,7 @@ const (
 	VersionLocal         = "local"
 	defaultRepositoryURL = "https://github.com/kyma-project/kyma"
 	wsReadyIndicatorFile = "workspace-ready.yaml"
-	tokenNamespaceKey    = "repo.token.namespace"
+	tokenNamespaceKey    = "repo.token.namespace" // nolint
 )
 
 //go:generate mockery --name=Factory --outpkg=mock --case=underscore
