@@ -2,7 +2,6 @@ package connectivityproxy
 
 import (
 	"fmt"
-	"github.com/iancoleman/strcase"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	k8s "k8s.io/client-go/kubernetes"
@@ -78,7 +77,7 @@ func istioSecretCopy(task *reconciler.Task, _, targetClientSet k8s.Interface) *S
 	}
 
 	configKey := fmt.Sprintf("%s.%s.",
-		strcase.ToLowerCamel(task.Component),
+		task.Component,
 		"config")
 
 	return &SecretCopy{
