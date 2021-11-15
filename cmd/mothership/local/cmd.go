@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -93,6 +94,7 @@ func RunLocal(o *Options) error {
 		Cluster: &model.ClusterEntity{
 			Version:    1,
 			RuntimeID:  "local",
+			Metadata:   &keb.Metadata{},
 			Kubeconfig: o.kubeconfig,
 			Contract:   1,
 		},
