@@ -8,7 +8,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
+	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
 	commandermocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
+	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
@@ -20,7 +22,8 @@ import (
 	"testing"
 )
 
-const istioctlMockCompleteVersion = `{
+const (
+	istioctlMockCompleteVersion = `{
 		"clientVersion": {
 		  "version": "1.11.1",
 		  "revision": "revision",
@@ -48,14 +51,124 @@ const istioctlMockCompleteVersion = `{
 		]
 	  }`
 
+	istioctlMockLatestVersion = `{
+		"clientVersion": {
+		  "version": "1.11.2",
+		  "revision": "revision",
+		  "golang_version": "go1.16.7",
+		  "status": "Clean",
+		  "tag": "1.11.2"
+		},
+		"meshVersion": [
+		  {
+			"Component": "pilot",
+			"Info": {
+			  "version": "1.12.4",
+			  "revision": "revision",
+			  "golang_version": "",
+			  "status": "Clean",
+			  "tag": "1.12.4"
+			}
+		  }
+		],
+		"dataPlaneVersion": [
+		  {
+			"ID": "id",
+			"IstioVersion": "1.12.4"
+		  }
+		]
+	  }`
+
+	istioctlMockTooNewVersion = `{
+		"clientVersion": {
+		  "version": "1.11.2",
+		  "revision": "revision",
+		  "golang_version": "go1.16.7",
+		  "status": "Clean",
+		  "tag": "1.11.2"
+		},
+		"meshVersion": [
+		  {
+			"Component": "pilot",
+			"Info": {
+			  "version": "1.13.4",
+			  "revision": "revision",
+			  "golang_version": "",
+			  "status": "Clean",
+			  "tag": "1.13.4"
+			}
+		  }
+		],
+		"dataPlaneVersion": [
+		  {
+			"ID": "id",
+			"IstioVersion": "1.13.4"
+		  }
+		]
+	  }`
+)
+
+func Test_RunUpdateAction(t *testing.T) {
+	wsf, _ := workspace.NewFactory(nil, "./test_files", log.NewLogger(true))
+	model := reconciler.Task{
+		Component: "istio-configuration",
+		Namespace: "istio-system",
+		Version:   "1.11.2",
+		Profile:   "production",
+	}
+	actionContext := newActionContext(wsf, model)
+
+	t.Run("Istio update should permit one minor downgrade", func(t *testing.T) {
+		// given
+		providerMock := clientsetmocks.Provider{}
+		providerMock.On("RetrieveFrom", mock.Anything, mock.Anything).Return(fake.NewSimpleClientset(), nil)
+		commanderMock := commandermocks.Commander{}
+		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockLatestVersion), nil)
+		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		proxy := proxymocks.IstioProxyReset{}
+		proxy.On("Run", mock.Anything).Return(nil)
+		performer := actions.NewDefaultIstioPerformer(&commanderMock, &proxy, &providerMock)
+		action := istio.NewReconcileAction(performer)
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
+		commanderMock.AssertCalled(t, "Upgrade", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("Istio update should NOT permit more than one minor downgrade", func(t *testing.T) {
+		// given
+		provider := clientset.DefaultProvider{}
+		commanderMock := commandermocks.Commander{}
+		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockTooNewVersion), nil)
+		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		performer := actions.NewDefaultIstioPerformer(&commanderMock, nil, &provider)
+		action := istio.NewReconcileAction(performer)
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
+		commanderMock.AssertNotCalled(t, "Upgrade", mock.Anything, mock.Anything, mock.Anything)
+	})
+}
+
 func Test_RunUninstallAction(t *testing.T) {
-
 	t.Run("Istio uninstall should also delete namespace", func(t *testing.T) {
-
+		// given
 		wsf, _ := workspace.NewFactory(nil, "./test_files", log.NewLogger(true))
-
-		actionContext := newActionContext(wsf)
-
+		model := reconciler.Task{
+			Component: "istio-configuration",
+			Namespace: "istio-system",
+			Version:   "0.0.0",
+			Profile:   "production",
+		}
+		actionContext := newActionContext(wsf, model)
 		provider := clientset.DefaultProvider{}
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockCompleteVersion), nil)
@@ -65,6 +178,7 @@ func Test_RunUninstallAction(t *testing.T) {
 
 		// when
 		err := action.Run(actionContext)
+
 		// then
 		require.NoError(t, err)
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
@@ -81,17 +195,11 @@ func Test_RunUninstallAction(t *testing.T) {
 
 }
 
-func newActionContext(factory workspace.Factory) *service.ActionContext {
+func newActionContext(factory workspace.Factory, model reconciler.Task) *service.ActionContext {
 	provider, _ := chart.NewDefaultProvider(factory, log.NewLogger(true))
 	kubeClient := newFakeKubeClient()
 
 	logger := log.NewLogger(true)
-	model := reconciler.Task{
-		Component: "istio-configuration",
-		Namespace: "istio-system",
-		Version:   "0.0.0",
-		Profile:   "production",
-	}
 	return &service.ActionContext{
 		KubeClient:       kubeClient,
 		Context:          context.Background(),
@@ -114,6 +222,7 @@ func newFakeKubeClient() *k8smocks.Client {
 	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockClient.On("CoreV1").Return(nil)
 	mockClient.On("Delete", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockClient.On("PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	return mockClient
 }
