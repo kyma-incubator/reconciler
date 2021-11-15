@@ -47,7 +47,7 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 		configKey := fmt.Sprintf("%s.%s.",
 			context.Task.Component, "config")
 		if err := json.Unmarshal(val, &unmarshalled); err != nil {
-			context.Task.Configuration[configKey+strcase.ToLowerCamel(strings.ToLower(key))] = val
+			context.Task.Configuration[configKey+strcase.ToLowerCamel(strings.ToLower(key))] = string(val)
 		} else {
 			for uKey, uVal := range unmarshalled {
 				context.Task.Configuration[configKey+strcase.ToLowerCamel(strings.ToLower(uKey))] = uVal
