@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -63,7 +62,7 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 	), err
 }
 
-func NewAuditLoggerMiddelware(l *zap.Logger, o *Options) func(http.Handler) http.Handler {
+func newAuditLoggerMiddelware(l *zap.Logger, o *Options) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			auditLogRequest(w, r, l, o)
@@ -102,23 +101,23 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		Tenant:          o.AuditLogTenantID,
 		IP:              "-",
 	}
-	if jwtPayload, err := getJWTPayload(r); err == nil {
-		logData.JWTPayload = jwtPayload
-	} else {
+	if jwtPayload, err := getJWTPayload(r); err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, fmt.Sprintf("Failed to parse %s header content ", XJWTHeaderName)).Error(),
 		})
 		return
-	}
-	if user, err := getJWTPayloadSub(logData.JWTPayload); err == nil {
-		if user != "" {
-			logData.User = user
-		}
 	} else {
+		logData.JWTPayload = jwtPayload
+	}
+	if user, err := getJWTPayloadSub(logData.JWTPayload); err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "failed to Unmarshal JWT payload").Error(),
 		})
 		return
+	} else {
+		if user != "" {
+			logData.User = user
+		}
 	}
 
 	// log request body if needed.
@@ -134,10 +133,10 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		logData.RequestBody = string(reqBody)
 	}
 
-	if ip, ok := os.LookupEnv("POD_IP"); ok {
+	if ip := r.Header.Get("X-Envoy-External-Address"); ip != "" {
 		logData.IP = ip
 	} else {
-		o.Logger().Debug("can't find reconciler pod IP")
+		o.Logger().Debug("empty X-Envoy-External-Address header")
 	}
 
 	data, err := json.Marshal(logData)
@@ -158,6 +157,9 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 }
 
 func getJWTPayload(r *http.Request) (string, error) {
+	// The jwtHeader here is not a full JWT token. Instead, it's only the
+	// encoded payload part of the token. It's passed by Istio as a header
+	// since Authz/Authn is done by Istio, and we don't receive the original full JWT token.
 	jwtHeader := r.Header.Get(XJWTHeaderName)
 	if len(jwtHeader) == 0 {
 		return "", nil
