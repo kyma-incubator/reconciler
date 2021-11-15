@@ -110,9 +110,7 @@ func TestCommandInstall(t *testing.T) {
 			copyFactory:            nil,
 		}
 
-		secret := &v1.Secret{}
-
-		err := commands.Install(actionContext, secret)
+		err := commands.Install(actionContext)
 		require.NoError(t, err)
 	})
 
@@ -138,12 +136,7 @@ func TestCommandInstall(t *testing.T) {
 			copyFactory:            nil,
 		}
 
-		secret := &v1.Secret{Data: map[string][]byte{
-			"key-1": []byte("value-1"),
-			"key-2": []byte("value-2"),
-		}}
-
-		err := commands.Install(actionContext, secret)
+		err := commands.Install(actionContext)
 		require.Equal(t, map[string]interface{}{
 			"binding.key-1": []byte("value-1"),
 			"binding.key-2": []byte("value-2"),
