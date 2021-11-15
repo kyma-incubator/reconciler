@@ -92,9 +92,9 @@ func TestCommand(t *testing.T) {
 	})
 }
 
-func TestCommandInstall(t *testing.T) {
+func TestCommands(t *testing.T) {
 
-	t.Run("Should copy resources and invoke installation", func(t *testing.T) {
+	t.Run("Should invoke installation", func(t *testing.T) {
 		actionContext := &service.ActionContext{
 			Context: context.Background(),
 		}
@@ -136,12 +136,16 @@ func TestCommandInstall(t *testing.T) {
 			copyFactory:            nil,
 		}
 
-		err := commands.CopyResources(actionContext)
+		secret := &v1.Secret{Data: map[string][]byte{
+			"key-1": []byte("value-1"),
+			"key-2": []byte("value-2"),
+		}}
+
+		commands.PopulateConfigs(actionContext, secret)
 		require.Equal(t, map[string]interface{}{
-			"binding.key-1": []byte("value-1"),
-			"binding.key-2": []byte("value-2"),
+			"global.binding.key-1": "value-1",
+			"global.binding.key-2": "value-2",
 		}, actionContext.Task.Configuration)
-		require.NoError(t, err)
 	})
 }
 
