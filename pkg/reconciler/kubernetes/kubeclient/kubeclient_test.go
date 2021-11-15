@@ -21,6 +21,8 @@ const (
 )
 
 func TestKubeclient(t *testing.T) {
+	test.IntegrationTest(t)
+	
 	t.Parallel()
 
 	kubeClient, err := NewKubeClient(test.ReadKubeconfig(t), logger.NewLogger(true))
