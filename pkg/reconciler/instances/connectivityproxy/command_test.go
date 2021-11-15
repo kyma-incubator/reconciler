@@ -136,7 +136,7 @@ func TestCommandInstall(t *testing.T) {
 			copyFactory:            nil,
 		}
 
-		err := commands.Install(actionContext)
+		err := commands.CopyResources(actionContext)
 		require.Equal(t, map[string]interface{}{
 			"binding.key-1": []byte("value-1"),
 			"binding.key-2": []byte("value-2"),
