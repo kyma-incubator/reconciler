@@ -43,6 +43,7 @@ func (i *NoUpdateInterceptor) checkResourceExistence(
 	return k8s.IgnoreResourceInterceptionResult, nil
 }
 
+//isNil verifies whether the given interface is nil and supports also nil-checks if interface is of kind pointer
 func (i *NoUpdateInterceptor) isNil(v interface{}) bool {
 	return v == nil || (reflect.ValueOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil())
 }
