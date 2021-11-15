@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -55,11 +56,14 @@ var expectedResourcesWithNs = []*k8s.Resource{
 
 var expectedLabels = map[string]string{"test-interceptor": "test-label"}
 
-type testInterceptor struct{}
+type testInterceptor struct {
+	result k8s.InterceptionResult
+	err    error
+}
 
-func (i *testInterceptor) Intercept(resource *unstructured.Unstructured) error {
+func (i *testInterceptor) Intercept(resource *unstructured.Unstructured) (k8s.InterceptionResult, error) {
 	resource.SetLabels(expectedLabels)
-	return nil
+	return i.result, i.err
 }
 
 func TestKubernetesClient(t *testing.T) {
@@ -71,6 +75,29 @@ func TestKubernetesClient(t *testing.T) {
 		ProgressTimeout:  1 * time.Minute,
 	})
 	require.NoError(t, err)
+
+	t.Run("Deploy no resources because all were sorted out by interceptor", func(t *testing.T) {
+		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
+
+		//deploy
+		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{
+			result: k8s.IgnoreResourceInterceptionResult,
+		})
+		require.NoError(t, err)
+		require.Empty(t, deployedResources)
+	})
+
+	t.Run("Deploy no resources because interceptor was failing", func(t *testing.T) {
+		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
+
+		//deploy
+		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{
+			result: k8s.ErrorInterceptionResult,
+			err:    fmt.Errorf("just a fake error"),
+		})
+		require.Error(t, err)
+		require.Empty(t, deployedResources)
+	})
 
 	t.Run("Deploy and delete resources with namespace", func(t *testing.T) {
 		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
