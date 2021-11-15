@@ -58,6 +58,9 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 				kubeClient: kubeClient,
 				logger:     r.logger,
 			},
+			&ServicesInterceptor{
+				kubeClient: kubeClient,
+			},
 		)
 		if err == nil {
 			r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))

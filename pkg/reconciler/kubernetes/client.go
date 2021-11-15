@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+
 	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +44,7 @@ type Client interface {
 
 	GetStatefulSet(ctx context.Context, name, namespace string) (*v1apps.StatefulSet, error)
 	GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error)
+	GetService(ctx context.Context, name, namespace string) (*v1.Service, error)
 	GetPod(ctx context.Context, name, namespace string) (*v1.Pod, error)
 	GetPersistentVolumeClaim(ctx context.Context, name, namespace string) (*v1.PersistentVolumeClaim, error)
 	ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error)

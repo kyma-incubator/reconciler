@@ -40,10 +40,11 @@ func NewCmd(o *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&o.kubeconfigFile, "kubeconfig", "", "Path to kubeconfig file")
 	cmd.Flags().StringSliceVar(&o.components, "components", []string{}, "Comma separated list of components with optional namespace, e.g. serverless,certificates@istio-system,monitoring")
-	cmd.Flags().StringVar(&o.componentsFile, "components-file", "", `Path to the components file (default "<workspace>/installation/resources/components-2.0.yaml")`)
+	cmd.Flags().StringVar(&o.componentsFile, "components-file", "", `Path to the components file (default "<workspace>/installation/resources/components.yaml")`)
 	cmd.Flags().StringSliceVar(&o.values, "value", []string{}, "Set configuration values. Can specify one or more values, also as a comma-separated list (e.g. --value component.a='1' --value component.b='2' or --value component.a='1',component.b='2').")
 	cmd.Flags().StringVar(&o.version, "version", "main", "Kyma version")
 	cmd.Flags().StringVar(&o.profile, "profile", "evaluation", "Kyma profile")
+	cmd.Flags().BoolVarP(&o.delete, "delete", "d", false, "Provide this flag to do a deletion instead of reconciliation")
 	return cmd
 }
 
@@ -85,6 +86,10 @@ func RunLocal(o *Options) error {
 
 	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), l)
 
+	status := model.ClusterStatusReconcilePending
+	if o.delete {
+		status = model.ClusterStatusDeletePending
+	}
 	reconResult, err := runtimeBuilder.RunLocal(preComps, printStatus).Run(cli.NewContext(), &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version:    1,
@@ -107,7 +112,7 @@ func RunLocal(o *Options) error {
 			RuntimeID:      "local",
 			ClusterVersion: 1,
 			ConfigVersion:  1,
-			Status:         model.ClusterStatusReconcilePending,
+			Status:         status,
 		},
 	})
 	if err != nil {

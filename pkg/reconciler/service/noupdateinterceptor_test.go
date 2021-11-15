@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -56,7 +55,7 @@ func readManifest(t *testing.T, err error) []byte {
 
 func newKubeClient(t *testing.T) (kubernetes.Client, error) {
 	//create client
-	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), &adapter.Config{
+	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), &kubernetes.Config{
 		ProgressInterval: 1 * time.Second,
 		ProgressTimeout:  1 * time.Minute,
 	})

@@ -1,4 +1,4 @@
-package adapter
+package kubernetes
 
 import (
 	"context"
@@ -6,19 +6,17 @@ import (
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes"
 	"path/filepath"
 	"testing"
 	"time"
 
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes"
 )
 
-var expectedResourcesWithoutNs = []*k8s.Resource{
+var expectedResourcesWithoutNs = []*Resource{
 	{
 		Kind:      "Deployment",
 		Name:      "unittest-deployment",
@@ -26,7 +24,7 @@ var expectedResourcesWithoutNs = []*k8s.Resource{
 	},
 }
 
-var expectedResourcesWithNs = []*k8s.Resource{
+var expectedResourcesWithNs = []*Resource{
 	{
 		Kind:      "Namespace",
 		Name:      "unittest-adapter",
@@ -57,11 +55,11 @@ var expectedResourcesWithNs = []*k8s.Resource{
 var expectedLabels = map[string]string{"test-interceptor": "test-label"}
 
 type testInterceptor struct {
-	result k8s.InterceptionResult
+	result InterceptionResult
 	err    error
 }
 
-func (i *testInterceptor) Intercept(resource *unstructured.Unstructured) (k8s.InterceptionResult, error) {
+func (i *testInterceptor) Intercept(resource *unstructured.Unstructured) (InterceptionResult, error) {
 	resource.SetLabels(expectedLabels)
 	return i.result, i.err
 }
@@ -81,7 +79,7 @@ func TestKubernetesClient(t *testing.T) {
 
 		//deploy
 		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{
-			result: k8s.IgnoreResourceInterceptionResult,
+			result: IgnoreResourceInterceptionResult,
 		})
 		require.NoError(t, err)
 		require.Empty(t, deployedResources)
@@ -92,7 +90,7 @@ func TestKubernetesClient(t *testing.T) {
 
 		//deploy
 		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{
-			result: k8s.ErrorInterceptionResult,
+			result: ErrorInterceptionResult,
 			err:    fmt.Errorf("just a fake error"),
 		})
 		require.Error(t, err)
