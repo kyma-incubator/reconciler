@@ -787,7 +787,35 @@ func TestReconciliationParallel( t *testing.T) {
 		}
 		time.Sleep(5 *time.Second)
 		require.Equal(t, 99, len(errChannel))
+	})
 
+	t.Run("Finish multiple reconciliations at the same time", func(t *testing.T) {
+		repo := newPersistentRepository(t)
+
+		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
+		require.NoError(t, err)
+
+		errChannel := make(chan error, 100)
+		mockClusterState, _ := createClusterStates(t, inventory)
+
+		defer func() {
+			require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
+		}()
+
+		recon, err := repo.CreateReconciliation(mockClusterState, nil)
+
+		startAt := time.Now().Add(1 * time.Second)
+		for i := 0; i < 100; i++ {
+			go func() {
+				time.Sleep(startAt.Sub(time.Now()))
+				err = repo.FinishReconciliation(recon.SchedulingID, mockClusterState.Status)
+				if err != nil {
+					errChannel <- err
+				}
+			}()
+		}
+		time.Sleep(5 *time.Second)
+		require.Equal(t, 99, len(errChannel))
 	})
 }
 
