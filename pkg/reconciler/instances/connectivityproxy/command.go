@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	apiCoreV1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+	"strings"
 )
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
@@ -46,10 +47,10 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 		configKey := fmt.Sprintf("%s.%s.",
 			context.Task.Component, "config")
 		if err := json.Unmarshal(val, &unmarshalled); err != nil {
-			context.Task.Configuration[configKey+strcase.ToCamel(key)] = val
+			context.Task.Configuration[configKey+strcase.ToLowerCamel(strings.ToLower(key))] = val
 		} else {
 			for uKey, uVal := range unmarshalled {
-				context.Task.Configuration[configKey+strcase.ToCamel(uKey)] = uVal
+				context.Task.Configuration[configKey+strcase.ToLowerCamel(strings.ToLower(uKey))] = uVal
 			}
 		}
 	}
