@@ -6,6 +6,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,6 +43,9 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured) err
 
 	svcResource, err := clientSet.CoreV1().Services(svc.Namespace).Get(context.Background(), svc.Name, metav1.GetOptions{})
 	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 
