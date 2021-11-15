@@ -7,8 +7,7 @@ import (
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -23,7 +22,7 @@ func TestServicesInterceptor(t *testing.T) {
 	manifest, err := ioutil.ReadFile(filepath.Join("test", "service.yaml"))
 	require.NoError(t, err)
 
-	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), &adapter.Config{})
+	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), &kubernetes.Config{})
 	require.NoError(t, err)
 
 	//create service in k8s
@@ -35,7 +34,7 @@ func TestServicesInterceptor(t *testing.T) {
 	}
 
 	//get unstruct of service without clusterIP
-	unstructs, err := kubeclient.ToUnstructured(manifest, true)
+	unstructs, err := kubernetes.ToUnstructured(manifest, true)
 	require.NoError(t, err)
 	require.Len(t, unstructs, 1)
 

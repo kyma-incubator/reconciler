@@ -1,4 +1,4 @@
-package kubernetes
+package internal
 
 import (
 	"bufio"
