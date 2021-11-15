@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"strings"
 	"time"
 
 	"github.com/instrumenta/kubeval/kubeval"
@@ -18,6 +19,15 @@ import (
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+)
+
+const (
+	defaultNamespace  = "default"
+	namespaceManifest = `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ""`
 )
 
 type kubeClientAdapter struct {
@@ -61,29 +71,7 @@ func (g *kubeClientAdapter) PatchUsingStrategy(kind, name, namespace string, p [
 
 func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace string, interceptors ...k8s.ResourceInterceptor) ([]*k8s.Resource, error) {
 	if namespace == "" {
-		namespace = "default"
-	}
-
-	//ensure namespace exists
-	clientset, err := g.Clientset()
-	if err != nil {
-		return nil, err
-	}
-	_, err = clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
-	if err == nil {
-		g.logger.Debugf("Namespace '%s' is required to deploy manifest and already exists", namespace)
-	} else {
-		if k8serr.IsNotFound(err) {
-			if err := g.createNamespace(ctx, clientset, namespace); err != nil {
-				g.logger.Errorf("Failed to create namespace '%s' which is required to deploy manifest: %s",
-					namespace, err)
-				return nil, err
-			}
-			g.logger.Debugf("Namespace '%s' is required to deploy manifest and was successfully created", namespace)
-		} else {
-			return nil, errors.Wrap(err,
-				fmt.Sprintf("Failed to get namespace '%s' which is required to deploy manifest", namespace))
-		}
+		namespace = defaultNamespace
 	}
 
 	deployedResources, err := g.deployManifest(ctx, manifest, namespace, interceptors)
@@ -95,15 +83,6 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace stri
 	}
 
 	return deployedResources, err
-}
-
-func (g *kubeClientAdapter) createNamespace(ctx context.Context, client kubernetes.Interface, namespace string) error {
-	_, err := client.CoreV1().Namespaces().Create(ctx, &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
-		},
-	}, metav1.CreateOptions{})
-	return err
 }
 
 func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namespace string, interceptors []k8s.ResourceInterceptor) ([]*k8s.Resource, error) {
@@ -121,8 +100,13 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 
 	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
 	if err != nil {
-		g.logger.Errorf("Failed to process manifest file: %s", err)
-		g.logger.Debugf("Manifest file: %s", manifest)
+		g.logger.Errorf("Failed to process manifest data: %s", err)
+		g.logger.Debugf("Manifest data: %s", manifest)
+		return nil, err
+	}
+
+	unstructs, err = g.addNamespaceUnstruct(unstructs, namespace)
+	if err != nil {
 		return nil, err
 	}
 
@@ -167,9 +151,49 @@ func validateManifest(namespace string, manifest string) error {
 	return err
 }
 
+func (g *kubeClientAdapter) addNamespaceUnstruct(unstructs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
+	if namespace == defaultNamespace {
+		//default namespace always exists: nothing to do
+		return unstructs, nil
+	}
+
+	//check if the namespace resource is already defined in the manifest
+	for _, unstruct := range unstructs {
+		if strings.ToLower(unstruct.GetKind()) == "namespace" && unstruct.GetName() == namespace {
+			g.logger.Debugf("Namespace '%s' is defined as resource in the manifest", namespace)
+			return unstructs, nil
+		}
+	}
+
+	//add namespace resource to manifest
+	g.logger.Debugf("Namespace '%s' is missing: will add namespace resource to the beginning of the manifest", namespace)
+	nsUnstruct, err := g.newNamespaceUnstruct(namespace)
+	if err != nil {
+		return nil, err
+	}
+	result := []*unstructured.Unstructured{nsUnstruct}
+	result = append(result, unstructs...)
+	return result, nil
+}
+
+func (g *kubeClientAdapter) newNamespaceUnstruct(namespace string) (*unstructured.Unstructured, error) {
+	//create unstructured object for missing namespace
+	nsUnstructs, err := kubeclient.ToUnstructured([]byte(namespaceManifest), true)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to create unstructured object for namespace '%s'",
+			namespace))
+	}
+	if len(nsUnstructs) != 1 {
+		return nil, fmt.Errorf("illegal state: one unstructured object for namespace '%s' expected (got %d)",
+			namespace, len(nsUnstructs))
+	}
+	nsUnstructs[0].SetName(namespace)
+	return nsUnstructs[0], nil
+}
+
 func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace string) ([]*k8s.Resource, error) {
 	if namespace == "" {
-		namespace = "default"
+		namespace = defaultNamespace
 	}
 
 	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
@@ -243,7 +267,7 @@ func (g *kubeClientAdapter) ListResource(resource string, lo metav1.ListOptions)
 
 func (g *kubeClientAdapter) GetStatefulSet(ctx context.Context, name, namespace string) (*v1apps.StatefulSet, error) {
 	if namespace == "" {
-		namespace = "default"
+		namespace = defaultNamespace
 	}
 
 	clientset, err := g.Clientset()
@@ -266,7 +290,7 @@ func (g *kubeClientAdapter) GetStatefulSet(ctx context.Context, name, namespace 
 
 func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error) {
 	if namespace == "" {
-		namespace = "default"
+		namespace = defaultNamespace
 	}
 
 	clientset, err := g.Clientset()

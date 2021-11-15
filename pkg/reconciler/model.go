@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 )
 
@@ -39,6 +40,7 @@ type Task struct {
 	Profile         string                 `json:"profile"`
 	Configuration   map[string]interface{} `json:"configuration"`
 	Kubeconfig      string                 `json:"kubeconfig"`
+	Metadata        keb.Metadata           `json:"metadata"`
 	CallbackURL     string                 `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
 	CorrelationID   string                 `json:"correlationID"`
 	Repository      *Repository            `json:"repository"`
