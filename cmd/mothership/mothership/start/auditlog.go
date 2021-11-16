@@ -43,7 +43,7 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 		Compress:   false, // save cpu cycles
 	})
 	// I need to replace the default core logger whit a new one that contains
-	// WriterSyncer that wraps luberjack. Lumberjack handels the log rotation.
+	// WriterSyncer that wraps lumberjack. Lumberjack handels the log rotation.
 	return logger.WithOptions(
 		zap.WrapCore(func(zapcore.Core) zapcore.Core {
 			return zapcore.NewCore(
