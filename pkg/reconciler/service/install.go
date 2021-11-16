@@ -49,7 +49,19 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 			return err
 		}
 	} else {
-		resources, err := kubeClient.Deploy(ctx, manifest, task.Namespace, &LabelsInterceptor{Version: task.Version}, &AnnotationsInterceptor{})
+		resources, err := kubeClient.Deploy(ctx, manifest, task.Namespace,
+			&LabelsInterceptor{
+				Version: task.Version,
+			},
+			&AnnotationsInterceptor{},
+			&NoUpdateInterceptor{
+				kubeClient: kubeClient,
+				logger:     r.logger,
+			},
+			&ServicesInterceptor{
+				kubeClient: kubeClient,
+			},
+		)
 		if err == nil {
 			r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
 		} else {

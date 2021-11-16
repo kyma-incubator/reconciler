@@ -11,7 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/heartbeat"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 )
 
@@ -76,7 +76,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 }
 
 func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
-	kubeClient, err := adapter.NewKubernetesClient(task.Kubeconfig, r.logger, &adapter.Config{
+	kubeClient, err := k8s.NewKubernetesClient(task.Kubeconfig, r.logger, &k8s.Config{
 		ProgressInterval: r.progressTrackerConfig.interval,
 		ProgressTimeout:  r.progressTrackerConfig.timeout,
 	})

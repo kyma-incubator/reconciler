@@ -1,7 +1,8 @@
 package service
 
 import (
-	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 )
@@ -59,12 +60,12 @@ func TestLabelInterceptor(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			l := &LabelsInterceptor{Version: tt.args.version}
-			if err := l.Intercept(tt.args.resource); (err != nil) != tt.wantErr {
-				t.Errorf("Intercept() error = %v, wantErr %v", err, tt.wantErr)
+			result, err := l.Intercept(tt.args.resource, "")
+			require.Equal(t, result, kubernetes.ContinueInterceptionResult)
+			if tt.wantErr {
+				require.Error(t, err)
 			}
-			if fmt.Sprint(tt.labels) != fmt.Sprint(tt.args.resource.GetLabels()) {
-				t.Errorf("Actual labels: %s aren't the same like expected labels: %s", tt.args.resource.GetLabels(), tt.labels)
-			}
+			require.Equal(t, tt.labels, tt.args.resource.GetLabels())
 		})
 	}
 }

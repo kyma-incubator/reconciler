@@ -1,4 +1,4 @@
-package kubeclient
+package internal
 
 import (
 	"k8s.io/apimachinery/pkg/api/meta"
