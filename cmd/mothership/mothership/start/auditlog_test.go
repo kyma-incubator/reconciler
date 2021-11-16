@@ -125,6 +125,8 @@ func Test_Auditlog(t *testing.T) {
 
 		// WHEN
 		auditLogRequest(w, req, logger, o)
+
+		// THEN
 		if testCase.expectFail {
 			assert.Equalf(t, w.Result().StatusCode,
 				http.StatusInternalServerError,
