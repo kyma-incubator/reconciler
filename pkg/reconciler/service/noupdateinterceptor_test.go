@@ -19,8 +19,8 @@ const (
 func TestNoUpdateInterceptor(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := newKubeClient(t)
-	manifestData := readManifest(t, err)
+	kubeClient := newKubeClient(t)
+	manifestData := readManifest(t)
 
 	deleteFct := func() {
 		t.Log("Cleanup test resources")
@@ -47,18 +47,18 @@ func TestNoUpdateInterceptor(t *testing.T) {
 	require.Len(t, updatedResources, 1)
 }
 
-func readManifest(t *testing.T, err error) []byte {
+func readManifest(t *testing.T) []byte {
 	manifestData, err := ioutil.ReadFile(filepath.Join("test", "noupdateinterceptor.yaml"))
 	require.NoError(t, err)
 	return manifestData
 }
 
-func newKubeClient(t *testing.T) (kubernetes.Client, error) {
+func newKubeClient(t *testing.T) kubernetes.Client {
 	//create client
 	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), &kubernetes.Config{
 		ProgressInterval: 1 * time.Second,
 		ProgressTimeout:  1 * time.Minute,
 	})
 	require.NoError(t, err)
-	return kubeClient, err
+	return kubeClient
 }
