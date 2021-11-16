@@ -97,7 +97,7 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		ContractVersion: contractV,
 		Method:          r.Method,
 		URI:             r.RequestURI,
-		User:            "UNKOWEN_USER",
+		User:            "UNKNOWN_USER",
 		Tenant:          o.AuditLogTenantID,
 		IP:              "-",
 	}

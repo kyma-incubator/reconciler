@@ -12,8 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/internal/cli"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -32,11 +31,12 @@ type MemorySink struct {
 func (s *MemorySink) Close() error { return nil }
 func (s *MemorySink) Sync() error  { return nil }
 
-func testLoggerWithOutput() (*zap.Logger, *MemorySink) {
+func testLoggerWithOutput(t *testing.T) (*zap.Logger, *MemorySink) {
 	sink := &MemorySink{&bytes.Buffer{}}
-	_ = zap.RegisterSink("memory", func(*url.URL) (zap.Sink, error) {
+	err := zap.RegisterSink("memory", func(*url.URL) (zap.Sink, error) {
 		return sink, nil
 	})
+	require.NoError(t, err)
 	cfg := zap.Config{
 		Encoding:         "json",
 		Level:            zap.NewAtomicLevelAt(zapcore.DebugLevel),
@@ -51,7 +51,8 @@ func testLoggerWithOutput() (*zap.Logger, *MemorySink) {
 			EncodeCaller: zapcore.ShortCallerEncoder,
 		},
 	}
-	logger, _ := cfg.Build()
+	logger, err := cfg.Build()
+	require.NoError(t, err)
 
 	return logger, sink
 }
@@ -101,7 +102,7 @@ func Test_Auditlog(t *testing.T) {
 	}
 
 	// build test logger
-	logger, output := testLoggerWithOutput()
+	logger, output := testLoggerWithOutput(t)
 	// build reconciler options
 	o := NewOptions(&cli.Options{})
 	o.AuditLogTenantID = tenantID
@@ -128,53 +129,42 @@ func Test_Auditlog(t *testing.T) {
 
 		// THEN
 		if testCase.expectFail {
-			assert.Equalf(t, w.Result().StatusCode,
-				http.StatusInternalServerError,
+			require.Equalf(t, http.StatusInternalServerError, w.Result().StatusCode,
 				"expected http status: %v, got: %v",
-				http.StatusInternalServerError,
-				w.Result().StatusCode)
-			continue
+				http.StatusInternalServerError, w.Result().StatusCode)
+		} else {
+			t.Log(output.String())
+			validateLog(t, output.String(), testCase.method, testCase.jwtHeader != "")
 		}
-
-		t.Log(output.String())
-		err := validateLog(output.String(), testCase.method, testCase.jwtHeader != "")
-		assert.NoError(t, err)
-
 		// clean the log sink
 		output.Reset()
 	}
 }
 
 // validateLog ensures that all required fields in the log message are set and valid. If any of these is missing the audit log backend will not accept/process our logs
-func validateLog(logMsg, method string, useJWT bool) error {
+func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 	l := &log{}
 	if err := json.Unmarshal([]byte(logMsg), l); err != nil {
-		return err
+		require.NoError(t, err)
 	}
-	if l.Time == "" ||
+	require.Falsef(t, l.Time == "" ||
 		l.UUID == "" ||
 		l.User == "" ||
 		l.Data == "" ||
 		l.Tenant == "" ||
 		l.IP == "" ||
-		l.Category == "" {
-		return errors.New(fmt.Sprintf("empty log field: %#v", l))
-	}
-	if l.Tenant != tenantID {
-		return errors.New(fmt.Sprintf("invalid log tenantID: expected: %s, got: %s", tenantID, l.Tenant))
-	}
-	if useJWT && l.User != jwtPayloadSub {
-		return errors.New(fmt.Sprintf("invalid user: expected: %s, got: %s", jwtPayloadSub, l.User))
+		l.Category == "", "empty log field: %#v", l)
 
+	require.Equalf(t, tenantID, l.Tenant, "invalid log tenantID: expected: %s, got: %s", tenantID, l.Tenant)
+
+	if useJWT {
+		require.Equalf(t, jwtPayloadSub, l.User, "invalid user: expected: %s, got: %s", jwtPayloadSub, l.User)
 	}
 	if method == http.MethodPost {
 		d := &data{}
 		if err := json.Unmarshal([]byte(l.Data), d); err != nil {
-			return err
+			require.NoError(t, err)
 		}
-		if d.RequestBody == "" {
-			return errors.New(fmt.Sprintf("empty request body in log message data field: %#v", l.Data))
-		}
+		require.NotEmptyf(t, d.RequestBody, "empty request body in log message data field: %#v", l.Data)
 	}
-	return nil
 }
