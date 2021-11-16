@@ -114,19 +114,19 @@ func Test_Auditlog(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 
-			req, _ := http.NewRequest(testCase.method, "http://localhost/v1/clusters", nil)
+			req, _ := http.NewRequest(tc.method, "http://localhost/v1/clusters", nil)
 
 			req = mux.SetURLVars(req, map[string]string{
 				paramContractVersion: "1",
 			})
 
-			if testCase.method == http.MethodPost {
-				req.Body = io.NopCloser(bytes.NewBuffer([]byte(testCase.body)))
+			if tc.method == http.MethodPost {
+				req.Body = io.NopCloser(bytes.NewBuffer([]byte(tc.body)))
 			}
 
 			req.Header.Add(ExternalAddressHeaderName, clientIP)
-			if testCase.jwtHeader != "" {
-				req.Header.Add(XJWTHeaderName, testCase.jwtHeader)
+			if tc.jwtHeader != "" {
+				req.Header.Add(XJWTHeaderName, tc.jwtHeader)
 			}
 
 			// clean the log sink
@@ -135,13 +135,13 @@ func Test_Auditlog(t *testing.T) {
 			auditLogRequest(w, req, logger, o)
 
 			// THEN
-			if testCase.expectFail {
+			if tc.expectFail {
 				require.Equalf(t, http.StatusInternalServerError, w.Result().StatusCode,
 					"expected http status: %v, got: %v",
 					http.StatusInternalServerError, w.Result().StatusCode)
 			} else {
 				t.Log(output.String())
-				validateLog(t, output.String(), testCase.method, testCase.jwtHeader != "")
+				validateLog(t, output.String(), tc.method, tc.jwtHeader != "")
 			}
 
 		})
@@ -173,7 +173,6 @@ func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 		d := &data{}
 		err := json.Unmarshal([]byte(l.Data), d)
 		require.NoError(t, err)
-		}
 		require.NotEmptyf(t, d.RequestBody, "empty request body in log message data field: %#v", l.Data)
 	}
 }
