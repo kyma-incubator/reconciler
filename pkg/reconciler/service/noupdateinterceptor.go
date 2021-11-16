@@ -36,12 +36,12 @@ func (i *NoUpdateInterceptor) checkResourceExistence(
 	if err != nil {
 		i.logger.Errorf("Failed to retrieve %s '%s@%s': %s",
 			resource.GetKind(), resource.GetName(), resource.GetNamespace(), err)
-		return k8s.ErrorInterceptionResult, err
+		return k8s.ErrorInterceptionResult, err //unexpected error occurred
 	}
 	if i.isNil(res) {
-		return k8s.ContinueInterceptionResult, nil
+		return k8s.ContinueInterceptionResult, nil //resource does not exist: continue and deploy the resource
 	}
-	return k8s.IgnoreResourceInterceptionResult, nil
+	return k8s.IgnoreResourceInterceptionResult, nil //resource exists: ignore it to avoid any updates on the resource
 }
 
 //isNil verifies whether the given interface is nil and supports also nil-checks if interface is of kind pointer
