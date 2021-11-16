@@ -59,7 +59,7 @@ type testInterceptor struct {
 	err    error
 }
 
-func (i *testInterceptor) Intercept(resource *unstructured.Unstructured) (InterceptionResult, error) {
+func (i *testInterceptor) Intercept(resource *unstructured.Unstructured, _ string) (InterceptionResult, error) {
 	resource.SetLabels(expectedLabels)
 	return i.result, i.err
 }
