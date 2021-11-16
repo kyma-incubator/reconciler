@@ -65,7 +65,7 @@ func TestCloneRepo(t *testing.T) {
 	clonerMock.On("ResolveRevision",
 		gitp.Revision("1.0.0")).
 		Return(repo.ResolveRevision("1.0.0"))
-	cloner, _ := NewCloner(clonerMock, &r, true, fake.NewSimpleClientset())
+	cloner, _ := NewCloner(clonerMock, &r, true, fake.NewSimpleClientset(), nil)
 
 	headRef, err := repo.Head()
 	require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestCloneRepo(t *testing.T) {
 		cloner, _ := NewCloner(clonerMock, &reconciler.Repository{
 			URL:            repoURL,
 			TokenNamespace: "default",
-		}, false, clientWithToken("github.com", "default", "token", token))
+		}, false, clientWithToken("github.com", "default", "token", token), nil)
 
 		_, err := cloner.Clone("/test")
 		assert.NoError(t, err)

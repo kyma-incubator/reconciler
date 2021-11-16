@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
@@ -23,6 +24,7 @@ type Cloner struct {
 
 	repoClient         RepoClient
 	inClusterClientSet k8s.Interface
+	logger             *zap.SugaredLogger
 }
 
 //go:generate mockery --name RepoClient --case=underscore
@@ -33,12 +35,13 @@ type RepoClient interface {
 	ResolveRevision(rev gitp.Revision) (*gitp.Hash, error)
 }
 
-func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface) (*Cloner, error) {
+func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
 	return &Cloner{
 		repo:               repo,
 		autoCheckout:       autoCheckout,
 		repoClient:         repoClient,
 		inClusterClientSet: clientSet,
+		logger:             logger,
 	}, nil
 }
 
@@ -116,6 +119,7 @@ func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 		Get(context.Background(), secretKey, v1.GetOptions{})
 
 	if err != nil && !apierrors.IsNotFound(err) && !apierrors.IsForbidden(err) {
+		r.logger.Info("Token not found of forbidden")
 		return nil, err
 	}
 

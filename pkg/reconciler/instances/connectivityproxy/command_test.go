@@ -147,6 +147,39 @@ func TestCommands(t *testing.T) {
 			"global.binding.key-2": "value-2",
 		}, actionContext.Task.Configuration)
 	})
+
+	t.Run("Should copy configuration with json inside", func(t *testing.T) {
+
+		actionContext := &service.ActionContext{
+			Context: context.Background(),
+			Task: &reconciler.Task{
+				Configuration: make(map[string]interface{}),
+			},
+		}
+
+		delegateMock := &serviceMocks.Operation{}
+		delegateMock.On("Invoke", actionContext.Context, nil,
+			mock.AnythingOfType(fmt.Sprintf("%T", &reconciler.Task{})), // print the type of the object (*reconciler.Task)
+			nil).
+			Return(nil)
+
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                delegateMock,
+			copyFactory:            nil,
+		}
+
+		secret := &v1.Secret{Data: map[string][]byte{
+			"parentkey": []byte(`{"key-1": "value-1","key-2": "value-2"}`),
+		}}
+
+		commands.PopulateConfigs(actionContext, secret)
+		require.Equal(t, map[string]interface{}{
+			"global.binding.key-1": "value-1",
+			"global.binding.key-2": "value-2",
+		}, actionContext.Task.Configuration)
+	})
 }
 
 func TestCommandRemove(t *testing.T) {
