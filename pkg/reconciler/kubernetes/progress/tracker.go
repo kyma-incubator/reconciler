@@ -176,7 +176,7 @@ func (pt *Tracker) isInReadyState(ctx context.Context) (bool, error) {
 		}
 	}
 
-	pt.logger.Debug("All resources are ready\n")
+	pt.logger.Debug("All resources are ready")
 	return true, nil
 
 }

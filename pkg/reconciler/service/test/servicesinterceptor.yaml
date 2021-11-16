@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: servicesinterceptors-test
-  namespace: servicesinterceptor-test
+  name: unittest-servicesinterceptors
+  namespace: unittest-servicesinterceptor
 spec:
   ports:
     - port: 443

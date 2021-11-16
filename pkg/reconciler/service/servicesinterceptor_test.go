@@ -16,17 +16,29 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const (
+	servicesInterceptorNS = "unittest-servicesinterceptor"
+)
+
 func TestServicesInterceptor(t *testing.T) {
 	test.IntegrationTest(t)
 
-	manifest, err := ioutil.ReadFile(filepath.Join("test", "service.yaml"))
+	manifest, err := ioutil.ReadFile(filepath.Join("test", "servicesinterceptor.yaml"))
 	require.NoError(t, err)
 
 	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), &kubernetes.Config{})
 	require.NoError(t, err)
 
+	//cleanup
+	cleanupFct := func() {
+		_, err := kubeClient.Delete(context.Background(), string(manifest), servicesInterceptorNS)
+		require.NoError(t, err)
+	}
+	cleanupFct()       //delete service before test runs
+	defer cleanupFct() //delete service after test was finished
+
 	//create service in k8s
-	_, err = kubeClient.Deploy(context.Background(), string(manifest), "servicesinterceptor-test")
+	_, err = kubeClient.Deploy(context.Background(), string(manifest), servicesInterceptorNS)
 	require.NoError(t, err)
 
 	svcIntcptr := &ServicesInterceptor{
@@ -44,7 +56,8 @@ func TestServicesInterceptor(t *testing.T) {
 	t.Logf("ClusterIP before: %s", serviceObject.Spec.ClusterIP)
 
 	//inject clusterIP
-	err = svcIntcptr.Intercept(unstructs[0])
+	result, err := svcIntcptr.Intercept(unstructs[0], servicesInterceptorNS)
+	require.Equal(t, result, kubernetes.ContinueInterceptionResult)
 	require.NoError(t, err)
 	serviceObject, err = toService(unstructs[0])
 	require.NoError(t, err)
@@ -54,7 +67,7 @@ func TestServicesInterceptor(t *testing.T) {
 	//update the service in k8s
 	manifestIntercepted, err := yaml.Marshal(unstructs[0].Object)
 	require.NoError(t, err)
-	_, err = kubeClient.Deploy(context.Background(), string(manifestIntercepted), "servicesinterceptor-test")
+	_, err = kubeClient.Deploy(context.Background(), string(manifestIntercepted), servicesInterceptorNS)
 	require.NoError(t, err)
 }
 

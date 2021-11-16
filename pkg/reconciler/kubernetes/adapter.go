@@ -124,15 +124,28 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 		return nil, err
 	}
 
+LoopUnstructs:
 	for _, unstruct := range unstructs {
 		for _, interceptor := range interceptors {
 			if interceptor == nil {
 				continue
 			}
 
-			if err := interceptor.Intercept(unstruct); err != nil {
-				g.logger.Errorf("Failed to intercept Kubernetes unstructured entity: %s", err)
+			result, err := interceptor.Intercept(unstruct, namespace)
+			if err != nil {
+				g.logger.Warnf("One of the interceptors returned interception result '%s' with an error while "+
+					"processing Kubernetes unstructured entity '%s@%s' (kind '%s'): %s",
+					result, unstruct.GetName(), unstruct.GetNamespace(), unstruct.GetKind(), err)
+			}
+			switch result {
+			case ErrorInterceptionResult:
 				return deployedResources, err
+			case IgnoreResourceInterceptionResult:
+				g.logger.Debugf("Interceptor indicated to not apply Kuberentes resource '%s@%s' (kind '%s')",
+					unstruct.GetName(), unstruct.GetNamespace(), unstruct.GetKind())
+				continue LoopUnstructs //do not apply this resource and continue with next one
+			default:
+				//continue change: just do nothing and continue processing
 			}
 		}
 		metadata, err := g.kubeClient.ApplyWithNamespaceOverride(unstruct, namespace)
@@ -283,20 +296,18 @@ func (g *kubeClientAdapter) GetStatefulSet(ctx context.Context, name, namespace 
 
 	clientset, err := g.Clientset()
 	if err != nil {
-		return nil, errors.Wrap(err, "Error retrieving clientSet")
+		return nil, errors.Wrap(err, "error retrieving statefulSet")
 	}
 
-	app, err := clientset.AppsV1().
+	statefulSet, err := clientset.AppsV1().
 		StatefulSets(namespace).
 		Get(ctx, name, metav1.GetOptions{})
 
-	if err != nil && !k8serr.IsNotFound(err) {
-		return nil, errors.Wrap(err, "Unable to load deployment")
-	} else if err != nil && k8serr.IsNotFound(err) {
+	if err != nil && k8serr.IsNotFound(err) {
 		return nil, nil
 	}
 
-	return app, nil
+	return statefulSet, err
 }
 
 func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error) {
@@ -306,20 +317,81 @@ func (g *kubeClientAdapter) GetSecret(ctx context.Context, name, namespace strin
 
 	clientset, err := g.Clientset()
 	if err != nil {
-		return nil, errors.Wrap(err, "Error retrieving clientSet")
+		return nil, errors.Wrap(err, "error retrieving secret")
 	}
 
-	secret, bindingErr := clientset.CoreV1().
+	secret, err := clientset.CoreV1().
 		Secrets(namespace).
 		Get(ctx, name, metav1.GetOptions{})
 
-	if bindingErr != nil && !k8serr.IsNotFound(bindingErr) {
-		return nil, errors.Wrap(bindingErr, "Error while retrieving bindings")
-	} else if bindingErr != nil && k8serr.IsNotFound(bindingErr) {
+	if err != nil && k8serr.IsNotFound(err) {
 		return nil, nil
 	}
 
-	return secret, nil
+	return secret, err
+}
+
+func (g *kubeClientAdapter) GetService(ctx context.Context, name, namespace string) (*v1.Service, error) {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+
+	clientset, err := g.Clientset()
+	if err != nil {
+		return nil, errors.Wrap(err, "error retrieving service")
+	}
+
+	service, err := clientset.CoreV1().
+		Services(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+
+	if err != nil && k8serr.IsNotFound(err) {
+		return nil, nil
+	}
+
+	return service, err
+}
+
+func (g *kubeClientAdapter) GetPod(ctx context.Context, name, namespace string) (*v1.Pod, error) {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+
+	clientset, err := g.Clientset()
+	if err != nil {
+		return nil, errors.Wrap(err, "error retrieving pod")
+	}
+
+	pod, err := clientset.CoreV1().
+		Pods(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+
+	if err != nil && k8serr.IsNotFound(err) {
+		return nil, nil
+	}
+
+	return pod, err
+}
+
+func (g *kubeClientAdapter) GetPersistentVolumeClaim(ctx context.Context, name, namespace string) (*v1.PersistentVolumeClaim, error) {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+
+	clientset, err := g.Clientset()
+	if err != nil {
+		return nil, errors.Wrap(err, "error retrieving pvc")
+	}
+
+	pvc, err := clientset.CoreV1().
+		PersistentVolumeClaims(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+
+	if err != nil && k8serr.IsNotFound(err) {
+		return nil, nil
+	}
+
+	return pvc, err
 }
 
 func toResource(m *internal.Metadata) *Resource {
