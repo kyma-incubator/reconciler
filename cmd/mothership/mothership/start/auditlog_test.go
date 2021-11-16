@@ -171,8 +171,8 @@ func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 	}
 	if method == http.MethodPost {
 		d := &data{}
-		if err := json.Unmarshal([]byte(l.Data), d); err != nil {
-			require.NoError(t, err)
+		err := json.Unmarshal([]byte(l.Data), d)
+		require.NoError(t, err)
 		}
 		require.NotEmptyf(t, d.RequestBody, "empty request body in log message data field: %#v", l.Data)
 	}
