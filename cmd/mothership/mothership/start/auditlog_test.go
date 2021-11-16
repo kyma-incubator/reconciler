@@ -32,9 +32,9 @@ type MemorySink struct {
 func (s *MemorySink) Close() error { return nil }
 func (s *MemorySink) Sync() error  { return nil }
 
-func testLoggerWithOutput(t *testing.T) (*zap.Logger, *MemorySink) {
+func testLoggerWithOutput() (*zap.Logger, *MemorySink) {
 	sink := &MemorySink{&bytes.Buffer{}}
-	zap.RegisterSink("memory", func(*url.URL) (zap.Sink, error) {
+	_ = zap.RegisterSink("memory", func(*url.URL) (zap.Sink, error) {
 		return sink, nil
 	})
 	cfg := zap.Config{
@@ -101,7 +101,7 @@ func Test_Auditlog(t *testing.T) {
 	}
 
 	// build test logger
-	logger, output := testLoggerWithOutput(t)
+	logger, output := testLoggerWithOutput()
 	// build reconciler options
 	o := NewOptions(&cli.Options{})
 	o.AuditLogTenantID = tenantID

@@ -101,23 +101,24 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		Tenant:          o.AuditLogTenantID,
 		IP:              "-",
 	}
-	if jwtPayload, err := getJWTPayload(r); err != nil {
+	jwtPayload, err := getJWTPayload(r)
+	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, fmt.Sprintf("Failed to parse %s header content ", XJWTHeaderName)).Error(),
 		})
 		return
-	} else {
-		logData.JWTPayload = jwtPayload
 	}
-	if user, err := getJWTPayloadSub(logData.JWTPayload); err != nil {
+	logData.JWTPayload = jwtPayload
+
+	user, err := getJWTPayloadSub(logData.JWTPayload)
+	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "failed to Unmarshal JWT payload").Error(),
 		})
 		return
-	} else {
-		if user != "" {
-			logData.User = user
-		}
+	}
+	if user != "" {
+		logData.User = user
 	}
 
 	// log request body if needed.
