@@ -19,6 +19,13 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, nam
 		return k8s.ContinueInterceptionResult, nil
 	}
 
+	//resolve namespace
+	ns := namespace
+	if resource.GetNamespace() != "" { //namespace defined in manifest has precedence
+		ns = resource.GetNamespace()
+	}
+
+	//convert unstruct to service resource
 	svc := &v1.Service{}
 	err := runtime.DefaultUnstructuredConverter.
 		FromUnstructured(resource.Object, svc)
@@ -26,15 +33,23 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, nam
 		return k8s.ErrorInterceptionResult, err
 	}
 
-	if !s.isClusterIPService(svc) || svc.Spec.ClusterIP != "" { //not a clusterIP service or clusterIP-field is defined
+	//verify whether the service is of type IPCluster or NodePortService
+	if !(s.isClusterIPService(svc) || s.isNodePortService(svc)) {
 		return k8s.ContinueInterceptionResult, nil
 	}
 
-	svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), namespace)
+	//adjust the ClusterIP field only if it is empty
+	if svc.Spec.ClusterIP != "" {
+		return k8s.ContinueInterceptionResult, nil
+	}
+
+	//retrieve existing service from cluster
+	svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), ns)
 	if err != nil {
 		return k8s.ErrorInterceptionResult, err
 	}
 
+	//if service exists in cluster, add the missing ClusterIP field using the value already used inside the cluster
 	if svcInCluster != nil {
 		svc.Spec.ClusterIP = svcInCluster.Spec.ClusterIP //use cluster IP from K8s service resource
 
@@ -50,5 +65,10 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, nam
 }
 
 func (s *ServicesInterceptor) isClusterIPService(svc *v1.Service) bool {
+	//if spec.Type is undefined, service is treated as ClusterIP service
 	return svc.Spec.Type == v1.ServiceTypeClusterIP || svc.Spec.Type == ""
+}
+
+func (s *ServicesInterceptor) isNodePortService(svc *v1.Service) bool {
+	return svc.Spec.Type == v1.ServiceTypeNodePort
 }
