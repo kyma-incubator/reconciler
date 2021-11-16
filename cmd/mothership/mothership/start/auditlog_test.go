@@ -123,7 +123,7 @@ func Test_Auditlog(t *testing.T) {
 			req.Header.Add(XJWTHeaderName, testCase.jwtHeader)
 		}
 
-		// log and test
+		// WHEN
 		auditLogRequest(w, req, logger, o)
 		if testCase.expectFail {
 			assert.Equalf(t, w.Result().StatusCode,
