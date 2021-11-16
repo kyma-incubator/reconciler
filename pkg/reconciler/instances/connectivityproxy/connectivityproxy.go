@@ -3,7 +3,7 @@ package connectivityproxy
 import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
