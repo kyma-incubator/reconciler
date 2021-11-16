@@ -135,11 +135,11 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		logData.RequestBody = string(reqBody)
 	}
 
-	if ip := r.Header.Get(ExternalAddressHeaderName); ip != "" {
-		logData.IP = ip
-	} else {
+	ip := r.Header.Get(ExternalAddressHeaderName)
+	if ip == "" {
 		o.Logger().Debug(fmt.Sprintf("empty %s header", ExternalAddressHeaderName))
 	}
+	logData.IP = ip
 
 	data, err := json.Marshal(logData)
 	if err != nil {
