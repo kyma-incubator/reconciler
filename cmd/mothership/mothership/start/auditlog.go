@@ -39,7 +39,7 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 		Filename:   logFile,
 		MaxSize:    100, // megabytes
 		MaxBackups: 5,
-		MaxAge:     14,    // days
+		MaxAge:     1,     // days
 		Compress:   false, // save cpu cycles
 	})
 	// I need to replace the default core logger whit a new one that contains
