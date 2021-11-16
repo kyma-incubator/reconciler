@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	XJWTHeaderName = "X-Jwt"
+	XJWTHeaderName            = "X-Jwt"
+	ExternalAddressHeaderName = "X-Envoy-External-Address"
 )
 
 func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
@@ -134,10 +135,10 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		logData.RequestBody = string(reqBody)
 	}
 
-	if ip := r.Header.Get("X-Envoy-External-Address"); ip != "" {
+	if ip := r.Header.Get(ExternalAddressHeaderName); ip != "" {
 		logData.IP = ip
 	} else {
-		o.Logger().Debug("empty X-Envoy-External-Address header")
+		o.Logger().Debug(fmt.Sprintf("empty %s header", ExternalAddressHeaderName))
 	}
 
 	data, err := json.Marshal(logData)

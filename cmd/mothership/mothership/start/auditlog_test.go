@@ -22,6 +22,7 @@ const (
 	postValue     = "bb7fb804-ade5-42bc-a740-3c2861d0391d"
 	tenantID      = "5f6b71a9-cd48-448d-9b58-9895f1639bc6"
 	jwtPayloadSub = "test2@test.pl"
+	clientIP      = "1.2.3.4"
 )
 
 type MemorySink struct {
@@ -109,44 +110,50 @@ func Test_Auditlog(t *testing.T) {
 
 	for _, testCase := range testCases {
 		// GIVEN
-		w := httptest.NewRecorder()
+		tc := testCase
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
 
-		req, _ := http.NewRequest(testCase.method, "http://localhost/v1/clusters", nil)
+			req, _ := http.NewRequest(testCase.method, "http://localhost/v1/clusters", nil)
 
-		req = mux.SetURLVars(req, map[string]string{
-			paramContractVersion: "1",
+			req = mux.SetURLVars(req, map[string]string{
+				paramContractVersion: "1",
+			})
+
+			if testCase.method == http.MethodPost {
+				req.Body = io.NopCloser(bytes.NewBuffer([]byte(testCase.body)))
+			}
+
+			req.Header.Add(ExternalAddressHeaderName, clientIP)
+			if testCase.jwtHeader != "" {
+				req.Header.Add(XJWTHeaderName, testCase.jwtHeader)
+			}
+
+			// clean the log sink
+			defer output.Reset()
+			// WHEN
+			auditLogRequest(w, req, logger, o)
+
+			// THEN
+			if testCase.expectFail {
+				require.Equalf(t, http.StatusInternalServerError, w.Result().StatusCode,
+					"expected http status: %v, got: %v",
+					http.StatusInternalServerError, w.Result().StatusCode)
+			} else {
+				t.Log(output.String())
+				validateLog(t, output.String(), testCase.method, testCase.jwtHeader != "")
+			}
+
 		})
-
-		if testCase.method == http.MethodPost {
-			req.Body = io.NopCloser(bytes.NewBuffer([]byte(testCase.body)))
-		}
-		if testCase.jwtHeader != "" {
-			req.Header.Add(XJWTHeaderName, testCase.jwtHeader)
-		}
-
-		// WHEN
-		auditLogRequest(w, req, logger, o)
-
-		// THEN
-		if testCase.expectFail {
-			require.Equalf(t, http.StatusInternalServerError, w.Result().StatusCode,
-				"expected http status: %v, got: %v",
-				http.StatusInternalServerError, w.Result().StatusCode)
-		} else {
-			t.Log(output.String())
-			validateLog(t, output.String(), testCase.method, testCase.jwtHeader != "")
-		}
-		// clean the log sink
-		output.Reset()
 	}
 }
 
 // validateLog ensures that all required fields in the log message are set and valid. If any of these is missing the audit log backend will not accept/process our logs
 func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 	l := &log{}
-	if err := json.Unmarshal([]byte(logMsg), l); err != nil {
-		require.NoError(t, err)
-	}
+	err := json.Unmarshal([]byte(logMsg), l)
+	require.NoError(t, err)
+
 	require.Falsef(t, l.Time == "" ||
 		l.UUID == "" ||
 		l.User == "" ||
@@ -156,6 +163,8 @@ func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 		l.Category == "", "empty log field: %#v", l)
 
 	require.Equalf(t, tenantID, l.Tenant, "invalid log tenantID: expected: %s, got: %s", tenantID, l.Tenant)
+
+	require.Equalf(t, clientIP, l.IP, "invalid log IP: expected: %s, got: %s", clientIP, l.IP)
 
 	if useJWT {
 		require.Equalf(t, jwtPayloadSub, l.User, "invalid user: expected: %s, got: %s", jwtPayloadSub, l.User)
