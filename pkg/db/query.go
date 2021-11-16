@@ -3,10 +3,9 @@ package db
 import (
 	"bytes"
 	"fmt"
+	"go.uber.org/zap"
 	"sort"
 	"strings"
-
-	"go.uber.org/zap"
 )
 
 type Query struct {

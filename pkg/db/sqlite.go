@@ -49,14 +49,19 @@ func (sc *sqliteConnection) Encryptor() *Encryptor {
 }
 
 func (sc *sqliteConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
+	sc.Lock()
+	defer sc.Unlock()
 	sc.logger.Debugf("Sqlite3 QueryRow(): %s | %v", query, args)
 	if err := sc.validator.Validate(query); err != nil {
 		return nil, err
 	}
-	return sc.db.QueryRow(query, args...), nil
+	qRow := sc.db.QueryRow(query, args...)
+	return qRow, nil
 }
 
 func (sc *sqliteConnection) Query(query string, args ...interface{}) (DataRows, error) {
+	sc.Lock()
+	defer sc.Unlock()
 	sc.logger.Debugf("Sqlite3 Query(): %s | %v", query, args)
 	if err := sc.validator.Validate(query); err != nil {
 		return nil, err
@@ -70,6 +75,7 @@ func (sc *sqliteConnection) Query(query string, args ...interface{}) (DataRows, 
 
 func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
 	sc.Lock()
+	defer sc.Unlock()
 	sc.logger.Debugf("Sqlite3 Exec(): %s | %v", query, args)
 	if err := sc.validator.Validate(query); err != nil {
 		return nil, err
@@ -78,7 +84,6 @@ func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result,
 	if err != nil {
 		sc.logger.Errorf("Sqlite3 Exec() error: %s", err)
 	}
-	sc.Unlock()
 	return result, err
 }
 

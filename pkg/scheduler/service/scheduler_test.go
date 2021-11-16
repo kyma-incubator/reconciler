@@ -183,8 +183,7 @@ func dbConnection(t *testing.T) db.Connection {
 }
 
 func TestSchedulerParallel(t *testing.T) {
-	t.Run("", func(t *testing.T) {
-
+	t.Run("Multiple scheduler watching same inventory", func(t *testing.T) {
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 		createClusterStates(t, inventory)

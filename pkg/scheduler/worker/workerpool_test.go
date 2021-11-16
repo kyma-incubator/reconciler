@@ -183,19 +183,20 @@ func TestWorkerPoolParallel(t *testing.T) {
 	require.NoError(t, err)
 
 	//initialize worker pools
-	workerPools := [2]*Pool{}
+	workerPools := [3]*Pool{}
 	workerPools[0], err = NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
 	workerPools[1], err = NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
+	workerPools[2], err = NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	//create time limited context
 	ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFct()
 
-	errChannel := make(chan error)
 	//start worker pools
+	errChannel := make(chan error)
 	startAt := time.Now().Add(1 * time.Second)
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		i := i
 		go func() {
 			time.Sleep(startAt.Sub(time.Now()))
@@ -221,7 +222,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 
 	fmt.Printf("testInvoker: %#v\n", testInvoker.params)
 	//verify that invoker was properly called
-	require.Len(t, testInvoker.params, 3) // Irgendwie sind hier 150 invoker gestartet anstatt drei,....prüfen warum
+	require.Len(t, testInvoker.params, 6) // Irgendwie sind hier 150 invoker gestartet anstatt drei,....prüfen warum
 	//require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
 	require.Equal(t, model.CRDComponent, testInvoker.params[0].ComponentToReconcile.Component) //CRDs is always the first component
 	//require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
