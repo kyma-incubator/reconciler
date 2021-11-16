@@ -31,7 +31,7 @@ func (r *Resource) String() string {
 }
 
 type ResourceInterceptor interface {
-	Intercept(resource *unstructured.Unstructured) (InterceptionResult, error)
+	Intercept(resource *unstructured.Unstructured, namespace string) (InterceptionResult, error)
 }
 
 //go:generate mockery --name Client

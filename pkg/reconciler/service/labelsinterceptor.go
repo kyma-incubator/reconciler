@@ -15,7 +15,7 @@ type LabelsInterceptor struct {
 	Version string
 }
 
-func (l *LabelsInterceptor) Intercept(resource *unstructured.Unstructured) (k8s.InterceptionResult, error) {
+func (l *LabelsInterceptor) Intercept(resource *unstructured.Unstructured, _ string) (k8s.InterceptionResult, error) {
 	labels := resource.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)

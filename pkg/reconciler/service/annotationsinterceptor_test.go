@@ -55,7 +55,7 @@ func TestAnnotationsInterceptor(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			l := &AnnotationsInterceptor{}
-			result, err := l.Intercept(tt.args.resource)
+			result, err := l.Intercept(tt.args.resource, "")
 			require.Equal(t, kubernetes.ContinueInterceptionResult, result)
 			if tt.wantErr {
 				require.Error(t, err)

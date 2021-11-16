@@ -14,7 +14,7 @@ type ServicesInterceptor struct {
 	kubeClient k8s.Client
 }
 
-func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured) (k8s.InterceptionResult, error) {
+func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, namespace string) (k8s.InterceptionResult, error) {
 	if strings.ToLower(resource.GetKind()) != "service" {
 		return k8s.ContinueInterceptionResult, nil
 	}
@@ -30,7 +30,7 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured) (k8
 		return k8s.ContinueInterceptionResult, nil
 	}
 
-	svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), resource.GetNamespace())
+	svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), namespace)
 	if err != nil {
 		return k8s.ErrorInterceptionResult, err
 	}

@@ -131,7 +131,7 @@ LoopUnstructs:
 				continue
 			}
 
-			result, err := interceptor.Intercept(unstruct)
+			result, err := interceptor.Intercept(unstruct, namespace)
 			if err != nil {
 				g.logger.Warnf("One of the interceptors returned interception result '%s' with an error while "+
 					"processing Kubernetes unstructured entity '%s@%s' (kind '%s'): %s",

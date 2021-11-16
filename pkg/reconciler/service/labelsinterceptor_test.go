@@ -60,7 +60,7 @@ func TestLabelInterceptor(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			l := &LabelsInterceptor{Version: tt.args.version}
-			result, err := l.Intercept(tt.args.resource)
+			result, err := l.Intercept(tt.args.resource, "")
 			require.Equal(t, result, kubernetes.ContinueInterceptionResult)
 			if tt.wantErr {
 				require.Error(t, err)

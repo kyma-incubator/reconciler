@@ -13,7 +13,7 @@ const (
 type AnnotationsInterceptor struct {
 }
 
-func (l *AnnotationsInterceptor) Intercept(resource *unstructured.Unstructured) (k8s.InterceptionResult, error) {
+func (l *AnnotationsInterceptor) Intercept(resource *unstructured.Unstructured, _ string) (k8s.InterceptionResult, error) {
 	annotations := resource.GetAnnotations()
 	if annotations == nil {
 		annotations = make(map[string]string)
