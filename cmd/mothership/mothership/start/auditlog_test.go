@@ -107,8 +107,7 @@ func Test_Auditlog(t *testing.T) {
 	o.AuditLogTenantID = tenantID
 
 	for _, testCase := range testCases {
-
-		// built test req/resp
+		// GIVEN
 		w := httptest.NewRecorder()
 
 		req, _ := http.NewRequest(testCase.method, "http://localhost/v1/clusters", nil)
