@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"io/ioutil"
 	"os"
+	"sync"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
@@ -14,6 +15,7 @@ import (
 )
 
 type sqliteConnection struct {
+	sync.Mutex
 	db        *sql.DB
 	encryptor *Encryptor
 	validator *Validator
@@ -67,6 +69,7 @@ func (sc *sqliteConnection) Query(query string, args ...interface{}) (DataRows, 
 }
 
 func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
+	sc.Lock()
 	sc.logger.Debugf("Sqlite3 Exec(): %s | %v", query, args)
 	if err := sc.validator.Validate(query); err != nil {
 		return nil, err
@@ -75,6 +78,7 @@ func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result,
 	if err != nil {
 		sc.logger.Errorf("Sqlite3 Exec() error: %s", err)
 	}
+	sc.Unlock()
 	return result, err
 }
 
