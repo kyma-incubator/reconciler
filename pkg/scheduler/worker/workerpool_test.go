@@ -3,6 +3,8 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,14 +22,19 @@ import (
 type testInvoker struct {
 	params []*invoker.Params
 	reconRepo reconciliation.Repository
+	mux sync.Mutex
+	errChannel chan error
 }
 
 func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
-	i.params = append(i.params, params)
 	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, ""); err != nil {
+		fmt.Println("Error Update Operation State")
+		i.errChannel <- errors.New("Update failed")
 		return err
 	}
-	time.Sleep(100 *time.Second)
+	i.mux.Lock()
+	i.params = append(i.params, params)
+	i.mux.Unlock()
 	return nil
 }
 
@@ -96,6 +103,7 @@ func TestWorkerPool(t *testing.T) {
 
 func TestWorkerPoolParallel(t *testing.T) {
 
+	var wg sync.WaitGroup
 	kebClusters := []*keb.Cluster{
 		{
 			Kubeconfig: "clusterA",
@@ -162,14 +170,14 @@ func TestWorkerPoolParallel(t *testing.T) {
 	require.NoError(t, err)
 
 	//cleanup created cluster
-	defer func() {
+	/*defer func() {
 		for i := range clusterStates{
 			require.NoError(t, inventory.Delete(clusterStates[i].Cluster.RuntimeID))
 		}
-	}()
+	}()*/
 
 	//create test invoker to be able to verify invoker calls and update operation state
-	testInvoker := &testInvoker{}
+	testInvoker := &testInvoker{errChannel: make(chan error, 100)}
 
 	//create reconciliation for cluster
 	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
@@ -179,7 +187,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 	}
 	require.NoError(t, err)
 	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
-	require.Len(t, opsProcessable, 3)
+	require.Len(t, opsProcessable, 3) // only first prio
 	require.NoError(t, err)
 
 	//initialize worker pools
@@ -198,7 +206,9 @@ func TestWorkerPoolParallel(t *testing.T) {
 	startAt := time.Now().Add(1 * time.Second)
 	for i := 0; i < 3; i++ {
 		i := i
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			time.Sleep(startAt.Sub(time.Now()))
 			err := workerPools[i].Run(ctx)
 			if err != nil {
@@ -207,22 +217,12 @@ func TestWorkerPoolParallel(t *testing.T) {
 		}()
 	}
 
-	/*
-	err = workerPools[0].Run(ctx)
-	if err != nil {
-		errChannel <- err
-	}
-	time.Sleep(5 * time.Millisecond)
-	err = workerPools[1].Run(ctx)
-	if err != nil {
-		errChannel <- err
-	} */
-	time.Sleep(5 *time.Second)
-
+	wg.Wait()
 
 	fmt.Printf("testInvoker: %#v\n", testInvoker.params)
+	require.Equal(t, 6, len(testInvoker.errChannel))
 	//verify that invoker was properly called
-	require.Len(t, testInvoker.params, 6) // Irgendwie sind hier 150 invoker gestartet anstatt drei,....prüfen warum
+	require.Len(t, testInvoker.params, 3) // Irgendwie sind hier 150 invoker gestartet anstatt drei,....prüfen warum
 	//require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
 	require.Equal(t, model.CRDComponent, testInvoker.params[0].ComponentToReconcile.Component) //CRDs is always the first component
 	//require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
