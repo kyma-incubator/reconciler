@@ -28,10 +28,11 @@ type testInvoker struct {
 
 func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
 	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, ""); err != nil {
-		fmt.Println("Error Update Operation State")
+		fmt.Printf("Error Update Operation State: %#v\n", err)
 		i.errChannel <- errors.New("Update failed")
 		return err
 	}
+	fmt.Println("Update success")
 	i.mux.Lock()
 	i.params = append(i.params, params)
 	i.mux.Unlock()
@@ -170,11 +171,11 @@ func TestWorkerPoolParallel(t *testing.T) {
 	require.NoError(t, err)
 
 	//cleanup created cluster
-	/*defer func() {
+	defer func() {
 		for i := range clusterStates{
 			require.NoError(t, inventory.Delete(clusterStates[i].Cluster.RuntimeID))
 		}
-	}()*/
+	}()
 
 	//create test invoker to be able to verify invoker calls and update operation state
 	testInvoker := &testInvoker{errChannel: make(chan error, 100)}
@@ -220,7 +221,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 	wg.Wait()
 
 	fmt.Printf("testInvoker: %#v\n", testInvoker.params)
-	require.Equal(t, 6, len(testInvoker.errChannel))
+	require.Equal(t, 12, len(testInvoker.errChannel))
 	//verify that invoker was properly called
 	require.Len(t, testInvoker.params, 3) // Irgendwie sind hier 150 invoker gestartet anstatt drei,....prüfen warum
 	//require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
