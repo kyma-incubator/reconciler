@@ -103,6 +103,10 @@ func startWebserver(ctx context.Context, o *Options) error {
 	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
 	router.Handle("/metrics", promhttp.Handler())
 
+	//liveness and readiness checks
+	router.HandleFunc("/health/live", live)
+	router.HandleFunc("/health/ready", ready(o))
+
 	if o.AuditLog && o.AuditLogFile != "" {
 		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
 		if err != nil {
@@ -121,6 +125,20 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Router:     router,
 	}
 	return srv.Start(ctx) //blocking call
+}
+
+func live(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func ready(o *Options) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		if o.Registry.Connnection().Ping() != nil {
+			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
