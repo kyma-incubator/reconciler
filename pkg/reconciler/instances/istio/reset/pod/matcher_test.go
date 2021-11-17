@@ -1,11 +1,12 @@
 package pod
 
 import (
-	"github.com/avast/retry-go"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/avast/retry-go"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 
 	"github.com/stretchr/testify/require"
 	v1apps "k8s.io/api/apps/v1"
@@ -23,6 +24,11 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 		retry.DelayType(retry.FixedDelay),
 	}
 
+	fixWaitOpts := WaitOptions{
+		Timeout:  5 * time.Minute,
+		Interval: 5 * time.Second,
+	}
+
 	t.Run("should return NoActionHandler when pod has no owner", func(t *testing.T) {
 		// given
 		podList := fixPodListWithParentKind("")
@@ -30,7 +36,7 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug, fixWaitOpts)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -47,7 +53,7 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug, fixWaitOpts)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -72,7 +78,7 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug, fixWaitOpts)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -95,7 +101,7 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug, fixWaitOpts)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -112,7 +118,7 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug, fixWaitOpts)
 
 		// then
 		require.NotNil(t, handlersMap)
@@ -138,7 +144,7 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug, fixWaitOpts)
 
 		// then
 		require.Len(t, podList.Items, 2)
@@ -177,7 +183,7 @@ func Test_ParentKindMatcher_Match(t *testing.T) {
 		matcher := ParentKindMatcher{}
 
 		// when
-		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug)
+		handlersMap := matcher.GetHandlersMap(kubeClient, fixRetryOpts, *podList, log, debug, fixWaitOpts)
 
 		// then
 		require.Len(t, podList.Items, 2)

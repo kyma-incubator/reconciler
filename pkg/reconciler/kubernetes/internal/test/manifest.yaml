@@ -1,0 +1,66 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: kubeclient-test
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret
+  namespace: kubeclient-test
+type: kubernetes.io/basic-auth
+stringData:
+  username: admin
+  password: t0p-Secret
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap
+  namespace: kubeclient-test
+data:
+  key1: "value1"
+  key2: "value2"
+  key3: |
+    subkey3.1=value3.1
+    subkey3.2=value3.2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment
+  namespace: kubeclient-test
+  labels:
+    app: deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+          ports:
+            - containerPort: 80
+---
+# Excluding PODs from test because 'replace' fails for them with following error:
+# Pod "pod" is invalid: spec.containers: Forbidden: pod updates may not add or remove containers
+
+#apiVersion: v1
+#kind: Pod
+#metadata:
+#  name: pod
+#  namespace: kubeclient-test
+#  labels:
+#    app: pod
+#spec:
+#  containers:
+#    - name: nginx
+#      image: nginx
+#      ports:
+#        - containerPort: 80
+#---

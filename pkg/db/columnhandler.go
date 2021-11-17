@@ -3,9 +3,11 @@ package db
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
 	"reflect"
 	"strings"
+
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fatih/structs"
 	"github.com/iancoleman/strcase"
@@ -51,15 +53,17 @@ type ColumnHandler struct {
 	encryptor   *Encryptor
 	columns     []*column
 	columnNames map[string]string //cache for column names (to increase lookup speed)
+	logger      *zap.SugaredLogger
 }
 
-func NewColumnHandler(entity DatabaseEntity, conn Connection) (*ColumnHandler, error) {
+func NewColumnHandler(entity DatabaseEntity, conn Connection, logger *zap.SugaredLogger) (*ColumnHandler, error) {
 	//new col handler instance
 	fields := structs.Fields(entity)
 	colHdlr := &ColumnHandler{
 		entity:      entity,
 		columnNames: make(map[string]string, len(fields)),
 		encryptor:   conn.Encryptor(),
+		logger:      logger,
 	}
 
 	//get marshalled values of entity fields
@@ -289,9 +293,11 @@ func (ch *ColumnHandler) Unmarshal(row DataRow, entity DatabaseEntity) error {
 			} else if col.notNull {
 				//fail if field is marked as notNull
 				//(for nullable fields, ignore the error and use the value returned by DB)
-				return errors.Wrap(err,
-					fmt.Sprintf("Field '%s' is encrypted and marked as notNull but value could not be decrypted",
-						col.name))
+				errMsg := fmt.Sprintf(
+					"Field '%s' is encrypted and marked as notNull but value could not be decrypted",
+					col.name)
+				ch.logger.Error(errMsg)
+				return errors.Wrap(err, errMsg)
 			}
 		}
 		entityData[col.field.Name()] = col.value

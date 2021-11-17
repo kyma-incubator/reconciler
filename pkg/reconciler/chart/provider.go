@@ -2,11 +2,14 @@ package chart
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/kyma-incubator/reconciler/internal/components"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
 	"go.uber.org/zap"
 )
@@ -44,7 +47,9 @@ func NewDefaultProvider(wsFactory workspace.Factory, logger *zap.SugaredLogger) 
 }
 
 func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
-	ws, err := p.newWorkspace(version)
+	ws, err := p.newWorkspace(&Component{
+		version: version,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +79,7 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 				return err
 			}
 
-			unstructs, err := kubeclient.ToUnstructured(crdData, true)
+			unstructs, err := k8s.ToUnstructured(crdData, true)
 			if err != nil {
 				return err
 			}
@@ -101,7 +106,7 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 }
 
 func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error) {
-	ws, err := p.newWorkspace(component.version)
+	ws, err := p.newWorkspace(component)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +129,7 @@ func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error
 }
 
 func (p *DefaultProvider) Configuration(component *Component) (map[string]interface{}, error) {
-	ws, err := p.newWorkspace(component.version)
+	ws, err := p.newWorkspace(component)
 	if err != nil {
 		return nil, err
 	}
@@ -137,11 +142,30 @@ func (p *DefaultProvider) Configuration(component *Component) (map[string]interf
 	return helmClient.Configuration(component)
 }
 
-func (p *DefaultProvider) newWorkspace(version string) (*workspace.Workspace, error) {
-	p.logger.Debugf("Getting workspace for Kyma '%s'", version)
-	ws, err := p.wsFactory.Get(version)
+func (p *DefaultProvider) newWorkspace(component *Component) (*workspace.Workspace, error) {
+	var ws *workspace.Workspace
+	var err error
+	if component.url != "" && strings.HasSuffix(component.url, ".git") {
+		p.logger.Debugf("Getting workspace for Kyma '%s', url repository: ", component.version, component.url)
+		configuration, err := component.Configuration()
+		if err != nil {
+			return nil, err
+		}
+		c := components.Component{
+			Name:          component.name,
+			URL:           component.url,
+			Configuration: configuration,
+		}
+		ws, err = p.wsFactory.Get(component.version, &c)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		p.logger.Debugf("Getting workspace for Kyma '%s'", component.version)
+		ws, err = p.wsFactory.Get(component.version)
+	}
 	if err != nil {
-		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s': %s", version, err)
+		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s': %s", component.version, err)
 	}
 	return ws, err
 }

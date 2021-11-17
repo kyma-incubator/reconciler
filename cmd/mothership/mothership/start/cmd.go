@@ -21,12 +21,11 @@ func NewCmd(o *Options) *cobra.Command {
 			//create enc-key before starting application registry (otherwise registry bootstrap will fail)
 			if o.CreateEncyptionKey {
 				encKeyFile, err := cli.NewEncryptionKey(true)
-				if err == nil {
-					o.Logger().Infof("New encryption key file created: %s", encKeyFile)
-				} else {
+				if err != nil {
 					o.Logger().Warnf("Failed to create encryption key file '%s'", encKeyFile)
 					return err
 				}
+				o.Logger().Infof("New encryption key file created: %s", encKeyFile)
 			}
 
 			if err := o.InitApplicationRegistry(true); err != nil {
@@ -45,6 +44,9 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().DurationVarP(&o.ClusterReconcileInterval, "reconcile-interval", "", 5*time.Minute, "Defines the time when a cluster will to be reconciled since his last successful reconciliation")
 	cmd.Flags().BoolVar(&o.CreateEncyptionKey, "create-encryption-key", false, "Create new encryption key file during startup")
 	cmd.Flags().BoolVar(&o.Migrate, "migrate-database", false, "Migrate database to the latest release")
+	cmd.Flags().BoolVar(&o.AuditLog, "audit-log", false, "Enable audit logging")
+	cmd.Flags().StringVar(&o.AuditLogFile, "audit-log-file", "/var/log/auditlog/mothership-audit.log", "Path for mothership audit log file")
+	cmd.Flags().StringVar(&o.AuditLogTenantID, "audit-log-tenant-id", "", "tenant id for audit logging")
 	return cmd
 }
 

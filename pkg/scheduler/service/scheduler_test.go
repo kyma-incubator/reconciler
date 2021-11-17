@@ -2,48 +2,25 @@ package service
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
-var clusterState *cluster.State
-
 func TestScheduler(t *testing.T) {
-	clusterState = &cluster.State{
-		Cluster: &model.ClusterEntity{
-			Version:    1,
-			RuntimeID:  "testCluster",
-			Kubeconfig: "xyz",
-			Contract:   1,
-		},
-		Configuration: &model.ClusterConfigurationEntity{
-			Version:        1,
-			RuntimeID:      "testCluster",
-			ClusterVersion: 1,
-			Contract:       1,
-			KymaVersion:    "1.24.0",
-			Components:     nil,
-		},
-		Status: &model.ClusterStatusEntity{
-			ID:             1,
-			RuntimeID:      "testCluster",
-			ClusterVersion: 1,
-			ConfigVersion:  1,
-			Status:         model.ClusterStatusReconcilePending,
-		},
-	}
-
 	t.Run("Test run once", func(t *testing.T) {
+		clusterState := testClusterState()
 		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 		scheduler := newScheduler(nil, logger.NewLogger(true))
 		require.NoError(t, scheduler.RunOnce(clusterState, reconRepo))
-		requirecReconciliationEntity(t, reconRepo)
+		requirecReconciliationEntity(t, reconRepo, clusterState)
 	})
 
 	t.Run("Test run", func(t *testing.T) {
@@ -55,6 +32,8 @@ func TestScheduler(t *testing.T) {
 
 		start := time.Now()
 
+		clusterState := testClusterState()
+
 		err := scheduler.Run(ctx, &ClusterStatusTransition{
 			conn: db.NewTestConnection(t),
 			inventory: &cluster.MockInventory{
@@ -64,8 +43,9 @@ func TestScheduler(t *testing.T) {
 				},
 				//simulate an updated cluster status (required when transition updates the cluster status)
 				UpdateStatusResult: func() *cluster.State {
-					clusterState.Status.Status = model.ClusterStatusReconciling
-					return clusterState
+					updatedState := testClusterState()
+					updatedState.Status.Status = model.ClusterStatusReconciling
+					return updatedState
 				}(),
 			},
 			reconRepo: reconRepo,
@@ -80,17 +60,48 @@ func TestScheduler(t *testing.T) {
 		time.Sleep(500 * time.Millisecond) //give it some time to shutdown
 
 		require.WithinDuration(t, start, time.Now(), 2*time.Second)
-		requirecReconciliationEntity(t, reconRepo)
+		requirecReconciliationEntity(t, reconRepo, clusterState)
 	})
 }
 
-func requirecReconciliationEntity(t *testing.T, reconRepo reconciliation.Repository) {
+func requirecReconciliationEntity(t *testing.T, reconRepo reconciliation.Repository, state *cluster.State) {
 	recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: "testCluster"})
 	require.NoError(t, err)
 	require.Len(t, recons, 1)
-	require.Equal(t, recons[0].RuntimeID, clusterState.Cluster.RuntimeID)
+	require.Equal(t, recons[0].RuntimeID, state.Cluster.RuntimeID)
 	ops, err := reconRepo.GetOperations(recons[0].SchedulingID)
 	require.NoError(t, err)
-	require.Len(t, ops, 1)
-	require.Equal(t, ops[0].RuntimeID, clusterState.Cluster.RuntimeID)
+	require.Len(t, ops, 2)
+	require.Equal(t, ops[0].RuntimeID, state.Cluster.RuntimeID)
+}
+
+func testClusterState() *cluster.State {
+	return &cluster.State{
+		Cluster: &model.ClusterEntity{
+			Version:    1,
+			RuntimeID:  "testCluster",
+			Kubeconfig: "xyz",
+			Contract:   1,
+		},
+		Configuration: &model.ClusterConfigurationEntity{
+			Version:        1,
+			RuntimeID:      "testCluster",
+			ClusterVersion: 1,
+			Contract:       1,
+			KymaVersion:    "1.24.0",
+			Components: []*keb.Component{
+				{
+					Component: "testComp1",
+					Version:   "1",
+				},
+			},
+		},
+		Status: &model.ClusterStatusEntity{
+			ID:             1,
+			RuntimeID:      "testCluster",
+			ClusterVersion: 1,
+			ConfigVersion:  1,
+			Status:         model.ClusterStatusReconcilePending,
+		},
+	}
 }

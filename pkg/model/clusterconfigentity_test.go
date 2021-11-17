@@ -1,9 +1,10 @@
 package model
 
 import (
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 type testCase struct {
@@ -14,6 +15,7 @@ type testCase struct {
 
 func TestClusterConfigEntity(t *testing.T) {
 	t.Run("Validate Equal", func(t *testing.T) {
+		t.Parallel()
 
 		testCases := []*testCase{
 			{
@@ -133,4 +135,70 @@ func TestClusterConfigEntity(t *testing.T) {
 		}
 	})
 
+}
+
+func TestGetReconciliationSequence(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		preComps []string
+		entity   *ClusterConfigurationEntity
+		expected *ReconciliationSequence
+		err      error
+	}{
+		{
+			name:     "Components and pre components",
+			preComps: []string{"Pre1", "Pre2"},
+			entity: &ClusterConfigurationEntity{
+				Components: []*keb.Component{
+					{
+						Component: "Pre1",
+					},
+					{
+						Component: "Pre2",
+					},
+					{
+						Component: "Comp1",
+					},
+					{
+						Component: "Comp2",
+					},
+				},
+			},
+			expected: &ReconciliationSequence{
+				Queue: [][]*keb.Component{
+					{
+						crdComponent,
+					},
+					{
+						{
+							Component: "Pre1",
+						},
+					},
+					{
+						{
+							Component: "Pre2",
+						},
+					},
+					{
+						{
+							Component: "Comp1",
+						},
+						{
+							Component: "Comp2",
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.entity.GetReconciliationSequence(tc.preComps)
+			require.Equal(t, tc.expected, result)
+		})
+	}
 }

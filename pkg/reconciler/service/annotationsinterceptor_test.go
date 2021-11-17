@@ -1,7 +1,8 @@
 package service
 
 import (
-	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 )
@@ -54,11 +55,12 @@ func TestAnnotationsInterceptor(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			l := &AnnotationsInterceptor{}
-			if err := l.Intercept(tt.args.resource); (err != nil) != tt.wantErr {
-				t.Errorf("Intercept() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if fmt.Sprint(tt.annotations) != fmt.Sprint(tt.args.resource.GetAnnotations()) {
-				t.Errorf("Actual annotations: %s aren't the same like expected annotations: %s", tt.args.resource.GetAnnotations(), tt.annotations)
+			result, err := l.Intercept(tt.args.resource, "")
+			require.Equal(t, kubernetes.ContinueInterceptionResult, result)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.Equal(t, tt.annotations, tt.args.resource.GetAnnotations())
 			}
 		})
 	}

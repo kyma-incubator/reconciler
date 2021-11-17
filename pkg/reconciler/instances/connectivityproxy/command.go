@@ -28,10 +28,10 @@ type CommandActions struct {
 
 func (a *CommandActions) Install(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) error {
 	for key, value := range bindingSecret.Data {
-		context.Model.Configuration[key] = value
+		context.Task.Configuration[key] = value
 	}
 
-	err := a.install.Invoke(context.Context, context.ChartProvider, context.Model, context.KubeClient)
+	err := a.install.Invoke(context.Context, context.ChartProvider, context.Task, context.KubeClient)
 	if err != nil {
 		return errors.Wrap(err, "Error during installation")
 	}
@@ -51,7 +51,7 @@ func (a *CommandActions) CopyResources(context *service.ActionContext) error {
 	}
 
 	for _, create := range a.copyFactory {
-		operation := create(context.Model.Configuration, inCluster, clientset)
+		operation := create(context.Task.Configuration, inCluster, clientset)
 
 		if err := operation.Transfer(); err != nil {
 			return err
@@ -62,10 +62,10 @@ func (a *CommandActions) CopyResources(context *service.ActionContext) error {
 }
 
 func (a *CommandActions) Remove(context *service.ActionContext) error {
-	component := chart.NewComponentBuilder(context.Model.Version, context.Model.Component).
-		WithNamespace(context.Model.Namespace).
-		WithProfile(context.Model.Profile).
-		WithConfiguration(context.Model.Configuration).
+	component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).
+		WithNamespace(context.Task.Namespace).
+		WithProfile(context.Task.Profile).
+		WithConfiguration(context.Task.Configuration).
 		Build()
 
 	manifest, err := context.ChartProvider.RenderManifest(component)
@@ -73,7 +73,7 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error during rendering manifest for removal")
 	}
 
-	_, err = context.KubeClient.Delete(context.Context, manifest.Manifest, context.Model.Namespace)
+	_, err = context.KubeClient.Delete(context.Context, manifest.Manifest, context.Task.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "Error during removal")
 	}

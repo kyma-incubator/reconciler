@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -42,6 +43,12 @@ const (
 func startWebserver(ctx context.Context, o *Options) error {
 	//routing
 	router := mux.NewRouter()
+
+	router.HandleFunc(
+		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		callHandler(o, updateOperationStatus)).
+		Methods("POST")
+
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdateCluster)).
@@ -96,6 +103,15 @@ func startWebserver(ctx context.Context, o *Options) error {
 	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
 	router.Handle("/metrics", promhttp.Handler())
 
+	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
+		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = auditLogger.Sync() }() // make golint happy
+		auditLoggerMiddelware := newAuditLoggerMiddelware(auditLogger, o)
+		router.Use(auditLoggerMiddelware)
+	}
 	//start server process
 	srv := &server.Webserver{
 		Logger:     o.Logger(),
@@ -288,25 +304,9 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	results := []keb.Reconciliation{}
 
-RESULT_LOOP:
 	for _, reconcile := range reconciles {
-		// FIXME add new method in inventory to fetch multiple statuses via runtimeID and fetch it in 1 go
-		state, err := o.Registry.
-			Inventory().
-			GetLatest(reconcile.RuntimeID)
-
-		if err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusInternalServerError,
-				&keb.InternalError{
-					Error: err.Error(),
-				})
-			return
-		}
-
-		if len(statuses) != 0 && !contains(statuses, string(state.Status.Status)) {
-			continue RESULT_LOOP
+		if len(statuses) != 0 && !contains(statuses, string(reconcile.Status)) {
+			continue
 		}
 
 		results = append(results, keb.Reconciliation{
@@ -314,7 +314,7 @@ RESULT_LOOP:
 			Lock:         reconcile.Lock,
 			RuntimeID:    reconcile.RuntimeID,
 			SchedulingID: reconcile.SchedulingID,
-			Status:       keb.Status(state.Status.Status),
+			Status:       keb.Status(reconcile.Status),
 			Updated:      reconcile.Updated,
 		})
 	}
@@ -523,12 +523,81 @@ func deleteCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if err := o.Registry.Inventory().Delete(runtimeID); err != nil {
+	state, err := o.Registry.Inventory().MarkForDeletion(runtimeID)
+	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, fmt.Sprintf("Failed to delete cluster '%s'", runtimeID)).Error(),
 		})
 		return
 	}
+	sendResponse(w, r, state, o.Registry.ReconciliationRepository())
+}
+
+func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	correlationID, err := params.String(paramCorrelationID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	var stopOperation keb.OperationStop
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
+		})
+		return
+	}
+
+	err = json.Unmarshal(reqBody, &stopOperation)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
+		})
+		return
+	}
+
+	op, err := getOperationStatus(o, schedulingID, correlationID)
+	if err != nil {
+		if repository.IsNotFoundError(err) {
+			server.SendHTTPError(w, http.StatusNotFound, &reconciler.HTTPErrorResponse{
+				Error: "Couldn't find operation",
+			})
+			return
+		}
+
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to get operation").Error(),
+		})
+		return
+	}
+
+	if op.State != model.OperationStateNew {
+		server.SendHTTPError(w, http.StatusForbidden, &reconciler.HTTPErrorResponse{
+			Error: fmt.Sprintf("Operation is in status: %s. Should be in: %s in order to stop it.", op.State, model.OperationStateNew),
+		})
+		return
+	}
+
+	err = updateOperationState(o, schedulingID, correlationID, model.OperationStateDone, stopOperation.Reason)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "while updating operation status").Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -604,6 +673,14 @@ func updateOperationState(o *Options, schedulingID, correlationID string, state 
 	return err
 }
 
+func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.OperationEntity, error) {
+	op, err := o.Registry.ReconciliationRepository().GetOperation(schedulingID, correlationID)
+	if err != nil {
+		return nil, errors.Wrap(err, "while getting operation status")
+	}
+	return op, err
+}
+
 func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) {
 	respModel, err := newClusterResponse(r, clusterState, reconciliationRepository)
 	if err != nil {
@@ -628,7 +705,8 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 	}
 
 	var failures []keb.Failure
-	if clusterState.Status.Status == model.ClusterStatusError || clusterState.Status.Status == model.ClusterStatusReconcileFailed || clusterState.Status.Status == model.ClusterStatusReconciling {
+	if clusterState.Status.Status == model.ClusterStatusReconcileError || clusterState.Status.Status == model.ClusterStatusDeleteError ||
+		clusterState.Status.Status == model.ClusterStatusReconciling || clusterState.Status.Status == model.ClusterStatusDeleting {
 		reconciliations, err := reconciliationRepository.GetReconciliations(&reconciliation.WithClusterConfigStatus{ClusterConfigStatus: clusterState.Status.ID})
 		if err != nil {
 			return nil, err

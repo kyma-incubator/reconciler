@@ -1,20 +1,23 @@
 package keb
 
-import "github.com/pkg/errors"
+import "fmt"
 
 func ToStatus(in string) (Status, error) {
 
 	for _, status := range []Status{
-		StatusReconciling,
-		StatusReconcilePending,
-		StatusReconcileFailed,
-		StatusReady,
+		StatusDeleteError,
+		StatusDeletePending,
+		StatusDeleted,
+		StatusDeleting,
 		StatusError,
-		StatusReconcileFailed,
+		StatusReady,
+		StatusReconcileDisabled,
+		StatusReconcilePending,
+		StatusReconciling,
 	} {
 		if in == string(status) {
 			return status, nil
 		}
 	}
-	return Status(""), errors.Errorf("Given string is not Status: %s", in)
+	return Status(""), fmt.Errorf("Given string is not Status: %s", in)
 }

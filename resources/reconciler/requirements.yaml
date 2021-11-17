@@ -1,8 +1,0 @@
-dependencies:
-- name: postgresql
-  condition: global.database.embedded.enabled
-- name: mothership-reconciler
-  condition: global.mothership-reconciler.enabled
-- name: component-reconcilers
-  condition: global.component-reconcilers.enabled
-

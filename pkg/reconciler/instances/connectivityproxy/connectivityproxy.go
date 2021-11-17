@@ -2,10 +2,11 @@ package connectivityproxy
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
+
 	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
@@ -32,7 +33,7 @@ func init() {
 			Name:   "action",
 			Loader: &K8sLoader{},
 			Commands: &CommandActions{
-				clientSetFactory: kubeclient.NewInClusterClientSet,
+				clientSetFactory: reconcilerK8s.NewInClusterClientSet,
 				targetClientSetFactory: func(context *service.ActionContext) (k8s.Interface, error) {
 					return context.KubeClient.Clientset()
 				},

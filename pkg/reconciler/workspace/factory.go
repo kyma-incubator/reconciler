@@ -2,11 +2,13 @@ package workspace
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/kyma-incubator/reconciler/internal/components"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
 	"github.com/pkg/errors"
@@ -21,11 +23,11 @@ const (
 	wsReadyIndicatorFile = "workspace-ready.yaml"
 )
 
-//go:generate mockery -name=Factory -outpkg=mock -case=underscore
+//go:generate mockery --name=Factory --outpkg=mock --case=underscore
 // Factory of workspace.
 type Factory interface {
 	// Get workspace of the given version.
-	Get(version string) (*Workspace, error)
+	Get(version string, component ...*components.Component) (*Workspace, error)
 
 	// Delete workspace of the given version.
 	Delete(version string) error
@@ -82,7 +84,7 @@ func (f *DefaultFactory) defaultStorageDir() string {
 	return filepath.Join(baseDir, ".kyma", "reconciler", "versions")
 }
 
-func (f *DefaultFactory) Get(version string) (*Workspace, error) {
+func (f *DefaultFactory) Get(version string, component ...*components.Component) (*Workspace, error) {
 	if err := f.validate(); err != nil {
 		return nil, err
 	}
@@ -93,11 +95,15 @@ func (f *DefaultFactory) Get(version string) (*Workspace, error) {
 	}
 
 	wsDir := f.workspaceDir(version)
+	if len(component) > 0 {
+		wsDir = f.workspaceDir(version + "-" + component[0].Name)
+
+	}
 
 	wsReadyFile := filepath.Join(wsDir, wsReadyIndicatorFile)
 	//ensure Kyma sources are available
 	if !file.Exists(wsReadyFile) {
-		if err := f.clone(version, wsDir); err != nil {
+		if err := f.clone(version, wsDir, component...); err != nil {
 			return nil, err
 		}
 	}
@@ -105,7 +111,7 @@ func (f *DefaultFactory) Get(version string) (*Workspace, error) {
 	return newWorkspace(wsDir)
 }
 
-func (f *DefaultFactory) clone(version, dstDir string) error {
+func (f *DefaultFactory) clone(version, dstDir string, component ...*components.Component) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -126,11 +132,28 @@ func (f *DefaultFactory) clone(version, dstDir string) error {
 	//clone sources
 	f.logger.Infof("Cloning repository '%s' with revision '%s' into workspace '%s'",
 		f.repository.URL, version, dstDir)
-	clientSet, err := kubeclient.NewInClusterClientSet(f.logger)
+	clientSet, err := k8s.NewInClusterClientSet(f.logger)
 	if err != nil {
 		return err
 	}
-	cloner, _ := git.NewCloner(&git.Client{}, f.repository, true, clientSet)
+
+	repo := f.repository
+	if len(component) > 0 {
+		tokenNamespace := component[0].Configuration["repo.token.namespace"]
+		if tokenNamespace != nil {
+			repo = &reconciler.Repository{
+				URL:            component[0].Name,
+				TokenNamespace: fmt.Sprint(tokenNamespace),
+			}
+		} else {
+			repo = &reconciler.Repository{
+				URL: component[0].Name,
+			}
+		}
+
+	}
+
+	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet)
 
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",

@@ -13,8 +13,8 @@ const tblStatuses string = "inventory_cluster_config_statuses"
 type ClusterStatusEntity struct {
 	ID             int64     `db:"readOnly"`
 	RuntimeID      string    `db:"notNull"`
-	ClusterVersion int64     `db:"notNull"`
-	ConfigVersion  int64     `db:"notNull"`
+	ClusterVersion int64     `db:"notNull"` // Cluster entity primary key
+	ConfigVersion  int64     `db:"notNull"` // Cluster config entity primary key
 	Status         Status    `db:"notNull"`
 	Deleted        bool      `db:"notNull"`
 	Created        time.Time `db:"readOnly"`
@@ -67,16 +67,25 @@ func (c *ClusterStatusEntity) GetKEBClusterStatus() (keb.Status, error) {
 	case ClusterStatusReconcilePending:
 		kebStatus = keb.StatusReconcilePending
 
-	case ClusterStatusReconcileFailed:
-		kebStatus = keb.StatusReconciling
 	case ClusterStatusReconciling:
 		kebStatus = keb.StatusReconciling
 
 	case ClusterStatusReady:
 		kebStatus = keb.StatusReady
 
-	case ClusterStatusError:
+	case ClusterStatusReconcileError:
 		kebStatus = keb.StatusError
+	case ClusterStatusDeletePending:
+		kebStatus = keb.StatusDeletePending
+
+	case ClusterStatusDeleting:
+		kebStatus = keb.StatusDeleting
+
+	case ClusterStatusDeleted:
+		kebStatus = keb.StatusDeleted
+
+	case ClusterStatusDeleteError:
+		kebStatus = keb.StatusDeleteError
 
 	case ClusterStatusReconcileDisabled:
 		kebStatus = keb.StatusReconcileDisabled

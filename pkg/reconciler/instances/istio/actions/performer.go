@@ -2,16 +2,19 @@ package actions
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
-	"path/filepath"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
-	reconcilerKubeClient "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -20,11 +23,12 @@ import (
 )
 
 const (
-	istioOperatorKind     = "IstioOperator"
-	istioImagePrefix      = "istio/proxyv2"
-	retriesCount          = 5
-	delayBetweenRetries   = 10
-	sleepAfterPodDeletion = 10
+	istioOperatorKind   = "IstioOperator"
+	istioImagePrefix    = "istio/proxyv2"
+	retriesCount        = 5
+	delayBetweenRetries = 5 * time.Second
+	timeout             = 5 * time.Minute
+	interval            = 12 * time.Second
 )
 
 type VersionType string
@@ -79,7 +83,7 @@ type IstioPerformer interface {
 	Install(kubeConfig, manifest string, logger *zap.SugaredLogger) error
 
 	// PatchMutatingWebhook configuration.
-	PatchMutatingWebhook(kubeClient reconcilerKubeClient.Client, logger *zap.SugaredLogger) error
+	PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster.
 	Update(kubeConfig, manifest string, logger *zap.SugaredLogger) error
@@ -89,6 +93,9 @@ type IstioPerformer interface {
 
 	// Version of Istio on the cluster.
 	Version(workspace workspace.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
+
+	// Uninstall Istio from the cluster and its corresponding resources.
+	Uninstall(kubeClientSet kubernetes.Client, log *zap.SugaredLogger) error
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
@@ -107,6 +114,29 @@ func NewDefaultIstioPerformer(commander istioctl.Commander, istioProxyReset prox
 	}
 }
 
+func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, log *zap.SugaredLogger) error {
+	log.Info("Starting Istio uninstallation...")
+	err := c.commander.Uninstall(kubeClientSet.Kubeconfig(), log)
+	if err != nil {
+		return errors.Wrap(err, "Error occurred when calling istioctl")
+	}
+	log.Info("Istio uninstall triggered")
+	kubeClient, err := kubeClientSet.Clientset()
+	if err != nil {
+		return err
+	}
+
+	policy := metav1.DeletePropagationForeground
+	err = kubeClient.CoreV1().Namespaces().Delete(context.TODO(), "istio-system", metav1.DeleteOptions{
+		PropagationPolicy: &policy,
+	})
+	if err != nil {
+		return err
+	}
+	log.Info("Istio namespace deleted")
+	return nil
+}
+
 func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap.SugaredLogger) error {
 	istioOperator, err := extractIstioOperatorContextFrom(manifest)
 	if err != nil {
@@ -123,7 +153,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap
 	return nil
 }
 
-func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient reconcilerKubeClient.Client, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
 	patchContent := []webhookPatchJSON{{
 		Op:   "add",
 		Path: "/webhooks/4/namespaceSelector/matchExpressions/-",
@@ -174,18 +204,20 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.
 func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, version IstioVersion, logger *zap.SugaredLogger) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
+		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
 		return err
 	}
 
 	cfg := istioConfig.IstioProxyConfig{
-		ImagePrefix:           istioImagePrefix,
-		ImageVersion:          fmt.Sprintf("%s-distroless", version.TargetVersion),
-		RetriesCount:          retriesCount,
-		DelayBetweenRetries:   delayBetweenRetries,
-		SleepAfterPodDeletion: sleepAfterPodDeletion,
-		Kubeclient:            kubeClient,
-		Debug:                 false,
-		Log:                   logger,
+		ImagePrefix:         istioImagePrefix,
+		ImageVersion:        fmt.Sprintf("%s-distroless", version.TargetVersion),
+		RetriesCount:        retriesCount,
+		DelayBetweenRetries: delayBetweenRetries,
+		Timeout:             timeout,
+		Interval:            interval,
+		Kubeclient:          kubeClient,
+		Debug:               false,
+		Log:                 logger,
 	}
 
 	err = c.istioProxyReset.Run(cfg)
@@ -225,7 +257,7 @@ func getTargetVersionFromChart(workspace workspace.Factory, branch string, istio
 }
 
 func extractIstioOperatorContextFrom(manifest string) (string, error) {
-	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
+	unstructs, err := kubernetes.ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		return "", err
 	}

@@ -61,7 +61,7 @@ func showCurl(o *Options) error {
 		return err
 	}
 
-	model := reconciler.Reconciliation{
+	model := reconciler.Task{
 		ComponentsReady: nil,
 		Component:       o.Component,
 		Namespace:       o.Namespace,

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -15,7 +16,7 @@ type ActionContext struct {
 	WorkspaceFactory workspace.Factory
 	Context          context.Context
 	Logger           *zap.SugaredLogger
-	Model            *reconciler.Reconciliation
+	Task             *reconciler.Task
 	ChartProvider    chart.Provider
 }
 

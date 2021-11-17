@@ -5,16 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httputil"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"net/http"
-	"net/http/httputil"
-	"strings"
 )
 
 const callbackURLTemplate = "%s://%s:%d/v1/operations/%s/callback/%s"
@@ -34,6 +35,15 @@ func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, cfg *config.
 }
 
 func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) error {
+	if err := i.ensureOperationNotInProgress(params); err != nil {
+		return err
+	}
+
+	//mark the operation to be in progress (required to avoid that other invokers will also pick it up)
+	if err := i.updateOperationState(params, model.OperationStateInProgress); err != nil {
+		return err
+	}
+
 	resp, err := i.sendHTTPRequest(params)
 	if err != nil {
 		return err
@@ -55,7 +65,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		respModel := &reconciler.HTTPReconciliationResponse{}
 		err := i.unmarshalHTTPResponse(body, respModel, params)
 		if err == nil {
-			return i.updateOperationState(params, model.OperationStateInProgress)
+			return nil //request successfully fired
 		}
 		i.reportUnmarshalError(resp.StatusCode, body, err)
 	}
@@ -97,6 +107,19 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 	return i.updateOperationState(params, model.OperationStateClientError, errorReason)
 }
 
+func (i *RemoteReconcilerInvoker) ensureOperationNotInProgress(params *Params) error {
+	op, err := i.reconRepo.GetOperation(params.SchedulingID, params.CorrelationID)
+	if err != nil {
+		return errors.Wrap(err, "invoker failed to retrieve operation to verify its state")
+	}
+	if op.State == model.OperationStateInProgress {
+		return fmt.Errorf("invoker cannot pickup operation (schedulingID:%s/correlationID:%s/component:%s) because "+
+			"operation is already in state '%s'", op.SchedulingID, op.CorrelationID, op.Component,
+			model.OperationStateInProgress)
+	}
+	return nil
+}
+
 func (i *RemoteReconcilerInvoker) reportUnmarshalError(httpCode int, body []byte, err error) {
 	i.logger.Warnf("Remote invoker: Failed to unmarshal reconciler response (HTTP-code: %d / Body: %s): %s",
 		httpCode, string(body), err)
@@ -111,7 +134,7 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 		i.config.Port,
 		params.SchedulingID,
 		params.CorrelationID)
-	payload := params.newRemoteReconciliationModel(callbackURL)
+	payload := params.newRemoteTask(callbackURL)
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
@@ -153,6 +176,9 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 		return resp, errors.Wrap(err, fmt.Sprintf("failed to call remote reconciler (URL: %s)", compRecon.URL))
 	}
 
+	i.logger.Infof("Remote invoker triggered reconciliation of component '%s' on remote component reconciler '%s': %d",
+		component, compRecon.URL, resp.StatusCode)
+
 	return resp, nil
 }
 
@@ -164,7 +190,7 @@ func (i *RemoteReconcilerInvoker) unmarshalHTTPResponse(body []byte, respModel i
 		//update the operation to be failed caused by client error
 		errUpdState := i.updateOperationState(params, model.OperationStateClientError, err.Error())
 		if errUpdState != nil {
-			err = errors.Wrap(err, fmt.Sprintf("failed to update state of operation (scheudlingID:%s/correlationID:%s) to '%s': %s",
+			err = errors.Wrap(err, fmt.Sprintf("failed to update state of operation (schedulingID:%s/correlationID:%s) to '%s': %s",
 				params.SchedulingID, params.CorrelationID, model.OperationStateClientError, errUpdState))
 		}
 
@@ -177,7 +203,7 @@ func (i *RemoteReconcilerInvoker) updateOperationState(params *Params, state mod
 	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, strings.Join(reasons, ", "))
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("remote invoker failed to update operation "+
-			"(scheudlingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
+			"(schedulingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
 	}
 	return nil
 }

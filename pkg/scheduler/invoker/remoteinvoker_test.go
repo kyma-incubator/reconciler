@@ -3,6 +3,10 @@ package invoker
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"testing"
+	"time"
+
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/internal/cli/test"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -14,9 +18,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"testing"
-	"time"
 )
 
 func TestRemoteInvoker(t *testing.T) {
@@ -29,7 +30,7 @@ func TestRemoteInvoker(t *testing.T) {
 	//retrieve ops of reconciliation entity
 	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 	require.NoError(t, err)
-	require.Len(t, opEntities, 1)
+	require.Len(t, opEntities, 2)
 	opEntity := opEntities[0]
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -69,7 +70,7 @@ func TestRemoteInvoker(t *testing.T) {
 		require.Error(t, err)
 
 		//no change expected because comp-reconciler could not be reached
-		requireOperationState(t, reconRepo, opEntity, model.OperationStateNew)
+		requireOperationState(t, reconRepo, opEntity, model.OperationStateInProgress)
 	})
 
 	t.Run("Invoke component-reconciler: happy path", func(t *testing.T) {
@@ -154,6 +155,11 @@ func TestRemoteInvoker(t *testing.T) {
 }
 
 func invokeRemoteInvoker(reconRepo reconciliation.Repository, op *model.OperationEntity, cfg *config.Config) error {
+	//reset operation state
+	if err := reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateNew); err != nil {
+		return err
+	}
+
 	invoker := NewRemoteReoncilerInvoker(reconRepo, cfg, logger.NewLogger(true))
 	return invoker.Invoke(context.Background(), &Params{
 		ComponentToReconcile: &keb.Component{

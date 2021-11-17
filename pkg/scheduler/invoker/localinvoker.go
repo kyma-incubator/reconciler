@@ -3,11 +3,12 @@ package invoker
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
-	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	reconRegistry "github.com/kyma-incubator/reconciler/pkg/reconciler/service"
@@ -57,7 +58,7 @@ func (i *LocalReconcilerInvoker) Invoke(ctx context.Context, params *Params) err
 	i.logger.Debugf("Local invoker is calling reconciler for component '%s' (schedulingID:%s/correlationID:%s)",
 		component, params.SchedulingID, params.CorrelationID)
 
-	reconModel := params.newLocalReconciliationModel(i.newCallbackFunc(params))
+	reconModel := params.newLocalTask(i.newCallbackFunc(params))
 
 	return compRecon.StartLocal(ctx, reconModel, i.logger)
 }
@@ -99,13 +100,18 @@ func (i *LocalReconcilerInvoker) newCallbackFunc(params *Params) func(msg *recon
 }
 
 func (i *LocalReconcilerInvoker) updateOperationState(msg *reconciler.CallbackMessage, params *Params, state model.OperationState) error {
-	i.logger.Debugf("Local invoker is updating operation (scheudlingID:%s/correlationID:%s) to state '%s' "+
-		"(error: '%s')", params.SchedulingID, params.CorrelationID, state, msg.Error)
+	errMsg := "Local invoker is updating operation (schedulingID:%s/correlationID:%s) to state '%s'"
+	if msg.Error == "" {
+		i.logger.Debugf(errMsg, params.SchedulingID, params.CorrelationID, state)
+	} else {
+		i.logger.Debugf(errMsg+": %s", params.SchedulingID, params.CorrelationID, state, msg.Error)
+	}
+
 	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, msg.Error)
 	if err != nil {
 		//return only the error if it's not caused by a redundant update
 		return errors.Wrap(err, fmt.Sprintf("local invoker failed to update operation "+
-			"(scheudlingID:%s/correlationID:%s) to state '%s'",
+			"(schedulingID:%s/correlationID:%s) to state '%s'",
 			params.SchedulingID, params.CorrelationID, state))
 	}
 	return nil

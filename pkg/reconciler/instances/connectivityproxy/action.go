@@ -12,11 +12,11 @@ type CustomAction struct {
 }
 
 func (a *CustomAction) Run(context *service.ActionContext) error {
-	context.Logger.Info("Staring invocation of " + context.Model.Component + " reconciliation")
+	context.Logger.Info("Staring invocation of " + context.Task.Component + " reconciliation")
 
 	context.Logger.Info("Checking statefulset")
 	app, err := context.KubeClient.
-		GetStatefulSet(context.Context, context.Model.Component, context.Model.Namespace)
+		GetStatefulSet(context.Context, context.Task.Component, context.Task.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "Error while retrieving app")
 	}
