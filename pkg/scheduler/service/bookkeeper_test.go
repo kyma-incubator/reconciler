@@ -9,11 +9,13 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -125,9 +127,12 @@ func TestBookkeeperParallel( t *testing.T) {
 
 		//initialize logger including error counter
 		errCounter := 0
+		mux := sync.Mutex{}
 		bookkeeperLogger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.Hooks(func(e zapcore.Entry) error {
 			if strings.Contains(e.Message, "Bookkeeper failed to update status of orphan operation") {
+				mux.Lock()
 				errCounter++
+				mux.Unlock()
 			}
 			return nil
 		})))
@@ -201,11 +206,11 @@ func TestBookkeeperParallel( t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		//initialize logger including error counter
-		errCounter := 0
+		//initialize logger including error channel
+		errChannel := make(chan error, 50)
 		bookkeeperLogger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.Hooks(func(e zapcore.Entry) error {
 			if strings.Contains(e.Message, "Bookkeeper failed to update cluster") {
-				errCounter++
+				errChannel <- errors.New("Update failed")
 			}
 			return nil
 		})))
@@ -241,6 +246,6 @@ func TestBookkeeperParallel( t *testing.T) {
 		reconEntityUpdated, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
 		require.NoError(t, err)
 		require.True(t, reconEntityUpdated.Finished)
-		require.Equal(t, 49, errCounter)
+		require.Equal(t, 49, len(errChannel))
 	})
 }
