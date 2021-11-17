@@ -125,6 +125,7 @@ func TestTokenRead(t *testing.T) {
 			autoCheckout:       false,
 			repoClient:         nil,
 			inClusterClientSet: client,
+			logger:             logger.NewLogger(true),
 		}
 
 		auth, err := cloner.buildAuth()
@@ -149,6 +150,7 @@ func TestTokenRead(t *testing.T) {
 			autoCheckout:       false,
 			repoClient:         nil,
 			inClusterClientSet: client,
+			logger:             logger.NewLogger(true),
 		}
 
 		_, err := cloner.buildAuth()
@@ -167,6 +169,7 @@ func TestTokenRead(t *testing.T) {
 			autoCheckout:       false,
 			repoClient:         nil,
 			inClusterClientSet: nil,
+			logger:             logger.NewLogger(true),
 		}
 
 		_, err := cloner.buildAuth()
@@ -185,6 +188,7 @@ func TestTokenRead(t *testing.T) {
 			autoCheckout:       false,
 			repoClient:         nil,
 			inClusterClientSet: nil,
+			logger:             logger.NewLogger(true),
 		}
 
 		_, err := cloner.buildAuth()
