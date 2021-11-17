@@ -10,6 +10,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/pkg/errors"
 )
 
 type InMemoryReconciliationRepository struct {
@@ -211,6 +212,10 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	op, ok := r.operations[schedulingID][correlationID]
 	if !ok {
 		return &repository.EntityNotFoundError{}
+	}
+
+	if op.State == state {
+		return errors.Errorf("cannot update state of operation '%s' because it is already in state %s", op.Component, op.State)
 	}
 
 	// copy the operation to avoid having data races while writing
