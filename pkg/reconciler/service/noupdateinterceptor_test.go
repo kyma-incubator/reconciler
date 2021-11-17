@@ -36,7 +36,7 @@ func TestNoUpdateInterceptor(t *testing.T) {
 		logger:     logger.NewLogger(true),
 	})
 	require.NoError(t, err)
-	require.Len(t, deployedResources, 3)
+	require.Len(t, deployedResources, 4)
 
 	t.Log("Updating resources")
 	updatedResources, err := kubeClient.Deploy(context.TODO(), string(manifestData), noUpdateInterceptorNS, &NoUpdateInterceptor{

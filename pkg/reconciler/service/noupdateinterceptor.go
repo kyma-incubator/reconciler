@@ -28,6 +28,10 @@ func (i *NoUpdateInterceptor) Intercept(resource *unstructured.Unstructured, nam
 		return i.checkResourceExistence(resource, ns, func(ctx context.Context, name, namespc string) (interface{}, error) {
 			return i.kubeClient.GetPersistentVolumeClaim(ctx, name, namespc)
 		})
+	case "job":
+		return i.checkResourceExistence(resource, ns, func(ctx context.Context, name, namespc string) (interface{}, error) {
+			return i.kubeClient.GetJob(ctx, name, namespc)
+		})
 	}
 	return k8s.ContinueInterceptionResult, nil
 }
