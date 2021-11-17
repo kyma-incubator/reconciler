@@ -2,9 +2,10 @@ package server
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
-	"net/http"
 )
 
 func SendHTTPError(w http.ResponseWriter, httpCode int, resp interface{}) {

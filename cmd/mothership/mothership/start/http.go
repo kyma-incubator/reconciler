@@ -270,7 +270,11 @@ func contains(slice []string, value string) bool {
 }
 
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
-	statuses := r.URL.Query()[paramStatus]
+	var statuses, runtimeIDs []string
+	var ok bool
+	if statuses, ok = r.URL.Query()[paramStatus]; !ok {
+		statuses = []string{}
+	}
 
 	// validate statuseses
 	for _, statusStr := range statuses {
@@ -284,7 +288,9 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	runtimeIDs := r.URL.Query()[paramRuntimeIDs]
+	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; !ok {
+		runtimeIDs = []string{}
+	}
 
 	// Fetch all reconciliation entitlies base on runtime id
 	reconciles, err := o.Registry.
