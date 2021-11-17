@@ -61,7 +61,7 @@ paths:
           $ref: '#/components/responses/InternalError'
   /reconciliations/{schedulingID}/info:
     get:
-      description: "Get details of a reconciliation"
+      description: "Get details of a reconciliation with operations"
       parameters:
         - name: schedulingID
           required: true
@@ -71,7 +71,7 @@ paths:
             format: uuid
       responses:
         "200":
-          $ref: "#/components/responses/ReconcilationOperationsOKResponse"
+          $ref: "#/components/responses/ReconciliationInfoOKResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "500":
@@ -98,7 +98,7 @@ paths:
               $ref: "#/components/schemas/status"
       responses:
         "200":
-          $ref: "#/components/responses/ReconcilationsOKResponse"
+          $ref: "#/components/responses/ReconciliationInfoOKResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "500":
@@ -263,12 +263,12 @@ components:
           schema:
             $ref: "#/components/schemas/HTTPReconcilerStatus"
 
-    ReconcilationOperationsOKResponse:
+    ReconciliationInfoOKResponse:
       description: "OK"
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/HTTPReconciliationOperations"
+            $ref: "#/components/schemas/HTTPReconciliationInfo"
 
     InternalError:
       description: "Internal server error"
@@ -333,11 +333,24 @@ components:
           type: string
           format: uri
 
-    HTTPReconciliationOperations:
+    HTTPReconciliationInfo:
       type: object
+      required: [ lock, runtimeID, schedulingID, created, updated, status,operations ]
       properties:
-        cluster:
-          $ref: "#/components/schemas/cluster"
+        lock:
+          type: string
+        runtimeID:
+          type: string
+        schedulingID:
+          type: string
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/status"
         operations:
           type: array
           items:
@@ -359,7 +372,6 @@ components:
           type: string
         schedulingID:
           type: string
-          format: uuid
         created:
           type: string
           format: date-time
@@ -404,8 +416,6 @@ components:
         updated:
           type: string
           format: date-time
-        clusterMetadata:
-          $ref: "#/components/schemas/cluster"
 
     operationStop:
       type: object
