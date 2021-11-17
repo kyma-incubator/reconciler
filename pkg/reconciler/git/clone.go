@@ -119,7 +119,6 @@ func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 		Get(context.Background(), secretKey, v1.GetOptions{})
 
 	if err != nil && !apierrors.IsNotFound(err) && !apierrors.IsForbidden(err) {
-		r.logger.Info("Token not found of forbidden")
 		return nil, err
 	}
 
@@ -129,6 +128,8 @@ func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 			Password: strings.Trim(string(secret.Data["token"]), "\n"),
 		}, nil
 	}
+
+	r.logger.Info("Token not found or forbidden")
 
 	return nil, nil
 }
