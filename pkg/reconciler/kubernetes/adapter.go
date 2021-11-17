@@ -247,6 +247,12 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace stri
 	for i := len(unstructs) - 1; i >= 0; i-- {
 		unstruct := unstructs[i]
 
+		// execute the delete request only if the resource exist
+		_, err := g.kubeClient.Get(unstruct.GetKind(), unstruct.GetName(), namespace)
+		if k8serr.IsNotFound(err) {
+			continue
+		}
+
 		g.logger.Debugf("Deleting resource kind='%s', name='%s', namespace='%s'",
 			unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
 
