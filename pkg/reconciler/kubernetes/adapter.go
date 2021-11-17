@@ -428,3 +428,10 @@ func ToUnstructured(manifest []byte, async bool) ([]*unstructured.Unstructured, 
 	// expose the internal unstructured converter
 	return internal.ToUnstructured(manifest, async)
 }
+
+func ResolveNamespace(resource *unstructured.Unstructured, namespace string) string {
+	if resource.GetNamespace() != "" { //namespace defined in resource has precedence
+		return resource.GetNamespace()
+	}
+	return namespace
+}
