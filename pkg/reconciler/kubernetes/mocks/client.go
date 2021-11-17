@@ -73,6 +73,29 @@ func (_m *Client) Delete(ctx context.Context, manifest string, namespace string)
 	return r0, r1
 }
 
+// DeleteResourceByKindAndNameAndNamespace provides a mock function with given fields: kind, name, namespace
+func (_m *Client) DeleteResourceByKindAndNameAndNamespace(kind string, name string, namespace string) (*reconcilerkubernetes.Resource, error) {
+	ret := _m.Called(kind, name, namespace)
+
+	var r0 *reconcilerkubernetes.Resource
+	if rf, ok := ret.Get(0).(func(string, string, string) *reconcilerkubernetes.Resource); ok {
+		r0 = rf(kind, name, namespace)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*reconcilerkubernetes.Resource)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(kind, name, namespace)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Deploy provides a mock function with given fields: ctx, manifest, namespace, interceptors
 func (_m *Client) Deploy(ctx context.Context, manifest string, namespace string, interceptors ...reconcilerkubernetes.ResourceInterceptor) ([]*reconcilerkubernetes.Resource, error) {
 	_va := make([]interface{}, len(interceptors))

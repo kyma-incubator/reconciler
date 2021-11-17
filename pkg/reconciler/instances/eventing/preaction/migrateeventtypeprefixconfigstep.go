@@ -1,7 +1,6 @@
 package preaction
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"strings"
 	"time"
 
@@ -40,9 +39,6 @@ const (
 
 	progressTrackerInterval = 5 * time.Second
 	progressTrackerTimeout  = 2 * time.Minute
-
-	natsOperatorName  = "nats-operator"
-	natsOperatorLastVersion = "1.24.7"
 )
 
 // compile-time check
@@ -103,21 +99,6 @@ func (m *migrateEventTypePrefixConfigStep) Execute(context *service.ActionContex
 	// check the current state of the Eventing controller deployment
 	if controllerDeployment != nil && !containerHasDesiredEnvValue(controllerDeployment, controllerDeploymentContainerName, controllerDeploymentEnvName, configMapName, configMapKey) {
 		return deleteDeploymentsAndWait(context, clientset, logger, tracker, publisherDeployment, controllerDeployment)
-	}
-
-	// remove the old NATS-operator resources if the NATS-operator deployment still exists
-	natsOperatorDeployment, err := getDeployment(context, clientset, natsOperatorName)
-	if err != nil {
-		return err
-	}
-	if natsOperatorDeployment != nil {
-		// get charts from the version when the old NATS-operator yaml resource definitions still exist
-		comp := chart.NewComponentBuilder(natsOperatorLastVersion, ReconcilerName).WithNamespace(namespace).Build()
-		manifest, err := context.ChartProvider.RenderManifest(comp)
-		_, err = context.KubeClient.Delete(context.Context, manifest.Manifest, namespace)
-		if err != nil {
-			return err
-		}
 	}
 
 	// current state of the Eventing controller and publisher deployments is matching the desired state
