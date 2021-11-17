@@ -304,25 +304,9 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	results := []keb.Reconciliation{}
 
-RESULT_LOOP:
 	for _, reconcile := range reconciles {
-		// FIXME add new method in inventory to fetch multiple statuses via runtimeID and fetch it in 1 go
-		state, err := o.Registry.
-			Inventory().
-			GetLatest(reconcile.RuntimeID)
-
-		if err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusInternalServerError,
-				&keb.InternalError{
-					Error: err.Error(),
-				})
-			return
-		}
-
-		if len(statuses) != 0 && !contains(statuses, string(state.Status.Status)) {
-			continue RESULT_LOOP
+		if len(statuses) != 0 && !contains(statuses, string(reconcile.Status)) {
+			continue
 		}
 
 		results = append(results, keb.Reconciliation{
@@ -330,7 +314,7 @@ RESULT_LOOP:
 			Lock:         reconcile.Lock,
 			RuntimeID:    reconcile.RuntimeID,
 			SchedulingID: reconcile.SchedulingID,
-			Status:       keb.Status(state.Status.Status),
+			Status:       keb.Status(reconcile.Status),
 			Updated:      reconcile.Updated,
 		})
 	}
