@@ -79,7 +79,6 @@ type data struct {
 	URI             string `json:"uri"`
 	RequestBody     string `json:"requestBody"`
 	User            string `json:"user"`
-	JWTPayload      string `json:"jwtPayload"`
 	Tenant          string `json:"tenant"`
 	IP              string `json:"ip"`
 }
@@ -109,9 +108,8 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		})
 		return
 	}
-	logData.JWTPayload = jwtPayload
 
-	user, err := getJWTPayloadSub(logData.JWTPayload)
+	user, err := getJWTPayloadSub(jwtPayload)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "failed to Unmarshal JWT payload").Error(),
