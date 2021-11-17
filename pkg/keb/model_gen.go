@@ -51,10 +51,15 @@ type HTTPErrorResponse struct {
 // HTTPReconcilerStatus defines model for HTTPReconcilerStatus.
 type HTTPReconcilerStatus []Reconciliation
 
-// HTTPReconciliationOperations defines model for HTTPReconciliationOperations.
-type HTTPReconciliationOperations struct {
-	Cluster    *Cluster     `json:"cluster,omitempty"`
-	Operations *[]Operation `json:"operations,omitempty"`
+// HTTPReconciliationInfo defines model for HTTPReconciliationInfo.
+type HTTPReconciliationInfo struct {
+	Created      time.Time   `json:"created"`
+	Lock         string      `json:"lock"`
+	Operations   []Operation `json:"operations"`
+	RuntimeID    string      `json:"runtimeID"`
+	SchedulingID string      `json:"schedulingID"`
+	Status       Status      `json:"status"`
+	Updated      time.Time   `json:"updated"`
 }
 
 // Cluster defines model for cluster.
@@ -111,15 +116,14 @@ type Metadata struct {
 
 // Operation defines model for operation.
 type Operation struct {
-	ClusterMetadata *Cluster  `json:"clusterMetadata,omitempty"`
-	Component       string    `json:"component"`
-	CorrelationID   string    `json:"correlationID"`
-	Created         time.Time `json:"created"`
-	Priority        int64     `json:"priority"`
-	Reason          string    `json:"reason"`
-	SchedulingID    string    `json:"schedulingID"`
-	State           string    `json:"state"`
-	Updated         time.Time `json:"updated"`
+	Component     string    `json:"component"`
+	CorrelationID string    `json:"correlationID"`
+	Created       time.Time `json:"created"`
+	Priority      int64     `json:"priority"`
+	Reason        string    `json:"reason"`
+	SchedulingID  string    `json:"schedulingID"`
+	State         string    `json:"state"`
+	Updated       time.Time `json:"updated"`
 }
 
 // OperationStop defines model for operationStop.
@@ -169,20 +173,20 @@ type StatusUpdate struct {
 // BadRequest defines model for BadRequest.
 type BadRequest HTTPErrorResponse
 
-// ClusterNotFound defines model for ClusterNotFound.
-type ClusterNotFound HTTPErrorResponse
-
 // InternalError defines model for InternalError.
 type InternalError HTTPErrorResponse
+
+// NotFoundResponse defines model for NotFoundResponse.
+type NotFoundResponse HTTPErrorResponse
 
 // Ok defines model for Ok.
 type Ok HTTPClusterResponse
 
-// ReconcilationOperationsOKResponse defines model for ReconcilationOperationsOKResponse.
-type ReconcilationOperationsOKResponse HTTPReconciliationOperations
-
 // ReconcilationsOKResponse defines model for ReconcilationsOKResponse.
 type ReconcilationsOKResponse HTTPReconcilerStatus
+
+// ReconciliationInfoOKResponse defines model for ReconciliationInfoOKResponse.
+type ReconciliationInfoOKResponse HTTPReconciliationInfo
 
 // PostClustersJSONBody defines parameters for PostClusters.
 type PostClustersJSONBody Cluster

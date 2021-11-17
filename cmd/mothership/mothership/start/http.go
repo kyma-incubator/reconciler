@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/internal/converter"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -362,80 +363,29 @@ func getReconciliationInfo(o *Options, w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+	reconciliationEntity, err := o.Registry.ReconciliationRepository().GetReconciliation(schedulingID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+
 	// fetch all reconciliation operations for given scheduling id
 	operations, err := o.Registry.ReconciliationRepository().GetOperations(schedulingID)
 	if err != nil {
-		server.SendHTTPError(
-			w,
-			http.StatusInternalServerError,
-			&keb.InternalError{Error: err.Error()},
-		)
+		server.SendHTTPErrorMap(w, err)
 		return
 	}
-	// return 404 if no reconciliation opertations found
-	operationLen := len(operations)
-	if operationLen < 1 {
-		server.SendHTTPError(
-			w,
-			http.StatusNotFound,
-			&keb.HTTPErrorResponse{
-				Error: fmt.Sprintf("Reconciliation run with schedulingID: '%s' does not exist", schedulingID),
-			},
-		)
-		return
-	}
-	// find runtime id
-	runtimeID := operations[0].RuntimeID
-	// fetch cluster latest state
-	lastState, err := o.Registry.
-		Inventory().
-		GetLatest(runtimeID)
 
-	if err != nil || lastState == nil {
-		server.SendHTTPError(
-			w,
-			http.StatusInternalServerError,
-			&keb.InternalError{
-				Error: fmt.Sprintf(
-					"Failed to fetch the lates state for the cluster with runtimeID: '%s'",
-					schedulingID,
-				),
-			},
-		)
+	result, err := converter.ConvertReconciliationStatus(reconciliationEntity, operations)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
 		return
 	}
-	// update response with the lates state of the cluster
-	result := keb.ReconcilationOperationsOKResponse{
-		Cluster: clusterMetadata(runtimeID, lastState),
-	}
-	// prepare reconciliation operations
-	resultOperations := make([]keb.Operation, operationLen)
-	for i := 0; i < operationLen; i++ {
-		operation := operations[i]
 
-		resultOperations[i] = keb.Operation{
-			Component:     operation.Component,
-			CorrelationID: operation.CorrelationID,
-			Created:       operation.Created,
-			Priority:      operation.Priority,
-			Reason:        operation.Reason,
-			SchedulingID:  operation.CorrelationID,
-			State:         string(operation.State),
-			Updated:       operation.Updated,
-		}
-	}
-	// update response with the reconciliation operations
-	result.Operations = &resultOperations
 	//respond
 	w.Header().Set("content-type", "application/json")
-	if err := json.NewEncoder(w).Encode(keb.ReconcilationOperationsOKResponse(result)); err != nil {
-		server.SendHTTPError(
-			w,
-			http.StatusInternalServerError,
-			&keb.InternalError{
-				Error: errors.Wrap(err, "Failed to encode cluster list response").Error(),
-			})
-		return
+	if err := json.NewEncoder(w).Encode(keb.ReconciliationInfoOKResponse(result)); err != nil {
+		server.SendHTTPErrorMap(w, errors.Wrap(err, "Failed to encode cluster list response"))
 	}
 }
 

@@ -355,7 +355,7 @@ func TestMothership(t *testing.T) {
 			},
 			method:           httpGet,
 			expectedHTTPCode: 200,
-			responseModel:    &keb.HTTPReconciliationOperations{},
+			responseModel:    &keb.HTTPReconciliationInfo{},
 			verifier:         twoReconciliationOps,
 			// no need for waiting in initFn
 		},
@@ -509,8 +509,8 @@ func hasReconciliation(p func(int) bool) verifier {
 
 func hasReconciliationOpt(p func(int) bool) verifier {
 	return func(t *testing.T, response interface{}) {
-		var result keb.HTTPReconciliationOperations = *response.(*keb.HTTPReconciliationOperations)
-		actualReconciliationSize := len(*result.Operations)
+		var result keb.HTTPReconciliationInfo = *response.(*keb.HTTPReconciliationInfo)
+		actualReconciliationSize := len(result.Operations)
 
 		if !p(actualReconciliationSize) {
 			t.Errorf("unexpected reconciliation operation size: %d", actualReconciliationSize)

@@ -27,7 +27,6 @@ paths:
           in: path
           schema:
             type: string
-            format: uuid
         - name: correlationID
           required: true
           in: path
@@ -68,12 +67,13 @@ paths:
           in: path
           schema:
             type: string
-            format: uuid
       responses:
         "200":
           $ref: "#/components/responses/ReconciliationInfoOKResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -151,7 +151,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -176,7 +176,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
     get:
@@ -194,7 +194,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -219,7 +219,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -243,7 +243,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -284,9 +284,8 @@ components:
           schema:
             $ref: "#/components/schemas/HTTPErrorResponse"
 
-    # TODO rename to not found
-    ClusterNotFound:
-      description: "Given cluster not found"
+    NotFoundResponse:
+      description: "Given resource not found"
       content:
         application/json:
           schema:
