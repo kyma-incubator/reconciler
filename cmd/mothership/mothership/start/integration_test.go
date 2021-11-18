@@ -398,6 +398,9 @@ func startMothershipReconciler(ctx context.Context, t *testing.T) int {
 		o.WatchInterval = 1 * time.Second
 		o.Port = serverPort
 		o.Verbose = true
+		o.AuditLog = true
+		o.AuditLogFile = "/tmp/reconciler-auditlog"
+		o.AuditLogTenantID = "c1f7b53f-7dad-4dc6-86d8-1bc97fd35d3d"
 
 		t.Log("Starting mothership reconciler")
 		require.NoError(t, Run(ctx, o))
