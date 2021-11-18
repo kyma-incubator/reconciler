@@ -12,7 +12,6 @@ import (
 
 const (
 	removeNatsOperatorStepName = "removeNatsOperator"
-	natsOperatorDeploymentName = "nats-operator"
 	natsOperatorLastVersion    = "1.24.7"
 	natsSubChartPath           = "eventing/charts/nats"
 	eventingNats               = "eventing-nats"
@@ -36,7 +35,7 @@ func newRemoveNatsOperatorStep() *removeNatsOperatorStep {
 	}
 }
 
-func defaultKubeClientProvider(context *service.ActionContext, logger *zap.SugaredLogger)  (kubernetes.Client, error) {
+func defaultKubeClientProvider(context *service.ActionContext, logger *zap.SugaredLogger) (kubernetes.Client, error) {
 	kubeClient, err := kubernetes.NewKubernetesClient(context.Task.Kubeconfig, logger, &kubernetes.Config{
 		ProgressInterval: progressTrackerInterval,
 		ProgressTimeout:  progressTrackerTimeout,
