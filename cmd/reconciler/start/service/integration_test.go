@@ -95,7 +95,7 @@ func newComponentReconciler(t *testing.T) *service.ComponentReconciler {
 	recon, err := service.NewComponentReconciler(componentReconcilerName) //register brand new component reconciler
 	require.NoError(t, err)
 	//configure reconciler
-	return recon.Debug().WithDependencies("abc", "xyz") // #nosec
+	return recon.Debug().WithDependencies("abc", "xyz") //nolint:staticcheck // Ignore SA1019 requires refactor
 }
 
 func startReconciler(ctx context.Context, t *testing.T) {
