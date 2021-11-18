@@ -5,7 +5,7 @@ declare
   tmp record;
 begin
 	FOR tmp in (SELECT r.scheduling_id, s.status from scheduler_reconciliations as r inner join inventory_cluster_config_statuses as s on r.cluster_config_status = s.id) LOOP
-	    update scheduler_reconciliations set status=tmp.status where scheduling_id=scheduling_id;
+	    update scheduler_reconciliations set status=tmp.status where scheduling_id=tmp.scheduling_id;
 	END LOOP;
 end $$;
 

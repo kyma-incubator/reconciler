@@ -107,13 +107,13 @@ func startWebserver(ctx context.Context, o *Options) error {
 	router.HandleFunc("/health/live", live)
 	router.HandleFunc("/health/ready", ready(o))
 
-	if o.AuditLog && o.AuditLogFile != "" {
+	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
 		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
 		if err != nil {
 			return err
 		}
 		defer func() { _ = auditLogger.Sync() }() // make golint happy
-		auditLoggerMiddelware := NewAuditLoggerMiddelware(auditLogger)
+		auditLoggerMiddelware := newAuditLoggerMiddelware(auditLogger, o)
 		router.Use(auditLoggerMiddelware)
 	}
 	//start server process
