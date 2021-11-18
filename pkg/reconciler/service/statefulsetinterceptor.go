@@ -36,12 +36,14 @@ func (i *StatefulSetInterceptor) Intercept(resource *unstructured.Unstructured, 
 			return i.specFieldMissing(resource)
 		}
 		//update of StatefulSet required: update only the fields 'replicas', 'template', 'updateStrategy'
-		for key := range spec.(map[string]interface{}) {
+		specMap := spec.(map[string]interface{})
+		for key := range specMap {
 			if key == "replicas" || key == "template" || key == "updateStrategy" {
 				continue
 			}
-			delete(resource.Object, key)
+			delete(specMap, key)
 		}
+		resource.Object["spec"] = specMap
 	}
 
 	return k8s.ContinueInterceptionResult, nil
