@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"fmt"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"strings"
 )
@@ -35,13 +33,4 @@ func (i *StatefulSetInterceptor) Intercept(resource *unstructured.Unstructured, 
 	}
 
 	return k8s.ContinueInterceptionResult, nil
-}
-
-func (i *StatefulSetInterceptor) specFieldMissing(resource *unstructured.Unstructured) (k8s.InterceptionResult, error) {
-	errMsg := "given statefulSet doesn't include a 'spec' field"
-	resourceYaml, err := yaml.Marshal(resource.Object)
-	if err != nil {
-		return k8s.ErrorInterceptionResult, fmt.Errorf("%s and serialization to YAML failed: %s", errMsg, err)
-	}
-	return k8s.ErrorInterceptionResult, fmt.Errorf("%s: %s", errMsg, resourceYaml)
 }
