@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"os"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -102,8 +103,13 @@ func TestWorkerPool(t *testing.T) {
 func TestWorkerPoolParallel(t *testing.T) {
 
 	t.Run("Multiple WorkerPools watching same reconciliation repository", func(t *testing.T) {
+		//make sure persistent db is empty
+		err := os.RemoveAll("./test/")
+		require.NoError(t, err)
 
+		//initialize WaitGroup
 		var wg sync.WaitGroup
+		//prepare keb clusters
 		kebClusters := []*keb.Cluster{
 			{
 				Kubeconfig: "clusterA",

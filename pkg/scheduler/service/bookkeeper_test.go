@@ -93,7 +93,7 @@ func TestBookkeeper(t *testing.T) {
 	}
 }
 
-func TestBookkeeperParallel( t *testing.T) {
+func TestBookkeeperParallel(t *testing.T) {
 	tests := []struct {
 		name string
 		markOpsDone   bool
@@ -112,7 +112,7 @@ func TestBookkeeperParallel( t *testing.T) {
 			require.NoError(t, err)
 			//initialize WaitGroup
 			var wg sync.WaitGroup
-			
+
 			//create mock database connection
 			dbConn := db.NewTestConnection(t)
 			//prepare inventory
