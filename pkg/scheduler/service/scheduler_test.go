@@ -198,7 +198,7 @@ func TestSchedulerParallel(t *testing.T) {
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
 			go func() {
-				time.Sleep(startAt.Sub(time.Now()))
+				time.Sleep(time.Until(startAt))
 				err := scheduler.Run(ctx, &ClusterStatusTransition{
 					conn: dbConnection(t),
 					inventory: inventory,

@@ -189,10 +189,10 @@ func TestBookkeeperParallel(t *testing.T) {
 					defer wg.Done()
 					switch tc.customFunc {
 					case "markOrphanOperations":
-						time.Sleep(startAt.Sub(time.Now()))
+						time.Sleep(time.Until(startAt))
 						bk.markOrphanOperations(reconResult)
 					case "finishReconciliation":
-						time.Sleep(startAt.Sub(time.Now()))
+						time.Sleep(time.Until(startAt))
 						bk.finishReconciliation(reconResult)
 					default:
 						t.Errorf("Unknown function: %s", tc.customFunc)

@@ -204,7 +204,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				time.Sleep(startAt.Sub(time.Now()))
+				time.Sleep(time.Until(startAt))
 				err := workerPool.Run(ctx)
 				if err != nil {
 					errChannel <- err

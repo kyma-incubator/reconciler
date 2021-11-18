@@ -748,7 +748,7 @@ func TestReconciliationParallel( t *testing.T) {
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
 			go func() {
-				time.Sleep(startAt.Sub(time.Now()))
+				time.Sleep(time.Until(startAt))
 				_, err := repo.CreateReconciliation(mockClusterState, nil)
 				if err != nil {
 					errChannel <- err
@@ -773,12 +773,13 @@ func TestReconciliationParallel( t *testing.T) {
 		}()
 
 		recon, err := repo.CreateReconciliation(mockClusterState, nil)
+		require.NoError(t, err)
 		allOperations, err := repo.GetOperations(recon.SchedulingID)
 
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
 			go func() {
-				time.Sleep(startAt.Sub(time.Now()))
+				time.Sleep(time.Until(startAt))
 				err = repo.UpdateOperationState(recon.SchedulingID,allOperations[0].CorrelationID, model.OperationStateError, "")
 				if err != nil {
 					errChannel <- err
@@ -807,7 +808,7 @@ func TestReconciliationParallel( t *testing.T) {
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
 			go func() {
-				time.Sleep(startAt.Sub(time.Now()))
+				time.Sleep(time.Until(startAt))
 				err = repo.FinishReconciliation(recon.SchedulingID, mockClusterState.Status)
 				if err != nil {
 					errChannel <- err
