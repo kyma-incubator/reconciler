@@ -461,6 +461,7 @@ components:
         - delete_error
         - deleting
         - deleted
+        - reconcile_skipped
 
     failure:
       type: object

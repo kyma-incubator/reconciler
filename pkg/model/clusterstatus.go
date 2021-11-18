@@ -16,6 +16,7 @@ const (
 	ClusterStatusReconciling       Status = "reconciling"
 	ClusterStatusReconcileError    Status = "error"
 	ClusterStatusReady             Status = "ready"
+	ClusterStatusSkipped           Status = "reconcile_skipped"
 )
 
 func (s Status) IsDeletion() bool {
@@ -63,6 +64,8 @@ func NewClusterStatus(status Status) (*ClusterStatus, error) {
 		clusterStatus.ID = 7
 	case ClusterStatusDeleted:
 		clusterStatus.ID = 8
+	case ClusterStatusSkipped:
+		clusterStatus.ID = 9
 	default:
 		return clusterStatus, fmt.Errorf("ClusterStatus '%s' is unknown", status)
 	}

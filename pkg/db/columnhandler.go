@@ -99,10 +99,10 @@ func hasTag(field *structs.Field, tag string) bool {
 	return false
 }
 
-func (ch *ColumnHandler) Validate() error {
+func (ch *ColumnHandler) Validate(skippedColumns ...string) error {
 	var invalidFields []string
 	for _, col := range ch.columns {
-		if col.notNull {
+		if col.notNull && !skipColumn(col, skippedColumns) {
 			switch col.field.Kind() {
 			case reflect.String:
 				if fmt.Sprintf("%s", col.value) == "" {
@@ -169,10 +169,13 @@ func (ch *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 	return buffer.String()
 }
 
-func (ch *ColumnHandler) ColumnValues(onlyWriteable bool) ([]interface{}, error) {
+func (ch *ColumnHandler) ColumnValues(onlyWriteable bool, skippedColumns ...string) ([]interface{}, error) {
 	var result []interface{}
 	for _, col := range ch.columns {
 		if onlyWriteable && col.readOnly {
+			continue
+		}
+		if skipColumn(col, skippedColumns) {
 			continue
 		}
 		if col.encrypt {
@@ -222,12 +225,15 @@ func (ch *ColumnHandler) ColumnValuesPlaceholderCsv(onlyWriteable bool) (string,
 	return ch.columnValuesCsvRenderer(onlyWriteable, true)
 }
 
-func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder bool) (string, int, error) {
+func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder bool, skippedColumns ...string) (string, int, error) {
 	var err error
 	var buffer bytes.Buffer
 	var placeholderIdx int
 	for _, col := range ch.columns {
 		if onlyWriteable && col.readOnly {
+			continue
+		}
+		if skipColumn(col, skippedColumns) {
 			continue
 		}
 		if buffer.Len() > 0 {
@@ -245,6 +251,15 @@ func (ch *ColumnHandler) columnEntriesCsvRenderer(onlyWriteable, placeholder boo
 		}
 	}
 	return buffer.String(), placeholderIdx, err
+}
+
+func skipColumn(column *column, skippedColumns []string) bool {
+	for _, col := range skippedColumns {
+		if col == column.field.Name() {
+			return true
+		}
+	}
+	return false
 }
 
 func (ch *ColumnHandler) ColumnEntriesCsv(onlyWriteable bool) (string, int, error) {

@@ -3,6 +3,7 @@ package cluster
 import (
 	"bytes"
 	"fmt"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/pkg/errors"
@@ -187,6 +188,43 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 		return nil, err
 	}
 
+	// create new reconcile pending statuses
+	if status == model.ClusterStatusReconcilePending {
+		q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+		if err != nil {
+			return nil, err
+		}
+
+		notReconciledStatues, err := q.Select().
+			Where(map[string]interface{}{
+				"ClusterVersion": configEntity.ClusterVersion,
+			}).
+			OrderBy(map[string]string{"ConfigVersion": "asc", "Created": "asc"}).
+			GetMany()
+		if err != nil {
+			return nil, err
+		}
+		for it, clusterStatus := range notReconciledStatues {
+			if clusterStatus.(*model.ClusterStatusEntity).Status == model.ClusterStatusReconcilePending {
+				if it == len(notReconciledStatues)-1 {
+					//reconcile_pending is the last status for this ClusterVersion
+					err = createClusterStatusSkipped(clusterStatus, i.Conn, i.Logger)
+					if err != nil {
+						return nil, err
+					}
+				}
+				if clusterStatus.(*model.ClusterStatusEntity).ConfigVersion == notReconciledStatues[it+1].(*model.ClusterStatusEntity).ConfigVersion {
+					//reconcile_pending is not the last status for this ConfigVersion
+					continue
+				}
+				err = createClusterStatusSkipped(clusterStatus, i.Conn, i.Logger)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
 	//create new status
 	q, err := db.NewQuery(i.Conn, newStatusEntity, i.Logger)
 	if err != nil {
@@ -198,6 +236,24 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 	}
 
 	return newStatusEntity, nil
+}
+
+func createClusterStatusSkipped(clusterStatus db.DatabaseEntity, conn db.Connection, logger *zap.SugaredLogger) error {
+	notReconciledEntity := &model.ClusterStatusEntity{
+		RuntimeID:      clusterStatus.(*model.ClusterStatusEntity).RuntimeID,
+		ClusterVersion: clusterStatus.(*model.ClusterStatusEntity).ClusterVersion,
+		ConfigVersion:  clusterStatus.(*model.ClusterStatusEntity).ConfigVersion,
+		Status:         model.ClusterStatusSkipped,
+	}
+	q, err := db.NewQuery(conn, notReconciledEntity, logger)
+	if err != nil {
+		return err
+	}
+	err = q.Insert().Exec()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*State, error) {

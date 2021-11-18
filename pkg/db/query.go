@@ -56,13 +56,13 @@ func (q *Query) Delete() *Delete {
 	return &Delete{q, []interface{}{}, nil}
 }
 
-func (q *Query) Update() *Update {
-	colEntriesCsv, plcHdrCnt, err := q.columnHandler.columnEntriesCsvRenderer(true, true)
+func (q *Query) Update(skippedColumns ...string) *Update {
+	colEntriesCsv, plcHdrCnt, err := q.columnHandler.columnEntriesCsvRenderer(true, true, skippedColumns...)
 
 	q.buffer.WriteString(fmt.Sprintf("UPDATE %s SET %s",
 		q.entity.Table(), colEntriesCsv))
 
-	return &Update{q, []interface{}{}, plcHdrCnt, err}
+	return &Update{q, []interface{}{}, plcHdrCnt, err, skippedColumns}
 }
 
 // helper functions:
@@ -304,6 +304,7 @@ type Update struct {
 	args              []interface{}
 	placeholderOffset int
 	err               error
+	skippedColumns    []string
 }
 
 func (u *Update) Where(args map[string]interface{}) *Update {
@@ -344,11 +345,11 @@ func (u *Update) Exec() error {
 }
 
 func (u *Update) colVals() ([]interface{}, error) {
-	if err := u.columnHandler.Validate(); err != nil {
+	if err := u.columnHandler.Validate(u.skippedColumns...); err != nil {
 		return nil, err
 	}
 
-	colVals, err := u.columnHandler.ColumnValues(true)
+	colVals, err := u.columnHandler.ColumnValues(true, u.skippedColumns...)
 	if err != nil {
 		return nil, err
 	}

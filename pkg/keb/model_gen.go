@@ -25,6 +25,8 @@ const (
 
 	StatusReconcilePending Status = "reconcile_pending"
 
+	StatusReconcileSkipped Status = "reconcile_skipped"
+
 	StatusReconciling Status = "reconciling"
 )
 
