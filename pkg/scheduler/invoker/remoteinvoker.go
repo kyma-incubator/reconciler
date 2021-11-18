@@ -186,14 +186,6 @@ func (i *RemoteReconcilerInvoker) unmarshalHTTPResponse(body []byte, respModel i
 	if err := json.Unmarshal(body, respModel); err != nil {
 		i.logger.Errorf("Remote invoker failed to unmarshal HTTP response of reconciler for component '%s': %s",
 			params.ComponentToReconcile.Component, err)
-
-		//update the operation to be failed caused by client error
-		errUpdState := i.updateOperationState(params, model.OperationStateClientError, err.Error())
-		if errUpdState != nil {
-			err = errors.Wrap(err, fmt.Sprintf("failed to update state of operation (schedulingID:%s/correlationID:%s) to '%s': %s",
-				params.SchedulingID, params.CorrelationID, model.OperationStateClientError, errUpdState))
-		}
-
 		return err
 	}
 	return nil
