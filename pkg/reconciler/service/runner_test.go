@@ -238,7 +238,7 @@ func TestRunner(t *testing.T) {
 		defer cancel()
 		err = runner.Run(ctx, model, cbh)
 		require.Error(t, err)
-		require.WithinDuration(t, time.Now(), start, 1500*time.Millisecond)
+		require.WithinDuration(t, time.Now(), start, 2*time.Second)
 	})
 
 }
