@@ -93,13 +93,17 @@ func TestBookkeeper(t *testing.T) {
 }
 
 func TestBookkeeperParallel( t *testing.T) {
-	t.Run("Mark two operations as orphan in multiple parallel threads", func(t *testing.T) {
-		dbConn := db.NewTestConnection(t)
 
+	t.Run("Mark two operations as orphan in multiple parallel threads", func(t *testing.T) {
+
+		var wg sync.WaitGroup
+		//create mock database connection
+		dbConn := db.NewTestConnection(t)
 		//prepare inventory
 		inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
+		//add cluster to inventory
 		clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
 			Kubeconfig: "123",
 			KymaConfig: keb.KymaConfig{
@@ -125,14 +129,11 @@ func TestBookkeeperParallel( t *testing.T) {
 		require.NotEmpty(t, reconEntity.Lock)
 		require.False(t, reconEntity.Finished)
 
-		//initialize logger including error counter
-		errCounter := 0
-		mux := sync.Mutex{}
+		//initialize logger including error channel
+		errChannel := make(chan error, 50)
 		bookkeeperLogger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.Hooks(func(e zapcore.Entry) error {
 			if strings.Contains(e.Message, "Bookkeeper failed to update status of orphan operation") {
-				mux.Lock()
-				errCounter++
-				mux.Unlock()
+				errChannel <- errors.New("Update failed")
 			}
 			return nil
 		})))
@@ -156,23 +157,29 @@ func TestBookkeeperParallel( t *testing.T) {
 
 		//call markOrphanOperations in parallel threads
 		startAt := time.Now().Add(2 * time.Second)
-		for i := 0; i < 5; i++ {
+		for i := 0; i < 50; i++ {
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				time.Sleep(startAt.Sub(time.Now()))
 				bk.markOrphanOperations(reconResult)
 			}()
 		}
-		time.Sleep(5 *time.Second)
+		wg.Wait()
 
-		require.Equal(t, 8, errCounter)
+		//verify that markOrphanOperations was properly called
+		require.Equal(t, 48, len(errChannel))
 	})
 	t.Run("Finish two operations in multiple parallel threads", func(t *testing.T) {
-		dbConn := db.NewTestConnection(t)
 
+		var wg sync.WaitGroup
+		//create mock database connection
+		dbConn := db.NewTestConnection(t)
 		//prepare inventory
 		inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
+		//add cluster to inventory
 		clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
 			Kubeconfig: "123",
 			KymaConfig: keb.KymaConfig{
@@ -198,7 +205,7 @@ func TestBookkeeperParallel( t *testing.T) {
 		require.NotEmpty(t, reconEntity.Lock)
 		require.False(t, reconEntity.Finished)
 
-		//mark all operations to be finished
+		//mark all operations to be done
 		opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 		require.NoError(t, err)
 		for _, opEntity := range opEntities {
@@ -230,17 +237,18 @@ func TestBookkeeperParallel( t *testing.T) {
 		require.NoError(t, err)
 		reconResult, err := bk.newReconciliationResult(recons[0])
 		require.NoError(t, err)
-		reconResult.orphanTimeout = 0 *time.Microsecond
 
 		//call markOrphanOperations in parallel threads
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				time.Sleep(startAt.Sub(time.Now()))
 				bk.finishReconciliation(reconResult)
 			}()
 		}
-		time.Sleep(5 *time.Second)
+		wg.Wait()
 
 		//verify bookkeeper results
 		reconEntityUpdated, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
