@@ -13,6 +13,7 @@ func ToStatus(in string) (Status, error) {
 		StatusReady,
 		StatusReconcileDisabled,
 		StatusReconcilePending,
+		StatusReconcileSkipped,
 		StatusReconciling,
 	} {
 		if in == string(status) {
