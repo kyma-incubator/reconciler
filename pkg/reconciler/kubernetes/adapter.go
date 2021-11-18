@@ -11,8 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/instrumenta/kubeval/kubeval"
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/internal"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/pkg/errors"
