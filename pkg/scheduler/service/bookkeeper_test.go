@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -106,7 +107,12 @@ func TestBookkeeperParallel( t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			//make sure persistent db is empty
+			err := os.RemoveAll("./test/")
+			require.NoError(t, err)
+			//initialize WaitGroup
 			var wg sync.WaitGroup
+			
 			//create mock database connection
 			dbConn := db.NewTestConnection(t)
 			//prepare inventory
@@ -198,165 +204,4 @@ func TestBookkeeperParallel( t *testing.T) {
 			require.Equal(t, tc.errCount, len(errChannel))
 		})
 	}
-
-	t.Run("Mark two operations as orphan in multiple parallel threads", func(t *testing.T) {
-		var wg sync.WaitGroup
-		//create mock database connection
-		dbConn := db.NewTestConnection(t)
-		//prepare inventory
-		inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
-		require.NoError(t, err)
-
-		//add cluster to inventory
-		clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-			Kubeconfig: "123",
-			KymaConfig: keb.KymaConfig{
-				Components: []keb.Component{
-					{
-						Component:     "dummy",
-						Configuration: nil,
-						Namespace:     "kyma-system",
-					},
-				},
-				Profile: "",
-				Version: "1.2.3",
-			},
-			RuntimeID: uuid.NewString(),
-		})
-		require.NoError(t, err)
-
-		//trigger reconciliation for cluster
-		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
-		require.NoError(t, err)
-		reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
-		require.NoError(t, err)
-		require.NotEmpty(t, reconEntity.Lock)
-		require.False(t, reconEntity.Finished)
-
-		//initialize logger including error channel
-		errChannel := make(chan error, 100)
-		bookkeeperLogger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.Hooks(func(e zapcore.Entry) error {
-			if strings.Contains(e.Message, "Bookkeeper failed to update status of orphan operation") {
-				errChannel <- errors.New("Update failed")
-			}
-			return nil
-		})))
-
-		//initialize bookkeeper
-		bk := newBookkeeper(
-			newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true)),
-			&BookkeeperConfig{
-				OperationsWatchInterval: 100 * time.Millisecond,
-				OrphanOperationTimeout:  5 * time.Second,
-			},
-			bookkeeperLogger.Sugar(),
-		)
-
-		//setup reconciliation result
-		recons, err := reconRepo.GetReconciliations(nil)
-		require.NoError(t, err)
-		reconResult, err := bk.newReconciliationResult(recons[0])
-		require.NoError(t, err)
-		reconResult.orphanTimeout = 0 *time.Microsecond
-
-		//call markOrphanOperations in parallel threads
-		startAt := time.Now().Add(2 * time.Second)
-		for i := 0; i < 50; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				time.Sleep(startAt.Sub(time.Now()))
-				bk.markOrphanOperations(reconResult)
-			}()
-		}
-		time.Sleep(5 *time.Second)
-
-		require.Equal(t, 98, len(errChannel))
-	})
-	t.Run("Finish two operations in multiple parallel threads", func(t *testing.T) {
-
-		var wg sync.WaitGroup
-		//create mock database connection
-		dbConn := db.NewTestConnection(t)
-		//prepare inventory
-		inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
-		require.NoError(t, err)
-
-		//add cluster to inventory
-		clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-			Kubeconfig: "123",
-			KymaConfig: keb.KymaConfig{
-				Components: []keb.Component{
-					{
-						Component:     "dummy",
-						Configuration: nil,
-						Namespace:     "kyma-system",
-					},
-				},
-				Profile: "",
-				Version: "1.2.3",
-			},
-			RuntimeID: uuid.NewString(),
-		})
-		require.NoError(t, err)
-
-		//trigger reconciliation for cluster
-		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
-		require.NoError(t, err)
-		reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
-		require.NoError(t, err)
-		require.NotEmpty(t, reconEntity.Lock)
-		require.False(t, reconEntity.Finished)
-
-		//mark all operations to be done
-		opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
-		require.NoError(t, err)
-		for _, opEntity := range opEntities {
-			err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone)
-			require.NoError(t, err)
-		}
-
-		//initialize logger including error channel
-		errChannel := make(chan error, 100)
-		bookkeeperLogger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.Hooks(func(e zapcore.Entry) error {
-			if strings.Contains(e.Message, "Bookkeeper failed to update cluster") {
-				errChannel <- errors.New("Update failed")
-			}
-			return nil
-		})))
-
-		//initialize bookkeeper
-		bk := newBookkeeper(
-			newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true)),
-			&BookkeeperConfig{
-				OperationsWatchInterval: 100 * time.Millisecond,
-				OrphanOperationTimeout:  2 * time.Second,
-			},
-			bookkeeperLogger.Sugar(),
-		)
-
-		//setup reconciliation result
-		recons, err := reconRepo.GetReconciliations(nil)
-		require.NoError(t, err)
-		reconResult, err := bk.newReconciliationResult(recons[0])
-		require.NoError(t, err)
-
-		//call markOrphanOperations in parallel threads
-		startAt := time.Now().Add(1 * time.Second)
-		for i := 0; i < 50; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				time.Sleep(startAt.Sub(time.Now()))
-				bk.finishReconciliation(reconResult)
-			}()
-		}
-		wg.Wait()
-
-		//verify bookkeeper results
-		reconEntityUpdated, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
-		require.NoError(t, err)
-		require.True(t, reconEntityUpdated.Finished)
-		require.Equal(t, 49, len(errChannel))
-	})
 }
