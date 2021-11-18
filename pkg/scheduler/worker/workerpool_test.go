@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
 	"sync"
 	"testing"
@@ -28,11 +27,9 @@ type testInvoker struct {
 
 func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
 	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, ""); err != nil {
-		fmt.Printf("Error Update Operation State: %#v\n", err)
 		i.errChannel <- errors.New("Update failed")
 		return err
 	}
-	fmt.Println("Update success")
 	i.mux.Lock()
 	i.params = append(i.params, params)
 	i.mux.Unlock()
@@ -104,128 +101,118 @@ func TestWorkerPool(t *testing.T) {
 
 func TestWorkerPoolParallel(t *testing.T) {
 
-	var wg sync.WaitGroup
-	kebClusters := []*keb.Cluster{
-		{
-			Kubeconfig: "clusterA",
-			KymaConfig: keb.KymaConfig{
-				Administrators: nil,
-				Components: []keb.Component{
-					{
-						Component: "TestComp1",
+	t.Run("Multiple WorkerPools watching same reconciliation repository", func(t *testing.T) {
+
+		var wg sync.WaitGroup
+		kebClusters := []*keb.Cluster{
+			{
+				Kubeconfig: "clusterA",
+				KymaConfig: keb.KymaConfig{
+					Administrators: nil,
+					Components: []keb.Component{
+						{
+							Component: "TestComp1",
+						},
 					},
+					Profile: "",
+					Version: "1.2.3",
 				},
-				Profile: "",
-				Version: "1.2.3",
+				Metadata:     keb.Metadata{},
+				RuntimeID:    "testClusterA",
+				RuntimeInput: keb.RuntimeInput{},
 			},
-			Metadata:     keb.Metadata{},
-			RuntimeID:    "testClusterA",
-			RuntimeInput: keb.RuntimeInput{},
-		},
-		{
-			Kubeconfig: "clusterB",
-			KymaConfig: keb.KymaConfig{
-				Administrators: nil,
-				Components: []keb.Component{
-					{
-						Component: "TestComp1",
+			{
+				Kubeconfig: "clusterB",
+				KymaConfig: keb.KymaConfig{
+					Administrators: nil,
+					Components: []keb.Component{
+						{
+							Component: "TestComp1",
+						},
 					},
+					Profile: "",
+					Version: "1.2.3",
 				},
-				Profile: "",
-				Version: "1.2.3",
+				Metadata:     keb.Metadata{},
+				RuntimeID:    "testClusterB",
+				RuntimeInput: keb.RuntimeInput{},
 			},
-			Metadata:     keb.Metadata{},
-			RuntimeID:    "testClusterB",
-			RuntimeInput: keb.RuntimeInput{},
-		},
-		{
-			Kubeconfig: "clusterC",
-			KymaConfig: keb.KymaConfig{
-				Administrators: nil,
-				Components: []keb.Component{
-					{
-						Component: "TestComp3",
+			{
+				Kubeconfig: "clusterC",
+				KymaConfig: keb.KymaConfig{
+					Administrators: nil,
+					Components: []keb.Component{
+						{
+							Component: "TestComp3",
+						},
 					},
+					Profile: "",
+					Version: "1.2.3",
 				},
-				Profile: "",
-				Version: "1.2.3",
+				Metadata:     keb.Metadata{},
+				RuntimeID:    "testClusterC",
+				RuntimeInput: keb.RuntimeInput{},
 			},
-			Metadata:     keb.Metadata{},
-			RuntimeID:    "testClusterC",
-			RuntimeInput: keb.RuntimeInput{},
-		},
-	}
-
-	//create mock database connection
-	testDB := db.NewTestConnection(t)
-
-	//create cluster inventory
-	inventory, err := cluster.NewInventory(testDB, true, &cluster.MetricsCollectorMock{})
-	require.NoError(t, err)
-
-	//add clusters to inventory
-	var clusterStates [3]*cluster.State
-	for i := range kebClusters {
-		clusterStates[i], err = inventory.CreateOrUpdate(1, kebClusters[i])
-	}
-	require.NoError(t, err)
-
-	//cleanup created cluster
-	defer func() {
-		for i := range clusterStates{
-			require.NoError(t, inventory.Delete(clusterStates[i].Cluster.RuntimeID))
 		}
-	}()
 
-	//create test invoker to be able to verify invoker calls and update operation state
-	testInvoker := &testInvoker{errChannel: make(chan error, 100)}
+		//create mock database connection
+		testDB := db.NewTestConnection(t)
 
-	//create reconciliation for cluster
-	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
-	require.NoError(t, err)
-	for i := range clusterStates {
-		_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], nil)
-	}
-	require.NoError(t, err)
-	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
-	require.Len(t, opsProcessable, 3) // only first prio
-	require.NoError(t, err)
+		//create cluster inventory
+		inventory, err := cluster.NewInventory(testDB, true, &cluster.MetricsCollectorMock{})
+		require.NoError(t, err)
 
-	//initialize worker pools
-	workerPools := [3]*Pool{}
-	workerPools[0], err = NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
-	workerPools[1], err = NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
-	workerPools[2], err = NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
-	require.NoError(t, err)
+		//add clusters to inventory
+		var clusterStates [3]*cluster.State
+		for i := range kebClusters {
+			clusterStates[i], err = inventory.CreateOrUpdate(1, kebClusters[i])
+		}
+		require.NoError(t, err)
 
-	//create time limited context
-	ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelFct()
+		//create test invoker to be able to verify invoker calls and update operation state
+		testInvoker := &testInvoker{errChannel: make(chan error, 100)}
 
-	//start worker pools
-	errChannel := make(chan error)
-	startAt := time.Now().Add(1 * time.Second)
-	for i := 0; i < 3; i++ {
-		i := i
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			time.Sleep(startAt.Sub(time.Now()))
-			err := workerPools[i].Run(ctx)
-			if err != nil {
-				errChannel <- err
-			}
-		}()
-	}
+		//create reconciliation for cluster
+		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
+		require.NoError(t, err)
+		for i := range clusterStates {
+			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], nil)
+		}
+		require.NoError(t, err)
+		opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
+		require.Len(t, opsProcessable, 3) // only first prio
+		require.NoError(t, err)
 
-	wg.Wait()
+		//initialize worker pool
+		workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
+		require.NoError(t, err)
 
-	fmt.Printf("testInvoker: %#v\n", testInvoker.params)
-	require.Equal(t, 12, len(testInvoker.errChannel))
-	//verify that invoker was properly called
-	require.Len(t, testInvoker.params, 3) // Irgendwie sind hier 150 invoker gestartet anstatt drei,....prüfen warum
-	//require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
-	require.Equal(t, model.CRDComponent, testInvoker.params[0].ComponentToReconcile.Component) //CRDs is always the first component
-	//require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
-	//	require.Equal(t, opsProcessable[0].CorrelationID, testInvoker.params[0].CorrelationID)
+		//create time limited context
+		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelFct()
+
+		//start multiple worker pools
+		errChannel := make(chan error)
+		startAt := time.Now().Add(1 * time.Second)
+		for i := 0; i < 3; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				time.Sleep(startAt.Sub(time.Now()))
+				err := workerPool.Run(ctx)
+				if err != nil {
+					errChannel <- err
+				}
+			}()
+		}
+		wg.Wait()
+
+		//verify that invoker was properly called
+		require.Equal(t, 12, len(testInvoker.errChannel))
+		require.Len(t, testInvoker.params, 3)
+		for i :=0; i < 3; i++ {
+			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
+			require.Equal(t, model.CRDComponent, testInvoker.params[i].ComponentToReconcile.Component)
+		}
+	})
 }
