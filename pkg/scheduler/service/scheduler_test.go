@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 var (
 	dbConn db.Connection
 	mu     sync.Mutex
@@ -40,7 +39,7 @@ func TestScheduler(t *testing.T) {
 
 		start := time.Now()
 
-		clusterState := testClusterState("testCluster",1)
+		clusterState := testClusterState("testCluster", 1)
 
 		err := scheduler.Run(ctx, &ClusterStatusTransition{
 			conn: db.NewTestConnection(t),
@@ -51,7 +50,7 @@ func TestScheduler(t *testing.T) {
 				},
 				//simulate an updated cluster status (required when transition updates the cluster status)
 				UpdateStatusResult: func() *cluster.State {
-					updatedState := testClusterState("testCluster",1 )
+					updatedState := testClusterState("testCluster", 1)
 					updatedState.Status.Status = model.ClusterStatusReconciling
 					return updatedState
 				}(),
@@ -172,7 +171,6 @@ func createClusterStates(t *testing.T, inventory cluster.Inventory) {
 	require.NoError(t, err)
 }
 
-
 func dbConnection(t *testing.T) db.Connection {
 	mu.Lock()
 	defer mu.Unlock()
@@ -200,7 +198,7 @@ func TestSchedulerParallel(t *testing.T) {
 			go func() {
 				time.Sleep(time.Until(startAt))
 				err := scheduler.Run(ctx, &ClusterStatusTransition{
-					conn: dbConnection(t),
+					conn:      dbConnection(t),
 					inventory: inventory,
 					reconRepo: reconRepo,
 					logger:    logger.NewLogger(true),
@@ -212,7 +210,7 @@ func TestSchedulerParallel(t *testing.T) {
 				require.NoError(t, err)
 			}()
 		}
-		time.Sleep(5 *time.Second)
+		time.Sleep(5 * time.Second)
 
 		recons, err := reconRepo.GetReconciliations(nil)
 		require.NoError(t, err)

@@ -730,7 +730,7 @@ func dbConnection(t *testing.T) db.Connection {
 	return dbConn
 }
 
-func TestReconciliationParallel( t *testing.T) {
+func TestReconciliationParallel(t *testing.T) {
 
 	t.Run("Create multiple instances of single reconciliations in parallel", func(t *testing.T) {
 		repo := newPersistentRepository(t)
@@ -755,7 +755,7 @@ func TestReconciliationParallel( t *testing.T) {
 				}
 			}()
 		}
-		time.Sleep(5 *time.Second)
+		time.Sleep(5 * time.Second)
 		require.Equal(t, 49, len(errChannel))
 	})
 
@@ -780,13 +780,13 @@ func TestReconciliationParallel( t *testing.T) {
 		for i := 0; i < 50; i++ {
 			go func() {
 				time.Sleep(time.Until(startAt))
-				err = repo.UpdateOperationState(recon.SchedulingID,allOperations[0].CorrelationID, model.OperationStateError, "")
+				err = repo.UpdateOperationState(recon.SchedulingID, allOperations[0].CorrelationID, model.OperationStateError, "")
 				if err != nil {
 					errChannel <- err
 				}
 			}()
 		}
-		time.Sleep(5 *time.Second)
+		time.Sleep(5 * time.Second)
 		require.Equal(t, 49, len(errChannel))
 	})
 
@@ -815,8 +815,7 @@ func TestReconciliationParallel( t *testing.T) {
 				}
 			}()
 		}
-		time.Sleep(5 *time.Second)
+		time.Sleep(5 * time.Second)
 		require.Equal(t, 49, len(errChannel))
 	})
 }
-

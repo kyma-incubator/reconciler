@@ -95,11 +95,11 @@ func TestBookkeeper(t *testing.T) {
 
 func TestBookkeeperParallel(t *testing.T) {
 	tests := []struct {
-		name string
-		markOpsDone   bool
+		name        string
+		markOpsDone bool
 		customFunc  string
-		errMessage string
-		errCount int
+		errMessage  string
+		errCount    int
 	}{
 		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: "markOrphanOperations", errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 98},
 		{name: "Finish two operations in multiple parallel threads", markOpsDone: true, customFunc: "finishReconciliation", errMessage: "Bookkeeper failed to update cluster", errCount: 49},
@@ -179,7 +179,7 @@ func TestBookkeeperParallel(t *testing.T) {
 			require.NoError(t, err)
 			reconResult, err := bk.newReconciliationResult(recons[0])
 			require.NoError(t, err)
-			reconResult.orphanTimeout = 0 *time.Microsecond
+			reconResult.orphanTimeout = 0 * time.Microsecond
 
 			//call markOrphanOperations in parallel threads
 			startAt := time.Now().Add(2 * time.Second)
@@ -199,7 +199,7 @@ func TestBookkeeperParallel(t *testing.T) {
 					}
 				}()
 			}
-			time.Sleep(5 *time.Second)
+			time.Sleep(5 * time.Second)
 
 			require.Equal(t, tc.errCount, len(errChannel))
 		})

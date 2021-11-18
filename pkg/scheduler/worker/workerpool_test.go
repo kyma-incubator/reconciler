@@ -3,10 +3,10 @@ package worker
 import (
 	"context"
 	"github.com/pkg/errors"
+	"os"
 	"sync"
 	"testing"
 	"time"
-	"os"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -20,9 +20,9 @@ import (
 )
 
 type testInvoker struct {
-	params []*invoker.Params
-	reconRepo reconciliation.Repository
-	mux sync.Mutex
+	params     []*invoker.Params
+	reconRepo  reconciliation.Repository
+	mux        sync.Mutex
 	errChannel chan error
 }
 
@@ -216,7 +216,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//verify that invoker was properly called
 		require.Equal(t, 12, len(testInvoker.errChannel))
 		require.Len(t, testInvoker.params, 3)
-		for i :=0; i < 3; i++ {
+		for i := 0; i < 3; i++ {
 			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
 			require.Equal(t, model.CRDComponent, testInvoker.params[i].ComponentToReconcile.Component)
 		}
