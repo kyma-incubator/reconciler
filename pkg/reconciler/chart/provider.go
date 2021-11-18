@@ -5,11 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/kyma-incubator/reconciler/internal/components"
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"go.uber.org/zap"
 )
@@ -77,7 +74,7 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 				return err
 			}
 
-			unstructs, err := k8s.ToUnstructured(crdData, true)
+			unstructs, err := reconcilerK8s.ToUnstructured(crdData, true)
 			if err != nil {
 				return err
 			}

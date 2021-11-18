@@ -6,17 +6,18 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
-	"github.com/mholt/archiver/v3"
-
 	"os"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/mholt/archiver/v3"
 
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
+
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -297,7 +298,7 @@ func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, 
 	f.logger.Infof("Cloning GIT repository '%s' with revision '%s' into workspace '%s'",
 		f.kymaRepository.URL, version, dstDir)
 
-	clientSet, err := kubeclient.NewInClusterClientSet(f.logger)
+	clientSet, err := reconcilerK8s.NewInClusterClientSet(f.logger)
 	if err != nil {
 		return err
 	}

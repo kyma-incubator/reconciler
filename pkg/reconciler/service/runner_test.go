@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"

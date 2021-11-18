@@ -16,7 +16,6 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/chart/loader"
