@@ -14,24 +14,25 @@ import (
 
 const (
 	noUpdateInterceptorNS = "unittest-noupdateinterceptor"
+	noUpdateManifestFile  = "noupdateinterceptor.yaml"
 )
 
 func TestNoUpdateInterceptor(t *testing.T) {
 	test.IntegrationTest(t)
 
 	kubeClient := newKubeClient(t)
-	manifestData := readManifest(t)
+	manifest := readManifest(t, noUpdateManifestFile)
 
 	deleteFct := func() {
 		t.Log("Cleanup test resources")
-		_, err := kubeClient.Delete(context.TODO(), string(manifestData), noUpdateInterceptorNS)
+		_, err := kubeClient.Delete(context.TODO(), manifest, noUpdateInterceptorNS)
 		require.NoError(t, err)
 	}
 	deleteFct()       //Delete before test runs
 	defer deleteFct() //Delete after test is finished
 
 	t.Log("Deploying resources")
-	deployedResources, err := kubeClient.Deploy(context.TODO(), string(manifestData), noUpdateInterceptorNS, &NoUpdateInterceptor{
+	deployedResources, err := kubeClient.Deploy(context.TODO(), manifest, noUpdateInterceptorNS, &NoUpdateInterceptor{
 		kubeClient: kubeClient,
 		logger:     logger.NewLogger(true),
 	})
@@ -39,7 +40,7 @@ func TestNoUpdateInterceptor(t *testing.T) {
 	require.Len(t, deployedResources, 3)
 
 	t.Log("Updating resources")
-	updatedResources, err := kubeClient.Deploy(context.TODO(), string(manifestData), noUpdateInterceptorNS, &NoUpdateInterceptor{
+	updatedResources, err := kubeClient.Deploy(context.TODO(), manifest, noUpdateInterceptorNS, &NoUpdateInterceptor{
 		kubeClient: kubeClient,
 		logger:     logger.NewLogger(true),
 	})
@@ -47,10 +48,10 @@ func TestNoUpdateInterceptor(t *testing.T) {
 	require.Len(t, updatedResources, 1)
 }
 
-func readManifest(t *testing.T) []byte {
-	manifestData, err := ioutil.ReadFile(filepath.Join("test", "noupdateinterceptor.yaml"))
+func readManifest(t *testing.T, file string) string {
+	manifest, err := ioutil.ReadFile(filepath.Join("test", file))
 	require.NoError(t, err)
-	return manifestData
+	return string(manifest)
 }
 
 func newKubeClient(t *testing.T) kubernetes.Client {
