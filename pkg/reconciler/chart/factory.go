@@ -230,18 +230,13 @@ func (f *DefaultFactory) downloadComponent(component *Component, dstDir string) 
 func (f *DefaultFactory) downloadArchive(URL, dstDir string) (string, error) {
 	f.logger.Infof("Downloading archive '%s' into workspace '%s'", URL, dstDir)
 
-	resp, err := http.Get(URL)
+	resp, err := http.Get(URL) // #nosec
 	if err != nil {
 		return "", err
 	}
 	if resp.StatusCode == 404 {
 		return "", fmt.Errorf("not found: %q", URL)
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			f.logger.Warnf("Failed to close HTTP response body stream of downloaded archive (url '%s'): %s", URL, err)
-		}
-	}()
 
 	b := make([]byte, 255)
 	if _, err := resp.Body.Read(b); err != nil {

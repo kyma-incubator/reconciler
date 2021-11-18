@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 
 	"github.com/gorilla/mux"
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
@@ -94,7 +95,7 @@ func newComponentReconciler(t *testing.T) *service.ComponentReconciler {
 	recon, err := service.NewComponentReconciler(componentReconcilerName) //register brand new component reconciler
 	require.NoError(t, err)
 	//configure reconciler
-	return recon.Debug().WithDependencies("abc", "xyz")
+	return recon.Debug().WithDependencies("abc", "xyz") // #nosec
 }
 
 func startReconciler(ctx context.Context, t *testing.T) {
