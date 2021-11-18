@@ -33,7 +33,7 @@ func TestStatefulSetInterceptor(t *testing.T) {
 		logger:     logger.NewLogger(true),
 	})
 	require.NoError(t, err)
-	require.Len(t, deployedResources, 2)
+	require.Len(t, deployedResources, 3)
 
 	t.Log("Updating statefulSet")
 	updatedResources, err := kubeClient.Deploy(context.TODO(), manifest, statefulsetInterceptorNS, &StatefulSetInterceptor{

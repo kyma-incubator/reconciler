@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	batchv1 "k8s.io/api/batch/v1"
 	"time"
 
 	"strings"
@@ -394,6 +395,27 @@ func (g *kubeClientAdapter) GetPersistentVolumeClaim(ctx context.Context, name, 
 	return pvc, err
 }
 
+func (g *kubeClientAdapter) GetJob(ctx context.Context, name, namespace string) (*batchv1.Job, error) {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+
+	clientset, err := g.Clientset()
+	if err != nil {
+		return nil, errors.Wrap(err, "error retrieving pvc")
+	}
+
+	job, err := clientset.BatchV1().
+		Jobs(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+
+	if err != nil && k8serr.IsNotFound(err) {
+		return nil, nil
+	}
+
+	return job, err
+}
+
 func toResource(m *internal.Metadata) *Resource {
 	return &Resource{
 		Name:      m.Name,
@@ -405,4 +427,11 @@ func toResource(m *internal.Metadata) *Resource {
 func ToUnstructured(manifest []byte, async bool) ([]*unstructured.Unstructured, error) {
 	// expose the internal unstructured converter
 	return internal.ToUnstructured(manifest, async)
+}
+
+func ResolveNamespace(resource *unstructured.Unstructured, namespace string) string {
+	if resource.GetNamespace() != "" { //namespace defined in resource has precedence
+		return resource.GetNamespace()
+	}
+	return namespace
 }

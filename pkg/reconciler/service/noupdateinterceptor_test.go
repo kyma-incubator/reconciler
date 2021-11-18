@@ -13,15 +13,15 @@ import (
 )
 
 const (
-	noUpdateInterceptorNS = "unittest-noupdateinterceptor"
-	noUpdateManifestFile  = "noupdateinterceptor.yaml"
+	noUpdateInterceptorNS           = "unittest-noupdateinterceptor"
+	noUpdateInterceptorManifestFile = "noupdateinterceptor.yaml"
 )
 
 func TestNoUpdateInterceptor(t *testing.T) {
 	test.IntegrationTest(t)
 
 	kubeClient := newKubeClient(t)
-	manifest := readManifest(t, noUpdateManifestFile)
+	manifest := readManifest(t, noUpdateInterceptorManifestFile)
 
 	deleteFct := func() {
 		t.Log("Cleanup test resources")
@@ -37,7 +37,7 @@ func TestNoUpdateInterceptor(t *testing.T) {
 		logger:     logger.NewLogger(true),
 	})
 	require.NoError(t, err)
-	require.Len(t, deployedResources, 3)
+	require.Len(t, deployedResources, 4)
 
 	t.Log("Updating resources")
 	updatedResources, err := kubeClient.Deploy(context.TODO(), manifest, noUpdateInterceptorNS, &NoUpdateInterceptor{

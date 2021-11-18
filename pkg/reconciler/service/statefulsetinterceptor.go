@@ -30,20 +30,8 @@ func (i *StatefulSetInterceptor) Intercept(resource *unstructured.Unstructured, 
 		return k8s.ErrorInterceptionResult, err
 	}
 
-	if sfs != nil {
-		spec, ok := resource.Object["spec"]
-		if !ok {
-			return i.specFieldMissing(resource)
-		}
-		//update of StatefulSet required: update only the fields 'replicas', 'template', 'updateStrategy'
-		specMap := spec.(map[string]interface{})
-		for key := range specMap {
-			if key == "replicas" || key == "template" || key == "updateStrategy" {
-				continue
-			}
-			delete(specMap, key)
-		}
-		resource.Object["spec"] = specMap
+	if sfs != nil && len(sfs.Spec.VolumeClaimTemplates) > 0 { //do not replace STS which have a PVC inside
+		return k8s.IgnoreResourceInterceptionResult, nil
 	}
 
 	return k8s.ContinueInterceptionResult, nil
