@@ -35,7 +35,7 @@ func newWorkspace(workspaceDir string, validators ...func(*Workspace) error) (*W
 
 var validateDir = func(w *Workspace) error {
 	if !file.DirExists(w.WorkspaceDir) {
-		return fmt.Errorf("workspace directroy '%s' does not exit", w.WorkspaceDir)
+		return fmt.Errorf("workspace directory '%s' does not exit", w.WorkspaceDir)
 	}
 	return nil
 }
