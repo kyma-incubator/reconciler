@@ -1,5 +1,5 @@
 # Build image
-FROM golang:1.17.0-alpine3.13 AS build
+FROM golang:1.17.3-alpine3.14 AS build
 
 ENV SRC_DIR=/go/src/github.com/kyma-incubator/reconciler
 ADD . $SRC_DIR
@@ -12,13 +12,6 @@ WORKDIR $SRC_DIR
 
 COPY configs /configs
 RUN CGO_ENABLED=0 go build -o /bin/mothership -ldflags '-s -w' ./cmd/mothership/main.go
-
-RUN apk update && apk upgrade && \
-    apk --no-cache add curl
-RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.0-beta.1/migrate.linux-386.tar.gz -o migrate.tar.gz &&\
-    tar xvzf migrate.tar.gz migrate -C /bin/ &&\
-    ls -la /bin &&\
-    chmod +x /bin/migrate
 
 # Get latest CA certs
 FROM alpine:latest as certs
@@ -36,7 +29,6 @@ COPY --from=build /user/group /user/passwd /etc/
 
 # Add reconciler
 COPY --from=build /bin/mothership /bin/mothership
-COPY --from=build /bin/migrate /bin/migrate
 COPY --from=build /configs/ /configs/
 
 USER appuser:appuser

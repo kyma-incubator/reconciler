@@ -10,12 +10,11 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
-	reconcilerKubeClient "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -84,7 +83,7 @@ type IstioPerformer interface {
 	Install(kubeConfig, manifest string, logger *zap.SugaredLogger) error
 
 	// PatchMutatingWebhook configuration.
-	PatchMutatingWebhook(kubeClient reconcilerKubeClient.Client, logger *zap.SugaredLogger) error
+	PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster.
 	Update(kubeConfig, manifest string, logger *zap.SugaredLogger) error
@@ -96,7 +95,7 @@ type IstioPerformer interface {
 	Version(workspace workspace.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
 
 	// Uninstall Istio from the cluster and its corresponding resources.
-	Uninstall(kubeClientSet reconcilerKubeClient.Client, log *zap.SugaredLogger) error
+	Uninstall(kubeClientSet kubernetes.Client, log *zap.SugaredLogger) error
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
@@ -115,7 +114,7 @@ func NewDefaultIstioPerformer(commander istioctl.Commander, istioProxyReset prox
 	}
 }
 
-func (c *DefaultIstioPerformer) Uninstall(kubeClientSet reconcilerKubeClient.Client, log *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, log *zap.SugaredLogger) error {
 	log.Info("Starting Istio uninstallation...")
 	err := c.commander.Uninstall(kubeClientSet.Kubeconfig(), log)
 	if err != nil {
@@ -154,7 +153,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, manifest string, logger *zap
 	return nil
 }
 
-func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient reconcilerKubeClient.Client, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
 	patchContent := []webhookPatchJSON{{
 		Op:   "add",
 		Path: "/webhooks/4/namespaceSelector/matchExpressions/-",
@@ -205,6 +204,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, manifest string, logger *zap.
 func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, version IstioVersion, logger *zap.SugaredLogger) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
+		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
 		return err
 	}
 
@@ -257,7 +257,7 @@ func getTargetVersionFromChart(workspace workspace.Factory, branch string, istio
 }
 
 func extractIstioOperatorContextFrom(manifest string) (string, error) {
-	unstructs, err := kubeclient.ToUnstructured([]byte(manifest), true)
+	unstructs, err := kubernetes.ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		return "", err
 	}

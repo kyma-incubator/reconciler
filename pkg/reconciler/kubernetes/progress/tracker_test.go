@@ -2,16 +2,17 @@ package progress
 
 import (
 	"context"
-	e "github.com/kyma-incubator/reconciler/pkg/error"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
-	"go.uber.org/zap"
 	"io/ioutil"
+	"strings"
+
+	e "github.com/kyma-incubator/reconciler/pkg/error"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/internal"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"strings"
 
 	"path/filepath"
 	"testing"
@@ -28,7 +29,7 @@ func TestProgressTracker(t *testing.T) {
 
 	logger := log.NewLogger(true)
 
-	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
 	require.NoError(t, err)
 
 	clientSet, err := kubeClient.GetClientSet()
@@ -122,7 +123,7 @@ func TestProgressTracker(t *testing.T) {
 func TestDaemonSetRollingUpdate(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -175,7 +176,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 func TestStatefulSetRollingUpdate(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -228,7 +229,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 func TestDeploymentRollingUpdate(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := kubeclient.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)

@@ -10,7 +10,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -277,7 +277,7 @@ func cleanup(t *testing.T) {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 
-	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
+	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	dirname, err := os.UserHomeDir()

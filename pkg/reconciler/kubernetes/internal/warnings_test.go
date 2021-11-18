@@ -1,12 +1,13 @@
-package kubeclient
+package internal
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
-	"net/http"
-	"testing"
 )
 
 func TestLoggingWarningHandler(t *testing.T) {
