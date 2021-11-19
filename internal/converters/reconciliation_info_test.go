@@ -44,33 +44,33 @@ func TestConvertReconciliationStatus(t *testing.T) {
 			opEntInput: []*model.OperationEntity{},
 		},
 		"not empty operation array": {
-			opEntInput: []*model.OperationEntity{
-				opEntInput, opEntInput},
+			opEntInput: []*model.OperationEntity{opEntInput, opEntInput},
 		},
 	}
 
 	for name, testCase := range testCases {
+		tc := testCase
 		t.Run(name, func(t *testing.T) {
 			//WHEN
-			output, err := converters.ConvertReconciliation(reconEntInput, testCase.opEntInput)
+			output, err := converters.ConvertReconciliation(reconEntInput, tc.opEntInput)
 
 			//THEN
 			require.NoError(t, err)
-			assertReconciliation(t, reconEntInput, &output)
+			assertReconciliation(t, reconEntInput, output)
 
 			outLen := len(output.Operations)
-			inLen := len(testCase.opEntInput)
+			inLen := len(tc.opEntInput)
 			require.Equal(t, inLen, outLen)
 
 			for i, outOp := range output.Operations {
-				assertOperation(t, testCase.opEntInput[i], &outOp)
+				assertOperation(t, tc.opEntInput[i], outOp)
 			}
 		})
 	}
 
 }
 
-func assertReconciliation(t *testing.T, input *model.ReconciliationEntity, output *keb.ReconciliationInfoOKResponse) {
+func assertReconciliation(t *testing.T, input *model.ReconciliationEntity, output keb.ReconciliationInfoOKResponse) {
 	assert.Equal(t, input.RuntimeID, output.RuntimeID)
 	assert.Equal(t, input.ClusterConfig, output.ConfigVersion)
 	assert.Equal(t, input.Finished, output.Finished)
@@ -79,7 +79,7 @@ func assertReconciliation(t *testing.T, input *model.ReconciliationEntity, outpu
 	assert.Equal(t, input.Updated, output.Updated)
 }
 
-func assertOperation(t *testing.T, input *model.OperationEntity, output *keb.Operation) {
+func assertOperation(t *testing.T, input *model.OperationEntity, output keb.Operation) {
 	assert.Equal(t, input.Component, output.Component)
 	assert.Equal(t, input.CorrelationID, output.CorrelationID)
 	assert.Equal(t, input.Created, output.Created)
