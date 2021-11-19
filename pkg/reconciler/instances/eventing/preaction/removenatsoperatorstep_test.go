@@ -19,12 +19,12 @@ import (
 
 const (
 	manifestString = "testManifest"
-	kyma1xVersion  = "1.24.8"
-	kyma2xVersion  = "2.0"
+	//kyma1xVersion  = "1.24.8"
+	//kyma2xVersion  = "2.0"
 )
 
 func TestDeletingNatsOperatorResources(t *testing.T) {
-	action, actionContext, mockProvider, k8sClient, mockedComponentBuilder := testSetup(kyma1xVersion)
+	action, actionContext, mockProvider, k8sClient, mockedComponentBuilder := testSetup()
 
 	// execute the step
 	err := action.Execute(actionContext, actionContext.Logger)
@@ -51,7 +51,7 @@ func TestDeletingNatsOperatorResources(t *testing.T) {
 //	k8sClient.AssertNotCalled(t, "DeleteResource", mock.Anything, mock.Anything, mock.Anything)
 //}
 
-func testSetup(kymaVersion string) (removeNatsOperatorStep, *service.ActionContext, *pmock.Provider, *mocks.Client, *chart.Component) {
+func testSetup() (removeNatsOperatorStep, *service.ActionContext, *pmock.Provider, *mocks.Client, *chart.Component) {
 	ctx := context.TODO()
 	k8sClient := mocks.Client{}
 	log := logger.NewLogger(false)
