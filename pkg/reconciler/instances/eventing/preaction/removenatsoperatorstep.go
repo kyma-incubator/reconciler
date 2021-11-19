@@ -7,6 +7,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"strconv"
 	"strings"
 )
 
@@ -49,7 +50,10 @@ func defaultKubeClientProvider(context *service.ActionContext, logger *zap.Sugar
 
 func (r *removeNatsOperatorStep) Execute(context *service.ActionContext, logger *zap.SugaredLogger) error {
 	// no kyma 2.x+ clusters contain nats-operator resources
-	clusterVersion := 2
+	clusterVersion, err := strconv.ParseInt(context.Task.Version[0:1], 10, 32) // todo introduce the right check
+	if err != nil {
+		return err
+	}
 	if clusterVersion > 1 {
 		logger.With(log.KeyReason, "NATS-operator resources do not exist on clusters with kyma 2.x+ version").Info("Step skipped")
 		return nil
@@ -95,7 +99,7 @@ func (r *removeNatsOperatorStep) removeNatsOperatorResources(context *service.Ac
 func (r *removeNatsOperatorStep) removeNatsOperatorCRDs(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
 	logger.Info("Removing nats-operator CRDs")
 	for _, crdName := range natsOperatorCRDsToDelete {
-		_, err := kubeClient.DeleteResourceByKindAndNameAndNamespace(crdPlural, crdName, namespace)
+		_, err := kubeClient.DeleteResource(crdPlural, crdName, namespace)
 		if err != nil && !errors.IsNotFound(err) {
 			logger.Errorf("Failed to delete the nats-operator CRDs, name='%s', namespace='%s': %s", crdName, namespace, err)
 			return err

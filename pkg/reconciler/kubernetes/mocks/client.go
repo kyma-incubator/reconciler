@@ -74,7 +74,7 @@ func (_m *Client) Delete(ctx context.Context, manifest string, namespace string)
 }
 
 // DeleteResourceByKindAndNameAndNamespace provides a mock function with given fields: kind, name, namespace
-func (_m *Client) DeleteResourceByKindAndNameAndNamespace(kind string, name string, namespace string) (*reconcilerkubernetes.Resource, error) {
+func (_m *Client) DeleteResource(kind string, name string, namespace string) (*reconcilerkubernetes.Resource, error) {
 	ret := _m.Called(kind, name, namespace)
 
 	var r0 *reconcilerkubernetes.Resource

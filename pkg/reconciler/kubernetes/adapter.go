@@ -213,9 +213,8 @@ func (g *kubeClientAdapter) newNamespaceUnstruct(namespace string) (*unstructure
 	return nsUnstructs[0], nil
 }
 
-func (g *kubeClientAdapter) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string) (*Resource, error) {
-	metadata, err := g.kubeClient.DeleteResourceByKindAndNameAndNamespace(
-		kind, name, namespace, metav1.DeleteOptions{})
+func (g *kubeClientAdapter) DeleteResource(kind, name, namespace string) (*Resource, error) {
+	metadata, err := g.kubeClient.DeleteResourceByKindAndNameAndNamespace(kind, name, namespace, metav1.DeleteOptions{})
 	deletedResource := toResource(metadata)
 	if err != nil && !k8serr.IsNotFound(err) {
 		g.logger.Errorf("Failed to delete Kubernetes unstructured resource kind='%s', name='%s', namespace='%s': %s",

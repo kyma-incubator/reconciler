@@ -37,7 +37,7 @@ type ResourceInterceptor interface {
 //go:generate mockery --name Client
 type Client interface {
 	Kubeconfig() string
-	DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string) (*Resource, error)
+	DeleteResource(kind, name, namespace string) (*Resource, error)
 	Deploy(ctx context.Context, manifest, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error)
 	Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error)
 	PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) error

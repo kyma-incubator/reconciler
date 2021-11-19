@@ -34,8 +34,8 @@ func TestDeletingNatsOperatorResources(t *testing.T) {
 	// ensure the right calls were invoked
 	mockProvider.AssertCalled(t, "RenderManifest", mockedComponentBuilder)
 	k8sClient.AssertCalled(t, "Delete", actionContext.Context, manifestString, namespace)
-	k8sClient.AssertCalled(t, "DeleteResourceByKindAndNameAndNamespace", crdPlural, natsOperatorCRDsToDelete[0], namespace)
-	k8sClient.AssertCalled(t, "DeleteResourceByKindAndNameAndNamespace", crdPlural, natsOperatorCRDsToDelete[1], namespace)
+	k8sClient.AssertCalled(t, "DeleteResource", crdPlural, natsOperatorCRDsToDelete[0], namespace)
+	k8sClient.AssertCalled(t, "DeleteResource", crdPlural, natsOperatorCRDsToDelete[1], namespace)
 }
 
 func TestSkippingNatsOperatorDeletionFox2x(t *testing.T) {
@@ -47,8 +47,8 @@ func TestSkippingNatsOperatorDeletionFox2x(t *testing.T) {
 
 	mockProvider.AssertNotCalled(t, "RenderManifest", mock.Anything)
 	k8sClient.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything, mock.Anything)
-	k8sClient.AssertNotCalled(t, "DeleteResourceByKindAndNameAndNamespace", mock.Anything, mock.Anything, mock.Anything)
-	k8sClient.AssertNotCalled(t, "DeleteResourceByKindAndNameAndNamespace", mock.Anything, mock.Anything, mock.Anything)
+	k8sClient.AssertNotCalled(t, "DeleteResource", mock.Anything, mock.Anything, mock.Anything)
+	k8sClient.AssertNotCalled(t, "DeleteResource", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func testSetup(kymaVersion string) (removeNatsOperatorStep, *service.ActionContext, *pmock.Provider, *mocks.Client, *chart.Component) {
@@ -72,13 +72,13 @@ func testSetup(kymaVersion string) (removeNatsOperatorStep, *service.ActionConte
 	k8sClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
 	k8sClient.On("Delete", ctx, manifestString, namespace).Return([]*kubernetes.Resource{}, nil)
 	k8sClient.On(
-		"DeleteResourceByKindAndNameAndNamespace",
+		"DeleteResource",
 		crdPlural,
 		natsOperatorCRDsToDelete[0],
 		namespace,
 	).Return(nil, nil)
 	k8sClient.On(
-		"DeleteResourceByKindAndNameAndNamespace",
+		"DeleteResource",
 		crdPlural,
 		natsOperatorCRDsToDelete[1],
 		namespace,
@@ -87,8 +87,8 @@ func testSetup(kymaVersion string) (removeNatsOperatorStep, *service.ActionConte
 	actionContext := &service.ActionContext{
 		Context:       ctx,
 		Logger:        log,
-		Task:          &reconciler.Task{},
 		ChartProvider: &mockProvider,
+		Task: &reconciler.Task{Version: kymaVersion},
 	}
 	return action, actionContext, &mockProvider, &k8sClient, mockedComponentBuilder
 }
