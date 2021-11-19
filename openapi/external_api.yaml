@@ -334,12 +334,15 @@ components:
 
     HTTPReconciliationInfo:
       type: object
-      required: [ runtimeID, schedulingID, created, updated, status,operations, finished ]
+      required: [ runtimeID, schedulingID, configVersion, created, updated, status,operations, finished ]
       properties:
         runtimeID:
           type: string
         schedulingID:
           type: string
+        configVersion:
+          type: integer
+          format: int64
         created:
           type: string
           format: date-time

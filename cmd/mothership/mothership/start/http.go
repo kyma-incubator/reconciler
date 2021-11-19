@@ -371,7 +371,7 @@ func getReconciliationInfo(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := converters.ConvertReconciliationStatus(reconciliationEntity, operations)
+	result, err := converters.ConvertReconciliation(reconciliationEntity, operations)
 	if err != nil {
 		server.SendHTTPErrorMap(w, err)
 		return

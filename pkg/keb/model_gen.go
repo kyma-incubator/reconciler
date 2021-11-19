@@ -53,13 +53,14 @@ type HTTPReconcilerStatus []Reconciliation
 
 // HTTPReconciliationInfo defines model for HTTPReconciliationInfo.
 type HTTPReconciliationInfo struct {
-	Created      time.Time   `json:"created"`
-	Finished     bool        `json:"finished"`
-	Operations   []Operation `json:"operations"`
-	RuntimeID    string      `json:"runtimeID"`
-	SchedulingID string      `json:"schedulingID"`
-	Status       Status      `json:"status"`
-	Updated      time.Time   `json:"updated"`
+	ConfigVersion int64       `json:"configVersion"`
+	Created       time.Time   `json:"created"`
+	Finished      bool        `json:"finished"`
+	Operations    []Operation `json:"operations"`
+	RuntimeID     string      `json:"runtimeID"`
+	SchedulingID  string      `json:"schedulingID"`
+	Status        Status      `json:"status"`
+	Updated       time.Time   `json:"updated"`
 }
 
 // Cluster defines model for cluster.
