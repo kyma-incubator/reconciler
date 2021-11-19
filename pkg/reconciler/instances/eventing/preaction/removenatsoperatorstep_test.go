@@ -4,7 +4,6 @@ import (
 	"context"
 	pmock "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes/fake"
 	"testing"
@@ -38,18 +37,19 @@ func TestDeletingNatsOperatorResources(t *testing.T) {
 	k8sClient.AssertCalled(t, "DeleteResource", crdPlural, natsOperatorCRDsToDelete[1], namespace)
 }
 
-func TestSkippingNatsOperatorDeletionFox2x(t *testing.T) {
-	action, actionContext, mockProvider, k8sClient, _ := testSetup(kyma2xVersion)
-
-	// execute the step
-	err := action.Execute(actionContext, actionContext.Logger)
-	require.NoError(t, err)
-
-	mockProvider.AssertNotCalled(t, "RenderManifest", mock.Anything)
-	k8sClient.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything, mock.Anything)
-	k8sClient.AssertNotCalled(t, "DeleteResource", mock.Anything, mock.Anything, mock.Anything)
-	k8sClient.AssertNotCalled(t, "DeleteResource", mock.Anything, mock.Anything, mock.Anything)
-}
+// todo execute this test, when the check for kyma2x version is available, see the the todo comment from removenatsoperatorstep:Execute()
+//func TestSkippingNatsOperatorDeletionFox2x(t *testing.T) {
+//	action, actionContext, mockProvider, k8sClient, _ := testSetup(kyma2xVersion)
+//
+//	// execute the step
+//	err := action.Execute(actionContext, actionContext.Logger)
+//	require.NoError(t, err)
+//
+//	mockProvider.AssertNotCalled(t, "RenderManifest", mock.Anything)
+//	k8sClient.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything, mock.Anything)
+//	k8sClient.AssertNotCalled(t, "DeleteResource", mock.Anything, mock.Anything, mock.Anything)
+//	k8sClient.AssertNotCalled(t, "DeleteResource", mock.Anything, mock.Anything, mock.Anything)
+//}
 
 func testSetup(kymaVersion string) (removeNatsOperatorStep, *service.ActionContext, *pmock.Provider, *mocks.Client, *chart.Component) {
 	ctx := context.TODO()
@@ -88,7 +88,7 @@ func testSetup(kymaVersion string) (removeNatsOperatorStep, *service.ActionConte
 		Context:       ctx,
 		Logger:        log,
 		ChartProvider: &mockProvider,
-		Task:          &reconciler.Task{Version: kymaVersion},
+		Task:          &reconciler.Task{},
 	}
 	return action, actionContext, &mockProvider, &k8sClient, mockedComponentBuilder
 }
