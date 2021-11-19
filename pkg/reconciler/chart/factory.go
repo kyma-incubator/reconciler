@@ -94,6 +94,9 @@ func (f *DefaultFactory) defaultStorageDir() string {
 }
 
 func (f *DefaultFactory) Get(version string) (*KymaWorkspace, error) {
+	f.mutexGet.Lock()
+	defer f.mutexGet.Unlock()
+
 	if err := f.validate(); err != nil {
 		return nil, err
 	}
@@ -104,37 +107,25 @@ func (f *DefaultFactory) Get(version string) (*KymaWorkspace, error) {
 	}
 
 	wsDir := f.workspaceDir(version)
-	if err := f.cloneKyma(version, wsDir); err != nil {
+
+	wsReadyFile := filepath.Join(wsDir, wsReadyIndicatorFile)
+	if file.Exists(wsReadyFile) {
+		f.logger.Debugf("Workspace '%s' already exists", wsDir)
+		return newKymaWorkspace(wsDir)
+	}
+
+	if file.DirExists(wsDir) {
+		f.logger.Warnf("Deleting workspace '%s' because previous download does not contain all the required files", wsDir)
+		if err := os.RemoveAll(wsDir); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := f.clone(version, wsDir, wsDir, f.kymaRepository); err != nil {
 		return nil, err
 	}
 
 	return newKymaWorkspace(wsDir)
-}
-
-func (f *DefaultFactory) cloneKyma(version, dstDir string) error {
-	f.mutexGet.Lock()
-	defer f.mutexGet.Unlock()
-
-	wsReadyFile := f.readyFile(dstDir)
-	if file.Exists(wsReadyFile) {
-		f.logger.Debugf("Workspace '%s' already exists", dstDir)
-		//race condition protection: it could happen that a previous go-routing was also triggering the clone of the Kyma version
-		return nil
-	}
-	if file.DirExists(dstDir) {
-		//if workspace exists but there is no success file, it is probably corrupted, so delete it
-		f.logger.Warnf("Deleting workspace '%s' because GIT clone does not contain all the required files", dstDir)
-		if err := os.RemoveAll(dstDir); err != nil {
-			return err
-		}
-	}
-
-	if err := f.clone(version, dstDir, dstDir, f.kymaRepository); err != nil {
-		return err
-	}
-
-	//clone ready for use
-	return nil
 }
 
 func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace, error) {
@@ -291,7 +282,7 @@ func (f *DefaultFactory) readyFile(dstDir string) string {
 
 func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, repo *reconciler.Repository) error {
 	f.logger.Infof("Cloning GIT repository '%s' with revision '%s' into workspace '%s'",
-		f.kymaRepository.URL, version, dstDir)
+		repo.URL, version, dstDir)
 
 	clientSet, err := reconcilerK8s.NewInClusterClientSet(f.logger)
 	if err != nil {

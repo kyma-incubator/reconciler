@@ -161,7 +161,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		wg := sync.WaitGroup{}
 		startAt := time.Now().Add(2 * time.Second)
-		max := 5000
+		max := 10
 
 		for i := 1; i <= max; i++ {
 			index := i
@@ -171,22 +171,22 @@ func TestWorkspaceFactory(t *testing.T) {
 				time.Sleep(time.Until(waitUntil))
 
 				if index%2 == 0 {
-					err := doGetExternalComponent(factory, fis[0], "race-condition-external", server.URL)
+					err := doGetExternalComponent(factory, fis[0], "main", server.URL)
 					if err != nil {
-						t.Log("race-condition:", err)
+						t.Log("getComponent:", err)
 						return
 					}
 				}
 
-				_, err = factory.Get("main")
+				_, err := factory.Get("main")
 				if err != nil {
-					t.Log("race-condition:", err)
+					t.Log("get:", err)
 				}
 			}(startAt)
 		}
 		wg.Wait()
 
-		defer clearWorkspaces(t, factory, []string{"race-condition-external", "race-condition-kyma"}, storagedir)
+		defer clearWorkspaces(t, factory, []string{"race-condition-external", "race-condition-kyma", "main"}, storagedir)
 	})
 }
 
