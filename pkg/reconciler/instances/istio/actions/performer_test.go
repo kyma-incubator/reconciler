@@ -2,6 +2,8 @@ package actions
 
 import (
 	"encoding/json"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -13,8 +15,6 @@ import (
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace/mocks"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -383,7 +383,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
 		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(""), nil)
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
@@ -402,7 +402,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
 		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{}, nil)
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(""), nil)
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
@@ -421,7 +421,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
 		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(istioctlMockSimpleVersion), nil)
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
@@ -441,7 +441,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
 		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 		cmder.On("Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return([]byte(istioctlMockCompleteVersion), nil)
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
@@ -465,7 +465,7 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 		// given
 		istioChart := "istio-test"
 		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{}, nil)
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{}, nil)
 
 		// when
 		_, err := getTargetVersionFromChart(factory, branch, istioChart)
@@ -479,7 +479,7 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 		// given
 		istioChart := "istio-config"
 		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
 		_, err := getTargetVersionFromChart(factory, branch, istioChart)
@@ -493,7 +493,7 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 		// given
 		istioChart := "istio-test"
 		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{ResourceDir: "../test_files"}, nil)
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
 		targetVersion, err := getTargetVersionFromChart(factory, branch, istioChart)

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"path/filepath"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -92,7 +92,7 @@ type IstioPerformer interface {
 	ResetProxy(kubeConfig string, version IstioVersion, logger *zap.SugaredLogger) error
 
 	// Version of Istio on the cluster.
-	Version(workspace workspace.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
+	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error)
 
 	// Uninstall Istio from the cluster and its corresponding resources.
 	Uninstall(kubeClientSet kubernetes.Client, log *zap.SugaredLogger) error
@@ -228,7 +228,7 @@ func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, version IstioVersi
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Version(workspace workspace.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error) {
+func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioVersion, error) {
 	versionOutput, err := c.commander.Version(kubeConfig, logger)
 	if err != nil {
 		return IstioVersion{}, err
@@ -244,16 +244,16 @@ func (c *DefaultIstioPerformer) Version(workspace workspace.Factory, branchVersi
 	return mappedIstioVersion, err
 }
 
-func getTargetVersionFromChart(workspace workspace.Factory, branch string, istioChart string) (string, error) {
+func getTargetVersionFromChart(workspace chart.Factory, branch string, istioChart string) (string, error) {
 	ws, err := workspace.Get(branch)
 	if err != nil {
 		return "", err
 	}
-	chart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	helmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
 	if err != nil {
 		return "", err
 	}
-	return chart.Metadata.AppVersion, nil
+	return helmChart.Metadata.AppVersion, nil
 }
 
 func extractIstioOperatorContextFrom(manifest string) (string, error) {
