@@ -289,7 +289,7 @@ func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, 
 		return err
 	}
 
-	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet)
+	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet, f.logger)
 
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
