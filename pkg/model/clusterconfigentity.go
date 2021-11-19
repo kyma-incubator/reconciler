@@ -23,7 +23,7 @@ type ClusterConfigurationEntity struct {
 	ClusterVersion int64            `db:"notNull"` // Cluster entity primary key
 	KymaVersion    string           `db:"notNull"`
 	KymaProfile    string           `db:""`
-	Components     []*keb.Component `db:"notNull,encrypt"`
+	Components     []*keb.Component `db:"notNull,encrypted"`
 	Administrators []string
 	Contract       int64     `db:"notNull"`
 	Deleted        bool      `db:"notNull"`
