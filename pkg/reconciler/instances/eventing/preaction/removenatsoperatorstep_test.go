@@ -20,8 +20,8 @@ import (
 
 const (
 	manifestString = "testManifest"
-	kyma1xVersion = "1.24.8"
-	kyma2xVersion = "2.0"
+	kyma1xVersion  = "1.24.8"
+	kyma2xVersion  = "2.0"
 )
 
 func TestDeletingNatsOperatorResources(t *testing.T) {
@@ -88,7 +88,7 @@ func testSetup(kymaVersion string) (removeNatsOperatorStep, *service.ActionConte
 		Context:       ctx,
 		Logger:        log,
 		ChartProvider: &mockProvider,
-		Task: &reconciler.Task{Version: kymaVersion},
+		Task:          &reconciler.Task{Version: kymaVersion},
 	}
 	return action, actionContext, &mockProvider, &k8sClient, mockedComponentBuilder
 }
