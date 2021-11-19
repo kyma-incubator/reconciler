@@ -212,6 +212,7 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 					if err != nil {
 						return nil, err
 					}
+					continue
 				}
 				if clusterStatus.(*model.ClusterStatusEntity).ConfigVersion == notReconciledStatues[it+1].(*model.ClusterStatusEntity).ConfigVersion {
 					//reconcile_pending is not the last status for this ConfigVersion
