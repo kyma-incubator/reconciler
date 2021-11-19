@@ -93,7 +93,11 @@ function migrate() {
   fi
 
   echo "Wait for Postgresql to be ready"
-  $pg_isready_cmd --host "localhost" --port "${POSTGRES_PORT}" --dbname "${POSTGRES_DB}" --username "${POSTGRES_USER}"
+  $pg_isready_cmd --host "localhost" --port "${POSTGRES_PORT}" --dbname "${POSTGRES_DB}" --username "${POSTGRES_USER}" --timeout 30
+  if [ $? -ne 0 ]; then
+    echo "database is not ready, run again migrate"
+    exit 1
+  fi
 
   echo -n "Migrating database: "
   $migrateCmd -database "$postgresDSN" -path "$MIGRATE_PATH" up
