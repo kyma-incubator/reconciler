@@ -146,3 +146,10 @@ func concatStateReasons(state model.OperationState, reasons []string) (string, e
 	}
 	return strings.Join(reasons, ", "), nil
 }
+
+func operationAlreadyInState(op *model.OperationEntity, state model.OperationState) error {
+	if op.State == state {
+		return fmt.Errorf("cannot update state of operation '%s' because it is already in state %s", op.Component, op.State)
+	}
+	return nil
+}

@@ -49,14 +49,11 @@ func (sc *sqliteConnection) Encryptor() *Encryptor {
 }
 
 func (sc *sqliteConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
-	sc.Lock()
-	defer sc.Unlock()
 	sc.logger.Debugf("Sqlite3 QueryRow(): %s | %v", query, args)
 	if err := sc.validator.Validate(query); err != nil {
 		return nil, err
 	}
-	qRow := sc.db.QueryRow(query, args...)
-	return qRow, nil
+	return sc.db.QueryRow(query, args...), nil
 }
 
 func (sc *sqliteConnection) Query(query string, args ...interface{}) (DataRows, error) {

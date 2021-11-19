@@ -356,9 +356,10 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			return err
 		}
 
-		if op.State == state {
-			return errors.Errorf("cannot update state of operation '%s' because it is already in state %s", op.Component, op.State)
+		if err := operationAlreadyInState(op, state); err != nil {
+			return err
 		}
+
 		if op.State.IsFinal() {
 			return fmt.Errorf("cannot update state of operation '%s' to new state '%s' "+
 				"because operation is already in final state '%s'", op.Component, state, op.State)
