@@ -23,6 +23,7 @@ type Options struct {
 	MaxParallelOperations    int
 	AuditLog                 bool
 	AuditLogFile             string
+	AuditLogTenantID         string
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -36,8 +37,9 @@ func NewOptions(o *cli.Options) *Options {
 		0 * time.Second, //ClusterReconcileInterval
 		false,           //CreateEncyptionKey
 		0,               //MaxParallelOperations
-		false,           // AuditLog
+		false,           //AuditLog
 		"",              //AuditLogFIle
+		"",              //AuditLogTenant
 	}
 }
 
@@ -60,8 +62,14 @@ func (o *Options) Validate() error {
 	if o.MaxParallelOperations < 0 {
 		return errors.New("maximal parallel reconciled components per cluster cannot be < 0")
 	}
-	if o.AuditLog && o.AuditLogFile == "" {
-		return errors.New("audit log file must be set if audit logging is enable")
+	if o.AuditLog {
+		if o.AuditLogFile == "" {
+			return errors.New("audit log file must be set if audit logging is enable")
+		}
+		if o.AuditLogTenantID == "" {
+			return errors.New("audit log tenant-id must be set if audit logging is enable")
+
+		}
 	}
 	return ssl.VerifyKeyPair(o.SSLCrt, o.SSLKey)
 }

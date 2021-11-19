@@ -9,7 +9,6 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	actionsmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace/mocks"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -63,7 +61,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should not perform any istio action when provider returned an error ", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Provider error"))
 		kubeClient := newFakeKubeClient()
@@ -88,7 +86,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should not perform any istio action when commander version returned an error ", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
 		kubeClient := newFakeKubeClient()
@@ -114,7 +112,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should not perform istio install action when istio was not detected on the cluster and istio install returned an error", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
 		kubeClient := newFakeKubeClient()
@@ -148,7 +146,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should not perform istio install action when istio was not detected on the cluster and istio patch returned an error", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
 		kubeClient := newFakeKubeClient()
@@ -181,7 +179,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should perform istio install action when istio was not detected on the cluster", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
 		kubeClient := newFakeKubeClient()
@@ -214,8 +212,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should not perform istio update action when istio was detected on the cluster and client version is lower than target version", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+		factory := chartmocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{
 			ResourceDir: "./test_files/resources/",
 		}, nil)
 		provider := chartmocks.Provider{}
@@ -250,8 +248,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should not perform istio update action when istio was detected on the cluster and downgrade is detected", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+		factory := chartmocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{
 			ResourceDir: "./test_files/resources/",
 		}, nil)
 		provider := chartmocks.Provider{}
@@ -286,8 +284,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should not perform istio update action when istio was detected on the cluster and more than one minor upgrade was detected", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+		factory := chartmocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{
 			ResourceDir: "./test_files/resources/",
 		}, nil)
 		provider := chartmocks.Provider{}
@@ -322,8 +320,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should return error when istio was updated but proxies were not reset", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+		factory := chartmocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{
 			ResourceDir: "./test_files/resources/",
 		}, nil)
 		provider := chartmocks.Provider{}
@@ -361,8 +359,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 
 	t.Run("should not return error when istio was reconciled to the same version and proxies reset was successful", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&workspace.Workspace{
+		factory := chartmocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{
 			ResourceDir: "./test_files/resources/",
 		}, nil)
 		provider := chartmocks.Provider{}
@@ -398,7 +396,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 	})
 }
 
-func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
+func newFakeServiceContext(factory chart.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
 	logger := log.NewLogger(true)
 	model := reconciler.Task{
 		Component: "component",
@@ -441,7 +439,7 @@ func Test_UninstallAction(t *testing.T) {
 
 	t.Run("should perform istio uninstall action when istio is available", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		kubeClient := newFakeKubeClient()
 		kubeClient.On("Delete", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -467,7 +465,7 @@ func Test_UninstallAction(t *testing.T) {
 
 	t.Run("should not perform istio uninstall action when istio was not detected on the cluster", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
@@ -488,7 +486,7 @@ func Test_UninstallAction(t *testing.T) {
 
 	t.Run("should not perform istio uninstall action when there is an error detecting istio version", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)

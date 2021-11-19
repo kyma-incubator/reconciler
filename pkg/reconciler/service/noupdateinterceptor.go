@@ -15,10 +15,8 @@ type NoUpdateInterceptor struct {
 }
 
 func (i *NoUpdateInterceptor) Intercept(resource *unstructured.Unstructured, namespace string) (k8s.InterceptionResult, error) {
-	ns := namespace
-	if resource.GetNamespace() != "" { //namespace defined in manifest has precedence
-		ns = resource.GetNamespace()
-	}
+	ns := k8s.ResolveNamespace(resource, namespace)
+
 	switch strings.ToLower(resource.GetKind()) {
 	case "pod":
 		return i.checkResourceExistence(resource, ns, func(ctx context.Context, name, namespc string) (interface{}, error) {
@@ -28,7 +26,12 @@ func (i *NoUpdateInterceptor) Intercept(resource *unstructured.Unstructured, nam
 		return i.checkResourceExistence(resource, ns, func(ctx context.Context, name, namespc string) (interface{}, error) {
 			return i.kubeClient.GetPersistentVolumeClaim(ctx, name, namespc)
 		})
+	case "job":
+		return i.checkResourceExistence(resource, ns, func(ctx context.Context, name, namespc string) (interface{}, error) {
+			return i.kubeClient.GetJob(ctx, name, namespc)
+		})
 	}
+
 	return k8s.ContinueInterceptionResult, nil
 }
 

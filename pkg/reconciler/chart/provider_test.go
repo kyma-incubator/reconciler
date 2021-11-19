@@ -1,16 +1,15 @@
 package chart
 
 import (
-	"github.com/kyma-incubator/reconciler/internal/components"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/kyma-incubator/reconciler/internal/components"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -18,7 +17,7 @@ import (
 const (
 	kymaVersion        = "main"
 	kymaNamespace      = "kyma-system"
-	workspaceInHomeDir = "reconciliation-test"
+	workspaceInHomeDir = "reconciliation-test" //TODO: use workspace in $HOME/.kyma per default - fix in WS-factory!
 )
 
 func TestProvider(t *testing.T) {
@@ -28,19 +27,22 @@ func TestProvider(t *testing.T) {
 
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-	wsFactory, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), log)
+	wsFactory, err := NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), log)
 	require.NoError(t, err)
-
-	t.Parallel()
 
 	prov, err := NewDefaultProvider(wsFactory, log)
 	require.NoError(t, err)
 
+	t.Parallel()
+
 	t.Run("Render manifest", func(t *testing.T) {
+		// kyma components
 		ws, err := wsFactory.Get(kymaVersion)
 		require.NoError(t, err)
 
-		for _, component := range componentList(t, filepath.Join(ws.InstallationResourceDir, "components.yaml")) {
+		clist := componentList(t, filepath.Join(ws.InstallationResourceDir, "components.yaml"))
+
+		for _, component := range clist {
 			t.Logf("Rendering Kyma HELM component '%s'", component.name)
 			manifest, err := prov.RenderManifest(component)
 			require.NoError(t, err)
@@ -71,6 +73,16 @@ func componentList(t *testing.T, compListFile string) []*Component {
 	for _, comp := range compList.Components {
 		result = append(result, newComponent(comp))
 	}
+
+	tgz := NewComponentBuilder("main", "rma").
+		WithURL("https://storage.googleapis.com/kyma-mps-dev-artifacts/rma-1.0.0.tgz").
+		Build()
+
+	git := NewComponentBuilder("main", "helloworld-chart").
+		WithURL("https://github.com/srihas/helloworld-chart.git").
+		Build()
+
+	result = append(result, tgz, git)
 
 	return result
 }

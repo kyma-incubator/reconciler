@@ -68,7 +68,6 @@ To add another component reconciler, execute the following steps:
 
      - Edit the `$componentName.go` file:
 
-       - Use the `WithDependencies()` method to list the components that are required before this reconciler can run.
        - Use the `WithPreReconcileAction()`, `WithReconcileAction()`, `WithPostReconcileAction()` to inject custom `Action` instances into the reconciliation process.
 
 3. **Re-build the CLI** to add the new component reconciler to the `reconciler start` command.

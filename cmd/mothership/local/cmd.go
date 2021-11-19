@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -18,7 +19,6 @@ import (
 	//Register all reconcilers
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +56,7 @@ func RunLocal(o *Options) error {
 	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
 	//collisions when sharing the same directory)
-	wsFact, err := workspace.NewFactory(nil, workspaceDir, l)
+	wsFact, err := chart.NewFactory(nil, workspaceDir, l)
 	if err != nil {
 		return err
 	}

@@ -45,7 +45,8 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().BoolVar(&o.CreateEncyptionKey, "create-encryption-key", false, "Create new encryption key file during startup")
 	cmd.Flags().BoolVar(&o.Migrate, "migrate-database", false, "Migrate database to the latest release")
 	cmd.Flags().BoolVar(&o.AuditLog, "audit-log", false, "Enable audit logging")
-	cmd.Flags().StringVar(&o.AuditLogFile, "audit-log-file", "/var/log/mothership-audit-log.log", "Path for mothership audit log file")
+	cmd.Flags().StringVar(&o.AuditLogFile, "audit-log-file", "/var/log/auditlog/mothership-audit.log", "Path for mothership audit log file")
+	cmd.Flags().StringVar(&o.AuditLogTenantID, "audit-log-tenant-id", "", "tenant id for audit logging")
 	return cmd
 }
 
