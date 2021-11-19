@@ -1,4 +1,4 @@
-package converter
+package converters
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -20,7 +20,7 @@ func ConvertReconciliationStatus(reconciliation *model.ReconciliationEntity, ope
 
 	result := keb.ReconciliationInfoOKResponse{
 		Created:      reconciliation.Created,
-		Lock:         reconciliation.Lock,
+		Finished:     reconciliation.Finished,
 		RuntimeID:    reconciliation.RuntimeID,
 		SchedulingID: reconciliation.SchedulingID,
 		Updated:      reconciliation.Updated,

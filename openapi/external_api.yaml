@@ -334,10 +334,8 @@ components:
 
     HTTPReconciliationInfo:
       type: object
-      required: [ lock, runtimeID, schedulingID, created, updated, status,operations ]
+      required: [ runtimeID, schedulingID, created, updated, status,operations, finished ]
       properties:
-        lock:
-          type: string
         runtimeID:
           type: string
         schedulingID:
@@ -350,6 +348,8 @@ components:
           format: date-time
         status:
           $ref: "#/components/schemas/status"
+        finished:
+          type: boolean
         operations:
           type: array
           items:

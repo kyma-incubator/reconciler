@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/internal/converter"
+	"github.com/kyma-incubator/reconciler/internal/converters"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -356,11 +356,7 @@ func getReconciliationInfo(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	schedulingID, err := params.String(paramSchedulingID)
 	if err != nil {
-		server.SendHTTPError(
-			w,
-			http.StatusBadRequest,
-			&keb.BadRequest{Error: err.Error()},
-		)
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 		return
 	}
 	reconciliationEntity, err := o.Registry.ReconciliationRepository().GetReconciliation(schedulingID)
@@ -369,14 +365,13 @@ func getReconciliationInfo(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// fetch all reconciliation operations for given scheduling id
 	operations, err := o.Registry.ReconciliationRepository().GetOperations(schedulingID)
 	if err != nil {
 		server.SendHTTPErrorMap(w, err)
 		return
 	}
 
-	result, err := converter.ConvertReconciliationStatus(reconciliationEntity, operations)
+	result, err := converters.ConvertReconciliationStatus(reconciliationEntity, operations)
 	if err != nil {
 		server.SendHTTPErrorMap(w, err)
 		return

@@ -54,7 +54,7 @@ type HTTPReconcilerStatus []Reconciliation
 // HTTPReconciliationInfo defines model for HTTPReconciliationInfo.
 type HTTPReconciliationInfo struct {
 	Created      time.Time   `json:"created"`
-	Lock         string      `json:"lock"`
+	Finished     bool        `json:"finished"`
 	Operations   []Operation `json:"operations"`
 	RuntimeID    string      `json:"runtimeID"`
 	SchedulingID string      `json:"schedulingID"`
