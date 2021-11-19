@@ -40,23 +40,23 @@ func (wc *BookkeeperConfig) validate() error {
 }
 
 type bookkeeper struct {
-	transition *ClusterStatusTransition
 	config     *BookkeeperConfig
 	logger     *zap.SugaredLogger
+	repo reconciliation.Repository
 }
 
-func newBookkeeper(transition *ClusterStatusTransition, config *BookkeeperConfig, logger *zap.SugaredLogger) *bookkeeper {
+func newBookkeeper(repo reconciliation.Repository, config *BookkeeperConfig, logger *zap.SugaredLogger) *bookkeeper {
 	if config == nil {
 		config = &BookkeeperConfig{}
 	}
 	return &bookkeeper{
-		transition: transition,
 		config:     config,
 		logger:     logger,
+		repo: repo,
 	}
 }
 
-func (bk *bookkeeper) Run(ctx context.Context) error {
+func (bk *bookkeeper) Run(ctx context.Context, tasks ...BookkeepingTask) error {
 	if err := bk.config.validate(); err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			recons, err := bk.transition.ReconciliationRepository().GetReconciliations(&reconciliation.CurrentlyReconciling{})
+			recons, err := bk.repo.GetReconciliations(&reconciliation.CurrentlyReconciling{})
 			if err != nil {
 				bk.logger.Errorf("Bookkeeper failed to retrieve currently running reconciliations: %s", err)
 				continue
@@ -95,9 +95,10 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 						"(but will continue processing): %s", recon, err)
 					continue
 				}
-				if !bk.finishReconciliation(reconResult) {
-					//check for orphan operations only if reconciliation isn't finished
-					bk.markOrphanOperations(reconResult)
+				for i := range tasks {
+					if err := tasks[i].Apply(reconResult); err != nil {
+						bk.logger.Errorf("BookkeepingTask reported error: %s", err)
+					}
 				}
 
 			}
@@ -109,46 +110,65 @@ func (bk *bookkeeper) Run(ctx context.Context) error {
 	}
 }
 
-func (bk *bookkeeper) markOrphanOperations(reconResult *ReconciliationResult) {
+type BookkeepingTask interface {
+	Apply(*ReconciliationResult) error
+}
+
+type orphanOperation struct{
+	transition *ClusterStatusTransition
+	logger *zap.SugaredLogger
+}
+
+func (oo *orphanOperation) Apply(reconResult *ReconciliationResult) error {
 	for _, orphanOp := range reconResult.GetOrphans() {
 		if orphanOp.State == model.OperationStateOrphan {
 			//don't update orphan operations which are already marked as 'orphan'
 			continue
 		}
 
-		if err := bk.transition.ReconciliationRepository().UpdateOperationState(
+		if err := oo.transition.reconRepo.UpdateOperationState(
 			orphanOp.SchedulingID, orphanOp.CorrelationID, model.OperationStateOrphan); err == nil {
-			bk.logger.Infof("Bookkeeper marked operation '%s' as orphan: "+
+			oo.logger.Infof("orphanOperation marked operation '%s' as orphan: "+
 				"last update %.2f minutes ago)", orphanOp, time.Since(orphanOp.Updated).Minutes())
 		} else {
-			bk.logger.Errorf("Bookkeeper failed to update status of orphan operation '%s': %s",
+			oo.logger.Errorf("Bookkeeper failed to update status of orphan operation '%s': %s",
 				orphanOp, err)
 		}
 	}
+	return nil // TODO: Error richtig returnen, bis jtezt wirds nur nil returned, schauen wie man das am besten umsetzen kann
 }
 
-func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bool {
+type finishOperation struct {
+	transition *ClusterStatusTransition
+	logger *zap.SugaredLogger
+}
+
+func (fo *finishOperation) Apply(reconResult *ReconciliationResult) error {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
+	errMsg := fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
+		"(triggered by reconciliation with schedulingID '%s'): CLuster is already in final state",
+		recon.RuntimeID, newClusterStatus, recon.SchedulingID)
 
 	if newClusterStatus.IsFinal() {
-		err := bk.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
+		err := fo.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
 		if err == nil {
-			bk.logger.Infof("Bookkeeper updated cluster '%s' to status '%s' "+
+			fo.logger.Infof("finishOperation updated cluster '%s' to status '%s' "+
 				"(triggered by reconciliation with schedulingID '%s')",
 				recon.RuntimeID, newClusterStatus, recon.SchedulingID)
-			return true
+			return nil
 		}
-		bk.logger.Errorf("Bookkeeper failed to update cluster '%s' to status '%s' "+
+		errMsg = fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
 			"(triggered by reconciliation with schedulingID '%s'): %s",
 			recon.RuntimeID, newClusterStatus, recon.SchedulingID, err)
+		fo.logger.Errorf(errMsg)
 	}
 
-	return false
+	return errors.New(errMsg)
 }
 
 func (bk *bookkeeper) newReconciliationResult(recon *model.ReconciliationEntity) (*ReconciliationResult, error) {
-	ops, err := bk.transition.ReconciliationRepository().GetOperations(recon.SchedulingID)
+	ops, err := bk.repo.GetOperations(recon.SchedulingID)
 	if err != nil {
 		return nil, err
 	}

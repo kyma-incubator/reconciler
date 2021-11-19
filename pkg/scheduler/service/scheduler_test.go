@@ -182,6 +182,9 @@ func dbConnection(t *testing.T) db.Connection {
 
 func TestSchedulerParallel(t *testing.T) {
 	t.Run("Multiple scheduler watching same inventory", func(t *testing.T) {
+		//initialize WaitGroup
+		var wg sync.WaitGroup
+
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 		createClusterStates(t, inventory)
@@ -195,7 +198,9 @@ func TestSchedulerParallel(t *testing.T) {
 
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				time.Sleep(time.Until(startAt))
 				err := scheduler.Run(ctx, &ClusterStatusTransition{
 					conn:      dbConnection(t),
@@ -210,7 +215,7 @@ func TestSchedulerParallel(t *testing.T) {
 				require.NoError(t, err)
 			}()
 		}
-		time.Sleep(5 * time.Second)
+		wg.Wait()
 
 		recons, err := reconRepo.GetReconciliations(nil)
 		require.NoError(t, err)

@@ -198,14 +198,14 @@ func TestWorkerPoolParallel(t *testing.T) {
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 3; i++ {
 			wg.Add(1)
-			go func() {
+			go func(errChannel chan error, workerPool *Pool) {
 				defer wg.Done()
 				time.Sleep(time.Until(startAt))
 				err := workerPool.Run(ctx)
 				if err != nil {
 					errChannel <- err
 				}
-			}()
+			}(errChannel, workerPool)
 		}
 		wg.Wait()
 

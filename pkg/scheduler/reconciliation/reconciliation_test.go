@@ -733,8 +733,10 @@ func dbConnection(t *testing.T) db.Connection {
 func TestReconciliationParallel(t *testing.T) {
 
 	t.Run("Create multiple instances of single reconciliations in parallel", func(t *testing.T) {
-		repo := newPersistentRepository(t)
+		//initialize WaitGroup
+		var wg sync.WaitGroup
 
+		repo := newPersistentRepository(t)
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
@@ -747,21 +749,25 @@ func TestReconciliationParallel(t *testing.T) {
 
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
-			go func() {
+			wg.Add(1)
+			go func(errChannel chan error, repo Repository) {
+				defer wg.Done()
 				time.Sleep(time.Until(startAt))
 				_, err := repo.CreateReconciliation(mockClusterState, nil)
 				if err != nil {
 					errChannel <- err
 				}
-			}()
+			}(errChannel, repo)
 		}
-		time.Sleep(5 * time.Second)
+		wg.Wait()
 		require.Equal(t, 49, len(errChannel))
 	})
 
 	t.Run("Update single reconciliation in multiple parallel threads", func(t *testing.T) {
-		repo := newPersistentRepository(t)
+		//initialize WaitGroup
+		var wg sync.WaitGroup
 
+		repo := newPersistentRepository(t)
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
@@ -778,21 +784,25 @@ func TestReconciliationParallel(t *testing.T) {
 
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
-			go func() {
+			wg.Add(1)
+			go func(errChannel chan error, repo Repository) {
+				defer  wg.Done()
 				time.Sleep(time.Until(startAt))
-				err = repo.UpdateOperationState(recon.SchedulingID, allOperations[0].CorrelationID, model.OperationStateError, "")
+				err :=  repo.UpdateOperationState(recon.SchedulingID, allOperations[0].CorrelationID, model.OperationStateError, "")
 				if err != nil {
 					errChannel <- err
 				}
-			}()
+			}(errChannel, repo)
 		}
-		time.Sleep(5 * time.Second)
+		wg.Wait()
 		require.Equal(t, 49, len(errChannel))
 	})
 
 	t.Run("Mark single reconciliation as finished in multiple parallel threads", func(t *testing.T) {
-		repo := newPersistentRepository(t)
+		//initialize WaitGroup
+		var wg sync.WaitGroup
 
+		repo := newPersistentRepository(t)
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
@@ -807,15 +817,21 @@ func TestReconciliationParallel(t *testing.T) {
 
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
-			go func() {
+			wg.Add(1)
+			go func(errChannel chan error, repo Repository) {
+				defer wg.Done()
 				time.Sleep(time.Until(startAt))
-				err = repo.FinishReconciliation(recon.SchedulingID, mockClusterState.Status)
+				err := repo.FinishReconciliation(recon.SchedulingID, mockClusterState.Status)
 				if err != nil {
 					errChannel <- err
 				}
-			}()
+			}(errChannel, repo)
 		}
-		time.Sleep(5 * time.Second)
+		wg.Wait()
 		require.Equal(t, 49, len(errChannel))
 	})
+}
+
+func checkErrCount(errChannel chan error) {
+
 }

@@ -195,7 +195,7 @@ func TestBookkeeperParallel(t *testing.T) {
 					}
 				}()
 			}
-			time.Sleep(5 * time.Second)
+			wg.Wait()
 
 			require.Equal(t, tc.errCount, len(errChannel))
 		})
