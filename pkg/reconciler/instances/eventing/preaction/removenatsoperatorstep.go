@@ -17,6 +17,7 @@ const (
 	eventingNats               = "eventing-nats"
 	oldConfigValue             = "global.image.repository"
 	newConfigValue             = "eu.gcr.io/kyma-project"
+	crdPlural                  = "customresourcedefinitions"
 )
 
 var (
@@ -47,7 +48,15 @@ func defaultKubeClientProvider(context *service.ActionContext, logger *zap.Sugar
 }
 
 func (r *removeNatsOperatorStep) Execute(context *service.ActionContext, logger *zap.SugaredLogger) error {
+	// no kyma 2.x+ clusters contain nats-operator resources
+	clusterVersion := 2
+	if clusterVersion > 1 {
+		logger.With(log.KeyReason, "NATS-operator resources do not exist on clusters with kyma 2.x+ version").Info("Step skipped")
+		return nil
+	}
+
 	kubeClient, err := r.kubeClientProvider(context, logger)
+
 	if err != nil {
 		return err
 	}
@@ -66,12 +75,7 @@ func (r *removeNatsOperatorStep) Execute(context *service.ActionContext, logger 
 
 func (r *removeNatsOperatorStep) removeNatsOperatorResources(context *service.ActionContext, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
 	// get charts from the version 1.2.x, where the NATS-operator resources still exist
-	comp := chart.NewComponentBuilder(natsOperatorLastVersion, natsSubChartPath).
-		WithConfiguration(map[string]interface{}{
-			oldConfigValue: newConfigValue, // replace the missing global value, as we are rendering on the subchart level
-		}).
-		WithNamespace(namespace).
-		Build()
+	comp := GetResourcesFromVersion(natsOperatorLastVersion, natsSubChartPath)
 
 	manifest, err := context.ChartProvider.RenderManifest(comp)
 	if err != nil {
@@ -83,27 +87,32 @@ func (r *removeNatsOperatorStep) removeNatsOperatorResources(context *service.Ac
 
 	logger.Info("Removing nats-operator chart resources")
 	// remove all the existing nats-operator resources, installed via charts
-	resources, err := kubeClient.Delete(context.Context, manifest.Manifest, namespace)
-	if len(resources) > 0 {
-		logger.Info("Nats-operator chart resources are deleted")
-	}
+	_, err = kubeClient.Delete(context.Context, manifest.Manifest, namespace)
 	return err
 }
 
 // delete the leftover CRDs, which were outside of charts
 func (r *removeNatsOperatorStep) removeNatsOperatorCRDs(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
 	logger.Info("Removing nats-operator CRDs")
-	var resources []*kubernetes.Resource
 	for _, crdName := range natsOperatorCRDsToDelete {
-		resource, err := kubeClient.DeleteResourceByKindAndNameAndNamespace("customresourcedefinitions", crdName, namespace)
+		_, err := kubeClient.DeleteResourceByKindAndNameAndNamespace(crdPlural, crdName, namespace)
 		if err != nil && !errors.IsNotFound(err) {
 			logger.Errorf("Failed to delete the nats-operator CRDs, name='%s', namespace='%s': %s", crdName, namespace, err)
 			return err
 		}
-		resources = append(resources, resource)
-	}
-	if len(resources) > 0 {
-		logger.Info("NATS-operator CRDs are deleted")
+		if err == nil {
+			logger.Debugf("Deleted %s CRD from %s namespace", crdName, namespace)
+		}
 	}
 	return nil
+}
+
+func GetResourcesFromVersion(version, chartPath string) *chart.Component {
+	return chart.NewComponentBuilder(version, chartPath).
+		WithConfiguration(map[string]interface{}{
+			// replace the missing global value, as we are rendering on the subchart level
+			oldConfigValue: newConfigValue,
+		}).
+		WithNamespace(namespace).
+		Build()
 }
