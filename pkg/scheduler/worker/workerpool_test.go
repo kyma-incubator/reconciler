@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"github.com/pkg/errors"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -103,9 +102,6 @@ func TestWorkerPool(t *testing.T) {
 func TestWorkerPoolParallel(t *testing.T) {
 
 	t.Run("Multiple WorkerPools watching same reconciliation repository", func(t *testing.T) {
-		//make sure persistent db is empty
-		err := os.RemoveAll("./test/")
-		require.NoError(t, err)
 
 		//initialize WaitGroup
 		var wg sync.WaitGroup

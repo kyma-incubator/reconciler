@@ -14,7 +14,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -107,9 +106,6 @@ func TestBookkeeperParallel(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			//make sure persistent db is empty
-			err := os.RemoveAll("./test/")
-			require.NoError(t, err)
 			//initialize WaitGroup
 			var wg sync.WaitGroup
 
