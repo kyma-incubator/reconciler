@@ -101,11 +101,12 @@ func startWebserver(ctx context.Context, o *Options) error {
 
 	//metrics endpoint
 	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
-	router.Handle("/metrics", promhttp.Handler())
+	// add metrics endpoint to a subrouter
+	router.PathPrefix("/metrics").Subrouter().Handle("", promhttp.Handler())
 
-	//liveness and readiness checks
-	router.HandleFunc("/health/live", live)
-	router.HandleFunc("/health/ready", ready(o))
+	//liveness and readiness checks are added to a subrouter to avoide using the auditlog middleware
+	router.PathPrefix("/health").Subrouter().HandleFunc("/live", live)
+	router.PathPrefix("/health").Subrouter().HandleFunc("/ready", ready(o))
 
 	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
 		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
