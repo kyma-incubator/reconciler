@@ -42,70 +42,73 @@ const (
 
 func startWebserver(ctx context.Context, o *Options) error {
 	//routing
-	router := mux.NewRouter()
+	mainRouter := mux.NewRouter()
+	apiRouter := mainRouter.PathPrefix("/").Subrouter()
+	metricsRouter := mainRouter.Path("/metrics").Subrouter()
+	healthRouter := mainRouter.PathPrefix("/health").Subrouter()
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, updateOperationStatus)).
 		Methods("POST")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdateCluster)).
 		Methods("PUT", "POST")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramRuntimeID),
 		callHandler(o, deleteCluster)).
 		Methods("DELETE")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramCluster),
 		callHandler(o, deleteCluster)).
 		Methods("DELETE")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getCluster)).
 		Methods("GET")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, getLatestCluster)).
 		Methods("GET")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, updateLatestCluster)).
 		Methods("PUT")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges", paramContractVersion, paramRuntimeID), //supports offset-param
 		callHandler(o, statusChanges)).
 		Methods("GET")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, operationCallback)).
 		Methods("POST")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations", paramContractVersion),
 		callHandler(o, getReconciliations)).
 		Methods("GET")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations/{%s}/info", paramContractVersion, paramSchedulingID),
 		callHandler(o, getReconciliationInfo)).
 		Methods("GET")
 
 	//metrics endpoint
 	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
-	router.Handle("/metrics", promhttp.Handler())
+	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
-	router.HandleFunc("/health/live", live)
-	router.HandleFunc("/health/ready", ready(o))
+	healthRouter.HandleFunc("/live", live)
+	healthRouter.HandleFunc("/ready", ready(o))
 
 	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
 		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
@@ -114,7 +117,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		}
 		defer func() { _ = auditLogger.Sync() }() // make golint happy
 		auditLoggerMiddelware := newAuditLoggerMiddelware(auditLogger, o)
-		router.Use(auditLoggerMiddelware)
+		apiRouter.Use(auditLoggerMiddelware)
 	}
 	//start server process
 	srv := &server.Webserver{
@@ -122,7 +125,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Port:       o.Port,
 		SSLCrtFile: o.SSLCrt,
 		SSLKeyFile: o.SSLKey,
-		Router:     router,
+		Router:     mainRouter,
 	}
 	return srv.Start(ctx) //blocking call
 }
