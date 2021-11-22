@@ -43,8 +43,8 @@ func (o *Options) Kubeconfig() string {
 	return o.kubeconfig
 }
 
-func componentsFromFile(path string) ([]string, []string, error) {
-	var preComps []string
+func componentsFromFile(path string) ([][]string, []string, error) {
+	var preComps [][]string
 	var defaultComps []string
 
 	compList, err := components.NewComponentList(path)
@@ -53,7 +53,7 @@ func componentsFromFile(path string) ([]string, []string, error) {
 	}
 
 	for _, c := range compList.Prerequisites {
-		preComps = append(preComps, c.Name)
+		preComps = append(preComps, []string{c.Name})
 		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s}", c.Name, c.Namespace, c.URL))
 	}
 	for _, c := range compList.Components {
@@ -115,8 +115,8 @@ func setURLRepository(url string) string {
 	return strings.TrimSpace(url)
 }
 
-func (o *Options) Components(defaultComponentsFile string) ([]string, []*keb.Component, error) {
-	var preComps []string
+func (o *Options) Components(defaultComponentsFile string) ([][]string, []*keb.Component, error) {
+	var preComps [][]string
 
 	comps := o.components
 	if len(o.components) == 0 {
