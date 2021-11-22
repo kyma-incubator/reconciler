@@ -168,7 +168,10 @@ func (r *RunRemote) Run(ctx context.Context) error {
 	//start bookkeeper
 	go func() {
 		transition := newClusterStatusTransition(r.conn, r.inventory, r.reconciliationRepository(), r.logger())
-		if err := newBookkeeper(transition, r.bookkeeperConfig, r.logger()).Run(ctx); err != nil {
+		if err := newBookkeeper(transition.reconRepo, r.bookkeeperConfig, r.logger()).Run(ctx,
+			orphanOperation{transition: transition, logger: r.logger()},
+			finishOperation{transition: transition, logger: r.logger()});
+		err != nil {
 			r.logger().Fatalf("Bookkeeper returned an error: %s", err)
 		}
 	}()
