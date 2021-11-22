@@ -25,6 +25,8 @@ const (
 	version = "1.20.0"
 )
 
+var storageDir = filepath.Join("test", "factory")
+
 // prepares handler func servig archive from given directory
 func handlerFuncArchive(t *testing.T, dirname string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
@@ -40,10 +42,10 @@ func handlerFuncArchive(t *testing.T, dirname string) http.HandlerFunc {
 	}
 }
 
-func clearWorkspaces(t *testing.T, f Factory, vs []string, outdir string) {
+func clearWorkspaces(t *testing.T, f *DefaultFactory, vs []string) {
 	for _, v := range vs {
 		if err := f.Delete(v); err != nil {
-			t.Logf("unable to remove version: %q in %q", v, outdir)
+			t.Logf("unable to remove version: %q in %q", v, f.storageDir)
 		}
 	}
 }
@@ -60,10 +62,10 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		wsf2 := DefaultFactory{
 			logger:     logger,
-			storageDir: "/tmp",
+			storageDir: storageDir,
 		}
 		require.NoError(t, wsf2.validate())
-		require.Equal(t, filepath.Join("/tmp", version), wsf2.workspaceDir(version))
+		require.Equal(t, filepath.Join(storageDir, version), wsf2.workspaceDir(version))
 		require.Equal(t, defaultRepositoryURL, wsf1.kymaRepository.URL)
 	})
 
@@ -125,13 +127,13 @@ func TestWorkspaceFactory(t *testing.T) {
 	defer server.Close()
 
 	t.Run("Create external component from archive", func(t *testing.T) {
-		storagedir, err := ioutil.TempDir("/tmp", "test_*")
+		factory := &DefaultFactory{logger: logger, storageDir: storageDir}
+
+		_, err := ioutil.TempDir(factory.storageDir, "test_*")
 		if err != nil {
 			t.Error(err)
 			return
 		}
-
-		factory := &DefaultFactory{logger: logger, storageDir: storagedir}
 
 		fis := assertFileInfos(t, rscdir)
 		vds := make([]string, len(fis))
@@ -145,17 +147,17 @@ func TestWorkspaceFactory(t *testing.T) {
 			vds[i] = version
 		}
 
-		defer clearWorkspaces(t, factory, vds, storagedir)
+		defer clearWorkspaces(t, factory, vds)
 	})
 
 	t.Run("race-condition", func(t *testing.T) {
-		storagedir, err := ioutil.TempDir("/tmp", "test_*")
+		factory := &DefaultFactory{logger: logger, storageDir: storageDir}
+
+		_, err := ioutil.TempDir(factory.storageDir, "test_*")
 		if err != nil {
 			t.Error(err)
 			return
 		}
-
-		factory := &DefaultFactory{logger: logger, storageDir: storagedir}
 
 		fis := assertFileInfos(t, rscdir)
 
@@ -186,7 +188,7 @@ func TestWorkspaceFactory(t *testing.T) {
 		}
 		wg.Wait()
 
-		defer clearWorkspaces(t, factory, []string{"race-condition-external", "race-condition-kyma", "main"}, storagedir)
+		defer clearWorkspaces(t, factory, []string{"race-condition-external", "race-condition-kyma", "main"})
 	})
 }
 
