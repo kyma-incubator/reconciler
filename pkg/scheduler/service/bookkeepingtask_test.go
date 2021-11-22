@@ -1,7 +1,7 @@
 package service
 
 import (
-	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -9,13 +9,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap/zaptest"
-	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -26,10 +22,11 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 		markOpsDone bool
 		customFunc  string
 		errMessage  string
-		errCount    int
+		errCount    uint64
+		task string
 	}{
-		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: "markOrphanOperations", errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 98},
-		{name: "Finish two operations in multiple parallel threads", markOpsDone: true, customFunc: "finishReconciliation", errMessage: "Bookkeeper failed to update cluster", errCount: 49},
+		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: "markOrphanOperations", errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 98, task: "orphanOperation"},
+		{name: "Finish two operations in multiple parallel threads", markOpsDone: true, customFunc: "finishReconciliation", errMessage: "Bookkeeper failed to update cluster", errCount: 49, task: "finishOperation"},
 	}
 
 	for _, tc := range tests {
@@ -61,6 +58,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			})
 			require.NoError(t, err)
 
+
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
@@ -69,8 +67,9 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			require.NotEmpty(t, reconEntity.Lock)
 			require.False(t, reconEntity.Finished)
 
+
+			//mark all operations to be done, if needed for tc
 			if tc.markOpsDone {
-				//mark all operations to be done
 				opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 				require.NoError(t, err)
 				for _, opEntity := range opEntities {
@@ -79,14 +78,23 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				}
 			}
 
-			//initialize logger including error channel
-			errChannel := make(chan error, 100)
-			bookkeeperLogger := zaptest.NewLogger(t, zaptest.WrapOptions(zap.Hooks(func(e zapcore.Entry) error {
-				if strings.Contains(e.Message, tc.errMessage) {
-					errChannel <- errors.New("Update failed")
+			//setup bookkeeper task
+			transition := newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true))
+			var bookkeeperOperation BookkeepingTask
+			switch tc.task {
+			case "orphanOperation":
+				bookkeeperOperation = orphanOperation{
+					transition: transition,
+					logger: logger.NewLogger(true),
 				}
-				return nil
-			})))
+			case "finishOperation":
+				bookkeeperOperation = finishOperation{
+					transition: transition,
+					logger: logger.NewLogger(true),
+				}
+			default:
+				t.Errorf("Unknown task: %s", tc.task)
+			}
 
 			//initialize bookkeeper
 			bk := newBookkeeper(
@@ -95,7 +103,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 					OperationsWatchInterval: 100 * time.Millisecond,
 					OrphanOperationTimeout:  5 * time.Second,
 				},
-				bookkeeperLogger.Sugar(),
+				logger.NewLogger(true),
 			)
 
 			//setup reconciliation result
@@ -105,27 +113,27 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			require.NoError(t, err)
 			reconResult.orphanTimeout = 0 * time.Microsecond
 
-			//call markOrphanOperations in parallel threads
+			//call Apply in parallel threads
+			errChannel := make(chan error, 100)
 			startAt := time.Now().Add(2 * time.Second)
+			var errCnt uint64 = 0
 			for i := 0; i < 50; i++ {
 				wg.Add(1)
-				go func() {
+				go func(errChannel chan error, bookkeeperOperation BookkeepingTask) {
 					defer wg.Done()
-					switch tc.customFunc {
-					case "markOrphanOperations":
-						time.Sleep(time.Until(startAt))
-						bk.markOrphanOperations(reconResult)
-					case "finishReconciliation":
-						time.Sleep(time.Until(startAt))
-						bk.finishReconciliation(reconResult)
-					default:
-						t.Errorf("Unknown function: %s", tc.customFunc)
+					time.Sleep(time.Until(startAt))
+					err, cnt := bookkeeperOperation.Apply(reconResult)
+					if err != nil {
+						fmt.Printf("Error: %s\n",err)
+						errChannel <- err
+						atomic.AddUint64(&errCnt, uint64(cnt))
+						fmt.Printf("Counter: %d\n", errCnt)
 					}
-				}()
+				}(errChannel, bookkeeperOperation)
 			}
 			wg.Wait()
 
-			require.Equal(t, tc.errCount, len(errChannel))
+			require.Equal(t, tc.errCount, errCnt)
 		})
 	}
 }

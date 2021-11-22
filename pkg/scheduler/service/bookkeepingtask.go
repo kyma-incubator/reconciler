@@ -1,15 +1,15 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"go.uber.org/zap"
 	"time"
-	"errors"
 )
 
 type BookkeepingTask interface {
-	Apply(*ReconciliationResult) error
+	Apply(*ReconciliationResult) (error, int)
 }
 
 type orphanOperation struct{
@@ -17,8 +17,9 @@ type orphanOperation struct{
 	logger *zap.SugaredLogger
 }
 
-func (oo orphanOperation) Apply(reconResult *ReconciliationResult) error {
+func (oo orphanOperation) Apply(reconResult *ReconciliationResult) (error, int) {
 	errMsg := ""
+	errCnt := 0
 	for _, orphanOp := range reconResult.GetOrphans() {
 		if orphanOp.State == model.OperationStateOrphan {
 			//don't update orphan operations which are already marked as 'orphan'
@@ -30,14 +31,15 @@ func (oo orphanOperation) Apply(reconResult *ReconciliationResult) error {
 			oo.logger.Infof("orphanOperation marked operation '%s' as orphan: "+
 				"last update %.2f minutes ago)", orphanOp, time.Since(orphanOp.Updated).Minutes())
 		} else {
+			errCnt++
 			errMsg = errMsg + fmt.Sprintf("Bookkeeper failed to update status of orphan operation '%s': %s\n",
 				orphanOp, err)
 		}
 	}
 	if errMsg != "" {
-		return errors.New(errMsg)
+		return errors.New(errMsg), errCnt
 	}
-	return nil
+	return nil, 0
 }
 
 type finishOperation struct {
@@ -45,7 +47,7 @@ type finishOperation struct {
 	logger *zap.SugaredLogger
 }
 
-func (fo finishOperation) Apply(reconResult *ReconciliationResult) error {
+func (fo finishOperation) Apply(reconResult *ReconciliationResult) (error, int) {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
 	errMsg := fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
@@ -58,7 +60,7 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult) error {
 			fo.logger.Infof("finishOperation updated cluster '%s' to status '%s' "+
 				"(triggered by reconciliation with schedulingID '%s')",
 				recon.RuntimeID, newClusterStatus, recon.SchedulingID)
-			return nil
+			return nil, 0
 		}
 		errMsg = fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
 			"(triggered by reconciliation with schedulingID '%s'): %s",
@@ -66,5 +68,5 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult) error {
 		fo.logger.Errorf(errMsg)
 	}
 
-	return errors.New(errMsg)
+	return errors.New(errMsg), 1
 }
