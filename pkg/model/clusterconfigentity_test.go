@@ -137,7 +137,7 @@ func TestClusterConfigEntity(t *testing.T) {
 
 }
 
-func TestGetReconciliationSequence(t *testing.T) {
+func TestReconciliationSequence(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -148,7 +148,7 @@ func TestGetReconciliationSequence(t *testing.T) {
 		err      error
 	}{
 		{
-			name:     "Components and pre components",
+			name:     "Components and single pre-components",
 			preComps: [][]string{{"Pre1"}, {"Pre2"}},
 			entity: &ClusterConfigurationEntity{
 				Components: []*keb.Component{
@@ -179,6 +179,124 @@ func TestGetReconciliationSequence(t *testing.T) {
 					{
 						{
 							Component: "Pre2",
+						},
+					},
+					{
+						{
+							Component: "Comp1",
+						},
+						{
+							Component: "Comp2",
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name:     "Components and multiple pre components",
+			preComps: [][]string{{"Pre1.1", "Pre1.2"}, {"Pre2"}, {"Pre3.1", "Pre3.2"}},
+			entity: &ClusterConfigurationEntity{
+				Components: []*keb.Component{
+					{
+						Component: "Pre1.1",
+					},
+					{
+						Component: "Pre1.2",
+					},
+					{
+						Component: "Pre2",
+					},
+					{
+						Component: "Pre3.1",
+					},
+					{
+						Component: "Pre3.2",
+					},
+					{
+						Component: "Comp1",
+					},
+					{
+						Component: "Comp2",
+					},
+				},
+			},
+			expected: &ReconciliationSequence{
+				Queue: [][]*keb.Component{
+					{
+						crdComponent,
+					},
+					{
+						{
+							Component: "Pre1.1",
+						},
+						{
+							Component: "Pre1.2",
+						},
+					},
+					{
+						{
+							Component: "Pre2",
+						},
+					},
+					{
+						{
+							Component: "Pre3.1",
+						},
+						{
+							Component: "Pre3.2",
+						},
+					},
+					{
+						{
+							Component: "Comp1",
+						},
+						{
+							Component: "Comp2",
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name:     "Components and multiple pre-components with missing pre-components",
+			preComps: [][]string{{"Pre1.1", "Pre1.2"}, {"Pre2"}, {"Pre3.1", "Pre3.2"}},
+			entity: &ClusterConfigurationEntity{
+				Components: []*keb.Component{
+					{
+						Component: "Pre1.1",
+					},
+					{
+						Component: "Pre3.1",
+					},
+					{
+						Component: "Pre3.2",
+					},
+					{
+						Component: "Comp1",
+					},
+					{
+						Component: "Comp2",
+					},
+				},
+			},
+			expected: &ReconciliationSequence{
+				Queue: [][]*keb.Component{
+					{
+						crdComponent,
+					},
+					{
+						{
+							Component: "Pre1.1",
+						},
+					},
+					{
+						{
+							Component: "Pre3.1",
+						},
+						{
+							Component: "Pre3.2",
 						},
 					},
 					{
