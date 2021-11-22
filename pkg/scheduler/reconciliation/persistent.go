@@ -179,7 +179,7 @@ func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID stri
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, r.NewNotFoundError(err, reconEntity, whereCond)
+		return nil, r.MapError(err, reconEntity, whereCond)
 	}
 	return reconEntity.(*model.ReconciliationEntity), nil
 }
