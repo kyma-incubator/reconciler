@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: statefulset-with-pvc
+  labels:
+    app: statefulset-with-pvc
+spec:
+  serviceName: "statefulset-with-pvc"
+  selector:
+    matchLabels:
+      app: statefulset-with-pvc
+  template:
+    metadata:
+      labels:
+        app: statefulset-with-pvc
+    spec:
+      containers:
+        - name: statefulset-with-pvc
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 30000
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: statefulset-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Mi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: statefulset-without-pvc
+  labels:
+    app: statefulset-without-pvc
+spec:
+  serviceName: "statefulset-without-pvc"
+  selector:
+    matchLabels:
+      app: statefulset-without-pvc
+  template:
+    metadata:
+      labels:
+        app: statefulset-without-pvc
+    spec:
+      containers:
+        - name: statefulset-without-pvc
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 30000
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5

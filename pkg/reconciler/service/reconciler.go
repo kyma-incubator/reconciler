@@ -10,7 +10,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"go.uber.org/zap"
 )
 
@@ -24,7 +23,7 @@ const (
 )
 
 var (
-	wsFactory workspace.Factory //singleton
+	wsFactory chart.Factory //singleton
 	m         sync.Mutex
 )
 
@@ -73,7 +72,10 @@ func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error)
 	return recon, nil
 }
 
-func UseGlobalWorkspaceFactory(workspaceFactory workspace.Factory) error {
+func UseGlobalWorkspaceFactory(workspaceFactory chart.Factory) error {
+	m.Lock()
+	defer m.Unlock()
+
 	if wsFactory != nil {
 		return fmt.Errorf("workspace factory already defined: %s", wsFactory)
 	}
@@ -81,7 +83,11 @@ func UseGlobalWorkspaceFactory(workspaceFactory workspace.Factory) error {
 	return nil
 }
 
-func RefreshGlobalWorkspaceFactory(workspaceFactory workspace.Factory) error {
+//Deprecated: do not switch global workspace at any time!
+func RefreshGlobalWorkspaceFactory(workspaceFactory chart.Factory) error {
+	m.Lock()
+	defer m.Unlock()
+
 	wsFactory = workspaceFactory
 	return nil
 }
@@ -94,14 +100,14 @@ func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*ch
 	return chart.NewDefaultProvider(*wsFact, r.logger)
 }
 
-func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*workspace.Factory, error) {
+func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*chart.Factory, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	var err error
 	if wsFactory == nil {
 		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
-		wsFactory, err = workspace.NewFactory(repo, r.workspace, r.logger)
+		wsFactory, err = chart.NewFactory(repo, r.workspace, r.logger)
 	}
 
 	return &wsFactory, err
@@ -177,6 +183,9 @@ func (r *ComponentReconciler) WithWorkspace(workspace string) *ComponentReconcil
 	return r
 }
 
+//Deprecated: support for dependencies will be dropped with https://github.com/kyma-incubator/reconciler/issues/278
+//Please implement a component reconciler in way that it can verify its dependencies internally or
+//ensure that it will work after the reconciler was retried and the dependency became available.
 func (r *ComponentReconciler) WithDependencies(components ...string) *ComponentReconciler {
 	r.dependencies = components
 	return r

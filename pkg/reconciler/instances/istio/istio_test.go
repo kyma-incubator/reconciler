@@ -2,6 +2,8 @@ package istio_test
 
 import (
 	"context"
+	"testing"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -13,13 +15,11 @@ import (
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
 
 const (
@@ -109,7 +109,7 @@ const (
 )
 
 func Test_RunUpdateAction(t *testing.T) {
-	wsf, _ := workspace.NewFactory(nil, "./test_files", log.NewLogger(true))
+	wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
 	model := reconciler.Task{
 		Component: "istio-configuration",
 		Namespace: "istio-system",
@@ -161,7 +161,7 @@ func Test_RunUpdateAction(t *testing.T) {
 func Test_RunUninstallAction(t *testing.T) {
 	t.Run("Istio uninstall should also delete namespace", func(t *testing.T) {
 		// given
-		wsf, _ := workspace.NewFactory(nil, "./test_files", log.NewLogger(true))
+		wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
 		model := reconciler.Task{
 			Component: "istio-configuration",
 			Namespace: "istio-system",
@@ -195,7 +195,7 @@ func Test_RunUninstallAction(t *testing.T) {
 
 }
 
-func newActionContext(factory workspace.Factory, model reconciler.Task) *service.ActionContext {
+func newActionContext(factory chart.Factory, model reconciler.Task) *service.ActionContext {
 	provider, _ := chart.NewDefaultProvider(factory, log.NewLogger(true))
 	kubeClient := newFakeKubeClient()
 

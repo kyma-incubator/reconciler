@@ -51,6 +51,11 @@ func (pc *postgresConnection) Encryptor() *Encryptor {
 	return pc.encryptor
 }
 
+func (pc *postgresConnection) Ping() error {
+	pc.logger.Debugf("Postgres Ping()")
+	return pc.db.Ping()
+}
+
 func (pc *postgresConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
 	pc.logger.Debugf("Postgres QueryRow(): %s | %v", query, args)
 	if err := pc.validator.Validate(query); err != nil {
