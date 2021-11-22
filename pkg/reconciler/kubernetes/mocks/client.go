@@ -128,6 +128,20 @@ func (_m *Client) GetJob(ctx context.Context, name string, namespace string) (*v
 	return r0, r1
 }
 
+// GetHost provides a mock function with given fields:
+func (_m *Client) GetHost() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
 // GetPersistentVolumeClaim provides a mock function with given fields: ctx, name, namespace
 func (_m *Client) GetPersistentVolumeClaim(ctx context.Context, name string, namespace string) (*corev1.PersistentVolumeClaim, error) {
 	ret := _m.Called(ctx, name, namespace)

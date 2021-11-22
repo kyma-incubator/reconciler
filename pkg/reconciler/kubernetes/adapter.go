@@ -435,3 +435,7 @@ func ResolveNamespace(resource *unstructured.Unstructured, namespace string) str
 	}
 	return namespace
 }
+
+func (g *kubeClientAdapter) GetHost() string {
+	return g.kubeClient.GetHost()
+}
