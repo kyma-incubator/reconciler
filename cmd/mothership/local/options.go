@@ -44,22 +44,22 @@ func (o *Options) Kubeconfig() string {
 }
 
 func componentsFromFile(path string) ([][]string, []string, error) {
-	var preComps [][]string
+	var preComps []string
 	var defaultComps []string
 
 	compList, err := components.NewComponentList(path)
 	if err != nil {
-		return preComps, defaultComps, err
+		return [][]string{preComps}, defaultComps, err
 	}
 
 	for _, c := range compList.Prerequisites {
-		preComps = append(preComps, []string{c.Name})
+		preComps = append(preComps, c.Name)
 		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s}", c.Name, c.Namespace, c.URL))
 	}
 	for _, c := range compList.Components {
 		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s}", c.Name, c.Namespace, c.URL))
 	}
-	return preComps, defaultComps, nil
+	return [][]string{preComps}, defaultComps, nil
 }
 
 func componentsFromStrings(list []string, values []string) ([]*keb.Component, error) {
