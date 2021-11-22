@@ -369,6 +369,24 @@ func TestMothership(t *testing.T) {
 			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName2),
 			method: httpDelete,
 		},
+		{
+			name:             "Test metrics endpoint",
+			url:              fmt.Sprintf("http://localhost:%d/metrics", serverPort),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+		},
+		{
+			name:             "Test liveness endpoint",
+			url:              fmt.Sprintf("http://localhost:%d/health/live", serverPort),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+		},
+		{
+			name:             "Test readiness endpoint",
+			url:              fmt.Sprintf("http://localhost:%d/health/ready", serverPort),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+		},
 	}
 
 	for _, testCase := range tests {
