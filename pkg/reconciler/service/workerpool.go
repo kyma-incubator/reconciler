@@ -95,3 +95,10 @@ func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Task) 
 
 	return err
 }
+
+func (wa *WorkerPool) IsClosed() bool {
+	if wa.antsPool == nil {
+		return true
+	}
+	return wa.antsPool.IsClosed()
+}

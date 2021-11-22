@@ -50,4 +50,6 @@ type Client interface {
 	GetJob(ctx context.Context, name, namespace string) (*batchv1.Job, error)
 	GetPersistentVolumeClaim(ctx context.Context, name, namespace string) (*v1.PersistentVolumeClaim, error)
 	ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error)
+
+	GetHost() string
 }

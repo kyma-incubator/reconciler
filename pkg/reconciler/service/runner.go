@@ -132,7 +132,7 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 	}
 
 	if post != nil {
-		if err := r.postReconcileAction.Run(actionHelper); err != nil {
+		if err := post.Run(actionHelper); err != nil {
 			r.logger.Debugf("Runner: Post-%s action of '%s' with version '%s' failed: %s",
 				task.Type, task.Component, task.Version, err)
 			return err

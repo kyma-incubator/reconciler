@@ -13,14 +13,15 @@ import (
 )
 
 const (
-	noUpdateInterceptorNS = "unittest-noupdateinterceptor"
+	noUpdateInterceptorNS           = "unittest-noupdateinterceptor"
+	noUpdateInterceptorManifestFile = "noupdateinterceptor.yaml"
 )
 
 func TestNoUpdateInterceptor(t *testing.T) {
 	test.IntegrationTest(t)
 
 	kubeClient := newKubeClient(t)
-	manifest := readManifest(t)
+	manifest := readManifest(t, noUpdateInterceptorManifestFile)
 
 	deleteFct := func() {
 		t.Log("Cleanup test resources")
@@ -47,8 +48,8 @@ func TestNoUpdateInterceptor(t *testing.T) {
 	require.Len(t, updatedResources, 1)
 }
 
-func readManifest(t *testing.T) string {
-	manifest, err := ioutil.ReadFile(filepath.Join("test", "noupdateinterceptor.yaml"))
+func readManifest(t *testing.T, file string) string {
+	manifest, err := ioutil.ReadFile(filepath.Join("test", file))
 	require.NoError(t, err)
 	return string(manifest)
 }

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+
 	"github.com/gorilla/mux"
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
@@ -22,7 +24,6 @@ import (
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	clientgo "k8s.io/client-go/kubernetes"
@@ -77,7 +78,7 @@ func TestReconciler(t *testing.T) {
 
 func setGlobalWorkspaceFactory(t *testing.T) {
 	//use ./test folder as workspace
-	wsf, err := workspace.NewFactory(nil, "test", logger.NewLogger(true))
+	wsf, err := chart.NewFactory(nil, "test", logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsf))
 }
@@ -94,7 +95,7 @@ func newComponentReconciler(t *testing.T) *service.ComponentReconciler {
 	recon, err := service.NewComponentReconciler(componentReconcilerName) //register brand new component reconciler
 	require.NoError(t, err)
 	//configure reconciler
-	return recon.Debug().WithDependencies("abc", "xyz")
+	return recon.Debug().WithDependencies("abc", "xyz") //nolint:staticcheck // Ignore SA1019 requires refactor
 }
 
 func startReconciler(ctx context.Context, t *testing.T) {

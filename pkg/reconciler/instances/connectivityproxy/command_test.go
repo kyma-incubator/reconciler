@@ -46,7 +46,7 @@ func TestCommand(t *testing.T) {
 			},
 			install: nil,
 			copyFactory: []CopyFactory{
-				func(configs map[string]interface{}, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
+				func(task *reconciler.Task, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
 					invoked++
 					return &SecretCopy{
 						Namespace:       "namespace",
@@ -59,7 +59,7 @@ func TestCommand(t *testing.T) {
 						},
 					}
 				},
-				func(configs map[string]interface{}, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
+				func(task *reconciler.Task, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
 					invoked++
 					return &SecretCopy{
 						Namespace:       "namespace",
@@ -92,9 +92,9 @@ func TestCommand(t *testing.T) {
 	})
 }
 
-func TestCommandInstall(t *testing.T) {
+func TestCommands(t *testing.T) {
 
-	t.Run("Should copy resources and invoke installation", func(t *testing.T) {
+	t.Run("Should invoke installation", func(t *testing.T) {
 		actionContext := &service.ActionContext{
 			Context: context.Background(),
 		}
@@ -110,9 +110,7 @@ func TestCommandInstall(t *testing.T) {
 			copyFactory:            nil,
 		}
 
-		secret := &v1.Secret{}
-
-		err := commands.Install(actionContext, secret)
+		err := commands.Install(actionContext)
 		require.NoError(t, err)
 	})
 
@@ -143,12 +141,44 @@ func TestCommandInstall(t *testing.T) {
 			"key-2": []byte("value-2"),
 		}}
 
-		err := commands.Install(actionContext, secret)
+		commands.PopulateConfigs(actionContext, secret)
 		require.Equal(t, map[string]interface{}{
-			"key-1": []byte("value-1"),
-			"key-2": []byte("value-2"),
+			"global.binding.key-1": "value-1",
+			"global.binding.key-2": "value-2",
 		}, actionContext.Task.Configuration)
-		require.NoError(t, err)
+	})
+
+	t.Run("Should copy configuration with json inside", func(t *testing.T) {
+
+		actionContext := &service.ActionContext{
+			Context: context.Background(),
+			Task: &reconciler.Task{
+				Configuration: make(map[string]interface{}),
+			},
+		}
+
+		delegateMock := &serviceMocks.Operation{}
+		delegateMock.On("Invoke", actionContext.Context, nil,
+			mock.AnythingOfType(fmt.Sprintf("%T", &reconciler.Task{})), // print the type of the object (*reconciler.Task)
+			nil).
+			Return(nil)
+
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                delegateMock,
+			copyFactory:            nil,
+		}
+
+		secret := &v1.Secret{Data: map[string][]byte{
+			"parentkey": []byte(`{"key-1": "value-1","key-2": "value-2"}`),
+		}}
+
+		commands.PopulateConfigs(actionContext, secret)
+		require.Equal(t, map[string]interface{}{
+			"global.binding.key-1": "value-1",
+			"global.binding.key-2": "value-2",
+		}, actionContext.Task.Configuration)
 	})
 }
 

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/pkg/errors"
@@ -9,6 +10,17 @@ import (
 
 func (r *Repository) NewNotFoundError(err error, entity db.DatabaseEntity,
 	identifier map[string]interface{}) error {
+	return &EntityNotFoundError{
+		entity:     entity,
+		identifier: identifier,
+		err:        err,
+	}
+}
+
+func (r *Repository) MapError(err error, entity db.DatabaseEntity, identifier map[string]interface{}) error {
+	if err != sql.ErrNoRows {
+		return err
+	}
 	return &EntityNotFoundError{
 		entity:     entity,
 		identifier: identifier,
