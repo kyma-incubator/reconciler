@@ -142,14 +142,14 @@ func TestGetReconciliationSequence(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		preComps []string
+		preComps [][]string
 		entity   *ClusterConfigurationEntity
 		expected *ReconciliationSequence
 		err      error
 	}{
 		{
 			name:     "Components and pre components",
-			preComps: []string{"Pre1", "Pre2"},
+			preComps: [][]string{{"Pre1"}, {"Pre2"}},
 			entity: &ClusterConfigurationEntity{
 				Components: []*keb.Component{
 					{
@@ -198,7 +198,7 @@ func TestGetReconciliationSequence(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.entity.GetReconciliationSequence(tc.preComps)
-			require.Equal(t, tc.expected, result)
+			require.Equal(t, tc.expected.Queue, result.Queue)
 		})
 	}
 }
