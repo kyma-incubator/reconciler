@@ -1,16 +1,21 @@
 package preaction
 
 import (
+	"strings"
+	"time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+
+	"go.uber.org/zap"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"strings"
 )
 
 const (
+	namespace                  = "kyma-system"
 	removeNatsOperatorStepName = "removeNatsOperator"
 	natsOperatorLastVersion    = "1.24.7"
 	natsSubChartPath           = "eventing/charts/nats"
@@ -18,6 +23,8 @@ const (
 	oldConfigValue             = "global.image.repository"
 	newConfigValue             = "eu.gcr.io/kyma-project"
 	crdPlural                  = "customresourcedefinitions"
+	progressTrackerInterval    = 5 * time.Second
+	progressTrackerTimeout     = 2 * time.Minute
 )
 
 var (
