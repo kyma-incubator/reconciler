@@ -14,9 +14,9 @@ type testCase struct {
 }
 
 func TestClusterConfigEntity(t *testing.T) {
-	t.Run("Validate Equal", func(t *testing.T) {
-		t.Parallel()
+	t.Parallel()
 
+	t.Run("Validate Equal", func(t *testing.T) {
 		testCases := []*testCase{
 			{
 				entity1: &ClusterConfigurationEntity{
@@ -316,7 +316,9 @@ func TestReconciliationSequence(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.entity.GetReconciliationSequence(tc.preComps)
-			require.Equal(t, tc.expected.Queue, result.Queue)
+			for idx, expected := range tc.expected.Queue {
+				require.ElementsMatch(t, result.Queue[idx], expected)
+			}
 		})
 	}
 }
