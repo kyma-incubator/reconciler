@@ -149,7 +149,26 @@ func concatStateReasons(state model.OperationState, reasons []string) (string, e
 
 func operationAlreadyInState(op *model.OperationEntity, state model.OperationState) error {
 	if op.State == state {
-		return fmt.Errorf("cannot update state of operation '%s' because it is already in state %s", op.Component, op.State)
+		return newAlreadyInStateError(op)
 	}
 	return nil
+}
+
+type alreadyInStateError struct {
+	op *model.OperationEntity
+}
+
+func (err *alreadyInStateError) Error() string {
+	return fmt.Sprintf("cannot update state of operation '%s' because it is already in state %s", err.op.Component, err.op.State)
+}
+
+func newAlreadyInStateError(op *model.OperationEntity) error {
+	return &alreadyInStateError{
+		op: op,
+	}
+}
+
+func IsAlreadyInStateError(err error) bool {
+	_, ok := err.(*alreadyInStateError)
+	return ok
 }

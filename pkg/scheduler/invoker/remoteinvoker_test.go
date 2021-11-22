@@ -157,7 +157,7 @@ func TestRemoteInvoker(t *testing.T) {
 func invokeRemoteInvoker(reconRepo reconciliation.Repository, op *model.OperationEntity, cfg *config.Config) error {
 	//reset operation state
 	if err := reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateNew); err != nil {
-		if err.Error() != "cannot update state of operation 'CRDs' because it is already in state new" {
+		if !reconciliation.IsAlreadyInStateError(err){
 			return err
 		}
 	}
