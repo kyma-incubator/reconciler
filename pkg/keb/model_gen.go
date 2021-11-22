@@ -29,7 +29,7 @@ const (
 )
 
 // HTTPClusterConfig defines model for HTTPClusterConfig.
-type HTTPClusterConfig KymaConfigWithoutAdm
+type HTTPClusterConfig KymaConfig
 
 // HTTPClusterResponse defines model for HTTPClusterResponse.
 type HTTPClusterResponse struct {
@@ -104,13 +104,6 @@ type KymaConfig struct {
 	Components     []Component `json:"components"`
 	Profile        string      `json:"profile"`
 	Version        string      `json:"version"`
-}
-
-// KymaConfigWithoutAdm defines model for kymaConfigWithoutAdm.
-type KymaConfigWithoutAdm struct {
-	Components []Component `json:"components"`
-	Profile    string      `json:"profile"`
-	Version    string      `json:"version"`
 }
 
 // Metadata defines model for metadata.

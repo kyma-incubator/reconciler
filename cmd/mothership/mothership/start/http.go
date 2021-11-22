@@ -103,7 +103,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, getReconciliationInfo)).
 		Methods("GET")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
 

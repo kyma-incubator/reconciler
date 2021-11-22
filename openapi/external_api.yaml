@@ -328,7 +328,7 @@ components:
             $ref: "#/components/schemas/statusChange"
 
     HTTPClusterConfig:
-      $ref: "#/components/schemas/kymaConfigWithoutAdm"
+      $ref: "#/components/schemas/kymaConfig"
 
     HTTPErrorResponse:
       type: object
@@ -554,19 +554,6 @@ components:
           type: array
           items:
             type: string
-
-    kymaConfigWithoutAdm: # TODO: Find a better name for it
-      type: object
-      required: [ version, profile, components, administrators ]
-      properties:
-        version:
-          type: string
-        profile:
-          type: string
-        components:
-          type: array
-          items:
-            $ref: "#/components/schemas/component"
 
     metadata:
       type: object
