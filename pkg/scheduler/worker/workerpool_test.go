@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"github.com/pkg/errors"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -106,9 +107,9 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
 		//prepare keb clusters
-		kebClusters := []*keb.Cluster{test.NewCluster(t, 1, 1, false, test.OneComponentDummy),
-			test.NewCluster(t, 2, 1, false, test.OneComponentDummy),
-			test.NewCluster(t, 3, 1, false, test.OneComponentDummy),
+		kebClusters := []*keb.Cluster{test.NewCluster(t, strconv.Itoa(1), 1, false, test.OneComponentDummy),
+			test.NewCluster(t, strconv.Itoa(2), 1, false, test.OneComponentDummy),
+			test.NewCluster(t, strconv.Itoa(3), 1, false, test.OneComponentDummy),
 		}
 
 		//create mock database connection
