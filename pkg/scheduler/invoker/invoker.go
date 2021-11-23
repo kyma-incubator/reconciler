@@ -3,6 +3,7 @@ package invoker
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -40,7 +41,8 @@ func (p *Params) newRemoteTask(callbackURL string) *reconciler.Task {
 
 func (p *Params) newTask() *reconciler.Task {
 	version := p.ClusterState.Configuration.KymaVersion
-	if p.ComponentToReconcile.URL != "" && p.ComponentToReconcile.Version == "" {
+	url := p.ComponentToReconcile.URL
+	if url != "" && strings.HasSuffix(url, ".git") && p.ComponentToReconcile.Version == "" {
 		version = defaultBranch
 	} else if p.ComponentToReconcile.Version != "" {
 		version = p.ComponentToReconcile.Version
@@ -62,14 +64,14 @@ func (p *Params) newTask() *reconciler.Task {
 		Component:       p.ComponentToReconcile.Component,
 		Namespace:       p.ComponentToReconcile.Namespace,
 		Version:         version,
-		URL:             p.ComponentToReconcile.URL,
+		URL:             url,
 		Profile:         p.ClusterState.Configuration.KymaProfile,
 		Configuration:   configuration,
 		Kubeconfig:      p.ClusterState.Cluster.Kubeconfig,
 		Metadata:        *p.ClusterState.Cluster.Metadata,
 		CorrelationID:   p.CorrelationID,
 		Repository: &reconciler.Repository{
-			URL:            p.ComponentToReconcile.URL,
+			URL:            url,
 			TokenNamespace: fmt.Sprint(tokenNamespace),
 		},
 		Type: taskType,
