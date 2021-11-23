@@ -9,12 +9,12 @@ import (
 	"testing"
 )
 
-func NewCluster(t *testing.T, runtimeID, clusterVersion int64, newConfigVersion bool, clusterType Cluster) *keb.Cluster {
+func NewCluster(t *testing.T, runtimeID string, clusterVersion uint64, newConfigVersion bool, clusterType Cluster) *keb.Cluster {
 	cluster := &keb.Cluster{}
 	err := json.Unmarshal(clusterType, cluster)
 	require.NoError(t, err)
 
-	cluster.RuntimeID = fmt.Sprintf("runtime%d", runtimeID)
+	cluster.RuntimeID = fmt.Sprintf("runtime%s", runtimeID)
 	cluster.RuntimeInput.Name = fmt.Sprintf("runtimeName%d", clusterVersion)
 	cluster.Metadata.GlobalAccountID = fmt.Sprintf("globalAccountId%d", clusterVersion)
 	cluster.Kubeconfig = "fake kubeconfig"

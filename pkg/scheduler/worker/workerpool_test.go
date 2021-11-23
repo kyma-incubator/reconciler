@@ -106,9 +106,9 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
 		//prepare keb clusters
-		kebClusters := []*keb.Cluster{test.NewCluster(t, 1, 1, false, test.SingleDummy),
-			test.NewCluster(t, 2, 1, false, test.SingleDummy),
-			test.NewCluster(t, 3, 1, false, test.SingleDummy),
+		kebClusters := []*keb.Cluster{test.NewCluster(t, 1, 1, false, test.OneComponentDummy),
+			test.NewCluster(t, 2, 1, false, test.OneComponentDummy),
+			test.NewCluster(t, 3, 1, false, test.OneComponentDummy),
 		}
 
 		//create mock database connection

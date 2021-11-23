@@ -5,9 +5,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
@@ -640,59 +640,11 @@ func removeExistingReconciliations(t *testing.T, repos map[string]Repository) {
 
 func createClusterStates(t *testing.T, inventory cluster.Inventory) (*cluster.State, *cluster.State) {
 	clusterID1 := uuid.NewString()
-	stateMock1, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-		Kubeconfig: "abc",
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Component{
-				{
-					Component: "comp1",
-					Configuration: []keb.Configuration{
-						{
-							Key:   "limitRange.default.memory",
-							Value: "256m",
-						},
-					},
-					Namespace: "kyma-system",
-				},
-				{
-					Component:     "comp2",
-					Configuration: nil,
-					Namespace:     "istio-system",
-				},
-				{
-					Component:     "comp3",
-					Configuration: nil,
-					Namespace:     "kyma-system",
-				},
-			},
-			Version: "1.2.3",
-		},
-		Metadata:  keb.Metadata{},
-		RuntimeID: clusterID1,
-		RuntimeInput: keb.RuntimeInput{
-			Name: clusterID1,
-		},
-	})
+	stateMock1, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID1, 1, false, test.ThreeComponentsDummy))
 	require.NoError(t, err)
 
 	clusterID2 := uuid.NewString()
-	stateMock2, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-		Kubeconfig: "abc",
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Component{
-				{
-					Component: "comp4",
-					Namespace: "kyma-system",
-				},
-			},
-			Version: "1.2.3",
-		},
-		Metadata:  keb.Metadata{},
-		RuntimeID: clusterID2,
-		RuntimeInput: keb.RuntimeInput{
-			Name: clusterID2,
-		},
-	})
+	stateMock2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.ThreeComponentsDummy))
 	require.NoError(t, err)
 	return stateMock1, stateMock2
 }
@@ -760,10 +712,14 @@ func TestReconciliationParallel(t *testing.T) {
 			}(errChannel, repo)
 		}
 		wg.Wait()
+		recons, err := repo.GetReconciliations(nil)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(recons))
+		require.False(t, recons[0].Finished)
 		require.Equal(t, 49, len(errChannel))
 	})
 
-	t.Run("Update single reconciliation in multiple parallel threads", func(t *testing.T) {
+	t.Run("Update single operation state in multiple parallel threads", func(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
 
@@ -795,6 +751,13 @@ func TestReconciliationParallel(t *testing.T) {
 			}(errChannel, repo)
 		}
 		wg.Wait()
+
+		ops, err := repo.GetReconcilingOperations()
+		require.Equal(t, 4, len(ops))
+		require.Equal(t, model.OperationStateError, ops[0].State)
+		for i:=1; i<4; i++ {
+			require.Equal(t, model.OperationStateNew, ops[i].State)
+		}
 		require.Equal(t, 49, len(errChannel))
 	})
 
@@ -828,10 +791,10 @@ func TestReconciliationParallel(t *testing.T) {
 			}(errChannel, repo)
 		}
 		wg.Wait()
+
+		recons, err := repo.GetReconciliations(nil)
+		require.Equal(t, 1, len(recons))
+		require.True(t, recons[0].Finished)
 		require.Equal(t, 49, len(errChannel))
 	})
-}
-
-func checkErrCount(errChannel chan error) {
-
 }
