@@ -89,6 +89,10 @@ func (r *Install) renderManifest(chartProvider chart.Provider, model *reconciler
 	if err != nil {
 		msg := fmt.Sprintf("Failed to get manifest for component '%s' in Kyma version '%s'",
 			model.Component, model.Version)
+		if model.URL != "" {
+			msg += fmt.Sprintf(" using repository '%s' ",
+				model.URL)
+		}
 		r.logger.Errorf("%s: %s", msg, err)
 		return "", errors.Wrap(err, msg)
 	}
