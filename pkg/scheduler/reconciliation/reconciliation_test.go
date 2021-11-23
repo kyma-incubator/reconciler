@@ -691,7 +691,7 @@ func TestReconciliationParallel(t *testing.T) {
 		dbConn = nil
 
 		repo := newPersistentRepository(t)
-		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
+		inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
 		errChannel := make(chan error, 100)
@@ -728,7 +728,7 @@ func TestReconciliationParallel(t *testing.T) {
 		dbConn = nil
 
 		repo := newPersistentRepository(t)
-		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
+		inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
 		errChannel := make(chan error, 100)
@@ -774,7 +774,7 @@ func TestReconciliationParallel(t *testing.T) {
 		dbConn = nil
 
 		repo := newPersistentRepository(t)
-		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
+		inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
 		errChannel := make(chan error, 100)
