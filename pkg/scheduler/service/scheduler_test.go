@@ -28,7 +28,7 @@ func TestScheduler(t *testing.T) {
 		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 		scheduler := newScheduler(nil, logger.NewLogger(true))
 		require.NoError(t, scheduler.RunOnce(clusterState, reconRepo))
-		requirecReconciliationEntity(t, reconRepo, clusterState)
+		requiredReconciliationEntity(t, reconRepo, clusterState)
 	})
 
 	t.Run("Test run", func(t *testing.T) {
@@ -68,12 +68,12 @@ func TestScheduler(t *testing.T) {
 		time.Sleep(500 * time.Millisecond) //give it some time to shutdown
 
 		require.WithinDuration(t, start, time.Now(), 4*time.Second)
-		requirecReconciliationEntity(t, reconRepo, clusterState)
+		requiredReconciliationEntity(t, reconRepo, clusterState)
 	})
 }
 
-func requirecReconciliationEntity(t *testing.T, reconRepo reconciliation.Repository, state *cluster.State) {
-	recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: "testCluster"})
+func requiredReconciliationEntity(t *testing.T, reconRepo reconciliation.Repository, state *cluster.State) {
+	recons, err := reconRepo.GetReconciliations(nil)
 	require.NoError(t, err)
 	require.Len(t, recons, 1)
 	require.Equal(t, recons[0].RuntimeID, state.Cluster.RuntimeID)
