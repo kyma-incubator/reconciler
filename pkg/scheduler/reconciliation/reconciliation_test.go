@@ -737,6 +737,7 @@ func TestReconciliationParallel(t *testing.T) {
 		recon, err := repo.CreateReconciliation(mockClusterState, nil)
 		require.NoError(t, err)
 		allOperations, err := repo.GetOperations(recon.SchedulingID)
+		require.NoError(t, err)
 
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
@@ -778,6 +779,7 @@ func TestReconciliationParallel(t *testing.T) {
 		}()
 
 		recon, err := repo.CreateReconciliation(mockClusterState, nil)
+		require.NoError(t, err)
 
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 50; i++ {
