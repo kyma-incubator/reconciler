@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -109,10 +108,8 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 					time.Sleep(time.Until(startAt))
 					err, cnt := bookkeeperOperation.Apply(reconResult)
 					if err != nil {
-						fmt.Printf("Error: %s\n",err)
 						errChannel <- err
 						atomic.AddUint64(&errCnt, uint64(cnt))
-						fmt.Printf("Counter: %d\n", errCnt)
 					}
 				}(errChannel, bookkeeperOperation)
 			}

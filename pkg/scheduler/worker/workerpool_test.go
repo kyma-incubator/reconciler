@@ -106,55 +106,9 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
 		//prepare keb clusters
-		kebClusters := []*keb.Cluster{
-			{
-				Kubeconfig: "clusterA",
-				KymaConfig: keb.KymaConfig{
-					Administrators: nil,
-					Components: []keb.Component{
-						{
-							Component: "TestComp1",
-						},
-					},
-					Profile: "",
-					Version: "1.2.3",
-				},
-				Metadata:     keb.Metadata{},
-				RuntimeID:    "testClusterA",
-				RuntimeInput: keb.RuntimeInput{},
-			},
-			{
-				Kubeconfig: "clusterB",
-				KymaConfig: keb.KymaConfig{
-					Administrators: nil,
-					Components: []keb.Component{
-						{
-							Component: "TestComp1",
-						},
-					},
-					Profile: "",
-					Version: "1.2.3",
-				},
-				Metadata:     keb.Metadata{},
-				RuntimeID:    "testClusterB",
-				RuntimeInput: keb.RuntimeInput{},
-			},
-			{
-				Kubeconfig: "clusterC",
-				KymaConfig: keb.KymaConfig{
-					Administrators: nil,
-					Components: []keb.Component{
-						{
-							Component: "TestComp3",
-						},
-					},
-					Profile: "",
-					Version: "1.2.3",
-				},
-				Metadata:     keb.Metadata{},
-				RuntimeID:    "testClusterC",
-				RuntimeInput: keb.RuntimeInput{},
-			},
+		kebClusters := []*keb.Cluster{test.NewCluster(t, 1, 1, false, test.SingleDummy),
+			test.NewCluster(t, 2, 1, false, test.SingleDummy),
+			test.NewCluster(t, 3, 1, false, test.SingleDummy),
 		}
 
 		//create mock database connection
