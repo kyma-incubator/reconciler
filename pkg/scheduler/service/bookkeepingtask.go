@@ -9,7 +9,7 @@ import (
 )
 
 type BookkeepingTask interface {
-	Apply(*ReconciliationResult) (error, int)
+	Apply(*ReconciliationResult) (int, error)
 }
 
 type orphanOperation struct{
@@ -17,7 +17,7 @@ type orphanOperation struct{
 	logger *zap.SugaredLogger
 }
 
-func (oo orphanOperation) Apply(reconResult *ReconciliationResult) (error, int) {
+func (oo orphanOperation) Apply(reconResult *ReconciliationResult) (int, error) {
 	errMsg := ""
 	errCnt := 0
 	for _, orphanOp := range reconResult.GetOrphans() {
@@ -37,9 +37,9 @@ func (oo orphanOperation) Apply(reconResult *ReconciliationResult) (error, int) 
 		}
 	}
 	if errMsg != "" {
-		return errors.New(errMsg), errCnt
+		return errCnt, errors.New(errMsg)
 	}
-	return nil, 0
+	return 0, nil
 }
 
 type finishOperation struct {
@@ -47,7 +47,7 @@ type finishOperation struct {
 	logger *zap.SugaredLogger
 }
 
-func (fo finishOperation) Apply(reconResult *ReconciliationResult) (error, int) {
+func (fo finishOperation) Apply(reconResult *ReconciliationResult) (int, error) {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
 	errMsg := fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
@@ -60,7 +60,7 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult) (error, int) 
 			fo.logger.Infof("finishOperation updated cluster '%s' to status '%s' "+
 				"(triggered by reconciliation with schedulingID '%s')",
 				recon.RuntimeID, newClusterStatus, recon.SchedulingID)
-			return nil, 0
+			return 0, nil
 		}
 		errMsg = fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
 			"(triggered by reconciliation with schedulingID '%s'): %s",
@@ -68,5 +68,5 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult) (error, int) 
 		fo.logger.Errorf(errMsg)
 	}
 
-	return errors.New(errMsg), 1
+	return 1, errors.New(errMsg)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -39,7 +40,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			require.NoError(t, err)
 
 			//add cluster to inventory
-			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, 1, 1, false, test.OneComponentDummy))
+			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, strconv.Itoa(1), 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
 
 
@@ -106,7 +107,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				go func(errChannel chan error, bookkeeperOperation BookkeepingTask) {
 					defer wg.Done()
 					time.Sleep(time.Until(startAt))
-					err, cnt := bookkeeperOperation.Apply(reconResult)
+					cnt, err := bookkeeperOperation.Apply(reconResult)
 					if err != nil {
 						errChannel <- err
 						atomic.AddUint64(&errCnt, uint64(cnt))
