@@ -1,4 +1,9 @@
-{
+package test
+
+type Cluster []byte
+
+var (
+	Production Cluster = []byte(`{
   "runtimeID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5",
   "runtimeInput": {
     "name": "ad0d842",
@@ -277,5 +282,5 @@
     "shootName": "4deee563",
     "instanceID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5"
   }
-}
-
+}`)
+)

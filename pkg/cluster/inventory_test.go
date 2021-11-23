@@ -1,19 +1,14 @@
 package cluster
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +16,6 @@ const (
 	maxVersion = 5
 )
 
-var clusterJSONFile = filepath.Join(".", "test", "cluster.json")
 var clusterStatuses = []model.Status{
 	model.ClusterStatusReconcileError, model.ClusterStatusReady, model.ClusterStatusReconcilePending, model.ClusterStatusReconciling,
 	model.ClusterStatusDeleteError, model.ClusterStatusDeleted, model.ClusterStatusDeletePending, model.ClusterStatusDeleting}
@@ -31,7 +25,7 @@ func TestInventory(t *testing.T) {
 
 	t.Run("Create a cluster", func(t *testing.T) {
 		//create cluster1
-		expectedCluster := newCluster(t, 1, 1, false)
+		expectedCluster := test.NewCluster(t, 1, 1, false, test.Production)
 		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
 		require.NoError(t, err)
 		compareState(t, clusterState, expectedCluster)
@@ -48,7 +42,7 @@ func TestInventory(t *testing.T) {
 	t.Run("Update a cluster", func(t *testing.T) {
 		//update cluster1 multiple times (will create multiple versions of it)
 		for i := int64(2); i <= maxVersion; i++ { //"i" reflects cluster version
-			expectedCluster := newCluster(t, 1, i, false)
+			expectedCluster := test.NewCluster(t, 1, i, false, test.Production)
 			clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
 			require.NoError(t, err)
 			compareState(t, clusterState, expectedCluster)
@@ -58,7 +52,7 @@ func TestInventory(t *testing.T) {
 	//FIXME: add support for cluster history to get previous versions
 	// t.Run("Get specific cluster", func(t *testing.T) {
 	// 	expectedVersion := int64(4) //NOT WORKING FOR POSTGRES
-	// 	expectedCluster := newCluster(t, 1, expectedVersion)
+	// 	expectedCluster := test.NewCluster(t, 1, expectedVersion)
 
 	// 	clusterState, err := inventory.Get(expectedCluster.RuntimeID, expectedVersion)
 	// 	require.NoError(t, err)
@@ -66,7 +60,7 @@ func TestInventory(t *testing.T) {
 	// })
 
 	t.Run("Get latest cluster", func(t *testing.T) {
-		expectedCluster := newCluster(t, 1, maxVersion, false)
+		expectedCluster := test.NewCluster(t, 1, maxVersion, false, test.Production)
 
 		clusterState, err := inventory.GetLatest(expectedCluster.RuntimeID)
 		require.NoError(t, err)
@@ -74,7 +68,7 @@ func TestInventory(t *testing.T) {
 	})
 
 	t.Run("Update cluster status", func(t *testing.T) {
-		cluster := newCluster(t, 1, maxVersion, false)
+		cluster := test.NewCluster(t, 1, maxVersion, false, test.Production)
 		clusterState, err := inventory.GetLatest(cluster.RuntimeID)
 		require.NoError(t, err)
 		require.Equal(t, clusterState.Status.Status, model.ClusterStatusReconcilePending)
@@ -93,7 +87,7 @@ func TestInventory(t *testing.T) {
 
 	t.Run("Delete a cluster", func(t *testing.T) {
 		//get cluster1
-		expectedCluster := newCluster(t, 1, 1, false)
+		expectedCluster := test.NewCluster(t, 1, 1, false, test.Production)
 		_, err := inventory.GetLatest(expectedCluster.RuntimeID)
 		require.NoError(t, err)
 		//delete cluster1
@@ -109,7 +103,7 @@ func TestInventory(t *testing.T) {
 
 		// //create for each cluster-status a new cluster
 		for idx, clusterStatus := range clusterStatuses {
-			newCluster := newCluster(t, int64(idx+1), 1, false)
+			newCluster := test.NewCluster(t, int64(idx+1), 1, false, test.Production)
 			clusterState, err := inventory.CreateOrUpdate(1, newCluster)
 			require.NoError(t, err)
 			expectedClusters = append(expectedClusters, newCluster)
@@ -149,7 +143,7 @@ func TestInventory(t *testing.T) {
 		inventory := newInventory(t)
 
 		//create cluster1, clusterVersion1, clusterConfigVersion1-1, status: Ready
-		cluster1v1v1 := newCluster(t, int64(1), 1, false)
+		cluster1v1v1 := test.NewCluster(t, int64(1), 1, false, test.Production)
 		clusterState1v1v1a, err := inventory.CreateOrUpdate(1, cluster1v1v1)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, clusterState1v1v1a.Status.Status)
@@ -158,19 +152,19 @@ func TestInventory(t *testing.T) {
 		require.Equal(t, model.ClusterStatusReady, clusterState1v1v1b.Status.Status)
 
 		//create cluster1, clusterVersion2, clusterConfigVersion2-2, status: ReconcilePending
-		cluster1v2v2 := newCluster(t, int64(1), 2, true)
+		cluster1v2v2 := test.NewCluster(t, int64(1), 2, true, test.Production)
 		expectedClusterState1v2v2, err := inventory.CreateOrUpdate(1, cluster1v2v2) //<- EXPECTED STATE
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, expectedClusterState1v2v2.Status.Status)
 
 		//create cluster2, clusterVersion1, clusterConfigVersion1-1, status: ReconcilePending
-		cluster2v1v1 := newCluster(t, int64(2), 1, false)
+		cluster2v1v1 := test.NewCluster(t, int64(2), 1, false, test.Production)
 		clusterState2v1v1, err := inventory.CreateOrUpdate(1, cluster2v1v1)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, clusterState2v1v1.Status.Status)
 
 		//create cluster2, clusterVersion1, clusterConfigVersion1-2, status: Error
-		cluster2v1v2 := newCluster(t, int64(2), 1, true)
+		cluster2v1v2 := test.NewCluster(t, int64(2), 1, true, test.Production)
 		clusterState2v1v2a, err := inventory.CreateOrUpdate(1, cluster2v1v2)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, clusterState2v1v2a.Status.Status)
@@ -187,7 +181,7 @@ func TestInventory(t *testing.T) {
 		require.Equal(t, model.ClusterStatusDeleting, expectedCluster2State2b.Status.Status)
 
 		//create cluster3, clusterVersion1, clusterConfigVersion1-1, status: Error
-		cluster3v1v1 := newCluster(t, int64(3), 1, false)
+		cluster3v1v1 := test.NewCluster(t, int64(3), 1, false, test.Production)
 		clusterState3v1v1a, err := inventory.CreateOrUpdate(1, cluster3v1v1)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, clusterState3v1v1a.Status.Status)
@@ -199,26 +193,26 @@ func TestInventory(t *testing.T) {
 		require.Equal(t, model.ClusterStatusReconcileError, expectedClusterState3v1v1c.Status.Status)
 
 		//create cluster4, clusterVersion1, clusterConfigVersion1-1, status: ReconcilePending
-		cluster4v1v1 := newCluster(t, int64(4), 1, false)
+		cluster4v1v1 := test.NewCluster(t, int64(4), 1, false, test.Production)
 		_, err = inventory.CreateOrUpdate(1, cluster4v1v1)
 		require.NoError(t, err)
 
 		//create cluster4, clusterVersion1, clusterConfigVersion1-2, status: Ready
-		cluster4v1v2 := newCluster(t, int64(4), 1, true)
+		cluster4v1v2 := test.NewCluster(t, int64(4), 1, true, test.Production)
 		clusterState4v1v2, err := inventory.CreateOrUpdate(1, cluster4v1v2)
 		require.NoError(t, err)
 		_, err = inventory.UpdateStatus(clusterState4v1v2, model.ClusterStatusReady)
 		require.NoError(t, err)
 
 		//create cluster4, clusterVersion2, clusterConfigVersion1-1, status: ReconcilePending
-		cluster4v2v1 := newCluster(t, int64(4), 2, false)
+		cluster4v2v1 := test.NewCluster(t, int64(4), 2, false, test.Production)
 		clusterState4v2v1, err := inventory.CreateOrUpdate(1, cluster4v2v1)
 		require.NoError(t, err)
 		_, err = inventory.UpdateStatus(clusterState4v2v1, model.ClusterStatusReady)
 		require.NoError(t, err)
 
 		//create cluster4, clusterVersion2, clusterConfigVersion1-2, status: Ready
-		cluster4v2v2 := newCluster(t, int64(4), 2, true)
+		cluster4v2v2 := test.NewCluster(t, int64(4), 2, true, test.Production)
 		clusterState4v2v2a, err := inventory.CreateOrUpdate(1, cluster4v2v2)
 		require.NoError(t, err)
 		expectedClusterState4v2v2b, err := inventory.UpdateStatus(clusterState4v2v2a, model.ClusterStatusReady) //<-EXPECTED STATE
@@ -251,7 +245,7 @@ func TestInventory(t *testing.T) {
 	t.Run("Get status changes", func(t *testing.T) {
 		inventory := newInventory(t)
 		expectedStatuses := append(clusterStatuses, model.ClusterStatusReconcilePending)
-		newCluster := newCluster(t, 1, 1, false)
+		newCluster := test.NewCluster(t, 1, 1, false, test.Production)
 		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
 		require.NoError(t, err)
 		// //create for each cluster-status a new cluster
@@ -297,30 +291,6 @@ func newInventory(t *testing.T) Inventory {
 	inventory, err := NewInventory(db.NewTestConnection(t), true, MetricsCollectorMock{})
 	require.NoError(t, err)
 	return inventory
-}
-
-func newCluster(t *testing.T, runtimeID, clusterVersion int64, newConfigVersion bool) *keb.Cluster {
-	cluster := &keb.Cluster{}
-	data, err := ioutil.ReadFile(clusterJSONFile)
-	require.NoError(t, err)
-	err = json.Unmarshal(data, cluster)
-	require.NoError(t, err)
-
-	cluster.RuntimeID = fmt.Sprintf("runtime%d", runtimeID)
-	cluster.RuntimeInput.Name = fmt.Sprintf("runtimeName%d", clusterVersion)
-	cluster.Metadata.GlobalAccountID = fmt.Sprintf("globalAccountId%d", clusterVersion)
-	cluster.Kubeconfig = "fake kubeconfig"
-
-	var suffix string
-	if newConfigVersion {
-		suffix = fmt.Sprintf("%d_%s", clusterVersion, uuid.NewString()) //leads always to a new cluster-config entity
-	} else {
-		suffix = fmt.Sprintf("%d", clusterVersion)
-	}
-	cluster.KymaConfig.Profile = fmt.Sprintf("kymaProfile%s", suffix)
-	cluster.KymaConfig.Version = fmt.Sprintf("kymaVersion%s", suffix)
-
-	return cluster
 }
 
 func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
