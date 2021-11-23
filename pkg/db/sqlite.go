@@ -57,8 +57,6 @@ func (sc *sqliteConnection) QueryRow(query string, args ...interface{}) (DataRow
 }
 
 func (sc *sqliteConnection) Query(query string, args ...interface{}) (DataRows, error) {
-	sc.Lock()
-	defer sc.Unlock()
 	sc.logger.Debugf("Sqlite3 Query(): %s | %v", query, args)
 	if err := sc.validator.Validate(query); err != nil {
 		return nil, err
