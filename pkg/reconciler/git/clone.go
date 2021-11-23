@@ -3,13 +3,15 @@ package git
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/storage/memory"
 	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
-	"net/url"
-	"strings"
 
 	"github.com/go-git/go-git/v5"
 	gitp "github.com/go-git/go-git/v5/plumbing"
@@ -33,6 +35,7 @@ type RepoClient interface {
 		isBare bool, o *git.CloneOptions) (*git.Repository, error)
 	Worktree() (*git.Worktree, error)
 	ResolveRevision(rev gitp.Revision) (*gitp.Hash, error)
+	Repo() *git.Repository
 }
 
 func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
@@ -155,4 +158,30 @@ func mapSecretKey(URL string) (string, error) {
 	output = strings.ReplaceAll(output, "www.", "")
 
 	return output, nil
+}
+
+func (r *Cloner) ResolveRevision(rev string) (*gitp.Hash, error) {
+	auth, err := r.buildAuth()
+	if err != nil {
+		return nil, err
+	}
+	// in case this is called before the repo is cloned, we must have a clone for the resolver to work.
+	repo := r.repoClient.Repo()
+	if repo == nil {
+		repo, err = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
+			URL:  r.repo.URL,
+			Auth: auth,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	var defaultLister refLister = remoteRefLister{}
+	var resolver = revisionResolver{
+		url:        r.repo.URL,
+		repository: repo,
+		refLister:  defaultLister,
+	}
+
+	return resolver.resolveRevision(rev)
 }

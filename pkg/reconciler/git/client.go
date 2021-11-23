@@ -29,3 +29,7 @@ func (d *Client) Worktree() (*git.Worktree, error) {
 func (d *Client) ResolveRevision(rev gitp.Revision) (*gitp.Hash, error) {
 	return d.repo.ResolveRevision(rev)
 }
+
+func (d *Client) Repo() *git.Repository {
+	return d.repo
+}

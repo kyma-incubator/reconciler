@@ -135,8 +135,20 @@ func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace,
 	if component == nil {
 		return nil, errors.New("cannot retrieve workspace because provided component was 'nil'")
 	}
-
 	version := fmt.Sprintf("%s-%s", component.version, component.name)
+
+	// detect if component should be cloned or downloaded and extracted from archive
+	var fetchComponent func(*Component, string) error = f.downloadComponent
+	if strings.HasSuffix(component.url, ".git") {
+		fetchComponent = f.cloneComponent
+		// use git revision for workspace dir instead
+		revision, err := f.getRevision(component.version, component.url)
+		if err != nil {
+			return nil, err
+		}
+		version = fmt.Sprintf("%s-%s", revision[0:8], component.name)
+	}
+
 	wsDir := f.workspaceDir(version)
 
 	wsReadyFile := filepath.Join(wsDir, wsReadyIndicatorFile)
@@ -154,12 +166,6 @@ func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace,
 
 	f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
 		component.name, component.version, component.url, wsDir)
-
-	// detect if component should be cloned or downloaded and extracted from archive
-	var fetchComponent func(*Component, string) error = f.downloadComponent
-	if strings.HasSuffix(component.url, ".git") {
-		fetchComponent = f.cloneComponent
-	}
 
 	if err := fetchComponent(component, wsDir); err != nil {
 		return nil, err
@@ -325,4 +331,18 @@ func (f *DefaultFactory) Delete(version string) error {
 		f.logger.Warnf("Failed to delete workspace '%s': %s", wsDir, err)
 	}
 	return err
+}
+
+func (f *DefaultFactory) getRevision(version, url string) (string, error) {
+	clientSet, err := reconcilerK8s.NewInClusterClientSet(f.logger)
+	if err != nil {
+		return "", err
+	}
+	cloner, _ := git.NewCloner(&git.Client{}, &reconciler.Repository{URL: url}, true, clientSet, f.logger)
+	revision, err := cloner.ResolveRevision(version)
+	if err != nil {
+		return "", nil
+	}
+
+	return revision.String(), nil
 }
