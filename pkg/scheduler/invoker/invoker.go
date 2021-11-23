@@ -10,6 +10,11 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 )
 
+const (
+	defaultBranch = "main"
+	tokenKey      = "repo.token.namespace"
+)
+
 type Invoker interface {
 	Invoke(ctx context.Context, params *Params) error
 }
@@ -36,12 +41,14 @@ func (p *Params) newRemoteTask(callbackURL string) *reconciler.Task {
 
 func (p *Params) newTask() *reconciler.Task {
 	version := p.ClusterState.Configuration.KymaVersion
-	if p.ComponentToReconcile.Version != "" {
+	if p.ComponentToReconcile.URL != "" && p.ComponentToReconcile.Version == "" {
+		version = defaultBranch
+	} else if p.ComponentToReconcile.Version != "" {
 		version = p.ComponentToReconcile.Version
 	}
 
 	configuration := p.ComponentToReconcile.ConfigurationAsMap()
-	tokenNamespace := configuration["repo.token.namespace"]
+	tokenNamespace := configuration[tokenKey]
 	if tokenNamespace == nil {
 		tokenNamespace = ""
 	}
