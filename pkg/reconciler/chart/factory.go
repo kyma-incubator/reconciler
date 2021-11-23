@@ -121,7 +121,7 @@ func (f *DefaultFactory) Get(version string) (*KymaWorkspace, error) {
 		}
 	}
 
-	if err := f.clone(version, wsDir, wsDir, f.kymaRepository); err != nil {
+	if err := f.clone(version, wsDir, wsDir, f.kymaRepository, false); err != nil {
 		return nil, err
 	}
 
@@ -139,22 +139,6 @@ func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace,
 	version := fmt.Sprintf("%s-%s", component.version, component.name)
 	wsDir := f.workspaceDir(version)
 
-	wsReadyFile := filepath.Join(wsDir, wsReadyIndicatorFile)
-	if file.Exists(wsReadyFile) {
-		f.logger.Debugf("Workspace '%s' already exists", wsDir)
-		return newComponentWorkspace(wsDir, component.name)
-	}
-
-	if file.DirExists(wsDir) {
-		f.logger.Warnf("Deleting workspace '%s' because previous download does not contain all the required files", wsDir)
-		if err := os.RemoveAll(wsDir); err != nil {
-			return nil, err
-		}
-	}
-
-	f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
-		component.name, component.version, component.url, wsDir)
-
 	// detect if component should be cloned or downloaded and extracted from archive
 	var fetchComponent func(*Component, string) error = f.downloadComponent
 	if strings.HasSuffix(component.url, ".git") {
@@ -169,6 +153,24 @@ func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace,
 }
 
 func (f *DefaultFactory) cloneComponent(component *Component, dstDir string) error {
+	pullOnly := false
+	wsReadyFile := filepath.Join(dstDir, wsReadyIndicatorFile)
+
+	if file.Exists(wsReadyFile) {
+		f.logger.Debugf("Workspace '%s' already exists", dstDir)
+		pullOnly = true
+
+	} else if file.DirExists(dstDir) {
+		f.logger.Warnf("Deleting workspace '%s' because previous download does not contain all the required files", dstDir)
+
+		if err := os.RemoveAll(dstDir); err != nil {
+			return err
+		}
+	}
+
+	f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
+		component.name, component.version, component.url, dstDir)
+
 	repo := &reconciler.Repository{
 		URL: component.url,
 	}
@@ -179,10 +181,23 @@ func (f *DefaultFactory) cloneComponent(component *Component, dstDir string) err
 	}
 
 	dstPath := path.Join(dstDir, component.name)
-	return f.clone(component.version, dstPath, dstDir, repo)
+	return f.clone(component.version, dstPath, dstDir, repo, pullOnly)
 }
 
 func (f *DefaultFactory) downloadComponent(component *Component, dstDir string) error {
+	wsReadyFile := filepath.Join(dstDir, wsReadyIndicatorFile)
+	if file.Exists(wsReadyFile) {
+		f.logger.Debugf("Workspace '%s' already exists", dstDir)
+		return nil
+	}
+	if file.DirExists(dstDir) {
+		f.logger.Warnf("Deleting workspace '%s' because previous download does not contain all the required files", dstDir)
+		if err := os.RemoveAll(dstDir); err != nil {
+			return err
+		}
+	}
+	f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
+		component.name, component.version, component.url, dstDir)
 	// create dst dir
 	if err := os.MkdirAll(dstDir, 0700); err != nil {
 		f.logger.Warnf("Unable to create destination directory: %q", dstDir)
@@ -280,17 +295,21 @@ func (f *DefaultFactory) readyFile(dstDir string) string {
 	return filepath.Join(dstDir, wsReadyIndicatorFile)
 }
 
-func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, repo *reconciler.Repository) error {
-	f.logger.Infof("Cloning GIT repository '%s' with revision '%s' into workspace '%s'",
-		repo.URL, version, dstDir)
-
+func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, repo *reconciler.Repository, pullOnly bool) error {
 	clientSet, err := reconcilerK8s.NewInClusterClientSet(f.logger)
 	if err != nil {
 		return err
 	}
-
 	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet, f.logger)
 
+	if pullOnly {
+		f.logger.Infof("Updating GIT repository '%s' with version '%s' into workspace '%s'",
+			repo.URL, version, dstDir)
+		return cloner.Pull(dstDir)
+	}
+
+	f.logger.Infof("Cloning GIT repository '%s' with revision '%s' into workspace '%s'",
+		repo.URL, version, dstDir)
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 			dstDir, repo.URL, version)

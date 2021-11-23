@@ -3,13 +3,14 @@ package git
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
-	"net/url"
-	"strings"
 
 	"github.com/go-git/go-git/v5"
 	gitp "github.com/go-git/go-git/v5/plumbing"
@@ -33,6 +34,7 @@ type RepoClient interface {
 		isBare bool, o *git.CloneOptions) (*git.Repository, error)
 	Worktree() (*git.Worktree, error)
 	ResolveRevision(rev gitp.Revision) (*gitp.Hash, error)
+	PlainOpen(path string) error
 }
 
 func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
@@ -99,6 +101,30 @@ func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
 	return r.Checkout(rev, repo)
 }
 
+func (r *Cloner) Pull(path string) error {
+	auth, err := r.buildAuth()
+	if err != nil {
+		return err
+	}
+
+	if err := r.repoClient.PlainOpen(path); err != nil {
+		return err
+	}
+	w, err := r.repoClient.Worktree()
+	if err != nil {
+		return errors.Wrap(err, "error getting the GIT worktree")
+	}
+	err = w.Pull(&git.PullOptions{
+		RemoteName: "origin",
+		Auth:       auth,
+	})
+	// We don't consider UpToDate an errors
+	if err == git.NoErrAlreadyUpToDate {
+		r.logger.Debugf("Git repository at '%s' is already up to date", path)
+		return nil
+	}
+	return err
+}
 func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 	tokenNamespace := "default"
 	if r.repo.TokenNamespace != "" {
