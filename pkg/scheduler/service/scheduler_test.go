@@ -67,7 +67,7 @@ func TestScheduler(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond) //give it some time to shutdown
 
-		require.WithinDuration(t, start, time.Now(), 2*time.Second)
+		require.WithinDuration(t, start, time.Now(), 4*time.Second)
 		requirecReconciliationEntity(t, reconRepo, clusterState)
 	})
 }
