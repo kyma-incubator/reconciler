@@ -1,8 +1,9 @@
 package components
 
 import (
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -20,6 +21,7 @@ type Component struct {
 	Namespace     string
 	URL           string
 	Configuration map[string]interface{}
+	Version       string
 }
 
 func NewComponentList(compListFile string) (*ComponentList, error) {
