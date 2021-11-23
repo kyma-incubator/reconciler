@@ -12,7 +12,6 @@ import (
 
 const (
 	defaultBranch = "main"
-	tokenKey      = "repo.token.namespace"
 )
 
 type Invoker interface {
@@ -48,7 +47,7 @@ func (p *Params) newTask() *reconciler.Task {
 	}
 
 	configuration := p.ComponentToReconcile.ConfigurationAsMap()
-	tokenNamespace := configuration[tokenKey]
+	tokenNamespace := configuration["repo.token.namespace"]
 	if tokenNamespace == nil {
 		tokenNamespace = ""
 	}
