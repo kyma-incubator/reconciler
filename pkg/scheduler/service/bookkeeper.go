@@ -40,9 +40,9 @@ func (wc *BookkeeperConfig) validate() error {
 }
 
 type bookkeeper struct {
-	config     *BookkeeperConfig
-	logger     *zap.SugaredLogger
-	repo reconciliation.Repository
+	config *BookkeeperConfig
+	logger *zap.SugaredLogger
+	repo   reconciliation.Repository
 }
 
 func newBookkeeper(repo reconciliation.Repository, config *BookkeeperConfig, logger *zap.SugaredLogger) *bookkeeper {
@@ -50,9 +50,9 @@ func newBookkeeper(repo reconciliation.Repository, config *BookkeeperConfig, log
 		config = &BookkeeperConfig{}
 	}
 	return &bookkeeper{
-		config:     config,
-		logger:     logger,
-		repo: repo,
+		config: config,
+		logger: logger,
+		repo:   repo,
 	}
 }
 
@@ -109,8 +109,6 @@ func (bk *bookkeeper) Run(ctx context.Context, tasks ...BookkeepingTask) error {
 		}
 	}
 }
-
-
 
 func (bk *bookkeeper) newReconciliationResult(recon *model.ReconciliationEntity) (*ReconciliationResult, error) {
 	ops, err := bk.repo.GetOperations(recon.SchedulingID)

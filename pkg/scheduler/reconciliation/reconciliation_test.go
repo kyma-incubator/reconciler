@@ -742,9 +742,9 @@ func TestReconciliationParallel(t *testing.T) {
 		for i := 0; i < 50; i++ {
 			wg.Add(1)
 			go func(errChannel chan error, repo Repository) {
-				defer  wg.Done()
+				defer wg.Done()
 				time.Sleep(time.Until(startAt))
-				err :=  repo.UpdateOperationState(recon.SchedulingID, allOperations[0].CorrelationID, model.OperationStateError, "")
+				err := repo.UpdateOperationState(recon.SchedulingID, allOperations[0].CorrelationID, model.OperationStateError, "")
 				if err != nil {
 					errChannel <- err
 				}
@@ -756,7 +756,7 @@ func TestReconciliationParallel(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 4, len(ops))
 		require.Equal(t, model.OperationStateError, ops[0].State)
-		for i:=1; i<4; i++ {
+		for i := 1; i < 4; i++ {
 			require.Equal(t, model.OperationStateNew, ops[i].State)
 		}
 		require.Equal(t, 49, len(errChannel))

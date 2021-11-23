@@ -12,9 +12,9 @@ type BookkeepingTask interface {
 	Apply(*ReconciliationResult) (int, error)
 }
 
-type orphanOperation struct{
+type orphanOperation struct {
 	transition *ClusterStatusTransition
-	logger *zap.SugaredLogger
+	logger     *zap.SugaredLogger
 }
 
 func (oo orphanOperation) Apply(reconResult *ReconciliationResult) (int, error) {
@@ -44,7 +44,7 @@ func (oo orphanOperation) Apply(reconResult *ReconciliationResult) (int, error) 
 
 type finishOperation struct {
 	transition *ClusterStatusTransition
-	logger *zap.SugaredLogger
+	logger     *zap.SugaredLogger
 }
 
 func (fo finishOperation) Apply(reconResult *ReconciliationResult) (int, error) {

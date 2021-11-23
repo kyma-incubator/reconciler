@@ -22,7 +22,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 		customFunc  string
 		errMessage  string
 		errCount    uint64
-		task string
+		task        string
 	}{
 		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: "markOrphanOperations", errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 98, task: "orphanOperation"},
 		{name: "Finish two operations in multiple parallel threads", markOpsDone: true, customFunc: "finishReconciliation", errMessage: "Bookkeeper failed to update cluster", errCount: 49, task: "finishOperation"},
@@ -43,7 +43,6 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, strconv.Itoa(1), 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
 
-
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
@@ -51,7 +50,6 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, reconEntity.Lock)
 			require.False(t, reconEntity.Finished)
-
 
 			//mark all operations to be done, if needed for tc
 			if tc.markOpsDone {
@@ -70,12 +68,12 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			case "orphanOperation":
 				bookkeeperOperation = orphanOperation{
 					transition: transition,
-					logger: logger.NewLogger(true),
+					logger:     logger.NewLogger(true),
 				}
 			case "finishOperation":
 				bookkeeperOperation = finishOperation{
 					transition: transition,
-					logger: logger.NewLogger(true),
+					logger:     logger.NewLogger(true),
 				}
 			default:
 				t.Errorf("Unknown task: %s", tc.task)
