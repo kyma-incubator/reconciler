@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -9,13 +8,10 @@ import (
 )
 
 func NewTestConnectionFactory(t *testing.T) ConnectionFactory {
-	fmt.Println("Before get Config File")
 	configFile, err := test.GetConfigFile()
 	require.NoError(t, err)
-	fmt.Println("After get Config File")
 
 	connFac, err := NewConnectionFactory(configFile, false, true)
-	fmt.Println("After newconnectionfactory")
 	require.NoError(t, err)
 
 	require.NoError(t, connFac.Init(false))
