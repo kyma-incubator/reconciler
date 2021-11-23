@@ -28,6 +28,9 @@ const (
 	StatusReconciling Status = "reconciling"
 )
 
+// HTTPClusterConfig defines model for HTTPClusterConfig.
+type HTTPClusterConfig KymaConfig
+
 // HTTPClusterResponse defines model for HTTPClusterResponse.
 type HTTPClusterResponse struct {
 	Cluster              string     `json:"cluster"`
@@ -188,6 +191,9 @@ type ReconcilationsOKResponse HTTPReconcilerStatus
 
 // ReconciliationInfoOKResponse defines model for ReconciliationInfoOKResponse.
 type ReconciliationInfoOKResponse HTTPReconciliationInfo
+
+// ConfigurationOkResponse defines model for configurationOkResponse.
+type ConfigurationOkResponse HTTPClusterConfig
 
 // PostClustersJSONBody defines parameters for PostClusters.
 type PostClustersJSONBody Cluster

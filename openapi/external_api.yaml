@@ -198,6 +198,25 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /clusters/{runtimeID}/config/{version}:
+    get:
+      description: "Get cluster configuration"
+      parameters:
+        - name: runtimeID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/configurationOkResponse"
+
   /clusters/{runtimeID}/config/{configVersion}/status:
     get:
       description: test
@@ -256,6 +275,13 @@ components:
           schema:
             $ref: "#/components/schemas/HTTPClusterResponse"
 
+    configurationOkResponse:
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/HTTPClusterConfig"
+
     ReconcilationsOKResponse:
       description: "OK"
       content:
@@ -300,6 +326,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/statusChange"
+
+    HTTPClusterConfig:
+      $ref: "#/components/schemas/kymaConfig"
 
     HTTPErrorResponse:
       type: object

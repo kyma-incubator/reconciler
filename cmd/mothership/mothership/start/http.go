@@ -103,6 +103,10 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, getReconciliationInfo)).
 		Methods("GET")
 
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
+		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
+
 	//metrics endpoint
 	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
@@ -626,6 +630,39 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 			Error: err.Error(),
 		})
 		return
+	}
+}
+
+func getKymaConfig(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	runtimeID, err := params.String(paramRuntimeID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{Error: err.Error()})
+		return
+	}
+
+	configVersion, err := params.Int64(paramConfigVersion)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{Error: err.Error()})
+		return
+	}
+
+	state, err := o.Registry.Inventory().Get(runtimeID, configVersion)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+	if state.Configuration == nil {
+		server.SendHTTPErrorMap(w, errors.New("state configuration is nil"))
+		return
+	}
+	response := converters.ConvertConfig(*state.Configuration)
+
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to encode response payload to JSON").Error(),
+		})
 	}
 }
 
