@@ -21,8 +21,8 @@ import (
 type testInvoker struct {
 	params     []*invoker.Params
 	reconRepo  reconciliation.Repository
-	mux        sync.Mutex
 	errChannel chan error
+	sync.Mutex
 }
 
 func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
@@ -30,14 +30,14 @@ func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
 		i.errChannel <- errors.New("Update failed")
 		return err
 	}
-	i.mux.Lock()
+	i.Lock()
 	i.params = append(i.params, params)
-	i.mux.Unlock()
+	i.Unlock()
 	return nil
 }
 
 func TestWorkerPool(t *testing.T) {
-	//test.IntegrationTest(t) //required because a valid Kubeconfig is required to create test cluster entry
+	test.IntegrationTest(t) //required because a valid Kubeconfig is required to create test cluster entry
 
 	//create cluster inventory
 	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
