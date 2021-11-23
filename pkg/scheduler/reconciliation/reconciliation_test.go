@@ -644,7 +644,7 @@ func createClusterStates(t *testing.T, inventory cluster.Inventory) (*cluster.St
 	require.NoError(t, err)
 
 	clusterID2 := uuid.NewString()
-	stateMock2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.ThreeComponentsDummy))
+	stateMock2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.OneComponentDummy))
 	require.NoError(t, err)
 	return stateMock1, stateMock2
 }
@@ -753,6 +753,7 @@ func TestReconciliationParallel(t *testing.T) {
 		wg.Wait()
 
 		ops, err := repo.GetReconcilingOperations()
+		require.NoError(t, err)
 		require.Equal(t, 4, len(ops))
 		require.Equal(t, model.OperationStateError, ops[0].State)
 		for i:=1; i<4; i++ {
@@ -793,6 +794,7 @@ func TestReconciliationParallel(t *testing.T) {
 		wg.Wait()
 
 		recons, err := repo.GetReconciliations(nil)
+		require.NoError(t, err)
 		require.Equal(t, 1, len(recons))
 		require.True(t, recons[0].Finished)
 		require.Equal(t, 49, len(errChannel))

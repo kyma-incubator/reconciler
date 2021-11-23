@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -20,21 +19,7 @@ func TestBookkeeper(t *testing.T) {
 	//prepare inventory
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
-	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-		Kubeconfig: "123",
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Component{
-				{
-					Component:     "dummy",
-					Configuration: nil,
-					Namespace:     "kyma-system",
-				},
-			},
-			Profile: "",
-			Version: "1.2.3",
-		},
-		RuntimeID: uuid.NewString(),
-	})
+	clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 	require.NoError(t, err)
 
 	//trigger reconciliation for cluster

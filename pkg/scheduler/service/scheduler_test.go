@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"sync"
 	"testing"
 	"time"
@@ -115,59 +116,11 @@ func testClusterState(clusterID string, statusID int64) *cluster.State {
 
 func createClusterStates(t *testing.T, inventory cluster.Inventory) {
 	clusterID1 := uuid.NewString()
-	_, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-		Kubeconfig: "abc",
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Component{
-				{
-					Component: "comp1",
-					Configuration: []keb.Configuration{
-						{
-							Key:   "limitRange.default.memory",
-							Value: "256m",
-						},
-					},
-					Namespace: "kyma-system",
-				},
-				{
-					Component:     "comp2",
-					Configuration: nil,
-					Namespace:     "istio-system",
-				},
-				{
-					Component:     "comp3",
-					Configuration: nil,
-					Namespace:     "kyma-system",
-				},
-			},
-			Version: "1.2.3",
-		},
-		Metadata:  keb.Metadata{},
-		RuntimeID: clusterID1,
-		RuntimeInput: keb.RuntimeInput{
-			Name: clusterID1,
-		},
-	})
+	_, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID1, 1, false, test.ThreeComponentsDummy))
 	require.NoError(t, err)
 
 	clusterID2 := uuid.NewString()
-	_, err = inventory.CreateOrUpdate(1, &keb.Cluster{
-		Kubeconfig: "abc",
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Component{
-				{
-					Component: "comp4",
-					Namespace: "kyma-system",
-				},
-			},
-			Version: "1.2.3",
-		},
-		Metadata:  keb.Metadata{},
-		RuntimeID: clusterID2,
-		RuntimeInput: keb.RuntimeInput{
-			Name: clusterID2,
-		},
-	})
+	_, err = inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.OneComponentDummy))
 	require.NoError(t, err)
 }
 

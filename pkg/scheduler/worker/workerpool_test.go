@@ -45,22 +45,7 @@ func TestWorkerPool(t *testing.T) {
 	require.NoError(t, err)
 
 	//add cluster to inventory
-	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-		Kubeconfig: test.ReadKubeconfig(t),
-		KymaConfig: keb.KymaConfig{
-			Administrators: nil,
-			Components: []keb.Component{
-				{
-					Component: "TestComp1",
-				},
-			},
-			Profile: "",
-			Version: "1.2.3",
-		},
-		Metadata:     keb.Metadata{},
-		RuntimeID:    "testCluster",
-		RuntimeInput: keb.RuntimeInput{},
-	})
+	clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 	require.NoError(t, err)
 
 	//cleanup created cluster

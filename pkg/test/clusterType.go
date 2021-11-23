@@ -325,22 +325,23 @@ var (
 			"component": "comp1",
 			"namespace": "kyma-system",
 			"configuration": [{
-					"key": "dummyKey",
-					"value": "123"
-				},
+				"key": "dummyKey",
+				"value": "123"
+			}]
+		}, {
 			"component": "comp2",
 			"namespace": "kyma-system",
 			"configuration": [{
-					"key": "dummyKey",
-					"value": "123"
-				},
+				"key": "dummyKey",
+				"value": "123"
+			}]
+		}, {
 			"component": "comp3",
 			"namespace": "kyma-system",
 			"configuration": [{
-					"key": "dummyKey",
-					"value": "123"
-				}
-			]
+				"key": "dummyKey",
+				"value": "123"
+			}]
 		}]
 	},
 	"kubeConfig": "123",
