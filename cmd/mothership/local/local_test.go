@@ -39,10 +39,10 @@ func TestOverlappingNestedValues(t *testing.T) {
 }
 
 func TestSetCustomNamespaceAndUrl(t *testing.T) {
-	list := []string{"{api-gateway,api-gatewayNS,https://github.com/kyma-project/customKyma}"}
+	list := []string{"{api-gateway,api-gatewayNS,https://github.com/kyma-project/customKyma,main}"}
 	expected := []*keb.Component{
 		{
-			Component: "api-gateway", Namespace: "api-gatewayNS", URL: "https://github.com/kyma-project/customKyma",
+			Component: "api-gateway", Namespace: "api-gatewayNS", URL: "https://github.com/kyma-project/customKyma", Version: "main",
 		},
 	}
 
