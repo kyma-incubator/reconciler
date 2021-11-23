@@ -2,11 +2,9 @@ package db
 
 import (
 	"database/sql"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"io/ioutil"
 	"os"
-	"sync"
-
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	//add SQlite driver:
 	_ "github.com/mattn/go-sqlite3"
@@ -15,7 +13,6 @@ import (
 )
 
 type sqliteConnection struct {
-	sync.Mutex
 	db        *sql.DB
 	encryptor *Encryptor
 	validator *Validator
@@ -69,8 +66,6 @@ func (sc *sqliteConnection) Query(query string, args ...interface{}) (DataRows, 
 }
 
 func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
-	sc.Lock()
-	defer sc.Unlock()
 	sc.logger.Debugf("Sqlite3 Exec(): %s | %v", query, args)
 	if err := sc.validator.Validate(query); err != nil {
 		return nil, err
