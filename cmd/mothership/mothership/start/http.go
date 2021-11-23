@@ -270,13 +270,15 @@ func contains(slice []string, value string) bool {
 }
 
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
+	// define variables
 	var statuses, runtimeIDs []string
 	var ok bool
+
 	if statuses, ok = r.URL.Query()[paramStatus]; !ok {
 		statuses = []string{}
 	}
 
-	// validate statuseses
+	// validate statuses
 	for _, statusStr := range statuses {
 		if _, err := keb.ToStatus(statusStr); err != nil {
 			server.SendHTTPError(
