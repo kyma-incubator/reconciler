@@ -214,6 +214,20 @@ func (g *kubeClientAdapter) newNamespaceUnstruct(namespace string) (*unstructure
 	return nsUnstructs[0], nil
 }
 
+func (g *kubeClientAdapter) DeleteResource(kind, name, namespace string) (*Resource, error) {
+	if !g.resourceExists(kind, name, namespace) {
+		return nil, nil
+	}
+	metadata, err := g.kubeClient.DeleteResourceByKindAndNameAndNamespace(kind, name, namespace, metav1.DeleteOptions{})
+	deletedResource := toResource(metadata)
+	if err != nil && !k8serr.IsNotFound(err) {
+		g.logger.Errorf("Failed to delete Kubernetes unstructured resource kind='%s', name='%s', namespace='%s': %s",
+			kind, name, namespace, err)
+		return deletedResource, err
+	}
+	return deletedResource, nil
+}
+
 func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error) {
 	if namespace == "" {
 		namespace = defaultNamespace
@@ -235,6 +249,11 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace stri
 	var deletedResources []*Resource
 	for i := len(unstructs) - 1; i >= 0; i-- {
 		unstruct := unstructs[i]
+
+		// execute the delete request only if the resource exists
+		if !g.resourceExists(unstruct.GetKind(), unstruct.GetName(), namespace) {
+			continue
+		}
 
 		g.logger.Debugf("Deleting resource kind='%s', name='%s', namespace='%s'",
 			unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
@@ -271,6 +290,16 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace stri
 	}
 	return deletedResources, nil
 }
+
+// check if resource exists in the cluster
+func (g *kubeClientAdapter) resourceExists(kind, name, namespace string) bool {
+	_, err := g.kubeClient.Get(kind, name, namespace)
+	if k8serr.IsNotFound(err) {
+		return false
+	}
+	return err == nil
+}
+
 func (g *kubeClientAdapter) newProgressTracker() (*progress.Tracker, error) {
 	clientSet, err := g.Clientset()
 	if err != nil {
