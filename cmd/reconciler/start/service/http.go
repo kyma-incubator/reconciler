@@ -40,7 +40,26 @@ func newRouter(ctx context.Context, o *reconCli.Options, workerPool *service.Wor
 			reconcile(ctx, w, r, o, workerPool)
 		},
 	).Methods("PUT", "POST")
+
+	//liveness and readiness checks
+	router.HandleFunc("/health/live", live)
+	router.HandleFunc("/health/ready", ready(workerPool))
+
 	return router
+}
+
+func live(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func ready(workerPool *service.WorkerPool) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		if workerPool.IsClosed() {
+			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func newModel(req *http.Request) (*reconciler.Task, error) {

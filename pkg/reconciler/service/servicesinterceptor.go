@@ -19,12 +19,6 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, nam
 		return k8s.ContinueInterceptionResult, nil
 	}
 
-	//resolve namespace
-	ns := namespace
-	if resource.GetNamespace() != "" { //namespace defined in manifest has precedence
-		ns = resource.GetNamespace()
-	}
-
 	//convert unstruct to service resource
 	svc := &v1.Service{}
 	err := runtime.DefaultUnstructuredConverter.
@@ -44,7 +38,7 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, nam
 	}
 
 	//retrieve existing service from cluster
-	svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), ns)
+	svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), k8s.ResolveNamespace(resource, namespace))
 	if err != nil {
 		return k8s.ErrorInterceptionResult, err
 	}

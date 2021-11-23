@@ -12,6 +12,5 @@ const (
 func New() *action.Action {
 	return action.New(actionName, action.Steps{
 		// add PreAction steps here
-		new(migrateEventTypePrefixConfigStep),
 	})
 }

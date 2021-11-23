@@ -143,6 +143,8 @@ func TestKubernetesClient(t *testing.T) {
 		require.IsType(t, &kubernetes.Clientset{}, clientSet)
 	})
 
+	//TODO: test all getter methods
+
 }
 
 func readManifest(t *testing.T, fileName string) string {

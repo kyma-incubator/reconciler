@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	batchv1 "k8s.io/api/batch/v1"
 
 	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -46,6 +47,9 @@ type Client interface {
 	GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error)
 	GetService(ctx context.Context, name, namespace string) (*v1.Service, error)
 	GetPod(ctx context.Context, name, namespace string) (*v1.Pod, error)
+	GetJob(ctx context.Context, name, namespace string) (*batchv1.Job, error)
 	GetPersistentVolumeClaim(ctx context.Context, name, namespace string) (*v1.PersistentVolumeClaim, error)
 	ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error)
+
+	GetHost() string
 }

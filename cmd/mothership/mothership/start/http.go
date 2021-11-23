@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/internal/converters"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -42,75 +43,86 @@ const (
 
 func startWebserver(ctx context.Context, o *Options) error {
 	//routing
-	router := mux.NewRouter()
+	mainRouter := mux.NewRouter()
+	apiRouter := mainRouter.PathPrefix("/").Subrouter()
+	metricsRouter := mainRouter.Path("/metrics").Subrouter()
+	healthRouter := mainRouter.PathPrefix("/health").Subrouter()
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, updateOperationStatus)).
 		Methods("POST")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdateCluster)).
 		Methods("PUT", "POST")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramRuntimeID),
 		callHandler(o, deleteCluster)).
 		Methods("DELETE")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramCluster),
 		callHandler(o, deleteCluster)).
 		Methods("DELETE")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getCluster)).
 		Methods("GET")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, getLatestCluster)).
 		Methods("GET")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, updateLatestCluster)).
 		Methods("PUT")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges", paramContractVersion, paramRuntimeID), //supports offset-param
 		callHandler(o, statusChanges)).
 		Methods("GET")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, operationCallback)).
 		Methods("POST")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations", paramContractVersion),
 		callHandler(o, getReconciliations)).
 		Methods("GET")
 
-	router.HandleFunc(
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations/{%s}/info", paramContractVersion, paramSchedulingID),
 		callHandler(o, getReconciliationInfo)).
 		Methods("GET")
 
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
+		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
+
 	//metrics endpoint
 	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
-	router.Handle("/metrics", promhttp.Handler())
+	metricsRouter.Handle("", promhttp.Handler())
 
-	if o.AuditLog && o.AuditLogFile != "" {
+	//liveness and readiness checks
+	healthRouter.HandleFunc("/live", live)
+	healthRouter.HandleFunc("/ready", ready(o))
+
+	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
 		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
 		if err != nil {
 			return err
 		}
 		defer func() { _ = auditLogger.Sync() }() // make golint happy
-		auditLoggerMiddelware := NewAuditLoggerMiddelware(auditLogger)
-		router.Use(auditLoggerMiddelware)
+		auditLoggerMiddelware := newAuditLoggerMiddelware(auditLogger, o)
+		apiRouter.Use(auditLoggerMiddelware)
 	}
 	//start server process
 	srv := &server.Webserver{
@@ -118,9 +130,23 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Port:       o.Port,
 		SSLCrtFile: o.SSLCrt,
 		SSLKeyFile: o.SSLKey,
-		Router:     router,
+		Router:     mainRouter,
 	}
 	return srv.Start(ctx) //blocking call
+}
+
+func live(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func ready(o *Options) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		if o.Registry.Connnection().Ping() != nil {
+			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -345,87 +371,31 @@ func getReconciliationInfo(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	schedulingID, err := params.String(paramSchedulingID)
 	if err != nil {
-		server.SendHTTPError(
-			w,
-			http.StatusBadRequest,
-			&keb.BadRequest{Error: err.Error()},
-		)
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 		return
 	}
-	// fetch all reconciliation operations for given scheduling id
+	reconciliationEntity, err := o.Registry.ReconciliationRepository().GetReconciliation(schedulingID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+
 	operations, err := o.Registry.ReconciliationRepository().GetOperations(schedulingID)
 	if err != nil {
-		server.SendHTTPError(
-			w,
-			http.StatusInternalServerError,
-			&keb.InternalError{Error: err.Error()},
-		)
+		server.SendHTTPErrorMap(w, err)
 		return
 	}
-	// return 404 if no reconciliation opertations found
-	operationLen := len(operations)
-	if operationLen < 1 {
-		server.SendHTTPError(
-			w,
-			http.StatusNotFound,
-			&keb.HTTPErrorResponse{
-				Error: fmt.Sprintf("Reconciliation run with schedulingID: '%s' does not exist", schedulingID),
-			},
-		)
-		return
-	}
-	// find runtime id
-	runtimeID := operations[0].RuntimeID
-	// fetch cluster latest state
-	lastState, err := o.Registry.
-		Inventory().
-		GetLatest(runtimeID)
 
-	if err != nil || lastState == nil {
-		server.SendHTTPError(
-			w,
-			http.StatusInternalServerError,
-			&keb.InternalError{
-				Error: fmt.Sprintf(
-					"Failed to fetch the lates state for the cluster with runtimeID: '%s'",
-					schedulingID,
-				),
-			},
-		)
+	result, err := converters.ConvertReconciliation(reconciliationEntity, operations)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
 		return
 	}
-	// update response with the lates state of the cluster
-	result := keb.ReconcilationOperationsOKResponse{
-		Cluster: clusterMetadata(runtimeID, lastState),
-	}
-	// prepare reconciliation operations
-	resultOperations := make([]keb.Operation, operationLen)
-	for i := 0; i < operationLen; i++ {
-		operation := operations[i]
 
-		resultOperations[i] = keb.Operation{
-			Component:     operation.Component,
-			CorrelationID: operation.CorrelationID,
-			Created:       operation.Created,
-			Priority:      operation.Priority,
-			Reason:        operation.Reason,
-			SchedulingID:  operation.CorrelationID,
-			State:         string(operation.State),
-			Updated:       operation.Updated,
-		}
-	}
-	// update response with the reconciliation operations
-	result.Operations = &resultOperations
 	//respond
 	w.Header().Set("content-type", "application/json")
-	if err := json.NewEncoder(w).Encode(keb.ReconcilationOperationsOKResponse(result)); err != nil {
-		server.SendHTTPError(
-			w,
-			http.StatusInternalServerError,
-			&keb.InternalError{
-				Error: errors.Wrap(err, "Failed to encode cluster list response").Error(),
-			})
-		return
+	if err := json.NewEncoder(w).Encode(keb.ReconciliationInfoOKResponse(result)); err != nil {
+		server.SendHTTPErrorMap(w, errors.Wrap(err, "Failed to encode cluster list response"))
 	}
 }
 
@@ -668,6 +638,39 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 			Error: err.Error(),
 		})
 		return
+	}
+}
+
+func getKymaConfig(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	runtimeID, err := params.String(paramRuntimeID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{Error: err.Error()})
+		return
+	}
+
+	configVersion, err := params.Int64(paramConfigVersion)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{Error: err.Error()})
+		return
+	}
+
+	state, err := o.Registry.Inventory().Get(runtimeID, configVersion)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+	if state.Configuration == nil {
+		server.SendHTTPErrorMap(w, errors.New("state configuration is nil"))
+		return
+	}
+	response := converters.ConvertConfig(*state.Configuration)
+
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to encode response payload to JSON").Error(),
+		})
 	}
 }
 

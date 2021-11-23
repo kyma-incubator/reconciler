@@ -7,13 +7,12 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"go.uber.org/zap"
 )
 
 type ActionContext struct {
 	KubeClient       kubernetes.Client
-	WorkspaceFactory workspace.Factory
+	WorkspaceFactory chart.Factory
 	Context          context.Context
 	Logger           *zap.SugaredLogger
 	Task             *reconciler.Task
