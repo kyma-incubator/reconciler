@@ -687,6 +687,8 @@ func TestReconciliationParallel(t *testing.T) {
 	t.Run("Create multiple instances of single reconciliations in parallel", func(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
+		//reset db connection
+		dbConn = nil
 
 		repo := newPersistentRepository(t)
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
@@ -722,6 +724,8 @@ func TestReconciliationParallel(t *testing.T) {
 	t.Run("Update single operation state in multiple parallel threads", func(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
+		//reset db connection
+		dbConn = nil
 
 		repo := newPersistentRepository(t)
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
@@ -766,13 +770,16 @@ func TestReconciliationParallel(t *testing.T) {
 	t.Run("Mark single reconciliation as finished in multiple parallel threads", func(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
+		//reset db connection
+		dbConn = nil
 
 		repo := newPersistentRepository(t)
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
 		errChannel := make(chan error, 100)
-		mockClusterState, _ := createClusterStates(t, inventory)
+		mockClusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, uuid.NewString(), 1, false, test.OneComponentDummy))
+		require.NoError(t, err)
 
 		defer func() {
 			require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
