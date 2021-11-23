@@ -54,10 +54,10 @@ func componentsFromFile(path string) ([]string, []string, error) {
 
 	for _, c := range compList.Prerequisites {
 		preComps = append(preComps, c.Name)
-		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s}", c.Name, c.Namespace, c.URL))
+		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s,%s}", c.Name, c.Namespace, c.URL, c.Version))
 	}
 	for _, c := range compList.Components {
-		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s}", c.Name, c.Namespace, c.URL))
+		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s,%s}", c.Name, c.Namespace, c.URL, c.Version))
 	}
 	return preComps, defaultComps, nil
 }
@@ -81,11 +81,13 @@ func componentsFromStrings(list []string, values []string) ([]*keb.Component, er
 		name := strings.TrimSpace(s[0])
 		namespace := components.KymaNamespace
 		url := ""
+		version := ""
 		if len(s) > 1 {
 			if strings.TrimSpace(s[1]) != "" {
 				namespace = strings.TrimSpace(s[1])
 			}
 			url = setURLRepository(s[2])
+			version = strings.TrimSpace(s[3])
 		}
 		var configuration []keb.Configuration
 		if vals[name] != nil {
@@ -104,7 +106,7 @@ func componentsFromStrings(list []string, values []string) ([]*keb.Component, er
 		if vals["global"] != nil {
 			configuration = append(configuration, keb.Configuration{Key: "global", Value: vals["global"]})
 		}
-		comps = append(comps, &keb.Component{URL: url, Component: name, Namespace: namespace, Configuration: configuration})
+		comps = append(comps, &keb.Component{URL: url, Component: name, Namespace: namespace, Configuration: configuration, Version: version})
 	}
 
 	return comps, nil
