@@ -50,7 +50,7 @@ func TestServicesInterceptor(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, unstructs, 2)
 
-	testAssertions := func(t *testing.T, service *unstructured.Unstructured, expectedClusterIP string) () {
+	testAssertions := func(t *testing.T, service *unstructured.Unstructured, expectedClusterIP string) {
 		serviceObject, err := toService(service)
 		require.NoError(t, err)
 		require.Equal(t, serviceObject.Spec.ClusterIP, expectedClusterIP)
@@ -78,7 +78,7 @@ func TestServicesInterceptor(t *testing.T) {
 
 	// check with "None" clusterIP
 	service = unstructs[1]
-	testAssertions(t, service, "None")
+	testAssertions(t, service, none)
 }
 
 func toService(unstruct *unstructured.Unstructured) (*v1.Service, error) {
