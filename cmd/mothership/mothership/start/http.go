@@ -296,9 +296,15 @@ func contains(slice []string, value string) bool {
 }
 
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
-	statuses := r.URL.Query()[paramStatus]
+	// define variables
+	var statuses, runtimeIDs []string
+	var ok bool
 
-	// validate statuseses
+	if statuses, ok = r.URL.Query()[paramStatus]; !ok {
+		statuses = []string{}
+	}
+
+	// validate statuses
 	for _, statusStr := range statuses {
 		if _, err := keb.ToStatus(statusStr); err != nil {
 			server.SendHTTPError(
@@ -310,7 +316,9 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	runtimeIDs := r.URL.Query()[paramRuntimeIDs]
+	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; !ok {
+		runtimeIDs = []string{}
+	}
 
 	// Fetch all reconciliation entitlies base on runtime id
 	reconciles, err := o.Registry.
