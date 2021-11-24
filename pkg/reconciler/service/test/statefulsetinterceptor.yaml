@@ -1,3 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: statefulset-pv
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/tmp"
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -30,12 +43,14 @@ spec:
             periodSeconds: 5
   volumeClaimTemplates:
     - metadata:
-        name: statefulset-data
+        name: statefulset-pvc
       spec:
-        accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: 50Mi
+            storage: 1Mi
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: manual
 ---
 apiVersion: apps/v1
 kind: StatefulSet
