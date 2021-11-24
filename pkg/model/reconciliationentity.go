@@ -18,6 +18,7 @@ type ReconciliationEntity struct {
 	SchedulingID        string    `db:"notNull"`
 	Created             time.Time `db:"readOnly"`
 	Updated             time.Time `db:""`
+	Status              Status    `db:"notNull"`
 }
 
 func (r *ReconciliationEntity) String() string {
@@ -33,6 +34,7 @@ func (r *ReconciliationEntity) Marshaller() *db.EntityMarshaller {
 	marshaller := db.NewEntityMarshaller(&r)
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	marshaller.AddUnmarshaller("Updated", convertTimestampToTime)
+	marshaller.AddUnmarshaller("Status", convertStringToStatus)
 	return marshaller
 }
 

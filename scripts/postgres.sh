@@ -79,15 +79,30 @@ function start() {
 function migrate() {
   local postgresDSN="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:$POSTGRES_PORT/$POSTGRES_DB?sslmode=disable"
   migrateCmd=$(which migrate)
-  if [ $? -eq 0 ]; then
-    echo -n "Migrating database: "
-    $migrateCmd -database "$postgresDSN" -path "$MIGRATE_PATH" up
-  else
+  if [ $? -ne 0 ]; then
     error "DB migration requires the 'migrate' tool, please install it and try again.
-
-See https://github.com/golang-migrate/migrate/tree/master/cmd/migrate
-"
+    See https://github.com/golang-migrate/migrate/tree/master/cmd/migrate"
+    exit 1
   fi
+
+  pg_isready_cmd=$(which pg_isready)
+  if [ $? -ne 0 ]; then
+    error "DB migration requires the 'pg_isready' tool, please install postgresql tools and try again.
+    See https://www.postgresql.org/docs/current/app-pg-isready.html"
+    exit 1
+  fi
+
+  echo "Wait for Postgresql to be ready"
+  $pg_isready_cmd --host "localhost" --port "${POSTGRES_PORT}" --dbname "${POSTGRES_DB}" --username "${POSTGRES_USER}" --timeout 30
+  if [ $? -ne 0 ]; then
+    echo "database is not ready, run again migrate"
+    exit 1
+  fi
+
+  echo -n "Migrating database: "
+  $migrateCmd -database "$postgresDSN" -path "$MIGRATE_PATH" up
+
+#  fi
 }
 
 # Purge any old Posgres container

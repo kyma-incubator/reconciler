@@ -355,7 +355,7 @@ func TestMothership(t *testing.T) {
 			},
 			method:           httpGet,
 			expectedHTTPCode: 200,
-			responseModel:    &keb.HTTPReconciliationOperations{},
+			responseModel:    &keb.HTTPReconciliationInfo{},
 			verifier:         twoReconciliationOps,
 			// no need for waiting in initFn
 		},
@@ -368,6 +368,24 @@ func TestMothership(t *testing.T) {
 			name:   "Cleanup test context2",
 			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName2),
 			method: httpDelete,
+		},
+		{
+			name:             "Test metrics endpoint",
+			url:              fmt.Sprintf("http://localhost:%d/metrics", serverPort),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+		},
+		{
+			name:             "Test liveness endpoint",
+			url:              fmt.Sprintf("http://localhost:%d/health/live", serverPort),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+		},
+		{
+			name:             "Test readiness endpoint",
+			url:              fmt.Sprintf("http://localhost:%d/health/ready", serverPort),
+			method:           httpGet,
+			expectedHTTPCode: 200,
 		},
 	}
 
@@ -398,6 +416,9 @@ func startMothershipReconciler(ctx context.Context, t *testing.T) int {
 		o.WatchInterval = 1 * time.Second
 		o.Port = serverPort
 		o.Verbose = true
+		o.AuditLog = true
+		o.AuditLogFile = "/tmp/reconciler-auditlog"
+		o.AuditLogTenantID = "c1f7b53f-7dad-4dc6-86d8-1bc97fd35d3d"
 
 		t.Log("Starting mothership reconciler")
 		require.NoError(t, Run(ctx, o))
@@ -506,8 +527,8 @@ func hasReconciliation(p func(int) bool) verifier {
 
 func hasReconciliationOpt(p func(int) bool) verifier {
 	return func(t *testing.T, response interface{}) {
-		var result keb.HTTPReconciliationOperations = *response.(*keb.HTTPReconciliationOperations)
-		actualReconciliationSize := len(*result.Operations)
+		var result keb.HTTPReconciliationInfo = *response.(*keb.HTTPReconciliationInfo)
+		actualReconciliationSize := len(result.Operations)
 
 		if !p(actualReconciliationSize) {
 			t.Errorf("unexpected reconciliation operation size: %d", actualReconciliationSize)

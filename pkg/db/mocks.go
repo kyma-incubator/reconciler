@@ -59,6 +59,10 @@ func (c *MockConnection) Encryptor() *Encryptor {
 	return encryptor
 }
 
+func (c *MockConnection) Ping() error {
+	return nil
+}
+
 func (c *MockConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
 	c.query = query
 	c.args = args

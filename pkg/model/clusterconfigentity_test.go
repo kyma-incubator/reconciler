@@ -14,9 +14,9 @@ type testCase struct {
 }
 
 func TestClusterConfigEntity(t *testing.T) {
-	t.Run("Validate Equal", func(t *testing.T) {
-		t.Parallel()
+	t.Parallel()
 
+	t.Run("Validate Equal", func(t *testing.T) {
 		testCases := []*testCase{
 			{
 				entity1: &ClusterConfigurationEntity{
@@ -137,19 +137,19 @@ func TestClusterConfigEntity(t *testing.T) {
 
 }
 
-func TestGetReconciliationSequence(t *testing.T) {
+func TestReconciliationSequence(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name     string
-		preComps []string
+		preComps [][]string
 		entity   *ClusterConfigurationEntity
 		expected *ReconciliationSequence
 		err      error
 	}{
 		{
-			name:     "Components and pre components",
-			preComps: []string{"Pre1", "Pre2"},
+			name:     "Components and single pre-components",
+			preComps: [][]string{{"Pre1"}, {"Pre2"}},
 			entity: &ClusterConfigurationEntity{
 				Components: []*keb.Component{
 					{
@@ -193,12 +193,132 @@ func TestGetReconciliationSequence(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			name:     "Components and multiple pre components",
+			preComps: [][]string{{"Pre1.1", "Pre1.2"}, {"Pre2"}, {"Pre3.1", "Pre3.2"}},
+			entity: &ClusterConfigurationEntity{
+				Components: []*keb.Component{
+					{
+						Component: "Pre1.1",
+					},
+					{
+						Component: "Pre1.2",
+					},
+					{
+						Component: "Pre2",
+					},
+					{
+						Component: "Pre3.1",
+					},
+					{
+						Component: "Pre3.2",
+					},
+					{
+						Component: "Comp1",
+					},
+					{
+						Component: "Comp2",
+					},
+				},
+			},
+			expected: &ReconciliationSequence{
+				Queue: [][]*keb.Component{
+					{
+						crdComponent,
+					},
+					{
+						{
+							Component: "Pre1.1",
+						},
+						{
+							Component: "Pre1.2",
+						},
+					},
+					{
+						{
+							Component: "Pre2",
+						},
+					},
+					{
+						{
+							Component: "Pre3.1",
+						},
+						{
+							Component: "Pre3.2",
+						},
+					},
+					{
+						{
+							Component: "Comp1",
+						},
+						{
+							Component: "Comp2",
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name:     "Components and multiple pre-components with missing pre-components",
+			preComps: [][]string{{"Pre1.1", "Pre1.2"}, {"Pre2"}, {"Pre3.1", "Pre3.2"}},
+			entity: &ClusterConfigurationEntity{
+				Components: []*keb.Component{
+					{
+						Component: "Pre1.1",
+					},
+					{
+						Component: "Pre3.1",
+					},
+					{
+						Component: "Pre3.2",
+					},
+					{
+						Component: "Comp1",
+					},
+					{
+						Component: "Comp2",
+					},
+				},
+			},
+			expected: &ReconciliationSequence{
+				Queue: [][]*keb.Component{
+					{
+						crdComponent,
+					},
+					{
+						{
+							Component: "Pre1.1",
+						},
+					},
+					{
+						{
+							Component: "Pre3.1",
+						},
+						{
+							Component: "Pre3.2",
+						},
+					},
+					{
+						{
+							Component: "Comp1",
+						},
+						{
+							Component: "Comp2",
+						},
+					},
+				},
+			},
+			err: nil,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.entity.GetReconciliationSequence(tc.preComps)
-			require.Equal(t, tc.expected, result)
+			for idx, expected := range tc.expected.Queue {
+				require.ElementsMatch(t, result.Queue[idx], expected)
+			}
 		})
 	}
 }

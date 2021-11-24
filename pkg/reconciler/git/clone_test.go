@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -65,7 +66,7 @@ func TestCloneRepo(t *testing.T) {
 	clonerMock.On("ResolveRevision",
 		gitp.Revision("1.0.0")).
 		Return(repo.ResolveRevision("1.0.0"))
-	cloner, _ := NewCloner(clonerMock, &r, true, fake.NewSimpleClientset())
+	cloner, _ := NewCloner(clonerMock, &r, true, fake.NewSimpleClientset(), logger.NewLogger(true))
 
 	headRef, err := repo.Head()
 	require.NoError(t, err)
@@ -101,7 +102,7 @@ func TestCloneRepo(t *testing.T) {
 		cloner, _ := NewCloner(clonerMock, &reconciler.Repository{
 			URL:            repoURL,
 			TokenNamespace: "default",
-		}, false, clientWithToken("github.com", "default", "token", token))
+		}, false, clientWithToken("github.com", "default", "token", token), logger.NewLogger(true))
 
 		_, err := cloner.Clone("/test")
 		assert.NoError(t, err)
@@ -124,6 +125,7 @@ func TestTokenRead(t *testing.T) {
 			autoCheckout:       false,
 			repoClient:         nil,
 			inClusterClientSet: client,
+			logger:             logger.NewLogger(true),
 		}
 
 		auth, err := cloner.buildAuth()
@@ -148,6 +150,7 @@ func TestTokenRead(t *testing.T) {
 			autoCheckout:       false,
 			repoClient:         nil,
 			inClusterClientSet: client,
+			logger:             logger.NewLogger(true),
 		}
 
 		_, err := cloner.buildAuth()
@@ -166,6 +169,7 @@ func TestTokenRead(t *testing.T) {
 			autoCheckout:       false,
 			repoClient:         nil,
 			inClusterClientSet: nil,
+			logger:             logger.NewLogger(true),
 		}
 
 		_, err := cloner.buildAuth()
@@ -184,6 +188,7 @@ func TestTokenRead(t *testing.T) {
 			autoCheckout:       false,
 			repoClient:         nil,
 			inClusterClientSet: nil,
+			logger:             logger.NewLogger(true),
 		}
 
 		_, err := cloner.buildAuth()

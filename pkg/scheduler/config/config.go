@@ -12,7 +12,7 @@ type ComponentReconciler struct {
 }
 
 type SchedulerConfig struct {
-	PreComponents []string
+	PreComponents [][]string
 	Reconcilers   map[string]ComponentReconciler
 }
 
