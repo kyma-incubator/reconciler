@@ -46,7 +46,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/").Subrouter()
 	metricsRouter := mainRouter.Path("/metrics").Subrouter()
-	healthRouter := mainRouter.PathPrefix("/health").Headers("Strict-Transport-Security", "").Subrouter()
+	healthRouter := mainRouter.PathPrefix("/health").Subrouter()
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),

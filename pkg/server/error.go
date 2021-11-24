@@ -20,6 +20,7 @@ func SendHTTPError(w http.ResponseWriter, httpCode int, resp interface{}) {
 	} else {
 		w.WriteHeader(httpCode)
 		w.Header().Set("content-type", "application/json")
+		w.Header().Set("Strict-Transport-Security", "31536000")
 		if _, err = w.Write(payload); err == nil {
 			log.Warnf("Sending HTTP error response (httpCode %d): %s", httpCode, payload)
 			return
