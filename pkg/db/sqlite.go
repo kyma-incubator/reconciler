@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 
@@ -116,18 +117,18 @@ func (scf *sqliteConnectionFactory) Init(_ bool) error {
 		//read DDL (test-table structure)
 		ddl, err := ioutil.ReadFile(scf.schemaFile)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "error reading file")
 		}
 
 		//get connection
 		conn, err := scf.NewConnection()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "error getting sqliteConnectionFactory connection")
 		}
 
 		//populate DB schema
 		_, err = conn.Exec(string(ddl))
-		return err
+		return errors.Wrap(err, "error populating DB schema")
 	}
 	return nil
 }
