@@ -38,6 +38,7 @@ type ResourceInterceptor interface {
 //go:generate mockery --name Client
 type Client interface {
 	Kubeconfig() string
+	DeleteResource(kind, name, namespace string) (*Resource, error)
 	Deploy(ctx context.Context, manifest, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error)
 	Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error)
 	PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) error
@@ -50,4 +51,6 @@ type Client interface {
 	GetJob(ctx context.Context, name, namespace string) (*batchv1.Job, error)
 	GetPersistentVolumeClaim(ctx context.Context, name, namespace string) (*v1.PersistentVolumeClaim, error)
 	ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error)
+
+	GetHost() string
 }
