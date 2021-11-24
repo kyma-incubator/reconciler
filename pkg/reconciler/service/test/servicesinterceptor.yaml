@@ -13,7 +13,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: unittest-servicesinterceptors2
-  namespace: unittest-servicesinterceptor2
+  namespace: unittest-servicesinterceptor
 spec:
   clusterIP: None
   ports:
