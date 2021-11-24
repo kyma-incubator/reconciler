@@ -76,7 +76,12 @@ func (r *Cloner) Checkout(rev string, repo *git.Repository) error {
 
 	hash, err := resolver.resolveRevision(rev)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("failed to resolve GIT revision '%s'", rev))
+		msg := fmt.Sprintf("failed to resolve GIT revision '%s'", rev)
+		if r.repo.URL != "" {
+			msg += fmt.Sprintf(" using repository '%s' ",
+				r.repo.URL)
+		}
+		return errors.Wrap(err, msg)
 	}
 	err = w.Checkout(&git.CheckoutOptions{
 		Hash: *hash,
