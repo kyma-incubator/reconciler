@@ -32,8 +32,8 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, nam
 		return k8s.ContinueInterceptionResult, nil
 	}
 
-	//adjust the ClusterIP field only if it is empty
-	if svc.Spec.ClusterIP != "" {
+	//do not adjust the ClusterIP if it is empty or equals to "None"
+	if svc.Spec.ClusterIP != "" && strings.EqualFold(svc.Spec.ClusterIP, "None") {
 		return k8s.ContinueInterceptionResult, nil
 	}
 

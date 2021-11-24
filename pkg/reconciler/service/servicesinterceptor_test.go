@@ -48,27 +48,37 @@ func TestServicesInterceptor(t *testing.T) {
 	//get unstruct of service without clusterIP
 	unstructs, err := kubernetes.ToUnstructured(manifest, true)
 	require.NoError(t, err)
-	require.Len(t, unstructs, 1)
+	require.Len(t, unstructs, 2)
 
-	serviceObject, err := toService(unstructs[0])
-	require.NoError(t, err)
-	require.Empty(t, serviceObject.Spec.ClusterIP)
-	t.Logf("ClusterIP before: %s", serviceObject.Spec.ClusterIP)
+	testAssertions := func(t *testing.T, service *unstructured.Unstructured, expectedClusterIP string) () {
+		serviceObject, err := toService(service)
+		require.NoError(t, err)
+		require.Equal(t, serviceObject.Spec.ClusterIP, expectedClusterIP)
+		t.Logf("ClusterIP before: %s", serviceObject.Spec.ClusterIP)
 
-	//inject clusterIP
-	result, err := svcIntcptr.Intercept(unstructs[0], servicesInterceptorNS)
-	require.Equal(t, result, kubernetes.ContinueInterceptionResult)
-	require.NoError(t, err)
-	serviceObject, err = toService(unstructs[0])
-	require.NoError(t, err)
-	require.NotEmpty(t, serviceObject.Spec.ClusterIP)
-	t.Logf("ClusterIP after: %s", serviceObject.Spec.ClusterIP)
+		//inject clusterIP
+		result, err := svcIntcptr.Intercept(service, servicesInterceptorNS)
+		require.Equal(t, result, kubernetes.ContinueInterceptionResult)
+		require.NoError(t, err)
+		serviceObject, err = toService(service)
+		require.NoError(t, err)
+		require.NotEmpty(t, serviceObject.Spec.ClusterIP)
+		t.Logf("ClusterIP after: %s", serviceObject.Spec.ClusterIP)
 
-	//update the service in k8s
-	manifestIntercepted, err := yaml.Marshal(unstructs[0].Object)
-	require.NoError(t, err)
-	_, err = kubeClient.Deploy(context.Background(), string(manifestIntercepted), servicesInterceptorNS)
-	require.NoError(t, err)
+		//update the service in k8s
+		manifestIntercepted, err := yaml.Marshal(service.Object)
+		require.NoError(t, err)
+		_, err = kubeClient.Deploy(context.Background(), string(manifestIntercepted), servicesInterceptorNS)
+		require.NoError(t, err)
+	}
+
+	// check with empty clusterIP
+	service := unstructs[0]
+	testAssertions(t, service, "")
+
+	// check with "None" clusterIP
+	service = unstructs[1]
+	testAssertions(t, service, "None")
 }
 
 func toService(unstruct *unstructured.Unstructured) (*v1.Service, error) {
