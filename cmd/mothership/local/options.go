@@ -24,6 +24,7 @@ type Options struct {
 	components     []string
 	values         []string
 	componentsFile string
+	delete         bool
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -35,19 +36,20 @@ func NewOptions(o *cli.Options) *Options {
 		[]string{}, // components
 		[]string{}, // values
 		"",         // componentsFile
+		false,      // delete
 	}
 }
 func (o *Options) Kubeconfig() string {
 	return o.kubeconfig
 }
 
-func componentsFromFile(path string) ([]string, []string, error) {
+func componentsFromFile(path string) ([][]string, []string, error) {
 	var preComps []string
 	var defaultComps []string
 
 	compList, err := components.NewComponentList(path)
 	if err != nil {
-		return preComps, defaultComps, err
+		return [][]string{preComps}, defaultComps, err
 	}
 
 	for _, c := range compList.Prerequisites {
@@ -57,7 +59,7 @@ func componentsFromFile(path string) ([]string, []string, error) {
 	for _, c := range compList.Components {
 		defaultComps = append(defaultComps, fmt.Sprintf("{%s,%s,%s}", c.Name, c.Namespace, c.URL))
 	}
-	return preComps, defaultComps, nil
+	return [][]string{preComps}, defaultComps, nil
 }
 
 func componentsFromStrings(list []string, values []string) ([]*keb.Component, error) {
@@ -113,8 +115,8 @@ func setURLRepository(url string) string {
 	return strings.TrimSpace(url)
 }
 
-func (o *Options) Components(defaultComponentsFile string) ([]string, []*keb.Component, error) {
-	var preComps []string
+func (o *Options) Components(defaultComponentsFile string) ([][]string, []*keb.Component, error) {
+	var preComps [][]string
 
 	comps := o.components
 	if len(o.components) == 0 {

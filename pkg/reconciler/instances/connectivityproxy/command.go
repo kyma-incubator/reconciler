@@ -1,6 +1,7 @@
 package connectivityproxy
 
 import (
+	"encoding/json"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -9,11 +10,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const BindingKey = "global.binding."
+
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	Install(*service.ActionContext, *apiCoreV1.Secret) error
-	CopyResources(context *service.ActionContext) error
-	Remove(context *service.ActionContext) error
+	Install(*service.ActionContext) error
+	CopyResources(*service.ActionContext) error
+	Remove(*service.ActionContext) error
+	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
 type NewInClusterClientSet func(logger *zap.SugaredLogger) (kubernetes.Interface, error)
@@ -26,17 +30,27 @@ type CommandActions struct {
 	copyFactory            []CopyFactory
 }
 
-func (a *CommandActions) Install(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) error {
-	for key, value := range bindingSecret.Data {
-		context.Task.Configuration[key] = value
-	}
-
+func (a *CommandActions) Install(context *service.ActionContext) error {
 	err := a.install.Invoke(context.Context, context.ChartProvider, context.Task, context.KubeClient)
 	if err != nil {
 		return errors.Wrap(err, "Error during installation")
 	}
 
 	return nil
+}
+
+func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
+	for key, val := range bindingSecret.Data {
+		var unmarshalled map[string]interface{}
+
+		if err := json.Unmarshal(val, &unmarshalled); err != nil {
+			context.Task.Configuration[BindingKey+key] = string(val)
+		} else {
+			for uKey, uVal := range unmarshalled {
+				context.Task.Configuration[BindingKey+uKey] = uVal
+			}
+		}
+	}
 }
 
 func (a *CommandActions) CopyResources(context *service.ActionContext) error {
@@ -51,7 +65,7 @@ func (a *CommandActions) CopyResources(context *service.ActionContext) error {
 	}
 
 	for _, create := range a.copyFactory {
-		operation := create(context.Task.Configuration, inCluster, clientset)
+		operation := create(context.Task, inCluster, clientset)
 
 		if err := operation.Transfer(); err != nil {
 			return err

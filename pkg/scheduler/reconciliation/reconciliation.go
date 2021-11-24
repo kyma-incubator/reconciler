@@ -16,7 +16,7 @@ type Filter interface {
 }
 
 type Repository interface {
-	CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error)
+	CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error)
 	RemoveReconciliation(schedulingID string) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)

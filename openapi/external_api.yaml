@@ -27,7 +27,6 @@ paths:
           in: path
           schema:
             type: string
-            format: uuid
         - name: correlationID
           required: true
           in: path
@@ -61,19 +60,20 @@ paths:
           $ref: '#/components/responses/InternalError'
   /reconciliations/{schedulingID}/info:
     get:
-      description: "Get details of a reconciliation"
+      description: "Get details of a reconciliation with operations"
       parameters:
         - name: schedulingID
           required: true
           in: path
           schema:
             type: string
-            format: uuid
       responses:
         "200":
-          $ref: "#/components/responses/ReconcilationOperationsOKResponse"
+          $ref: "#/components/responses/ReconciliationInfoOKResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -98,7 +98,7 @@ paths:
               $ref: "#/components/schemas/status"
       responses:
         "200":
-          $ref: "#/components/responses/ReconcilationsOKResponse"
+          $ref: "#/components/responses/ReconciliationInfoOKResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "500":
@@ -151,7 +151,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -176,7 +176,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
     get:
@@ -194,9 +194,28 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
+
+  /clusters/{runtimeID}/config/{version}:
+    get:
+      description: "Get cluster configuration"
+      parameters:
+        - name: runtimeID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/configurationOkResponse"
 
   /clusters/{runtimeID}/config/{configVersion}/status:
     get:
@@ -219,7 +238,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -243,7 +262,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          $ref: "#/components/responses/ClusterNotFound"
+          $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -256,6 +275,13 @@ components:
           schema:
             $ref: "#/components/schemas/HTTPClusterResponse"
 
+    configurationOkResponse:
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/HTTPClusterConfig"
+
     ReconcilationsOKResponse:
       description: "OK"
       content:
@@ -263,12 +289,12 @@ components:
           schema:
             $ref: "#/components/schemas/HTTPReconcilerStatus"
 
-    ReconcilationOperationsOKResponse:
+    ReconciliationInfoOKResponse:
       description: "OK"
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/HTTPReconciliationOperations"
+            $ref: "#/components/schemas/HTTPReconciliationInfo"
 
     InternalError:
       description: "Internal server error"
@@ -284,9 +310,8 @@ components:
           schema:
             $ref: "#/components/schemas/HTTPErrorResponse"
 
-    # TODO rename to not found
-    ClusterNotFound:
-      description: "Given cluster not found"
+    NotFoundResponse:
+      description: "Given resource not found"
       content:
         application/json:
           schema:
@@ -301,6 +326,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/statusChange"
+
+    HTTPClusterConfig:
+      $ref: "#/components/schemas/kymaConfig"
 
     HTTPErrorResponse:
       type: object
@@ -333,11 +361,27 @@ components:
           type: string
           format: uri
 
-    HTTPReconciliationOperations:
+    HTTPReconciliationInfo:
       type: object
+      required: [ runtimeID, schedulingID, configVersion, created, updated, status,operations, finished ]
       properties:
-        cluster:
-          $ref: "#/components/schemas/cluster"
+        runtimeID:
+          type: string
+        schedulingID:
+          type: string
+        configVersion:
+          type: integer
+          format: int64
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/status"
+        finished:
+          type: boolean
         operations:
           type: array
           items:
@@ -359,7 +403,6 @@ components:
           type: string
         schedulingID:
           type: string
-          format: uuid
         created:
           type: string
           format: date-time
@@ -404,8 +447,6 @@ components:
         updated:
           type: string
           format: date-time
-        clusterMetadata:
-          $ref: "#/components/schemas/cluster"
 
     operationStop:
       type: object
@@ -522,8 +563,10 @@ components:
             subAccountID,
             serviceID,
             servicePlanID,
+            servicePlanName,
             shootName,
             instanceID,
+            region,
         ]
       properties:
         globalAccountID:
@@ -534,9 +577,13 @@ components:
           type: string
         servicePlanID:
           type: string
+        servicePlanName:
+          type: string
         shootName:
           type: string
         instanceID:
+          type: string
+        region:
           type: string
 
     component:

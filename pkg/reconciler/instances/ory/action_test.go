@@ -16,8 +16,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/jwks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/workspace/mocks"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -60,7 +58,7 @@ var chartDir = filepath.Join("test", "resources")
 func Test_PreInstallAction_Run(t *testing.T) {
 	t.Run("should not perform any action when chart configuration returned an error", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Configuration error"))
 		clientSet := fake.NewSimpleClientset()
@@ -80,7 +78,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 
 	t.Run("should not perform any action when kubernetes clientset returned an error", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		emptyMap := make(map[string]interface{})
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
@@ -101,7 +99,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 
 	t.Run("should create ory secret when secret does not exist", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		emptyMap := make(map[string]interface{})
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
@@ -126,7 +124,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 
 	t.Run("should not update ory secret when secret exist and has a valid data", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		values, err := unmarshalTestValues(memoryYaml)
 		require.NoError(t, err)
@@ -154,7 +152,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 
 	t.Run("should update ory secret when secret exist and has an outdated values", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		values, err := unmarshalTestValues(postgresqlYaml)
 		require.NoError(t, err)
@@ -185,7 +183,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 func Test_PreDeleteAction_Run(t *testing.T) {
 	t.Run("should not perform any action when kubernetes clientset returned an error", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("failed to retrieve native Kubernetes GO client"))
@@ -203,7 +201,7 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 
 	t.Run("should not perform any action when getting secret returns an error", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("Could not get DB secret"))
@@ -221,7 +219,7 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 
 	t.Run("should not perform any action when secret does not exist", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
@@ -238,7 +236,7 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 
 	t.Run("should delete ory secret when secret exists", func(t *testing.T) {
 		// given
-		factory := workspacemocks.Factory{}
+		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		existingSecret := fixSecretMemory()
 		clientSet := fake.NewSimpleClientset(existingSecret)
@@ -423,7 +421,7 @@ func newFakeKubeClient(clientSet *fake.Clientset) *k8smocks.Client {
 	return mockClient
 }
 
-func newFakeServiceContext(factory workspace.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
+func newFakeServiceContext(factory chart.Factory, provider chart.Provider, client kubernetes.Client) *service.ActionContext {
 	logger := log.NewLogger(true)
 	task := reconciler.Task{
 		Component: "component",

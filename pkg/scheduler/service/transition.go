@@ -39,7 +39,7 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 	return t.reconRepo
 }
 
-func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.State, preComponents []string) error {
+func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.State, preComponents [][]string) error {
 	dbOp := func() error {
 		//set cluster status to reconciling or deleting depending on previous state
 		var targetState model.Status

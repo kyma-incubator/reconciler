@@ -2,9 +2,13 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/pkg/errors"
 	"net/http"
+
+	"github.com/pkg/errors"
+
+	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
 )
 
 func SendHTTPError(w http.ResponseWriter, httpCode int, resp interface{}) {
@@ -27,4 +31,16 @@ func SendHTTPError(w http.ResponseWriter, httpCode int, resp interface{}) {
 		http.StatusInternalServerError, err)
 	w.WriteHeader(http.StatusInternalServerError)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
+func SendHTTPErrorMap(w http.ResponseWriter, err error) {
+	var statusCode int = http.StatusInternalServerError
+	var resp interface{} = &keb.InternalError{Error: err.Error()}
+
+	if repository.IsNotFoundError(err) {
+		statusCode = http.StatusNotFound
+		resp = keb.HTTPErrorResponse{Error: err.Error()}
+	}
+
+	SendHTTPError(w, statusCode, resp)
 }

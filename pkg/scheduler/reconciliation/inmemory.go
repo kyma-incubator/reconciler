@@ -25,7 +25,7 @@ func NewInMemoryReconciliationRepository() Repository {
 	}
 }
 
-func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error) {
+func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

@@ -45,6 +45,11 @@ func (sc *sqliteConnection) Encryptor() *Encryptor {
 	return sc.encryptor
 }
 
+func (sc *sqliteConnection) Ping() error {
+	sc.logger.Debugf("Postgres Ping()")
+	return sc.db.Ping()
+}
+
 func (sc *sqliteConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
 	sc.logger.Debugf("Sqlite3 QueryRow(): %s | %v", query, args)
 	if err := sc.validator.Validate(query); err != nil {

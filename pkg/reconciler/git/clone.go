@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
@@ -23,6 +24,7 @@ type Cloner struct {
 
 	repoClient         RepoClient
 	inClusterClientSet k8s.Interface
+	logger             *zap.SugaredLogger
 }
 
 //go:generate mockery --name RepoClient --case=underscore
@@ -33,12 +35,13 @@ type RepoClient interface {
 	ResolveRevision(rev gitp.Revision) (*gitp.Hash, error)
 }
 
-func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface) (*Cloner, error) {
+func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
 	return &Cloner{
 		repo:               repo,
 		autoCheckout:       autoCheckout,
 		repoClient:         repoClient,
 		inClusterClientSet: clientSet,
+		logger:             logger,
 	}, nil
 }
 
@@ -97,8 +100,9 @@ func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
 }
 
 func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
-	if r.repo.TokenNamespace == "" {
-		return nil, nil
+	tokenNamespace := "default"
+	if r.repo.TokenNamespace != "" {
+		tokenNamespace = r.repo.TokenNamespace
 	}
 
 	if r.inClusterClientSet == nil {
@@ -111,19 +115,21 @@ func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
 	}
 
 	secret, err := r.inClusterClientSet.CoreV1().
-		Secrets(r.repo.TokenNamespace).
+		Secrets(tokenNamespace).
 		Get(context.Background(), secretKey, v1.GetOptions{})
 
-	if err != nil && !apierrors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) && !apierrors.IsForbidden(err) {
 		return nil, err
 	}
 
-	if secret != nil {
+	if secret != nil && err == nil {
 		return &http.BasicAuth{
 			Username: "xxx", // anything but an empty string
 			Password: strings.Trim(string(secret.Data["token"]), "\n"),
 		}, nil
 	}
+
+	r.logger.Info("Token not found or forbidden")
 
 	return nil, nil
 }

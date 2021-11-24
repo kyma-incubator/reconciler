@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+
 	"github.com/gorilla/mux"
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	cliTest "github.com/kyma-incubator/reconciler/internal/cli/test"
@@ -19,10 +21,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	clientgo "k8s.io/client-go/kubernetes"
@@ -77,14 +78,14 @@ func TestReconciler(t *testing.T) {
 
 func setGlobalWorkspaceFactory(t *testing.T) {
 	//use ./test folder as workspace
-	wsf, err := workspace.NewFactory(nil, "test", logger.NewLogger(true))
+	wsf, err := chart.NewFactory(nil, "test", logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, service.UseGlobalWorkspaceFactory(wsf))
 }
 
 func newKubeClient(t *testing.T) kubernetes.Client {
 	//create kubeClient (e.g. needed to verify reconciliation results)
-	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
+	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 	return kubeClient
 }
@@ -94,7 +95,7 @@ func newComponentReconciler(t *testing.T) *service.ComponentReconciler {
 	recon, err := service.NewComponentReconciler(componentReconcilerName) //register brand new component reconciler
 	require.NoError(t, err)
 	//configure reconciler
-	return recon.Debug().WithDependencies("abc", "xyz")
+	return recon.Debug().WithDependencies("abc", "xyz") //nolint:staticcheck // Ignore SA1019 requires refactor
 }
 
 func startReconciler(ctx context.Context, t *testing.T) {

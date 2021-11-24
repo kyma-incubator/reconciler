@@ -26,7 +26,7 @@ func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repos
 	return &PersistentReconciliationRepository{repo}, nil
 }
 
-func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error) {
+func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
 	if len(state.Configuration.Components) == 0 {
 		return nil, newEmptyComponentsReconciliationError(state)
 	}
@@ -38,6 +38,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			ClusterConfig:       state.Configuration.Version,
 			ClusterConfigStatus: state.Status.ID,
 			SchedulingID:        fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
+			Status:              state.Status.Status,
 		}
 
 		//find existing reconciliation for this cluster
@@ -178,7 +179,7 @@ func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID stri
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, r.NewNotFoundError(err, reconEntity, whereCond)
+		return nil, r.MapError(err, reconEntity, whereCond)
 	}
 	return reconEntity.(*model.ReconciliationEntity), nil
 }
@@ -195,6 +196,7 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 		reconEntity.Lock = fmt.Sprintf("unlock-%s", reconEntity.SchedulingID)
 		reconEntity.Finished = true
 		reconEntity.ClusterConfigStatus = status.ID
+		reconEntity.Status = status.Status
 		reconEntity.Updated = time.Now().UTC()
 		updReconQ, err := db.NewQuery(r.Conn, reconEntity, r.Logger)
 		if err != nil {

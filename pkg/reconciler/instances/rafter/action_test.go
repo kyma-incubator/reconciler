@@ -2,6 +2,7 @@ package rafter
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -187,7 +187,7 @@ func newFakeServiceContext(t *testing.T, version string) *service.ActionContext 
 	// WorkspaceFactory into thinking that we don't need to
 	// clone the kyma repo. This is a temporary workaround
 	// since we can't currently mock WorkspaceFactory.
-	fakeFactory, err := workspace.NewFactory(nil, "./test_files", log.NewLogger(true))
+	fakeFactory, err := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
 
 	require.NoError(t, err)
 

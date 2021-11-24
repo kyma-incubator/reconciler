@@ -2,20 +2,18 @@ package chart
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/internal/components"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/kubeclient"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
+
+	fileUtils "github.com/kyma-incubator/reconciler/pkg/files"
+	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"go.uber.org/zap"
 )
 
 const kindCRD = "CustomResourceDefinition"
 
-//go:generate mockery --name=Provider --outpkg=mock --case=underscore
+//go:generate mockery --name=Provider --outpkg=mocks --case=underscore
 // Provider of manifests.
 type Provider interface {
 	// RenderCRD of the given version.
@@ -30,12 +28,12 @@ type Provider interface {
 
 // DefaultProvider provides a default implementation of Provider.
 type DefaultProvider struct {
-	wsFactory workspace.Factory
+	wsFactory Factory
 	logger    *zap.SugaredLogger
 }
 
 // NewDefaultProvider returns a new instance of DefaultProvider.
-func NewDefaultProvider(wsFactory workspace.Factory, logger *zap.SugaredLogger) (*DefaultProvider, error) {
+func NewDefaultProvider(wsFactory Factory, logger *zap.SugaredLogger) (*DefaultProvider, error) {
 	if wsFactory == nil {
 		return nil, fmt.Errorf("workspace factory cannot be nil")
 	}
@@ -46,9 +44,7 @@ func NewDefaultProvider(wsFactory workspace.Factory, logger *zap.SugaredLogger) 
 }
 
 func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
-	ws, err := p.newWorkspace(&Component{
-		version: version,
-	})
+	ws, err := p.wsFactory.Get(version)
 	if err != nil {
 		return nil, err
 	}
@@ -73,12 +69,12 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 				return nil
 			}
 
-			crdData, err := ioutil.ReadFile(path)
+			crdData, err := fileUtils.ReadFile(path)
 			if err != nil {
 				return err
 			}
 
-			unstructs, err := kubeclient.ToUnstructured(crdData, true)
+			unstructs, err := reconcilerK8s.ToUnstructured(crdData, true)
 			if err != nil {
 				return err
 			}
@@ -105,12 +101,12 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 }
 
 func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error) {
-	ws, err := p.newWorkspace(component)
+	wsDir, err := p.workspaceDir(component)
 	if err != nil {
 		return nil, err
 	}
 
-	helmClient, err := NewHelmClient(ws.ResourceDir, p.logger)
+	helmClient, err := NewHelmClient(wsDir, p.logger)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +124,12 @@ func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error
 }
 
 func (p *DefaultProvider) Configuration(component *Component) (map[string]interface{}, error) {
-	ws, err := p.newWorkspace(component)
+	wsDir, err := p.workspaceDir(component)
 	if err != nil {
 		return nil, err
 	}
 
-	helmClient, err := NewHelmClient(ws.ResourceDir, p.logger)
+	helmClient, err := NewHelmClient(wsDir, p.logger)
 	if err != nil {
 		return nil, err
 	}
@@ -141,30 +137,20 @@ func (p *DefaultProvider) Configuration(component *Component) (map[string]interf
 	return helmClient.Configuration(component)
 }
 
-func (p *DefaultProvider) newWorkspace(component *Component) (*workspace.Workspace, error) {
-	var ws *workspace.Workspace
-	var err error
-	if component.url != "" && strings.HasSuffix(component.url, ".git") {
-		p.logger.Debugf("Getting workspace for Kyma '%s', url repository: ", component.version, component.url)
-		configuration, err := component.Configuration()
+func (p *DefaultProvider) workspaceDir(component *Component) (string, error) {
+	if component.url == "" {
+		//is a Kyma component
+		ws, err := p.wsFactory.Get(component.version)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		c := components.Component{
-			Name:          component.name,
-			URL:           component.url,
-			Configuration: configuration,
-		}
-		ws, err = p.wsFactory.Get(component.version, &c)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		p.logger.Debugf("Getting workspace for Kyma '%s'", component.version)
-		ws, err = p.wsFactory.Get(component.version)
+		return ws.ResourceDir, nil
 	}
+
+	//is an external component
+	ws, err := p.wsFactory.GetExternalComponent(component)
 	if err != nil {
-		p.logger.Warnf("Failed to retrieve workspace for Kyma '%s': %s", component.version, err)
+		return "", err
 	}
-	return ws, err
+	return ws.WorkspaceDir, nil
 }

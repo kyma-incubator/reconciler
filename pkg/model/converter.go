@@ -32,3 +32,12 @@ func convertInterfaceToJSONString(value interface{}) (interface{}, error) {
 	}
 	return string(encodingJSON), nil
 }
+
+func convertStringToStatus(value interface{}) (interface{}, error) {
+	// TODO: consider validating state values with values generated from external_schema.yaml (https://github.com/kyma-incubator/reconciler/pull/362)
+	if reflect.TypeOf(value).Kind() == reflect.String {
+		return Status(fmt.Sprintf("%v", value)), nil
+	}
+	return nil, fmt.Errorf("failed to convert value '%s' (kind: %s) for field 'Status' to Status type",
+		value, reflect.TypeOf(value).Kind())
+}

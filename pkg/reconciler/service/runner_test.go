@@ -3,14 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/workspace"
-
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/adapter"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -25,7 +24,7 @@ const (
 	fakeKymaVersion       = "0.0.0"
 	clusterUsersComponent = "cluster-users"
 	fakeComponent         = "component-1"
-	workspaceInHomeDir    = "reconciliation-test"
+	workspaceInHomeDir    = "reconciliation-test" //TODO: use workspace in $HOME/.kyma - fix in WS factory!
 	workspaceInProjectDir = "test"
 )
 
@@ -224,7 +223,7 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
-		wsf, err := workspace.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
+		wsf, err := chart.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
 		require.NoError(t, err)
 		require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 
@@ -238,7 +237,7 @@ func TestRunner(t *testing.T) {
 		defer cancel()
 		err = runner.Run(ctx, model, cbh)
 		require.Error(t, err)
-		require.WithinDuration(t, time.Now(), start, 1500*time.Millisecond)
+		require.WithinDuration(t, time.Now(), start, 2*time.Second)
 	})
 
 }
@@ -246,7 +245,7 @@ func TestRunner(t *testing.T) {
 func SetWorkspaceFactoryForHomeDir(t *testing.T) {
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-	wsf, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
+	wsf, err := chart.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 }
@@ -277,19 +276,19 @@ func cleanup(t *testing.T) {
 	recon, err := NewComponentReconciler("unittest")
 	require.NoError(t, err)
 
-	kubeClient, err := adapter.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
+	kubeClient, err := k8s.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-	wsf, err := workspace.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
+	wsf, err := chart.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 
 	cleanup := NewTestCleanup(recon, kubeClient)
 	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
 
-	wsf, err = workspace.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
+	wsf, err = chart.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 	cleanup = NewTestCleanup(recon, kubeClient)

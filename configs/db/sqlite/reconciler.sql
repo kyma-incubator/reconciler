@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS scheduler_reconciliations (
     "lock" text UNIQUE, --make sure just one cluster can be reconciled at the same time
     "runtime_id" text NOT NULL,
     "cluster_config" int NOT NULL,
+    "status" text NOT NULL,
     "cluster_config_status" int,
     "finished" boolean DEFAULT FALSE,
     "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

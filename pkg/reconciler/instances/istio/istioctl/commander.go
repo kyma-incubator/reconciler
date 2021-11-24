@@ -2,6 +2,7 @@ package istioctl
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 
 const (
 	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
+	istioctlBinaryPathMaxLen = 4096
 )
 
 //go:generate mockery --name=Commander --outpkg=mocks --case=underscore
@@ -202,6 +204,10 @@ func bufferAndLog(r io.Reader, logger *zap.SugaredLogger) {
 func resolveIstioctlPath() (string, error) {
 	// TODO: Check if the binary is present and executable
 	path := os.Getenv(istioctlBinaryPathEnvKey)
+	if len(path) > istioctlBinaryPathMaxLen {
+		return "", errors.New(fmt.Sprintf("ISTIOCTL_PATH env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathMaxLen))
+	}
+
 	if path == "" {
 		return "", errors.New("Istioctl binary could not be found under ISTIOCTL_PATH env variable")
 	}
