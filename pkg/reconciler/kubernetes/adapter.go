@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/instrumenta/kubeval/kubeval"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/internal"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/pkg/errors"
@@ -114,11 +113,6 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 		return nil, err
 	}
 
-	err = validateManifest(namespace, manifest)
-	if err != nil {
-		return nil, err
-	}
-
 	unstructs, err := ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		g.logger.Errorf("Failed to process manifest data: %s", err)
@@ -178,13 +172,6 @@ LoopUnstructs:
 	g.logger.Debugf("Manifest processed: %d Kubernetes resources were successfully deployed",
 		len(deployedResources))
 	return deployedResources, pt.Watch(ctx, progress.ReadyState)
-}
-
-func validateManifest(namespace string, manifest string) error {
-	config := kubeval.NewDefaultConfig()
-	config.DefaultNamespace = namespace
-	_, err := kubeval.Validate([]byte(manifest), config)
-	return err
 }
 
 func (g *kubeClientAdapter) addNamespaceUnstruct(unstructs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
