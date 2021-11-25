@@ -26,6 +26,42 @@ func (d *Client) Worktree() (*git.Worktree, error) {
 	return d.repo.Worktree()
 }
 
-func (d *Client) ResolveRevision(rev gitp.Revision) (*gitp.Hash, error) {
+func (d *Client) ResolveRevisionOrBranchHead(rev gitp.Revision) (*gitp.Hash, error) {
+	if _, err := d.repo.Branch(rev.String()); err != git.ErrBranchNotFound {
+		return d.repo.ResolveRevision(gitp.Revision(fmt.Sprintf("refs/remotes/origin/%s", rev.String())))
+	}
 	return d.repo.ResolveRevision(rev)
+}
+
+func (d *Client) Fetch(path string, o *git.FetchOptions) error {
+	var err error
+	if d.repo == nil {
+		d.repo, err = git.PlainOpen(path)
+		if err != nil {
+			return err
+		}
+	}
+	err = d.repo.Fetch(o)
+	if err == git.NoErrAlreadyUpToDate {
+		return nil
+	}
+	return err
+}
+
+func NewClientWithPath(path string) (*Client, error) {
+	var err error
+	d := &Client{}
+	d.repo, err = git.PlainOpen(path)
+	return d, err
+}
+
+// func (d *Client) ResolveRevisionOrHead(rev gitp.Revision) (*gitp.Hash, error) {
+// 	if _, err := d.repo.Branch(rev.String()); err == git.ErrBranchNotFound {
+// 		return d.repo.ResolveRevision(rev)// not a branch
+// 	}
+// 	return d.repo.ResolveRevision(rev)
+// }
+
+func (d *Client) Repo() *git.Repository {
+	return d.repo
 }

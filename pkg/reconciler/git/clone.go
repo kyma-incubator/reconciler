@@ -3,13 +3,14 @@ package git
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
-	"net/url"
-	"strings"
 
 	"github.com/go-git/go-git/v5"
 	gitp "github.com/go-git/go-git/v5/plumbing"
@@ -29,10 +30,11 @@ type Cloner struct {
 
 //go:generate mockery --name RepoClient --case=underscore
 type RepoClient interface {
-	Clone(ctx context.Context, path string,
-		isBare bool, o *git.CloneOptions) (*git.Repository, error)
+	Clone(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error)
 	Worktree() (*git.Worktree, error)
-	ResolveRevision(rev gitp.Revision) (*gitp.Hash, error)
+	ResolveRevisionOrBranchHead(rev gitp.Revision) (*gitp.Hash, error)
+	Fetch(path string, o *git.FetchOptions) error
+	Repo() *git.Repository
 }
 
 func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
@@ -51,7 +53,6 @@ func (r *Cloner) Clone(path string) (*git.Repository, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return r.repoClient.Clone(context.Background(), path, false, &git.CloneOptions{
 		Depth:             0,
 		URL:               r.repo.URL,
@@ -160,4 +161,18 @@ func mapSecretKey(URL string) (string, error) {
 	output = strings.ReplaceAll(output, "www.", "")
 
 	return output, nil
+}
+
+func (r *Cloner) Fetch(path string) error {
+	auth, err := r.buildAuth()
+	if err != nil {
+		return err
+	}
+	return r.repoClient.Fetch(path, &git.FetchOptions{
+		Auth: auth,
+	})
+}
+
+func (r *Cloner) ResolveRevisionOrBranchHead(rev string) (*gitp.Hash, error) {
+	return r.repoClient.ResolveRevisionOrBranchHead(gitp.Revision(fmt.Sprintf(rev)))
 }

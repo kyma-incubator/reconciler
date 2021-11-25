@@ -84,3 +84,5 @@ func (_m *RepoClient) Worktree() (*git.Worktree, error) {
 
 	return r0, r1
 }
+
+func (_m *RepoClient) Fetch() error { return nil }

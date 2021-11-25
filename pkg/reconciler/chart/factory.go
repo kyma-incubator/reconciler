@@ -1,19 +1,23 @@
 package chart
 
 import (
+	"crypto/md5"
 	"fmt"
 	"io"
 	"net/http"
 	"path"
+	"strings"
 
 	"os"
 
+	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/mholt/archiver/v3"
+	"github.com/otiai10/copy"
 
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/git"
@@ -28,6 +32,8 @@ const (
 	VersionLocal         = "local"
 	defaultRepositoryURL = "https://github.com/kyma-project/kyma"
 	wsReadyIndicatorFile = "workspace-ready.yaml"
+
+	gitComponentsBaseDir = "base"
 )
 
 //go:generate mockery --name=Factory --outpkg=mocks --case=underscore
@@ -136,32 +142,57 @@ func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace,
 		return nil, errors.New("cannot retrieve workspace because provided component was 'nil'")
 	}
 
+	if strings.HasSuffix(component.url, ".git") {
+		return f.getExternalGitComponent(component)
+	}
+
+	return f.getExternalArchiveComponent(component)
+}
+
+func (f *DefaultFactory) getExternalArchiveComponent(component *Component) (*Workspace, error) {
 	version := fmt.Sprintf("%s-%s", component.version, component.name)
 	wsDir := f.workspaceDir(version)
 
-	wsReadyFile := filepath.Join(wsDir, wsReadyIndicatorFile)
-	if file.Exists(wsReadyFile) {
-		f.logger.Debugf("Workspace '%s' already exists", wsDir)
-		return newComponentWorkspace(wsDir, component.name)
+	indicatorExists, err := f.indicatorExistsOrClean(wsDir)
+	if err != nil {
+		return nil, err
 	}
 
-	if file.DirExists(wsDir) {
-		f.logger.Warnf("Deleting workspace '%s' because previous download does not contain all the required files", wsDir)
-		if err := os.RemoveAll(wsDir); err != nil {
+	if !indicatorExists {
+		f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
+			component.name, component.version, component.url, wsDir)
+		if err := f.downloadComponent(component, wsDir); err != nil {
 			return nil, err
 		}
 	}
 
-	f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
-		component.name, component.version, component.url, wsDir)
+	return newComponentWorkspace(wsDir, component.name)
+}
 
-	// detect if component should be cloned or downloaded and extracted from archive
-	var fetchComponent func(*Component, string) error = f.downloadComponent
-	if strings.HasSuffix(component.url, ".git") {
-		fetchComponent = f.cloneComponent
+func (f *DefaultFactory) getExternalGitComponent(component *Component) (*Workspace, error) {
+	baseDir := f.componentBaseDir(component)
+	indicatorExists, err := f.indicatorExistsOrClean(baseDir)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := fetchComponent(component, wsDir); err != nil {
+	if !indicatorExists {
+		f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
+			component.name, component.version, component.url, baseDir)
+		if err := f.cloneComponent(component, baseDir); err != nil {
+			return nil, err
+		}
+	} else { // already cloned, just fetch
+		if err := f.fetchComponent(component, baseDir); err != nil {
+			return nil, err
+		}
+	}
+
+	// find revision
+	revision, err := f.getLatestRevOfVersion(component.version, path.Join(baseDir, component.name))
+	wsDir := f.workspaceDir(fmt.Sprintf("%s-%s", revision[0:8], component.name))
+
+	if err := f.copyComponentWithRev(component, baseDir, wsDir, revision); err != nil {
 		return nil, err
 	}
 
@@ -325,4 +356,111 @@ func (f *DefaultFactory) Delete(version string) error {
 		f.logger.Warnf("Failed to delete workspace '%s': %s", wsDir, err)
 	}
 	return err
+}
+
+func (f *DefaultFactory) componentBaseDir(c *Component) string {
+	return filepath.Join(f.storageDir, gitComponentsBaseDir,
+		fmt.Sprintf("%x-%s", md5.Sum([]byte(c.url)), c.name))
+}
+
+func (f *DefaultFactory) indicatorExistsOrClean(baseDir string) (bool, error) {
+	if file.DirExists(baseDir) {
+		if file.Exists(filepath.Join(baseDir, wsReadyIndicatorFile)) {
+			// if the component repo is fully cloned just fetch to update it.
+			return true, nil
+		} else { // broken clone, clean it
+			f.logger.Warnf("Deleting workspace '%s' because previous download/clone does not contain all the required files", baseDir)
+			if err := os.RemoveAll(baseDir); err != nil {
+				return false, err
+			}
+		}
+	}
+	return false, nil
+}
+
+func (f *DefaultFactory) fetchComponent(component *Component, dstDir string) error {
+	repo := &reconciler.Repository{
+		URL: component.url,
+	}
+
+	tokenNamespace := component.configuration["repo.token.namespace"]
+	if tokenNamespace != nil {
+		repo.TokenNamespace = fmt.Sprintf("%s", tokenNamespace)
+	}
+
+	dstPath := path.Join(dstDir, component.name)
+	return f.fetch(dstPath, repo)
+}
+
+func (f *DefaultFactory) fetch(dstDir string, repo *reconciler.Repository) error {
+	f.logger.Infof("Fetch GIT repository '%s' in workspace '%s'",
+		repo.URL, dstDir)
+
+	clientSet, err := reconcilerK8s.NewInClusterClientSet(f.logger)
+	if err != nil {
+		return err
+	}
+	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet, f.logger)
+
+	return cloner.Fetch(dstDir)
+}
+
+// getLatestRevOfVersion works on local cache. If "version" is a branch, it will retrun the revisionID of it's HEAD
+// if "version" is a tag, it will return it's revisionID.
+func (f *DefaultFactory) getLatestRevOfVersion(version, path string) (string, error) {
+	gitClient, err := git.NewClientWithPath(path)
+	if err != nil {
+		return "", err
+	}
+
+	cloner, _ := git.NewCloner(gitClient, nil, true, nil, f.logger)
+	revision, err := cloner.ResolveRevisionOrBranchHead(version)
+	if err != nil {
+		return "", err
+	}
+
+	return revision.String(), nil
+}
+
+func (f *DefaultFactory) copyComponentWithRev(component *Component, baseDir, wsDir, rev string) error {
+	indicatorExists, err := f.indicatorExistsOrClean(wsDir)
+	if err != nil {
+		return err
+	}
+	if indicatorExists {
+		return nil
+	}
+	destWsDir := path.Join(wsDir, component.name)
+	componentBaseDir := path.Join(baseDir, component.name)
+
+	err = copy.Copy(componentBaseDir, destWsDir)
+	if err != nil {
+		return err
+	}
+	gitClient, err := git.NewClientWithPath(destWsDir)
+	if err != nil {
+		return err
+	}
+
+	w, err := gitClient.Worktree()
+	if err != nil {
+		return err
+	}
+
+	err = w.Checkout(&gogit.CheckoutOptions{Hash: plumbing.NewHash(rev)})
+	if err != nil {
+		return err
+	}
+
+	//create a marker file to flag success
+	fileHandler, err := os.Create(f.readyFile(wsDir))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := fileHandler.Close(); err != nil {
+			f.logger.Warnf("Failed to close marker file: %s", err)
+		}
+	}()
+	return nil
 }
