@@ -80,6 +80,7 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		WithNamespace(context.Task.Namespace).
 		WithProfile(context.Task.Profile).
 		WithConfiguration(context.Task.Configuration).
+		WithURL(context.Task.URL).
 		Build()
 
 	manifest, err := context.ChartProvider.RenderManifest(component)
