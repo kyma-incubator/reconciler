@@ -10,6 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const (
+	none = "None"
+)
+
 type ServicesInterceptor struct {
 	kubeClient k8s.Client
 }
@@ -32,8 +36,8 @@ func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, nam
 		return k8s.ContinueInterceptionResult, nil
 	}
 
-	//adjust the ClusterIP field only if it is empty
-	if svc.Spec.ClusterIP != "" {
+	//adjust the ClusterIP field only if it is empty or equals to "None"
+	if svc.Spec.ClusterIP != "" && !strings.EqualFold(svc.Spec.ClusterIP, none) {
 		return k8s.ContinueInterceptionResult, nil
 	}
 

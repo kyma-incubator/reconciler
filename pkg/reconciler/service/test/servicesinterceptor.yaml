@@ -8,3 +8,15 @@ spec:
     - port: 443
       protocol: TCP
       targetPort: 8443
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unittest-servicesinterceptors2
+  namespace: unittest-servicesinterceptor
+spec:
+  clusterIP: None
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 8443
