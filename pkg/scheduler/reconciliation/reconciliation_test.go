@@ -5,9 +5,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
@@ -640,11 +640,11 @@ func removeExistingReconciliations(t *testing.T, repos map[string]Repository) {
 
 func createClusterStates(t *testing.T, inventory cluster.Inventory) (*cluster.State, *cluster.State) {
 	clusterID1 := uuid.NewString()
-	stateMock1, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID1, 1, false, test.ThreeComponentsDummy))
+	stateMock1, err := inventory.CreateOrUpdate(1, keb.NewCluster(t, clusterID1, 1, false, keb.ThreeComponentsDummy))
 	require.NoError(t, err)
 
 	clusterID2 := uuid.NewString()
-	stateMock2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.OneComponentDummy))
+	stateMock2, err := inventory.CreateOrUpdate(1, keb.NewCluster(t, clusterID2, 1, false, keb.OneComponentDummy))
 	require.NoError(t, err)
 	return stateMock1, stateMock2
 }
@@ -778,7 +778,7 @@ func TestReconciliationParallel(t *testing.T) {
 		require.NoError(t, err)
 
 		errChannel := make(chan error, 100)
-		mockClusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, uuid.NewString(), 1, false, test.OneComponentDummy))
+		mockClusterState, err := inventory.CreateOrUpdate(1, keb.NewCluster(t, uuid.NewString(), 1, false, keb.OneComponentDummy))
 		require.NoError(t, err)
 
 		defer func() {

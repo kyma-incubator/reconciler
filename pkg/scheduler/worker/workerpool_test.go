@@ -45,7 +45,7 @@ func TestWorkerPool(t *testing.T) {
 	require.NoError(t, err)
 
 	//add cluster to inventory
-	clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+	clusterState, err := inventory.CreateOrUpdate(1, keb.NewCluster(t, "1", 1, false, keb.OneComponentDummy))
 	require.NoError(t, err)
 
 	//cleanup created cluster
@@ -92,9 +92,9 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
 		//prepare keb clusters
-		kebClusters := []*keb.Cluster{test.NewCluster(t, strconv.Itoa(1), 1, false, test.OneComponentDummy),
-			test.NewCluster(t, strconv.Itoa(2), 1, false, test.OneComponentDummy),
-			test.NewCluster(t, strconv.Itoa(3), 1, false, test.OneComponentDummy),
+		kebClusters := []*keb.Cluster{keb.NewCluster(t, strconv.Itoa(1), 1, false, keb.OneComponentDummy),
+			keb.NewCluster(t, strconv.Itoa(2), 1, false, keb.OneComponentDummy),
+			keb.NewCluster(t, strconv.Itoa(3), 1, false, keb.OneComponentDummy),
 		}
 
 		//create mock database connection

@@ -1,9 +1,9 @@
-package test
+package keb
 
-type Cluster []byte
+type KebCluster []byte
 
 var (
-	Production Cluster = []byte(`{
+	Production KebCluster = []byte(`{
   "runtimeID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5",
   "runtimeInput": {
     "name": "ad0d842",
@@ -283,7 +283,7 @@ var (
     "instanceID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5"
   }
 }`)
-	OneComponentDummy Cluster = []byte(`{
+	OneComponentDummy KebCluster = []byte(`{
 	"kymaConfig": {
 		"version": "1.2.3",
 		"profile": "",
@@ -317,7 +317,7 @@ var (
 		}
 	}
 }`)
-	ThreeComponentsDummy Cluster = []byte(`{
+	ThreeComponentsDummy KebCluster = []byte(`{
 	"kymaConfig": {
 		"version": "1.2.3",
 		"profile": "",
