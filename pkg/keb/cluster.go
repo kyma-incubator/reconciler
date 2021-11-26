@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func NewCluster(t *testing.T, runtimeID string, clusterVersion uint64, newConfigVersion bool, clusterType KebCluster) *Cluster {
+func NewCluster(t *testing.T, runtimeID string, clusterVersion uint64, newConfigVersion bool, clusterType TestCluster) *Cluster {
 	cluster := &Cluster{}
 	err := json.Unmarshal(clusterType, cluster)
 	require.NoError(t, err)
