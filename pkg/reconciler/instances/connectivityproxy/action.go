@@ -54,7 +54,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	if (binding != nil && app == nil) || (binding != nil && app != nil) {
 		context.Logger.Info("Reading secret")
 		bindingSecret, err := a.Loader.FindSecret(context, binding)
-		if err != nil {
+		if err != nil || bindingSecret == nil {
 			return errors.Wrap(err, "Error while retrieving secret")
 		}
 
