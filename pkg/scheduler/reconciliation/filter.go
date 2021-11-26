@@ -2,10 +2,27 @@ package reconciliation
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 )
+
+type WithCreationDateBefore struct {
+	Time time.Time
+}
+
+func (wd *WithCreationDateBefore) FilterByQuery(q *db.Select) error {
+	q.WhereRaw("created<$1", wd.Time.Format("2021-11-26 00:00:00.000"))
+	return nil
+}
+
+func (wd *WithCreationDateBefore) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
+	if i.Created.Before(wd.Time) {
+		return i
+	}
+	return nil
+}
 
 type WithSchedulingID struct {
 	SchedulingID string

@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"context"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/service"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
 	"github.com/spf13/viper"
-	"time"
 )
 
 func startScheduler(ctx context.Context, o *Options, configFile string) error {
@@ -41,6 +42,10 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 		WithBookkeeperConfig(&service.BookkeeperConfig{
 			OperationsWatchInterval: 30 * time.Second,
 			OrphanOperationTimeout:  o.OrphanOperationTimeout,
+		}).
+		WithCleanerConfig(&service.CleanerConfig{
+			PurgeEntitiesOlderThan: 14 * 24 * time.Hour, // 14 days
+			CleanerInterval:        12 * time.Hour,
 		}).
 		Run(ctx)
 }
