@@ -789,11 +789,12 @@ func Test_isMismatchPresent(t *testing.T) {
 
 func Test_isClientCompatible(t *testing.T) {
 	logger := log.NewLogger(true)
-	t.Run("Client and Target with the exact same versions are compatible", func(t *testing.T) {
+
+	t.Run("should return true when client and target versions are the same", func(t *testing.T) {
 		// given
 		exactSameClientVersion := actions.IstioVersion{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.2",
+			ClientVersion:    "1.1.0",
+			TargetVersion:    "1.1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -805,11 +806,43 @@ func Test_isClientCompatible(t *testing.T) {
 		require.True(t, got)
 	})
 
-	t.Run("Client and Target with the same major and one higher minor version are compatible", func(t *testing.T) {
+	t.Run("should return true when client and target versions are of the same minor and different patch and client version is higher than target", func(t *testing.T) {
+		// given
+		sameMinorClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.1.1",
+			TargetVersion:    "1.1.0",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+
+		// when
+		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion, logger)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("should return true when client and target versions are of the same minor and different patch and target version is higher than client", func(t *testing.T) {
+		// given
+		sameMinorClientVersion := actions.IstioVersion{
+			ClientVersion:    "1.1.0",
+			TargetVersion:    "1.1.1",
+			PilotVersion:     "",
+			DataPlaneVersion: "",
+		}
+
+		// when
+		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion, logger)
+
+		//then
+		require.True(t, got)
+	})
+
+	t.Run("should return true when client and target versions are among one minor and of the same patch and client version is higher than target", func(t *testing.T) {
 		// given
 		oneHigherMinorClientVersion := actions.IstioVersion{
-			ClientVersion:    "1.12.2",
-			TargetVersion:    "1.11.2",
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.1.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -821,27 +854,11 @@ func Test_isClientCompatible(t *testing.T) {
 		require.True(t, got)
 	})
 
-	t.Run("Lower Client with the same major and minor versions as target are NOT compatible", func(t *testing.T) {
-		// given
-		sameMinorClientVersion := actions.IstioVersion{
-			ClientVersion:    "1.11.1",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "",
-			DataPlaneVersion: "",
-		}
-
-		// when
-		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion, logger)
-
-		//then
-		require.False(t, got)
-	})
-
-	t.Run("Client and Target with the same major and one lower minor version are NOT compatible", func(t *testing.T) {
+	t.Run("should return true when client and target versions are among one minor and of the same patch and target version is higher than client", func(t *testing.T) {
 		// given
 		oneLowerMinorClientVersion := actions.IstioVersion{
-			ClientVersion:    "1.10.2",
-			TargetVersion:    "1.11.2",
+			ClientVersion:    "1.1.0",
+			TargetVersion:    "1.2.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -850,14 +867,14 @@ func Test_isClientCompatible(t *testing.T) {
 		got := isClientCompatibleWithTargetVersion(oneLowerMinorClientVersion, logger)
 
 		//then
-		require.False(t, got)
+		require.True(t, got)
 	})
 
-	t.Run("Client and Target with the same major and one or more lower minor versions are NOT compatible", func(t *testing.T) {
+	t.Run("should return false when client and target versions are not among one minor and target version is higher than client", func(t *testing.T) {
 		// given
 		twoLowerMinorClientVersion := actions.IstioVersion{
-			ClientVersion:    "1.9.2",
-			TargetVersion:    "1.11.2",
+			ClientVersion:    "1.0.0",
+			TargetVersion:    "1.2.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -869,11 +886,11 @@ func Test_isClientCompatible(t *testing.T) {
 		require.False(t, got)
 	})
 
-	t.Run("Client and Target with the same major and greater than one minor versions are NOT compatible", func(t *testing.T) {
+	t.Run("should return false when client and target versions are not among one minor and client version is higher than target", func(t *testing.T) {
 		// given
 		greaterThanOneMinorClientVersion := actions.IstioVersion{
-			ClientVersion:    "1.13.2",
-			TargetVersion:    "1.11.2",
+			ClientVersion:    "1.2.0",
+			TargetVersion:    "1.0.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
