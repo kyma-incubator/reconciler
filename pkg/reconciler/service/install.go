@@ -54,16 +54,8 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 				Version: task.Version,
 			},
 			&AnnotationsInterceptor{},
-			&NoUpdateInterceptor{
-				kubeClient: kubeClient,
-				logger:     r.logger,
-			},
 			&ServicesInterceptor{
 				kubeClient: kubeClient,
-			},
-			&StatefulSetInterceptor{
-				kubeClient: kubeClient,
-				logger:     r.logger,
 			},
 		)
 		if err == nil {

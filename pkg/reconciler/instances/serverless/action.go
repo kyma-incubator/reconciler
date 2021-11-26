@@ -39,7 +39,7 @@ func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 
 		deployment, err := k8sClient.AppsV1().Deployments(serverlessNamespace).Get(svcCtx.Context, serverlessDockerRegistryDeploymentName, metav1.GetOptions{})
 		if err != nil {
-			logger.Errorf("Error while fetching existing docker registry deployment [%s]... Deployment will be re-generated", err.Error())
+			logger.Warnf("No existing docker registry deployment [%s]... Deployment will be re-generated", err.Error())
 		} else if deployment != nil {
 			setOverridesFromDeployment(deployment, svcCtx.Task.Configuration)
 		}

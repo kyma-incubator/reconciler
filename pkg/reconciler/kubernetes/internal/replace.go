@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	maxPatchRetry = 5
+	maxReplaceRetry = 5
 )
 
 var defaultBackoff = wait.Backoff{
@@ -145,7 +145,7 @@ func (p *replacer) recreateObject(obj runtime.Object, namespace, name string) (r
 }
 
 func (p *replacer) replace(new runtime.Object, namespace, name string) (result runtime.Object, err error) {
-	for i := 0; i < maxPatchRetry; i++ {
+	for i := 0; i < maxReplaceRetry; i++ {
 		result, err = p.simpleReplace(new, namespace, name)
 
 		if err == nil {
