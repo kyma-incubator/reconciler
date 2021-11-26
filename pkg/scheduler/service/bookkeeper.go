@@ -96,7 +96,7 @@ func (bk *bookkeeper) Run(ctx context.Context, tasks ...BookkeepingTask) error {
 					continue
 				}
 				for i := range tasks {
-					if _, err := tasks[i].Apply(reconResult); err != nil {
+					if err := tasks[i].Apply(reconResult); err != nil {
 						bk.logger.Errorf("BookkeepingTask reported error: %s", err)
 					}
 				}

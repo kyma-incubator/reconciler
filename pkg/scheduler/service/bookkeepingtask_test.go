@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -21,7 +20,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 		markOpsDone bool
 		customFunc  string
 		errMessage  string
-		errCount    uint64
+		errCount    int
 		task        string
 	}{
 		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: "markOrphanOperations", errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 98, task: "orphanOperation"},
@@ -99,22 +98,22 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			//call Apply in parallel threads
 			errChannel := make(chan error, 100)
 			startAt := time.Now().Add(2 * time.Second)
-			var errCnt uint64 = 0
 			for i := 0; i < 50; i++ {
 				wg.Add(1)
 				go func(errChannel chan error, bookkeeperOperation BookkeepingTask) {
 					defer wg.Done()
 					time.Sleep(time.Until(startAt))
-					cnt, err := bookkeeperOperation.Apply(reconResult)
+					err := bookkeeperOperation.Apply(reconResult)
 					if err != nil {
-						errChannel <- err
-						atomic.AddUint64(&errCnt, uint64(cnt))
+						for _, e := range err {
+							errChannel <- e
+						}
 					}
 				}(errChannel, bookkeeperOperation)
 			}
 			wg.Wait()
 
-			require.Equal(t, tc.errCount, errCnt)
+			require.Equal(t, tc.errCount, len(errChannel))
 		})
 	}
 }
