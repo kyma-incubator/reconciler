@@ -104,10 +104,8 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 					defer wg.Done()
 					time.Sleep(time.Until(startAt))
 					err := bookkeeperOperation.Apply(reconResult)
-					if err != nil {
-						for _, e := range err {
-							errChannel <- e
-						}
+					for _, e := range err {
+						errChannel <- e
 					}
 				}(errChannel, bookkeeperOperation)
 			}
