@@ -17,10 +17,6 @@ const (
 
 var crdComponent = &keb.Component{Component: CRDComponent, Namespace: "default"}
 
-type ReconciliationSequence struct {
-	Queue [][]*keb.Component
-}
-
 type ClusterConfigurationEntity struct {
 	Version        int64            `db:"readOnly"`
 	RuntimeID      string           `db:"notNull"`
@@ -102,36 +98,58 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 	return nil
 }
 
-func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents []string) *ReconciliationSequence {
-	//group components depending on their reconciliation order
-	sequence := &ReconciliationSequence{}
-	sequence.Queue = append(sequence.Queue, []*keb.Component{
-		crdComponent,
-	})
-
-	var inParallel []*keb.Component
-	for i := range c.Components {
-		if contains(preComponents, c.Components[i].Component) {
-			sequence.Queue = append(sequence.Queue, []*keb.Component{
-				c.Components[i],
-			})
-		} else {
-			inParallel = append(inParallel, c.Components[i])
-		}
-	}
-
-	if len(inParallel) > 0 {
-		sequence.Queue = append(sequence.Queue, inParallel)
-	}
-
-	return sequence
+func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents [][]string) *ReconciliationSequence {
+	reconSeq := newReconciliationSequence(preComponents)
+	reconSeq.addComponents(c.Components)
+	return reconSeq
 }
 
-func contains(items []string, item string) bool {
-	for i := range items {
-		if item == items[i] {
-			return true
+type ReconciliationSequence struct {
+	Queue         [][]*keb.Component
+	preComponents [][]string
+}
+
+func newReconciliationSequence(preComponents [][]string) *ReconciliationSequence {
+	reconSeq := &ReconciliationSequence{
+		preComponents: preComponents,
+	}
+	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning
+		crdComponent,
+	})
+	return reconSeq
+}
+
+func (rs *ReconciliationSequence) addComponents(components []*keb.Component) {
+	//for faster processing: map components by name
+	compsByNameCache := func() map[string]*keb.Component {
+		result := make(map[string]*keb.Component, len(components))
+		for _, component := range components {
+			result[component.Component] = component
+		}
+		return result
+	}()
+
+	//add pre-components to queue
+	for _, preComponentGroup := range rs.preComponents {
+		var preComps []*keb.Component
+		for _, preComponentName := range preComponentGroup {
+			if preComp, ok := compsByNameCache[preComponentName]; ok {
+				preComps = append(preComps, preComp)
+				delete(compsByNameCache, preComp.Component) //remove pre-component from cache
+				continue
+			}
+		}
+		if len(preComps) > 0 {
+			rs.Queue = append(rs.Queue, preComps)
 		}
 	}
-	return false
+
+	//add all remaining components in cache to queue
+	var noPreComps []*keb.Component
+	for _, comp := range compsByNameCache {
+		noPreComps = append(noPreComps, comp)
+	}
+	if len(noPreComps) > 0 {
+		rs.Queue = append(rs.Queue, noPreComps)
+	}
 }

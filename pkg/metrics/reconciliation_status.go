@@ -12,14 +12,18 @@ const (
 )
 
 // ReconciliationStatusCollector provides the following metrics:
-// - reconciler_reconciliation_status{"cluster_id", "runtime_id", "cluster_version", "configuration_version"}
+// - reconciler_reconciliation_status{"runtime_id", "runtime_name", "cluster_version", "configuration_version"}
 // These gauges show the status of the reconciliation.
 // The value of the gauge could be:
-// 0 - Error
+// 0 - Reconcile Error
 // 1 - Ready
 // 2 - Reconcile Pending
 // 3 - Reconciling
-// 4 - Reconcile Failed
+// 4 - Reconcile Disabled
+// 5 - Delete Pending
+// 6 - Deleting
+// 7 - Delete Error
+// 8 - Deleted
 type ReconciliationStatusCollector struct {
 	reconciliationStatusGauge *prometheus.GaugeVec
 }
@@ -30,7 +34,7 @@ func NewReconciliationStatusCollector() *ReconciliationStatusCollector {
 			Subsystem: prometheusSubsystem,
 			Name:      "reconciliation_status",
 			Help:      "Status of the reconciliation",
-		}, []string{"cluster_id", "runtime_id", "cluster_version", "configuration_version"}),
+		}, []string{"runtime_id", "runtime_name", "cluster_version", "configuration_version"}),
 	}
 	prometheus.MustRegister(collector)
 	return collector

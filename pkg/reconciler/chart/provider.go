@@ -2,10 +2,10 @@ package chart
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	fileUtils "github.com/kyma-incubator/reconciler/pkg/files"
 	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"go.uber.org/zap"
@@ -69,7 +69,7 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 				return nil
 			}
 
-			crdData, err := ioutil.ReadFile(path)
+			crdData, err := fileUtils.ReadFile(path)
 			if err != nil {
 				return err
 			}

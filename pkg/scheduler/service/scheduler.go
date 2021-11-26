@@ -46,10 +46,10 @@ func (wc *SchedulerConfig) validate() error {
 
 type scheduler struct {
 	logger        *zap.SugaredLogger
-	preComponents []string
+	preComponents [][]string
 }
 
-func newScheduler(preComponents []string, logger *zap.SugaredLogger) *scheduler {
+func newScheduler(preComponents [][]string, logger *zap.SugaredLogger) *scheduler {
 	return &scheduler{
 		preComponents: preComponents,
 		logger:        logger,

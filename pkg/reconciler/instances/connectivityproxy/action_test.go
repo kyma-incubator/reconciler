@@ -29,7 +29,8 @@ func TestAction(t *testing.T) {
 		Logger:           logger.NewLogger(true),
 		ChartProvider:    nil,
 		Task: &reconciler.Task{
-			Component: "test-component",
+			Component:     "test-component",
+			Configuration: make(map[string]interface{}),
 		},
 	}
 
@@ -45,14 +46,19 @@ func TestAction(t *testing.T) {
 		Commands: commands,
 	}
 
+	commands.On("PopulateConfigs", context, secret).Return(nil)
+
 	t.Run("Should install app if binding exists and app is missing - operator", func(t *testing.T) {
 		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").
 			Return(nil, nil)
+		kubeClient.On("GetHost").
+			Return("tmp host")
+
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
 		commands.On("CopyResources", context).Return(nil)
-		commands.On("Install", context, secret).Return(nil)
+		commands.On("Install", context).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
@@ -66,7 +72,7 @@ func TestAction(t *testing.T) {
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
 		commands.On("CopyResources", context).Return(nil)
-		commands.On("Install", context, secret).Return(nil)
+		commands.On("Install", context).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
@@ -113,7 +119,7 @@ func TestAction(t *testing.T) {
 			Return(nil, nil)
 
 		commands.On("CopyResources", context).Return(nil)
-		commands.On("Install", context, (*v1.Secret)(nil)).Return(nil)
+		commands.On("Install", context).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
