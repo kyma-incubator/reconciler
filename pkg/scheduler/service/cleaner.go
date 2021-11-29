@@ -47,7 +47,7 @@ func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, conf
 		Time: cretedBefore,
 	})
 	if err != nil {
-		c.logger.Error("Cleaner failed to get reconciliations older than %s: %s", cretedBefore, err.Error())
+		c.logger.Errorf("Cleaner failed to get reconciliations older than %s: %s", cretedBefore.String(), err.Error())
 	}
 
 	for i := range reconciliations {

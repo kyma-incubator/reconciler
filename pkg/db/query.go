@@ -131,7 +131,7 @@ type Select struct {
 
 func (s *Select) WhereRaw(stmt string, args ...interface{}) *Select {
 	s.addWhere()
-	s.buffer.WriteString(fmt.Sprintf(" (%s)", stmt))
+	s.buffer.WriteString(fmt.Sprintf(" %s", stmt))
 	s.args = append(s.args, args...)
 	return s
 }

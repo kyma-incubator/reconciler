@@ -13,7 +13,7 @@ type WithCreationDateBefore struct {
 }
 
 func (wd *WithCreationDateBefore) FilterByQuery(q *db.Select) error {
-	q.WhereRaw("created<$1", wd.Time.Format("2021-11-26 00:00:00.000"))
+	q.WhereRaw("created<$1", wd.Time.Format("2006-01-02 15:04:05.000"))
 	return nil
 }
 

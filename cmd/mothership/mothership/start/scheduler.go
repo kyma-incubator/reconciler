@@ -44,8 +44,8 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		WithCleanerConfig(&service.CleanerConfig{
-			PurgeEntitiesOlderThan: 14 * 24 * time.Hour, // 14 days
-			CleanerInterval:        12 * time.Hour,
+			PurgeEntitiesOlderThan: o.PurgeEntitiesOlderThan,
+			CleanerInterval:        o.CleanerInterval,
 		}).
 		Run(ctx)
 }
