@@ -117,7 +117,7 @@ func (scf *sqliteConnectionFactory) Init(_ bool) error {
 		//read DDL (test-table structure)
 		ddl, err := ioutil.ReadFile(scf.schemaFile)
 		if err != nil {
-			return errors.Wrap(err, "error reading file")
+			return errors.Wrapf(err, "error reading file DDL schema file '%s'", scf.schemaFile)
 		}
 
 		//get connection

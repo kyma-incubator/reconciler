@@ -23,7 +23,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 		errCount    int
 		task        string
 	}{
-		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: "markOrphanOperations", errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 98, task: "orphanOperation"},
+		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: "markOrphanOperations", errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 98, task: "markOrphanOperation"},
 		{name: "Finish two operations in multiple parallel threads", markOpsDone: true, customFunc: "finishReconciliation", errMessage: "Bookkeeper failed to update cluster", errCount: 49, task: "finishOperation"},
 	}
 
@@ -55,7 +55,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 				require.NoError(t, err)
 				for _, opEntity := range opEntities {
-					err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone)
+					err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone, true)
 					require.NoError(t, err)
 				}
 			}
@@ -64,8 +64,8 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			transition := newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true))
 			var bookkeeperOperation BookkeepingTask
 			switch tc.task {
-			case "orphanOperation":
-				bookkeeperOperation = orphanOperation{
+			case "markOrphanOperation":
+				bookkeeperOperation = markOrphanOperation{
 					transition: transition,
 					logger:     logger.NewLogger(true),
 				}

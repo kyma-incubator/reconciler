@@ -200,7 +200,7 @@ func (r *InMemoryReconciliationRepository) GetReconcilingOperations() ([]*model.
 	return allOps, nil
 }
 
-func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reasons ...string) error {
+func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -213,7 +213,7 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 		return &repository.EntityNotFoundError{}
 	}
 
-	if err := operationAlreadyInState(op, state); err != nil {
+	if err := operationAlreadyInState(op, state); err != nil && !allowInState{
 		return err
 	}
 

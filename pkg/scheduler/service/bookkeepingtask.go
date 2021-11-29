@@ -12,12 +12,12 @@ type BookkeepingTask interface {
 	Apply(*ReconciliationResult) []error
 }
 
-type orphanOperation struct {
+type markOrphanOperation struct {
 	transition *ClusterStatusTransition
 	logger     *zap.SugaredLogger
 }
 
-func (oo orphanOperation) Apply(reconResult *ReconciliationResult) []error {
+func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult) []error {
 	var result []error = nil
 	for _, orphanOp := range reconResult.GetOrphans() {
 		if orphanOp.State == model.OperationStateOrphan {
@@ -25,9 +25,8 @@ func (oo orphanOperation) Apply(reconResult *ReconciliationResult) []error {
 			continue
 		}
 
-		if err := oo.transition.reconRepo.UpdateOperationState(
-			orphanOp.SchedulingID, orphanOp.CorrelationID, model.OperationStateOrphan); err == nil {
-			oo.logger.Infof("orphanOperation marked operation '%s' as orphan: "+
+		if err := oo.transition.reconRepo.UpdateOperationState(orphanOp.SchedulingID, orphanOp.CorrelationID, model.OperationStateOrphan, true); err == nil {
+			oo.logger.Infof("markOrphanOperation marked operation '%s' as orphan: "+
 				"last update %.2f minutes ago)", orphanOp, time.Since(orphanOp.Updated).Minutes())
 		} else {
 			result = append(result, errors.Wrap(err, fmt.Sprintf("Bookkeeper failed to update status of orphan operation %s", orphanOp)))

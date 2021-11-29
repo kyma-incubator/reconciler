@@ -675,8 +675,7 @@ func getKymaConfig(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateOperationState(o *Options, schedulingID, correlationID string, state model.OperationState, reason ...string) error {
-	err := o.Registry.ReconciliationRepository().UpdateOperationState(
-		schedulingID, correlationID, state, strings.Join(reason, ", "))
+	err := o.Registry.ReconciliationRepository().UpdateOperationState(schedulingID, correlationID, state, true, strings.Join(reason, ", "))
 	if err != nil {
 		o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
 			"to state '%s': %s", schedulingID, correlationID, state, err)

@@ -34,7 +34,7 @@ func TestBookkeeper(t *testing.T) {
 	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 	require.NoError(t, err)
 	for _, opEntity := range opEntities {
-		err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone)
+		err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone, true)
 		require.NoError(t, err)
 	}
 
@@ -55,7 +55,7 @@ func TestBookkeeper(t *testing.T) {
 	transition := newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true))
 	start := time.Now()
 	require.NoError(t, bk.Run(ctx,
-		orphanOperation{transition: transition, logger: transition.logger},
+		markOrphanOperation{transition: transition, logger: transition.logger},
 		finishOperation{transition: transition, logger: transition.logger}))
 	require.WithinDuration(t, time.Now(), start, 5500*time.Millisecond) //verify bookkeeper stops when ctx gets closed
 

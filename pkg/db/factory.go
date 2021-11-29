@@ -18,7 +18,7 @@ func NewConnectionFactory(configFile string, migrate bool, debug bool) (Connecti
 
 	encKey, err := readEncryptionKey()
 	if err != nil {
-		return nil, errors.Wrap(err, "error reading encryption key")
+		return nil, err
 	}
 
 	dbToUse := viper.GetString("db.driver")

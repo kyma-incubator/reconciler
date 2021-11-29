@@ -192,7 +192,7 @@ func (i *RemoteReconcilerInvoker) unmarshalHTTPResponse(body []byte, respModel i
 }
 
 func (i *RemoteReconcilerInvoker) updateOperationState(params *Params, state model.OperationState, reasons ...string) error {
-	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, strings.Join(reasons, ", "))
+	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, true, strings.Join(reasons, ", "))
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("remote invoker failed to update operation "+
 			"(schedulingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))

@@ -348,7 +348,7 @@ func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*mode
 	return opEntities, nil
 }
 
-func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reasons ...string) error {
+func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
 	dbOps := func() error {
 		op, err := r.GetOperation(schedulingID, correlationID)
 		if err != nil {
@@ -358,7 +358,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			return err
 		}
 
-		if err := operationAlreadyInState(op, state); err != nil {
+		if err := operationAlreadyInState(op, state); err != nil && !allowInState{
 			return err
 		}
 

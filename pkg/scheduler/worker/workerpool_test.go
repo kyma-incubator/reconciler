@@ -27,7 +27,7 @@ type testInvoker struct {
 }
 
 func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
-	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, ""); err != nil {
+	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, false, ""); err != nil {
 		i.errChannel <- errors.New("Update failed")
 		return err
 	}
@@ -150,6 +150,8 @@ func TestWorkerPoolParallel(t *testing.T) {
 		wg.Wait()
 
 		//verify that invoker was properly called
+		//12 errors are expected, since three workerpools are started, watching 6 operations
+		//each operation should only be assigned once, which results in 12 errors
 		require.Equal(t, 12, len(testInvoker.errChannel))
 		require.Len(t, testInvoker.params, 3)
 		for i := 0; i < 3; i++ {
