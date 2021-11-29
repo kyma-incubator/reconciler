@@ -151,28 +151,21 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	require.NoError(t, err)
 	require.Equal(t, newClusterState.Status.Status, expectedClusterStatus)
 
-	rows, err := dbConn.Query("SELECT * FROM scheduler_reconciliations")
 	require.NoError(t, err)
-	require.Equal(t, 1, rowsLen(rows))
+	require.Equal(t, 1, getReconciliationsLen(t, dbConn))
 
 	time.Sleep(10 * time.Second) //give the cleaner some time to remove old entities
 
-	rows, err = dbConn.Query("SELECT * FROM scheduler_reconciliations")
 	require.NoError(t, err)
-	require.Equal(t, 0, rowsLen(rows))
+	require.Equal(t, 0, getReconciliationsLen(t, dbConn))
 }
 
-func rowsLen(rows db.DataRows) int {
-	fmt.Print("Counting rows")
-	count := 0
-	for rows.Next() {
-		var str string
-		rows.Scan(&str)
-
-		fmt.Printf("Row: %s", str)
-		count++
-	}
-	return count
+func getReconciliationsLen(t *testing.T, dbConn db.Connection) int {
+	query, err := db.NewQuery(dbConn, &model.ReconciliationEntity{}, logger.NewLogger(debugLogging))
+	require.NoError(t, err)
+	entities, err := query.Select().GetMany()
+	require.NoError(t, err)
+	return len(entities)
 }
 
 //setOperationState will update all operation status accordingly to expected cluster state
