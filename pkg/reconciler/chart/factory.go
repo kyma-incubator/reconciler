@@ -1,7 +1,7 @@
 package chart
 
 import (
-	"crypto/md5"
+	"crypto/sha1" //nolint
 	"fmt"
 	"io"
 	"net/http"
@@ -363,7 +363,7 @@ func (f *DefaultFactory) Delete(version string) error {
 
 func (f *DefaultFactory) componentBaseDir(c *Component) string {
 	return filepath.Join(f.storageDir, gitComponentsBaseDir,
-		fmt.Sprintf("%x-%s", md5.Sum([]byte(c.url)), c.name))
+		fmt.Sprintf("%x-%s", sha1.Sum([]byte(c.url)), c.name)) //nolint
 }
 
 func (f *DefaultFactory) indicatorExistsOrClean(baseDir string) (bool, error) {
@@ -371,12 +371,13 @@ func (f *DefaultFactory) indicatorExistsOrClean(baseDir string) (bool, error) {
 		if file.Exists(filepath.Join(baseDir, wsReadyIndicatorFile)) {
 			// if the component repo is fully cloned just fetch to update it.
 			return true, nil
-		} else { // broken clone, clean it
-			f.logger.Warnf("Deleting workspace '%s' because previous download/clone does not contain all the required files", baseDir)
-			if err := os.RemoveAll(baseDir); err != nil {
-				return false, err
-			}
 		}
+		// broken clone, clean it
+		f.logger.Warnf("Deleting workspace '%s' because previous download/clone does not contain all the required files", baseDir)
+		if err := os.RemoveAll(baseDir); err != nil {
+			return false, err
+		}
+
 	}
 	return false, nil
 }

@@ -11,10 +11,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 )
 
-const (
-	defaultBranch = "main"
-)
-
 type Invoker interface {
 	Invoke(ctx context.Context, params *Params) error
 }

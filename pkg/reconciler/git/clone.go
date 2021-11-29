@@ -197,5 +197,5 @@ func (r *Cloner) FetchAndCheckout(path, version string) error {
 }
 
 func (r *Cloner) ResolveRevisionOrBranchHead(rev string) (*gitp.Hash, error) {
-	return r.repoClient.ResolveRevisionOrBranchHead(gitp.Revision(fmt.Sprintf(rev)))
+	return r.repoClient.ResolveRevisionOrBranchHead(gitp.Revision(rev))
 }
