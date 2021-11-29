@@ -163,8 +163,13 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 }
 
 func rowsLen(rows db.DataRows) int {
+	fmt.Print("Counting rows")
 	count := 0
 	for rows.Next() {
+		var str string
+		rows.Scan(&str)
+
+		fmt.Printf("Row: %s", str)
 		count++
 	}
 	return count
