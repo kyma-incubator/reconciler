@@ -220,8 +220,8 @@ func isClientCompatibleWithTargetVersion(ver actions.IstioVersion, logger *zap.S
 	clientHelperVersion := newHelperVersionFrom(ver.ClientVersion)
 	targetHelperVersion := newHelperVersionFrom(ver.TargetVersion)
 
-	if clientHelperVersion.compare(&targetHelperVersion) == -1 || !amongOneMinor(clientHelperVersion, targetHelperVersion) {
-		logger.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s", ver.ClientVersion, ver.TargetVersion)
+	if !amongOneMinor(clientHelperVersion, targetHelperVersion) {
+		logger.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", ver.ClientVersion, ver.TargetVersion)
 		return false
 	}
 
