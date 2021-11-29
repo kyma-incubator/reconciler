@@ -39,8 +39,16 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 	return t.reconRepo
 }
 
-func (t *ClusterStatusTransition) StartReconciliation(clusterState *cluster.State, preComponents [][]string) error {
+func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, preComponents [][]string) error {
 	dbOp := func() error {
+
+		clusterState, err := t.inventory.GetLatest(runtimeID)
+		if err != nil {
+			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not get latest cluster state: %s",
+				clusterState.Cluster.RuntimeID, err)
+			return err
+		}
+
 		//set cluster status to reconciling or deleting depending on previous state
 		var targetState model.Status
 		if clusterState.Status.Status.IsDeleteCandidate() {
@@ -108,18 +116,24 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 			return fmt.Errorf("failed to finish reconciliation '%s': it is already finished", reconEntity)
 		}
 
-		clusterState, err := t.inventory.Get(reconEntity.RuntimeID, reconEntity.ClusterConfig)
+		clusterState, err := t.inventory.GetLatest(reconEntity.RuntimeID)
 		if err != nil {
-			t.logger.Errorf("Finishing reconciliation for cluster '%s' failed: could not get cluster state "+
-				"(configVersion: %d): %s", reconEntity.RuntimeID, reconEntity.ClusterConfig, err)
+			t.logger.Errorf("Finishing reconciliation for cluster '%s' failed: could not get cluster state : %s", reconEntity.RuntimeID, err)
 			return err
 		}
 
-		clusterState, err = t.inventory.UpdateStatus(clusterState, status)
-		if err != nil {
-			t.logger.Errorf("Finishing reconciliation for cluster '%s' failed: "+
-				"could not update cluster status to '%s': %s", clusterState.Cluster.RuntimeID, status, err)
-			return err
+		if clusterState.Status.Status.IsInProgress() {
+			clusterState, err = t.inventory.UpdateStatus(clusterState, status)
+			if err != nil {
+				t.logger.Errorf("Finishing reconciliation for cluster '%s' failed: "+
+					"could not update cluster status to '%s': %s", clusterState.Cluster.RuntimeID, status, err)
+				return err
+			}
+		} else {
+			t.logger.Warnf("Finishing reconciliation for cluster '%s': skipped cluster status update: current[%s], target[%s]"+
+				"(schedulingID:%s/clusterVersion:%d/configVersion:%d)",
+				clusterState.Cluster.RuntimeID, clusterState.Status.Status, status,
+				schedulingID, clusterState.Cluster.Version, clusterState.Configuration.Version)
 		}
 
 		err = t.reconRepo.FinishReconciliation(schedulingID, clusterState.Status)
