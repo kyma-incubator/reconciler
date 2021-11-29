@@ -752,7 +752,6 @@ func TestReconciliationParallel(t *testing.T) {
 			}(errChannel, repo)
 		}
 		wg.Wait()
-
 		ops, err := repo.GetReconcilingOperations()
 		require.NoError(t, err)
 		require.Equal(t, 4, len(ops))
@@ -806,4 +805,73 @@ func TestReconciliationParallel(t *testing.T) {
 		require.True(t, recons[0].Finished)
 		require.Equal(t, threadCnt-1, len(errChannel))
 	})
+
+	type test struct {
+		name string
+		preparationFunc func(*cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity)
+		mainFunc func(*cluster.State, *model.ReconciliationEntity, []*model.OperationEntity) error
+
+	}
+
+	tests := []test{
+		{name: "Create multiple instances of single reconciliations in parallel",
+			preparationFunc: func(state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
+				return nil, nil
+			},
+		mainFunc: func(state *cluster.State, entity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
+			entity.CreateReconciliation(mockClusterState, nil)
+		},
+		},
+
+	}
+
+	for _, tc := range tests {
+
+		t.Run(tc.name, func(t *testing.T) {
+			//initialize WaitGroup
+			var wg sync.WaitGroup
+			//reset db connection
+			dbConn = nil
+			//set amount of threads
+			threadCnt := 50
+
+			repo := newPersistentRepository(t)
+			inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
+			require.NoError(t, err)
+
+			errChannel := make(chan error, threadCnt)
+			mockClusterState, _ := createClusterStates(t, inventory)
+
+			defer func() {
+				require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
+			}()
+
+
+			recon, allOperations := tc.preparationFunc(mockClusterState)
+
+			startAt := time.Now().Add(1 * time.Second)
+			for i := 0; i < threadCnt; i++ {
+				wg.Add(1)
+				go func(errChannel chan error, repo Repository) {
+					defer wg.Done()
+					time.Sleep(time.Until(startAt))
+					err := tc.mainFunc(mockClusterState, recon, allOperations)
+					if err != nil {
+						errChannel <- err
+					}
+				}(errChannel, repo)
+			}
+			wg.Wait()
+
+			//TODO: Noch für alle test cases anpassen
+			recons, err := repo.GetReconciliations(nil)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(recons))
+			require.True(t, recons[0].Finished)
+			require.Equal(t, threadCnt-1, len(errChannel))
+		})
+	}
+
+
+
 }
