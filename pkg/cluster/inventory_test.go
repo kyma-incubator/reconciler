@@ -288,12 +288,16 @@ func TestCountRetries(t *testing.T) {
 		require.NoError(t, err)
 		//update clusterState with retryableError state
 		clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconcileErrorRetryable)
+		require.NoError(t, err)
 		//update clusterState with final state; unequal to ClusterStatusReconcileError or ClusterStatusReconcileErrorRetryable
 		clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReady)
+		require.NoError(t, err)
 		//update cluster state with a retryable error multiple times
 		for i := 0; i < expectedErrRetryable; i++ {
 			clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconcileErrorRetryable)
+			require.NoError(t, err)
 			clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
+			require.NoError(t, err)
 		}
 		//count how often retry happened
 		cnt, err := inventory.CountRetries(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version)
