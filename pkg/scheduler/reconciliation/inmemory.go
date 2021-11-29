@@ -213,7 +213,7 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 		return &repository.EntityNotFoundError{}
 	}
 
-	if err := operationAlreadyInState(op, state); err != nil && !allowInState{
+	if err := operationAlreadyInState(op, state); err != nil && !allowInState {
 		return err
 	}
 

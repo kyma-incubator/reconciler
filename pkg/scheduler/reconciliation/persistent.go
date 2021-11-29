@@ -358,7 +358,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			return err
 		}
 
-		if err := operationAlreadyInState(op, state); err != nil && !allowInState{
+		if err := operationAlreadyInState(op, state); err != nil && !allowInState {
 			return err
 		}
 
