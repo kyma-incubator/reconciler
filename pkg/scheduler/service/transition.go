@@ -44,7 +44,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, preCompo
 
 		clusterState, err := t.inventory.GetLatest(runtimeID)
 		if err != nil {
-			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not get latesst cluster state: %s",
+			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not get latest cluster state: %s",
 				clusterState.Cluster.RuntimeID, err)
 			return err
 		}
