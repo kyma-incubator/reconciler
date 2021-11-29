@@ -120,13 +120,14 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
+			tc := tt
 			var helper *resource.Helper
-			if tt.Response != nil {
+			if tc.Response != nil {
 
 				httpClient := fake.CreateHTTPClient(func(request *http.Request) (*http.Response, error) {
 
 					if request.Method == http.MethodGet {
-						return createResponse(t, tt.Response), nil
+						return createResponse(t, tc.Response), nil
 					}
 					return nil, fmt.Errorf("Not supported method: %s", request.Method)
 				})
@@ -145,13 +146,13 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			}
 
 			d := newDefaultUpdateStrategyResolver(helper)
-			got, err := d.Resolve(tt.Resource)
-			if (err != nil) != tt.WantErr {
-				t.Errorf("DefaultUpdateStrategyResolver.Resolve() error = %v, wantErr %v", err, tt.WantErr)
+			got, err := d.Resolve(tc.Resource)
+			if (err != nil) != tc.WantErr {
+				t.Errorf("DefaultUpdateStrategyResolver.Resolve() error = %v, wantErr %v", err, tc.WantErr)
 				return
 			}
-			if got != tt.Want {
-				t.Errorf("DefaultUpdateStrategyResolver.Resolve() = %v, want %v", got, tt.Want)
+			if got != tc.Want {
+				t.Errorf("DefaultUpdateStrategyResolver.Resolve() = %v, want %v", got, tc.Want)
 			}
 		})
 	}
