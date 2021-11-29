@@ -190,6 +190,9 @@ func (f *DefaultFactory) getExternalGitComponent(component *Component) (*Workspa
 
 	// find revision
 	revision, err := f.getLatestRevOfVersion(component.version, path.Join(baseDir, component.name))
+	if err != nil {
+		return nil, err
+	}
 	wsDir := f.workspaceDir(fmt.Sprintf("%s-%s", revision[0:8], component.name))
 
 	if err := f.copyComponentWithRev(component, baseDir, wsDir, revision); err != nil {
@@ -389,10 +392,10 @@ func (f *DefaultFactory) fetchComponent(component *Component, dstDir string) err
 	}
 
 	dstPath := path.Join(dstDir, component.name)
-	return f.fetch(dstPath, repo)
+	return f.fetch(component.version, dstPath, repo)
 }
 
-func (f *DefaultFactory) fetch(dstDir string, repo *reconciler.Repository) error {
+func (f *DefaultFactory) fetch(version, dstDir string, repo *reconciler.Repository) error {
 	f.logger.Infof("Fetch GIT repository '%s' in workspace '%s'",
 		repo.URL, dstDir)
 
@@ -402,7 +405,11 @@ func (f *DefaultFactory) fetch(dstDir string, repo *reconciler.Repository) error
 	}
 	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet, f.logger)
 
-	return cloner.Fetch(dstDir)
+	if err := cloner.FetchAndCheckout(dstDir, version); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // getLatestRevOfVersion works on local cache. If "version" is a branch, it will retrun the revisionID of it's HEAD

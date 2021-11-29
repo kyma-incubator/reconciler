@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,6 +36,7 @@ type RepoClient interface {
 	ResolveRevisionOrBranchHead(rev gitp.Revision) (*gitp.Hash, error)
 	Fetch(path string, o *git.FetchOptions) error
 	Repo() *git.Repository
+	PlainCheckout(path string, o *git.CheckoutOptions) error
 }
 
 func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
@@ -84,9 +86,11 @@ func (r *Cloner) Checkout(rev string, repo *git.Repository) error {
 		}
 		return errors.Wrap(err, msg)
 	}
+
 	err = w.Checkout(&git.CheckoutOptions{
 		Hash: *hash,
 	})
+
 	if err != nil {
 		return errors.Wrap(err, "Error checking out GIT revision")
 	}
@@ -94,14 +98,17 @@ func (r *Cloner) Checkout(rev string, repo *git.Repository) error {
 }
 
 func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
-	if rev == "" {
-		return fmt.Errorf("GIT revision cannot be empty")
-	}
 	repo, err := r.Clone(dstPath)
 	if err != nil {
 		return errors.Wrapf(err, "Error downloading Git repository (%s)", r.repo)
 	}
-
+	if rev == "" {
+		head, err := repo.Head()
+		if err != nil {
+			return err
+		}
+		rev = head.Hash().String()
+	}
 	return r.Checkout(rev, repo)
 }
 
@@ -163,14 +170,29 @@ func mapSecretKey(URL string) (string, error) {
 	return output, nil
 }
 
-func (r *Cloner) Fetch(path string) error {
+func (r *Cloner) FetchAndCheckout(path, version string) error {
 	auth, err := r.buildAuth()
 	if err != nil {
 		return err
 	}
-	return r.repoClient.Fetch(path, &git.FetchOptions{
-		Auth: auth,
+	err = r.repoClient.Fetch(path, &git.FetchOptions{
+		Auth:     auth,
+		RefSpecs: []config.RefSpec{config.RefSpec("+refs/heads/*:refs/remotes/origin/*")},
 	})
+	if err != nil {
+		return err
+	}
+
+	if version != "" {
+		hash, err := r.ResolveRevisionOrBranchHead(version)
+		if err != nil {
+			return err
+		}
+		return r.repoClient.PlainCheckout(path, &git.CheckoutOptions{
+			Hash: *hash,
+		})
+	}
+	return nil
 }
 
 func (r *Cloner) ResolveRevisionOrBranchHead(rev string) (*gitp.Hash, error) {

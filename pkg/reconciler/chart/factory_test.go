@@ -13,9 +13,8 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
-
 	file "github.com/kyma-incubator/reconciler/pkg/files"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
