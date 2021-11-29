@@ -43,7 +43,7 @@ func TestQuery(t *testing.T) {
 		subQ := "SELECT col FROM table WHERE y=z"
 		_, err := q.Select().
 			WhereIn("Col1", subQ).
-			WhereRaw("col_2=$1 OR col_2=$2", "valueX", "valueY").
+			WhereRaw("(col_2=$1 OR col_2=$2)", "valueX", "valueY").
 			Where(map[string]interface{}{"Col1": false}).
 			GetOne()
 		require.NoError(t, err)
