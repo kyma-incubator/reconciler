@@ -429,10 +429,10 @@ func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity
 	return clusterEntity.(*model.ClusterEntity), nil
 }
 
-func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
+func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {  // TODO: Adapt filter logic here
 	var filters []statusSQLFilter
 	if reconcileInterval > 0 {
-		filters = append(filters, &reconcileIntervalFilter{
+		filters = append(filters, &reconcileIntervalFilter{   // TODO: Adapt interval fo clusters in error state
 			reconcileInterval: reconcileInterval,
 		})
 	}
