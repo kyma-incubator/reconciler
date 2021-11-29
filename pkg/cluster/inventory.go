@@ -506,8 +506,8 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	}
 
 	clusterStatuses, err := q.Select().
-		WhereIn("ID", statusIdsSQL, statusIdsArgs...).  //query latest cluster states (= max(configVersion) within max(clusterVersion))
-		WhereRaw(fmt.Sprintf("(%s)", statusFilterSQL)). //filter these states also by provided criteria (by statuses, reconcile-interval etc.)
+		WhereIn("ID", statusIdsSQL, statusIdsArgs...). //query latest cluster states (= max(configVersion) within max(clusterVersion))
+		WhereRaw(statusFilterSQL).                     //filter these states also by provided criteria (by statuses, reconcile-interval etc.)
 		Where(map[string]interface{}{"Deleted": false}).
 		GetMany()
 	if err != nil {
