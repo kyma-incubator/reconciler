@@ -64,7 +64,7 @@ func (a *K8sLoader) FindSecret(context *service.ActionContext, binding *unstruct
 		return nil, errors.Wrap(err, "Error while extracting secret")
 	}
 
-	namespace := context.Task.Namespace
+	namespace := binding.GetNamespace()
 	if namespace == "" {
 		context.Logger.Info("No namespace set, assuming default.")
 		namespace = "default"
