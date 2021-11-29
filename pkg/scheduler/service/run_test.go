@@ -134,6 +134,10 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		InventoryWatchInterval:   1 * time.Second,
 		ClusterReconcileInterval: 1 * time.Minute,
 	})
+	remoteRunner.WithCleanerConfig(&CleanerConfig{
+		PurgeEntitiesOlderThan: 1 * time.Minute,
+		CleanerInterval:        5 * time.Second,
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
