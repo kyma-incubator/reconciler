@@ -119,8 +119,8 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tc := tt
 		t.Run(tt.Name, func(t *testing.T) {
-			tc := tt
 			var helper *resource.Helper
 			if tc.Response != nil {
 
