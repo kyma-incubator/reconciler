@@ -48,7 +48,7 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	return &DefaultInventory{repo, collector}, nil
 }
 
-func (i *DefaultInventory) CountRetries(runtimeId string, configVersion int64) (int, error) { // TODO Write Unit tests
+func (i *DefaultInventory) CountRetries(runtimeId string, configVersion int64) (int, error) {
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
 		return 0, err
