@@ -187,10 +187,9 @@ func (r *Cloner) FetchAndCheckout(path, version string) error {
 		if err != nil {
 			return err
 		}
-		err = r.repoClient.PlainCheckout(path, &git.CheckoutOptions{
+		return r.repoClient.PlainCheckout(path, &git.CheckoutOptions{
 			Hash: defaultBranch.Hash(),
 		})
-		return err
 
 	}
 	return nil

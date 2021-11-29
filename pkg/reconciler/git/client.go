@@ -49,7 +49,6 @@ func (d *Client) ResolveRevisionOrBranchHead(rev gitp.Revision) (*gitp.Hash, err
 	if branchRev != nil { // this is a branch
 		return d.repo.ResolveRevision(gitp.Revision(branchRev.String()))
 	}
-	// fall back case.
 	return d.repo.ResolveRevision(rev)
 }
 

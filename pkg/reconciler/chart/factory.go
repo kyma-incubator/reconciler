@@ -383,6 +383,10 @@ func (f *DefaultFactory) indicatorExistsOrClean(baseDir string) (bool, error) {
 }
 
 func (f *DefaultFactory) fetchComponent(component *Component, dstDir string) error {
+	dstPath := path.Join(dstDir, component.name)
+	f.logger.Infof("Fetching GIT repository '%s' in workspace '%s'",
+		component.url, dstPath)
+
 	repo := &reconciler.Repository{
 		URL: component.url,
 	}
@@ -391,26 +395,13 @@ func (f *DefaultFactory) fetchComponent(component *Component, dstDir string) err
 	if tokenNamespace != nil {
 		repo.TokenNamespace = fmt.Sprintf("%s", tokenNamespace)
 	}
-
-	dstPath := path.Join(dstDir, component.name)
-	return f.fetch(component.version, dstPath, repo)
-}
-
-func (f *DefaultFactory) fetch(version, dstDir string, repo *reconciler.Repository) error {
-	f.logger.Infof("Fetch GIT repository '%s' in workspace '%s'",
-		repo.URL, dstDir)
-
 	clientSet, err := reconcilerK8s.NewInClusterClientSet(f.logger)
 	if err != nil {
 		return err
 	}
 	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet, f.logger)
 
-	if err := cloner.FetchAndCheckout(dstDir, version); err != nil {
-		return err
-	}
-
-	return nil
+	return cloner.FetchAndCheckout(dstPath, component.version)
 }
 
 // getLatestRevOfVersion works on local cache. If "version" is a branch, it will retrun the revisionID of it's HEAD
