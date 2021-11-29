@@ -16,13 +16,13 @@ import (
 const (
 	defaultOperationsWatchInterval = 30 * time.Second
 	defaultOrphanOperationTimeout  = 10 * time.Minute
-	defaultMaxRetries = 150
+	defaultMaxRetries              = 150
 )
 
 type BookkeeperConfig struct {
 	OperationsWatchInterval time.Duration
 	OrphanOperationTimeout  time.Duration
-	MaxRetries int
+	MaxRetries              int
 }
 
 func (wc *BookkeeperConfig) validate() error {

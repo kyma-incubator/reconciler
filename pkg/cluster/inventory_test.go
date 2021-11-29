@@ -291,7 +291,7 @@ func TestCountRetries(t *testing.T) {
 		//update clusterState with final state; unequal to ClusterStatusReconcileError or ClusterStatusReconcileErrorRetryable
 		clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReady)
 		//update cluster state with a retryable error multiple times
-		for i:=0; i< expectedErrRetryable; i++ {
+		for i := 0; i < expectedErrRetryable; i++ {
 			clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconcileErrorRetryable)
 			clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
 		}
