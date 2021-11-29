@@ -677,11 +677,10 @@ func dbConnection(t *testing.T) db.Connection {
 func TestReconciliationParallel(t *testing.T) {
 
 	type test struct {
-		name string
+		name            string
 		preparationFunc func(Repository, *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity)
-		mainFunc func(Repository, *cluster.State, *model.ReconciliationEntity, []*model.OperationEntity) error
-		check func(Repository, int, chan error)
-
+		mainFunc        func(Repository, *cluster.State, *model.ReconciliationEntity, []*model.OperationEntity) error
+		check           func(Repository, int, chan error)
 	}
 
 	tests := []test{
@@ -689,17 +688,17 @@ func TestReconciliationParallel(t *testing.T) {
 			preparationFunc: func(repo Repository, state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
 				return nil, nil
 			},
-		mainFunc: func(repo Repository, state *cluster.State, entity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
-			_, err := repo.CreateReconciliation(state, nil)
-			return err
-		},
-		check: func(repo Repository, threadCnt int, errChannel chan error) {
-			recons, err := repo.GetReconciliations(nil)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(recons))
-			require.False(t, recons[0].Finished)
-			require.Equal(t, threadCnt-1, len(errChannel))
-		},
+			mainFunc: func(repo Repository, state *cluster.State, entity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
+				_, err := repo.CreateReconciliation(state, nil)
+				return err
+			},
+			check: func(repo Repository, threadCnt int, errChannel chan error) {
+				recons, err := repo.GetReconciliations(nil)
+				require.NoError(t, err)
+				require.Equal(t, 1, len(recons))
+				require.False(t, recons[0].Finished)
+				require.Equal(t, threadCnt-1, len(errChannel))
+			},
 		},
 		{name: "Update single operation state in multiple parallel threads",
 			preparationFunc: func(repo Repository, state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
@@ -742,7 +741,6 @@ func TestReconciliationParallel(t *testing.T) {
 				require.Equal(t, threadCnt-1, len(errChannel))
 			},
 		},
-
 	}
 
 	for _, tc := range tests {
@@ -766,7 +764,6 @@ func TestReconciliationParallel(t *testing.T) {
 				require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
 			}()
 
-
 			recon, allOperations := tc.preparationFunc(repo, mockClusterState)
 
 			startAt := time.Now().Add(1 * time.Second)
@@ -786,7 +783,5 @@ func TestReconciliationParallel(t *testing.T) {
 			tc.check(repo, threadCnt, errChannel)
 		})
 	}
-
-
 
 }
