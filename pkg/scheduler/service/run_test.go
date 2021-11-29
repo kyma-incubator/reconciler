@@ -135,8 +135,8 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		ClusterReconcileInterval: 1 * time.Minute,
 	})
 	remoteRunner.WithCleanerConfig(&CleanerConfig{
-		PurgeEntitiesOlderThan: 1 * time.Minute,
-		CleanerInterval:        5 * time.Second,
+		PurgeEntitiesOlderThan: 5 * time.Second,
+		CleanerInterval:        2 * time.Second,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -150,6 +150,24 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	newClusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
 	require.NoError(t, err)
 	require.Equal(t, newClusterState.Status.Status, expectedClusterStatus)
+
+	rows, err := dbConn.Query("SELECT * FROM scheduler_reconciliations")
+	require.NoError(t, err)
+	require.Equal(t, 1, rowsLen(rows))
+
+	time.Sleep(3 * time.Second) //give the cleaner some time to remove old entities
+
+	rows, err = dbConn.Query("SELECT * FROM scheduler_reconciliations")
+	require.NoError(t, err)
+	require.Equal(t, 0, rowsLen(rows))
+}
+
+func rowsLen(rows db.DataRows) int {
+	count := 0
+	for rows.Next() {
+		count++
+	}
+	return count
 }
 
 //setOperationState will update all operation status accordingly to expected cluster state

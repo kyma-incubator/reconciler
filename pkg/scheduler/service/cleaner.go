@@ -25,7 +25,7 @@ func newCleaner(logger *zap.SugaredLogger) *cleaner {
 
 func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, config *CleanerConfig) error {
 	c.logger.Infof("Starting entities cleaner: interval for clearing old reconciliation and operation entities "+
-		"is %.1f minutes", config.PurgeEntitiesOlderThan.Minutes())
+		"is %s", config.CleanerInterval.String())
 
 	ticker := time.NewTicker(config.CleanerInterval)
 	c.purgeReconciliations(transition, config) //check for entities now, otherwise first check would be trigger by ticker
@@ -47,14 +47,14 @@ func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, conf
 		Time: cretedBefore,
 	})
 	if err != nil {
-		c.logger.Error("Cleaner failed to get reconciliations older than: %s", cretedBefore)
+		c.logger.Error("Cleaner failed to get reconciliations older than %s: %s", cretedBefore, err.Error())
 	}
 
 	for i := range reconciliations {
 		id := reconciliations[i].SchedulingID
 		err := transition.ReconciliationRepository().RemoveReconciliation(id)
 		if err != nil {
-			c.logger.Errorf("Cleaner failed to remove reconciliation with schedulingID: '%s'", id)
+			c.logger.Errorf("Cleaner failed to remove reconciliation with schedulingID '%s': %s", id, err.Error())
 		}
 	}
 }
