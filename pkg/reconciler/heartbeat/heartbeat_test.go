@@ -3,12 +3,13 @@ package heartbeat
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/pkg/errors"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/pkg/errors"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -38,7 +39,12 @@ func (cb *testCallbackHandler) Callback(msg *reconciler.CallbackMessage) error {
 }
 
 func (cb *testCallbackHandler) Statuses() []reconciler.Status {
-	statuses := strings.Split(os.Getenv("_testCallbackHandlerStatuses"), ",")
+	var statuses []string
+	callbackHandlerStatuses := os.Getenv("_testCallbackHandlerStatuses")
+
+	if len(callbackHandlerStatuses) > 0 {
+		statuses = strings.Split(callbackHandlerStatuses, ",")
+	}
 	var result []reconciler.Status
 	for _, status := range statuses {
 		result = append(result, reconciler.Status(status))

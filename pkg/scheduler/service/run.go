@@ -17,7 +17,7 @@ import (
 type RuntimeBuilder struct {
 	reconRepo        reconciliation.Repository
 	logger           *zap.SugaredLogger
-	preComponents    []string
+	preComponents    [][]string
 	workerPoolConfig *worker.Config
 }
 
@@ -33,7 +33,7 @@ func (rb *RuntimeBuilder) newWorkerPool(retriever worker.ClusterStateRetriever, 
 	return worker.NewWorkerPool(retriever, rb.reconRepo, invoke, rb.workerPoolConfig, rb.logger)
 }
 
-func (rb *RuntimeBuilder) RunLocal(preComponents []string, statusFunc invoker.ReconcilerStatusFunc) *RunLocal {
+func (rb *RuntimeBuilder) RunLocal(preComponents [][]string, statusFunc invoker.ReconcilerStatusFunc) *RunLocal {
 	runL := &RunLocal{rb, statusFunc}
 	runL.runtimeBuilder.preComponents = preComponents
 	//Make sure local runner will NOT retry if the local invoker returns an error!

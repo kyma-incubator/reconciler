@@ -110,8 +110,8 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		Host:   "httpbin.org",
 		Port:   443,
 		Scheduler: config.SchedulerConfig{
-			PreComponents: []string{
-				"dummyComponent",
+			PreComponents: [][]string{
+				{"dummyComponent"},
 			},
 			Reconcilers: map[string]config.ComponentReconciler{
 				"base": {

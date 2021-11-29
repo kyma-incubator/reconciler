@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -14,10 +15,14 @@ type Params struct {
 
 func NewParams(r *http.Request) *Params {
 	params := mux.Vars(r)
-	query := r.URL.Query()
+	query := url.Values{}
+	if r.URL != nil {
+		query = r.URL.Query()
+	}
 	for k := range query {
 		params[k] = query.Get(k)
 	}
+
 	return &Params{
 		params: params,
 	}

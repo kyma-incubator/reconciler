@@ -26,7 +26,7 @@ func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repos
 	return &PersistentReconciliationRepository{repo}, nil
 }
 
-func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents []string) (*model.ReconciliationEntity, error) {
+func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
 	if len(state.Configuration.Components) == 0 {
 		return nil, newEmptyComponentsReconciliationError(state)
 	}
@@ -179,7 +179,7 @@ func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID stri
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, r.NewNotFoundError(err, reconEntity, whereCond)
+		return nil, r.MapError(err, reconEntity, whereCond)
 	}
 	return reconEntity.(*model.ReconciliationEntity), nil
 }
