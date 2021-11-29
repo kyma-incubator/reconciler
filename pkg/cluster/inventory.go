@@ -23,6 +23,7 @@ type Inventory interface {
 	StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
+	CountRetries(runtimeId string, configVersion int64) (int, error)
 }
 
 type DefaultInventory struct {
@@ -45,6 +46,31 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 		return nil, err
 	}
 	return &DefaultInventory{repo, collector}, nil
+}
+
+func (i *DefaultInventory) CountRetries(runtimeId string, configVersion int64) (int, error) { // TODO Write Unit tests
+	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+	if err != nil {
+		return 0, err
+	}
+	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeId, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(50).GetMany()
+	if err != nil {
+		return 0, err
+	}
+
+	errCnt := 0
+	for _, clusterStatus := range clusterStatuses {
+		clStatusEntity := clusterStatus.(*model.ClusterStatusEntity)
+		if clStatusEntity.Status.IsFinal() {
+			if clStatusEntity.Status == model.ClusterStatusReconcileError ||
+				clStatusEntity.Status == model.ClusterStatusReconcileErrorRetryable {
+				errCnt++
+			} else {
+				break
+			}
+		}
+	}
+	return errCnt, nil
 }
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
@@ -429,10 +455,10 @@ func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity
 	return clusterEntity.(*model.ClusterEntity), nil
 }
 
-func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {  // TODO: Adapt filter logic here
+func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
 	var filters []statusSQLFilter
 	if reconcileInterval > 0 {
-		filters = append(filters, &reconcileIntervalFilter{   // TODO: Adapt interval fo clusters in error state
+		filters = append(filters, &reconcileIntervalFilter{
 			reconcileInterval: reconcileInterval,
 		})
 	}

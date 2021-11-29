@@ -16,11 +16,13 @@ import (
 const (
 	defaultOperationsWatchInterval = 30 * time.Second
 	defaultOrphanOperationTimeout  = 10 * time.Minute
+	defaultMaxRetries = 150
 )
 
 type BookkeeperConfig struct {
 	OperationsWatchInterval time.Duration
 	OrphanOperationTimeout  time.Duration
+	MaxRetries int
 }
 
 func (wc *BookkeeperConfig) validate() error {
@@ -35,6 +37,12 @@ func (wc *BookkeeperConfig) validate() error {
 	}
 	if wc.OrphanOperationTimeout == 0 {
 		wc.OrphanOperationTimeout = defaultOrphanOperationTimeout
+	}
+	if wc.MaxRetries < 0 {
+		return errors.New("maxRetries cannot be < 0")
+	}
+	if wc.MaxRetries == 0 {
+		wc.MaxRetries = defaultMaxRetries
 	}
 	return nil
 }
@@ -130,6 +138,16 @@ func (bk *bookkeeper) markOrphanOperations(reconResult *ReconciliationResult) {
 func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bool {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
+
+	if newClusterStatus == model.ClusterStatusReconcileError {
+		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig)
+		if err != nil {
+			bk.logger.Errorf("failed to count error for runtime %s with error: %s", reconResult.reconEntity.RuntimeID, err)
+		}
+		if errCnt < bk.config.MaxRetries {
+			newClusterStatus = model.ClusterStatusReconcileErrorRetryable
+		}
+	}
 
 	if newClusterStatus.IsFinal() {
 		err := bk.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
