@@ -27,29 +27,29 @@ func (d *Client) Worktree() (*git.Worktree, error) {
 }
 
 func (d *Client) ResolveRevisionOrBranchHead(rev gitp.Revision) (*gitp.Hash, error) {
+	// no version provided. We will set rev to the default branch name.
 	if rev.String() == "" {
-		head, err := d.repo.Head()
+		branch, err := d.DefaultBranch()
 		if err != nil {
 			return nil, err
 		}
-		// rev = gitp.Revision(head.Hash().String())
-		branch, err := d.resolveReferenceBranch(head)
-		if err != nil {
-			return nil, err
-		}
-		rev = gitp.Revision(branch)
-
+		rev = gitp.Revision(branch.Name().Short())
 	}
-	if _, err := d.repo.Branch(rev.String()); err != git.ErrBranchNotFound {
-		// by default ResolveRevision works on the local working copy. Since we do a periodic fetch,
-		// not a pull, the local working copy is not updated. So, we try to get the branch HEAD
-		// from the remote references we get with fetch.
-		return d.repo.ResolveRevision(
-			gitp.Revision(
-				fmt.Sprintf("refs/remotes/origin/%s", rev.String()),
-			),
-		)
+	// is rev a branch name? We can't use repo.Branch() because that checks local branches only :/
+	// So, we try to resolve rev as a remote branch reference. If that works, we
+	// can just use it 's head!
+	branchRev, err := d.repo.ResolveRevision(
+		gitp.Revision(
+			fmt.Sprintf("refs/remotes/origin/%s", rev.String()),
+		),
+	)
+	if err != nil && err != gitp.ErrReferenceNotFound {
+		return nil, err
 	}
+	if branchRev != nil { // this is a branch
+		return d.repo.ResolveRevision(gitp.Revision(branchRev.String()))
+	}
+	// fall back case.
 	return d.repo.ResolveRevision(rev)
 }
 
@@ -90,32 +90,18 @@ func NewClientWithPath(path string) (*Client, error) {
 	return d, err
 }
 
-// func (d *Client) ResolveRevisionOrHead(rev gitp.Revision) (*gitp.Hash, error) {
-// 	if _, err := d.repo.Branch(rev.String()); err == git.ErrBranchNotFound {
-// 		return d.repo.ResolveRevision(rev)// not a branch
-// 	}
-// 	return d.repo.ResolveRevision(rev)
-// }
-
 func (d *Client) Repo() *git.Repository {
 	return d.repo
 }
 
-func (d *Client) resolveReferenceBranch(ref *gitp.Reference) (string, error) {
-	branchRef := ""
+func (d *Client) DefaultBranch() (*gitp.Reference, error) {
+	if d.repo == nil {
+		return nil, errors.New("repo is not initialized")
+	}
 	branches, err := d.repo.Branches()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	branches.ForEach(func(b *gitp.Reference) error {
-		if ref.Hash() == b.Hash() {
-			branchRef = string(b.Name())
-			return nil
-		}
-		return nil
-	})
-	if branchRef == "" {
-		return "", errors.New("can't resolve current branch name")
-	}
-	return gitp.ReferenceName(branchRef).Short(), nil
+	// the repository default branch is the one we get when it's cloned.
+	return branches.Next()
 }

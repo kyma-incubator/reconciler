@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,6 +36,7 @@ type RepoClient interface {
 	Fetch(path string, o *git.FetchOptions) error
 	Repo() *git.Repository
 	PlainCheckout(path string, o *git.CheckoutOptions) error
+	DefaultBranch() (*gitp.Reference, error)
 }
 
 func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
@@ -176,21 +176,22 @@ func (r *Cloner) FetchAndCheckout(path, version string) error {
 		return err
 	}
 	err = r.repoClient.Fetch(path, &git.FetchOptions{
-		Auth:     auth,
-		RefSpecs: []config.RefSpec{config.RefSpec("+refs/heads/*:refs/remotes/origin/*")},
+		Auth:       auth,
+		RemoteName: "origin",
 	})
 	if err != nil {
 		return err
 	}
-
 	if version != "" {
-		hash, err := r.ResolveRevisionOrBranchHead(version)
+		defaultBranch, err := r.repoClient.DefaultBranch()
 		if err != nil {
 			return err
 		}
-		return r.repoClient.PlainCheckout(path, &git.CheckoutOptions{
-			Hash: *hash,
+		err = r.repoClient.PlainCheckout(path, &git.CheckoutOptions{
+			Hash: defaultBranch.Hash(),
 		})
+		return err
+
 	}
 	return nil
 }
