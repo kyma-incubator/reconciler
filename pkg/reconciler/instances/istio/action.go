@@ -86,7 +86,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 
 	if isMismatchPresent(ver) {
 		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
-		return errors.Wrap(err, errorMessage)
+		return errors.New(errorMessage)
 	}
 
 	if isClientCompatibleWithTargetVersion(ver, context.Logger) {
@@ -130,9 +130,11 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 				return errors.Wrap(err, "Could not deploy Istio resources")
 			}
 		}
+	} else {
+		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", ver.ClientVersion, ver.TargetVersion))
 	}
 
-	return errors.Wrap(err, "Istio could not be updated")
+	return nil
 }
 
 type helperVersion struct {
@@ -222,12 +224,7 @@ func isClientCompatibleWithTargetVersion(ver actions.IstioVersion, logger *zap.S
 	clientHelperVersion := newHelperVersionFrom(ver.ClientVersion)
 	targetHelperVersion := newHelperVersionFrom(ver.TargetVersion)
 
-	if !amongOneMinor(clientHelperVersion, targetHelperVersion) {
-		logger.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", ver.ClientVersion, ver.TargetVersion)
-		return false
-	}
-
-	return true
+	return amongOneMinor(clientHelperVersion, targetHelperVersion)
 }
 
 func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
