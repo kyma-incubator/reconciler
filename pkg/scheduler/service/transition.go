@@ -79,8 +79,8 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 		//create reconciliation entity
 		reconEntity, err := t.reconRepo.CreateReconciliation(newClusterState, preComponents)
 		if err == nil {
-			t.logger.Debugf("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
-				"(reconciliation entity: %s)", newClusterState.Cluster.RuntimeID, reconEntity)
+			t.logger.Infof("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
+				"(scheudlingID: %s)", newClusterState.Cluster.RuntimeID, reconEntity.SchedulingID)
 			return nil
 		}
 
@@ -97,7 +97,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 		}
 
 		if reconciliation.IsDuplicateClusterReconciliationError(err) {
-			t.logger.Debugf("Cancelling reconciliation for cluster '%s': cluster is already enqueued (race condition)",
+			t.logger.Infof("Cancelling reconciliation for cluster '%s': cluster is already enqueued (race condition)",
 				newClusterState.Cluster.RuntimeID)
 		} else {
 			t.logger.Errorf("Starting reconciliation for runtime '%s' failed: "+
