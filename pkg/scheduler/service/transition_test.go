@@ -56,11 +56,11 @@ func TestTransition(t *testing.T) {
 
 	t.Run("Start Reconciliation", func(t *testing.T) {
 		oldClusterStateID := clusterState.Status.ID
-		err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, nil)
+		err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, nil)
 		require.NoError(t, err)
 
 		//starting reconciliation twice is not allowed
-		err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, nil)
+		err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, nil)
 		require.Error(t, err)
 
 		//verify created reconciliation

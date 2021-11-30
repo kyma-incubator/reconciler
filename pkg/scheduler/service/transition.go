@@ -39,10 +39,10 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 	return t.reconRepo
 }
 
-func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, preComponents [][]string) error {
+func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVersion int64, preComponents [][]string) error {
 	dbOp := func() error {
 
-		clusterState, err := t.inventory.GetLatest(runtimeID)
+		clusterState, err := t.inventory.Get(runtimeID, configVersion)
 		if err != nil {
 			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not get latest cluster state: %s",
 				clusterState.Cluster.RuntimeID, err)
@@ -116,7 +116,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 			return fmt.Errorf("failed to finish reconciliation '%s': it is already finished", reconEntity)
 		}
 
-		clusterState, err := t.inventory.GetLatest(reconEntity.RuntimeID)
+		clusterState, err := t.inventory.Get(reconEntity.RuntimeID, reconEntity.ClusterConfig)
 		if err != nil {
 			t.logger.Errorf("Finishing reconciliation for cluster '%s' failed: could not get cluster state : %s", reconEntity.RuntimeID, err)
 			return err
