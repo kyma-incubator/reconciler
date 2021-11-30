@@ -46,6 +46,12 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 
 	resp, err := i.sendHTTPRequest(params)
 	if err != nil {
+		reason := fmt.Sprintf("Failed to send HTTP request for component '%s' to component reconciler (URL: %s) : %s",
+			params.ComponentToReconcile.Component, params.ComponentToReconcile.URL, err)
+		i.logger.Errorf(reason)
+		if updateErr := i.updateOperationState(params, model.OperationStateClientError, reason); updateErr != nil {
+			err = errors.Wrap(updateErr, reason)
+		}
 		return err
 	}
 
@@ -57,7 +63,13 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %s", err)
+		reason := fmt.Sprintf("Failed to read HTTP resp-body for component '%s' from component reconciler (URL: %s): %s",
+			params.ComponentToReconcile.Component, params.ComponentToReconcile.URL, err)
+		i.logger.Errorf(reason)
+		if updateErr := i.updateOperationState(params, model.OperationStateClientError, reason); updateErr != nil {
+			err = errors.Wrap(updateErr, reason)
+		}
+		return err
 	}
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
