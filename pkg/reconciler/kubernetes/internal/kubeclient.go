@@ -143,8 +143,12 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 	updateStrategyResolver := newDefaultUpdateStrategyResolver(helper)
 
 	strategy, err := updateStrategyResolver.Resolve(u)
-	if err != nil || strategy == SkipUpdateStrategy {
+	if err != nil {
 		return metadata, err
+	}
+
+	if strategy == SkipUpdateStrategy {
+		return metadata, nil
 	}
 
 	if strategy == PatchUpdateStrategy {
