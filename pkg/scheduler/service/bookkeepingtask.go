@@ -25,7 +25,7 @@ func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult) []error {
 			continue
 		}
 
-		if err := oo.transition.reconRepo.UpdateOperationState(orphanOp.SchedulingID, orphanOp.CorrelationID, model.OperationStateOrphan, true); err == nil {
+		if err := oo.transition.reconRepo.UpdateOperationState(orphanOp.SchedulingID, orphanOp.CorrelationID, model.OperationStateOrphan, false); err == nil {
 			oo.logger.Infof("markOrphanOperation marked operation '%s' as orphan: "+
 				"last update %.2f minutes ago)", orphanOp, time.Since(orphanOp.Updated).Minutes())
 		} else {
