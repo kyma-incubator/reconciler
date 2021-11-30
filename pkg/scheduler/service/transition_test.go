@@ -56,11 +56,11 @@ func TestTransition(t *testing.T) {
 
 	t.Run("Start Reconciliation", func(t *testing.T) {
 		oldClusterStateID := clusterState.Status.ID
-		err := transition.StartReconciliation(clusterState, nil)
+		err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, nil)
 		require.NoError(t, err)
 
 		//starting reconciliation twice is not allowed
-		err = transition.StartReconciliation(clusterState, nil)
+		err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, nil)
 		require.Error(t, err)
 
 		//verify created reconciliation
@@ -104,6 +104,31 @@ func TestTransition(t *testing.T) {
 		clusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
 		require.NoError(t, err)
 		require.Equal(t, clusterState.Status.Status, model.ClusterStatusReady)
+	})
+
+	t.Run("Finish Reconciliation When Cluster is not in progress", func(t *testing.T) {
+		//get reconciliation entity
+		reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
+		require.NoError(t, err)
+		require.NotNil(t, reconEntity)
+		require.False(t, reconEntity.Finished)
+
+		//retrieving cluster state
+		currentClusterState, err := transition.inventory.GetLatest(clusterState.Cluster.RuntimeID)
+		require.NoError(t, err)
+
+		//setting cluster state manually
+		_, err = transition.inventory.UpdateStatus(currentClusterState, model.ClusterStatusDeletePending)
+		require.NoError(t, err)
+
+		//verify reconciliation success
+		err = transition.FinishReconciliation(reconEntity.SchedulingID, model.ClusterStatusReady)
+		require.NoError(t, err)
+
+		//verify cluster status
+		newClusterState, err := transition.inventory.GetLatest(clusterState.Cluster.RuntimeID)
+		require.NoError(t, err)
+		require.Equal(t, model.ClusterStatusDeletePending, newClusterState.Status.Status)
 	})
 
 }
