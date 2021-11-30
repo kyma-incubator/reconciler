@@ -19,6 +19,8 @@ type Options struct {
 	WatchInterval            time.Duration
 	OrphanOperationTimeout   time.Duration
 	ClusterReconcileInterval time.Duration
+	PurgeEntitiesOlderThan   time.Duration
+	CleanerInterval          time.Duration
 	CreateEncyptionKey       bool
 	MaxParallelOperations    int
 	AuditLog                 bool
@@ -35,6 +37,8 @@ func NewOptions(o *cli.Options) *Options {
 		0 * time.Second, //WatchInterval
 		0 * time.Minute, //Orphan timeout
 		0 * time.Second, //ClusterReconcileInterval
+		0 * time.Minute, // PurgeEntitiesOlderThan
+		0 * time.Minute, // CleanerInterval
 		false,           //CreateEncyptionKey
 		0,               //MaxParallelOperations
 		false,           //AuditLog

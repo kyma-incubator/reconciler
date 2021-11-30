@@ -3,6 +3,7 @@ package chart
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/imdario/mergo"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
@@ -113,8 +114,13 @@ func (c *HelmClient) mergeChartConfiguration(chart *chart.Chart, component *Comp
 
 func (c *HelmClient) profileConfiguration(ch *chart.Chart, profileName string, withValues bool) (map[string]interface{}, error) {
 	var profile *chart.File
+
+	profileNameLC := strings.ToLower(profileName)
+	profileNameWithPrefix := fmt.Sprintf("profile-%s.yaml", profileNameLC)
+	profileNameWithoutPrefix := fmt.Sprintf("%s.yaml", profileNameLC)
+
 	for _, f := range ch.Files {
-		if (f.Name == fmt.Sprintf("profile-%s.yaml", profileName)) || (f.Name == fmt.Sprintf("%s.yaml", profileName)) {
+		if (f.Name == profileNameWithPrefix) || (f.Name == profileNameWithoutPrefix) {
 			profile = f
 			break
 		}

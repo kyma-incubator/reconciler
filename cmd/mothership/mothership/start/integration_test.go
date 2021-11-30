@@ -414,6 +414,8 @@ func startMothershipReconciler(ctx context.Context, t *testing.T) int {
 	go func(ctx context.Context) {
 		o := NewOptions(cliTest.NewTestOptions(t))
 		o.WatchInterval = 1 * time.Second
+		o.PurgeEntitiesOlderThan = 5 * time.Minute
+		o.CleanerInterval = 10 * time.Second
 		o.Port = serverPort
 		o.Verbose = true
 		o.AuditLog = true

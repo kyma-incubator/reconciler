@@ -42,11 +42,14 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().DurationVarP(&o.OrphanOperationTimeout, "orphan-timeout", "", 10*time.Minute, "Timeout until a processed operation which hasn't received status updates from its worker will be restarted")
 	cmd.Flags().DurationVarP(&o.WatchInterval, "watch-interval", "", 1*time.Minute, "Size of the reconciler worker pool")
 	cmd.Flags().DurationVarP(&o.ClusterReconcileInterval, "reconcile-interval", "", 5*time.Minute, "Defines the time when a cluster will to be reconciled since his last successful reconciliation")
+	cmd.Flags().DurationVar(&o.PurgeEntitiesOlderThan, "purge-older-than", 14*24*time.Hour, "Defines the minimum age of entities like Reconciliations and Operations that will be removed")
+	cmd.Flags().DurationVar(&o.CleanerInterval, "cleaner-interval", 14*time.Hour, "Define the time when the cleaner will be looking for entities to remove")
 	cmd.Flags().BoolVar(&o.CreateEncyptionKey, "create-encryption-key", false, "Create new encryption key file during startup")
 	cmd.Flags().BoolVar(&o.Migrate, "migrate-database", false, "Migrate database to the latest release")
 	cmd.Flags().BoolVar(&o.AuditLog, "audit-log", false, "Enable audit logging")
 	cmd.Flags().StringVar(&o.AuditLogFile, "audit-log-file", "/var/log/auditlog/mothership-audit.log", "Path for mothership audit log file")
 	cmd.Flags().StringVar(&o.AuditLogTenantID, "audit-log-tenant-id", "", "tenant id for audit logging")
+
 	return cmd
 }
 

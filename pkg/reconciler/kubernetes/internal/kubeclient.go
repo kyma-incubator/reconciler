@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util"
 )
 
 // metadata is an internal type to transfer data to the adapter
@@ -91,12 +92,15 @@ func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*Metadata, error) {
 // We only override the namespace if the manifest is NOT cluster scoped (i.e. a ClusterRole) and namespaceOverride is NOT an
 // empty string.
 func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, namespaceOverride string) (*Metadata, error) {
-	metadata := &Metadata{}
 	gvk := u.GroupVersionKind()
+	metadata := &Metadata{
+		Kind: gvk.Kind,
+		Name: u.GetName(),
+	}
 
 	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		return metadata, err
+		return nil, err
 	}
 
 	gv := gvk.GroupVersion()
@@ -104,14 +108,15 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 
 	restClient, err := newRestClient(*kube.config, gv)
 	if err != nil {
-		return metadata, err
+		return nil, err
 	}
 
 	helper := resource.NewHelper(restClient, restMapping)
 
 	setDefaultNamespaceIfScopedAndNoneSet(namespaceOverride, u, helper)
-
 	setNamespaceIfScoped(namespaceOverride, u, helper)
+
+	metadata.Namespace = u.GetNamespace()
 
 	info := &resource.Info{
 		Client:          restClient,
@@ -132,24 +137,36 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		if err != nil {
 			return metadata, err
 		}
-
-		metadata.Name = u.GetName()
-		metadata.Namespace = u.GetNamespace()
-		metadata.Kind = u.GroupVersionKind().Kind
 		return metadata, nil
 	}
 
-	replace := newReplace(helper)
-	replacedObject, err := replace(u, u.GetNamespace(), u.GetName())
+	updateStrategyResolver := newDefaultUpdateStrategyResolver(helper)
+
+	strategy, err := updateStrategyResolver.Resolve(u)
 	if err != nil {
 		return metadata, err
 	}
 
-	_ = info.Refresh(replacedObject, true)
+	if strategy == SkipUpdateStrategy {
+		return metadata, nil
+	}
 
-	metadata.Name = u.GetName()
-	metadata.Namespace = u.GetNamespace()
-	metadata.Kind = gvk.Kind
+	if strategy == PatchUpdateStrategy {
+		patcher := newPatcher(info, helper)
+		modified, err := util.GetModifiedConfiguration(info.Object, true, unstructured.UnstructuredJSONScheme)
+		if err != nil {
+			return metadata, err
+		}
+		//avoid bug with patching
+		_, _, err = patcher.Patch(info.Object, modified, info.Namespace, info.Name)
+		return metadata, err
+	}
+
+	replace := newReplace(helper)
+	_, err = replace(u, u.GetNamespace(), u.GetName())
+	if err != nil {
+		return metadata, err
+	}
 
 	return metadata, nil
 }

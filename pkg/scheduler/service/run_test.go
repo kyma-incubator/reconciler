@@ -62,7 +62,8 @@ func TestRuntimeBuilder(t *testing.T) {
 	})
 
 	t.Run("Run remote with error", func(t *testing.T) {
-		runRemote(t, model.ClusterStatusReconcileError, 5*time.Second)
+		runRemote(t, model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
+
 	})
 
 }
@@ -134,6 +135,10 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		InventoryWatchInterval:   1 * time.Second,
 		ClusterReconcileInterval: 1 * time.Minute,
 	})
+	remoteRunner.WithCleanerConfig(&CleanerConfig{
+		PurgeEntitiesOlderThan: 5 * time.Second,
+		CleanerInterval:        2 * time.Second,
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -145,7 +150,26 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 
 	newClusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
 	require.NoError(t, err)
-	require.Equal(t, newClusterState.Status.Status, expectedClusterStatus)
+	require.Equal(t, expectedClusterStatus, newClusterState.Status.Status)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
+	require.Equal(t, 2, getEntityLen(t, dbConn, &model.OperationEntity{}))
+
+	time.Sleep(10 * time.Second) //give the cleaner some time to remove old entities
+
+	require.NoError(t, err)
+	require.Equal(t, 0, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
+	require.Equal(t, 0, getEntityLen(t, dbConn, &model.OperationEntity{}))
+
+}
+
+func getEntityLen(t *testing.T, dbConn db.Connection, entity db.DatabaseEntity) int {
+	query, err := db.NewQuery(dbConn, entity, logger.NewLogger(debugLogging))
+	require.NoError(t, err)
+	entities, err := query.Select().GetMany()
+	require.NoError(t, err)
+	return len(entities)
 }
 
 //setOperationState will update all operation status accordingly to expected cluster state
@@ -156,6 +180,8 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		opState = model.OperationStateError
 	case model.ClusterStatusReady:
 		opState = model.OperationStateDone
+	case model.ClusterStatusReconcileErrorRetryable:
+		opState = model.OperationStateError
 	default:
 		t.Logf("Cannot map cluster state '%s' to an operation state", expectedClusterStatus)
 		t.FailNow()
