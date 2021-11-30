@@ -156,6 +156,8 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		opState = model.OperationStateError
 	case model.ClusterStatusReady:
 		opState = model.OperationStateDone
+	case model.ClusterStatusReconcileErrorRetryable:
+		opState = model.OperationStateError
 	default:
 		t.Logf("Cannot map cluster state '%s' to an operation state", expectedClusterStatus)
 		t.FailNow()
