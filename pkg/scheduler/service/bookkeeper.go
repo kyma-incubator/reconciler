@@ -146,6 +146,7 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bo
 		}
 		if errCnt < bk.config.MaxRetries {
 			newClusterStatus = model.ClusterStatusReconcileErrorRetryable
+			bk.logger.Infof("Reconciliation for cluster with runtimeID %s and clusterConfig %d failed, reconciliation will be retried. Count of retries: %d", reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
 		}
 	}
 

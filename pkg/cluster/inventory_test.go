@@ -280,7 +280,21 @@ func TestInventory(t *testing.T) {
 func TestCountRetries(t *testing.T) {
 	inventory := newInventory(t)
 
-	t.Run("Calculate retry count for a cluster", func(t *testing.T) {
+	t.Run("Calculate retry count for a cluster in status READY", func(t *testing.T) {
+		//create Cluster
+		expectedCluster := newCluster(t, 1, 1, false)
+		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
+		require.NoError(t, err)
+		//update clusterState with retryableError state
+		clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReady)
+		require.NoError(t, err)
+		//count how often retry happened
+		cnt, err := inventory.CountRetries(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version)
+		require.NoError(t, err)
+		require.Equal(t, 0, cnt)
+	})
+
+	t.Run("Calculate retry count for a  retryable cluster", func(t *testing.T) {
 		expectedErrRetryable := 10
 		//create Cluster
 		expectedCluster := newCluster(t, 1, 1, false)
