@@ -7,15 +7,16 @@ import (
 type Status string
 
 const (
-	ClusterStatusDeletePending     Status = "delete_pending"
-	ClusterStatusDeleting          Status = "deleting"
-	ClusterStatusDeleteError       Status = "delete_error"
-	ClusterStatusDeleted           Status = "deleted"
-	ClusterStatusReconcilePending  Status = "reconcile_pending"
-	ClusterStatusReconcileDisabled Status = "reconcile_disabled"
-	ClusterStatusReconciling       Status = "reconciling"
-	ClusterStatusReconcileError    Status = "error"
-	ClusterStatusReady             Status = "ready"
+	ClusterStatusDeletePending           Status = "delete_pending"
+	ClusterStatusDeleting                Status = "deleting"
+	ClusterStatusDeleteError             Status = "delete_error"
+	ClusterStatusDeleted                 Status = "deleted"
+	ClusterStatusReconcilePending        Status = "reconcile_pending"
+	ClusterStatusReconcileDisabled       Status = "reconcile_disabled"
+	ClusterStatusReconciling             Status = "reconciling"
+	ClusterStatusReconcileError          Status = "error"
+	ClusterStatusReconcileErrorRetryable Status = "error_retryable"
+	ClusterStatusReady                   Status = "ready"
 )
 
 func (s Status) IsDeletion() bool {
@@ -31,7 +32,7 @@ func (s Status) IsReconcileCandidate() bool {
 }
 
 func (s Status) IsFinal() bool {
-	return s == ClusterStatusReady || s == ClusterStatusReconcileError || s == ClusterStatusDeleted || s == ClusterStatusDeleteError
+	return s == ClusterStatusReady || s == ClusterStatusReconcileError || s == ClusterStatusDeleted || s == ClusterStatusDeleteError || s == ClusterStatusReconcileErrorRetryable
 }
 
 func (s Status) IsInProgress() bool {
@@ -68,6 +69,8 @@ func NewClusterStatus(status Status) (*ClusterStatus, error) {
 		clusterStatus.ID = 7
 	case ClusterStatusDeleted:
 		clusterStatus.ID = 8
+	case ClusterStatusReconcileErrorRetryable:
+		clusterStatus.ID = 9
 	default:
 		return clusterStatus, fmt.Errorf("ClusterStatus '%s' is unknown", status)
 	}

@@ -62,7 +62,8 @@ func TestRuntimeBuilder(t *testing.T) {
 	})
 
 	t.Run("Run remote with error", func(t *testing.T) {
-		runRemote(t, model.ClusterStatusReconcileError, 20*time.Second)
+		runRemote(t, model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
+
 	})
 
 }
@@ -149,7 +150,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 
 	newClusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
 	require.NoError(t, err)
-	require.Equal(t, newClusterState.Status.Status, expectedClusterStatus)
+	require.Equal(t, expectedClusterStatus, newClusterState.Status.Status)
 
 	require.NoError(t, err)
 	require.Equal(t, 1, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
@@ -179,6 +180,8 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		opState = model.OperationStateError
 	case model.ClusterStatusReady:
 		opState = model.OperationStateDone
+	case model.ClusterStatusReconcileErrorRetryable:
+		opState = model.OperationStateError
 	default:
 		t.Logf("Cannot map cluster state '%s' to an operation state", expectedClusterStatus)
 		t.FailNow()

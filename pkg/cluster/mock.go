@@ -22,6 +22,7 @@ type MockInventory struct {
 	DeleteResult              error
 	UpdateStatusResult        *State
 	ChangesResult             []*StatusChange
+	RetriesCount              int
 }
 
 func (i *MockInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
@@ -73,4 +74,8 @@ func (kp *MockKubeconfigProvider) Get() (string, error) {
 		return string(kubeCfg), nil
 	}
 	return kp.KubeconfigResult, nil
+}
+
+func (i *MockInventory) CountRetries(runtimeID string, configVersion int64) (int, error) {
+	return i.RetriesCount, nil
 }
