@@ -45,7 +45,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 			RuntimeID: runtimeID,
 		})
 		if err != nil {
-			return errors.Wrapf(err, "failed to retreive reconciliations for runtimeID '%s'", runtimeID)
+			return errors.Wrapf(err, "failed to retrieve reconciliations for runtimeID '%s'", runtimeID)
 		}
 		if len(recons) > 0 {
 			return fmt.Errorf("cannot start reconciliation for cluster '%s': cluster is already enqueued "+
