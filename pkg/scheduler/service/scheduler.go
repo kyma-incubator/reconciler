@@ -78,8 +78,9 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 		case clusterState := <-queue:
 			if err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, s.preComponents); err == nil {
 				s.logger.Infof("Scheduler triggered reconciliation for cluster '%s' "+
-					"(clusterVersion:%d/configVersion:%d/status:%s)", clusterState.Cluster.RuntimeID,
-					clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status)
+					"(clusterVersion:%d/configVersion:%d/status:%s/age:%.2f min)", clusterState.Cluster.RuntimeID,
+					clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status,
+					time.Since(clusterState.Status.Created).Minutes())
 			} else {
 				s.logger.Warn(err)
 			}
