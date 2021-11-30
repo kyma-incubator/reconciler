@@ -6,21 +6,15 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/json"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
 	jose "github.com/square/go-jose/v3"
 )
-
-type jwksPatchJSON struct {
-	Op    string             `json:"op"`
-	Path  string             `json:"path"`
-	Value jwksPatchJSONValue `json:"value"`
-}
-type jwksPatchJSONValue struct {
-	Jwks []byte `json:"jwks.json"`
-}
 
 type JWKS struct {
 	alg  string
@@ -31,28 +25,26 @@ func newJwks(alg string, bits int) *JWKS {
 	return &JWKS{alg, bits}
 }
 
-// Get generates a JSON Web Key Set with RSA Signature Algorithm and returns the JSON encoded patch for Ory secret.
-func Get(alg string, bits int) ([]byte, error) {
+// Get generates a JSON Web Key Set with RSA Signature Algorithm and returns the entire jwks secret.
+func Get(name types.NamespacedName, alg string, bits int) (*v1.Secret, error) {
 	cfg := newJwks(alg, bits)
-	data, err := cfg.generateJwksSecret()
+	jwksSecret, err := cfg.generateJwksSecret()
+
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to generate key key")
+		return nil, errors.Wrap(err, "Unable to generate key")
 	}
 
-	patchContent := []jwksPatchJSON{{
-		Op:   "add",
-		Path: "/data",
-		Value: jwksPatchJSONValue{
-			Jwks: data,
+	data := map[string][]byte{
+		"jwks.json": jwksSecret,
+	}
+
+	return &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name.Name,
+			Namespace: name.Namespace,
 		},
-	}}
-
-	patchDataJSON, err := json.Marshal(patchContent)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to marshal key")
-	}
-
-	return patchDataJSON, nil
+		Data: data,
+	}, nil
 }
 
 func (j *JWKS) generateJwksSecret() ([]byte, error) {

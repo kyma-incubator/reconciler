@@ -13,7 +13,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/jwks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -95,6 +94,57 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Contains(t, err.Error(), "cannot get secret")
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
+	})
+
+	t.Run("should create jwks secret when secret does not exist", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		secret, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, jwksNamespacedName.Name, secret.Name)
+		require.Equal(t, jwksNamespacedName.Namespace, secret.Namespace)
+		require.NotEmpty(t, secret.Data)
+	})
+
+	t.Run("should not create jwks secret when secret exists", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
+		existingJwksSecret := fixSecretJwks()
+		clientSet := fake.NewSimpleClientset(existingJwksSecret)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		secret, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, jwksNamespacedName.Name, secret.Name)
+		require.Equal(t, jwksNamespacedName.Namespace, secret.Namespace)
+		require.Equal(t, getJWKSData(), secret.Data)
 	})
 
 	t.Run("should create ory secret when secret does not exist", func(t *testing.T) {
@@ -257,59 +307,6 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 	})
 }
 
-func TestOryJwksSecret(t *testing.T) {
-	tests := []struct {
-		Name            string
-		PreCreateSecret bool
-	}{
-		{
-			Name:            "Secret to patch does not exist",
-			PreCreateSecret: false,
-		},
-		{
-			Name:            "Secret was patched successfully",
-			PreCreateSecret: true,
-		},
-	}
-	for _, testCase := range tests {
-		test := testCase
-		t.Run(test.Name, func(t *testing.T) {
-			logger := zaptest.NewLogger(t).Sugar()
-			a := postReconcileAction{
-				&oryAction{step: "test-jwks-secret"},
-			}
-			name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
-			ctx := context.Background()
-			k8sClient := fake.NewSimpleClientset()
-			var existingUID types.UID
-
-			patchData, err := jwks.Get(jwksAlg, jwksBits)
-			require.NoError(t, err)
-
-			if test.PreCreateSecret {
-				existingSecret, err := preCreateSecret(ctx, k8sClient, name)
-				assert.NoError(t, err)
-				existingUID = existingSecret.UID
-				require.Equal(t, true, isEmpty(existingSecret))
-			}
-
-			err = a.patchSecret(ctx, k8sClient, name, patchData, logger)
-			if !test.PreCreateSecret {
-				assert.NotNil(t, err)
-			} else {
-				assert.NoError(t, err)
-
-				secret, err := k8sClient.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
-				require.NoError(t, err)
-				assert.Equal(t, name.Name, secret.Name)
-				assert.Equal(t, name.Namespace, secret.Namespace)
-				assert.NotNil(t, secret.Data)
-				assert.Equal(t, existingUID, secret.UID)
-			}
-
-		})
-	}
-}
 func TestOryJwksSecret_IsEmpty(t *testing.T) {
 	t.Run("should return true on empty Secret", func(t *testing.T) {
 		// given
@@ -341,6 +338,7 @@ func TestOryJwksSecret_IsEmpty(t *testing.T) {
 		require.Equal(t, false, check)
 	})
 }
+
 func TestOryDbSecret(t *testing.T) {
 	tests := []struct {
 		Name            string
@@ -451,6 +449,23 @@ func fixSecretMemory() *v1.Secret {
 			"secretsCookie": []byte("somesecretcookie"),
 			"secretsSystem": []byte("somesecretsystem"),
 		},
+	}
+	return &secret
+}
+
+func getJWKSData() map[string][]byte {
+	return map[string][]byte{
+		"jwks.json": []byte("randomstring"),
+	}
+}
+
+func fixSecretJwks() *v1.Secret {
+	secret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jwksNamespacedName.Name,
+			Namespace: jwksNamespacedName.Namespace,
+		},
+		Data: getJWKSData(),
 	}
 	return &secret
 }

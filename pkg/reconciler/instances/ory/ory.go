@@ -19,10 +19,7 @@ func init() {
 
 	reconciler.
 		WithPreReconcileAction(&preReconcileAction{
-			&oryAction{step: "pre-install"},
-		}).
-		WithPostReconcileAction(&postReconcileAction{
-			&oryAction{step: "post-install"},
+			&oryAction{step: "pre-reconcile"},
 		}).
 		WithPreDeleteAction(&preDeleteAction{
 			&oryAction{step: "pre-delete"},
