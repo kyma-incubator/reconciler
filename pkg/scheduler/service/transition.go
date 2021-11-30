@@ -94,8 +94,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 
 			//set cluster status to non-recoverable error
 			//TODO: throw a dedicated error and update status ouside (db chnage will be rolled back after #507 is fixed)
-			_, updateErr := t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
-			if updateErr != nil {
+			if _, updateErr := t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError); updateErr != nil {
 				t.logger.Errorf("Error updating cluster '%s': could not update cluster status to '%s': %s",
 					oldClusterState.Cluster.RuntimeID, model.ClusterStatusReconcileError, updateErr)
 				err = errors.Wrap(updateErr, err.Error())
@@ -114,8 +113,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 		}
 
 		//revert cluster status to previous value (TODO: drop this block after DB-TX issue is fixed #507)
-		_, revertErr := t.inventory.UpdateStatus(newClusterState, oldClusterState.Status.Status)
-		if revertErr != nil {
+		if _, revertErr := t.inventory.UpdateStatus(newClusterState, oldClusterState.Status.Status); revertErr != nil {
 			t.logger.Errorf("Failed to revert cluster status of runtimeID '%s' from '%s' to '%s': %s",
 				newClusterState.Cluster.RuntimeID, newClusterState.Status.Status,
 				oldClusterState.Status.Status, revertErr)
