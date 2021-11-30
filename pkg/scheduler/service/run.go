@@ -53,13 +53,17 @@ func (rb *RuntimeBuilder) RunRemote(
 	inventory cluster.Inventory,
 	config *config.Config) *RunRemote {
 
-	runR := &RunRemote{rb, conn, inventory, config, &SchedulerConfig{}, &BookkeeperConfig{}}
+	runR := &RunRemote{rb, conn, inventory, config, &SchedulerConfig{}, &BookkeeperConfig{}, &CleanerConfig{}}
 	runR.runtimeBuilder.preComponents = config.Scheduler.PreComponents
 	return runR
 }
 
 func (rb *RuntimeBuilder) newScheduler() *scheduler {
 	return newScheduler(rb.preComponents, rb.logger)
+}
+
+func (rb *RuntimeBuilder) newCleaner() *cleaner {
+	return newCleaner(rb.logger)
 }
 
 type RunLocal struct {
@@ -136,6 +140,7 @@ type RunRemote struct {
 	config           *config.Config
 	schedulerConfig  *SchedulerConfig
 	bookkeeperConfig *BookkeeperConfig
+	cleanerConfig    *CleanerConfig
 }
 
 func (r *RunRemote) logger() *zap.SugaredLogger { //convenient function
@@ -158,6 +163,11 @@ func (r *RunRemote) WithSchedulerConfig(cfg *SchedulerConfig) *RunRemote {
 
 func (r *RunRemote) WithBookkeeperConfig(cfg *BookkeeperConfig) *RunRemote {
 	r.bookkeeperConfig = cfg
+	return r
+}
+
+func (r *RunRemote) WithCleanerConfig(cfg *CleanerConfig) *RunRemote {
+	r.cleanerConfig = cfg
 	return r
 }
 
@@ -193,6 +203,14 @@ func (r *RunRemote) Run(ctx context.Context) error {
 		transition := newClusterStatusTransition(r.conn, r.inventory, r.reconciliationRepository(), r.logger())
 		if err := r.runtimeBuilder.newScheduler().Run(ctx, transition, r.schedulerConfig); err != nil {
 			r.logger().Fatalf("Remote scheduler returned an error: %s", err)
+		}
+	}()
+
+	//start cleaner
+	go func() {
+		transition := newClusterStatusTransition(r.conn, r.inventory, r.reconciliationRepository(), r.logger())
+		if err := r.runtimeBuilder.newCleaner().Run(ctx, transition, r.cleanerConfig); err != nil {
+			r.logger().Fatalf("Cleaner returned an error: %s", err)
 		}
 	}()
 
