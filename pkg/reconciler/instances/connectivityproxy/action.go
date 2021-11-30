@@ -70,7 +70,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 
 		context.Logger.Info("Installing component")
-		if err := a.Commands.Install(context); err != nil {
+		if err := a.Commands.InstallIfOther(context, app); err != nil {
 			return errors.Wrap(err, "Error during installation")
 		}
 	} else if binding == nil && app != nil {

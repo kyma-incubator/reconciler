@@ -6,7 +6,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -14,6 +16,7 @@ const BindingKey = "global.binding."
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
+	InstallIfOther(*service.ActionContext, *appsv1.StatefulSet) error
 	Install(*service.ActionContext) error
 	CopyResources(*service.ActionContext) error
 	Remove(*service.ActionContext) error
@@ -27,7 +30,39 @@ type CommandActions struct {
 	clientSetFactory       NewInClusterClientSet
 	targetClientSetFactory NewTargetClientSet
 	install                service.Operation
+	iterate                service.ManifestLookup
 	copyFactory            []CopyFactory
+}
+
+func (a *CommandActions) InstallIfOther(context *service.ActionContext, app *appsv1.StatefulSet) error {
+
+	if app == nil {
+		return a.Install(context)
+	}
+
+	found, err := a.iterate.Lookup(func(unstructured *unstructured.Unstructured) bool {
+		return unstructured != nil &&
+			unstructured.GetName() != "" && unstructured.GetName() == app.Name &&
+			unstructured.GetNamespace() != "" && unstructured.GetNamespace() == app.Namespace
+	}, context.ChartProvider, context.Task)
+
+	if err != nil {
+		return err
+	}
+
+	if found != nil && found.GetLabels() == nil ||
+		found.GetLabels()["release"] == "" ||
+		app.GetLabels() == nil ||
+		app.GetLabels()["release"] == "" {
+		return errors.New("Invalid state, missing release label")
+	}
+
+	if found != nil && found.GetLabels()["release"] == app.GetLabels()["release"] {
+		context.Logger.Infof("Now new version, update skipped")
+		return nil
+	}
+
+	return a.Install(context)
 }
 
 func (a *CommandActions) Install(context *service.ActionContext) error {

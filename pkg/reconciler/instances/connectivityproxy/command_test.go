@@ -110,7 +110,7 @@ func TestCommands(t *testing.T) {
 			copyFactory:            nil,
 		}
 
-		err := commands.Install(actionContext)
+		err := commands.InstallIfOther(actionContext, nil)
 		require.NoError(t, err)
 	})
 

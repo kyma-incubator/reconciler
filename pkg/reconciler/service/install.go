@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -23,6 +24,33 @@ func NewInstall(logger *zap.SugaredLogger) *Install {
 //go:generate mockery --name=Operation --output=mocks --outpkg=mocks --case=underscore
 type Operation interface {
 	Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Task, kubeClient kubernetes.Client) error
+}
+
+//go:generate mockery --name=Iteration --output=mocks --outpkg=mocks --case=underscore
+type ManifestLookup interface {
+	Lookup(func(unstructured *unstructured.Unstructured) bool, chart.Provider, *reconciler.Task) (*unstructured.Unstructured, error)
+}
+
+func (r *Install) Lookup(condition func(unstructured *unstructured.Unstructured) bool, chartProvider chart.Provider, task *reconciler.Task) (*unstructured.Unstructured, error) {
+	r.logger.Infof("Version comparison")
+
+	if task.Component == model.CRDComponent {
+		return nil, errors.Errorf("Error is not applicable for given")
+	}
+
+	manifest, err := r.renderManifest(chartProvider, task)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error while rendering manifests")
+	}
+
+	unstructs, err := kubernetes.ToUnstructured([]byte(manifest), true)
+	for _, unstruct := range unstructs {
+		if condition(unstruct) {
+			return unstruct, nil
+		}
+	}
+	return nil, nil
 }
 
 func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task *reconciler.Task, kubeClient kubernetes.Client) error {
