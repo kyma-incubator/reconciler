@@ -2,6 +2,7 @@ package istio
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -84,7 +85,8 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	if isMismatchPresent(ver) {
-		context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
+		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
+		return errors.Wrap(err, errorMessage)
 	}
 
 	if isClientCompatibleWithTargetVersion(ver, context.Logger) {
@@ -130,7 +132,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		}
 	}
 
-	return nil
+	return errors.Wrap(err, "Istio could not be updated")
 }
 
 type helperVersion struct {
