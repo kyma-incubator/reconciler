@@ -46,7 +46,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 
 	resp, err := i.sendHTTPRequest(params)
 	if err != nil {
-		return i.fireClientError("send HTTP request", params, err)
+		return i.fireError("send HTTP request", params, err)
 	}
 
 	defer func() {
@@ -57,7 +57,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return i.fireClientError("read HTTP body", params, err)
+		return i.fireError("read HTTP body", params, err)
 	}
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
@@ -105,16 +105,6 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 	}
 
 	return i.updateOperationState(params, model.OperationStateClientError, errorReason)
-}
-
-func (i *RemoteReconcilerInvoker) fireClientError(subject string, params *Params, err error) error {
-	reason := fmt.Sprintf("Failed to %s for component '%s' when communciating with component reconciler (URL: %s) : %s",
-		subject, params.ComponentToReconcile.Component, params.ComponentToReconcile.URL, err)
-	i.logger.Errorf(reason)
-	if updateErr := i.updateOperationState(params, model.OperationStateClientError, reason); updateErr != nil {
-		err = errors.Wrap(updateErr, err.Error())
-	}
-	return err
 }
 
 func (i *RemoteReconcilerInvoker) ensureOperationNotInProgress(params *Params) error {
@@ -216,4 +206,14 @@ func (i *RemoteReconcilerInvoker) updateOperationState(params *Params, state mod
 			"(schedulingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
 	}
 	return nil
+}
+
+func (i *RemoteReconcilerInvoker) fireError(subject string, params *Params, err error) error {
+	reason := fmt.Sprintf("Failed to %s for component '%s' when communciating with component reconciler (URL: %s) : %s",
+		subject, params.ComponentToReconcile.Component, params.ComponentToReconcile.URL, err)
+	i.logger.Errorf(reason)
+	if updateErr := i.updateOperationState(params, model.OperationStateError, reason); updateErr != nil {
+		err = errors.Wrap(updateErr, err.Error())
+	}
+	return err
 }
