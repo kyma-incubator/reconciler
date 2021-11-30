@@ -62,7 +62,7 @@ func TestRuntimeBuilder(t *testing.T) {
 	})
 
 	t.Run("Run remote with error", func(t *testing.T) {
-		runRemote(t, model.ClusterStatusReconcileError, 5*time.Second)
+		runRemote(t, model.ClusterStatusReconcileErrorRetryable, 5*time.Second)
 	})
 
 }
@@ -145,7 +145,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 
 	newClusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
 	require.NoError(t, err)
-	require.Equal(t, newClusterState.Status.Status, expectedClusterStatus)
+	require.Equal(t, expectedClusterStatus, newClusterState.Status.Status)
 }
 
 //setOperationState will update all operation status accordingly to expected cluster state
