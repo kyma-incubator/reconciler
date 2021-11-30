@@ -135,7 +135,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		ClusterReconcileInterval: 1 * time.Minute,
 	})
 	remoteRunner.WithCleanerConfig(&CleanerConfig{
-		PurgeEntitiesOlderThan: 5 * time.Second,
+		PurgeEntitiesOlderThan: 10 * time.Second,
 		CleanerInterval:        2 * time.Second,
 	})
 
@@ -152,16 +152,19 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	require.Equal(t, newClusterState.Status.Status, expectedClusterStatus)
 
 	require.NoError(t, err)
-	require.Equal(t, 1, getReconciliationsLen(t, dbConn))
+	require.Equal(t, 1, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
+	require.Equal(t, 1, getEntityLen(t, dbConn, &model.OperationEntity{}))
 
-	time.Sleep(10 * time.Second) //give the cleaner some time to remove old entities
+	time.Sleep(5 * time.Second) //give the cleaner some time to remove old entities
 
 	require.NoError(t, err)
-	require.Equal(t, 0, getReconciliationsLen(t, dbConn))
+	require.Equal(t, 0, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
+	require.Equal(t, 1, getEntityLen(t, dbConn, &model.OperationEntity{}))
+
 }
 
-func getReconciliationsLen(t *testing.T, dbConn db.Connection) int {
-	query, err := db.NewQuery(dbConn, &model.ReconciliationEntity{}, logger.NewLogger(debugLogging))
+func getEntityLen(t *testing.T, dbConn db.Connection, entity db.DatabaseEntity) int {
+	query, err := db.NewQuery(dbConn, entity, logger.NewLogger(debugLogging))
 	require.NoError(t, err)
 	entities, err := query.Select().GetMany()
 	require.NoError(t, err)
