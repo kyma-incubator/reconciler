@@ -89,7 +89,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return errors.New(errorMessage)
 	}
 
-	if isClientCompatibleWithTargetVersion(ver, context.Logger) {
+	if isClientCompatibleWithTargetVersion(ver) {
 		if canInstall(ver) {
 			context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
 
@@ -220,7 +220,7 @@ func getInstalledVersion(context *service.ActionContext, performer actions.Istio
 	return ver, nil
 }
 
-func isClientCompatibleWithTargetVersion(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
+func isClientCompatibleWithTargetVersion(ver actions.IstioVersion) bool {
 	clientHelperVersion := newHelperVersionFrom(ver.ClientVersion)
 	targetHelperVersion := newHelperVersionFrom(ver.TargetVersion)
 
