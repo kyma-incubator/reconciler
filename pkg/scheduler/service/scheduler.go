@@ -81,7 +81,7 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 					"(clusterVersion:%d/configVersion:%d/status:%s)", clusterState.Cluster.RuntimeID,
 					clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status)
 			} else {
-				s.logger.Error(err)
+				s.logger.Warn(err)
 			}
 		case <-ctx.Done():
 			s.logger.Debug("Stopping remote scheduler because parent context got closed")
