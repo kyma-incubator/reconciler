@@ -276,7 +276,7 @@ func TestCountRetries(t *testing.T) {
 
 	t.Run("Calculate retry count for a cluster in status READY", func(t *testing.T) {
 		//create Cluster
-		expectedCluster := newCluster(t, 1, 1, false)
+		expectedCluster := keb.NewCluster(t, "1", 1, false, keb.Production)
 		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
 		require.NoError(t, err)
 		//update clusterState with retryableError state
@@ -291,7 +291,7 @@ func TestCountRetries(t *testing.T) {
 	t.Run("Calculate retry count for a  retryable cluster", func(t *testing.T) {
 		expectedErrRetryable := 10
 		//create Cluster
-		expectedCluster := newCluster(t, 1, 1, false)
+		expectedCluster := keb.NewCluster(t, "1", 1, false, keb.Production)
 		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
 		require.NoError(t, err)
 		//update clusterState with retryableError state
