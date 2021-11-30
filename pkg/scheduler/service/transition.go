@@ -41,7 +41,7 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 
 func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVersion int64, preComponents [][]string) error {
 	dbOp := func() error {
-		recons, err := t.reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{
+		recons, err := t.reconRepo.GetReconciliations(&reconciliation.CurrentlyReconcilingWithRuntimeID{
 			RuntimeID: runtimeID,
 		})
 		if err != nil {
