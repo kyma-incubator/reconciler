@@ -88,9 +88,22 @@ func (pc *postgresConnection) Exec(query string, args ...interface{}) (sql.Resul
 	return result, err
 }
 
-func (pc *postgresConnection) Begin() (*sql.Tx, error) {
-	pc.logger.Debug("Postgres Begin()")
-	return pc.db.Begin()
+func (pc *postgresConnection) TxBegin() error {
+	pc.logger.Debug("Postgres TxBegin()")
+	_, err := pc.Exec("BEGIN;")
+	return err
+}
+
+func (pc *postgresConnection) TxCommit() error {
+	pc.logger.Debug("Postgres TxCommit()")
+	_, err := pc.Exec("COMMIT;")
+	return err
+}
+
+func (pc *postgresConnection) TxRollback() error {
+	pc.logger.Debug("Postgres TxRollback()")
+	_, err := pc.Exec("ROLLBACK;")
+	return err
 }
 
 func (pc *postgresConnection) Close() error {

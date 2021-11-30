@@ -2,10 +2,9 @@ package db
 
 import (
 	"database/sql"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"io/ioutil"
 	"os"
-
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	//add SQlite driver:
 	_ "github.com/mattn/go-sqlite3"
@@ -83,9 +82,19 @@ func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result,
 	return result, err
 }
 
-func (sc *sqliteConnection) Begin() (*sql.Tx, error) {
-	sc.logger.Debug("Sqlite3 Begin()")
-	return sc.db.Begin()
+func (sc *sqliteConnection) TxBegin() error {
+	//nested transaction are not suppoted in SQLite: don't use any TX
+	return nil
+}
+
+func (sc *sqliteConnection) TxCommit() error {
+	//nested transaction are not suppoted in SQLite: don't use any TX
+	return nil
+}
+
+func (sc *sqliteConnection) TxRollback() error {
+	//nested transaction are not suppoted in SQLite: don't use any TX
+	return nil
 }
 
 func (sc *sqliteConnection) Close() error {

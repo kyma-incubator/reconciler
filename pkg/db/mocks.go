@@ -24,7 +24,7 @@ type MockConnection struct {
 type MockDataRow struct {
 }
 
-func (dr *MockDataRow) Scan(dest ...interface{}) error {
+func (dr *MockDataRow) Scan(_ ...interface{}) error {
 	return nil
 }
 
@@ -81,8 +81,15 @@ func (c *MockConnection) Exec(query string, args ...interface{}) (sql.Result, er
 	return &MockResult{}, nil
 }
 
-func (c *MockConnection) Begin() (*sql.Tx, error) {
-	return nil, nil
+func (c *MockConnection) TxBegin() error {
+	return nil
+}
+func (c *MockConnection) TxRollback() error {
+	return nil
+}
+
+func (c *MockConnection) TxCommit() error {
+	return nil
 }
 
 func (c *MockConnection) Close() error {
@@ -105,7 +112,7 @@ func (fake *MockDbEntity) Table() string {
 	return "mockTable"
 }
 
-func (fake *MockDbEntity) Equal(other DatabaseEntity) bool {
+func (fake *MockDbEntity) Equal(_ DatabaseEntity) bool {
 	return false
 }
 

@@ -14,7 +14,7 @@ func TransactionResult(conn Connection, dbOps func() (interface{}, error), logge
 		}
 	}
 	log("Begin transactional DB context")
-	tx, err := conn.Begin()
+	err := conn.TxBegin()
 	if err != nil {
 		return nil, err
 	}
@@ -22,14 +22,14 @@ func TransactionResult(conn Connection, dbOps func() (interface{}, error), logge
 	result, err := dbOps()
 	if err != nil {
 		log("Rollback transactional DB context")
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", tx.Rollback()))
+		if rollbackErr := conn.TxRollback(); rollbackErr != nil {
+			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
 		}
 		return result, err
 	}
 
 	log("Commit transactional DB context")
-	return result, tx.Commit()
+	return result, conn.TxCommit()
 }
 
 func Transaction(conn Connection, dbOps func() error, logger *zap.SugaredLogger) error {

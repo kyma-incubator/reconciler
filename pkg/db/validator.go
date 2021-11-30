@@ -36,7 +36,7 @@ func (v *Validator) Validate(query string) error {
 		return errors.Wrap(err, "Regex validation failed")
 	}
 
-	matchOthers := strings.Contains(query, "CREATE TABLE") || strings.Contains(query, "SHOW TRANSACTION")
+	matchOthers := strings.Contains(query, "CREATE TABLE") || strings.Contains(query, "SHOW TRANSACTION") || strings.HasPrefix(query, "COMMIT") || strings.HasPrefix(query, "ROLLBACK") || strings.HasPrefix(query, "BEGIN")
 
 	if !matchSelect && !matchInsert && !matchUpdate && !matchDelete && !matchOthers {
 		msg := fmt.Sprintf("Found potential SQL injection for query: %s", query)

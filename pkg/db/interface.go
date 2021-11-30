@@ -17,7 +17,9 @@ type Connection interface {
 	QueryRow(query string, args ...interface{}) (DataRow, error)
 	Query(query string, args ...interface{}) (DataRows, error)
 	Exec(query string, args ...interface{}) (sql.Result, error)
-	Begin() (*sql.Tx, error)
+	TxBegin() error
+	TxCommit() error
+	TxRollback() error
 	Close() error
 	Type() Type
 }
