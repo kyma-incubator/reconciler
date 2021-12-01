@@ -3,6 +3,8 @@ package connectivityproxy
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -14,6 +16,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
@@ -93,6 +96,84 @@ func TestCommand(t *testing.T) {
 }
 
 func TestCommands(t *testing.T) {
+
+	t.Run("Should invoke installation if different version", func(t *testing.T) {
+		actionContext := &service.ActionContext{
+			Context:       context.Background(),
+			Task:          &reconciler.Task{},
+			ChartProvider: &chart.DefaultProvider{},
+			Logger:        logger.NewLogger(true),
+		}
+
+		delegateMock := &serviceMocks.Operation{}
+		delegateMock.On("Invoke",
+			actionContext.Context,
+			mock.AnythingOfType("*chart.DefaultProvider"),
+			mock.AnythingOfType("*reconciler.Task"),
+			nil).
+			Return(nil)
+
+		iterateMock := &serviceMocks.ManifestLookup{}
+		unstructured := unstructured.Unstructured{}
+		unstructured.SetLabels(map[string]string{
+			"release": "1.2.4",
+		})
+		iterateMock.On("Lookup",
+			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
+			mock.AnythingOfType("*chart.DefaultProvider"),
+			mock.AnythingOfType("*reconciler.Task")).
+			Return(&unstructured, nil)
+
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                delegateMock,
+			copyFactory:            nil,
+			iterate:                iterateMock,
+		}
+
+		set := v1apps.StatefulSet{}
+		set.SetLabels(map[string]string{
+			"release": "1.2.3",
+		})
+		err := commands.InstallIfOther(actionContext, &set)
+		require.NoError(t, err)
+	})
+
+	t.Run("Should skip installation if same version", func(t *testing.T) {
+		actionContext := &service.ActionContext{
+			Context:       context.Background(),
+			Task:          &reconciler.Task{},
+			ChartProvider: &chart.DefaultProvider{},
+			Logger:        logger.NewLogger(true),
+		}
+
+		iterateMock := &serviceMocks.ManifestLookup{}
+		unstructured := unstructured.Unstructured{}
+		unstructured.SetLabels(map[string]string{
+			"release": "1.2.3",
+		})
+		iterateMock.On("Lookup",
+			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
+			mock.AnythingOfType("*chart.DefaultProvider"),
+			mock.AnythingOfType("*reconciler.Task")).
+			Return(&unstructured, nil)
+
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                &serviceMocks.Operation{},
+			copyFactory:            nil,
+			iterate:                iterateMock,
+		}
+
+		set := v1apps.StatefulSet{}
+		set.SetLabels(map[string]string{
+			"release": "1.2.3",
+		})
+		err := commands.InstallIfOther(actionContext, &set)
+		require.NoError(t, err)
+	})
 
 	t.Run("Should invoke installation", func(t *testing.T) {
 		actionContext := &service.ActionContext{

@@ -35,7 +35,6 @@ type CommandActions struct {
 }
 
 func (a *CommandActions) InstallIfOther(context *service.ActionContext, app *appsv1.StatefulSet) error {
-
 	if app == nil {
 		return a.Install(context)
 	}
@@ -58,7 +57,7 @@ func (a *CommandActions) InstallIfOther(context *service.ActionContext, app *app
 	}
 
 	if found != nil && found.GetLabels()["release"] == app.GetLabels()["release"] {
-		context.Logger.Infof("Now new version, update skipped")
+		context.Logger.Infof("New version, update skipped")
 		return nil
 	}
 
