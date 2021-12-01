@@ -152,7 +152,6 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	require.NoError(t, err)
 	require.Equal(t, expectedClusterStatus, newClusterState.Status.Status)
 
-	require.NoError(t, err)
 	require.Equal(t, 1, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
 	require.Equal(t, 2, getEntityLen(t, dbConn, &model.OperationEntity{}))
 
