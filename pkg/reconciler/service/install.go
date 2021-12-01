@@ -39,17 +39,20 @@ func (r *Install) Lookup(condition func(unstructured *unstructured.Unstructured)
 	}
 
 	manifest, err := r.renderManifest(chartProvider, task)
-
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error while rendering manifests")
 	}
 
 	unstructs, err := kubernetes.ToUnstructured([]byte(manifest), true)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error while casting manifest to kubernetes unstructured")
+	}
 	for _, unstruct := range unstructs {
 		if condition(unstruct) {
 			return unstruct, nil
 		}
 	}
+
 	return nil, nil
 }
 
