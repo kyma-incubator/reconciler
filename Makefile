@@ -59,7 +59,6 @@ bump-primage:
 	./scripts/bumpimage.sh
 .PHONY: test
 test:
-	./scripts/postgres.sh reset
 	go test -timeout 20m -coverprofile=cover.out ./...
 	@echo "Total test coverage: $$(go tool cover -func=cover.out | grep total | awk '{print $$3}')"
 	@rm cover.out
