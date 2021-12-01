@@ -7,6 +7,8 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/base"
 	//import required to register component reconciler 'busolamigrator' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/busolamigrator"
+	//import required to register component reconciler 'cleaner' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/cleaner"
 	//import required to register component reconciler 'clusteressentials' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/clusteressentials"
 	//import required to register component reconciler 'connectivityproxy' in reconciler registry
@@ -23,4 +25,6 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/rma"
 	//import required to register component reconciler 'serverless' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/serverless"
+	//import required to register component reconciler 'utils' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/utils"
 )
