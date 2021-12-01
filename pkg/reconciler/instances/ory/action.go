@@ -59,14 +59,14 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	jwksSecretObject, err := getSecret(context.Context, client, jwksNamespacedName)
+	_, err = getSecret(context.Context, client, jwksNamespacedName)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrap(err, "Could not get JWKS secret")
 		}
 
 		logger.Info("Ory JWKS secret does not exist, creating it now")
-		jwksSecretObject, err = jwks.Get(jwksNamespacedName, jwksAlg, jwksBits)
+		jwksSecretObject, err := jwks.Get(jwksNamespacedName, jwksAlg, jwksBits)
 		if err != nil {
 			return errors.Wrap(err, "failed to create jwks secret for ORY OathKeeper")
 		}
