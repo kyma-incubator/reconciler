@@ -15,11 +15,11 @@ import (
 
 const (
 	//ATTENTION:
-	//OperationsWatchInterval has to be at least two times bigger than the heartbeat interval of a component reconciler.
+	//OperationsWatchInterval has to be bigger than the heartbeat interval of a component reconciler.
 	//This is necessary to avoid that ongoing operations will be marked as orphan if the mothership-reconciler
 	//had a temporary outage and could not receive heartbeat messages. This gives component-reconcilers a chance to
-	//send a heartbeat message for such operations before the bookkeeper marks them as orphan.
-	defaultOperationsWatchInterval = 1 * time.Minute
+	//send a heartbeat message for such operations before the bookkeeper starts running and marks them as orphan.
+	defaultOperationsWatchInterval = 45 * time.Second
 	defaultOrphanOperationTimeout  = 10 * time.Minute
 	defaultMaxRetries              = 150
 )
