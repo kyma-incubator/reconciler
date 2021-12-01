@@ -283,7 +283,6 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 	dep = readManifest(t, "dep-before-rolling-update.yaml")[0]
 	_, err = kubeClient.ApplyWithNamespaceOverride(dep, testNs)
 	require.NoError(t, err)
-	time.Sleep(10 * time.Second)
 
 	tracker, err = NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
