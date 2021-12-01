@@ -60,7 +60,7 @@ bump-primage:
 
 .PHONY: test
 test:
-	go test -race -timeout 15m -coverprofile=cover.out ./...
+	go test -race -timeout 20m -coverprofile=cover.out ./...
 	@echo "Total test coverage: $$(go tool cover -func=cover.out | grep total | awk '{print $$3}')"
 	@rm cover.out
 

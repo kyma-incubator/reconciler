@@ -175,7 +175,6 @@ func (f *DefaultFactory) getExternalGitComponent(component *Component) (*Workspa
 	if err != nil {
 		return nil, err
 	}
-
 	if !indicatorExists {
 		f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
 			component.name, component.version, component.url, baseDir)
@@ -187,7 +186,6 @@ func (f *DefaultFactory) getExternalGitComponent(component *Component) (*Workspa
 			return nil, err
 		}
 	}
-
 	// find revision
 	revision, err := f.getLatestRevOfVersion(component.version, path.Join(baseDir, component.name))
 	if err != nil {
@@ -324,7 +322,6 @@ func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, 
 	}
 
 	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet, f.logger)
-
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 			dstDir, repo.URL, version)
@@ -333,12 +330,12 @@ func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, 
 		}
 		return err
 	}
-
 	//create a marker file to flag success
 	fileHandler, err := os.Create(f.readyFile(markerDir))
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		if err := fileHandler.Close(); err != nil {
 			f.logger.Warnf("Failed to close marker file: %s", err)
@@ -400,7 +397,6 @@ func (f *DefaultFactory) fetchComponent(component *Component, dstDir string) err
 		return err
 	}
 	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet, f.logger)
-
 	return cloner.FetchAndCheckout(dstPath, component.version)
 }
 
