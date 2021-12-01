@@ -46,7 +46,7 @@ func (d *Client) ResolveRevisionOrBranchHead(rev gitp.Revision) (*gitp.Hash, err
 	if err != nil && err != gitp.ErrReferenceNotFound {
 		return nil, err
 	}
-	if branchRev != nil { // this is a branch
+	if !branchRev.IsZero() { // this is a branch
 		return d.repo.ResolveRevision(gitp.Revision(branchRev.String()))
 	}
 	return d.repo.ResolveRevision(rev)
