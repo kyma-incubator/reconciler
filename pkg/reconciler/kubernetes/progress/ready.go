@@ -2,7 +2,6 @@ package progress
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +24,6 @@ func isDeploymentReady(ctx context.Context, client kubernetes.Interface, object 
 		return false, err
 	}
 
-	logger.NewLogger(true).Debugf("Watching replicaset %s", replicaSet.Name)
 	isReady := replicaSet.Status.ReadyReplicas >= expectedReadyReplicas
 	return isReady, nil
 }
