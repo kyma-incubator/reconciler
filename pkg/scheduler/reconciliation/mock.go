@@ -54,6 +54,6 @@ func (mr *MockRepository) GetReconcilingOperations() ([]*model.OperationEntity, 
 	return mr.GetReconcilingOperationsResult, nil
 }
 
-func (mr *MockRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reason ...string) error {
+func (mr *MockRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reason ...string) error {
 	return mr.UpdateOperationStateResult
 }

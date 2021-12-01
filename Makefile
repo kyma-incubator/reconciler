@@ -57,10 +57,9 @@ endif
 .PHONY: bump-primage
 bump-primage:
 	./scripts/bumpimage.sh
-
 .PHONY: test
 test:
-	go test -race -timeout 20m -coverprofile=cover.out ./...
+	go test -timeout 20m -coverprofile=cover.out ./...
 	@echo "Total test coverage: $$(go tool cover -func=cover.out | grep total | awk '{print $$3}')"
 	@rm cover.out
 
