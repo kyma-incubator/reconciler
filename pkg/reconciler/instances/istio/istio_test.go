@@ -81,6 +81,34 @@ const (
 
 	istioctlMockTooNewVersion = `{
 		"clientVersion": {
+		  "version": "1.09.2",
+		  "revision": "revision",
+		  "golang_version": "go1.16.7",
+		  "status": "Clean",
+		  "tag": "1.09.2"
+		},
+		"meshVersion": [
+		  {
+			"Component": "pilot",
+			"Info": {
+			  "version": "1.13.4",
+			  "revision": "revision",
+			  "golang_version": "",
+			  "status": "Clean",
+			  "tag": "1.13.4"
+			}
+		  }
+		],
+		"dataPlaneVersion": [
+		  {
+			"ID": "id",
+			"IstioVersion": "1.13.4"
+		  }
+		]
+	  }`
+
+	istioctlMockDataPlanePilotMismatchVersion = `{
+		"clientVersion": {
 		  "version": "1.11.2",
 		  "revision": "revision",
 		  "golang_version": "go1.16.7",
@@ -102,7 +130,7 @@ const (
 		"dataPlaneVersion": [
 		  {
 			"ID": "id",
-			"IstioVersion": "1.13.4"
+			"IstioVersion": "1.13.5"
 		  }
 		]
 	  }`
@@ -152,7 +180,45 @@ func Test_RunUpdateAction(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.NoError(t, err)
+		require.EqualError(t, err, "Istio could not be updated since the binary version: 1.09.2 is not compatible with the target version: 1.11.2 - the difference between versions exceeds one minor version")
+		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
+		commanderMock.AssertNotCalled(t, "Upgrade", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("Istio update should return an error when there is data plane and pilot version mismatch", func(t *testing.T) {
+		// given
+		provider := clientset.DefaultProvider{}
+		commanderMock := commandermocks.Commander{}
+		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockDataPlanePilotMismatchVersion), nil)
+		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		performer := actions.NewDefaultIstioPerformer(&commanderMock, nil, &provider)
+		action := istio.NewReconcileAction(performer)
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.EqualError(t, err, "Istio components version mismatch detected: pilot version: 1.13.4, data plane version: 1.13.5")
+		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
+		commanderMock.AssertNotCalled(t, "Upgrade", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("Istio update should return an error when there is data plane and pilot version mismatch", func(t *testing.T) {
+		// given
+		provider := clientset.DefaultProvider{}
+		commanderMock := commandermocks.Commander{}
+		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockDataPlanePilotMismatchVersion), nil)
+		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		performer := actions.NewDefaultIstioPerformer(&commanderMock, nil, &provider)
+		action := istio.NewReconcileAction(performer)
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.EqualError(t, err, "Istio components version mismatch detected: pilot version: 1.13.4, data plane version: 1.13.5")
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
 		commanderMock.AssertNotCalled(t, "Upgrade", mock.Anything, mock.Anything, mock.Anything)
 	})
