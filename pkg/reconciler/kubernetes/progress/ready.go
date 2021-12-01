@@ -2,6 +2,7 @@ package progress
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +25,7 @@ func isDeploymentReady(ctx context.Context, client kubernetes.Interface, object 
 		return false, err
 	}
 
+	logger.NewLogger(true).Debugf("Watching replicaset %s", replicaSet.Name)
 	isReady := replicaSet.Status.ReadyReplicas >= expectedReadyReplicas
 	return isReady, nil
 }
@@ -120,17 +122,23 @@ func getLatestReplicaSet(ctx context.Context, deployment *appsv1.Deployment, cli
 		return nil, nil
 	}
 
-	sort.Sort(replicaSetsByCreationTimestamp(ownedReplicaSets))
-	return ownedReplicaSets[len(ownedReplicaSets)-1], nil
+	sort.Sort(replicaSetsByCreationTimestampDesc(ownedReplicaSets))
+	for _, ownedReplicaSet := range ownedReplicaSets {
+		if ownedReplicaSet.Status.Replicas > 0 {
+			return ownedReplicaSet, nil
+		}
+	}
+
+	return nil, nil
 }
 
-type replicaSetsByCreationTimestamp []*appsv1.ReplicaSet
+type replicaSetsByCreationTimestampDesc []*appsv1.ReplicaSet
 
-func (o replicaSetsByCreationTimestamp) Len() int      { return len(o) }
-func (o replicaSetsByCreationTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-func (o replicaSetsByCreationTimestamp) Less(i, j int) bool {
+func (o replicaSetsByCreationTimestampDesc) Len() int      { return len(o) }
+func (o replicaSetsByCreationTimestampDesc) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o replicaSetsByCreationTimestampDesc) Less(i, j int) bool {
 	if o[i].CreationTimestamp.Equal(&o[j].CreationTimestamp) {
 		return o[i].Name < o[j].Name
 	}
-	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
+	return !o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 }
