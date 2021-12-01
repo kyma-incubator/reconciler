@@ -48,11 +48,11 @@ func (rif *reconcileIntervalFilter) Filter(dbType db.Type, statusColHdr *db.Colu
 	}
 	switch dbType {
 	case db.Postgres:
-		return fmt.Sprintf(`%s = '%s' AND %s <= NOW() - INTERVAL '%.0f SECOND'`,
-			statusColName, model.ClusterStatusReady, createdColName, rif.reconcileInterval.Seconds()), nil
+		return fmt.Sprintf(`%s IN ('%s', '%s') AND %s <= NOW() - INTERVAL '%.0f SECOND'`,
+			statusColName, model.ClusterStatusReady, model.ClusterStatusReconcileErrorRetryable, createdColName, rif.reconcileInterval.Seconds()), nil
 	case db.SQLite:
-		return fmt.Sprintf(`%s = '%s' AND %s <= DATETIME('now', '-%.0f SECONDS')`,
-			statusColName, model.ClusterStatusReady, createdColName, rif.reconcileInterval.Seconds()), nil
+		return fmt.Sprintf(`%s IN ('%s', '%s') AND %s <= DATETIME('now', '-%.0f SECONDS')`,
+			statusColName, model.ClusterStatusReady, model.ClusterStatusReconcileErrorRetryable, createdColName, rif.reconcileInterval.Seconds()), nil
 	default:
 		return "", fmt.Errorf("database type '%s' is not supported by this filter", dbType)
 	}

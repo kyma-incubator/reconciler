@@ -236,7 +236,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.NoError(t, err)
+		require.EqualError(t, err, "Istio could not be updated since the binary version: 1.0 is not compatible with the target version: 1.2 - the difference between versions exceeds one minor version")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -272,7 +272,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.NoError(t, err)
+		require.EqualError(t, err, "Could not perform downgrade for Pilot from version: 1.1 to version: 0.9 - the difference between versions exceed one minor version")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -308,7 +308,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.NoError(t, err)
+		require.EqualError(t, err, "Could not perform upgrade for Pilot from version: 1.1 to version: 1.3 - the difference between versions exceed one minor version")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -608,8 +608,6 @@ func Test_canInstall(t *testing.T) {
 }
 
 func Test_canUpdate(t *testing.T) {
-	logger := log.NewLogger(true)
-
 	t.Run("should not allow update when client version is more than one minor behind the target version", func(t *testing.T) {
 		// given
 		version := actions.IstioVersion{
@@ -620,7 +618,7 @@ func Test_canUpdate(t *testing.T) {
 		}
 
 		// when
-		result := canUpdate(version, logger)
+		result, _ := canUpdate(version)
 
 		// then
 		require.False(t, result)
@@ -636,7 +634,7 @@ func Test_canUpdate(t *testing.T) {
 		}
 
 		// when
-		result := canUpdate(version, logger)
+		result, _ := canUpdate(version)
 
 		// then
 		require.True(t, result)
@@ -652,7 +650,7 @@ func Test_canUpdate(t *testing.T) {
 		}
 
 		// when
-		result := canUpdate(version, logger)
+		result, _ := canUpdate(version)
 
 		// then
 		require.False(t, result)
@@ -668,7 +666,7 @@ func Test_canUpdate(t *testing.T) {
 		}
 
 		// when
-		result := canUpdate(version, logger)
+		result, _ := canUpdate(version)
 
 		// then
 		require.True(t, result)
@@ -684,7 +682,7 @@ func Test_canUpdate(t *testing.T) {
 		}
 
 		// when
-		result := canUpdate(version, logger)
+		result, _ := canUpdate(version)
 
 		// then
 		require.False(t, result)
@@ -700,7 +698,7 @@ func Test_canUpdate(t *testing.T) {
 		}
 
 		// when
-		result := canUpdate(version, logger)
+		result, _ := canUpdate(version)
 
 		// then
 		require.False(t, result)
@@ -716,7 +714,7 @@ func Test_canUpdate(t *testing.T) {
 		}
 
 		// when
-		result := canUpdate(version, logger)
+		result, _ := canUpdate(version)
 
 		// then
 		require.False(t, result)
@@ -732,7 +730,7 @@ func Test_canUpdate(t *testing.T) {
 		}
 
 		// when
-		result := canUpdate(version, logger)
+		result, _ := canUpdate(version)
 
 		// then
 		require.True(t, result)
@@ -748,7 +746,7 @@ func Test_canUpdate(t *testing.T) {
 		}
 
 		// when
-		result := canUpdate(version, logger)
+		result, _ := canUpdate(version)
 
 		// then
 		require.True(t, result)
@@ -788,8 +786,6 @@ func Test_isMismatchPresent(t *testing.T) {
 }
 
 func Test_isClientCompatible(t *testing.T) {
-	logger := log.NewLogger(true)
-
 	t.Run("should return true when client and target versions are the same", func(t *testing.T) {
 		// given
 		exactSameClientVersion := actions.IstioVersion{
@@ -800,7 +796,7 @@ func Test_isClientCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isClientCompatibleWithTargetVersion(exactSameClientVersion, logger)
+		got := isClientCompatibleWithTargetVersion(exactSameClientVersion)
 
 		//then
 		require.True(t, got)
@@ -816,7 +812,7 @@ func Test_isClientCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion, logger)
+		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion)
 
 		//then
 		require.True(t, got)
@@ -832,7 +828,7 @@ func Test_isClientCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion, logger)
+		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion)
 
 		//then
 		require.True(t, got)
@@ -848,7 +844,7 @@ func Test_isClientCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isClientCompatibleWithTargetVersion(oneHigherMinorClientVersion, logger)
+		got := isClientCompatibleWithTargetVersion(oneHigherMinorClientVersion)
 
 		//then
 		require.True(t, got)
@@ -864,7 +860,7 @@ func Test_isClientCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isClientCompatibleWithTargetVersion(oneLowerMinorClientVersion, logger)
+		got := isClientCompatibleWithTargetVersion(oneLowerMinorClientVersion)
 
 		//then
 		require.True(t, got)
@@ -880,7 +876,7 @@ func Test_isClientCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isClientCompatibleWithTargetVersion(twoLowerMinorClientVersion, logger)
+		got := isClientCompatibleWithTargetVersion(twoLowerMinorClientVersion)
 
 		//then
 		require.False(t, got)
@@ -896,7 +892,7 @@ func Test_isClientCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isClientCompatibleWithTargetVersion(greaterThanOneMinorClientVersion, logger)
+		got := isClientCompatibleWithTargetVersion(greaterThanOneMinorClientVersion)
 
 		//then
 		require.False(t, got)
@@ -905,7 +901,6 @@ func Test_isClientCompatible(t *testing.T) {
 
 func Test_isComponentCompatible(t *testing.T) {
 	componentName := "component"
-	logger := log.NewLogger(true)
 	t.Run("Equal target and pilot component version is compatible", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioVersion{
@@ -916,7 +911,7 @@ func Test_isComponentCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
 
 		//then
 		require.True(t, got)
@@ -932,7 +927,7 @@ func Test_isComponentCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
 
 		//then
 		require.True(t, got)
@@ -948,7 +943,7 @@ func Test_isComponentCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
 
 		//then
 		require.True(t, got)
@@ -964,7 +959,7 @@ func Test_isComponentCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
 
 		//then
 		require.True(t, got)
@@ -980,7 +975,7 @@ func Test_isComponentCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
 
 		//then
 		require.False(t, got)
@@ -996,7 +991,7 @@ func Test_isComponentCompatible(t *testing.T) {
 		}
 
 		// when
-		got := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName, logger)
+		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
 
 		//then
 		require.False(t, got)
