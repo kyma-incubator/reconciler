@@ -152,7 +152,7 @@ func TestSchedulerParallel(t *testing.T) {
 		defer cancelFct()
 
 		startAt := time.Now().Add(1 * time.Second)
-		for i := 0; i < 5; i++ {
+		for i := 0; i < 25; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()

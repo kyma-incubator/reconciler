@@ -751,7 +751,7 @@ func TestReconciliationParallel(t *testing.T) {
 			//reset db connection
 			dbConn = nil
 			//set amount of threads
-			threadCnt := 5
+			threadCnt := 25
 
 			repo := newPersistentRepository(t)
 			inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
