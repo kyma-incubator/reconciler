@@ -12,9 +12,6 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/internal/converters"
-
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
-
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
@@ -22,6 +19,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 
 	"github.com/gorilla/mux"
