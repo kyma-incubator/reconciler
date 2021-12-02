@@ -25,8 +25,6 @@ import (
 const (
 	defaultHTTPTimeout = 30 * time.Second //Expose as a configuration option if necessary
 	namespaceTimeout   = 6 * time.Minute  //Expose as a configuration option if necessary
-	keepCRDs           = false            //Expose as a configuration option if necessary
-
 )
 
 var (
@@ -35,7 +33,6 @@ var (
 		Version:  "v1",
 		Resource: "customresourcedefinitions",
 	}
-	namespaces = []string{"istio-system", "kyma-system", "kyma-integration"}
 )
 
 const (
@@ -48,11 +45,12 @@ type CliCleaner struct {
 	k8s              KymaKube
 	apixClient       apixv1beta1client.ApiextensionsV1beta1Interface
 	keepCRDs         bool
+	namespaces       []string
 	namespaceTimeout time.Duration
 	logger           *zap.SugaredLogger
 }
 
-func NewCliCleaner(kubeconfigData string, logger *zap.SugaredLogger) (*CliCleaner, error) {
+func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.SugaredLogger) (*CliCleaner, error) {
 
 	kymaKube, err := NewFromConfigWithTimeout(kubeconfigData, defaultHTTPTimeout)
 	if err != nil {
@@ -64,7 +62,7 @@ func NewCliCleaner(kubeconfigData string, logger *zap.SugaredLogger) (*CliCleane
 		return nil, err
 	}
 
-	return &CliCleaner{kymaKube, apixClient, keepCRDs, namespaceTimeout, logger}, nil
+	return &CliCleaner{kymaKube, apixClient, true, namespaces, namespaceTimeout, logger}, nil
 }
 
 //Run runs the command
@@ -72,12 +70,14 @@ func (cmd *CliCleaner) Run() error {
 	if err := cmd.deleteKymaNamespaces(); err != nil {
 		return err
 	}
-	if !cmd.keepCRDs {
-		if err := cmd.deleteKymaCRDs(); err != nil {
-			return err
 
-		}
-	}
+	//	if !cmd.keepCRDs {
+	//		if err := cmd.deleteKymaCRDs(); err != nil {
+	//			return err
+	//
+	//		}
+	//	}
+
 	if err := cmd.waitForNamespaces(); err != nil {
 		return err
 	}
@@ -196,11 +196,11 @@ func (cmd *CliCleaner) deleteKymaNamespaces() error {
 	cmd.logger.Info("Deleting Kyma Namespaces")
 
 	var wg sync.WaitGroup
-	wg.Add(len(namespaces))
+	wg.Add(len(cmd.namespaces))
 	finishedCh := make(chan bool)
 	errorCh := make(chan error)
 
-	for _, namespace := range namespaces {
+	for _, namespace := range cmd.namespaces {
 		go func(ns string) {
 			defer wg.Done()
 			err := retry.Do(func() error {
@@ -314,7 +314,7 @@ func (cmd *CliCleaner) checkKymaNamespaces() (bool, error) {
 	}
 
 	for i := range namespaceList.Items {
-		if contains(namespaces, namespaceList.Items[i].Name) {
+		if contains(cmd.namespaces, namespaceList.Items[i].Name) {
 			cmd.logger.Info(fmt.Sprintf("Namespace %s still in state '%s'", namespaceList.Items[i].Name, namespaceList.Items[i].Status.Phase))
 			return false, nil
 		}

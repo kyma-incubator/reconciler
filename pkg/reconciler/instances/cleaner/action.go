@@ -14,22 +14,10 @@ func (a *CleanupAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	/*
-		kubeconfigPath, kubeconfigCf, fileErr := file.CreateTempFileWith(context.Task.Kubeconfig)
-		if fileErr != nil {
-			err = fileErr
-			return
-		}
-		defer func() {
-			err = kubeconfigCf()
-		}()
-		context.Logger.Infof("kubeconfig path: %s", kubeconfigPath)
-	*/
-
 	context.Logger.Infof("Action '%s' executed: passed version was '%s', passed type was %s", a.name, context.Task.Version, context.Task.Type)
 
-	//var cliCleaner *CliCleaner
-	cliCleaner, err := cleanup.NewCliCleaner(context.Task.Kubeconfig, context.Logger)
+	namespaces := []string{"kyma-system", "kyma-integration"}
+	cliCleaner, err := cleanup.NewCliCleaner(context.Task.Kubeconfig, namespaces, context.Logger)
 	if err != nil {
 		return err
 	}
