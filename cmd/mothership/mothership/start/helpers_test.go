@@ -163,7 +163,8 @@ func Test_filterReconciliationsAfter(t *testing.T) {
 			want: []keb.Reconciliation{},
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			got := filterReconciliationsAfter(tt.args.time, tt.args.reconciliations)
 			require.Equal(t, tt.want, got)
@@ -262,7 +263,8 @@ func Test_filterReconciliationsBefore(t *testing.T) {
 			want: []keb.Reconciliation{},
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			got := filterReconciliationsBefore(tt.args.time, tt.args.reconciliations)
 			require.Equal(t, tt.want, got)
@@ -393,7 +395,8 @@ func Test_filterReconciliationsTail(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			got := filterReconciliationsTail(tt.args.reconciliations, tt.args.l)
 			require.Equal(t, tt.want, got)
