@@ -9,7 +9,7 @@ import (
 )
 
 type BookkeepingTask interface {
-	Apply(*ReconciliationResult) []error
+	Apply(reconResult *ReconciliationResult, maxRetries int) []error
 }
 
 type markOrphanOperation struct {
@@ -17,7 +17,7 @@ type markOrphanOperation struct {
 	logger     *zap.SugaredLogger
 }
 
-func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult) []error {
+func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult, maxRetries int) []error {
 	var result []error = nil
 	for _, orphanOp := range reconResult.GetOrphans() {
 		if orphanOp.State == model.OperationStateOrphan {
@@ -40,12 +40,25 @@ type finishOperation struct {
 	logger     *zap.SugaredLogger
 }
 
-func (fo finishOperation) Apply(reconResult *ReconciliationResult) []error {
+func (fo finishOperation) Apply(reconResult *ReconciliationResult, maxRetries int) []error {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
 	errMsg := fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
 		"(triggered by reconciliation with schedulingID '%s'): CLuster is already in final state",
 		recon.RuntimeID, newClusterStatus, recon.SchedulingID)
+
+	if newClusterStatus == model.ClusterStatusReconcileError {
+		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig)
+		if err != nil {
+			fo.logger.Errorf("failed to count error for runtime %s with error: %s", reconResult.reconEntity.RuntimeID, err)
+		}
+		if errCnt < maxRetries {
+			newClusterStatus = model.ClusterStatusReconcileErrorRetryable
+			fo.logger.Infof("Reconciliation for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
+				"reconciliation will be retried (count of applied retries: %d)",
+				reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
+		}
+	}
 
 	if newClusterStatus.IsFinal() {
 		err := fo.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)

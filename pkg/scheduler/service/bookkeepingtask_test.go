@@ -84,6 +84,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				&BookkeeperConfig{
 					OperationsWatchInterval: 100 * time.Millisecond,
 					OrphanOperationTimeout:  5 * time.Second,
+					MaxRetries: 150,
 				},
 				logger.NewLogger(true),
 			)
@@ -103,7 +104,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				go func(errChannel chan error, bookkeeperOperation BookkeepingTask) {
 					defer wg.Done()
 					time.Sleep(time.Until(startAt))
-					err := bookkeeperOperation.Apply(reconResult)
+					err := bookkeeperOperation.Apply(reconResult, bk.config.MaxRetries)
 					for _, e := range err {
 						errChannel <- e
 					}
