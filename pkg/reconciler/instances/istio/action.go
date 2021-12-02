@@ -2,6 +2,7 @@ package istio
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -84,50 +85,55 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	if isMismatchPresent(ver) {
-		context.Logger.Warnf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
+		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", ver.PilotVersion, ver.DataPlaneVersion)
+		return errors.New(errorMessage)
 	}
 
-	if isClientCompatibleWithTargetVersion(ver, context.Logger) {
-		if canInstall(ver) {
-			context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
+	if !isClientCompatibleWithTargetVersion(ver) {
+		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", ver.ClientVersion, ver.TargetVersion))
+	}
 
-			err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger)
-			if err != nil {
-				return errors.Wrap(err, "Could not install Istio")
-			}
+	if canInstall(ver) {
+		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
 
-			err = a.performer.PatchMutatingWebhook(context.KubeClient, context.Logger)
-			if err != nil {
-				return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
-			}
-
-			err = deployIstioResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
-			if err != nil {
-				return errors.Wrap(err, "Could not deloy Istio resources")
-			}
-		} else if canUpdate(ver, context.Logger) {
-			context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
-
-			err = a.performer.Update(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger)
-			if err != nil {
-				return errors.Wrap(err, "Could not update Istio")
-			}
-
-			err = a.performer.PatchMutatingWebhook(context.KubeClient, context.Logger)
-			if err != nil {
-				return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
-			}
-
-			err = a.performer.ResetProxy(context.KubeClient.Kubeconfig(), ver, context.Logger)
-			if err != nil {
-				return errors.Wrap(err, "Could not reset Istio proxy")
-			}
-
-			err = deployIstioResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
-			if err != nil {
-				return errors.Wrap(err, "Could not deploy Istio resources")
-			}
+		err = a.performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not install Istio")
 		}
+
+		err = a.performer.PatchMutatingWebhook(context.KubeClient, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
+		}
+
+		err = deployIstioResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not deploy Istio resources")
+		}
+	} else if canUpdateResult, err := canUpdate(ver); canUpdateResult {
+		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", ver.PilotVersion, ver.DataPlaneVersion, ver.TargetVersion)
+
+		err = a.performer.Update(context.KubeClient.Kubeconfig(), manifest.Manifest, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not update Istio")
+		}
+
+		err = a.performer.PatchMutatingWebhook(context.KubeClient, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
+		}
+
+		err = a.performer.ResetProxy(context.KubeClient.Kubeconfig(), ver, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not reset Istio proxy")
+		}
+
+		err = deployIstioResources(context.Context, manifest.Manifest, context.KubeClient, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not deploy Istio resources")
+		}
+	} else {
+		return err
 	}
 
 	return nil
@@ -216,42 +222,36 @@ func getInstalledVersion(context *service.ActionContext, performer actions.Istio
 	return ver, nil
 }
 
-func isClientCompatibleWithTargetVersion(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
+func isClientCompatibleWithTargetVersion(ver actions.IstioVersion) bool {
 	clientHelperVersion := newHelperVersionFrom(ver.ClientVersion)
 	targetHelperVersion := newHelperVersionFrom(ver.TargetVersion)
 
-	if !amongOneMinor(clientHelperVersion, targetHelperVersion) {
-		logger.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", ver.ClientVersion, ver.TargetVersion)
-		return false
-	}
-
-	return true
+	return amongOneMinor(clientHelperVersion, targetHelperVersion)
 }
 
-func canUpdate(ver actions.IstioVersion, logger *zap.SugaredLogger) bool {
-	if !isComponentCompatible(ver.PilotVersion, ver.TargetVersion, "Pilot", logger) {
-		return false
+func canUpdate(ver actions.IstioVersion) (bool, error) {
+	if isPilotCompatible, err := isComponentCompatible(ver.PilotVersion, ver.TargetVersion, "Pilot"); !isPilotCompatible {
+		return false, err
 	}
 
-	if !isComponentCompatible(ver.DataPlaneVersion, ver.TargetVersion, "Data plane", logger) {
-		return false
+	if isDataplaneCompatible, err := isComponentCompatible(ver.DataPlaneVersion, ver.TargetVersion, "Data plane"); !isDataplaneCompatible {
+		return false, err
 	}
 
-	return true
+	return true, nil
 }
 
-func isComponentCompatible(componentVersion, targetVersion, componentName string, logger *zap.SugaredLogger) bool {
+func isComponentCompatible(componentVersion, targetVersion, componentName string) (bool, error) {
 	componentHelperVersion := newHelperVersionFrom(componentVersion)
 	targetHelperVersion := newHelperVersionFrom(targetVersion)
 
 	componentVsTargetComparison := targetHelperVersion.compare(&componentHelperVersion)
 	if !amongOneMinor(componentHelperVersion, targetHelperVersion) {
-		logger.Errorf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
-			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion)
-		return false
+		return false, errors.New(fmt.Sprintf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
+			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion))
 	}
 
-	return true
+	return true, nil
 }
 
 func getActionTypeFrom(comparison int) string {
