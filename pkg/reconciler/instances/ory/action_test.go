@@ -230,7 +230,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 	})
 }
 
-func Test_PreDeleteAction_Run(t *testing.T) {
+func Test_PostDeleteAction_Run(t *testing.T) {
 	t.Run("should not perform any action when kubernetes clientset returned an error", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -238,7 +238,7 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("failed to retrieve native Kubernetes GO client"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -256,7 +256,7 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("Could not get DB secret"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -267,14 +267,14 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		kubeClient.AssertCalled(t, "Clientset")
 	})
 
-	t.Run("should not perform any action when secret does not exist", func(t *testing.T) {
+	t.Run("should not perform any action when DB secret does not exist", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -284,7 +284,29 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		kubeClient.AssertCalled(t, "Clientset")
 	})
 
-	t.Run("should delete ory secret when secret exists", func(t *testing.T) {
+	t.Run("should delete ory JWKS secret when secret exists", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		existingSecret := fixSecretJwks()
+		clientSet := fake.NewSimpleClientset(existingSecret)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		_, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.False(t, kerrors.IsNotFound(err))
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertCalled(t, "Clientset")
+		_, err = clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.True(t, kerrors.IsNotFound(err))
+	})
+
+	t.Run("should delete ory DB secret when secret exists", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -294,7 +316,7 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		_, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
-		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
 
 		// when
 		err = action.Run(actionContext)

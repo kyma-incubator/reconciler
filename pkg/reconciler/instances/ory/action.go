@@ -33,7 +33,7 @@ type preReconcileAction struct {
 	*oryAction
 }
 
-type preDeleteAction struct {
+type postDeleteAction struct {
 	*oryAction
 }
 
@@ -118,14 +118,14 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *preDeleteAction) Run(context *service.ActionContext) error {
+func (a *postDeleteAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
 	client, err := context.KubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	secretExists, err := a.dbSecretExists(context.Context, client, dbNamespacedName)
+	secretExists, err := a.secretExists(context.Context, client, dbNamespacedName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get DB secret %s", dbNamespacedName.Name)
 	}
@@ -136,6 +136,19 @@ func (a *preDeleteAction) Run(context *service.ActionContext) error {
 		}
 	} else {
 		logger.Infof("DB Secret %s does not exist", dbNamespacedName.Name)
+	}
+
+	jwksSecretExists, err := a.secretExists(context.Context, client, jwksNamespacedName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get JWKS secret %s", jwksNamespacedName.Name)
+	}
+	if jwksSecretExists {
+		err = a.deleteSecret(context.Context, client, jwksNamespacedName, logger)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete DB secret %s", jwksNamespacedName.Name)
+		}
+	} else {
+		logger.Infof("JWKS Secret %s does not exist", jwksNamespacedName.Name)
 	}
 
 	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
@@ -177,18 +190,18 @@ func (a *preReconcileAction) rolloutHydraDeployment(ctx context.Context, client 
 	return nil
 }
 
-func (a *preDeleteAction) dbSecretExists(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (bool, error) {
+func (a *postDeleteAction) secretExists(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (bool, error) {
 	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return false, nil
 		}
-		return false, errors.Wrap(err, "Could not get DB secret")
+		return false, errors.Wrapf(err, "Could not get %s secret", name.Name)
 	}
 	return true, nil
 }
 
-func (a *preDeleteAction) deleteSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) error {
+func (a *postDeleteAction) deleteSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) error {
 	err := client.CoreV1().Secrets(name.Namespace).Delete(ctx, name.Name, metav1.DeleteOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
