@@ -4,6 +4,7 @@ import (
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	appsclient "k8s.io/client-go/kubernetes/typed/apps/v1"
@@ -120,23 +121,47 @@ func getLatestReplicaSet(ctx context.Context, deployment *appsv1.Deployment, cli
 		return nil, nil
 	}
 
-	sort.Sort(replicaSetsByCreationTimestampDesc(ownedReplicaSets))
-	for _, ownedReplicaSet := range ownedReplicaSets {
-		if ownedReplicaSet.Status.Replicas > 0 {
-			return ownedReplicaSet, nil
-		}
-	}
-
-	return nil, nil
+	return FindNewReplicaSet(deployment, ownedReplicaSets), nil
 }
 
-type replicaSetsByCreationTimestampDesc []*appsv1.ReplicaSet
+// FindNewReplicaSet returns the new RS this given deployment targets (the one with the same pod template).
+func FindNewReplicaSet(deployment *appsv1.Deployment, rsList []*appsv1.ReplicaSet) *appsv1.ReplicaSet {
+	sort.Sort(ReplicaSetsByCreationTimestamp(rsList))
+	for i := range rsList {
+		if EqualIgnoreHash(&rsList[i].Spec.Template, &deployment.Spec.Template) {
+			// In rare cases, such as after cluster upgrades, Deployment may end up with
+			// having more than one new ReplicaSets that have the same template as its template,
+			// see https://github.com/kubernetes/kubernetes/issues/40415
+			// We deterministically choose the oldest new ReplicaSet.
+			return rsList[i]
+		}
+	}
+	// new ReplicaSet does not exist.
+	return nil
+}
 
-func (o replicaSetsByCreationTimestampDesc) Len() int      { return len(o) }
-func (o replicaSetsByCreationTimestampDesc) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-func (o replicaSetsByCreationTimestampDesc) Less(i, j int) bool {
+// EqualIgnoreHash returns true if two given podTemplateSpec are equal, ignoring the diff in value of Labels[pod-template-hash]
+// We ignore pod-template-hash because:
+// 1. The hash result would be different upon podTemplateSpec API changes
+//    (e.g. the addition of a new field will cause the hash code to change)
+// 2. The deployment template won't have hash labels
+func EqualIgnoreHash(template1, template2 *corev1.PodTemplateSpec) bool {
+	t1Copy := template1.DeepCopy()
+	t2Copy := template2.DeepCopy()
+	// Remove hash labels from template.Labels before comparing
+	delete(t1Copy.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+	delete(t2Copy.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
+}
+
+// ReplicaSetsByCreationTimestamp sorts a list of ReplicaSet by creation timestamp, using their names as a tie breaker.
+type ReplicaSetsByCreationTimestamp []*appsv1.ReplicaSet
+
+func (o ReplicaSetsByCreationTimestamp) Len() int      { return len(o) }
+func (o ReplicaSetsByCreationTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o ReplicaSetsByCreationTimestamp) Less(i, j int) bool {
 	if o[i].CreationTimestamp.Equal(&o[j].CreationTimestamp) {
 		return o[i].Name < o[j].Name
 	}
-	return !o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
+	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 }
