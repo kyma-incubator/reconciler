@@ -53,7 +53,7 @@ func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64) (
 	if err != nil {
 		return 0, err
 	}
-	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(50).GetMany()
+	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(1000).GetMany()
 	if err != nil {
 		return 0, err
 	}
