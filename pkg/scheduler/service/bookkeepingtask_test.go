@@ -84,7 +84,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				&BookkeeperConfig{
 					OperationsWatchInterval: 100 * time.Millisecond,
 					OrphanOperationTimeout:  5 * time.Second,
-					MaxRetries: 150,
+					MaxRetries:              150,
 				},
 				logger.NewLogger(true),
 			)
