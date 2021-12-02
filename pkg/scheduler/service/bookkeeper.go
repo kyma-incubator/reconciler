@@ -138,9 +138,10 @@ func (bk *bookkeeper) markOrphanOperations(reconResult *ReconciliationResult) {
 func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bool {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
+	// TODO add retryable rror here
 
 	if newClusterStatus == model.ClusterStatusReconcileError {
-		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig)
+		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)
 		if err != nil {
 			bk.logger.Errorf("failed to count error for runtime %s with error: %s", reconResult.reconEntity.RuntimeID, err)
 		}
