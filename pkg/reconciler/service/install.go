@@ -26,7 +26,7 @@ type Operation interface {
 	Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Task, kubeClient kubernetes.Client) error
 }
 
-//go:generate mockery --name=Iteration --output=mocks --outpkg=mocks --case=underscore
+//go:generate mockery --name=ManifestLookup --output=mocks --outpkg=mocks --case=underscore
 type ManifestLookup interface {
 	Lookup(func(unstructured *unstructured.Unstructured) bool, chart.Provider, *reconciler.Task) (*unstructured.Unstructured, error)
 }
