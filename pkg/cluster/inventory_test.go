@@ -289,7 +289,7 @@ func TestCountRetries(t *testing.T) {
 		clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReady)
 		require.NoError(t, err)
 		//count how often retry happened
-		cnt, err := inventory.CountRetries(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version,  model.ClusterStatusReconcileErrorRetryable, model.ClusterStatusReconcileError)
+		cnt, err := inventory.CountRetries(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version, model.ClusterStatusReconcileErrorRetryable, model.ClusterStatusReconcileError)
 		require.NoError(t, err)
 		require.Equal(t, 0, cnt)
 	})
