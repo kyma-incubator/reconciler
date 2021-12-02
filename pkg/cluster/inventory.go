@@ -23,7 +23,7 @@ type Inventory interface {
 	StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
-	CountRetries(runtimeID string, configVersion int64) (int, error)
+	CountRetries(runtimeID string, configVersion int64, maxRetries int) (int, error)
 }
 
 type DefaultInventory struct {
@@ -48,12 +48,12 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	return &DefaultInventory{repo, collector}, nil
 }
 
-func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64) (int, error) {
+func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64,  maxRetries int) (int, error) {
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
 		return 0, err
 	}
-	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(1000).GetMany()
+	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(maxRetries*5).GetMany()
 	if err != nil {
 		return 0, err
 	}

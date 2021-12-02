@@ -145,7 +145,7 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bo
 	newClusterStatus := reconResult.GetResult()
 
 	if newClusterStatus == model.ClusterStatusReconcileError {
-		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig)
+		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, bk.config.MaxRetries)
 		if err != nil {
 			bk.logger.Errorf("failed to count error for runtime %s with error: %s", reconResult.reconEntity.RuntimeID, err)
 		}
