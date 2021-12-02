@@ -360,8 +360,8 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	//filter by time
-	if after, ok := r.URL.Query()[paramAfter]; ok {
-		t, err := time.Parse(paramTimeFormat, after[0])
+	if after := r.URL.Query().Get(paramAfter); after != "" {
+		t, err := time.Parse(paramTimeFormat, after)
 		if err != nil {
 			server.SendHTTPError(
 				w,
@@ -374,8 +374,8 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		results = filterReconciliationsAfter(t, results)
 	}
 
-	if before, ok := r.URL.Query()[paramBefore]; ok {
-		t, err := time.Parse(paramTimeFormat, before[0])
+	if before := r.URL.Query().Get(paramBefore); before != "" {
+		t, err := time.Parse(paramTimeFormat, before)
 		if err != nil {
 			server.SendHTTPError(
 				w,
@@ -388,8 +388,8 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		results = filterReconciliationsBefore(t, results)
 	}
 
-	if l, ok := r.URL.Query()[paramLast]; ok {
-		l, err := strconv.Atoi(l[0])
+	if l := r.URL.Query().Get(paramLast); l != "" {
+		l, err := strconv.Atoi(l)
 		if err != nil {
 			server.SendHTTPError(
 				w,
