@@ -115,6 +115,25 @@ func (cr *CurrentlyReconciling) FilterByInstance(i *model.ReconciliationEntity) 
 	return nil
 }
 
+type CurrentlyReconcilingWithRuntimeID struct {
+	RuntimeID string
+}
+
+func (cr *CurrentlyReconcilingWithRuntimeID) FilterByQuery(q *db.Select) error {
+	q.Where(map[string]interface{}{
+		"Finished":  false,
+		"RuntimeID": cr.RuntimeID,
+	})
+	return nil
+}
+
+func (cr *CurrentlyReconcilingWithRuntimeID) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
+	if !i.Finished && i.RuntimeID == cr.RuntimeID {
+		return i
+	}
+	return nil
+}
+
 func toInterfaceSlice(args []string) []interface{} {
 	argsLen := len(args)
 	result := make([]interface{}, argsLen)

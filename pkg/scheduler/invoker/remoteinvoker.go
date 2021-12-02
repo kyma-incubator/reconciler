@@ -46,18 +46,18 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 
 	resp, err := i.sendHTTPRequest(params)
 	if err != nil {
-		return err
+		return i.fireError("send HTTP request", params, err)
 	}
 
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			i.logger.Errorf("Error while closing response body: %s", err)
+			i.logger.Errorf("Error while closing HTTP response body: %s", err)
 		}
 	}()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %s", err)
+		return i.fireError("read HTTP body", params, err)
 	}
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
@@ -206,4 +206,14 @@ func (i *RemoteReconcilerInvoker) updateOperationState(params *Params, state mod
 			"(schedulingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
 	}
 	return nil
+}
+
+func (i *RemoteReconcilerInvoker) fireError(subject string, params *Params, err error) error {
+	reason := fmt.Sprintf("Failed to %s for component '%s' when communciating with component reconciler (URL: %s) : %s",
+		subject, params.ComponentToReconcile.Component, params.ComponentToReconcile.URL, err)
+	i.logger.Errorf(reason)
+	if updateErr := i.updateOperationState(params, model.OperationStateError, reason); updateErr != nil {
+		err = errors.Wrap(updateErr, err.Error())
+	}
+	return err
 }

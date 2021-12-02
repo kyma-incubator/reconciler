@@ -8,12 +8,11 @@ import (
 )
 
 func TransactionResult(conn Connection, dbOps func() (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
-	log := func(msg string) {
+	log := func(msg string, args ...interface{}) {
 		if logger != nil {
-			logger.Debug(msg)
+			logger.Debugf(msg, args...)
 		}
 	}
-	log("Begin transactional DB context")
 	tx, err := conn.Begin()
 	if err != nil {
 		return nil, err
@@ -21,14 +20,13 @@ func TransactionResult(conn Connection, dbOps func() (interface{}, error), logge
 
 	result, err := dbOps()
 	if err != nil {
-		log("Rollback transactional DB context")
+		log("Rollback transactional DB context because an error occurred: %s", err)
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", tx.Rollback()))
 		}
 		return result, err
 	}
 
-	log("Commit transactional DB context")
 	return result, tx.Commit()
 }
 

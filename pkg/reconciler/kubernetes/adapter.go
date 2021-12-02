@@ -250,16 +250,22 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace stri
 	for i := len(unstructs) - 1; i >= 0; i-- {
 		unstruct := unstructs[i]
 
+		if unstruct.GetNamespace() == "" {
+			unstruct.SetNamespace(namespace)
+		}
+
 		// execute the delete request only if the resource exists
-		if !g.resourceExists(unstruct.GetKind(), unstruct.GetName(), namespace) {
+		if !g.resourceExists(unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace()) {
+			g.logger.Debugf("Could not find resource for deletion: kind='%s', name='%s', namespace='%s'",
+				unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
 			continue
 		}
 
-		g.logger.Debugf("Deleting resource kind='%s', name='%s', namespace='%s'",
+		g.logger.Debugf("Deleting resource: kind='%s', name='%s', namespace='%s'",
 			unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
 
 		metadata, err := g.kubeClient.DeleteResourceByKindAndNameAndNamespace(
-			unstruct.GetKind(), unstruct.GetName(), namespace, metav1.DeleteOptions{})
+			unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace(), metav1.DeleteOptions{})
 		if err != nil && !k8serr.IsNotFound(err) {
 			g.logger.Errorf("Failed to delete Kubernetes unstructured resource kind='%s', name='%s', namespace='%s': %s",
 				unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace(), err)
