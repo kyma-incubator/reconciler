@@ -139,6 +139,9 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bo
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
 	// TODO add retryable rror here
+	if newClusterStatus == model.ClusterStatusDeleteError {
+		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)
+	}
 
 	if newClusterStatus == model.ClusterStatusReconcileError {
 		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)

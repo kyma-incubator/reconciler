@@ -48,22 +48,21 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	return &DefaultInventory{repo, collector}, nil
 }
 
-func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, clusterStatus ...model.Status) (int, error) {
+func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, errorStatus ...model.Status) (int, error) {
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, fmt.Sprintf("failed to initialize query for runtime %s", runtimeID))
 	}
 	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(50).GetMany()
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, fmt.Sprintf("failed to count error for runtime %s", runtimeID))
 	}
 
 	errCnt := 0
 	for _, clusterStatus := range clusterStatuses {
 		clStatusEntity := clusterStatus.(*model.ClusterStatusEntity)
 		if clStatusEntity.Status.IsFinal() {
-			if clStatusEntity.Status == model.ClusterStatusReconcileError ||
-				clStatusEntity.Status == model.ClusterStatusReconcileErrorRetryable {
+			if statusInSlice(clStatusEntity.Status, errorStatus) {
 				errCnt++
 			} else {
 				break
@@ -71,6 +70,15 @@ func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, c
 		}
 	}
 	return errCnt, nil
+}
+
+func statusInSlice(status model.Status, statusList []model.Status) bool {
+	for _, s := range statusList {
+		if s == status {
+			return true
+		}
+	}
+	return false
 }
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
