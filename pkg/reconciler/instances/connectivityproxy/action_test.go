@@ -58,7 +58,7 @@ func TestAction(t *testing.T) {
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
 		commands.On("CopyResources", context).Return(nil)
-		commands.On("InstallIfOther", context).Return(nil)
+		commands.On("InstallIfOther", context, (*v1apps.StatefulSet)(nil)).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestAction(t *testing.T) {
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
 		commands.On("CopyResources", context).Return(nil)
-		commands.On("InstallIfOther", context).Return(nil)
+		commands.On("InstallIfOther", context, (*v1apps.StatefulSet)(nil)).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
@@ -119,7 +119,7 @@ func TestAction(t *testing.T) {
 			Return(nil, nil)
 
 		commands.On("CopyResources", context).Return(nil)
-		commands.On("InstallIfOther", context).Return(nil)
+		commands.On("InstallIfOther", context, (*v1apps.StatefulSet)(nil)).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)
