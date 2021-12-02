@@ -69,7 +69,6 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, maxRetries in
 		errMsg = fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
 			"(triggered by reconciliation with schedulingID '%s'): %s",
 			recon.RuntimeID, newClusterStatus, recon.SchedulingID, err)
-		fo.logger.Errorf(errMsg)
 	} else {
 		errMsg = fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
 			"(triggered by reconciliation with schedulingID '%s'): CLuster is already in final state",
