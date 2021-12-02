@@ -43,9 +43,7 @@ type finishOperation struct {
 func (fo finishOperation) Apply(reconResult *ReconciliationResult, maxRetries int) []error {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
-	errMsg := fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
-		"(triggered by reconciliation with schedulingID '%s'): CLuster is already in final state",
-		recon.RuntimeID, newClusterStatus, recon.SchedulingID)
+	errMsg := ""
 
 	if newClusterStatus == model.ClusterStatusReconcileError {
 		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig)
@@ -72,6 +70,10 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, maxRetries in
 			"(triggered by reconciliation with schedulingID '%s'): %s",
 			recon.RuntimeID, newClusterStatus, recon.SchedulingID, err)
 		fo.logger.Errorf(errMsg)
+	} else {
+		errMsg = fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
+			"(triggered by reconciliation with schedulingID '%s'): CLuster is already in final state",
+			recon.RuntimeID, newClusterStatus, recon.SchedulingID)
 	}
 	return []error{errors.New(errMsg)}
 }
