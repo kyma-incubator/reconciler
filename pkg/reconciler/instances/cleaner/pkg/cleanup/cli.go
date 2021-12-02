@@ -107,10 +107,7 @@ func (cmd *CliCleaner) removeServerlessCredentialFinalizers() error {
 			return err
 		}
 
-		//if cmd.Verbose {
-		//cmd.CurrentStep.Status
 		cmd.logger.Info(fmt.Sprintf("Deleted finalizer from \"%s\" Secret", secret.GetName()))
-		//}
 	}
 
 	return nil
@@ -175,10 +172,7 @@ func (cmd *CliCleaner) removeCustomResourceFinalizers(gvr schema.GroupVersionRes
 	}
 
 	if len(res.GetFinalizers()) > 0 {
-		//if cmd.Verbose {
-		//cmd.CurrentStep.Status
 		cmd.logger.Info(fmt.Sprintf("Deleting finalizer for \"%s\" %s", res.GetName(), cr.GetKind()))
-		//}
 
 		res.SetFinalizers(nil)
 		_, err := cmd.k8s.Dynamic().Resource(gvr).Namespace(res.GetNamespace()).Update(context.Background(), res, metav1.UpdateOptions{})
@@ -186,10 +180,7 @@ func (cmd *CliCleaner) removeCustomResourceFinalizers(gvr schema.GroupVersionRes
 			return err
 		}
 
-		//if cmd.Verbose {
-		//cmd.CurrentStep.Status
 		cmd.logger.Info(fmt.Sprintf("Deleted finalizer for \"%s\" %s", res.GetName(), res.GetKind()))
-		//	}
 	}
 
 	if !cmd.keepCRDs {
@@ -204,14 +195,6 @@ func (cmd *CliCleaner) removeCustomResourceFinalizers(gvr schema.GroupVersionRes
 func (cmd *CliCleaner) deleteKymaNamespaces() error {
 	cmd.logger.Info("Deleting Kyma Namespaces")
 
-	/*
-
-		if !cmd.NonInteractive && !cmd.CI {
-			if !step.PromptYesNo("This will delete all Kyma Namespace resources. Do you want to continue? ") {
-				return errors.New("Undeploy cancelled by user")
-			}
-		}
-	*/
 	var wg sync.WaitGroup
 	wg.Add(len(namespaces))
 	finishedCh := make(chan bool)
@@ -221,11 +204,19 @@ func (cmd *CliCleaner) deleteKymaNamespaces() error {
 		go func(ns string) {
 			defer wg.Done()
 			err := retry.Do(func() error {
-				//if cmd.Verbose {
-				//	cmd.CurrentStep.Status
 				cmd.logger.Info(fmt.Sprintf("Deleting Namespace \"%s\"", ns))
-				//}
-
+				//HACK: drop kyma-system finalizers -> TBD: remove this hack after issue is fixed (https://github.com/kyma-project/kyma/issues/10470)
+				if ns == "kyma-system" {
+					_, err := cmd.k8s.Static().CoreV1().Namespaces().Finalize(context.Background(), &v1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:       ns,
+							Finalizers: []string{},
+						},
+					}, metav1.UpdateOptions{})
+					if err != nil {
+						errorCh <- err
+					}
+				}
 				if err := cmd.k8s.Static().CoreV1().Namespaces().Delete(context.Background(), ns, metav1.DeleteOptions{}); err != nil && !apierr.IsNotFound(err) {
 					errorCh <- err
 				}
@@ -244,10 +235,7 @@ func (cmd *CliCleaner) deleteKymaNamespaces() error {
 				return
 			}
 
-			//if cmd.Verbose {
-			//	cmd.CurrentStep.Status
 			cmd.logger.Info(fmt.Sprintf("\"%s\" Namespace is removed", ns))
-			//}
 		}(namespace)
 	}
 
@@ -357,10 +345,7 @@ func (cmd *CliCleaner) deleteKymaCRDs() error {
 
 func (cmd *CliCleaner) deleteCRDsByLabelWithRetry(labelSelector string) error {
 
-	//if cmd.Verbose {
-	//cmd.CurrentStep.Status
 	cmd.logger.Info(fmt.Sprintf("Deleting CRD by label: \"%s\"", labelSelector))
-	//}
 
 	return retry.Do(func() error {
 		if err := cmd.k8s.Dynamic().Resource(crdGvr).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: labelSelector}); err != nil {
