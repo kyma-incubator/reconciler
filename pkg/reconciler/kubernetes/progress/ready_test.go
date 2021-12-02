@@ -49,7 +49,7 @@ func TestIsDeploymentReady(t *testing.T) {
 				Name:              "foo-456",
 				Namespace:         "kyma-system",
 				OwnerReferences:   []metav1.OwnerReference{*metav1.NewControllerRef(deployment, deployment.GroupVersionKind())},
-				CreationTimestamp: metav1.NewTime(time.Now()),
+				CreationTimestamp: metav1.NewTime(time.Now().Add(time.Second)),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas: 1,
