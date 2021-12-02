@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/internal/converters"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/internal/converters"
 
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 
@@ -39,6 +41,10 @@ const (
 	paramStatus     = "status"
 	paramRuntimeIDs = "runtimeID"
 	paramCluster    = "cluster"
+	paramBefore     = "before"
+	paramAfter      = "after"
+	paramLast       = "last"
+	paramTimeFormat = "2006-01-02 15:04:05"
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
@@ -351,6 +357,48 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 			Status:       keb.Status(reconcile.Status),
 			Updated:      reconcile.Updated,
 		})
+	}
+
+	//filter by time
+	if after, ok := r.URL.Query()[paramAfter]; ok {
+		t, err := time.Parse(paramTimeFormat, after[0])
+		if err != nil {
+			server.SendHTTPError(
+				w,
+				http.StatusBadRequest,
+				&keb.BadRequest{Error: err.Error()},
+			)
+			return
+		}
+
+		results = filterReconciliationsAfter(t, results)
+	}
+
+	if before, ok := r.URL.Query()[paramBefore]; ok {
+		t, err := time.Parse(paramTimeFormat, before[0])
+		if err != nil {
+			server.SendHTTPError(
+				w,
+				http.StatusBadRequest,
+				&keb.BadRequest{Error: err.Error()},
+			)
+			return
+		}
+
+		results = filterReconciliationsBefore(t, results)
+	}
+
+	if l, ok := r.URL.Query()[paramLast]; ok {
+		l, err := strconv.Atoi(l[0])
+		if err != nil {
+			server.SendHTTPError(
+				w,
+				http.StatusBadRequest,
+				&keb.BadRequest{Error: err.Error()},
+			)
+			return
+		}
+		results = filterReconciliationsTail(results, l)
 	}
 
 	//respond
