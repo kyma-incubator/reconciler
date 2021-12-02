@@ -10,6 +10,11 @@ type CleanupAction struct {
 }
 
 func (a *CleanupAction) Run(context *service.ActionContext) error {
+	if context.Task.Type != "delete" {
+		context.Logger.Infof("Skipping execution. This reconciler only supports 'delete' task type, but was invoked with '%s' task type", context.Task.Type)
+		return nil
+	}
+
 	if _, err := context.KubeClient.Clientset(); err != nil { //cleaner how to retrieve native Kubernetes GO client
 		return err
 	}
