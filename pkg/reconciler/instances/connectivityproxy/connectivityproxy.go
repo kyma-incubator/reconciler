@@ -37,6 +37,7 @@ func init() {
 				return context.KubeClient.Clientset()
 			},
 			install: service.NewInstall(log),
+			iterate: service.NewInstall(log),
 			copyFactory: []CopyFactory{
 				registrySecretCopy,
 				istioSecretCopy,
