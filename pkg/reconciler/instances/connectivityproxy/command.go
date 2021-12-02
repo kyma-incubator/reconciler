@@ -42,7 +42,7 @@ func (a *CommandActions) InstallIfOther(context *service.ActionContext, app *app
 	found, err := a.iterate.Lookup(func(unstructured *unstructured.Unstructured) bool {
 		return unstructured != nil &&
 			unstructured.GetName() != "" && unstructured.GetName() == app.Name &&
-			unstructured.GetNamespace() != "" && unstructured.GetNamespace() == app.Namespace
+			unstructured.GetKind() != "" && unstructured.GetKind() == "StatefulSet"
 	}, context.ChartProvider, context.Task)
 
 	if err != nil {
@@ -57,7 +57,7 @@ func (a *CommandActions) InstallIfOther(context *service.ActionContext, app *app
 	}
 
 	if found != nil && found.GetLabels()["release"] == app.GetLabels()["release"] {
-		context.Logger.Infof("New version, update skipped")
+		context.Logger.Infof("No new version, update skipped")
 		return nil
 	}
 
