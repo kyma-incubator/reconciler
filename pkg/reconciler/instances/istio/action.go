@@ -206,12 +206,12 @@ func canInstall(istioStatus actions.IstioStatus) bool {
 	return !isInstalled(istioStatus)
 }
 
-func isInstalled(version actions.IstioStatus) bool {
-	return !(version.DataPlaneVersion == "" && version.PilotVersion == "")
+func isInstalled(istioStatus actions.IstioStatus) bool {
+	return !(istioStatus.DataPlaneVersion == "" && istioStatus.PilotVersion == "")
 }
 
-func canUninstall(istioVersion actions.IstioStatus) bool {
-	return isInstalled(istioVersion) && istioVersion.ClientVersion != ""
+func canUninstall(istioStatus actions.IstioStatus) bool {
+	return isInstalled(istioStatus) && istioStatus.ClientVersion != ""
 }
 
 func getInstalledVersion(context *service.ActionContext, performer actions.IstioPerformer) (actions.IstioStatus, error) {
@@ -223,20 +223,20 @@ func getInstalledVersion(context *service.ActionContext, performer actions.Istio
 	return istioVersion, nil
 }
 
-func isClientCompatibleWithTargetVersion(ver actions.IstioStatus) bool {
+func isClientCompatibleWithTargetVersion(istioStatus actions.IstioStatus) bool {
 
-	clientHelperVersion := newHelperVersionFrom(ver.ClientVersion)
-	targetHelperVersion := newHelperVersionFrom(ver.TargetVersion)
+	clientHelperVersion := newHelperVersionFrom(istioStatus.ClientVersion)
+	targetHelperVersion := newHelperVersionFrom(istioStatus.TargetVersion)
 
 	return amongOneMinor(clientHelperVersion, targetHelperVersion)
 }
 
-func canUpdate(istio actions.IstioStatus) (bool, error) {
-	if isPilotCompatible, err := isComponentCompatible(istio.PilotVersion, istio.TargetVersion, "Pilot"); !isPilotCompatible {
+func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
+	if isPilotCompatible, err := isComponentCompatible(istioStatus.PilotVersion, istioStatus.TargetVersion, "Pilot"); !isPilotCompatible {
 		return false, err
 	}
 
-	if isDataplaneCompatible, err := isComponentCompatible(istio.DataPlaneVersion, istio.TargetVersion, "Data plane"); !isDataplaneCompatible {
+	if isDataplaneCompatible, err := isComponentCompatible(istioStatus.DataPlaneVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
 		return false, err
 	}
 
@@ -273,9 +273,9 @@ func amongOneMinor(first, second helperVersion) bool {
 	return first.major == second.major && (first.minor == second.minor || first.minor-second.minor == -1 || first.minor-second.minor == 1)
 }
 
-func isMismatchPresent(istioVersion actions.IstioStatus) bool {
-	pilot := newHelperVersionFrom(istioVersion.PilotVersion)
-	dataPlane := newHelperVersionFrom(istioVersion.DataPlaneVersion)
+func isMismatchPresent(istioStatus actions.IstioStatus) bool {
+	pilot := newHelperVersionFrom(istioStatus.PilotVersion)
+	dataPlane := newHelperVersionFrom(istioStatus.DataPlaneVersion)
 	return pilot.compare(&dataPlane) != 0
 }
 
