@@ -42,7 +42,7 @@ const (
 	paramBefore     = "before"
 	paramAfter      = "after"
 	paramLast       = "last"
-	paramTimeFormat = "2006-01-02 15:04:05"
+	paramTimeFormat = time.RFC3339
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
