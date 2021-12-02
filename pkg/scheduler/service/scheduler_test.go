@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"sync"
 	"testing"
 	"time"
@@ -118,11 +119,11 @@ func testClusterState(clusterID string, statusID int64) *cluster.State {
 
 func createClusterStates(t *testing.T, inventory cluster.Inventory) {
 	clusterID1 := uuid.NewString()
-	_, err := inventory.CreateOrUpdate(1, keb.NewCluster(t, clusterID1, 1, false, keb.ThreeComponentsDummy))
+	_, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID1, 1, false, test.ThreeComponentsDummy))
 	require.NoError(t, err)
 
 	clusterID2 := uuid.NewString()
-	_, err = inventory.CreateOrUpdate(1, keb.NewCluster(t, clusterID2, 1, false, keb.OneComponentDummy))
+	_, err = inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.OneComponentDummy))
 	require.NoError(t, err)
 }
 

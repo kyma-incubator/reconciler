@@ -3,7 +3,7 @@ package service
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
@@ -39,7 +39,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			require.NoError(t, err)
 
 			//add cluster to inventory
-			clusterState, err := inventory.CreateOrUpdate(1, keb.NewCluster(t, strconv.Itoa(1), 1, false, keb.OneComponentDummy))
+			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, strconv.Itoa(1), 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
 
 			//trigger reconciliation for cluster

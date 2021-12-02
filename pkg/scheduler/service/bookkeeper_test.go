@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
@@ -19,7 +19,7 @@ func TestBookkeeper(t *testing.T) {
 	//prepare inventory
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
-	clusterState, err := inventory.CreateOrUpdate(1, keb.NewCluster(t, "1", 1, false, keb.OneComponentDummy))
+	clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 	require.NoError(t, err)
 
 	//trigger reconciliation for cluster

@@ -1,15 +1,16 @@
-package keb
+package test
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-func NewCluster(t *testing.T, runtimeID string, clusterVersion uint64, newConfigVersion bool, clusterType TestCluster) *Cluster {
-	cluster := &Cluster{}
+func NewCluster(t *testing.T, runtimeID string, clusterVersion uint64, newConfigVersion bool, clusterType TestCluster) *keb.Cluster {
+	cluster := &keb.Cluster{}
 	err := json.Unmarshal(clusterType, cluster)
 	require.NoError(t, err)
 
