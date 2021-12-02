@@ -140,11 +140,6 @@ func findNewReplicaSet(deployment *appsv1.Deployment, rsList []*appsv1.ReplicaSe
 	return nil
 }
 
-// equalIgnoreHash returns true if two given podTemplateSpec are equal, ignoring the diff in value of Labels[pod-template-hash]
-// We ignore pod-template-hash because:
-// 1. The hash result would be different upon podTemplateSpec API changes
-//    (e.g. the addition of a new field will cause the hash code to change)
-// 2. The deployment template won't have hash labels
 func equalIgnoreHash(template1, template2 *corev1.PodTemplateSpec) bool {
 	t1Copy := template1.DeepCopy()
 	t2Copy := template2.DeepCopy()
@@ -154,7 +149,6 @@ func equalIgnoreHash(template1, template2 *corev1.PodTemplateSpec) bool {
 	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
 }
 
-// ReplicaSetsByCreationTimestamp sorts a list of ReplicaSet by creation timestamp, using their names as a tie breaker.
 type replicaSetsByCreationTimestamp []*appsv1.ReplicaSet
 
 func (o replicaSetsByCreationTimestamp) Len() int      { return len(o) }
