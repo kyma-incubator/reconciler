@@ -25,7 +25,7 @@ func (s Status) IsDeletion() bool {
 }
 
 func (s Status) IsDeleteCandidate() bool {
-	return s == ClusterStatusDeletePending
+	return s == ClusterStatusDeletePending || s == ClusterStatusDeleteErrorRetryable
 }
 
 func (s Status) IsReconcileCandidate() bool {
