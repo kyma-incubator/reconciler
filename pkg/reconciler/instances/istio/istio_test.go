@@ -195,7 +195,8 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockDataPlanePilotMismatchVersion), nil)
 		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		performer := actions.NewDefaultIstioPerformer(&commanderMock, nil, &provider)
+		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
+		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
 		action := istio.NewReconcileAction(performer)
 
 		// when
@@ -214,7 +215,8 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockDataPlanePilotMismatchVersion), nil)
 		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		performer := actions.NewDefaultIstioPerformer(&commanderMock, nil, &provider)
+		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
+		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
 		action := istio.NewReconcileAction(performer)
 
 		// when
