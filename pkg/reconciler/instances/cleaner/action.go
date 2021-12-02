@@ -29,7 +29,7 @@ func (a *CleanupAction) Run(context *service.ActionContext) error {
 	context.Logger.Infof("Action '%s' executed: passed version was '%s', passed type was %s", a.name, context.Task.Version, context.Task.Type)
 
 	//var cliCleaner *CliCleaner
-	cliCleaner, err := cleanup.NewCliCleaner(context.Task.Kubeconfig, nil)
+	cliCleaner, err := cleanup.NewCliCleaner(context.Task.Kubeconfig, context.Logger)
 	if err != nil {
 		return err
 	}
