@@ -62,13 +62,13 @@ func (_m *RepoClient) DefaultBranch() (*plumbing.Reference, error) {
 	return r0, r1
 }
 
-// Fetch provides a mock function with given fields: path, o
-func (_m *RepoClient) Fetch(path string, o *git.FetchOptions) error {
-	ret := _m.Called(path, o)
+// Fetch provides a mock function with given fields: o
+func (_m *RepoClient) Fetch(o *git.FetchOptions) error {
+	ret := _m.Called(o)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *git.FetchOptions) error); ok {
-		r0 = rf(path, o)
+	if rf, ok := ret.Get(0).(func(*git.FetchOptions) error); ok {
+		r0 = rf(o)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -76,31 +76,15 @@ func (_m *RepoClient) Fetch(path string, o *git.FetchOptions) error {
 	return r0
 }
 
-// PlainCheckout provides a mock function with given fields: path, o
-func (_m *RepoClient) PlainCheckout(path string, o *git.CheckoutOptions) error {
-	ret := _m.Called(path, o)
+// PlainCheckout provides a mock function with given fields: o
+func (_m *RepoClient) PlainCheckout(o *git.CheckoutOptions) error {
+	ret := _m.Called(o)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *git.CheckoutOptions) error); ok {
-		r0 = rf(path, o)
+	if rf, ok := ret.Get(0).(func(*git.CheckoutOptions) error); ok {
+		r0 = rf(o)
 	} else {
 		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Repo provides a mock function with given fields:
-func (_m *RepoClient) Repo() *git.Repository {
-	ret := _m.Called()
-
-	var r0 *git.Repository
-	if rf, ok := ret.Get(0).(func() *git.Repository); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*git.Repository)
-		}
 	}
 
 	return r0

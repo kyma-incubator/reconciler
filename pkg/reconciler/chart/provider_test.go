@@ -9,6 +9,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	reconTest "github.com/kyma-incubator/reconciler/pkg/reconciler/test"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -20,7 +21,7 @@ const (
 )
 
 func TestProvider(t *testing.T) {
-	// test.IntegrationTest(t)
+	test.IntegrationTest(t)
 
 	log := logger.NewLogger(true)
 

@@ -52,28 +52,21 @@ func (d *Client) ResolveRevisionOrBranchHead(rev gitp.Revision) (*gitp.Hash, err
 	return d.repo.ResolveRevision(rev)
 }
 
-func (d *Client) Fetch(path string, o *git.FetchOptions) error {
-	var err error
+func (d *Client) Fetch(o *git.FetchOptions) error {
 	if d.repo == nil {
-		d.repo, err = git.PlainOpen(path)
-		if err != nil {
-			return err
-		}
+		return errors.New("repo is not initialized")
 	}
-	err = d.repo.Fetch(o)
+	err := d.repo.Fetch(o)
 	if err == git.NoErrAlreadyUpToDate {
 		return nil
 	}
 	return err
 }
 
-func (d *Client) PlainCheckout(path string, o *git.CheckoutOptions) error {
+func (d *Client) PlainCheckout(o *git.CheckoutOptions) error {
 	var err error
 	if d.repo == nil {
-		d.repo, err = git.PlainOpen(path)
-		if err != nil {
-			return err
-		}
+		return errors.New("repo is not initialized")
 	}
 	w, err := d.repo.Worktree()
 	if err != nil {
@@ -82,15 +75,12 @@ func (d *Client) PlainCheckout(path string, o *git.CheckoutOptions) error {
 	return w.Checkout(o)
 }
 
-func NewClientWithPath(path string) (*Client, error) {
-	var err error
-	d := &Client{}
-	d.repo, err = git.PlainOpen(path)
-	return d, err
-}
-
-func (d *Client) Repo() *git.Repository {
-	return d.repo
+func NewClientWithPath(path string) (RepoClient, error) {
+	repo, err := git.PlainOpen(path)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{repo: repo}, nil
 }
 
 func (d *Client) DefaultBranch() (*gitp.Reference, error) {

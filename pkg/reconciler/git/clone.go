@@ -33,9 +33,8 @@ type RepoClient interface {
 	Clone(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error)
 	Worktree() (*git.Worktree, error)
 	ResolveRevisionOrBranchHead(rev gitp.Revision) (*gitp.Hash, error)
-	Fetch(path string, o *git.FetchOptions) error
-	Repo() *git.Repository
-	PlainCheckout(path string, o *git.CheckoutOptions) error
+	Fetch(o *git.FetchOptions) error
+	PlainCheckout(o *git.CheckoutOptions) error
 	DefaultBranch() (*gitp.Reference, error)
 }
 
@@ -175,7 +174,11 @@ func (r *Cloner) FetchAndCheckout(path, version string) error {
 	if err != nil {
 		return err
 	}
-	err = r.repoClient.Fetch(path, &git.FetchOptions{
+	gitClient, err := NewClientWithPath(path)
+	if err != nil {
+		return err
+	}
+	err = gitClient.Fetch(&git.FetchOptions{
 		Auth:       auth,
 		RemoteName: "origin",
 	})
@@ -183,11 +186,11 @@ func (r *Cloner) FetchAndCheckout(path, version string) error {
 		return err
 	}
 	if version != "" {
-		defaultBranch, err := r.repoClient.DefaultBranch()
+		defaultBranch, err := gitClient.DefaultBranch()
 		if err != nil {
 			return err
 		}
-		return r.repoClient.PlainCheckout(path, &git.CheckoutOptions{
+		return gitClient.PlainCheckout(&git.CheckoutOptions{
 			Hash: defaultBranch.Hash(),
 		})
 

@@ -153,17 +153,17 @@ func (f *DefaultFactory) getExternalArchiveComponent(component *Component) (*Wor
 	version := fmt.Sprintf("%s-%s", component.version, component.name)
 	wsDir := f.workspaceDir(version)
 
-	indicatorExists, err := f.indicatorExistsOrClean(wsDir)
-	if err != nil {
-		return nil, err
+	if f.readyMarkerExists(wsDir) {
+		return newComponentWorkspace(wsDir, component.name)
 	}
 
-	if !indicatorExists {
-		f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
-			component.name, component.version, component.url, wsDir)
-		if err := f.downloadComponent(component, wsDir); err != nil {
-			return nil, err
-		}
+	if err := f.cleanFailedWorkspace(wsDir); err != nil {
+		return nil, err
+	}
+	f.logger.Infof("Downloading component '%s' with version '%s' from source '%s' into workspace '%s'",
+		component.name, component.version, component.url, wsDir)
+	if err := f.downloadComponent(component, wsDir); err != nil {
+		return nil, err
 	}
 
 	return newComponentWorkspace(wsDir, component.name)
@@ -171,36 +171,30 @@ func (f *DefaultFactory) getExternalArchiveComponent(component *Component) (*Wor
 
 func (f *DefaultFactory) getExternalGitComponent(component *Component) (*Workspace, error) {
 	baseDir := f.componentBaseDir(component)
-	indicatorExists, err := f.indicatorExistsOrClean(baseDir)
-	if err != nil {
-		return nil, err
-	}
-	if !indicatorExists {
-		f.logger.Infof("Fetching component '%s' with version '%s' from source '%s' into workspace '%s'",
-			component.name, component.version, component.url, baseDir)
-		if err := f.cloneComponent(component, baseDir); err != nil {
-			return nil, err
-		}
-	} else { // already cloned, just fetch
+
+	if f.readyMarkerExists(baseDir) { // already cloned, just fetch
 		if err := f.fetchComponent(component, baseDir); err != nil {
 			return nil, err
 		}
+	} else {
+		if err := f.cleanFailedWorkspace(baseDir); err != nil {
+			return nil, err
+		}
+		if err := f.cloneComponent(component, baseDir); err != nil {
+			return nil, err
+		}
 	}
-	// find revision
-	revision, err := f.getLatestRevOfVersion(component.version, path.Join(baseDir, component.name))
+
+	wsDir, err := f.copyComponentLatestRev(component, baseDir)
 	if err != nil {
 		return nil, err
 	}
-	wsDir := f.workspaceDir(fmt.Sprintf("%s-%s", revision[0:8], component.name))
-
-	if err := f.copyComponentWithRev(component, baseDir, wsDir, revision); err != nil {
-		return nil, err
-	}
-
 	return newComponentWorkspace(wsDir, component.name)
 }
 
 func (f *DefaultFactory) cloneComponent(component *Component, dstDir string) error {
+	f.logger.Infof("Cloning component '%s' with version '%s' from source '%s' into workspace '%s'",
+		component.name, component.version, component.url, dstDir)
 	repo := &reconciler.Repository{
 		URL: component.url,
 	}
@@ -237,16 +231,9 @@ func (f *DefaultFactory) downloadComponent(component *Component, dstDir string) 
 	}
 
 	//create a marker file to flag success
-	fileHandler, err := os.Create(f.readyFile(dstDir))
-	if err != nil {
+	if err := f.createReadyMarker(dstDir); err != nil {
 		return err
 	}
-	defer func() {
-		// make sure to try to close marker at the end
-		if err := fileHandler.Close(); err != nil {
-			f.logger.Warnf("Failed to close marker file: %s", err)
-		}
-	}()
 	return nil
 }
 
@@ -331,17 +318,9 @@ func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, 
 		return err
 	}
 	//create a marker file to flag success
-	fileHandler, err := os.Create(f.readyFile(markerDir))
-	if err != nil {
+	if err := f.createReadyMarker(markerDir); err != nil {
 		return err
 	}
-
-	defer func() {
-		if err := fileHandler.Close(); err != nil {
-			f.logger.Warnf("Failed to close marker file: %s", err)
-		}
-	}()
-
 	return nil
 }
 
@@ -363,20 +342,16 @@ func (f *DefaultFactory) componentBaseDir(c *Component) string {
 		fmt.Sprintf("%x-%s", sha1.Sum([]byte(c.url)), c.name)) //nolint
 }
 
-func (f *DefaultFactory) indicatorExistsOrClean(baseDir string) (bool, error) {
-	if file.DirExists(baseDir) {
-		if file.Exists(filepath.Join(baseDir, wsReadyIndicatorFile)) {
-			// if the component repo is fully cloned just fetch to update it.
-			return true, nil
-		}
-		// broken clone, clean it
-		f.logger.Warnf("Deleting workspace '%s' because previous download/clone does not contain all the required files", baseDir)
-		if err := os.RemoveAll(baseDir); err != nil {
-			return false, err
-		}
+func (f *DefaultFactory) readyMarkerExists(baseDir string) bool {
+	return file.Exists(filepath.Join(baseDir, wsReadyIndicatorFile))
+}
 
+func (f *DefaultFactory) cleanFailedWorkspace(baseDir string) error {
+	if !file.DirExists(baseDir) {
+		return nil
 	}
-	return false, nil
+	f.logger.Warnf("Deleting workspace '%s' because previous download/clone does not contain all the required files", baseDir)
+	return os.RemoveAll(baseDir)
 }
 
 func (f *DefaultFactory) fetchComponent(component *Component, dstDir string) error {
@@ -417,45 +392,49 @@ func (f *DefaultFactory) getLatestRevOfVersion(version, path string) (string, er
 	return revision.String(), nil
 }
 
-func (f *DefaultFactory) copyComponentWithRev(component *Component, baseDir, wsDir, rev string) error {
-	indicatorExists, err := f.indicatorExistsOrClean(wsDir)
+func (f *DefaultFactory) copyComponentLatestRev(component *Component, baseDir string) (string, error) {
+	rev, err := f.getLatestRevOfVersion(component.version, path.Join(baseDir, component.name))
 	if err != nil {
-		return err
+		return "", err
 	}
-	if indicatorExists {
-		return nil
+	wsDir := f.workspaceDir(fmt.Sprintf("%s-%s", rev[0:8], component.name))
+
+	if f.readyMarkerExists(wsDir) {
+		return wsDir, nil
+	}
+	if err := f.cleanFailedWorkspace(wsDir); err != nil {
+		return "", err
 	}
 	destWsDir := path.Join(wsDir, component.name)
 	componentBaseDir := path.Join(baseDir, component.name)
 
-	err = copy.Copy(componentBaseDir, destWsDir)
-	if err != nil {
-		return err
+	if err = copy.Copy(componentBaseDir, destWsDir); err != nil {
+		return "", err
 	}
 	gitClient, err := git.NewClientWithPath(destWsDir)
 	if err != nil {
-		return err
+		return "", err
+	}
+	if err := gitClient.PlainCheckout(&gogit.CheckoutOptions{
+		Hash: plumbing.NewHash(rev),
+	}); err != nil {
+		return "", err
+	}
+	if err := f.createReadyMarker(wsDir); err != nil {
+		return "", err
 	}
 
-	w, err := gitClient.Worktree()
-	if err != nil {
-		return err
-	}
+	return wsDir, nil
+}
 
-	err = w.Checkout(&gogit.CheckoutOptions{Hash: plumbing.NewHash(rev)})
-	if err != nil {
-		return err
-	}
-
-	//create a marker file to flag success
+func (f *DefaultFactory) createReadyMarker(wsDir string) error {
 	fileHandler, err := os.Create(f.readyFile(wsDir))
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := fileHandler.Close(); err != nil {
-			f.logger.Warnf("Failed to close marker file: %s", err)
-		}
-	}()
+
+	if err := fileHandler.Close(); err != nil {
+		f.logger.Warnf("Failed to close marker file: %s", err)
+	}
 	return nil
 }

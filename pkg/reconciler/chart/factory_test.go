@@ -243,7 +243,7 @@ func testDelete(t *testing.T, wsf Factory) {
 }
 
 func Test_ExternalGitComponent(t *testing.T) {
-	// test.IntegrationTest(t)
+	test.IntegrationTest(t)
 
 	logger := log.NewLogger(true)
 	factory := &DefaultFactory{logger: logger, storageDir: storageDir}
