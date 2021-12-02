@@ -41,29 +41,39 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 
 func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVersion int64, preComponents [][]string) error {
 	dbOp := func() error {
+		recons, err := t.reconRepo.GetReconciliations(&reconciliation.CurrentlyReconcilingWithRuntimeID{
+			RuntimeID: runtimeID,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to retrieve reconciliations for runtimeID '%s'", runtimeID)
+		}
+		if len(recons) > 0 {
+			return fmt.Errorf("cannot start reconciliation for cluster '%s': cluster is already enqueued "+
+				"with schedulingID '%s'", runtimeID, recons[0].SchedulingID)
+		}
 
-		clusterState, err := t.inventory.Get(runtimeID, configVersion)
+		oldClusterState, err := t.inventory.Get(runtimeID, configVersion)
 		if err != nil {
 			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not get latest cluster state: %s",
-				clusterState.Cluster.RuntimeID, err)
+				runtimeID, err)
 			return err
 		}
 
 		//set cluster status to reconciling or deleting depending on previous state
 		var targetState model.Status
-		if clusterState.Status.Status.IsDeleteCandidate() {
+		if oldClusterState.Status.Status.IsDeleteCandidate() {
 			targetState = model.ClusterStatusDeleting
-		} else if clusterState.Status.Status.IsReconcileCandidate() {
+		} else if oldClusterState.Status.Status.IsReconcileCandidate() {
 			targetState = model.ClusterStatusReconciling
 		} else {
 			return fmt.Errorf("cannot start reconciliation of cluster %s because cluster is in state '%s'",
-				clusterState.Cluster.RuntimeID, clusterState.Status.Status)
+				oldClusterState.Cluster.RuntimeID, oldClusterState.Status.Status)
 		}
 
-		newClusterState, err := t.inventory.UpdateStatus(clusterState, targetState)
+		newClusterState, err := t.inventory.UpdateStatus(oldClusterState, targetState)
 		if err != nil {
 			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not update cluster status to '%s': %s",
-				clusterState.Cluster.RuntimeID, targetState, err)
+				oldClusterState.Cluster.RuntimeID, targetState, err)
 			return err
 		}
 		t.logger.Debugf("Starting reconciliation for cluster '%s': set cluster status to '%s'",
@@ -72,27 +82,42 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 		//create reconciliation entity
 		reconEntity, err := t.reconRepo.CreateReconciliation(newClusterState, preComponents)
 		if err == nil {
-			t.logger.Debugf("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
-				"(reconciliation entity: %s)", newClusterState.Cluster.RuntimeID, reconEntity)
+			t.logger.Infof("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
+				"(scheudlingID: %s)", newClusterState.Cluster.RuntimeID, reconEntity.SchedulingID)
+			return nil
+		}
+
+		//check for cluster configuration issue
+		if reconciliation.IsEmptyComponentsReconciliationError(err) {
+			t.logger.Errorf("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
+				"cluster has no components", newClusterState.Cluster.RuntimeID)
+
+			//set cluster status to non-recoverable error
+			//TODO: throw a dedicated error and update status ouside (db chnage will be rolled back after #507 is fixed)
+			if _, updateErr := t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError); updateErr != nil {
+				t.logger.Errorf("Error updating cluster '%s': could not update cluster status to '%s': %s",
+					oldClusterState.Cluster.RuntimeID, model.ClusterStatusReconcileError, updateErr)
+				err = errors.Wrap(updateErr, err.Error())
+			}
+
+			return err
+		}
+
+		//sort ouf if issue is caused by a race condition (just for logging purpose)
+		if reconciliation.IsDuplicateClusterReconciliationError(err) {
+			t.logger.Infof("Cancelling reconciliation for cluster '%s': cluster is already enqueued (race condition)",
+				newClusterState.Cluster.RuntimeID)
 		} else {
-			if reconciliation.IsEmptyComponentsReconciliationError(err) {
-				t.logger.Errorf("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
-					"cluster has no components", newClusterState.Cluster.RuntimeID)
-				_, updateErr := t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
-				if updateErr != nil {
-					t.logger.Errorf("Error updating cluster '%s': could not update cluster status to '%s': %s",
-						clusterState.Cluster.RuntimeID, model.ClusterStatusReconcileError, updateErr)
-					return errors.Wrap(updateErr, err.Error())
-				}
-				return err
-			}
-			if reconciliation.IsDuplicateClusterReconciliationError(err) {
-				t.logger.Debugf("Cancelling reconciliation for cluster '%s': cluster is already enqueued",
-					newClusterState.Cluster.RuntimeID)
-			} else {
-				t.logger.Errorf("Starting reconciliation for runtime '%s' failed: "+
-					"could not add runtime to reconciliation queue: %s", newClusterState.Cluster.RuntimeID, err)
-			}
+			t.logger.Errorf("Starting reconciliation for runtime '%s' failed: "+
+				"could not add runtime to reconciliation queue: %s", newClusterState.Cluster.RuntimeID, err)
+		}
+
+		//revert cluster status to previous value (TODO: drop this block after DB-TX issue is fixed #507)
+		if _, revertErr := t.inventory.UpdateStatus(newClusterState, oldClusterState.Status.Status); revertErr != nil {
+			t.logger.Errorf("Failed to revert cluster status of runtimeID '%s' from '%s' to '%s': %s",
+				newClusterState.Cluster.RuntimeID, newClusterState.Status.Status,
+				oldClusterState.Status.Status, revertErr)
+			err = errors.Wrapf(revertErr, err.Error())
 		}
 
 		return err

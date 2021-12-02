@@ -30,8 +30,7 @@ func TestRemoteInvoker(t *testing.T) {
 	//retrieve ops of reconciliation entity
 	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 	require.NoError(t, err)
-	require.Len(t, opEntities, 2)
-	opEntity := opEntities[0]
+	require.Len(t, opEntities, 6)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	startServer(ctx, t)
@@ -47,7 +46,7 @@ func TestRemoteInvoker(t *testing.T) {
 				Reconcilers:   nil,
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(reconRepo, opEntities[0], cfg)
 		require.Error(t, err)
 		require.True(t, IsNoFallbackReconcilerDefinedError(err))
 	})
@@ -66,11 +65,11 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(reconRepo, opEntities[1], cfg)
 		require.Error(t, err)
 
-		//no change expected because comp-reconciler could not be reached
-		requireOperationState(t, reconRepo, opEntity, model.OperationStateInProgress)
+		//invocation of component reconciler failed... marking operation to be in error state
+		requireOperationState(t, reconRepo, opEntities[1], model.OperationStateError)
 	})
 
 	t.Run("Invoke component-reconciler: happy path", func(t *testing.T) {
@@ -87,10 +86,10 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(reconRepo, opEntities[2], cfg)
 		require.NoError(t, err)
 
-		requireOperationState(t, reconRepo, opEntity, model.OperationStateInProgress)
+		requireOperationState(t, reconRepo, opEntities[2], model.OperationStateInProgress)
 	})
 
 	t.Run("Invoke component-reconciler: return 400 error", func(t *testing.T) {
@@ -107,10 +106,10 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(reconRepo, opEntities[3], cfg)
 		require.NoError(t, err)
 
-		requireOperationState(t, reconRepo, opEntity, model.OperationStateFailed)
+		requireOperationState(t, reconRepo, opEntities[3], model.OperationStateFailed)
 	})
 
 	t.Run("Invoke component-reconciler: return 500 error with error JSON response", func(t *testing.T) {
@@ -127,10 +126,10 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(reconRepo, opEntities[4], cfg)
 		require.NoError(t, err)
 
-		requireOperationState(t, reconRepo, opEntity, model.OperationStateClientError)
+		requireOperationState(t, reconRepo, opEntities[4], model.OperationStateClientError)
 	})
 
 	t.Run("Invoke component-reconciler: return 500 error with invalid error response", func(t *testing.T) {
@@ -147,10 +146,10 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntity, cfg)
+		err := invokeRemoteInvoker(reconRepo, opEntities[5], cfg)
 		require.NoError(t, err)
 
-		requireOperationState(t, reconRepo, opEntity, model.OperationStateClientError)
+		requireOperationState(t, reconRepo, opEntities[5], model.OperationStateClientError)
 	})
 }
 
