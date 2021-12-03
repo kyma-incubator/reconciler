@@ -9,7 +9,7 @@ import (
 )
 
 type BookkeepingTask interface {
-	Apply(reconResult *ReconciliationResult, maxRetries int) []error
+	Apply(reconResult *ReconciliationResult, config *BookkeeperConfig) []error
 }
 
 type markOrphanOperation struct {
@@ -17,7 +17,7 @@ type markOrphanOperation struct {
 	logger     *zap.SugaredLogger
 }
 
-func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult, maxRetries int) []error {
+func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult, config *BookkeeperConfig) []error {
 	var result []error = nil
 	for _, orphanOp := range reconResult.GetOrphans() {
 		if orphanOp.State == model.OperationStateOrphan {
@@ -40,7 +40,7 @@ type finishOperation struct {
 	logger     *zap.SugaredLogger
 }
 
-func (fo finishOperation) Apply(reconResult *ReconciliationResult, maxRetries int) []error {
+func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *BookkeeperConfig) []error {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
 	errMsg := ""
@@ -50,7 +50,7 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, maxRetries in
 		if err != nil {
 			fo.logger.Errorf("failed to count error for runtime %s with error: %s", reconResult.reconEntity.RuntimeID, err)
 		}
-		if errCnt < maxRetries {
+		if errCnt < config.MaxRetries {
 			newClusterStatus = model.ClusterStatusReconcileErrorRetryable
 			fo.logger.Infof("Reconciliation for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
 				"reconciliation will be retried (count of applied retries: %d)",

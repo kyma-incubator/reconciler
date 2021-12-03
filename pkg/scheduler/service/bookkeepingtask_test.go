@@ -18,13 +18,23 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 	tests := []struct {
 		name        string
 		markOpsDone bool
-		customFunc  string
+		customFunc  func(transition *ClusterStatusTransition) BookkeepingTask
 		errMessage  string
 		errCount    int
 		task        string
 	}{
-		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: "markOrphanOperations", errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 48, task: "markOrphanOperation"},
-		{name: "Finish two operations in multiple parallel threads", markOpsDone: true, customFunc: "finishReconciliation", errMessage: "Bookkeeper failed to update cluster", errCount: 24, task: "finishOperation"},
+		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
+			return markOrphanOperation{
+				transition: transition,
+				logger:     logger.NewLogger(true),
+			}
+		}, errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 48, task: "markOrphanOperation"},
+		{name: "Finish two operations in multiple parallel threads", markOpsDone: true, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
+			return finishOperation{
+				transition: transition,
+				logger:     logger.NewLogger(true),
+			}
+		}, errMessage: "Bookkeeper failed to update cluster", errCount: 24, task: "finishOperation"},
 	}
 
 	for _, tc := range tests {
@@ -62,21 +72,8 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 
 			//setup bookkeeper task
 			transition := newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true))
-			var bookkeeperOperation BookkeepingTask
-			switch tc.task {
-			case "markOrphanOperation":
-				bookkeeperOperation = markOrphanOperation{
-					transition: transition,
-					logger:     logger.NewLogger(true),
-				}
-			case "finishOperation":
-				bookkeeperOperation = finishOperation{
-					transition: transition,
-					logger:     logger.NewLogger(true),
-				}
-			default:
-				t.Errorf("Unknown task: %s", tc.task)
-			}
+			//trigger bk task
+			bookkeeperOperation := tc.customFunc(transition)
 
 			//initialize bookkeeper
 			bk := newBookkeeper(
@@ -104,7 +101,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				go func(errChannel chan error, bookkeeperOperation BookkeepingTask) {
 					defer wg.Done()
 					time.Sleep(time.Until(startAt))
-					err := bookkeeperOperation.Apply(reconResult, bk.config.MaxRetries)
+					err := bookkeeperOperation.Apply(reconResult, bk.config)
 					for _, e := range err {
 						errChannel <- e
 					}
