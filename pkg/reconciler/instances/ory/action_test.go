@@ -169,7 +169,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
-		require.Equal(t, "memory", secret.StringData["dsn"])
+		require.Equal(t, db.InMemoryURL, secret.StringData["dsn"])
 	})
 
 	t.Run("should not update ory secret when secret exist and has a valid data", func(t *testing.T) {
@@ -197,7 +197,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
 		require.Equal(t, "", secret.StringData["dsn"])
-		require.Equal(t, []byte("memory"), secret.Data["dsn"])
+		require.Equal(t, []byte(db.InMemoryURL), secret.Data["dsn"])
 	})
 
 	t.Run("should update ory secret when secret exist and has an outdated values", func(t *testing.T) {
@@ -226,7 +226,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
 		require.Contains(t, secret.StringData["dsn"], "postgres")
-		require.NotContains(t, secret.StringData["dsn"], "memory")
+		require.NotContains(t, secret.StringData["dsn"], db.InMemoryURL)
 	})
 }
 
@@ -467,7 +467,7 @@ func fixSecretMemory() *v1.Secret {
 			Namespace: dbNamespacedName.Namespace,
 		},
 		Data: map[string][]byte{
-			"dsn":           []byte("memory"),
+			"dsn":           []byte(db.InMemoryURL),
 			"secretsCookie": []byte("somesecretcookie"),
 			"secretsSystem": []byte("somesecretsystem"),
 		},

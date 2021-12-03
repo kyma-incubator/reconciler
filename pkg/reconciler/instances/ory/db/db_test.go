@@ -180,7 +180,7 @@ func TestDBSecret(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, "memory", secret.StringData["dsn"])
+		assert.Equal(t, InMemoryURL, secret.StringData["dsn"])
 	})
 
 	t.Run("Deployment with yaml values error", func(t *testing.T) {
@@ -199,7 +199,7 @@ func TestDBSecretUpdate(t *testing.T) {
 		t.Parallel()
 		values, err := unmarshalTestValues(noDBYaml)
 		require.NoError(t, err)
-		oldSecret := fixSecretWithNameDsn("test-memory-secret", "memory")
+		oldSecret := fixSecretWithNameDsn("test-memory-secret", InMemoryURL)
 
 		// when
 		secretData, errUpdate := Update(values, oldSecret, logger)
@@ -278,7 +278,7 @@ func TestDBSecretUpdate(t *testing.T) {
 		t.Parallel()
 		values, err := unmarshalTestValues(postgresYaml)
 		require.NoError(t, err)
-		oldSecret := fixSecretWithNameDsn("test-memory-secret", "memory")
+		oldSecret := fixSecretWithNameDsn("test-memory-secret", InMemoryURL)
 
 		// when
 		secretData, errUpdate := Update(values, oldSecret, logger)
@@ -295,7 +295,7 @@ func TestDBSecretUpdate(t *testing.T) {
 		t.Parallel()
 		values, err := unmarshalTestValues(gcloudYaml)
 		require.NoError(t, err)
-		oldSecret := fixSecretWithNameDsn("test-memory-secret", "memory")
+		oldSecret := fixSecretWithNameDsn("test-memory-secret", InMemoryURL)
 
 		// when
 		secretData, errUpdate := Update(values, oldSecret, logger)
@@ -315,7 +315,7 @@ func TestDBSecretUpdate(t *testing.T) {
 		t.Parallel()
 		values, err := unmarshalTestValues(mysqlDBYaml)
 		require.NoError(t, err)
-		oldSecret := fixSecretWithNameDsn("test-memory-secret", "memory")
+		oldSecret := fixSecretWithNameDsn("test-memory-secret", InMemoryURL)
 
 		// when
 		secretData, errUpdate := Update(values, oldSecret, logger)
@@ -334,7 +334,7 @@ func TestDBSecretUpdate(t *testing.T) {
 		t.Parallel()
 		values, err := unmarshalTestValues(customDBYaml)
 		require.NoError(t, err)
-		oldSecret := fixSecretWithNameDsn("test-memory-secret", "memory")
+		oldSecret := fixSecretWithNameDsn("test-memory-secret", InMemoryURL)
 
 		// when
 		secretData, errUpdate := Update(values, oldSecret, logger)
@@ -362,7 +362,7 @@ func TestDBSecretUpdate(t *testing.T) {
 		// then
 		require.NoError(t, errUpdate)
 		assert.NotEqual(t, 0, len(secretData))
-		assert.Contains(t, secretData["dsn"], "memory")
+		assert.Contains(t, secretData["dsn"], InMemoryURL)
 	})
 
 	t.Run("Existing secret with postgresql persistence should be updated with mysql config", func(t *testing.T) {

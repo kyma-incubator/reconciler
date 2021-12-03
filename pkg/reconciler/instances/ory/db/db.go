@@ -19,6 +19,7 @@ const (
 	mysqlDsnOpts = "parseTime=true&max_conn_lifetime=10s"
 	dsnTemplate  = "%s://%s:%s@%s/%s?%s"
 	postgresURL  = "ory-postgresql.kyma-system.svc.cluster.local:5432"
+	InMemoryURL  = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
 )
 
 func newDBConfig(chartValues map[string]interface{}) (*Config, error) {
@@ -37,6 +38,7 @@ func newDBConfig(chartValues map[string]interface{}) (*Config, error) {
 
 // Get fetches Kubernetes Secret object with data matching the provided Helm values to the Reconciler.
 func Get(name types.NamespacedName, chartValues map[string]interface{}, logger *zap.SugaredLogger) (*v1.Secret, error) {
+	logger.Debugf("Fetching secret")
 	cfg, err := newDBConfig(chartValues)
 	if err != nil {
 		return nil, err
@@ -111,7 +113,7 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 }
 
 func (c *Config) updateMemoryConfig(secret *v1.Secret, logger *zap.SugaredLogger) (secretData map[string]string) {
-	if string(secret.Data["dsn"]) == "memory" {
+	if string(secret.Data["dsn"]) == InMemoryURL {
 		logger.Info("Ory Hydra persistence is already disabled")
 		return secretData
 	}
@@ -180,7 +182,7 @@ func (c *Config) generateSecretDataMemory() map[string]string {
 	return map[string]string{
 		"secretsSystem": c.Global.Ory.Hydra.Persistence.SecretsSystem,
 		"secretsCookie": c.Global.Ory.Hydra.Persistence.SecretsCookie,
-		"dsn":           "memory",
+		"dsn":           InMemoryURL,
 	}
 }
 
