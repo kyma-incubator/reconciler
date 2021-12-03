@@ -91,7 +91,6 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			require.NoError(t, err)
 			reconResult, err := bk.newReconciliationResult(recons[0])
 			require.NoError(t, err)
-			reconResult.orphanTimeout = 0 * time.Microsecond
 
 			//call Apply in parallel threads
 			errChannel := make(chan error, 100)

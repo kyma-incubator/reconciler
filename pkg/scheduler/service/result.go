@@ -12,17 +12,15 @@ import (
 type ReconciliationResult struct {
 	logger        *zap.SugaredLogger
 	reconEntity   *model.ReconciliationEntity
-	orphanTimeout time.Duration
 	done          []*model.OperationEntity
 	error         []*model.OperationEntity
 	other         []*model.OperationEntity
 }
 
-func newReconciliationResult(reconEntity *model.ReconciliationEntity, orphanTimeout time.Duration, logger *zap.SugaredLogger) *ReconciliationResult {
+func newReconciliationResult(reconEntity *model.ReconciliationEntity, logger *zap.SugaredLogger) *ReconciliationResult {
 	return &ReconciliationResult{
 		logger:        logger,
 		reconEntity:   reconEntity,
-		orphanTimeout: orphanTimeout,
 	}
 }
 
@@ -94,14 +92,14 @@ func (rs *ReconciliationResult) GetResult() model.Status {
 	return model.ClusterStatusReconcileError
 }
 
-func (rs *ReconciliationResult) GetOrphans() []*model.OperationEntity {
+func (rs *ReconciliationResult) GetOrphans(timeout time.Duration) []*model.OperationEntity {
 	var orphaned []*model.OperationEntity
 	for _, op := range rs.other {
 		lastUpdateAgo := time.Now().UTC().Sub(op.Updated)
-		if lastUpdateAgo >= rs.orphanTimeout {
+		if lastUpdateAgo >= timeout {
 			rs.logger.Debugf("Reconciliation result detected orphan operation '%s': "+
 				"last updated is %.1f secs ago (orphan-timeout: %.1f secs)",
-				op, lastUpdateAgo.Seconds(), rs.orphanTimeout.Seconds())
+				op, lastUpdateAgo.Seconds(), timeout.Seconds())
 			orphaned = append(orphaned, op)
 		}
 	}

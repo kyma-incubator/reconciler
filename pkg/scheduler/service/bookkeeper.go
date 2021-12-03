@@ -128,7 +128,7 @@ func (bk *bookkeeper) newReconciliationResult(recon *model.ReconciliationEntity)
 	if err != nil {
 		return nil, err
 	}
-	reconResult := newReconciliationResult(recon, bk.config.OrphanOperationTimeout, bk.logger)
+	reconResult := newReconciliationResult(recon, bk.logger)
 	if err := reconResult.AddOperations(ops); err != nil {
 		return nil, err
 	}

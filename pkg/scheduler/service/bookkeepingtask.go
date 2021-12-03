@@ -19,7 +19,7 @@ type markOrphanOperation struct {
 
 func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult, config *BookkeeperConfig) []error {
 	var result []error = nil
-	for _, orphanOp := range reconResult.GetOrphans() {
+	for _, orphanOp := range reconResult.GetOrphans(config.OrphanOperationTimeout) {
 		if orphanOp.State == model.OperationStateOrphan {
 			//don't update orphan operations which are already marked as 'orphan'
 			continue

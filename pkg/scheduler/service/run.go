@@ -128,7 +128,7 @@ func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*Recon
 	}
 
 	//evaluate reconciliation result
-	reconResult := newReconciliationResult(recons[0], 1*time.Hour, l.logger())
+	reconResult := newReconciliationResult(recons[0], l.logger())
 	err = reconResult.AddOperations(ops)
 	return reconResult, err
 }
