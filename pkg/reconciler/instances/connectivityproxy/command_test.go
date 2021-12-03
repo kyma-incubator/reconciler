@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 
@@ -193,6 +195,140 @@ func TestCommands(t *testing.T) {
 
 		err := commands.InstallIfOther(actionContext, nil)
 		require.NoError(t, err)
+	})
+
+	t.Run("Should return an error if failed to lookup for unstructured", func(t *testing.T) {
+		// given
+		actionContext := &service.ActionContext{
+			Context:       context.Background(),
+			Task:          &reconciler.Task{},
+			ChartProvider: &chart.DefaultProvider{},
+			Logger:        logger.NewLogger(true),
+		}
+
+		delegateMock := &serviceMocks.Operation{}
+		delegateMock.On("Invoke",
+			actionContext.Context,
+			mock.AnythingOfType("*chart.DefaultProvider"),
+			mock.AnythingOfType("*reconciler.Task"),
+			nil).
+			Return(nil)
+
+		iterateMock := &serviceMocks.ManifestLookup{}
+		iterateMock.On("Lookup",
+			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
+			mock.AnythingOfType("*chart.DefaultProvider"),
+			mock.AnythingOfType("*reconciler.Task")).
+			Return(nil, errors.New("some error"))
+
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                delegateMock,
+			copyFactory:            nil,
+			iterate:                iterateMock,
+		}
+
+		set := v1apps.StatefulSet{}
+		set.SetLabels(map[string]string{
+			"release": "1.2.3",
+		})
+
+		// when
+		err := commands.InstallIfOther(actionContext, &set)
+
+		// then
+		assert.Error(t, err)
+	})
+
+	t.Run("Should return an error if found unstructured does not have release label", func(t *testing.T) {
+		actionContext := &service.ActionContext{
+			Context:       context.Background(),
+			Task:          &reconciler.Task{},
+			ChartProvider: &chart.DefaultProvider{},
+			Logger:        logger.NewLogger(true),
+		}
+
+		delegateMock := &serviceMocks.Operation{}
+		delegateMock.On("Invoke",
+			actionContext.Context,
+			mock.AnythingOfType("*chart.DefaultProvider"),
+			mock.AnythingOfType("*reconciler.Task"),
+			nil).
+			Return(nil)
+
+		iterateMock := &serviceMocks.ManifestLookup{}
+		unstructured := unstructured.Unstructured{}
+
+		iterateMock.On("Lookup",
+			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
+			mock.AnythingOfType("*chart.DefaultProvider"),
+			mock.AnythingOfType("*reconciler.Task")).
+			Return(&unstructured, nil)
+
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                delegateMock,
+			copyFactory:            nil,
+			iterate:                iterateMock,
+		}
+
+		set := v1apps.StatefulSet{}
+		set.SetLabels(map[string]string{
+			"release": "1.2.3",
+		})
+
+		// when
+		err := commands.InstallIfOther(actionContext, &set)
+
+		// then
+		assert.Error(t, err)
+	})
+
+	t.Run("Should return an error if given set does not have release label", func(t *testing.T) {
+		actionContext := &service.ActionContext{
+			Context:       context.Background(),
+			Task:          &reconciler.Task{},
+			ChartProvider: &chart.DefaultProvider{},
+			Logger:        logger.NewLogger(true),
+		}
+
+		delegateMock := &serviceMocks.Operation{}
+		delegateMock.On("Invoke",
+			actionContext.Context,
+			mock.AnythingOfType("*chart.DefaultProvider"),
+			mock.AnythingOfType("*reconciler.Task"),
+			nil).
+			Return(nil)
+
+		iterateMock := &serviceMocks.ManifestLookup{}
+		unstructured := unstructured.Unstructured{}
+		unstructured.SetLabels(map[string]string{
+			"release": "1.2.3",
+		})
+
+		iterateMock.On("Lookup",
+			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
+			mock.AnythingOfType("*chart.DefaultProvider"),
+			mock.AnythingOfType("*reconciler.Task")).
+			Return(&unstructured, nil)
+
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                delegateMock,
+			copyFactory:            nil,
+			iterate:                iterateMock,
+		}
+
+		set := v1apps.StatefulSet{}
+
+		// when
+		err := commands.InstallIfOther(actionContext, &set)
+
+		// then
+		assert.Error(t, err)
 	})
 
 	t.Run("Should copy configuration from model", func(t *testing.T) {
