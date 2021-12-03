@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func NewCluster(t *testing.T, runtimeID string, clusterVersion uint64, newConfigVersion bool, clusterType TestCluster) *keb.Cluster {
+func NewCluster(t *testing.T, runtimeID string, clusterVersion uint64, newConfigVersion bool, clusterType Cluster) *keb.Cluster {
 	cluster := &keb.Cluster{}
 	err := json.Unmarshal(clusterType, cluster)
 	require.NoError(t, err)

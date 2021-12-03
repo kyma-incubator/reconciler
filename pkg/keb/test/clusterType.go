@@ -1,9 +1,9 @@
 package test
 
-type TestCluster []byte
+type Cluster []byte
 
 var (
-	Production TestCluster = []byte(`{
+	Production Cluster = []byte(`{
   "runtimeID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5",
   "runtimeInput": {
     "name": "ad0d842",
@@ -283,7 +283,7 @@ var (
     "instanceID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5"
   }
 }`)
-	OneComponentDummy TestCluster = []byte(`{
+	OneComponentDummy Cluster = []byte(`{
 	"kymaConfig": {
 		"version": "1.2.3",
 		"profile": "",
@@ -317,7 +317,7 @@ var (
 		}
 	}
 }`)
-	ThreeComponentsDummy TestCluster = []byte(`{
+	ThreeComponentsDummy Cluster = []byte(`{
 	"kymaConfig": {
 		"version": "1.2.3",
 		"profile": "",
