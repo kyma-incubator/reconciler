@@ -44,14 +44,12 @@ func (a *CommandActions) InstallIfOther(context *service.ActionContext, app *app
 			unstructured.GetName() != "" && unstructured.GetName() == app.Name &&
 			unstructured.GetKind() != "" && unstructured.GetKind() == "StatefulSet"
 	}, context.ChartProvider, context.Task)
-
 	if err != nil {
 		return err
 	}
 
-	if found != nil &&
-		(found.GetLabels() == nil || found.GetLabels()["release"] == "" ||
-			app.GetLabels() == nil || app.GetLabels()["release"] == "") {
+	if found != nil && (found.GetLabels() == nil || found.GetLabels()["release"] == "" ||
+		app.GetLabels() == nil || app.GetLabels()["release"] == "") {
 
 		return errors.New("Invalid state, missing release label")
 	}
