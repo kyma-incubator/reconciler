@@ -74,7 +74,7 @@ func requirecReconciliationEntity(t *testing.T, reconRepo reconciliation.Reposit
 	require.Equal(t, recons[0].RuntimeID, state.Cluster.RuntimeID)
 	ops, err := reconRepo.GetOperations(recons[0].SchedulingID)
 	require.NoError(t, err)
-	require.Len(t, ops, 2)
+	require.Len(t, ops, 3)
 	require.Equal(t, ops[0].RuntimeID, state.Cluster.RuntimeID)
 }
 
