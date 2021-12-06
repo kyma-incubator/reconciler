@@ -8,6 +8,64 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 )
 
+type FilterMixer struct {
+	Filters []Filter
+}
+
+func (fm *FilterMixer) FilterByQuery(q *db.Select) error {
+	for i := range fm.Filters {
+		if err := fm.Filters[i].FilterByQuery(q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (fm *FilterMixer) FilterByInstance(re *model.ReconciliationEntity) *model.ReconciliationEntity {
+	entity := re
+	for i := range fm.Filters {
+		if entity == nil {
+			break
+		}
+		entity = fm.Filters[i].FilterByInstance(entity)
+	}
+	return entity
+}
+
+type Limit struct {
+	Count       int
+	actualCount int
+}
+
+func (l *Limit) FilterByQuery(q *db.Select) error {
+	q.Limit(l.Count)
+	return nil
+}
+
+func (l *Limit) FilterByInstance(re *model.ReconciliationEntity) *model.ReconciliationEntity {
+	if l.actualCount < l.Count {
+		l.actualCount++
+		return re
+	}
+	return nil
+}
+
+type WithCreationDateAfter struct {
+	Time time.Time
+}
+
+func (wd *WithCreationDateAfter) FilterByQuery(q *db.Select) error {
+	q.WhereRaw("created>$1", wd.Time.Format("2006-01-02 15:04:05.000"))
+	return nil
+}
+
+func (wd *WithCreationDateAfter) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
+	if i.Created.After(wd.Time) {
+		return i
+	}
+	return nil
+}
+
 type WithCreationDateBefore struct {
 	Time time.Time
 }

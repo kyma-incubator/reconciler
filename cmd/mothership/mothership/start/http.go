@@ -324,11 +324,64 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		runtimeIDs = []string{}
 	}
 
+	filters := []reconciliation.Filter{
+		&reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs},
+	}
+
+	//add filters
+	if after := r.URL.Query().Get(paramAfter); after != "" {
+		t, err := time.Parse(paramTimeFormat, after)
+		if err != nil {
+			server.SendHTTPError(
+				w,
+				http.StatusBadRequest,
+				&keb.BadRequest{Error: err.Error()},
+			)
+			return
+		}
+
+		filters = append(filters, &reconciliation.WithCreationDateAfter{
+			Time: t,
+		})
+	}
+
+	if before := r.URL.Query().Get(paramBefore); before != "" {
+		t, err := time.Parse(paramTimeFormat, before)
+		if err != nil {
+			server.SendHTTPError(
+				w,
+				http.StatusBadRequest,
+				&keb.BadRequest{Error: err.Error()},
+			)
+			return
+		}
+
+		filters = append(filters, &reconciliation.WithCreationDateBefore{
+			Time: t,
+		})
+	}
+
+	if l := r.URL.Query().Get(paramLast); l != "" {
+		l, err := strconv.Atoi(l)
+		if err != nil {
+			server.SendHTTPError(
+				w,
+				http.StatusBadRequest,
+				&keb.BadRequest{Error: err.Error()},
+			)
+			return
+		}
+
+		filters = append(filters, &reconciliation.Limit{
+			Count: l,
+		})
+	}
+
 	// Fetch all reconciliation entitlies base on runtime id
 	reconciles, err := o.Registry.
 		ReconciliationRepository().
 		GetReconciliations(
-			&reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs},
+			&reconciliation.FilterMixer{Filters: filters},
 		)
 
 	if err != nil {
@@ -355,48 +408,6 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 			Status:       keb.Status(reconcile.Status),
 			Updated:      reconcile.Updated,
 		})
-	}
-
-	//filter by time
-	if after := r.URL.Query().Get(paramAfter); after != "" {
-		t, err := time.Parse(paramTimeFormat, after)
-		if err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusBadRequest,
-				&keb.BadRequest{Error: err.Error()},
-			)
-			return
-		}
-
-		results = filterReconciliationsAfter(t, results)
-	}
-
-	if before := r.URL.Query().Get(paramBefore); before != "" {
-		t, err := time.Parse(paramTimeFormat, before)
-		if err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusBadRequest,
-				&keb.BadRequest{Error: err.Error()},
-			)
-			return
-		}
-
-		results = filterReconciliationsBefore(t, results)
-	}
-
-	if l := r.URL.Query().Get(paramLast); l != "" {
-		l, err := strconv.Atoi(l)
-		if err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusBadRequest,
-				&keb.BadRequest{Error: err.Error()},
-			)
-			return
-		}
-		results = filterReconciliationsTail(results, l)
 	}
 
 	//respond
