@@ -292,87 +292,50 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 	// define variables
+	var filters []reconciliation.Filter
 	var statuses, runtimeIDs []string
 	var ok bool
 
-	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; !ok {
-		runtimeIDs = []string{}
+	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; ok {
+		filters = append(filters, &reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs})
 	}
 
-	filters := []reconciliation.Filter{
-		&reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs},
-	}
-
-	if statuses, ok = r.URL.Query()[paramStatus]; !ok {
-		statuses = []string{}
-	}
-
-	// validate statuses
-	for _, statusStr := range statuses {
-		if _, err := keb.ToStatus(statusStr); err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusBadRequest,
-				&keb.BadRequest{Error: err.Error()},
-			)
+	if statuses, ok = r.URL.Query()[paramStatus]; ok {
+		if err := validateStatuses(statuses); err != nil {
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 			return
 		}
+		filters = append(filters, &reconciliation.WithStatuses{Statuses: statuses})
 	}
 
-	filters = append(filters, &reconciliation.WithStatuses{
-		Statuses: statuses,
-	})
-
-	//add filters
 	if after := r.URL.Query().Get(paramAfter); after != "" {
 		t, err := time.Parse(paramTimeFormat, after)
 		if err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusBadRequest,
-				&keb.BadRequest{Error: err.Error()},
-			)
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 			return
 		}
-
-		filters = append(filters, &reconciliation.WithCreationDateAfter{
-			Time: t,
-		})
+		filters = append(filters, &reconciliation.WithCreationDateAfter{Time: t})
 	}
 
 	if before := r.URL.Query().Get(paramBefore); before != "" {
 		t, err := time.Parse(paramTimeFormat, before)
 		if err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusBadRequest,
-				&keb.BadRequest{Error: err.Error()},
-			)
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 			return
 		}
-
-		filters = append(filters, &reconciliation.WithCreationDateBefore{
-			Time: t,
-		})
+		filters = append(filters, &reconciliation.WithCreationDateBefore{Time: t})
 	}
 
 	if l := r.URL.Query().Get(paramLast); l != "" {
 		l, err := strconv.Atoi(l)
 		if err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusBadRequest,
-				&keb.BadRequest{Error: err.Error()},
-			)
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 			return
 		}
-
-		filters = append(filters, &reconciliation.Limit{
-			Count: l,
-		})
+		filters = append(filters, &reconciliation.Limit{Count: l})
 	}
 
-	// Fetch all reconciliation entitlies base on runtime id
+	// Fetch all reconciliation entitlies
 	reconciles, err := o.Registry.
 		ReconciliationRepository().
 		GetReconciliations(
