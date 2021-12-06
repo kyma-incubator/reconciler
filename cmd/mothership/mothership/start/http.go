@@ -4,15 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/internal/converters"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
-
+	"github.com/kyma-incubator/reconciler/internal/converters"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
@@ -20,6 +19,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 
 	"github.com/gorilla/mux"
@@ -39,6 +39,10 @@ const (
 	paramStatus     = "status"
 	paramRuntimeIDs = "runtimeID"
 	paramCluster    = "cluster"
+	paramBefore     = "before"
+	paramAfter      = "after"
+	paramLast       = "last"
+	paramTimeFormat = time.RFC3339
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
@@ -286,45 +290,56 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
 }
 
-func contains(slice []string, value string) bool {
-	for _, v := range slice {
-		if v == value {
-			return true
-		}
-	}
-	return false
-}
-
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 	// define variables
+	var filters []reconciliation.Filter
 	var statuses, runtimeIDs []string
 	var ok bool
 
-	if statuses, ok = r.URL.Query()[paramStatus]; !ok {
-		statuses = []string{}
+	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; ok {
+		filters = append(filters, &reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs})
 	}
 
-	// validate statuses
-	for _, statusStr := range statuses {
-		if _, err := keb.ToStatus(statusStr); err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusBadRequest,
-				&keb.BadRequest{Error: err.Error()},
-			)
+	if statuses, ok = r.URL.Query()[paramStatus]; ok {
+		if err := validateStatuses(statuses); err != nil {
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 			return
 		}
+		filters = append(filters, &reconciliation.WithStatuses{Statuses: statuses})
 	}
 
-	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; !ok {
-		runtimeIDs = []string{}
+	if after := r.URL.Query().Get(paramAfter); after != "" {
+		t, err := time.Parse(paramTimeFormat, after)
+		if err != nil {
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+			return
+		}
+		filters = append(filters, &reconciliation.WithCreationDateAfter{Time: t})
 	}
 
-	// Fetch all reconciliation entitlies base on runtime id
+	if before := r.URL.Query().Get(paramBefore); before != "" {
+		t, err := time.Parse(paramTimeFormat, before)
+		if err != nil {
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+			return
+		}
+		filters = append(filters, &reconciliation.WithCreationDateBefore{Time: t})
+	}
+
+	if l := r.URL.Query().Get(paramLast); l != "" {
+		l, err := strconv.Atoi(l)
+		if err != nil {
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+			return
+		}
+		filters = append(filters, &reconciliation.Limit{Count: l})
+	}
+
+	// Fetch all reconciliation entitlies
 	reconciles, err := o.Registry.
 		ReconciliationRepository().
 		GetReconciliations(
-			&reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs},
+			&reconciliation.FilterMixer{Filters: filters},
 		)
 
 	if err != nil {
@@ -339,10 +354,6 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 	results := []keb.Reconciliation{}
 
 	for _, reconcile := range reconciles {
-		if len(statuses) != 0 && !contains(statuses, string(reconcile.Status)) {
-			continue
-		}
-
 		results = append(results, keb.Reconciliation{
 			Created:      reconcile.Created,
 			Lock:         reconcile.Lock,

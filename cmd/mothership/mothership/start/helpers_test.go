@@ -60,3 +60,38 @@ func Test_components(t *testing.T) {
 		})
 	}
 }
+
+func Test_validateStatuses(t *testing.T) {
+	tests := []struct {
+		name     string
+		statuses []string
+		wantErr  bool
+	}{
+		{
+			name:    "ok with empty statuses",
+			wantErr: false,
+		},
+		{
+			name: "ok with a few statuses",
+			statuses: []string{
+				"ready", "delete_error", "delete_pending", "deleted",
+			},
+			wantErr: false,
+		},
+		{
+			name: "wrong status",
+			statuses: []string{
+				"super_wrong_status",
+			},
+			wantErr: true,
+		},
+	}
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			if err := validateStatuses(tt.statuses); (err != nil) != tt.wantErr {
+				t.Errorf("validateStatuses() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
