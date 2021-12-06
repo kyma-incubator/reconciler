@@ -70,10 +70,16 @@ func TestQuery(t *testing.T) {
 		require.Equal(t, fmt.Sprintf("DELETE FROM mockTable WHERE col_1 IN (%s)", subQ), conn.query)
 	})
 
-	t.Run("Update", func(t *testing.T) {
+	t.Run("Update Where", func(t *testing.T) {
 		err = q.Update().Where(map[string]interface{}{"Col1": "col1Value", "Col3": "col3Value"}).Exec()
 		require.NoError(t, err)
 		require.Equal(t, "UPDATE mockTable SET col_1=$1, col_3=$2 WHERE col_1=$3 AND col_3=$4 RETURNING col_1, col_2, col_3", conn.query)
+	})
+
+	t.Run("Update Where Not", func(t *testing.T) {
+		err = q.Update().WhereNot(map[string]interface{}{"Col1": "col1Value", "Col3": "col3Value"}).Exec()
+		require.NoError(t, err)
+		require.Equal(t, "UPDATE mockTable SET col_1=$1, col_3=$2 WHERE col_1!=$3 AND col_3!=$4 RETURNING col_1, col_2, col_3", conn.query)
 	})
 
 	t.Run("Update with Count", func(t *testing.T) {

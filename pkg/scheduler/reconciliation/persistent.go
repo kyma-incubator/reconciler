@@ -358,10 +358,6 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			return err
 		}
 
-		if err := operationAlreadyInState(op, state); err != nil && !allowInState {
-			return err
-		}
-
 		if op.State.IsFinal() {
 			return fmt.Errorf("cannot update state of operation '%s' to new state '%s' "+
 				"because operation is already in final state '%s'", op.Component, state, op.State)
@@ -386,6 +382,12 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			"CorrelationID": correlationID,
 			"SchedulingID":  schedulingID,
 			"State":         opStateOld, //ensure update will affect only operations which were not updated in between
+		}
+		update := q.Update().Where(whereCond)
+		if !allowInState {
+			update = update.WhereNot(map[string]interface{}{
+				"State":         state, //ensure update will affect only operations which do not have same status as the given one
+			})
 		}
 		cnt, err := q.Update().
 			Where(whereCond).
