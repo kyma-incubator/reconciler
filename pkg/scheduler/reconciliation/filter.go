@@ -24,10 +24,10 @@ func (fm *FilterMixer) FilterByQuery(q *db.Select) error {
 func (fm *FilterMixer) FilterByInstance(re *model.ReconciliationEntity) *model.ReconciliationEntity {
 	entity := re
 	for i := range fm.Filters {
+		entity = fm.Filters[i].FilterByInstance(entity)
 		if entity == nil {
 			break
 		}
-		entity = fm.Filters[i].FilterByInstance(entity)
 	}
 	return entity
 }
@@ -38,7 +38,7 @@ type Limit struct {
 }
 
 func (l *Limit) FilterByQuery(q *db.Select) error {
-	q.Limit(l.Count)
+	q.OrderBy(map[string]string{"Created": "DESC"}).Limit(l.Count)
 	return nil
 }
 
@@ -59,16 +59,21 @@ func (ws *WithStatuses) FilterByQuery(q *db.Select) error {
 		return nil
 	}
 
+	column, err := columnName(q, "Status")
+	if err != nil {
+		return err
+	}
+
 	var whereRaw string
+	argsOffset := q.NextPlaceholderCount()
 	for i := range ws.Statuses {
 		if i > 0 {
 			whereRaw = fmt.Sprintf("%s%s", whereRaw, " OR ")
 		}
-
-		whereRaw = fmt.Sprintf("%sstatus='%s'", whereRaw, ws.Statuses[i])
+		whereRaw = fmt.Sprintf("%s%s=$%d", whereRaw, column, argsOffset+i)
 	}
 
-	q.WhereRaw((whereRaw))
+	q.WhereRaw(whereRaw, toInterfaceSlice(ws.Statuses)...)
 
 	return nil
 }
@@ -91,7 +96,12 @@ type WithCreationDateAfter struct {
 }
 
 func (wd *WithCreationDateAfter) FilterByQuery(q *db.Select) error {
-	q.WhereRaw(fmt.Sprintf("created>'%s'", wd.Time.Format("2006-01-02 15:04:05.000")))
+	column, err := columnName(q, "Created")
+	if err != nil {
+		return err
+	}
+
+	q.WhereRaw(fmt.Sprintf("%s>$%d", column, q.NextPlaceholderCount()), wd.Time.Format("2006-01-02 15:04:05.000"))
 	return nil
 }
 
@@ -107,7 +117,12 @@ type WithCreationDateBefore struct {
 }
 
 func (wd *WithCreationDateBefore) FilterByQuery(q *db.Select) error {
-	q.WhereRaw(fmt.Sprintf("created<'%s'", wd.Time.Format("2006-01-02 15:04:05.000")))
+	column, err := columnName(q, "Created")
+	if err != nil {
+		return err
+	}
+
+	q.WhereRaw(fmt.Sprintf("%s<$%d", column, q.NextPlaceholderCount()), wd.Time.Format("2006-01-02 15:04:05.000"))
 	return nil
 }
 
@@ -147,12 +162,13 @@ func (wc *WithRuntimeIDs) FilterByQuery(q *db.Select) error {
 	}
 
 	var values string
+	argsOffset := q.NextPlaceholderCount()
 	for i := range wc.RuntimeIDs {
 		if i == runtimeIDsLen-1 {
-			values = fmt.Sprintf("%s$%d", values, i+1)
+			values = fmt.Sprintf("%s$%d", values, i+argsOffset)
 			break
 		}
-		values = fmt.Sprintf("%s$%d,", values, i+1)
+		values = fmt.Sprintf("%s$%d,", values, i+argsOffset)
 	}
 
 	runtimeIDs := toInterfaceSlice(wc.RuntimeIDs)
@@ -234,4 +250,12 @@ func (wc *WithClusterConfigStatus) FilterByInstance(i *model.ReconciliationEntit
 		return i
 	}
 	return nil
+}
+
+func columnName(q *db.Select, name string) (string, error) {
+	statusColHandler, err := db.NewColumnHandler(&model.ReconciliationEntity{}, q.Conn, q.Logger)
+	if err != nil {
+		return "", err
+	}
+	return statusColHandler.ColumnName(name)
 }
