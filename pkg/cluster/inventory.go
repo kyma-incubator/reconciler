@@ -49,11 +49,12 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 }
 
 func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int) (int, error) {
+	maxStatusHistoryLength := maxRetires * 5 //cluster can have three interims state between errors, thus 5 is more than enough
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
 		return 0, err
 	}
-	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(maxRetries * 5).GetMany()
+	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(maxStatusHistoryLength).GetMany()
 	if err != nil {
 		return 0, err
 	}
