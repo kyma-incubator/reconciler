@@ -65,8 +65,11 @@ func (ws *WithStatuses) FilterByQuery(q *db.Select) error {
 			whereRaw = fmt.Sprintf("%s%s", whereRaw, " OR ")
 		}
 
-		whereRaw = fmt.Sprintf("%sstatus=%s", whereRaw, ws.Statuses[i])
+		whereRaw = fmt.Sprintf("%sstatus='%s'", whereRaw, ws.Statuses[i])
 	}
+
+	q.WhereRaw((whereRaw))
+
 	return nil
 }
 
@@ -88,7 +91,7 @@ type WithCreationDateAfter struct {
 }
 
 func (wd *WithCreationDateAfter) FilterByQuery(q *db.Select) error {
-	q.WhereRaw("created>$1", wd.Time.Format("2006-01-02 15:04:05.000"))
+	q.WhereRaw(fmt.Sprintf("created>'%s'", wd.Time.Format("2006-01-02 15:04:05.000")))
 	return nil
 }
 
@@ -104,7 +107,7 @@ type WithCreationDateBefore struct {
 }
 
 func (wd *WithCreationDateBefore) FilterByQuery(q *db.Select) error {
-	q.WhereRaw("created<$1", wd.Time.Format("2006-01-02 15:04:05.000"))
+	q.WhereRaw(fmt.Sprintf("created<'%s'", wd.Time.Format("2006-01-02 15:04:05.000")))
 	return nil
 }
 
