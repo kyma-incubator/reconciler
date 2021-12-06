@@ -102,7 +102,7 @@ func (q *Query) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset
 	return args, nil
 }
 
-func (q *Query) addWhereNotCondition(whereCond map[string]interface{}, plcHdrOffset int) ([]interface{}, error) {
+func (u *Update) addWhereCondition(whereCond map[string]interface{}) ([]interface{}, error) {
 	var args []interface{}
 	var plcHdrIdx int
 
@@ -118,19 +118,62 @@ func (q *Query) addWhereNotCondition(whereCond map[string]interface{}, plcHdrOff
 	sort.Strings(fields)
 
 	//render WHERE condition
-	q.addWhere()
+	u.addWhere()
 	for _, field := range fields {
-		col, err := q.columnHandler.ColumnName(field)
+		col, err := u.columnHandler.ColumnName(field)
 		if err != nil {
 			return args, err
 		}
 		if plcHdrIdx > 0 {
-			q.buffer.WriteString(" AND")
+			u.buffer.WriteString(" AND")
 		}
 		plcHdrIdx++
-		q.buffer.WriteString(fmt.Sprintf(" %s!=$%d", col, plcHdrIdx+plcHdrOffset))
+		u.buffer.WriteString(fmt.Sprintf(" %s=$%d", col, plcHdrIdx+u.placeholderOffset))
 		args = append(args, whereCond[field])
 	}
+	u.placeholderOffset += plcHdrIdx
+	u.args = appendInterface(u.args, args)
+	return args, nil
+}
+
+func appendInterface(slice []interface{}, args []interface{}) []interface{}{
+	for _, arg := range args {
+		slice = append(slice, arg)
+	}
+	return slice
+}
+
+func (u *Update) addWhereNotCondition(whereCond map[string]interface{}) ([]interface{}, error) {
+	var args []interface{}
+	var plcHdrIdx int
+
+	if len(whereCond) == 0 {
+		return args, nil
+	}
+
+	//get sort list of fields
+	fields := make([]string, 0, len(whereCond))
+	for field := range whereCond {
+		fields = append(fields, field)
+	}
+	sort.Strings(fields)
+
+	//render WHERE condition
+	u.addWhere()
+	for _, field := range fields {
+		col, err := u.columnHandler.ColumnName(field)
+		if err != nil {
+			return args, err
+		}
+		if plcHdrIdx > 0 {
+			u.buffer.WriteString(" AND")
+		}
+		plcHdrIdx++
+		u.buffer.WriteString(fmt.Sprintf(" %s!=$%d", col, plcHdrIdx+u.placeholderOffset))
+		args = append(args, whereCond[field])
+	}
+	u.placeholderOffset += plcHdrIdx
+	u.args = appendInterface(u.args, args)
 	return args, nil
 }
 
@@ -338,12 +381,12 @@ type Update struct {
 }
 
 func (u *Update) Where(args map[string]interface{}) *Update {
-	u.args, u.err = u.addWhereCondition(args, u.placeholderOffset)
+	_, u.err = u.addWhereCondition(args)
 	return u
 }
 
 func (u *Update) WhereNot(args map[string]interface{}) *Update {
-	u.args, u.err = u.addWhereNotCondition(args, u.placeholderOffset)
+	_, u.err = u.addWhereNotCondition(args)
 	return u
 }
 
@@ -353,7 +396,7 @@ func (u *Update) ExecCount() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-
+	fmt.Printf("###### Query: %s, %v\n", u.buffer.String(), colVals)
 	rs, err := u.conn.Exec(u.buffer.String(), colVals...)
 	if err != nil {
 		return 0, err
