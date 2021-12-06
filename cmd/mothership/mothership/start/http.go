@@ -290,19 +290,18 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
 }
 
-func contains(slice []string, value string) bool {
-	for _, v := range slice {
-		if v == value {
-			return true
-		}
-	}
-	return false
-}
-
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 	// define variables
 	var statuses, runtimeIDs []string
 	var ok bool
+
+	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; !ok {
+		runtimeIDs = []string{}
+	}
+
+	filters := []reconciliation.Filter{
+		&reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs},
+	}
 
 	if statuses, ok = r.URL.Query()[paramStatus]; !ok {
 		statuses = []string{}
@@ -320,13 +319,9 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; !ok {
-		runtimeIDs = []string{}
-	}
-
-	filters := []reconciliation.Filter{
-		&reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs},
-	}
+	filters = append(filters, &reconciliation.WithStatuses{
+		Statuses: statuses,
+	})
 
 	//add filters
 	if after := r.URL.Query().Get(paramAfter); after != "" {
@@ -396,10 +391,6 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 	results := []keb.Reconciliation{}
 
 	for _, reconcile := range reconciles {
-		if len(statuses) != 0 && !contains(statuses, string(reconcile.Status)) {
-			continue
-		}
-
 		results = append(results, keb.Reconciliation{
 			Created:      reconcile.Created,
 			Lock:         reconcile.Lock,

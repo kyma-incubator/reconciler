@@ -50,6 +50,39 @@ func (l *Limit) FilterByInstance(re *model.ReconciliationEntity) *model.Reconcil
 	return nil
 }
 
+type WithStatuses struct {
+	Statuses []string
+}
+
+func (ws *WithStatuses) FilterByQuery(q *db.Select) error {
+	if len(ws.Statuses) < 1 {
+		return nil
+	}
+
+	var whereRaw string
+	for i := range ws.Statuses {
+		if i > 0 {
+			whereRaw = fmt.Sprintf("%s%s", whereRaw, " OR ")
+		}
+
+		whereRaw = fmt.Sprintf("%sstatus=%s", whereRaw, ws.Statuses[i])
+	}
+	return nil
+}
+
+func (ws *WithStatuses) FilterByInstance(re *model.ReconciliationEntity) *model.ReconciliationEntity {
+	if len(ws.Statuses) < 1 {
+		return nil
+	}
+
+	for i := range ws.Statuses {
+		if ws.Statuses[i] == string(re.Status) {
+			return re
+		}
+	}
+	return nil
+}
+
 type WithCreationDateAfter struct {
 	Time time.Time
 }
