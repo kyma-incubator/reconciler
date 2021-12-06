@@ -155,7 +155,9 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 		original = kube.ResourceList{
 			originalInfo,
 		}
-	} else if !k8serr.IsNotFound(err) {
+	}
+
+	if err != nil && !k8serr.IsNotFound(err) {
 		return nil, err
 	}
 
@@ -164,12 +166,6 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 	} else {
 		client.Update(original, target, true)
 	}
-
-	//replace := newReplace(helper)
-	//_, err = replace(u, u.GetNamespace(), u.GetName())
-	//if err != nil {
-	//	return metadata, err
-	//}
 
 	return metadata, nil
 }
