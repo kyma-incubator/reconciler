@@ -3,7 +3,11 @@
 package internal
 
 import (
+	"bytes"
 	"context"
+	"gopkg.in/yaml.v2"
+	"helm.sh/helm/v3/pkg/kube"
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
 	"go.uber.org/zap"
@@ -11,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/pkg/errors"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -25,10 +28,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util"
 )
 
-// metadata is an internal type to transfer data to the adapter
+// Metadata is an internal type to transfer data to the adapter
 type Metadata struct {
 	Name      string
 	Namespace string
@@ -82,8 +84,8 @@ func newForConfig(config *rest.Config) (*KubeClient, error) {
 	}, nil
 }
 
-func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*Metadata, error) {
-	return kube.ApplyWithNamespaceOverride(u, "")
+func (k *KubeClient) Apply(u *unstructured.Unstructured) (*Metadata, error) {
+	return k.ApplyWithNamespaceOverride(u, "")
 }
 
 // ApplyWithNamespaceOverride applies a given manifest with an optional namespace to override.
@@ -91,22 +93,22 @@ func (kube *KubeClient) Apply(u *unstructured.Unstructured) (*Metadata, error) {
 // If namespaceOverride is empty it will NOT override the namespace set on the manifest.
 // We only override the namespace if the manifest is NOT cluster scoped (i.e. a ClusterRole) and namespaceOverride is NOT an
 // empty string.
-func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, namespaceOverride string) (*Metadata, error) {
+func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, namespaceOverride string) (*Metadata, error) {
 	gvk := u.GroupVersionKind()
 	metadata := &Metadata{
 		Kind: gvk.Kind,
 		Name: u.GetName(),
 	}
 
-	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := k.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return nil, err
 	}
 
 	gv := gvk.GroupVersion()
-	kube.config.GroupVersion = &gv
+	k.config.GroupVersion = &gv
 
-	restClient, err := newRestClient(*kube.config, gv)
+	restClient, err := newRestClient(*k.config, gv)
 	if err != nil {
 		return nil, err
 	}
@@ -115,10 +117,31 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 
 	setDefaultNamespaceIfScopedAndNoneSet(namespaceOverride, u, helper)
 	setNamespaceIfScoped(namespaceOverride, u, helper)
-
 	metadata.Namespace = u.GetNamespace()
 
-	info := &resource.Info{
+	updateStrategyResolver := newDefaultUpdateStrategyResolver(helper)
+	strategy, err := updateStrategyResolver.Resolve(u)
+	if err != nil {
+		return metadata, err
+	}
+
+	//Create HELM client
+	client := kube.New(NewRESTClientGetter(k.config))
+
+	manifest, err := yaml.Marshal(u.Object)
+	if err != nil {
+		return nil, err
+	}
+	target, err := client.Build(bytes.NewBuffer(manifest), false)
+	if err != nil {
+		return nil, err
+	}
+
+	if strategy == SkipUpdateStrategy {
+		return metadata, nil
+	}
+
+	originalInfo := &resource.Info{
 		Client:          restClient,
 		Mapping:         restMapping,
 		Namespace:       u.GetNamespace(),
@@ -127,56 +150,36 @@ func (kube *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured,
 		ResourceVersion: restMapping.Resource.Version,
 	}
 
-	if err := info.Get(); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return metadata, err
+	var original kube.ResourceList
+	if originalInfo.Get() == nil {
+		original = kube.ResourceList{
+			originalInfo,
 		}
-
-		// Then create the resource and skip the three-way merge
-		_, err := helper.Create(u.GetNamespace(), true, u)
-		if err != nil {
-			return metadata, err
-		}
-		return metadata, nil
-	}
-
-	updateStrategyResolver := newDefaultUpdateStrategyResolver(helper)
-
-	strategy, err := updateStrategyResolver.Resolve(u)
-	if err != nil {
-		return metadata, err
-	}
-
-	if strategy == SkipUpdateStrategy {
-		return metadata, nil
+	} else if !k8serr.IsNotFound(err) {
+		return nil, err
 	}
 
 	if strategy == PatchUpdateStrategy {
-		patcher := newPatcher(info, helper)
-		modified, err := util.GetModifiedConfiguration(info.Object, true, unstructured.UnstructuredJSONScheme)
-		if err != nil {
-			return metadata, err
-		}
-		//avoid bug with patching
-		_, _, err = patcher.Patch(info.Object, modified, info.Namespace, info.Name)
-		return metadata, err
+		client.Update(original, target, false)
+	} else {
+		client.Update(original, target, true)
 	}
 
-	replace := newReplace(helper)
-	_, err = replace(u, u.GetNamespace(), u.GetName())
-	if err != nil {
-		return metadata, err
-	}
+	//replace := newReplace(helper)
+	//_, err = replace(u, u.GetNamespace(), u.GetName())
+	//if err != nil {
+	//	return metadata, err
+	//}
 
 	return metadata, nil
 }
 
-func (kube *KubeClient) GetClientSet() (*kubernetes.Clientset, error) {
-	return kubernetes.NewForConfig(kube.config)
+func (k *KubeClient) GetClientSet() (*kubernetes.Clientset, error) {
+	return kubernetes.NewForConfig(k.config)
 }
 
-func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*Metadata, error) {
-	gvk, err := kube.mapper.KindFor(schema.GroupVersionResource{
+func (k *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*Metadata, error) {
+	gvk, err := k.mapper.KindFor(schema.GroupVersionResource{
 		Resource: kind,
 	})
 	if err != nil {
@@ -189,12 +192,12 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 		namespace = "default"
 	}
 
-	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := k.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return nil, err
 	}
 
-	restClient, err := newRestClient(*kube.config, gvk.GroupVersion())
+	restClient, err := newRestClient(*k.config, gvk.GroupVersion())
 	if err != nil {
 		return nil, err
 	}
@@ -202,12 +205,12 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 	helper := resource.NewHelper(restClient, restMapping)
 
 	if helper.NamespaceScoped {
-		err = kube.dynamicClient.
+		err = k.dynamicClient.
 			Resource(restMapping.Resource).
 			Namespace(namespace).
 			Delete(context.TODO(), name, do)
 	} else {
-		err = kube.dynamicClient.
+		err = k.dynamicClient.
 			Resource(restMapping.Resource).
 			Delete(context.TODO(), name, do)
 	}
@@ -225,18 +228,18 @@ func (kube *KubeClient) DeleteResourceByKindAndNameAndNamespace(kind, name, name
 
 // Get a manifest by resource/kind (example: 'pods' or 'pod'),
 // name (example: 'my-pod'), and namespace (example: 'my-namespace').
-func (kube *KubeClient) Get(kind, name, namespace string) (*unstructured.Unstructured, error) {
-	gvk, err := kube.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
+func (k *KubeClient) Get(kind, name, namespace string) (*unstructured.Unstructured, error) {
+	gvk, err := k.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
 	if err != nil {
 		return nil, err
 	}
 
-	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := k.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return nil, err
 	}
 
-	restClient, err := newRestClient(*kube.config, gvk.GroupVersion())
+	restClient, err := newRestClient(*k.config, gvk.GroupVersion())
 	if err != nil {
 		return nil, err
 	}
@@ -245,12 +248,12 @@ func (kube *KubeClient) Get(kind, name, namespace string) (*unstructured.Unstruc
 
 	helper := resource.NewHelper(restClient, restMapping)
 	if helper.NamespaceScoped {
-		u, err = kube.dynamicClient.
+		u, err = k.dynamicClient.
 			Resource(restMapping.Resource).
 			Namespace(namespace).
 			Get(context.TODO(), name, metav1.GetOptions{})
 	} else {
-		u, err = kube.dynamicClient.
+		u, err = k.dynamicClient.
 			Resource(restMapping.Resource).
 			Get(context.TODO(), name, metav1.GetOptions{})
 	}
@@ -259,31 +262,31 @@ func (kube *KubeClient) Get(kind, name, namespace string) (*unstructured.Unstruc
 }
 
 // ListResource lists all resources by their kind or resource (e.g. "replicaset" or "replicasets").
-func (kube *KubeClient) ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
-	gvr, err := kube.mapper.ResourceFor(schema.GroupVersionResource{Resource: resource})
+func (k *KubeClient) ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	gvr, err := k.mapper.ResourceFor(schema.GroupVersionResource{Resource: resource})
 	if err != nil {
 		return nil, err
 	}
-	return kube.dynamicClient.Resource(gvr).List(context.TODO(), lo)
+	return k.dynamicClient.Resource(gvr).List(context.TODO(), lo)
 }
 
-func (kube *KubeClient) Patch(kind, name, namespace string, p []byte) (*Metadata, *unstructured.Unstructured, error) {
-	return kube.PatchUsingStrategy(kind, name, namespace, p, types.StrategicMergePatchType)
+func (k *KubeClient) Patch(kind, name, namespace string, p []byte) (*Metadata, *unstructured.Unstructured, error) {
+	return k.PatchUsingStrategy(kind, name, namespace, p, types.StrategicMergePatchType)
 }
 
-func (kube *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) (*Metadata, *unstructured.Unstructured, error) {
+func (k *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) (*Metadata, *unstructured.Unstructured, error) {
 	metadata := &Metadata{}
-	gvk, err := kube.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
+	gvk, err := k.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
 	if err != nil {
 		return metadata, nil, err
 	}
 
-	restMapping, err := kube.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	restMapping, err := k.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
 		return metadata, nil, err
 	}
 
-	restClient, err := newRestClient(*kube.config, gvk.GroupVersion())
+	restClient, err := newRestClient(*k.config, gvk.GroupVersion())
 	if err != nil {
 		return metadata, nil, err
 	}
@@ -293,12 +296,12 @@ func (kube *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byt
 	var u *unstructured.Unstructured
 
 	if helper.NamespaceScoped {
-		u, err = kube.dynamicClient.
+		u, err = k.dynamicClient.
 			Resource(restMapping.Resource).
 			Namespace(namespace).
 			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
 	} else {
-		u, err = kube.dynamicClient.
+		u, err = k.dynamicClient.
 			Resource(restMapping.Resource).
 			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
 	}
@@ -319,8 +322,8 @@ func (kube *KubeClient) PatchUsingStrategy(kind, name, namespace string, p []byt
 	return metadata, u, err
 }
 
-func (kube *KubeClient) DeleteNamespace(namespace string) error {
-	getter := NewRESTClientGetter(kube.config)
+func (k *KubeClient) DeleteNamespace(namespace string) error {
+	getter := NewRESTClientGetter(k.config)
 	factory := cmdutil.NewFactory(getter)
 	r := factory.NewBuilder().
 		Unstructured().
@@ -339,19 +342,19 @@ func (kube *KubeClient) DeleteNamespace(namespace string) error {
 	}
 	if len(infos) == 0 {
 		namespaceRes := schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
-		err = kube.dynamicClient.
+		err = k.dynamicClient.
 			Resource(namespaceRes).
 			Delete(context.TODO(), namespace, metav1.DeleteOptions{})
 	}
 	return err
 }
 
-func (kube *KubeClient) GetHost() string {
-	if kube.config == nil {
+func (k *KubeClient) GetHost() string {
+	if k.config == nil {
 		return ""
 	}
 
-	return kube.config.Host
+	return k.config.Host
 }
 
 func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
