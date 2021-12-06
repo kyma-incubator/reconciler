@@ -27,14 +27,6 @@ const (
 	namespaceTimeout   = 6 * time.Minute  //Expose as a configuration option if necessary
 )
 
-var (
-	crdGvr = schema.GroupVersionResource{
-		Group:    "apiextensions.k8s.io",
-		Version:  "v1",
-		Resource: "customresourcedefinitions",
-	}
-)
-
 const (
 	crLabelReconciler = "reconciler.kyma-project.io/managed-by=reconciler"
 	crLabelIstio      = "install.operator.istio.io/owning-resource-namespace=istio-system"
@@ -271,12 +263,13 @@ func (cmd *CliCleaner) waitForNamespaces() error {
 	cmd.logger.Info("Waiting for Namespace deletion")
 
 	timeout := time.After(cmd.namespaceTimeout)
-	poll := time.Tick(6 * time.Second)
+	poll := time.NewTicker(6 * time.Second)
+	defer poll.Stop()
 	for {
 		select {
 		case <-timeout:
 			return errors.New("Timed out while waiting for Namespace deletion")
-		case <-poll:
+		case <-poll.C:
 			if err := cmd.removeFinalizers(); err != nil {
 				return err
 			}
@@ -323,36 +316,6 @@ func (cmd *CliCleaner) checkKymaNamespaces() (bool, error) {
 	cmd.logger.Info("No remaining Kyma Namespaces found")
 
 	return true, nil
-}
-
-func (cmd *CliCleaner) deleteKymaCRDs() error {
-	cmd.logger.Info("Deleting CRDs")
-
-	err := cmd.deleteCRDsByLabelWithRetry(crLabelReconciler)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to delete resource")
-	}
-
-	err = cmd.deleteCRDsByLabelWithRetry(crLabelIstio)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to delete resource")
-	}
-
-	cmd.logger.Info("Removed Kyma CRDs")
-
-	return nil
-}
-
-func (cmd *CliCleaner) deleteCRDsByLabelWithRetry(labelSelector string) error {
-
-	cmd.logger.Info(fmt.Sprintf("Deleting CRD by label: \"%s\"", labelSelector))
-
-	return retry.Do(func() error {
-		if err := cmd.k8s.Dynamic().Resource(crdGvr).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: labelSelector}); err != nil {
-			return errors.Wrap(err, "Error occurred during resources delete: ")
-		}
-		return nil
-	})
 }
 
 func contains(items []string, item string) bool {

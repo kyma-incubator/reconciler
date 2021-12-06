@@ -12,10 +12,14 @@ import (
 
 const (
 	CRDComponent            = "CRDs"
+	CleanupComponent        = "cleaner"
 	tblConfiguration string = "inventory_cluster_configs"
 )
 
-var crdComponent = &keb.Component{Component: CRDComponent, Namespace: "default"}
+var (
+	crdComponent     = &keb.Component{Component: CRDComponent, Namespace: "default"}
+	cleanupComponent = &keb.Component{Component: CleanupComponent, Namespace: "default"}
+)
 
 type ClusterConfigurationEntity struct {
 	Version        int64            `db:"readOnly"`
@@ -114,8 +118,10 @@ func newReconciliationSequence(preComponents [][]string) *ReconciliationSequence
 		preComponents: preComponents,
 	}
 	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning
-		crdComponent,
+		//TODO: These are executed in parallel, take care of the proper order in the final implementation.
+		crdComponent, cleanupComponent,
 	})
+
 	return reconSeq
 }
 
