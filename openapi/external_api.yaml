@@ -89,6 +89,23 @@ paths:
             items:
               type: string
               format: uuid
+        - name: before
+          required: false
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: after
+          required: false
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: last
+          required: false
+          in: query
+          schema:
+            type: integer
         - name: status
           required: false
           in: query
