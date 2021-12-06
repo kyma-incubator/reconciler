@@ -44,11 +44,10 @@ func TestSetNamespaceIfScoped(t *testing.T) {
 }
 
 const (
-	namespace    = "kubeclient-test"
-	replacements = 3
+	namespace = "kubeclient-test"
 )
 
-func TestKubeclient(t *testing.T) {
+func TestPatchReplace(t *testing.T) {
 	test.IntegrationTest(t)
 
 	t.Parallel()
@@ -56,32 +55,37 @@ func TestKubeclient(t *testing.T) {
 	kubeClient, err := NewKubeClient(test.ReadKubeconfig(t), logger.NewLogger(true))
 	require.NoError(t, err)
 
-	unstructs, err := ToUnstructured(readFile(t, filepath.Join("test", "manifest.yaml")), true)
-	require.NoError(t, err)
-
 	deleteNamespace(t, kubeClient, true)
 	defer deleteNamespace(t, kubeClient, false)
 
-	for _, unstruct := range unstructs {
-		t.Run(fmt.Sprintf("Replacing %s", unstruct.GetName()), newTestFunc(kubeClient, unstruct))
+	for idxManifest, manifest := range []string{
+		"manifest-before.yaml",
+		"manifest-after.yaml",
+		"manifest-before.yaml",
+		"manifest-after.yaml"} {
+		unstructs, err := ToUnstructured(readFile(t, filepath.Join("test", manifest)), true)
+		require.NoError(t, err)
+		for idxUnstruct, unstruct := range unstructs {
+			t.Run(
+				fmt.Sprintf("Applying %s", unstruct.GetName()),
+				newTestFunc(kubeClient, unstruct, fmt.Sprintf("%d_%d", idxManifest, idxUnstruct)))
+		}
 	}
 
 }
 
-func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured) func(t *testing.T) {
+func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, label string) func(t *testing.T) {
 	return func(t *testing.T) {
-		for i := 0; i <= replacements; i++ {
-			if i > 0 {
-				time.Sleep(1 * time.Second)
-				t.Logf("Replacing %s the %d time", unstruct.GetKind(), i)
-				unstruct.SetLabels(map[string]string{"replacements": fmt.Sprintf("%d", i)})
-			}
-			_, err := kubeClient.Apply(unstruct)
-			require.NoError(t, err)
-		}
-		k8sResourceUnstruct, err := kubeClient.Get(unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
+		t.Logf("Applying %s and setting label %s", unstruct.GetKind(), label)
+		unstruct.SetLabels(map[string]string{"applied": label})
+
+		_, err := kubeClient.Apply(unstruct)
 		require.NoError(t, err)
-		require.Equal(t, fmt.Sprintf("%d", replacements), k8sResourceUnstruct.GetLabels()["replacements"])
+
+		k8sResourceUnstruct, err := kubeClient.Get(unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
+
+		require.NoError(t, err)
+		require.Equal(t, label, k8sResourceUnstruct.GetLabels()["applied"])
 	}
 }
 
