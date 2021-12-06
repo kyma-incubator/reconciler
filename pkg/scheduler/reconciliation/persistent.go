@@ -386,12 +386,11 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		update := q.Update().Where(whereCond)
 		if !allowInState {
 			update = update.WhereNot(map[string]interface{}{
-				"State":         state, //ensure update will affect only operations which do not have same status as the given one
+				"State": state, //ensure update will affect only operations which do not have same status as the given one
 			})
 		}
-		cnt, err := q.Update().
-			Where(whereCond).
-			ExecCount()
+		fmt.Println(update.String())
+		cnt, err := update.ExecCount()
 
 		if cnt == 0 {
 			return fmt.Errorf("update of operation '%s' to state '%s' failed: no row was updated "+

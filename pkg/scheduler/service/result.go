@@ -10,17 +10,17 @@ import (
 )
 
 type ReconciliationResult struct {
-	logger        *zap.SugaredLogger
-	reconEntity   *model.ReconciliationEntity
-	done          []*model.OperationEntity
-	error         []*model.OperationEntity
-	other         []*model.OperationEntity
+	logger      *zap.SugaredLogger
+	reconEntity *model.ReconciliationEntity
+	done        []*model.OperationEntity
+	error       []*model.OperationEntity
+	other       []*model.OperationEntity
 }
 
 func newReconciliationResult(reconEntity *model.ReconciliationEntity, logger *zap.SugaredLogger) *ReconciliationResult {
 	return &ReconciliationResult{
-		logger:        logger,
-		reconEntity:   reconEntity,
+		logger:      logger,
+		reconEntity: reconEntity,
 	}
 }
 
