@@ -28,7 +28,14 @@ var justUpdate = func(*unstructured.Unstructured, *resource.Helper) (UpdateStrat
 	return PatchUpdateStrategy, nil
 }
 
-var skipUpdate = func(*unstructured.Unstructured, *resource.Helper) (UpdateStrategy, error) {
+var skipUpdate = func(u *unstructured.Unstructured, h *resource.Helper) (UpdateStrategy, error) {
+	_, err := h.Get(u.GetNamespace(), u.GetName())
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return PatchUpdateStrategy, nil
+		}
+		return "", err
+	}
 	return SkipUpdateStrategy, nil
 }
 
