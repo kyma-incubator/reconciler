@@ -502,6 +502,8 @@ components:
         - delete_error
         - deleting
         - deleted
+        - reconcile_error_retryable
+        - delete_error_retryable
 
     failure:
       type: object
