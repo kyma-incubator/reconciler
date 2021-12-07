@@ -15,7 +15,7 @@ const (
 	ClusterStatusReconcileDisabled       Status = "reconcile_disabled"
 	ClusterStatusReconciling             Status = "reconciling"
 	ClusterStatusReconcileError          Status = "error"
-	ClusterStatusReconcileErrorRetryable Status = "error_retryable"
+	ClusterStatusReconcileErrorRetryable Status = "reconcile_error_retryable"
 	ClusterStatusReady                   Status = "ready"
 )
 
