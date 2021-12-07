@@ -15,7 +15,7 @@ const (
 	ClusterStatusReconcileDisabled       Status = "reconcile_disabled"
 	ClusterStatusReconciling             Status = "reconciling"
 	ClusterStatusReconcileError          Status = "error"
-	ClusterStatusReconcileErrorRetryable Status = "error_retryable"
+	ClusterStatusReconcileErrorRetryable Status = "reconcile_error_retryable"
 	ClusterStatusReady                   Status = "ready"
 )
 
@@ -28,7 +28,7 @@ func (s Status) IsDeleteCandidate() bool {
 }
 
 func (s Status) IsReconcileCandidate() bool {
-	return s == ClusterStatusReconcilePending || s == ClusterStatusReady
+	return s == ClusterStatusReconcilePending || s == ClusterStatusReady || s == ClusterStatusReconcileErrorRetryable
 }
 
 func (s Status) IsFinal() bool {

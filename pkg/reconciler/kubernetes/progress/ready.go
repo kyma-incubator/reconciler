@@ -4,6 +4,7 @@ import (
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	appsclient "k8s.io/client-go/kubernetes/typed/apps/v1"
@@ -120,8 +121,32 @@ func getLatestReplicaSet(ctx context.Context, deployment *appsv1.Deployment, cli
 		return nil, nil
 	}
 
-	sort.Sort(replicaSetsByCreationTimestamp(ownedReplicaSets))
-	return ownedReplicaSets[len(ownedReplicaSets)-1], nil
+	return findNewReplicaSet(deployment, ownedReplicaSets), nil
+}
+
+// findNewReplicaSet returns the new RS this given deployment targets (the one with the same pod template).
+func findNewReplicaSet(deployment *appsv1.Deployment, rsList []*appsv1.ReplicaSet) *appsv1.ReplicaSet {
+	sort.Sort(replicaSetsByCreationTimestamp(rsList))
+	for i := range rsList {
+		if equalIgnoreHash(&rsList[i].Spec.Template, &deployment.Spec.Template) {
+			// In rare cases, such as after cluster upgrades, Deployment may end up with
+			// having more than one new ReplicaSets that have the same template as its template,
+			// see https://github.com/kubernetes/kubernetes/issues/40415
+			// We deterministically choose the oldest new ReplicaSet.
+			return rsList[i]
+		}
+	}
+	// new ReplicaSet does not exist.
+	return nil
+}
+
+func equalIgnoreHash(template1, template2 *corev1.PodTemplateSpec) bool {
+	t1Copy := template1.DeepCopy()
+	t2Copy := template2.DeepCopy()
+	// Remove hash labels from template.Labels before comparing
+	delete(t1Copy.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+	delete(t2Copy.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
 }
 
 type replicaSetsByCreationTimestamp []*appsv1.ReplicaSet
