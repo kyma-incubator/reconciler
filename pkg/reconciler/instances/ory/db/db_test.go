@@ -96,7 +96,7 @@ func TestDBSecret(t *testing.T) {
 		name := types.NamespacedName{Name: "test-postgres-secret", Namespace: "test"}
 		values, err := unmarshalTestValues(postgresYaml)
 		require.NoError(t, err)
-		cfg, errNew := newDBConfig(values)
+		cfg, errNew := NewDBConfig(values)
 		dsnExpected := cfg.preparePostgresDSN()
 
 		// when
@@ -116,7 +116,7 @@ func TestDBSecret(t *testing.T) {
 		name := types.NamespacedName{Name: "test-gcloud-secret", Namespace: "test"}
 		values, err := unmarshalTestValues(gcloudYaml)
 		require.NoError(t, err)
-		cfg, errNew := newDBConfig(values)
+		cfg, errNew := NewDBConfig(values)
 		dsnExpected := cfg.prepareGenericDSN()
 
 		// when
@@ -136,7 +136,7 @@ func TestDBSecret(t *testing.T) {
 		name := types.NamespacedName{Name: "test-mysqlDB-secret", Namespace: "test"}
 		values, err := unmarshalTestValues(mysqlDBYaml)
 		require.NoError(t, err)
-		cfg, errNew := newDBConfig(values)
+		cfg, errNew := NewDBConfig(values)
 		dsnExpected := cfg.prepareMySQLDSN()
 
 		// when
@@ -155,7 +155,7 @@ func TestDBSecret(t *testing.T) {
 		name := types.NamespacedName{Name: "test-customDB-secret", Namespace: "test"}
 		values, err := unmarshalTestValues(customDBYaml)
 		require.NoError(t, err)
-		cfg, errNew := newDBConfig(values)
+		cfg, errNew := NewDBConfig(values)
 		dsnExpected := cfg.prepareGenericDSN()
 
 		// when

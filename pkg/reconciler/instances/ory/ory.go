@@ -23,5 +23,8 @@ func init() {
 		}).
 		WithPostDeleteAction(&postDeleteAction{
 			&oryAction{step: "post-delete"},
+		}).
+		WithPostReconcileAction(&postReconcileAction{
+			&oryAction{step: "post-reconcile"},
 		})
 }

@@ -22,7 +22,7 @@ const (
 	InMemoryURL  = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
 )
 
-func newDBConfig(chartValues map[string]interface{}) (*Config, error) {
+func NewDBConfig(chartValues map[string]interface{}) (*Config, error) {
 	data, err := yaml.Marshal(chartValues)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to marshal Ory chart values")
@@ -39,7 +39,7 @@ func newDBConfig(chartValues map[string]interface{}) (*Config, error) {
 // Get fetches Kubernetes Secret object with data matching the provided Helm values to the Reconciler.
 func Get(name types.NamespacedName, chartValues map[string]interface{}, logger *zap.SugaredLogger) (*v1.Secret, error) {
 	logger.Debugf("Fetching secret")
-	cfg, err := newDBConfig(chartValues)
+	cfg, err := NewDBConfig(chartValues)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func Get(name types.NamespacedName, chartValues map[string]interface{}, logger *
 
 // Update overwrites secret with new values from config and returns true if secret was changed
 func Update(chartValues map[string]interface{}, secret *v1.Secret, logger *zap.SugaredLogger) (data map[string]string, err error) {
-	cfg, err := newDBConfig(chartValues)
+	cfg, err := NewDBConfig(chartValues)
 	if err != nil {
 		return data, err
 	}
@@ -114,11 +114,11 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 
 func (c *Config) updateMemoryConfig(secret *v1.Secret, logger *zap.SugaredLogger) (secretData map[string]string) {
 	if string(secret.Data["dsn"]) == InMemoryURL {
-		logger.Info("Ory Hydra persistence is already disabled")
+		logger.Debug("Ory Hydra persistence is already disabled")
 		return secretData
 	}
 
-	logger.Info("Disabling persistence for Ory Hydra")
+	logger.Debug("Disabling persistence for Ory Hydra")
 	return c.generateSecretDataMemory()
 }
 

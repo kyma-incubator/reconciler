@@ -19,10 +19,13 @@ import (
 )
 
 const (
-	oryChart     = "ory"
-	oryNamespace = "kyma-system"
-	jwksAlg      = "RSA256"
-	jwksBits     = 2048
+	oryChart               = "ory"
+	oryNamespace           = "kyma-system"
+	jwksAlg                = "RSA256"
+	jwksBits               = 2048
+	hydraLabel             = "app.kubernetes.io/name=hydra"
+	hydraMaesterLabel      = "app.kubernetes.io/name=hydra-maester"
+	hydraMaesterDeployment = "ory-hydra-maester"
 )
 
 type oryAction struct {
@@ -30,6 +33,10 @@ type oryAction struct {
 }
 
 type preReconcileAction struct {
+	*oryAction
+}
+
+type postReconcileAction struct {
 	*oryAction
 }
 
@@ -41,6 +48,34 @@ var (
 	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: oryNamespace}
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
 )
+
+func (a *postReconcileAction) Run(context *service.ActionContext) error {
+	logger := context.Logger
+	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
+		WithNamespace(oryNamespace).
+		WithProfile(context.Task.Profile).
+		WithConfiguration(context.Task.Configuration).Build()
+
+	chartValues, err := context.ChartProvider.Configuration(component)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve Ory chart values")
+	}
+	client, err := context.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
+	}
+	cfg, err := db.NewDBConfig(chartValues)
+	if err != nil {
+		return errors.Wrap(err, "unable to marshal Ory chart values")
+	}
+	if !cfg.Global.Ory.Hydra.Persistence.Enabled {
+		err = triggerHydraSynchronization(context, client, logger)
+		if err != nil {
+			return errors.Wrap(err, "failed to trigger hydra sychronization")
+		}
+	}
+	return nil
+}
 
 func (a *preReconcileAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
@@ -182,6 +217,7 @@ func (a *preReconcileAction) rolloutHydraDeployment(ctx context.Context, client 
 	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
 
 	_, err := client.AppsV1().Deployments("kyma-system").Patch(ctx, "ory-hydra", types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to rollout ory hydra")
 	}
@@ -223,4 +259,50 @@ func createSecret(ctx context.Context, client kubernetes.Interface, name types.N
 	logger.Infof("Secret %s created", name.String())
 
 	return err
+}
+
+func triggerHydraSynchronization(context *service.ActionContext, client kubernetes.Interface, logger *zap.SugaredLogger) error {
+	earliestHydraPodStartTime, err := getEarliestPodStartTime(hydraLabel, context, client, logger)
+	if err != nil {
+		return err
+	}
+	logger.Debugf("Earliest hydra restart time: %s ", earliestHydraPodStartTime.String())
+
+	earliestHydraMaesterPodStartTime, err := getEarliestPodStartTime(hydraMaesterLabel, context, client, logger)
+	if err != nil {
+		return err
+	}
+	logger.Debugf("Earliest hydra-maester restart time: %s ", earliestHydraMaesterPodStartTime.String())
+
+	if earliestHydraPodStartTime.After(earliestHydraMaesterPodStartTime) {
+		logger.Info("Rolling out hydra-maester deployment")
+		data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
+		_, err := client.AppsV1().Deployments(oryNamespace).Patch(context.Context, hydraMaesterDeployment,
+			types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to rollout ory hydra-maester deployment")
+		}
+	} else {
+		logger.Debugf("ory hydra is up to date")
+	}
+	return nil
+}
+
+func getEarliestPodStartTime(label string, context *service.ActionContext, client kubernetes.Interface, logger *zap.SugaredLogger) (time.Time, error) {
+
+	podList, err := client.CoreV1().Pods(oryNamespace).List(context.Context, metav1.ListOptions{
+		LabelSelector: label})
+	if err != nil {
+		return time.Time{}, errors.Wrapf(err, "failed to read pods for label %s", label)
+	}
+	earliestPodStartTime := time.Now()
+
+	for i := range podList.Items {
+		logger.Debugf("Retrieved pod with name: %s, creationTime: %s ", podList.Items[i].Name,
+			podList.Items[i].CreationTimestamp.String())
+		if podList.Items[i].CreationTimestamp.Time.Before(earliestPodStartTime) {
+			earliestPodStartTime = podList.Items[i].CreationTimestamp.Time
+		}
+	}
+	return earliestPodStartTime, nil
 }
