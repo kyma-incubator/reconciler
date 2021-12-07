@@ -135,8 +135,8 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		ClusterReconcileInterval: 1 * time.Minute,
 	})
 	remoteRunner.WithCleanerConfig(&CleanerConfig{
-		PurgeEntitiesOlderThan: 5 * time.Second,
-		CleanerInterval:        2 * time.Second,
+		PurgeEntitiesOlderThan: 15 * time.Second,
+		CleanerInterval:        4 * time.Second,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
