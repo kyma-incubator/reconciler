@@ -170,7 +170,7 @@ func (u *Update) addWhereNotCondition(whereCond map[string]interface{}) ([]inter
 	return args, nil
 }
 
-func appendArgsToSlice(slice []interface{}, args []interface{}) []interface{}{
+func appendArgsToSlice(slice []interface{}, args []interface{}) []interface{} {
 	//needed since if append(slice []interface{}, args []interface{}) is used, result would look like:
 	//[someContent, [argsContent1, argsContent2]]
 	for _, arg := range args {

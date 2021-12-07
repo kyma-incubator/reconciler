@@ -754,7 +754,7 @@ func TestReconciliationParallel(t *testing.T) {
 			threadCnt := 25
 
 			repo := newPersistentRepository(t)
-			removeExistingReconciliations(t, map[string]Repository{"":repo}) //cleanup before
+			removeExistingReconciliations(t, map[string]Repository{"": repo}) //cleanup before
 			inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
 
@@ -782,7 +782,7 @@ func TestReconciliationParallel(t *testing.T) {
 			wg.Wait()
 
 			tc.check(repo, threadCnt, errChannel)
-			removeExistingReconciliations(t, map[string]Repository{"":repo}) //cleanup after
+			removeExistingReconciliations(t, map[string]Repository{"": repo}) //cleanup after
 		})
 	}
 
