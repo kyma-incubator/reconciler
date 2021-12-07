@@ -46,7 +46,7 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 	errMsg := ""
 
 	if newClusterStatus == model.ClusterStatusReconcileError {
-		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig)
+		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, config.MaxRetries)
 		if err != nil {
 			fo.logger.Errorf("failed to count error for runtime %s with error: %s", reconResult.reconEntity.RuntimeID, err)
 		}
