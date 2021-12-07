@@ -6,12 +6,14 @@ func ToStatus(in string) (Status, error) {
 
 	for _, status := range []Status{
 		StatusDeleteError,
+		StatusDeleteErrorRetryable,
 		StatusDeletePending,
 		StatusDeleted,
 		StatusDeleting,
 		StatusError,
 		StatusReady,
 		StatusReconcileDisabled,
+		StatusReconcileErrorRetryable,
 		StatusReconcilePending,
 		StatusReconciling,
 	} {
