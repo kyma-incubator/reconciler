@@ -136,7 +136,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	})
 	remoteRunner.WithCleanerConfig(&CleanerConfig{
 		PurgeEntitiesOlderThan: 15 * time.Second,
-		CleanerInterval:        10 * time.Second,
+		CleanerInterval:        15 * time.Second,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -155,7 +155,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	require.Equal(t, 1, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
 	require.Equal(t, 2, getEntityLen(t, dbConn, &model.OperationEntity{}))
 
-	time.Sleep(10 * time.Second) //give the cleaner some time to remove old entities
+	time.Sleep(15 * time.Second) //give the cleaner some time to remove old entities
 
 	require.NoError(t, err)
 	require.Equal(t, 0, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
