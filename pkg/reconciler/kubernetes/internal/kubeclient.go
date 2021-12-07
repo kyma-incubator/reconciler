@@ -44,6 +44,7 @@ type KubeClient struct {
 	dynamicClient dynamic.Interface
 	config        *rest.Config
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
+	helmClient    *kube.Client
 }
 
 func NewKubeClient(kubeconfig string, logger *zap.SugaredLogger) (*KubeClient, error) {
@@ -81,6 +82,7 @@ func newForConfig(config *rest.Config) (*KubeClient, error) {
 		dynamicClient: dynamicClient,
 		config:        config,
 		mapper:        mapper,
+		helmClient:    kube.New(NewRESTClientGetter(config)),
 	}, nil
 }
 
@@ -122,23 +124,20 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 	updateStrategyResolver := newDefaultUpdateStrategyResolver(helper)
 	strategy, err := updateStrategyResolver.Resolve(u)
 	if err != nil {
-		return metadata, err
-	}
-
-	//Create HELM client
-	client := kube.New(NewRESTClientGetter(k.config))
-
-	manifest, err := yaml.Marshal(u.Object)
-	if err != nil {
-		return nil, err
-	}
-	target, err := client.Build(bytes.NewBuffer(manifest), false)
-	if err != nil {
 		return nil, err
 	}
 
 	if strategy == SkipUpdateStrategy {
 		return metadata, nil
+	}
+
+	manifest, err := yaml.Marshal(u.Object)
+	if err != nil {
+		return nil, err
+	}
+	target, err := k.helmClient.Build(bytes.NewBuffer(manifest), false)
+	if err != nil {
+		return nil, err
 	}
 
 	originalInfo := &resource.Info{
@@ -161,10 +160,9 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 		return nil, err
 	}
 
-	if strategy == PatchUpdateStrategy {
-		client.Update(original, target, false)
-	} else {
-		client.Update(original, target, true)
+	replaceResource := strategy == ReplaceUpdateStrategy
+	if _, err := k.helmClient.Update(original, target, replaceResource); err != nil {
+		return nil, err
 	}
 
 	return metadata, nil
