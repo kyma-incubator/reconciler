@@ -3,9 +3,7 @@
 package internal
 
 import (
-	"bytes"
 	"context"
-	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/kube"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
@@ -131,21 +129,11 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 		return metadata, nil
 	}
 
-	manifest, err := yaml.Marshal(u.Object)
-	if err != nil {
-		return nil, err
-	}
-	target, err := k.helmClient.Build(bytes.NewBuffer(manifest), false)
-	if err != nil {
-		return nil, err
-	}
-
 	originalInfo := &resource.Info{
 		Client:          restClient,
 		Mapping:         restMapping,
 		Namespace:       u.GetNamespace(),
 		Name:            u.GetName(),
-		Source:          "",
 		ResourceVersion: restMapping.Resource.Version,
 	}
 
@@ -158,6 +146,18 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 
 	if err != nil && !k8serr.IsNotFound(err) {
 		return nil, err
+	}
+
+	//TODO: call intercepters here
+
+	target := kube.ResourceList{
+		&resource.Info{
+			Client:    restClient,
+			Mapping:   restMapping,
+			Namespace: u.GetNamespace(),
+			Name:      u.GetName(),
+			Object:    u.DeepCopyObject(),
+		},
 	}
 
 	replaceResource := strategy == ReplaceUpdateStrategy
