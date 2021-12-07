@@ -38,8 +38,7 @@ func TestReconciler(t *testing.T) {
 		require.Equal(t, "./test", recon.workspace)
 
 		//verify retry config
-		recon.WithRetry(111, 222*time.Second)
-		require.Equal(t, 111, recon.maxRetries)
+		recon.WithRetryDelay(222 * time.Second)
 		require.Equal(t, 222*time.Second, recon.retryDelay)
 
 		//verify dependencies
