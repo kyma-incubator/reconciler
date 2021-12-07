@@ -132,15 +132,8 @@ func (u *Update) addWhereCondition(whereCond map[string]interface{}) ([]interfac
 		args = append(args, whereCond[field])
 	}
 	u.placeholderOffset += plcHdrIdx
-	u.args = appendInterface(u.args, args)
+	u.args = append(u.args, args)
 	return args, nil
-}
-
-func appendInterface(slice []interface{}, args []interface{}) []interface{}{
-	for _, arg := range args {
-		slice = append(slice, arg)
-	}
-	return slice
 }
 
 func (u *Update) addWhereNotCondition(whereCond map[string]interface{}) ([]interface{}, error) {
@@ -173,7 +166,7 @@ func (u *Update) addWhereNotCondition(whereCond map[string]interface{}) ([]inter
 		args = append(args, whereCond[field])
 	}
 	u.placeholderOffset += plcHdrIdx
-	u.args = appendInterface(u.args, args)
+	u.args = append(u.args, args)
 	return args, nil
 }
 
