@@ -6,10 +6,12 @@ import (
 	"go.uber.org/zap"
 	"sort"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type Query struct {
-	conn          Connection
+	Conn          Connection
 	entity        DatabaseEntity
 	columnHandler *ColumnHandler
 	buffer        bytes.Buffer
@@ -23,7 +25,7 @@ func NewQuery(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger)
 		return nil, err
 	}
 	return &Query{
-		conn:          conn,
+		Conn:          conn,
 		entity:        entity,
 		columnHandler: columnHandler,
 		Logger:        logger,
@@ -286,7 +288,7 @@ func (s *Select) GetOne() (DatabaseEntity, error) {
 		return nil, s.err
 	}
 	defer s.reset()
-	row, err := s.conn.QueryRow(s.buffer.String(), s.args...)
+	row, err := s.Conn.QueryRow(s.buffer.String(), s.args...)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +303,7 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	defer s.reset()
 
 	//get results
-	rows, err := s.conn.Query(s.buffer.String(), s.args...)
+	rows, err := s.Conn.Query(s.buffer.String(), s.args...)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +312,7 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	var result []DatabaseEntity
 	for rows.Next() {
 		entity := s.entity.New()
-		colHdlr, err := NewColumnHandler(entity, s.conn, s.Query.Logger)
+		colHdlr, err := NewColumnHandler(entity, s.Conn, s.Query.Logger)
 		if err != nil {
 			return result, err
 		}
@@ -320,6 +322,10 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 		result = append(result, entity)
 	}
 	return result, nil
+}
+
+func (s *Select) NextPlaceholderCount() int {
+	return len(s.args) + 1
 }
 
 // INSERT:
@@ -337,7 +343,7 @@ func (i *Insert) Exec() error {
 	if err != nil {
 		return err
 	}
-	row, err := i.conn.QueryRow(i.buffer.String(), colVals...)
+	row, err := i.Conn.QueryRow(i.buffer.String(), colVals...)
 	if err != nil {
 		return err
 	}
@@ -361,7 +367,7 @@ func (d *Delete) Exec() (int64, error) {
 		return 0, d.err
 	}
 	defer d.reset()
-	res, err := d.conn.Exec(d.buffer.String(), d.args...)
+	res, err := d.Conn.Exec(d.buffer.String(), d.args...)
 	if err == nil {
 		return res.RowsAffected()
 	}
@@ -398,8 +404,9 @@ func (u *Update) ExecCount() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	rs, err := u.Conn.Exec(u.buffer.String(), colVals...)
 	fmt.Printf("###### Query: %s, %v\n", u.buffer.String(), colVals)
-	rs, err := u.conn.Exec(u.buffer.String(), colVals...)
 	if err != nil {
 		return 0, err
 	}
@@ -417,7 +424,7 @@ func (u *Update) Exec() error {
 	//finalize query by appending RETURNING
 	u.buffer.WriteString(fmt.Sprintf(" RETURNING %s", u.columnHandler.ColumnNamesCsv(false)))
 
-	row, err := u.conn.QueryRow(u.buffer.String(), colVals...)
+	row, err := u.Conn.QueryRow(u.buffer.String(), colVals...)
 	if err != nil {
 		return err
 	}
