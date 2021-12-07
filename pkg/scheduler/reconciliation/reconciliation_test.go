@@ -409,6 +409,7 @@ func TestReconciliationRepository(t *testing.T) {
 					model.OperationStateError, "err")
 				require.NoError(t, err)
 				opsEntitiesErr, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateError)
+
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesErr, 1)
 				require.Equal(t, opsEntitiesAll[0].CorrelationID, opsEntitiesErr[0].CorrelationID)
@@ -417,6 +418,7 @@ func TestReconciliationRepository(t *testing.T) {
 					model.OperationStateFailed, "err")
 				require.NoError(t, err)
 				opsEntitiesFailed, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateFailed)
+
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesFailed, 1)
 				require.Equal(t, opsEntitiesAll[1].CorrelationID, opsEntitiesFailed[0].CorrelationID)
@@ -427,19 +429,26 @@ func TestReconciliationRepository(t *testing.T) {
 				err = reconRepo.UpdateOperationState(opsEntitiesAll[3].SchedulingID, opsEntitiesAll[3].CorrelationID,
 					model.OperationStateDone)
 				require.NoError(t, err)
-				opsEntitiesDone, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateDone)
+				err = reconRepo.UpdateOperationState(opsEntitiesAll[4].SchedulingID, opsEntitiesAll[4].CorrelationID,
+					model.OperationStateDone)
 				require.NoError(t, err)
-				require.Len(t, opsEntitiesDone, 2)
+				opsEntitiesDone, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateDone)
+
+				require.NoError(t, err)
+				require.Len(t, opsEntitiesDone, 3)
 				require.ElementsMatch(t, []string{
 					opsEntitiesAll[2].CorrelationID,
 					opsEntitiesAll[3].CorrelationID,
+					opsEntitiesAll[4].CorrelationID,
 				}, []string{
 					opsEntitiesDone[0].CorrelationID,
 					opsEntitiesDone[1].CorrelationID,
+					opsEntitiesDone[2].CorrelationID,
 				})
 
 				//no operation should be in state NEW anymore
 				opsEntitiesNew, err = reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateNew)
+
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesNew, 0)
 			},
