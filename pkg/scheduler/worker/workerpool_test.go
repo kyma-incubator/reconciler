@@ -61,7 +61,7 @@ func TestWorkerPool(t *testing.T) {
 	reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
 	require.NoError(t, err)
 	opsProcessable, err := reconRepo.GetProcessableOperations(0)
-	require.Len(t, opsProcessable, 1)
+	require.Len(t, opsProcessable, 2)
 	require.NoError(t, err)
 
 	//create test invoker to be able to verify invoker calls
