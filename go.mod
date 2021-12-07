@@ -14,7 +14,6 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
-	github.com/jonboulle/clockwork v0.2.2
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mholt/archiver/v3 v3.5.1
@@ -39,7 +38,6 @@ require (
 	k8s.io/apimachinery v0.22.1
 	k8s.io/cli-runtime v0.22.1
 	k8s.io/client-go v0.22.1
-	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e
 	k8s.io/kubectl v0.22.1
 	sigs.k8s.io/yaml v1.2.0
 )
