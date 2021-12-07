@@ -676,19 +676,19 @@ func dbConnection(t *testing.T) db.Connection {
 
 func TestReconciliationParallel(t *testing.T) {
 
-	type test struct {
+	type testCase struct {
 		name            string
 		preparationFunc func(Repository, *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity)
 		mainFunc        func(Repository, *cluster.State, *model.ReconciliationEntity, []*model.OperationEntity) error
 		check           func(Repository, int, chan error)
 	}
 
-	tests := []test{
+	tests := []testCase{
 		{name: "Create multiple instances of single reconciliations in parallel",
 			preparationFunc: func(repo Repository, state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
 				return nil, nil
 			},
-			mainFunc: func(repo Repository, state *cluster.State, entity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
+			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
 				_, err := repo.CreateReconciliation(state, nil)
 				return err
 			},
@@ -708,8 +708,8 @@ func TestReconciliationParallel(t *testing.T) {
 				require.NoError(t, err)
 				return recon, allOperations
 			},
-			mainFunc: func(repo Repository, state *cluster.State, entity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
-				err := repo.UpdateOperationState(entity.SchedulingID, entities[0].CorrelationID, model.OperationStateError, true, "")
+			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
+				err := repo.UpdateOperationState(reconEntity.SchedulingID, entities[0].CorrelationID, model.OperationStateError, false, "")
 				return err
 			},
 			check: func(repo Repository, threadCnt int, errChannel chan error) {
@@ -729,8 +729,8 @@ func TestReconciliationParallel(t *testing.T) {
 				require.NoError(t, err)
 				return recon, nil
 			},
-			mainFunc: func(repo Repository, state *cluster.State, entity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
-				err := repo.FinishReconciliation(entity.SchedulingID, state.Status)
+			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
+				err := repo.FinishReconciliation(reconEntity.SchedulingID, state.Status)
 				return err
 			},
 			check: func(repo Repository, threadCnt int, errChannel chan error) {
@@ -754,6 +754,7 @@ func TestReconciliationParallel(t *testing.T) {
 			threadCnt := 25
 
 			repo := newPersistentRepository(t)
+			removeExistingReconciliations(t, map[string]Repository{"":repo}) //cleanup before
 			inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
 
@@ -781,6 +782,7 @@ func TestReconciliationParallel(t *testing.T) {
 			wg.Wait()
 
 			tc.check(repo, threadCnt, errChannel)
+			removeExistingReconciliations(t, map[string]Repository{"":repo}) //cleanup after
 		})
 	}
 
