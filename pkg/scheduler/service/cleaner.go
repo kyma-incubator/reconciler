@@ -42,7 +42,7 @@ func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, 
 }
 
 func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, config *CleanerConfig) {
-	cretedBefore := time.Now().Add(-1 * config.PurgeEntitiesOlderThan)
+	cretedBefore := time.Now().UTC().Add(-1 * config.PurgeEntitiesOlderThan)
 	reconciliations, err := transition.ReconciliationRepository().GetReconciliations(&reconciliation.WithCreationDateBefore{
 		Time: cretedBefore,
 	})
