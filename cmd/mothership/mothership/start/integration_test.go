@@ -542,5 +542,5 @@ var (
 	zeroReconciliations  verifier = hasReconciliation(func(i int) bool { return i == 0 })
 	oneReconciliation    verifier = hasReconciliation(func(i int) bool { return i == 1 })
 	twoReconciliations   verifier = hasReconciliation(func(i int) bool { return i == 2 })
-	twoReconciliationOps verifier = hasReconciliationOpt(func(i int) bool { return i == 2 })
+	twoReconciliationOps verifier = hasReconciliationOpt(func(i int) bool { return i == 3 })
 )
