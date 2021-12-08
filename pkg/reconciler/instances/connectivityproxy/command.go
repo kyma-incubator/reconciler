@@ -3,21 +3,24 @@ package connectivityproxy
 import (
 	"encoding/json"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 )
 
-const BindingKey = "global.binding."
+const (
+	BindingKey            = "global.binding."
+	ReleaseLabelKey       = "release"
+	ConnectivityProxyKind = "StatefulSet"
+)
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	InstallIfOther(*service.ActionContext, *appsv1.StatefulSet) error
-	Install(*service.ActionContext) error
+	InstallOnReleaseChange(*service.ActionContext, *appsv1.StatefulSet) error
 	CopyResources(*service.ActionContext) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
@@ -30,42 +33,45 @@ type CommandActions struct {
 	clientSetFactory       NewInClusterClientSet
 	targetClientSetFactory NewTargetClientSet
 	install                service.Operation
-	iterate                service.ManifestLookup
 	copyFactory            []CopyFactory
 }
 
-func (a *CommandActions) InstallIfOther(context *service.ActionContext, app *appsv1.StatefulSet) error {
-	if app == nil {
-		return a.Install(context)
+func (a *CommandActions) InstallOnReleaseChange(context *service.ActionContext, app *appsv1.StatefulSet) error {
+	if app == nil || (app != nil && app.GetLabels() == nil) {
+		return a.installOnCondition(context, func(s string) (bool, error) {
+			return true, nil
+		})
 	}
 
-	found, err := a.iterate.Lookup(func(unstructured *unstructured.Unstructured) bool {
-		return unstructured != nil &&
-			unstructured.GetName() != "" && unstructured.GetName() == app.Name &&
-			unstructured.GetKind() != "" && unstructured.GetKind() == "StatefulSet"
-	}, context.ChartProvider, context.Task)
-	if err != nil {
-		return err
-	}
+	appName := app.Name
+	appRelease := app.GetLabels()[ReleaseLabelKey]
 
-	if found != nil && (found.GetLabels() == nil || found.GetLabels()["release"] == "" ||
-		app.GetLabels() == nil || app.GetLabels()["release"] == "") {
+	return a.installOnCondition(context, func(manifest string) (bool, error) {
+		unstructs, err := internalKubernetes.ToUnstructured([]byte(manifest), true)
+		if err != nil {
+			return false, errors.Wrapf(err, "while casting manifest to kubernetes unstructured")
+		}
 
-		return errors.New("Invalid state, missing release label")
-	}
+		for _, unstruct := range unstructs {
+			if unstruct != nil &&
+				unstruct.GetName() == appName &&
+				unstruct.GetKind() == ConnectivityProxyKind {
 
-	if found != nil && found.GetLabels()["release"] == app.GetLabels()["release"] {
-		context.Logger.Infof("No new version, update skipped")
-		return nil
-	}
-
-	return a.Install(context)
+				if unstruct.GetLabels() == nil || unstruct.GetLabels()[ReleaseLabelKey] == "" {
+					return false, errors.Errorf("Component does not have any release labels")
+				} else if unstruct.GetLabels()[ReleaseLabelKey] != appRelease {
+					return true, nil
+				}
+			}
+		}
+		return false, nil
+	})
 }
 
-func (a *CommandActions) Install(context *service.ActionContext) error {
-	err := a.install.Invoke(context.Context, context.ChartProvider, context.Task, context.KubeClient)
+func (a *CommandActions) installOnCondition(context *service.ActionContext, condition service.Condition) error {
+	err := a.install.InvokeOnCondition(context.Context, condition, context.ChartProvider, context.Task, context.KubeClient)
 	if err != nil {
-		return errors.Wrap(err, "Error during installation")
+		return errors.Wrap(err, "failed to invoke conditional installation")
 	}
 
 	return nil

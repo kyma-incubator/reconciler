@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -17,6 +15,8 @@ type Install struct {
 	logger *zap.SugaredLogger
 }
 
+type Condition func(manifest string) (bool, error)
+
 func NewInstall(logger *zap.SugaredLogger) *Install {
 	return &Install{logger: logger}
 }
@@ -24,39 +24,14 @@ func NewInstall(logger *zap.SugaredLogger) *Install {
 //go:generate mockery --name=Operation --output=mocks --outpkg=mocks --case=underscore
 type Operation interface {
 	Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Task, kubeClient kubernetes.Client) error
-}
-
-//go:generate mockery --name=ManifestLookup --output=mocks --outpkg=mocks --case=underscore
-type ManifestLookup interface {
-	Lookup(func(unstructured *unstructured.Unstructured) bool, chart.Provider, *reconciler.Task) (*unstructured.Unstructured, error)
-}
-
-func (r *Install) Lookup(condition func(unstructured *unstructured.Unstructured) bool, chartProvider chart.Provider, task *reconciler.Task) (*unstructured.Unstructured, error) {
-	r.logger.Infof("Version comparison")
-
-	if task.Component == model.CRDComponent {
-		return nil, errors.Errorf("Error is not applicable for given")
-	}
-
-	manifest, err := r.renderManifest(chartProvider, task)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Error while rendering manifests")
-	}
-
-	unstructs, err := kubernetes.ToUnstructured([]byte(manifest), true)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Error while casting manifest to kubernetes unstructured")
-	}
-	for _, unstruct := range unstructs {
-		if condition(unstruct) {
-			return unstruct, nil
-		}
-	}
-
-	return nil, nil
+	InvokeOnCondition(ctx context.Context, condition Condition, chartProvider chart.Provider, model *reconciler.Task, kubeClient kubernetes.Client) error
 }
 
 func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task *reconciler.Task, kubeClient kubernetes.Client) error {
+	return r.InvokeOnCondition(ctx, func(manifest string) (bool, error) { return true, nil }, chartProvider, task, kubeClient)
+}
+
+func (r *Install) InvokeOnCondition(ctx context.Context, condition Condition, chartProvider chart.Provider, task *reconciler.Task, kubeClient kubernetes.Client) error {
 	var err error
 	var manifest string
 	if task.Component == model.CRDComponent {
@@ -66,6 +41,14 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 	}
 	if err != nil {
 		return err
+	}
+
+	if ok, err := condition(manifest); err != nil {
+		r.logger.Errorf("Failed to check if installation should be performed according to the manifest: %s", err)
+		return err
+	} else if !ok {
+		r.logger.Debug("Installation condition did not match according to the manifest, skipping")
+		return nil
 	}
 
 	if task.Type == model.OperationTypeDelete {

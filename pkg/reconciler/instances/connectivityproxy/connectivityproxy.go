@@ -28,8 +28,6 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	installService := service.NewInstall(log)
-
 	action := CustomAction{
 		Name:   "action",
 		Loader: &K8sLoader{},
@@ -38,8 +36,7 @@ func init() {
 			targetClientSetFactory: func(context *service.ActionContext) (k8s.Interface, error) {
 				return context.KubeClient.Clientset()
 			},
-			install: installService,
-			iterate: installService,
+			install: service.NewInstall(log),
 			copyFactory: []CopyFactory{
 				registrySecretCopy,
 				istioSecretCopy,

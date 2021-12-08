@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -99,236 +96,191 @@ func TestCommand(t *testing.T) {
 
 func TestCommands(t *testing.T) {
 
+	componentName := "connectivity-proxy"
+
 	t.Run("Should invoke installation if different version", func(t *testing.T) {
-		actionContext := &service.ActionContext{
-			Context:       context.Background(),
-			Task:          &reconciler.Task{},
-			ChartProvider: &chart.DefaultProvider{},
-			Logger:        logger.NewLogger(true),
-		}
-
-		delegateMock := &serviceMocks.Operation{}
-		delegateMock.On("Invoke",
-			actionContext.Context,
-			mock.AnythingOfType("*chart.DefaultProvider"),
-			mock.AnythingOfType("*reconciler.Task"),
-			nil).
-			Return(nil)
-
-		iterateMock := &serviceMocks.ManifestLookup{}
-		unstructured := unstructured.Unstructured{}
-		unstructured.SetLabels(map[string]string{
-			"release": "1.2.4",
-		})
-		iterateMock.On("Lookup",
-			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
-			mock.AnythingOfType("*chart.DefaultProvider"),
-			mock.AnythingOfType("*reconciler.Task")).
-			Return(&unstructured, nil)
-
+		// given
 		commands := CommandActions{
 			clientSetFactory:       nil,
 			targetClientSetFactory: nil,
-			install:                delegateMock,
+			install:                service.NewInstall(logger.NewLogger(true)),
 			copyFactory:            nil,
-			iterate:                iterateMock,
 		}
 
-		set := v1apps.StatefulSet{}
-		set.SetLabels(map[string]string{
-			"release": "1.2.3",
-		})
-		err := commands.InstallIfOther(actionContext, &set)
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: cpManifest("1.2.4")}, nil)
+		ctx := context.Background()
+		kubeClient := &mocks.Client{}
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor")).
+			Return(nil, nil).Once()
+
+		actionContext := &service.ActionContext{
+			Context:       ctx,
+			KubeClient:    kubeClient,
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
+			Name:   componentName,
+			Labels: map[string]string{"release": "1.2.3"}},
+		}
+
+		// when
+		err := commands.InstallOnReleaseChange(actionContext, component)
+
+		// then
 		require.NoError(t, err)
+		kubeClient.AssertExpectations(t)
 	})
 
 	t.Run("Should skip installation if same version", func(t *testing.T) {
-		actionContext := &service.ActionContext{
-			Context:       context.Background(),
-			Task:          &reconciler.Task{},
-			ChartProvider: &chart.DefaultProvider{},
-			Logger:        logger.NewLogger(true),
-		}
-
-		iterateMock := &serviceMocks.ManifestLookup{}
-		unstructured := unstructured.Unstructured{}
-		unstructured.SetLabels(map[string]string{
-			"release": "1.2.3",
-		})
-		iterateMock.On("Lookup",
-			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
-			mock.AnythingOfType("*chart.DefaultProvider"),
-			mock.AnythingOfType("*reconciler.Task")).
-			Return(&unstructured, nil)
-
-		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                &serviceMocks.Operation{},
-			copyFactory:            nil,
-			iterate:                iterateMock,
-		}
-
-		set := v1apps.StatefulSet{}
-		set.SetLabels(map[string]string{
-			"release": "1.2.3",
-		})
-		err := commands.InstallIfOther(actionContext, &set)
-		require.NoError(t, err)
-	})
-
-	t.Run("Should invoke installation", func(t *testing.T) {
-		actionContext := &service.ActionContext{
-			Context: context.Background(),
-		}
-
-		delegateMock := &serviceMocks.Operation{}
-		delegateMock.On("Invoke", actionContext.Context, nil, (*reconciler.Task)(nil), nil).
-			Return(nil)
-
-		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                delegateMock,
-			copyFactory:            nil,
-		}
-
-		err := commands.InstallIfOther(actionContext, nil)
-		require.NoError(t, err)
-	})
-
-	t.Run("Should return an error if failed to lookup for unstructured", func(t *testing.T) {
 		// given
-		actionContext := &service.ActionContext{
-			Context:       context.Background(),
-			Task:          &reconciler.Task{},
-			ChartProvider: &chart.DefaultProvider{},
-			Logger:        logger.NewLogger(true),
-		}
-
-		delegateMock := &serviceMocks.Operation{}
-		delegateMock.On("Invoke",
-			actionContext.Context,
-			mock.AnythingOfType("*chart.DefaultProvider"),
-			mock.AnythingOfType("*reconciler.Task"),
-			nil).
-			Return(nil)
-
-		iterateMock := &serviceMocks.ManifestLookup{}
-		iterateMock.On("Lookup",
-			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
-			mock.AnythingOfType("*chart.DefaultProvider"),
-			mock.AnythingOfType("*reconciler.Task")).
-			Return(nil, errors.New("some error"))
-
 		commands := CommandActions{
 			clientSetFactory:       nil,
 			targetClientSetFactory: nil,
-			install:                delegateMock,
+			install:                service.NewInstall(logger.NewLogger(true)),
 			copyFactory:            nil,
-			iterate:                iterateMock,
 		}
 
-		set := v1apps.StatefulSet{}
-		set.SetLabels(map[string]string{
-			"release": "1.2.3",
-		})
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: cpManifest("1.2.3")}, nil)
+
+		actionContext := &service.ActionContext{
+			Context:       context.Background(),
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
+			Name:   componentName,
+			Labels: map[string]string{"release": "1.2.3"}},
+		}
 
 		// when
-		err := commands.InstallIfOther(actionContext, &set)
+		err := commands.InstallOnReleaseChange(actionContext, component)
 
 		// then
-		assert.Error(t, err)
+		require.NoError(t, err)
+	})
+
+	t.Run("Should invoke installation if no app is installed", func(t *testing.T) {
+		// given
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                service.NewInstall(logger.NewLogger(true)),
+			copyFactory:            nil,
+		}
+
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: cpManifest("1.2.3")}, nil)
+
+		ctx := context.Background()
+		kubeClient := &mocks.Client{}
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor")).
+			Return(nil, nil).Once()
+		actionContext := &service.ActionContext{
+			Context:       ctx,
+			KubeClient:    kubeClient,
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		// when
+		err := commands.InstallOnReleaseChange(actionContext, nil)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertExpectations(t)
 	})
 
 	t.Run("Should return an error if found unstructured does not have release label", func(t *testing.T) {
-		actionContext := &service.ActionContext{
-			Context:       context.Background(),
-			Task:          &reconciler.Task{},
-			ChartProvider: &chart.DefaultProvider{},
-			Logger:        logger.NewLogger(true),
-		}
-
-		delegateMock := &serviceMocks.Operation{}
-		delegateMock.On("Invoke",
-			actionContext.Context,
-			mock.AnythingOfType("*chart.DefaultProvider"),
-			mock.AnythingOfType("*reconciler.Task"),
-			nil).
-			Return(nil)
-
-		iterateMock := &serviceMocks.ManifestLookup{}
-		unstructured := unstructured.Unstructured{}
-
-		iterateMock.On("Lookup",
-			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
-			mock.AnythingOfType("*chart.DefaultProvider"),
-			mock.AnythingOfType("*reconciler.Task")).
-			Return(&unstructured, nil)
-
+		// given
 		commands := CommandActions{
 			clientSetFactory:       nil,
 			targetClientSetFactory: nil,
-			install:                delegateMock,
+			install:                service.NewInstall(logger.NewLogger(true)),
 			copyFactory:            nil,
-			iterate:                iterateMock,
 		}
 
-		set := v1apps.StatefulSet{}
-		set.SetLabels(map[string]string{
-			"release": "1.2.3",
-		})
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: connectivity-proxy\n"}, nil)
+
+		actionContext := &service.ActionContext{
+			Context:       context.Background(),
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
+			Name:   componentName,
+			Labels: map[string]string{"release": "1.2.3"}},
+		}
 
 		// when
-		err := commands.InstallIfOther(actionContext, &set)
+		err := commands.InstallOnReleaseChange(actionContext, component)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
-	t.Run("Should return an error if given set does not have release label", func(t *testing.T) {
-		actionContext := &service.ActionContext{
-			Context:       context.Background(),
-			Task:          &reconciler.Task{},
-			ChartProvider: &chart.DefaultProvider{},
-			Logger:        logger.NewLogger(true),
-		}
-
-		delegateMock := &serviceMocks.Operation{}
-		delegateMock.On("Invoke",
-			actionContext.Context,
-			mock.AnythingOfType("*chart.DefaultProvider"),
-			mock.AnythingOfType("*reconciler.Task"),
-			nil).
-			Return(nil)
-
-		iterateMock := &serviceMocks.ManifestLookup{}
-		unstructured := unstructured.Unstructured{}
-		unstructured.SetLabels(map[string]string{
-			"release": "1.2.3",
-		})
-
-		iterateMock.On("Lookup",
-			mock.AnythingOfType("func(*unstructured.Unstructured) bool"),
-			mock.AnythingOfType("*chart.DefaultProvider"),
-			mock.AnythingOfType("*reconciler.Task")).
-			Return(&unstructured, nil)
-
+	t.Run("Should invoke installation if given set does not have release label", func(t *testing.T) {
+		// given
 		commands := CommandActions{
 			clientSetFactory:       nil,
 			targetClientSetFactory: nil,
-			install:                delegateMock,
+			install:                service.NewInstall(logger.NewLogger(true)),
 			copyFactory:            nil,
-			iterate:                iterateMock,
 		}
 
-		set := v1apps.StatefulSet{}
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: cpManifest("1.2.3")}, nil)
+
+		ctx := context.Background()
+		kubeClient := &mocks.Client{}
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor")).
+			Return(nil, nil).Once()
+		actionContext := &service.ActionContext{
+			Context:       ctx,
+			KubeClient:    kubeClient,
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: componentName}}
 
 		// when
-		err := commands.InstallIfOther(actionContext, &set)
+		err := commands.InstallOnReleaseChange(actionContext, component)
 
 		// then
-		assert.Error(t, err)
+		require.NoError(t, err)
+		kubeClient.AssertExpectations(t)
 	})
 
 	t.Run("Should copy configuration from model", func(t *testing.T) {
@@ -453,4 +405,8 @@ func TestCommandRemove(t *testing.T) {
 		err := commands.Remove(actionContext)
 		require.NoError(t, err)
 	})
+}
+
+func cpManifest(version string) string {
+	return fmt.Sprintf("apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: connectivity-proxy\n  labels:\n    release: \"%s\"\n", version)
 }
