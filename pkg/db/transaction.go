@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -36,4 +37,45 @@ func Transaction(conn Connection, dbOps func() error, logger *zap.SugaredLogger)
 	}
 	_, err := TransactionResult(conn, dbOpsAdapter, logger)
 	return err
+}
+
+type Tx struct {
+	tx   *sql.Tx
+	conn Connection
+}
+
+func (t *Tx) DB() *sql.DB {
+	return t.conn.DB()
+}
+
+func (t *Tx) Encryptor() *Encryptor {
+	return t.conn.Encryptor()
+}
+
+func (t *Tx) Ping() error {
+	return t.conn.Ping()
+}
+
+func (t *Tx) QueryRow(query string, args ...interface{}) (DataRow, error) {
+	return t.tx.QueryRow(query, args...), nil
+}
+
+func (t *Tx) Query(query string, args ...interface{}) (DataRows, error) {
+	return t.tx.Query(query, args...)
+}
+
+func (t *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
+	return t.tx.Exec(query, args...)
+}
+
+func (t *Tx) Begin() (*sql.Tx, error) {
+	return t.tx, nil
+}
+
+func (t *Tx) Close() error {
+	return t.conn.Close()
+}
+
+func (t *Tx) Type() Type {
+	return t.conn.Type()
 }

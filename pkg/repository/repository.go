@@ -10,6 +10,7 @@ type Repository struct {
 	Conn     db.Connection
 	Logger   *zap.SugaredLogger
 	CacheDep *cacheDependencyManager
+	
 }
 
 func NewRepository(conn db.Connection, debug bool) (*Repository, error) {

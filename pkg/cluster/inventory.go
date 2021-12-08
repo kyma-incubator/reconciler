@@ -24,6 +24,7 @@ type Inventory interface {
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int) (int, error)
+	WithTx(tx db.Tx) (Inventory, error)
 }
 
 type DefaultInventory struct {
@@ -48,6 +49,10 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	return &DefaultInventory{repo, collector}, nil
 }
 
+
+func (i *DefaultInventory) WithTx(tx *db.Tx) (Inventory, error) {
+	return NewInventory(tx, i.Debug, i.metricsCollector)
+}
 func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int) (int, error) {
 	var maxStatusHistoryLength = maxRetries * 5 //cluster can have three interims state between errors, thus 5 is more than enough
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
