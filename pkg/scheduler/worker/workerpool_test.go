@@ -81,9 +81,34 @@ func TestWorkerPool(t *testing.T) {
 	require.WithinDuration(t, startTime, time.Now(), 3*time.Second) //ensure workerPool is considering ctx
 
 	//verify that invoker was properly called
-	require.Len(t, testInvoker.params, 1)
+	require.Len(t, testInvoker.params, 2)
 	require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
-	require.Equal(t, model.CRDComponent, testInvoker.params[0].ComponentToReconcile.Component) //CRDs is always the first component
-	require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
-	require.Equal(t, opsProcessable[0].CorrelationID, testInvoker.params[0].CorrelationID)
+	require.Equal(t, clusterState, testInvoker.params[1].ClusterState)
+
+	//CRDs and Cleanup are called in random order.
+	var crdsParams *invoker.Params
+	var cleanupParams *invoker.Params
+	if testInvoker.params[0].ComponentToReconcile.Component == model.CRDComponent {
+		crdsParams = testInvoker.params[0]
+		cleanupParams = testInvoker.params[1]
+	} else if testInvoker.params[0].ComponentToReconcile.Component == model.CleanupComponent {
+		crdsParams = testInvoker.params[1]
+		cleanupParams = testInvoker.params[0]
+	} else {
+		t.Fatalf("Unexpected component: %s", testInvoker.params[0].ComponentToReconcile.Component)
+	}
+	require.Equal(t, reconEntity.SchedulingID, crdsParams.SchedulingID)
+	require.Equal(t, reconEntity.SchedulingID, cleanupParams.SchedulingID)
+
+	requireOpsProcessableExists(t, opsProcessable, crdsParams.CorrelationID)
+	requireOpsProcessableExists(t, opsProcessable, cleanupParams.CorrelationID)
+}
+
+func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.OperationEntity, correlationID string) {
+	for i := range opsProcessable {
+		if opsProcessable[i].CorrelationID == correlationID {
+			return
+		}
+	}
+	t.Fatalf("Could not find correlationID: %s in opsProcessable list: %v", correlationID, opsProcessable)
 }
