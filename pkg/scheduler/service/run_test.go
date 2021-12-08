@@ -54,8 +54,11 @@ func TestRuntimeBuilder(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{false})
 		reconResult, receivedUpdates := runLocal(t, 5*time.Second)
 		require.Equal(t, model.ClusterStatusReconcileError, reconResult.GetResult())
-		require.Equal(t, reconciler.StatusError, receivedUpdates[len(receivedUpdates)-1].Status)
-		require.Equal(t, reconciler.StatusError, receivedUpdates[len(receivedUpdates)-2].Status)
+
+		//Because of parallel processing the message order is not guaranteed. Check the count of different statuses instead
+		require.Equal(t, 2, countStatus(reconciler.StatusRunning, receivedUpdates))
+		require.Equal(t, 2, countStatus(reconciler.StatusError, receivedUpdates))
+		require.Equal(t, 2, countStatus(reconciler.StatusFailed, receivedUpdates))
 	})
 
 	t.Run("Run remote with success", func(t *testing.T) {
@@ -278,4 +281,14 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	}
 
 	return reconResult, receivedUpdates
+}
+
+func countStatus(status reconciler.Status, receivedUpdates []*reconciler.CallbackMessage) int {
+	count := 0
+	for _, recv := range receivedUpdates {
+		if recv.Status == status {
+			count++
+		}
+	}
+	return count
 }
