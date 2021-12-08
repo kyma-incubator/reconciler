@@ -23,7 +23,7 @@ type Inventory interface {
 	StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
-	CountRetries(runtimeID string, configVersion int64, maxRetries int) (int, error)
+	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 }
 
 type DefaultInventory struct {
@@ -48,23 +48,22 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	return &DefaultInventory{repo, collector}, nil
 }
 
-func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int) (int, error) {
+func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error) {
 	var maxStatusHistoryLength = maxRetries * 5 //cluster can have three interims state between errors, thus 5 is more than enough
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, fmt.Sprintf("failed to initialize query for runtime %s", runtimeID))
 	}
 	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(maxStatusHistoryLength).GetMany()
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, fmt.Sprintf("failed to count error for runtime %s", runtimeID))
 	}
 
 	errCnt := 0
 	for _, clusterStatus := range clusterStatuses {
 		clStatusEntity := clusterStatus.(*model.ClusterStatusEntity)
 		if clStatusEntity.Status.IsFinal() {
-			if clStatusEntity.Status == model.ClusterStatusReconcileError ||
-				clStatusEntity.Status == model.ClusterStatusReconcileErrorRetryable {
+			if statusInSlice(clStatusEntity.Status, errorStatus) {
 				errCnt++
 			} else {
 				break
@@ -72,6 +71,15 @@ func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, m
 		}
 	}
 	return errCnt, nil
+}
+
+func statusInSlice(status model.Status, statusList []model.Status) bool {
+	for _, s := range statusList {
+		if s == status {
+			return true
+		}
+	}
+	return false
 }
 
 func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {
@@ -208,6 +216,9 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 		if oldStatusEntity.Equal(newStatusEntity) { //reuse existing status entity
 			i.Logger.Debugf("No differences found for status of cluster '%s': not creating new database entity", configEntity.RuntimeID)
 			return oldStatusEntity, nil
+		}
+		if oldStatusEntity.Status.IsDisabled() {
+			newStatusEntity.Status = model.ClusterStatusReconcileDisabled
 		}
 	} else if !repository.IsNotFoundError(err) {
 		//unexpected error
