@@ -16,9 +16,9 @@ import (
 
 func TestBookkeepingtask(t *testing.T) {
 	tests := []struct {
-		name        string
-		markOpsDone bool
-		customFunc  func(transition *ClusterStatusTransition) BookkeepingTask
+		name           string
+		markOpsDone    bool
+		customFunc     func(transition *ClusterStatusTransition) BookkeepingTask
 		expectedStatus model.OperationState
 	}{
 		{name: "Mark operations as orphan", markOpsDone: false, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
@@ -93,7 +93,7 @@ func TestBookkeepingtask(t *testing.T) {
 			reconResult = getReconResult(t, reconRepo, bk)
 			operations := reconResult.GetOperations()
 			for _, o := range operations {
-				require.Equal(t,tc.expectedStatus, o.State)
+				require.Equal(t, tc.expectedStatus, o.State)
 			}
 		})
 	}
@@ -101,11 +101,11 @@ func TestBookkeepingtask(t *testing.T) {
 
 func TestBookkeepingtaskParallel(t *testing.T) {
 	tests := []struct {
-		name        string
-		markOpsDone bool
-		customFunc  func(transition *ClusterStatusTransition) BookkeepingTask
-		errMessage  string
-		errCount    int
+		name           string
+		markOpsDone    bool
+		customFunc     func(transition *ClusterStatusTransition) BookkeepingTask
+		errMessage     string
+		errCount       int
 		expectedStatus model.OperationState
 	}{
 		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
@@ -113,13 +113,13 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				transition: transition,
 				logger:     logger.NewLogger(true),
 			}
-		}, errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 48,  expectedStatus: model.OperationStateOrphan},
+		}, errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 48, expectedStatus: model.OperationStateOrphan},
 		{name: "Finish two operations in multiple parallel threads", markOpsDone: true, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
 			return finishOperation{
 				transition: transition,
 				logger:     logger.NewLogger(true),
 			}
-		}, errMessage: "Bookkeeper failed to update cluster", errCount: 24,  expectedStatus: model.OperationStateDone},
+		}, errMessage: "Bookkeeper failed to update cluster", errCount: 24, expectedStatus: model.OperationStateDone},
 	}
 
 	for _, tc := range tests {
@@ -194,7 +194,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			reconResult = getReconResult(t, reconRepo, bk)
 			operations := reconResult.GetOperations()
 			for _, o := range operations {
-				require.Equal(t,tc.expectedStatus, o.State)
+				require.Equal(t, tc.expectedStatus, o.State)
 			}
 		})
 	}
