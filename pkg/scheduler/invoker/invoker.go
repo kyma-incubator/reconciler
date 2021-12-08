@@ -11,10 +11,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 )
 
-const (
-	defaultBranch = "main"
-)
-
 type Invoker interface {
 	Invoke(ctx context.Context, params *Params) error
 }
@@ -42,9 +38,10 @@ func (p *Params) newRemoteTask(callbackURL string) *reconciler.Task {
 
 func (p *Params) newTask() *reconciler.Task {
 	version := p.ClusterState.Configuration.KymaVersion
+	// version := p.ComponentToReconcile.Version
 	url := p.ComponentToReconcile.URL
-	if url != "" && strings.HasSuffix(url, ".git") && p.ComponentToReconcile.Version == "" {
-		version = defaultBranch
+	if url != "" && strings.HasSuffix(url, ".git") {
+		version = p.ComponentToReconcile.Version // ok even if it was empty. We handle it later
 	} else if p.ComponentToReconcile.Version != "" {
 		version = p.ComponentToReconcile.Version
 	}
