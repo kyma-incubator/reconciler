@@ -55,6 +55,7 @@ func TestRuntimeBuilder(t *testing.T) {
 		reconResult, receivedUpdates := runLocal(t, 5*time.Second)
 		require.Equal(t, model.ClusterStatusReconcileError, reconResult.GetResult())
 		require.Equal(t, reconciler.StatusError, receivedUpdates[len(receivedUpdates)-1].Status)
+		require.Equal(t, reconciler.StatusError, receivedUpdates[len(receivedUpdates)-2].Status)
 	})
 
 	t.Run("Run remote with success", func(t *testing.T) {
@@ -248,10 +249,13 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 
 	//configure local runner
-	var receivedUpdates []*reconciler.CallbackMessage
+
 	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
+
+	//use a channel because callbacks are invoked from multiple goroutines
+	callbackData := make(chan *reconciler.CallbackMessage, 10)
 	localRunner := runtimeBuilder.RunLocal(nil, func(component string, msg *reconciler.CallbackMessage) {
-		receivedUpdates = append(receivedUpdates, msg)
+		callbackData <- msg
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -259,6 +263,19 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 
 	reconResult, err := localRunner.Run(ctx, clusterState)
 	require.NoError(t, err)
+
+	receivedUpdates := []*reconciler.CallbackMessage{}
+
+	//Collect received callbacks
+	wait := true
+	for wait {
+		select {
+		case msg := <-callbackData:
+			receivedUpdates = append(receivedUpdates, msg)
+		default:
+			wait = false
+		}
+	}
 
 	return reconResult, receivedUpdates
 }
