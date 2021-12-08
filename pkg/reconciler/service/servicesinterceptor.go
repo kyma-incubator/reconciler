@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,7 +32,8 @@ func (s *ServicesInterceptor) Intercept(resources map[string][]*unstructured.Uns
 		err := runtime.DefaultUnstructuredConverter.
 			FromUnstructured(resource.Object, svc)
 		if err != nil {
-			return err
+			return errors.Wrap(err, fmt.Sprintf("failed to convert unstructured entity '%s@%s' (kind '%s')",
+				resource.GetName(), resource.GetNamespace(), resource.GetKind()))
 		}
 
 		//verify whether the service is of type IPCluster or NodePortService
@@ -46,7 +49,8 @@ func (s *ServicesInterceptor) Intercept(resources map[string][]*unstructured.Uns
 		//retrieve existing service from cluster
 		svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), k8s.ResolveNamespace(resource, namespace))
 		if err != nil {
-			return err
+			return errors.Wrap(err, fmt.Sprintf("failed to get unstructured entity '%s@%s' (kind '%s')",
+				resource.GetName(), resource.GetNamespace(), resource.GetKind()))
 		}
 
 		//if service exists in cluster, add the missing ClusterIP field using the value already used inside the cluster
@@ -55,7 +59,8 @@ func (s *ServicesInterceptor) Intercept(resources map[string][]*unstructured.Uns
 
 			unstructObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
 			if err != nil {
-				return err
+				return errors.Wrap(err, fmt.Sprintf("failed to convert unstructured entity '%s@%s' (kind '%s')",
+					resource.GetName(), resource.GetNamespace(), resource.GetKind()))
 			}
 
 			resource.Object = unstructObject
