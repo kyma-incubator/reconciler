@@ -15,11 +15,13 @@ type Install struct {
 	logger *zap.SugaredLogger
 }
 
-type Condition func(manifest string) (bool, error)
-
 func NewInstall(logger *zap.SugaredLogger) *Install {
 	return &Install{logger: logger}
 }
+
+type Condition func(manifest string) (bool, error)
+
+func ConditionAlways(_ string) (bool, error) { return true, nil }
 
 //go:generate mockery --name=Operation --output=mocks --outpkg=mocks --case=underscore
 type Operation interface {
@@ -28,7 +30,7 @@ type Operation interface {
 }
 
 func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task *reconciler.Task, kubeClient kubernetes.Client) error {
-	return r.InvokeOnCondition(ctx, func(manifest string) (bool, error) { return true, nil }, chartProvider, task, kubeClient)
+	return r.InvokeOnCondition(ctx, ConditionAlways, chartProvider, task, kubeClient)
 }
 
 func (r *Install) InvokeOnCondition(ctx context.Context, condition Condition, chartProvider chart.Provider, task *reconciler.Task, kubeClient kubernetes.Client) error {

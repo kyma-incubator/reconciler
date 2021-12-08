@@ -38,7 +38,7 @@ type CommandActions struct {
 
 func (a *CommandActions) InstallOnReleaseChange(context *service.ActionContext, app *appsv1.StatefulSet) error {
 	if app == nil || (app != nil && app.GetLabels() == nil) {
-		return a.installOnCondition(context, func(_ string) (bool, error) { return true, nil })
+		return a.installOnCondition(context, service.ConditionAlways)
 	}
 
 	appName := app.Name
