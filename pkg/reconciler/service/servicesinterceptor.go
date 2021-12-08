@@ -19,8 +19,8 @@ type ServicesInterceptor struct {
 }
 
 func (s *ServicesInterceptor) Intercept(resources map[string][]*unstructured.Unstructured, namespace string) error {
-	serviceResources := resources["service"]
-	if len(serviceResources) < 1 {
+	serviceResources, ok := resources["service"]
+	if !ok {
 		return nil
 	}
 
