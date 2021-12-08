@@ -42,12 +42,12 @@ func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, 
 }
 
 func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, config *CleanerConfig) {
-	cretedBefore := time.Now().Add(-1 * config.PurgeEntitiesOlderThan)
+	deadline := time.Now().UTC().Add(-1 * config.PurgeEntitiesOlderThan)
 	reconciliations, err := transition.ReconciliationRepository().GetReconciliations(&reconciliation.WithCreationDateBefore{
-		Time: cretedBefore,
+		Time: deadline,
 	})
 	if err != nil {
-		c.logger.Errorf("Cleaner failed to get reconciliations older than %s: %s", cretedBefore.String(), err.Error())
+		c.logger.Errorf("Cleaner failed to get reconciliations older than %s: %s", deadline.String(), err.Error())
 	}
 
 	for i := range reconciliations {
