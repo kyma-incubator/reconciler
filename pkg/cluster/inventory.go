@@ -209,6 +209,9 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 			i.Logger.Debugf("No differences found for status of cluster '%s': not creating new database entity", configEntity.RuntimeID)
 			return oldStatusEntity, nil
 		}
+		if oldStatusEntity.Status.IsDisabled() {
+			newStatusEntity.Status = model.ClusterStatusReconcileDisabled
+		}
 	} else if !repository.IsNotFoundError(err) {
 		//unexpected error
 		return nil, err
