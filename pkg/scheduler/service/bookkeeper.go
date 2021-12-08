@@ -145,7 +145,7 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bo
 	newClusterStatus := reconResult.GetResult()
 
 	if newClusterStatus == model.ClusterStatusDeleteError {
-		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, model.ClusterStatusDeleteError, model.ClusterStatusDeleteErrorRetryable)
+		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, bk.config.MaxRetries, model.ClusterStatusDeleteError, model.ClusterStatusDeleteErrorRetryable)
 		if err != nil {
 			bk.logger.Error(err)
 		}
@@ -156,7 +156,7 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bo
 	}
 
 	if newClusterStatus == model.ClusterStatusReconcileError {
-		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)
+		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig,bk.config.MaxRetries, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)
 		if err != nil {
 			bk.logger.Error(err)
 		}

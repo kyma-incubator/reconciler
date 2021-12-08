@@ -18,3 +18,12 @@ func components(cfg model.ClusterConfigurationEntity) []keb.Component {
 	}
 	return components
 }
+
+func validateStatuses(statuses []string) error {
+	for _, statusStr := range statuses {
+		if _, err := keb.ToStatus(statusStr); err != nil {
+			return err
+		}
+	}
+	return nil
+}

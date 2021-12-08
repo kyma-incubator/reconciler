@@ -23,7 +23,7 @@ type Inventory interface {
 	StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
-	CountRetries(runtimeID string, configVersion int64, retryStatus ...model.Status) (int, error)
+	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 }
 
 type DefaultInventory struct {
@@ -48,12 +48,13 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	return &DefaultInventory{repo, collector}, nil
 }
 
-func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, errorStatus ...model.Status) (int, error) {
+func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error) {
+	var maxStatusHistoryLength = maxRetries * 5 //cluster can have three interims state between errors, thus 5 is more than enough
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
 		return 0, errors.Wrap(err, fmt.Sprintf("failed to initialize query for runtime %s", runtimeID))
 	}
-	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(50).GetMany()
+	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(maxStatusHistoryLength).GetMany()
 	if err != nil {
 		return 0, errors.Wrap(err, fmt.Sprintf("failed to count error for runtime %s", runtimeID))
 	}

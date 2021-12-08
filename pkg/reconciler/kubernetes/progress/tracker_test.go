@@ -277,6 +277,19 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 	tracker.AddResource(Deployment, dep.GetNamespace(), dep.GetName())
 	err = tracker.Watch(ctx, ReadyState)
 	require.NoError(t, err)
+
+	t.Log("Updating deployment again")
+
+	dep = readManifest(t, "dep-before-rolling-update.yaml")[0]
+	_, err = kubeClient.ApplyWithNamespaceOverride(dep, testNs)
+	require.NoError(t, err)
+
+	tracker, err = NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	require.NoError(t, err)
+
+	tracker.AddResource(Deployment, dep.GetNamespace(), dep.GetName())
+	err = tracker.Watch(ctx, ReadyState)
+	require.NoError(t, err)
 }
 
 func addWatchable(t *testing.T, resources []*unstructured.Unstructured, pt *Tracker) {
