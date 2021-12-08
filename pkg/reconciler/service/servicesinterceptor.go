@@ -18,48 +18,51 @@ type ServicesInterceptor struct {
 	kubeClient k8s.Client
 }
 
-func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, namespace string) (k8s.InterceptionResult, error) {
-	if strings.ToLower(resource.GetKind()) != "service" {
-		return k8s.ContinueInterceptionResult, nil
+func (s *ServicesInterceptor) Intercept(resources map[string][]*unstructured.Unstructured, namespace string) error {
+	serviceResources := resources["service"]
+	if len(serviceResources) < 1 {
+		return nil
 	}
 
-	//convert unstruct to service resource
-	svc := &v1.Service{}
-	err := runtime.DefaultUnstructuredConverter.
-		FromUnstructured(resource.Object, svc)
-	if err != nil {
-		return k8s.ErrorInterceptionResult, err
-	}
-
-	//verify whether the service is of type IPCluster or NodePortService
-	if !(s.isClusterIPService(svc) || s.isNodePortService(svc)) {
-		return k8s.ContinueInterceptionResult, nil
-	}
-
-	//adjust the ClusterIP field only if it is empty or equals to "None"
-	if svc.Spec.ClusterIP != "" && !strings.EqualFold(svc.Spec.ClusterIP, none) {
-		return k8s.ContinueInterceptionResult, nil
-	}
-
-	//retrieve existing service from cluster
-	svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), k8s.ResolveNamespace(resource, namespace))
-	if err != nil {
-		return k8s.ErrorInterceptionResult, err
-	}
-
-	//if service exists in cluster, add the missing ClusterIP field using the value already used inside the cluster
-	if svcInCluster != nil {
-		svc.Spec.ClusterIP = svcInCluster.Spec.ClusterIP //use cluster IP from K8s service resource
-
-		unstructObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
+	for _, resource := range serviceResources {
+		//convert unstruct to service resource
+		svc := &v1.Service{}
+		err := runtime.DefaultUnstructuredConverter.
+			FromUnstructured(resource.Object, svc)
 		if err != nil {
-			return k8s.ErrorInterceptionResult, err
+			return err
 		}
 
-		resource.Object = unstructObject
+		//verify whether the service is of type IPCluster or NodePortService
+		if !(s.isClusterIPService(svc) || s.isNodePortService(svc)) {
+			return nil
+		}
+
+		//adjust the ClusterIP field only if it is empty or equals to "None"
+		if svc.Spec.ClusterIP != "" && !strings.EqualFold(svc.Spec.ClusterIP, none) {
+			return nil
+		}
+
+		//retrieve existing service from cluster
+		svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), k8s.ResolveNamespace(resource, namespace))
+		if err != nil {
+			return err
+		}
+
+		//if service exists in cluster, add the missing ClusterIP field using the value already used inside the cluster
+		if svcInCluster != nil {
+			svc.Spec.ClusterIP = svcInCluster.Spec.ClusterIP //use cluster IP from K8s service resource
+
+			unstructObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
+			if err != nil {
+				return err
+			}
+
+			resource.Object = unstructObject
+		}
 	}
 
-	return k8s.ContinueInterceptionResult, nil
+	return nil
 }
 
 func (s *ServicesInterceptor) isClusterIPService(svc *v1.Service) bool {

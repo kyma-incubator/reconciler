@@ -1,10 +1,10 @@
 package service
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"testing"
 )
 
 func TestLabelInterceptor(t *testing.T) {
@@ -60,8 +60,8 @@ func TestLabelInterceptor(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			l := &LabelsInterceptor{Version: tt.args.version}
-			result, err := l.Intercept(tt.args.resource, "")
-			require.Equal(t, result, kubernetes.ContinueInterceptionResult)
+			r := map[string][]*unstructured.Unstructured{"testKind": {tt.args.resource}}
+			err := l.Intercept(r, "")
 			if tt.wantErr {
 				require.Error(t, err)
 			}

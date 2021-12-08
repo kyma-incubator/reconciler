@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/kubernetes"
 	"path/filepath"
 	"testing"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -55,13 +56,16 @@ var expectedResourcesWithNs = []*Resource{
 var expectedLabels = map[string]string{"test-interceptor": "test-label"}
 
 type testInterceptor struct {
-	result InterceptionResult
-	err    error
+	err error
 }
 
-func (i *testInterceptor) Intercept(resource *unstructured.Unstructured, _ string) (InterceptionResult, error) {
-	resource.SetLabels(expectedLabels)
-	return i.result, i.err
+func (i *testInterceptor) Intercept(resources map[string][]*unstructured.Unstructured, _ string) error {
+	for kind := range resources {
+		for _, resource := range resources[kind] {
+			resource.SetLabels(expectedLabels)
+		}
+	}
+	return i.err
 }
 
 func TestKubernetesClient(t *testing.T) {
@@ -78,9 +82,7 @@ func TestKubernetesClient(t *testing.T) {
 		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
 
 		//deploy
-		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{
-			result: IgnoreResourceInterceptionResult,
-		})
+		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{})
 		require.NoError(t, err)
 		require.Empty(t, deployedResources)
 	})
@@ -90,8 +92,7 @@ func TestKubernetesClient(t *testing.T) {
 
 		//deploy
 		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{
-			result: ErrorInterceptionResult,
-			err:    fmt.Errorf("just a fake error"),
+			err: fmt.Errorf("just a fake error"),
 		})
 		require.Error(t, err)
 		require.Empty(t, deployedResources)

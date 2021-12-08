@@ -57,8 +57,8 @@ func TestServicesInterceptor(t *testing.T) {
 		t.Logf("ClusterIP before: %s", serviceObject.Spec.ClusterIP)
 
 		//inject clusterIP
-		result, err := svcIntcptr.Intercept(service, servicesInterceptorNS)
-		require.Equal(t, result, kubernetes.ContinueInterceptionResult)
+		resouces := map[string][]*unstructured.Unstructured{"service": {service}}
+		err = svcIntcptr.Intercept(resouces, servicesInterceptorNS)
 		require.NoError(t, err)
 		serviceObject, err = toService(service)
 		require.NoError(t, err)

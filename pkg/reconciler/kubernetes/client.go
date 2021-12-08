@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+
 	batchv1 "k8s.io/api/batch/v1"
 
 	v1apps "k8s.io/api/apps/v1"
@@ -11,12 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-)
-
-const (
-	ContinueInterceptionResult       InterceptionResult = "continue_processing"
-	ErrorInterceptionResult          InterceptionResult = "error"
-	IgnoreResourceInterceptionResult InterceptionResult = "ignore_resource"
 )
 
 type Resource struct {
@@ -32,7 +27,7 @@ func (r *Resource) String() string {
 }
 
 type ResourceInterceptor interface {
-	Intercept(resource *unstructured.Unstructured, namespace string) (InterceptionResult, error)
+	Intercept(resources map[string][]*unstructured.Unstructured, namespace string) error
 }
 
 //go:generate mockery --name Client
