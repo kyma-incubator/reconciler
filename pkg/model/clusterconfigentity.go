@@ -94,6 +94,9 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 	if component == CRDComponent { //CRD is an artificial component which doesn't exist in the component list of any cluster
 		return crdComponent
 	}
+	if component == CleanupComponent { //Cleanup is an artificial component which doesn't exist in the component list of any cluster
+		return cleanupComponent
+	}
 	for _, comp := range c.Components {
 		if comp.Component == component {
 			return comp

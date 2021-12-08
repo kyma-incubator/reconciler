@@ -65,7 +65,6 @@ func TestRuntimeBuilder(t *testing.T) {
 		runRemote(t, model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
 
 	})
-
 }
 
 func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Duration) {
