@@ -62,7 +62,7 @@ func TestRuntimeBuilder(t *testing.T) {
 	})
 
 	t.Run("Run remote with error", func(t *testing.T) {
-		runRemote(t, model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
+		runRemote(t, model.ClusterStatusReconcileError, 20*time.Second)
 	})
 
 }
@@ -149,7 +149,10 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 
 	setOperationState(t, reconRepo, expectedClusterStatus, clusterState.Cluster.RuntimeID)
 
-	time.Sleep(10 * time.Second) //give the cleaner some time to remove old entities
+	newClusterState, err = inventory.GetLatest(clusterState.Cluster.RuntimeID)
+	require.NoError(t, err)
+	require.Equal(t, expectedClusterStatus, newClusterState.Status.Status)
+	//time.Sleep(10 * time.Second) //give the cleaner some time to remove old entities
 
 	require.NoError(t, err)
 	require.Equal(t, 0, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
@@ -173,8 +176,6 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		opState = model.OperationStateError
 	case model.ClusterStatusReady:
 		opState = model.OperationStateDone
-	case model.ClusterStatusReconcileErrorRetryable:
-		opState = model.OperationStateError
 	default:
 		t.Logf("Cannot map cluster state '%s' to an operation state", expectedClusterStatus)
 		t.FailNow()
@@ -197,7 +198,7 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 
 		//set all operations to a final state
 		for _, opEntity := range opEntities {
-			err = reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, opState, true, "dummy reason")
+			err = reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, opState, false, "dummy reason")
 
 			if err != nil { //probably a race condition (because invoker is updating ops-states in background as well)
 				latestOpEntity, errGetOp := reconRepo.GetOperation(opEntity.SchedulingID, opEntity.CorrelationID)
