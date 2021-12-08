@@ -63,7 +63,6 @@ func TestRuntimeBuilder(t *testing.T) {
 
 	t.Run("Run remote with error", func(t *testing.T) {
 		runRemote(t, model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
-
 	})
 
 }
@@ -122,22 +121,22 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		},
 	})
 	remoteRunner.WithBookkeeperConfig(&BookkeeperConfig{
-		OperationsWatchInterval: 1 * time.Second,
+		OperationsWatchInterval: 5 * time.Second,
 		OrphanOperationTimeout:  10 * time.Second,
 	})
 	remoteRunner.WithWorkerPoolConfig(&worker.Config{
 		PoolSize:               10,
-		OperationCheckInterval: 1 * time.Second,
+		OperationCheckInterval: 5 * time.Second,
 		InvokerMaxRetries:      2,
 		InvokerRetryDelay:      2 * time.Second,
 	})
 	remoteRunner.WithSchedulerConfig(&SchedulerConfig{
-		InventoryWatchInterval:   1 * time.Second,
+		InventoryWatchInterval:   5 * time.Second,
 		ClusterReconcileInterval: 1 * time.Minute,
 	})
 	remoteRunner.WithCleanerConfig(&CleanerConfig{
-		PurgeEntitiesOlderThan: 5 * time.Second,
-		CleanerInterval:        2 * time.Second,
+		PurgeEntitiesOlderThan: 15 * time.Second,
+		CleanerInterval:        15 * time.Second,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
