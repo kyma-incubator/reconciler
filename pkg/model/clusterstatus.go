@@ -39,6 +39,10 @@ func (s Status) IsInProgress() bool {
 	return s == ClusterStatusDeleting || s == ClusterStatusReconciling
 }
 
+func (s Status) IsDisabled() bool {
+	return s == ClusterStatusReconcileDisabled
+}
+
 type ClusterStatus struct {
 	ID     float64 //required for monitoring metrics, has to be unique!
 	Status Status
