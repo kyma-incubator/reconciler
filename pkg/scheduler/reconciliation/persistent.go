@@ -389,8 +389,6 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		}
 
 		update := q.Update().Where(whereCond)
-
-		fmt.Println(update.String())
 		cnt, err := update.ExecCount()
 
 		if cnt == 0 {

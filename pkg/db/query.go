@@ -395,7 +395,6 @@ func (u *Update) ExecCount() (int64, error) {
 	}
 
 	rs, err := u.Conn.Exec(u.buffer.String(), colVals...)
-	fmt.Printf("###### Query: %s, %v\n", u.buffer.String(), colVals)
 	if err != nil {
 		return 0, err
 	}
