@@ -3,6 +3,7 @@ package ory
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -19,13 +20,10 @@ import (
 )
 
 const (
-	oryChart               = "ory"
-	oryNamespace           = "kyma-system"
-	jwksAlg                = "RSA256"
-	jwksBits               = 2048
-	hydraLabel             = "app.kubernetes.io/name=hydra"
-	hydraMaesterLabel      = "app.kubernetes.io/name=hydra-maester"
-	hydraMaesterDeployment = "ory-hydra-maester"
+	oryChart     = "ory"
+	OryNamespace = "kyma-system"
+	jwksAlg      = "RSA256"
+	jwksBits     = 2048
 )
 
 type oryAction struct {
@@ -45,31 +43,17 @@ type postDeleteAction struct {
 }
 
 var (
-	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: oryNamespace}
-	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
+	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: OryNamespace}
+	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: OryNamespace}
 )
 
 func (a *postReconcileAction) Run(context *service.ActionContext) error {
-	logger := context.Logger
-	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
-		WithNamespace(oryNamespace).
-		WithProfile(context.Task.Profile).
-		WithConfiguration(context.Task.Configuration).Build()
-
-	chartValues, err := context.ChartProvider.Configuration(component)
+	logger, client, cfg, _, err := readActionContext(context)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve Ory chart values")
+		return errors.Wrap(err, "Failed to read postReconcileAction context")
 	}
-	client, err := context.KubeClient.Clientset()
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
-	}
-	cfg, err := db.NewDBConfig(chartValues)
-	if err != nil {
-		return errors.Wrap(err, "unable to marshal Ory chart values")
-	}
-	if !cfg.Global.Ory.Hydra.Persistence.Enabled {
-		err = triggerHydraSynchronization(context, client, logger)
+	if isInMemoryMode(cfg) {
+		err = hydra.TriggerSynchronization(context, client, logger, OryNamespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
 		}
@@ -78,22 +62,10 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 }
 
 func (a *preReconcileAction) Run(context *service.ActionContext) error {
-	logger := context.Logger
-	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
-		WithNamespace(oryNamespace).
-		WithProfile(context.Task.Profile).
-		WithConfiguration(context.Task.Configuration).Build()
-
-	values, err := context.ChartProvider.Configuration(component)
+	logger, client, _, values, err := readActionContext(context)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve Ory chart values")
+		return errors.Wrap(err, "Failed to read preReconcileAction context")
 	}
-
-	client, err := context.KubeClient.Clientset()
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
-	}
-
 	_, err = getSecret(context.Context, client, jwksNamespacedName)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
@@ -190,6 +162,28 @@ func (a *postDeleteAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
+func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, kubernetes.Interface, *db.Config, map[string]interface{}, error) {
+	logger := context.Logger
+	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
+		WithNamespace(OryNamespace).
+		WithProfile(context.Task.Profile).
+		WithConfiguration(context.Task.Configuration).Build()
+
+	chartValues, err := context.ChartProvider.Configuration(component)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve ory chart values")
+	}
+	client, err := context.KubeClient.Clientset()
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
+	}
+	cfg, err := db.NewDBConfig(chartValues)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
+	}
+	return logger, client, cfg, chartValues, nil
+}
+
 func isEmpty(secret *v1.Secret) bool {
 	return len(secret.Data) == 0
 }
@@ -261,48 +255,6 @@ func createSecret(ctx context.Context, client kubernetes.Interface, name types.N
 	return err
 }
 
-func triggerHydraSynchronization(context *service.ActionContext, client kubernetes.Interface, logger *zap.SugaredLogger) error {
-	earliestHydraPodStartTime, err := getEarliestPodStartTime(hydraLabel, context, client, logger)
-	if err != nil {
-		return err
-	}
-	logger.Debugf("Earliest hydra restart time: %s ", earliestHydraPodStartTime.String())
-
-	earliestHydraMaesterPodStartTime, err := getEarliestPodStartTime(hydraMaesterLabel, context, client, logger)
-	if err != nil {
-		return err
-	}
-	logger.Debugf("Earliest hydra-maester restart time: %s ", earliestHydraMaesterPodStartTime.String())
-
-	if earliestHydraPodStartTime.After(earliestHydraMaesterPodStartTime) {
-		logger.Info("Rolling out hydra-maester deployment")
-		data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
-		_, err := client.AppsV1().Deployments(oryNamespace).Patch(context.Context, hydraMaesterDeployment,
-			types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
-		if err != nil {
-			return errors.Wrap(err, "Failed to rollout ory hydra-maester deployment")
-		}
-	} else {
-		logger.Debugf("ory hydra is up to date")
-	}
-	return nil
-}
-
-func getEarliestPodStartTime(label string, context *service.ActionContext, client kubernetes.Interface, logger *zap.SugaredLogger) (time.Time, error) {
-
-	podList, err := client.CoreV1().Pods(oryNamespace).List(context.Context, metav1.ListOptions{
-		LabelSelector: label})
-	if err != nil {
-		return time.Time{}, errors.Wrapf(err, "failed to read pods for label %s", label)
-	}
-	earliestPodStartTime := time.Now()
-
-	for i := range podList.Items {
-		logger.Debugf("Retrieved pod with name: %s, creationTime: %s ", podList.Items[i].Name,
-			podList.Items[i].CreationTimestamp.String())
-		if podList.Items[i].CreationTimestamp.Time.Before(earliestPodStartTime) {
-			earliestPodStartTime = podList.Items[i].CreationTimestamp.Time
-		}
-	}
-	return earliestPodStartTime, nil
+func isInMemoryMode(cfg *db.Config) bool {
+	return !cfg.Global.Ory.Hydra.Persistence.Enabled
 }

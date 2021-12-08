@@ -70,7 +70,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to retrieve Ory chart values")
+		require.Contains(t, err.Error(), "Failed to retrieve ory chart values")
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertNotCalled(t, "Clientset")
 	})
