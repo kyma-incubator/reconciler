@@ -3,13 +3,14 @@ package git
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
-	"net/url"
-	"strings"
 
 	"github.com/go-git/go-git/v5"
 	gitp "github.com/go-git/go-git/v5/plumbing"
@@ -29,10 +30,12 @@ type Cloner struct {
 
 //go:generate mockery --name RepoClient --case=underscore
 type RepoClient interface {
-	Clone(ctx context.Context, path string,
-		isBare bool, o *git.CloneOptions) (*git.Repository, error)
+	Clone(ctx context.Context, path string, isBare bool, o *git.CloneOptions) (*git.Repository, error)
 	Worktree() (*git.Worktree, error)
-	ResolveRevision(rev gitp.Revision) (*gitp.Hash, error)
+	ResolveRevisionOrBranchHead(rev gitp.Revision) (*gitp.Hash, error)
+	Fetch(o *git.FetchOptions) error
+	PlainCheckout(o *git.CheckoutOptions) error
+	DefaultBranch() (*gitp.Reference, error)
 }
 
 func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
@@ -51,7 +54,6 @@ func (r *Cloner) Clone(path string) (*git.Repository, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return r.repoClient.Clone(context.Background(), path, false, &git.CloneOptions{
 		Depth:             0,
 		URL:               r.repo.URL,
@@ -83,9 +85,11 @@ func (r *Cloner) Checkout(rev string, repo *git.Repository) error {
 		}
 		return errors.Wrap(err, msg)
 	}
+
 	err = w.Checkout(&git.CheckoutOptions{
 		Hash: *hash,
 	})
+
 	if err != nil {
 		return errors.Wrap(err, "Error checking out GIT revision")
 	}
@@ -93,14 +97,17 @@ func (r *Cloner) Checkout(rev string, repo *git.Repository) error {
 }
 
 func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
-	if rev == "" {
-		return fmt.Errorf("GIT revision cannot be empty")
-	}
 	repo, err := r.Clone(dstPath)
 	if err != nil {
 		return errors.Wrapf(err, "Error downloading Git repository (%s)", r.repo)
 	}
-
+	if rev == "" {
+		head, err := repo.Head()
+		if err != nil {
+			return err
+		}
+		rev = head.Hash().String()
+	}
 	return r.Checkout(rev, repo)
 }
 
@@ -160,4 +167,37 @@ func mapSecretKey(URL string) (string, error) {
 	output = strings.ReplaceAll(output, "www.", "")
 
 	return output, nil
+}
+
+func (r *Cloner) FetchAndCheckout(path, version string) error {
+	auth, err := r.buildAuth()
+	if err != nil {
+		return err
+	}
+	gitClient, err := NewClientWithPath(path)
+	if err != nil {
+		return err
+	}
+	err = gitClient.Fetch(&git.FetchOptions{
+		Auth:       auth,
+		RemoteName: "origin",
+	})
+	if err != nil {
+		return err
+	}
+	if version != "" {
+		defaultBranch, err := gitClient.DefaultBranch()
+		if err != nil {
+			return err
+		}
+		return gitClient.PlainCheckout(&git.CheckoutOptions{
+			Hash: defaultBranch.Hash(),
+		})
+
+	}
+	return nil
+}
+
+func (r *Cloner) ResolveRevisionOrBranchHead(rev string) (*gitp.Hash, error) {
+	return r.repoClient.ResolveRevisionOrBranchHead(gitp.Revision(rev))
 }

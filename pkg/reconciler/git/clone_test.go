@@ -2,13 +2,14 @@ package git
 
 import (
 	"context"
+	"os"
+	"path"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"os"
-	"path"
-	"testing"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"

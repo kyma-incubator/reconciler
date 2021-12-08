@@ -66,10 +66,6 @@ func (r *Task) Validate() error {
 	if r.Namespace == "" {
 		errFields = append(errFields, "Namespace")
 	}
-	r.Version = strings.TrimSpace(r.Version)
-	if r.Version == "" {
-		errFields = append(errFields, "Version")
-	}
 	r.Kubeconfig = strings.TrimSpace(r.Kubeconfig)
 	if r.Kubeconfig == "" {
 		errFields = append(errFields, "Kubeconfig")
