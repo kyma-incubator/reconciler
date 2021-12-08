@@ -144,10 +144,21 @@ func (bk *bookkeeper) finishReconciliation(reconResult *ReconciliationResult) bo
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
 
-	if newClusterStatus == model.ClusterStatusReconcileError {
-		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, bk.config.MaxRetries)
+	if newClusterStatus == model.ClusterStatusDeleteError {
+		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, bk.config.MaxRetries, model.ClusterStatusDeleteError, model.ClusterStatusDeleteErrorRetryable)
 		if err != nil {
-			bk.logger.Errorf("failed to count error for runtime %s with error: %s", reconResult.reconEntity.RuntimeID, err)
+			bk.logger.Error(err)
+		}
+		if errCnt < bk.config.MaxRetries {
+			newClusterStatus = model.ClusterStatusDeleteErrorRetryable
+			bk.logger.Infof("Deletion for cluster with runtimeID %s and clusterConfig %d failed, deletion will be retried. Count of retries: %d", reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
+		}
+	}
+
+	if newClusterStatus == model.ClusterStatusReconcileError {
+		errCnt, err := bk.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, bk.config.MaxRetries, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)
+		if err != nil {
+			bk.logger.Error(err)
 		}
 		if errCnt < bk.config.MaxRetries {
 			newClusterStatus = model.ClusterStatusReconcileErrorRetryable
