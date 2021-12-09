@@ -2,6 +2,7 @@ package reconciliation
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"sync"
 	"time"
 
@@ -23,6 +24,10 @@ func NewInMemoryReconciliationRepository() Repository {
 		reconciliations: make(map[string]*model.ReconciliationEntity),
 		operations:      make(map[string]map[string]*model.OperationEntity),
 	}
+}
+
+func (r *InMemoryReconciliationRepository) WithTx(tx *db.Tx) (Repository, error) {
+	return nil, fmt.Errorf("transactional behaviour not supported by in-memory reconciliation repository")
 }
 
 func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {

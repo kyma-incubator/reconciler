@@ -24,7 +24,7 @@ type Inventory interface {
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int) (int, error)
-	WithTx(tx db.Tx) (Inventory, error)
+	WithTx(tx *db.Tx) (Inventory, error)
 }
 
 type DefaultInventory struct {
@@ -48,7 +48,6 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 	}
 	return &DefaultInventory{repo, collector}, nil
 }
-
 
 func (i *DefaultInventory) WithTx(tx *db.Tx) (Inventory, error) {
 	return NewInventory(tx, i.Debug, i.metricsCollector)
@@ -83,7 +82,7 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 	if len(cluster.KymaConfig.Components) == 0 {
 		return nil, fmt.Errorf("error creating cluster with RuntimeID: %s, component list is empty", cluster.RuntimeID)
 	}
-	dbOps := func() (interface{}, error) {
+	dbOps := func(tx *db.Tx) (interface{}, error) {
 		clusterEntity, err := i.createCluster(contractVersion, cluster)
 		if err != nil {
 			return nil, err

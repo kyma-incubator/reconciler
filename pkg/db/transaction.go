@@ -8,32 +8,32 @@ import (
 	"go.uber.org/zap"
 )
 
-func TransactionResult(conn Connection, dbOps func() (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
+func TransactionResult(conn Connection, dbOps func(tx *Tx) (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
 	log := func(msg string, args ...interface{}) {
 		if logger != nil {
 			logger.Debugf(msg, args...)
 		}
 	}
-	tx, err := conn.Begin()
+	transaction, err := conn.Begin()
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := dbOps()
+	result, err := dbOps(transaction)
 	if err != nil {
 		log("Rollback transactional DB context because an error occurred: %s", err)
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", tx.Rollback()))
+		if rollbackErr := transaction.tx.Rollback(); rollbackErr != nil {
+			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", transaction.tx.Rollback()))
 		}
 		return result, err
 	}
 
-	return result, tx.Commit()
+	return result, transaction.tx.Commit()
 }
 
-func Transaction(conn Connection, dbOps func() error, logger *zap.SugaredLogger) error {
-	dbOpsAdapter := func() (interface{}, error) {
-		return nil, dbOps()
+func Transaction(conn Connection, dbOps func(tx *Tx) error, logger *zap.SugaredLogger) error {
+	dbOpsAdapter := func(tx *Tx) (interface{}, error) {
+		return nil, dbOps(tx)
 	}
 	_, err := TransactionResult(conn, dbOpsAdapter, logger)
 	return err
