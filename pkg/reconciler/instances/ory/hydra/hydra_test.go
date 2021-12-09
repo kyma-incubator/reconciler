@@ -86,7 +86,7 @@ func Test_GetEarliestStartTime(t *testing.T) {
 		client, _ := kubeclient.Clientset()
 
 		// when
-		earliestStartTime, err := getEarliestPodStartTime(hydraPodName, context.TODO(), client, logger, testNamespase)
+		earliestStartTime, err := getEarliestPodStartTime(context.TODO(), hydraPodName, client, logger, testNamespase)
 
 		// then
 		require.NoError(t, err)
@@ -101,7 +101,7 @@ func Test_GetEarliestStartTime(t *testing.T) {
 		client, _ := kubeclient.Clientset()
 
 		// when
-		earliestStartTime, err := getEarliestPodStartTime(hydraPodName, context.TODO(), client, logger, "kyma-system")
+		earliestStartTime, err := getEarliestPodStartTime(context.TODO(), hydraPodName, client, logger, "kyma-system")
 
 		// then
 		require.NoError(t, err)
@@ -113,7 +113,7 @@ func Test_GetEarliestStartTime(t *testing.T) {
 		client, _ := fakeClient().Clientset()
 
 		// when
-		_, err := getEarliestPodStartTime(hydraPodName, context.TODO(), client, logger, "kyma-system")
+		_, err := getEarliestPodStartTime(context.TODO(), hydraPodName, client, logger, "kyma-system")
 
 		// then
 		require.Error(t, err, "Could not find pods for label %s in namespace %s", hydraPodName, testNamespase)

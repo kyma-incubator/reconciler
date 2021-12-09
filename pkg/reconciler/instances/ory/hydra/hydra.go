@@ -57,13 +57,13 @@ func (c *DefaultHydraClient) TriggerSynchronization(context context.Context, cli
 }
 
 func hydraStartedAfterHydraMaester(context context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (bool, error) {
-	earliestHydraPodStartTime, err := getEarliestPodStartTime(hydraPodName, context, client, logger, namespace)
+	earliestHydraPodStartTime, err := getEarliestPodStartTime(context, hydraPodName, client, logger, namespace)
 	if err != nil {
 		return false, err
 	}
 	logger.Debugf("Earliest hydra restart time: %s ", earliestHydraPodStartTime.String())
 
-	earliestHydraMaesterPodStartTime, err := getEarliestPodStartTime(hydraMaesterPodName, context, client, logger, namespace)
+	earliestHydraMaesterPodStartTime, err := getEarliestPodStartTime(context, hydraMaesterPodName, client, logger, namespace)
 	if err != nil {
 		return false, err
 	}
@@ -72,7 +72,7 @@ func hydraStartedAfterHydraMaester(context context.Context, client kubernetes.In
 	return earliestHydraPodStartTime.After(earliestHydraMaesterPodStartTime), nil
 }
 
-func getEarliestPodStartTime(label string, context context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (time.Time, error) {
+func getEarliestPodStartTime(context context.Context, label string, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (time.Time, error) {
 
 	podList, err := client.CoreV1().Pods(namespace).List(context, metav1.ListOptions{
 		LabelSelector: label})
