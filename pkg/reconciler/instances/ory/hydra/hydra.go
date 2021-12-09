@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"time"
 )
 
-//go:generate mockery --name=Hydra --outpkg=mock --case=underscore
-//Hydra exposes functionality to trigger hydra specific operations
-type Hydra interface {
+//go:generate mockery --name=Syncer --outpkg=mock --case=underscore
+//Syncer exposes functionality to trigger hydra specific operations
+type Syncer interface {
 	// TriggerSynchronization triggers the synchronization of OAuth clients between hydra maester and hydra if needed,
 	//that is basically the case when hydra pods started earlier than hydra maester pods, then hydra might be out of sync
 	//as it has potentially lost the OAuth clients in his DB
@@ -21,12 +22,12 @@ type Hydra interface {
 	TriggerSynchronization(context context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) error
 }
 
-type DefaultHydraClient struct {
+type DefaultHydraSyncer struct {
 }
 
-// NewDefaultHydraClient returns an instance of DefaultHydraClient
-func NewDefaultHydraClient() *DefaultHydraClient {
-	return &DefaultHydraClient{}
+// NewDefaultHydraSyncer returns an instance of DefaultHydraSyncer
+func NewDefaultHydraSyncer() *DefaultHydraSyncer {
+	return &DefaultHydraSyncer{}
 }
 
 const (
@@ -35,7 +36,7 @@ const (
 	hydraMaesterDeployment = "ory-hydra-maester"
 )
 
-func (c *DefaultHydraClient) TriggerSynchronization(context context.Context, client kubernetes.Interface,
+func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client kubernetes.Interface,
 	logger *zap.SugaredLogger, namespace string) error {
 	restartHydraMaesterDeploymentNeeded, err := hydraStartedAfterHydraMaester(context, client, logger, namespace)
 	if err != nil {
@@ -47,7 +48,7 @@ func (c *DefaultHydraClient) TriggerSynchronization(context context.Context, cli
 		_, err := client.AppsV1().Deployments(namespace).Patch(context, hydraMaesterDeployment,
 			types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
 		if err != nil {
-			return errors.Wrap(err, "Failed to rollout ory hydra-maester deployment")
+			return errors.Wrap(err, "Failed to patch ory hydra-maester deployment")
 		}
 	} else {
 		logger.Debug("hydra and hydra-maester are in sync")
@@ -74,6 +75,7 @@ func hydraStartedAfterHydraMaester(context context.Context, client kubernetes.In
 
 func getEarliestPodStartTime(context context.Context, label string, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (time.Time, error) {
 
+	maxStartTime := time.Date(9999, 12, 31, 12, 59, 59, 59, time.UTC)
 	podList, err := client.CoreV1().Pods(namespace).List(context, metav1.ListOptions{
 		LabelSelector: label})
 	if err != nil {
@@ -83,13 +85,21 @@ func getEarliestPodStartTime(context context.Context, label string, client kuber
 		return time.Time{}, errors.Errorf("Could not find pods for label %s in namespace %s", label, namespace)
 	}
 
-	earliestPodStartTime := time.Date(9999, 12, 31, 12, 59, 59, 59, time.UTC)
+	earliestPodStartTime := maxStartTime
+
 	for i := range podList.Items {
-		logger.Debugf("Retrieved pod with name: %s, creationTime: %s ", podList.Items[i].Name,
-			podList.Items[i].CreationTimestamp.String())
-		if podList.Items[i].CreationTimestamp.Time.Before(earliestPodStartTime) {
-			earliestPodStartTime = podList.Items[i].CreationTimestamp.Time
+		pod := podList.Items[i]
+		if pod.Status.Phase == corev1.PodRunning {
+			logger.Debugf("Retrieved pod with name: %s, creationTime: %s ", podList.Items[i].Name,
+				podList.Items[i].CreationTimestamp.String())
+			if podList.Items[i].CreationTimestamp.Time.Before(earliestPodStartTime) {
+				earliestPodStartTime = podList.Items[i].CreationTimestamp.Time
+			}
 		}
+
+	}
+	if earliestPodStartTime.Equal(maxStartTime) {
+		return time.Time{}, errors.Errorf("Could not find any running pod for label %s in namespace %s", label, namespace)
 	}
 	return earliestPodStartTime, nil
 }

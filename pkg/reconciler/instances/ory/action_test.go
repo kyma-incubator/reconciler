@@ -51,6 +51,7 @@ const (
 const (
 	profileName   = "profile"
 	componentName = "test-ory"
+	inMemoryUrl   = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
 )
 
 var chartDir = filepath.Join("test", "resources")
@@ -61,7 +62,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		hydraClient := hydramocks.Hydra{}
+		hydraClient := hydramocks.Syncer{}
 		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(nil)
 		values, err := unmarshalTestValues(memoryYaml)
@@ -84,7 +85,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		hydraClient := hydramocks.Hydra{}
+		hydraClient := hydramocks.Syncer{}
 		values, err := unmarshalTestValues(postgresqlYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -106,7 +107,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		hydraClient := hydramocks.Hydra{}
+		hydraClient := hydramocks.Syncer{}
 		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(errors.New("Failed to trigger hydra Synchronization"))
 
@@ -130,7 +131,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		hydraClient := hydramocks.Hydra{}
+		hydraClient := hydramocks.Syncer{}
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil,
 			errors.New("Failed to read configuration"))
 		clientSet := fake.NewSimpleClientset()
@@ -265,7 +266,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
-		require.Equal(t, db.InMemoryURL, secret.StringData["dsn"])
+		require.Equal(t, inMemoryUrl, secret.StringData["dsn"])
 	})
 
 	t.Run("should not update ory secret when secret exist and has a valid data", func(t *testing.T) {
@@ -293,7 +294,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
 		require.Equal(t, "", secret.StringData["dsn"])
-		require.Equal(t, []byte(db.InMemoryURL), secret.Data["dsn"])
+		require.Equal(t, []byte(inMemoryUrl), secret.Data["dsn"])
 	})
 
 	t.Run("should update ory secret when secret exist and has an outdated values", func(t *testing.T) {
@@ -322,7 +323,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
 		require.Contains(t, secret.StringData["dsn"], "postgres")
-		require.NotContains(t, secret.StringData["dsn"], db.InMemoryURL)
+		require.NotContains(t, secret.StringData["dsn"], inMemoryUrl)
 	})
 }
 
@@ -561,7 +562,7 @@ func fixSecretMemory() *v1.Secret {
 			Namespace: dbNamespacedName.Namespace,
 		},
 		Data: map[string][]byte{
-			"dsn":           []byte(db.InMemoryURL),
+			"dsn":           []byte(inMemoryUrl),
 			"secretsCookie": []byte("somesecretcookie"),
 			"secretsSystem": []byte("somesecretsystem"),
 		},

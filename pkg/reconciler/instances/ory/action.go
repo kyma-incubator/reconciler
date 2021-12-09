@@ -36,7 +36,7 @@ type preReconcileAction struct {
 
 type postReconcileAction struct {
 	*oryAction
-	hydraClient hydra.Hydra
+	hydraSyncer hydra.Syncer
 }
 
 type postDeleteAction struct {
@@ -55,7 +55,7 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	}
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
-		err = a.hydraClient.TriggerSynchronization(context.Context, client, logger, oryNamespace)
+		err = a.hydraSyncer.TriggerSynchronization(context.Context, client, logger, oryNamespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
 		}

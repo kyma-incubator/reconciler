@@ -25,16 +25,18 @@ func Test_TriggerSynchronization(t *testing.T) {
 		// given
 		hydraStartTimePod1 := time.Date(2021, 10, 10, 10, 10, 10, 10, time.UTC)
 		hydraStartTimePod2 := time.Date(2021, 10, 10, 10, 10, 7, 10, time.UTC)
+		hydraStartTimePod3 := time.Date(1900, 10, 10, 10, 10, 7, 10, time.UTC)
 		hydraMasesterPodStartTime := time.Date(2021, 10, 10, 10, 10, 6, 10, time.UTC)
 		kubeclient := fakeClient()
-		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod1, t)
-		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t)
+		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod1, t, v1.PodRunning)
+		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t, v1.PodRunning)
+		addPod(kubeclient, "hydra3", "hydra", hydraStartTimePod3, t, v1.PodFailed)
 		createDeployment(kubeclient, "ory-hydra-maester", hydraMasesterPodStartTime, t)
-		addPod(kubeclient, "hydra-maester1", "hydra-maester", hydraMasesterPodStartTime, t)
+		addPod(kubeclient, "hydra-maester1", "hydra-maester", hydraMasesterPodStartTime, t, v1.PodRunning)
 		client, _ := kubeclient.Clientset()
 
 		// when
-		err := NewDefaultHydraClient().TriggerSynchronization(context.TODO(), client, logger, "kyma-system")
+		err := NewDefaultHydraSyncer().TriggerSynchronization(context.TODO(), client, logger, "kyma-system")
 
 		// then
 		require.NoError(t, err)
@@ -49,18 +51,20 @@ func Test_TriggerSynchronization(t *testing.T) {
 		// given
 		hydraStartTimePod1 := time.Date(2021, 10, 10, 10, 10, 10, 10, time.UTC)
 		hydraStartTimePod2 := time.Date(2021, 10, 10, 10, 10, 7, 10, time.UTC)
+		hydraStartTimePod3 := time.Date(2500, 10, 10, 10, 10, 6, 10, time.UTC)
 		hydraMasesterPodStartTime := time.Date(2022, 10, 10, 10, 10, 6, 10, time.UTC)
 		kubeclient := fakeClient()
-		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod1, t)
-		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t)
+		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod1, t, v1.PodRunning)
+		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t, v1.PodRunning)
+		addPod(kubeclient, "hydra3", "hydra", hydraStartTimePod3, t, v1.PodPending)
 		createDeployment(kubeclient, "ory-hydra-maester", hydraMasesterPodStartTime, t)
-		addPod(kubeclient, "hydra-maester", "hydra-maester", hydraMasesterPodStartTime, t)
+		addPod(kubeclient, "hydra-maester", "hydra-maester", hydraMasesterPodStartTime, t, v1.PodRunning)
 		client, _ := kubeclient.Clientset()
 
 		// when
 		deploymentOld, _ := client.AppsV1().Deployments("kyma-system").Get(context.TODO(), "ory-hydra-maester", metav1.GetOptions{})
 		logger.Debugf("Deploy found ", deploymentOld.Name)
-		err := NewDefaultHydraClient().TriggerSynchronization(context.TODO(), client, logger, testNamespase)
+		err := NewDefaultHydraSyncer().TriggerSynchronization(context.TODO(), client, logger, testNamespase)
 
 		// then
 		require.NoError(t, err)
@@ -81,8 +85,8 @@ func Test_GetEarliestStartTime(t *testing.T) {
 		startTimePod1 := time.Date(2021, 10, 10, 10, 10, 10, 10, time.UTC)
 		startTimePod2 := time.Date(2021, 10, 10, 10, 10, 7, 10, time.UTC)
 		kubeclient := fakeClient()
-		addPod(kubeclient, "hydra1", "hydra", startTimePod1, t)
-		addPod(kubeclient, "hydra2", "hydra", startTimePod2, t)
+		addPod(kubeclient, "hydra1", "hydra", startTimePod1, t, v1.PodRunning)
+		addPod(kubeclient, "hydra2", "hydra", startTimePod2, t, v1.PodRunning)
 		client, _ := kubeclient.Clientset()
 
 		// when
@@ -95,19 +99,37 @@ func Test_GetEarliestStartTime(t *testing.T) {
 	t.Run("Should determine earliest pod starttime if both started at the same time", func(t *testing.T) {
 		// given
 		startTime1 := time.Date(2021, 10, 10, 10, 10, 10, 10, time.UTC)
+		startTime2 := time.Date(1900, 10, 10, 10, 10, 10, 10, time.UTC)
 		kubeclient := fakeClient()
-		addPod(kubeclient, "hydra1", "hydra", startTime1, t)
-		addPod(kubeclient, "hydra2", "hydra", startTime1, t)
+		addPod(kubeclient, "hydra1", "hydra", startTime1, t, v1.PodRunning)
+		addPod(kubeclient, "hydra2", "hydra", startTime1, t, v1.PodRunning)
+		addPod(kubeclient, "hydra3", "hydra", startTime2, t, v1.PodPending)
 		client, _ := kubeclient.Clientset()
 
 		// when
-		earliestStartTime, err := getEarliestPodStartTime(context.TODO(), hydraPodName, client, logger, "kyma-system")
+		earliestStartTime, err := getEarliestPodStartTime(context.TODO(), hydraPodName, client, logger, testNamespase)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, earliestStartTime, startTime1)
 	})
 
+	t.Run("Should return error if no running pods found", func(t *testing.T) {
+		// given
+		startTime1 := time.Date(2021, 10, 10, 10, 10, 10, 10, time.UTC)
+		startTime2 := time.Date(1900, 10, 10, 10, 10, 10, 10, time.UTC)
+		kubeclient := fakeClient()
+		addPod(kubeclient, "hydra1", "hydra", startTime1, t, v1.PodFailed)
+		addPod(kubeclient, "hydra2", "hydra", startTime1, t, v1.PodPending)
+		addPod(kubeclient, "hydra3", "hydra", startTime2, t, v1.PodPending)
+		client, _ := kubeclient.Clientset()
+
+		// when
+		_, err := getEarliestPodStartTime(context.TODO(), hydraPodName, client, logger, testNamespase)
+
+		// then
+		require.Error(t, err, "Could not find any running pod for label %s in namespace %s", hydraPodName, testNamespase)
+	})
 	t.Run("Should return error if no pods found", func(t *testing.T) {
 		// given
 		client, _ := fakeClient().Clientset()
@@ -128,7 +150,7 @@ func fakeClient() *k8smocks.Client {
 	return mockClient
 }
 
-func addPod(client *k8smocks.Client, podName string, podLabel string, startTime time.Time, t *testing.T) {
+func addPod(client *k8smocks.Client, podName string, podLabel string, startTime time.Time, t *testing.T, podPhase v1.PodPhase) {
 	fakeClient, _ := client.Clientset()
 	nsMock := fakeClient.CoreV1().Pods("kyma-system")
 	_, err := nsMock.Create(context.TODO(), &v1.Pod{
@@ -138,7 +160,9 @@ func addPod(client *k8smocks.Client, podName string, podLabel string, startTime 
 			Namespace:         testNamespase,
 			CreationTimestamp: metav1.NewTime(startTime),
 			Labels:            map[string]string{"app.kubernetes.io/name": podLabel},
-		}}, metav1.CreateOptions{})
+		},
+		Status: v1.PodStatus{Phase: podPhase},
+	}, metav1.CreateOptions{})
 	require.NoError(t, err)
 }
 

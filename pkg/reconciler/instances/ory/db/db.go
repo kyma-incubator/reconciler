@@ -19,7 +19,7 @@ const (
 	mysqlDsnOpts = "parseTime=true&max_conn_lifetime=10s"
 	dsnTemplate  = "%s://%s:%s@%s/%s?%s"
 	postgresURL  = "ory-postgresql.kyma-system.svc.cluster.local:5432"
-	InMemoryURL  = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
+	inMemoryURL  = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
 )
 
 func NewDBConfig(chartValues map[string]interface{}) (*Config, error) {
@@ -113,7 +113,7 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 }
 
 func (c *Config) updateMemoryConfig(secret *v1.Secret, logger *zap.SugaredLogger) (secretData map[string]string) {
-	if string(secret.Data["dsn"]) == InMemoryURL {
+	if string(secret.Data["dsn"]) == inMemoryURL {
 		logger.Debug("Ory Hydra persistence is already disabled")
 		return secretData
 	}
@@ -182,7 +182,7 @@ func (c *Config) generateSecretDataMemory() map[string]string {
 	return map[string]string{
 		"secretsSystem": c.Global.Ory.Hydra.Persistence.SecretsSystem,
 		"secretsCookie": c.Global.Ory.Hydra.Persistence.SecretsCookie,
-		"dsn":           InMemoryURL,
+		"dsn":           inMemoryURL,
 	}
 }
 

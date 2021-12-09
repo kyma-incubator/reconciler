@@ -26,6 +26,6 @@ func init() {
 			&oryAction{step: "post-delete"},
 		}).
 		WithPostReconcileAction(&postReconcileAction{
-			&oryAction{step: "post-reconcile"}, hydra.NewDefaultHydraClient(),
+			&oryAction{step: "post-reconcile"}, hydra.NewDefaultHydraSyncer(),
 		})
 }
