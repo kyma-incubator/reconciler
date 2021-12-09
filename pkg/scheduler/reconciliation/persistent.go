@@ -348,7 +348,7 @@ func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*mode
 	return opEntities, nil
 }
 
-func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reasons ...string) error {
+func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
 	dbOps := func() error {
 		op, err := r.GetOperation(schedulingID, correlationID)
 		if err != nil {
@@ -356,6 +356,10 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
 			}
 			return err
+		}
+
+		if op.State == state && !allowInState {
+			return newAlreadyInStateError(op)
 		}
 
 		if op.State.IsFinal() {
@@ -383,9 +387,13 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			"SchedulingID":  schedulingID,
 			"State":         opStateOld, //ensure update will affect only operations which were not updated in between
 		}
-		cnt, err := q.Update().
-			Where(whereCond).
-			ExecCount()
+
+		update := q.Update().Where(whereCond)
+		cnt, err := update.ExecCount()
+
+		if err != nil {
+			return err
+		}
 
 		if cnt == 0 {
 			return fmt.Errorf("update of operation '%s' to state '%s' failed: no row was updated "+
@@ -393,7 +401,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 				op, state)
 		}
 
-		return err
+		return nil
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }

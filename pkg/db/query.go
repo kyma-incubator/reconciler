@@ -3,10 +3,9 @@ package db
 import (
 	"bytes"
 	"fmt"
+	"go.uber.org/zap"
 	"sort"
 	"strings"
-
-	"go.uber.org/zap"
 )
 
 type Query struct {
@@ -101,6 +100,44 @@ func (q *Query) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset
 		args = append(args, whereCond[field])
 	}
 	return args, nil
+}
+
+func (u *Update) addWhereCondition(whereCond map[string]interface{}, negate bool) error {
+	var args []interface{}
+	var plcHdrIdx int
+
+	if len(whereCond) == 0 {
+		return nil
+	}
+
+	//get sort list of fields
+	fields := make([]string, 0, len(whereCond))
+	for field := range whereCond {
+		fields = append(fields, field)
+	}
+	sort.Strings(fields)
+
+	//render WHERE condition
+	u.addWhere()
+	for _, field := range fields {
+		col, err := u.columnHandler.ColumnName(field)
+		if err != nil {
+			return err
+		}
+		if plcHdrIdx > 0 {
+			u.buffer.WriteString(" AND")
+		}
+		plcHdrIdx++
+		if negate {
+			u.buffer.WriteString(fmt.Sprintf(" %s!=$%d", col, plcHdrIdx+u.placeholderOffset))
+		} else {
+			u.buffer.WriteString(fmt.Sprintf(" %s=$%d", col, plcHdrIdx+u.placeholderOffset))
+		}
+		args = append(args, whereCond[field])
+	}
+	u.placeholderOffset += plcHdrIdx
+	u.args = append(u.args, args...)
+	return nil
 }
 
 func (q *Query) addWhereInCondition(field, subQuery string) error {
@@ -311,7 +348,12 @@ type Update struct {
 }
 
 func (u *Update) Where(args map[string]interface{}) *Update {
-	u.args, u.err = u.addWhereCondition(args, u.placeholderOffset)
+	u.err = u.addWhereCondition(args, false)
+	return u
+}
+
+func (u *Update) WhereNot(args map[string]interface{}) *Update {
+	u.err = u.addWhereCondition(args, true)
 	return u
 }
 

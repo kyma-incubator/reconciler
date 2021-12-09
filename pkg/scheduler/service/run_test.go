@@ -204,7 +204,7 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		//set all operations to a final state
 		for _, opEntity := range opEntities {
 			err = reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
-				opState, "dummy reason")
+				opState, true, "dummy reason")
 
 			if err != nil { //probably a race condition (because invoker is updating ops-states in background as well)
 				latestOpEntity, errGetOp := reconRepo.GetOperation(opEntity.SchedulingID, opEntity.CorrelationID)
@@ -212,7 +212,7 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 				t.Logf("Failed to updated operation state: %s -> latest operation state is '%s'. Will try again...",
 					err, latestOpEntity.State)
 				require.NoError(t, reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
-					opState, "dummy reason"))
+					opState, true, "dummy reason"))
 			}
 		}
 		return
