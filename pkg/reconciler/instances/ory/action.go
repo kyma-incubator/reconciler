@@ -21,7 +21,7 @@ import (
 
 const (
 	oryChart     = "ory"
-	OryNamespace = "kyma-system"
+	oryNamespace = "kyma-system"
 	jwksAlg      = "RSA256"
 	jwksBits     = 2048
 )
@@ -36,6 +36,7 @@ type preReconcileAction struct {
 
 type postReconcileAction struct {
 	*oryAction
+	hydraClient hydra.Hydra
 }
 
 type postDeleteAction struct {
@@ -43,8 +44,8 @@ type postDeleteAction struct {
 }
 
 var (
-	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: OryNamespace}
-	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: OryNamespace}
+	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: oryNamespace}
+	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
 )
 
 func (a *postReconcileAction) Run(context *service.ActionContext) error {
@@ -53,10 +54,13 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Failed to read postReconcileAction context")
 	}
 	if isInMemoryMode(cfg) {
-		err = hydra.TriggerSynchronization(context, client, logger, OryNamespace)
+		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
+		err = a.hydraClient.TriggerSynchronization(context.Context, client, logger, oryNamespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
 		}
+	} else {
+		logger.Debug("Hydra is in persistence mode, no synchronization needed")
 	}
 	return nil
 }
@@ -162,28 +166,6 @@ func (a *postDeleteAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, kubernetes.Interface, *db.Config, map[string]interface{}, error) {
-	logger := context.Logger
-	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
-		WithNamespace(OryNamespace).
-		WithProfile(context.Task.Profile).
-		WithConfiguration(context.Task.Configuration).Build()
-
-	chartValues, err := context.ChartProvider.Configuration(component)
-	if err != nil {
-		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve ory chart values")
-	}
-	client, err := context.KubeClient.Clientset()
-	if err != nil {
-		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
-	}
-	cfg, err := db.NewDBConfig(chartValues)
-	if err != nil {
-		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
-	}
-	return logger, client, cfg, chartValues, nil
-}
-
 func isEmpty(secret *v1.Secret) bool {
 	return len(secret.Data) == 0
 }
@@ -253,6 +235,28 @@ func createSecret(ctx context.Context, client kubernetes.Interface, name types.N
 	logger.Infof("Secret %s created", name.String())
 
 	return err
+}
+
+func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, kubernetes.Interface, *db.Config, map[string]interface{}, error) {
+	logger := context.Logger
+	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
+		WithNamespace(oryNamespace).
+		WithProfile(context.Task.Profile).
+		WithConfiguration(context.Task.Configuration).Build()
+
+	chartValues, err := context.ChartProvider.Configuration(component)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve ory chart values")
+	}
+	client, err := context.KubeClient.Clientset()
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
+	}
+	cfg, err := db.NewDBConfig(chartValues)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
+	}
+	return logger, client, cfg, chartValues, nil
 }
 
 func isInMemoryMode(cfg *db.Config) bool {

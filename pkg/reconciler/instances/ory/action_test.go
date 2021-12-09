@@ -13,6 +13,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
+	hydramocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -54,12 +55,107 @@ const (
 
 var chartDir = filepath.Join("test", "resources")
 
+func Test_PostReconcile_Run(t *testing.T) {
+	t.Parallel()
+	t.Run("should call hydra sync if we are inMemory mode", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Hydra{}
+		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil)
+		values, err := unmarshalTestValues(memoryYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+
+		// when
+		err = action.Run(actionContext)
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+
+	})
+	t.Run("should not call hydra sync if we are in persistence enabled mode", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Hydra{}
+		values, err := unmarshalTestValues(postgresqlYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+
+		// when
+		err = action.Run(actionContext)
+
+		//Then
+		require.NoError(t, err)
+		hydraClient.AssertNotCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+
+	})
+
+	t.Run("should return error if synchronization failed", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Hydra{}
+		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(errors.New("Failed to trigger hydra Synchronization"))
+
+		values, err := unmarshalTestValues(memoryYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+
+		// when
+		err = action.Run(actionContext)
+
+		// Then
+		require.Error(t, err, "Failed to trigger hydra Synchronization")
+		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+
+	})
+	t.Run("should return error if read of action context failed", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Hydra{}
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil,
+			errors.New("Failed to read configuration"))
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+
+		// when
+		err := action.Run(actionContext)
+
+		// Then
+		require.Error(t, err, "Failed to read configuration")
+		hydraClient.AssertNotCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+
+	})
+}
+
 func Test_PreInstallAction_Run(t *testing.T) {
+	t.Parallel()
 	t.Run("should not perform any action when chart configuration returned an error", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Configuration error"))
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil,
+			errors.New("Configuration error"))
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
@@ -436,8 +532,6 @@ func newFakeKubeClient(clientSet *fake.Clientset) *k8smocks.Client {
 	mockClient := &k8smocks.Client{}
 	mockClient.On("Clientset").Return(clientSet, nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
-	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
 	return mockClient
 }
 
