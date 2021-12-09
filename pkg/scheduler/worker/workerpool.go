@@ -114,7 +114,7 @@ func (w *Pool) assignWorker(ctx context.Context, opEntity *model.OperationEntity
 			discardMsg := fmt.Sprintf("Operation '%s' belongs to a no longer existing cluster (%s) and will be discarded", opEntity, opEntity.RuntimeID)
 			w.logger.Warn(discardMsg)
 
-			if err := w.reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateError, discardMsg); err != nil {
+			if err := w.reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateError, false, discardMsg); err != nil {
 				w.logger.Errorf("Error updating state of orphaned operation '%s': %s", opEntity, err)
 			}
 		} else {
