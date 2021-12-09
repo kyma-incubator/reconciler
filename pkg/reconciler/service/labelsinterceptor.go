@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -14,20 +15,17 @@ type LabelsInterceptor struct {
 	Version string
 }
 
-func (l *LabelsInterceptor) Intercept(resources map[string][]*unstructured.Unstructured, _ string) error {
-	for kind := range resources {
-		for _, resource := range resources[kind] {
-			if resource != nil {
-				labels := resource.GetLabels()
-				if labels == nil {
-					labels = make(map[string]string)
-				}
-				labels[ManagedByLabel] = LabelReconcilerValue
-				labels[KymaVersionLabel] = l.Version
-				resource.SetLabels(labels)
-			}
+func (l *LabelsInterceptor) Intercept(resources kubernetes.Resources, _ string) error {
+	interceptorFunc := func(kind string, u *unstructured.Unstructured) error {
+		labels := u.GetLabels()
+		if labels == nil {
+			labels = make(map[string]string)
 		}
+		labels[ManagedByLabel] = LabelReconcilerValue
+		labels[KymaVersionLabel] = l.Version
+		u.SetLabels(labels)
+		return nil
 	}
 
-	return nil
+	return resources.Visit(interceptorFunc)
 }

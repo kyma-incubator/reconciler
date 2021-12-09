@@ -8,7 +8,6 @@ import (
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -20,9 +19,9 @@ type ServicesInterceptor struct {
 	kubeClient k8s.Client
 }
 
-func (s *ServicesInterceptor) Intercept(resources map[string][]*unstructured.Unstructured, namespace string) error {
-	serviceResources, ok := resources["service"]
-	if !ok {
+func (s *ServicesInterceptor) Intercept(resources k8s.Resources, namespace string) error {
+	serviceResources := resources.Get("service")
+	if serviceResources == nil {
 		return nil
 	}
 

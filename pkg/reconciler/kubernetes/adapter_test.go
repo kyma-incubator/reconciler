@@ -59,13 +59,13 @@ type testInterceptor struct {
 	err error
 }
 
-func (i *testInterceptor) Intercept(resources map[string][]*unstructured.Unstructured, _ string) error {
-	for kind := range resources {
-		for _, resource := range resources[kind] {
-			resource.SetLabels(expectedLabels)
-		}
+func (i *testInterceptor) Intercept(resources Resources, _ string) error {
+	interceptorFunc := func(kind string, u *unstructured.Unstructured) error {
+		u.SetLabels(expectedLabels)
+		return nil
 	}
-	return i.err
+
+	return resources.Visit(interceptorFunc)
 }
 
 func TestKubernetesClient(t *testing.T) {

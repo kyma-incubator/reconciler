@@ -20,14 +20,29 @@ type Resource struct {
 	Namespace string
 }
 
-type InterceptionResult string
-
 func (r *Resource) String() string {
 	return fmt.Sprintf("KubernetesResource [Kind:%s,Namespace:%s,Name:%s]", r.Kind, r.Namespace, r.Name)
 }
 
+type Resources map[string][]*unstructured.Unstructured
+
+func (r Resources) Visit(callback func(kind string, u *unstructured.Unstructured) error) error {
+	for kind := range r {
+		for _, resource := range r[kind] {
+			if err := callback(kind, resource); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (r Resources) Get(kind string) []*unstructured.Unstructured {
+	return r[kind]
+}
+
 type ResourceInterceptor interface {
-	Intercept(resources map[string][]*unstructured.Unstructured, namespace string) error
+	Intercept(resources Resources, namespace string) error
 }
 
 //go:generate mockery --name Client

@@ -127,11 +127,11 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 	}
 
 	//fill out the resources map by kind
-	resources := make(map[string][]*unstructured.Unstructured)
+	resources := make(Resources)
 	for _, unstruct := range unstructs {
 		kind := strings.ToLower(unstruct.GetKind())
 		if _, ok := resources[kind]; !ok {
-			resources[kind] = make([]*unstructured.Unstructured, 1)
+			resources[kind] = make([]*unstructured.Unstructured, 0)
 		}
 		resources[kind] = append(resources[kind], unstruct)
 	}
