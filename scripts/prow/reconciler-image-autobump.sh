@@ -50,7 +50,7 @@ export ERROR_LOGGING_GUARD
 # Arguments:
 #   $* - Message
 function log::info {
-    echo -e "$(log::date) [INFO] $*"
+    echo -e "$(date +"%Y/%m/%d %T %Z") [INFO] $*"
 }
 
 # utils::check_required_vars checks if all provided variables are initialized
