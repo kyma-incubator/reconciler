@@ -51,14 +51,14 @@ const (
 const (
 	profileName   = "profile"
 	componentName = "test-ory"
-	inMemoryUrl   = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
+	inMemoryURL   = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
 )
 
 var chartDir = filepath.Join("test", "resources")
 
 func Test_PostReconcile_Run(t *testing.T) {
 	t.Parallel()
-	t.Run("should call hydra sync if we are inMemory mode", func(t *testing.T) {
+	t.Run("should call hydra sync when we are inMemory mode", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -75,13 +75,15 @@ func Test_PostReconcile_Run(t *testing.T) {
 
 		// when
 		err = action.Run(actionContext)
+
+		// then
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertCalled(t, "Clientset")
 		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 	})
-	t.Run("should not call hydra sync if we are in persistence enabled mode", func(t *testing.T) {
+	t.Run("should not call hydra sync when we are in persistence enabled mode", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -97,13 +99,13 @@ func Test_PostReconcile_Run(t *testing.T) {
 		// when
 		err = action.Run(actionContext)
 
-		//Then
+		// then
 		require.NoError(t, err)
 		hydraClient.AssertNotCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 	})
 
-	t.Run("should return error if synchronization failed", func(t *testing.T) {
+	t.Run("should return error when synchronization failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -127,7 +129,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 	})
-	t.Run("should return error if read of action context failed", func(t *testing.T) {
+	t.Run("should return error when read of action context failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -266,7 +268,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
-		require.Equal(t, inMemoryUrl, secret.StringData["dsn"])
+		require.Equal(t, inMemoryURL, secret.StringData["dsn"])
 	})
 
 	t.Run("should not update ory secret when secret exist and has a valid data", func(t *testing.T) {
@@ -294,7 +296,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
 		require.Equal(t, "", secret.StringData["dsn"])
-		require.Equal(t, []byte(inMemoryUrl), secret.Data["dsn"])
+		require.Equal(t, []byte(inMemoryURL), secret.Data["dsn"])
 	})
 
 	t.Run("should update ory secret when secret exist and has an outdated values", func(t *testing.T) {
@@ -323,7 +325,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
 		require.Contains(t, secret.StringData["dsn"], "postgres")
-		require.NotContains(t, secret.StringData["dsn"], inMemoryUrl)
+		require.NotContains(t, secret.StringData["dsn"], inMemoryURL)
 	})
 }
 
@@ -562,7 +564,7 @@ func fixSecretMemory() *v1.Secret {
 			Namespace: dbNamespacedName.Namespace,
 		},
 		Data: map[string][]byte{
-			"dsn":           []byte(inMemoryUrl),
+			"dsn":           []byte(inMemoryURL),
 			"secretsCookie": []byte("somesecretcookie"),
 			"secretsSystem": []byte("somesecretsystem"),
 		},

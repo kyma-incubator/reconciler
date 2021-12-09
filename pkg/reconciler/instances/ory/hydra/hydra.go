@@ -22,8 +22,7 @@ type Syncer interface {
 	TriggerSynchronization(context context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) error
 }
 
-type DefaultHydraSyncer struct {
-}
+type DefaultHydraSyncer struct{}
 
 // NewDefaultHydraSyncer returns an instance of DefaultHydraSyncer
 func NewDefaultHydraSyncer() *DefaultHydraSyncer {
@@ -38,7 +37,7 @@ const (
 
 func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client kubernetes.Interface,
 	logger *zap.SugaredLogger, namespace string) error {
-	restartHydraMaesterDeploymentNeeded, err := hydraStartedAfterHydraMaester(context, client, logger, namespace)
+	restartHydraMaesterDeploymentNeeded, err := restartHydraMaesterDeploymentNeeded(context, client, logger, namespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to determine hydra pod status")
 	}
@@ -57,7 +56,7 @@ func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, cli
 
 }
 
-func hydraStartedAfterHydraMaester(context context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (bool, error) {
+func restartHydraMaesterDeploymentNeeded(context context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (bool, error) {
 	earliestHydraPodStartTime, err := getEarliestPodStartTime(context, hydraPodName, client, logger, namespace)
 	if err != nil {
 		return false, err
@@ -74,7 +73,6 @@ func hydraStartedAfterHydraMaester(context context.Context, client kubernetes.In
 }
 
 func getEarliestPodStartTime(context context.Context, label string, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (time.Time, error) {
-
 	maxStartTime := time.Date(9999, 12, 31, 12, 59, 59, 59, time.UTC)
 	podList, err := client.CoreV1().Pods(namespace).List(context, metav1.ListOptions{
 		LabelSelector: label})
