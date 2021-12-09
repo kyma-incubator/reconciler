@@ -102,12 +102,12 @@ func (q *Query) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset
 	return args, nil
 }
 
-func (u *Update) addWhereCondition(whereCond map[string]interface{}, negate bool) ([]interface{}, error) {
+func (u *Update) addWhereCondition(whereCond map[string]interface{}, negate bool) error {
 	var args []interface{}
 	var plcHdrIdx int
 
 	if len(whereCond) == 0 {
-		return args, nil
+		return nil
 	}
 
 	//get sort list of fields
@@ -122,7 +122,7 @@ func (u *Update) addWhereCondition(whereCond map[string]interface{}, negate bool
 	for _, field := range fields {
 		col, err := u.columnHandler.ColumnName(field)
 		if err != nil {
-			return args, err
+			return err
 		}
 		if plcHdrIdx > 0 {
 			u.buffer.WriteString(" AND")
@@ -137,7 +137,7 @@ func (u *Update) addWhereCondition(whereCond map[string]interface{}, negate bool
 	}
 	u.placeholderOffset += plcHdrIdx
 	u.args = append(u.args, args...)
-	return args, nil
+	return nil
 }
 
 func (q *Query) addWhereInCondition(field, subQuery string) error {
@@ -348,12 +348,12 @@ type Update struct {
 }
 
 func (u *Update) Where(args map[string]interface{}) *Update {
-	_, u.err = u.addWhereCondition(args, false)
+	u.err = u.addWhereCondition(args, false)
 	return u
 }
 
 func (u *Update) WhereNot(args map[string]interface{}) *Update {
-	_, u.err = u.addWhereCondition(args, true)
+	u.err = u.addWhereCondition(args, true)
 	return u
 }
 
