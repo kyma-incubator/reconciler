@@ -1,0 +1,1 @@
+UPDATE inventory_cluster_config_statuses SET status = 'reconcile_error_retryable' WHERE status = 'error_retryable'

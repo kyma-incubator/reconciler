@@ -16,31 +16,75 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 )
 
+type testCase struct {
+	Name     string
+	Response map[string]interface{}
+	Resource *unstructured.Unstructured
+	Want     UpdateStrategy
+	WantErr  bool
+}
+
 func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 
-	tests := []struct {
-		Name     string
-		Response map[string]interface{}
-		Resource *unstructured.Unstructured
-		Want     UpdateStrategy
-		WantErr  bool
-	}{
+	testCases := []testCase{
 		{
-			Name:     "Pods should be skipped",
+			Name:     "Pods should be created if missing",
 			Response: nil,
 			Resource: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"kind": "Pod",
+					"metadata": map[string]interface{}{
+						"name":      "pod",
+						"namespace": "kyma-system",
+					},
+				},
+			},
+			Want: PatchUpdateStrategy,
+		},
+		{
+			Name: "Pods should be skipped",
+			Response: map[string]interface{}{
+				"kind":       "Pod",
+				"apiVersion": "v1",
+			},
+			Resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "Pod",
+					"metadata": map[string]interface{}{
+						"name":      "pod",
+						"namespace": "kyma-system",
+					},
 				},
 			},
 			Want: SkipUpdateStrategy,
 		},
 		{
-			Name:     "Jobs should be skipped",
+			Name:     "Jobs should be created if missing",
 			Response: nil,
 			Resource: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"kind": "Job",
+					"metadata": map[string]interface{}{
+						"name":      "job",
+						"namespace": "kyma-system",
+					},
+				},
+			},
+			Want: PatchUpdateStrategy,
+		},
+		{
+			Name: "Jobs should be skipped",
+			Response: map[string]interface{}{
+				"kind":       "Job",
+				"apiVersion": "batch/v1",
+			},
+			Resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "Job",
+					"metadata": map[string]interface{}{
+						"name":      "job",
+						"namespace": "kyma-system",
+					},
 				},
 			},
 			Want: SkipUpdateStrategy,
@@ -118,33 +162,9 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			Want: ReplaceUpdateStrategy,
 		},
 	}
-	for _, tt := range tests {
-		tc := tt
-		t.Run(tt.Name, func(t *testing.T) {
-			var helper *resource.Helper
-			if tc.Response != nil {
-
-				httpClient := fake.CreateHTTPClient(func(request *http.Request) (*http.Response, error) {
-
-					if request.Method == http.MethodGet {
-						return createResponse(t, tc.Response), nil
-					}
-					return nil, fmt.Errorf("Not supported method: %s", request.Method)
-				})
-
-				restClient := &fake.RESTClient{
-					// GroupVersion:         appsv1,
-					NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
-					Client:               httpClient,
-				}
-
-				helper = &resource.Helper{
-					RESTClient:      restClient,
-					Resource:        "StatefulSet",
-					NamespaceScoped: true,
-				}
-			}
-
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			helper := newHelper(t, tc)
 			d := newDefaultUpdateStrategyResolver(helper)
 			got, err := d.Resolve(tc.Resource)
 			if (err != nil) != tc.WantErr {
@@ -155,6 +175,29 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 				t.Errorf("DefaultUpdateStrategyResolver.Resolve() = %v, want %v", got, tc.Want)
 			}
 		})
+	}
+}
+
+func newHelper(t *testing.T, tc testCase) *resource.Helper {
+	httpClient := fake.CreateHTTPClient(func(request *http.Request) (*http.Response, error) {
+		if request.Method == http.MethodGet {
+			if tc.Response == nil {
+				return &http.Response{Body: nil, StatusCode: http.StatusNotFound, Header: header()}, nil
+			}
+			return createResponse(t, tc.Response), nil
+		}
+		return nil, fmt.Errorf("not supported method: %s", request.Method)
+	})
+
+	restClient := &fake.RESTClient{
+		NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
+		Client:               httpClient,
+	}
+
+	return &resource.Helper{
+		RESTClient:      restClient,
+		Resource:        "StatefulSet",
+		NamespaceScoped: true,
 	}
 }
 
