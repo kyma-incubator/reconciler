@@ -270,8 +270,8 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	receivedUpdates := []*reconciler.CallbackMessage{}
 
 	//Collect received callbacks
-        close(callBackData)
-	for msg := range callBackData {
+	close(callbackData)
+	for msg := range callbackData {
 		receivedUpdates = append(receivedUpdates, msg)
 	}
 
