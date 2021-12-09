@@ -10,36 +10,58 @@ import (
 )
 
 type Params struct {
-	params map[string]string
+	urlQuery url.Values
+	params   map[string]string
 }
 
 func NewParams(r *http.Request) *Params {
 	params := mux.Vars(r)
-	query := url.Values{}
+	var query url.Values
+
 	if r.URL != nil {
 		query = r.URL.Query()
 	}
-	for k := range query {
-		params[k] = query.Get(k)
-	}
 
 	return &Params{
-		params: params,
+		urlQuery: query,
+		params:   params,
 	}
 }
 
 func (p *Params) String(name string) (string, error) {
 	result, ok := p.params[name]
 	if !ok {
-		return "", fmt.Errorf("parameter '%s' undefined", name)
+		if p.urlQuery.Has(name) {
+			return p.urlQuery.Get(name), nil
+		}
+		return "", p.newUndefinedErr(name)
 	}
 	return result, nil
 }
 
-func (p *Params) Int64(name string) (int64, error) {
-	strResult, err := p.String(name)
+func (p *Params) Int(name string) (int, error) {
+	result, err := p.String(name)
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseInt(strResult, 10, 64)
+	return strconv.Atoi(result)
+}
+
+func (p *Params) Int64(name string) (int64, error) {
+	result, err := p.String(name)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(result, 10, 64)
+}
+
+func (p *Params) StrSlice(name string) ([]string, error) {
+	if p.urlQuery.Has(name) {
+		return p.urlQuery[name], nil
+	}
+	return nil, p.newUndefinedErr(name)
+}
+
+func (p *Params) newUndefinedErr(name string) error {
+	return fmt.Errorf("parameter '%s' undefined", name)
 }
