@@ -10,7 +10,6 @@ type TestCommanderResolver struct {
 func (tcr TestCommanderResolver) GetCommander(version istioctl.Version) (istioctl.Commander, error) {
 	if tcr.err != nil {
 		return nil, tcr.err
-	} else {
-		return tcr.cmder, nil
 	}
+	return tcr.cmder, nil
 }

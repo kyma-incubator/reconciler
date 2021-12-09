@@ -25,7 +25,6 @@ import (
 )
 
 const (
-	istioOperatorKind   = "IstioOperator"
 	istioImagePrefix    = "istio/proxyv2"
 	retriesCount        = 5
 	delayBetweenRetries = 5 * time.Second

@@ -24,12 +24,12 @@ const (
 	istioctlBinaryPathMaxLen = 12290 //3 times 4096 (maxpath) + 2 colons (separators)
 )
 
-var _skip_bootstrap = false
+var _skipBootstrap = false
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
 	//TODO: Temporary solution to disable bootstrap in tests.
-	if _skip_bootstrap {
+	if _skipBootstrap {
 		return
 	}
 
@@ -68,7 +68,7 @@ func init() {
 type defaultCommanderResolver struct {
 	log                 *zap.SugaredLogger
 	paths               []string
-	istioBinaryResolver istioctl.IstioctlResolver
+	istioBinaryResolver istioctl.ExecutableResolver
 }
 
 func (dcr *defaultCommanderResolver) GetCommander(version istioctl.Version) (istioctl.Commander, error) {

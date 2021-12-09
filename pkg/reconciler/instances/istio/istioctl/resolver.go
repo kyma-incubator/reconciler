@@ -1,17 +1,12 @@
 package istioctl
 
 import (
-	"fmt"
 	"os/exec"
 	"sort"
 	"strings"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/pkg/errors"
-)
-
-const (
-	versionSuffixSeparator = "-"
 )
 
 type Version struct {
@@ -22,7 +17,7 @@ type Version struct {
 func VersionFromString(version string) (Version, error) {
 	trimmed := strings.TrimSpace(version)
 	if trimmed == "" {
-		return Version{}, errors.New("Invalid istioctl version format: empty input.")
+		return Version{}, errors.New("invalid istioctl version format: empty input")
 	}
 
 	val, err := semver.NewVersion(trimmed)
@@ -35,43 +30,43 @@ func VersionFromString(version string) (Version, error) {
 }
 
 func (v Version) String() string {
-	return fmt.Sprintf("%s", v.value)
+	return v.value.String()
 }
 
-func (this Version) SmallerThan(other Version) bool {
-	return this.value.LessThan(other.value)
+func (v Version) SmallerThan(other Version) bool {
+	return v.value.LessThan(other.value)
 }
 
-func (this Version) EqualTo(other Version) bool {
-	return this.value.Equal(other.value)
+func (v Version) EqualTo(other Version) bool {
+	return v.value.Equal(other.value)
 }
 
-func (this Version) BiggerThan(other Version) bool {
-	return !(this.EqualTo(other) || this.SmallerThan(other))
+func (v Version) BiggerThan(other Version) bool {
+	return !(v.EqualTo(other) || v.SmallerThan(other))
 }
 
 //go:generate mockery --name=IstioctlResolver --outpkg=mock --case=underscore
-// Finds IstioctlBinary for given Version
-type IstioctlResolver interface {
-	FindIstioctl(version Version) (*IstioctlBinary, error)
+// Finds an Executable for given Version
+type ExecutableResolver interface {
+	FindIstioctl(version Version) (*Executable, error)
 }
 
 type DefaultIstioctlResolver struct {
-	sortedBinaries []IstioctlBinary
+	sortedBinaries []Executable
 }
 
-func (d *DefaultIstioctlResolver) FindIstioctl(version Version) (*IstioctlBinary, error) {
+func (d *DefaultIstioctlResolver) FindIstioctl(version Version) (*Executable, error) {
 	return d.findMatchingBinary(version)
 }
 
 func NewDefaultIstioctlResolver(paths []string, vc VersionChecker) (*DefaultIstioctlResolver, error) {
-	binariesList := []IstioctlBinary{}
+	binariesList := []Executable{}
 	for _, path := range paths {
 		version, err := vc.GetIstioVersion(path)
 		if err != nil {
 			return nil, err
 		}
-		binariesList = append(binariesList, IstioctlBinary{version, path})
+		binariesList = append(binariesList, Executable{version, path})
 	}
 
 	sortBinaries(binariesList)
@@ -81,8 +76,8 @@ func NewDefaultIstioctlResolver(paths []string, vc VersionChecker) (*DefaultIsti
 	}, nil
 }
 
-func (d *DefaultIstioctlResolver) findMatchingBinary(version Version) (*IstioctlBinary, error) {
-	matching := []IstioctlBinary{}
+func (d *DefaultIstioctlResolver) findMatchingBinary(version Version) (*Executable, error) {
+	matching := []Executable{}
 
 	for _, binary := range d.sortedBinaries {
 		if binary.version.EqualTo(version) {
@@ -127,25 +122,25 @@ func (dvc DefaultVersionChecker) GetIstioVersion(pathToBinary string) (Version, 
 	return VersionFromString(string(out))
 }
 
-// Represents a istioctl binary with a specific version
-type IstioctlBinary struct {
+// Represents an istioctl executable in a specific version existing in a local filesystem
+type Executable struct {
 	version Version
 	path    string
 }
 
-func (this IstioctlBinary) SmallerThan(other IstioctlBinary) bool {
-	return this.version.SmallerThan(other.version)
+func (e Executable) SmallerThan(other Executable) bool {
+	return e.version.SmallerThan(other.version)
 }
 
-func (this IstioctlBinary) Path() string {
-	return this.path
+func (e Executable) Path() string {
+	return e.path
 }
 
-func (this IstioctlBinary) Version() Version {
-	return this.version
+func (e Executable) Version() Version {
+	return e.version
 }
 
-func sortBinaries(binaries []IstioctlBinary) {
+func sortBinaries(binaries []Executable) {
 	sort.SliceStable(binaries, func(i, j int) bool {
 		return binaries[i].SmallerThan(binaries[j])
 	})

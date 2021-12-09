@@ -31,10 +31,10 @@ var execCommand = exec.Command
 
 // DefaultCommander provides a default implementation of Commander.
 type DefaultCommander struct {
-	istioctl IstioctlBinary
+	istioctl Executable
 }
 
-func NewDefaultCommander(istioctl IstioctlBinary) DefaultCommander {
+func NewDefaultCommander(istioctl Executable) DefaultCommander {
 	return DefaultCommander{istioctl}
 }
 
@@ -148,6 +148,9 @@ func (c *DefaultCommander) execute(cmd *exec.Cmd, logger *zap.SugaredLogger) err
 		return err
 	}
 	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
 
 	if err := cmd.Start(); err != nil {
 		return err

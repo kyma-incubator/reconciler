@@ -60,7 +60,7 @@ metadata:
 
 var _ = func() interface{} {
 	//This code only executes during test run
-	_skip_bootstrap = true
+	_skipBootstrap = true
 	return nil
 }()
 

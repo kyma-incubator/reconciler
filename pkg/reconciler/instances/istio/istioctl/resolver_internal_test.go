@@ -251,11 +251,11 @@ func TestSortBinaries(t *testing.T) {
 		v2, _ := VersionFromString("1.10.3")
 		v3, _ := VersionFromString("1.9.2")
 		v4, _ := VersionFromString("1.9.2-beta.1")
-		given1 := IstioctlBinary{v1, "/biggest"}
-		given2 := IstioctlBinary{v2, "/a/b/c"}
-		given3 := IstioctlBinary{v3, "/smallest"}
-		given4 := IstioctlBinary{v4, "/smallest-beta"}
-		s := []IstioctlBinary{given1, given2, given4, given3}
+		given1 := Executable{v1, "/biggest"}
+		given2 := Executable{v2, "/a/b/c"}
+		given3 := Executable{v3, "/smallest"}
+		given4 := Executable{v4, "/smallest-beta"}
+		s := []Executable{given1, given2, given4, given3}
 		sortBinaries(s)
 		require.Equal(t, "/smallest-beta", s[0].path)
 		require.Equal(t, "/smallest", s[1].path)
