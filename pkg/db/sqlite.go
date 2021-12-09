@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
@@ -85,7 +86,7 @@ func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result,
 
 func (sc *sqliteConnection) Begin() (*sql.Tx, error) {
 	sc.logger.Debug("Sqlite3 Begin()")
-	return sc.db.Begin()
+	return sc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 }
 
 func (sc *sqliteConnection) Close() error {

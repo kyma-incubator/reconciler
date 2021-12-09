@@ -43,7 +43,6 @@ type finishOperation struct {
 func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *BookkeeperConfig) []error {
 	recon := reconResult.Reconciliation()
 	newClusterStatus := reconResult.GetResult()
-	errMsg := ""
 
 	if newClusterStatus == model.ClusterStatusReconcileError {
 		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, config.MaxRetries)
@@ -58,21 +57,19 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 		}
 	}
 
-	if newClusterStatus.IsFinal() {
-		err := fo.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
-		if err == nil {
-			fo.logger.Infof("finishOperation updated cluster '%s' to status '%s' "+
-				"(triggered by reconciliation with schedulingID '%s')",
-				recon.RuntimeID, newClusterStatus, recon.SchedulingID)
-			return nil
-		}
-		errMsg = fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
-			"(triggered by reconciliation with schedulingID '%s'): %s",
-			recon.RuntimeID, newClusterStatus, recon.SchedulingID, err)
-	} else {
-		errMsg = fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
-			"(triggered by reconciliation with schedulingID '%s'): New Cluster State is not final",
-			recon.RuntimeID, newClusterStatus, recon.SchedulingID)
+	if !newClusterStatus.IsFinal() {
+		return nil
 	}
-	return []error{errors.New(errMsg)}
+
+	err := fo.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
+	if err == nil {
+		fo.logger.Infof("finishOperation updated cluster '%s' to status '%s' "+
+			"(triggered by reconciliation with schedulingID '%s')",
+			recon.RuntimeID, newClusterStatus, recon.SchedulingID)
+		return nil
+	}
+
+	return []error{errors.New(fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
+		"(triggered by reconciliation with schedulingID '%s'): %s",
+		recon.RuntimeID, newClusterStatus, recon.SchedulingID, err))}
 }
