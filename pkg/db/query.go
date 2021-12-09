@@ -102,7 +102,7 @@ func (q *Query) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset
 	return args, nil
 }
 
-func (u *Update) addWhereCondition(whereCond map[string]interface{}) ([]interface{}, error) {
+func (u *Update) addWhereCondition(whereCond map[string]interface{}, negate bool) ([]interface{}, error) {
 	var args []interface{}
 	var plcHdrIdx int
 
@@ -128,41 +128,11 @@ func (u *Update) addWhereCondition(whereCond map[string]interface{}) ([]interfac
 			u.buffer.WriteString(" AND")
 		}
 		plcHdrIdx++
-		u.buffer.WriteString(fmt.Sprintf(" %s=$%d", col, plcHdrIdx+u.placeholderOffset))
-		args = append(args, whereCond[field])
-	}
-	u.placeholderOffset += plcHdrIdx
-	u.args = append(u.args, args...)
-	return args, nil
-}
-
-func (u *Update) addWhereNotCondition(whereCond map[string]interface{}) ([]interface{}, error) {
-	var args []interface{}
-	var plcHdrIdx int
-
-	if len(whereCond) == 0 {
-		return args, nil
-	}
-
-	//get sort list of fields
-	fields := make([]string, 0, len(whereCond))
-	for field := range whereCond {
-		fields = append(fields, field)
-	}
-	sort.Strings(fields)
-
-	//render WHERE condition
-	u.addWhere()
-	for _, field := range fields {
-		col, err := u.columnHandler.ColumnName(field)
-		if err != nil {
-			return args, err
+		if negate {
+			u.buffer.WriteString(fmt.Sprintf(" %s!=$%d", col, plcHdrIdx+u.placeholderOffset))
+		} else {
+			u.buffer.WriteString(fmt.Sprintf(" %s=$%d", col, plcHdrIdx+u.placeholderOffset))
 		}
-		if plcHdrIdx > 0 {
-			u.buffer.WriteString(" AND")
-		}
-		plcHdrIdx++
-		u.buffer.WriteString(fmt.Sprintf(" %s!=$%d", col, plcHdrIdx+u.placeholderOffset))
 		args = append(args, whereCond[field])
 	}
 	u.placeholderOffset += plcHdrIdx
@@ -378,12 +348,12 @@ type Update struct {
 }
 
 func (u *Update) Where(args map[string]interface{}) *Update {
-	_, u.err = u.addWhereCondition(args)
+	_, u.err = u.addWhereCondition(args, false)
 	return u
 }
 
 func (u *Update) WhereNot(args map[string]interface{}) *Update {
-	_, u.err = u.addWhereNotCondition(args)
+	_, u.err = u.addWhereCondition(args, true)
 	return u
 }
 

@@ -2,7 +2,7 @@ package worker
 
 import (
 	"context"
-	test2 "github.com/kyma-incubator/reconciler/pkg/keb/test"
+	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/pkg/errors"
 	"strconv"
 	"sync"
@@ -46,7 +46,7 @@ func TestWorkerPool(t *testing.T) {
 	require.NoError(t, err)
 
 	//add cluster to inventory
-	clusterState, err := inventory.CreateOrUpdate(1, test2.NewCluster(t, "1", 1, false, test2.OneComponentDummy))
+	clusterState, err := inventory.CreateOrUpdate(1, kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy))
 	require.NoError(t, err)
 
 	//cleanup created cluster
@@ -93,9 +93,9 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
 		//prepare keb clusters
-		kebClusters := []*keb.Cluster{test2.NewCluster(t, strconv.Itoa(1), 1, false, test2.OneComponentDummy),
-			test2.NewCluster(t, strconv.Itoa(2), 1, false, test2.OneComponentDummy),
-			test2.NewCluster(t, strconv.Itoa(3), 1, false, test2.OneComponentDummy),
+		kebClusters := []*keb.Cluster{kebTest.NewCluster(t, strconv.Itoa(1), 1, false, kebTest.OneComponentDummy),
+			kebTest.NewCluster(t, strconv.Itoa(2), 1, false, kebTest.OneComponentDummy),
+			kebTest.NewCluster(t, strconv.Itoa(3), 1, false, kebTest.OneComponentDummy),
 		}
 
 		//create mock database connection

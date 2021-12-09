@@ -391,13 +391,17 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		update := q.Update().Where(whereCond)
 		cnt, err := update.ExecCount()
 
+		if err != nil {
+			return err
+		}
+
 		if cnt == 0 {
 			return fmt.Errorf("update of operation '%s' to state '%s' failed: no row was updated "+
 				"(probably race-condition: operation does no longer match where-conditions)",
 				op, state)
 		}
 
-		return err
+		return nil
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
