@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"strings"
 
 	"go.uber.org/zap"
@@ -30,9 +31,9 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	if err != nil {
 		return err
 	}
-
 	retryable := func() error {
-		if err := heartbeatSender.Running(); err != nil {
+		retryID := uuid.New().String()
+		if err := heartbeatSender.Running(retryID); err != nil {
 			r.logger.Warnf("Runner: failed to start status updater: %s", err)
 			return err
 		}
@@ -40,7 +41,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		if err != nil {
 			r.logger.Warnf("Runner: failing reconciliation of '%s' in version '%s' with profile '%s': %s",
 				task.Component, task.Version, task.Profile, err)
-			if heartbeatErr := heartbeatSender.Failed(err); heartbeatErr != nil {
+			if heartbeatErr := heartbeatSender.Failed(err, retryID); heartbeatErr != nil {
 				err = errors.Wrap(err, heartbeatErr.Error())
 			}
 		}
@@ -49,7 +50,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 
 	//retry the reconciliation in case of an error
 	err = retry.Do(retryable,
-		retry.Attempts(uint(r.maxRetries)),
+		retry.Attempts(uint(task.ReconcilerConfiguration.MaxRetries)),
 		retry.Delay(r.retryDelay),
 		retry.LastErrorOnly(false),
 		retry.Context(ctx))
@@ -57,7 +58,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	if err == nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
-		if err := heartbeatSender.Success(); err != nil {
+		if err := heartbeatSender.Success(uuid.New().String()); err != nil {
 			return err
 		}
 	} else if ctx.Err() != nil {
@@ -67,7 +68,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	} else {
 		r.logger.Errorf("Runner: retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			task.Component, task.Version)
-		if heartbeatErr := heartbeatSender.Error(err); heartbeatErr != nil {
+		if heartbeatErr := heartbeatSender.Error(err, uuid.New().String()); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
 		}
 	}

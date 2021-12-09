@@ -30,6 +30,10 @@ func NewStatus(status string) (Status, error) {
 	}
 }
 
+
+type ReconcilerConfiguration struct {
+	MaxRetries int `json:"maxRetries"`
+}
 //Task the reconciler has to complete when called
 type Task struct {
 	ComponentsReady []string               `json:"componentsReady"`
@@ -45,6 +49,7 @@ type Task struct {
 	CorrelationID   string                 `json:"correlationID"`
 	Repository      *Repository            `json:"repository"`
 	Type            model.OperationType    `json:"type"` // Supported task types are: reconcile, delete
+    ReconcilerConfiguration ReconcilerConfiguration `json:"reconcilerConfiguration"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
 	CallbackFunc func(msg *CallbackMessage) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process

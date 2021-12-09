@@ -56,13 +56,15 @@ components:
   schemas:
     callbackMessage:
       type: object
-      required: [ status, error ]
+      required: [ status, error, retryID ]
       properties:
         status:
           $ref: '#/components/schemas/status'
         error:
           type: string
-
+        retryID:
+          type: string
+          format: uuid
     status:
       type: string
       enum:

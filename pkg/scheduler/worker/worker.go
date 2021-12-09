@@ -20,7 +20,7 @@ type worker struct {
 	retryDelay time.Duration
 }
 
-func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model.OperationEntity) error {
+func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model.OperationEntity, maxOpRetries int) error {
 	if !w.isProcessable(op) {
 		w.logger.Warnf("Worker cannot start processing of operation '%s' because it is in non-processable state '%s'",
 			op, op.State)
@@ -48,6 +48,7 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 			SchedulingID:         op.SchedulingID,
 			CorrelationID:        op.CorrelationID,
 			ClusterState:         clusterState,
+			MaxOperationRetries:  maxOpRetries,
 		})
 	}
 

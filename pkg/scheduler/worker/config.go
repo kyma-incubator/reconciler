@@ -20,7 +20,7 @@ type Config struct {
 	OperationCheckInterval time.Duration
 	InvokerMaxRetries      int
 	InvokerRetryDelay      time.Duration
-	maxOperationRetries    int
+	MaxOperationRetries    int
 }
 
 func (c *Config) validate() error {
@@ -55,11 +55,11 @@ func (c *Config) validate() error {
 		c.InvokerRetryDelay = defaultInvokerRetryDelay
 	}
 	// do we need to throw an error when the config value is negative? why not set the default value in this case too?
-	if c.maxOperationRetries < 0 {
+	if c.MaxOperationRetries < 0 {
 		return fmt.Errorf("invoker max operations retries cannot be < 0 (was %d)", c.InvokerRetryDelay.Seconds())
 	}
-	if c.maxOperationRetries == 0 {
-		c.maxOperationRetries = defaultMaxOperationRetries
+	if c.MaxOperationRetries == 0 {
+		c.MaxOperationRetries = defaultMaxOperationRetries
 	}
 	return nil
 }
