@@ -17,13 +17,15 @@ type LabelsInterceptor struct {
 func (l *LabelsInterceptor) Intercept(resources map[string][]*unstructured.Unstructured, _ string) error {
 	for kind := range resources {
 		for _, resource := range resources[kind] {
-			labels := resource.GetLabels()
-			if labels == nil {
-				labels = make(map[string]string)
+			if resource != nil {
+				labels := resource.GetLabels()
+				if labels == nil {
+					labels = make(map[string]string)
+				}
+				labels[ManagedByLabel] = LabelReconcilerValue
+				labels[KymaVersionLabel] = l.Version
+				resource.SetLabels(labels)
 			}
-			labels[ManagedByLabel] = LabelReconcilerValue
-			labels[KymaVersionLabel] = l.Version
-			resource.SetLabels(labels)
 		}
 	}
 
