@@ -18,6 +18,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -138,6 +139,13 @@ const (
 )
 
 func Test_RunUpdateAction(t *testing.T) {
+
+	performerCreatorFn := func(p *actions.DefaultIstioPerformer) func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
+		return func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
+			return p, nil
+		}
+	}
+
 	wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
 	model := reconciler.Task{
 		Component: "istio-configuration",
@@ -159,7 +167,8 @@ func Test_RunUpdateAction(t *testing.T) {
 		proxy := proxymocks.IstioProxyReset{}
 		proxy.On("Run", mock.Anything).Return(nil)
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, &proxy, &providerMock)
-		action := istio.NewReconcileAction(performer)
+
+		action := istio.NewReconcileAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -178,7 +187,8 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
-		action := istio.NewReconcileAction(performer)
+
+		action := istio.NewReconcileAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -197,7 +207,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
-		action := istio.NewReconcileAction(performer)
+		action := istio.NewReconcileAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -217,7 +227,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
-		action := istio.NewReconcileAction(performer)
+		action := istio.NewReconcileAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -231,6 +241,13 @@ func Test_RunUpdateAction(t *testing.T) {
 }
 
 func Test_RunUninstallAction(t *testing.T) {
+
+	performerCreatorFn := func(p *actions.DefaultIstioPerformer) func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
+		return func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
+			return p, nil
+		}
+	}
+
 	t.Run("Istio uninstall should also delete namespace", func(t *testing.T) {
 		// given
 		wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
@@ -248,7 +265,7 @@ func Test_RunUninstallAction(t *testing.T) {
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
-		action := istio.NewUninstallAction(performer)
+		action := istio.NewUninstallAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
