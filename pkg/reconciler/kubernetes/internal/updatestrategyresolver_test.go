@@ -110,6 +110,26 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			Want: PatchUpdateStrategy,
 		},
 		{
+			Name:     "Role should be patched",
+			Response: nil,
+			Resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "Role",
+				},
+			},
+			Want: PatchUpdateStrategy,
+		},
+		{
+			Name:     "RoleBinding should be patched",
+			Response: nil,
+			Resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "RoleBinding",
+				},
+			},
+			Want: PatchUpdateStrategy,
+		},
+		{
 			Name:     "ClusterRole should be patched",
 			Response: nil,
 			Resource: &unstructured.Unstructured{

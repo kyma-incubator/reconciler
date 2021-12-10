@@ -77,6 +77,8 @@ func newDefaultUpdateStrategyResolver(helper *resource.Helper) UpdateStrategyRes
 			"job":                   onlyCreateStrategy,
 			"persistentvolumeclaim": patchStrategy,
 			"serviceaccount":        patchStrategy,
+			"role":                  patchStrategy,
+			"rolebinding":           patchStrategy,
 			"clusterrole":           patchStrategy,
 			"clusterrolebinding":    patchStrategy,
 			"statefulset":           statefulsetStrategy,

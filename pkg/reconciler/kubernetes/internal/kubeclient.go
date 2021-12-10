@@ -40,6 +40,7 @@ type Metadata struct {
 }
 
 type KubeClient struct {
+	logger        *zap.SugaredLogger
 	clientConfig  *Config
 	dynamicClient dynamic.Interface
 	config        *rest.Config
@@ -66,6 +67,7 @@ func NewKubeClient(kubeconfig string, logger *zap.SugaredLogger, clientConfig *C
 		return nil, err
 	}
 
+	kubeClient.logger = logger
 	kubeClient.clientConfig = clientConfig
 	return kubeClient, nil
 }
@@ -178,6 +180,13 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 	retryable := func() error {
 		replaceResource := strategy == ReplaceUpdateStrategy
 		_, err := k.helmClient.Update(original, target, replaceResource)
+		if err == nil {
+			k.logger.Debugf("kubeClient updated %s '%s' (namespace: %s) with stategy '%s' successfully",
+				u.GetKind(), u.GetName(), u.GetNamespace(), strategy)
+		} else {
+			k.logger.Warnf("kubeClient failed to update %s '%s' (namespace: %s)  with strategy '%s': %s",
+				u.GetKind(), u.GetName(), u.GetNamespace(), strategy, err)
+		}
 		return err
 	}
 
@@ -189,7 +198,7 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 		retry.Context(context.Background()))
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "kubeClient failed to update %s '%s@%s'",
+		return nil, errors.Wrapf(err, "kubeClient failed to update %s '%s' (namespace: %s)",
 			u.GetKind(), u.GetName(), u.GetNamespace())
 	}
 
