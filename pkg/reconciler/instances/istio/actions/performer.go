@@ -80,28 +80,28 @@ type DataPlaneVersion struct {
 // IstioPerformer performs actions on Istio component on the cluster.
 type IstioPerformer interface {
 
-	// Install Istio in given version on the cluster using istioChart.
+	// Install installs Istio in given version on the cluster using istioChart.
 	Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error
 
-	// PatchMutatingWebhook configuration.
+	// PatchMutatingWebhook patches Istio's webhook configuration.
 	PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
 
-	// Updates Istio on the cluster to targetVersion using istioChart.
+	// Update updates Istio on the cluster to targetVersion using istioChart.
 	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
-	// ResetProxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version, it always adds "-distroless" suffix to the provided value.
+	// ResetProxy reset Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version, it always adds "-distroless" suffix to the provided value.
 	ResetProxy(kubeConfig string, proxyImageVersion string, logger *zap.SugaredLogger) error
 
-	// Reports status of Istio installation on the cluster.
+	// Version reports status of Istio installation on the cluster.
 	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error)
 
-	// Uninstall Istio from the cluster and its corresponding resources, using istio in given version.
+	// Uninstall uninstalls Istio from the cluster and its corresponding resources, using given Istio version.
 	Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error
 }
 
-//Implementations of this interface must be able to provide istioctl.Commander instances for given istioctl.Version
+//CommanderResolver interface implementations must be able to provide istioctl.Commander instances for given istioctl.Version
 type CommanderResolver interface {
-	//Returns istioctl.Commander instance for given istioctl version, if supported. Returns an error otherwise.
+	//GetCommander function returns istioctl.Commander instance for given istioctl version, if supported and returns an error otherwise.
 	GetCommander(version istioctl.Version) (istioctl.Commander, error)
 }
 
