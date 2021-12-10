@@ -13,6 +13,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: role
+  namespace: kubeclient-test
 rules:
   - apiGroups: [ "" ]
     resources: [ "pods" ]
@@ -35,6 +36,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rolebinding
+  namespace: kubeclient-test
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -42,6 +44,31 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: serviceaccount
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterrole
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: serviceaccount
+    namespace: kubeclient-test
 ---
 apiVersion: v1
 kind: Secret
