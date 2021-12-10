@@ -83,9 +83,13 @@ func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result,
 	return result, err
 }
 
-func (sc *sqliteConnection) Begin() (*sql.Tx, error) {
+func (sc *sqliteConnection) Begin() (*Tx, error) {
 	sc.logger.Debug("Sqlite3 Begin()")
-	return sc.db.Begin()
+	tx, err := sc.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &Tx{tx, sc}, nil
 }
 
 func (sc *sqliteConnection) Close() error {

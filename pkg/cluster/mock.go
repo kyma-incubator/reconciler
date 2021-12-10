@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"io/ioutil"
 	"os"
 	"time"
@@ -23,6 +24,10 @@ type MockInventory struct {
 	UpdateStatusResult        *State
 	ChangesResult             []*StatusChange
 	RetriesCount              int
+}
+
+func (i *MockInventory) WithTx(tx *db.Tx) (Inventory, error) {
+	return i, nil
 }
 
 func (i *MockInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cluster) (*State, error) {

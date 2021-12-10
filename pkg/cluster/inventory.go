@@ -253,7 +253,7 @@ func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
 }
 
 func (i *DefaultInventory) Delete(runtimeID string) error {
-	dbOps := func() error {
+	dbOps := func(tx *db.Tx) error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID)
 		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
 
