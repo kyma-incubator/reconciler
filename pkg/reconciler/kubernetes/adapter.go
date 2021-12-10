@@ -144,7 +144,8 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 
 		err := interceptor.Intercept(resources, namespace)
 		if err != nil {
-			g.logger.Warnf("One of the interceptors returned an error: %s", err)
+			g.logger.Errorf("One of the interceptors returned an error: %s", err)
+			return deployedResources, err
 		}
 	}
 
