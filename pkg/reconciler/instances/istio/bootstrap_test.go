@@ -62,7 +62,25 @@ func TestParsePaths(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "No paths defined")
 	})
-	t.Run("parsePaths should return an error on paths with an empty element", func(t *testing.T) {
+	t.Run("parsePaths should return an error on paths containing just a colon", func(t *testing.T) {
+		//given
+		paths := ":"
+		//when
+		_, err := parsePaths(paths, alwaysValidFn)
+		//then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Invalid (empty) path provided")
+	})
+	t.Run("parsePaths should return an error on paths starting with an empty element", func(t *testing.T) {
+		//given
+		paths := ":/a/b/c"
+		//when
+		_, err := parsePaths(paths, alwaysValidFn)
+		//then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Invalid (empty) path provided")
+	})
+	t.Run("parsePaths should return an error on paths ending with an empty element", func(t *testing.T) {
 		//given
 		paths := "/a/b/c:"
 		//when

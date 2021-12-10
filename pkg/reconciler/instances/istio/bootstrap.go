@@ -41,7 +41,7 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 	return res
 }
 
-//Provides runtime wiring between istioctl.DefaultVersionChecker, istioctl.DefaultIstioctlResolver and istioctl.DefaultCommander
+//defaultCommanderResolver provides default runtime wiring for istioctl.ExecutableResolver
 //Implements actions.CommanderResolver
 type defaultCommanderResolver struct {
 	log                 *zap.SugaredLogger
@@ -55,7 +55,7 @@ func (dcr *defaultCommanderResolver) GetCommander(version istioctl.Version) (ist
 		return nil, err
 	}
 
-	dcr.log.Debugf("Resolved istioctl binary: Requested: %s, Found: %s", version.String(), istioBinary.Version().String())
+	dcr.log.Infof("Resolved istioctl binary: Requested istio version: %s, Found: %s", version.String(), istioBinary.Version().String())
 
 	res := istioctl.NewDefaultCommander(*istioBinary)
 	return &res, nil
@@ -75,7 +75,7 @@ func newDefaultCommanderResolver(paths []string, log *zap.SugaredLogger) (action
 	}, nil
 }
 
-//parsePath func parses and validates executable paths. The input must contain a list of full/absolute filesystem paths of binaries, separated by a colon character ':'
+//parsePaths func parses and validates executable paths. The input must contain a list of full/absolute filesystem paths of binaries, separated by a colon character ':'
 //isValid function is used to validate every single binary path in the input.
 func parsePaths(input string, isValid func(string) error) ([]string, error) {
 	trimmed := strings.TrimSpace(input)
@@ -85,9 +85,9 @@ func parsePaths(input string, isValid func(string) error) ([]string, error) {
 	if len(trimmed) > istioctlBinaryPathMaxLen {
 		return nil, errors.New(fmt.Sprintf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen))
 	}
-	pathdefs := strings.Split(trimmed, ":")
+	pathDefs := strings.Split(trimmed, ":")
 	res := []string{}
-	for _, path := range pathdefs {
+	for _, path := range pathDefs {
 		val := strings.TrimSpace(path)
 		if val == "" {
 			return nil, errors.New("Invalid (empty) path provided")
@@ -100,6 +100,7 @@ func parsePaths(input string, isValid func(string) error) ([]string, error) {
 	return res, nil
 }
 
+//TODO: test it
 func validatePath(path string) error {
 	stat, err := os.Stat(path)
 	if err != nil {
