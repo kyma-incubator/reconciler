@@ -1,4 +1,9 @@
-{
+package test
+
+type Cluster []byte
+
+var (
+	Production Cluster = []byte(`{
   "runtimeID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5",
   "runtimeInput": {
     "name": "ad0d842",
@@ -277,5 +282,86 @@
     "shootName": "4deee563",
     "instanceID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5"
   }
-}
-
+}`)
+	OneComponentDummy Cluster = []byte(`{
+	"kymaConfig": {
+		"version": "1.2.3",
+		"profile": "",
+		"components": [{
+			"component": "dummy",
+			"namespace": "kyma-system",
+			"configuration": [{
+					"key": "dummyKey",
+					"value": "123"
+				}
+			]
+		}]
+	},
+	"kubeConfig": "123",
+	"metadata": {
+		"globalAccountID": "3e64ebae-38b5-46a0-b1ed-9ccee153a0ae",
+		"subAccountID": "f7d129fa-b2fe-11eb-8529-0242ac130003",
+		"serviceID": "47c9dcbf-ff30-448e-ab36-d3bad66ba281",
+		"servicePlanID": "4deee563-e5ec-4731-b9b1-53b42d855f0c",
+		"shootName": "4deee563",
+		"instanceID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5"
+	},
+	"runtimeID": "",
+	"runtimeInput": {
+		"name": "ad0d842",
+		"description": "",
+		"labels": {
+			"scenarios": [
+				"DEFAULT"
+			]
+		}
+	}
+}`)
+	ThreeComponentsDummy Cluster = []byte(`{
+	"kymaConfig": {
+		"version": "1.2.3",
+		"profile": "",
+		"components": [{
+			"component": "comp1",
+			"namespace": "kyma-system",
+			"configuration": [{
+				"key": "dummyKey",
+				"value": "123"
+			}]
+		}, {
+			"component": "comp2",
+			"namespace": "kyma-system",
+			"configuration": [{
+				"key": "dummyKey",
+				"value": "123"
+			}]
+		}, {
+			"component": "comp3",
+			"namespace": "kyma-system",
+			"configuration": [{
+				"key": "dummyKey",
+				"value": "123"
+			}]
+		}]
+	},
+	"kubeConfig": "123",
+	"metadata": {
+		"globalAccountID": "3e64ebae-38b5-46a0-b1ed-9ccee153a0ae",
+		"subAccountID": "f7d129fa-b2fe-11eb-8529-0242ac130003",
+		"serviceID": "47c9dcbf-ff30-448e-ab36-d3bad66ba281",
+		"servicePlanID": "4deee563-e5ec-4731-b9b1-53b42d855f0c",
+		"shootName": "4deee563",
+		"instanceID": "6f8ec1bc-f300-4f00-bb65-6fec5dcd0ba5"
+	},
+	"runtimeID": "",
+	"runtimeInput": {
+		"name": "ad0d842",
+		"description": "",
+		"labels": {
+			"scenarios": [
+				"DEFAULT"
+			]
+		}
+	}
+}`)
+)

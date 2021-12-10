@@ -2,10 +2,9 @@ package service
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
@@ -20,21 +19,7 @@ func TestBookkeeper(t *testing.T) {
 	//prepare inventory
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
-	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-		Kubeconfig: "123",
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Component{
-				{
-					Component:     "dummy",
-					Configuration: nil,
-					Namespace:     "kyma-system",
-				},
-			},
-			Profile: "",
-			Version: "1.2.3",
-		},
-		RuntimeID: uuid.NewString(),
-	})
+	clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 	require.NoError(t, err)
 
 	//trigger reconciliation for cluster
@@ -49,13 +34,13 @@ func TestBookkeeper(t *testing.T) {
 	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 	require.NoError(t, err)
 	for _, opEntity := range opEntities {
-		err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone)
+		err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone, true)
 		require.NoError(t, err)
 	}
 
 	//initialize bookkeeper
 	bk := newBookkeeper(
-		newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true)),
+		reconRepo,
 		&BookkeeperConfig{
 			OperationsWatchInterval: 1 * time.Second,
 			OrphanOperationTimeout:  2 * time.Second,
@@ -67,8 +52,11 @@ func TestBookkeeper(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) //stop bookkeeper after 5 sec
 	defer cancel()
 
+	transition := newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true))
 	start := time.Now()
-	require.NoError(t, bk.Run(ctx))
+	require.NoError(t, bk.Run(ctx,
+		markOrphanOperation{transition: transition, logger: transition.logger},
+		finishOperation{transition: transition, logger: transition.logger}))
 	require.WithinDuration(t, time.Now(), start, 5500*time.Millisecond) //verify bookkeeper stops when ctx gets closed
 
 	//verify bookkeeper results

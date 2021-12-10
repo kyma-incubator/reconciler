@@ -2,6 +2,7 @@ package ory
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	hydra "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
@@ -23,5 +24,8 @@ func init() {
 		}).
 		WithPostDeleteAction(&postDeleteAction{
 			&oryAction{step: "post-delete"},
+		}).
+		WithPostReconcileAction(&postReconcileAction{
+			&oryAction{step: "post-reconcile"}, hydra.NewDefaultHydraSyncer(),
 		})
 }

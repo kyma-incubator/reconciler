@@ -2,16 +2,16 @@ package reconciliation
 
 import (
 	"fmt"
-	"sync"
-	"testing"
-
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/stretchr/testify/require"
+	"sync"
+	"testing"
+	"time"
 )
 
 var (
@@ -403,27 +403,23 @@ func TestReconciliationRepository(t *testing.T) {
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesNew, 4)
 
-				err = reconRepo.UpdateOperationState(opsEntitiesAll[0].SchedulingID, opsEntitiesAll[0].CorrelationID,
-					model.OperationStateError, "err")
+				err = reconRepo.UpdateOperationState(opsEntitiesAll[0].SchedulingID, opsEntitiesAll[0].CorrelationID, model.OperationStateError, false, "err")
 				require.NoError(t, err)
 				opsEntitiesErr, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateError)
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesErr, 1)
 				require.Equal(t, opsEntitiesAll[0].CorrelationID, opsEntitiesErr[0].CorrelationID)
 
-				err = reconRepo.UpdateOperationState(opsEntitiesAll[1].SchedulingID, opsEntitiesAll[1].CorrelationID,
-					model.OperationStateFailed, "err")
+				err = reconRepo.UpdateOperationState(opsEntitiesAll[1].SchedulingID, opsEntitiesAll[1].CorrelationID, model.OperationStateFailed, false, "err")
 				require.NoError(t, err)
 				opsEntitiesFailed, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateFailed)
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesFailed, 1)
 				require.Equal(t, opsEntitiesAll[1].CorrelationID, opsEntitiesFailed[0].CorrelationID)
 
-				err = reconRepo.UpdateOperationState(opsEntitiesAll[2].SchedulingID, opsEntitiesAll[2].CorrelationID,
-					model.OperationStateDone)
+				err = reconRepo.UpdateOperationState(opsEntitiesAll[2].SchedulingID, opsEntitiesAll[2].CorrelationID, model.OperationStateDone, false)
 				require.NoError(t, err)
-				err = reconRepo.UpdateOperationState(opsEntitiesAll[3].SchedulingID, opsEntitiesAll[3].CorrelationID,
-					model.OperationStateDone)
+				err = reconRepo.UpdateOperationState(opsEntitiesAll[3].SchedulingID, opsEntitiesAll[3].CorrelationID, model.OperationStateDone, false)
 				require.NoError(t, err)
 				opsEntitiesDone, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateDone)
 				require.NoError(t, err)
@@ -462,8 +458,7 @@ func TestReconciliationRepository(t *testing.T) {
 
 				//mark processable prio 1 operation as done
 				for _, op := range opsEntitiesPrio1 {
-					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID,
-						model.OperationStateDone))
+					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateDone, false))
 				}
 
 				opsEntitiesPrio2, err := reconRepo.GetProcessableOperations(0)
@@ -473,8 +468,7 @@ func TestReconciliationRepository(t *testing.T) {
 
 				//mark processable prio 2 operation to be in error state
 				for _, op := range opsEntitiesPrio2 {
-					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID,
-						model.OperationStateError, "I failed"))
+					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateError, false, "I failed"))
 				}
 
 				//one of the previous operations is in error state: no further operations have to be processed
@@ -511,8 +505,7 @@ func TestReconciliationRepository(t *testing.T) {
 
 				//mark processable prio 1 operation as done
 				for _, op := range opsEntitiesPrio1 {
-					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID,
-						model.OperationStateDone))
+					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateDone, false))
 				}
 
 				opsEntitiesPrio2, err := reconRepo.GetProcessableOperations(0)
@@ -525,8 +518,7 @@ func TestReconciliationRepository(t *testing.T) {
 
 				//mark processable prio 2 operation to be in error state
 				for _, op := range opsEntitiesPrio2 {
-					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID,
-						model.OperationStateError, "I failed"))
+					require.NoError(t, reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateError, false, "I failed"))
 				}
 
 				//one of the previous operations is in error state: no further operations have to be processed
@@ -562,32 +554,32 @@ func TestReconciliationRepository(t *testing.T) {
 				sID := opsEntities[0].SchedulingID
 				cID := opsEntities[0].CorrelationID
 
-				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress, false))
 				op, _ := reconRepo.GetOperation(sID, cID)
 				verifyOperationState(t, op, model.OperationStateInProgress)
 
-				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateClientError, "client error reason"))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateClientError, false, "client error reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationState(t, op, model.OperationStateClientError, "client error reason")
 
-				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress, false))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationState(t, op, model.OperationStateInProgress)
 
-				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateFailed, "operation failed reason"))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateFailed, false, "operation failed reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationState(t, op, model.OperationStateFailed, "operation failed reason")
 
-				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress, false))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationState(t, op, model.OperationStateInProgress)
 
-				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateError, "operation error reason"))
+				require.NoError(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateError, false, "operation error reason"))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationState(t, op, model.OperationStateError, "operation error reason")
 
 				//expect an error because operation is in final state
-				require.Error(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress))
+				require.Error(t, reconRepo.UpdateOperationState(sID, cID, model.OperationStateInProgress, false))
 				op, _ = reconRepo.GetOperation(sID, cID)
 				verifyOperationState(t, op, model.OperationStateError, "operation error reason")
 			},
@@ -640,59 +632,11 @@ func removeExistingReconciliations(t *testing.T, repos map[string]Repository) {
 
 func createClusterStates(t *testing.T, inventory cluster.Inventory) (*cluster.State, *cluster.State) {
 	clusterID1 := uuid.NewString()
-	stateMock1, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-		Kubeconfig: "abc",
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Component{
-				{
-					Component: "comp1",
-					Configuration: []keb.Configuration{
-						{
-							Key:   "limitRange.default.memory",
-							Value: "256m",
-						},
-					},
-					Namespace: "kyma-system",
-				},
-				{
-					Component:     "comp2",
-					Configuration: nil,
-					Namespace:     "istio-system",
-				},
-				{
-					Component:     "comp3",
-					Configuration: nil,
-					Namespace:     "kyma-system",
-				},
-			},
-			Version: "1.2.3",
-		},
-		Metadata:  keb.Metadata{},
-		RuntimeID: clusterID1,
-		RuntimeInput: keb.RuntimeInput{
-			Name: clusterID1,
-		},
-	})
+	stateMock1, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID1, 1, false, test.ThreeComponentsDummy))
 	require.NoError(t, err)
 
 	clusterID2 := uuid.NewString()
-	stateMock2, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-		Kubeconfig: "abc",
-		KymaConfig: keb.KymaConfig{
-			Components: []keb.Component{
-				{
-					Component: "comp4",
-					Namespace: "kyma-system",
-				},
-			},
-			Version: "1.2.3",
-		},
-		Metadata:  keb.Metadata{},
-		RuntimeID: clusterID2,
-		RuntimeInput: keb.RuntimeInput{
-			Name: clusterID2,
-		},
-	})
+	stateMock2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.OneComponentDummy))
 	require.NoError(t, err)
 	return stateMock1, stateMock2
 }
@@ -728,4 +672,118 @@ func dbConnection(t *testing.T) db.Connection {
 		dbConn = db.NewTestConnection(t)
 	}
 	return dbConn
+}
+
+func TestReconciliationParallel(t *testing.T) {
+
+	type testCase struct {
+		name            string
+		preparationFunc func(Repository, *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity)
+		mainFunc        func(Repository, *cluster.State, *model.ReconciliationEntity, []*model.OperationEntity) error
+		check           func(Repository, int, chan error)
+	}
+
+	tests := []testCase{
+		{name: "Create multiple instances of single reconciliations in parallel",
+			preparationFunc: func(repo Repository, state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
+				return nil, nil
+			},
+			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
+				_, err := repo.CreateReconciliation(state, nil)
+				return err
+			},
+			check: func(repo Repository, threadCnt int, errChannel chan error) {
+				recons, err := repo.GetReconciliations(nil)
+				require.NoError(t, err)
+				require.Equal(t, 1, len(recons))
+				require.False(t, recons[0].Finished)
+				require.Equal(t, threadCnt-1, len(errChannel))
+			},
+		},
+		{name: "Update single operation state in multiple parallel threads",
+			preparationFunc: func(repo Repository, state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
+				recon, err := repo.CreateReconciliation(state, nil)
+				require.NoError(t, err)
+				allOperations, err := repo.GetOperations(recon.SchedulingID)
+				require.NoError(t, err)
+				return recon, allOperations
+			},
+			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
+				err := repo.UpdateOperationState(reconEntity.SchedulingID, entities[0].CorrelationID, model.OperationStateError, false, "")
+				return err
+			},
+			check: func(repo Repository, threadCnt int, errChannel chan error) {
+				ops, err := repo.GetReconcilingOperations()
+				require.NoError(t, err)
+				require.Equal(t, 4, len(ops))
+				require.Equal(t, model.OperationStateError, ops[0].State)
+				for i := 1; i < 4; i++ {
+					require.Equal(t, model.OperationStateNew, ops[i].State)
+				}
+				require.Equal(t, threadCnt-1, len(errChannel))
+			},
+		},
+		{name: "Mark single reconciliation as finished in multiple parallel threads",
+			preparationFunc: func(repo Repository, state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
+				recon, err := repo.CreateReconciliation(state, nil)
+				require.NoError(t, err)
+				return recon, nil
+			},
+			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
+				err := repo.FinishReconciliation(reconEntity.SchedulingID, state.Status)
+				return err
+			},
+			check: func(repo Repository, threadCnt int, errChannel chan error) {
+				recons, err := repo.GetReconciliations(nil)
+				require.NoError(t, err)
+				require.Equal(t, 1, len(recons))
+				require.True(t, recons[0].Finished)
+				require.Equal(t, threadCnt-1, len(errChannel))
+			},
+		},
+	}
+
+	for _, tc := range tests {
+
+		t.Run(tc.name, func(t *testing.T) {
+			//initialize WaitGroup
+			var wg sync.WaitGroup
+			//reset db connection
+			dbConn = nil
+			//set amount of threads
+			threadCnt := 25
+
+			repo := newPersistentRepository(t)
+			removeExistingReconciliations(t, map[string]Repository{"": repo}) //cleanup before
+			inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
+			require.NoError(t, err)
+
+			errChannel := make(chan error, threadCnt)
+			mockClusterState, _ := createClusterStates(t, inventory)
+
+			defer func() {
+				require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
+			}()
+
+			recon, allOperations := tc.preparationFunc(repo, mockClusterState)
+
+			startAt := time.Now().Add(1 * time.Second)
+			for i := 0; i < threadCnt; i++ {
+				wg.Add(1)
+				go func(errChannel chan error, repo Repository) {
+					defer wg.Done()
+					time.Sleep(time.Until(startAt))
+					err := tc.mainFunc(repo, mockClusterState, recon, allOperations)
+					if err != nil {
+						errChannel <- err
+					}
+				}(errChannel, repo)
+			}
+			wg.Wait()
+
+			tc.check(repo, threadCnt, errChannel)
+			removeExistingReconciliations(t, map[string]Repository{"": repo}) //cleanup after
+		})
+	}
+
 }
