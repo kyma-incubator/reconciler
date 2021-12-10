@@ -131,7 +131,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 }
 
 func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, status model.Status) error {
-	dbOp := func() error {
+	dbOp := func(tx *db.Tx) error {
 		reconEntity, err := t.reconRepo.GetReconciliation(schedulingID)
 		if err != nil {
 			t.logger.Errorf("Finishing reconciliation failed: could not retrieve reconciliation entity "+

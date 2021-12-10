@@ -68,8 +68,8 @@ func (t *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 	return t.tx.Exec(query, args...)
 }
 
-func (t *Tx) Begin() (*sql.Tx, error) {
-	return t.tx, nil
+func (t *Tx) Begin() (*Tx, error) {
+	return t, nil
 }
 
 func (t *Tx) Close() error {
