@@ -62,7 +62,7 @@ type testInterceptor struct {
 func (i *testInterceptor) Intercept(resources Resources, _ string) error {
 	interceptorFunc := func(kind string, u *unstructured.Unstructured) error {
 		u.SetLabels(expectedLabels)
-		return nil
+		return i.err
 	}
 
 	return resources.Visit(interceptorFunc)
@@ -77,15 +77,6 @@ func TestKubernetesClient(t *testing.T) {
 		ProgressTimeout:  1 * time.Minute,
 	})
 	require.NoError(t, err)
-
-	t.Run("Deploy no resources because all were sorted out by interceptor", func(t *testing.T) {
-		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
-
-		//deploy
-		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{})
-		require.NoError(t, err)
-		require.Empty(t, deployedResources)
-	})
 
 	t.Run("Deploy no resources because interceptor was failing", func(t *testing.T) {
 		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
