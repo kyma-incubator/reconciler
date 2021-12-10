@@ -57,7 +57,7 @@ func TestPatchReplace(t *testing.T) {
 
 	t.Parallel()
 
-	kubeClient, err := NewKubeClient(test.ReadKubeconfig(t), logger.NewLogger(true))
+	kubeClient, err := NewKubeClient(test.ReadKubeconfig(t), logger.NewLogger(true), &Config{})
 	require.NoError(t, err)
 
 	deleteNamespace(t, kubeClient, true)
@@ -99,9 +99,19 @@ func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, la
 		//verify label
 		require.Equal(t, label, k8sResourceUnstruct.GetLabels()["applied"])
 
-		//verify image
+		//verify resource specific attributes
 		switch strings.ToLower(k8sResourceUnstruct.GetKind()) {
+		case "serviceaccount":
+			//verify service-account as not recreated by reconciliation
+			clientSet, err := kubeClient.GetClientSet()
+			require.NoError(t, err)
+			saList, err := clientSet.CoreV1().ServiceAccounts(unstruct.GetNamespace()).List(context.Background(), metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("applied=%s", label),
+			})
+			require.NoError(t, err)
+			require.Len(t, saList.Items, 1)
 		case "statefulset":
+			//check image
 			var statefulSet v1.StatefulSet
 			err = runtime.DefaultUnstructuredConverter.
 				FromUnstructured(unstruct.UnstructuredContent(), &statefulSet)
@@ -112,6 +122,7 @@ func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, la
 				}
 			}
 		case "deployment":
+			//check image
 			var deployment v1.Deployment
 			err = runtime.DefaultUnstructuredConverter.
 				FromUnstructured(unstruct.UnstructuredContent(), &deployment)
