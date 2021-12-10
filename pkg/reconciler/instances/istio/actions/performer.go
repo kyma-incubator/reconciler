@@ -76,35 +76,37 @@ type DataPlaneVersion struct {
 	IstioVersion string `json:"IstioVersion,omitempty"`
 }
 
-type CommanderResolver interface {
-	GetCommander(version istioctl.Version) (istioctl.Commander, error)
-}
-
 //go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
 type IstioPerformer interface {
 
-	// Install Istio on the cluster. Tries to find best matching istioctl binary for the 'requestedVersion'.
-	Install(kubeConfig, istioChart, requestedVersion string, logger *zap.SugaredLogger) error
+	// Install Istio in given version on the cluster using istioChart.
+	Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error
 
 	// PatchMutatingWebhook configuration.
 	PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
 
-	// Update Istio on the cluster. Tries to find best matching istioctl binary for the 'requestedVersion'.
-
-	Update(kubeConfig, istioChart, requestedVersion string, logger *zap.SugaredLogger) error
+	// Updates Istio on the cluster to targetVersion using istioChart.
+	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
 	// ResetProxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version, it always adds "-distroless" suffix to the provided value.
 	ResetProxy(kubeConfig string, proxyImageVersion string, logger *zap.SugaredLogger) error
 
-	// Reports status of Istio versions on the cluster.
+	// Reports status of Istio installation on the cluster.
 	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error)
 
-	// Uninstall Istio from the cluster and its corresponding resources. Tries to find best matching istioctl binary for the 'requestedVersion'.
-	Uninstall(kubeClientSet kubernetes.Client, requestedVersion string, logger *zap.SugaredLogger) error
+	// Uninstall Istio from the cluster and its corresponding resources, using istio in given version.
+	Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error
+}
+
+//Implementations of this interface must be able to provide istioctl.Commander instances for given istioctl.Version
+type CommanderResolver interface {
+	//Returns istioctl.Commander instance for given istioctl version, if supported. Returns an error otherwise.
+	GetCommander(version istioctl.Version) (istioctl.Commander, error)
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
+// It uses istioctl binary to do it's job. It delegates the job of finding proper istioctl binary for given operation to the configured CommandResolver.
 type DefaultIstioPerformer struct {
 	resolver        CommanderResolver
 	istioProxyReset proxy.IstioProxyReset
@@ -116,17 +118,17 @@ func NewDefaultIstioPerformer(resolver CommanderResolver, istioProxyReset proxy.
 	return &DefaultIstioPerformer{resolver, istioProxyReset, provider}
 }
 
-func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, requestedVersion string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error {
 	logger.Info("Starting Istio uninstallation...")
 
-	version, err := istioctl.VersionFromString(requestedVersion)
+	execVersion, err := istioctl.VersionFromString(version)
 	if err != nil {
 		return errors.Wrap(err, "Error parsing version")
 	}
 
-	logger.Info("Requested istio version: " + version.String())
+	logger.Info("Requested istio version: " + execVersion.String())
 
-	commander, err := c.resolver.GetCommander(version)
+	commander, err := c.resolver.GetCommander(execVersion)
 	if err != nil {
 		return err
 	}
@@ -152,22 +154,22 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, reque
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, requestedVersion string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error {
 	logger.Info("Starting Istio installation...")
 
-	version, err := istioctl.VersionFromString(requestedVersion)
+	execVersion, err := istioctl.VersionFromString(version)
 	if err != nil {
 		return errors.Wrap(err, "Error parsing version")
 	}
 
-	logger.Info("Requested istio version: " + version.String())
+	logger.Info("Requested istio version: " + execVersion.String())
 
 	istioOperatorManifest, err := manifest.ExtractIstioOperatorContextFrom(istioChart)
 	if err != nil {
 		return err
 	}
 
-	commander, err := c.resolver.GetCommander(version)
+	commander, err := c.resolver.GetCommander(execVersion)
 	if err != nil {
 		return err
 	}
@@ -210,10 +212,10 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Clien
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, requestedVersion string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
 	logger.Info("Starting Istio update...")
 
-	version, err := istioctl.VersionFromString(requestedVersion)
+	version, err := istioctl.VersionFromString(targetVersion)
 	if err != nil {
 		return errors.Wrap(err, "Error parsing version")
 	}

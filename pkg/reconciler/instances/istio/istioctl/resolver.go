@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+//Represents a specific istioctl executable version (e.g. 1.11.4)
 type Version struct {
 	value semver.Version
 }
