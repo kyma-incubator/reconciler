@@ -31,7 +31,7 @@ func NewParams(r *http.Request) *Params {
 func (p *Params) String(name string) (string, error) {
 	result, ok := p.params[name]
 	if !ok {
-		if p.queryHas(name) {
+		if p.queryParamExists(name) {
 			return p.urlQuery.Get(name), nil
 		}
 		return "", p.newUndefinedErr(name)
@@ -56,7 +56,7 @@ func (p *Params) Int64(name string) (int64, error) {
 }
 
 func (p *Params) StrSlice(name string) ([]string, error) {
-	if p.queryHas(name) {
+	if p.queryParamExists(name) {
 		return p.urlQuery[name], nil
 	}
 	return nil, p.newUndefinedErr(name)
@@ -66,7 +66,7 @@ func (p *Params) newUndefinedErr(name string) error {
 	return fmt.Errorf("parameter '%s' undefined", name)
 }
 
-func (p *Params) queryHas(name string) bool {
+func (p *Params) queryParamExists(name string) bool {
 	_, ok := p.urlQuery[name]
 	return ok
 }
