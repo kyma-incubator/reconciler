@@ -5,17 +5,18 @@ import (
 
 	reconK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
+	"helm.sh/helm/v3/pkg/action"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
-type KubeClient interface {
-	ClientSet() (kubernetes.Interface, error)
-	RESTClientGetter() (genericclioptions.RESTClientGetter, error)
+type IntegrationClient interface {
+	KubernetesClientSet() (kubernetes.Interface, error)
+	HelmActionConfiguration(namespace string, log action.DebugLog) (*action.Configuration, error)
 }
 
-type LazyKubeClient struct {
+type LazyClient struct {
 	client      kubernetes.Interface
 	clientErr   error
 	configFlags *genericclioptions.ConfigFlags
@@ -23,7 +24,7 @@ type LazyKubeClient struct {
 	log         *zap.SugaredLogger
 }
 
-func (c *LazyKubeClient) init() error {
+func (c *LazyClient) init() error {
 	c.initClient.Do(func() {
 		c.client, c.clientErr = reconK8s.NewInClusterClientSet(c.log)
 		if c.clientErr != nil {
@@ -44,17 +45,19 @@ func (c *LazyKubeClient) init() error {
 	return c.clientErr
 }
 
-func (c *LazyKubeClient) ClientSet() (kubernetes.Interface, error) {
+func (c *LazyClient) KubernetesClientSet() (kubernetes.Interface, error) {
 	if err := c.init(); err != nil {
 		return nil, err
 	}
 	return c.client, nil
 }
 
-func (c *LazyKubeClient) RESTClientGetter() (genericclioptions.RESTClientGetter, error) {
+func (c *LazyClient) HelmActionConfiguration(namespace string, log action.DebugLog) (*action.Configuration, error) {
 	if err := c.init(); err != nil {
 		return nil, err
 	}
+	cfg := new(action.Configuration)
+	err := cfg.Init(c.configFlags, namespace, RmiHelmDriver, log)
 
-	return c.configFlags, nil
+	return cfg, err
 }
