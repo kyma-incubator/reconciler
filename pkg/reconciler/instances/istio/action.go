@@ -50,11 +50,11 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	istioVersion, err := getInstalledVersion(context, performer)
+	istioStatus, err := getInstalledVersion(context, performer)
 	if err != nil {
 		return err
 	}
-	if canUninstall(istioVersion) {
+	if canUninstall(istioStatus) {
 		component := chart.NewComponentBuilder(context.Task.Version, istioChart).
 			WithNamespace(istioNamespace).
 			WithProfile(context.Task.Profile).
@@ -68,7 +68,7 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 		if err != nil {
 			return err
 		}
-		err = performer.Uninstall(context.KubeClient, istioVersion.TargetVersion, context.Logger)
+		err = performer.Uninstall(context.KubeClient, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not uninstall istio")
 		}
@@ -96,24 +96,24 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	istioVersion, err := getInstalledVersion(context, performer)
+	istioStatus, err := getInstalledVersion(context, performer)
 	if err != nil {
 		return err
 	}
 
-	if isMismatchPresent(istioVersion) {
-		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", istioVersion.PilotVersion, istioVersion.DataPlaneVersion)
+	if isMismatchPresent(istioStatus) {
+		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", istioStatus.PilotVersion, istioStatus.DataPlaneVersion)
 		return errors.New(errorMessage)
 	}
 
-	if !isClientCompatibleWithTargetVersion(istioVersion) {
-		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioVersion.ClientVersion, istioVersion.TargetVersion))
+	if !isClientCompatibleWithTargetVersion(istioStatus) {
+		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion))
 	}
 
-	if canInstall(istioVersion) {
+	if canInstall(istioStatus) {
 		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
 
-		err = performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, istioVersion.TargetVersion, context.Logger)
+		err = performer.Install(context.KubeClient.Kubeconfig(), manifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not install Istio")
 		}
@@ -127,10 +127,10 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		if err != nil {
 			return errors.Wrap(err, "Could not deploy Istio resources")
 		}
-	} else if canUpdateResult, err := canUpdate(istioVersion); canUpdateResult {
-		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioVersion.PilotVersion, istioVersion.DataPlaneVersion, istioVersion.TargetVersion)
+	} else if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult {
+		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioStatus.PilotVersion, istioStatus.DataPlaneVersion, istioStatus.TargetVersion)
 
-		err = performer.Update(context.KubeClient.Kubeconfig(), manifest.Manifest, istioVersion.TargetVersion, context.Logger)
+		err = performer.Update(context.KubeClient.Kubeconfig(), manifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not update Istio")
 		}
@@ -140,7 +140,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 
-		err = performer.ResetProxy(context.KubeClient.Kubeconfig(), istioVersion.TargetVersion, context.Logger)
+		err = performer.ResetProxy(context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not reset Istio proxy")
 		}
@@ -231,12 +231,12 @@ func canUninstall(istioStatus actions.IstioStatus) bool {
 }
 
 func getInstalledVersion(context *service.ActionContext, performer actions.IstioPerformer) (actions.IstioStatus, error) {
-	istioVersion, err := performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
+	istioStatus, err := performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
 		return actions.IstioStatus{}, errors.Wrap(err, "Could not fetch Istio version")
 	}
-	context.Logger.Infof("Detected: istioctl version %s, target Istio version: %s", istioVersion.ClientVersion, istioVersion.TargetVersion)
-	return istioVersion, nil
+	context.Logger.Infof("Detected: istioctl version %s, target Istio version: %s", istioStatus.ClientVersion, istioStatus.TargetVersion)
+	return istioStatus, nil
 }
 
 func isClientCompatibleWithTargetVersion(istioStatus actions.IstioStatus) bool {
