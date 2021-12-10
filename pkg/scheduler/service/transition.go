@@ -148,10 +148,11 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 		}
 
 		if clusterState.Status.Status.IsInProgress() {
+			oldClusterStatus := clusterState.Status.Status
 			clusterState, err = t.inventory.UpdateStatus(clusterState, status)
 			if err != nil {
 				t.logger.Errorf("Finishing reconciliation for cluster '%s' failed: "+
-					"could not update cluster status to '%s': %s", clusterState.Cluster.RuntimeID, status, err)
+					"could not update cluster status from %s to '%s': %s", clusterState.Cluster.RuntimeID, oldClusterStatus, status, err)
 				return err
 			}
 		} else {
@@ -163,7 +164,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 
 		err = t.reconRepo.FinishReconciliation(schedulingID, clusterState.Status)
 		if err == nil {
-			t.logger.Debugf("Finishing reconciliation for cluster '%s' succeeded "+
+			t.logger.Infof("Finishing reconciliation for cluster '%s' succeeded "+
 				"(schedulingID:%s/clusterVersion:%d/configVersion:%d): "+
 				"new cluster status is '%s'", clusterState.Cluster.RuntimeID, schedulingID,
 				clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status)
