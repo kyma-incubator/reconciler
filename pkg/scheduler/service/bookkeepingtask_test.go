@@ -100,6 +100,9 @@ func TestBookkeepingtask(t *testing.T) {
 }
 
 func TestBookkeepingtaskParallel(t *testing.T) {
+
+	t.SkipNow() //skipping test until #559 is verified/fixed.
+
 	tests := []struct {
 		name           string
 		markOpsDone    bool
