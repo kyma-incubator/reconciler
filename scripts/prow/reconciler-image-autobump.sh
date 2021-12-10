@@ -21,20 +21,17 @@ set -e
 ENABLE_TEST_LOG_COLLECTOR=false
 
 # Exported variables
-export TEST_INFRA_SOURCES_DIR="/home/prow/go/src/github.com/kyma-project/test-infra"
 export K8S_TEST_INFRA_SOURCES_DIR="/home/prow/go/src/github.com/kubernetes/test-infra"
 export RECONCILER_DIR="/home/prow/go/src/github.com/kyma-incubator/reconciler"
 export CONTROL_PLANE_DIR="/home/prow/go/src/github.com/kyma-project/control-plane"
-export BUMP_TOOL_CONFIG_FILE="${TEST_INFRA_SOURCES_DIR}/prow/autobump-config/control-plane-autobump-reconciler-config.yaml"
+export BUMP_TOOL_CONFIG_FILE="${RECONCILER_DIR}/scripts/prow/autobump-config/control-plane-autobump-reconciler-config.yaml"
 
 # All provides require these values, each of them may check for additional variables
 requiredVars=(
-    TEST_INFRA_SOURCES_DIR
     K8S_TEST_INFRA_SOURCES_DIR
     RECONCILER_DIR
     CONTROL_PLANE_DIR
     BUMP_TOOL_CONFIG_FILE
-    GITHUB_TOKEN
 )
 
 # Used to detect errors for logging purposes
