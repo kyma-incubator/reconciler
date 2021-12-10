@@ -48,6 +48,9 @@ type KubeClient struct {
 }
 
 func NewKubeClient(kubeconfig string, logger *zap.SugaredLogger, clientConfig *Config) (*KubeClient, error) {
+	if clientConfig == nil {
+		clientConfig = &Config{}
+	}
 	if err := clientConfig.validate(); err != nil {
 		return nil, err
 	}

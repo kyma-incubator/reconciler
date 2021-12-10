@@ -57,7 +57,7 @@ func TestPatchReplace(t *testing.T) {
 
 	t.Parallel()
 
-	kubeClient, err := NewKubeClient(test.ReadKubeconfig(t), logger.NewLogger(true), &Config{})
+	kubeClient, err := NewKubeClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	deleteNamespace(t, kubeClient, true)
