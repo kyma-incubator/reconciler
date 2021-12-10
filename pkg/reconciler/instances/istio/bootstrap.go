@@ -24,7 +24,7 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
 		pathsConfig := os.Getenv(istioctlBinaryPathEnvKey)
-		istioctlPaths, err := parsePaths(pathsConfig)
+		istioctlPaths, err := parsePaths(pathsConfig, validatePath)
 		if err != nil {
 			logger.Errorf("Could not create '%s' component reconciler: Error parsing env variable '%s': %s", ReconcilerName, istioctlBinaryPathEnvKey, err.Error())
 			return nil, err
@@ -75,9 +75,9 @@ func newDefaultCommanderResolver(paths []string, log *zap.SugaredLogger) (action
 	}, nil
 }
 
-//The input must contain a list of full/absolute filesystem paths of istioctl binaries.
-//Entries must be separated by a colon character ':'
-func parsePaths(input string) ([]string, error) {
+//parsePath func parses and validates executable paths. The input must contain a list of full/absolute filesystem paths of binaries, separated by a colon character ':'
+//isValid function is used to validate every single binary path in the input.
+func parsePaths(input string, isValid func(string) error) ([]string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
 		return nil, errors.Errorf("No paths defined")
@@ -92,20 +92,26 @@ func parsePaths(input string) ([]string, error) {
 		if val == "" {
 			return nil, errors.New("Invalid (empty) path provided")
 		}
-
-		stat, err := os.Stat(val)
-		if err != nil {
-			return nil, errors.Wrap(err, "Error getting file data")
+		if err := isValid(val); err != nil {
+			return nil, err
 		}
-		mode := stat.Mode()
-		if (!mode.IsRegular()) || mode.IsDir() {
-			return nil, errors.New(fmt.Sprintf("\"%s\" is not a regular file", val))
-		}
-		if uint32(mode&0111) == 0 {
-			return nil, errors.New(fmt.Sprintf("\"%s\" is not executable", val))
-		}
-
 		res = append(res, val)
 	}
 	return res, nil
+}
+
+func validatePath(path string) error {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return errors.Wrap(err, "Error getting file data")
+	}
+	mode := stat.Mode()
+	if (!mode.IsRegular()) || mode.IsDir() {
+		return errors.New(fmt.Sprintf("\"%s\" is not a regular file", path))
+	}
+	if uint32(mode&0111) == 0 {
+		return errors.New(fmt.Sprintf("\"%s\" is not executable", path))
+	}
+
+	return nil
 }
