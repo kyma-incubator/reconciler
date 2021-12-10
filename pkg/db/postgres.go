@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -90,7 +91,7 @@ func (pc *postgresConnection) Exec(query string, args ...interface{}) (sql.Resul
 
 func (pc *postgresConnection) Begin() (*Tx, error) {
 	pc.logger.Debug("Postgres Begin()")
-	tx, err := pc.db.Begin()
+	tx, err := pc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return nil, err
 	}

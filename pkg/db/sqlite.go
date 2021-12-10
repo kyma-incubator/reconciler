@@ -1,11 +1,12 @@
 package db
 
 import (
+	"context"
 	"database/sql"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
-
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 
 	//add SQlite driver:
 	_ "github.com/mattn/go-sqlite3"
@@ -85,7 +86,7 @@ func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result,
 
 func (sc *sqliteConnection) Begin() (*Tx, error) {
 	sc.logger.Debug("Sqlite3 Begin()")
-	tx, err := sc.db.Begin()
+	tx, err := sc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return nil, err
 	}
@@ -121,18 +122,18 @@ func (scf *sqliteConnectionFactory) Init(_ bool) error {
 		//read DDL (test-table structure)
 		ddl, err := ioutil.ReadFile(scf.schemaFile)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "error reading file DDL schema file '%s'", scf.schemaFile)
 		}
 
 		//get connection
 		conn, err := scf.NewConnection()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "error getting sqliteConnectionFactory connection")
 		}
 
 		//populate DB schema
 		_, err = conn.Exec(string(ddl))
-		return err
+		return errors.Wrap(err, "error populating DB schema")
 	}
 	return nil
 }

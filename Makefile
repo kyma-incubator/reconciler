@@ -57,7 +57,6 @@ endif
 .PHONY: bump-primage
 bump-primage:
 	./scripts/bumpimage.sh
-
 .PHONY: test
 test:
 	go test -race -timeout 20m -coverprofile=cover.out ./...

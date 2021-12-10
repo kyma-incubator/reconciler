@@ -40,7 +40,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 				ClusterQueueSize:         10,
 			}).
 		WithBookkeeperConfig(&service.BookkeeperConfig{
-			OperationsWatchInterval: 30 * time.Second,
+			OperationsWatchInterval: 45 * time.Second,
 			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		WithCleanerConfig(&service.CleanerConfig{
