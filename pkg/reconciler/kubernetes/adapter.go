@@ -109,11 +109,6 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace stri
 func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namespace string, interceptors []ResourceInterceptor) ([]*Resource, error) {
 	var deployedResources []*Resource
 
-	pt, err := g.newProgressTracker()
-	if err != nil {
-		return nil, err
-	}
-
 	unstructs, err := ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		g.logger.Errorf("Failed to process manifest data: %s", err)
@@ -127,14 +122,7 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 	}
 
 	//fill out the resources map by kind
-	resources := make(Resources)
-	for _, unstruct := range unstructs {
-		kind := strings.ToLower(unstruct.GetKind())
-		if _, ok := resources[kind]; !ok {
-			resources[kind] = make([]*unstructured.Unstructured, 0)
-		}
-		resources[kind] = append(resources[kind], unstruct)
-	}
+	resources := NewResourceList(unstructs)
 
 	//apply interceptors
 	for _, interceptor := range interceptors {
@@ -149,28 +137,37 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 		}
 	}
 
+	pt, err := g.newProgressTracker()
+	if err != nil {
+		return nil, err
+	}
+
 	//apply resources to the cluster and add progress watchers
-	for kind := range resources {
-		for _, unstruct := range resources[kind] {
-			metadata, err := g.kubeClient.ApplyWithNamespaceOverride(unstruct, namespace)
-			if err != nil {
-				g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
-				g.logger.Debugf("Used JSON data: %+v", unstruct)
-				return deployedResources, err
-			}
-
-			resource := toResource(metadata)
-
-			//add deploy resource to result
-			g.logger.Debugf("Kubernetes resource '%v' successfully deployed", resource)
-			deployedResources = append(deployedResources, resource)
-
-			//if resource is watchable, add it to progress tracker
-			watchable, err := progress.NewWatchableResource(resource.Kind)
-			if err == nil { //add only watchable resources to progress tracker
-				pt.AddResource(watchable, resource.Namespace, resource.Name)
-			}
+	err = resources.Visit(func(unstruct *unstructured.Unstructured) error {
+		metadata, err := g.kubeClient.ApplyWithNamespaceOverride(unstruct, namespace)
+		if err != nil {
+			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
+			g.logger.Debugf("Used JSON data: %+v", unstruct)
+			return err
 		}
+
+		resource := toResource(metadata)
+
+		//add deploy resource to result
+		g.logger.Debugf("Kubernetes resource '%v' successfully deployed", resource)
+		deployedResources = append(deployedResources, resource)
+
+		//if resource is watchable, add it to progress tracker
+		watchable, nonWatchableErr := progress.NewWatchableResource(resource.Kind)
+		if nonWatchableErr == nil { //add only watchable resources to progress tracker
+			pt.AddResource(watchable, resource.Namespace, resource.Name)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return deployedResources, err
 	}
 
 	g.logger.Debugf("Manifest processed: %d Kubernetes resources were successfully deployed",

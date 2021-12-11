@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -60,8 +61,10 @@ func TestLabelInterceptor(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			l := &LabelsInterceptor{Version: tt.args.version}
-			r := map[string][]*unstructured.Unstructured{"testKind": {tt.args.resource}}
-			err := l.Intercept(r, "")
+
+			resources := kubernetes.NewResourceList([]*unstructured.Unstructured{tt.args.resource})
+
+			err := l.Intercept(resources, "")
 			if tt.wantErr {
 				require.Error(t, err)
 			}

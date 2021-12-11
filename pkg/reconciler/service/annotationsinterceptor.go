@@ -13,8 +13,8 @@ const (
 type AnnotationsInterceptor struct {
 }
 
-func (l *AnnotationsInterceptor) Intercept(resources kubernetes.Resources, _ string) error {
-	interceptorFunc := func(kind string, u *unstructured.Unstructured) error {
+func (l *AnnotationsInterceptor) Intercept(resources *kubernetes.ResourceList, _ string) error {
+	interceptorFunc := func(u *unstructured.Unstructured) error {
 		annotations := u.GetAnnotations()
 		if annotations == nil {
 			annotations = make(map[string]string)

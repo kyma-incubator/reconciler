@@ -3,42 +3,36 @@ package service
 import (
 	"testing"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestAnnotationsInterceptor(t *testing.T) {
-	type args struct {
-		resource *unstructured.Unstructured
-	}
 	tests := []struct {
 		name        string
-		args        args
+		unstruct    *unstructured.Unstructured
 		wantErr     bool
 		annotations map[string]string
 	}{
 		{
-			name: "Resource without any annotations",
-			args: args{
-				resource: &unstructured.Unstructured{},
-			},
-			wantErr: false,
+			name:     "Resource without any annotations",
+			unstruct: &unstructured.Unstructured{},
+			wantErr:  false,
 			annotations: map[string]string{
 				ManagedByAnnotation: annotationReconcilerValue,
 			},
 		},
 		{
 			name: "Resource with annotations",
-			args: args{
-				resource: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "apps/v1",
-						"kind":       "Deployment",
-						"metadata": map[string]interface{}{
-							"annotations": map[string]interface{}{
-								"some-annotation":  "some-value",
-								"some-annotation2": "some-value2",
-							},
+			unstruct: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]interface{}{
+						"annotations": map[string]interface{}{
+							"some-annotation":  "some-value",
+							"some-annotation2": "some-value2",
 						},
 					},
 				},
@@ -55,12 +49,16 @@ func TestAnnotationsInterceptor(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			l := &AnnotationsInterceptor{}
-			r := map[string][]*unstructured.Unstructured{"testKind": {tt.args.resource}}
-			err := l.Intercept(r, "")
+
+			resources := kubernetes.NewResourceList([]*unstructured.Unstructured{
+				tt.unstruct,
+			})
+
+			err := l.Intercept(resources, "")
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
-				require.Equal(t, tt.annotations, tt.args.resource.GetAnnotations())
+				require.Equal(t, tt.annotations, tt.unstruct.GetAnnotations())
 			}
 		})
 	}

@@ -15,8 +15,8 @@ type LabelsInterceptor struct {
 	Version string
 }
 
-func (l *LabelsInterceptor) Intercept(resources kubernetes.Resources, _ string) error {
-	interceptorFunc := func(kind string, u *unstructured.Unstructured) error {
+func (l *LabelsInterceptor) Intercept(resources *kubernetes.ResourceList, _ string) error {
+	interceptorFunc := func(u *unstructured.Unstructured) error {
 		labels := u.GetLabels()
 		if labels == nil {
 			labels = make(map[string]string)

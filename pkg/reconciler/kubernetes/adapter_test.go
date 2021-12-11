@@ -59,8 +59,8 @@ type testInterceptor struct {
 	err error
 }
 
-func (i *testInterceptor) Intercept(resources Resources, _ string) error {
-	interceptorFunc := func(kind string, u *unstructured.Unstructured) error {
+func (i *testInterceptor) Intercept(resources *ResourceList, _ string) error {
+	interceptorFunc := func(u *unstructured.Unstructured) error {
 		u.SetLabels(expectedLabels)
 		return i.err
 	}
