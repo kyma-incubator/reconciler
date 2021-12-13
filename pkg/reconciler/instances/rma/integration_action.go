@@ -34,16 +34,16 @@ const (
 type IntegrationAction struct {
 	name         string
 	http         http.Client
-	kube         KubeClient
+	client       IntegrationClient
 	mux          sync.Mutex
 	archives     map[string][]byte
 	chartVerExpr *regexp.Regexp
 }
 
-func NewIntegrationAction(name string, kubeClient KubeClient) *IntegrationAction {
+func NewIntegrationAction(name string, client IntegrationClient) *IntegrationAction {
 	return &IntegrationAction{
-		name: name,
-		kube: kubeClient,
+		name:   name,
+		client: client,
 		http: http.Client{
 			Timeout: 20 * time.Second,
 		},
@@ -69,7 +69,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 	}
 	releaseName := context.Task.Metadata.ShootName
 
-	cfg, err := a.newActionConfig(context, namespace)
+	cfg, err := a.client.HelmActionConfiguration(namespace, context.Logger.Debugf)
 	if err != nil {
 		return err
 	}
@@ -185,20 +185,6 @@ func (a *IntegrationAction) delete(cfg *action.Configuration, releaseName string
 	return nil
 }
 
-func (a *IntegrationAction) newActionConfig(context *service.ActionContext, namespace string) (*action.Configuration, error) {
-
-	cfg := new(action.Configuration)
-	getter, err := a.kube.RESTClientGetter()
-	if err != nil {
-		return cfg, err
-	}
-	if err := cfg.Init(getter, namespace, RmiHelmDriver, context.Logger.Debugf); err != nil {
-		return cfg, err
-	}
-
-	return cfg, nil
-}
-
 func (a *IntegrationAction) fetchChart(ctx context.Context, chartURL string) (*chart.Chart, error) {
 	a.mux.Lock()
 	defer a.mux.Unlock()
@@ -235,7 +221,7 @@ func (a *IntegrationAction) fetchChart(ctx context.Context, chartURL string) (*c
 }
 
 func (a *IntegrationAction) fetchPasswordFromAuthSecret(ctx context.Context, release, namespace string) (string, error) {
-	client, err := a.kube.ClientSet()
+	client, err := a.client.KubernetesClientSet()
 	if err != nil {
 		return "", err
 	}
