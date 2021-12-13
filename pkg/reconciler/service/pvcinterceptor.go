@@ -40,7 +40,7 @@ func (i *PVCInterceptor) Intercept(resources *kubernetes.ResourceList, namespace
 			i.logger.Debugf("Removing PVC '%s' (namespace: %s) from reconciliation scope because storage-size (%s) hasn't changed",
 				u.GetName(), namespace, targetStorage)
 		} else {
-			i.logger.Warnf("Size or PVC '%s' (namespace: %s) has changed from %s to %s: "+
+			i.logger.Warnf("Size of PVC '%s' (namespace: %s) has changed from %s to %s: "+
 				"removing PVC from reconciliation scope because auto-migration currently not supported",
 				u.GetName(), namespace, originalStorage, targetStorage)
 		}
