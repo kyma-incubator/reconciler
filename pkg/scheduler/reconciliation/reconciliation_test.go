@@ -676,6 +676,9 @@ func dbConnection(t *testing.T) db.Connection {
 
 func TestReconciliationParallel(t *testing.T) {
 
+	t.SkipNow() //skipping test until #559 is verified/fixed (remove also below the nolint-comment)
+
+	//nolint:unused
 	type testCase struct {
 		name            string
 		preparationFunc func(Repository, *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity)
