@@ -83,6 +83,6 @@ func TestServicesInterceptor(t *testing.T) {
 func toService(t *testing.T, unstruct *unstructured.Unstructured) *v1.Service {
 	svc := &v1.Service{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, svc)
-	require.NotEmpty(t, err)
+	require.NoError(t, err)
 	return svc
 }
