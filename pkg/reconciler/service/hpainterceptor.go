@@ -19,6 +19,8 @@ type HPAInterceptor struct {
 
 func (i *HPAInterceptor) Intercept(resources *kubernetes.ResourceList, namespace string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
+		namespace := kubernetes.ResolveNamespace(u, namespace)
+
 		//convert unstruct to HPA resource
 		hpa := &autoscalingv2.HorizontalPodAutoscaler{}
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, hpa); err != nil {
@@ -31,42 +33,48 @@ func (i *HPAInterceptor) Intercept(resources *kubernetes.ResourceList, namespace
 
 		referencedResource := resources.Get(hpa.Spec.ScaleTargetRef.Kind, hpa.Spec.ScaleTargetRef.Name, namespace)
 		if referencedResource == nil {
-			i.logger.Warnf("Could not find the referenced resource '%s/%s' (namespace: %s) by the HPA '%s'", hpa.Spec.ScaleTargetRef.Kind, hpa.Spec.ScaleTargetRef.Name, namespace, hpa.GetName())
+			i.logger.Warnf("Could not find the referenced resource '%s/%s' (namespace: %s) by the HPA '%s'",
+				hpa.Spec.ScaleTargetRef.Kind, hpa.Spec.ScaleTargetRef.Name, namespace, hpa.GetName())
 			return nil
 		}
 
+		refNamespace := kubernetes.ResolveNamespace(referencedResource, namespace)
 		if referencedResource.GetKind() == "Deployment" {
-			deployment, err := i.kubeClient.GetDeployment(context.Background(), referencedResource.GetName(), referencedResource.GetNamespace())
+			deployment, err := i.kubeClient.GetDeployment(context.Background(), referencedResource.GetName(), refNamespace)
 			if err != nil {
 				return err
 			}
 
 			if deployment == nil {
 				if *deployment.Spec.Replicas < minReplicas || *deployment.Spec.Replicas > maxReplicas {
-					i.logger.Warnf("Replica field of the deployment '%s' (namespace: %s) is out of range of the configured HPA maxValue / minValue", deployment.GetName(), deployment.GetNamespace())
+					i.logger.Warnf("Replica field of the deployment '%s' (namespace: %s) is out of range of "+
+						"the configured HPA maxValue / minValue", deployment.GetName(), refNamespace)
 					return nil
 				}
 			}
 
 			if err := unstructured.SetNestedField(referencedResource.Object, deployment.Spec.Replicas, "spec", "replicas"); err != nil {
-				i.logger.Errorf("Failed to set replica count of the deployment '%s' (namespace: %s) referenced by an HPA: %s", referencedResource.GetName(), referencedResource.GetNamespace(), err)
+				i.logger.Errorf("Failed to set replica count of the deployment '%s' (namespace: %s) "+
+					"referenced by an HPA: %s", referencedResource.GetName(), refNamespace, err)
 			}
 
 		} else if referencedResource.GetKind() == "StatefulSet" {
-			ss, err := i.kubeClient.GetStatefulSet(context.Background(), referencedResource.GetName(), referencedResource.GetNamespace())
+			ss, err := i.kubeClient.GetStatefulSet(context.Background(), referencedResource.GetName(), refNamespace)
 			if err != nil {
 				return err
 			}
 
 			if ss == nil {
 				if *ss.Spec.Replicas < minReplicas || *ss.Spec.Replicas > maxReplicas {
-					i.logger.Warnf("Replica field of the statefulset '%s' (namespace: %s) is out of range of the configured HPA maxValue / minValue", ss.GetName(), ss.GetNamespace())
+					i.logger.Warnf("Replica field of the statefulset '%s' (namespace: %s) is out of range of "+
+						"the configured HPA maxValue / minValue", ss.GetName(), refNamespace)
 					return nil
 				}
 			}
 
 			if err := unstructured.SetNestedField(referencedResource.Object, ss.Spec.Replicas, "spec", "replicas"); err != nil {
-				i.logger.Errorf("Failed to set replica count of the statefulset '%s' (namespace: %s) referenced by an HPA: %s", referencedResource.GetName(), referencedResource.GetNamespace(), err)
+				i.logger.Errorf("Failed to set replica count of the statefulset '%s' (namespace: %s) "+
+					"referenced by an HPA: %s", referencedResource.GetName(), refNamespace, err)
 			}
 		} else {
 			i.logger.Warnf("Unsupported kind for HPA Interceptor: %s", referencedResource.GetKind())
