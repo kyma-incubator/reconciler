@@ -3,8 +3,9 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	batchv1 "k8s.io/api/batch/v1"
 	"time"
+
+	batchv1 "k8s.io/api/batch/v1"
 
 	"strings"
 
@@ -108,11 +109,6 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace stri
 func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namespace string, interceptors []ResourceInterceptor) ([]*Resource, error) {
 	var deployedResources []*Resource
 
-	pt, err := g.newProgressTracker()
-	if err != nil {
-		return nil, err
-	}
-
 	unstructs, err := ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		g.logger.Errorf("Failed to process manifest data: %s", err)
@@ -125,35 +121,34 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 		return nil, err
 	}
 
-LoopUnstructs:
-	for _, unstruct := range unstructs {
-		for _, interceptor := range interceptors {
-			if interceptor == nil {
-				continue
-			}
+	//fill out the resources map by kind
+	resources := NewResourceList(unstructs)
 
-			result, err := interceptor.Intercept(unstruct, namespace)
-			if err != nil {
-				g.logger.Warnf("One of the interceptors returned interception result '%s' with an error while "+
-					"processing Kubernetes unstructured entity '%s@%s' (kind '%s'): %s",
-					result, unstruct.GetName(), unstruct.GetNamespace(), unstruct.GetKind(), err)
-			}
-			switch result {
-			case ErrorInterceptionResult:
-				return deployedResources, err
-			case IgnoreResourceInterceptionResult:
-				g.logger.Debugf("Interceptor indicated to not apply Kuberentes resource '%s@%s' (kind '%s')",
-					unstruct.GetName(), unstruct.GetNamespace(), unstruct.GetKind())
-				continue LoopUnstructs //do not apply this resource and continue with next one
-			default:
-				//continue change: just do nothing and continue processing
-			}
+	//apply interceptors
+	for _, interceptor := range interceptors {
+		if interceptor == nil {
+			continue
 		}
+
+		err := interceptor.Intercept(resources, namespace)
+		if err != nil {
+			g.logger.Errorf("One of the interceptors returned an error: %s", err)
+			return deployedResources, err
+		}
+	}
+
+	pt, err := g.newProgressTracker()
+	if err != nil {
+		return nil, err
+	}
+
+	//apply resources to the cluster and add progress watchers
+	err = resources.Visit(func(unstruct *unstructured.Unstructured) error {
 		metadata, err := g.kubeClient.ApplyWithNamespaceOverride(unstruct, namespace)
 		if err != nil {
 			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
 			g.logger.Debugf("Used JSON data: %+v", unstruct)
-			return deployedResources, err
+			return err
 		}
 
 		resource := toResource(metadata)
@@ -163,10 +158,16 @@ LoopUnstructs:
 		deployedResources = append(deployedResources, resource)
 
 		//if resource is watchable, add it to progress tracker
-		watchable, err := progress.NewWatchableResource(resource.Kind)
-		if err == nil { //add only watchable resources to progress tracker
+		watchable, nonWatchableErr := progress.NewWatchableResource(resource.Kind)
+		if nonWatchableErr == nil { //add only watchable resources to progress tracker
 			pt.AddResource(watchable, resource.Namespace, resource.Name)
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return deployedResources, err
 	}
 
 	g.logger.Debugf("Manifest processed: %d Kubernetes resources were successfully deployed",
