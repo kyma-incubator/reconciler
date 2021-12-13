@@ -66,8 +66,11 @@ func (r *ResourceList) VisitByKind(kind string, callback func(u *unstructured.Un
 
 func (r *ResourceList) Get(kind, name, namespace string) *unstructured.Unstructured {
 	for _, u := range r.cache.GetKind(kind) {
-		if u.GetKind() == kind && u.GetName() == name && u.GetNamespace() == namespace {
-			return u
+		if u.GetKind() == kind && u.GetName() == name {
+			if u.GetNamespace() == "" || u.GetNamespace() == namespace {
+				//`u` is equal if namespace is undefined or defined namespace is equal to provided namespace
+				return u
+			}
 		}
 	}
 	return nil
@@ -85,7 +88,7 @@ func (r *ResourceList) Remove(u *unstructured.Unstructured) {
 func (r *ResourceList) Add(u *unstructured.Unstructured) {
 	r.Remove(u) //ensure resource does not exist before adding it
 	r.resources = append(r.resources, u)
-	r.cache[u.GetKind()] = append(r.cache[u.GetKind()], u)
+	r.cache.Add(u)
 }
 
 func (r *ResourceList) Len() int {
