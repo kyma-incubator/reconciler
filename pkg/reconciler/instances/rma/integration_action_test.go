@@ -98,7 +98,7 @@ func Test_IntegrationAction_Run(t *testing.T) {
 
 	t.Run("should upgrade rmi when release found with different version", func(t *testing.T) {
 		// given
-		testClient.clientset.Tracker().Add(&v1.Secret{
+		err := testClient.clientset.Tracker().Add(&v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "vmuser-rmi-test",
 				Namespace: "monitoring-system",
@@ -108,12 +108,13 @@ func Test_IntegrationAction_Run(t *testing.T) {
 				"password": []byte("test"),
 			},
 		})
+		require.NoError(t, err)
 		action := NewIntegrationAction("test", testClient)
 		server := fixChartHTTPServer(t, testChart)
 		context := fixActionContext(fmt.Sprintf("%s/%s", server.URL, testUpgradeChartArchive))
 
 		// when
-		err := action.Run(context)
+		err = action.Run(context)
 
 		// then
 		require.NoError(t, err)
@@ -227,7 +228,7 @@ func compress(src string, buf io.Writer) error {
 	tw := tar.NewWriter(zr)
 
 	// walk through every file in the folder
-	filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
+	err := filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -255,6 +256,9 @@ func compress(src string, buf io.Writer) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	// produce tar
 	if err := tw.Close(); err != nil {

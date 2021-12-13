@@ -12,24 +12,24 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-type fakeClient struct {
+type FakeClient struct {
 	clientset   *fake.Clientset
 	helmStorage *storage.Storage
 }
 
-func NewFakeClient(clientset *fake.Clientset) *fakeClient {
+func NewFakeClient(clientset *fake.Clientset) *FakeClient {
 
-	return &fakeClient{
+	return &FakeClient{
 		clientset:   clientset,
 		helmStorage: storage.Init(driver.NewMemory()),
 	}
 }
 
-func (c *fakeClient) KubernetesClientSet() (kubernetes.Interface, error) {
+func (c *FakeClient) KubernetesClientSet() (kubernetes.Interface, error) {
 	return c.clientset, nil
 }
 
-func (c *fakeClient) HelmActionConfiguration(namespace string, log action.DebugLog) (*action.Configuration, error) {
+func (c *FakeClient) HelmActionConfiguration(namespace string, log action.DebugLog) (*action.Configuration, error) {
 	return &action.Configuration{
 		Releases:     c.helmStorage,
 		KubeClient:   &helmfake.FailingKubeClient{PrintingKubeClient: helmfake.PrintingKubeClient{Out: ioutil.Discard}},
