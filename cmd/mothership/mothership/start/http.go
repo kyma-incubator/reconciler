@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -293,14 +292,14 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 	// define variables
 	var filters []reconciliation.Filter
-	var statuses, runtimeIDs []string
-	var ok bool
 
-	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; ok {
+	params := server.NewParams(r)
+
+	if runtimeIDs, err := params.StrSlice(paramRuntimeIDs); err == nil {
 		filters = append(filters, &reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs})
 	}
 
-	if statuses, ok = r.URL.Query()[paramStatus]; ok {
+	if statuses, err := params.StrSlice(paramStatus); err == nil {
 		if err := validateStatuses(statuses); err != nil {
 			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 			return
@@ -308,7 +307,7 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		filters = append(filters, &reconciliation.WithStatuses{Statuses: statuses})
 	}
 
-	if after := r.URL.Query().Get(paramAfter); after != "" {
+	if after, err := params.String(paramAfter); err == nil && after != "" {
 		t, err := time.Parse(paramTimeFormat, after)
 		if err != nil {
 			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
@@ -317,7 +316,7 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		filters = append(filters, &reconciliation.WithCreationDateAfter{Time: t})
 	}
 
-	if before := r.URL.Query().Get(paramBefore); before != "" {
+	if before, err := params.String(paramBefore); err == nil && before != "" {
 		t, err := time.Parse(paramTimeFormat, before)
 		if err != nil {
 			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
@@ -326,13 +325,12 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		filters = append(filters, &reconciliation.WithCreationDateBefore{Time: t})
 	}
 
-	if l := r.URL.Query().Get(paramLast); l != "" {
-		l, err := strconv.Atoi(l)
+	if limit, err := params.Int(paramLast); err == nil {
 		if err != nil {
 			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 			return
 		}
-		filters = append(filters, &reconciliation.Limit{Count: l})
+		filters = append(filters, &reconciliation.Limit{Count: limit})
 	}
 
 	// Fetch all reconciliation entitlies
@@ -351,7 +349,7 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := []keb.Reconciliation{}
+	var results []keb.Reconciliation
 
 	for _, reconcile := range reconciles {
 		results = append(results, keb.Reconciliation{
