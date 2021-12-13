@@ -38,16 +38,16 @@ type CommandActions struct {
 
 func (a *CommandActions) InstallOnReleaseChange(context *service.ActionContext, app *appsv1.StatefulSet) error {
 	if app == nil || (app != nil && app.GetLabels() == nil) {
-		return a.installOnCondition(context, service.ConditionAlways)
+		return a.installOnCondition(context, context.ChartProvider)
 	}
 
 	appName := app.Name
 	appRelease := app.GetLabels()[ReleaseLabelKey]
 
-	return a.installOnCondition(context, func(manifest string) (bool, error) {
+	chartProviderWithFilter := context.ChartProvider.WithFilter(func(manifest string) (string, error) {
 		unstructs, err := internalKubernetes.ToUnstructured([]byte(manifest), true)
 		if err != nil {
-			return false, errors.Wrapf(err, "while casting manifest to kubernetes unstructured")
+			return "", errors.Wrapf(err, "while casting manifest to kubernetes unstructured")
 		}
 
 		for _, unstruct := range unstructs {
@@ -56,18 +56,20 @@ func (a *CommandActions) InstallOnReleaseChange(context *service.ActionContext, 
 				unstruct.GetKind() == ConnectivityProxyKind {
 
 				if unstruct.GetLabels() == nil || unstruct.GetLabels()[ReleaseLabelKey] == "" {
-					return false, errors.Errorf("Component does not have any release labels")
+					return "", errors.Errorf("Component does not have any release labels")
 				} else if unstruct.GetLabels()[ReleaseLabelKey] != appRelease {
-					return true, nil
+					return manifest, nil
 				}
 			}
 		}
-		return false, nil
+		return "", nil
 	})
+
+	return a.installOnCondition(context, chartProviderWithFilter)
 }
 
-func (a *CommandActions) installOnCondition(context *service.ActionContext, condition service.Condition) error {
-	err := a.install.InvokeOnCondition(context.Context, condition, context.ChartProvider, context.Task, context.KubeClient)
+func (a *CommandActions) installOnCondition(context *service.ActionContext, chartProvider chart.Provider) error {
+	err := a.install.Invoke(context.Context, chartProvider, context.Task, context.KubeClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to invoke conditional installation")
 	}

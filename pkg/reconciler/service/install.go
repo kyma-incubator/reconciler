@@ -19,21 +19,12 @@ func NewInstall(logger *zap.SugaredLogger) *Install {
 	return &Install{logger: logger}
 }
 
-type Condition func(manifest string) (bool, error)
-
-func ConditionAlways(_ string) (bool, error) { return true, nil }
-
 //go:generate mockery --name=Operation --output=mocks --outpkg=mocks --case=underscore
 type Operation interface {
 	Invoke(ctx context.Context, chartProvider chart.Provider, model *reconciler.Task, kubeClient kubernetes.Client) error
-	InvokeOnCondition(ctx context.Context, condition Condition, chartProvider chart.Provider, model *reconciler.Task, kubeClient kubernetes.Client) error
 }
 
 func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task *reconciler.Task, kubeClient kubernetes.Client) error {
-	return r.InvokeOnCondition(ctx, ConditionAlways, chartProvider, task, kubeClient)
-}
-
-func (r *Install) InvokeOnCondition(ctx context.Context, condition Condition, chartProvider chart.Provider, task *reconciler.Task, kubeClient kubernetes.Client) error {
 	var err error
 	var manifest string
 	if task.Component == model.CRDComponent {
@@ -43,14 +34,6 @@ func (r *Install) InvokeOnCondition(ctx context.Context, condition Condition, ch
 	}
 	if err != nil {
 		return err
-	}
-
-	if ok, err := condition(manifest); err != nil {
-		r.logger.Errorf("Failed to check if installation should be performed according to the manifest: %s", err)
-		return err
-	} else if !ok {
-		r.logger.Debug("Installation condition did not match according to the manifest, skipping")
-		return nil
 	}
 
 	if task.Type == model.OperationTypeDelete {

@@ -16,6 +16,9 @@ const kindCRD = "CustomResourceDefinition"
 //go:generate mockery --name=Provider --outpkg=mocks --case=underscore
 // Provider of manifests.
 type Provider interface {
+	// WithFilter adds manifest filter to the Provider's filters
+	WithFilter(filter Filter) Provider
+
 	// RenderCRD of the given version.
 	RenderCRD(version string) ([]*Manifest, error)
 
@@ -26,10 +29,13 @@ type Provider interface {
 	Configuration(component *Component) (map[string]interface{}, error)
 }
 
+type Filter func(string) (string, error)
+
 // DefaultProvider provides a default implementation of Provider.
 type DefaultProvider struct {
 	wsFactory Factory
 	logger    *zap.SugaredLogger
+	filters   []Filter
 }
 
 // NewDefaultProvider returns a new instance of DefaultProvider.
@@ -41,6 +47,11 @@ func NewDefaultProvider(wsFactory Factory, logger *zap.SugaredLogger) (*DefaultP
 		wsFactory: wsFactory,
 		logger:    logger,
 	}, nil
+}
+
+func (p *DefaultProvider) WithFilter(f Filter) Provider {
+	p.filters = append(p.filters, f)
+	return p
 }
 
 func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
@@ -114,6 +125,13 @@ func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error
 	manifest, err := helmClient.Render(component)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, f := range p.filters {
+		manifest, err = f(manifest)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &Manifest{

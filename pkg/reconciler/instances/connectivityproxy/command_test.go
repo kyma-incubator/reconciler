@@ -98,7 +98,7 @@ func TestCommands(t *testing.T) {
 
 	componentName := "connectivity-proxy"
 
-	t.Run("Should invoke installation if different version", func(t *testing.T) {
+	t.Run("Should invoke installation", func(t *testing.T) {
 		// given
 		commands := CommandActions{
 			clientSetFactory:       nil,
@@ -108,6 +108,8 @@ func TestCommands(t *testing.T) {
 		}
 
 		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
+			Return(chartProvider)
 		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
 			Return(&chart.Manifest{
 				Type:     chart.HelmChart,
@@ -139,8 +141,10 @@ func TestCommands(t *testing.T) {
 		kubeClient.AssertExpectations(t)
 	})
 
-	t.Run("Should skip installation if same version", func(t *testing.T) {
+	t.Run("Should skip installation if chart provider returned empty manifest", func(t *testing.T) {
 		// given
+		emptyManifest := ""
+
 		commands := CommandActions{
 			clientSetFactory:       nil,
 			targetClientSetFactory: nil,
@@ -149,14 +153,21 @@ func TestCommands(t *testing.T) {
 		}
 
 		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
+			Return(chartProvider)
 		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
 			Return(&chart.Manifest{
 				Type:     chart.HelmChart,
 				Name:     componentName,
-				Manifest: cpManifest("1.2.3")}, nil)
+				Manifest: emptyManifest}, nil)
+		ctx := context.Background()
+		kubeClient := &mocks.Client{}
+		kubeClient.On("Deploy", ctx, emptyManifest, mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor")).
+			Return(nil, nil).Once()
 
 		actionContext := &service.ActionContext{
-			Context:       context.Background(),
+			Context:       ctx,
+			KubeClient:    kubeClient,
 			Task:          &reconciler.Task{Component: componentName},
 			ChartProvider: chartProvider,
 			Logger:        logger.NewLogger(true),
@@ -210,41 +221,6 @@ func TestCommands(t *testing.T) {
 		kubeClient.AssertExpectations(t)
 	})
 
-	t.Run("Should return an error if found unstructured does not have release label", func(t *testing.T) {
-		// given
-		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                service.NewInstall(logger.NewLogger(true)),
-			copyFactory:            nil,
-		}
-
-		chartProvider := &chartmocks.Provider{}
-		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
-			Return(&chart.Manifest{
-				Type:     chart.HelmChart,
-				Name:     componentName,
-				Manifest: "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: connectivity-proxy\n"}, nil)
-
-		actionContext := &service.ActionContext{
-			Context:       context.Background(),
-			Task:          &reconciler.Task{Component: componentName},
-			ChartProvider: chartProvider,
-			Logger:        logger.NewLogger(true),
-		}
-
-		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
-			Name:   componentName,
-			Labels: map[string]string{"release": "1.2.3"}},
-		}
-
-		// when
-		err := commands.InstallOnReleaseChange(actionContext, component)
-
-		// then
-		require.Error(t, err)
-	})
-
 	t.Run("Should invoke installation if given set does not have release label", func(t *testing.T) {
 		// given
 		commands := CommandActions{
@@ -255,6 +231,8 @@ func TestCommands(t *testing.T) {
 		}
 
 		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
+			Return(chartProvider)
 		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
 			Return(&chart.Manifest{
 				Type:     chart.HelmChart,
