@@ -18,6 +18,8 @@ type PVCInterceptor struct {
 
 func (i *PVCInterceptor) Intercept(resources *kubernetes.ResourceList, namespace string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
+		namespace := kubernetes.ResolveNamespace(u, namespace)
+
 		pvcOriginal, err := i.kubeClient.GetPersistentVolumeClaim(context.Background(), u.GetName(), namespace)
 		if err != nil {
 			return err
@@ -37,8 +39,8 @@ func (i *PVCInterceptor) Intercept(resources *kubernetes.ResourceList, namespace
 		originalStorage := pvcOriginal.Spec.Resources.Requests.Storage()
 		targetStorage := pvcTarget.Spec.Resources.Requests.Storage()
 		if originalStorage.Equal(*targetStorage) {
-			i.logger.Debugf("Removing PVC '%s' (namespace: %s) from reconciliation scope because storage-size (%s) hasn't changed",
-				u.GetName(), namespace, targetStorage)
+			i.logger.Debugf("Removing PVC '%s' (namespace: %s) from reconciliation scope because "+
+				"storage-size (%s) hasn't changed", u.GetName(), namespace, targetStorage)
 		} else {
 			i.logger.Warnf("Size of PVC '%s' (namespace: %s) has changed from %s to %s: "+
 				"removing PVC from reconciliation scope because auto-migration currently not supported",
