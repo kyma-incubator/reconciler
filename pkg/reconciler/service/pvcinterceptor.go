@@ -37,7 +37,7 @@ func (i *PVCInterceptor) Intercept(resources *kubernetes.ResourceList, namespace
 		originalStorage := pvcOriginal.Spec.Resources.Requests.Storage()
 		targetStorage := pvcTarget.Spec.Resources.Requests.Storage()
 		if originalStorage.Equal(*targetStorage) {
-			i.logger.Debugf("Removing PVC '%s's(namespace: %S) from reconciliation scope because storage-size (%s) hasn't changed",
+			i.logger.Debugf("Removing PVC '%s's(namespace: %s) from reconciliation scope because storage-size (%s) hasn't changed",
 				u.GetName(), namespace, targetStorage)
 		} else {
 			i.logger.Warnf("Size or PVC '%s' (namespace: %s) has changed from %s to %s: "+
