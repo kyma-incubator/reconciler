@@ -24,11 +24,9 @@ func (s *ServicesInterceptor) Intercept(resources *k8s.ResourceList, namespace s
 	interceptorFct := func(u *unstructured.Unstructured) error {
 		//convert unstruct to service resource
 		svc := &v1.Service{}
-		err := runtime.DefaultUnstructuredConverter.
-			FromUnstructured(u.Object, svc)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to convert unstructured entity '%s@%s' (kind '%s')",
-				u.GetName(), u.GetNamespace(), u.GetKind()))
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, svc); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("services interceptor failed to convert unstructured entity '%s@%s'",
+				u.GetName(), u.GetNamespace()))
 		}
 
 		//verify whether the service is of type IPCluster or NodePortService
