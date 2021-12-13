@@ -21,6 +21,11 @@ func (c cache) Remove(u *unstructured.Unstructured) {
 	c[kind] = removeFromSlice(c[kind], u)
 }
 
+func (c cache) Replace(u *unstructured.Unstructured) {
+	kind := strings.ToLower(u.GetKind())
+	c[kind] = replaceFromSlice(c[kind], u)
+}
+
 type Resource struct {
 	Kind      string
 	Name      string
@@ -85,6 +90,11 @@ func (r *ResourceList) Remove(u *unstructured.Unstructured) {
 	r.cache.Remove(u)
 }
 
+func (r *ResourceList) Replace(u *unstructured.Unstructured) {
+	r.resources = replaceFromSlice(r.resources, u)
+	r.cache.Replace(u)
+}
+
 func (r *ResourceList) Add(u *unstructured.Unstructured) {
 	r.Remove(u) //ensure resource does not exist before adding it
 	r.resources = append(r.resources, u)
@@ -99,6 +109,16 @@ func removeFromSlice(slc []*unstructured.Unstructured, u *unstructured.Unstructu
 	for idx, uInSlc := range slc {
 		if uInSlc.GetName() == u.GetName() && uInSlc.GetNamespace() == u.GetNamespace() && uInSlc.GetKind() == u.GetKind() {
 			return append(slc[:idx], slc[idx+1:]...)
+		}
+	}
+	return slc
+}
+
+func replaceFromSlice(slc []*unstructured.Unstructured, u *unstructured.Unstructured) []*unstructured.Unstructured {
+	for idx, uInSlc := range slc {
+		if uInSlc.GetName() == u.GetName() && uInSlc.GetNamespace() == u.GetNamespace() && uInSlc.GetKind() == u.GetKind() {
+			slc[idx] = u
+			break
 		}
 	}
 	return slc
