@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test
+  namespace: {{ .Release.Namespace }}
+data:
+  username: {{ .Values.auth.username }}
+  password: {{ .Values.auth.password }}
+  instanceID: {{ .Values.runtime.instanceID }}
+  globalAccountID: {{ .Values.runtime.globalAccountID }}
+  subaccountID: {{ .Values.runtime.subaccountID }}
+  shootName: {{ .Values.runtime.shootName }}
+  planName: {{ .Values.runtime.planName }}
+  region: {{ .Values.runtime.region }}
