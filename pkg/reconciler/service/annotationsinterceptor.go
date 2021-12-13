@@ -1,7 +1,7 @@
 package service
 
 import (
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -13,13 +13,16 @@ const (
 type AnnotationsInterceptor struct {
 }
 
-func (l *AnnotationsInterceptor) Intercept(resource *unstructured.Unstructured, _ string) (k8s.InterceptionResult, error) {
-	annotations := resource.GetAnnotations()
-	if annotations == nil {
-		annotations = make(map[string]string)
+func (l *AnnotationsInterceptor) Intercept(resources *kubernetes.ResourceList, _ string) error {
+	interceptorFunc := func(u *unstructured.Unstructured) error {
+		annotations := u.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations[ManagedByAnnotation] = annotationReconcilerValue
+		u.SetAnnotations(annotations)
+		return nil
 	}
-	annotations[ManagedByAnnotation] = annotationReconcilerValue
-	resource.SetAnnotations(annotations)
 
-	return k8s.ContinueInterceptionResult, nil
+	return resources.Visit(interceptorFunc)
 }
