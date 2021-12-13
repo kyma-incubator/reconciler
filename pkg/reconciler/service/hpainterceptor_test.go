@@ -30,7 +30,18 @@ func TestHPAInterceptor(t *testing.T) {
 		_, err := kubeClient.Delete(context.Background(), string(manifest), hpaInterceptorNS)
 		require.NoError(t, err)
 	}
-	cleanupFct()       //delete pvc before test runs
-	defer cleanupFct() //delete pvc after test was finished
+	cleanupFct()       //delete hpa before test runs
+	defer cleanupFct() //delete hpa after test was finished
 
+	_, err = kubeClient.Deploy(context.Background(), string(manifest), hpaInterceptorNS, &HPAInterceptor{
+		kubeClient: kubeClient,
+		logger:     logger.NewLogger(true),
+	})
+	require.NoError(t, err)
+
+	_, err = kubeClient.Deploy(context.Background(), string(manifest), hpaInterceptorNS, &HPAInterceptor{
+		kubeClient: kubeClient,
+		logger:     logger.NewLogger(true),
+	})
+	require.NoError(t, err)
 }
