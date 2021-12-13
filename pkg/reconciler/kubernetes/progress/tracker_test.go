@@ -29,7 +29,7 @@ func TestProgressTracker(t *testing.T) {
 
 	logger := log.NewLogger(true)
 
-	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), &internal.Config{})
 	require.NoError(t, err)
 
 	clientSet, err := kubeClient.GetClientSet()
@@ -123,7 +123,7 @@ func TestProgressTracker(t *testing.T) {
 func TestDaemonSetRollingUpdate(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), &internal.Config{})
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -176,7 +176,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 func TestStatefulSetRollingUpdate(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), &internal.Config{})
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -229,7 +229,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 func TestDeploymentRollingUpdate(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), &internal.Config{})
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)

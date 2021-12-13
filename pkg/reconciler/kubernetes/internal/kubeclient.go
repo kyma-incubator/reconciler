@@ -4,6 +4,7 @@ package internal
 
 import (
 	"context"
+	"github.com/avast/retry-go"
 	"helm.sh/helm/v3/pkg/kube"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
@@ -39,20 +40,36 @@ type Metadata struct {
 }
 
 type KubeClient struct {
+	logger        *zap.SugaredLogger
+	clientConfig  *Config
 	dynamicClient dynamic.Interface
 	config        *rest.Config
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
 	helmClient    *kube.Client
 }
 
-func NewKubeClient(kubeconfig string, logger *zap.SugaredLogger) (*KubeClient, error) {
+func NewKubeClient(kubeconfig string, logger *zap.SugaredLogger, clientConfig *Config) (*KubeClient, error) {
+	if clientConfig == nil {
+		clientConfig = &Config{}
+	}
+	if err := clientConfig.validate(); err != nil {
+		return nil, err
+	}
+
 	config, err := getRestConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
 	config.WarningHandler = &loggingWarningHandler{logger: logger}
-	return newForConfig(config)
+	kubeClient, err := newForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeClient.logger = logger
+	kubeClient.clientConfig = clientConfig
+	return kubeClient, nil
 }
 
 func NewInClusterClient(logger *zap.SugaredLogger) (*KubeClient, error) {
@@ -160,9 +177,29 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 		},
 	}
 
-	replaceResource := strategy == ReplaceUpdateStrategy
-	if _, err := k.helmClient.Update(original, target, replaceResource); err != nil {
-		return nil, err
+	retryable := func() error {
+		replaceResource := strategy == ReplaceUpdateStrategy
+		_, err := k.helmClient.Update(original, target, replaceResource)
+		if err == nil {
+			k.logger.Debugf("kubeClient updated %s '%s' (namespace: %s) with stategy '%s' successfully",
+				u.GetKind(), u.GetName(), u.GetNamespace(), strategy)
+		} else {
+			k.logger.Warnf("kubeClient failed to update %s '%s' (namespace: %s)  with strategy '%s': %s",
+				u.GetKind(), u.GetName(), u.GetNamespace(), strategy, err)
+		}
+		return err
+	}
+
+	//retry the reconciliation in case of an error
+	err = retry.Do(retryable,
+		retry.Attempts(uint(k.clientConfig.MaxRetries)),
+		retry.Delay(k.clientConfig.RetryDelay),
+		retry.LastErrorOnly(false),
+		retry.Context(context.Background()))
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "kubeClient failed to update %s '%s' (namespace: %s)",
+			u.GetKind(), u.GetName(), u.GetNamespace())
 	}
 
 	return metadata, nil
