@@ -88,6 +88,8 @@ func TestWorkerPool(t *testing.T) {
 
 func TestWorkerPoolParallel(t *testing.T) {
 
+	t.SkipNow() //skipping test until #559 is verified/fixed.
+
 	t.Run("Multiple WorkerPools watching same reconciliation repository", func(t *testing.T) {
 
 		//initialize WaitGroup
