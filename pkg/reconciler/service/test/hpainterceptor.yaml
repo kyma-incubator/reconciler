@@ -1,4 +1,5 @@
-apiVersion: autoscaling/v2
+---
+apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
   name: hpa
@@ -6,32 +7,35 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: unittest-deployment
+    name: deployment
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 5
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: unittest-deployment
+  name: deployment
 spec:
   replicas: 11
   selector:
     matchLabels:
-      app: unittest-deployment
+      app: deployment
   template:
+    metadata:
+      labels:
+        app: deployment
     spec:
       containers:
-      - name: unittest-deployment
-        image: alpine
-        args:
-          - /bin/sh
-          - -c
-          - sleep 30
+        - name: deployment
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 30
