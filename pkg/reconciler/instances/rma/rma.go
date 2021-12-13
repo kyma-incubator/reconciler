@@ -17,10 +17,10 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	kubeClient := &LazyKubeClient{log: log}
+	lazyClient := &LazyClient{log: log}
 	reconciler.
 		// register reconciler pre-reconcile action (executed BEFORE reconciliation happens)
-		WithPreReconcileAction(NewIntegrationAction("runtime-monitoring-integration-reconcile", kubeClient)).
+		WithPreReconcileAction(NewIntegrationAction("runtime-monitoring-integration-reconcile", lazyClient)).
 		// register reconciler post-delete action (executed AFTER deletion happens)
-		WithPostDeleteAction(NewIntegrationAction("runtime-monitoring-integration-delete", kubeClient))
+		WithPostDeleteAction(NewIntegrationAction("runtime-monitoring-integration-delete", lazyClient))
 }

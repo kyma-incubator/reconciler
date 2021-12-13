@@ -42,10 +42,19 @@ type kubeClientAdapter struct {
 type Config struct {
 	ProgressInterval time.Duration
 	ProgressTimeout  time.Duration
+	MaxRetries       int
+	RetryDelay       time.Duration
 }
 
 func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (Client, error) {
-	kubeClient, err := internal.NewKubeClient(kubeconfig, logger)
+	if config == nil {
+		config = &Config{}
+	}
+
+	kubeClient, err := internal.NewKubeClient(kubeconfig, logger, &internal.Config{
+		MaxRetries: config.MaxRetries,
+		RetryDelay: config.RetryDelay,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -69,10 +78,6 @@ func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, err
 }
 
 func adapt(impl *internal.KubeClient, kubeconfig string, logger *zap.SugaredLogger, config *Config) *kubeClientAdapter {
-	if config == nil {
-		config = &Config{}
-	}
-
 	return &kubeClientAdapter{
 		kubeconfig: kubeconfig,
 		kubeClient: impl,

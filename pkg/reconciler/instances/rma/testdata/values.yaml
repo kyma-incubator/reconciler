@@ -1,0 +1,10 @@
+runtime:
+  instanceID: ""
+  globalAccountID: ""
+  subaccountID: ""
+  shootName: ""
+  planName: ""
+  region: ""
+auth:
+  username: ""
+  password: ""
