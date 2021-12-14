@@ -32,7 +32,6 @@ requiredVars=(
     RECONCILER_DIR
     CONTROL_PLANE_DIR
     BUMP_TOOL_CONFIG_FILE
-    GITHUB_TOKEN
 )
 
 # Used to detect errors for logging purposes

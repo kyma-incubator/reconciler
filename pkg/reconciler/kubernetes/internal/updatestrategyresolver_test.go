@@ -42,7 +42,7 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			Want: PatchUpdateStrategy,
 		},
 		{
-			Name: "Pods should be skipped",
+			Name: "Pods should be skipped if existing",
 			Response: map[string]interface{}{
 				"kind":       "Pod",
 				"apiVersion": "v1",
@@ -73,7 +73,7 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			Want: PatchUpdateStrategy,
 		},
 		{
-			Name: "Jobs should be skipped",
+			Name: "Jobs should be skipped if existing",
 			Response: map[string]interface{}{
 				"kind":       "Job",
 				"apiVersion": "batch/v1",
@@ -105,6 +105,46 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			Resource: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"kind": "ServiceAccount",
+				},
+			},
+			Want: PatchUpdateStrategy,
+		},
+		{
+			Name:     "Role should be patched",
+			Response: nil,
+			Resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "Role",
+				},
+			},
+			Want: PatchUpdateStrategy,
+		},
+		{
+			Name:     "RoleBinding should be patched",
+			Response: nil,
+			Resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "RoleBinding",
+				},
+			},
+			Want: PatchUpdateStrategy,
+		},
+		{
+			Name:     "ClusterRole should be patched",
+			Response: nil,
+			Resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "ClusterRole",
+				},
+			},
+			Want: PatchUpdateStrategy,
+		},
+		{
+			Name:     "ClusterRoleBinding should be patched",
+			Response: nil,
+			Resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "ClusterRoleBinding",
 				},
 			},
 			Want: PatchUpdateStrategy,
@@ -152,7 +192,7 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			Want: ReplaceUpdateStrategy,
 		},
 		{
-			Name:     "Anything else should be replaces",
+			Name:     "Anything else should be replaced",
 			Response: nil,
 			Resource: &unstructured.Unstructured{
 				Object: map[string]interface{}{
