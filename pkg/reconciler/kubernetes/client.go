@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+
 	batchv1 "k8s.io/api/batch/v1"
 
 	v1apps "k8s.io/api/apps/v1"
@@ -25,6 +26,7 @@ type Client interface {
 	PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) error
 	Clientset() (kubernetes.Interface, error)
 
+	GetDeployment(ctx context.Context, name, namespace string) (*v1apps.Deployment, error)
 	GetStatefulSet(ctx context.Context, name, namespace string) (*v1apps.StatefulSet, error)
 	GetSecret(ctx context.Context, name, namespace string) (*v1.Secret, error)
 	GetService(ctx context.Context, name, namespace string) (*v1.Service, error)

@@ -72,6 +72,20 @@ func TestResourceList(t *testing.T) {
 		require.Equal(t, "unittest-adapter", u.GetNamespace())
 	})
 
+	t.Run("Test get with undefined namespace", func(t *testing.T) {
+		newU := &unstructured.Unstructured{}
+		newU.SetKind("Fake")
+		newU.SetName("fake")
+		resources.Add(newU)
+		require.Len(t, resources.GetByKind("Fake"), 1)
+		u := resources.Get("Fake", "fake", "unittest-adapter")
+		require.Equal(t, "Fake", u.GetKind())
+		require.Equal(t, "fake", u.GetName())
+		require.Equal(t, "", u.GetNamespace())
+		resources.Remove(newU)
+		require.Len(t, resources.GetByKind("Fake"), 0)
+	})
+
 	t.Run("Test add and remove", func(t *testing.T) {
 		u1 := &unstructured.Unstructured{
 			Object: map[string]interface{}{
@@ -100,6 +114,51 @@ func TestResourceList(t *testing.T) {
 		resources.Remove(u1)
 		require.Len(t, resources.resources, 6)
 		require.Len(t, resources.GetByKind("service"), 1)
+		resources.Remove(u2)
+		require.Len(t, resources.resources, 5)
+		require.Len(t, resources.GetByKind("service"), 0)
+	})
+
+	t.Run("Test replace", func(t *testing.T) {
+		u1a := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind": "service",
+				"metadata": map[string]interface{}{
+					"name": "service-1",
+					"labels": map[string]interface{}{
+						"test": "label-old",
+					},
+				},
+			},
+		}
+		u1b := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind": "service",
+				"metadata": map[string]interface{}{
+					"name": "service-1",
+					"labels": map[string]interface{}{
+						"test": "label-new",
+					},
+				},
+			},
+		}
+		u2 := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"kind": "service",
+				"metadata": map[string]interface{}{
+					"name": "service-2",
+				},
+			},
+		}
+		resources.Add(u1a)
+		resources.Add(u2)
+		require.Len(t, resources.resources, 7)
+		require.Equal(t, map[string]string{"test": "label-old"}, resources.Get("service", "service-1", "").GetLabels())
+		resources.Replace(u1b)
+		require.Len(t, resources.resources, 7)
+		require.Equal(t, map[string]string{"test": "label-new"}, resources.Get("service", "service-1", "").GetLabels())
+		resources.Remove(u1b)
+		resources.Remove(u2)
 	})
 
 }

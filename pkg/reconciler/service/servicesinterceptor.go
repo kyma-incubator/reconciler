@@ -22,11 +22,13 @@ type ServicesInterceptor struct {
 
 func (s *ServicesInterceptor) Intercept(resources *k8s.ResourceList, namespace string) error {
 	interceptorFct := func(u *unstructured.Unstructured) error {
+		namespace := k8s.ResolveNamespace(u, namespace)
+
 		//convert unstruct to service resource
 		svc := &v1.Service{}
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, svc); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("services interceptor failed to convert unstructured entity '%s@%s'",
-				u.GetName(), u.GetNamespace()))
+				u.GetName(), namespace))
 		}
 
 		//verify whether the service is of type IPCluster or NodePortService
@@ -40,10 +42,10 @@ func (s *ServicesInterceptor) Intercept(resources *k8s.ResourceList, namespace s
 		}
 
 		//retrieve existing service from cluster
-		svcInCluster, err := s.kubeClient.GetService(context.Background(), u.GetName(), k8s.ResolveNamespace(u, namespace))
+		svcInCluster, err := s.kubeClient.GetService(context.Background(), u.GetName(), namespace)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("failed to get unstructured entity '%s@%s' (kind '%s')",
-				u.GetName(), u.GetNamespace(), u.GetKind()))
+				u.GetName(), namespace, u.GetKind()))
 		}
 
 		//if service exists in cluster, add the missing ClusterIP field using the value already used inside the cluster
@@ -53,7 +55,7 @@ func (s *ServicesInterceptor) Intercept(resources *k8s.ResourceList, namespace s
 			unstructObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("failed to convert unstructured entity '%s@%s' (kind '%s')",
-					u.GetName(), u.GetNamespace(), u.GetKind()))
+					u.GetName(), namespace, u.GetKind()))
 			}
 
 			u.Object = unstructObject
