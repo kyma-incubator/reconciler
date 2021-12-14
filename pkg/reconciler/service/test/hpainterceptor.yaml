@@ -1,3 +1,4 @@
+---
 apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -6,40 +7,38 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: unittest-deployment
+    name: deployment
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 5
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: unittest-deployment
-  labels:
-    app: unittest-deployment
+  name: deployment
 spec:
   replicas: 11
   selector:
     matchLabels:
-      app: unittest-deployment
+      app: deployment
   template:
     metadata:
       labels:
-        app: unittest-deployment
+        app: deployment
     spec:
       containers:
-      - name: unittest-deployment
-        image: alpine
-        args:
-          - /bin/sh
-          - -c
-          - sleep 30
+        - name: deployment
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 30
 ---
 apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
@@ -49,7 +48,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: StatefulSet
-    name: unittest-ss
+    name: sfs
   minReplicas: 1
   maxReplicas: 10
   metrics:
@@ -63,23 +62,21 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: unittest-ss
-  labels:
-    app: unittest-ss
+  name: sfs
 spec:
   replicas: 11
   selector:
     matchLabels:
-      app: unittest-ss
+      app: sfs
   template:
     metadata:
       labels:
-        app: unittest-ss
+        app: sfs
     spec:
       containers:
-      - name: unittest-ss
-        image: alpine
-        args:
-          - /bin/sh
-          - -c
-          - sleep 30
+        - name: deployment
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 30
