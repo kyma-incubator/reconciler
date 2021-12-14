@@ -38,7 +38,7 @@ func newCacheDependencyManager(conn db.Connection, debug bool) *cacheDependencyM
 	}
 }
 
-func (cdm *cacheDependencyManager) transactional(desc string, dbOps func() error) error {
+func (cdm *cacheDependencyManager) transactional(desc string, dbOps func(tx *db.Tx) error) error {
 	if err := db.Transaction(cdm.conn, dbOps, cdm.logger); err != nil {
 		return fmt.Errorf("failed to execute database transaction '%s': %s", desc, err)
 	}
@@ -57,7 +57,7 @@ func (r *record) Exec(newTx bool) error {
 	if r.cacheEntry.ID <= 0 {
 		return fmt.Errorf("cache entry '%s' has no ID: indicates that cache entity is not persisted in database", r.cacheEntry)
 	}
-	dbOps := func() error {
+	dbOps := func(tx *db.Tx) error {
 		//track deps in DB
 		for _, value := range r.cacheDeps {
 			q, err := db.NewQuery(r.conn, &model.CacheDependencyEntity{
@@ -80,7 +80,7 @@ func (r *record) Exec(newTx bool) error {
 	if newTx { //start new DB transaction
 		return r.transactional("recording cache dependencies", dbOps)
 	}
-	return dbOps() //no new DB transaction requested
+	return dbOps(nil) //no new DB transaction requested
 }
 
 func (cdm *cacheDependencyManager) Invalidate() *invalidate {
@@ -116,7 +116,7 @@ func (i *invalidate) with(colName string, colValue interface{}) *invalidate {
 }
 
 func (i *invalidate) Exec(newTx bool) error {
-	dbOps := func() error {
+	dbOps := func(tx *db.Tx) error {
 		//get cache dependencies
 		depQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{}, i.logger)
 		if err != nil {
@@ -169,7 +169,7 @@ func (i *invalidate) Exec(newTx bool) error {
 	if newTx { //start new DB transaction
 		return i.transactional("invalidating cache entries", dbOps)
 	}
-	return dbOps() //no new DB transaction requested
+	return dbOps(nil) //no new DB transaction requested
 }
 
 func (i *invalidate) cacheIDsCSV(deps []db.DatabaseEntity) (string, int) {
