@@ -12,10 +12,14 @@ import (
 
 const (
 	CRDComponent            = "CRDs"
+	CleanupComponent        = "cleaner"
 	tblConfiguration string = "inventory_cluster_configs"
 )
 
-var crdComponent = &keb.Component{Component: CRDComponent, Namespace: "default"}
+var (
+	crdComponent     = &keb.Component{Component: CRDComponent, Namespace: "default"}
+	cleanupComponent = &keb.Component{Component: CleanupComponent, Namespace: "default"}
+)
 
 type ClusterConfigurationEntity struct {
 	Version        int64            `db:"readOnly"`
@@ -90,6 +94,9 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 	if component == CRDComponent { //CRD is an artificial component which doesn't exist in the component list of any cluster
 		return crdComponent
 	}
+	if component == CleanupComponent { //Cleanup is an artificial component which doesn't exist in the component list of any cluster
+		return cleanupComponent
+	}
 	for _, comp := range c.Components {
 		if comp.Component == component {
 			return comp
@@ -114,8 +121,12 @@ func newReconciliationSequence(preComponents [][]string) *ReconciliationSequence
 		preComponents: preComponents,
 	}
 	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning
+		cleanupComponent,
+	})
+	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning
 		crdComponent,
 	})
+
 	return reconSeq
 }
 

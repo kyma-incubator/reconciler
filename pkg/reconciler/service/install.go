@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -30,7 +29,7 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 	var manifest string
 	if task.Component == model.CRDComponent {
 		manifest, err = r.renderCRDs(chartProvider, task)
-	} else {
+	} else if task.Component != model.CleanupComponent { // TODO add better support for components that do not have manifests
 		manifest, err = r.renderManifest(chartProvider, task)
 	}
 	if err != nil {
@@ -38,9 +37,6 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 	}
 
 	if task.Type == model.OperationTypeDelete {
-		if task.Component == model.CRDComponent {
-			return nil
-		}
 		resources, err := kubeClient.Delete(ctx, manifest, task.Namespace)
 		if err == nil {
 			r.logger.Debugf("Deletion of manifest finished successfully: %d resources deleted", len(resources))
@@ -49,6 +45,9 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 			return err
 		}
 	} else {
+		if task.Component == model.CleanupComponent {
+			return nil
+		}
 		resources, err := kubeClient.Deploy(ctx, manifest, task.Namespace,
 			&LabelsInterceptor{
 				Version: task.Version,

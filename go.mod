@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
+	github.com/coreos/go-semver v0.3.0
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
@@ -41,6 +42,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	helm.sh/helm/v3 v3.7.1
 	k8s.io/api v0.22.1
+	k8s.io/apiextensions-apiserver v0.22.1
 	k8s.io/apimachinery v0.22.1
 	k8s.io/cli-runtime v0.22.1
 	k8s.io/client-go v0.22.1

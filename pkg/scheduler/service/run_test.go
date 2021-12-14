@@ -54,7 +54,11 @@ func TestRuntimeBuilder(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{false})
 		reconResult, receivedUpdates := runLocal(t, 5*time.Second)
 		require.Equal(t, model.ClusterStatusReconcileError, reconResult.GetResult())
-		require.Equal(t, reconciler.StatusError, receivedUpdates[len(receivedUpdates)-1].Status)
+
+		//Because of parallel processing the message order is not guaranteed. Check the count of different statuses instead
+		require.Equal(t, 1, countStatus(reconciler.StatusRunning, receivedUpdates))
+		require.Equal(t, 1, countStatus(reconciler.StatusError, receivedUpdates))
+		require.Equal(t, 1, countStatus(reconciler.StatusFailed, receivedUpdates))
 	})
 
 	t.Run("Run remote with success", func(t *testing.T) {
@@ -64,7 +68,6 @@ func TestRuntimeBuilder(t *testing.T) {
 	t.Run("Run remote with error", func(t *testing.T) {
 		runRemote(t, model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
 	})
-
 }
 
 func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Duration) {
@@ -153,7 +156,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 
 	require.NoError(t, err)
 	require.Equal(t, 1, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
-	require.Equal(t, 2, getEntityLen(t, dbConn, &model.OperationEntity{}))
+	require.Equal(t, 3, getEntityLen(t, dbConn, &model.OperationEntity{}))
 
 	time.Sleep(15 * time.Second) //give the cleaner some time to remove old entities
 
@@ -248,10 +251,13 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 
 	//configure local runner
-	var receivedUpdates []*reconciler.CallbackMessage
+
 	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
+
+	//use a channel because callbacks are invoked from multiple goroutines
+	callbackData := make(chan *reconciler.CallbackMessage, 10)
 	localRunner := runtimeBuilder.RunLocal(nil, func(component string, msg *reconciler.CallbackMessage) {
-		receivedUpdates = append(receivedUpdates, msg)
+		callbackData <- msg
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -260,5 +266,23 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	reconResult, err := localRunner.Run(ctx, clusterState)
 	require.NoError(t, err)
 
+	receivedUpdates := []*reconciler.CallbackMessage{}
+
+	//Collect received callbacks
+	close(callbackData)
+	for msg := range callbackData {
+		receivedUpdates = append(receivedUpdates, msg)
+	}
+
 	return reconResult, receivedUpdates
+}
+
+func countStatus(status reconciler.Status, receivedUpdates []*reconciler.CallbackMessage) int {
+	count := 0
+	for _, recv := range receivedUpdates {
+		if recv.Status == status {
+			count++
+		}
+	}
+	return count
 }

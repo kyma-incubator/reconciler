@@ -33,6 +33,7 @@ func (rb *RuntimeBuilder) newWorkerPool(retriever worker.ClusterStateRetriever, 
 	return worker.NewWorkerPool(retriever, rb.reconRepo, invoke, rb.workerPoolConfig, rb.logger)
 }
 
+//FIXME: The 'statusFunc' callback is called from multiple goroutines, it MUST be goroutine-safe
 func (rb *RuntimeBuilder) RunLocal(preComponents [][]string, statusFunc invoker.ReconcilerStatusFunc) *RunLocal {
 	runL := &RunLocal{rb, statusFunc}
 	runL.runtimeBuilder.preComponents = preComponents
