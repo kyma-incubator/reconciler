@@ -163,7 +163,7 @@ func TestReconciliationResult(t *testing.T) {
 		reconResult := newReconciliationResult(&model.ReconciliationEntity{
 			RuntimeID:    "runtimeID",
 			SchedulingID: "schedulingID",
-		}, 2*time.Second, logger.NewLogger(true))
+		}, logger.NewLogger(true))
 
 		require.NoError(t, reconResult.AddOperations(testCase.operations))
 
@@ -171,7 +171,7 @@ func TestReconciliationResult(t *testing.T) {
 
 		//check detected orphans
 		allDetectedOrphans := make(map[string]*model.OperationEntity)
-		detectedOrphans := reconResult.GetOrphans()
+		detectedOrphans := reconResult.GetOrphans(1 * time.Second)
 		for _, detectedOrphan := range detectedOrphans {
 			allDetectedOrphans[detectedOrphan.CorrelationID] = detectedOrphan
 		}

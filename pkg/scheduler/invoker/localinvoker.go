@@ -107,7 +107,7 @@ func (i *LocalReconcilerInvoker) updateOperationState(msg *reconciler.CallbackMe
 		i.logger.Debugf(errMsg+": %s", params.SchedulingID, params.CorrelationID, state, msg.Error)
 	}
 
-	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, msg.Error)
+	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, false, msg.Error)
 	if err != nil {
 		//return only the error if it's not caused by a redundant update
 		return errors.Wrap(err, fmt.Sprintf("local invoker failed to update operation "+

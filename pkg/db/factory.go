@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"os"
 	"path/filepath"
 
@@ -32,7 +33,7 @@ func NewConnectionFactory(configFile string, migrate bool, debug bool) (Connecti
 	case "sqlite":
 		connFact, err := createSqliteConnectionFactory(encKey, debug, blockQueries, logQueries)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error creating sqliteConnectionFactory")
 		}
 		return connFact, connFact.Init(migrate)
 

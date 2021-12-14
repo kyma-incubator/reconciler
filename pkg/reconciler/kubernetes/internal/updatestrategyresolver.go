@@ -24,15 +24,21 @@ type UpdateStrategyResolver interface {
 
 type startegyFn = func(*unstructured.Unstructured, *resource.Helper) (UpdateStrategy, error)
 
-var justUpdate startegyFn = func(*unstructured.Unstructured, *resource.Helper) (UpdateStrategy, error) {
+var patchStrategy = func(*unstructured.Unstructured, *resource.Helper) (UpdateStrategy, error) {
 	return PatchUpdateStrategy, nil
 }
 
-var skipUpdate startegyFn = func(*unstructured.Unstructured, *resource.Helper) (UpdateStrategy, error) {
+var onlyCreateStrategy = func(u *unstructured.Unstructured, h *resource.Helper) (UpdateStrategy, error) {
+	if _, err := h.Get(u.GetNamespace(), u.GetName()); err != nil {
+		if errors.IsNotFound(err) {
+			return PatchUpdateStrategy, nil
+		}
+		return "", err
+	}
 	return SkipUpdateStrategy, nil
 }
 
-var updateStatefulset startegyFn = func(u *unstructured.Unstructured, h *resource.Helper) (UpdateStrategy, error) {
+var statefulsetStrategy = func(u *unstructured.Unstructured, h *resource.Helper) (UpdateStrategy, error) {
 
 	obj, err := h.Get(u.GetNamespace(), u.GetName())
 	if err != nil {
@@ -67,11 +73,15 @@ func newDefaultUpdateStrategyResolver(helper *resource.Helper) UpdateStrategyRes
 	return &DefaultUpdateStrategyResolver{
 		helper: helper,
 		typeToStrategyMapping: map[string]startegyFn{
-			"pod":                   skipUpdate,
-			"job":                   skipUpdate,
-			"persistentvolumeclaim": justUpdate,
-			"serviceaccount":        justUpdate,
-			"statefulset":           updateStatefulset,
+			"pod":                   onlyCreateStrategy,
+			"job":                   onlyCreateStrategy,
+			"persistentvolumeclaim": patchStrategy,
+			"serviceaccount":        patchStrategy,
+			"role":                  patchStrategy,
+			"rolebinding":           patchStrategy,
+			"clusterrole":           patchStrategy,
+			"clusterrolebinding":    patchStrategy,
+			"statefulset":           statefulsetStrategy,
 		},
 	}
 }

@@ -1,0 +1,173 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeclient-test
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: serviceaccount
+  namespace: kubeclient-test
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: role
+  namespace: kubeclient-test
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "create","delete","get","list","patch","update","watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods/exec" ]
+    verbs: [ "create","delete","get","list","patch","update","watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods/log" ]
+    verbs: [ "get","list","watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "events" ]
+    verbs: [ "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "secrets" ]
+    verbs: [ "get" ]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rolebinding
+  namespace: kubeclient-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: role
+subjects:
+  - kind: ServiceAccount
+    name: serviceaccount
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterrole
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: serviceaccount
+    namespace: kubeclient-test
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret
+  namespace: kubeclient-test
+type: kubernetes.io/basic-auth
+stringData:
+  username: admin
+  password: t0p-Secret
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap
+  namespace: kubeclient-test
+data:
+  key1: "value1"
+  key2: "value2"
+  key3: |
+    subkey3.1=value3.1
+    subkey3.2=value3.2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment
+  namespace: kubeclient-test
+  labels:
+    app: deployment
+spec:
+  selector:
+    matchLabels:
+      app: deployment
+  template:
+    metadata:
+      labels:
+        app: deployment
+    spec:
+      containers:
+        - name: sleeper
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 60000
+#---
+#apiVersion: v1
+#kind: Pod
+#metadata:
+#  name: pod
+#  namespace: kubeclient-test
+#  labels:
+#    app: pod
+#spec:
+#  containers:
+#    - name: sleeper
+#      image: alpine
+#      args:
+#        - /bin/sh
+#        - -c
+#        - sleep 60000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: statefulset
+  namespace: kubeclient-test
+  labels:
+    app: statefulset
+spec:
+  serviceName: dontexist
+  selector:
+    matchLabels:
+      app: statefulset
+  template:
+    metadata:
+      labels:
+        app: statefulset
+    spec:
+      containers:
+        - name: sleeper
+          image: alpine
+          args:
+            - /bin/sh
+            - -c
+            - sleep 60000
+          readinessProbe:
+            exec:
+              command:
+                - find
+                - /tmp
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: sleeper-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Mi

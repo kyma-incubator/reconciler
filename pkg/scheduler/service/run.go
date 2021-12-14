@@ -129,7 +129,7 @@ func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*Recon
 	}
 
 	//evaluate reconciliation result
-	reconResult := newReconciliationResult(recons[0], 1*time.Hour, l.logger())
+	reconResult := newReconciliationResult(recons[0], l.logger())
 	err = reconResult.AddOperations(ops)
 	return reconResult, err
 }
@@ -179,7 +179,9 @@ func (r *RunRemote) Run(ctx context.Context) error {
 	//start bookkeeper
 	go func() {
 		transition := newClusterStatusTransition(r.conn, r.inventory, r.reconciliationRepository(), r.logger())
-		if err := newBookkeeper(transition, r.bookkeeperConfig, r.logger()).Run(ctx); err != nil {
+		if err := newBookkeeper(transition.reconRepo, r.bookkeeperConfig, r.logger()).Run(ctx,
+			markOrphanOperation{transition: transition, logger: r.logger()},
+			finishOperation{transition: transition, logger: r.logger()}); err != nil {
 			r.logger().Fatalf("Bookkeeper returned an error: %s", err)
 		}
 	}()

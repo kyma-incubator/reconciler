@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"strings"
 
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -18,48 +20,49 @@ type ServicesInterceptor struct {
 	kubeClient k8s.Client
 }
 
-func (s *ServicesInterceptor) Intercept(resource *unstructured.Unstructured, namespace string) (k8s.InterceptionResult, error) {
-	if strings.ToLower(resource.GetKind()) != "service" {
-		return k8s.ContinueInterceptionResult, nil
-	}
-
-	//convert unstruct to service resource
-	svc := &v1.Service{}
-	err := runtime.DefaultUnstructuredConverter.
-		FromUnstructured(resource.Object, svc)
-	if err != nil {
-		return k8s.ErrorInterceptionResult, err
-	}
-
-	//verify whether the service is of type IPCluster or NodePortService
-	if !(s.isClusterIPService(svc) || s.isNodePortService(svc)) {
-		return k8s.ContinueInterceptionResult, nil
-	}
-
-	//adjust the ClusterIP field only if it is empty or equals to "None"
-	if svc.Spec.ClusterIP != "" && !strings.EqualFold(svc.Spec.ClusterIP, none) {
-		return k8s.ContinueInterceptionResult, nil
-	}
-
-	//retrieve existing service from cluster
-	svcInCluster, err := s.kubeClient.GetService(context.Background(), resource.GetName(), k8s.ResolveNamespace(resource, namespace))
-	if err != nil {
-		return k8s.ErrorInterceptionResult, err
-	}
-
-	//if service exists in cluster, add the missing ClusterIP field using the value already used inside the cluster
-	if svcInCluster != nil {
-		svc.Spec.ClusterIP = svcInCluster.Spec.ClusterIP //use cluster IP from K8s service resource
-
-		unstructObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
-		if err != nil {
-			return k8s.ErrorInterceptionResult, err
+func (s *ServicesInterceptor) Intercept(resources *k8s.ResourceList, namespace string) error {
+	interceptorFct := func(u *unstructured.Unstructured) error {
+		//convert unstruct to service resource
+		svc := &v1.Service{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, svc); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("services interceptor failed to convert unstructured entity '%s@%s'",
+				u.GetName(), u.GetNamespace()))
 		}
 
-		resource.Object = unstructObject
+		//verify whether the service is of type IPCluster or NodePortService
+		if !(s.isClusterIPService(svc) || s.isNodePortService(svc)) {
+			return nil
+		}
+
+		//adjust the ClusterIP field only if it is empty or equals to "None"
+		if svc.Spec.ClusterIP != "" && !strings.EqualFold(svc.Spec.ClusterIP, none) {
+			return nil
+		}
+
+		//retrieve existing service from cluster
+		svcInCluster, err := s.kubeClient.GetService(context.Background(), u.GetName(), k8s.ResolveNamespace(u, namespace))
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed to get unstructured entity '%s@%s' (kind '%s')",
+				u.GetName(), u.GetNamespace(), u.GetKind()))
+		}
+
+		//if service exists in cluster, add the missing ClusterIP field using the value already used inside the cluster
+		if svcInCluster != nil {
+			svc.Spec.ClusterIP = svcInCluster.Spec.ClusterIP //use cluster IP from K8s service resource
+
+			unstructObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed to convert unstructured entity '%s@%s' (kind '%s')",
+					u.GetName(), u.GetNamespace(), u.GetKind()))
+			}
+
+			u.Object = unstructObject
+		}
+
+		return nil
 	}
 
-	return k8s.ContinueInterceptionResult, nil
+	return resources.VisitByKind("service", interceptorFct)
 }
 
 func (s *ServicesInterceptor) isClusterIPService(svc *v1.Service) bool {

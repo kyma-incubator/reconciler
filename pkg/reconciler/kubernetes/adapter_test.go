@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/kubernetes"
 	"path/filepath"
 	"testing"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -55,13 +56,16 @@ var expectedResourcesWithNs = []*Resource{
 var expectedLabels = map[string]string{"test-interceptor": "test-label"}
 
 type testInterceptor struct {
-	result InterceptionResult
-	err    error
+	err error
 }
 
-func (i *testInterceptor) Intercept(resource *unstructured.Unstructured, _ string) (InterceptionResult, error) {
-	resource.SetLabels(expectedLabels)
-	return i.result, i.err
+func (i *testInterceptor) Intercept(resources *ResourceList, _ string) error {
+	interceptorFunc := func(u *unstructured.Unstructured) error {
+		u.SetLabels(expectedLabels)
+		return i.err
+	}
+
+	return resources.Visit(interceptorFunc)
 }
 
 func TestKubernetesClient(t *testing.T) {
@@ -74,24 +78,12 @@ func TestKubernetesClient(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	t.Run("Deploy no resources because all were sorted out by interceptor", func(t *testing.T) {
-		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
-
-		//deploy
-		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{
-			result: IgnoreResourceInterceptionResult,
-		})
-		require.NoError(t, err)
-		require.Empty(t, deployedResources)
-	})
-
 	t.Run("Deploy no resources because interceptor was failing", func(t *testing.T) {
 		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
 
 		//deploy
 		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{
-			result: ErrorInterceptionResult,
-			err:    fmt.Errorf("just a fake error"),
+			err: fmt.Errorf("just a fake error"),
 		})
 		require.Error(t, err)
 		require.Empty(t, deployedResources)

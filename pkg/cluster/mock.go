@@ -76,6 +76,6 @@ func (kp *MockKubeconfigProvider) Get() (string, error) {
 	return kp.KubeconfigResult, nil
 }
 
-func (i *MockInventory) CountRetries(runtimeID string, configVersion int64) (int, error) {
+func (i *MockInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error) {
 	return i.RetriesCount, nil
 }

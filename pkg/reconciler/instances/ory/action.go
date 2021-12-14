@@ -3,6 +3,7 @@ package ory
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -33,6 +34,11 @@ type preReconcileAction struct {
 	*oryAction
 }
 
+type postReconcileAction struct {
+	*oryAction
+	hydraSyncer hydra.Syncer
+}
+
 type postDeleteAction struct {
 	*oryAction
 }
@@ -42,23 +48,28 @@ var (
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
 )
 
+func (a *postReconcileAction) Run(context *service.ActionContext) error {
+	logger, client, cfg, _, err := readActionContext(context)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read postReconcileAction context")
+	}
+	if isInMemoryMode(cfg) {
+		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
+		err = a.hydraSyncer.TriggerSynchronization(context.Context, client, logger, oryNamespace)
+		if err != nil {
+			return errors.Wrap(err, "failed to trigger hydra sychronization")
+		}
+	} else {
+		logger.Debug("Hydra is in persistence mode, no synchronization needed")
+	}
+	return nil
+}
+
 func (a *preReconcileAction) Run(context *service.ActionContext) error {
-	logger := context.Logger
-	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
-		WithNamespace(oryNamespace).
-		WithProfile(context.Task.Profile).
-		WithConfiguration(context.Task.Configuration).Build()
-
-	values, err := context.ChartProvider.Configuration(component)
+	logger, client, _, values, err := readActionContext(context)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve Ory chart values")
+		return errors.Wrap(err, "Failed to read preReconcileAction context")
 	}
-
-	client, err := context.KubeClient.Clientset()
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
-	}
-
 	_, err = getSecret(context.Context, client, jwksNamespacedName)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
@@ -182,6 +193,7 @@ func (a *preReconcileAction) rolloutHydraDeployment(ctx context.Context, client 
 	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
 
 	_, err := client.AppsV1().Deployments("kyma-system").Patch(ctx, "ory-hydra", types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to rollout ory hydra")
 	}
@@ -223,4 +235,30 @@ func createSecret(ctx context.Context, client kubernetes.Interface, name types.N
 	logger.Infof("Secret %s created", name.String())
 
 	return err
+}
+
+func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, kubernetes.Interface, *db.Config, map[string]interface{}, error) {
+	logger := context.Logger
+	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
+		WithNamespace(oryNamespace).
+		WithProfile(context.Task.Profile).
+		WithConfiguration(context.Task.Configuration).Build()
+
+	chartValues, err := context.ChartProvider.Configuration(component)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve ory chart values")
+	}
+	client, err := context.KubeClient.Clientset()
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
+	}
+	cfg, err := db.NewDBConfig(chartValues)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
+	}
+	return logger, client, cfg, chartValues, nil
+}
+
+func isInMemoryMode(cfg *db.Config) bool {
+	return !cfg.Global.Ory.Hydra.Persistence.Enabled
 }

@@ -90,6 +90,9 @@ func (c *ClusterStatusEntity) GetKEBClusterStatus() (keb.Status, error) {
 	case ClusterStatusReconcileDisabled:
 		kebStatus = keb.StatusReconcileDisabled
 
+	case ClusterStatusReconcileErrorRetryable:
+		kebStatus = keb.StatusReconcileErrorRetryable
+
 	default:
 		return kebStatus, fmt.Errorf("cluster status '%s' not convertable to KEB cluster status", c.Status)
 	}

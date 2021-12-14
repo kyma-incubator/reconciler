@@ -10,12 +10,13 @@ const (
 	ClusterStatusDeletePending           Status = "delete_pending"
 	ClusterStatusDeleting                Status = "deleting"
 	ClusterStatusDeleteError             Status = "delete_error"
+	ClusterStatusDeleteErrorRetryable    Status = "delete_error_retryable"
 	ClusterStatusDeleted                 Status = "deleted"
 	ClusterStatusReconcilePending        Status = "reconcile_pending"
 	ClusterStatusReconcileDisabled       Status = "reconcile_disabled"
 	ClusterStatusReconciling             Status = "reconciling"
 	ClusterStatusReconcileError          Status = "error"
-	ClusterStatusReconcileErrorRetryable Status = "error_retryable"
+	ClusterStatusReconcileErrorRetryable Status = "reconcile_error_retryable"
 	ClusterStatusReady                   Status = "ready"
 )
 
@@ -24,7 +25,7 @@ func (s Status) IsDeletion() bool {
 }
 
 func (s Status) IsDeleteCandidate() bool {
-	return s == ClusterStatusDeletePending
+	return s == ClusterStatusDeletePending || s == ClusterStatusDeleteErrorRetryable
 }
 
 func (s Status) IsReconcileCandidate() bool {
@@ -32,11 +33,15 @@ func (s Status) IsReconcileCandidate() bool {
 }
 
 func (s Status) IsFinal() bool {
-	return s == ClusterStatusReady || s == ClusterStatusReconcileError || s == ClusterStatusDeleted || s == ClusterStatusDeleteError || s == ClusterStatusReconcileErrorRetryable
+	return s == ClusterStatusReady || s == ClusterStatusReconcileError || s == ClusterStatusDeleted || s == ClusterStatusDeleteError || s == ClusterStatusReconcileErrorRetryable || s == ClusterStatusDeleteErrorRetryable
 }
 
 func (s Status) IsInProgress() bool {
 	return s == ClusterStatusDeleting || s == ClusterStatusReconciling
+}
+
+func (s Status) IsDisabled() bool {
+	return s == ClusterStatusReconcileDisabled
 }
 
 type ClusterStatus struct {
@@ -71,6 +76,8 @@ func NewClusterStatus(status Status) (*ClusterStatus, error) {
 		clusterStatus.ID = 8
 	case ClusterStatusReconcileErrorRetryable:
 		clusterStatus.ID = 9
+	case ClusterStatusDeleteErrorRetryable:
+		clusterStatus.ID = 10
 	default:
 		return clusterStatus, fmt.Errorf("ClusterStatus '%s' is unknown", status)
 	}

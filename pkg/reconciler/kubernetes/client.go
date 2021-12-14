@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	batchv1 "k8s.io/api/batch/v1"
 
 	v1apps "k8s.io/api/apps/v1"
@@ -13,26 +12,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const (
-	ContinueInterceptionResult       InterceptionResult = "continue_processing"
-	ErrorInterceptionResult          InterceptionResult = "error"
-	IgnoreResourceInterceptionResult InterceptionResult = "ignore_resource"
-)
-
-type Resource struct {
-	Kind      string
-	Name      string
-	Namespace string
-}
-
-type InterceptionResult string
-
-func (r *Resource) String() string {
-	return fmt.Sprintf("KubernetesResource [Kind:%s,Namespace:%s,Name:%s]", r.Kind, r.Namespace, r.Name)
-}
-
 type ResourceInterceptor interface {
-	Intercept(resource *unstructured.Unstructured, namespace string) (InterceptionResult, error)
+	Intercept(resources *ResourceList, namespace string) error
 }
 
 //go:generate mockery --name Client
