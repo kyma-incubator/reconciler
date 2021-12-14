@@ -27,6 +27,7 @@ func TestInvoker(t *testing.T) {
 			ClusterState:    clusterStateMock,
 			SchedulingID:    "",
 			CorrelationID:   "",
+			MaxOperationRetries:  0,
 		}
 
 		model := params.newTask()

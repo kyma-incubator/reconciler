@@ -87,20 +87,21 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 
 		//iterate over reconciliation sequence and create operations with proper priorities
 		var opsList bytes.Buffer
-
 		for idx, components := range reconSeq.Queue {
 			priority := idx + 1
 			for _, component := range components {
+				newUuid := uuid.NewString()
 				createOpQ, err := db.NewQuery(r.Conn, &model.OperationEntity{
 					Priority:      int64(priority),
 					SchedulingID:  reconEntity.SchedulingID,
-					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
+					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, newUuid),
 					RuntimeID:     reconEntity.RuntimeID,
 					ClusterConfig: reconEntity.ClusterConfig,
 					Component:     component.Component,
 					State:         model.OperationStateNew,
 					Type:          opType,
 					Updated:       time.Now().UTC(),
+					RetryID:       fmt.Sprintf("%s--%s", reconEntity.SchedulingID, newUuid),
 				}, r.Logger)
 				if err != nil {
 					return nil, err
@@ -391,6 +392,47 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 			return fmt.Errorf("update of operation '%s' to state '%s' failed: no row was updated "+
 				"(probably race-condition: operation does no longer match where-conditions)",
 				op, state)
+		}
+
+		return err
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
+
+	dbOps := func() error {
+		op, err := r.GetOperation(schedulingID, correlationID)
+		if err != nil {
+			if repository.IsNotFoundError(err) {
+				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
+			}
+			return err
+		}
+		if retryID == op.RetryID {
+			return nil
+		}
+
+		//update operation-entity
+		op.RetryID = retryID
+		op.Retries = op.Retries + 1
+		op.Updated = time.Now().UTC()
+
+		//prepare update query
+		q, err := db.NewQuery(r.Conn, op, r.Logger)
+		if err != nil {
+			return err
+		}
+		whereCond := map[string]interface{}{
+			"CorrelationID": correlationID,
+			"SchedulingID":  schedulingID,
+		}
+		cnt, err := q.Update().
+			Where(whereCond).
+			ExecCount()
+
+		if cnt == 0 {
+			return fmt.Errorf("update of operation '%s' retryID '%s' failed: no row was updated", op, retryID)
 		}
 
 		return err

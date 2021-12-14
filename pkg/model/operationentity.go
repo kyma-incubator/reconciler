@@ -22,7 +22,7 @@ type OperationEntity struct {
 	Created       time.Time      `db:"readOnly"`
 	Updated       time.Time      `db:""`
 	Retries       int64          `db:"notNull"`
-	RetryID       string         `db:""`
+	RetryID       string         `db:"notNull"`
 }
 
 func (o *OperationEntity) String() string {

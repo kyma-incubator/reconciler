@@ -28,6 +28,7 @@ type Repository interface {
 	//GetReconcilingOperations returns all operations which are part of currently running reconciliations
 	GetReconcilingOperations() ([]*model.OperationEntity, error)
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reason ...string) error
+	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.

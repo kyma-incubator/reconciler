@@ -621,13 +621,13 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	switch body.Status {
 	case reconciler.StatusNotstarted, reconciler.StatusRunning:
-		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateInProgress)
+		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateInProgress)
 	case reconciler.StatusFailed:
-		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateFailed, body.Error)
+		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateFailed, body.Error)
 	case reconciler.StatusSuccess:
-		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateDone)
+		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateDone)
 	case reconciler.StatusError:
-		err = updateOperationState(o, schedulingID, correlationID, model.OperationStateError, body.Error)
+		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateError, body.Error)
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
@@ -684,6 +684,18 @@ func updateOperationState(o *Options, schedulingID, correlationID string, state 
 	return err
 }
 
+func updateOperationStateAndRetryID(o *Options, schedulingID, correlationID, retryID string, state model.OperationState, reason ...string) error {
+	err := updateOperationState(o, schedulingID, correlationID, state, reason...)
+	if err != nil {
+		return err
+	}
+	err = o.Registry.ReconciliationRepository().UpdateOperationRetryID(schedulingID, correlationID, retryID)
+	if err != nil {
+		o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+			"retryID '%s': %s", schedulingID, correlationID, retryID, err)
+	}
+	return err
+}
 func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.OperationEntity, error) {
 	op, err := o.Registry.ReconciliationRepository().GetOperation(schedulingID, correlationID)
 	if err != nil {
