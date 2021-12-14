@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
+	github.com/coreos/go-semver v0.3.0
 	github.com/deepmap/oapi-codegen v1.9.0 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/fatih/structs v1.1.0
