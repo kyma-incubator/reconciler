@@ -30,7 +30,7 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 	var manifest string
 	if task.Component == model.CRDComponent {
 		manifest, err = r.renderCRDs(chartProvider, task)
-	} else {
+	} else if task.Component != model.CleanupComponent { // TODO add better support for components that do not have manifests
 		manifest, err = r.renderManifest(chartProvider, task)
 	}
 	if err != nil {
@@ -46,7 +46,7 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 			return err
 		}
 	} else {
-		if task.Type == model.OperationTypeReconcile && task.Component == model.CleanupComponent {
+		if task.Component == model.CleanupComponent {
 			return nil
 		}
 		resources, err := kubeClient.Deploy(ctx, manifest, task.Namespace,
