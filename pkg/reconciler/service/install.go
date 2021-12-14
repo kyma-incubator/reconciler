@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
