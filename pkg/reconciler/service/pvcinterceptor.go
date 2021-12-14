@@ -95,13 +95,14 @@ func (i *PVCInterceptor) interceptStatefulSet(resources *kubernetes.ResourceList
 				sfsOriginal.GetName(), namespace, pvcExisting, pvcExpected)
 		}
 
-		for _, pvcOriginal := range sfsOriginal.Spec.VolumeClaimTemplates {
+		for idx := range sfsOriginal.Spec.VolumeClaimTemplates {
+			pvcOriginal := &sfsOriginal.Spec.VolumeClaimTemplates[idx]
 			pvcTarget := i.getPVC(pvcOriginal.GetName(), pvcOriginal.GetNamespace(), sfsTarget.Spec.VolumeClaimTemplates)
 			if pvcTarget == nil {
 				i.logger.Warnf("PVC '%s' (namespace: %s) no longer exists in manifest: "+
 					"PVC deletion is not supported yet", pvcOriginal.GetName(), pvcOriginal.GetNamespace())
 			} else {
-				i.checkForInconsistentPVC(u, namespace, &pvcOriginal, pvcTarget)
+				i.checkForInconsistentPVC(u, namespace, pvcOriginal, pvcTarget)
 			}
 		}
 
