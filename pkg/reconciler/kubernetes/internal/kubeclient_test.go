@@ -113,7 +113,7 @@ func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, la
 		//verify resource specific attributes
 		switch strings.ToLower(k8sResourceUnstruct.GetKind()) {
 		case "serviceaccount":
-			//verify service-account as not recreated by reconciliation
+			//verify that not multiple service-accounts were created during reconciliation
 			clientSet, err := kubeClient.GetClientSet()
 			require.NoError(t, err)
 			saList, err := clientSet.CoreV1().ServiceAccounts(unstruct.GetNamespace()).List(context.Background(), metav1.ListOptions{
