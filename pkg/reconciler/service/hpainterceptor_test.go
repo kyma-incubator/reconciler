@@ -34,6 +34,7 @@ func TestHPAInterceptor(t *testing.T) {
 		_, err := kubeClient.Delete(context.Background(), string(manifest), hpaInterceptorNS)
 		require.NoError(t, err)
 	}
+
 	cleanupFct()       //delete resources before test runs
 	defer cleanupFct() //delete resources after test was finished
 
