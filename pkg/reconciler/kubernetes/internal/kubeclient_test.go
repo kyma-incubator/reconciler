@@ -52,6 +52,8 @@ const (
 	containerBaseImage = "alpine"
 )
 
+var createdResources = make(map[string]metav1.Time, 10)
+
 func TestPatchReplace(t *testing.T) {
 	test.IntegrationTest(t)
 
@@ -98,6 +100,15 @@ func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, la
 
 		//verify label
 		require.Equal(t, label, k8sResourceUnstruct.GetLabels()["applied"])
+
+		//verify that resource wasn't re-created
+		timestamp, ok := createdResources[k8sResourceUnstruct.GetKind()]
+		if ok {
+			require.Equalf(t, timestamp, createdResources[k8sResourceUnstruct.GetKind()],
+				"resource %s with name '%s' got re-created", k8sResourceUnstruct.GetKind(), k8sResourceUnstruct.GetName())
+		} else {
+			createdResources[k8sResourceUnstruct.GetKind()] = k8sResourceUnstruct.GetCreationTimestamp()
+		}
 
 		//verify resource specific attributes
 		switch strings.ToLower(k8sResourceUnstruct.GetKind()) {
