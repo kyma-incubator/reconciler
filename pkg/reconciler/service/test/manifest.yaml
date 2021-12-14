@@ -1,9 +1,0 @@
-kind: Namespace
-apiVersion: v1
-metadata:
-  name: unstructuredname
----
-kind: Namespace
-apiVersion: v1
-metadata:
-  name: someothername

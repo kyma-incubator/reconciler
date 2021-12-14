@@ -61,13 +61,13 @@ func TestProvider(t *testing.T) {
 		provider, err := NewDefaultProvider(wsFactory, log)
 		require.NoError(t, err)
 
-		providerWithFilter := provider.WithFilter(func(manifest string) (string, error) { return "", nil })
+		provider.WithFilter(func(manifest string) (string, error) { return "", nil })
 
 		clist := componentList(t, filepath.Join(ws.InstallationResourceDir, "components.yaml"))
 
 		for _, component := range clist {
 			t.Logf("Rendering Kyma HELM component '%s'", component.name)
-			manifest, err := providerWithFilter.RenderManifest(component)
+			manifest, err := provider.RenderManifest(component)
 			require.NoError(t, err)
 			require.Equal(t, component.name, manifest.Name)
 			require.Equal(t, "", manifest.Manifest)
