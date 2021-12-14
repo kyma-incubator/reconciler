@@ -73,7 +73,7 @@ func (i *PVCInterceptor) interceptStatefulSet(resources *kubernetes.ResourceList
 		}
 
 		//convert unstruct to STS resource
-		sfsTarget := appv1.StatefulSet{}
+		sfsTarget := &appv1.StatefulSet{}
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, sfsTarget); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("pvc interceptor failed to convert unstructured entity '%s' "+
 				"to statefulset", u.GetName()))
@@ -90,15 +90,15 @@ func (i *PVCInterceptor) interceptStatefulSet(resources *kubernetes.ResourceList
 		pvcExisting := len(sfsOriginal.Spec.VolumeClaimTemplates)
 		pvcExpected := len(sfsTarget.Spec.VolumeClaimTemplates)
 		if pvcExisting != pvcExpected {
-			i.logger.Warn("Number of defined PVCs in statefulset '%s' (namespace %s) are different: "+
-				"%d exist and %d expected but automated PVC reconciliation is not supported yet",
+			i.logger.Warnf("Number of defined PVCs in statefulset '%s' (namespace %s) are different: "+
+				"%d exist and %d expected but PVC reconciliation is not supported yet",
 				sfsOriginal.GetName(), namespace, pvcExisting, pvcExpected)
 		}
 
 		for _, pvcOriginal := range sfsOriginal.Spec.VolumeClaimTemplates {
 			pvcTarget := i.getPVC(pvcOriginal.GetName(), pvcOriginal.GetNamespace(), sfsTarget.Spec.VolumeClaimTemplates)
 			if pvcTarget == nil {
-				i.logger.Warn("PVC '%s' (namespace: %s) no longer exists in manifest: "+
+				i.logger.Warnf("PVC '%s' (namespace: %s) no longer exists in manifest: "+
 					"PVC deletion is not supported yet", pvcOriginal.GetName(), pvcOriginal.GetNamespace())
 			} else {
 				i.checkForInconsistentPVC(u, namespace, &pvcOriginal, pvcTarget)
