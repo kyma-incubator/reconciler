@@ -46,6 +46,9 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 			return err
 		}
 	} else {
+		if task.Type == model.OperationTypeReconcile && task.Component == model.CleanupComponent {
+			return nil
+		}
 		resources, err := kubeClient.Deploy(ctx, manifest, task.Namespace,
 			&LabelsInterceptor{
 				Version: task.Version,

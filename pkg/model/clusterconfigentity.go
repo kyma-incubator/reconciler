@@ -121,8 +121,10 @@ func newReconciliationSequence(preComponents [][]string) *ReconciliationSequence
 		preComponents: preComponents,
 	}
 	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning
-		//TODO: These are executed in parallel, take care of the proper order in the final implementation.
-		crdComponent, cleanupComponent,
+		cleanupComponent,
+	})
+	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning
+		crdComponent,
 	})
 
 	return reconSeq

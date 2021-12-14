@@ -56,9 +56,9 @@ func TestRuntimeBuilder(t *testing.T) {
 		require.Equal(t, model.ClusterStatusReconcileError, reconResult.GetResult())
 
 		//Because of parallel processing the message order is not guaranteed. Check the count of different statuses instead
-		require.Equal(t, 2, countStatus(reconciler.StatusRunning, receivedUpdates))
-		require.Equal(t, 2, countStatus(reconciler.StatusError, receivedUpdates))
-		require.Equal(t, 2, countStatus(reconciler.StatusFailed, receivedUpdates))
+		require.Equal(t, 1, countStatus(reconciler.StatusRunning, receivedUpdates))
+		require.Equal(t, 1, countStatus(reconciler.StatusError, receivedUpdates))
+		require.Equal(t, 1, countStatus(reconciler.StatusFailed, receivedUpdates))
 	})
 
 	t.Run("Run remote with success", func(t *testing.T) {
@@ -139,8 +139,8 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		ClusterReconcileInterval: 1 * time.Minute,
 	})
 	remoteRunner.WithCleanerConfig(&CleanerConfig{
-		PurgeEntitiesOlderThan: 5 * time.Second,
-		CleanerInterval:        2 * time.Second,
+		PurgeEntitiesOlderThan: 10 * time.Second,
+		CleanerInterval:        5 * time.Second,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)

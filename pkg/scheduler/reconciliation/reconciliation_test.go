@@ -367,14 +367,14 @@ func TestReconciliationRepository(t *testing.T) {
 				//verify priorities
 				for _, opEntity := range opsEntities {
 					switch opEntity.Component {
-					case "CRDs":
-						require.Equal(t, int64(1), opEntity.Priority)
 					case "cleaner":
 						require.Equal(t, int64(1), opEntity.Priority)
-					case "comp3":
+					case "CRDs":
 						require.Equal(t, int64(2), opEntity.Priority)
-					default:
+					case "comp3":
 						require.Equal(t, int64(3), opEntity.Priority)
+					default:
+						require.Equal(t, int64(4), opEntity.Priority)
 					}
 				}
 
@@ -468,7 +468,7 @@ func TestReconciliationRepository(t *testing.T) {
 				opsEntitiesPrio1, err := reconRepo.GetProcessableOperations(0)
 				require.NoError(t, err)
 
-				require.Len(t, opsEntitiesPrio1, 2)
+				require.Len(t, opsEntitiesPrio1, 1)
 				require.ElementsMatch(t, findOperationsByPrio(opsEntities, 1), opsEntitiesPrio1)
 
 				//mark processable prio 1 operation as done
@@ -517,7 +517,7 @@ func TestReconciliationRepository(t *testing.T) {
 				expectedOpsPrio1 = append(expectedOpsPrio1, findOperationsByPrio(opsEntities1, 1)...)
 				expectedOpsPrio1 = append(expectedOpsPrio1, findOperationsByPrio(opsEntities2, 1)...)
 				require.NoError(t, err)
-				require.Len(t, opsEntitiesPrio1, 4)
+				require.Len(t, opsEntitiesPrio1, 2)
 				require.ElementsMatch(t, expectedOpsPrio1, opsEntitiesPrio1)
 
 				//mark processable prio 1 operation as done

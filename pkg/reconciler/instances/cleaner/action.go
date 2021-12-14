@@ -1,6 +1,7 @@
 package cleaner
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/cleaner/pkg/cleanup"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
@@ -10,7 +11,7 @@ type CleanupAction struct {
 }
 
 func (a *CleanupAction) Run(context *service.ActionContext) error {
-	if context.Task.Type != "delete" {
+	if context.Task.Type != model.OperationTypeDelete {
 		context.Logger.Infof("Skipping execution. This reconciler only supports 'delete' task type, but was invoked with '%s' task type", context.Task.Type)
 		return nil
 	}

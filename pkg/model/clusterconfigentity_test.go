@@ -169,8 +169,10 @@ func TestReconciliationSequence(t *testing.T) {
 			expected: &ReconciliationSequence{
 				Queue: [][]*keb.Component{
 					{
-						crdComponent,
 						cleanupComponent,
+					},
+					{
+						crdComponent,
 					},
 					{
 						{
@@ -225,8 +227,10 @@ func TestReconciliationSequence(t *testing.T) {
 			expected: &ReconciliationSequence{
 				Queue: [][]*keb.Component{
 					{
-						crdComponent,
 						cleanupComponent,
+					},
+					{
+						crdComponent,
 					},
 					{
 						{
@@ -286,8 +290,10 @@ func TestReconciliationSequence(t *testing.T) {
 			expected: &ReconciliationSequence{
 				Queue: [][]*keb.Component{
 					{
-						crdComponent,
 						cleanupComponent,
+					},
+					{
+						crdComponent,
 					},
 					{
 						{

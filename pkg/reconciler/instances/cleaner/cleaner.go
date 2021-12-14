@@ -17,10 +17,7 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	//TODO: please configure the component reconciler for your component by setting dependencies and custom actions
-	//configure reconciler
 	reconciler.
-		//register reconciler pre-action (executed BEFORE reconciliation happens)
 		WithDeleteAction(&CleanupAction{
 			name: "cleanup",
 		})

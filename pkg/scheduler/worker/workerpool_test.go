@@ -61,7 +61,7 @@ func TestWorkerPool(t *testing.T) {
 	reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
 	require.NoError(t, err)
 	opsProcessable, err := reconRepo.GetProcessableOperations(0)
-	require.Len(t, opsProcessable, 2)
+	require.Len(t, opsProcessable, 1)
 	require.NoError(t, err)
 
 	//create test invoker to be able to verify invoker calls
@@ -81,27 +81,13 @@ func TestWorkerPool(t *testing.T) {
 	require.WithinDuration(t, startTime, time.Now(), 3*time.Second) //ensure workerPool is considering ctx
 
 	//verify that invoker was properly called
-	require.Len(t, testInvoker.params, 2)
+	require.Len(t, testInvoker.params, 1)
 	require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
-	require.Equal(t, clusterState, testInvoker.params[1].ClusterState)
 
-	//CRDs and Cleanup are called in random order.
-	var crdsParams *invoker.Params
-	var cleanupParams *invoker.Params
-	if testInvoker.params[0].ComponentToReconcile.Component == model.CRDComponent {
-		crdsParams = testInvoker.params[0]
-		cleanupParams = testInvoker.params[1]
-	} else if testInvoker.params[0].ComponentToReconcile.Component == model.CleanupComponent {
-		crdsParams = testInvoker.params[1]
-		cleanupParams = testInvoker.params[0]
-	} else {
-		t.Fatalf("Unexpected component: %s", testInvoker.params[0].ComponentToReconcile.Component)
-	}
-	require.Equal(t, reconEntity.SchedulingID, crdsParams.SchedulingID)
-	require.Equal(t, reconEntity.SchedulingID, cleanupParams.SchedulingID)
+	//Check cleanup params
+	require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
 
-	requireOpsProcessableExists(t, opsProcessable, crdsParams.CorrelationID)
-	requireOpsProcessableExists(t, opsProcessable, cleanupParams.CorrelationID)
+	requireOpsProcessableExists(t, opsProcessable, testInvoker.params[0].CorrelationID)
 }
 
 func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.OperationEntity, correlationID string) {
