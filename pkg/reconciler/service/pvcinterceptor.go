@@ -116,7 +116,7 @@ func (i *PVCInterceptor) checkForInconsistentPVC(u *unstructured.Unstructured, n
 	targetStorage := pvcTarget.Spec.Resources.Requests.Storage()
 	if !originalStorage.Equal(*targetStorage) {
 		i.logger.Warnf("Size of PVC '%s' (namespace: %s) has changed from %s to %s: "+
-			"removing PVC from reconciliation scope because auto-migration currently not supported",
+			"reconciliation of PVC is not supported yet",
 			u.GetName(), namespace, originalStorage, targetStorage)
 	}
 }
