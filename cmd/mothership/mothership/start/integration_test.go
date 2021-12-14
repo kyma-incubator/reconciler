@@ -356,7 +356,7 @@ func TestMothership(t *testing.T) {
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.HTTPReconciliationInfo{},
-			verifier:         twoReconciliationOps,
+			verifier:         threeReconciliationOps,
 			// no need for waiting in initFn
 		},
 		{
@@ -539,8 +539,8 @@ func hasReconciliationOpt(p func(int) bool) verifier {
 }
 
 var (
-	zeroReconciliations  verifier = hasReconciliation(func(i int) bool { return i == 0 })
-	oneReconciliation    verifier = hasReconciliation(func(i int) bool { return i == 1 })
-	twoReconciliations   verifier = hasReconciliation(func(i int) bool { return i == 2 })
-	twoReconciliationOps verifier = hasReconciliationOpt(func(i int) bool { return i == 2 })
+	zeroReconciliations    verifier = hasReconciliation(func(i int) bool { return i == 0 })
+	oneReconciliation      verifier = hasReconciliation(func(i int) bool { return i == 1 })
+	twoReconciliations     verifier = hasReconciliation(func(i int) bool { return i == 2 })
+	threeReconciliationOps verifier = hasReconciliationOpt(func(i int) bool { return i == 3 })
 )
