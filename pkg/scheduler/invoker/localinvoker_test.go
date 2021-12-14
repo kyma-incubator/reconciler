@@ -62,7 +62,7 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 	//retrieve ops of reconciliation entity
 	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 	require.NoError(t, err)
-	require.Len(t, opEntities, 6)
+	require.Len(t, opEntities, 7)
 	opEntity := opEntities[0]
 
 	//create callback fct for receiving reconciler feedbacks

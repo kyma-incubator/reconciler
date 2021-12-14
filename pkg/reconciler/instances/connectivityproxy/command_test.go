@@ -3,6 +3,7 @@ package connectivityproxy
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
@@ -94,24 +96,169 @@ func TestCommand(t *testing.T) {
 
 func TestCommands(t *testing.T) {
 
+	componentName := "connectivity-proxy"
+
 	t.Run("Should invoke installation", func(t *testing.T) {
-		actionContext := &service.ActionContext{
-			Context: context.Background(),
+		// given
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                service.NewInstall(logger.NewLogger(true)),
+			copyFactory:            nil,
 		}
 
-		delegateMock := &serviceMocks.Operation{}
-		delegateMock.On("Invoke", actionContext.Context, nil, (*reconciler.Task)(nil), nil).
-			Return(nil)
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
+			Return(chartProvider)
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: cpManifest("1.2.4")}, nil)
+		ctx := context.Background()
+		kubeClient := &mocks.Client{}
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor"), mock.AnythingOfType("*service.PVCInterceptor")).
+			Return(nil, nil).Once()
+
+		actionContext := &service.ActionContext{
+			Context:       ctx,
+			KubeClient:    kubeClient,
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
+			Name:   componentName,
+			Labels: map[string]string{"release": "1.2.3"}},
+		}
+
+		// when
+		err := commands.InstallOnReleaseChange(actionContext, component)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertExpectations(t)
+	})
+
+	t.Run("Should skip installation if chart provider returned empty manifest", func(t *testing.T) {
+		// given
+		emptyManifest := ""
 
 		commands := CommandActions{
 			clientSetFactory:       nil,
 			targetClientSetFactory: nil,
-			install:                delegateMock,
+			install:                service.NewInstall(logger.NewLogger(true)),
 			copyFactory:            nil,
 		}
 
-		err := commands.Install(actionContext)
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
+			Return(chartProvider)
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: emptyManifest}, nil)
+		ctx := context.Background()
+		kubeClient := &mocks.Client{}
+		kubeClient.On("Deploy", ctx, emptyManifest, mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor"), mock.AnythingOfType("*service.PVCInterceptor")).
+			Return(nil, nil).Once()
+
+		actionContext := &service.ActionContext{
+			Context:       ctx,
+			KubeClient:    kubeClient,
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
+			Name:   componentName,
+			Labels: map[string]string{"release": "1.2.3"}},
+		}
+
+		// when
+		err := commands.InstallOnReleaseChange(actionContext, component)
+
+		// then
 		require.NoError(t, err)
+	})
+
+	t.Run("Should invoke installation if no app is installed", func(t *testing.T) {
+		// given
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                service.NewInstall(logger.NewLogger(true)),
+			copyFactory:            nil,
+		}
+
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: cpManifest("1.2.3")}, nil)
+
+		ctx := context.Background()
+		kubeClient := &mocks.Client{}
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor"), mock.AnythingOfType("*service.PVCInterceptor")).
+			Return(nil, nil).Once()
+		actionContext := &service.ActionContext{
+			Context:       ctx,
+			KubeClient:    kubeClient,
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		// when
+		err := commands.InstallOnReleaseChange(actionContext, nil)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertExpectations(t)
+	})
+
+	t.Run("Should invoke installation if given set does not have release label", func(t *testing.T) {
+		// given
+		commands := CommandActions{
+			clientSetFactory:       nil,
+			targetClientSetFactory: nil,
+			install:                service.NewInstall(logger.NewLogger(true)),
+			copyFactory:            nil,
+		}
+
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
+			Return(chartProvider)
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: cpManifest("1.2.3")}, nil)
+
+		ctx := context.Background()
+		kubeClient := &mocks.Client{}
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor"), mock.AnythingOfType("*service.PVCInterceptor")).
+			Return(nil, nil).Once()
+		actionContext := &service.ActionContext{
+			Context:       ctx,
+			KubeClient:    kubeClient,
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: componentName}}
+
+		// when
+		err := commands.InstallOnReleaseChange(actionContext, component)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertExpectations(t)
 	})
 
 	t.Run("Should copy configuration from model", func(t *testing.T) {
@@ -236,4 +383,8 @@ func TestCommandRemove(t *testing.T) {
 		err := commands.Remove(actionContext)
 		require.NoError(t, err)
 	})
+}
+
+func cpManifest(version string) string {
+	return fmt.Sprintf("apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: connectivity-proxy\n  labels:\n    release: \"%s\"\n", version)
 }

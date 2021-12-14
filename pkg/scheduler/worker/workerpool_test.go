@@ -81,9 +81,20 @@ func TestWorkerPool(t *testing.T) {
 	//verify that invoker was properly called
 	require.Len(t, testInvoker.params, 1)
 	require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
-	require.Equal(t, model.CRDComponent, testInvoker.params[0].ComponentToReconcile.Component) //CRDs is always the first component
+
+	//Check cleanup params
 	require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
-	require.Equal(t, opsProcessable[0].CorrelationID, testInvoker.params[0].CorrelationID)
+
+	requireOpsProcessableExists(t, opsProcessable, testInvoker.params[0].CorrelationID)
+}
+
+func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.OperationEntity, correlationID string) {
+	for i := range opsProcessable {
+		if opsProcessable[i].CorrelationID == correlationID {
+			return
+		}
+	}
+	t.Fatalf("Could not find correlationID: %s in opsProcessable list: %v", correlationID, opsProcessable)
 }
 
 func TestWorkerPoolParallel(t *testing.T) {

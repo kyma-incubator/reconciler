@@ -331,6 +331,27 @@ func (g *kubeClientAdapter) ListResource(resource string, lo metav1.ListOptions)
 	return g.kubeClient.ListResource(resource, lo)
 }
 
+func (g *kubeClientAdapter) GetDeployment(ctx context.Context, name, namespace string) (*v1apps.Deployment, error) {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+
+	clientset, err := g.Clientset()
+	if err != nil {
+		return nil, errors.Wrap(err, "error retrieving deployments")
+	}
+
+	deployment, err := clientset.AppsV1().
+		Deployments(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+
+	if err != nil && k8serr.IsNotFound(err) {
+		return nil, nil
+	}
+
+	return deployment, err
+}
+
 func (g *kubeClientAdapter) GetStatefulSet(ctx context.Context, name, namespace string) (*v1apps.StatefulSet, error) {
 	if namespace == "" {
 		namespace = defaultNamespace
@@ -465,6 +486,7 @@ func toResource(m *internal.Metadata) *Resource {
 	}
 }
 
+//Unmarshalls given manifest in YAML format into k8s.io Unstructured data type.
 func ToUnstructured(manifest []byte, async bool) ([]*unstructured.Unstructured, error) {
 	// expose the internal unstructured converter
 	return internal.ToUnstructured(manifest, async)

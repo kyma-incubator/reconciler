@@ -3,18 +3,24 @@ package connectivityproxy
 import (
 	"encoding/json"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-const BindingKey = "global.binding."
+const (
+	BindingKey            = "global.binding."
+	ReleaseLabelKey       = "release"
+	ConnectivityProxyKind = "StatefulSet"
+)
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	Install(*service.ActionContext) error
+	InstallOnReleaseChange(*service.ActionContext, *appsv1.StatefulSet) error
 	CopyResources(*service.ActionContext) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
@@ -30,10 +36,46 @@ type CommandActions struct {
 	copyFactory            []CopyFactory
 }
 
-func (a *CommandActions) Install(context *service.ActionContext) error {
+func (a *CommandActions) InstallOnReleaseChange(context *service.ActionContext, app *appsv1.StatefulSet) error {
+	if app == nil || (app != nil && app.GetLabels() == nil) {
+		context.Logger.Debug("There is no valid Connectivity Proxy installed, invoking the installation")
+		return a.installOnCondition(context)
+	}
+
+	appName := app.Name
+	appRelease := app.GetLabels()[ReleaseLabelKey]
+
+	context.ChartProvider.WithFilter(func(manifest string) (string, error) {
+		unstructs, err := internalKubernetes.ToUnstructured([]byte(manifest), true)
+		if err != nil {
+			return "", errors.Wrapf(err, "while casting manifest to kubernetes unstructured")
+		}
+
+		for _, unstruct := range unstructs {
+			if unstruct != nil && unstruct.GetName() == appName && unstruct.GetKind() == ConnectivityProxyKind {
+				if unstruct.GetLabels() == nil || unstruct.GetLabels()[ReleaseLabelKey] == "" {
+					return "", errors.Errorf("Connectivity Proxy stateful set does not have any release labels")
+				} else if unstruct.GetLabels()[ReleaseLabelKey] != appRelease {
+					context.Logger.Debug("Connectivity Proxy release has changed, the component will be upgraded")
+					return manifest, nil
+				} else {
+					context.Logger.Debug("Connectivity Proxy release did not change, skipping")
+					return "", nil
+				}
+			}
+		}
+
+		context.Logger.Warn("Did not find the Connectivity Proxy stateful set, skipping")
+		return "", nil
+	})
+
+	return a.installOnCondition(context)
+}
+
+func (a *CommandActions) installOnCondition(context *service.ActionContext) error {
 	err := a.install.Invoke(context.Context, context.ChartProvider, context.Task, context.KubeClient)
 	if err != nil {
-		return errors.Wrap(err, "Error during installation")
+		return errors.Wrap(err, "failed to invoke conditional installation")
 	}
 
 	return nil

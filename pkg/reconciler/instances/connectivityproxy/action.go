@@ -51,7 +51,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 	}
 
-	if (binding != nil && app == nil) || (binding != nil && app != nil) {
+	if binding != nil {
 		context.Logger.Info("Reading secret")
 		bindingSecret, err := a.Loader.FindSecret(context, binding)
 
@@ -70,7 +70,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 
 		context.Logger.Info("Installing component")
-		if err := a.Commands.Install(context); err != nil {
+		if err := a.Commands.InstallOnReleaseChange(context, app); err != nil {
 			return errors.Wrap(err, "Error during installation")
 		}
 	} else if binding == nil && app != nil {
