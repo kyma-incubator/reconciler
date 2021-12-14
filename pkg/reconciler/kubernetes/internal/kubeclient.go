@@ -179,10 +179,12 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 
 	retryable := func() error {
 		replaceResource := strategy == ReplaceUpdateStrategy
-		_, err := k.helmClient.Update(original, target, replaceResource)
+		result, err := k.helmClient.Update(original, target, replaceResource)
 		if err == nil {
-			k.logger.Debugf("kubeClient updated %s '%s' (namespace: %s) with stategy '%s' successfully",
-				u.GetKind(), u.GetName(), u.GetNamespace(), strategy)
+			k.logger.Debugf("kubeClient updated %s '%s' (namespace: %s) with stategy '%s' successfully "+
+				"(create:%d/update:%d/delete:%d)",
+				u.GetKind(), u.GetName(), u.GetNamespace(), strategy,
+				len(result.Created), len(result.Updated), len(result.Deleted))
 		} else {
 			k.logger.Warnf("kubeClient failed to update %s '%s' (namespace: %s)  with strategy '%s': %s",
 				u.GetKind(), u.GetName(), u.GetNamespace(), strategy, err)
