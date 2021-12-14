@@ -30,7 +30,7 @@ func TestRemoteInvoker(t *testing.T) {
 	//retrieve ops of reconciliation entity
 	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 	require.NoError(t, err)
-	require.Len(t, opEntities, 6)
+	require.Len(t, opEntities, 7)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	startServer(ctx, t)
