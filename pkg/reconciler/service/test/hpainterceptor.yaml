@@ -50,7 +50,7 @@ spec:
     kind: StatefulSet
     name: sfs
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 5
   metrics:
   - type: Resource
     resource:

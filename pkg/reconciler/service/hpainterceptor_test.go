@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	"io/ioutil"
-	"k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"path/filepath"
 	"testing"
 	"time"
+
+	v1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -55,17 +56,33 @@ func TestHPAInterceptor(t *testing.T) {
 	require.LessOrEqual(t, *deploymentK8s.Spec.Replicas, int32(5)) //5 is max-replica in HPA
 
 	//let interceptor adjust manifest
-	unstruct := toUnstruct(t, deploymentK8s)
+	unstruct := toUnstructDeployment(t, deploymentK8s)
 	resList := kubernetes.NewResourceList([]*unstructured.Unstructured{unstruct})
 
 	err = hpa.Intercept(resList, hpaInterceptorNS)
 	require.NoError(t, err)
 
-	deploymentIntrcpt := fromUnstruct(t, resList.Get("Deployment", "deployment", hpaInterceptorNS))
+	deploymentIntrcpt := fromUnstructDeployment(t, resList.Get("Deployment", "deployment", hpaInterceptorNS))
 	require.Equal(t, *deploymentK8s.Spec.Replicas, *deploymentIntrcpt.Spec.Replicas)
+
+	//get latest replica from K8s statefulset
+	sfsK8s, err := kubeClient.GetStatefulSet(context.Background(), "sfs", hpaInterceptorNS)
+	require.NoError(t, err)
+	require.NotEmpty(t, sfsK8s)
+	require.LessOrEqual(t, *sfsK8s.Spec.Replicas, int32(5)) //5 is max-replica in HPA
+
+	//let interceptor adjust manifest
+	unstruct = toUnstructStatefulset(t, sfsK8s)
+	resList = kubernetes.NewResourceList([]*unstructured.Unstructured{unstruct})
+
+	err = hpa.Intercept(resList, hpaInterceptorNS)
+	require.NoError(t, err)
+
+	sfsIntrcpt := fromUnstructStatefulset(t, resList.Get("StatefulSet", "sfs", hpaInterceptorNS))
+	require.Equal(t, *deploymentK8s.Spec.Replicas, *sfsIntrcpt.Spec.Replicas)
 }
 
-func toUnstruct(t *testing.T, deployment *v1.Deployment) *unstructured.Unstructured {
+func toUnstructDeployment(t *testing.T, deployment *v1.Deployment) *unstructured.Unstructured {
 	unstructData, err := runtime.DefaultUnstructuredConverter.ToUnstructured(deployment)
 	require.NoError(t, err)
 	unstructData["kind"] = "Deployment"
@@ -73,10 +90,26 @@ func toUnstruct(t *testing.T, deployment *v1.Deployment) *unstructured.Unstructu
 	return unstruct
 }
 
-func fromUnstruct(t *testing.T, u *unstructured.Unstructured) *v1.Deployment {
+func toUnstructStatefulset(t *testing.T, statefulset *v1.StatefulSet) *unstructured.Unstructured {
+	unstructData, err := runtime.DefaultUnstructuredConverter.ToUnstructured(statefulset)
+	require.NoError(t, err)
+	unstructData["kind"] = "StatefulSet"
+	unstruct := &unstructured.Unstructured{Object: unstructData}
+	return unstruct
+}
+
+func fromUnstructDeployment(t *testing.T, u *unstructured.Unstructured) *v1.Deployment {
 	require.NotEmpty(t, u)
 	deploy := &v1.Deployment{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, deploy)
 	require.NoError(t, err)
 	return deploy
+}
+
+func fromUnstructStatefulset(t *testing.T, u *unstructured.Unstructured) *v1.StatefulSet {
+	require.NotEmpty(t, u)
+	sfs := &v1.StatefulSet{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, sfs)
+	require.NoError(t, err)
+	return sfs
 }
