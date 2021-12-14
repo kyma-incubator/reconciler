@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/keb/test"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,13 +17,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	dbConn db.Connection
+	mu     sync.Mutex
+)
+
 func TestScheduler(t *testing.T) {
 	t.Run("Test run once", func(t *testing.T) {
-		clusterState := testClusterState()
+		clusterState := testClusterState("testCluster", 1)
 		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 		scheduler := newScheduler(nil, logger.NewLogger(true))
 		require.NoError(t, scheduler.RunOnce(clusterState, reconRepo))
-		requirecReconciliationEntity(t, reconRepo, clusterState)
+		requiredReconciliationEntity(t, reconRepo, clusterState)
 	})
 
 	t.Run("Test run", func(t *testing.T) {
@@ -32,7 +40,7 @@ func TestScheduler(t *testing.T) {
 
 		start := time.Now()
 
-		clusterState := testClusterState()
+		clusterState := testClusterState("testCluster", 1)
 
 		err := scheduler.Run(ctx, &ClusterStatusTransition{
 			conn: db.NewTestConnection(t),
@@ -43,7 +51,7 @@ func TestScheduler(t *testing.T) {
 				},
 				//simulate an updated cluster status (required when transition updates the cluster status)
 				UpdateStatusResult: func() *cluster.State {
-					updatedState := testClusterState()
+					updatedState := testClusterState("testCluster", 1)
 					updatedState.Status.Status = model.ClusterStatusReconciling
 					return updatedState
 				}(),
@@ -62,13 +70,13 @@ func TestScheduler(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond) //give it some time to shutdown
 
-		require.WithinDuration(t, start, time.Now(), 2*time.Second)
-		requirecReconciliationEntity(t, reconRepo, clusterState)
+		require.WithinDuration(t, start, time.Now(), 4*time.Second)
+		requiredReconciliationEntity(t, reconRepo, clusterState)
 	})
 }
 
-func requirecReconciliationEntity(t *testing.T, reconRepo reconciliation.Repository, state *cluster.State) {
-	recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: "testCluster"})
+func requiredReconciliationEntity(t *testing.T, reconRepo reconciliation.Repository, state *cluster.State) {
+	recons, err := reconRepo.GetReconciliations(nil)
 	require.NoError(t, err)
 	require.Len(t, recons, 1)
 	require.Equal(t, recons[0].RuntimeID, state.Cluster.RuntimeID)
@@ -78,17 +86,17 @@ func requirecReconciliationEntity(t *testing.T, reconRepo reconciliation.Reposit
 	require.Equal(t, ops[0].RuntimeID, state.Cluster.RuntimeID)
 }
 
-func testClusterState() *cluster.State {
+func testClusterState(clusterID string, statusID int64) *cluster.State {
 	return &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version:    1,
-			RuntimeID:  "testCluster",
+			RuntimeID:  clusterID,
 			Kubeconfig: "xyz",
 			Contract:   1,
 		},
 		Configuration: &model.ClusterConfigurationEntity{
 			Version:        1,
-			RuntimeID:      "testCluster",
+			RuntimeID:      clusterID,
 			ClusterVersion: 1,
 			Contract:       1,
 			KymaVersion:    "1.24.0",
@@ -100,11 +108,76 @@ func testClusterState() *cluster.State {
 			},
 		},
 		Status: &model.ClusterStatusEntity{
-			ID:             1,
-			RuntimeID:      "testCluster",
+			ID:             statusID,
+			RuntimeID:      clusterID,
 			ClusterVersion: 1,
 			ConfigVersion:  1,
 			Status:         model.ClusterStatusReconcilePending,
 		},
 	}
+}
+
+func createClusterStates(t *testing.T, inventory cluster.Inventory) {
+	clusterID1 := uuid.NewString()
+	_, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID1, 1, false, test.ThreeComponentsDummy))
+	require.NoError(t, err)
+
+	clusterID2 := uuid.NewString()
+	_, err = inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.OneComponentDummy))
+	require.NoError(t, err)
+}
+
+func dbConnection(t *testing.T) db.Connection {
+	mu.Lock()
+	defer mu.Unlock()
+	if dbConn == nil {
+		dbConn = db.NewTestConnection(t)
+	}
+	return dbConn
+}
+
+func TestSchedulerParallel(t *testing.T) {
+
+	t.SkipNow() //skipping test until #559 is verified/fixed.
+
+	t.Run("Multiple scheduler watching same inventory", func(t *testing.T) {
+		//initialize WaitGroup
+		var wg sync.WaitGroup
+
+		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
+		require.NoError(t, err)
+		createClusterStates(t, inventory)
+
+		scheduler := newScheduler(nil, logger.NewLogger(true))
+		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
+		require.NoError(t, err)
+
+		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelFct()
+
+		startAt := time.Now().Add(1 * time.Second)
+		for i := 0; i < 25; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				time.Sleep(time.Until(startAt))
+				err := scheduler.Run(ctx, &ClusterStatusTransition{
+					conn:      dbConnection(t),
+					inventory: inventory,
+					reconRepo: reconRepo,
+					logger:    logger.NewLogger(true),
+				}, &SchedulerConfig{
+					InventoryWatchInterval:   100 * time.Millisecond,
+					ClusterReconcileInterval: 100 * time.Second,
+					ClusterQueueSize:         10,
+				})
+				require.NoError(t, err)
+			}()
+		}
+		wg.Wait()
+
+		recons, err := reconRepo.GetReconciliations(nil)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(recons))
+	})
 }

@@ -29,6 +29,18 @@ var clusterStateMock = &cluster.State{
 			{
 				Component: "TestComp1",
 			},
+			{
+				Component: "TestComp2",
+			},
+			{
+				Component: "TestComp3",
+			},
+			{
+				Component: "TestComp4",
+			},
+			{
+				Component: "TestComp5",
+			},
 		},
 	},
 	Status: &model.ClusterStatusEntity{

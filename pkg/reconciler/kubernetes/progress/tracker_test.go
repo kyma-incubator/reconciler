@@ -29,7 +29,7 @@ func TestProgressTracker(t *testing.T) {
 
 	logger := log.NewLogger(true)
 
-	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), &internal.Config{})
 	require.NoError(t, err)
 
 	clientSet, err := kubeClient.GetClientSet()
@@ -123,7 +123,7 @@ func TestProgressTracker(t *testing.T) {
 func TestDaemonSetRollingUpdate(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), &internal.Config{})
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -176,7 +176,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 func TestStatefulSetRollingUpdate(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), &internal.Config{})
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -229,7 +229,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 func TestDeploymentRollingUpdate(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar())
+	kubeClient, err := internal.NewKubeClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), &internal.Config{})
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -270,6 +270,19 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 	_, err = kubeClient.ApplyWithNamespaceOverride(dep, testNs)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
+
+	tracker, err = NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	require.NoError(t, err)
+
+	tracker.AddResource(Deployment, dep.GetNamespace(), dep.GetName())
+	err = tracker.Watch(ctx, ReadyState)
+	require.NoError(t, err)
+
+	t.Log("Updating deployment again")
+
+	dep = readManifest(t, "dep-before-rolling-update.yaml")[0]
+	_, err = kubeClient.ApplyWithNamespaceOverride(dep, testNs)
+	require.NoError(t, err)
 
 	tracker, err = NewProgressTracker(clientSet, logger, Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)

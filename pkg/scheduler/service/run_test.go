@@ -63,7 +63,6 @@ func TestRuntimeBuilder(t *testing.T) {
 
 	t.Run("Run remote with error", func(t *testing.T) {
 		runRemote(t, model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
-
 	})
 
 }
@@ -122,22 +121,22 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		},
 	})
 	remoteRunner.WithBookkeeperConfig(&BookkeeperConfig{
-		OperationsWatchInterval: 1 * time.Second,
+		OperationsWatchInterval: 5 * time.Second,
 		OrphanOperationTimeout:  10 * time.Second,
 	})
 	remoteRunner.WithWorkerPoolConfig(&worker.Config{
 		PoolSize:               10,
-		OperationCheckInterval: 1 * time.Second,
+		OperationCheckInterval: 5 * time.Second,
 		InvokerMaxRetries:      2,
 		InvokerRetryDelay:      2 * time.Second,
 	})
 	remoteRunner.WithSchedulerConfig(&SchedulerConfig{
-		InventoryWatchInterval:   1 * time.Second,
+		InventoryWatchInterval:   5 * time.Second,
 		ClusterReconcileInterval: 1 * time.Minute,
 	})
 	remoteRunner.WithCleanerConfig(&CleanerConfig{
-		PurgeEntitiesOlderThan: 5 * time.Second,
-		CleanerInterval:        2 * time.Second,
+		PurgeEntitiesOlderThan: 15 * time.Second,
+		CleanerInterval:        4 * time.Second,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -146,7 +145,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 
 	setOperationState(t, reconRepo, expectedClusterStatus, clusterState.Cluster.RuntimeID)
 
-	time.Sleep(3 * time.Second) //give the bookkeeper some time to update the reconciliation
+	time.Sleep(5 * time.Second) //give the bookkeeper some time to update the reconciliation
 
 	newClusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
 	require.NoError(t, err)
@@ -156,7 +155,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	require.Equal(t, 1, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
 	require.Equal(t, 2, getEntityLen(t, dbConn, &model.OperationEntity{}))
 
-	time.Sleep(10 * time.Second) //give the cleaner some time to remove old entities
+	time.Sleep(15 * time.Second) //give the cleaner some time to remove old entities
 
 	require.NoError(t, err)
 	require.Equal(t, 0, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
@@ -205,7 +204,7 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		//set all operations to a final state
 		for _, opEntity := range opEntities {
 			err = reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
-				opState, "dummy reason")
+				opState, true, "dummy reason")
 
 			if err != nil { //probably a race condition (because invoker is updating ops-states in background as well)
 				latestOpEntity, errGetOp := reconRepo.GetOperation(opEntity.SchedulingID, opEntity.CorrelationID)
@@ -213,7 +212,7 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 				t.Logf("Failed to updated operation state: %s -> latest operation state is '%s'. Will try again...",
 					err, latestOpEntity.State)
 				require.NoError(t, reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID,
-					opState, "dummy reason"))
+					opState, true, "dummy reason"))
 			}
 		}
 		return

@@ -46,18 +46,18 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 
 	resp, err := i.sendHTTPRequest(params)
 	if err != nil {
-		return err
+		return i.fireError("send HTTP request", params, err)
 	}
 
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			i.logger.Errorf("Error while closing response body: %s", err)
+			i.logger.Errorf("Error while closing HTTP response body: %s", err)
 		}
 	}()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %s", err)
+		return i.fireError("read HTTP body", params, err)
 	}
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
@@ -186,24 +186,26 @@ func (i *RemoteReconcilerInvoker) unmarshalHTTPResponse(body []byte, respModel i
 	if err := json.Unmarshal(body, respModel); err != nil {
 		i.logger.Errorf("Remote invoker failed to unmarshal HTTP response of reconciler for component '%s': %s",
 			params.ComponentToReconcile.Component, err)
-
-		//update the operation to be failed caused by client error
-		errUpdState := i.updateOperationState(params, model.OperationStateClientError, err.Error())
-		if errUpdState != nil {
-			err = errors.Wrap(err, fmt.Sprintf("failed to update state of operation (schedulingID:%s/correlationID:%s) to '%s': %s",
-				params.SchedulingID, params.CorrelationID, model.OperationStateClientError, errUpdState))
-		}
-
 		return err
 	}
 	return nil
 }
 
 func (i *RemoteReconcilerInvoker) updateOperationState(params *Params, state model.OperationState, reasons ...string) error {
-	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, strings.Join(reasons, ", "))
+	err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, state, true, strings.Join(reasons, ", "))
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("remote invoker failed to update operation "+
 			"(schedulingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
 	}
 	return nil
+}
+
+func (i *RemoteReconcilerInvoker) fireError(subject string, params *Params, err error) error {
+	reason := fmt.Sprintf("Failed to %s for component '%s' when communciating with component reconciler (URL: %s) : %s",
+		subject, params.ComponentToReconcile.Component, params.ComponentToReconcile.URL, err)
+	i.logger.Errorf(reason)
+	if updateErr := i.updateOperationState(params, model.OperationStateError, reason); updateErr != nil {
+		err = errors.Wrap(updateErr, err.Error())
+	}
+	return err
 }

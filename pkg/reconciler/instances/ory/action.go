@@ -3,6 +3,7 @@ package ory
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -35,9 +36,10 @@ type preReconcileAction struct {
 
 type postReconcileAction struct {
 	*oryAction
+	hydraSyncer hydra.Syncer
 }
 
-type preDeleteAction struct {
+type postDeleteAction struct {
 	*oryAction
 }
 
@@ -46,41 +48,62 @@ var (
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
 )
 
+func (a *postReconcileAction) Run(context *service.ActionContext) error {
+	logger, client, cfg, _, err := readActionContext(context)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read postReconcileAction context")
+	}
+	if isInMemoryMode(cfg) {
+		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
+		err = a.hydraSyncer.TriggerSynchronization(context.Context, client, logger, oryNamespace)
+		if err != nil {
+			return errors.Wrap(err, "failed to trigger hydra sychronization")
+		}
+	} else {
+		logger.Debug("Hydra is in persistence mode, no synchronization needed")
+	}
+	return nil
+}
+
 func (a *preReconcileAction) Run(context *service.ActionContext) error {
-	logger := context.Logger
-	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
-		WithNamespace(oryNamespace).
-		WithProfile(context.Task.Profile).
-		WithConfiguration(context.Task.Configuration).Build()
-
-	values, err := context.ChartProvider.Configuration(component)
+	logger, client, _, values, err := readActionContext(context)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve Ory chart values")
+		return errors.Wrap(err, "Failed to read preReconcileAction context")
+	}
+	_, err = getSecret(context.Context, client, jwksNamespacedName)
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return errors.Wrap(err, "Could not get JWKS secret")
+		}
+
+		logger.Info("Ory JWKS secret does not exist, creating it now")
+		jwksSecretObject, err := jwks.Get(jwksNamespacedName, jwksAlg, jwksBits)
+		if err != nil {
+			return errors.Wrap(err, "failed to create jwks secret for ORY OathKeeper")
+		}
+		if err := createSecret(context.Context, client, jwksNamespacedName, *jwksSecretObject, logger); err != nil {
+			return err
+		}
 	}
 
-	client, err := context.KubeClient.Clientset()
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
-	}
-
-	secretObject, err := getSecret(context.Context, client, dbNamespacedName)
+	dbSecretObject, err := getSecret(context.Context, client, dbNamespacedName)
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return errors.Wrap(err, "Could not get DB secret")
 		}
 
 		logger.Info("Ory DB secret does not exist, creating it now")
-		secretObject, err = db.Get(dbNamespacedName, values, logger)
+		dbSecretObject, err = db.Get(dbNamespacedName, values, logger)
 		if err != nil {
 			return errors.Wrap(err, "failed to create db credentials data for Ory Hydra")
 		}
-		if err := createSecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
+		if err := createSecret(context.Context, client, dbNamespacedName, *dbSecretObject, logger); err != nil {
 			return err
 		}
 
 	} else {
 		logger.Info("Ory DB secret exists, looking for differences")
-		newSecretData, err := db.Update(values, secretObject, logger)
+		newSecretData, err := db.Update(values, dbSecretObject, logger)
 		if err != nil {
 			return errors.Wrap(err, "failed to update db credentials data for Ory Hydra")
 		}
@@ -89,9 +112,9 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 			logger.Info("Ory DB secret is the same as values, no need to update")
 		} else {
 			logger.Info("Ory DB secret is different than values, updating it")
-			secretObject.StringData = newSecretData
+			dbSecretObject.StringData = newSecretData
 
-			if err := a.updateSecret(context.Context, client, dbNamespacedName, *secretObject, logger); err != nil {
+			if err := a.updateSecret(context.Context, client, dbNamespacedName, *dbSecretObject, logger); err != nil {
 				return errors.Wrap(err, "failed to update Ory secret")
 			}
 			logger.Info("Rolling out ory hydra")
@@ -106,42 +129,14 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *postReconcileAction) Run(context *service.ActionContext) error {
-	logger := context.Logger
-	client, err := context.KubeClient.Clientset()
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
-	}
-	secretObject, err := getSecret(context.Context, client, jwksNamespacedName)
-	if err != nil {
-		return errors.Wrap(err, "Could not get JWKS secret")
-	}
-
-	if isEmpty(secretObject) {
-		patchData, err := jwks.Get(jwksAlg, jwksBits)
-		if err != nil {
-			return errors.Wrap(err, "failed to generate JWKS secret")
-		}
-		if err := a.patchSecret(context.Context, client, jwksNamespacedName, patchData, logger); err != nil {
-			return errors.Wrap(err, "failed to patch Ory secret")
-		}
-	} else {
-		logger.Info("Ory JWKS secret is already patched, skipping")
-	}
-
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
-
-	return nil
-}
-
-func (a *preDeleteAction) Run(context *service.ActionContext) error {
+func (a *postDeleteAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
 	client, err := context.KubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
 	}
 
-	secretExists, err := a.dbSecretExists(context.Context, client, dbNamespacedName)
+	secretExists, err := a.secretExists(context.Context, client, dbNamespacedName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get DB secret %s", dbNamespacedName.Name)
 	}
@@ -152,6 +147,19 @@ func (a *preDeleteAction) Run(context *service.ActionContext) error {
 		}
 	} else {
 		logger.Infof("DB Secret %s does not exist", dbNamespacedName.Name)
+	}
+
+	jwksSecretExists, err := a.secretExists(context.Context, client, jwksNamespacedName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get JWKS secret %s", jwksNamespacedName.Name)
+	}
+	if jwksSecretExists {
+		err = a.deleteSecret(context.Context, client, jwksNamespacedName, logger)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete DB secret %s", jwksNamespacedName.Name)
+		}
+	} else {
+		logger.Infof("JWKS Secret %s does not exist", jwksNamespacedName.Name)
 	}
 
 	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
@@ -185,6 +193,7 @@ func (a *preReconcileAction) rolloutHydraDeployment(ctx context.Context, client 
 	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
 
 	_, err := client.AppsV1().Deployments("kyma-system").Patch(ctx, "ory-hydra", types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to rollout ory hydra")
 	}
@@ -193,32 +202,18 @@ func (a *preReconcileAction) rolloutHydraDeployment(ctx context.Context, client 
 	return nil
 }
 
-func (a *postReconcileAction) patchSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, data []byte, logger *zap.SugaredLogger) error {
-	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to get secret")
-	}
-	_, err = client.CoreV1().Secrets(name.Namespace).Patch(ctx, name.Name, types.JSONPatchType, data, metav1.PatchOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to patch the secret")
-	}
-	logger.Infof("Secret %s patched", name.String())
-
-	return err
-}
-
-func (a *preDeleteAction) dbSecretExists(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (bool, error) {
+func (a *postDeleteAction) secretExists(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (bool, error) {
 	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return false, nil
 		}
-		return false, errors.Wrap(err, "Could not get DB secret")
+		return false, errors.Wrapf(err, "Could not get %s secret", name.Name)
 	}
 	return true, nil
 }
 
-func (a *preDeleteAction) deleteSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) error {
+func (a *postDeleteAction) deleteSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) error {
 	err := client.CoreV1().Secrets(name.Namespace).Delete(ctx, name.Name, metav1.DeleteOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -240,4 +235,30 @@ func createSecret(ctx context.Context, client kubernetes.Interface, name types.N
 	logger.Infof("Secret %s created", name.String())
 
 	return err
+}
+
+func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, kubernetes.Interface, *db.Config, map[string]interface{}, error) {
+	logger := context.Logger
+	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
+		WithNamespace(oryNamespace).
+		WithProfile(context.Task.Profile).
+		WithConfiguration(context.Task.Configuration).Build()
+
+	chartValues, err := context.ChartProvider.Configuration(component)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve ory chart values")
+	}
+	client, err := context.KubeClient.Clientset()
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
+	}
+	cfg, err := db.NewDBConfig(chartValues)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
+	}
+	return logger, client, cfg, chartValues, nil
+}
+
+func isInMemoryMode(cfg *db.Config) bool {
+	return !cfg.Global.Ory.Hydra.Persistence.Enabled
 }

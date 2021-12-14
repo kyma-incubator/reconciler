@@ -200,7 +200,7 @@ func (r *InMemoryReconciliationRepository) GetReconcilingOperations() ([]*model.
 	return allOps, nil
 }
 
-func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reasons ...string) error {
+func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -211,6 +211,10 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	op, ok := r.operations[schedulingID][correlationID]
 	if !ok {
 		return &repository.EntityNotFoundError{}
+	}
+
+	if err := operationAlreadyInState(op, state); err != nil && !allowInState {
+		return err
 	}
 
 	// copy the operation to avoid having data races while writing

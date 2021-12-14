@@ -77,7 +77,7 @@ function start() {
 
 # Migrate database schema
 function migrate() {
-  local postgresDSN="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:$POSTGRES_PORT/$POSTGRES_DB?sslmode=disable"
+  local postgresDSN="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@127.0.0.1:$POSTGRES_PORT/$POSTGRES_DB?sslmode=disable"
   migrateCmd=$(which migrate)
   if [ $? -ne 0 ]; then
     error "DB migration requires the 'migrate' tool, please install it and try again.
@@ -93,7 +93,7 @@ function migrate() {
   fi
 
   echo "Wait for Postgresql to be ready"
-  $pg_isready_cmd --host "localhost" --port "${POSTGRES_PORT}" --dbname "${POSTGRES_DB}" --username "${POSTGRES_USER}" --timeout 30
+  $pg_isready_cmd --host "127.0.0.1" --port "${POSTGRES_PORT}" --dbname "${POSTGRES_DB}" --username "${POSTGRES_USER}" --timeout 30
   if [ $? -ne 0 ]; then
     echo "database is not ready, run again migrate"
     exit 1

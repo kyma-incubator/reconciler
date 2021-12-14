@@ -27,7 +27,7 @@ type Repository interface {
 	GetProcessableOperations(maxParallelOpsPerRecon int) ([]*model.OperationEntity, error)
 	//GetReconcilingOperations returns all operations which are part of currently running reconciliations
 	GetReconcilingOperations() ([]*model.OperationEntity, error)
-	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, reason ...string) error
+	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.
@@ -145,4 +145,30 @@ func concatStateReasons(state model.OperationState, reasons []string) (string, e
 		return "", fmt.Errorf("cannot set state to '%v' without providing a reason", state)
 	}
 	return strings.Join(reasons, ", "), nil
+}
+
+func operationAlreadyInState(op *model.OperationEntity, state model.OperationState) error {
+	if op.State == state {
+		return newAlreadyInStateError(op)
+	}
+	return nil
+}
+
+type alreadyInStateError struct {
+	op *model.OperationEntity
+}
+
+func (err *alreadyInStateError) Error() string {
+	return fmt.Sprintf("cannot update state of operation '%s' because it is already in state %s", err.op.Component, err.op.State)
+}
+
+func newAlreadyInStateError(op *model.OperationEntity) error {
+	return &alreadyInStateError{
+		op: op,
+	}
+}
+
+func IsAlreadyInStateError(err error) bool {
+	_, ok := err.(*alreadyInStateError)
+	return ok
 }

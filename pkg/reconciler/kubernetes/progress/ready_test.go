@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -14,8 +15,16 @@ import (
 func TestIsDeploymentReady(t *testing.T) {
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "kyma-system"},
+		Spec: appsv1.DeploymentSpec{
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "abc",
+				},
+			},
+		},
 	}
 
+	//the lookup will sort the list in its timely order and take the first one which matches the deployment-spec
 	replicaSets := []*appsv1.ReplicaSet{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -23,6 +32,16 @@ func TestIsDeploymentReady(t *testing.T) {
 				Namespace:         "kyma-system",
 				OwnerReferences:   []metav1.OwnerReference{*metav1.NewControllerRef(deployment, deployment.GroupVersionKind())},
 				CreationTimestamp: metav1.NewTime(time.Now()),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 3,
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Template: v1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "xyz",
+					},
+				},
 			},
 		},
 		{
@@ -34,6 +53,13 @@ func TestIsDeploymentReady(t *testing.T) {
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas: 1,
+			},
+			Spec: appsv1.ReplicaSetSpec{
+				Template: v1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "abc",
+					},
+				},
 			},
 		},
 	}

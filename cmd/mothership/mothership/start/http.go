@@ -4,15 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/internal/converters"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
-
+	"github.com/kyma-incubator/reconciler/internal/converters"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/kubernetes"
@@ -20,6 +18,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 
 	"github.com/gorilla/mux"
@@ -39,6 +38,10 @@ const (
 	paramStatus     = "status"
 	paramRuntimeIDs = "runtimeID"
 	paramCluster    = "cluster"
+	paramBefore     = "before"
+	paramAfter      = "after"
+	paramLast       = "last"
+	paramTimeFormat = time.RFC3339
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
@@ -286,45 +289,55 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
 }
 
-func contains(slice []string, value string) bool {
-	for _, v := range slice {
-		if v == value {
-			return true
-		}
-	}
-	return false
-}
-
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 	// define variables
-	var statuses, runtimeIDs []string
-	var ok bool
+	var filters []reconciliation.Filter
 
-	if statuses, ok = r.URL.Query()[paramStatus]; !ok {
-		statuses = []string{}
+	params := server.NewParams(r)
+
+	if runtimeIDs, err := params.StrSlice(paramRuntimeIDs); err == nil {
+		filters = append(filters, &reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs})
 	}
 
-	// validate statuses
-	for _, statusStr := range statuses {
-		if _, err := keb.ToStatus(statusStr); err != nil {
-			server.SendHTTPError(
-				w,
-				http.StatusBadRequest,
-				&keb.BadRequest{Error: err.Error()},
-			)
+	if statuses, err := params.StrSlice(paramStatus); err == nil {
+		if err := validateStatuses(statuses); err != nil {
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
 			return
 		}
+		filters = append(filters, &reconciliation.WithStatuses{Statuses: statuses})
 	}
 
-	if runtimeIDs, ok = r.URL.Query()[paramRuntimeIDs]; !ok {
-		runtimeIDs = []string{}
+	if after, err := params.String(paramAfter); err == nil && after != "" {
+		t, err := time.Parse(paramTimeFormat, after)
+		if err != nil {
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+			return
+		}
+		filters = append(filters, &reconciliation.WithCreationDateAfter{Time: t})
 	}
 
-	// Fetch all reconciliation entitlies base on runtime id
+	if before, err := params.String(paramBefore); err == nil && before != "" {
+		t, err := time.Parse(paramTimeFormat, before)
+		if err != nil {
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+			return
+		}
+		filters = append(filters, &reconciliation.WithCreationDateBefore{Time: t})
+	}
+
+	if limit, err := params.Int(paramLast); err == nil {
+		if err != nil {
+			server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+			return
+		}
+		filters = append(filters, &reconciliation.Limit{Count: limit})
+	}
+
+	// Fetch all reconciliation entitlies
 	reconciles, err := o.Registry.
 		ReconciliationRepository().
 		GetReconciliations(
-			&reconciliation.WithRuntimeIDs{RuntimeIDs: runtimeIDs},
+			&reconciliation.FilterMixer{Filters: filters},
 		)
 
 	if err != nil {
@@ -336,13 +349,9 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := []keb.Reconciliation{}
+	var results []keb.Reconciliation
 
 	for _, reconcile := range reconciles {
-		if len(statuses) != 0 && !contains(statuses, string(reconcile.Status)) {
-			continue
-		}
-
 		results = append(results, keb.Reconciliation{
 			Created:      reconcile.Created,
 			Lock:         reconcile.Lock,
@@ -675,8 +684,7 @@ func getKymaConfig(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateOperationState(o *Options, schedulingID, correlationID string, state model.OperationState, reason ...string) error {
-	err := o.Registry.ReconciliationRepository().UpdateOperationState(
-		schedulingID, correlationID, state, strings.Join(reason, ", "))
+	err := o.Registry.ReconciliationRepository().UpdateOperationState(schedulingID, correlationID, state, true, strings.Join(reason, ", "))
 	if err != nil {
 		o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
 			"to state '%s': %s", schedulingID, correlationID, state, err)

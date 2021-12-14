@@ -51,17 +51,16 @@ func TestServicesInterceptor(t *testing.T) {
 	require.Len(t, unstructs, 2)
 
 	testAssertions := func(t *testing.T, service *unstructured.Unstructured, expectedClusterIP string) {
-		serviceObject, err := toService(service)
-		require.NoError(t, err)
+		serviceObject := toService(t, service)
 		require.Equal(t, serviceObject.Spec.ClusterIP, expectedClusterIP)
 		t.Logf("ClusterIP before: %s", serviceObject.Spec.ClusterIP)
 
 		//inject clusterIP
-		result, err := svcIntcptr.Intercept(service, servicesInterceptorNS)
-		require.Equal(t, result, kubernetes.ContinueInterceptionResult)
+		resources := kubernetes.NewResourceList([]*unstructured.Unstructured{service})
+		err = svcIntcptr.Intercept(resources, servicesInterceptorNS)
 		require.NoError(t, err)
-		serviceObject, err = toService(service)
-		require.NoError(t, err)
+
+		serviceObject = toService(t, service)
 		require.NotEmpty(t, serviceObject.Spec.ClusterIP)
 		t.Logf("ClusterIP after: %s", serviceObject.Spec.ClusterIP)
 
@@ -81,12 +80,9 @@ func TestServicesInterceptor(t *testing.T) {
 	testAssertions(t, service, none)
 }
 
-func toService(unstruct *unstructured.Unstructured) (*v1.Service, error) {
+func toService(t *testing.T, unstruct *unstructured.Unstructured) *v1.Service {
 	svc := &v1.Service{}
-	err := runtime.DefaultUnstructuredConverter.
-		FromUnstructured(unstruct.Object, svc)
-	if err != nil {
-		return nil, err
-	}
-	return svc, nil
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, svc)
+	require.NoError(t, err)
+	return svc
 }

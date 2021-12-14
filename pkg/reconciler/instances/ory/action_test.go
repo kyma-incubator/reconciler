@@ -13,7 +13,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/jwks"
+	hydramocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -51,16 +51,114 @@ const (
 const (
 	profileName   = "profile"
 	componentName = "test-ory"
+	inMemoryURL   = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
 )
 
 var chartDir = filepath.Join("test", "resources")
 
+func Test_PostReconcile_Run(t *testing.T) {
+	t.Parallel()
+	t.Run("should call hydra sync when we are inMemory mode", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Syncer{}
+		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil)
+		values, err := unmarshalTestValues(memoryYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+
+	})
+	t.Run("should not call hydra sync when we are in persistence enabled mode", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Syncer{}
+		values, err := unmarshalTestValues(postgresqlYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		hydraClient.AssertNotCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+
+	})
+
+	t.Run("should return error when synchronization failed", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Syncer{}
+		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(errors.New("Failed to trigger hydra Synchronization"))
+
+		values, err := unmarshalTestValues(memoryYaml)
+		require.NoError(t, err)
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+
+		// when
+		err = action.Run(actionContext)
+
+		// Then
+		require.Error(t, err, "Failed to trigger hydra Synchronization")
+		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+
+	})
+	t.Run("should return error when read of action context failed", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		hydraClient := hydramocks.Syncer{}
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil,
+			errors.New("Failed to read configuration"))
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+
+		// when
+		err := action.Run(actionContext)
+
+		// Then
+		require.Error(t, err, "Failed to read configuration")
+		hydraClient.AssertNotCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+
+	})
+}
+
 func Test_PreInstallAction_Run(t *testing.T) {
+	t.Parallel()
 	t.Run("should not perform any action when chart configuration returned an error", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil, errors.New("Configuration error"))
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil,
+			errors.New("Configuration error"))
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
@@ -71,7 +169,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to retrieve Ory chart values")
+		require.Contains(t, err.Error(), "Failed to retrieve ory chart values")
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
 		kubeClient.AssertNotCalled(t, "Clientset")
 	})
@@ -97,6 +195,57 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		kubeClient.AssertCalled(t, "Clientset")
 	})
 
+	t.Run("should create jwks secret when secret does not exist", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
+		clientSet := fake.NewSimpleClientset()
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		secret, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, jwksNamespacedName.Name, secret.Name)
+		require.Equal(t, jwksNamespacedName.Namespace, secret.Namespace)
+		require.NotEmpty(t, secret.Data)
+	})
+
+	t.Run("should not create jwks secret when secret exists", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		emptyMap := make(map[string]interface{})
+		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
+		existingJwksSecret := fixSecretJwks()
+		clientSet := fake.NewSimpleClientset(existingJwksSecret)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		action := preReconcileAction{&oryAction{step: "pre-install"}}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
+		kubeClient.AssertCalled(t, "Clientset")
+		secret, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, jwksNamespacedName.Name, secret.Name)
+		require.Equal(t, jwksNamespacedName.Namespace, secret.Namespace)
+		require.Equal(t, getJWKSData(), secret.Data)
+	})
+
 	t.Run("should create ory secret when secret does not exist", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -119,7 +268,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
-		require.Equal(t, "memory", secret.StringData["dsn"])
+		require.Equal(t, inMemoryURL, secret.StringData["dsn"])
 	})
 
 	t.Run("should not update ory secret when secret exist and has a valid data", func(t *testing.T) {
@@ -147,7 +296,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
 		require.Equal(t, "", secret.StringData["dsn"])
-		require.Equal(t, []byte("memory"), secret.Data["dsn"])
+		require.Equal(t, []byte(inMemoryURL), secret.Data["dsn"])
 	})
 
 	t.Run("should update ory secret when secret exist and has an outdated values", func(t *testing.T) {
@@ -176,11 +325,11 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, dbNamespacedName.Name, secret.Name)
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
 		require.Contains(t, secret.StringData["dsn"], "postgres")
-		require.NotContains(t, secret.StringData["dsn"], "memory")
+		require.NotContains(t, secret.StringData["dsn"], inMemoryURL)
 	})
 }
 
-func Test_PreDeleteAction_Run(t *testing.T) {
+func Test_PostDeleteAction_Run(t *testing.T) {
 	t.Run("should not perform any action when kubernetes clientset returned an error", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -188,7 +337,7 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("failed to retrieve native Kubernetes GO client"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -206,7 +355,7 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("Could not get DB secret"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -217,14 +366,14 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		kubeClient.AssertCalled(t, "Clientset")
 	})
 
-	t.Run("should not perform any action when secret does not exist", func(t *testing.T) {
+	t.Run("should not perform any action when DB secret does not exist", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -234,7 +383,29 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		kubeClient.AssertCalled(t, "Clientset")
 	})
 
-	t.Run("should delete ory secret when secret exists", func(t *testing.T) {
+	t.Run("should delete ory JWKS secret when secret exists", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		existingSecret := fixSecretJwks()
+		clientSet := fake.NewSimpleClientset(existingSecret)
+		kubeClient := newFakeKubeClient(clientSet)
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		_, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.False(t, kerrors.IsNotFound(err))
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
+
+		// when
+		err = action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertCalled(t, "Clientset")
+		_, err = clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
+		require.True(t, kerrors.IsNotFound(err))
+	})
+
+	t.Run("should delete ory DB secret when secret exists", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -244,7 +415,7 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		_, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
-		action := preDeleteAction{&oryAction{step: "pre-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}}
 
 		// when
 		err = action.Run(actionContext)
@@ -257,59 +428,6 @@ func Test_PreDeleteAction_Run(t *testing.T) {
 	})
 }
 
-func TestOryJwksSecret(t *testing.T) {
-	tests := []struct {
-		Name            string
-		PreCreateSecret bool
-	}{
-		{
-			Name:            "Secret to patch does not exist",
-			PreCreateSecret: false,
-		},
-		{
-			Name:            "Secret was patched successfully",
-			PreCreateSecret: true,
-		},
-	}
-	for _, testCase := range tests {
-		test := testCase
-		t.Run(test.Name, func(t *testing.T) {
-			logger := zaptest.NewLogger(t).Sugar()
-			a := postReconcileAction{
-				&oryAction{step: "test-jwks-secret"},
-			}
-			name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
-			ctx := context.Background()
-			k8sClient := fake.NewSimpleClientset()
-			var existingUID types.UID
-
-			patchData, err := jwks.Get(jwksAlg, jwksBits)
-			require.NoError(t, err)
-
-			if test.PreCreateSecret {
-				existingSecret, err := preCreateSecret(ctx, k8sClient, name)
-				assert.NoError(t, err)
-				existingUID = existingSecret.UID
-				require.Equal(t, true, isEmpty(existingSecret))
-			}
-
-			err = a.patchSecret(ctx, k8sClient, name, patchData, logger)
-			if !test.PreCreateSecret {
-				assert.NotNil(t, err)
-			} else {
-				assert.NoError(t, err)
-
-				secret, err := k8sClient.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
-				require.NoError(t, err)
-				assert.Equal(t, name.Name, secret.Name)
-				assert.Equal(t, name.Namespace, secret.Namespace)
-				assert.NotNil(t, secret.Data)
-				assert.Equal(t, existingUID, secret.UID)
-			}
-
-		})
-	}
-}
 func TestOryJwksSecret_IsEmpty(t *testing.T) {
 	t.Run("should return true on empty Secret", func(t *testing.T) {
 		// given
@@ -341,6 +459,7 @@ func TestOryJwksSecret_IsEmpty(t *testing.T) {
 		require.Equal(t, false, check)
 	})
 }
+
 func TestOryDbSecret(t *testing.T) {
 	tests := []struct {
 		Name            string
@@ -416,8 +535,6 @@ func newFakeKubeClient(clientSet *fake.Clientset) *k8smocks.Client {
 	mockClient := &k8smocks.Client{}
 	mockClient.On("Clientset").Return(clientSet, nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
-	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
 	return mockClient
 }
 
@@ -447,10 +564,27 @@ func fixSecretMemory() *v1.Secret {
 			Namespace: dbNamespacedName.Namespace,
 		},
 		Data: map[string][]byte{
-			"dsn":           []byte("memory"),
+			"dsn":           []byte(inMemoryURL),
 			"secretsCookie": []byte("somesecretcookie"),
 			"secretsSystem": []byte("somesecretsystem"),
 		},
+	}
+	return &secret
+}
+
+func getJWKSData() map[string][]byte {
+	return map[string][]byte{
+		"jwks.json": []byte("randomstring"),
+	}
+}
+
+func fixSecretJwks() *v1.Secret {
+	secret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jwksNamespacedName.Name,
+			Namespace: jwksNamespacedName.Namespace,
+		},
+		Data: getJWKSData(),
 	}
 	return &secret
 }

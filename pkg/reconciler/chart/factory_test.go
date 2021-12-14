@@ -13,9 +13,11 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
@@ -23,6 +25,15 @@ import (
 
 const (
 	version = "1.20.0"
+
+	// This is a pre-prepared repo with the following hashes to be used for testing.
+	// If the repo is changed the following hashes need to be updated as well.
+	upstreamTestRepo  = "https://github.com/moelsayed/nginx-test.git"
+	masterHead        = "ef00478f9403d11a3a14203b9219b0ac831b6b18"
+	initialCommitHash = "2178444d9a356dd44446e343ab5903247bbe979d"
+	mainHead          = "4742250788e8b4c8a50ade9b9b0baa5f13ce4c8d"
+	tag               = "v0.1.1"
+	tagHash           = "2af1d3a0f2479ea6b46cd38ab61cc74f47f62038"
 )
 
 var storageDir = filepath.Join("test", "factory")
@@ -229,4 +240,76 @@ func checkWorkspaceDirectories(t *testing.T, ws *KymaWorkspace) {
 
 func testDelete(t *testing.T, wsf Factory) {
 	require.NoError(t, wsf.Delete(version))
+}
+
+func Test_ExternalGitComponent(t *testing.T) {
+	test.IntegrationTest(t)
+
+	logger := log.NewLogger(true)
+	factory := &DefaultFactory{logger: logger, storageDir: storageDir}
+	_, err := ioutil.TempDir(factory.storageDir, "test_*")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	c := &Component{
+		version: "master",
+		url:     upstreamTestRepo,
+		name:    "nginx-test",
+	}
+
+	t.Run("Clone version for the first time", func(t *testing.T) {
+		expectedWs := factory.workspaceDir(fmt.Sprintf("%s-%s", masterHead[0:8], c.name))
+		ws, err := factory.GetExternalComponent(c)
+		require.NoError(t, err)
+		require.Equal(t, expectedWs, ws.WorkspaceDir)
+	})
+
+	// To simulate an updated upstream, we will hard reset the local component cache to an older version.
+	componentBaseDir := path.Join(factory.componentBaseDir(c), c.name)
+	repo, err := gogit.PlainOpen(componentBaseDir)
+	require.NoErrorf(t, err, "failed to open the component base dir repo ")
+	w, err := repo.Worktree()
+	require.NoErrorf(t, err, "failed to open component base dir worktree")
+	err = w.Reset(&gogit.ResetOptions{
+		Commit: plumbing.NewHash(initialCommitHash),
+		Mode:   gogit.HardReset,
+	})
+	require.NoErrorf(t, err, "failed to reset component base dir worktree")
+
+	head, err := repo.Head()
+	require.NoErrorf(t, err, "failed to get component base dir head")
+	require.Equalf(t, head.Hash().String(), initialCommitHash, "incorrect repo head after reset")
+
+	t.Run("Ensure the latest is fetched", func(t *testing.T) {
+		expectedWs := factory.workspaceDir(fmt.Sprintf("%s-%s", masterHead[0:8], c.name))
+		ws, err := factory.GetExternalComponent(c)
+		require.NoError(t, err)
+		require.Equal(t, expectedWs, ws.WorkspaceDir)
+	})
+
+	t.Run("Change component version branch", func(t *testing.T) {
+		c.version = "main"
+		expectedWs := factory.workspaceDir(fmt.Sprintf("%s-%s", mainHead[0:8], c.name))
+		ws, err := factory.GetExternalComponent(c)
+		require.NoError(t, err)
+		require.Equal(t, expectedWs, ws.WorkspaceDir)
+	})
+
+	t.Run("Change component version to a tag", func(t *testing.T) {
+		c.version = tag
+		expectedWs := factory.workspaceDir(fmt.Sprintf("%s-%s", tagHash[0:8], c.name))
+		ws, err := factory.GetExternalComponent(c)
+		require.NoError(t, err)
+		require.Equal(t, expectedWs, ws.WorkspaceDir)
+	})
+
+	t.Run("Clone component with empty version", func(t *testing.T) {
+		c.version = ""
+		expectedWs := factory.workspaceDir(fmt.Sprintf("%s-%s", masterHead[0:8], c.name))
+		ws, err := factory.GetExternalComponent(c)
+		require.NoError(t, err)
+		require.Equal(t, expectedWs, ws.WorkspaceDir)
+	})
 }
