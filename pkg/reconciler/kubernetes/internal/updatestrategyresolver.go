@@ -3,10 +3,8 @@ package internal
 import (
 	"strings"
 
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
@@ -38,37 +36,6 @@ var onlyCreateStrategy = func(u *unstructured.Unstructured, h *resource.Helper) 
 	return SkipUpdateStrategy, nil
 }
 
-var statefulsetStrategy = func(u *unstructured.Unstructured, h *resource.Helper) (UpdateStrategy, error) {
-
-	obj, err := h.Get(u.GetNamespace(), u.GetName())
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return PatchUpdateStrategy, nil
-		}
-		return "", err
-	}
-
-	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	if err != nil {
-		return "", err
-	}
-
-	if unstructuredObj == nil {
-		return PatchUpdateStrategy, nil
-	}
-
-	var sfs appsv1.StatefulSet
-	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj, &sfs); err != nil {
-		return "", err
-	}
-
-	if len(sfs.Spec.VolumeClaimTemplates) > 0 { //do not replace STS which have a PVC inside
-		return PatchUpdateStrategy, nil
-	}
-
-	return ReplaceUpdateStrategy, nil
-}
-
 func newDefaultUpdateStrategyResolver(helper *resource.Helper) UpdateStrategyResolver {
 	return &DefaultUpdateStrategyResolver{
 		helper: helper,
@@ -81,19 +48,16 @@ func newDefaultUpdateStrategyResolver(helper *resource.Helper) UpdateStrategyRes
 			"rolebinding":           patchStrategy,
 			"clusterrole":           patchStrategy,
 			"clusterrolebinding":    patchStrategy,
-			"statefulset":           statefulsetStrategy,
 		},
 	}
 }
 
 type DefaultUpdateStrategyResolver struct {
-	helper *resource.Helper
-
+	helper                *resource.Helper
 	typeToStrategyMapping map[string]startegyFn
 }
 
 func (d *DefaultUpdateStrategyResolver) Resolve(resource *unstructured.Unstructured) (UpdateStrategy, error) {
-
 	rType := strings.ToLower(resource.GetKind())
 	fn, ok := d.typeToStrategyMapping[rType]
 	if !ok {
