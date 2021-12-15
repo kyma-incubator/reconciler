@@ -150,48 +150,6 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			Want: PatchUpdateStrategy,
 		},
 		{
-			Name: "Statefulsets with PVC templates should be patched",
-			Response: map[string]interface{}{
-				"kind":       "StatefulSet",
-				"apiVersion": "apps/v1",
-				"spec": map[string]interface{}{
-					"volumeClaimTemplates": []map[string]interface{}{
-						{
-							"kind": "PersistentVolumeClaim",
-						},
-					},
-				},
-			},
-			Resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"kind": "StatefulSet",
-					"metadata": map[string]interface{}{
-						"name":      "postgresql",
-						"namespace": "kyma-system",
-					},
-				},
-			},
-			Want: PatchUpdateStrategy,
-		},
-		{
-			Name: "Statefulsets without PVC templates should be replaced",
-			Response: map[string]interface{}{
-				"kind":       "StatefulSet",
-				"apiVersion": "apps/v1",
-				"spec":       map[string]interface{}{},
-			},
-			Resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"kind": "StatefulSet",
-					"metadata": map[string]interface{}{
-						"name":      "postgresql2",
-						"namespace": "kyma-system",
-					},
-				},
-			},
-			Want: ReplaceUpdateStrategy,
-		},
-		{
 			Name:     "Anything else should be replaced",
 			Response: nil,
 			Resource: &unstructured.Unstructured{
