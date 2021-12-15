@@ -168,14 +168,16 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 
 	//TODO: call intercepters here
 
+	targetInfo := &resource.Info{
+		Client:    restClient,
+		Mapping:   restMapping,
+		Namespace: u.GetNamespace(),
+		Name:      u.GetName(),
+		Object:    u.DeepCopyObject(),
+	}
+	err = targetInfo.Get()
 	target := kube.ResourceList{
-		&resource.Info{
-			Client:    restClient,
-			Mapping:   restMapping,
-			Namespace: u.GetNamespace(),
-			Name:      u.GetName(),
-			Object:    u.DeepCopyObject(),
-		},
+		targetInfo,
 	}
 
 	retryable := func() error {
