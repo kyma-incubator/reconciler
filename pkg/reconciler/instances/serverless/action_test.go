@@ -213,7 +213,7 @@ func setup() (kubernetes.Interface, ReconcileCustomAction, *service.ActionContex
 	action := ReconcileCustomAction{}
 	mockClient := mocks.Client{}
 	mockClient.On("Clientset").Return(k8sClient, nil)
-	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*rkubernetes.Resource{}, nil)
+	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*rkubernetes.Resource{}, nil)
 	configuration := map[string]interface{}{}
 	mockProvider := pmock.Provider{}
 	mockManifest := chart.Manifest{

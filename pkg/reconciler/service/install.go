@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -60,6 +61,7 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 				kubeClient: kubeClient,
 				logger:     r.logger,
 			},
+			newClusterWideResourceInterceptor(),
 		)
 		if err == nil {
 			r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
