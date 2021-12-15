@@ -155,7 +155,8 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 	}
 
 	var original kube.ResourceList
-	if originalInfo.Get() == nil {
+	err = originalInfo.Get()
+	if err == nil {
 		original = kube.ResourceList{
 			originalInfo,
 		}
