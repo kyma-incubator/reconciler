@@ -1,6 +1,7 @@
 package chart
 
 import (
+	"crypto/sha1" //nolint
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -36,7 +37,7 @@ const (
 	tagHash           = "2af1d3a0f2479ea6b46cd38ab61cc74f47f62038"
 )
 
-var storageDir = filepath.Join("test", "factory")
+var storageDir = filepath.Join("/tmp", "test", "factory")
 
 // prepares handler func servig archive from given directory
 func handlerFuncArchive(t *testing.T, dirname string) http.HandlerFunc {
@@ -60,6 +61,7 @@ func clearWorkspaces(t *testing.T, f *DefaultFactory, vs []string) {
 		}
 	}
 }
+
 func TestWorkspaceFactory(t *testing.T) {
 	logger := log.NewLogger(true)
 
@@ -138,6 +140,10 @@ func TestWorkspaceFactory(t *testing.T) {
 	defer server.Close()
 
 	t.Run("Create external component from archive", func(t *testing.T) {
+		if err := os.MkdirAll(storageDir, 0777); err != nil {
+			t.Error(err)
+		}
+
 		factory := &DefaultFactory{logger: logger, storageDir: storageDir}
 
 		_, err := ioutil.TempDir(factory.storageDir, "test_*")
@@ -151,17 +157,29 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		for i, fi := range fis {
 			version := fmt.Sprintf("version-%d", i)
-			if err := doGetExternalComponent(factory, fi, version, server.URL); err != nil {
+			name, err := doGetExternalComponent(factory, fi, version, server.URL)
+			if err != nil {
 				t.Log(err)
 				continue
 			}
+
+			if err := validateWorkspace(fi.Name(), name, server.URL); err != nil {
+				t.Log(err)
+				continue
+			}
+
 			vds[i] = version
+
 		}
 
 		defer clearWorkspaces(t, factory, vds)
 	})
 
 	t.Run("race-condition", func(t *testing.T) {
+		if err := os.MkdirAll(storageDir, 0777); err != nil {
+			t.Error(err)
+		}
+
 		factory := &DefaultFactory{logger: logger, storageDir: storageDir}
 
 		_, err := ioutil.TempDir(factory.storageDir, "test_*")
@@ -184,7 +202,7 @@ func TestWorkspaceFactory(t *testing.T) {
 				time.Sleep(time.Until(waitUntil))
 
 				if index%2 == 0 {
-					err := doGetExternalComponent(factory, fis[0], "main", server.URL)
+					_, err := doGetExternalComponent(factory, fis[0], "main", server.URL)
 					if err != nil {
 						t.Log("getComponent:", err)
 						return
@@ -203,11 +221,11 @@ func TestWorkspaceFactory(t *testing.T) {
 	})
 }
 
-func doGetExternalComponent(factory Factory, fi os.FileInfo, version, url string) error {
+func doGetExternalComponent(factory Factory, fi os.FileInfo, version, url string) (string, error) {
 	index := strings.Index(fi.Name(), ".")
 
 	if index == -1 {
-		return fmt.Errorf("unable to find file extension: %q", fi.Name())
+		return "", fmt.Errorf("unable to find file extension: %q", fi.Name())
 	}
 
 	name := fi.Name()[:index]
@@ -217,7 +235,8 @@ func doGetExternalComponent(factory Factory, fi os.FileInfo, version, url string
 		Build()
 
 	_, err := factory.GetExternalComponent(c)
-	return err
+
+	return name, err
 }
 
 func assertFileInfos(t *testing.T, rscdir string) []os.FileInfo {
@@ -312,4 +331,16 @@ func Test_ExternalGitComponent(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, expectedWs, ws.WorkspaceDir)
 	})
+}
+
+func validateWorkspace(fileName, componentName, serverURL string) error {
+	fileURL := fmt.Sprintf("%s/%s", serverURL, fileName)
+	dirname := fmt.Sprintf("%x-%s", sha1.Sum([]byte(fileURL)), componentName) //nolint
+	filepath := path.Join(storageDir, dirname, componentName)
+
+	if _, err := os.Stat(filepath); err != nil {
+		return fmt.Errorf("invalid workspace structure %q: %s", filepath, err)
+	}
+
+	return nil
 }
