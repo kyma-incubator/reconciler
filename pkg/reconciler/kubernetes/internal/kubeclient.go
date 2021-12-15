@@ -147,35 +147,36 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 	}
 
 	originalInfo := &resource.Info{
-		Client:          restClient,
-		Mapping:         restMapping,
-		Namespace:       u.GetNamespace(),
-		Name:            u.GetName(),
-		ResourceVersion: restMapping.Resource.Version,
+		Client:    restClient,
+		Mapping:   restMapping,
+		Namespace: u.GetNamespace(),
+		Name:      u.GetName(),
 	}
 
 	var original kube.ResourceList
-	if originalInfo.Get() == nil {
-		original = kube.ResourceList{
-			originalInfo,
-		}
-	}
-
-	if err != nil && !k8serr.IsNotFound(err) {
+	if err := originalInfo.Get(); err == nil {
+		original.Append(originalInfo)
+	} else if !k8serr.IsNotFound(err) {
 		return nil, err
 	}
 
 	//TODO: call intercepters here
 
-	target := kube.ResourceList{
-		&resource.Info{
-			Client:    restClient,
-			Mapping:   restMapping,
-			Namespace: u.GetNamespace(),
-			Name:      u.GetName(),
-			Object:    u.DeepCopyObject(),
-		},
+	targetInfo := &resource.Info{
+		Client:    restClient,
+		Mapping:   restMapping,
+		Namespace: u.GetNamespace(),
+		Name:      u.GetName(),
+		Object:    u.DeepCopyObject(),
 	}
+
+	var target kube.ResourceList
+	if originalInfo.Object != nil { //object exists in K8s
+		if err := targetInfo.Get(); err != nil {
+			return nil, err
+		}
+	}
+	target.Append(targetInfo)
 
 	retryable := func() error {
 		replaceResource := strategy == ReplaceUpdateStrategy
