@@ -167,7 +167,6 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 		Mapping:   restMapping,
 		Namespace: u.GetNamespace(),
 		Name:      u.GetName(),
-		Object:    u.DeepCopyObject(),
 	}
 
 	var target kube.ResourceList
@@ -176,6 +175,7 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 			return nil, err
 		}
 	}
+	targetInfo.Object = u.DeepCopyObject()
 	target.Append(targetInfo)
 
 	retryable := func() error {

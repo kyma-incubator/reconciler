@@ -28,21 +28,7 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			Name:     "Pods should be created if missing",
-			Response: nil,
-			Resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"kind": "Pod",
-					"metadata": map[string]interface{}{
-						"name":      "pod",
-						"namespace": "kyma-system",
-					},
-				},
-			},
-			Want: PatchUpdateStrategy,
-		},
-		{
-			Name: "Pods should be skipped if existing",
+			Name: "Pods should be patched",
 			Response: map[string]interface{}{
 				"kind":       "Pod",
 				"apiVersion": "v1",
@@ -56,10 +42,10 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 					},
 				},
 			},
-			Want: SkipUpdateStrategy,
+			Want: PatchUpdateStrategy,
 		},
 		{
-			Name:     "Jobs should be created if missing",
+			Name:     "Jobs should be patched",
 			Response: nil,
 			Resource: &unstructured.Unstructured{
 				Object: map[string]interface{}{
@@ -71,23 +57,6 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 				},
 			},
 			Want: PatchUpdateStrategy,
-		},
-		{
-			Name: "Jobs should be skipped if existing",
-			Response: map[string]interface{}{
-				"kind":       "Job",
-				"apiVersion": "batch/v1",
-			},
-			Resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"kind": "Job",
-					"metadata": map[string]interface{}{
-						"name":      "job",
-						"namespace": "kyma-system",
-					},
-				},
-			},
-			Want: SkipUpdateStrategy,
 		},
 		{
 			Name:     "PVCs should be patched",
@@ -150,14 +119,14 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			Want: PatchUpdateStrategy,
 		},
 		{
-			Name:     "Anything else should be replaced",
+			Name:     "Anything else should be patched",
 			Response: nil,
 			Resource: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"kind": "Foooooo",
 				},
 			},
-			Want: ReplaceUpdateStrategy,
+			Want: PatchUpdateStrategy,
 		},
 	}
 	for _, tc := range testCases {
