@@ -49,6 +49,10 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 }
 
 func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error) {
+	if len(errorStatus) == 0 {
+		return -1, errors.New("errorStatus slice is empty")
+	}
+
 	var maxStatusHistoryLength = maxRetries * 5 //cluster can have three interims state between errors, thus 5 is more than enough
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
