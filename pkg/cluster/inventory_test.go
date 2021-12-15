@@ -275,6 +275,13 @@ func TestInventory(t *testing.T) {
 func TestCountRetries(t *testing.T) {
 	inventory := newInventory(t)
 
+	t.Run("Empty clusterStatus slice", func(t *testing.T) {
+		//count how often retry happened
+		cnt, err := inventory.CountRetries("", 0, 10)
+		require.Error(t, err)
+		require.Equal(t, -1, cnt)
+	})
+
 	t.Run("Calculate retry count for a cluster in status READY", func(t *testing.T) {
 		//create Cluster
 		expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
