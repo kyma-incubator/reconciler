@@ -90,18 +90,17 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		for idx, components := range reconSeq.Queue {
 			priority := idx + 1
 			for _, component := range components {
-				newUuid := uuid.NewString()
 				createOpQ, err := db.NewQuery(r.Conn, &model.OperationEntity{
 					Priority:      int64(priority),
 					SchedulingID:  reconEntity.SchedulingID,
-					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, newUuid),
+					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
 					RuntimeID:     reconEntity.RuntimeID,
 					ClusterConfig: reconEntity.ClusterConfig,
 					Component:     component.Component,
 					State:         model.OperationStateNew,
 					Type:          opType,
 					Updated:       time.Now().UTC(),
-					RetryID:       fmt.Sprintf("%s--%s", reconEntity.SchedulingID, newUuid),
+					RetryID:       uuid.NewString(),
 				}, r.Logger)
 				if err != nil {
 					return nil, err
@@ -415,7 +414,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID
 
 		//update operation-entity
 		op.RetryID = retryID
-		op.Retries = op.Retries + 1
+		op.Retries += 1
 		op.Updated = time.Now().UTC()
 
 		//prepare update query

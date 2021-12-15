@@ -6,17 +6,17 @@ import (
 )
 
 type MockRepository struct {
-	CreateReconciliationResult           *model.ReconciliationEntity
-	RemoveReconciliationResult           error
-	GetReconciliationResult              *model.ReconciliationEntity
-	GetReconciliationsResult             []*model.ReconciliationEntity
-	FinishReconciliationResult           error
-	GetOperationsResult                  []*model.OperationEntity
-	GetOperationResult                   *model.OperationEntity
-	GetProcessableOperationsResult       []*model.OperationEntity
-	GetReconcilingOperationsResult       []*model.OperationEntity
-	UpdateOperationStateResult           error
-	UpdateOperationStateAndRetryIDResult error
+	CreateReconciliationResult     *model.ReconciliationEntity
+	RemoveReconciliationResult     error
+	GetReconciliationResult        *model.ReconciliationEntity
+	GetReconciliationsResult       []*model.ReconciliationEntity
+	FinishReconciliationResult     error
+	GetOperationsResult            []*model.OperationEntity
+	GetOperationResult             *model.OperationEntity
+	GetProcessableOperationsResult []*model.OperationEntity
+	GetReconcilingOperationsResult []*model.OperationEntity
+	UpdateOperationStateResult     error
+	UpdateOperationRetryIDResult   error
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
@@ -60,5 +60,5 @@ func (mr *MockRepository) UpdateOperationState(schedulingID, correlationID strin
 }
 
 func (mr *MockRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
-	return mr.UpdateOperationStateAndRetryIDResult
+	return mr.UpdateOperationRetryIDResult
 }

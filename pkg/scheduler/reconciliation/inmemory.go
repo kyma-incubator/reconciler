@@ -65,9 +65,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	for idx, components := range reconSeq.Queue {
 		priority := idx + 1
 		for _, component := range components {
-			newUuid := uuid.NewString()
-			retryID := fmt.Sprintf("%s--%s", reconEntity.SchedulingID, newUuid)
-			correlationID := fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, newUuid)
+			correlationID := fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString())
 
 			r.operations[reconEntity.SchedulingID][correlationID] = &model.OperationEntity{
 				Priority:      int64(priority),
@@ -79,7 +77,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 				State:         model.OperationStateNew,
 				Type:          opType,
 				Retries:       0,
-				RetryID:       retryID,
+				RetryID:       uuid.NewString(),
 				Created:       time.Now().UTC(),
 				Updated:       time.Now().UTC(),
 			}

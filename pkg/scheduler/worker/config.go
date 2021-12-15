@@ -54,7 +54,6 @@ func (c *Config) validate() error {
 	if c.InvokerRetryDelay == 0 {
 		c.InvokerRetryDelay = defaultInvokerRetryDelay
 	}
-	// do we need to throw an error when the config value is negative? why not set the default value in this case too?
 	if c.MaxOperationRetries < 0 {
 		return fmt.Errorf("invoker max operations retries cannot be < 0 (was %d)", c.MaxOperationRetries)
 	}
