@@ -146,28 +146,35 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 		return metadata, nil
 	}
 
-	original, err := k.newResourceList(&resource.Info{
+	originalInfo := &resource.Info{
 		Client:          restClient,
 		Mapping:         restMapping,
 		Namespace:       u.GetNamespace(),
 		Name:            u.GetName(),
 		ResourceVersion: restMapping.Resource.Version,
-	})
-	if err != nil {
+	}
+
+	var original kube.ResourceList
+	if originalInfo.Get() == nil {
+		original = kube.ResourceList{
+			originalInfo,
+		}
+	}
+
+	if err != nil && !k8serr.IsNotFound(err) {
 		return nil, err
 	}
 
 	//TODO: call intercepters here
 
-	target, err := k.newResourceList(&resource.Info{
-		Client:    restClient,
-		Mapping:   restMapping,
-		Namespace: u.GetNamespace(),
-		Name:      u.GetName(),
-		Object:    u.DeepCopyObject(),
-	})
-	if err != nil {
-		return nil, err
+	target := kube.ResourceList{
+		&resource.Info{
+			Client:    restClient,
+			Mapping:   restMapping,
+			Namespace: u.GetNamespace(),
+			Name:      u.GetName(),
+			Object:    u.DeepCopyObject(),
+		},
 	}
 
 	retryable := func() error {
@@ -198,20 +205,6 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 	}
 
 	return metadata, nil
-}
-
-func (k *KubeClient) newResourceList(info *resource.Info) (kube.ResourceList, error) {
-	var list kube.ResourceList
-	err := info.Get()
-	if err == nil {
-		list = kube.ResourceList{
-			info,
-		}
-	}
-	if err != nil && !k8serr.IsNotFound(err) {
-		return nil, err
-	}
-	return list, nil
 }
 
 func (k *KubeClient) GetClientSet() (*kubernetes.Clientset, error) {
