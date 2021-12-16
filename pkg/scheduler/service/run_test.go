@@ -41,7 +41,7 @@ func TestRuntimeBuilder(t *testing.T) {
 	//register custom 'base' component reconciler for this unittest
 	compRecon, err := service.NewComponentReconciler("base")
 	require.NoError(t, err)
-	compRecon.WithRetry(1, 1*time.Second)
+	compRecon.WithRetryDelay(1 * time.Second)
 
 	t.Run("Run local with success (waiting for CRDs)", func(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{true})

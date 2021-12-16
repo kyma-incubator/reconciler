@@ -110,19 +110,84 @@ CREATE TABLE IF NOT EXISTS scheduler_reconciliations (
 
 --DDL for scheduler operations:
 CREATE TABLE IF NOT EXISTS scheduler_operations (
-    "priority" int NOT NULL,
-    "scheduling_id" text NOT NULL,
-    "correlation_id" text NOT NULL,
-    "runtime_id" text NOT NULL,
-    "cluster_config" int NOT NULL,
-    "component" text NOT NULL,
-    "type" text NOT NULL,
-    "state" text NOT NULL,
-    "reason" text,
-    "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT scheduler_operations_pk UNIQUE ("scheduling_id", "correlation_id"),
-    FOREIGN KEY("scheduling_id") REFERENCES scheduler_reconciliations("scheduling_id") ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY("runtime_id") REFERENCES inventory_clusters("runtime_id") ON UPDATE CASCADE,
-    FOREIGN KEY("cluster_config") REFERENCES inventory_cluster_configs("version")
+                                                    "priority"
+                                                    int
+                                                    NOT
+                                                    NULL,
+                                                    "scheduling_id"
+                                                    text
+                                                    NOT
+                                                    NULL,
+                                                    "correlation_id"
+                                                    text
+                                                    NOT
+                                                    NULL,
+                                                    "runtime_id"
+                                                    text
+                                                    NOT
+                                                    NULL,
+                                                    "cluster_config"
+                                                    int
+                                                    NOT
+                                                    NULL,
+                                                    "component"
+                                                    text
+                                                    NOT
+                                                    NULL,
+                                                    "type"
+                                                    text
+                                                    NOT
+                                                    NULL,
+                                                    "state"
+                                                    text
+                                                    NOT
+                                                    NULL,
+                                                    "reason"
+                                                    text,
+                                                    "retries"
+                                                    int
+                                                    NOT
+                                                    NULL,
+                                                    "retry_id"
+                                                    text
+                                                    NOT
+                                                    NULL,
+                                                    "created"
+                                                    TIMESTAMP
+                                                    DEFAULT
+                                                    CURRENT_TIMESTAMP,
+                                                    "updated"
+                                                    TIMESTAMP
+                                                    DEFAULT
+                                                    CURRENT_TIMESTAMP,
+                                                    CONSTRAINT
+                                                    scheduler_operations_pk
+                                                    UNIQUE
+(
+                                                    "scheduling_id",
+                                                    "correlation_id"
+),
+    FOREIGN KEY
+(
+    "scheduling_id"
+) REFERENCES scheduler_reconciliations
+(
+    "scheduling_id"
+) ON UPDATE CASCADE
+  ON DELETE CASCADE,
+    FOREIGN KEY
+(
+    "runtime_id"
+) REFERENCES inventory_clusters
+(
+    "runtime_id"
+)
+  ON UPDATE CASCADE,
+    FOREIGN KEY
+(
+    "cluster_config"
+) REFERENCES inventory_cluster_configs
+(
+    "version"
+)
 )

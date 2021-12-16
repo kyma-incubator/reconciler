@@ -260,7 +260,7 @@ func newRunner(t *testing.T, preAct, reconcileAct, postAct Action, interval, tim
 
 	recon.Debug().
 		WithWorkspace(workspaceDir).
-		WithRetry(3, 1*time.Second).
+		WithRetryDelay(1*time.Second).
 		WithWorkers(5, timeout).
 		WithHeartbeatSenderConfig(interval, timeout).
 		WithPreReconcileAction(preAct).

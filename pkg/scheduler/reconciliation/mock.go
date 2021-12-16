@@ -16,6 +16,7 @@ type MockRepository struct {
 	GetProcessableOperationsResult []*model.OperationEntity
 	GetReconcilingOperationsResult []*model.OperationEntity
 	UpdateOperationStateResult     error
+	UpdateOperationRetryIDResult   error
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
@@ -56,4 +57,8 @@ func (mr *MockRepository) GetReconcilingOperations() ([]*model.OperationEntity, 
 
 func (mr *MockRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reason ...string) error {
 	return mr.UpdateOperationStateResult
+}
+
+func (mr *MockRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
+	return mr.UpdateOperationRetryIDResult
 }

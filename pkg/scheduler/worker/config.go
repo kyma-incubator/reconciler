@@ -11,6 +11,7 @@ const (
 	defaultOperationCheckInterval = 30 * time.Second
 	defaultInvokerMaxRetries      = 5
 	defaultInvokerRetryDelay      = 5 * time.Second
+	defaultMaxOperationRetries    = 5
 )
 
 type Config struct {
@@ -19,6 +20,7 @@ type Config struct {
 	OperationCheckInterval time.Duration
 	InvokerMaxRetries      int
 	InvokerRetryDelay      time.Duration
+	MaxOperationRetries    int
 }
 
 func (c *Config) validate() error {
@@ -51,6 +53,12 @@ func (c *Config) validate() error {
 	}
 	if c.InvokerRetryDelay == 0 {
 		c.InvokerRetryDelay = defaultInvokerRetryDelay
+	}
+	if c.MaxOperationRetries < 0 {
+		return fmt.Errorf("invoker max operations retries cannot be < 0 (was %d)", c.MaxOperationRetries)
+	}
+	if c.MaxOperationRetries == 0 {
+		c.MaxOperationRetries = defaultMaxOperationRetries
 	}
 	return nil
 }

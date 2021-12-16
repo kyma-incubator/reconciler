@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	defaultMaxRetries = 5
 	defaultInterval   = 30 * time.Second
 	defaultRetryDelay = 30 * time.Second
 	defaultTimeout    = 10 * time.Minute
@@ -41,7 +40,6 @@ type ComponentReconciler struct {
 	deleteAction     Action
 	postDeleteAction Action
 	//retry:
-	maxRetries int
 	retryDelay time.Duration
 	//worker pool:
 	timeout time.Duration
@@ -145,12 +143,6 @@ func (r *ComponentReconciler) validate() error {
 	if r.progressTrackerConfig.timeout == 0 {
 		r.progressTrackerConfig.timeout = defaultTimeout
 	}
-	if r.maxRetries < 0 {
-		return fmt.Errorf("max-retries cannot be < 0 (got %d)", r.maxRetries)
-	}
-	if r.maxRetries == 0 {
-		r.maxRetries = defaultMaxRetries
-	}
 	if r.retryDelay < 0 {
 		return fmt.Errorf("retry-delay cannot be < 0 (got %.1f secs", r.retryDelay.Seconds())
 	}
@@ -191,8 +183,7 @@ func (r *ComponentReconciler) WithDependencies(components ...string) *ComponentR
 	return r
 }
 
-func (r *ComponentReconciler) WithRetry(maxRetries int, retryDelay time.Duration) *ComponentReconciler {
-	r.maxRetries = maxRetries
+func (r *ComponentReconciler) WithRetryDelay(retryDelay time.Duration) *ComponentReconciler {
 	r.retryDelay = retryDelay
 	return r
 }
