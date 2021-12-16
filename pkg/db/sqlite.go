@@ -48,7 +48,7 @@ func (sc *sqliteConnection) Encryptor() *Encryptor {
 }
 
 func (sc *sqliteConnection) Ping() error {
-	sc.logger.Debugf("Postgres Ping()")
+	sc.logger.Debugf("SQLite Ping()")
 	return sc.db.Ping()
 }
 
