@@ -27,7 +27,7 @@ func NewInMemoryReconciliationRepository() Repository {
 }
 
 func (r *InMemoryReconciliationRepository) WithTx(tx *db.TxConnection) (Repository, error) {
-	return nil, fmt.Errorf("transactional behaviour not supported by in-memory reconciliation repository")
+	return r, nil
 }
 
 func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
