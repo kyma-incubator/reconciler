@@ -28,6 +28,7 @@ func TransactionResult(conn Connection, dbOps func(tx *Tx) (interface{}, error),
 		return result, err
 	}
 
+	logger.Debug("DB transaction committed")
 	return result, transaction.tx.Commit()
 }
 
