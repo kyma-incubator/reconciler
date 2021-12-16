@@ -28,7 +28,7 @@ func TransactionResult(conn Connection, dbOps func(tx *Tx) (interface{}, error),
 		return result, err
 	}
 
-	return result, transaction.tx.Commit()
+	return result, transaction.commit()
 }
 
 func Transaction(conn Connection, dbOps func(tx *Tx) error, logger *zap.SugaredLogger) error {
@@ -40,8 +40,9 @@ func Transaction(conn Connection, dbOps func(tx *Tx) error, logger *zap.SugaredL
 }
 
 type Tx struct {
-	tx   *sql.Tx
-	conn Connection
+	tx      *sql.Tx
+	conn    Connection
+	counter uint
 }
 
 func (t *Tx) DB() *sql.DB {
@@ -69,7 +70,16 @@ func (t *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 }
 
 func (t *Tx) Begin() (*Tx, error) {
+	t.counter++
 	return t, nil
+}
+
+func (t *Tx) commit() error {
+	t.counter--
+	if t.counter == 0 {
+		return t.tx.Commit()
+	}
+	return nil
 }
 
 func (t *Tx) Close() error {
