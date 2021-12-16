@@ -70,17 +70,6 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		i.reportUnmarshalError(resp.StatusCode, body, err)
 	}
 
-	if resp.StatusCode == http.StatusPreconditionRequired {
-		//component-reconciler can not start because dependencies are missing
-		respModel := &reconciler.HTTPMissingDependenciesResponse{}
-		err := i.unmarshalHTTPResponse(body, respModel, params)
-		if err == nil {
-			return i.updateOperationState(params, model.OperationStateFailed,
-				fmt.Sprintf("dependencies are missing: '%s'", strings.Join(respModel.Dependencies.Missing, "', '")))
-		}
-		i.reportUnmarshalError(resp.StatusCode, body, err)
-	}
-
 	if resp.StatusCode >= 400 && resp.StatusCode <= 499 {
 		//component-reconciler can not start because dependencies are missing
 		respModel := &reconciler.HTTPErrorResponse{}

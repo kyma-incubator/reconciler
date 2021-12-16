@@ -42,10 +42,6 @@ func TestReconciler(t *testing.T) {
 		require.Equal(t, 111, recon.maxRetries)
 		require.Equal(t, 222*time.Second, recon.retryDelay)
 
-		//verify dependencies
-		recon.WithDependencies("a", "b", "c")
-		require.Equal(t, []string{"a", "b", "c"}, recon.dependencies)
-
 		//verify pre, post and install-action
 		preAct := &DummyAction{
 			"123",

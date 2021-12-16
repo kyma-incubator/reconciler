@@ -29,7 +29,6 @@ var (
 
 type ComponentReconciler struct {
 	workspace             string
-	dependencies          []string
 	heartbeatSenderConfig heartbeatSenderConfig
 	progressTrackerConfig progressTrackerConfig
 	//reconcile actions:
@@ -183,14 +182,6 @@ func (r *ComponentReconciler) WithWorkspace(workspace string) *ComponentReconcil
 	return r
 }
 
-//Deprecated: support for dependencies will be dropped with https://github.com/kyma-incubator/reconciler/issues/278
-//Please implement a component reconciler in way that it can verify its dependencies internally or
-//ensure that it will work after the reconciler was retried and the dependency became available.
-func (r *ComponentReconciler) WithDependencies(components ...string) *ComponentReconciler {
-	r.dependencies = components
-	return r
-}
-
 func (r *ComponentReconciler) WithRetry(maxRetries int, retryDelay time.Duration) *ComponentReconciler {
 	r.maxRetries = maxRetries
 	r.retryDelay = retryDelay
@@ -268,7 +259,7 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) (*WorkerPool, err
 	if err := r.validate(); err != nil {
 		return nil, err
 	}
-	return newWorkerPoolBuilder(&dependencyChecker{r.dependencies}, r.newRunnerFunc).
+	return newWorkerPoolBuilder(r.newRunnerFunc).
 		WithPoolSize(r.workers).
 		WithDebug(r.debug).
 		Build(ctx)

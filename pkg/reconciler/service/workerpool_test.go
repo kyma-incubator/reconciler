@@ -17,11 +17,11 @@ func TestWorkerPool(t *testing.T) {
 		require.NoError(t, err)
 
 		//configure reconciler
-		recon.Debug().WithDependencies("a", "b")
+		recon.Debug()
 
 		ctx, cancel := context.WithCancel(context.TODO())
 
-		wp, err := newWorkerPoolBuilder(&dependencyChecker{}, newRunnerFct()).
+		wp, err := newWorkerPoolBuilder(newRunnerFct()).
 			WithPoolSize(5).
 			WithDebug(true).
 			Build(ctx)
@@ -31,7 +31,6 @@ func TestWorkerPool(t *testing.T) {
 		require.NotEmpty(t, wp.logger)
 		require.True(t, wp.debug)
 		require.NotEmpty(t, wp.newRunnerFct)
-		require.IsType(t, &dependencyChecker{}, wp.depChecker)
 
 		//shutdown pool
 		cancel()
