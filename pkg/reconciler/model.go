@@ -30,26 +30,26 @@ func NewStatus(status string) (Status, error) {
 	}
 }
 
-type ReconcilerConfiguration struct {
+type ComponentConfiguration struct {
 	MaxRetries int `json:"maxRetries"`
 }
 
 //Task the reconciler has to complete when called
 type Task struct {
-	ComponentsReady         []string                `json:"componentsReady"`
-	Component               string                  `json:"component"`
-	Namespace               string                  `json:"namespace"`
-	Version                 string                  `json:"version"`
-	URL                     string                  `json:"url"`
-	Profile                 string                  `json:"profile"`
-	Configuration           map[string]interface{}  `json:"configuration"`
-	Kubeconfig              string                  `json:"kubeconfig"`
-	Metadata                keb.Metadata            `json:"metadata"`
-	CallbackURL             string                  `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
-	CorrelationID           string                  `json:"correlationID"`
-	Repository              *Repository             `json:"repository"`
-	Type                    model.OperationType     `json:"type"` // Supported task types are: reconcile, delete
-	ReconcilerConfiguration ReconcilerConfiguration `json:"reconcilerConfiguration"`
+	ComponentsReady         []string               `json:"componentsReady"`
+	Component               string                 `json:"component"`
+	Namespace               string                 `json:"namespace"`
+	Version                 string                 `json:"version"`
+	URL                     string                 `json:"url"`
+	Profile                 string                 `json:"profile"`
+	Configuration           map[string]interface{} `json:"configuration"`
+	Kubeconfig              string                 `json:"kubeconfig"`
+	Metadata                keb.Metadata           `json:"metadata"`
+	CallbackURL             string                 `json:"callbackURL"` //CallbackURL is mandatory when component-reconciler runs in separate process
+	CorrelationID           string                 `json:"correlationID"`
+	Repository              *Repository            `json:"repository"`
+	Type                    model.OperationType    `json:"type"` // Supported task types are: reconcile, delete
+	ReconcilerConfiguration ComponentConfiguration `json:"reconcilerConfiguration"`
 
 	//These fields are not part of HTTP request coming from reconciler-controller:
 	CallbackFunc func(msg *CallbackMessage) error `json:"-"` //CallbackFunc is mandatory when component-reconciler runs embedded in another process

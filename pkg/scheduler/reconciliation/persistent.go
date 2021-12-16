@@ -423,7 +423,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID
 
 		//update operation-entity
 		op.RetryID = retryID
-		op.Retries += 1
+		op.Retries++
 		op.Updated = time.Now().UTC()
 
 		//prepare update query
