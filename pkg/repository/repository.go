@@ -22,10 +22,10 @@ func NewRepository(conn db.Connection, debug bool) (*Repository, error) {
 	}, nil
 }
 
-func (r *Repository) TransactionalResult(dbOps func(tx *db.Tx) (interface{}, error)) (interface{}, error) {
+func (r *Repository) TransactionalResult(dbOps func(tx *db.TxConnection) (interface{}, error)) (interface{}, error) {
 	return db.TransactionResult(r.Conn, dbOps, r.Logger)
 }
 
-func (r *Repository) Transactional(dbOps func(tx *db.Tx) error) error {
+func (r *Repository) Transactional(dbOps func(tx *db.TxConnection) error) error {
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }

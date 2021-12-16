@@ -26,7 +26,7 @@ func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repos
 	return &PersistentReconciliationRepository{repo}, nil
 }
 
-func (r *PersistentReconciliationRepository) WithTx(tx *db.Tx) (Repository, error) {
+func (r *PersistentReconciliationRepository) WithTx(tx *db.TxConnection) (Repository, error) {
 	return NewPersistedReconciliationRepository(tx, r.Debug)
 }
 
@@ -35,7 +35,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		return nil, newEmptyComponentsReconciliationError(state)
 	}
 
-	dbOps := func(tx *db.Tx) (interface{}, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		reconEntity := &model.ReconciliationEntity{
 			Lock:                state.Cluster.RuntimeID,
 			RuntimeID:           state.Cluster.RuntimeID,
@@ -138,7 +138,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 }
 
 func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID string) error {
-	dbOps := func(tx *db.Tx) error {
+	dbOps := func(tx *db.TxConnection) error {
 		whereCond := map[string]interface{}{
 			"SchedulingID": schedulingID,
 		}
@@ -189,7 +189,7 @@ func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID stri
 }
 
 func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error {
-	dbOps := func(tx *db.Tx) error {
+	dbOps := func(tx *db.TxConnection) error {
 		//get running reconciliation
 		reconEntity, err := r.GetReconciliation(schedulingID)
 		if err != nil {
@@ -353,7 +353,7 @@ func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*mode
 }
 
 func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
-	dbOps := func(tx *db.Tx) error {
+	dbOps := func(tx *db.TxConnection) error {
 		op, err := r.GetOperation(schedulingID, correlationID)
 		if err != nil {
 			if repository.IsNotFoundError(err) {

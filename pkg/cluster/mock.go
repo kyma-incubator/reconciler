@@ -26,7 +26,7 @@ type MockInventory struct {
 	RetriesCount              int
 }
 
-func (i *MockInventory) WithTx(tx *db.Tx) (Inventory, error) {
+func (i *MockInventory) WithTx(tx *db.TxConnection) (Inventory, error) {
 	return i, nil
 }
 

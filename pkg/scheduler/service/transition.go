@@ -40,7 +40,7 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 }
 
 func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVersion int64, preComponents [][]string) error {
-	dbOp := func(tx *db.Tx) error {
+	dbOp := func(tx *db.TxConnection) error {
 		inventory, err := t.inventory.WithTx(tx)
 		if err != nil {
 			return err
@@ -51,7 +51,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 			return err
 		}
 
-		recons, err := t.reconRepo.GetReconciliations(&reconciliation.CurrentlyReconcilingWithRuntimeID{
+		recons, err := reconRepo.GetReconciliations(&reconciliation.CurrentlyReconcilingWithRuntimeID{
 			RuntimeID: runtimeID,
 		})
 		if err != nil {
@@ -124,7 +124,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 }
 
 func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, status model.Status) error {
-	dbOp := func(tx *db.Tx) error {
+	dbOp := func(tx *db.TxConnection) error {
 		inventory, err := t.inventory.WithTx(tx)
 		if err != nil {
 			return err

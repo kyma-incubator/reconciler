@@ -89,13 +89,13 @@ func (pc *postgresConnection) Exec(query string, args ...interface{}) (sql.Resul
 	return result, err
 }
 
-func (pc *postgresConnection) Begin() (*Tx, error) {
+func (pc *postgresConnection) Begin() (*TxConnection, error) {
 	pc.logger.Debug("Postgres Begin()")
 	tx, err := pc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return nil, err
 	}
-	return &Tx{tx, pc}, nil
+	return &TxConnection{tx: tx, conn: pc, counter: 1, logger: pc.logger}, nil
 }
 
 func (pc *postgresConnection) Close() error {

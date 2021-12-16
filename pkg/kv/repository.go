@@ -145,7 +145,7 @@ func (cer *Repository) CreateKey(key *model.KeyEntity) (*model.KeyEntity, error)
 
 func (cer *Repository) DeleteKey(key string) error {
 	//bundle DB operations
-	dbOps := func(tx *db.Tx) error {
+	dbOps := func(tx *db.TxConnection) error {
 		//delete all cache entities which were using a value of this key
 		if err := cer.CacheDep.Invalidate().WithKey(key).Exec(false); err != nil {
 			return err
@@ -350,7 +350,7 @@ func (cer *Repository) CreateValue(value *model.ValueEntity) (*model.ValueEntity
 	}
 
 	//insert operation
-	dbOps := func(tx *db.Tx) (interface{}, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		//add value entity
 		q, err := db.NewQuery(tx, value, cer.Logger)
 		if err != nil {
@@ -381,7 +381,7 @@ func (cer *Repository) CreateValue(value *model.ValueEntity) (*model.ValueEntity
 
 func (cer *Repository) DeleteValue(key, bucket string) error {
 	//bundle DB operations
-	dbOps := func(tx *db.Tx) error {
+	dbOps := func(tx *db.TxConnection) error {
 		//delete all cache entities which were using a value of this key in this bucket
 		if err := cer.CacheDep.Invalidate().WithKey(key).WithBucket(bucket).Exec(false); err != nil {
 			return err
@@ -459,7 +459,7 @@ func (cer *Repository) bucketNames() ([]string, error) {
 }
 
 func (cer *Repository) DeleteBucket(bucket string) error {
-	dbOps := func(tx *db.Tx) error {
+	dbOps := func(tx *db.TxConnection) error {
 		//invalidate all cache entities which were using values from this bucket
 		if err := cer.CacheDep.Invalidate().WithBucket(bucket).Exec(false); err != nil {
 			return err

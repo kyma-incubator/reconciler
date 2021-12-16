@@ -60,6 +60,6 @@ func (mr *MockRepository) UpdateOperationState(schedulingID, correlationID strin
 	return mr.UpdateOperationStateResult
 }
 
-func (mr *MockRepository) WithTx(tx *db.Tx) (Repository, error) {
+func (mr *MockRepository) WithTx(tx *db.TxConnection) (Repository, error) {
 	return nil, fmt.Errorf("transactional behaviour not supported by mock reconciliation repository")
 }

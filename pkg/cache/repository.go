@@ -86,7 +86,7 @@ func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model
 	}
 
 	//create new cache entry and track its dependencies
-	dbOps := func(tx *db.Tx) (interface{}, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		q, err := db.NewQuery(tx, cacheEntry, cr.Logger)
 		if err != nil {
 			return cacheEntry, err
@@ -109,7 +109,7 @@ func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model
 }
 
 func (cr *Repository) Invalidate(label, runtimeID string) error {
-	dbOps := func(tx *db.Tx) error {
+	dbOps := func(tx *db.TxConnection) error {
 		//invalidate the cache entity and drop all tracked dependencies
 		if err := cr.CacheDep.Invalidate().WithLabel(label).WithRuntimeID(runtimeID).Exec(false); err != nil {
 			return err
@@ -132,7 +132,7 @@ func (cr *Repository) Invalidate(label, runtimeID string) error {
 }
 
 func (cr *Repository) InvalidateByID(id int64) error {
-	dbOps := func(tx *db.Tx) error {
+	dbOps := func(tx *db.TxConnection) error {
 		//invalidate the cache entity and drop all tracked dependencies
 		if err := cr.CacheDep.Invalidate().WithCacheID(id).Exec(false); err != nil {
 			return err

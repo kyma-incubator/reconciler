@@ -26,7 +26,7 @@ func NewInMemoryReconciliationRepository() Repository {
 	}
 }
 
-func (r *InMemoryReconciliationRepository) WithTx(tx *db.Tx) (Repository, error) {
+func (r *InMemoryReconciliationRepository) WithTx(tx *db.TxConnection) (Repository, error) {
 	return nil, fmt.Errorf("transactional behaviour not supported by in-memory reconciliation repository")
 }
 
