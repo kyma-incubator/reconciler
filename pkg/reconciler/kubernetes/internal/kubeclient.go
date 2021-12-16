@@ -3,10 +3,11 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"github.com/avast/retry-go"
 	"helm.sh/helm/v3/pkg/kube"
-	k8serr "k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/yaml"
 	"strings"
 
 	"go.uber.org/zap"
@@ -146,41 +147,21 @@ func (k *KubeClient) ApplyWithNamespaceOverride(u *unstructured.Unstructured, na
 		return metadata, nil
 	}
 
-	originalInfo := &resource.Info{
-		Client:    restClient,
-		Mapping:   restMapping,
-		Namespace: u.GetNamespace(),
-		Name:      u.GetName(),
-	}
+	//TODO: call intercepters here
 
-	var original kube.ResourceList
-	if err := originalInfo.Get(); err == nil {
-		original.Append(originalInfo)
-	} else if !k8serr.IsNotFound(err) {
+	manifest, err := yaml.Marshal(u)
+	if err != nil {
 		return nil, err
 	}
 
-	//TODO: call intercepters here
-
-	targetInfo := &resource.Info{
-		Client:    restClient,
-		Mapping:   restMapping,
-		Namespace: u.GetNamespace(),
-		Name:      u.GetName(),
+	resourceList, err := k.helmClient.Build(bytes.NewBuffer(manifest), false)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to build kubernetes objects from current manifest")
 	}
-
-	var target kube.ResourceList
-	if originalInfo.Object != nil { //object exists in K8s
-		if err := targetInfo.Get(); err != nil {
-			return nil, err
-		}
-	}
-	targetInfo.Object = u.DeepCopyObject()
-	target.Append(targetInfo)
 
 	retryable := func() error {
 		replaceResource := strategy == ReplaceUpdateStrategy
-		result, err := k.helmClient.Update(original, target, replaceResource)
+		result, err := k.helmClient.Update(resourceList, resourceList, replaceResource)
 		if err == nil {
 			k.logger.Debugf("kubeClient updated %s '%s' (namespace: %s) with stategy '%s' successfully "+
 				"(create:%d/update:%d/delete:%d)",
