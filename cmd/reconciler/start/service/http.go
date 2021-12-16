@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/http/httputil"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -98,12 +97,7 @@ func modelForVersion(contractVersion string) (*reconciler.Task, error) {
 }
 
 func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o *reconCli.Options, workerPool *service.WorkerPool) {
-	dump, err := httputil.DumpRequest(req, true)
-	if err == nil {
-		o.Logger().Debug("Start processing reconciliation request: %s", string(dump))
-	} else {
-		o.Logger().Warnf("REST endpoint failed to dump http request for debugging purposes: %s", err)
-	}
+	o.Logger().Debug("Start processing reconciliation request")
 
 	//marshal model
 	model, err := newModel(req)
