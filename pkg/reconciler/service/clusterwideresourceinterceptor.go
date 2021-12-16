@@ -35,23 +35,23 @@ func newClusterWideResourceInterceptor() *ClusterWideResourceInterceptor {
 	return &ClusterWideResourceInterceptor{
 		clusterWideResources: []clusterWideResource{
 			{
-				kind:       "clusterrolebindings",
+				kind:       "clusterrolebinding",
 				apiVersion: "rbac.authorization.k8s.io/v1",
 			},
 			{
-				kind:       "clusterroles",
+				kind:       "clusterrole",
 				apiVersion: "rbac.authorization.k8s.io/v1",
 			},
 			{
-				kind:       "mutatingwebhookconfigurations",
+				kind:       "mutatingwebhookconfiguration",
 				apiVersion: "admissionregistration.k8s.io/v1",
 			},
 			{
-				kind:       "validatingwebhookconfigurations",
+				kind:       "validatingwebhookconfiguration",
 				apiVersion: "admissionregistration.k8s.io/v1",
 			},
 			{
-				kind:       "podsecuritypolicies",
+				kind:       "podsecuritypolicy",
 				apiVersion: "policy/v1beta1",
 			},
 		},
