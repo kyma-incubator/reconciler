@@ -31,11 +31,11 @@ func TestClusterWideResourceInterceptor_Intercept(t *testing.T) {
 			expectedNamespace: "foo",
 		},
 		{
-			name: "Should clear namespace for rbac.authorization.k8s.io/v1/ClusterRoles",
+			name: "Should clear namespace for rbac.authorization.k8s.io/v1/ClusterRole",
 			resource: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "rbac.authorization.k8s.io/v1",
-					"kind":       "ClusterRoles",
+					"kind":       "ClusterRole",
 					"metadata": map[string]interface{}{
 						"namespace": "foo",
 					},
@@ -45,11 +45,11 @@ func TestClusterWideResourceInterceptor_Intercept(t *testing.T) {
 			expectedNamespace: "",
 		},
 		{
-			name: "Should not clear namespace for yada/ClusterRoles",
+			name: "Should not clear namespace for yada/ClusterRole",
 			resource: &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "yada",
-					"kind":       "ClusterRoles",
+					"kind":       "ClusterRole",
 					"metadata": map[string]interface{}{
 						"namespace": "foo",
 					},
