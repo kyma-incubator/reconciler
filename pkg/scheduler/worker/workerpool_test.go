@@ -4,7 +4,6 @@ import (
 	"context"
 	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/pkg/errors"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -95,9 +94,9 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
 		//prepare keb clusters
-		kebClusters := []*keb.Cluster{kebTest.NewCluster(t, strconv.Itoa(1), 1, false, kebTest.OneComponentDummy),
-			kebTest.NewCluster(t, strconv.Itoa(2), 1, false, kebTest.OneComponentDummy),
-			kebTest.NewCluster(t, strconv.Itoa(3), 1, false, kebTest.OneComponentDummy),
+		kebClusters := []*keb.Cluster{kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy),
+			kebTest.NewCluster(t, "2", 1, false, kebTest.OneComponentDummy),
+			kebTest.NewCluster(t, "3", 1, false, kebTest.OneComponentDummy),
 		}
 
 		//create mock database connection

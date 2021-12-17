@@ -77,6 +77,18 @@ func (t *TxConnection) Begin() (*TxConnection, error) {
 	return t, nil
 }
 
+func (t *TxConnection) Close() error {
+	return t.conn.Close()
+}
+
+func (t *TxConnection) Type() Type {
+	return t.conn.Type()
+}
+
+func (t *TxConnection) GetTx() *sql.Tx {
+	return t.tx
+}
+
 func (t *TxConnection) commit() error {
 	t.decreaseCounter()
 	if t.counter == 0 {
@@ -96,12 +108,4 @@ func (t *TxConnection) decreaseCounter() {
 	t.Lock()
 	defer t.Unlock()
 	t.counter--
-}
-
-func (t *TxConnection) Close() error {
-	return t.conn.Close()
-}
-
-func (t *TxConnection) Type() Type {
-	return t.conn.Type()
 }

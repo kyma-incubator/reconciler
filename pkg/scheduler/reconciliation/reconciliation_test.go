@@ -6,6 +6,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/stretchr/testify/require"
@@ -672,6 +673,57 @@ func dbConnection(t *testing.T) db.Connection {
 		dbConn = db.NewTestConnection(t)
 	}
 	return dbConn
+}
+
+func TestTransaction(t *testing.T) {
+	//new db connection
+	dbConn := db.NewTestConnection(t)
+
+	//create inventory
+	reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
+	require.NoError(t, err)
+
+	dbOp := func(tx *db.TxConnection) error {
+
+		//converts inventory with given tx
+		reconRepoTx, err := reconRepo.WithTx(tx)
+		require.NoError(t, err)
+
+		//prepare inventory
+		inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
+		require.NoError(t, err)
+
+		//add clusters to inventory
+		clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+		require.NoError(t, err)
+		clusterState2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.OneComponentDummy))
+		require.NoError(t, err)
+
+		//create two clusters
+		_, err = reconRepoTx.CreateReconciliation(clusterState, nil)
+		require.NoError(t, err)
+		_, err = reconRepoTx.CreateReconciliation(clusterState2, nil)
+		require.NoError(t, err)
+
+		//check if reconciliations are created
+		recons, err := reconRepoTx.GetReconciliations(nil)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(recons))
+
+		//rollback transactions
+		require.NoError(t, tx.GetTx().Rollback())
+
+		//check if reconciliations are rolled back
+		recons, err = reconRepo.GetReconciliations(nil)
+		require.NoError(t, err)
+		require.Equal(t, 0, len(recons))
+
+		return err
+	}
+	require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
+	t.Run("Rollback nested transactions", func(t *testing.T) {
+
+	})
 }
 
 func TestReconciliationParallel(t *testing.T) {

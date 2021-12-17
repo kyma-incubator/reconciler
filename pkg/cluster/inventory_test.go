@@ -8,6 +8,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/stretchr/testify/require"
@@ -144,7 +145,7 @@ func TestInventory(t *testing.T) {
 		inventory := newInventory(t)
 
 		//create cluster1, clusterVersion1, clusterConfigVersion1-1, status: Ready
-		cluster1v1v1 := test.NewCluster(t, strconv.Itoa(1), 1, false, test.Production)
+		cluster1v1v1 := test.NewCluster(t, "1", 1, false, test.Production)
 		clusterState1v1v1a, err := inventory.CreateOrUpdate(1, cluster1v1v1)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, clusterState1v1v1a.Status.Status)
@@ -153,19 +154,19 @@ func TestInventory(t *testing.T) {
 		require.Equal(t, model.ClusterStatusReady, clusterState1v1v1b.Status.Status)
 
 		//create cluster1, clusterVersion2, clusterConfigVersion2-2, status: ReconcilePending
-		cluster1v2v2 := test.NewCluster(t, strconv.Itoa(1), 2, true, test.Production)
+		cluster1v2v2 := test.NewCluster(t, "1", 2, true, test.Production)
 		expectedClusterState1v2v2, err := inventory.CreateOrUpdate(1, cluster1v2v2) //<- EXPECTED STATE
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, expectedClusterState1v2v2.Status.Status)
 
 		//create cluster2, clusterVersion1, clusterConfigVersion1-1, status: ReconcilePending
-		cluster2v1v1 := test.NewCluster(t, strconv.Itoa(2), 1, false, test.Production)
+		cluster2v1v1 := test.NewCluster(t, "2", 1, false, test.Production)
 		clusterState2v1v1, err := inventory.CreateOrUpdate(1, cluster2v1v1)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, clusterState2v1v1.Status.Status)
 
 		//create cluster2, clusterVersion1, clusterConfigVersion1-2, status: Error
-		cluster2v1v2 := test.NewCluster(t, strconv.Itoa(2), 1, true, test.Production)
+		cluster2v1v2 := test.NewCluster(t, "2", 1, true, test.Production)
 		clusterState2v1v2a, err := inventory.CreateOrUpdate(1, cluster2v1v2)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, clusterState2v1v2a.Status.Status)
@@ -182,7 +183,7 @@ func TestInventory(t *testing.T) {
 		require.Equal(t, model.ClusterStatusDeleting, expectedCluster2State2b.Status.Status)
 
 		//create cluster3, clusterVersion1, clusterConfigVersion1-1, status: Error
-		cluster3v1v1 := test.NewCluster(t, strconv.Itoa(3), 1, false, test.Production)
+		cluster3v1v1 := test.NewCluster(t, "3", 1, false, test.Production)
 		clusterState3v1v1a, err := inventory.CreateOrUpdate(1, cluster3v1v1)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusReconcilePending, clusterState3v1v1a.Status.Status)
@@ -194,26 +195,26 @@ func TestInventory(t *testing.T) {
 		require.Equal(t, model.ClusterStatusReconcileError, expectedClusterState3v1v1c.Status.Status)
 
 		//create cluster4, clusterVersion1, clusterConfigVersion1-1, status: ReconcilePending
-		cluster4v1v1 := test.NewCluster(t, strconv.Itoa(4), 1, false, test.Production)
+		cluster4v1v1 := test.NewCluster(t, "4", 1, false, test.Production)
 		_, err = inventory.CreateOrUpdate(1, cluster4v1v1)
 		require.NoError(t, err)
 
 		//create cluster4, clusterVersion1, clusterConfigVersion1-2, status: Ready
-		cluster4v1v2 := test.NewCluster(t, strconv.Itoa(4), 1, true, test.Production)
+		cluster4v1v2 := test.NewCluster(t, "4", 1, true, test.Production)
 		clusterState4v1v2, err := inventory.CreateOrUpdate(1, cluster4v1v2)
 		require.NoError(t, err)
 		_, err = inventory.UpdateStatus(clusterState4v1v2, model.ClusterStatusReady)
 		require.NoError(t, err)
 
 		//create cluster4, clusterVersion2, clusterConfigVersion1-1, status: ReconcilePending
-		cluster4v2v1 := test.NewCluster(t, strconv.Itoa(4), 2, false, test.Production)
+		cluster4v2v1 := test.NewCluster(t, "4", 2, false, test.Production)
 		clusterState4v2v1, err := inventory.CreateOrUpdate(1, cluster4v2v1)
 		require.NoError(t, err)
 		_, err = inventory.UpdateStatus(clusterState4v2v1, model.ClusterStatusReady)
 		require.NoError(t, err)
 
 		//create cluster4, clusterVersion2, clusterConfigVersion1-2, status: Ready
-		cluster4v2v2 := test.NewCluster(t, strconv.Itoa(4), 2, true, test.Production)
+		cluster4v2v2 := test.NewCluster(t, "4", 2, true, test.Production)
 		clusterState4v2v2a, err := inventory.CreateOrUpdate(1, cluster4v2v2)
 		require.NoError(t, err)
 		expectedClusterState4v2v2b, err := inventory.UpdateStatus(clusterState4v2v2a, model.ClusterStatusReady) //<-EXPECTED STATE
@@ -317,6 +318,54 @@ func TestCountRetries(t *testing.T) {
 		require.Equal(t, expectedErrRetryable, cnt)
 	})
 }
+
+func TestTransaction(t *testing.T) {
+	//new db connection
+	dbConn := db.NewTestConnection(t)
+
+	//create inventory
+	inventory, err := NewInventory(dbConn, true, MetricsCollectorMock{})
+	require.NoError(t, err)
+
+	dbOp := func(tx *db.TxConnection) error {
+
+		//converts inventory with given tx
+		inventory, err := inventory.WithTx(tx)
+		require.NoError(t, err)
+
+		//create two clusters
+		clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+		require.NoError(t, err)
+		clusterState2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.OneComponentDummy))
+		require.NoError(t, err)
+
+		//check if clusters are created
+		state, err := inventory.Get(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version)
+		require.NoError(t, err)
+		require.NotNil(t, state)
+		state2, err := inventory.Get(clusterState2.Cluster.RuntimeID, clusterState2.Configuration.Version)
+		require.NoError(t, err)
+		require.NotNil(t, state2)
+
+		//rollback transactions
+		require.NoError(t, tx.GetTx().Rollback())
+
+		//check if cluster creations are rolled back
+		state, err = inventory.Get(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version)
+		require.Error(t, err)
+		require.Nil(t, state)
+		state2, err = inventory.Get(clusterState2.Cluster.RuntimeID, clusterState2.Configuration.Version)
+		require.Error(t, err)
+		require.Nil(t, state2)
+
+		return err
+	}
+	require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
+	t.Run("Rollback nested transactions", func(t *testing.T) {
+
+	})
+}
+
 func listStatuses(states []*State) []model.Status {
 	var result []model.Status
 	for _, state := range states {
