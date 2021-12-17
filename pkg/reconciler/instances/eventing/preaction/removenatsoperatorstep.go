@@ -2,7 +2,6 @@ package preaction
 
 import (
 	"strings"
-	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -15,7 +14,6 @@ import (
 )
 
 const (
-	namespace                  = "kyma-system"
 	removeNatsOperatorStepName = "removeNatsOperator"
 	natsOperatorLastVersion    = "1.24.7"
 	natsSubChartPath           = "eventing/charts/nats"
@@ -23,8 +21,6 @@ const (
 	oldConfigValue             = "global.image.repository"
 	newConfigValue             = "eu.gcr.io/kyma-project"
 	crdPlural                  = "customresourcedefinitions"
-	progressTrackerInterval    = 5 * time.Second
-	progressTrackerTimeout     = 2 * time.Minute
 )
 
 var (
