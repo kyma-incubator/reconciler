@@ -70,18 +70,23 @@ func (rs *ReconciliationResult) GetResult() model.Status {
 			break
 		}
 	}
-	if len(rs.other) > 0 { //Attention: has always to be evaluated first!
+	//this if-clause has always to be evaluated first:
+	//if one operation is not in a final state, the cluster is still in reconciling-state
+	if len(rs.other) > 0 {
 		if isDelete {
 			return model.ClusterStatusDeleting
 		}
 		return model.ClusterStatusReconciling
 	}
+	//this if-clause has always to be evaluated as second check:
+	//as soon as one operation is in an error state, the cluster is marked to be in error-state
 	if len(rs.error) > 0 {
 		if isDelete {
 			return model.ClusterStatusDeleteError
 		}
 		return model.ClusterStatusReconcileError
 	}
+	//only if no operations are ongoing or in an error state, a cluster can be set to ready-state
 	if len(rs.done) > 0 {
 		if isDelete {
 			return model.ClusterStatusDeleted
