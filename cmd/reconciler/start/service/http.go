@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/http/httputil"
-	"strings"
 
 	"github.com/gorilla/mux"
 	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
@@ -98,12 +96,7 @@ func modelForVersion(contractVersion string) (*reconciler.Task, error) {
 }
 
 func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o *reconCli.Options, workerPool *service.WorkerPool) {
-	dump, err := httputil.DumpRequest(req, true)
-	if err == nil {
-		o.Logger().Debug("Start processing reconciliation request: %s", string(dump))
-	} else {
-		o.Logger().Warnf("REST endpoint failed to dump http request for debugging purposes: %s", err)
-	}
+	o.Logger().Debug("Start processing reconciliation request")
 
 	//marshal model
 	model, err := newModel(req)
@@ -120,20 +113,6 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 	if err := model.Validate(); err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
 			Error: err.Error(),
-		})
-		return
-	}
-
-	//check whether all dependencies are fulfilled
-	depCheck := workerPool.CheckDependencies(model)
-	if depCheck.DependencyMissing() {
-		o.Logger().Debugf("Model '%s' not reconcilable because dependencies are missing: '%s'",
-			model, strings.Join(depCheck.Missing, "', '"))
-		server.SendHTTPError(w, http.StatusPreconditionRequired, reconciler.HTTPMissingDependenciesResponse{
-			Dependencies: reconciler.Dependencies{
-				Required: depCheck.Required,
-				Missing:  depCheck.Missing,
-			},
 		})
 		return
 	}

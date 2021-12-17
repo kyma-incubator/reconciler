@@ -95,7 +95,7 @@ func newComponentReconciler(t *testing.T) *service.ComponentReconciler {
 	recon, err := service.NewComponentReconciler(componentReconcilerName) //register brand new component reconciler
 	require.NoError(t, err)
 	//configure reconciler
-	return recon.Debug().WithDependencies("abc", "xyz") //nolint:staticcheck // Ignore SA1019 requires refactor
+	return recon.Debug()
 }
 
 func startReconciler(ctx context.Context, t *testing.T) {
@@ -143,27 +143,6 @@ func post(t *testing.T, testCase testCase) interface{} {
 func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 	//execute test cases
 	testCases := []testCase{
-		{
-			name: "Missing dependencies",
-			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "def"},
-				Component:       componentName,
-				Namespace:       componentNamespace,
-				Version:         "1.2.3",
-				Type:            model.OperationTypeReconcile,
-				Profile:         "unittest",
-				Configuration:   nil,
-				Kubeconfig:      "xyz",
-				CorrelationID:   "test-correlation-id",
-			},
-			expectedHTTPCode: http.StatusPreconditionRequired,
-			expectedResponse: &reconciler.HTTPMissingDependenciesResponse{},
-			verifyResponseFct: func(t *testing.T, responseModel interface{}) {
-				resp := responseModel.(*reconciler.HTTPMissingDependenciesResponse)
-				require.Equal(t, []string{"abc", "xyz"}, resp.Dependencies.Required)
-				require.Equal(t, []string{"xyz"}, resp.Dependencies.Missing)
-			},
-		},
 		{
 			name: "Invalid request: mandatory fields missing",
 			model: &reconciler.Task{

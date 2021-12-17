@@ -21,15 +21,13 @@ type WorkerPool struct {
 	logger       *zap.SugaredLogger
 	antsPool     *ants.Pool
 	newRunnerFct func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error
-	depChecker   *dependencyChecker
 }
 
-func newWorkerPoolBuilder(depChecker *dependencyChecker, newRunnerFct func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error) *workPoolBuilder {
+func newWorkerPoolBuilder(newRunnerFct func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error) *workPoolBuilder {
 	return &workPoolBuilder{
 		poolSize: defaultWorkers,
 		workerPool: &WorkerPool{
 			newRunnerFct: newRunnerFct,
-			depChecker:   depChecker,
 		},
 	}
 }
@@ -64,10 +62,6 @@ func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
 	}(ctx, antsPool)
 
 	return pb.workerPool, nil
-}
-
-func (wa *WorkerPool) CheckDependencies(model *reconciler.Task) *DependencyCheck {
-	return wa.depChecker.newDependencyCheck(model)
 }
 
 func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Task) error {

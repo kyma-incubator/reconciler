@@ -2,8 +2,9 @@ package kubernetes
 
 import (
 	"fmt"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 type cache map[string][]*unstructured.Unstructured
@@ -67,6 +68,17 @@ func (r *ResourceList) Visit(callback func(u *unstructured.Unstructured) error) 
 
 func (r *ResourceList) VisitByKind(kind string, callback func(u *unstructured.Unstructured) error) error {
 	return r.visit(r.cache.GetKind(kind), callback)
+}
+
+func (r *ResourceList) VisitByKindAndAPIVersion(kind string, apiversion string, callback func(u *unstructured.Unstructured) error) error {
+	cachedByKind := r.cache.GetKind(kind)
+	cachedByKindAndVersion := make([]*unstructured.Unstructured, 0)
+	for i := range cachedByKind {
+		if cachedByKind[i].GetAPIVersion() == apiversion {
+			cachedByKindAndVersion = append(cachedByKindAndVersion, cachedByKind[i])
+		}
+	}
+	return r.visit(cachedByKindAndVersion, callback)
 }
 
 func (r *ResourceList) Get(kind, name, namespace string) *unstructured.Unstructured {
