@@ -70,7 +70,7 @@ func (rs *ReconciliationResult) GetResult() model.Status {
 			break
 		}
 	}
-	if len(rs.other) > 0 {
+	if len(rs.other) > 0 { //Attention: has always to be evaluated first!
 		if isDelete {
 			return model.ClusterStatusDeleting
 		}
