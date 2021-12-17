@@ -156,6 +156,7 @@ func TestRepository(t *testing.T) {
 	})
 }
 
+//nolint:unused
 func newCacheRepo(t *testing.T) *Repository {
 	ceRepo, err := NewRepository(db.NewTestConnection(t), true)
 	require.NoError(t, err)
