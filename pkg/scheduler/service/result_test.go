@@ -41,7 +41,7 @@ func TestReconciliationResult(t *testing.T) {
 					Updated:       time.Now().Add(-2001 * time.Millisecond),
 				},
 			},
-			expectedResult:  model.ClusterStatusReconcileError,
+			expectedResult:  model.ClusterStatusReconciling,
 			expectedOrphans: []string{"1.3"},
 		},
 		{
@@ -84,7 +84,7 @@ func TestReconciliationResult(t *testing.T) {
 					Priority:      1,
 					SchedulingID:  "schedulingID",
 					CorrelationID: "1.2",
-					State:         model.OperationStateNew,
+					State:         model.OperationStateDone,
 					Updated:       time.Now(),
 				},
 				{
@@ -103,14 +103,14 @@ func TestReconciliationResult(t *testing.T) {
 					Priority:      1,
 					SchedulingID:  "schedulingID",
 					CorrelationID: "1.1",
-					State:         model.OperationStateDone,
+					State:         model.OperationStateError,
 					Updated:       time.Now(),
 				},
 				{
 					Priority:      1,
 					SchedulingID:  "schedulingID",
 					CorrelationID: "2.1",
-					State:         model.OperationStateNew,
+					State:         model.OperationStateError,
 					Updated:       time.Now(),
 				},
 				{
@@ -153,6 +153,23 @@ func TestReconciliationResult(t *testing.T) {
 					SchedulingID:  "schedulingID",
 					CorrelationID: "1.2",
 					State:         model.OperationStateDone,
+				},
+			},
+			expectedResult: model.ClusterStatusReconcileError,
+		},
+		{
+			operations: []*model.OperationEntity{
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.1",
+					State:         model.OperationStateError,
+				},
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.2",
+					State:         model.OperationStateError,
 				},
 			},
 			expectedResult: model.ClusterStatusReconcileError,
