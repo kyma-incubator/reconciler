@@ -315,7 +315,8 @@ func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, 
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 			dstDir, repo.URL, version)
-		if removeErr := f.Delete(version); removeErr != nil {
+
+		if removeErr := os.RemoveAll(dstDir); removeErr != nil {
 			err = errors.Wrap(err, removeErr.Error())
 		}
 		return err
