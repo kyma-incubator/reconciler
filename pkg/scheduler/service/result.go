@@ -70,17 +70,17 @@ func (rs *ReconciliationResult) GetResult() model.Status {
 			break
 		}
 	}
-	if len(rs.error) > 0 {
-		if isDelete {
-			return model.ClusterStatusDeleteError
-		}
-		return model.ClusterStatusReconcileError
-	}
 	if len(rs.other) > 0 {
 		if isDelete {
 			return model.ClusterStatusDeleting
 		}
 		return model.ClusterStatusReconciling
+	}
+	if len(rs.error) > 0 {
+		if isDelete {
+			return model.ClusterStatusDeleteError
+		}
+		return model.ClusterStatusReconcileError
 	}
 	if len(rs.done) > 0 {
 		if isDelete {
