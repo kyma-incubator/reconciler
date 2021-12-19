@@ -178,7 +178,7 @@ func (w *Pool) filterProcessableOpsByMaxRetries(ops []*model.OperationEntity) []
 	var filteredOps []*model.OperationEntity
 	for _, op := range ops {
 		if op.Retries >= int64(w.config.MaxOperationRetries) {
-			err := w.reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateError, false, fmt.Sprintf("operation exceeds max. operation retries limit (maxOperationRetries:%d)", w.config.MaxOperationRetries))
+			err := w.reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateError, true, fmt.Sprintf("operation exceeds max. operation retries limit (maxOperationRetries:%d)", w.config.MaxOperationRetries))
 			if err != nil {
 				w.logger.Warnf("could not update operation state with schedulingID %s and correlationID %s to %v state", op.SchedulingID, op.CorrelationID, model.OperationStateError)
 			}

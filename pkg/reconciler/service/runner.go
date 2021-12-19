@@ -51,7 +51,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 
 	//retry the reconciliation in case of an error
 	err = retry.Do(retryable,
-		retry.Attempts(uint(task.ReconcilerConfiguration.MaxRetries)),
+		retry.Attempts(uint(task.ComponentConfiguration.MaxRetries)),
 		retry.Delay(r.retryDelay),
 		retry.LastErrorOnly(false),
 		retry.Context(ctx))

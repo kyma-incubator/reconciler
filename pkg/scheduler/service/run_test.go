@@ -258,7 +258,7 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	callbackData := make(chan *reconciler.CallbackMessage, 10)
 	localRunner := runtimeBuilder.RunLocal(nil, func(component string, msg *reconciler.CallbackMessage) {
 		callbackData <- msg
-	})
+	}).WithWorkerPoolMaxRetries(1)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

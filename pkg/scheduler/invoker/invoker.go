@@ -73,7 +73,7 @@ func (p *Params) newTask() *reconciler.Task {
 			TokenNamespace: fmt.Sprint(tokenNamespace),
 		},
 		Type: taskType,
-		ReconcilerConfiguration: reconciler.ComponentConfiguration{
+		ComponentConfiguration: reconciler.ComponentConfiguration{
 			MaxRetries: p.MaxOperationRetries,
 		},
 	}

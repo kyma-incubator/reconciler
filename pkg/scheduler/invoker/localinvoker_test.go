@@ -81,10 +81,11 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 			Namespace:     "kyma-system",
 			Version:       "1.2.3",
 		},
-		ComponentsReady: nil,
-		ClusterState:    clusterStateMock,
-		SchedulingID:    opEntity.SchedulingID,
-		CorrelationID:   opEntity.CorrelationID,
+		ComponentsReady:     nil,
+		ClusterState:        clusterStateMock,
+		SchedulingID:        opEntity.SchedulingID,
+		CorrelationID:       opEntity.CorrelationID,
+		MaxOperationRetries: 5,
 	})
 
 	if simulateError {
