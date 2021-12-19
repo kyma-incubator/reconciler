@@ -301,7 +301,7 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string) *reconciler.Task 
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
 		//global parameters - required by some Kyma components
-		Configuration: reconTest.NewGlobalComponentConfiguration(),
+		Configuration:          reconTest.NewGlobalComponentConfiguration(),
 		ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 1},
 	}
 }
