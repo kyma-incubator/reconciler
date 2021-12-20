@@ -152,7 +152,7 @@ func (cer *Repository) DeleteKey(key string) error {
 		}
 
 		//delete the values mapped to this key
-		q, err := db.NewQuery(cer.Conn, &model.ValueEntity{}, cer.Logger)
+		q, err := db.NewQuery(tx, &model.ValueEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func (cer *Repository) DeleteKey(key string) error {
 		}
 
 		//delete the key
-		qKey, err := db.NewQuery(cer.Conn, &model.KeyEntity{}, cer.Logger)
+		qKey, err := db.NewQuery(tx, &model.KeyEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}

@@ -284,7 +284,7 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 			return err
 		}
 		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterDelColName, clusterColName, clusterColName)
-		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
+		if _, err := tx.Exec(clusterUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
 			return err
 		}
 
@@ -303,7 +303,7 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 			return err
 		}
 		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configClusterColName, configDelColName, configClusterColName, configClusterColName)
-		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
+		if _, err := tx.Exec(configUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
 			return err
 		}
 
@@ -322,7 +322,7 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 			return err
 		}
 		statusUpdateSQL := fmt.Sprintf(updateSQLTpl, statusEntity.Table(), statusClusterColName, statusDelColName, statusClusterColName, statusClusterColName)
-		if _, err := i.Conn.Exec(statusUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
+		if _, err := tx.Exec(statusUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
 			return err
 		}
 

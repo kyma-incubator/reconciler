@@ -41,17 +41,17 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 
 func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVersion int64, preComponents [][]string) error {
 	dbOp := func(tx *db.TxConnection) error {
-		inventory, err := t.inventory.WithTx(tx)
+		inventoryTx, err := t.inventory.WithTx(tx)
 		if err != nil {
 			return err
 		}
 
-		reconRepo, err := t.reconRepo.WithTx(tx)
+		reconRepoTx, err := t.reconRepo.WithTx(tx)
 		if err != nil {
 			return err
 		}
 
-		recons, err := reconRepo.GetReconciliations(&reconciliation.CurrentlyReconcilingWithRuntimeID{
+		recons, err := reconRepoTx.GetReconciliations(&reconciliation.CurrentlyReconcilingWithRuntimeID{
 			RuntimeID: runtimeID,
 		})
 		if err != nil {
@@ -62,7 +62,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 				"with schedulingID '%s'", runtimeID, recons[0].SchedulingID)
 		}
 
-		oldClusterState, err := inventory.Get(runtimeID, configVersion)
+		oldClusterState, err := inventoryTx.Get(runtimeID, configVersion)
 		if err != nil {
 			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not get latest cluster state: %s",
 				runtimeID, err)
@@ -80,7 +80,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 				oldClusterState.Cluster.RuntimeID, oldClusterState.Status.Status)
 		}
 
-		newClusterState, err := inventory.UpdateStatus(oldClusterState, targetState)
+		newClusterState, err := inventoryTx.UpdateStatus(oldClusterState, targetState)
 		if err != nil {
 			t.logger.Errorf("Starting reconciliation for cluster '%s' failed: could not update cluster status to '%s': %s",
 				oldClusterState.Cluster.RuntimeID, targetState, err)
@@ -90,7 +90,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 			newClusterState.Cluster.RuntimeID, model.ClusterStatusReconciling)
 
 		//create reconciliation entity
-		reconEntity, err := reconRepo.CreateReconciliation(newClusterState, preComponents)
+		reconEntity, err := reconRepoTx.CreateReconciliation(newClusterState, preComponents)
 		if err == nil {
 			t.logger.Infof("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
 				"(scheudlingID: %s)", newClusterState.Cluster.RuntimeID, reconEntity.SchedulingID)
@@ -100,7 +100,7 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 		if reconciliation.IsEmptyComponentsReconciliationError(err) {
 			t.logger.Errorf("Cluster transition tried to add cluster '%s' to reconciliation queue but "+
 				"cluster has no components", newClusterState.Cluster.RuntimeID)
-			_, updateErr := inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
+			_, updateErr := t.inventory.UpdateStatus(newClusterState, model.ClusterStatusReconcileError)
 			if updateErr != nil {
 				t.logger.Errorf("Error updating cluster '%s': could not update cluster status to '%s': %s",
 					oldClusterState.Cluster.RuntimeID, model.ClusterStatusReconcileError, updateErr)

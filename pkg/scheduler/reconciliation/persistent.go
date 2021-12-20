@@ -407,5 +407,5 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 
 		return nil
 	}
-	return db.Transaction(r.Conn, dbOps, r.Logger) // TODO: Maybe return tx
+	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
