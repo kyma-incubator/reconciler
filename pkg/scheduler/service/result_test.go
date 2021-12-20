@@ -10,9 +10,10 @@ import (
 )
 
 type testCase struct {
-	operations      []*model.OperationEntity
-	expectedResult  model.Status
-	expectedOrphans []string //contains correlation IDs
+	operations              []*model.OperationEntity
+	expectedResultReconcile model.Status
+	expectedResultDelete    model.Status
+	expectedOrphans         []string //contains correlation IDs
 }
 
 func TestReconciliationResult(t *testing.T) {
@@ -41,8 +42,9 @@ func TestReconciliationResult(t *testing.T) {
 					Updated:       time.Now().Add(-2001 * time.Millisecond),
 				},
 			},
-			expectedResult:  model.ClusterStatusReconciling,
-			expectedOrphans: []string{"1.3"},
+			expectedResultReconcile: model.ClusterStatusReconciling,
+			expectedResultDelete:    model.ClusterStatusDeleting,
+			expectedOrphans:         []string{"1.3"},
 		},
 		{
 			operations: []*model.OperationEntity{
@@ -68,8 +70,9 @@ func TestReconciliationResult(t *testing.T) {
 					Updated:       time.Now(),
 				},
 			},
-			expectedResult:  model.ClusterStatusReconciling,
-			expectedOrphans: []string{"1.1"},
+			expectedResultReconcile: model.ClusterStatusReconciling,
+			expectedResultDelete:    model.ClusterStatusDeleting,
+			expectedOrphans:         []string{"1.1"},
 		},
 		{
 			operations: []*model.OperationEntity{
@@ -95,7 +98,8 @@ func TestReconciliationResult(t *testing.T) {
 					Updated:       time.Now(),
 				},
 			},
-			expectedResult: model.ClusterStatusReconciling,
+			expectedResultReconcile: model.ClusterStatusReconciling,
+			expectedResultDelete:    model.ClusterStatusDeleting,
 		},
 		{
 			operations: []*model.OperationEntity{
@@ -121,7 +125,35 @@ func TestReconciliationResult(t *testing.T) {
 					Updated:       time.Now(),
 				},
 			},
-			expectedResult: model.ClusterStatusReconciling,
+			expectedResultReconcile: model.ClusterStatusReconciling,
+			expectedResultDelete:    model.ClusterStatusDeleting,
+		},
+		{
+			operations: []*model.OperationEntity{
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.1",
+					State:         model.OperationStateError,
+					Updated:       time.Now(),
+				},
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "2.1",
+					State:         model.OperationStateError,
+					Updated:       time.Now(),
+				},
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.2",
+					State:         model.OperationStateNew,
+					Updated:       time.Now(),
+				},
+			},
+			expectedResultReconcile: model.ClusterStatusReconcileError,
+			expectedResultDelete:    model.ClusterStatusDeleteError,
 		},
 		{
 			operations: []*model.OperationEntity{
@@ -138,7 +170,8 @@ func TestReconciliationResult(t *testing.T) {
 					State:         model.OperationStateDone,
 				},
 			},
-			expectedResult: model.ClusterStatusReady,
+			expectedResultReconcile: model.ClusterStatusReady,
+			expectedResultDelete:    model.ClusterStatusDeleted,
 		},
 		{
 			operations: []*model.OperationEntity{
@@ -155,7 +188,8 @@ func TestReconciliationResult(t *testing.T) {
 					State:         model.OperationStateDone,
 				},
 			},
-			expectedResult: model.ClusterStatusReconcileError,
+			expectedResultReconcile: model.ClusterStatusReconcileError,
+			expectedResultDelete:    model.ClusterStatusDeleteError,
 		},
 		{
 			operations: []*model.OperationEntity{
@@ -172,10 +206,12 @@ func TestReconciliationResult(t *testing.T) {
 					State:         model.OperationStateError,
 				},
 			},
-			expectedResult: model.ClusterStatusReconcileError,
+			expectedResultReconcile: model.ClusterStatusReconcileError,
+			expectedResultDelete:    model.ClusterStatusDeleteError,
 		},
 	}
 
+	//test reconcile result
 	for _, testCase := range testCases {
 		reconResult := newReconciliationResult(&model.ReconciliationEntity{
 			RuntimeID:    "runtimeID",
@@ -183,8 +219,7 @@ func TestReconciliationResult(t *testing.T) {
 		}, logger.NewLogger(true))
 
 		require.NoError(t, reconResult.AddOperations(testCase.operations))
-
-		require.Equal(t, reconResult.GetResult(), testCase.expectedResult)
+		require.Equal(t, reconResult.GetResult(), testCase.expectedResultReconcile)
 
 		//check detected orphans
 		allDetectedOrphans := make(map[string]*model.OperationEntity)
@@ -196,5 +231,21 @@ func TestReconciliationResult(t *testing.T) {
 			_, ok := allDetectedOrphans[correlationID]
 			require.True(t, ok)
 		}
+	}
+
+	//test delete result
+	for _, testCase := range testCases {
+		reconResult := newReconciliationResult(&model.ReconciliationEntity{
+			RuntimeID:    "runtimeID",
+			SchedulingID: "schedulingID",
+		}, logger.NewLogger(true))
+
+		//mark all operations as delete op
+		for _, op := range testCase.operations {
+			op.Type = model.OperationTypeDelete
+		}
+
+		require.NoError(t, reconResult.AddOperations(testCase.operations))
+		require.Equal(t, reconResult.GetResult(), testCase.expectedResultDelete)
 	}
 }
