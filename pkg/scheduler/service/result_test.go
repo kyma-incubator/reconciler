@@ -178,14 +178,14 @@ func TestReconciliationResult(t *testing.T) {
 				{
 					Priority:      1,
 					SchedulingID:  "schedulingID",
-					CorrelationID: "1.1",
-					State:         model.OperationStateError,
+					CorrelationID: "1.2",
+					State:         model.OperationStateDone,
 				},
 				{
 					Priority:      1,
 					SchedulingID:  "schedulingID",
-					CorrelationID: "1.2",
-					State:         model.OperationStateDone,
+					CorrelationID: "1.1",
+					State:         model.OperationStateError,
 				},
 			},
 			expectedResultReconcile: model.ClusterStatusReconcileError,

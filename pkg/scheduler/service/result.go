@@ -75,7 +75,7 @@ func (rs *ReconciliationResult) GetResult() model.Status {
 		}
 	}
 	//this if-clause has always to be evaluated first:
-	//as soon as one operation is in an error state, the cluster is marked to be in error-state if no other ops are running
+	//as soon as one operation is in an error state the cluster is marked to be in error-state if no other ops are running
 	if len(rs.error) > 0 && len(rs.running) == 0 {
 		if isDelete {
 			return model.ClusterStatusDeleteError
@@ -83,7 +83,7 @@ func (rs *ReconciliationResult) GetResult() model.Status {
 		return model.ClusterStatusReconcileError
 	}
 
-	//this if-clause has always to be evaluated first:
+	//this if-clause has always to be evaluated as second condition:
 	//if one operation is not in a final state, the cluster is still in reconciling-state
 	if len(rs.running) > 0 {
 		if isDelete {
