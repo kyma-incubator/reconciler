@@ -220,6 +220,7 @@ func TestReconciliationResult(t *testing.T) {
 
 		require.NoError(t, reconResult.AddOperations(testCase.operations))
 		require.Equal(t, reconResult.GetResult(), testCase.expectedResultReconcile)
+		require.ElementsMatch(t, reconResult.GetOperations(), testCase.operations)
 
 		//check detected orphans
 		allDetectedOrphans := make(map[string]*model.OperationEntity)
