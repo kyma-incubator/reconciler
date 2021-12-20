@@ -92,15 +92,21 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 		return nil, fmt.Errorf("error creating cluster with RuntimeID: %s, component list is empty", cluster.RuntimeID)
 	}
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
-		clusterEntity, err := i.createCluster(contractVersion, cluster)
+		var iTx *DefaultInventory
+		tmpiTx, err := i.WithTx(tx)
 		if err != nil {
 			return nil, err
 		}
-		clusterConfigurationEntity, err := i.createConfiguration(contractVersion, cluster, clusterEntity)
+		iTx = tmpiTx.(*DefaultInventory)
+		clusterEntity, err := iTx.createCluster(contractVersion, cluster)
 		if err != nil {
 			return nil, err
 		}
-		clusterStatusEntity, err := i.createStatus(clusterConfigurationEntity, model.ClusterStatusReconcilePending)
+		clusterConfigurationEntity, err := iTx.createConfiguration(contractVersion, cluster, clusterEntity)
+		if err != nil {
+			return nil, err
+		}
+		clusterStatusEntity, err := iTx.createStatus(clusterConfigurationEntity, model.ClusterStatusReconcilePending)
 		if err != nil {
 			return nil, err
 		}

@@ -95,7 +95,7 @@ func (pc *postgresConnection) Begin() (*TxConnection, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &TxConnection{tx: tx, conn: pc, counter: 1, logger: pc.logger}, nil
+	return NewTxConnection(tx, pc, pc.logger), nil
 }
 
 func (pc *postgresConnection) Close() error {

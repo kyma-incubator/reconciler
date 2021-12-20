@@ -90,7 +90,7 @@ func (sc *sqliteConnection) Begin() (*TxConnection, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &TxConnection{tx: tx, conn: sc, counter: 1, logger: sc.logger}, nil
+	return NewTxConnection(tx, sc, sc.logger), nil
 }
 
 func (sc *sqliteConnection) Close() error {

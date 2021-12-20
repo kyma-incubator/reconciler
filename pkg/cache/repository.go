@@ -94,7 +94,7 @@ func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model
 		if err := q.Insert().Exec(); err != nil {
 			return cacheEntry, err
 		}
-		if err := cr.CacheDep.Record(cacheEntry, cacheDeps).Exec(false); err != nil {
+		if err := cr.CacheDep.Record(cacheEntry, cacheDeps).Exec(tx); err != nil {
 			return cacheEntry, err
 		}
 		return cacheEntry, err
@@ -111,14 +111,14 @@ func (cr *Repository) Add(cacheEntry *model.CacheEntryEntity, cacheDeps []*model
 func (cr *Repository) Invalidate(label, runtimeID string) error {
 	dbOps := func(tx *db.TxConnection) error {
 		//invalidate the cache entity and drop all tracked dependencies
-		if err := cr.CacheDep.Invalidate().WithLabel(label).WithRuntimeID(runtimeID).Exec(false); err != nil {
+		if err := cr.CacheDep.Invalidate().WithLabel(label).WithRuntimeID(runtimeID).Exec(tx); err != nil {
 			return err
 		}
 
 		//as cache dependencies are optional we cannot rely that the previous
 		//invalidation dropped the cache entity: delete the entity also explicitly
 		//deletion does not have to be rolled back in error case, thus tx is not used here
-		q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{}, cr.Logger)
+		q, err := db.NewQuery(tx, &model.CacheEntryEntity{}, cr.Logger)
 		if err != nil {
 			return err
 		}
@@ -134,14 +134,14 @@ func (cr *Repository) Invalidate(label, runtimeID string) error {
 func (cr *Repository) InvalidateByID(id int64) error {
 	dbOps := func(tx *db.TxConnection) error {
 		//invalidate the cache entity and drop all tracked dependencies
-		if err := cr.CacheDep.Invalidate().WithCacheID(id).Exec(false); err != nil {
+		if err := cr.CacheDep.Invalidate().WithCacheID(id).Exec(tx); err != nil {
 			return err
 		}
 
 		//as cache dependencies are optional we cannot rely that the previous
 		//invalidation dropped the cache entity: delete the entity also explicitly
 		//deletion does not have to be rolled back in error case, thus tx is not used here
-		q, err := db.NewQuery(cr.Conn, &model.CacheEntryEntity{}, cr.Logger)
+		q, err := db.NewQuery(tx, &model.CacheEntryEntity{}, cr.Logger)
 		if err != nil {
 			return err
 		}

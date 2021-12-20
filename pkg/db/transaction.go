@@ -47,6 +47,10 @@ type TxConnection struct {
 	sync.Mutex
 }
 
+func NewTxConnection(tx *sql.Tx, conn Connection, logger *zap.SugaredLogger) *TxConnection {
+	//setting counter to 1 since first begin is not called with counter increase
+	return &TxConnection{tx: tx, conn: conn, counter: 1, logger: logger}
+}
 func (t *TxConnection) DB() *sql.DB {
 	return t.conn.DB()
 }

@@ -10,7 +10,7 @@ import (
 )
 
 func TestRepository(t *testing.T) {
-	t.SkipNow()
+
 	//nolint:unused
 	repo := newCacheRepo(t)
 

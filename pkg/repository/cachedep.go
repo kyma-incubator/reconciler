@@ -11,7 +11,6 @@ import (
 )
 
 type cacheDependencyManager struct {
-	conn   db.Connection
 	logger *zap.SugaredLogger
 }
 
@@ -31,18 +30,10 @@ type get struct {
 	selector map[string]interface{}
 }
 
-func newCacheDependencyManager(conn db.Connection, debug bool) *cacheDependencyManager {
+func newCacheDependencyManager(debug bool) *cacheDependencyManager {
 	return &cacheDependencyManager{
-		conn:   conn,
 		logger: logger.NewLogger(debug),
 	}
-}
-
-func (cdm *cacheDependencyManager) transactional(desc string, dbOps func(tx *db.TxConnection) error) error {
-	if err := db.Transaction(cdm.conn, dbOps, cdm.logger); err != nil {
-		return fmt.Errorf("failed to execute database transaction '%s': %s", desc, err)
-	}
-	return nil
 }
 
 func (cdm *cacheDependencyManager) Record(cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity) *record {
@@ -53,14 +44,14 @@ func (cdm *cacheDependencyManager) Record(cacheEntry *model.CacheEntryEntity, ca
 	}
 }
 
-func (r *record) Exec(newTx bool) error {
+func (r *record) Exec(conn db.Connection) error {
 	if r.cacheEntry.ID <= 0 {
 		return fmt.Errorf("cache entry '%s' has no ID: indicates that cache entity is not persisted in database", r.cacheEntry)
 	}
 	dbOps := func(tx *db.TxConnection) error {
 		//track deps in DB
 		for _, value := range r.cacheDeps {
-			q, err := db.NewQuery(r.conn, &model.CacheDependencyEntity{
+			q, err := db.NewQuery(tx, &model.CacheDependencyEntity{
 				Bucket:    value.Bucket,
 				Key:       value.Key,
 				Label:     r.cacheEntry.Label,
@@ -77,10 +68,7 @@ func (r *record) Exec(newTx bool) error {
 		return nil
 	}
 
-	if newTx { //start new DB transaction
-		return r.transactional("recording cache dependencies", dbOps)
-	}
-	return dbOps(nil) //no new DB transaction requested
+	return db.Transaction(conn, dbOps, r.logger)
 }
 
 func (cdm *cacheDependencyManager) Invalidate() *invalidate {
@@ -115,10 +103,10 @@ func (i *invalidate) with(colName string, colValue interface{}) *invalidate {
 	return i
 }
 
-func (i *invalidate) Exec(newTx bool) error {
+func (i *invalidate) Exec(conn db.Connection) error {
 	dbOps := func(tx *db.TxConnection) error {
 		//get cache dependencies
-		depQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{}, i.logger)
+		depQuery, err := db.NewQuery(tx, &model.CacheDependencyEntity{}, i.logger)
 		if err != nil {
 			return err
 		}
@@ -142,7 +130,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		i.logger.Debugf("Identified %d cache entities which match selector '%v': %s", cntUniqueIds, i.selector, cacheEntityIdsCSV)
 
 		//drop all cache entities
-		cacheQuery, err := db.NewQuery(i.conn, &model.CacheEntryEntity{}, i.logger)
+		cacheQuery, err := db.NewQuery(tx, &model.CacheEntryEntity{}, i.logger)
 		if err != nil {
 			return err
 		}
@@ -153,7 +141,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		i.logger.Debugf("Deleted %d cache entries matching selector '%v'", deletedEntries, i.selector)
 
 		//drop all cache dependencies of the dropped cache entities
-		cacheDepQuery, err := db.NewQuery(i.conn, &model.CacheDependencyEntity{}, i.logger)
+		cacheDepQuery, err := db.NewQuery(tx, &model.CacheDependencyEntity{}, i.logger)
 		if err != nil {
 			return err
 		}
@@ -166,10 +154,7 @@ func (i *invalidate) Exec(newTx bool) error {
 		return nil
 	}
 
-	if newTx { //start new DB transaction
-		return i.transactional("invalidating cache entries", dbOps)
-	}
-	return dbOps(nil) //no new DB transaction requested
+	return db.Transaction(conn, dbOps, i.logger)
 }
 
 func (i *invalidate) cacheIDsCSV(deps []db.DatabaseEntity) (string, int) {
@@ -222,8 +207,8 @@ func (c *get) with(colName string, colValue interface{}) *get {
 	return c
 }
 
-func (c *get) Exec() ([]*model.CacheDependencyEntity, error) {
-	cntQuery, err := db.NewQuery(c.conn, &model.CacheDependencyEntity{}, c.logger)
+func (c *get) Exec(conn db.Connection) ([]*model.CacheDependencyEntity, error) {
+	cntQuery, err := db.NewQuery(conn, &model.CacheDependencyEntity{}, c.logger)
 	if err != nil {
 		return nil, err
 	}

@@ -18,7 +18,7 @@ func NewRepository(conn db.Connection, debug bool) (*Repository, error) {
 		Debug:    debug,
 		Conn:     conn,
 		Logger:   log.NewLogger(debug),
-		CacheDep: newCacheDependencyManager(conn, debug),
+		CacheDep: newCacheDependencyManager(debug),
 	}, nil
 }
 
