@@ -158,7 +158,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				ComponentConfiguration: reconciler.ComponentConfiguration{
 					MaxRetries: 1,
 				},
-				CallbackFunc:    nil,
+				CallbackFunc: nil,
 			},
 			expectedHTTPCode: http.StatusBadRequest,
 			expectedResponse: &reconciler.HTTPErrorResponse{},
