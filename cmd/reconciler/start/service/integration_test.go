@@ -155,6 +155,9 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Configuration:   nil,
 				Kubeconfig:      "",
 				CorrelationID:   "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{
+					MaxRetries: 1,
+				},
 				CallbackFunc:    nil,
 			},
 			expectedHTTPCode: http.StatusBadRequest,
@@ -175,6 +178,9 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Configuration:   nil,
 				Kubeconfig:      test.ReadKubeconfig(t),
 				CorrelationID:   "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{
+					MaxRetries: 1,
+				},
 			},
 			expectedHTTPCode: http.StatusOK,
 			expectedResponse: &reconciler.HTTPReconciliationResponse{},
@@ -197,6 +203,9 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				},
 				Kubeconfig:    test.ReadKubeconfig(t),
 				CorrelationID: "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{
+					MaxRetries: 1,
+				},
 			},
 			expectedHTTPCode:   http.StatusOK,
 			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
@@ -218,6 +227,9 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 					return string(kc)
 				}(),
 				CorrelationID: "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{
+					MaxRetries: 1,
+				},
 			},
 			expectedHTTPCode:   http.StatusOK,
 			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
@@ -237,6 +249,9 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				},
 				Kubeconfig:    test.ReadKubeconfig(t),
 				CorrelationID: "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{
+					MaxRetries: 1,
+				},
 			},
 			expectedHTTPCode:   http.StatusOK,
 			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
@@ -255,6 +270,9 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Kubeconfig:      test.ReadKubeconfig(t),
 				CallbackURL:     "https://127.0.0.1:12345",
 				CorrelationID:   "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{
+					MaxRetries: 1,
+				},
 			},
 			expectedHTTPCode: http.StatusOK,
 			expectedResponse: &reconciler.HTTPReconciliationResponse{},
@@ -274,6 +292,9 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Configuration:   nil,
 				Kubeconfig:      test.ReadKubeconfig(t),
 				CorrelationID:   "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{
+					MaxRetries: 1,
+				},
 			},
 			expectedHTTPCode: http.StatusOK,
 			expectedResponse: &reconciler.HTTPReconciliationResponse{},
