@@ -57,10 +57,6 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 			&ServicesInterceptor{
 				kubeClient: kubeClient,
 			},
-			&PVCInterceptor{
-				kubeClient: kubeClient,
-				logger:     r.logger,
-			},
 			newClusterWideResourceInterceptor(),
 		)
 		if err == nil {
