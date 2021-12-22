@@ -355,6 +355,9 @@ func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*mode
 func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
 	dbOps := func(tx *db.TxConnection) error {
 		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return err
+		}
 		op, err := rTx.GetOperation(schedulingID, correlationID)
 		if err != nil {
 			if repository.IsNotFoundError(err) {
