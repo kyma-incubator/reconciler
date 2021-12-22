@@ -1,7 +1,6 @@
 package reconciliation
 
 import (
-	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -61,5 +60,5 @@ func (mr *MockRepository) UpdateOperationState(schedulingID, correlationID strin
 }
 
 func (mr *MockRepository) WithTx(tx *db.TxConnection) (Repository, error) {
-	return nil, fmt.Errorf("transactional behaviour not supported by mock reconciliation repository")
+	return mr, nil
 }

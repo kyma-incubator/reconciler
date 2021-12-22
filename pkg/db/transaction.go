@@ -22,8 +22,8 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 	result, err := dbOps(txConnection)
 	if err != nil {
 		log("Rollback transactional DB context because an error occurred: %s", err)
-		if rollbackErr := txConnection.tx.Rollback(); rollbackErr != nil {
-			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", txConnection.tx.Rollback()))
+		if rollbackErr := txConnection.Rollback(); rollbackErr != nil {
+			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
 		}
 		return result, err
 	}
@@ -112,4 +112,8 @@ func (t *TxConnection) decreaseCounter() {
 	t.Lock()
 	defer t.Unlock()
 	t.counter--
+}
+
+func (t *TxConnection) Rollback() error {
+	return t.tx.Rollback()
 }

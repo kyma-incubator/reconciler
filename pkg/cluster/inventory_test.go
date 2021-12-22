@@ -320,49 +320,52 @@ func TestCountRetries(t *testing.T) {
 }
 
 func TestTransaction(t *testing.T) {
-	//new db connection
-	dbConn := db.NewTestConnection(t)
-
-	//create inventory
-	inventory, err := NewInventory(dbConn, true, MetricsCollectorMock{})
-	require.NoError(t, err)
-
-	dbOp := func(tx *db.TxConnection) error {
-
-		//converts inventory with given tx
-		inventory, err := inventory.WithTx(tx)
-		require.NoError(t, err)
-
-		//create two clusters
-		clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
-		require.NoError(t, err)
-		clusterState2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.OneComponentDummy))
-		require.NoError(t, err)
-
-		//check if clusters are created
-		state, err := inventory.Get(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version)
-		require.NoError(t, err)
-		require.NotNil(t, state)
-		state2, err := inventory.Get(clusterState2.Cluster.RuntimeID, clusterState2.Configuration.Version)
-		require.NoError(t, err)
-		require.NotNil(t, state2)
-
-		//rollback transactions
-		require.NoError(t, tx.GetTx().Rollback())
-
-		//check if cluster creations are rolled back
-		state, err = inventory.Get(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version)
-		require.Error(t, err)
-		require.Nil(t, state)
-		state2, err = inventory.Get(clusterState2.Cluster.RuntimeID, clusterState2.Configuration.Version)
-		require.Error(t, err)
-		require.Nil(t, state2)
-
-		return err
-	}
-	require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
 	t.Run("Rollback nested transactions", func(t *testing.T) {
 
+		//new db connection
+		dbConn := db.NewTestConnection(t)
+
+		//create inventory
+		inventory, err := NewInventory(dbConn, true, MetricsCollectorMock{})
+		require.NoError(t, err)
+		var clusterState *State
+		var clusterState2 *State
+		dbOp := func(tx *db.TxConnection) error {
+
+			//converts inventory with given tx
+			inventory, err := inventory.WithTx(tx)
+			require.NoError(t, err)
+
+			//create two clusters
+			clusterState, err = inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+			require.NoError(t, err)
+			clusterState2, err = inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.OneComponentDummy))
+			require.NoError(t, err)
+
+			//check if clusters are created
+			state, err := inventory.Get(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version)
+			require.NoError(t, err)
+			require.NotNil(t, state)
+			state2, err := inventory.Get(clusterState2.Cluster.RuntimeID, clusterState2.Configuration.Version)
+			require.NoError(t, err)
+			require.NotNil(t, state2)
+
+			//rollback transactions
+			require.NoError(t, tx.GetTx().Rollback())
+
+			return err
+		}
+		require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
+
+		//check if cluster creations are rolled back
+		state, err := inventory.Get(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version)
+		require.Error(t, err)
+		require.True(t, repository.IsNotFoundError(err))
+		require.Nil(t, state)
+		state2, err := inventory.Get(clusterState2.Cluster.RuntimeID, clusterState2.Configuration.Version)
+		require.Error(t, err)
+		require.True(t, repository.IsNotFoundError(err))
+		require.Nil(t, state2)
 	})
 }
 

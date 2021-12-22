@@ -168,7 +168,7 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 		r.Logger.Debugf("Deleted %d reconciliation with schedulingID '%s'", delCnt, schedulingID)
 		return err
 	}
-	return db.Transaction(r.Conn, dbOps, r.Logger) //TODO: Maybe return tx
+	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
 func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
@@ -354,7 +354,8 @@ func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*mode
 
 func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
 	dbOps := func(tx *db.TxConnection) error {
-		op, err := r.GetOperation(schedulingID, correlationID)
+		rTx, err := r.WithTx(tx)
+		op, err := rTx.GetOperation(schedulingID, correlationID)
 		if err != nil {
 			if repository.IsNotFoundError(err) {
 				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
