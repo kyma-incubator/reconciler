@@ -13,146 +13,155 @@ import (
 var cacheDep *cacheDependencyManager
 
 func TestCacheDependencyManager(t *testing.T) {
-	cacheDep = newCacheDependencyManager(db.NewTestConnection(t), true)
+
+	cacheDep = newCacheDependencyManager(true)
 
 	t.Run("Create dependencies", func(t *testing.T) {
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
-			deps, err := cacheDep.Get().Exec()
+			deps, err := cacheDep.Get().Exec(dbConn)
 			require.NoError(t, err)
 			compareCacheDepEntities(t, deps, testDeps)
-		})
+		}, dbConn)
 	})
 
 	t.Run("Invalidate dependencies by non-existing key", func(t *testing.T) {
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
-			err := cacheDep.Invalidate().WithKey("key1234").Exec(true)
+			err := cacheDep.Invalidate().WithKey("key1234").Exec(dbConn)
 			require.NoError(t, err)
 
-			deps, err := cacheDep.Get().Exec()
+			deps, err := cacheDep.Get().Exec(dbConn)
 			require.NoError(t, err)
 
 			//key 'key1234' will cause invalidation of no cache entries
 			compareCacheDepEntities(t, deps, []*model.CacheDependencyEntity{
 				testDeps[0], testDeps[1], testDeps[2], testDeps[3], testDeps[4],
 			})
-		})
+		}, dbConn)
 	})
 
 	t.Run("Invalidate dependencies by key", func(t *testing.T) {
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
-			err := cacheDep.Invalidate().WithKey("key4").Exec(true)
+			err := cacheDep.Invalidate().WithKey("key4").Exec(dbConn)
 			require.NoError(t, err)
 
-			deps, err := cacheDep.Get().Exec()
+			deps, err := cacheDep.Get().Exec(dbConn)
 			require.NoError(t, err)
 
 			//key 'key4' will cause invalidation of all deps referring to testCacheEntry2
 			compareCacheDepEntities(t, deps, []*model.CacheDependencyEntity{
 				testDeps[0], testDeps[1], testDeps[2],
 			})
-		})
+		}, dbConn)
 	})
 
 	t.Run("Invalidate dependencies by bucket", func(t *testing.T) {
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
-			err := cacheDep.Invalidate().WithBucket("bucket1").Exec(true)
+			err := cacheDep.Invalidate().WithBucket("bucket1").Exec(dbConn)
 			require.NoError(t, err)
 
-			deps, err := cacheDep.Get().Exec()
+			deps, err := cacheDep.Get().Exec(dbConn)
 			require.NoError(t, err)
 
 			//bucket 'bucket1' will cause invalidation of all deps
 			compareCacheDepEntities(t, deps, []*model.CacheDependencyEntity{})
-		})
+		}, dbConn)
 	})
 
 	t.Run("Invalidate dependencies by label", func(t *testing.T) {
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
-			err := cacheDep.Invalidate().WithLabel("testCacheEntry1").Exec(true)
+			err := cacheDep.Invalidate().WithLabel("testCacheEntry1").Exec(dbConn)
 			require.NoError(t, err)
 
-			deps, err := cacheDep.Get().Exec()
+			deps, err := cacheDep.Get().Exec(dbConn)
 			require.NoError(t, err)
 
 			//label 'testCacheEntry1' will cause invalidation of all deps referring to testCacheEntry1
 			compareCacheDepEntities(t, deps, []*model.CacheDependencyEntity{
 				testDeps[3], testDeps[4],
 			})
-		})
+		}, dbConn)
 	})
 
 	t.Run("Invalidate dependencies by cluster", func(t *testing.T) {
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
-			err := cacheDep.Invalidate().WithRuntimeID("testCluster2").Exec(true)
+			err := cacheDep.Invalidate().WithRuntimeID("testCluster2").Exec(dbConn)
 			require.NoError(t, err)
 
-			deps, err := cacheDep.Get().Exec()
+			deps, err := cacheDep.Get().Exec(dbConn)
 			require.NoError(t, err)
 
 			//cluster 'testCluster2' will cause invalidation of all deps referring to testCacheEntry2
 			compareCacheDepEntities(t, deps, []*model.CacheDependencyEntity{
 				testDeps[0], testDeps[1], testDeps[2],
 			})
-		})
+		}, dbConn)
 	})
 
 	t.Run("Invalidate dependencies by cache-id", func(t *testing.T) {
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
-			err := cacheDep.Invalidate().WithCacheID(testEntries[0].ID).Exec(true)
+			err := cacheDep.Invalidate().WithCacheID(testEntries[0].ID).Exec(dbConn)
 			require.NoError(t, err)
 
-			deps, err := cacheDep.Get().Exec()
+			deps, err := cacheDep.Get().Exec(dbConn)
 			require.NoError(t, err)
 
 			//cache-id[0] will cause invalidation of all deps referring to testCacheEntry1
 			compareCacheDepEntities(t, deps, []*model.CacheDependencyEntity{
 				testDeps[3], testDeps[4],
 			})
-		})
+		}, dbConn)
 	})
 
 	t.Run("Get dependencies", func(t *testing.T) {
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
-			depsByCacheID, err := cacheDep.Get().WithCacheID(testEntries[1].ID).Exec()
+			depsByCacheID, err := cacheDep.Get().WithCacheID(testEntries[1].ID).Exec(dbConn)
 			require.NoError(t, err)
 			compareCacheDepEntities(t, depsByCacheID, []*model.CacheDependencyEntity{
 				testDeps[3], testDeps[4],
 			})
 
-			depsByBucket, err := cacheDep.Get().WithBucket("bucket2").Exec()
+			depsByBucket, err := cacheDep.Get().WithBucket("bucket2").Exec(dbConn)
 			require.NoError(t, err)
 			compareCacheDepEntities(t, depsByBucket, []*model.CacheDependencyEntity{
 				testDeps[2],
 			})
 
-			depsByCluster, err := cacheDep.Get().WithRuntimeID("testCluster1").Exec()
+			depsByCluster, err := cacheDep.Get().WithRuntimeID("testCluster1").Exec(dbConn)
 			require.NoError(t, err)
 			compareCacheDepEntities(t, depsByCluster, []*model.CacheDependencyEntity{
 				testDeps[0], testDeps[1], testDeps[2],
 			})
 
-			depsByKey, err := cacheDep.Get().WithKey("key1").Exec()
+			depsByKey, err := cacheDep.Get().WithKey("key1").Exec(dbConn)
 			require.NoError(t, err)
 			compareCacheDepEntities(t, depsByKey, []*model.CacheDependencyEntity{
 				testDeps[0], testDeps[3],
 			})
 
-			depsByLabel, err := cacheDep.Get().WithLabel("testCacheEntry2").Exec()
+			depsByLabel, err := cacheDep.Get().WithLabel("testCacheEntry2").Exec(dbConn)
 			require.NoError(t, err)
 			compareCacheDepEntities(t, depsByLabel, []*model.CacheDependencyEntity{
 				testDeps[3], testDeps[4],
 			})
 
-			depsByKeyAndLabel, err := cacheDep.Get().WithKey("key3").WithLabel("testCacheEntry1").Exec()
+			depsByKeyAndLabel, err := cacheDep.Get().WithKey("key3").WithLabel("testCacheEntry1").Exec(dbConn)
 			require.NoError(t, err)
 			compareCacheDepEntities(t, depsByKeyAndLabel, []*model.CacheDependencyEntity{
 				testDeps[2],
 			})
-		})
+		}, dbConn)
 	})
 }
 
-func withTestData(t *testing.T, testFunc func(*testing.T, []*model.CacheEntryEntity, []*model.CacheDependencyEntity)) {
+func withTestData(t *testing.T, testFunc func(*testing.T, []*model.CacheEntryEntity, []*model.CacheDependencyEntity), dbConn db.Connection) {
 	entity1, deps1 := importCacheEntry(t,
 		&model.CacheEntryEntity{
 			Label:     "testCacheEntry1",
@@ -172,7 +181,7 @@ func withTestData(t *testing.T, testFunc func(*testing.T, []*model.CacheEntryEnt
 				Key:    "key3",
 				Bucket: "bucket2",
 			},
-		})
+		}, dbConn)
 	entity2, deps2 := importCacheEntry(t,
 		&model.CacheEntryEntity{
 			Label:     "testCacheEntry2",
@@ -188,17 +197,17 @@ func withTestData(t *testing.T, testFunc func(*testing.T, []*model.CacheEntryEnt
 				Key:    "key4",
 				Bucket: "bucket3",
 			},
-		})
+		}, dbConn)
 
 	expectedDeps := []*model.CacheDependencyEntity{}
 	expectedDeps = append(expectedDeps, deps1...)
 	expectedDeps = append(expectedDeps, deps2...)
 
 	testFunc(t, []*model.CacheEntryEntity{entity1, entity2}, expectedDeps)
-	require.NoError(t, cacheDep.Invalidate().Exec(true))
+	require.NoError(t, cacheDep.Invalidate().Exec(dbConn))
 }
 
-func importCacheEntry(t *testing.T, cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity) (*model.CacheEntryEntity, []*model.CacheDependencyEntity) {
+func importCacheEntry(t *testing.T, cacheEntry *model.CacheEntryEntity, cacheDeps []*model.ValueEntity, dbConn db.Connection) (*model.CacheEntryEntity, []*model.CacheDependencyEntity) {
 	testLogger := zap.NewExample().Sugar()
 	defer func() {
 		if err := testLogger.Sync(); err != nil {
@@ -206,7 +215,7 @@ func importCacheEntry(t *testing.T, cacheEntry *model.CacheEntryEntity, cacheDep
 		}
 	}()
 
-	q, err := db.NewQuery(cacheDep.conn, cacheEntry, testLogger)
+	q, err := db.NewQuery(dbConn, cacheEntry, testLogger)
 	require.NoError(t, err)
 
 	//create new cache entry entity
@@ -214,11 +223,11 @@ func importCacheEntry(t *testing.T, cacheEntry *model.CacheEntryEntity, cacheDep
 	require.NoError(t, err)
 
 	//track dependencies for this entity
-	err = cacheDep.Record(cacheEntry, cacheDeps).Exec(true)
+	err = cacheDep.Record(cacheEntry, cacheDeps).Exec(dbConn)
 	require.NoError(t, err)
 
 	//return recorded dependencies
-	deps, err := cacheDep.Get().WithCacheID(cacheEntry.ID).Exec()
+	deps, err := cacheDep.Get().WithCacheID(cacheEntry.ID).Exec(dbConn)
 	require.NoError(t, err)
 
 	return cacheEntry, deps

@@ -27,6 +27,7 @@ const (
 	httpPost     httpMethod = http.MethodPost
 	httpGet      httpMethod = http.MethodGet
 	httpDelete   httpMethod = http.MethodDelete
+	httpPut      httpMethod = http.MethodPut
 )
 
 var (
@@ -47,6 +48,12 @@ var (
 		}
 		_, err := url.Parse(respModel.StatusURL)
 		require.NoError(t, err)
+	}
+
+	requireClusterStateChangeFct = func(state keb.Status) func(t *testing.T, response interface{}) {
+		return func(t *testing.T, response interface{}) {
+			require.Equal(t, state, response.(*keb.HTTPClusterResponse).Status)
+		}
 	}
 
 	requireClusterStatusResponseFct = func(t *testing.T, response interface{}) {
@@ -360,6 +367,33 @@ func TestMothership(t *testing.T) {
 			// no need for waiting in initFn
 		},
 		{
+			name:             "Disable reconciliation",
+			url:              fmt.Sprintf("%s/clusters/%s/status", baseURL, clusterName2),
+			method:           httpPut,
+			payload:          payload(t, "disable_cluster.json", ""),
+			expectedHTTPCode: 200,
+			responseModel:    &keb.HTTPClusterResponse{},
+			verifier:         requireClusterStateChangeFct("reconcile_disabled"),
+		},
+		{
+			name:             "Enable reconciliation with force",
+			url:              fmt.Sprintf("%s/clusters/%s/status", baseURL, clusterName2),
+			method:           httpPut,
+			payload:          payload(t, "enable_force_cluster.json", ""),
+			expectedHTTPCode: 200,
+			responseModel:    &keb.HTTPClusterResponse{},
+			verifier:         requireClusterStateChangeFct("reconcile_pending"),
+		},
+		{
+			name:             "Enable reconciliation",
+			url:              fmt.Sprintf("%s/clusters/%s/status", baseURL, clusterName2),
+			method:           httpPut,
+			payload:          payload(t, "enable_cluster.json", ""),
+			expectedHTTPCode: 200,
+			responseModel:    &keb.HTTPClusterResponse{},
+			verifier:         requireClusterStateChangeFct("ready"),
+		},
+		{
 			name:   "Cleanup test context",
 			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName),
 			method: httpDelete,
@@ -472,6 +506,11 @@ func sendRequest(t *testing.T, testCase *testCase) (*http.Response, error) {
 		response, err = client.Get(destURL)
 	case httpPost:
 		response, err = client.Post(destURL, "application/json", strings.NewReader(testCase.payload))
+	case httpPut:
+		req, err := http.NewRequest(http.MethodPut, destURL, strings.NewReader(testCase.payload))
+		require.NoError(t, err)
+		response, err = client.Do(req)
+		require.NoError(t, err)
 	case httpDelete:
 		req, err := http.NewRequest(http.MethodDelete, destURL, nil)
 		require.NoError(t, err)

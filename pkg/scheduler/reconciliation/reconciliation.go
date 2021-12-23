@@ -28,6 +28,7 @@ type Repository interface {
 	//GetReconcilingOperations returns all operations which are part of currently running reconciliations
 	GetReconcilingOperations() ([]*model.OperationEntity, error)
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error
+	WithTx(tx *db.TxConnection) (Repository, error)
 	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
 }
 
