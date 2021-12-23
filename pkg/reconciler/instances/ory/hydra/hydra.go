@@ -3,6 +3,7 @@ package hydra
 import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s"
+	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -18,7 +19,7 @@ type Syncer interface {
 	//that is basically the case when hydra pods started earlier than hydra maester pods, then hydra might be out of sync
 	//as it has potentially lost the OAuth clients in his DB
 	//See also: https://github.com/ory/hydra-maester/tree/master/docs
-	TriggerSynchronization(context context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) error
+	TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string) error
 }
 
 type DefaultHydraSyncer struct {
@@ -36,9 +37,12 @@ const (
 	hydraMaesterDeployment = "ory-hydra-maester"
 )
 
-func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client kubernetes.Interface,
-	logger *zap.SugaredLogger, namespace string) error {
-	restartHydraMaesterDeploymentNeeded, err := restartHydraMaesterDeploymentNeeded(context, client, logger, namespace)
+func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string) error {
+	clientset, err := client.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "Failed to read clientset")
+	}
+	restartHydraMaesterDeploymentNeeded, err := restartHydraMaesterDeploymentNeeded(context, clientset, logger, namespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to determine hydra pod status")
 	}
@@ -71,7 +75,7 @@ func restartHydraMaesterDeploymentNeeded(context context.Context, client kuberne
 	return earliestHydraPodStartTime.After(earliestHydraMaesterPodStartTime), nil
 }
 
-func rolloutHydraMaesterDeployment(handler k8s.RolloutHandler, context context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) error {
+func rolloutHydraMaesterDeployment(handler k8s.RolloutHandler, context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string) error {
 	err := handler.RolloutAndWaitForDeployment(context, hydraMaesterDeployment, namespace, client, logger)
 	if err != nil {
 		return errors.Wrap(err, "Rollout of hydra-maester deployment failed")

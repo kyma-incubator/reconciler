@@ -2,7 +2,7 @@ package hydra
 
 import (
 	"context"
-	handlermocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s/mocks"
+	handler "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -23,7 +23,6 @@ func Test_TriggerSynchronization(t *testing.T) {
 	t.Parallel()
 	logger := zaptest.NewLogger(t).Sugar()
 	t.Run("Should trigger synchronization when hydra-maester is behind hydra", func(t *testing.T) {
-
 		// given
 		hydraStartTimePod1 := time.Date(2021, 10, 10, 10, 10, 10, 10, time.UTC)
 		hydraStartTimePod2 := time.Date(2021, 10, 10, 10, 10, 7, 10, time.UTC)
@@ -36,19 +35,13 @@ func Test_TriggerSynchronization(t *testing.T) {
 		addPod(kubeclient, "hydra3", "hydra", hydraStartTimePod3, t, v1.PodFailed)
 		createDeployment(kubeclient, "ory-hydra-maester", hydraMasesterPodStartTime, t)
 		addPod(kubeclient, "hydra-maester1", "hydra-maester", hydraMasesterPodStartTime, t, v1.PodRunning)
-		client, err := kubeclient.Clientset()
-		require.NoError(t, err)
-		handlerMock := handlermocks.RolloutHandler{}
-		handlerMock.On("RolloutAndWaitForDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// when
-		err = NewDefaultHydraSyncer(&handlerMock).TriggerSynchronization(context.TODO(), client, logger, testNamespace)
+		err := NewDefaultHydraSyncer(handler.NewDefaultRolloutHandler()).TriggerSynchronization(context.TODO(), kubeclient, logger, testNamespace)
 
 		// then
 		require.NoError(t, err)
-		_, err2 := client.AppsV1().Deployments(testNamespace).Get(context.TODO(), "ory-hydra-maester", metav1.GetOptions{})
-		require.NoError(t, err2)
-		handlerMock.AssertCalled(t, "RolloutAndWaitForDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		kubeclient.AssertCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("Should not trigger synchronization when hydra is behind hydra-maester", func(t *testing.T) {
@@ -63,21 +56,14 @@ func Test_TriggerSynchronization(t *testing.T) {
 		addPod(kubeclient, "hydra3", "hydra", hydraStartTimePod3, t, v1.PodPending)
 		createDeployment(kubeclient, "ory-hydra-maester", hydraMasesterPodStartTime, t)
 		addPod(kubeclient, "hydra-maester", "hydra-maester", hydraMasesterPodStartTime, t, v1.PodRunning)
-		client, err := kubeclient.Clientset()
-		require.NoError(t, err)
-		handlerMock := handlermocks.RolloutHandler{}
+
 		// when
-		err = NewDefaultHydraSyncer(&handlerMock).TriggerSynchronization(context.TODO(), client, logger, testNamespace)
+		err := NewDefaultHydraSyncer(handler.NewDefaultRolloutHandler()).TriggerSynchronization(context.TODO(), kubeclient, logger, testNamespace)
 
 		// then
 		require.NoError(t, err)
-		deployment, err2 := client.AppsV1().Deployments(testNamespace).Get(context.TODO(), "ory-hydra-maester", metav1.GetOptions{})
-		require.NoError(t, err2)
-		spec := deployment.Spec
-		restartedAt := spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"]
-		// deployment should not have been restarted
-		require.Equal(t, restartedAt, hydraMasesterPodStartTime.String())
-		handlerMock.AssertNotCalled(t, "RolloutAndWaitForDeployment")
+		require.NoError(t, err)
+		kubeclient.AssertNotCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 }
 func Test_GetEarliestStartTime(t *testing.T) {
@@ -154,6 +140,7 @@ func fakeClient() *k8smocks.Client {
 	fakeClient := fake.NewSimpleClientset()
 	mockClient.On("Clientset").Return(fakeClient, nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
+	mockClient.On("PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	return mockClient
 }
 

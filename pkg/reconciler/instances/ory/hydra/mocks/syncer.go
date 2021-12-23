@@ -5,7 +5,7 @@ package mock
 import (
 	context "context"
 
-	kubernetes "k8s.io/client-go/kubernetes"
+	kubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -18,11 +18,11 @@ type Syncer struct {
 }
 
 // TriggerSynchronization provides a mock function with given fields: _a0, client, logger, namespace
-func (_m *Syncer) TriggerSynchronization(_a0 context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) error {
+func (_m *Syncer) TriggerSynchronization(_a0 context.Context, client kubernetes.Client, logger *zap.SugaredLogger, namespace string) error {
 	ret := _m.Called(_a0, client, logger, namespace)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, kubernetes.Interface, *zap.SugaredLogger, string) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, kubernetes.Client, *zap.SugaredLogger, string) error); ok {
 		r0 = rf(_a0, client, logger, namespace)
 	} else {
 		r0 = ret.Error(0)
