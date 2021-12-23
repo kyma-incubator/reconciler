@@ -98,11 +98,12 @@ func (bk *bookkeeper) Run(ctx context.Context, tasks ...BookkeepingTask) error {
 				reconResult, err := bk.newReconciliationResult(recon)
 				if err == nil {
 					bk.logger.Debugf("Bookkeeper evaluated reconciliation (schedulingID:%s) for cluster '%s' "+
-						"to cluster status '%s': Done=%s / Error=%s / Other=%s",
+						"to cluster status '%s': Done=%s / Error=%s / New=%s / Running=%s",
 						recon.SchedulingID, recon.RuntimeID, reconResult.GetResult(),
 						bk.componentList(reconResult.done, false),
 						bk.componentList(reconResult.error, true),
-						bk.componentList(reconResult.other, true))
+						bk.componentList(reconResult.new, false),
+						bk.componentList(reconResult.running, true))
 				} else {
 					bk.logger.Errorf("Bookkeeper failed to retrieve operations for reconciliation '%s' "+
 						"(but will continue processing): %s", recon, err)
