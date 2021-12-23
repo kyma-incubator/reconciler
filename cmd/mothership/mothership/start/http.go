@@ -37,7 +37,6 @@ const (
 
 	paramStatus     = "status"
 	paramRuntimeIDs = "runtimeID"
-	paramCluster    = "cluster"
 	paramBefore     = "before"
 	paramAfter      = "after"
 	paramLast       = "last"
@@ -63,11 +62,6 @@ func startWebserver(ctx context.Context, o *Options) error {
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramRuntimeID),
-		callHandler(o, deleteCluster)).
-		Methods("DELETE")
-
-	apiRouter.HandleFunc(
-		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramCluster),
 		callHandler(o, deleteCluster)).
 		Methods("DELETE")
 
@@ -187,15 +181,34 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	clusterState, err := o.Registry.Inventory().CreateOrUpdate(contractV, clusterModel)
+
+	clusterStateOld, err := o.Registry.Inventory().GetLatest(clusterModel.RuntimeID)
+	if err != nil && !repository.IsNotFoundError(err) {
+		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to get latest status").Error(),
+		})
+		return
+	}
+
+	clusterStateNew, err := o.Registry.Inventory().CreateOrUpdate(contractV, clusterModel)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to create or update cluster entity").Error(),
 		})
 		return
 	}
+
+	if clusterStateOld != nil && clusterStateOld.Status.Status.IsDisabled() {
+		if clusterStateNew, err = o.Registry.Inventory().UpdateStatus(clusterStateNew, model.ClusterStatusReconcileDisabled); err != nil {
+			server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+				Error: errors.Wrap(err, "Failed to disable cluster after an update").Error(),
+			})
+			return
+		}
+	}
+
 	//respond status URL
-	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, clusterStateNew, o.Registry.ReconciliationRepository())
 }
 
 func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {

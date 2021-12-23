@@ -142,7 +142,7 @@ func (bk *bookkeeper) componentList(ops []*model.OperationEntity, withReason boo
 		if buffer.Len() > 0 {
 			buffer.WriteRune(',')
 		}
-		buffer.WriteString(op.Component)
+		buffer.WriteString(fmt.Sprintf("%s[%d]", op.Component, op.Priority))
 		if withReason && bk.operationHasFailureState(op) {
 			buffer.WriteString(fmt.Sprintf("[error: %s]", op.Reason))
 		}

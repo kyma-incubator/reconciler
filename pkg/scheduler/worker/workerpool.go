@@ -159,6 +159,10 @@ func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) (int, error) 
 	}
 
 	for idx, op := range ops {
+		if workerPool.Free() == 0 {
+			w.logger.Warnf("could not assign worker to operation '%s': workerpool capacity reached: capacity=%d", op, workerPool.Cap())
+			break
+		}
 		if err := workerPool.Invoke(op); err == nil {
 			w.logger.Infof("Worker pool assigned worker to reconcile component '%s' on cluster '%s' (%s)",
 				op.Component, op.RuntimeID, op)
