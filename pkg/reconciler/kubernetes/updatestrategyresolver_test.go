@@ -1,19 +1,20 @@
-package internal
+package kubernetes
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
-	"testing"
-
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
+	"io"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest/fake"
 	"k8s.io/kubectl/pkg/scheme"
+	"net/http"
+	"strings"
+	"testing"
 )
 
 type testCase struct {
@@ -25,6 +26,7 @@ type testCase struct {
 }
 
 func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
+	test.IntegrationTest(t)
 
 	testCases := []testCase{
 		{
@@ -129,11 +131,15 @@ func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
 			Want: PatchUpdateStrategy,
 		},
 	}
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
+	require.NoError(t, err)
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			helper := newHelper(t, tc)
 			d := newDefaultUpdateStrategyResolver(helper)
-			got, err := d.Resolve(tc.Resource)
+			info, err := kubeClient.(*kubeClientAdapter).convertToInfo(tc.Resource)
+			require.NoError(t, err)
+			got, err := d.Resolve(info)
 			if (err != nil) != tc.WantErr {
 				t.Errorf("DefaultUpdateStrategyResolver.Resolve() error = %v, wantErr %v", err, tc.WantErr)
 				return

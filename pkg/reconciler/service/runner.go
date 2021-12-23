@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"strings"
 
 	"go.uber.org/zap"
@@ -11,7 +12,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/heartbeat"
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 )
 
@@ -79,6 +79,8 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 	kubeClient, err := k8s.NewKubernetesClient(task.Kubeconfig, r.logger, &k8s.Config{
 		ProgressInterval: r.progressTrackerConfig.interval,
 		ProgressTimeout:  r.progressTrackerConfig.timeout,
+		MaxRetries:       r.maxRetries,
+		RetryDelay:       r.retryDelay,
 	})
 	if err != nil {
 		return err

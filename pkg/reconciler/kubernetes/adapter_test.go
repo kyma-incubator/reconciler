@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
-	"testing"
-	"time"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
+	"path/filepath"
+	"testing"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -72,10 +71,7 @@ func TestKubernetesClient(t *testing.T) {
 	test.IntegrationTest(t)
 
 	//create client
-	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), &Config{
-		ProgressInterval: 1 * time.Second,
-		ProgressTimeout:  1 * time.Minute,
-	})
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	t.Run("Deploy no resources because interceptor was failing", func(t *testing.T) {
@@ -143,4 +139,30 @@ func readManifest(t *testing.T, fileName string) string {
 	manifest, err := ioutil.ReadFile(filepath.Join("test", fileName))
 	require.NoError(t, err)
 	return string(manifest)
+}
+
+func TestSetNamespaceIfScoped(t *testing.T) {
+	t.Run("Should set namespace if scoped", func(t *testing.T) {
+		info := &resource.Info{}
+		setNamespaceIfScoped("test", info, &resource.Helper{
+			NamespaceScoped: true,
+		})
+		require.Equal(t, "test", info.Namespace)
+	})
+
+	t.Run("Ignore namespace if not scoped", func(t *testing.T) {
+		info := &resource.Info{}
+		info.Namespace = ""
+		setNamespaceIfScoped("test", info, &resource.Helper{
+			NamespaceScoped: false,
+		})
+		require.Equal(t, "", info.Namespace)
+
+		info.Namespace = "initial"
+		setNamespaceIfScoped("test", info, &resource.Helper{
+			NamespaceScoped: false,
+		})
+		require.Equal(t, "initial", info.Namespace)
+
+	})
 }

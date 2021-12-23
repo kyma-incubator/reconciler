@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-
 	batchv1 "k8s.io/api/batch/v1"
 
 	v1apps "k8s.io/api/apps/v1"
@@ -21,7 +20,8 @@ type ResourceInterceptor interface {
 type Client interface {
 	Kubeconfig() string
 	DeleteResource(kind, name, namespace string) (*Resource, error)
-	Deploy(ctx context.Context, manifest, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error)
+	Deploy(ctx context.Context, manifestTarget, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error)
+	DeployByCompareWithOriginal(ctx context.Context, manifestOriginal, manifestTarget, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error)
 	Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error)
 	PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) error
 	Clientset() (kubernetes.Interface, error)

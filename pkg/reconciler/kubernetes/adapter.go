@@ -1,8 +1,22 @@
 package kubernetes
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"github.com/avast/retry-go"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
+	"helm.sh/helm/v3/pkg/kube"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -12,8 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/internal"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	v1apps "k8s.io/api/apps/v1"
@@ -30,13 +42,20 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: ""`
+	progressTrackerInterval   = 5 * time.Second
+	progressTrackerTimeout    = 2 * time.Minute
+	progressTrackerMaxRetries = 10
+	progressTrackerRetryDelay = 1 * time.Second
 )
 
 type kubeClientAdapter struct {
-	kubeconfig string
-	kubeClient *internal.KubeClient
-	logger     *zap.SugaredLogger
-	config     *Config
+	kubeconfig    string
+	logger        *zap.SugaredLogger
+	config        *Config
+	restConfig    *rest.Config
+	mapper        *restmapper.DeferredDiscoveryRESTMapper
+	helmClient    *kube.Client
+	dynamicClient dynamic.Interface
 }
 
 type Config struct {
@@ -46,43 +65,58 @@ type Config struct {
 	RetryDelay       time.Duration
 }
 
+type Metadata struct {
+	Name      string
+	Namespace string
+	Resource  string
+	Group     string
+	Version   string
+	Kind      string
+}
+
 func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (Client, error) {
 	if config == nil {
-		config = &Config{}
+		config = &Config{
+			ProgressInterval: progressTrackerInterval,
+			ProgressTimeout:  progressTrackerTimeout,
+			MaxRetries:       progressTrackerMaxRetries,
+			RetryDelay:       progressTrackerRetryDelay,
+		}
 	}
 
-	kubeClient, err := internal.NewKubeClient(kubeconfig, logger, &internal.Config{
-		MaxRetries: config.MaxRetries,
-		RetryDelay: config.RetryDelay,
-	})
+	restConfig, err := getRestConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
-
-	return adapt(kubeClient, kubeconfig, logger, config), err
+	mapper, err := getDiscoveryMapper(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	return adapt(kubeconfig, logger, config, restConfig, mapper, dynamicClient), err
 }
 
 func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, error) {
-	inClusterClient, err := internal.NewInClusterClient(logger)
+	inClusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		logger.Infof("Not able to create an In Cluster Client")
 		return nil, nil
 	}
-
-	inClusterClientSet, err := inClusterClient.GetClientSet()
-	if err != nil {
-		return nil, err
-	}
-
-	return inClusterClientSet, nil
+	return kubernetes.NewForConfig(inClusterConfig)
 }
 
-func adapt(impl *internal.KubeClient, kubeconfig string, logger *zap.SugaredLogger, config *Config) *kubeClientAdapter {
+func adapt(kubeconfig string, logger *zap.SugaredLogger, config *Config, restConfig *rest.Config, mapper *restmapper.DeferredDiscoveryRESTMapper, dynamicClient dynamic.Interface) *kubeClientAdapter {
 	return &kubeClientAdapter{
-		kubeconfig: kubeconfig,
-		kubeClient: impl,
-		logger:     logger,
-		config:     config,
+		kubeconfig:    kubeconfig,
+		logger:        logger,
+		config:        config,
+		restConfig:    restConfig,
+		mapper:        mapper,
+		dynamicClient: dynamicClient,
+		helmClient:    kube.New(NewRESTClientGetter(restConfig)),
 	}
 }
 
@@ -91,32 +125,166 @@ func (g *kubeClientAdapter) Kubeconfig() string {
 }
 
 func (g *kubeClientAdapter) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) error {
-	_, _, err := g.kubeClient.PatchUsingStrategy(kind, name, namespace, p, strategy)
-	return err
+	metadata := &Metadata{}
+	gvk, err := g.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
+	if err != nil {
+		return err
+	}
+
+	restMapping, err := g.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return err
+	}
+
+	restClient, err := newRestClient(*g.restConfig, gvk.GroupVersion())
+	if err != nil {
+		return err
+	}
+
+	helper := resource.NewHelper(restClient, restMapping)
+
+	var u *unstructured.Unstructured
+
+	if helper.NamespaceScoped {
+		u, err = g.dynamicClient.
+			Resource(restMapping.Resource).
+			Namespace(namespace).
+			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
+	} else {
+		u, err = g.dynamicClient.
+			Resource(restMapping.Resource).
+			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
+	}
+
+	if err != nil {
+		return err
+	}
+
+	gvr := restMapping.Resource
+
+	metadata.Name = u.GetName()
+	metadata.Namespace = u.GetNamespace()
+	metadata.Group = gvr.Group
+	metadata.Resource = gvr.Resource
+	metadata.Version = gvr.Version
+	metadata.Kind = gvk.Kind
+	return nil
 }
 
-func (g *kubeClientAdapter) Deploy(ctx context.Context, manifest, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error) {
+func (g *kubeClientAdapter) DeployByCompareWithOriginal(ctx context.Context, manifestOriginal, manifestTarget, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error) {
 	if namespace == "" {
 		namespace = defaultNamespace
 	}
 
-	deployedResources, err := g.deployManifest(ctx, manifest, namespace, interceptors)
+	resourceInfoOriginal, err := g.helmClient.Build(bytes.NewBuffer([]byte(manifestOriginal)), false)
+	if err != nil {
+		g.logger.Errorf("Failed to process original manifest data for deploy: %s", err)
+		g.logger.Debugf("Manifest data: %s", manifestOriginal)
+		return nil, err
+	}
 
-	//delete namespace if no resources was deployed into it
+	resourceInfoTarget, err := g.convertToResourceInfoWithInterceptors(manifestTarget, namespace, interceptors)
+	if err != nil {
+		g.logger.Errorf("Failed to process target manifest data for deploy: %s", err)
+		g.logger.Debugf("Manifest data: %s", manifestTarget)
+		return nil, err
+	}
+
+	deployedResources, err := g.deployResources(ctx, resourceInfoOriginal, resourceInfoTarget, namespace)
+
 	if len(deployedResources) == 0 {
-		g.logger.Warnf("Namespace '%s' was required for deploying the manifest "+
+		g.logger.Warnf("Namespace '%s' was required for deploying the manifestTarget "+
 			"but no resources were finally deployed into it", namespace)
 	}
 
 	return deployedResources, err
 }
 
-func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namespace string, interceptors []ResourceInterceptor) ([]*Resource, error) {
-	var deployedResources []*Resource
+func (g *kubeClientAdapter) Deploy(ctx context.Context, manifestTarget, namespace string, interceptors ...ResourceInterceptor) ([]*Resource, error) {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
 
+	resourceInfoTarget, err := g.convertToResourceInfoWithInterceptors(manifestTarget, namespace, interceptors)
+	if err != nil {
+		g.logger.Errorf("Failed to process target manifest data for deploy: %s", err)
+		g.logger.Debugf("Manifest data: %s", manifestTarget)
+		return nil, err
+	}
+
+	deployedResources, err := g.deployResources(ctx, resourceInfoTarget, resourceInfoTarget, namespace)
+
+	if len(deployedResources) == 0 {
+		g.logger.Warnf("Namespace '%s' was required for deploying the manifestTarget "+
+			"but no resources were finally deployed into it", namespace)
+	}
+
+	return deployedResources, err
+}
+
+func (g *kubeClientAdapter) convertToResourceInfoWithInterceptors(manifestTarget string, namespace string, interceptors []ResourceInterceptor) ([]*resource.Info, error) {
+	unstructsTarget, err := g.manifestToUnstructured(manifestTarget, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	//fill out the resourceListTarget map by kind
+	resourceListTarget := NewResourceList(unstructsTarget)
+
+	//apply interceptors to target
+	for _, interceptor := range interceptors {
+		if interceptor == nil {
+			continue
+		}
+
+		err := interceptor.Intercept(resourceListTarget, namespace)
+		if err != nil {
+			g.logger.Errorf("One of the interceptors returned an error: %s", err)
+			return nil, err
+		}
+	}
+
+	resourceInfoTarget, err := g.convertToInfoList(resourceListTarget.resources)
+	if err != nil {
+		g.logger.Errorf("Failed to convert target unstructs data: %s", err)
+		g.logger.Debugf("Manifest data: %s", manifestTarget)
+		return nil, err
+	}
+	return resourceInfoTarget, nil
+}
+
+func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalList []*resource.Info, infoTargetList []*resource.Info, namespace string) ([]*Resource, error) {
+	pt, err := g.newProgressTracker()
+	if err != nil {
+		return nil, err
+	}
+
+	var deployedResources []*Resource
+	for _, infoTarget := range infoTargetList {
+		deployedResource, err := g.deployResource(infoOriginalList, infoTarget, namespace)
+		if err != nil {
+			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
+			return nil, err
+		}
+
+		//add deploy resource to result
+		g.logger.Debugf("Kubernetes deployedResource '%v' successfully deployed", deployedResource)
+		deployedResources = append(deployedResources, deployedResource)
+
+		//if resource is watchable, add it to progress tracker
+		watchable, nonWatchableErr := progress.NewWatchableResource(deployedResource.Kind)
+		if nonWatchableErr == nil { //add only watchable resources to progress tracker
+			pt.AddResource(watchable, deployedResource.Namespace, deployedResource.Name)
+		}
+	}
+
+	return deployedResources, pt.Watch(ctx, progress.ReadyState)
+}
+
+func (g *kubeClientAdapter) manifestToUnstructured(manifest string, namespace string) ([]*unstructured.Unstructured, error) {
 	unstructs, err := ToUnstructured([]byte(manifest), true)
 	if err != nil {
-		g.logger.Errorf("Failed to process manifest data: %s", err)
+		g.logger.Errorf("Failed to process manifest data to unstructured: %s", err)
 		g.logger.Debugf("Manifest data: %s", manifest)
 		return nil, err
 	}
@@ -125,59 +293,171 @@ func (g *kubeClientAdapter) deployManifest(ctx context.Context, manifest, namesp
 	if err != nil {
 		return nil, err
 	}
+	return unstructs, nil
+}
 
-	//fill out the resources map by kind
-	resources := NewResourceList(unstructs)
+func (g *kubeClientAdapter) addWatchableResourceInfoToProgressTracker(info *resource.Info, pt *progress.Tracker) {
+	resource := &Resource{
+		Name:      info.Name,
+		Kind:      info.Object.GetObjectKind().GroupVersionKind().Kind,
+		Namespace: info.Namespace,
+	}
+	//add deploy resource to result
+	g.logger.Debugf("Kubernetes resource '%v' successfully deployed", resource)
+	//if resource is watchable, add it to progress tracker
+	watchable, nonWatchableErr := progress.NewWatchableResource(resource.Kind)
+	if nonWatchableErr == nil { //add only watchable resourceListTarget to progress tracker
+		pt.AddResource(watchable, resource.Namespace, resource.Name)
+	}
+}
 
-	//apply interceptors
-	for _, interceptor := range interceptors {
-		if interceptor == nil {
-			continue
-		}
-
-		err := interceptor.Intercept(resources, namespace)
-		if err != nil {
-			g.logger.Errorf("One of the interceptors returned an error: %s", err)
-			return deployedResources, err
-		}
+func getDiscoveryMapper(restConfig *rest.Config) (*restmapper.DeferredDiscoveryRESTMapper, error) {
+	// Prepare a RESTMapper to find GVR
+	dc, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create new discovery client")
 	}
 
-	pt, err := g.newProgressTracker()
+	discoveryMapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(dc))
+	return discoveryMapper, nil
+}
+
+func getRestConfig(kubeconfig string) (*rest.Config, error) {
+	return clientcmd.BuildConfigFromKubeconfigGetter("", func() (config *clientcmdapi.Config, e error) {
+		return clientcmd.Load([]byte(kubeconfig))
+	})
+}
+
+func (g *kubeClientAdapter) convertToInfoList(unstructs []*unstructured.Unstructured) ([]*resource.Info, error) {
+	var resourceInfos []*resource.Info
+
+	for _, unstruct := range unstructs {
+		info, err := g.convertToInfo(unstruct)
+		if err != nil {
+			return nil, err
+		}
+		resourceInfos = append(resourceInfos, info)
+	}
+
+	return resourceInfos, nil
+}
+
+func (g *kubeClientAdapter) convertToInfo(unstruct *unstructured.Unstructured) (*resource.Info, error) {
+	info := &resource.Info{}
+	gvk := unstruct.GroupVersionKind()
+	gv := gvk.GroupVersion()
+	client, err := newRestClient(*g.restConfig, gv)
+	if err != nil {
+		return nil, err
+	}
+	info.Client = client
+	restMapping, err := g.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return nil, err
+	}
+	info.Mapping = restMapping
+	info.Namespace = unstruct.GetNamespace()
+	info.Name = unstruct.GetName()
+	info.Object = unstruct.DeepCopyObject()
+	return info, nil
+}
+
+func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
+	restConfig.ContentConfig = resource.UnstructuredPlusDefaultContentConfig()
+	restConfig.GroupVersion = &gv
+
+	if len(gv.Group) == 0 {
+		restConfig.APIPath = "/api"
+	} else {
+		restConfig.APIPath = "/apis"
+	}
+
+	return rest.RESTClientFor(&restConfig)
+}
+
+func (g *kubeClientAdapter) deleteResource(infoTarget *resource.Info) (*Resource, error) {
+	_, errs := g.helmClient.Delete(kube.ResourceList{infoTarget})
+	if errs != nil {
+		g.logger.Warnf("kubeClient failed to delete %s '%s' (namespace: %s): %v",
+			infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace, errs)
+		return nil, errs[0]
+	}
+	g.logger.Debugf("kubeClient delete %s '%s' (namespace: %s) successfully.",
+		infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace)
+	return &Resource{
+		Kind:      infoTarget.Object.GetObjectKind().GroupVersionKind().Kind,
+		Name:      infoTarget.Name,
+		Namespace: infoTarget.Namespace,
+	}, nil
+}
+
+func (g *kubeClientAdapter) deployResource(infoOriginalList []*resource.Info, infoTarget *resource.Info, namespaceOverride string) (*Resource, error) {
+
+	helper := resource.NewHelper(infoTarget.Client, infoTarget.Mapping)
+
+	setDefaultNamespaceIfScopedAndNoneSet(namespaceOverride, infoTarget, helper)
+	setNamespaceIfScoped(namespaceOverride, infoTarget, helper)
+
+	strategy, err := newDefaultUpdateStrategyResolver(helper).Resolve(infoTarget)
 	if err != nil {
 		return nil, err
 	}
 
-	//apply resources to the cluster and add progress watchers
-	err = resources.Visit(func(unstruct *unstructured.Unstructured) error {
-		metadata, err := g.kubeClient.ApplyWithNamespaceOverride(unstruct, namespace)
-		if err != nil {
-			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
-			g.logger.Debugf("Used JSON data: %+v", unstruct)
-			return err
-		}
-
-		resource := toResource(metadata)
-
-		//add deploy resource to result
-		g.logger.Debugf("Kubernetes resource '%v' successfully deployed", resource)
-		deployedResources = append(deployedResources, resource)
-
-		//if resource is watchable, add it to progress tracker
-		watchable, nonWatchableErr := progress.NewWatchableResource(resource.Kind)
-		if nonWatchableErr == nil { //add only watchable resources to progress tracker
-			pt.AddResource(watchable, resource.Namespace, resource.Name)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return deployedResources, err
+	if strategy == SkipUpdateStrategy {
+		return nil, nil
 	}
 
-	g.logger.Debugf("Manifest processed: %d Kubernetes resources were successfully deployed",
-		len(deployedResources))
-	return deployedResources, pt.Watch(ctx, progress.ReadyState)
+	//retry the reconciliation in case of an error
+	err = retry.Do(g.deployResourceFunc(infoOriginalList, infoTarget, strategy),
+		retry.Attempts(uint(g.config.MaxRetries)),
+		retry.Delay(g.config.RetryDelay),
+		retry.LastErrorOnly(false),
+		retry.Context(context.Background()))
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "kubeClient failed to update %s '%s' (namespace: %s)",
+			infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace)
+	}
+
+	resource := &Resource{
+		Kind:      infoTarget.Object.GetObjectKind().GroupVersionKind().Kind,
+		Name:      infoTarget.Name,
+		Namespace: infoTarget.Namespace,
+	}
+	return resource, nil
+}
+
+func (g *kubeClientAdapter) deployResourceFunc(infoOriginalList []*resource.Info, infoTarget *resource.Info, strategy UpdateStrategy) func() error {
+	return func() error {
+		replaceResource := strategy == ReplaceUpdateStrategy
+		_, err := g.helmClient.Update(infoOriginalList, kube.ResourceList{infoTarget}, replaceResource)
+		if err == nil {
+			g.logger.Debugf("kubeClient updated %s '%s' (namespace: %s) with stategy '%s' successfully ",
+				infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace, strategy)
+		} else {
+			g.logger.Warnf("kubeClient failed to update %s '%s' (namespace: %s)  with strategy '%s': %s",
+				infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace, strategy, err)
+		}
+		return err
+	}
+}
+
+func setDefaultNamespaceIfScopedAndNoneSet(namespace string, resourceInfo *resource.Info, helper *resource.Helper) {
+	if helper.NamespaceScoped {
+		resNamespace := resourceInfo.Namespace
+		if resNamespace == "" {
+			if namespace == "" {
+				namespace = "default"
+			}
+			resourceInfo.Namespace = namespace
+		}
+	}
+}
+
+func setNamespaceIfScoped(namespace string, resourceInfo *resource.Info, helper *resource.Helper) {
+	if resourceInfo.Namespace == "" && helper.NamespaceScoped {
+		resourceInfo.Namespace = namespace
+	}
 }
 
 func (g *kubeClientAdapter) addNamespaceUnstruct(unstructs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
@@ -224,8 +504,7 @@ func (g *kubeClientAdapter) DeleteResource(kind, name, namespace string) (*Resou
 	if !g.resourceExists(kind, name, namespace) {
 		return nil, nil
 	}
-	metadata, err := g.kubeClient.DeleteResourceByKindAndNameAndNamespace(kind, name, namespace, metav1.DeleteOptions{})
-	deletedResource := toResource(metadata)
+	deletedResource, err := g.deleteResourceByKindAndNameAndNamespace(kind, name, namespace, metav1.DeleteOptions{})
 	if err != nil && !k8serr.IsNotFound(err) {
 		g.logger.Errorf("Failed to delete Kubernetes unstructured resource kind='%s', name='%s', namespace='%s': %s",
 			kind, name, namespace, err)
@@ -234,15 +513,62 @@ func (g *kubeClientAdapter) DeleteResource(kind, name, namespace string) (*Resou
 	return deletedResource, nil
 }
 
+func (g *kubeClientAdapter) deleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*Resource, error) {
+	gvk, err := g.mapper.KindFor(schema.GroupVersionResource{
+		Resource: kind,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var isNamespaceResource = strings.ToLower(gvk.Kind) == "namespace"
+
+	if !isNamespaceResource && namespace == "" { //set qualified namespace (except resource is of kind 'namespace')
+		namespace = "default"
+	}
+
+	restMapping, err := g.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return nil, err
+	}
+
+	restClient, err := newRestClient(*g.restConfig, gvk.GroupVersion())
+	if err != nil {
+		return nil, err
+	}
+
+	helper := resource.NewHelper(restClient, restMapping)
+
+	if helper.NamespaceScoped {
+		err = g.dynamicClient.
+			Resource(restMapping.Resource).
+			Namespace(namespace).
+			Delete(context.TODO(), name, do)
+	} else {
+		err = g.dynamicClient.
+			Resource(restMapping.Resource).
+			Delete(context.TODO(), name, do)
+	}
+
+	//return deleted resource
+	if isNamespaceResource {
+		namespace = "" //namespace resources have always an empty namespace field
+	}
+	return &Resource{
+		Kind:      kind,
+		Name:      name,
+		Namespace: namespace,
+	}, err
+}
+
 func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error) {
 	if namespace == "" {
 		namespace = defaultNamespace
 	}
-
-	unstructs, err := ToUnstructured([]byte(manifest), true)
+	infoTargetList, err := g.helmClient.Build(bytes.NewBuffer([]byte(manifest)), false)
 	if err != nil {
-		g.logger.Errorf("Failed to process manifest file: %s", err)
-		g.logger.Debugf("Manifest file: %s", manifest)
+		g.logger.Errorf("Failed to process manifest data for delete: %s", err)
+		g.logger.Debugf("Manifest data: %s", manifest)
 		return nil, err
 	}
 
@@ -251,42 +577,19 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace stri
 		return nil, err
 	}
 
-	//delete resource in reverse order
 	var deletedResources []*Resource
-	for i := len(unstructs) - 1; i >= 0; i-- {
-		unstruct := unstructs[i]
-
-		if unstruct.GetNamespace() == "" {
-			unstruct.SetNamespace(namespace)
+	for _, info := range infoTargetList {
+		deletedResource, err := g.deleteResource(info)
+		if err != nil {
+			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
+			return nil, err
 		}
 
-		// execute the delete request only if the resource exists
-		if !g.resourceExists(unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace()) {
-			g.logger.Debugf("Could not find resource for deletion: kind='%s', name='%s', namespace='%s'",
-				unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
-			continue
-		}
+		deletedResources = append(deletedResources, deletedResource)
 
-		g.logger.Debugf("Deleting resource: kind='%s', name='%s', namespace='%s'",
-			unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
-
-		metadata, err := g.kubeClient.DeleteResourceByKindAndNameAndNamespace(
-			unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace(), metav1.DeleteOptions{})
-		if err != nil && !k8serr.IsNotFound(err) {
-			g.logger.Errorf("Failed to delete Kubernetes unstructured resource kind='%s', name='%s', namespace='%s': %s",
-				unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace(), err)
-			return deletedResources, err
-		}
-
-		resource := toResource(metadata)
-
-		//add deleted resource to result set
-		deletedResources = append(deletedResources, resource)
-
-		//if resource is watchable, add it to progress tracker
-		watchable, err := progress.NewWatchableResource(resource.Kind)
-		if err == nil { //add only watchable resources to progress tracker
-			pt.AddResource(watchable, resource.Namespace, resource.Name)
+		watchable, err := progress.NewWatchableResource(deletedResource.Kind)
+		if err == nil {
+			pt.AddResource(watchable, deletedResource.Namespace, deletedResource.Name)
 		}
 	}
 
@@ -295,7 +598,7 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace stri
 		g.logger.Warnf("Watching progress of deleted resources failed: %s", err)
 	}
 
-	if err = g.kubeClient.DeleteNamespace(namespace); err != nil && !k8serr.IsNotFound(err) {
+	if err = g.DeleteNamespace(namespace); err != nil && !k8serr.IsNotFound(err) {
 		g.logger.Errorf("Failed to delete namespace name='%s': %s",
 			namespace, err)
 		return deletedResources, err
@@ -303,13 +606,73 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace stri
 	return deletedResources, nil
 }
 
+func (g *kubeClientAdapter) DeleteNamespace(namespace string) error {
+	r := cmdutil.NewFactory(NewRESTClientGetter(g.restConfig)).NewBuilder().
+		Unstructured().
+		NamespaceParam(namespace).DefaultNamespace().
+		LabelSelectorParam("").
+		FieldSelectorParam("").
+		RequestChunksOf(500).
+		ResourceTypeOrNameArgs(true, "all").
+		ContinueOnError().
+		Latest().
+		Flatten().
+		Do()
+	infos, err := r.Infos()
+	if err != nil {
+		return err
+	}
+	if len(infos) == 0 {
+		namespaceRes := schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
+		err = g.dynamicClient.
+			Resource(namespaceRes).
+			Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+	}
+	return err
+}
+
 // check if resource exists in the cluster
 func (g *kubeClientAdapter) resourceExists(kind, name, namespace string) bool {
-	_, err := g.kubeClient.Get(kind, name, namespace)
+	_, err := g.Get(kind, name, namespace)
 	if k8serr.IsNotFound(err) {
 		return false
 	}
 	return err == nil
+}
+
+// Get a manifest by resource/kind (example: 'pods' or 'pod'),
+// name (example: 'my-pod'), and namespace (example: 'my-namespace').
+func (g *kubeClientAdapter) Get(kind, name, namespace string) (*unstructured.Unstructured, error) {
+	gvk, err := g.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
+	if err != nil {
+		return nil, err
+	}
+
+	restMapping, err := g.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return nil, err
+	}
+
+	restClient, err := newRestClient(*g.restConfig, gvk.GroupVersion())
+	if err != nil {
+		return nil, err
+	}
+
+	var u *unstructured.Unstructured
+
+	helper := resource.NewHelper(restClient, restMapping)
+	if helper.NamespaceScoped {
+		u, err = g.dynamicClient.
+			Resource(restMapping.Resource).
+			Namespace(namespace).
+			Get(context.TODO(), name, metav1.GetOptions{})
+	} else {
+		u, err = g.dynamicClient.
+			Resource(restMapping.Resource).
+			Get(context.TODO(), name, metav1.GetOptions{})
+	}
+
+	return u, err
 }
 
 func (g *kubeClientAdapter) newProgressTracker() (*progress.Tracker, error) {
@@ -317,18 +680,22 @@ func (g *kubeClientAdapter) newProgressTracker() (*progress.Tracker, error) {
 	if err != nil {
 		return nil, err
 	}
-	return progress.NewProgressTracker(clientSet, g.logger, progress.Config{
+	return progress.NewProgressTracker(clientSet, g.logger, progress.ProgressConfig{
 		Interval: g.config.ProgressInterval,
 		Timeout:  g.config.ProgressTimeout,
 	})
 }
 
 func (g *kubeClientAdapter) Clientset() (kubernetes.Interface, error) {
-	return g.kubeClient.GetClientSet()
+	return kubernetes.NewForConfig(g.restConfig)
 }
 
 func (g *kubeClientAdapter) ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
-	return g.kubeClient.ListResource(resource, lo)
+	gvr, err := g.mapper.ResourceFor(schema.GroupVersionResource{Resource: resource})
+	if err != nil {
+		return nil, err
+	}
+	return g.dynamicClient.Resource(gvr).List(context.TODO(), lo)
 }
 
 func (g *kubeClientAdapter) GetDeployment(ctx context.Context, name, namespace string) (*v1apps.Deployment, error) {
@@ -478,18 +845,12 @@ func (g *kubeClientAdapter) GetJob(ctx context.Context, name, namespace string) 
 	return job, err
 }
 
-func toResource(m *internal.Metadata) *Resource {
+func toResource(m *Metadata) *Resource {
 	return &Resource{
 		Name:      m.Name,
 		Kind:      m.Kind,
 		Namespace: m.Namespace,
 	}
-}
-
-//Unmarshalls given manifest in YAML format into k8s.io Unstructured data type.
-func ToUnstructured(manifest []byte, async bool) ([]*unstructured.Unstructured, error) {
-	// expose the internal unstructured converter
-	return internal.ToUnstructured(manifest, async)
 }
 
 func ResolveNamespace(resource *unstructured.Unstructured, namespace string) string {
@@ -500,5 +861,9 @@ func ResolveNamespace(resource *unstructured.Unstructured, namespace string) str
 }
 
 func (g *kubeClientAdapter) GetHost() string {
-	return g.kubeClient.GetHost()
+	if g.restConfig == nil {
+		return ""
+	}
+
+	return g.restConfig.Host
 }

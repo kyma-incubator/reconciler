@@ -40,10 +40,7 @@ func newRemoveNatsOperatorStep() *removeNatsOperatorStep {
 }
 
 func defaultKubeClientProvider(context *service.ActionContext, logger *zap.SugaredLogger) (kubernetes.Client, error) {
-	kubeClient, err := kubernetes.NewKubernetesClient(context.Task.Kubeconfig, logger, &kubernetes.Config{
-		ProgressInterval: progressTrackerInterval,
-		ProgressTimeout:  progressTrackerTimeout,
-	})
+	kubeClient, err := kubernetes.NewKubernetesClient(context.Task.Kubeconfig, logger, nil)
 	if err != nil {
 		return nil, err
 	}

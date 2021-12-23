@@ -1,9 +1,9 @@
 package service
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"testing"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )

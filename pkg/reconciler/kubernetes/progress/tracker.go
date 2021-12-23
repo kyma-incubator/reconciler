@@ -22,22 +22,22 @@ const (
 
 type State string
 
-type resource struct {
-	kind      WatchableResource
-	name      string
-	namespace string
+type TrackerResource struct {
+	Kind      WatchableResource
+	Name      string
+	Namespace string
 }
 
-func (o *resource) String() string {
-	return fmt.Sprintf("%s [namespace:%s|name:%s]", o.kind, o.namespace, o.name)
+func (o *TrackerResource) String() string {
+	return fmt.Sprintf("%s [namespace:%s|name:%s]", o.Kind, o.Namespace, o.Name)
 }
 
-type Config struct {
+type ProgressConfig struct {
 	Interval time.Duration
 	Timeout  time.Duration
 }
 
-func (ptc *Config) validate() error {
+func (ptc *ProgressConfig) validate() error {
 	if ptc.Interval < 0 {
 		return fmt.Errorf("progress tracker status-check interval cannot be < 0")
 	}
@@ -58,14 +58,14 @@ func (ptc *Config) validate() error {
 }
 
 type Tracker struct {
-	objects  []*resource
+	objects  []*TrackerResource
 	client   kubernetes.Interface
 	interval time.Duration
 	timeout  time.Duration
 	logger   *zap.SugaredLogger
 }
 
-func NewProgressTracker(client kubernetes.Interface, logger *zap.SugaredLogger, config Config) (*Tracker, error) {
+func NewProgressTracker(client kubernetes.Interface, logger *zap.SugaredLogger, config ProgressConfig) (*Tracker, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
@@ -130,10 +130,10 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 }
 
 func (pt *Tracker) AddResource(kind WatchableResource, namespace, name string) {
-	pt.objects = append(pt.objects, &resource{
-		kind:      kind,
-		namespace: namespace,
-		name:      name,
+	pt.objects = append(pt.objects, &TrackerResource{
+		Kind:      kind,
+		Namespace: namespace,
+		Name:      name,
 	})
 }
 
@@ -153,17 +153,17 @@ func (pt *Tracker) isInReadyState(ctx context.Context) (bool, error) {
 		var err error
 		ready := true
 
-		switch object.kind {
+		switch object.Kind {
 		case Pod:
-			ready, err = isPodReady(ctx, pt.client, object)
+			ready, err = IsPodReady(ctx, pt.client, object)
 		case Deployment:
-			ready, err = isDeploymentReady(ctx, pt.client, object)
+			ready, err = IsDeploymentReady(ctx, pt.client, object)
 		case DaemonSet:
-			ready, err = isDaemonSetReady(ctx, pt.client, object)
+			ready, err = IsDaemonSetReady(ctx, pt.client, object)
 		case StatefulSet:
-			ready, err = isStatefulSetReady(ctx, pt.client, object)
+			ready, err = IsStatefulSetReady(ctx, pt.client, object)
 		case Job:
-			ready, err = isJobReady(ctx, pt.client, object)
+			ready, err = IsJobReady(ctx, pt.client, object)
 		}
 
 		if err != nil {
@@ -171,7 +171,7 @@ func (pt *Tracker) isInReadyState(ctx context.Context) (bool, error) {
 			return false, err
 		}
 		if !ready {
-			pt.logger.Debugf("Transition of %s to ready state is still ongoing", object.name)
+			pt.logger.Debugf("Transition of %s to ready state is still ongoing", object.Name)
 			return false, nil
 		}
 	}
@@ -185,21 +185,21 @@ func (pt *Tracker) isInTerminatedState(ctx context.Context) (bool, error) {
 	for _, object := range pt.objects {
 		var err error
 
-		switch object.kind {
+		switch object.Kind {
 		case Pod:
-			_, err = pt.client.CoreV1().Pods(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+			_, err = pt.client.CoreV1().Pods(object.Namespace).Get(ctx, object.Name, metav1.GetOptions{})
 		case Deployment:
-			_, err = pt.client.AppsV1().Deployments(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+			_, err = pt.client.AppsV1().Deployments(object.Namespace).Get(ctx, object.Name, metav1.GetOptions{})
 		case DaemonSet:
-			_, err = pt.client.AppsV1().DaemonSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+			_, err = pt.client.AppsV1().DaemonSets(object.Namespace).Get(ctx, object.Name, metav1.GetOptions{})
 		case StatefulSet:
-			_, err = pt.client.AppsV1().StatefulSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+			_, err = pt.client.AppsV1().StatefulSets(object.Namespace).Get(ctx, object.Name, metav1.GetOptions{})
 		case Job:
-			_, err = pt.client.BatchV1().Jobs(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+			_, err = pt.client.BatchV1().Jobs(object.Namespace).Get(ctx, object.Name, metav1.GetOptions{})
 		}
 
 		if err == nil {
-			pt.logger.Debugf("Termination of %s is still ongoing", object.name)
+			pt.logger.Debugf("Termination of %s is still ongoing", object.Name)
 			return false, nil
 		}
 		if !errors.IsNotFound(err) {

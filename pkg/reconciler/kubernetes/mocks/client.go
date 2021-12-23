@@ -4,7 +4,6 @@ package mocks
 
 import (
 	context "context"
-
 	batchv1 "k8s.io/api/batch/v1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -98,20 +97,20 @@ func (_m *Client) DeleteResource(kind string, name string, namespace string) (*r
 	return r0, r1
 }
 
-// Deploy provides a mock function with given fields: ctx, manifest, namespace, interceptors
-func (_m *Client) Deploy(ctx context.Context, manifest string, namespace string, interceptors ...reconcilerkubernetes.ResourceInterceptor) ([]*reconcilerkubernetes.Resource, error) {
+// Deploy provides a mock function with given fields: ctx, manifestTarget, namespace, interceptors
+func (_m *Client) Deploy(ctx context.Context, manifestTarget string, namespace string, interceptors ...reconcilerkubernetes.ResourceInterceptor) ([]*reconcilerkubernetes.Resource, error) {
 	_va := make([]interface{}, len(interceptors))
 	for _i := range interceptors {
 		_va[_i] = interceptors[_i]
 	}
 	var _ca []interface{}
-	_ca = append(_ca, ctx, manifest, namespace)
+	_ca = append(_ca, ctx, manifestTarget, namespace)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
 	var r0 []*reconcilerkubernetes.Resource
 	if rf, ok := ret.Get(0).(func(context.Context, string, string, ...reconcilerkubernetes.ResourceInterceptor) []*reconcilerkubernetes.Resource); ok {
-		r0 = rf(ctx, manifest, namespace, interceptors...)
+		r0 = rf(ctx, manifestTarget, namespace, interceptors...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*reconcilerkubernetes.Resource)
@@ -120,7 +119,37 @@ func (_m *Client) Deploy(ctx context.Context, manifest string, namespace string,
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, string, string, ...reconcilerkubernetes.ResourceInterceptor) error); ok {
-		r1 = rf(ctx, manifest, namespace, interceptors...)
+		r1 = rf(ctx, manifestTarget, namespace, interceptors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DeployByCompareWithOriginal provides a mock function with given fields: ctx, manifestOriginal, manifestTarget, namespace, interceptors
+func (_m *Client) DeployByCompareWithOriginal(ctx context.Context, manifestOriginal string, manifestTarget string, namespace string, interceptors ...reconcilerkubernetes.ResourceInterceptor) ([]*reconcilerkubernetes.Resource, error) {
+	_va := make([]interface{}, len(interceptors))
+	for _i := range interceptors {
+		_va[_i] = interceptors[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, manifestOriginal, manifestTarget, namespace)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 []*reconcilerkubernetes.Resource
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, ...reconcilerkubernetes.ResourceInterceptor) []*reconcilerkubernetes.Resource); ok {
+		r0 = rf(ctx, manifestOriginal, manifestTarget, namespace, interceptors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*reconcilerkubernetes.Resource)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, ...reconcilerkubernetes.ResourceInterceptor) error); ok {
+		r1 = rf(ctx, manifestOriginal, manifestTarget, namespace, interceptors...)
 	} else {
 		r1 = ret.Error(1)
 	}
