@@ -79,7 +79,6 @@ func Test_PostReconcile_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
-		kubeClient.AssertCalled(t, "Clientset")
 		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 	})
