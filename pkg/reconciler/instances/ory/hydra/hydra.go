@@ -48,7 +48,7 @@ func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, cli
 	}
 	if restartHydraMaesterDeploymentNeeded {
 		logger.Info("Rolling out hydra-maester deployment")
-		err = rolloutHydraMaesterDeployment(c.rolloutHandler, context, client, logger, namespace)
+		err = c.rolloutHandler.RolloutAndWaitForDeployment(context, hydraMaesterDeployment, namespace, client, logger)
 		if err != nil {
 			return errors.Wrap(err, "Failed to rollout ory hydra-maester deployment")
 		}
@@ -73,14 +73,6 @@ func restartHydraMaesterDeploymentNeeded(context context.Context, client kuberne
 	logger.Debugf("Earliest hydra-maester restart time: %s ", earliestHydraMaesterPodStartTime.String())
 
 	return earliestHydraPodStartTime.After(earliestHydraMaesterPodStartTime), nil
-}
-
-func rolloutHydraMaesterDeployment(handler k8s.RolloutHandler, context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string) error {
-	err := handler.RolloutAndWaitForDeployment(context, hydraMaesterDeployment, namespace, client, logger)
-	if err != nil {
-		return errors.Wrap(err, "Rollout of hydra-maester deployment failed")
-	}
-	return nil
 }
 
 func getEarliestPodStartTime(context context.Context, label string, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (time.Time, error) {
