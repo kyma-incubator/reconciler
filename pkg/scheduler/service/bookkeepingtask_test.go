@@ -1,6 +1,11 @@
 package service
 
 import (
+	"strconv"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
@@ -8,26 +13,22 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/stretchr/testify/require"
-	"strconv"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestBookkeepingtask(t *testing.T) {
 	tests := []struct {
 		name           string
-		markOpsDone    bool
+		markOpsAs      model.OperationState
 		customFunc     func(transition *ClusterStatusTransition) BookkeepingTask
 		expectedStatus model.OperationState
 	}{
-		{name: "Mark operations as orphan", markOpsDone: false, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
+		{name: "Mark operations as orphan", markOpsAs: model.OperationStateInProgress, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
 			return markOrphanOperation{
 				transition: transition,
 				logger:     logger.NewLogger(true),
 			}
 		}, expectedStatus: model.OperationStateOrphan},
-		{name: "Finish operations", markOpsDone: true, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
+		{name: "Finish operations", markOpsAs: model.OperationStateDone, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
 			return finishOperation{
 				transition: transition,
 				logger:     logger.NewLogger(true),
@@ -56,12 +57,12 @@ func TestBookkeepingtask(t *testing.T) {
 			require.NotEmpty(t, reconEntity.Lock)
 			require.False(t, reconEntity.Finished)
 
-			//mark all operations to be done, if needed for tc
-			if tc.markOpsDone {
+			//mark all operations to a specific state, if needed for tc
+			if tc.markOpsAs != "" {
 				opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
 				require.NoError(t, err)
 				for _, opEntity := range opEntities {
-					err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone, true)
+					err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, tc.markOpsAs, true)
 					require.NoError(t, err)
 				}
 			}
