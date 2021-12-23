@@ -8,7 +8,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/stretchr/testify/require"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -45,7 +44,7 @@ func TestBookkeepingtask(t *testing.T) {
 			require.NoError(t, err)
 
 			//add cluster to inventory
-			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, strconv.Itoa(1), 1, false, test.OneComponentDummy))
+			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
 
 			//trigger reconciliation for cluster
@@ -137,7 +136,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			require.NoError(t, err)
 
 			//add cluster to inventory
-			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, strconv.Itoa(1), 1, false, test.OneComponentDummy))
+			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
 
 			//trigger reconciliation for cluster

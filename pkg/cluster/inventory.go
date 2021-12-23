@@ -24,6 +24,7 @@ type Inventory interface {
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
+	WithTx(tx *db.TxConnection) (Inventory, error)
 }
 
 type DefaultInventory struct {
@@ -46,6 +47,10 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 		return nil, err
 	}
 	return &DefaultInventory{repo, collector}, nil
+}
+
+func (i *DefaultInventory) WithTx(tx *db.TxConnection) (Inventory, error) {
+	return NewInventory(tx, i.Debug, i.metricsCollector)
 }
 
 func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error) {
@@ -90,16 +95,22 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 	if len(cluster.KymaConfig.Components) == 0 {
 		return nil, fmt.Errorf("error creating cluster with RuntimeID: %s, component list is empty", cluster.RuntimeID)
 	}
-	dbOps := func() (interface{}, error) {
-		clusterEntity, err := i.createCluster(contractVersion, cluster)
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+		var iTx *DefaultInventory
+		tmpiTx, err := i.WithTx(tx)
 		if err != nil {
 			return nil, err
 		}
-		clusterConfigurationEntity, err := i.createConfiguration(contractVersion, cluster, clusterEntity)
+		iTx = tmpiTx.(*DefaultInventory)
+		clusterEntity, err := iTx.createCluster(contractVersion, cluster)
 		if err != nil {
 			return nil, err
 		}
-		clusterStatusEntity, err := i.createStatus(clusterConfigurationEntity, model.ClusterStatusReconcilePending)
+		clusterConfigurationEntity, err := iTx.createConfiguration(contractVersion, cluster, clusterEntity)
+		if err != nil {
+			return nil, err
+		}
+		clusterStatusEntity, err := iTx.createStatus(clusterConfigurationEntity, model.ClusterStatusReconcilePending)
 		if err != nil {
 			return nil, err
 		}
@@ -261,7 +272,7 @@ func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
 }
 
 func (i *DefaultInventory) Delete(runtimeID string) error {
-	dbOps := func() error {
+	dbOps := func(tx *db.TxConnection) error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID)
 		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
 
@@ -280,7 +291,7 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 			return err
 		}
 		clusterUpdateSQL := fmt.Sprintf(updateSQLTpl, clusterEntity.Table(), clusterColName, clusterDelColName, clusterColName, clusterColName)
-		if _, err := i.Conn.Exec(clusterUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
+		if _, err := tx.Exec(clusterUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
 			return err
 		}
 
@@ -299,7 +310,7 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 			return err
 		}
 		configUpdateSQL := fmt.Sprintf(updateSQLTpl, configEntity.Table(), configClusterColName, configDelColName, configClusterColName, configClusterColName)
-		if _, err := i.Conn.Exec(configUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
+		if _, err := tx.Exec(configUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
 			return err
 		}
 
@@ -318,7 +329,7 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 			return err
 		}
 		statusUpdateSQL := fmt.Sprintf(updateSQLTpl, statusEntity.Table(), statusClusterColName, statusDelColName, statusClusterColName, statusClusterColName)
-		if _, err := i.Conn.Exec(statusUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
+		if _, err := tx.Exec(statusUpdateSQL, newClusterName, "TRUE", runtimeID, newClusterName); err != nil {
 			return err
 		}
 
