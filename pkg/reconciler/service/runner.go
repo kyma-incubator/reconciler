@@ -31,9 +31,9 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	if err != nil {
 		return err
 	}
-
+	var retryID string
 	retryable := func() error {
-		retryID := uuid.New().String()
+		retryID =uuid.NewString()
 		if err := heartbeatSender.Running(retryID); err != nil {
 			r.logger.Warnf("Runner: failed to start status updater: %s", err)
 			return err
@@ -59,7 +59,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	if err == nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
-		if err := heartbeatSender.Success(uuid.NewString()); err != nil {
+		if err := heartbeatSender.Success(retryID); err != nil {
 			return err
 		}
 	} else if ctx.Err() != nil {
@@ -69,7 +69,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	} else {
 		r.logger.Errorf("Runner: retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			task.Component, task.Version)
-		if heartbeatErr := heartbeatSender.Error(err, uuid.NewString()); heartbeatErr != nil {
+		if heartbeatErr := heartbeatSender.Error(err, retryID); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
 		}
 	}

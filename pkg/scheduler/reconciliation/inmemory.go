@@ -225,12 +225,12 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	}
 
 	// copy the operation to avoid having data races while writing
-	opCopy := *op
+	//opCopy := *op
 
-	if opCopy.State.IsFinal() {
+	if op.State.IsFinal() {
 		return fmt.Errorf("cannot update state of operation for component '%s' (schedulingID:%s/correlationID:'%s) "+
 			"to new state '%s' because operation is already in final state '%s'",
-			opCopy.Component, opCopy.SchedulingID, opCopy.CorrelationID, state, opCopy.State)
+			op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
 	}
 
 	reason, err := concatStateReasons(state, reasons)
@@ -239,11 +239,11 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	}
 
 	//update operation
-	opCopy.State = state
-	opCopy.Reason = reason
-	opCopy.Updated = time.Now().UTC()
+	op.State = state
+	op.Reason = reason
+	op.Updated = time.Now().UTC()
 
-	r.operations[schedulingID][correlationID] = &opCopy
+	//r.operations[schedulingID][correlationID] = &opCopy
 
 	return nil
 }
@@ -262,16 +262,16 @@ func (r *InMemoryReconciliationRepository) UpdateOperationRetryID(schedulingID, 
 	}
 
 	// copy the operation to avoid having data races while writing
-	opCopy := *op
+	//opCopy := *op
 
 	//update operation
-	if opCopy.RetryID != retryID {
-		opCopy.RetryID = retryID
-		opCopy.Retries = opCopy.Retries + 1
+	if op.RetryID != retryID {
+		op.RetryID = retryID
+		op.Retries = op.Retries + 1
 	}
-	opCopy.Updated = time.Now().UTC()
+	op.Updated = time.Now().UTC()
 
-	r.operations[schedulingID][correlationID] = &opCopy
+	//r.operations[schedulingID][correlationID] = &opCopy
 
 	return nil
 }
