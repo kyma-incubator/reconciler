@@ -253,7 +253,7 @@ func (g *kubeClientAdapter) convertToResourceInfoWithInterceptors(manifestTarget
 	return resourceInfoTarget, nil
 }
 
-func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalList []*resource.Info, infoTargetList []*resource.Info, namespace string) ([]*Resource, error) {
+func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalList kube.ResourceList, infoTargetList kube.ResourceList, namespace string) ([]*Resource, error) {
 	pt, err := g.newProgressTracker()
 	if err != nil {
 		return nil, err
@@ -261,7 +261,12 @@ func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalLis
 
 	var deployedResources []*Resource
 	for _, infoTarget := range infoTargetList {
-		deployedResource, err := g.deployResource(infoOriginalList, infoTarget, namespace)
+		//Do intersect to make sure helmclient only do create/update but not delete resource which exists in original but not in target.
+		intersectOriginal := kube.ResourceList{infoTarget}.Intersect(infoOriginalList)
+		if len(intersectOriginal) == 0 {
+			return nil, fmt.Errorf("could not find intersect between original and target resource")
+		}
+		deployedResource, err := g.deployResource(intersectOriginal[0], infoTarget, namespace)
 		if err != nil {
 			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
 			return nil, err
@@ -391,7 +396,7 @@ func (g *kubeClientAdapter) deleteResource(infoTarget *resource.Info) (*Resource
 	}, nil
 }
 
-func (g *kubeClientAdapter) deployResource(infoOriginalList []*resource.Info, infoTarget *resource.Info, namespaceOverride string) (*Resource, error) {
+func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.Info, namespaceOverride string) (*Resource, error) {
 
 	helper := resource.NewHelper(infoTarget.Client, infoTarget.Mapping)
 
@@ -408,7 +413,7 @@ func (g *kubeClientAdapter) deployResource(infoOriginalList []*resource.Info, in
 	}
 
 	//retry the reconciliation in case of an error
-	err = retry.Do(g.deployResourceFunc(infoOriginalList, infoTarget, strategy),
+	err = retry.Do(g.deployResourceFunc(infoOriginal, infoTarget, strategy),
 		retry.Attempts(uint(g.config.MaxRetries)),
 		retry.Delay(g.config.RetryDelay),
 		retry.LastErrorOnly(false),
@@ -427,10 +432,10 @@ func (g *kubeClientAdapter) deployResource(infoOriginalList []*resource.Info, in
 	return resource, nil
 }
 
-func (g *kubeClientAdapter) deployResourceFunc(infoOriginalList []*resource.Info, infoTarget *resource.Info, strategy UpdateStrategy) func() error {
+func (g *kubeClientAdapter) deployResourceFunc(infoOriginal, infoTarget *resource.Info, strategy UpdateStrategy) func() error {
 	return func() error {
 		replaceResource := strategy == ReplaceUpdateStrategy
-		_, err := g.helmClient.Update(infoOriginalList, kube.ResourceList{infoTarget}, replaceResource)
+		_, err := g.helmClient.Update(kube.ResourceList{infoOriginal}, kube.ResourceList{infoTarget}, replaceResource)
 		if err == nil {
 			g.logger.Debugf("kubeClient updated %s '%s' (namespace: %s) with stategy '%s' successfully ",
 				infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace, strategy)

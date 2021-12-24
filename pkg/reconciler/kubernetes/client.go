@@ -13,7 +13,7 @@ import (
 )
 
 type ResourceInterceptor interface {
-	Intercept(resources *ResourceList, namespace string) error
+	Intercept(resources *ResourceCacheList, namespace string) error
 }
 
 //go:generate mockery --name Client

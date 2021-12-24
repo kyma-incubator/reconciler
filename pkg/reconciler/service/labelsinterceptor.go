@@ -34,7 +34,7 @@ type LabelsInterceptor struct {
 //	return resources.Visit(interceptorFunc)
 //}
 
-func (l *LabelsInterceptor) Intercept(resources *kubernetes.ResourceList, _ string) error {
+func (l *LabelsInterceptor) Intercept(resources *kubernetes.ResourceCacheList, _ string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
 		labels := u.GetLabels()
 		if labels == nil {

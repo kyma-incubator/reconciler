@@ -17,7 +17,7 @@ type PVCInterceptor struct {
 	logger     *zap.SugaredLogger
 }
 
-func (i *PVCInterceptor) Intercept(resources *kubernetes.ResourceList, namespace string) error {
+func (i *PVCInterceptor) Intercept(resources *kubernetes.ResourceCacheList, namespace string) error {
 	err := i.interceptPVC(resources, namespace)
 	if err != nil {
 		return err
@@ -26,7 +26,7 @@ func (i *PVCInterceptor) Intercept(resources *kubernetes.ResourceList, namespace
 	return err
 }
 
-func (i *PVCInterceptor) interceptPVC(resources *kubernetes.ResourceList, namespace string) error {
+func (i *PVCInterceptor) interceptPVC(resources *kubernetes.ResourceCacheList, namespace string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
 		namespace := kubernetes.ResolveNamespace(u, namespace)
 
@@ -59,7 +59,7 @@ func (i *PVCInterceptor) interceptPVC(resources *kubernetes.ResourceList, namesp
 	return resources.VisitByKind("PersistentVolumeClaim", interceptorFunc)
 }
 
-func (i *PVCInterceptor) interceptStatefulSet(resources *kubernetes.ResourceList, namespace string) error {
+func (i *PVCInterceptor) interceptStatefulSet(resources *kubernetes.ResourceCacheList, namespace string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
 		namespace := kubernetes.ResolveNamespace(u, namespace)
 

@@ -20,7 +20,7 @@ type ServicesInterceptor struct {
 	kubeClient k8s.Client
 }
 
-func (s *ServicesInterceptor) Intercept(resources *k8s.ResourceList, namespace string) error {
+func (s *ServicesInterceptor) Intercept(resources *k8s.ResourceCacheList, namespace string) error {
 	interceptorFct := func(u *unstructured.Unstructured) error {
 		namespace := k8s.ResolveNamespace(u, namespace)
 

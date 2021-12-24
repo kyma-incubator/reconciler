@@ -28,7 +28,7 @@ func TestProgressTracker(t *testing.T) {
 	test.IntegrationTest(t)
 
 	logger := log.NewLogger(true)
-	//create client
+
 	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), nil)
 
 	require.NoError(t, err)

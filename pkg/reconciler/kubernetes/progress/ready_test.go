@@ -72,7 +72,7 @@ func TestIsDeploymentReady(t *testing.T) {
 
 	clientset := fake.NewSimpleClientset(objects...)
 
-	ready, err := IsDeploymentReady(context.Background(), clientset, &TrackerResource{Name: "foo", Namespace: "kyma-system"})
+	ready, err := isDeploymentReady(context.Background(), clientset, &TrackerResource{name: "foo", namespace: "kyma-system"})
 
 	require.NoError(t, err)
 	require.True(t, ready)
@@ -113,7 +113,7 @@ func TestIsDeploymentNotReady(t *testing.T) {
 
 	clientset := fake.NewSimpleClientset(objects...)
 
-	ready, err := IsDeploymentReady(context.Background(), clientset, &TrackerResource{Name: "foo", Namespace: "kyma-system"})
+	ready, err := isDeploymentReady(context.Background(), clientset, &TrackerResource{name: "foo", namespace: "kyma-system"})
 
 	require.NoError(t, err)
 	require.False(t, ready)
@@ -170,7 +170,7 @@ func TestIsIgnoringOtherDeployments(t *testing.T) {
 
 	clientset := fake.NewSimpleClientset(objects...)
 
-	ready, err := IsDeploymentReady(context.Background(), clientset, &TrackerResource{Name: "foo", Namespace: "kyma-system"})
+	ready, err := isDeploymentReady(context.Background(), clientset, &TrackerResource{name: "foo", namespace: "kyma-system"})
 
 	require.NoError(t, err)
 	require.False(t, ready)
@@ -214,7 +214,7 @@ func TestIsStatefulSetReady(t *testing.T) {
 
 			c := fake.NewSimpleClientset(statefulSet)
 
-			ready, err := IsStatefulSetReady(context.Background(), c, &TrackerResource{Name: "foo", Namespace: "kyma-system"})
+			ready, err := isStatefulSetReady(context.Background(), c, &TrackerResource{name: "foo", namespace: "kyma-system"})
 
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, ready)
@@ -253,7 +253,7 @@ func TestIsDaemonSetReady(t *testing.T) {
 
 			clientset := fake.NewSimpleClientset(daemonSet)
 
-			ready, err := IsDaemonSetReady(context.Background(), clientset, &TrackerResource{Name: "foo", Namespace: "kyma-system"})
+			ready, err := isDaemonSetReady(context.Background(), clientset, &TrackerResource{name: "foo", namespace: "kyma-system"})
 
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, ready)
