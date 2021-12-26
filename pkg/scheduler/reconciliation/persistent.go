@@ -417,7 +417,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 
 func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
 
-	dbOps := func() error {
+	dbOps := func(tx *db.TxConnection) error {
 		op, err := r.GetOperation(schedulingID, correlationID)
 		if err != nil {
 			if repository.IsNotFoundError(err) {
