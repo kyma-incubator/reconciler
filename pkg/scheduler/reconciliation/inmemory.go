@@ -224,9 +224,6 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 		return err
 	}
 
-	// copy the operation to avoid having data races while writing
-	//opCopy := *op
-
 	if op.State.IsFinal() {
 		return fmt.Errorf("cannot update state of operation for component '%s' (schedulingID:%s/correlationID:'%s) "+
 			"to new state '%s' because operation is already in final state '%s'",
@@ -242,8 +239,6 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	op.State = state
 	op.Reason = reason
 	op.Updated = time.Now().UTC()
-
-	//r.operations[schedulingID][correlationID] = &opCopy
 
 	return nil
 }
@@ -261,17 +256,12 @@ func (r *InMemoryReconciliationRepository) UpdateOperationRetryID(schedulingID, 
 		return &repository.EntityNotFoundError{}
 	}
 
-	// copy the operation to avoid having data races while writing
-	//opCopy := *op
-
 	//update operation
 	if op.RetryID != retryID {
 		op.RetryID = retryID
 		op.Retries = op.Retries + 1
 	}
 	op.Updated = time.Now().UTC()
-
-	//r.operations[schedulingID][correlationID] = &opCopy
 
 	return nil
 }

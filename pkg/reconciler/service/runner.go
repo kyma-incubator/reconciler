@@ -33,7 +33,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	}
 	var retryID string
 	retryable := func() error {
-		retryID =uuid.NewString()
+		retryID = uuid.NewString()
 		if err := heartbeatSender.Running(retryID); err != nil {
 			r.logger.Warnf("Runner: failed to start status updater: %s", err)
 			return err
