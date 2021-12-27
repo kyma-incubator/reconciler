@@ -27,6 +27,19 @@ func TestReconciliationResult(t *testing.T) {
 					State:         model.OperationStateNew,
 					Updated:       time.Now().Add(-1999 * time.Millisecond),
 				},
+			},
+			expectedResultReconcile: model.ClusterStatusReconciling,
+			expectedResultDelete:    model.ClusterStatusDeleting,
+		},
+		{
+			operations: []*model.OperationEntity{
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.1",
+					State:         model.OperationStateNew,
+					Updated:       time.Now().Add(-1999 * time.Millisecond),
+				},
 				{
 					Priority:      1,
 					SchedulingID:  "schedulingID",
