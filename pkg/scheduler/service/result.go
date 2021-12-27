@@ -85,7 +85,7 @@ func (rs *ReconciliationResult) GetResult() model.Status {
 
 	//this if-clause has always to be evaluated as second condition:
 	//if one operation is not in a final state, the cluster is still in reconciling-state
-	if len(rs.running) > 0 {
+	if len(rs.running) > 0 || len(rs.new) > 0 {
 		if isDelete {
 			return model.ClusterStatusDeleting
 		}
