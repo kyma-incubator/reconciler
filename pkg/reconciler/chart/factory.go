@@ -141,7 +141,7 @@ func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace,
 		return nil, errors.New("cannot retrieve workspace because provided component was 'nil'")
 	}
 
-	if component.isRepository() {
+	if component.isExternalGitComponent() {
 		return f.getExternalGitComponent(component)
 	}
 
@@ -344,7 +344,7 @@ func (f *DefaultFactory) Delete(version string) error {
 func (f *DefaultFactory) componentBaseDir(c *Component) string {
 	filename := fmt.Sprintf("%x-%s", sha1.Sum([]byte(c.url)), c.name) //nolint
 
-	if c.isRepository() {
+	if c.isExternalGitComponent() {
 		return filepath.Join(f.storageDir, gitComponentsBaseDir, filename)
 	}
 
