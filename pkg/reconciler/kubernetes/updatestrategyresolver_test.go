@@ -26,6 +26,7 @@ type testCase struct {
 }
 
 func TestDefaultUpdateStrategyResolver_Resolve(t *testing.T) {
+	t.Skip("mocking kube client test, can be removed.")
 	test.IntegrationTest(t)
 
 	testCases := []testCase{

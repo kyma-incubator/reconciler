@@ -20,7 +20,7 @@ const (
 func TestPVCInterceptor(t *testing.T) {
 	test.IntegrationTest(t)
 
-	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), &kubernetes.Config{})
+	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	t.Run("Test PersistentVolumeClaim interception", func(t *testing.T) {

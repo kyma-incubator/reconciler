@@ -197,6 +197,8 @@ func (g *kubeClientAdapter) DeployByCompareWithOriginal(ctx context.Context, man
 			"but no resources were finally deployed into it", namespace)
 	}
 
+	// TODO: consider if make sense to delete resources which in resourceInfoOriginal but not in resourceInfoTarget.
+
 	return deployedResources, err
 }
 
@@ -223,11 +225,16 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifestTarget, namespac
 }
 
 func (g *kubeClientAdapter) convertToResourceInfoWithInterceptors(manifestTarget string, namespace string, interceptors []ResourceInterceptor) ([]*resource.Info, error) {
-	unstructsTarget, err := g.manifestToUnstructured(manifestTarget, namespace)
+
+	unstructsTarget, err := g.manifestToUnstructured(manifestTarget)
 	if err != nil {
 		return nil, err
 	}
 
+	unstructsTarget, err = g.addNamespaceUnstruct(unstructsTarget, namespace)
+	if err != nil {
+		return nil, err
+	}
 	//fill out the resourceListTarget map by kind
 	resourceListTarget := NewResourceList(unstructsTarget)
 
@@ -286,16 +293,11 @@ func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalLis
 	return deployedResources, pt.Watch(ctx, progress.ReadyState)
 }
 
-func (g *kubeClientAdapter) manifestToUnstructured(manifest string, namespace string) ([]*unstructured.Unstructured, error) {
+func (g *kubeClientAdapter) manifestToUnstructured(manifest string) ([]*unstructured.Unstructured, error) {
 	unstructs, err := ToUnstructured([]byte(manifest), true)
 	if err != nil {
 		g.logger.Errorf("Failed to process manifest data to unstructured: %s", err)
 		g.logger.Debugf("Manifest data: %s", manifest)
-		return nil, err
-	}
-
-	unstructs, err = g.addNamespaceUnstruct(unstructs, namespace)
-	if err != nil {
 		return nil, err
 	}
 	return unstructs, nil
@@ -381,26 +383,31 @@ func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interfa
 }
 
 func (g *kubeClientAdapter) deleteResource(infoTarget *resource.Info) (*Resource, error) {
-	_, errs := g.helmClient.Delete(kube.ResourceList{infoTarget})
-	if errs != nil {
+	result, errs := g.helmClient.Delete(kube.ResourceList{infoTarget})
+	if errs != nil || result == nil || result.Deleted == nil {
 		g.logger.Warnf("kubeClient failed to delete %s '%s' (namespace: %s): %v",
 			infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace, errs)
 		return nil, errs[0]
 	}
+	infoDeleted := result.Deleted.Get(infoTarget)
+	if infoDeleted == nil {
+		g.logger.Errorf("Deleted Resource mismatch: Target: %s '%s' (namespace: %s) - Actual:  %s '%s' (namespace: %s)",
+			infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace,
+			infoDeleted.Object.GetObjectKind().GroupVersionKind().Kind, infoDeleted.Name, infoDeleted.Namespace)
+		return nil, fmt.Errorf("Deleted Resource mismatch")
+	}
 	g.logger.Debugf("kubeClient delete %s '%s' (namespace: %s) successfully.",
-		infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace)
+		infoDeleted.Object.GetObjectKind().GroupVersionKind().Kind, infoDeleted.Name, infoDeleted.Namespace)
 	return &Resource{
-		Kind:      infoTarget.Object.GetObjectKind().GroupVersionKind().Kind,
-		Name:      infoTarget.Name,
-		Namespace: infoTarget.Namespace,
+		Kind:      infoDeleted.Object.GetObjectKind().GroupVersionKind().Kind,
+		Name:      infoDeleted.Name,
+		Namespace: infoDeleted.Namespace,
 	}, nil
 }
 
 func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.Info, namespaceOverride string) (*Resource, error) {
 
 	helper := resource.NewHelper(infoTarget.Client, infoTarget.Mapping)
-
-	setDefaultNamespaceIfScopedAndNoneSet(namespaceOverride, infoTarget, helper)
 	setNamespaceIfScoped(namespaceOverride, infoTarget, helper)
 
 	strategy, err := newDefaultUpdateStrategyResolver(helper).Resolve(infoTarget)
@@ -460,6 +467,7 @@ func setDefaultNamespaceIfScopedAndNoneSet(namespace string, resourceInfo *resou
 }
 
 func setNamespaceIfScoped(namespace string, resourceInfo *resource.Info, helper *resource.Helper) {
+	setDefaultNamespaceIfScopedAndNoneSet(namespace, resourceInfo, helper)
 	if resourceInfo.Namespace == "" && helper.NamespaceScoped {
 		resourceInfo.Namespace = namespace
 	}
@@ -566,24 +574,31 @@ func (g *kubeClientAdapter) deleteResourceByKindAndNameAndNamespace(kind, name, 
 	}, err
 }
 
-func (g *kubeClientAdapter) Delete(ctx context.Context, manifest, namespace string) ([]*Resource, error) {
+func (g *kubeClientAdapter) Delete(ctx context.Context, manifestTarget, namespace string) ([]*Resource, error) {
 	if namespace == "" {
 		namespace = defaultNamespace
 	}
-	infoTargetList, err := g.helmClient.Build(bytes.NewBuffer([]byte(manifest)), false)
+	unstructsTarget, err := g.manifestToUnstructured(manifestTarget)
 	if err != nil {
 		g.logger.Errorf("Failed to process manifest data for delete: %s", err)
-		g.logger.Debugf("Manifest data: %s", manifest)
+		g.logger.Debugf("Manifest data: %s", manifestTarget)
 		return nil, err
 	}
-
+	resourceInfoTarget, err := g.convertToInfoList(unstructsTarget)
+	if err != nil {
+		g.logger.Errorf("Failed to convert target unstructs data: %s", err)
+		g.logger.Debugf("Manifest data: %s", manifestTarget)
+		return nil, err
+	}
 	pt, err := g.newProgressTracker()
 	if err != nil {
 		return nil, err
 	}
 
 	var deletedResources []*Resource
-	for _, info := range infoTargetList {
+	for _, info := range resourceInfoTarget {
+		helper := resource.NewHelper(info.Client, info.Mapping)
+		setNamespaceIfScoped(namespace, info, helper)
 		deletedResource, err := g.deleteResource(info)
 		if err != nil {
 			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
@@ -848,14 +863,6 @@ func (g *kubeClientAdapter) GetJob(ctx context.Context, name, namespace string) 
 	}
 
 	return job, err
-}
-
-func toResource(m *Metadata) *Resource {
-	return &Resource{
-		Name:      m.Name,
-		Kind:      m.Kind,
-		Namespace: m.Namespace,
-	}
 }
 
 func ResolveNamespace(resource *unstructured.Unstructured, namespace string) string {

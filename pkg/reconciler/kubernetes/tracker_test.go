@@ -60,6 +60,7 @@ func TestProgressTracker(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Test progress tracking with timeout", func(t *testing.T) {
+		t.Skip("All resources are deployed and in ready state, what's the meaning to test timeout here?")
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second) //stop progress tracker after 1 sec
 		defer cancel()
 
@@ -133,9 +134,10 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	testNs := "test-progress-daemonset"
 	cleanup := func() {
 		t.Log("Cleanup test resources")
-		err := clientSet.CoreV1().Namespaces().Delete(ctx, testNs, metav1.DeleteOptions{})
+		_, err := kubeClient.DeleteResource("Namespace", testNs, "")
 		require.NoError(t, err)
 	}
+	cleanup()
 	defer cleanup()
 
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}
@@ -145,7 +147,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	t.Log("Creating daemon set")
 
 	ds := readManifestToUnstructured(t, "ds-before-rolling-update.yaml")[0]
-	manifest := test.ReadFile(t, filepath.Join("testdata", "ds-before-rolling-update.yaml"))
+	manifest := test.ReadFile(t, filepath.Join("test", "ds-before-rolling-update.yaml"))
 	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
 	require.NoError(t, err)
 	require.NoError(t, err)
@@ -155,14 +157,14 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	tracker, err := progress.NewProgressTracker(clientSet, logger, progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
-	tracker.AddResource(progress.DaemonSet, ds.GetNamespace(), ds.GetName())
+	tracker.AddResource(progress.DaemonSet, testNs, ds.GetName())
 	err = tracker.Watch(ctx, progress.ReadyState)
 	require.NoError(t, err)
 
 	t.Log("Updating daemon set")
 
 	ds = readManifestToUnstructured(t, "ds-after-rolling-update.yaml")[0]
-	manifest = test.ReadFile(t, filepath.Join("testdata", "ds-after-rolling-update.yaml"))
+	manifest = test.ReadFile(t, filepath.Join("test", "ds-after-rolling-update.yaml"))
 	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
@@ -170,7 +172,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
-	tracker.AddResource(progress.DaemonSet, ds.GetNamespace(), ds.GetName())
+	tracker.AddResource(progress.DaemonSet, testNs, ds.GetName())
 	err = tracker.Watch(ctx, progress.ReadyState)
 	require.NoError(t, err)
 }
@@ -178,12 +180,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 //func TestStatefulSetRollingUpdate(t *testing.T) {
 //	test.IntegrationTest(t)
 //
-//	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), &kubernetes.ProgressConfig{
-//		ProgressInterval: 1 * time.Second,
-//		ProgressTimeout:  1 * time.Minute,
-//		MaxRetries:       10,
-//		RetryDelay:       1 * time.Second,
-//	})
+//	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), zap.NewNop().Sugar(), nil)
 //	require.NoError(t, err)
 //
 //	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
