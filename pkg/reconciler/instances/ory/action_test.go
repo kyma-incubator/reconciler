@@ -14,6 +14,7 @@ import (
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
 	hydramocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra/mocks"
+	rolloutmock "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -156,12 +157,13 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		rolloutMock := rolloutmock.RolloutHandler{}
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil,
 			errors.New("Configuration error"))
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}, &rolloutMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -177,12 +179,13 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		rolloutMock := rolloutmock.RolloutHandler{}
 		emptyMap := make(map[string]interface{})
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("cannot get secret"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}, &rolloutMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -198,12 +201,13 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		rolloutMock := rolloutmock.RolloutHandler{}
 		emptyMap := make(map[string]interface{})
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}, &rolloutMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -223,13 +227,14 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		rolloutMock := rolloutmock.RolloutHandler{}
 		emptyMap := make(map[string]interface{})
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
 		existingJwksSecret := fixSecretJwks()
 		clientSet := fake.NewSimpleClientset(existingJwksSecret)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}, &rolloutMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -249,12 +254,13 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		rolloutMock := rolloutmock.RolloutHandler{}
 		emptyMap := make(map[string]interface{})
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(emptyMap, nil)
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}, &rolloutMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -274,6 +280,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		rolloutMock := rolloutmock.RolloutHandler{}
 		values, err := unmarshalTestValues(memoryYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -281,7 +288,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingSecret)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}, &rolloutMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -302,6 +309,8 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock.On("RolloutAndWaitForDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		values, err := unmarshalTestValues(postgresqlYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -310,7 +319,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingSecret, hydraDeployment)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := preReconcileAction{&oryAction{step: "pre-install"}, &rolloutMock}
 
 		// when
 		err = action.Run(actionContext)

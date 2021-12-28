@@ -21,7 +21,7 @@ func init() {
 
 	reconciler.
 		WithPreReconcileAction(&preReconcileAction{
-			&oryAction{step: "pre-reconcile"},
+			&oryAction{step: "pre-reconcile"}, k8s.NewDefaultRolloutHandler(),
 		}).
 		WithPostDeleteAction(&postDeleteAction{
 			&oryAction{step: "post-delete"},
