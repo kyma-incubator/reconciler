@@ -1,7 +1,6 @@
 package preaction
 
 import (
-	kubernetes2 "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"strings"
 
 	v1 "k8s.io/api/apps/v1"
@@ -119,7 +118,7 @@ func getDeployment(context *service.ActionContext, clientset kubernetes.Interfac
 
 // getDeploymentProgressTracker returns a progress tracker for the given deployments.
 func getDeploymentProgressTracker(clientset kubernetes.Interface, log *zap.SugaredLogger, deployments ...*v1.Deployment) (*progress.Tracker, error) {
-	tracker, err := progress.NewProgressTracker(clientset, log, kubernetes2.Config{Interval: progressTrackerInterval, Timeout: progressTrackerTimeout})
+	tracker, err := progress.NewProgressTracker(clientset, log, progress.ProgressConfig{Interval: progressTrackerInterval, Timeout: progressTrackerTimeout})
 	if err != nil {
 		return nil, err
 	}
