@@ -151,31 +151,28 @@ func setURLRepository(url string) string {
 
 func (o *Options) Components(defaultComponentsFile string, cluster cluster.State) ([][]string, []*keb.Component, error) {
 	var preComps [][]string
+	var comps []*keb.Component
 
-	comps := o.components
-	if len(o.components) == 0 {
-		cFile := o.componentsFile
-		if cFile == "" {
-			cFile = defaultComponentsFile
-		}
-		var err error
-		preComps, comps, err = componentsFromFile(cFile)
-		if err != nil {
-			return preComps, nil, err
-		}
+	cFile := o.componentsFile
+	if cFile == "" {
+		cFile = defaultComponentsFile
 	}
 
-	if len(cluster.Configuration.Components) > 0 {
-		kebComps, err := componentsFromClusterState(cluster, o.values)
-		return preComps, kebComps, err
-	}
-
-	mergedComps, err := componentsFromStrings(comps, o.values)
+	preComps, compSlice, err := componentsFromFile(cFile)
 	if err != nil {
 		return preComps, nil, err
 	}
 
-	return preComps, mergedComps, err
+	switch {
+	case len(o.components) > 0:
+		comps, err = componentsFromStrings(o.components, o.values)
+	case cluster.Configuration != nil && len(cluster.Configuration.Components) > 0:
+		comps, err = componentsFromClusterState(cluster, o.values)
+	default:
+		comps, err = componentsFromStrings(compSlice, o.values)
+	}
+
+	return preComps, comps, err
 }
 
 func (o *Options) Validate() error {
