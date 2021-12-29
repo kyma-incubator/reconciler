@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra"
+	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -49,13 +50,13 @@ var (
 )
 
 func (a *postReconcileAction) Run(context *service.ActionContext) error {
-	logger, client, cfg, _, err := readActionContext(context)
+	logger, kubeclient, cfg, _, err := readActionContext(context)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read postReconcileAction context")
 	}
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
-		err = a.hydraSyncer.TriggerSynchronization(context.Context, client, logger, oryNamespace)
+		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
 		}
@@ -66,9 +67,13 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 }
 
 func (a *preReconcileAction) Run(context *service.ActionContext) error {
-	logger, client, _, values, err := readActionContext(context)
+	logger, kubeClient, _, values, err := readActionContext(context)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read preReconcileAction context")
+	}
+	client, err := kubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve clientset")
 	}
 	_, err = getSecret(context.Context, client, jwksNamespacedName)
 	if err != nil {
@@ -237,7 +242,7 @@ func createSecret(ctx context.Context, client kubernetes.Interface, name types.N
 	return err
 }
 
-func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, kubernetes.Interface, *db.Config, map[string]interface{}, error) {
+func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, internalKubernetes.Client, *db.Config, map[string]interface{}, error) {
 	logger := context.Logger
 	component := chart.NewComponentBuilder(context.Task.Version, oryChart).
 		WithNamespace(oryNamespace).
@@ -248,10 +253,7 @@ func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, kube
 	if err != nil {
 		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve ory chart values")
 	}
-	client, err := context.KubeClient.Clientset()
-	if err != nil {
-		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
-	}
+	client := context.KubeClient
 	cfg, err := db.NewDBConfig(chartValues)
 	if err != nil {
 		return nil, nil, nil, nil, errors.Wrap(err, "Failed to retrieve native Kubernetes GO client")
