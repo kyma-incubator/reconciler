@@ -95,8 +95,14 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		for idx, components := range reconSeq.Queue {
 			priority := idx + 1
 			for _, component := range components {
+
+				componentPriority := priority
+				if component.Component == "service-manager-proxy" {
+					componentPriority++
+				}
+
 				createOpQ, err := db.NewQuery(tx, &model.OperationEntity{
-					Priority:      int64(priority),
+					Priority:      int64(componentPriority),
 					SchedulingID:  reconEntity.SchedulingID,
 					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
 					RuntimeID:     reconEntity.RuntimeID,
