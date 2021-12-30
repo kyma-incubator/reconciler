@@ -172,6 +172,44 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /clusters/state:
+    get:
+      description: get cluster state. Use one of following parameters
+      parameters:
+        - name: runtimeID
+          required: false
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: schedulingID
+          required: false
+          in: query
+          schema: 
+            type: string
+            format: uuid
+        - name: correlationID
+          required: false
+          in: query
+          schema: 
+            type: string
+            format: uuid
+        - name: reconciliation
+          required: false
+          in: query
+          schema: 
+            type: string
+            format: uuid
+      responses:
+        "200":
+          $ref: "#/components/responses/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /clusters/{runtimeID}/status:
     put:
       description: update exisiting cluster status

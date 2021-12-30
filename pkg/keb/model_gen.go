@@ -205,6 +205,14 @@ type PostClustersJSONBody Cluster
 // PutClustersJSONBody defines parameters for PutClusters.
 type PutClustersJSONBody Cluster
 
+// GetClustersStateParams defines parameters for GetClustersState.
+type GetClustersStateParams struct {
+	RuntimeID      *string `json:"runtimeID,omitempty"`
+	SchedulingID   *string `json:"schedulingID,omitempty"`
+	CorrelationID  *string `json:"correlationID,omitempty"`
+	Reconciliation *string `json:"reconciliation,omitempty"`
+}
+
 // PutClustersRuntimeIDStatusJSONBody defines parameters for PutClustersRuntimeIDStatus.
 type PutClustersRuntimeIDStatusJSONBody StatusUpdate
 
