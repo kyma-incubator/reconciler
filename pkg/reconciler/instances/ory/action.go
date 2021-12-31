@@ -2,6 +2,7 @@ package ory
 
 import (
 	"context"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra"
@@ -32,12 +33,12 @@ type oryAction struct {
 
 type preReconcileAction struct {
 	*oryAction
-	rolloutHandler k8s.RolloutHandler
 }
 
 type postReconcileAction struct {
 	*oryAction
-	hydraSyncer hydra.Syncer
+	hydraSyncer    hydra.Syncer
+	rolloutHandler k8s.RolloutHandler
 }
 
 type postDeleteAction struct {
@@ -47,6 +48,7 @@ type postDeleteAction struct {
 var (
 	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: oryNamespace}
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
+	isUpdate           = false
 )
 
 func (a *postReconcileAction) Run(context *service.ActionContext) error {
@@ -54,6 +56,14 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to read postReconcileAction context")
 	}
+
+	if isUpdate {
+		logger.Info("Rolling out ory hydra")
+		if err := a.rolloutHydraDeployment(context.Context, kubeclient, logger); err != nil {
+			return err
+		}
+	}
+
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
 		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace)
@@ -63,6 +73,7 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	} else {
 		logger.Debug("Hydra is in persistence mode, no synchronization needed")
 	}
+
 	return nil
 }
 
@@ -122,10 +133,7 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 			if err := a.updateSecret(context.Context, client, dbNamespacedName, *dbSecretObject, logger); err != nil {
 				return errors.Wrap(err, "failed to update Ory secret")
 			}
-			logger.Info("Rolling out ory hydra")
-			if err := a.rolloutHydraDeployment(context.Context, kubeClient, logger); err != nil {
-				return err
-			}
+			isUpdate = true
 		}
 	}
 
@@ -194,7 +202,7 @@ func (a *preReconcileAction) updateSecret(ctx context.Context, client kubernetes
 	return err
 }
 
-func (a *preReconcileAction) rolloutHydraDeployment(ctx context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger) error {
+func (a *postReconcileAction) rolloutHydraDeployment(ctx context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger) error {
 	err := a.rolloutHandler.RolloutAndWaitForDeployment(ctx, oryDeployment, oryNamespace, client, logger)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to rollout %s deployment", oryDeployment)

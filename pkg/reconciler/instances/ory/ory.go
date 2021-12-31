@@ -21,12 +21,13 @@ func init() {
 
 	reconciler.
 		WithPreReconcileAction(&preReconcileAction{
-			&oryAction{step: "pre-reconcile"}, k8s.NewDefaultRolloutHandler(),
+			&oryAction{step: "pre-reconcile"},
 		}).
 		WithPostDeleteAction(&postDeleteAction{
 			&oryAction{step: "post-delete"},
 		}).
 		WithPostReconcileAction(&postReconcileAction{
 			&oryAction{step: "post-reconcile"}, hydra.NewDefaultHydraSyncer(k8s.NewDefaultRolloutHandler()),
+			k8s.NewDefaultRolloutHandler(),
 		})
 }
