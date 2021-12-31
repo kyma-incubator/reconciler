@@ -28,12 +28,13 @@ import (
 )
 
 const (
-	paramContractVersion = "contractVersion"
-	paramRuntimeID       = "runtimeID"
-	paramConfigVersion   = "configVersion"
-	paramOffset          = "offset"
-	paramSchedulingID    = "schedulingID"
-	paramCorrelationID   = "correlationID"
+	paramContractVersion  = "contractVersion"
+	paramRuntimeID        = "runtimeID"
+	paramConfigVersion    = "configVersion"
+	paramOffset           = "offset"
+	paramSchedulingID     = "schedulingID"
+	paramCorrelationID    = "correlationID"
+	paramReconciliationID = "reconciliationID"
 
 	paramStatus     = "status"
 	paramRuntimeIDs = "runtimeID"
@@ -64,6 +65,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramRuntimeID),
 		callHandler(o, deleteCluster)).
 		Methods("DELETE")
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%v}/clusters/state", paramContractVersion),
+		callHandler(o, getClustersState)).
+		Methods("GET")
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramRuntimeID, paramConfigVersion),
@@ -210,6 +216,37 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	//respond status URL
 	sendResponse(w, r, clusterStateNew, o.Registry.ReconciliationRepository())
 }
+
+func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+
+	if runtimeID, err := params.String(paramRuntimeID); err == nil && runtimeID != "" {
+		state, err := o.Registry.Inventory().GetLatest(runtimeID)
+		if err != nil {
+			server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+				Error: err.Error(),
+			})
+		}
+		// send state here
+		return
+	}
+
+	if schedulingID, err := params.String(paramSchedulingID); err == nil && schedulingID != "" {
+		// filter operations by
+	}
+
+	if correlationID, err := params.String(paramCorrelationID); err == nil && correlationID != "" {
+		// filter operations by
+	}
+
+	if reconciliationID, err := params.String(paramReconciliationID); err == nil && reconciliationID != "" {
+
+	}
+
+	// send error here
+}
+
+func getExactParam()
 
 func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)

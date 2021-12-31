@@ -45,6 +45,39 @@ type HTTPClusterResponse struct {
 	StatusURL            string     `json:"statusURL"`
 }
 
+// HTTPClusterState defines model for HTTPClusterState.
+type HTTPClusterState struct {
+	Cluster struct {
+		Contract  *int64        `json:"contract,omitempty"`
+		Created   *time.Time    `json:"created,omitempty"`
+		Metadata  *Metadata     `json:"metadata,omitempty"`
+		Runtime   *RuntimeInput `json:"runtime,omitempty"`
+		RuntimeID *string       `json:"runtimeID,omitempty"`
+		Version   *int64        `json:"version,omitempty"`
+	} `json:"cluster"`
+	Configuration struct {
+		Administrators *[]string    `json:"administrators,omitempty"`
+		ClusterVersion *int64       `json:"clusterVersion,omitempty"`
+		Components     *[]Component `json:"components,omitempty"`
+		Contract       *int64       `json:"contract,omitempty"`
+		Created        *time.Time   `json:"created,omitempty"`
+		Deleted        *bool        `json:"deleted,omitempty"`
+		KymaProfile    *string      `json:"kymaProfile,omitempty"`
+		KymaVersion    *string      `json:"kymaVersion,omitempty"`
+		RuntimeID      *string      `json:"runtimeID,omitempty"`
+		Version        *int64       `json:"version,omitempty"`
+	} `json:"configuration"`
+	Status struct {
+		ClusterVersion *int64     `json:"clusterVersion,omitempty"`
+		ConfigVersion  *int64     `json:"configVersion,omitempty"`
+		Created        *time.Time `json:"created,omitempty"`
+		Deleted        *bool      `json:"deleted,omitempty"`
+		Id             *int64     `json:"id,omitempty"`
+		RuntimeID      *string    `json:"runtimeID,omitempty"`
+		Status         *Status    `json:"status,omitempty"`
+	} `json:"status"`
+}
+
 // HTTPClusterStatusResponse defines model for HTTPClusterStatusResponse.
 type HTTPClusterStatusResponse struct {
 	StatusChanges []StatusChange `json:"statusChanges"`
@@ -207,10 +240,10 @@ type PutClustersJSONBody Cluster
 
 // GetClustersStateParams defines parameters for GetClustersState.
 type GetClustersStateParams struct {
-	RuntimeID      *string `json:"runtimeID,omitempty"`
-	SchedulingID   *string `json:"schedulingID,omitempty"`
-	CorrelationID  *string `json:"correlationID,omitempty"`
-	Reconciliation *string `json:"reconciliation,omitempty"`
+	RuntimeID        *string `json:"runtimeID,omitempty"`
+	SchedulingID     *string `json:"schedulingID,omitempty"`
+	CorrelationID    *string `json:"correlationID,omitempty"`
+	ReconciliationID *string `json:"reconciliationID,omitempty"`
 }
 
 // PutClustersRuntimeIDStatusJSONBody defines parameters for PutClustersRuntimeIDStatus.
