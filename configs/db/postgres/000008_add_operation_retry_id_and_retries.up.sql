@@ -22,3 +22,4 @@ SET retries = 0;
 
 ALTER TABLE scheduler_operations
     ALTER COLUMN "retries" SET NOT NULL;
+    
