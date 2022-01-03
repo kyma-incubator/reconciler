@@ -1,6 +1,7 @@
 package connectivityproxy
 
 import (
+	"context"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -93,7 +94,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 			client:         client,
 			referenceValue: "connectivity",
 		}
-		found, err := locator.find()
+		found, err := locator.find(nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, &instances[0], found)
@@ -106,7 +107,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 			client:         client,
 			referenceValue: "connectivity",
 		}
-		found, err := locator.find()
+		found, err := locator.find(context.TODO())
 
 		assert.NoError(t, err)
 		assert.Equal(t, &instances[0], found)
@@ -119,7 +120,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 			client:         client,
 			referenceValue: "connectivity",
 		}
-		_, err := locator.find()
+		_, err := locator.find(context.TODO())
 
 		assert.NoError(t, err)
 	})
@@ -131,7 +132,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 			client:         client,
 			referenceValue: "connectivity",
 		}
-		_, err := locator.find()
+		_, err := locator.find(nil)
 
 		assert.Error(t, err)
 	})
@@ -143,7 +144,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 			client:         client,
 			referenceValue: "true",
 		}
-		value, err := locator.find()
+		value, err := locator.find(context.TODO())
 
 		assert.Error(t, err)
 		assert.Nil(t, value)
@@ -156,7 +157,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 			client:         client,
 			referenceValue: nil,
 		}
-		value, err := locator.find()
+		value, err := locator.find(context.TODO())
 
 		assert.NoError(t, err)
 		assert.Equal(t, &instances[0], value)
@@ -165,7 +166,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 	t.Run("Should return nil for empty or nil criteria", func(t *testing.T) {
 		s := Search{}
 
-		result, err := s.findByCriteria([]Locator{})
+		result, err := s.findByCriteria(context.TODO(), []Locator{})
 		assert.NoError(t, err)
 		assert.Nil(t, result)
 	})
@@ -173,7 +174,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 	t.Run("Should return first result for one item criteria", func(t *testing.T) {
 		s := Search{}
 
-		result, err := s.findByCriteria([]Locator{
+		result, err := s.findByCriteria(context.TODO(), []Locator{
 			{
 				referenceValue: "connectivity",
 				resource:       "serviceinstance",
@@ -189,7 +190,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 	t.Run("Should return nil if criteria not found ", func(t *testing.T) {
 		s := Search{}
 
-		result, err := s.findByCriteria([]Locator{
+		result, err := s.findByCriteria(context.TODO(), []Locator{
 			{
 				referenceValue: "non-existing-value",
 				resource:       "serviceinstance",
@@ -201,7 +202,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, result)
 
-		result, err = s.findByCriteria([]Locator{
+		result, err = s.findByCriteria(context.TODO(), []Locator{
 			{
 				referenceValue: "non-existing-value",
 				resource:       "serviceinstance",
@@ -224,7 +225,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 	t.Run("Should find by combined criteria", func(t *testing.T) {
 		s := Search{}
 
-		result, err := s.findByCriteria([]Locator{
+		result, err := s.findByCriteria(context.TODO(), []Locator{
 			{
 				referenceValue: "connectivity",
 				resource:       "serviceinstance",
@@ -246,7 +247,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 	t.Run("Should find by nil value", func(t *testing.T) {
 		s := Search{}
 
-		result, err := s.findByCriteria([]Locator{
+		result, err := s.findByCriteria(context.TODO(), []Locator{
 			{
 				referenceValue: nil,
 				resource:       "servicebinding",

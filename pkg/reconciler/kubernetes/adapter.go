@@ -115,7 +115,7 @@ func (g *kubeClientAdapter) Kubeconfig() string {
 	return g.kubeconfig
 }
 
-func (g *kubeClientAdapter) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) error {
+func (g *kubeClientAdapter) PatchUsingStrategy(context context.Context, kind, name, namespace string, p []byte, strategy types.PatchType) error {
 	gvk, err := g.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
 	if err != nil {
 		return err
@@ -137,11 +137,11 @@ func (g *kubeClientAdapter) PatchUsingStrategy(kind, name, namespace string, p [
 		_, err = g.dynamicClient.
 			Resource(restMapping.Resource).
 			Namespace(namespace).
-			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
+			Patch(context, name, strategy, p, metav1.PatchOptions{})
 	} else {
 		_, err = g.dynamicClient.
 			Resource(restMapping.Resource).
-			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
+			Patch(context, name, strategy, p, metav1.PatchOptions{})
 	}
 
 	if err != nil {
@@ -493,11 +493,11 @@ func (g *kubeClientAdapter) newNamespaceUnstruct(namespace string) (*unstructure
 	return nsUnstructs[0], nil
 }
 
-func (g *kubeClientAdapter) DeleteResource(kind, name, namespace string) (*Resource, error) {
+func (g *kubeClientAdapter) DeleteResource(context context.Context, kind, name, namespace string) (*Resource, error) {
 	if !g.resourceExists(kind, name, namespace) {
 		return nil, nil
 	}
-	deletedResource, err := g.deleteResourceByKindAndNameAndNamespace(kind, name, namespace, metav1.DeleteOptions{})
+	deletedResource, err := g.deleteResourceByKindAndNameAndNamespace(context, kind, name, namespace, metav1.DeleteOptions{})
 	if err != nil && !k8serr.IsNotFound(err) {
 		g.logger.Errorf("Failed to delete Kubernetes unstructured resource kind='%s', name='%s', namespace='%s': %s",
 			kind, name, namespace, err)
@@ -506,7 +506,7 @@ func (g *kubeClientAdapter) DeleteResource(kind, name, namespace string) (*Resou
 	return deletedResource, nil
 }
 
-func (g *kubeClientAdapter) deleteResourceByKindAndNameAndNamespace(kind, name, namespace string, do metav1.DeleteOptions) (*Resource, error) {
+func (g *kubeClientAdapter) deleteResourceByKindAndNameAndNamespace(context context.Context, kind, name, namespace string, do metav1.DeleteOptions) (*Resource, error) {
 	gvk, err := g.mapper.KindFor(schema.GroupVersionResource{
 		Resource: kind,
 	})
@@ -536,11 +536,11 @@ func (g *kubeClientAdapter) deleteResourceByKindAndNameAndNamespace(kind, name, 
 		err = g.dynamicClient.
 			Resource(restMapping.Resource).
 			Namespace(namespace).
-			Delete(context.TODO(), name, do)
+			Delete(context, name, do)
 	} else {
 		err = g.dynamicClient.
 			Resource(restMapping.Resource).
-			Delete(context.TODO(), name, do)
+			Delete(context, name, do)
 	}
 
 	//return deleted resource
@@ -690,12 +690,12 @@ func (g *kubeClientAdapter) Clientset() (kubernetes.Interface, error) {
 	return kubernetes.NewForConfig(g.restConfig)
 }
 
-func (g *kubeClientAdapter) ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+func (g *kubeClientAdapter) ListResource(context context.Context, resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
 	gvr, err := g.mapper.ResourceFor(schema.GroupVersionResource{Resource: resource})
 	if err != nil {
 		return nil, err
 	}
-	return g.dynamicClient.Resource(gvr).List(context.TODO(), lo)
+	return g.dynamicClient.Resource(gvr).List(context, lo)
 }
 
 func (g *kubeClientAdapter) GetDeployment(ctx context.Context, name, namespace string) (*v1apps.Deployment, error) {

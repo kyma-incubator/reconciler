@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -241,7 +242,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(&kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
 
 		// then
 		require.Error(t, err)
@@ -260,7 +261,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(&kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
 
 		// then
 		require.NoError(t, err)
