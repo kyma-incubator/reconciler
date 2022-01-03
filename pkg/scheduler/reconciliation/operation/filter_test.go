@@ -40,10 +40,12 @@ func TestFilterMixer_FilterByQuery(t *testing.T) {
 			name: "ok with a few filters",
 			filters: []Filter{
 				&WithSchedulingID{SchedulingID: "test-scheduling-id"},
+				&WithCorrelationID{CorrelationID: "test-correlation-id"},
 				&WithStates{States: []model.OperationState{"state1", "state2"}},
+				&Limit{Count: 1},
 			},
 			wantErr:   false,
-			wantQuery: " WHERE scheduling_id=$1 AND state IN ($2,$3)",
+			wantQuery: " WHERE scheduling_id=$1 AND correlation_id=$2 AND state IN ($3,$4) ORDER BY created DESC LIMIT 1",
 		},
 	}
 	for i := range tests {

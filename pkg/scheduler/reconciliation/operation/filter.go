@@ -63,12 +63,13 @@ func (ws *WithStates) FilterByQuery(q *db.Select) error {
 	var args []interface{}
 	var buffer bytes.Buffer
 
-	for idx, state := range ws.States {
-		args = append(args, state)
+	argsOffset := q.NextPlaceholderCount()
+	for i := range ws.States {
+		args = append(args, ws.States[i])
 		if buffer.Len() > 0 {
 			buffer.WriteRune(',')
 		}
-		buffer.WriteString(fmt.Sprintf("$%d", idx+2))
+		buffer.WriteString(fmt.Sprintf("$%d", argsOffset+i))
 	}
 
 	q.WhereIn("State", buffer.String(), args...)
@@ -88,19 +89,38 @@ func (ws *WithStates) FilterByInstance(re *model.OperationEntity) *model.Operati
 	return nil
 }
 
-func toInterfaceSlice(args []string) []interface{} {
-	argsLen := len(args)
-	result := make([]interface{}, argsLen)
-	for i := 0; i < argsLen; i++ {
-		result[i] = args[i]
-	}
-	return result
+type WithCorrelationID struct {
+	CorrelationID string
 }
 
-func columnName(q *db.Select, name string) (string, error) {
-	statusColHandler, err := db.NewColumnHandler(&model.OperationEntity{}, q.Conn, q.Logger)
-	if err != nil {
-		return "", err
+func (ws *WithCorrelationID) FilterByQuery(q *db.Select) error {
+	q.Where(map[string]interface{}{
+		"CorrelationID": ws.CorrelationID,
+	})
+	return nil
+}
+
+func (ws *WithCorrelationID) FilterByInstance(i *model.OperationEntity) *model.OperationEntity {
+	if i.CorrelationID == ws.CorrelationID {
+		return i
 	}
-	return statusColHandler.ColumnName(name)
+	return nil
+}
+
+type Limit struct {
+	Count       int
+	actualCount int
+}
+
+func (l *Limit) FilterByQuery(q *db.Select) error {
+	q.OrderBy(map[string]string{"Created": "DESC"}).Limit(l.Count)
+	return nil
+}
+
+func (l *Limit) FilterByInstance(re *model.OperationEntity) *model.OperationEntity {
+	if l.actualCount < l.Count {
+		l.actualCount++
+		return re
+	}
+	return nil
 }
