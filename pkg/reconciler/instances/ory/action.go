@@ -49,7 +49,7 @@ type postDeleteAction struct {
 var (
 	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: oryNamespace}
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
-	isUpdate           = false
+	rolloutHydra       = false
 )
 
 func (a *postReconcileAction) Run(context *service.ActionContext) error {
@@ -58,10 +58,10 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Failed to read postReconcileAction context")
 	}
 
-	if isUpdate {
-		logger.Info("Rolling out ory hydra")
+	if rolloutHydra {
+		logger.Info("Rolling out Ory Hydra")
 		if err := a.rolloutHydraDeployment(context.Context, kubeclient, hydraDeployment, logger); err != nil {
-			return err
+			return errors.Wrap(err, "failed to roll out Hydra deployment")
 		}
 	}
 
@@ -74,6 +74,8 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	} else {
 		logger.Debug("Hydra is in persistence mode, no synchronization needed")
 	}
+
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
 	return nil
 }
@@ -125,12 +127,12 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "failed to update db credentials data for Ory Hydra")
 		}
 
-		if len(newSecretData) == 0 {
+		if !isUpdate(newSecretData) {
 			logger.Info("Ory DB secret is the same as values, no need to update")
 		} else {
 			logger.Info("Ory DB secret is different than values, updating it")
 			dbSecretObject.StringData = newSecretData
-			isUpdate = true
+			rolloutHydra = true
 
 			if err := a.updateSecret(context.Context, client, dbNamespacedName, *dbSecretObject, logger); err != nil {
 				return errors.Wrap(err, "failed to update Ory secret")
@@ -265,4 +267,8 @@ func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, inte
 
 func isInMemoryMode(cfg *db.Config) bool {
 	return !cfg.Global.Ory.Hydra.Persistence.Enabled
+}
+
+func isUpdate(diff map[string]string) bool {
+	return len(diff) != 0
 }

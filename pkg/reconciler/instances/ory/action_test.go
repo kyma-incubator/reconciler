@@ -491,7 +491,87 @@ func TestOryDbSecret(t *testing.T) {
 		})
 	}
 }
+func TestOryDbSecret_IsUpdate(t *testing.T) {
+	t.Run("should return false when applying the same secret", func(t *testing.T) {
+		// given
+		name := types.NamespacedName{Name: "test-db-secret", Namespace: "test"}
+		ctx := context.Background()
+		k8sClient := fake.NewSimpleClientset()
+		logger := zaptest.NewLogger(t).Sugar()
+		component := chart.NewComponentBuilder("main", componentName).
+			WithNamespace(name.Namespace).
+			WithProfile(profileName).
+			Build()
 
+		helm, err := chart.NewHelmClient(chartDir, logger)
+		require.NoError(t, err)
+
+		values, err := helm.Configuration(component)
+		require.NoError(t, err)
+
+		dbSecretObject, err := db.Get(name, values, logger)
+		require.NoError(t, err)
+
+		err = createSecret(ctx, k8sClient, name, *dbSecretObject, logger)
+		require.NoError(t, err)
+
+		existingSecret, err := getSecret(ctx, k8sClient, name)
+		require.NoError(t, err)
+
+		existingSecret.Data = map[string][]byte{
+			"secretsSystem":                   []byte(existingSecret.StringData["secretsSystem"]),
+			"secretsCookie":                   []byte(existingSecret.StringData["secretsCookie"]),
+			"dsn":                             []byte(existingSecret.StringData["dsn"]),
+			"postgresql-password":             []byte(existingSecret.StringData["postgresql-password"]),
+			"postgresql-replication-password": []byte(existingSecret.StringData["postgresql-replication-password"]),
+		}
+
+		newSecretData, err := db.Update(values, existingSecret, logger)
+		require.NoError(t, err)
+
+		// when
+		check := isUpdate(newSecretData)
+
+		// then
+		assert.NoError(t, err)
+		require.Equal(t, false, check)
+	})
+	t.Run("should return true when applying secret with changes", func(t *testing.T) {
+		//given
+		name := types.NamespacedName{Name: "test-db-secret", Namespace: "test"}
+		ctx := context.Background()
+		k8sClient := fake.NewSimpleClientset()
+		logger := zaptest.NewLogger(t).Sugar()
+		component := chart.NewComponentBuilder("main", componentName).
+			WithNamespace(name.Namespace).
+			WithProfile(profileName).
+			Build()
+
+		helm, err := chart.NewHelmClient(chartDir, logger)
+		require.NoError(t, err)
+
+		values, err := helm.Configuration(component)
+		require.NoError(t, err)
+
+		testMap := map[string]string{
+			"secretsSystem": "system",
+			"secretsCookie": "cookie",
+			"dsn":           "inMemory",
+		}
+		existingSecret, err := preCreateSecret(ctx, k8sClient, name)
+		require.NoError(t, err)
+
+		existingSecret.StringData = testMap
+		newSecretData, err := db.Update(values, existingSecret, logger)
+
+		// when
+		check := isUpdate(newSecretData)
+
+		// then
+		assert.NoError(t, err)
+		require.Equal(t, true, check)
+	})
+}
 func preCreateSecret(ctx context.Context, client k8s.Interface, name types.NamespacedName) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
