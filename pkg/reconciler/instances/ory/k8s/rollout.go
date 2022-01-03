@@ -49,7 +49,7 @@ func waitForDeployment(ctx context.Context, deployment string, namespace string,
 	if err != nil {
 		return errors.Wrap(err, "Failed to read clientset")
 	}
-	pt, _ := tracker.NewProgressTracker(clientset, logger, tracker.Config{Interval: interval, Timeout: timeout})
+	pt, _ := tracker.NewProgressTracker(clientset, logger, tracker.ProgressConfig{Interval: interval, Timeout: timeout})
 	watchable, err2 := tracker.NewWatchableResource("Deployment")
 	if err2 == nil {
 		logger.Debugf("Register watchable %s '%s' in namespace '%s'", "Deployment", deployment, namespace)

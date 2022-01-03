@@ -65,15 +65,6 @@ type Config struct {
 	RetryDelay       time.Duration
 }
 
-type Metadata struct {
-	Name      string
-	Namespace string
-	Resource  string
-	Group     string
-	Version   string
-	Kind      string
-}
-
 func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (Client, error) {
 	if config == nil {
 		config = &Config{
@@ -125,7 +116,6 @@ func (g *kubeClientAdapter) Kubeconfig() string {
 }
 
 func (g *kubeClientAdapter) PatchUsingStrategy(kind, name, namespace string, p []byte, strategy types.PatchType) error {
-	metadata := &Metadata{}
 	gvk, err := g.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
 	if err != nil {
 		return err
@@ -143,15 +133,13 @@ func (g *kubeClientAdapter) PatchUsingStrategy(kind, name, namespace string, p [
 
 	helper := resource.NewHelper(restClient, restMapping)
 
-	var u *unstructured.Unstructured
-
 	if helper.NamespaceScoped {
-		u, err = g.dynamicClient.
+		_, err = g.dynamicClient.
 			Resource(restMapping.Resource).
 			Namespace(namespace).
 			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
 	} else {
-		u, err = g.dynamicClient.
+		_, err = g.dynamicClient.
 			Resource(restMapping.Resource).
 			Patch(context.TODO(), name, strategy, p, metav1.PatchOptions{})
 	}
@@ -160,14 +148,6 @@ func (g *kubeClientAdapter) PatchUsingStrategy(kind, name, namespace string, p [
 		return err
 	}
 
-	gvr := restMapping.Resource
-
-	metadata.Name = u.GetName()
-	metadata.Namespace = u.GetNamespace()
-	metadata.Group = gvr.Group
-	metadata.Resource = gvr.Resource
-	metadata.Version = gvr.Version
-	metadata.Kind = gvk.Kind
 	return nil
 }
 
