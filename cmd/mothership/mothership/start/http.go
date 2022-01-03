@@ -19,6 +19,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 
 	"github.com/gorilla/mux"
@@ -218,36 +219,34 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 }
 
 func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := server.NewParams(r)
+	// params := server.NewParams(r)
 
-	if runtimeID, err := params.String(paramRuntimeID); err == nil && runtimeID != "" {
-		state, err := o.Registry.Inventory().GetLatest(runtimeID)
-		if err != nil {
-			server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
-				Error: err.Error(),
-			})
-		}
-		// send state here
-		return
-	}
+	// if runtimeID, err := params.String(paramRuntimeID); err == nil && runtimeID != "" {
+	// 	state, err := o.Registry.Inventory().GetLatest(runtimeID)
+	// 	if err != nil {
+	// 		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+	// 			Error: err.Error(),
+	// 		})
+	// 	}
+	// 	// send state here
+	// 	return
+	// }
 
-	if schedulingID, err := params.String(paramSchedulingID); err == nil && schedulingID != "" {
-		o.Registry.ReconciliationRepository().GetOperations()
-		// filter operations by
-	}
+	// if schedulingID, err := params.String(paramSchedulingID); err == nil && schedulingID != "" {
+	// 	o.Registry.ReconciliationRepository().GetOperations()
+	// 	// filter operations by
+	// }
 
-	if correlationID, err := params.String(paramCorrelationID); err == nil && correlationID != "" {
-		// filter operations by
-	}
+	// if correlationID, err := params.String(paramCorrelationID); err == nil && correlationID != "" {
+	// 	// filter operations by
+	// }
 
-	if reconciliationID, err := params.String(paramReconciliationID); err == nil && reconciliationID != "" {
+	// if reconciliationID, err := params.String(paramReconciliationID); err == nil && reconciliationID != "" {
 
-	}
+	// }
 
-	// send error here
+	// // send error here
 }
-
-func getExactParam()
 
 func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
@@ -440,7 +439,9 @@ func getReconciliationInfo(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	operations, err := o.Registry.ReconciliationRepository().GetOperations(schedulingID)
+	operations, err := o.Registry.ReconciliationRepository().GetOperations(&operation.WithSchedulingID{
+		SchedulingID: schedulingID,
+	})
 	if err != nil {
 		server.SendHTTPErrorMap(w, err)
 		return
@@ -782,7 +783,9 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 			return nil, err
 		}
 		if len(reconciliations) > 0 {
-			operations, err := reconciliationRepository.GetOperations(reconciliations[0].SchedulingID)
+			operations, err := reconciliationRepository.GetOperations(&operation.WithSchedulingID{
+				SchedulingID: reconciliations[0].SchedulingID,
+			})
 			if err != nil {
 				return nil, err
 			}
