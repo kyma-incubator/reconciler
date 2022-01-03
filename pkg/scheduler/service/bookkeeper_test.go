@@ -3,18 +3,18 @@ package service
 import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	dbTest "github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
 
 func TestBookkeeper(t *testing.T) {
-	dbConn := db.NewTestConnection(t) //share one db-connection between inventory and recon-repo (required for tx)
+	dbConn := dbTest.NewTestConnection(t) //share one db-connection between inventory and recon-repo (required for tx)
 
 	//prepare inventory
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})

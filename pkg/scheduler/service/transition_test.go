@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -17,7 +16,7 @@ import (
 func TestTransition(t *testing.T) {
 	test.IntegrationTest(t)
 
-	dbConn := db.NewTestConnection(t)
+	dbConn := test.NewTestConnection(t)
 
 	//create inventory and test cluster entry
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})

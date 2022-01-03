@@ -2,6 +2,7 @@ package kv
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"testing"
 	"time"
 
@@ -337,7 +338,7 @@ func TestRepositoryValues(t *testing.T) {
 }
 
 func newKeyValueRepo(t *testing.T) *Repository {
-	ceRepo, err := NewRepository(db.NewTestConnection(t), true)
+	ceRepo, err := NewRepository(test.NewTestConnection(t), true)
 	require.NoError(t, err)
 	return ceRepo
 }

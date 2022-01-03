@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"testing"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
@@ -22,7 +22,7 @@ func Test_cleaner_Run(t *testing.T) {
 		start := time.Now()
 
 		err := cleaner.Run(ctx, &ClusterStatusTransition{
-			conn: db.NewTestConnection(t),
+			conn: test.NewTestConnection(t),
 			reconRepo: &reconciliation.MockRepository{
 				RemoveReconciliationResult: nil,
 				GetReconciliationsResult: []*model.ReconciliationEntity{

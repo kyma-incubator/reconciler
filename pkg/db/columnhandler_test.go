@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"regexp"
 	"strings"
 	"testing"
@@ -19,7 +20,7 @@ func TestColumnHandler(t *testing.T) {
 
 	t.Run("Validate model", func(t *testing.T) {
 		validate := func(t *testing.T, testStruct *validateMe, expectValid bool) {
-			colHdr, err := NewColumnHandler(testStruct, NewTestConnection(t), testLogger)
+			colHdr, err := NewColumnHandler(testStruct, test.NewTestConnection(t), testLogger)
 			require.NoError(t, err)
 			err = colHdr.Validate()
 			if expectValid {
@@ -64,7 +65,7 @@ func TestColumnHandler(t *testing.T) {
 		Col2: true,
 		Col3: 123456789,
 	}
-	colHdr, err := NewColumnHandler(testStruct, NewTestConnection(t), testLogger)
+	colHdr, err := NewColumnHandler(testStruct, test.NewTestConnection(t), testLogger)
 	require.NoError(t, err)
 	require.NoError(t, colHdr.Validate())
 
