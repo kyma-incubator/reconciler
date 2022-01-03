@@ -2,15 +2,15 @@ package reconciliation
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/repository"
-
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
 
 type InMemoryReconciliationRepository struct {
@@ -151,24 +151,21 @@ func (r *InMemoryReconciliationRepository) GetReconciliations(filter Filter) ([]
 	return result, nil
 }
 
-func (r *InMemoryReconciliationRepository) GetOperations(schedulingID string, states ...model.OperationState) ([]*model.OperationEntity, error) {
+func (r *InMemoryReconciliationRepository) GetOperations(filter operation.Filter) ([]*model.OperationEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	ops := r.operations[schedulingID]
 	var result []*model.OperationEntity
-	for _, op := range ops {
-		if len(states) > 0 {
-			for _, state := range states {
-				if op.State == state {
-					result = append(result, op)
-					break //break state loop
-				}
+	for _, val := range r.operations {
+		for _, v := range val {
+			if filter != nil && filter.FilterByInstance(v) == nil {
+				continue
 			}
-			continue //continue with next operation
+
+			result = append(result, v)
 		}
-		result = append(result, op)
 	}
+
 	return result, nil
 }
 

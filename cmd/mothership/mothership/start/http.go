@@ -232,6 +232,7 @@ func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if schedulingID, err := params.String(paramSchedulingID); err == nil && schedulingID != "" {
+		o.Registry.ReconciliationRepository().GetOperations()
 		// filter operations by
 	}
 
