@@ -71,7 +71,7 @@ func TestRuntimeBuilder(t *testing.T) {
 }
 
 func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Duration) {
-	dbConn := test.NewTestConnection(t)
+	dbConn := db.NewTestConnection(t)
 
 	//create cluster entity
 	inventory, err := cluster.NewInventory(dbConn, debugLogging, cluster.MetricsCollectorMock{})
@@ -224,7 +224,7 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 
 func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*reconciler.CallbackMessage) {
 	//create cluster entity
-	inventory, err := cluster.NewInventory(test.NewTestConnection(t), debugLogging, cluster.MetricsCollectorMock{})
+	inventory, err := cluster.NewInventory(db.NewTestConnection(t), debugLogging, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),

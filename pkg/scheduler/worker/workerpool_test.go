@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/pkg/errors"
 	"sync"
@@ -40,7 +41,7 @@ func TestWorkerPool(t *testing.T) {
 	test.IntegrationTest(t) //required because a valid Kubeconfig is required to create test cluster entry
 
 	//create cluster inventory
-	inventory, err := cluster.NewInventory(test.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
+	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 
 	//add cluster to inventory
@@ -110,7 +111,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		}
 
 		//create mock database connection
-		testDB := test.NewTestConnection(t)
+		testDB := db.NewTestConnection(t)
 
 		//create cluster inventory
 		inventory, err := cluster.NewInventory(testDB, true, &cluster.MetricsCollectorMock{})

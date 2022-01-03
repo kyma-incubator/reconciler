@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -159,7 +158,7 @@ func TestRepository(t *testing.T) {
 
 //nolint:unused
 func newCacheRepo(t *testing.T) *Repository {
-	ceRepo, err := NewRepository(test.NewTestConnection(t), true)
+	ceRepo, err := NewRepository(db.NewTestConnection(t), true)
 	require.NoError(t, err)
 	return ceRepo
 }

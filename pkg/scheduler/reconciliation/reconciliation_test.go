@@ -2,7 +2,6 @@ package reconciliation
 
 import (
 	"fmt"
-	test2 "github.com/kyma-incubator/reconciler/pkg/test"
 	"sync"
 	"testing"
 	"time"
@@ -683,7 +682,7 @@ func dbConnection(t *testing.T) db.Connection {
 	mu.Lock()
 	defer mu.Unlock()
 	if dbConn == nil {
-		dbConn = test2.NewTestConnection(t)
+		dbConn = db.NewTestConnection(t)
 	}
 	return dbConn
 }
@@ -691,7 +690,7 @@ func dbConnection(t *testing.T) db.Connection {
 func TestTransaction(t *testing.T) {
 	t.Run("Rollback nested transactions", func(t *testing.T) {
 		//new db connection
-		dbConn := test2.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 
 		//create inventory
 		reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
@@ -821,7 +820,7 @@ func TestReconciliationParallel(t *testing.T) {
 
 			repo := newPersistentRepository(t)
 			removeExistingReconciliations(t, map[string]Repository{"": repo}) //cleanup before
-			inventory, err := cluster.NewInventory(test2.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
+			inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
 
 			errChannel := make(chan error, threadCnt)

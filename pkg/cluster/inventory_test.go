@@ -2,7 +2,6 @@ package cluster
 
 import (
 	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"strconv"
 	"testing"
 	"time"
@@ -25,7 +24,7 @@ var clusterStatuses = []model.Status{
 
 func TestInventory(t *testing.T) {
 	inventory := newInventory(t)
-	defer test.CleanUpTables(t)
+	defer db.CleanUpTables(t)
 	t.Run("Create a cluster", func(t *testing.T) {
 		//create cluster1
 		expectedCluster := kebTest.NewCluster(t, "1", 1, false, kebTest.Production)
@@ -273,7 +272,7 @@ func TestInventory(t *testing.T) {
 
 func TestCountRetries(t *testing.T) {
 	inventory := newInventory(t)
-	defer test.CleanUpTables(t)
+	defer db.CleanUpTables(t)
 
 	t.Run("When there are retry before status ready, expect to be skipped and not take into count.", func(t *testing.T) {
 		expectedCluster := kebTest.NewCluster(t, "1", 1, false, kebTest.Production)
@@ -343,7 +342,7 @@ func TestTransaction(t *testing.T) {
 	t.Run("Rollback nested transactions", func(t *testing.T) {
 
 		//new db connection
-		dbConn := test.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 
 		//create inventory
 		inventory, err := NewInventory(dbConn, true, MetricsCollectorMock{})
@@ -406,7 +405,7 @@ func listStatusesForStatusChanges(states []*StatusChange) []model.Status {
 }
 
 func newInventory(t *testing.T) Inventory {
-	inventory, err := NewInventory(test.NewTestConnection(t), true, MetricsCollectorMock{})
+	inventory, err := NewInventory(db.NewTestConnection(t), true, MetricsCollectorMock{})
 	require.NoError(t, err)
 	return inventory
 }

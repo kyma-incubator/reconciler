@@ -1,7 +1,7 @@
 package service
 
 import (
-	test2 "github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"sync"
 	"testing"
 	"time"
@@ -39,7 +39,7 @@ func TestBookkeepingtask(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			//create mock database connection
-			dbConn := test2.NewTestConnection(t)
+			dbConn := db.NewTestConnection(t)
 			//prepare inventory
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
@@ -131,7 +131,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			var wg sync.WaitGroup
 
 			//create mock database connection
-			dbConn := test2.NewTestConnection(t)
+			dbConn := db.NewTestConnection(t)
 			//prepare inventory
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)

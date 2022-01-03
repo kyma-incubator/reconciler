@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"testing"
 
 	"github.com/fatih/structs"
@@ -18,7 +17,7 @@ func TestCacheDependencyManager(t *testing.T) {
 	cacheDep = newCacheDependencyManager(true)
 
 	t.Run("Create dependencies", func(t *testing.T) {
-		dbConn := test.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
 			deps, err := cacheDep.Get().Exec(dbConn)
 			require.NoError(t, err)
@@ -27,7 +26,7 @@ func TestCacheDependencyManager(t *testing.T) {
 	})
 
 	t.Run("Invalidate dependencies by non-existing key", func(t *testing.T) {
-		dbConn := test.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
 			err := cacheDep.Invalidate().WithKey("key1234").Exec(dbConn)
 			require.NoError(t, err)
@@ -43,7 +42,7 @@ func TestCacheDependencyManager(t *testing.T) {
 	})
 
 	t.Run("Invalidate dependencies by key", func(t *testing.T) {
-		dbConn := test.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
 			err := cacheDep.Invalidate().WithKey("key4").Exec(dbConn)
 			require.NoError(t, err)
@@ -59,7 +58,7 @@ func TestCacheDependencyManager(t *testing.T) {
 	})
 
 	t.Run("Invalidate dependencies by bucket", func(t *testing.T) {
-		dbConn := test.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
 			err := cacheDep.Invalidate().WithBucket("bucket1").Exec(dbConn)
 			require.NoError(t, err)
@@ -73,7 +72,7 @@ func TestCacheDependencyManager(t *testing.T) {
 	})
 
 	t.Run("Invalidate dependencies by label", func(t *testing.T) {
-		dbConn := test.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
 			err := cacheDep.Invalidate().WithLabel("testCacheEntry1").Exec(dbConn)
 			require.NoError(t, err)
@@ -89,7 +88,7 @@ func TestCacheDependencyManager(t *testing.T) {
 	})
 
 	t.Run("Invalidate dependencies by cluster", func(t *testing.T) {
-		dbConn := test.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
 			err := cacheDep.Invalidate().WithRuntimeID("testCluster2").Exec(dbConn)
 			require.NoError(t, err)
@@ -105,7 +104,7 @@ func TestCacheDependencyManager(t *testing.T) {
 	})
 
 	t.Run("Invalidate dependencies by cache-id", func(t *testing.T) {
-		dbConn := test.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
 			err := cacheDep.Invalidate().WithCacheID(testEntries[0].ID).Exec(dbConn)
 			require.NoError(t, err)
@@ -121,7 +120,7 @@ func TestCacheDependencyManager(t *testing.T) {
 	})
 
 	t.Run("Get dependencies", func(t *testing.T) {
-		dbConn := test.NewTestConnection(t)
+		dbConn := db.NewTestConnection(t)
 		withTestData(t, func(t *testing.T, testEntries []*model.CacheEntryEntity, testDeps []*model.CacheDependencyEntity) {
 			depsByCacheID, err := cacheDep.Get().WithCacheID(testEntries[1].ID).Exec(dbConn)
 			require.NoError(t, err)

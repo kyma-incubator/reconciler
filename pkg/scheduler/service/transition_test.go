@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"testing"
 
 	"github.com/google/uuid"
@@ -16,7 +17,7 @@ import (
 func TestTransition(t *testing.T) {
 	test.IntegrationTest(t)
 
-	dbConn := test.NewTestConnection(t)
+	dbConn := db.NewTestConnection(t)
 
 	//create inventory and test cluster entry
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})

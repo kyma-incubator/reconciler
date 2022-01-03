@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
-	test2 "github.com/kyma-incubator/reconciler/pkg/test"
 	"sync"
 	"testing"
 	"time"
@@ -44,7 +43,7 @@ func TestScheduler(t *testing.T) {
 		clusterState := testClusterState("testCluster", 1)
 
 		err := scheduler.Run(ctx, &ClusterStatusTransition{
-			conn: test2.NewTestConnection(t),
+			conn: db.NewTestConnection(t),
 			inventory: &cluster.MockInventory{
 				//this will cause the creation of a reconciliation for the same cluster multiple times:
 				ClustersToReconcileResult: []*cluster.State{
@@ -132,7 +131,7 @@ func dbConnection(t *testing.T) db.Connection {
 	mu.Lock()
 	defer mu.Unlock()
 	if dbConn == nil {
-		dbConn = test2.NewTestConnection(t)
+		dbConn = db.NewTestConnection(t)
 	}
 	return dbConn
 }
