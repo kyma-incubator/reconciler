@@ -22,7 +22,7 @@ type Repository interface {
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error
-	GetOperations(operation.Filter) ([]*model.OperationEntity, error)
+	GetOperations(filter operation.Filter) ([]*model.OperationEntity, error)
 	GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error)
 	//GetProcessableOperations returns all operations which can be assigned to a worker
 	GetProcessableOperations(maxParallelOpsPerRecon int) ([]*model.OperationEntity, error)

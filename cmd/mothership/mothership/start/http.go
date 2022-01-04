@@ -232,9 +232,7 @@ func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filters := []operation.Filter{
-		&operation.Limit{Count: 1},
-	}
+	filters := []operation.Filter{}
 	if schedulingID, err := params.String(paramSchedulingID); err == nil && schedulingID != "" {
 		filters = append(filters, &operation.WithSchedulingID{
 			SchedulingID: schedulingID,
@@ -247,20 +245,14 @@ func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if len(filters) != 2 {
-		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
-			Error: fmt.Sprintf("Use one of following parameters:  %s, %s or %s.",
-				paramRuntimeID, paramSchedulingID, paramCorrelationID),
-		})
-	}
-
 	operations, err := o.Registry.ReconciliationRepository().GetOperations(&operation.FilterMixer{
-		Filters: filters,
+		Filters: append(filters, &operation.Limit{Count: 1}),
 	})
-	if err != nil || len(operations) != 1 {
+	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: "Can't find operations for given parameters",
 		})
+		return
 	}
 
 	runtimeID := operations[0].RuntimeID
@@ -270,6 +262,7 @@ func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
 		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
 			Error: err.Error(),
 		})
+		return
 	}
 
 	sendClusterStateResponse(w, state)
