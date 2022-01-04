@@ -88,14 +88,19 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 		require.NoError(t, heartbeatSender.Running(retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
+		time.Sleep(500 * time.Millisecond)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
 
 		require.NoError(t, heartbeatSender.Failed(errors.New("I'm currently failing"), retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusFailed)
+		time.Sleep(500 * time.Millisecond)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
 
 		require.NoError(t, heartbeatSender.Success(retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusSuccess)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
 
 		//check fired status updates
@@ -119,6 +124,9 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 		require.NoError(t, heartbeatSender.Running(retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
+		time.Sleep(500 * time.Millisecond)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
+
 		time.Sleep(3 * time.Second) //wait longer than timeout to simulate expired context
 
 		require.True(t, heartbeatSender.isContextClosed()) //verify that status-updater received timeout
@@ -145,6 +153,9 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 
 		require.NoError(t, heartbeatSender.Running(retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
+
+		time.Sleep(500 * time.Millisecond)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 
 		time.Sleep(3 * time.Second) //wait longer than timeout to simulate expired context
 		cancel()
