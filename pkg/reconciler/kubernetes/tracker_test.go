@@ -42,7 +42,7 @@ func TestProgressTracker(t *testing.T) {
 	cleanup := func() {
 		t.Log("Cleanup test resources")
 		for _, resource := range resources {
-			deletedResource, err := kubeClient.DeleteResource(
+			deletedResource, err := kubeClient.DeleteResource(context.TODO(),
 				resource.GetKind(), resource.GetName(), resource.GetNamespace())
 			if err != nil && !errors.IsNotFound(err) {
 				t.Fatalf("Failed to delete resource: %s", err)
@@ -60,7 +60,6 @@ func TestProgressTracker(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Test progress tracking with timeout", func(t *testing.T) {
-		t.Skip("All resources are deployed and in ready state, what's the meaning to test timeout here?")
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second) //stop progress tracker after 1 sec
 		defer cancel()
 
@@ -72,7 +71,8 @@ func TestProgressTracker(t *testing.T) {
 
 		//check timeout happened within ~1 sec:
 		startTime := time.Now()
-		err = pt.Watch(ctx, progress.ReadyState)
+		invalidState := progress.State("invalid state for testing")
+		err = pt.Watch(ctx, invalidState)
 		require.WithinDuration(t, startTime, time.Now(), 1250*time.Millisecond) //250msec as buffer to compensate overhead
 
 		//err expected because a timeout occurred:
@@ -134,7 +134,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	testNs := "test-progress-daemonset"
 	cleanup := func() {
 		t.Log("Cleanup test resources")
-		_, err := kubeClient.DeleteResource("Namespace", testNs, "")
+		_, err := kubeClient.DeleteResource(ctx, "Namespace", testNs, "")
 		require.NoError(t, err)
 	}
 	cleanup()

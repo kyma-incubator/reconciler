@@ -250,24 +250,28 @@ func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalLis
 	for _, infoTarget := range infoTargetList {
 		//Do intersect to make sure helmclient only do create/update but not delete resource which exists in original but not in target.
 		intersectOriginal := kube.ResourceList{infoTarget}.Intersect(infoOriginalList)
+
 		if len(intersectOriginal) == 0 {
 			return nil, fmt.Errorf("could not find intersect between original and target resource")
 		}
-		deployedResource, err := g.deployResource(intersectOriginal[0], infoTarget, namespace)
+		deployingResource := &Resource{
+			Kind:      infoTarget.Object.GetObjectKind().GroupVersionKind().Kind,
+			Name:      infoTarget.Name,
+			Namespace: infoTarget.Namespace,
+		}
+		deployedResources = append(deployedResources, deployingResource)
+
+		//if resource is watchable, add it to progress tracker
+		watchable, nonWatchableErr := progress.NewWatchableResource(deployingResource.Kind)
+		if nonWatchableErr == nil { //add only watchable resources to progress tracker
+			pt.AddResource(watchable, deployingResource.Namespace, deployingResource.Name)
+		}
+		err := g.deployResource(intersectOriginal[0], infoTarget, namespace)
 		if err != nil {
 			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
 			return nil, err
 		}
-
-		//add deploy resource to result
-		g.logger.Debugf("Kubernetes deployedResource '%v' successfully deployed", deployedResource)
-		deployedResources = append(deployedResources, deployedResource)
-
-		//if resource is watchable, add it to progress tracker
-		watchable, nonWatchableErr := progress.NewWatchableResource(deployedResource.Kind)
-		if nonWatchableErr == nil { //add only watchable resources to progress tracker
-			pt.AddResource(watchable, deployedResource.Namespace, deployedResource.Name)
-		}
+		g.logger.Debugf("Kubernetes deployingResource '%v' successfully deployed", deployingResource)
 	}
 
 	return deployedResources, pt.Watch(ctx, progress.ReadyState)
@@ -385,18 +389,18 @@ func (g *kubeClientAdapter) deleteResource(infoTarget *resource.Info) (*Resource
 	}, nil
 }
 
-func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.Info, namespaceOverride string) (*Resource, error) {
+func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.Info, namespaceOverride string) error {
 
 	helper := resource.NewHelper(infoTarget.Client, infoTarget.Mapping)
 	setNamespaceIfScoped(namespaceOverride, infoTarget, helper)
 
 	strategy, err := newDefaultUpdateStrategyResolver(helper).Resolve(infoTarget)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if strategy == SkipUpdateStrategy {
-		return nil, nil
+		return nil
 	}
 
 	//retry the reconciliation in case of an error
@@ -407,16 +411,10 @@ func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.In
 		retry.Context(context.Background()))
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "kubeClient failed to update %s '%s' (namespace: %s)",
+		return errors.Wrapf(err, "kubeClient failed to update %s '%s' (namespace: %s)",
 			infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace)
 	}
-
-	resource := &Resource{
-		Kind:      infoTarget.Object.GetObjectKind().GroupVersionKind().Kind,
-		Name:      infoTarget.Name,
-		Namespace: infoTarget.Namespace,
-	}
-	return resource, nil
+	return nil
 }
 
 func (g *kubeClientAdapter) deployResourceFunc(infoOriginal, infoTarget *resource.Info, strategy UpdateStrategy) func() error {
