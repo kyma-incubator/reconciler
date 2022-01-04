@@ -64,7 +64,7 @@ func TestProgressTracker(t *testing.T) {
 		defer cancel()
 
 		pt, err := progress.NewProgressTracker(clientSet, logger,
-			progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
+			progress.Config{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
 		require.NoError(t, err)
 
 		addWatchable(t, resources, pt)
@@ -83,7 +83,7 @@ func TestProgressTracker(t *testing.T) {
 	t.Run("Test progress tracking to state 'ready'", func(t *testing.T) {
 		// get progress tracker
 		pt, err := progress.NewProgressTracker(clientSet, logger,
-			progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
+			progress.Config{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
 		require.NoError(t, err)
 
 		addWatchable(t, resources, pt)
@@ -102,7 +102,7 @@ func TestProgressTracker(t *testing.T) {
 
 		//ensure progress returns error when checking for ready state of terminating resources
 		pt1, err := progress.NewProgressTracker(clientSet, logger,
-			progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 2 * time.Second})
+			progress.Config{Interval: 1 * time.Second, Timeout: 2 * time.Second})
 		require.NoError(t, err)
 		addWatchable(t, resources, pt1)
 		require.Error(t, pt1.Watch(ctx, progress.ReadyState)) //error expected as resources could not be watched
@@ -110,7 +110,7 @@ func TestProgressTracker(t *testing.T) {
 
 		//ensure pgoress returns no error when checking for terminated resources
 		pt2, err := progress.NewProgressTracker(clientSet, logger,
-			progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
+			progress.Config{Interval: 1 * time.Second, Timeout: 1 * time.Minute})
 		require.NoError(t, err)
 		addWatchable(t, resources, pt2)
 
@@ -154,7 +154,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	time.Sleep(time.Second)
 
 	logger := log.NewLogger(true)
-	tracker, err := progress.NewProgressTracker(clientSet, logger, progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	tracker, err := progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
 	tracker.AddResource(progress.DaemonSet, testNs, ds.GetName())
@@ -169,7 +169,7 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
 	tracker.AddResource(progress.DaemonSet, testNs, ds.GetName())
@@ -209,7 +209,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	time.Sleep(time.Second)
 
 	logger := log.NewLogger(true)
-	tracker, err := progress.NewProgressTracker(clientSet, logger, progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	tracker, err := progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
 	tracker.AddResource(progress.StatefulSet, testNs, ss.GetName())
@@ -224,7 +224,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
 	tracker.AddResource(progress.StatefulSet, ss.GetNamespace(), ss.GetName())
@@ -264,7 +264,7 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 	time.Sleep(time.Second)
 
 	logger := log.NewLogger(true)
-	tracker, err := progress.NewProgressTracker(clientSet, logger, progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	tracker, err := progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
 	tracker.AddResource(progress.Deployment, testNs, dep.GetName())
@@ -279,7 +279,7 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
 	tracker.AddResource(progress.Deployment, testNs, dep.GetName())
@@ -293,7 +293,7 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
 	require.NoError(t, err)
 
-	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.ProgressConfig{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
+	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
 	tracker.AddResource(progress.Deployment, testNs, dep.GetName())

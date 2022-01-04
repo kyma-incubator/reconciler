@@ -32,12 +32,12 @@ func (o *TrackerResource) String() string {
 	return fmt.Sprintf("%s [namespace:%s|name:%s]", o.kind, o.namespace, o.name)
 }
 
-type ProgressConfig struct {
+type Config struct {
 	Interval time.Duration
 	Timeout  time.Duration
 }
 
-func (ptc *ProgressConfig) validate() error {
+func (ptc *Config) validate() error {
 	if ptc.Interval < 0 {
 		return fmt.Errorf("progress tracker status-check interval cannot be < 0")
 	}
@@ -65,7 +65,7 @@ type Tracker struct {
 	logger   *zap.SugaredLogger
 }
 
-func NewProgressTracker(client kubernetes.Interface, logger *zap.SugaredLogger, config ProgressConfig) (*Tracker, error) {
+func NewProgressTracker(client kubernetes.Interface, logger *zap.SugaredLogger, config Config) (*Tracker, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}

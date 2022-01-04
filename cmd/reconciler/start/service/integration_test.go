@@ -319,7 +319,7 @@ func expectFailingReconciliation(t *testing.T, callbacks []*reconciler.CallbackM
 }
 
 func newProgressTracker(t *testing.T, clientSet clientgo.Interface) *progress.Tracker {
-	prog, err := progress.NewProgressTracker(clientSet, logger.NewLogger(true), progress.ProgressConfig{
+	prog, err := progress.NewProgressTracker(clientSet, logger.NewLogger(true), progress.Config{
 		Interval: 1 * time.Second,
 	})
 	require.NoError(t, err)

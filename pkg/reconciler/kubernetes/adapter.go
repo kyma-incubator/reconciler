@@ -678,7 +678,7 @@ func (g *kubeClientAdapter) newProgressTracker() (*progress.Tracker, error) {
 	if err != nil {
 		return nil, err
 	}
-	return progress.NewProgressTracker(clientSet, g.logger, progress.ProgressConfig{
+	return progress.NewProgressTracker(clientSet, g.logger, progress.Config{
 		Interval: g.config.ProgressInterval,
 		Timeout:  g.config.ProgressTimeout,
 	})
