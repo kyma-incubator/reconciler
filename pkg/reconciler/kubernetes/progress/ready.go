@@ -14,7 +14,7 @@ import (
 const expectedReadyReplicas = 1
 const expectedReadyDaemonSet = 1
 
-func isDeploymentReady(ctx context.Context, client kubernetes.Interface, object *TrackerResource) (bool, error) {
+func isDeploymentReady(ctx context.Context, client kubernetes.Interface, object *trackerResource) (bool, error) {
 	deployment, err := client.AppsV1().Deployments(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
@@ -29,7 +29,7 @@ func isDeploymentReady(ctx context.Context, client kubernetes.Interface, object 
 	return isReady, nil
 }
 
-func isStatefulSetReady(ctx context.Context, client kubernetes.Interface, object *TrackerResource) (bool, error) {
+func isStatefulSetReady(ctx context.Context, client kubernetes.Interface, object *trackerResource) (bool, error) {
 	statefulSet, err := client.AppsV1().StatefulSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
@@ -53,7 +53,7 @@ func isStatefulSetReady(ctx context.Context, client kubernetes.Interface, object
 	return isReady, nil
 }
 
-func isPodReady(ctx context.Context, client kubernetes.Interface, object *TrackerResource) (bool, error) {
+func isPodReady(ctx context.Context, client kubernetes.Interface, object *trackerResource) (bool, error) {
 	pod, err := client.CoreV1().Pods(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
@@ -71,7 +71,7 @@ func isPodReady(ctx context.Context, client kubernetes.Interface, object *Tracke
 	return pod.ObjectMeta.DeletionTimestamp == nil, nil
 }
 
-func isDaemonSetReady(ctx context.Context, client kubernetes.Interface, object *TrackerResource) (bool, error) {
+func isDaemonSetReady(ctx context.Context, client kubernetes.Interface, object *trackerResource) (bool, error) {
 	daemonSet, err := client.AppsV1().DaemonSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
@@ -85,7 +85,7 @@ func isDaemonSetReady(ctx context.Context, client kubernetes.Interface, object *
 	return isReady, nil
 }
 
-func isJobReady(ctx context.Context, client kubernetes.Interface, object *TrackerResource) (bool, error) {
+func isJobReady(ctx context.Context, client kubernetes.Interface, object *trackerResource) (bool, error) {
 	job, err := client.BatchV1().Jobs(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
