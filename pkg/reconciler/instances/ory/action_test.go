@@ -494,7 +494,6 @@ func TestOryDbSecret(t *testing.T) {
 func TestOryDbSecret_Update(t *testing.T) {
 	name := types.NamespacedName{Name: "test-db-secret", Namespace: "test"}
 	ctx := context.Background()
-	k8sClient := fake.NewSimpleClientset()
 	logger := zaptest.NewLogger(t).Sugar()
 	component := chart.NewComponentBuilder("main", componentName).
 		WithNamespace(name.Namespace).
@@ -508,6 +507,8 @@ func TestOryDbSecret_Update(t *testing.T) {
 	require.NoError(t, err)
 	t.Run("should return false when applying the same secret", func(t *testing.T) {
 		// given
+		k8sClient := fake.NewSimpleClientset()
+
 		dbSecretObject, err := db.Get(name, values, logger)
 		require.NoError(t, err)
 
@@ -537,6 +538,7 @@ func TestOryDbSecret_Update(t *testing.T) {
 	})
 	t.Run("should return true when applying secret with changes", func(t *testing.T) {
 		//given
+		k8sClient := fake.NewSimpleClientset()
 		testMap := map[string]string{
 			"secretsSystem": "system",
 			"secretsCookie": "cookie",
