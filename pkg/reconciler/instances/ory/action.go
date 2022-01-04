@@ -129,6 +129,7 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 
 		if !isUpdate(newSecretData) {
 			logger.Info("Ory DB secret is the same as values, no need to update")
+			rolloutHydra = false
 		} else {
 			logger.Info("Ory DB secret is different than values, updating it")
 			dbSecretObject.StringData = newSecretData
@@ -206,7 +207,7 @@ func (a *postReconcileAction) rolloutHydraDeployment(ctx context.Context, client
 	if err != nil {
 		return errors.Wrapf(err, "Failed to rollout %s deployment", deployment)
 	}
-	logger.Infof("%s deployment restarted", deployment)
+	logger.Infof("Performed rollout restart of %s deployment", deployment)
 
 	return nil
 }

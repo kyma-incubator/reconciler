@@ -491,24 +491,23 @@ func TestOryDbSecret(t *testing.T) {
 		})
 	}
 }
-func TestOryDbSecret_IsUpdate(t *testing.T) {
+func TestOryDbSecret_Update(t *testing.T) {
+	name := types.NamespacedName{Name: "test-db-secret", Namespace: "test"}
+	ctx := context.Background()
+	k8sClient := fake.NewSimpleClientset()
+	logger := zaptest.NewLogger(t).Sugar()
+	component := chart.NewComponentBuilder("main", componentName).
+		WithNamespace(name.Namespace).
+		WithProfile(profileName).
+		Build()
+
+	helm, err := chart.NewHelmClient(chartDir, logger)
+	require.NoError(t, err)
+
+	values, err := helm.Configuration(component)
+	require.NoError(t, err)
 	t.Run("should return false when applying the same secret", func(t *testing.T) {
 		// given
-		name := types.NamespacedName{Name: "test-db-secret", Namespace: "test"}
-		ctx := context.Background()
-		k8sClient := fake.NewSimpleClientset()
-		logger := zaptest.NewLogger(t).Sugar()
-		component := chart.NewComponentBuilder("main", componentName).
-			WithNamespace(name.Namespace).
-			WithProfile(profileName).
-			Build()
-
-		helm, err := chart.NewHelmClient(chartDir, logger)
-		require.NoError(t, err)
-
-		values, err := helm.Configuration(component)
-		require.NoError(t, err)
-
 		dbSecretObject, err := db.Get(name, values, logger)
 		require.NoError(t, err)
 
@@ -538,21 +537,6 @@ func TestOryDbSecret_IsUpdate(t *testing.T) {
 	})
 	t.Run("should return true when applying secret with changes", func(t *testing.T) {
 		//given
-		name := types.NamespacedName{Name: "test-db-secret", Namespace: "test"}
-		ctx := context.Background()
-		k8sClient := fake.NewSimpleClientset()
-		logger := zaptest.NewLogger(t).Sugar()
-		component := chart.NewComponentBuilder("main", componentName).
-			WithNamespace(name.Namespace).
-			WithProfile(profileName).
-			Build()
-
-		helm, err := chart.NewHelmClient(chartDir, logger)
-		require.NoError(t, err)
-
-		values, err := helm.Configuration(component)
-		require.NoError(t, err)
-
 		testMap := map[string]string{
 			"secretsSystem": "system",
 			"secretsCookie": "cookie",
