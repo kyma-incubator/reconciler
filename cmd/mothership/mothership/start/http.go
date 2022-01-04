@@ -249,7 +249,12 @@ func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
 		Filters: append(filters, &operation.Limit{Count: 1}),
 	})
 	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	} else if len(operations) < 1 {
+		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
 			Error: "Can't find operations for given parameters",
 		})
 		return
