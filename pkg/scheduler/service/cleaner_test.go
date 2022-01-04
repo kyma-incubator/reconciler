@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"testing"
 	"time"
 
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
