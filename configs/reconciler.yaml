@@ -27,4 +27,4 @@ mothership:
       base:
         url: "http://localhost:8081/v1/run"
     preComponents:
-      - [cluster-essentials, istio-configuration, certificates, application-connector, compass-runtime-agent]
+      - [cluster-essentials, istio-configuration, certificates, application-connector]
