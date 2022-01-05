@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/pkg/errors"
 	"sync"
@@ -85,6 +86,60 @@ func TestWorkerPool(t *testing.T) {
 	require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
 
 	requireOpsProcessableExists(t, opsProcessable, testInvoker.params[0].CorrelationID)
+}
+
+func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
+	test.IntegrationTest(t) //required because a valid Kubeconfig is required to create test cluster entry
+
+	//create cluster inventory
+	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
+	require.NoError(t, err)
+
+	//add cluster to inventory
+	clusterState, err := inventory.CreateOrUpdate(1, kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy))
+	require.NoError(t, err)
+
+	//cleanup created cluster
+	defer func() {
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+	}()
+
+	//create test invoker to be able to verify invoker calls
+	testInvoker := &testInvoker{}
+
+	//create reconciliation for cluster
+	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
+	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, nil)
+	require.NoError(t, err)
+	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
+	require.Len(t, opsProcessable, 1)
+	require.NoError(t, err)
+
+	//create worker pool config
+	testConfig := &Config{MaxOperationRetries: 1}
+
+	//set operation Retries as to be equal or greater than MaxOpRetries
+	op := opsProcessable[0]
+	op.Retries = 1
+
+	//start worker pool
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, testConfig, logger.NewLogger(true))
+	require.NoError(t, err)
+
+	//create a context
+	ctx, cancelFct := context.WithCancel(context.Background())
+	defer cancelFct()
+
+	//run worker pool once
+	require.NoError(t, workerPool.RunOnce(ctx))
+
+	//verify that invoker wasn't called
+	require.Len(t, testInvoker.params, 0)
+	//verify operation is in error state with the correct reason
+	require.Equal(t, op.State, model.OperationStateError)
+	opErrReason := fmt.Sprintf("operation exceeds max. operation retries limit (maxOperationRetries:%d)", testConfig.MaxOperationRetries)
+	require.Equal(t, op.Reason, opErrReason)
+
 }
 
 func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.OperationEntity, correlationID string) {
