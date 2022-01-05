@@ -20,14 +20,14 @@ func init() {
 	}
 
 	reconciler.
-		WithPreReconcileAction(&preReconcileAction{
-			&oryAction{step: "pre-reconcile"},
+		WithPreReconcileAction(&PreReconcileAction{
+			&OryAction{Step: "pre-reconcile"},
 		}).
-		WithPostDeleteAction(&postDeleteAction{
-			&oryAction{step: "post-delete"},
+		WithPostDeleteAction(&PostDeleteAction{
+			&OryAction{Step: "post-delete"},
 		}).
-		WithPostReconcileAction(&postReconcileAction{
-			&oryAction{step: "post-reconcile"}, hydra.NewDefaultHydraSyncer(k8s.NewDefaultRolloutHandler()),
+		WithPostReconcileAction(&PostReconcileAction{
+			&OryAction{Step: "post-reconcile"}, hydra.NewDefaultHydraSyncer(k8s.NewDefaultRolloutHandler()),
 			k8s.NewDefaultRolloutHandler(),
 		})
 }

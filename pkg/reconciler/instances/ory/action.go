@@ -28,22 +28,22 @@ const (
 	hydraDeployment = "ory-hydra"
 )
 
-type oryAction struct {
-	step string
+type OryAction struct {
+	Step string
 }
 
-type preReconcileAction struct {
-	*oryAction
+type PreReconcileAction struct {
+	*OryAction
 }
 
-type postReconcileAction struct {
-	*oryAction
-	hydraSyncer    hydra.Syncer
-	rolloutHandler k8s.RolloutHandler
+type PostReconcileAction struct {
+	*OryAction
+	HydraSyncer    hydra.Syncer
+	RolloutHandler k8s.RolloutHandler
 }
 
-type postDeleteAction struct {
-	*oryAction
+type PostDeleteAction struct {
+	*OryAction
 }
 
 var (
@@ -52,10 +52,10 @@ var (
 	rolloutHydra       = false
 )
 
-func (a *postReconcileAction) Run(context *service.ActionContext) error {
+func (a *PostReconcileAction) Run(context *service.ActionContext) error {
 	logger, kubeclient, cfg, _, err := readActionContext(context)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read postReconcileAction context")
+		return errors.Wrap(err, "Failed to read PostReconcileAction context")
 	}
 
 	if rolloutHydra {
@@ -67,7 +67,7 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
-		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace)
+		err = a.HydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
 		}
@@ -75,15 +75,15 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 		logger.Debug("Hydra is in persistence mode, no synchronization needed")
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.Step, context.Task.Version)
 
 	return nil
 }
 
-func (a *preReconcileAction) Run(context *service.ActionContext) error {
+func (a *PreReconcileAction) Run(context *service.ActionContext) error {
 	logger, kubeClient, _, values, err := readActionContext(context)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read preReconcileAction context")
+		return errors.Wrap(err, "Failed to read PreReconcileAction context")
 	}
 	client, err := kubeClient.Clientset()
 	if err != nil {
@@ -141,12 +141,12 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 		}
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.Step, context.Task.Version)
 
 	return nil
 }
 
-func (a *postDeleteAction) Run(context *service.ActionContext) error {
+func (a *PostDeleteAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
 	client, err := context.KubeClient.Clientset()
 	if err != nil {
@@ -179,7 +179,7 @@ func (a *postDeleteAction) Run(context *service.ActionContext) error {
 		logger.Infof("JWKS Secret %s does not exist", jwksNamespacedName.Name)
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.Step, context.Task.Version)
 	return nil
 }
 
@@ -192,7 +192,7 @@ func getSecret(ctx context.Context, client kubernetes.Interface, name types.Name
 	return secret, err
 }
 
-func (a *preReconcileAction) updateSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
+func (a *PreReconcileAction) updateSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, secret v1.Secret, logger *zap.SugaredLogger) error {
 	_, err := client.CoreV1().Secrets(name.Namespace).Update(ctx, &secret, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to update the secret")
@@ -202,8 +202,8 @@ func (a *preReconcileAction) updateSecret(ctx context.Context, client kubernetes
 	return err
 }
 
-func (a *postReconcileAction) rolloutHydraDeployment(ctx context.Context, client internalKubernetes.Client, deployment string, logger *zap.SugaredLogger) error {
-	err := a.rolloutHandler.RolloutAndWaitForDeployment(ctx, deployment, oryNamespace, client, logger)
+func (a *PostReconcileAction) rolloutHydraDeployment(ctx context.Context, client internalKubernetes.Client, deployment string, logger *zap.SugaredLogger) error {
+	err := a.RolloutHandler.RolloutAndWaitForDeployment(ctx, deployment, oryNamespace, client, logger)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to rollout %s deployment", deployment)
 	}
@@ -212,7 +212,7 @@ func (a *postReconcileAction) rolloutHydraDeployment(ctx context.Context, client
 	return nil
 }
 
-func (a *postDeleteAction) secretExists(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (bool, error) {
+func (a *PostDeleteAction) secretExists(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (bool, error) {
 	_, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -223,7 +223,7 @@ func (a *postDeleteAction) secretExists(ctx context.Context, client kubernetes.I
 	return true, nil
 }
 
-func (a *postDeleteAction) deleteSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) error {
+func (a *PostDeleteAction) deleteSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName, logger *zap.SugaredLogger) error {
 	err := client.CoreV1().Secrets(name.Namespace).Delete(ctx, name.Name, metav1.DeleteOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {

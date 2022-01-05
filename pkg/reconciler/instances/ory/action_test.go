@@ -73,7 +73,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
+		action := PostReconcileAction{&OryAction{Step: "post-reconcile"}, &hydraClient, &rolloutMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -96,7 +96,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
+		action := PostReconcileAction{&OryAction{Step: "post-reconcile"}, &hydraClient, &rolloutMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -121,7 +121,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
+		action := PostReconcileAction{&OryAction{Step: "post-reconcile"}, &hydraClient, &rolloutMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -142,7 +142,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
+		action := PostReconcileAction{&OryAction{Step: "post-reconcile"}, &hydraClient, &rolloutMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -165,7 +165,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := PreReconcileAction{&OryAction{Step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -186,7 +186,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("cannot get secret"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := PreReconcileAction{&OryAction{Step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -207,7 +207,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := PreReconcileAction{&OryAction{Step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -233,7 +233,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingJwksSecret)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := PreReconcileAction{&OryAction{Step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -258,7 +258,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := PreReconcileAction{&OryAction{Step: "pre-install"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -285,7 +285,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingSecret)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := PreReconcileAction{&OryAction{Step: "pre-install"}}
 
 		// when
 		err = action.Run(actionContext)
@@ -316,7 +316,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset(existingSecret, hydraDeployment)
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := preReconcileAction{&oryAction{step: "pre-install"}}
+		action := PreReconcileAction{&OryAction{Step: "pre-install"}}
 
 		// when
 		err = action.Run(actionContext)
@@ -342,7 +342,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("failed to retrieve native Kubernetes GO client"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := PostDeleteAction{&OryAction{Step: "post-delete"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -360,7 +360,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("Could not get DB secret"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := PostDeleteAction{&OryAction{Step: "post-delete"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -378,7 +378,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := PostDeleteAction{&OryAction{Step: "post-delete"}}
 
 		// when
 		err := action.Run(actionContext)
@@ -398,7 +398,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		_, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := PostDeleteAction{&OryAction{Step: "post-delete"}}
 
 		// when
 		err = action.Run(actionContext)
@@ -420,7 +420,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		_, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := PostDeleteAction{&OryAction{Step: "post-delete"}}
 
 		// when
 		err = action.Run(actionContext)
