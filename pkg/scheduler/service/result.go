@@ -14,7 +14,8 @@ type ReconciliationResult struct {
 	reconEntity *model.ReconciliationEntity
 	done        []*model.OperationEntity
 	error       []*model.OperationEntity
-	other       []*model.OperationEntity
+	running     []*model.OperationEntity
+	new         []*model.OperationEntity
 }
 
 func newReconciliationResult(reconEntity *model.ReconciliationEntity, logger *zap.SugaredLogger) *ReconciliationResult {
@@ -48,8 +49,10 @@ func (rs *ReconciliationResult) AddOperation(op *model.OperationEntity) error {
 		rs.done = append(rs.done, op)
 	case model.OperationStateError:
 		rs.error = append(rs.error, op)
+	case model.OperationStateNew:
+		rs.new = append(rs.new, op)
 	default:
-		rs.other = append(rs.other, op)
+		rs.running = append(rs.running, op)
 	}
 
 	return nil
@@ -57,7 +60,8 @@ func (rs *ReconciliationResult) AddOperation(op *model.OperationEntity) error {
 
 func (rs *ReconciliationResult) GetOperations() []*model.OperationEntity {
 	var result []*model.OperationEntity
-	result = append(result, rs.other...)
+	result = append(result, rs.new...)
+	result = append(result, rs.running...)
 	result = append(result, rs.done...)
 	return append(result, rs.error...)
 }
@@ -70,18 +74,24 @@ func (rs *ReconciliationResult) GetResult() model.Status {
 			break
 		}
 	}
-	if len(rs.error) > 0 {
+	//this if-clause has always to be evaluated first:
+	//as soon as one operation is in an error state the cluster is marked to be in error-state if no other ops are running
+	if len(rs.error) > 0 && len(rs.running) == 0 {
 		if isDelete {
 			return model.ClusterStatusDeleteError
 		}
 		return model.ClusterStatusReconcileError
 	}
-	if len(rs.other) > 0 {
+
+	//this if-clause has always to be evaluated as second condition:
+	//if one operation is not in a final state, the cluster is still in reconciling-state
+	if len(rs.running) > 0 || len(rs.new) > 0 {
 		if isDelete {
 			return model.ClusterStatusDeleting
 		}
 		return model.ClusterStatusReconciling
 	}
+	//only if no operations are ongoing or in an error state, a cluster can be set to ready-state
 	if len(rs.done) > 0 {
 		if isDelete {
 			return model.ClusterStatusDeleted
@@ -94,7 +104,7 @@ func (rs *ReconciliationResult) GetResult() model.Status {
 
 func (rs *ReconciliationResult) GetOrphans(timeout time.Duration) []*model.OperationEntity {
 	var orphaned []*model.OperationEntity
-	for _, op := range rs.other {
+	for _, op := range rs.running {
 		lastUpdateAgo := time.Now().UTC().Sub(op.Updated)
 		if lastUpdateAgo >= timeout {
 			rs.logger.Debugf("Reconciliation result detected orphan operation '%s': "+

@@ -19,6 +19,10 @@ type Workspace struct {
 	WorkspaceDir string
 }
 
+func (ws *Workspace) delete() error {
+	return os.RemoveAll(ws.WorkspaceDir)
+}
+
 func newWorkspace(workspaceDir string, validators ...func(*Workspace) error) (*Workspace, error) {
 	ws := &Workspace{
 		WorkspaceDir: workspaceDir,
