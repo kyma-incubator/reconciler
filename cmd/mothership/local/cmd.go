@@ -61,7 +61,7 @@ func NewCmd(o *Options) *cobra.Command {
 			return RunLocal(o)
 		},
 	}
-	cmd.Flags().StringVar(&o.clusterState, "cluster", clusterStateTemplate, `Set the Cluster State JSON. Use other flags to override fields in the JSON.`)
+	cmd.Flags().StringVar(&o.clusterState, "cluster", "", `Set the Cluster State JSON. Use other flags to override fields in the JSON.`)
 	cmd.Flags().StringVar(&o.kubeconfigFile, "kubeconfig", "", "Path to kubeconfig file")
 	cmd.Flags().StringSliceVar(&o.components, "components", []string{}, "Comma separated list of components with optional namespace, e.g. serverless,certificates@istio-system,monitoring")
 	cmd.Flags().StringVar(&o.componentsFile, "components-file", "", `Path to the components file (default "<workspace>/installation/resources/components.yaml")`)
@@ -151,8 +151,13 @@ func RunLocal(o *Options) error {
 }
 
 func prepareClusterState(o *Options) (*cluster.State, error) {
+	stateString := clusterStateTemplate
+	if o.clusterState != "" {
+		stateString = o.clusterState
+	}
+
 	clusterState := &cluster.State{}
-	err := json.Unmarshal([]byte(o.clusterState), clusterState)
+	err := json.Unmarshal([]byte(stateString), clusterState)
 	if err != nil {
 		return nil, err
 	}

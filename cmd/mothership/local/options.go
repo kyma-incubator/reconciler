@@ -214,10 +214,6 @@ func (o *Options) Validate() error {
 	return nil
 }
 
-func (o *Options) isClusterStateChanged() bool {
-	return o.clusterState == clusterStateTemplate
-}
-
 func isInputFromPipe() bool {
 	fileInfo, _ := os.Stdin.Stat()
 	return fileInfo.Mode()&os.ModeCharDevice == 0
