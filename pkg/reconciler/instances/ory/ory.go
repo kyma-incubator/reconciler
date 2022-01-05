@@ -28,5 +28,6 @@ func init() {
 		}).
 		WithPostReconcileAction(&postReconcileAction{
 			&oryAction{step: "post-reconcile"}, hydra.NewDefaultHydraSyncer(k8s.NewDefaultRolloutHandler()),
+			k8s.NewDefaultRolloutHandler(),
 		})
 }

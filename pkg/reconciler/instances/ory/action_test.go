@@ -14,6 +14,7 @@ import (
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
 	hydramocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra/mocks"
+	rolloutmock "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -65,13 +66,14 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient := hydramocks.Syncer{}
 		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(nil)
+		rolloutMock := rolloutmock.RolloutHandler{}
 		values, err := unmarshalTestValues(memoryYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -87,13 +89,14 @@ func Test_PostReconcile_Run(t *testing.T) {
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		hydraClient := hydramocks.Syncer{}
+		rolloutMock := rolloutmock.RolloutHandler{}
 		values, err := unmarshalTestValues(postgresqlYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -111,14 +114,14 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient := hydramocks.Syncer{}
 		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(errors.New("Failed to trigger hydra Synchronization"))
-
+		rolloutMock := rolloutmock.RolloutHandler{}
 		values, err := unmarshalTestValues(memoryYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -135,10 +138,11 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient := hydramocks.Syncer{}
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil,
 			errors.New("Failed to read configuration"))
+		rolloutMock := rolloutmock.RolloutHandler{}
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient}
+		action := postReconcileAction{&oryAction{step: "post-reconcile"}, &hydraClient, &rolloutMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -302,6 +306,8 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
+		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock.On("RolloutAndWaitForDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		values, err := unmarshalTestValues(postgresqlYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -427,38 +433,6 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 	})
 }
 
-func TestOryJwksSecret_IsEmpty(t *testing.T) {
-	t.Run("should return true on empty Secret", func(t *testing.T) {
-		// given
-		name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
-		ctx := context.Background()
-		k8sClient := fake.NewSimpleClientset()
-		existingSecret, err := preCreateSecret(ctx, k8sClient, name)
-
-		// when
-		check := isEmpty(existingSecret)
-
-		// then
-		assert.NoError(t, err)
-		require.Equal(t, true, check)
-	})
-	t.Run("should return false on non-empty Secret", func(t *testing.T) {
-		// given
-		name := types.NamespacedName{Name: "test-jwks-secret", Namespace: "test"}
-		ctx := context.Background()
-		k8sClient := fake.NewSimpleClientset()
-		existingSecret, err := preCreateSecret(ctx, k8sClient, name)
-		existingSecret.Data = map[string][]byte{"jwks.json": []byte("test")}
-
-		// when
-		check := isEmpty(existingSecret)
-
-		// then
-		assert.NoError(t, err)
-		require.Equal(t, false, check)
-	})
-}
-
 func TestOryDbSecret(t *testing.T) {
 	tests := []struct {
 		Name            string
@@ -517,7 +491,73 @@ func TestOryDbSecret(t *testing.T) {
 		})
 	}
 }
+func TestOryDbSecret_Update(t *testing.T) {
+	name := types.NamespacedName{Name: "test-db-secret", Namespace: "test"}
+	ctx := context.Background()
+	logger := zaptest.NewLogger(t).Sugar()
+	component := chart.NewComponentBuilder("main", componentName).
+		WithNamespace(name.Namespace).
+		WithProfile(profileName).
+		Build()
 
+	helm, err := chart.NewHelmClient(chartDir, logger)
+	require.NoError(t, err)
+
+	values, err := helm.Configuration(component)
+	require.NoError(t, err)
+	t.Run("should return false when applying the same secret", func(t *testing.T) {
+		// given
+		k8sClient := fake.NewSimpleClientset()
+
+		dbSecretObject, err := db.Get(name, values, logger)
+		require.NoError(t, err)
+
+		err = createSecret(ctx, k8sClient, name, *dbSecretObject, logger)
+		require.NoError(t, err)
+
+		existingSecret, err := getSecret(ctx, k8sClient, name)
+		require.NoError(t, err)
+
+		existingSecret.Data = map[string][]byte{
+			"secretsSystem":                   []byte(existingSecret.StringData["secretsSystem"]),
+			"secretsCookie":                   []byte(existingSecret.StringData["secretsCookie"]),
+			"dsn":                             []byte(existingSecret.StringData["dsn"]),
+			"postgresql-password":             []byte(existingSecret.StringData["postgresql-password"]),
+			"postgresql-replication-password": []byte(existingSecret.StringData["postgresql-replication-password"]),
+		}
+
+		newSecretData, err := db.Update(values, existingSecret, logger)
+		require.NoError(t, err)
+
+		// when
+		check := isUpdate(newSecretData)
+
+		// then
+		assert.NoError(t, err)
+		require.Equal(t, false, check)
+	})
+	t.Run("should return true when applying secret with changes", func(t *testing.T) {
+		//given
+		k8sClient := fake.NewSimpleClientset()
+		testMap := map[string]string{
+			"secretsSystem": "system",
+			"secretsCookie": "cookie",
+			"dsn":           "inMemory",
+		}
+		existingSecret, err := preCreateSecret(ctx, k8sClient, name)
+		require.NoError(t, err)
+
+		existingSecret.StringData = testMap
+		newSecretData, err := db.Update(values, existingSecret, logger)
+
+		// when
+		check := isUpdate(newSecretData)
+
+		// then
+		assert.NoError(t, err)
+		require.Equal(t, true, check)
+	})
+}
 func preCreateSecret(ctx context.Context, client k8s.Interface, name types.NamespacedName) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
