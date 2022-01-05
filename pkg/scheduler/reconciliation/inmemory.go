@@ -210,7 +210,6 @@ func (r *InMemoryReconciliationRepository) GetReconcilingOperations() ([]*model.
 func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
 	_, ok := r.operations[schedulingID]
 	if !ok {
 		return &repository.EntityNotFoundError{}
@@ -219,15 +218,17 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	if !ok {
 		return &repository.EntityNotFoundError{}
 	}
-
 	if err := operationAlreadyInState(op, state); err != nil && !allowInState {
 		return err
 	}
 
-	if op.State.IsFinal() {
+	// copy the operation to avoid having data races while writing
+	opCopy := *op
+
+	if opCopy.State.IsFinal() {
 		return fmt.Errorf("cannot update state of operation for component '%s' (schedulingID:%s/correlationID:'%s) "+
 			"to new state '%s' because operation is already in final state '%s'",
-			op.Component, op.SchedulingID, op.CorrelationID, state, op.State)
+			opCopy.Component, opCopy.SchedulingID, opCopy.CorrelationID, state, opCopy.State)
 	}
 
 	reason, err := concatStateReasons(state, reasons)
@@ -236,9 +237,11 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	}
 
 	//update operation
-	op.State = state
-	op.Reason = reason
-	op.Updated = time.Now().UTC()
+	opCopy.State = state
+	opCopy.Reason = reason
+	opCopy.Updated = time.Now().UTC()
+
+	r.operations[schedulingID][correlationID] = &opCopy
 
 	return nil
 }
@@ -256,12 +259,18 @@ func (r *InMemoryReconciliationRepository) UpdateOperationRetryID(schedulingID, 
 		return &repository.EntityNotFoundError{}
 	}
 
+	// copy the operation to avoid having data races while writing
+	opCopy := *op
+
 	//update operation
-	if op.RetryID != retryID {
-		op.RetryID = retryID
-		op.Retries = op.Retries + 1
+	if opCopy.RetryID != retryID {
+		opCopy.RetryID = retryID
+		opCopy.Retries++
 	}
-	op.Updated = time.Now().UTC()
+
+	opCopy.Updated = time.Now().UTC()
+
+	r.operations[schedulingID][correlationID] = &opCopy
 
 	return nil
 }

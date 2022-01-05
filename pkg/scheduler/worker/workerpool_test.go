@@ -135,10 +135,13 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 
 	//verify that invoker wasn't called
 	require.Len(t, testInvoker.params, 0)
+	//get modified op entry from the repository
+	modOp, err := testInvoker.reconRepo.GetOperation(op.SchedulingID, op.CorrelationID)
+	require.NoError(t, err)
 	//verify operation is in error state with the correct reason
-	require.Equal(t, op.State, model.OperationStateError)
+	require.Equal(t, model.OperationStateError, modOp.State)
 	opErrReason := fmt.Sprintf("operation exceeds max. operation retries limit (maxOperationRetries:%d)", testConfig.MaxOperationRetries)
-	require.Equal(t, op.Reason, opErrReason)
+	require.Equal(t, opErrReason, modOp.Reason)
 
 }
 
