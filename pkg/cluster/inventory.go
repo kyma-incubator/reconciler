@@ -55,7 +55,7 @@ func (i *DefaultInventory) WithTx(tx *db.TxConnection) (Inventory, error) {
 
 func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error) {
 	if len(errorStatus) == 0 {
-		return -1, errors.New("errorStatus slice is empty")
+		return 0, errors.New("errorStatus slice is empty")
 	}
 
 	var maxStatusHistoryLength = maxRetries * 5 //cluster can have three interims state between errors, thus 5 is more than enough
@@ -74,7 +74,7 @@ func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, m
 		if clStatusEntity.Status.IsFinal() {
 			if statusInSlice(clStatusEntity.Status, errorStatus) {
 				errCnt++
-			} else {
+			} else if clStatusEntity.Status.IsFinalStable() {
 				break
 			}
 		}
