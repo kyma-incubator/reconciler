@@ -227,7 +227,7 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
 	require.NoError(t, err)
 
-	tracker.AddResource(progress.StatefulSet, ss.GetNamespace(), ss.GetName())
+	tracker.AddResource(progress.StatefulSet, testNs, ss.GetName())
 	err = tracker.Watch(ctx, progress.ReadyState)
 	require.NoError(t, err)
 }
