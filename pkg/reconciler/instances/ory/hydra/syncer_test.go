@@ -41,7 +41,7 @@ func Test_TriggerSynchronization(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		kubeclient.AssertCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		kubeclient.AssertCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("Should not trigger synchronization when hydra is behind hydra-maester", func(t *testing.T) {
@@ -63,7 +63,7 @@ func Test_TriggerSynchronization(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NoError(t, err)
-		kubeclient.AssertNotCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		kubeclient.AssertNotCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 }
 func Test_GetEarliestStartTime(t *testing.T) {
@@ -140,7 +140,7 @@ func fakeClient() *k8smocks.Client {
 	fakeClient := fake.NewSimpleClientset()
 	mockClient.On("Clientset").Return(fakeClient, nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
-	mockClient.On("PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	return mockClient
 }
 

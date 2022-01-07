@@ -233,7 +233,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 	t.Run("should not patch MutatingWebhookConfiguration when kubeclient had returned an error", func(t *testing.T) {
 		// given
 		kubeClient := mocks.Client{}
-		kubeClient.On("PatchUsingStrategy", "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(errors.New("kubeclient error"))
+		kubeClient.On("PatchUsingStrategy", context.TODO(), "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(errors.New("kubeclient error"))
 		cmder := istioctlmocks.Commander{}
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
 
@@ -252,7 +252,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error", func(t *testing.T) {
 		// given
 		kubeClient := mocks.Client{}
-		kubeClient.On("PatchUsingStrategy", "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(nil)
+		kubeClient.On("PatchUsingStrategy", context.TODO(), "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(nil)
 		cmder := istioctlmocks.Commander{}
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
 

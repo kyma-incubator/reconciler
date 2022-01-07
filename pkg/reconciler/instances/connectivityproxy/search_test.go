@@ -70,20 +70,20 @@ func TestServiceInstancesFilter(t *testing.T) {
 	}
 
 	client := &mockKubernetes.Client{}
-	client.On("ListResource", "serviceinstance", v1.ListOptions{}).
+	client.On("ListResource", context.TODO(), "serviceinstance", v1.ListOptions{}).
 		Return(&unstructured.UnstructuredList{
 			Items: instances,
 		}, nil)
 
-	client.On("ListResource", "servicebinding", v1.ListOptions{}).
+	client.On("ListResource", context.TODO(), "servicebinding", v1.ListOptions{}).
 		Return(&unstructured.UnstructuredList{
 			Items: bindings,
 		}, nil)
 
-	client.On("ListResource", "test-invalid", v1.ListOptions{}).
+	client.On("ListResource", context.TODO(), "test-invalid", v1.ListOptions{}).
 		Return(nil, errors.New("Test error"))
 
-	client.On("ListResource", mock2.AnythingOfType("string"), v1.ListOptions{}).
+	client.On("ListResource", context.TODO(), mock2.AnythingOfType("string"), v1.ListOptions{}).
 		Return(nil, k8serr.NewNotFound(schema.GroupResource{}, "test-message"))
 
 	t.Run("Should find service instance", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 			client:         client,
 			referenceValue: "connectivity",
 		}
-		found, err := locator.find(nil)
+		found, err := locator.find(context.TODO())
 
 		assert.NoError(t, err)
 		assert.Equal(t, &instances[0], found)
@@ -132,7 +132,7 @@ func TestServiceInstancesFilter(t *testing.T) {
 			client:         client,
 			referenceValue: "connectivity",
 		}
-		_, err := locator.find(nil)
+		_, err := locator.find(context.TODO())
 
 		assert.Error(t, err)
 	})
