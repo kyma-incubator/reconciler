@@ -231,7 +231,7 @@ func (g *kubeClientAdapter) convertToResourceInfoWithInterceptors(manifestTarget
 		}
 	}
 
-	resourceInfoTarget, err := g.convertToInfoList(resourceListTarget.resources)
+	resourceInfoTarget, err := g.convertToInfoList(resourceListTarget.resources, namespace)
 	if err != nil {
 		g.logger.Errorf("Failed to convert target unstructs data: %s", err)
 		g.logger.Debugf("Manifest data: %s", manifestTarget)
@@ -266,7 +266,8 @@ func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalLis
 		if nonWatchableErr == nil { //add only watchable resources to progress tracker
 			pt.AddResource(watchable, deployingResource.Namespace, deployingResource.Name)
 		}
-		err := g.deployResource(intersectOriginal[0], infoTarget, namespace)
+
+		err = g.deployResource(intersectOriginal[0], infoTarget)
 		if err != nil {
 			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
 			return nil, err
@@ -275,6 +276,12 @@ func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalLis
 	}
 
 	return deployedResources, pt.Watch(ctx, progress.ReadyState)
+}
+
+func (g *kubeClientAdapter) getUpdateStrategy(infoTarget *resource.Info) (UpdateStrategy, error) {
+	helper := resource.NewHelper(infoTarget.Client, infoTarget.Mapping)
+	strategy, err := newDefaultUpdateStrategyResolver(helper).Resolve(infoTarget)
+	return strategy, err
 }
 
 func (g *kubeClientAdapter) manifestToUnstructured(manifest string) ([]*unstructured.Unstructured, error) {
@@ -319,11 +326,11 @@ func getRestConfig(kubeconfig string) (*rest.Config, error) {
 	})
 }
 
-func (g *kubeClientAdapter) convertToInfoList(unstructs []*unstructured.Unstructured) ([]*resource.Info, error) {
+func (g *kubeClientAdapter) convertToInfoList(unstructs []*unstructured.Unstructured, namespaceOverride string) ([]*resource.Info, error) {
 	var resourceInfos []*resource.Info
 
 	for _, unstruct := range unstructs {
-		info, err := g.convertToInfo(unstruct)
+		info, err := g.convertToInfo(unstruct, namespaceOverride)
 		if err != nil {
 			return nil, err
 		}
@@ -333,7 +340,7 @@ func (g *kubeClientAdapter) convertToInfoList(unstructs []*unstructured.Unstruct
 	return resourceInfos, nil
 }
 
-func (g *kubeClientAdapter) convertToInfo(unstruct *unstructured.Unstructured) (*resource.Info, error) {
+func (g *kubeClientAdapter) convertToInfo(unstruct *unstructured.Unstructured, namespaceOverride string) (*resource.Info, error) {
 	info := &resource.Info{}
 	gvk := unstruct.GroupVersionKind()
 	gv := gvk.GroupVersion()
@@ -348,6 +355,7 @@ func (g *kubeClientAdapter) convertToInfo(unstruct *unstructured.Unstructured) (
 	}
 	info.Mapping = restMapping
 	info.Namespace = unstruct.GetNamespace()
+	setNamespaceIfScoped(namespaceOverride, info)
 	info.Name = unstruct.GetName()
 	info.Object = unstruct.DeepCopyObject()
 	return info, nil
@@ -389,16 +397,12 @@ func (g *kubeClientAdapter) deleteResource(infoTarget *resource.Info) (*Resource
 	}, nil
 }
 
-func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.Info, namespaceOverride string) error {
+func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.Info) error {
 
-	helper := resource.NewHelper(infoTarget.Client, infoTarget.Mapping)
-	setNamespaceIfScoped(namespaceOverride, infoTarget, helper)
-
-	strategy, err := newDefaultUpdateStrategyResolver(helper).Resolve(infoTarget)
+	strategy, err := g.getUpdateStrategy(infoTarget)
 	if err != nil {
 		return err
 	}
-
 	if strategy == SkipUpdateStrategy {
 		return nil
 	}
@@ -444,7 +448,8 @@ func setDefaultNamespaceIfScopedAndNoneSet(namespace string, resourceInfo *resou
 	}
 }
 
-func setNamespaceIfScoped(namespace string, resourceInfo *resource.Info, helper *resource.Helper) {
+func setNamespaceIfScoped(namespace string, resourceInfo *resource.Info) {
+	helper := resource.NewHelper(resourceInfo.Client, resourceInfo.Mapping)
 	setDefaultNamespaceIfScopedAndNoneSet(namespace, resourceInfo, helper)
 	if resourceInfo.Namespace == "" && helper.NamespaceScoped {
 		resourceInfo.Namespace = namespace
@@ -562,7 +567,7 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifestTarget, namespac
 		g.logger.Debugf("Manifest data: %s", manifestTarget)
 		return nil, err
 	}
-	resourceInfoTarget, err := g.convertToInfoList(unstructsTarget)
+	resourceInfoTarget, err := g.convertToInfoList(unstructsTarget, namespace)
 	if err != nil {
 		g.logger.Errorf("Failed to convert target unstructs data: %s", err)
 		g.logger.Debugf("Manifest data: %s", manifestTarget)
@@ -575,8 +580,6 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifestTarget, namespac
 
 	var deletedResources []*Resource
 	for _, info := range resourceInfoTarget {
-		helper := resource.NewHelper(info.Client, info.Mapping)
-		setNamespaceIfScoped(namespace, info, helper)
 		deletedResource, err := g.deleteResource(info)
 		if err != nil {
 			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)

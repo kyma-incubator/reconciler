@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"path/filepath"
 	"testing"
@@ -139,30 +138,4 @@ func readManifest(t *testing.T, fileName string) string {
 	manifest, err := ioutil.ReadFile(filepath.Join("test", fileName))
 	require.NoError(t, err)
 	return string(manifest)
-}
-
-func TestSetNamespaceIfScoped(t *testing.T) {
-	t.Run("Should set namespace if scoped", func(t *testing.T) {
-		info := &resource.Info{}
-		setNamespaceIfScoped("test", info, &resource.Helper{
-			NamespaceScoped: true,
-		})
-		require.Equal(t, "test", info.Namespace)
-	})
-
-	t.Run("Ignore namespace if not scoped", func(t *testing.T) {
-		info := &resource.Info{}
-		info.Namespace = ""
-		setNamespaceIfScoped("test", info, &resource.Helper{
-			NamespaceScoped: false,
-		})
-		require.Equal(t, "", info.Namespace)
-
-		info.Namespace = "initial"
-		setNamespaceIfScoped("test", info, &resource.Helper{
-			NamespaceScoped: false,
-		})
-		require.Equal(t, "initial", info.Namespace)
-
-	})
 }

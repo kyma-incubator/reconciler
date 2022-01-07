@@ -66,7 +66,7 @@ func newTestFunc(kubeClient Client, unstruct *unstructured.Unstructured, label, 
 		t.Logf("Applying %s and setting label %s", unstruct.GetKind(), label)
 		unstruct.SetLabels(map[string]string{"applied": label})
 		clientAdapter := kubeClient.(*kubeClientAdapter)
-		info, err := clientAdapter.convertToInfo(unstruct)
+		info, err := clientAdapter.convertToInfo(unstruct, "")
 		require.NoError(t, err)
 		_, err = clientAdapter.deployResources(context.TODO(), []*resource.Info{info}, []*resource.Info{info}, "")
 		require.NoError(t, err)
