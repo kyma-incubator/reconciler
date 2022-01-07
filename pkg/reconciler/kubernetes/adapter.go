@@ -170,7 +170,7 @@ func (g *kubeClientAdapter) DeployByCompareWithOriginal(ctx context.Context, man
 		return nil, err
 	}
 
-	deployedResources, err := g.deployResources(ctx, resourceInfoOriginal, resourceInfoTarget, namespace)
+	deployedResources, err := g.deployResources(ctx, resourceInfoOriginal, resourceInfoTarget)
 
 	if len(deployedResources) == 0 {
 		g.logger.Warnf("Namespace '%s' was required for deploying the manifestTarget "+
@@ -194,7 +194,7 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifestTarget, namespac
 		return nil, err
 	}
 
-	deployedResources, err := g.deployResources(ctx, resourceInfoTarget, resourceInfoTarget, namespace)
+	deployedResources, err := g.deployResources(ctx, resourceInfoTarget, resourceInfoTarget)
 
 	if len(deployedResources) == 0 {
 		g.logger.Warnf("Namespace '%s' was required for deploying the manifestTarget "+
@@ -240,7 +240,7 @@ func (g *kubeClientAdapter) convertToResourceInfoWithInterceptors(manifestTarget
 	return resourceInfoTarget, nil
 }
 
-func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalList kube.ResourceList, infoTargetList kube.ResourceList, namespace string) ([]*Resource, error) {
+func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalList kube.ResourceList, infoTargetList kube.ResourceList) ([]*Resource, error) {
 	pt, err := g.newProgressTracker()
 	if err != nil {
 		return nil, err
@@ -250,22 +250,12 @@ func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalLis
 	for _, infoTarget := range infoTargetList {
 		//Do intersect to make sure helmclient only do create/update but not delete resource which exists in original but not in target.
 		intersectOriginal := kube.ResourceList{infoTarget}.Intersect(infoOriginalList)
-
 		if len(intersectOriginal) == 0 {
 			return nil, fmt.Errorf("could not find intersect between original and target resource")
 		}
-		deployingResource := &Resource{
-			Kind:      infoTarget.Object.GetObjectKind().GroupVersionKind().Kind,
-			Name:      infoTarget.Name,
-			Namespace: infoTarget.Namespace,
-		}
-		deployedResources = append(deployedResources, deployingResource)
 
-		//if resource is watchable, add it to progress tracker
-		watchable, nonWatchableErr := progress.NewWatchableResource(deployingResource.Kind)
-		if nonWatchableErr == nil { //add only watchable resources to progress tracker
-			pt.AddResource(watchable, deployingResource.Namespace, deployingResource.Name)
-		}
+		deployingResource := g.addWatchableResourceInfoToProgressTracker(infoTarget, pt)
+		deployedResources = append(deployedResources, deployingResource)
 
 		err = g.deployResource(intersectOriginal[0], infoTarget)
 		if err != nil {
@@ -294,19 +284,17 @@ func (g *kubeClientAdapter) manifestToUnstructured(manifest string) ([]*unstruct
 	return unstructs, nil
 }
 
-func (g *kubeClientAdapter) addWatchableResourceInfoToProgressTracker(info *resource.Info, pt *progress.Tracker) {
+func (g *kubeClientAdapter) addWatchableResourceInfoToProgressTracker(info *resource.Info, pt *progress.Tracker) *Resource {
 	resource := &Resource{
 		Name:      info.Name,
 		Kind:      info.Object.GetObjectKind().GroupVersionKind().Kind,
 		Namespace: info.Namespace,
 	}
-	//add deploy resource to result
-	g.logger.Debugf("Kubernetes resource '%v' successfully deployed", resource)
-	//if resource is watchable, add it to progress tracker
 	watchable, nonWatchableErr := progress.NewWatchableResource(resource.Kind)
-	if nonWatchableErr == nil { //add only watchable resourceListTarget to progress tracker
+	if nonWatchableErr == nil {
 		pt.AddResource(watchable, resource.Namespace, resource.Name)
 	}
+	return resource
 }
 
 func getDiscoveryMapper(restConfig *rest.Config) (*restmapper.DeferredDiscoveryRESTMapper, error) {
