@@ -105,7 +105,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
+	metrics.RegisterAll(o.Registry.Inventory(),o.Registry.ReconciliationRepository(), o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
