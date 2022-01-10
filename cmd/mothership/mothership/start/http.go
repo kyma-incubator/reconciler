@@ -224,8 +224,9 @@ func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
 		state, err := o.Registry.Inventory().GetLatest(runtimeID)
 		if err != nil {
 			server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
-				Error: err.Error(),
+				Error: errors.Wrap(err, "Failed to get cluster state based on runtimeID").Error(),
 			})
+			return
 		}
 
 		sendClusterStateResponse(w, state)
@@ -255,7 +256,7 @@ func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	} else if len(operations) < 1 {
 		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
-			Error: "Can't find operations for given parameters",
+			Error: "Failed to get operations correlated to cluster state based on given parameters",
 		})
 		return
 	}
