@@ -444,5 +444,5 @@ func expectPodInState(t *testing.T, state progress.State, kubeClient kubernetes.
 	prog := newProgressTracker(t, clientSet)
 	prog.AddResource(watchable, componentNamespace, componentDeployment)
 	require.NoError(t, prog.Watch(context.TODO(), state))
-	t.Logf("DEployment '%s' reached %s state", componentDeployment, strings.ToUpper(string(state)))
+	t.Logf("Deployment '%s' reached %s state", componentDeployment, strings.ToUpper(string(state)))
 }
