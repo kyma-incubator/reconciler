@@ -45,7 +45,7 @@ const (
 	componentVersion    = "0.0.0"
 	componentDeployment = "dummy-deployment"
 
-	externalComponentUrl = "https://github.com/kyma-incubator/sap-btp-service-operator/releases/download/v0.1.18-custom/sap-btp-operator-0.1.18.tar.gz"
+	externalComponentURL = "https://github.com/kyma-incubator/sap-btp-service-operator/releases/download/v0.1.18-custom/sap-btp-operator-0.1.18.tar.gz"
 )
 
 type testCase struct {
@@ -192,7 +192,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
-				URL:             externalComponentUrl,
+				URL:             externalComponentURL,
 				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
