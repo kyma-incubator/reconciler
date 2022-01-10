@@ -115,7 +115,7 @@ paths:
               $ref: "#/components/schemas/status"
       responses:
         "200":
-          $ref: "#/components/responses/ReconciliationInfoOKResponse"
+          $ref: "#/components/responses/ReconcilationsOKResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "500":
