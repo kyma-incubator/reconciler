@@ -152,7 +152,7 @@ func (f *DefaultFactory) getExternalArchiveComponent(component *Component) (*Wor
 	wsDir := f.componentBaseDir(component)
 
 	if f.readyMarkerExists(wsDir) {
-		return newComponentWorkspace(wsDir, component.name)
+		return newComponentWorkspace(wsDir)
 	}
 
 	if err := f.cleanFailedWorkspace(wsDir); err != nil {
@@ -166,7 +166,7 @@ func (f *DefaultFactory) getExternalArchiveComponent(component *Component) (*Wor
 		return nil, err
 	}
 
-	return newComponentWorkspace(wsDir, component.name)
+	return newComponentWorkspace(wsDir)
 }
 
 func (f *DefaultFactory) getExternalGitComponent(component *Component) (*Workspace, error) {
@@ -189,7 +189,7 @@ func (f *DefaultFactory) getExternalGitComponent(component *Component) (*Workspa
 	if err != nil {
 		return nil, err
 	}
-	return newComponentWorkspace(wsDir, component.name)
+	return newComponentWorkspace(wsDir)
 }
 
 func (f *DefaultFactory) cloneComponent(component *Component, dstDir string) error {

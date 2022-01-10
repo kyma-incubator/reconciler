@@ -15,6 +15,10 @@ type Component struct {
 	configuration map[string]interface{}
 }
 
+func (c *Component) isExternalComponent() bool {
+	return c.url != ""
+}
+
 func (c *Component) isExternalGitComponent() bool {
 	return strings.HasSuffix(c.url, ".git")
 }
