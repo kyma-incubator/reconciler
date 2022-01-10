@@ -861,7 +861,7 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 	}, nil
 }
 
-func newClusterStateResponse(state *cluster.State) (*keb.HTTPClusterState, error) {
+func newClusterStateResponse(state *cluster.State) (*keb.HTTPClusterStateResponse, error) {
 	var metadata keb.Metadata
 	if state.Cluster.Metadata != nil {
 		metadata = keb.Metadata{
@@ -910,7 +910,7 @@ func newClusterStateResponse(state *cluster.State) (*keb.HTTPClusterState, error
 		return nil, err
 	}
 
-	return &keb.HTTPClusterState{
+	return &keb.HTTPClusterStateResponse{
 		Cluster: keb.ClusterState{
 			Contract:  &state.Cluster.Contract,
 			Created:   &state.Cluster.Created,

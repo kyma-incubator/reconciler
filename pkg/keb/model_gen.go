@@ -45,8 +45,8 @@ type HTTPClusterResponse struct {
 	StatusURL            string     `json:"statusURL"`
 }
 
-// HTTPClusterState defines model for HTTPClusterState.
-type HTTPClusterState struct {
+// HTTPClusterStateResponse defines model for HTTPClusterStateResponse.
+type HTTPClusterStateResponse struct {
 	Cluster       ClusterState              `json:"cluster"`
 	Configuration ClusterStateConfiguration `json:"configuration"`
 	Status        ClusterStateStatus        `json:"status"`

@@ -200,7 +200,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPClusterState"
+                $ref: "#/components/schemas/HTTPClusterStateResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
@@ -380,7 +380,7 @@ components:
           items:
             $ref: "#/components/schemas/statusChange"
 
-    HTTPClusterState:
+    HTTPClusterStateResponse:
       type: object
       required: [ cluster, configuration, status ]
       properties:
