@@ -16,6 +16,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
@@ -201,7 +202,9 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		require.Len(t, reconEntities, 1)
 
 		//get operations of this reconciliation
-		opEntities, err := reconRepo.GetOperations(reconEntities[0].SchedulingID)
+		opEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+			SchedulingID: reconEntities[0].SchedulingID,
+		})
 		require.NoError(t, err)
 
 		//set all operations to a final state

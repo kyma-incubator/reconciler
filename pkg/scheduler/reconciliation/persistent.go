@@ -11,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/pkg/errors"
 )
 
@@ -251,31 +252,18 @@ func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) (
 	return result, nil
 }
 
-func (r *PersistentReconciliationRepository) GetOperations(schedulingID string, states ...model.OperationState) ([]*model.OperationEntity, error) {
+func (r *PersistentReconciliationRepository) GetOperations(filter operation.Filter) ([]*model.OperationEntity, error) {
 	q, err := db.NewQuery(r.Conn, &model.OperationEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
 
-	selectQ := q.Select().
-		Where(map[string]interface{}{
-			"SchedulingID": schedulingID,
-		})
-
-	if len(states) > 0 {
-		var args []interface{}
-		var buffer bytes.Buffer
-
-		//add state to args array and generate placeholder string for SQL stmt
-		for idx, state := range states {
-			args = append(args, state)
-			if buffer.Len() > 0 {
-				buffer.WriteRune(',')
-			}
-			buffer.WriteString(fmt.Sprintf("$%d", idx+2))
+	//fire query
+	selectQ := q.Select()
+	if filter != nil {
+		if err := filter.FilterByQuery(selectQ); err != nil {
+			return nil, errors.Wrap(err, "failed to apply sql filter")
 		}
-
-		selectQ.WhereIn("State", buffer.String(), args...)
 	}
 
 	ops, err := selectQ.GetMany()

@@ -15,6 +15,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,9 @@ func TestRemoteInvoker(t *testing.T) {
 	require.NoError(t, err)
 
 	//retrieve ops of reconciliation entity
-	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+	opEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+		SchedulingID: reconEntity.SchedulingID,
+	})
 	require.NoError(t, err)
 	require.Len(t, opEntities, 7)
 

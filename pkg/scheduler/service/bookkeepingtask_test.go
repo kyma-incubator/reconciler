@@ -11,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,7 +59,9 @@ func TestBookkeepingtask(t *testing.T) {
 
 			//mark all operations to a specific state, if needed for tc
 			if tc.markOpsAs != "" {
-				opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				opEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
 				require.NoError(t, err)
 				for _, opEntity := range opEntities {
 					err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, tc.markOpsAs, true)
@@ -150,7 +153,9 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 
 			//mark all operations to be done, if needed for tc
 			if tc.markOpsDone {
-				opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				opEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
 				require.NoError(t, err)
 				for _, opEntity := range opEntities {
 					err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone, true)

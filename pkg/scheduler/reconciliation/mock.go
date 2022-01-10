@@ -4,6 +4,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
 
 type MockRepository struct {
@@ -39,7 +40,7 @@ func (mr *MockRepository) FinishReconciliation(schedulingID string, status *mode
 	return mr.FinishReconciliationResult
 }
 
-func (mr *MockRepository) GetOperations(schedulingID string, state ...model.OperationState) ([]*model.OperationEntity, error) {
+func (mr *MockRepository) GetOperations(filters operation.Filter) ([]*model.OperationEntity, error) {
 	return mr.GetOperationsResult, nil
 }
 

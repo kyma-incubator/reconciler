@@ -8,6 +8,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
 
 type Filter interface {
@@ -21,7 +22,7 @@ type Repository interface {
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error
-	GetOperations(schedulingID string, state ...model.OperationState) ([]*model.OperationEntity, error)
+	GetOperations(filter operation.Filter) ([]*model.OperationEntity, error)
 	GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error)
 	//GetProcessableOperations returns all operations which can be assigned to a worker
 	GetProcessableOperations(maxParallelOpsPerRecon int) ([]*model.OperationEntity, error)

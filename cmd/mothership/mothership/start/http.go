@@ -19,6 +19,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 
 	"github.com/gorilla/mux"
@@ -64,6 +65,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramRuntimeID),
 		callHandler(o, deleteCluster)).
 		Methods("DELETE")
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%v}/clusters/state", paramContractVersion),
+		callHandler(o, getClustersState)).
+		Methods("GET")
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramRuntimeID, paramConfigVersion),
@@ -209,6 +215,63 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	//respond status URL
 	sendResponse(w, r, clusterStateNew, o.Registry.ReconciliationRepository())
+}
+
+func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+
+	if runtimeID, err := params.String(paramRuntimeID); err == nil && runtimeID != "" {
+		state, err := o.Registry.Inventory().GetLatest(runtimeID)
+		if err != nil {
+			server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+				Error: errors.Wrap(err, "Failed to get cluster state based on runtimeID").Error(),
+			})
+			return
+		}
+
+		sendClusterStateResponse(w, state)
+		return
+	}
+
+	filters := []operation.Filter{}
+	if schedulingID, err := params.String(paramSchedulingID); err == nil && schedulingID != "" {
+		filters = append(filters, &operation.WithSchedulingID{
+			SchedulingID: schedulingID,
+		})
+	}
+
+	if correlationID, err := params.String(paramCorrelationID); err == nil && correlationID != "" {
+		filters = append(filters, &operation.WithCorrelationID{
+			CorrelationID: correlationID,
+		})
+	}
+
+	operations, err := o.Registry.ReconciliationRepository().GetOperations(&operation.FilterMixer{
+		Filters: append(filters, &operation.Limit{Count: 1}),
+	})
+	if err != nil {
+		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	} else if len(operations) < 1 {
+		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+			Error: "Failed to get operations correlated to cluster state based on given parameters",
+		})
+		return
+	}
+
+	runtimeID := operations[0].RuntimeID
+	clusterConfig := operations[0].ClusterConfig
+	state, err := o.Registry.Inventory().Get(runtimeID, clusterConfig)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	sendClusterStateResponse(w, state)
 }
 
 func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -402,7 +465,9 @@ func getReconciliationInfo(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	operations, err := o.Registry.ReconciliationRepository().GetOperations(schedulingID)
+	operations, err := o.Registry.ReconciliationRepository().GetOperations(&operation.WithSchedulingID{
+		SchedulingID: schedulingID,
+	})
 	if err != nil {
 		server.SendHTTPErrorMap(w, err)
 		return
@@ -716,8 +781,25 @@ func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.
 func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) {
 	respModel, err := newClusterResponse(r, clusterState, reconciliationRepository)
 	if err != nil {
-		server.SendHTTPError(w, 500, &reconciler.HTTPErrorResponse{
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "failed to generate cluster response model").Error(),
+		})
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(respModel); err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to encode response payload to JSON").Error(),
+		})
+	}
+}
+
+func sendClusterStateResponse(w http.ResponseWriter, state *cluster.State) {
+	respModel, err := newClusterStateResponse(state)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "failed to generate cluster state response model").Error(),
 		})
 		return
 	}
@@ -744,7 +826,9 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 			return nil, err
 		}
 		if len(reconciliations) > 0 {
-			operations, err := reconciliationRepository.GetOperations(reconciliations[0].SchedulingID)
+			operations, err := reconciliationRepository.GetOperations(&operation.WithSchedulingID{
+				SchedulingID: reconciliations[0].SchedulingID,
+			})
 			if err != nil {
 				return nil, err
 			}
@@ -775,5 +859,87 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 					clusterState.Cluster.RuntimeID, clusterState.Configuration.Version)
 			}(),
 		}).String(),
+	}, nil
+}
+
+func newClusterStateResponse(state *cluster.State) (*keb.HTTPClusterStateResponse, error) {
+	var metadata keb.Metadata
+	if state.Cluster.Metadata != nil {
+		metadata = keb.Metadata{
+			GlobalAccountID: state.Cluster.Metadata.GlobalAccountID,
+			InstanceID:      state.Cluster.Metadata.InstanceID,
+			Region:          state.Cluster.Metadata.Region,
+			ServiceID:       state.Cluster.Metadata.ServiceID,
+			ServicePlanID:   state.Cluster.Metadata.ServicePlanID,
+			ServicePlanName: state.Cluster.Metadata.ServicePlanName,
+			ShootName:       state.Cluster.Metadata.ShootName,
+			SubAccountID:    state.Cluster.Metadata.SubAccountID,
+		}
+	}
+
+	var runtimeInput keb.RuntimeInput
+	if state.Cluster.Runtime != nil {
+		runtimeInput = keb.RuntimeInput{
+			Description: state.Cluster.Runtime.Description,
+			Name:        state.Cluster.Runtime.Name,
+		}
+	}
+
+	components := []keb.Component{}
+	for i := range state.Configuration.Components {
+		comp := state.Configuration.Components[i]
+		configs := []keb.Configuration{}
+		for i := range comp.Configuration {
+			configs = append(configs, keb.Configuration{
+				Key:    comp.Configuration[i].Key,
+				Secret: comp.Configuration[i].Secret,
+				Value:  comp.Configuration[i].Value,
+			})
+		}
+
+		components = append(components, keb.Component{
+			URL:           comp.URL,
+			Component:     comp.Component,
+			Configuration: configs,
+			Namespace:     comp.Namespace,
+			Version:       comp.Version,
+		})
+	}
+
+	kebStatus, err := state.Status.GetKEBClusterStatus()
+	if err != nil {
+		return nil, err
+	}
+
+	return &keb.HTTPClusterStateResponse{
+		Cluster: keb.ClusterState{
+			Contract:  &state.Cluster.Contract,
+			Created:   &state.Cluster.Created,
+			Metadata:  &metadata,
+			Runtime:   &runtimeInput,
+			RuntimeID: &state.Cluster.RuntimeID,
+			Version:   &state.Cluster.Version,
+		},
+		Configuration: keb.ClusterStateConfiguration{
+			Administrators: &state.Configuration.Administrators,
+			ClusterVersion: &state.Configuration.ClusterVersion,
+			Components:     &components,
+			Contract:       &state.Configuration.Contract,
+			Created:        &state.Configuration.Created,
+			Deleted:        &state.Configuration.Deleted,
+			KymaProfile:    &state.Configuration.KymaProfile,
+			KymaVersion:    &state.Configuration.KymaVersion,
+			RuntimeID:      &state.Configuration.RuntimeID,
+			Version:        &state.Configuration.Version,
+		},
+		Status: keb.ClusterStateStatus{
+			ClusterVersion: &state.Status.ClusterVersion,
+			ConfigVersion:  &state.Status.ConfigVersion,
+			Created:        &state.Status.Created,
+			Deleted:        &state.Status.Deleted,
+			Id:             &state.Status.ID,
+			RuntimeID:      &state.Status.RuntimeID,
+			Status:         &kebStatus,
+		},
 	}, nil
 }
