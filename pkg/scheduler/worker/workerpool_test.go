@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/pkg/errors"
 	"sync"
@@ -91,12 +92,15 @@ func TestWorkerPool(t *testing.T) {
 func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	test.IntegrationTest(t) //required because a valid Kubeconfig is required to create test cluster entry
 
+	//create mock database connection
+	testDB := db.NewTestConnection(t)
+
 	//create cluster inventory
-	inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, &cluster.MetricsCollectorMock{})
+	inventory, err := cluster.NewInventory(testDB, true, &cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 
 	//add cluster to inventory
-	clusterState, err := inventory.CreateOrUpdate(1, kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy))
+	clusterState, err := inventory.CreateOrUpdate(1, kebTest.NewCluster(t, "2", 1, false, kebTest.OneComponentDummy))
 	require.NoError(t, err)
 
 	//cleanup created cluster
@@ -108,40 +112,50 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	testInvoker := &testInvoker{}
 
 	//create reconciliation for cluster
-	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
+	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
+	require.NoError(t, err)
 	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, nil)
 	require.NoError(t, err)
-	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
-	require.Len(t, opsProcessable, 1)
+
+	maxParallelOps := 25
+	numberOfProcessableOps := 1
+	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(maxParallelOps)
+	require.Len(t, opsProcessable, numberOfProcessableOps)
 	require.NoError(t, err)
 
 	//create worker pool config
-	testConfig := &Config{MaxOperationRetries: 1}
+	maxRetries := 1
+	testConfig := &Config{MaxOperationRetries: maxRetries}
 
-	//set operation Retries as to be equal or greater than MaxOpRetries
+	//simulate one failed try from the component reconciler
 	op := opsProcessable[0]
-	op.Retries = 1
+	retryID := uuid.NewString()
+	err = testInvoker.reconRepo.UpdateOperationRetryID(op.SchedulingID, op.CorrelationID, retryID)
+	require.NoError(t, err)
 
 	//start worker pool
 	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, testConfig, logger.NewLogger(true))
 	require.NoError(t, err)
 
-	//create a context
-	ctx, cancelFct := context.WithCancel(context.Background())
+	ctx, cancelFct := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancelFct()
 
-	//run worker pool once
-	require.NoError(t, workerPool.RunOnce(ctx))
+	//ensure worker pool stops when context gets closed
+	startTime := time.Now()
+	require.NoError(t, workerPool.Run(ctx))
+	require.WithinDuration(t, startTime, time.Now(), 3*time.Second) //ensure workerPool is considering ctx
 
 	//verify that invoker wasn't called
-	require.Len(t, testInvoker.params, 0)
-	//get modified op entry from the repository
-	modOp, err := testInvoker.reconRepo.GetOperation(op.SchedulingID, op.CorrelationID)
+	invokedCnt := 0
+	require.Len(t, testInvoker.params, invokedCnt)
+
+	//get updated operation from the repository
+	updatedOp, err := testInvoker.reconRepo.GetOperation(op.SchedulingID, op.CorrelationID)
 	require.NoError(t, err)
 	//verify operation is in error state with the correct reason
-	require.Equal(t, model.OperationStateError, modOp.State)
+	require.Equal(t, model.OperationStateError, updatedOp.State)
 	opErrReason := fmt.Sprintf("operation exceeds max. operation retries limit (maxOperationRetries:%d)", testConfig.MaxOperationRetries)
-	require.Equal(t, opErrReason, modOp.Reason)
+	require.Equal(t, opErrReason, updatedOp.Reason)
 
 }
 
