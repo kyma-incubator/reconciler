@@ -44,6 +44,8 @@ const (
 	componentNamespace  = "inttest-comprecon"
 	componentVersion    = "0.0.0"
 	componentDeployment = "dummy-deployment"
+
+	externalComponentUrl = "https://github.com/kyma-incubator/sap-btp-service-operator/releases/download/v0.1.18-custom/sap-btp-operator-0.1.18.tar.gz"
 )
 
 type testCase struct {
@@ -170,6 +172,27 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Component:       componentName,
 				Namespace:       componentNamespace,
 				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
+				Profile:         "",
+				Configuration:   nil,
+				Kubeconfig:      test.ReadKubeconfig(t),
+				CorrelationID:   "test-correlation-id",
+			},
+			expectedHTTPCode: http.StatusOK,
+			expectedResponse: &reconciler.HTTPReconciliationResponse{},
+			verifyResponseFct: func(t *testing.T, i interface{}) {
+				expectPodInState(t, progress.ReadyState, kubeClient) //wait until pod is ready
+			},
+			verifyCallbacksFct: expectSuccessfulReconciliation,
+		},
+		{
+			name: "Install external component from scratch",
+			model: &reconciler.Task{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				URL:             externalComponentUrl,
 				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
