@@ -769,9 +769,6 @@ func TestTransaction(t *testing.T) {
 
 func TestReconciliationParallel(t *testing.T) {
 
-	t.SkipNow() //skipping test until #559 is verified/fixed (remove also below the nolint-comment)
-
-	//nolint:unused
 	type testCase struct {
 		name            string
 		preparationFunc func(Repository, *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity)
@@ -807,16 +804,25 @@ func TestReconciliationParallel(t *testing.T) {
 				return recon, allOperations
 			},
 			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
-				err := repo.UpdateOperationState(reconEntity.SchedulingID, entities[0].CorrelationID, model.OperationStateError, false, "")
+				ops, err := repo.GetReconcilingOperations()
+				require.NoError(t, err)
+				for i := 0; i < len(ops); i++ {
+					if ops[i].Component == "comp1" {
+						err = repo.UpdateOperationState(reconEntity.SchedulingID, ops[i].CorrelationID, model.OperationStateError, false, "")
+					}
+				}
 				return err
 			},
 			check: func(repo Repository, threadCnt int, errChannel chan error) {
 				ops, err := repo.GetReconcilingOperations()
 				require.NoError(t, err)
-				require.Equal(t, 4, len(ops))
-				require.Equal(t, model.OperationStateError, ops[0].State)
-				for i := 1; i < 4; i++ {
-					require.Equal(t, model.OperationStateNew, ops[i].State)
+				require.Equal(t, 5, len(ops))
+				for i := 0; i < 5; i++ {
+					if ops[i].Component == "comp1" {
+						require.Equal(t, model.OperationStateError, ops[i].State)
+					} else {
+						require.Equal(t, model.OperationStateNew, ops[i].State)
+					}
 				}
 				require.Equal(t, threadCnt-1, len(errChannel))
 			},
