@@ -17,7 +17,7 @@ func NewComponentReconciler(o *Options, reconcilerName string) (*service.Compone
 	recon.WithWorkspace(o.Workspace).
 		//configure reconciliation worker pool + retry-behaviour
 		WithWorkers(o.WorkerConfig.Workers, o.WorkerConfig.Timeout).
-		WithRetry(o.RetryConfig.MaxRetries, o.RetryConfig.RetryDelay).
+		WithRetryDelay(o.RetryConfig.RetryDelay).
 		//configure status updates send to mothership reconciler
 		WithHeartbeatSenderConfig(o.HeartbeatSenderConfig.Interval, o.HeartbeatSenderConfig.Timeout).
 		//configure reconciliation progress-checks applied on target K8s cluster

@@ -23,10 +23,11 @@ func TestInvoker(t *testing.T) {
 				Namespace: "",
 				Version:   "",
 			},
-			ComponentsReady: nil,
-			ClusterState:    clusterStateMock,
-			SchedulingID:    "",
-			CorrelationID:   "",
+			ComponentsReady:     nil,
+			ClusterState:        clusterStateMock,
+			SchedulingID:        "",
+			CorrelationID:       "",
+			MaxOperationRetries: 0,
 		}
 
 		model := params.newTask()

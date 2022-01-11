@@ -30,6 +30,7 @@ type Repository interface {
 	GetReconcilingOperations() ([]*model.OperationEntity, error)
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error
 	WithTx(tx *db.TxConnection) (Repository, error)
+	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.

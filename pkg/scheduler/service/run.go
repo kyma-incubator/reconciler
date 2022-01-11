@@ -87,6 +87,11 @@ func (l *RunLocal) WithWorkerPoolSize(size int) *RunLocal {
 	return l
 }
 
+func (l *RunLocal) WithWorkerPoolMaxRetries(maxOperationsRetries int) *RunLocal {
+	l.runtimeBuilder.workerPoolConfig.MaxOperationRetries = maxOperationsRetries
+	return l
+}
+
 func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*ReconciliationResult, error) {
 	//enqueue cluster state and create reconciliation entity
 	l.logger().Info("Starting local scheduler")
