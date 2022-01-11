@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/pkg/errors"
 	"sync"
 	"testing"
@@ -22,6 +23,7 @@ import (
 type testInvoker struct {
 	params     []*invoker.Params
 	reconRepo  reconciliation.Repository
+	workerRepo occupancy.Repository
 	errChannel chan error
 	sync.Mutex
 }
@@ -65,7 +67,8 @@ func TestWorkerPool(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
+	testInvoker.workerRepo = occupancy.NewInMemoryWorkerRepository()
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo,testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	//create time limited context
@@ -139,7 +142,8 @@ func TestWorkerPoolParallel(t *testing.T) {
 		require.NoError(t, err)
 
 		//initialize worker pool
-		workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
+		testInvoker.workerRepo = occupancy.NewInMemoryWorkerRepository()
+		workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo,testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
 		require.NoError(t, err)
 
 		//create time limited context

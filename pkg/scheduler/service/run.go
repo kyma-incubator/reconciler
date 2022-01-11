@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -15,22 +16,24 @@ import (
 )
 
 type RuntimeBuilder struct {
-	reconRepo        reconciliation.Repository
-	logger           *zap.SugaredLogger
+	reconRepo  reconciliation.Repository
+	workerRepo occupancy.Repository
+	logger     *zap.SugaredLogger
 	preComponents    [][]string
 	workerPoolConfig *worker.Config
 }
 
-func NewRuntimeBuilder(reconRepo reconciliation.Repository, logger *zap.SugaredLogger) *RuntimeBuilder {
+func NewRuntimeBuilder(reconRepo reconciliation.Repository,workerRepo occupancy.Repository, logger *zap.SugaredLogger) *RuntimeBuilder {
 	return &RuntimeBuilder{
 		reconRepo:        reconRepo,
+		workerRepo: workerRepo,
 		logger:           logger,
 		workerPoolConfig: &worker.Config{},
 	}
 }
 
 func (rb *RuntimeBuilder) newWorkerPool(retriever worker.ClusterStateRetriever, invoke invoker.Invoker) (*worker.Pool, error) {
-	return worker.NewWorkerPool(retriever, rb.reconRepo, invoke, rb.workerPoolConfig, rb.logger)
+	return worker.NewWorkerPool(retriever, rb.reconRepo,rb.workerRepo, invoke, rb.workerPoolConfig, rb.logger)
 }
 
 //FIXME: The 'statusFunc' callback is called from multiple goroutines, it MUST be goroutine-safe

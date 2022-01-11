@@ -29,11 +29,6 @@ type Repository interface {
 	GetReconcilingOperations() ([]*model.OperationEntity, error)
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error
 	WithTx(tx *db.TxConnection) (Repository, error)
-	CreateWorkerPoolOccupancy(poolSize int) (string, error)
-	UpdateWorkerPoolOccupancy(poolId string, runningWorkers int) error
-	GetMeanWorkerPoolOccupancy() (float64, error)
-	RemoveWorkerPoolOccupancy(poolId string) error
-	//GetWorkerPoolOccupancy(poolId string) (*model.WorkerPoolOccupancyEntity,error)
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.

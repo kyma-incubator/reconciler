@@ -62,22 +62,3 @@ func (mr *MockRepository) UpdateOperationState(schedulingID, correlationID strin
 func (mr *MockRepository) WithTx(tx *db.TxConnection) (Repository, error) {
 	return mr, nil
 }
-
-func (mr *MockRepository) CreateWorkerPoolOccupancy(poolSize int) (string, error) {
-	//TODO: implement
-	return "", nil
-}
-
-func (mr *MockRepository) UpdateWorkerPoolOccupancy(poolId string, runningWorkers int) error {
-	//TODO: implement
-	return nil
-}
-func (mr *MockRepository) GetMeanWorkerPoolOccupancy() (float64, error) {
-	//TODO: implement
-	return 0, nil
-}
-
-func (mr *MockRepository) RemoveWorkerPoolOccupancy(poolId string) error {
-	//TODO: implement
-	return nil
-}

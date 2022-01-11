@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -84,7 +85,7 @@ func RunLocal(o *Options) error {
 		return err
 	}
 
-	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), l)
+	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), occupancy.NewInMemoryWorkerRepository(), l)
 
 	status := model.ClusterStatusReconcilePending
 	if o.delete {

@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 )
@@ -9,14 +9,14 @@ import (
 // WorkerPoolOccupancyCollector provides the ratio of free workers in the worker-pool:
 // - mothership_free_workers - number of free workers in the worker-pool
 type WorkerPoolOccupancyCollector struct {
-	reconRepository reconciliation.Repository
-	logger    *zap.SugaredLogger
+	workerRepository occupancy.Repository
+	logger           *zap.SugaredLogger
 	freeWorkersCntDesc *prometheus.Desc
 }
 
-func NewFreeWorkersRatioCollector(reconRepository reconciliation.Repository, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
+func NewFreeWorkersRatioCollector(workerRepository occupancy.Repository, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
 	return &WorkerPoolOccupancyCollector{
-		reconRepository: reconRepository,
+		workerRepository: workerRepository,
 		logger:    logger,
 		freeWorkersCntDesc: prometheus.NewDesc(prometheus.BuildFQName("", prometheusSubsystem, "mothership_free_workers"),
 			"Number of free workers in the worker-pool",
@@ -32,12 +32,12 @@ func (c *WorkerPoolOccupancyCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements the prometheus.Collector interface.
 func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
-	if c.reconRepository == nil {
+	if c.workerRepository == nil {
 		c.logger.Error("unable to register metric: inventory is nil")
 		return
 	}
 
-	workerPoolOccupancy, err := c.reconRepository.GetMeanWorkerPoolOccupancy()
+	workerPoolOccupancy, err := c.workerRepository.GetMeanWorkerPoolOccupancy()
 	if err != nil {
 		c.logger.Error(err.Error())
 		return
