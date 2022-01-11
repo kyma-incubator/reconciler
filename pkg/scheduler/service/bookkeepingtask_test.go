@@ -104,23 +104,21 @@ func TestBookkeepingtask(t *testing.T) {
 
 func TestBookkeepingtaskParallel(t *testing.T) {
 
-	t.SkipNow() //skipping test until #559 is verified/fixed.
-
 	tests := []struct {
 		name           string
-		markOpsDone    bool
+		markOpsAs      model.OperationState
 		customFunc     func(transition *ClusterStatusTransition) BookkeepingTask
 		errMessage     string
 		errCount       int
 		expectedStatus model.OperationState
 	}{
-		{name: "Mark two operations as orphan in multiple parallel threads", markOpsDone: false, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
+		{name: "Mark two operations as orphan in multiple parallel threads", markOpsAs: model.OperationStateInProgress, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
 			return markOrphanOperation{
 				transition: transition,
 				logger:     logger.NewLogger(true),
 			}
-		}, errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 48, expectedStatus: model.OperationStateOrphan},
-		{name: "Finish two operations in multiple parallel threads", markOpsDone: true, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
+		}, errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 72, expectedStatus: model.OperationStateOrphan},
+		{name: "Finish two operations in multiple parallel threads", markOpsAs: model.OperationStateDone, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
 			return finishOperation{
 				transition: transition,
 				logger:     logger.NewLogger(true),
@@ -146,21 +144,22 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
+
+			removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo}) //cleanup before
+
 			reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
 			require.NoError(t, err)
 			require.NotEmpty(t, reconEntity.Lock)
 			require.False(t, reconEntity.Finished)
 
-			//mark all operations to be done, if needed for tc
-			if tc.markOpsDone {
-				opEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
-					SchedulingID: reconEntity.SchedulingID,
-				})
+			//mark all operations to wanted state
+			opEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+				SchedulingID: reconEntity.SchedulingID,
+			})
+			require.NoError(t, err)
+			for _, opEntity := range opEntities {
+				err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, tc.markOpsAs, true)
 				require.NoError(t, err)
-				for _, opEntity := range opEntities {
-					err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone, true)
-					require.NoError(t, err)
-				}
 			}
 
 			//setup bookkeeper task
@@ -214,4 +213,14 @@ func getReconResult(t *testing.T, reconRepo reconciliation.Repository, bk *bookk
 	reconResult, err := bk.newReconciliationResult(recons[0])
 	require.NoError(t, err)
 	return reconResult
+}
+
+func removeExistingReconciliations(t *testing.T, repos map[string]reconciliation.Repository) {
+	for _, repo := range repos {
+		recons, err := repo.GetReconciliations(nil)
+		require.NoError(t, err)
+		for _, recon := range recons {
+			require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
+		}
+	}
 }
