@@ -203,6 +203,8 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			for _, o := range operations {
 				require.Equal(t, tc.expectedStatus, o.State)
 			}
+
+			removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo}) //cleanup after
 		})
 	}
 }
