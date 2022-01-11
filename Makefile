@@ -68,9 +68,9 @@ test-all: export RECONCILER_INTEGRATION_TESTS = 1
 test-all: test
 
 .PHONY: test-ory
-test-ory: export ORY_RECONCILER_INTEGRATION_TESTS=1
+test-ory: export ORY_RECONCILER_INTEGRATION_TESTS = 1
 test-ory:
-		go test -v -timeout 5m ./pkg/reconciler/instances/ory/test
+	go test -v -timeout 5m ./pkg/reconciler/instances/ory/test
 
 .PHONY: clean
 clean:
