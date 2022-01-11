@@ -54,10 +54,10 @@ func TestOryIntegration(t *testing.T) {
 	podsList, err := client.CoreV1().Pods(namespace).List(ctx, options)
 	require.NoError(t, err)
 
-	for _, pod := range podsList.Items {
+	for i, pod := range podsList.Items {
 		log.Infof("Pod %v is deployed", pod.Name)
 		assert.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
-		ready := podutils.IsPodAvailable(&pod, 0, metav1.Now())
+		ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
 		assert.Equal(t, true, ready)
 	}
 }
