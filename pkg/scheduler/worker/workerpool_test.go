@@ -98,8 +98,6 @@ func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.Operation
 
 func TestWorkerPoolParallel(t *testing.T) {
 
-	t.SkipNow() //skipping test until #559 is verified/fixed.
-
 	t.Run("Multiple WorkerPools watching same reconciliation repository", func(t *testing.T) {
 
 		//initialize WaitGroup
@@ -129,6 +127,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 
 		//create reconciliation for cluster
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo}) //cleanup before
 		require.NoError(t, err)
 		for i := range clusterStates {
 			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], nil)
@@ -169,7 +168,18 @@ func TestWorkerPoolParallel(t *testing.T) {
 		require.Len(t, testInvoker.params, 3)
 		for i := 0; i < 3; i++ {
 			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
-			require.Equal(t, model.CRDComponent, testInvoker.params[i].ComponentToReconcile.Component)
+			require.Equal(t, model.CleanupComponent, testInvoker.params[i].ComponentToReconcile.Component)
 		}
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo}) //cleanup after
 	})
+}
+
+func removeExistingReconciliations(t *testing.T, repos map[string]reconciliation.Repository) {
+	for _, repo := range repos {
+		recons, err := repo.GetReconciliations(nil)
+		require.NoError(t, err)
+		for _, recon := range recons {
+			require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
+		}
+	}
 }
