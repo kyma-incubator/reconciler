@@ -57,40 +57,17 @@ func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.Sugar
 
 //Run runs the command
 func (cmd *CliCleaner) Run() error {
+
+	if err := cmd.deletePVCSAndWait(kymaNamespace); err != nil {
+		return err
+	}
+
 	if err := cmd.deleteKymaNamespaces(); err != nil {
 		return err
 	}
 
 	if err := cmd.waitForNamespaces(); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (cmd *CliCleaner) removePVCFinalizers(namespace string) error {
-	persistentVolumeClaims, err := cmd.k8s.Static().CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil && !apierr.IsNotFound(err) {
-		return err
-	}
-
-	if persistentVolumeClaims == nil {
-		return nil
-	}
-
-	for i := range persistentVolumeClaims.Items {
-		pvc := persistentVolumeClaims.Items[i]
-
-		if len(pvc.GetFinalizers()) <= 0 {
-			continue
-		}
-
-		pvc.SetFinalizers(nil)
-		if _, err := cmd.k8s.Static().CoreV1().PersistentVolumeClaims(pvc.GetNamespace()).Update(context.Background(), &pvc, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-
-		cmd.logger.Info(fmt.Sprintf("Deleted finalizer from \"%s\" PersistentVolumeClaim", pvc.GetName()))
 	}
 
 	return nil
@@ -217,7 +194,12 @@ func (cmd *CliCleaner) deleteKymaNamespaces() error {
 			err := retry.Do(func() error {
 				cmd.logger.Info(fmt.Sprintf("Deleting Namespace \"%s\"", ns))
 				//HACK: drop kyma-system finalizers -> TBD: remove this hack after issue is fixed (https://github.com/kyma-project/kyma/issues/10470)
-				if ns == kymaNamespace {
+				if ns == "abc"+kymaNamespace {
+
+					//					if err := cmd.removePVCFinalizers(ns); err != nil {
+					//						errorCh <- err
+					//					}
+
 					_, err := cmd.k8s.Static().CoreV1().Namespaces().Finalize(context.Background(), &v1.Namespace{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:       ns,
@@ -228,6 +210,7 @@ func (cmd *CliCleaner) deleteKymaNamespaces() error {
 						errorCh <- err
 					}
 				}
+
 				if err := cmd.k8s.Static().CoreV1().Namespaces().Delete(context.Background(), ns, metav1.DeleteOptions{}); err != nil && !apierr.IsNotFound(err) {
 					errorCh <- err
 				}
@@ -303,15 +286,12 @@ func (cmd *CliCleaner) waitForNamespaces() error {
 }
 
 func (cmd *CliCleaner) removeFinalizers() error {
+
 	if err := cmd.removeServerlessCredentialFinalizers(); err != nil {
 		return err
 	}
 
 	if err := cmd.removeCustomResourcesFinalizers(); err != nil {
-		return err
-	}
-
-	if err := cmd.removePVCFinalizers(kymaNamespace); err != nil {
 		return err
 	}
 
