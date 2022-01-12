@@ -64,7 +64,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		hydraClient := hydramocks.Syncer{}
-		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(nil)
 		rolloutMock := rolloutmock.RolloutHandler{}
 		values, err := unmarshalTestValues(memoryYaml)
@@ -81,7 +81,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		provider.AssertCalled(t, "Configuration", mock.AnythingOfType("*chart.Component"))
-		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 	})
 	t.Run("should not call hydra sync when we are in persistence enabled mode", func(t *testing.T) {
@@ -112,7 +112,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		hydraClient := hydramocks.Syncer{}
-		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(errors.New("Failed to trigger hydra Synchronization"))
 		rolloutMock := rolloutmock.RolloutHandler{}
 		values, err := unmarshalTestValues(memoryYaml)
@@ -128,7 +128,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 
 		// Then
 		require.Error(t, err, "Failed to trigger hydra Synchronization")
-		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		hydraClient.AssertCalled(t, "TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 	})
 	t.Run("should return error when read of action context failed", func(t *testing.T) {
