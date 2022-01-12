@@ -7,6 +7,7 @@ import (
 )
 
 type Repository struct {
+	Debug    bool
 	Conn     db.Connection
 	Logger   *zap.SugaredLogger
 	CacheDep *cacheDependencyManager
@@ -14,16 +15,17 @@ type Repository struct {
 
 func NewRepository(conn db.Connection, debug bool) (*Repository, error) {
 	return &Repository{
+		Debug:    debug,
 		Conn:     conn,
 		Logger:   log.NewLogger(debug),
-		CacheDep: newCacheDependencyManager(conn, debug),
+		CacheDep: newCacheDependencyManager(debug),
 	}, nil
 }
 
-func (r *Repository) TransactionalResult(dbOps func() (interface{}, error)) (interface{}, error) {
+func (r *Repository) TransactionalResult(dbOps func(tx *db.TxConnection) (interface{}, error)) (interface{}, error) {
 	return db.TransactionResult(r.Conn, dbOps, r.Logger)
 }
 
-func (r *Repository) Transactional(dbOps func() error) error {
+func (r *Repository) Transactional(dbOps func(tx *db.TxConnection) error) error {
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }

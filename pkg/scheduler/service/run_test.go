@@ -16,6 +16,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,7 @@ func TestRuntimeBuilder(t *testing.T) {
 	//register custom 'base' component reconciler for this unittest
 	compRecon, err := service.NewComponentReconciler("base")
 	require.NoError(t, err)
-	compRecon.WithRetry(1, 1*time.Second)
+	compRecon.WithRetryDelay(1 * time.Second)
 
 	t.Run("Run local with success (waiting for CRDs)", func(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{true})
@@ -201,7 +202,9 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 		require.Len(t, reconEntities, 1)
 
 		//get operations of this reconciliation
-		opEntities, err := reconRepo.GetOperations(reconEntities[0].SchedulingID)
+		opEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+			SchedulingID: reconEntities[0].SchedulingID,
+		})
 		require.NoError(t, err)
 
 		//set all operations to a final state
@@ -258,7 +261,7 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	callbackData := make(chan *reconciler.CallbackMessage, 10)
 	localRunner := runtimeBuilder.RunLocal(nil, func(component string, msg *reconciler.CallbackMessage) {
 		callbackData <- msg
-	})
+	}).WithWorkerPoolMaxRetries(1)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

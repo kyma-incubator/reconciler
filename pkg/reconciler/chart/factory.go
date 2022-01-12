@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"path"
-	"strings"
 
 	"os"
 
@@ -142,7 +141,7 @@ func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace,
 		return nil, errors.New("cannot retrieve workspace because provided component was 'nil'")
 	}
 
-	if strings.HasSuffix(component.url, ".git") {
+	if component.isExternalGitComponent() {
 		return f.getExternalGitComponent(component)
 	}
 
@@ -150,23 +149,24 @@ func (f *DefaultFactory) GetExternalComponent(component *Component) (*Workspace,
 }
 
 func (f *DefaultFactory) getExternalArchiveComponent(component *Component) (*Workspace, error) {
-	version := fmt.Sprintf("%s-%s", component.version, component.name)
-	wsDir := f.workspaceDir(version)
+	wsDir := f.componentBaseDir(component)
 
 	if f.readyMarkerExists(wsDir) {
-		return newComponentWorkspace(wsDir, component.name)
+		return newComponentWorkspace(wsDir)
 	}
 
 	if err := f.cleanFailedWorkspace(wsDir); err != nil {
 		return nil, err
 	}
+
 	f.logger.Infof("Downloading component '%s' with version '%s' from source '%s' into workspace '%s'",
 		component.name, component.version, component.url, wsDir)
+
 	if err := f.downloadComponent(component, wsDir); err != nil {
 		return nil, err
 	}
 
-	return newComponentWorkspace(wsDir, component.name)
+	return newComponentWorkspace(wsDir)
 }
 
 func (f *DefaultFactory) getExternalGitComponent(component *Component) (*Workspace, error) {
@@ -189,12 +189,13 @@ func (f *DefaultFactory) getExternalGitComponent(component *Component) (*Workspa
 	if err != nil {
 		return nil, err
 	}
-	return newComponentWorkspace(wsDir, component.name)
+	return newComponentWorkspace(wsDir)
 }
 
 func (f *DefaultFactory) cloneComponent(component *Component, dstDir string) error {
 	f.logger.Infof("Cloning component '%s' with version '%s' from source '%s' into workspace '%s'",
 		component.name, component.version, component.url, dstDir)
+
 	repo := &reconciler.Repository{
 		URL: component.url,
 	}
@@ -214,6 +215,7 @@ func (f *DefaultFactory) downloadComponent(component *Component, dstDir string) 
 		f.logger.Warnf("Unable to create destination directory: %q", dstDir)
 	}
 
+	// TODO consider extracting file to memory
 	tmpFile, err := f.downloadArchive(component.url, dstDir)
 	if err != nil {
 		return err
@@ -234,6 +236,7 @@ func (f *DefaultFactory) downloadComponent(component *Component, dstDir string) 
 	if err := f.createReadyMarker(dstDir); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -312,7 +315,8 @@ func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, 
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 			dstDir, repo.URL, version)
-		if removeErr := f.Delete(version); removeErr != nil {
+
+		if removeErr := os.RemoveAll(dstDir); removeErr != nil {
 			err = errors.Wrap(err, removeErr.Error())
 		}
 		return err
@@ -338,8 +342,13 @@ func (f *DefaultFactory) Delete(version string) error {
 }
 
 func (f *DefaultFactory) componentBaseDir(c *Component) string {
-	return filepath.Join(f.storageDir, gitComponentsBaseDir,
-		fmt.Sprintf("%x-%s", sha1.Sum([]byte(c.url)), c.name)) //nolint
+	filename := fmt.Sprintf("%x-%s", sha1.Sum([]byte(c.url)), c.name) //nolint
+
+	if c.isExternalGitComponent() {
+		return filepath.Join(f.storageDir, gitComponentsBaseDir, filename)
+	}
+
+	return filepath.Join(f.storageDir, filename)
 }
 
 func (f *DefaultFactory) readyMarkerExists(baseDir string) bool {

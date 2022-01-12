@@ -11,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/pkg/errors"
 )
 
@@ -26,12 +27,16 @@ func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repos
 	return &PersistentReconciliationRepository{repo}, nil
 }
 
+func (r *PersistentReconciliationRepository) WithTx(tx *db.TxConnection) (Repository, error) {
+	return NewPersistedReconciliationRepository(tx, r.Debug)
+}
+
 func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
 	if len(state.Configuration.Components) == 0 {
 		return nil, newEmptyComponentsReconciliationError(state)
 	}
 
-	dbOps := func() (interface{}, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		reconEntity := &model.ReconciliationEntity{
 			Lock:                state.Cluster.RuntimeID,
 			RuntimeID:           state.Cluster.RuntimeID,
@@ -42,7 +47,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		}
 
 		//find existing reconciliation for this cluster
-		existingReconQ, err := db.NewQuery(r.Conn, reconEntity, r.Logger)
+		existingReconQ, err := db.NewQuery(tx, reconEntity, r.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +70,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			return nil, err
 		}
 
-		createReconQ, err := db.NewQuery(r.Conn, reconEntity, r.Logger)
+		createReconQ, err := db.NewQuery(tx, reconEntity, r.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +96,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		for idx, components := range reconSeq.Queue {
 			priority := idx + 1
 			for _, component := range components {
-				createOpQ, err := db.NewQuery(r.Conn, &model.OperationEntity{
+				createOpQ, err := db.NewQuery(tx, &model.OperationEntity{
 					Priority:      int64(priority),
 					SchedulingID:  reconEntity.SchedulingID,
 					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
@@ -100,6 +105,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 					Component:     component.Component,
 					State:         model.OperationStateNew,
 					Type:          opType,
+					RetryID:       uuid.NewString(),
 					Updated:       time.Now().UTC(),
 				}, r.Logger)
 				if err != nil {
@@ -134,13 +140,13 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 }
 
 func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID string) error {
-	dbOps := func() error {
+	dbOps := func(tx *db.TxConnection) error {
 		whereCond := map[string]interface{}{
 			"SchedulingID": schedulingID,
 		}
 
 		//delete operations
-		qDelOps, err := db.NewQuery(r.Conn, &model.OperationEntity{}, r.Logger)
+		qDelOps, err := db.NewQuery(tx, &model.OperationEntity{}, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -154,7 +160,7 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 			delOpsCnt, schedulingID)
 
 		//delete reconciliation
-		qDelRecon, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
+		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -185,7 +191,7 @@ func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID stri
 }
 
 func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error {
-	dbOps := func() error {
+	dbOps := func(tx *db.TxConnection) error {
 		//get running reconciliation
 		reconEntity, err := r.GetReconciliation(schedulingID)
 		if err != nil {
@@ -198,7 +204,7 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 		reconEntity.ClusterConfigStatus = status.ID
 		reconEntity.Status = status.Status
 		reconEntity.Updated = time.Now().UTC()
-		updReconQ, err := db.NewQuery(r.Conn, reconEntity, r.Logger)
+		updReconQ, err := db.NewQuery(tx, reconEntity, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -247,31 +253,18 @@ func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) (
 	return result, nil
 }
 
-func (r *PersistentReconciliationRepository) GetOperations(schedulingID string, states ...model.OperationState) ([]*model.OperationEntity, error) {
+func (r *PersistentReconciliationRepository) GetOperations(filter operation.Filter) ([]*model.OperationEntity, error) {
 	q, err := db.NewQuery(r.Conn, &model.OperationEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
 
-	selectQ := q.Select().
-		Where(map[string]interface{}{
-			"SchedulingID": schedulingID,
-		})
-
-	if len(states) > 0 {
-		var args []interface{}
-		var buffer bytes.Buffer
-
-		//add state to args array and generate placeholder string for SQL stmt
-		for idx, state := range states {
-			args = append(args, state)
-			if buffer.Len() > 0 {
-				buffer.WriteRune(',')
-			}
-			buffer.WriteString(fmt.Sprintf("$%d", idx+2))
+	//fire query
+	selectQ := q.Select()
+	if filter != nil {
+		if err := filter.FilterByQuery(selectQ); err != nil {
+			return nil, errors.Wrap(err, "failed to apply sql filter")
 		}
-
-		selectQ.WhereIn("State", buffer.String(), args...)
 	}
 
 	ops, err := selectQ.GetMany()
@@ -349,8 +342,12 @@ func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*mode
 }
 
 func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
-	dbOps := func() error {
-		op, err := r.GetOperation(schedulingID, correlationID)
+	dbOps := func(tx *db.TxConnection) error {
+		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return err
+		}
+		op, err := rTx.GetOperation(schedulingID, correlationID)
 		if err != nil {
 			if repository.IsNotFoundError(err) {
 				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
@@ -378,7 +375,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		op.Updated = time.Now().UTC()
 
 		//prepare update query
-		q, err := db.NewQuery(r.Conn, op, r.Logger)
+		q, err := db.NewQuery(tx, op, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -402,6 +399,47 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		}
 
 		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
+
+	dbOps := func(tx *db.TxConnection) error {
+		op, err := r.GetOperation(schedulingID, correlationID)
+		if err != nil {
+			if repository.IsNotFoundError(err) {
+				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
+			}
+			return err
+		}
+		if retryID == op.RetryID {
+			return nil
+		}
+
+		//update operation-entity
+		op.RetryID = retryID
+		op.Retries++
+		op.Updated = time.Now().UTC()
+
+		//prepare update query
+		q, err := db.NewQuery(r.Conn, op, r.Logger)
+		if err != nil {
+			return err
+		}
+		whereCond := map[string]interface{}{
+			"CorrelationID": correlationID,
+			"SchedulingID":  schedulingID,
+		}
+		cnt, err := q.Update().
+			Where(whereCond).
+			ExecCount()
+
+		if cnt == 0 {
+			return fmt.Errorf("update of operation '%s' retryID '%s' failed: no row was updated", op, retryID)
+		}
+
+		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }

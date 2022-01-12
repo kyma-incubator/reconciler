@@ -2,15 +2,17 @@ package service
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestBookkeeper(t *testing.T) {
@@ -31,7 +33,9 @@ func TestBookkeeper(t *testing.T) {
 	require.False(t, reconEntity.Finished)
 
 	//mark all operations to be finished
-	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+	opEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+		SchedulingID: reconEntity.SchedulingID,
+	})
 	require.NoError(t, err)
 	for _, opEntity := range opEntities {
 		err := reconRepo.UpdateOperationState(opEntity.SchedulingID, opEntity.CorrelationID, model.OperationStateDone, true)

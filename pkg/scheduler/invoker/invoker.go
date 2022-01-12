@@ -21,18 +21,19 @@ type Params struct {
 	ClusterState         *cluster.State
 	SchedulingID         string
 	CorrelationID        string
+	MaxOperationRetries  int
 }
 
 func (p *Params) newLocalTask(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Task {
-	model := p.newTask()
-	model.CallbackFunc = callbackFunc
-	return model
+	task := p.newTask()
+	task.CallbackFunc = callbackFunc
+	return task
 }
 
 func (p *Params) newRemoteTask(callbackURL string) *reconciler.Task {
-	model := p.newTask()
-	model.CallbackURL = callbackURL
-	return model
+	task := p.newTask()
+	task.CallbackURL = callbackURL
+	return task
 }
 
 func (p *Params) newTask() *reconciler.Task {
@@ -72,5 +73,8 @@ func (p *Params) newTask() *reconciler.Task {
 			TokenNamespace: fmt.Sprint(tokenNamespace),
 		},
 		Type: taskType,
+		ComponentConfiguration: reconciler.ComponentConfiguration{
+			MaxRetries: p.MaxOperationRetries,
+		},
 	}
 }

@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/invoker"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
-	"go.uber.org/zap"
 )
 
 type RuntimeBuilder struct {
@@ -85,6 +87,11 @@ func (l *RunLocal) WithWorkerPoolSize(size int) *RunLocal {
 	return l
 }
 
+func (l *RunLocal) WithWorkerPoolMaxRetries(maxOperationsRetries int) *RunLocal {
+	l.runtimeBuilder.workerPoolConfig.MaxOperationRetries = maxOperationsRetries
+	return l
+}
+
 func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*ReconciliationResult, error) {
 	//enqueue cluster state and create reconciliation entity
 	l.logger().Info("Starting local scheduler")
@@ -123,7 +130,9 @@ func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*Recon
 	}
 
 	//retrieve operation models
-	ops, err := l.reconciliationRepository().GetOperations(recons[0].SchedulingID)
+	ops, err := l.reconciliationRepository().GetOperations(&operation.WithSchedulingID{
+		SchedulingID: recons[0].SchedulingID,
+	})
 	if err != nil {
 		return nil, err
 	}

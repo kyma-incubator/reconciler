@@ -1,6 +1,7 @@
 package chart
 
 import (
+	"crypto/sha1" //nolint
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -36,7 +37,7 @@ const (
 	tagHash           = "2af1d3a0f2479ea6b46cd38ab61cc74f47f62038"
 )
 
-var storageDir = filepath.Join("test", "factory")
+var storageDir = filepath.Join("/tmp", "test", "factory")
 
 // prepares handler func servig archive from given directory
 func handlerFuncArchive(t *testing.T, dirname string) http.HandlerFunc {
@@ -53,13 +54,12 @@ func handlerFuncArchive(t *testing.T, dirname string) http.HandlerFunc {
 	}
 }
 
-func clearWorkspaces(t *testing.T, f *DefaultFactory, vs []string) {
-	for _, v := range vs {
-		if err := f.Delete(v); err != nil {
-			t.Logf("unable to remove version: %q in %q", v, f.storageDir)
-		}
+func clearWorkspaces(t *testing.T, wss []*Workspace) {
+	for _, ws := range wss {
+		require.NoError(t, ws.delete())
 	}
 }
+
 func TestWorkspaceFactory(t *testing.T) {
 	logger := log.NewLogger(true)
 
@@ -91,12 +91,12 @@ func TestWorkspaceFactory(t *testing.T) {
 		require.NoError(t, err)
 
 		//cleanup at the beginning (if test was interrupted before)
-		testDelete(t, wsf)
-		//cleanup at the end (if test finishes regularly)
-		defer testDelete(t, wsf)
+		require.NoError(t, os.RemoveAll(workspaceDir))
 
 		ws, err := wsf.Get(version)
 		require.NoError(t, err)
+		//cleanup at the end (if test finishes regularly)
+		defer testDelete(t, ws.Workspace)
 
 		require.Equal(t, filepath.Join(workspaceDir, resDir), ws.ResourceDir)
 		require.True(t, file.DirExists(ws.ResourceDir))
@@ -138,6 +138,10 @@ func TestWorkspaceFactory(t *testing.T) {
 	defer server.Close()
 
 	t.Run("Create external component from archive", func(t *testing.T) {
+		if err := os.MkdirAll(storageDir, 0777); err != nil {
+			t.Error(err)
+		}
+
 		factory := &DefaultFactory{logger: logger, storageDir: storageDir}
 
 		_, err := ioutil.TempDir(factory.storageDir, "test_*")
@@ -147,21 +151,32 @@ func TestWorkspaceFactory(t *testing.T) {
 		}
 
 		fis := assertFileInfos(t, rscdir)
-		vds := make([]string, len(fis))
+		wss := make([]*Workspace, len(fis))
 
 		for i, fi := range fis {
 			version := fmt.Sprintf("version-%d", i)
-			if err := doGetExternalComponent(factory, fi, version, server.URL); err != nil {
+			ws, name, err := doGetExternalComponent(factory, fi, version, server.URL)
+			if err != nil {
 				t.Log(err)
 				continue
 			}
-			vds[i] = version
+
+			if err := validateWorkspace(fi.Name(), name, server.URL); err != nil {
+				t.Log(err)
+				continue
+			}
+
+			wss[i] = ws
 		}
 
-		defer clearWorkspaces(t, factory, vds)
+		defer clearWorkspaces(t, wss)
 	})
 
 	t.Run("race-condition", func(t *testing.T) {
+		if err := os.MkdirAll(storageDir, 0777); err != nil {
+			t.Error(err)
+		}
+
 		factory := &DefaultFactory{logger: logger, storageDir: storageDir}
 
 		_, err := ioutil.TempDir(factory.storageDir, "test_*")
@@ -173,8 +188,10 @@ func TestWorkspaceFactory(t *testing.T) {
 		fis := assertFileInfos(t, rscdir)
 
 		wg := sync.WaitGroup{}
+		var m sync.Mutex
 		startAt := time.Now().Add(2 * time.Second)
 		max := 10
+		wss := make([]*Workspace, 0)
 
 		for i := 1; i <= max; i++ {
 			index := i
@@ -184,30 +201,43 @@ func TestWorkspaceFactory(t *testing.T) {
 				time.Sleep(time.Until(waitUntil))
 
 				if index%2 == 0 {
-					err := doGetExternalComponent(factory, fis[0], "main", server.URL)
+					ws, _, err := doGetExternalComponent(factory, fis[0], "main", server.URL)
 					if err != nil {
 						t.Log("getComponent:", err)
 						return
 					}
+
+					m.Lock()
+					defer m.Unlock()
+
+					wss = append(wss, ws)
+					return
 				}
 
-				_, err := factory.Get("main")
+				kws, err := factory.Get("main")
 				if err != nil {
 					t.Log("get:", err)
+					return
 				}
+
+				m.Lock()
+				defer m.Unlock()
+
+				wss = append(wss, kws.Workspace)
+
 			}(startAt)
 		}
 		wg.Wait()
 
-		defer clearWorkspaces(t, factory, []string{"race-condition-external", "race-condition-kyma", "main"})
+		defer clearWorkspaces(t, wss)
 	})
 }
 
-func doGetExternalComponent(factory Factory, fi os.FileInfo, version, url string) error {
+func doGetExternalComponent(factory Factory, fi os.FileInfo, version, url string) (*Workspace, string, error) {
 	index := strings.Index(fi.Name(), ".")
 
 	if index == -1 {
-		return fmt.Errorf("unable to find file extension: %q", fi.Name())
+		return nil, "", fmt.Errorf("unable to find file extension: %q", fi.Name())
 	}
 
 	name := fi.Name()[:index]
@@ -216,8 +246,8 @@ func doGetExternalComponent(factory Factory, fi os.FileInfo, version, url string
 		WithURL(fmt.Sprintf("%s/%s", url, fi.Name())).
 		Build()
 
-	_, err := factory.GetExternalComponent(c)
-	return err
+	ws, err := factory.GetExternalComponent(c)
+	return ws, name, err
 }
 
 func assertFileInfos(t *testing.T, rscdir string) []os.FileInfo {
@@ -238,8 +268,8 @@ func checkWorkspaceDirectories(t *testing.T, ws *KymaWorkspace) {
 	require.True(t, file.DirExists(ws.InstallationResourceCrdDir))
 }
 
-func testDelete(t *testing.T, wsf Factory) {
-	require.NoError(t, wsf.Delete(version))
+func testDelete(t *testing.T, ws *Workspace) {
+	require.NoError(t, ws.delete())
 }
 
 func Test_ExternalGitComponent(t *testing.T) {
@@ -312,4 +342,16 @@ func Test_ExternalGitComponent(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, expectedWs, ws.WorkspaceDir)
 	})
+}
+
+func validateWorkspace(fileName, componentName, serverURL string) error {
+	fileURL := fmt.Sprintf("%s/%s", serverURL, fileName)
+	dirname := fmt.Sprintf("%x-%s", sha1.Sum([]byte(fileURL)), componentName) //nolint
+	filepath := path.Join(storageDir, dirname, componentName)
+
+	if _, err := os.Stat(filepath); err != nil {
+		return fmt.Errorf("invalid workspace structure %q: %s", filepath, err)
+	}
+
+	return nil
 }

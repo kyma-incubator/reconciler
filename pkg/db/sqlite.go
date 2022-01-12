@@ -48,7 +48,7 @@ func (sc *sqliteConnection) Encryptor() *Encryptor {
 }
 
 func (sc *sqliteConnection) Ping() error {
-	sc.logger.Debugf("Postgres Ping()")
+	sc.logger.Debugf("SQLite Ping()")
 	return sc.db.Ping()
 }
 
@@ -84,9 +84,13 @@ func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result,
 	return result, err
 }
 
-func (sc *sqliteConnection) Begin() (*sql.Tx, error) {
+func (sc *sqliteConnection) Begin() (*TxConnection, error) {
 	sc.logger.Debug("Sqlite3 Begin()")
-	return sc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	tx, err := sc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	if err != nil {
+		return nil, err
+	}
+	return NewTxConnection(tx, sc, sc.logger), nil
 }
 
 func (sc *sqliteConnection) Close() error {

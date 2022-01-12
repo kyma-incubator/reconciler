@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/keb/test"
+	"github.com/stretchr/testify/require"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -14,7 +16,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
-	"github.com/stretchr/testify/require"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
 
 var (
@@ -80,7 +82,9 @@ func requiredReconciliationEntity(t *testing.T, reconRepo reconciliation.Reposit
 	require.NoError(t, err)
 	require.Len(t, recons, 1)
 	require.Equal(t, recons[0].RuntimeID, state.Cluster.RuntimeID)
-	ops, err := reconRepo.GetOperations(recons[0].SchedulingID)
+	ops, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+		SchedulingID: recons[0].SchedulingID,
+	})
 	require.NoError(t, err)
 	require.Len(t, ops, 3)
 	require.Equal(t, ops[0].RuntimeID, state.Cluster.RuntimeID)
