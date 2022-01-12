@@ -110,7 +110,7 @@ func (w *Pool) invokeProcessableOpsOnce(ctx context.Context, workerPool *ants.Po
 
 func (w *Pool) startWorkerPool(ctx context.Context) (*ants.PoolWithFunc, error) {
 	w.logger.Infof("Starting worker pool with capacity of %d workers", w.config.PoolSize)
-	poolID, err := w.workerRepo.CreateWorkerPoolOccupancy(w.config.PoolSize)
+	poolID, err := w.workerRepo.CreateWorkerPoolOccupancy("", w.config.PoolSize)
 	if err != nil {
 		return nil, err
 	}

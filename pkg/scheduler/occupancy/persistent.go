@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type PersistentWorkerRepository struct {
+type PersistentOccupancyRepository struct {
 	*repository.Repository
 }
 
@@ -18,15 +18,15 @@ func NewPersistentWorkerRepository(conn db.Connection, debug bool) (Repository, 
 	if err != nil {
 		return nil, err
 	}
-	return &PersistentWorkerRepository{repo}, nil
+	return &PersistentOccupancyRepository{repo}, nil
 }
 
-func (r *PersistentWorkerRepository) WithTx(tx *db.TxConnection) (Repository, error) {
+func (r *PersistentOccupancyRepository) WithTx(tx *db.TxConnection) (Repository, error) {
 	return NewPersistentWorkerRepository(tx, r.Debug)
 }
 
 
-func (r *PersistentWorkerRepository) CreateWorkerPoolOccupancy(poolSize int) (string, error) {
+func (r *PersistentOccupancyRepository) CreateWorkerPoolOccupancy(poolSize int) (string, error) {
 
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		poolId := uuid.NewString()
@@ -56,7 +56,7 @@ func (r *PersistentWorkerRepository) CreateWorkerPoolOccupancy(poolSize int) (st
 	return result.(string), nil
 }
 
-func (r *PersistentWorkerRepository) UpdateWorkerPoolOccupancy(poolId string, runningWorkers int) error {
+func (r *PersistentOccupancyRepository) UpdateWorkerPoolOccupancy(poolId string, runningWorkers int) error {
 
 	dbOps := func(tx *db.TxConnection) error {
 
@@ -95,7 +95,7 @@ func (r *PersistentWorkerRepository) UpdateWorkerPoolOccupancy(poolId string, ru
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *PersistentWorkerRepository) GetMeanWorkerPoolOccupancy() (float64, error) {
+func (r *PersistentOccupancyRepository) GetMeanWorkerPoolOccupancy() (float64, error) {
 
 	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 	if err != nil {
@@ -121,7 +121,7 @@ func (r *PersistentWorkerRepository) GetMeanWorkerPoolOccupancy() (float64, erro
 	return aggregatedOccupancy, nil
 }
 
-func (r *PersistentWorkerRepository) RemoveWorkerPoolOccupancy(poolId string) error {
+func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancy(poolId string) error {
 	dbOps := func(tx *db.TxConnection) error {
 
 		deleteOccupancyQ, err := db.NewQuery(tx, &model.WorkerPoolOccupancyEntity{}, r.Logger)

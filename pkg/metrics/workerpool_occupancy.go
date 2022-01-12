@@ -9,45 +9,55 @@ import (
 // WorkerPoolOccupancyCollector provides the ratio of free workers in the worker-pool:
 // - mothership_free_workers - number of free workers in the worker-pool
 type WorkerPoolOccupancyCollector struct {
-	workerRepository occupancy.Repository
-	logger           *zap.SugaredLogger
-	freeWorkersCntDesc *prometheus.Desc
+	occupancyRepository         occupancy.Repository
+	logger                      *zap.SugaredLogger
+	componentList               []string
+	workerPoolOccupancyGaugeVec *prometheus.GaugeVec
 }
 
-func NewFreeWorkersRatioCollector(workerRepository occupancy.Repository, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
+func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
+	if occupancyRepository == nil {
+		logger.Error("unable to register metric: repository is nil")
+		return nil
+	}
+	componentList, err := occupancyRepository.GetComponentList()
+	if err != nil {
+		logger.Error(err.Error())
+		return nil
+	}
 	return &WorkerPoolOccupancyCollector{
-		workerRepository: workerRepository,
-		logger:    logger,
-		freeWorkersCntDesc: prometheus.NewDesc(prometheus.BuildFQName("", prometheusSubsystem, "mothership_free_workers"),
-			"Number of free workers in the worker-pool",
-			[]string{},
-			nil),
+		occupancyRepository: occupancyRepository,
+		logger:              logger,
+		componentList:       componentList,
+		workerPoolOccupancyGaugeVec: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Subsystem: prometheusSubsystem,
+			Name:      "worker_pool_occupancy",
+			Help:      "Mean ratio of all running workers in all running worker-pools",
+		}, componentList),
 	}
 }
 
-
 func (c *WorkerPoolOccupancyCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- c.freeWorkersCntDesc
+	c.workerPoolOccupancyGaugeVec.Describe(ch)
 }
 
 // Collect implements the prometheus.Collector interface.
 func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
-	if c.workerRepository == nil {
-		c.logger.Error("unable to register metric: inventory is nil")
-		return
-	}
 
-	workerPoolOccupancy, err := c.workerRepository.GetMeanWorkerPoolOccupancy()
-	if err != nil {
-		c.logger.Error(err.Error())
-		return
+	for _, component := range c.componentList {
+		m, err := c.workerPoolOccupancyGaugeVec.GetMetricWithLabelValues(component)
+		if err != nil {
+			c.logger.Errorf("unable to retrieve metric with label=%s: %s", component, err.Error())
+			return
+		}
+		workerPoolOccupancy, err := c.occupancyRepository.GetMeanWorkerPoolOccupancyByComponent(component)
+		if err != nil {
+			c.logger.Error(err.Error())
+			return
+		}
+		m.Set(workerPoolOccupancy)
 	}
+	c.workerPoolOccupancyGaugeVec.Collect(ch)
 
-	m, err := prometheus.NewConstMetric(c.freeWorkersCntDesc, prometheus.GaugeValue, float64(workerPoolOccupancy))
-	if err != nil {
-		c.logger.Errorf("unable to register metric %s", err.Error())
-		return
-	}
-
-	ch <- m
 }
+

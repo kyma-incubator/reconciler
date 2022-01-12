@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS scheduler_operations (
 
 CREATE TABLE IF NOT EXISTS worker_pool_occupancy (
      "worker_pool_id" text NOT NULL PRIMARY KEY,
+     "component" text NOT NULL,
      "running_workers" int NOT NULL,
      "worker_pool_capacity" int,
      "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP

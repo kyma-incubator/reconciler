@@ -10,6 +10,6 @@ import (
 func RegisterAll(inventory cluster.Inventory, workerRepository occupancy.Repository, logger *zap.SugaredLogger) {
 	reconciliationWaitingCollector := NewReconciliationWaitingCollector(inventory, logger)
 	reconciliationNotReadyCollector := NewReconciliationNotReadyCollector(inventory, logger)
-	freeWorkersRatioCollector := NewFreeWorkersRatioCollector(workerRepository, logger)
+	freeWorkersRatioCollector := NewWorkerPoolOccupancyCollector(workerRepository, logger)
 	prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector, freeWorkersRatioCollector)
 }
