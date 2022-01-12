@@ -143,7 +143,7 @@ func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.
 		return errors.WithMessagef(err, "helm install %s-%s failed", RmiChartName, releaseName)
 	}
 
-	setAuthCredetialOverrides(context.Task.Configuration, username, password)
+	setAuthCredentialOverrides(context.Task.Configuration, username, password)
 	a.setPassword(username, password)
 	return nil
 }
@@ -155,7 +155,7 @@ func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.
 		return errors.WithMessage(err, "failed to fetch auth credentials from secret")
 	}
 
-	setAuthCredetialOverrides(context.Task.Configuration, username, password)
+	setAuthCredentialOverrides(context.Task.Configuration, username, password)
 
 	if skipHelmUpgrade {
 		return nil
@@ -324,7 +324,7 @@ func getConfigString(config map[string]interface{}, key string) string {
 	return rv
 }
 
-func setAuthCredetialOverrides(configuration map[string]interface{}, username, password string) {
+func setAuthCredentialOverrides(configuration map[string]interface{}, username, password string) {
 	configuration["vmuser.username"] = username
 	configuration["vmuser.password"] = password
 }
