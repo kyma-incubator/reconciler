@@ -77,26 +77,10 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		assert.Equal(t, release.StatusDeployed, rel.Info.Status)
 		assert.Equal(t, 1, rel.Version)
 		assertRMIConfig(t, context, rel.Config)
+		assertAuthCredentialOverrides(t, context)
 	})
 
 	t.Run("should not upgrade rmi when release found with same version", func(t *testing.T) {
-		// given
-		action := NewIntegrationAction("test", testClient)
-		server := fixChartHTTPServer(t, testChart)
-		context := fixActionContext(fixChartURL(server.URL))
-
-		// when
-		err := action.Run(context)
-
-		// then
-		require.NoError(t, err)
-		rel, err := testClient.helmStorage.Last("test")
-		assert.NoError(t, err)
-		assert.Equal(t, release.StatusDeployed, rel.Info.Status)
-		assert.Equal(t, 1, rel.Version)
-	})
-
-	t.Run("should upgrade rmi when release found with different version", func(t *testing.T) {
 		// given
 		err := testClient.clientset.Tracker().Add(&v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -111,7 +95,7 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		action := NewIntegrationAction("test", testClient)
 		server := fixChartHTTPServer(t, testChart)
-		context := fixActionContext(fmt.Sprintf("%s/%s", server.URL, testUpgradeChartArchive))
+		context := fixActionContext(fixChartURL(server.URL))
 
 		// when
 		err = action.Run(context)
@@ -121,8 +105,27 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		rel, err := testClient.helmStorage.Last("test")
 		assert.NoError(t, err)
 		assert.Equal(t, release.StatusDeployed, rel.Info.Status)
+		assert.Equal(t, 1, rel.Version)
+		assertAuthCredentialOverrides(t, context)
+	})
+
+	t.Run("should upgrade rmi when release found with different version", func(t *testing.T) {
+		// given
+		action := NewIntegrationAction("test", testClient)
+		server := fixChartHTTPServer(t, testChart)
+		context := fixActionContext(fmt.Sprintf("%s/%s", server.URL, testUpgradeChartArchive))
+
+		// when
+		err := action.Run(context)
+
+		// then
+		require.NoError(t, err)
+		rel, err := testClient.helmStorage.Last("test")
+		assert.NoError(t, err)
+		assert.Equal(t, release.StatusDeployed, rel.Info.Status)
 		assert.Equal(t, 2, rel.Version)
 		assertRMIConfig(t, context, rel.Config)
+		assertAuthCredentialOverrides(t, context)
 	})
 
 	t.Run("should delete rmi when requested", func(t *testing.T) {
@@ -141,7 +144,7 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		assert.Equal(t, driver.ErrReleaseNotFound, err)
 	})
 
-	t.Run("should ignore delete rmi reqtest when not found", func(t *testing.T) {
+	t.Run("should ignore delete rmi request when not found", func(t *testing.T) {
 		// given
 		action := NewIntegrationAction("test", testClient)
 		server := fixChartHTTPServer(t, testChart)
@@ -220,6 +223,11 @@ func assertRMIConfig(t *testing.T, context *service.ActionContext, config map[st
 	assert.Equal(t, context.Task.Metadata.Region, runtime["region"])
 	assert.Equal(t, context.Task.Metadata.InstanceID, auth["username"])
 	assert.NotEmpty(t, auth["password"])
+}
+
+func assertAuthCredentialOverrides(t *testing.T, context *service.ActionContext) {
+	assert.Equal(t, "testInstance", context.Task.Configuration["vmuser.username"])
+	assert.NotEmpty(t, context.Task.Configuration["vmuser.password"])
 }
 
 func compress(src string, buf io.Writer) error {

@@ -2,21 +2,20 @@ package reconciliation
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/repository"
-
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
 
 type InMemoryReconciliationRepository struct {
 	reconciliations map[string]*model.ReconciliationEntity       //key: clusterName
 	operations      map[string]map[string]*model.OperationEntity //key1:schedulingID, key2:correlationID
-	occupancies     map[string]*model.WorkerPoolOccupancyEntity
 	mu              sync.Mutex
 }
 
@@ -24,7 +23,6 @@ func NewInMemoryReconciliationRepository() Repository {
 	return &InMemoryReconciliationRepository{
 		reconciliations: make(map[string]*model.ReconciliationEntity),
 		operations:      make(map[string]map[string]*model.OperationEntity),
-		occupancies:     make(map[string]*model.WorkerPoolOccupancyEntity),
 	}
 }
 
@@ -83,6 +81,8 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 				Component:     component.Component,
 				State:         model.OperationStateNew,
 				Type:          opType,
+				Retries:       0,
+				RetryID:       uuid.NewString(),
 				Created:       time.Now().UTC(),
 				Updated:       time.Now().UTC(),
 			}
@@ -153,24 +153,21 @@ func (r *InMemoryReconciliationRepository) GetReconciliations(filter Filter) ([]
 	return result, nil
 }
 
-func (r *InMemoryReconciliationRepository) GetOperations(schedulingID string, states ...model.OperationState) ([]*model.OperationEntity, error) {
+func (r *InMemoryReconciliationRepository) GetOperations(filter operation.Filter) ([]*model.OperationEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	ops := r.operations[schedulingID]
 	var result []*model.OperationEntity
-	for _, op := range ops {
-		if len(states) > 0 {
-			for _, state := range states {
-				if op.State == state {
-					result = append(result, op)
-					break //break state loop
-				}
+	for _, val := range r.operations {
+		for _, v := range val {
+			if filter != nil && filter.FilterByInstance(v) == nil {
+				continue
 			}
-			continue //continue with next operation
+
+			result = append(result, v)
 		}
-		result = append(result, op)
 	}
+
 	return result, nil
 }
 
@@ -210,7 +207,6 @@ func (r *InMemoryReconciliationRepository) GetReconcilingOperations() ([]*model.
 func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
 	_, ok := r.operations[schedulingID]
 	if !ok {
 		return &repository.EntityNotFoundError{}
@@ -219,7 +215,6 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	if !ok {
 		return &repository.EntityNotFoundError{}
 	}
-
 	if err := operationAlreadyInState(op, state); err != nil && !allowInState {
 		return err
 	}
@@ -248,3 +243,31 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	return nil
 }
 
+func (r *InMemoryReconciliationRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	_, ok := r.operations[schedulingID]
+	if !ok {
+		return &repository.EntityNotFoundError{}
+	}
+	op, ok := r.operations[schedulingID][correlationID]
+	if !ok {
+		return &repository.EntityNotFoundError{}
+	}
+
+	// copy the operation to avoid having data races while writing
+	opCopy := *op
+
+	//update operation
+	if opCopy.RetryID != retryID {
+		opCopy.RetryID = retryID
+		opCopy.Retries++
+	}
+
+	opCopy.Updated = time.Now().UTC()
+
+	r.operations[schedulingID][correlationID] = &opCopy
+
+	return nil
+}

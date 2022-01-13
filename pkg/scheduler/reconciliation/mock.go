@@ -4,6 +4,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
 
 type MockRepository struct {
@@ -17,6 +18,7 @@ type MockRepository struct {
 	GetProcessableOperationsResult []*model.OperationEntity
 	GetReconcilingOperationsResult []*model.OperationEntity
 	UpdateOperationStateResult     error
+	UpdateOperationRetryIDResult   error
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
@@ -39,7 +41,7 @@ func (mr *MockRepository) FinishReconciliation(schedulingID string, status *mode
 	return mr.FinishReconciliationResult
 }
 
-func (mr *MockRepository) GetOperations(schedulingID string, state ...model.OperationState) ([]*model.OperationEntity, error) {
+func (mr *MockRepository) GetOperations(filters operation.Filter) ([]*model.OperationEntity, error) {
 	return mr.GetOperationsResult, nil
 }
 
@@ -61,4 +63,8 @@ func (mr *MockRepository) UpdateOperationState(schedulingID, correlationID strin
 
 func (mr *MockRepository) WithTx(tx *db.TxConnection) (Repository, error) {
 	return mr, nil
+}
+
+func (mr *MockRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
+	return mr.UpdateOperationRetryIDResult
 }

@@ -7,6 +7,7 @@ import (
 
 	fileUtils "github.com/kyma-incubator/reconciler/pkg/files"
 	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/pkg/errors"
 
 	"go.uber.org/zap"
 )
@@ -114,17 +115,17 @@ func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {
 func (p *DefaultProvider) RenderManifest(component *Component) (*Manifest, error) {
 	wsDir, err := p.workspaceDir(component)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create workspace dir")
 	}
 
 	helmClient, err := NewHelmClient(wsDir, p.logger)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create new helm client")
 	}
 
 	manifest, err := helmClient.Render(component)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed helm client render")
 	}
 
 	for _, f := range p.filters {

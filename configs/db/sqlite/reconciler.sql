@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS scheduler_reconciliations (
 );
 
 --DDL for scheduler operations:
-CREATE TABLE IF NOT EXISTS scheduler_operations (
+CREATE TABLE IF NOT EXISTS scheduler_operations(
     "priority" int NOT NULL,
     "scheduling_id" text NOT NULL,
     "correlation_id" text NOT NULL,
@@ -119,6 +119,8 @@ CREATE TABLE IF NOT EXISTS scheduler_operations (
     "type" text NOT NULL,
     "state" text NOT NULL,
     "reason" text,
+    "retries" int NOT NULL,
+    "retry_id" text NOT NULL,
     "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT scheduler_operations_pk UNIQUE ("scheduling_id", "correlation_id"),

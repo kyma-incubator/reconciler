@@ -11,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/pkg/errors"
 )
 
@@ -104,6 +105,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 					Component:     component.Component,
 					State:         model.OperationStateNew,
 					Type:          opType,
+					RetryID:       uuid.NewString(),
 					Updated:       time.Now().UTC(),
 				}, r.Logger)
 				if err != nil {
@@ -251,31 +253,18 @@ func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) (
 	return result, nil
 }
 
-func (r *PersistentReconciliationRepository) GetOperations(schedulingID string, states ...model.OperationState) ([]*model.OperationEntity, error) {
+func (r *PersistentReconciliationRepository) GetOperations(filter operation.Filter) ([]*model.OperationEntity, error) {
 	q, err := db.NewQuery(r.Conn, &model.OperationEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
 
-	selectQ := q.Select().
-		Where(map[string]interface{}{
-			"SchedulingID": schedulingID,
-		})
-
-	if len(states) > 0 {
-		var args []interface{}
-		var buffer bytes.Buffer
-
-		//add state to args array and generate placeholder string for SQL stmt
-		for idx, state := range states {
-			args = append(args, state)
-			if buffer.Len() > 0 {
-				buffer.WriteRune(',')
-			}
-			buffer.WriteString(fmt.Sprintf("$%d", idx+2))
+	//fire query
+	selectQ := q.Select()
+	if filter != nil {
+		if err := filter.FilterByQuery(selectQ); err != nil {
+			return nil, errors.Wrap(err, "failed to apply sql filter")
 		}
-
-		selectQ.WhereIn("State", buffer.String(), args...)
 	}
 
 	ops, err := selectQ.GetMany()
@@ -414,3 +403,43 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
+func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
+
+	dbOps := func(tx *db.TxConnection) error {
+		op, err := r.GetOperation(schedulingID, correlationID)
+		if err != nil {
+			if repository.IsNotFoundError(err) {
+				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
+			}
+			return err
+		}
+		if retryID == op.RetryID {
+			return nil
+		}
+
+		//update operation-entity
+		op.RetryID = retryID
+		op.Retries++
+		op.Updated = time.Now().UTC()
+
+		//prepare update query
+		q, err := db.NewQuery(r.Conn, op, r.Logger)
+		if err != nil {
+			return err
+		}
+		whereCond := map[string]interface{}{
+			"CorrelationID": correlationID,
+			"SchedulingID":  schedulingID,
+		}
+		cnt, err := q.Update().
+			Where(whereCond).
+			ExecCount()
+
+		if cnt == 0 {
+			return fmt.Errorf("update of operation '%s' retryID '%s' failed: no row was updated", op, retryID)
+		}
+
+		return err
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}

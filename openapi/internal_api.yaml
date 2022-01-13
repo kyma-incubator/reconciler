@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: Reconciler mothership internal API 
+  title: Reconciler mothership internal API
   description: Internal API describing communication between the mothership and reconcile component
   version: 1.0.0
 servers:
@@ -56,12 +56,15 @@ components:
   schemas:
     callbackMessage:
       type: object
-      required: [ status, error ]
+      required: [ status, error, retryID ]
       properties:
         status:
           $ref: '#/components/schemas/status'
         error:
           type: string
+        retryID:
+          type: string
+          format: uuid
 
     status:
       type: string

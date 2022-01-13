@@ -138,13 +138,14 @@ func (w *Pool) assignWorker(ctx context.Context, opEntity *model.OperationEntity
 	}
 
 	w.logger.Debugf("Worker pool is assigning operation '%s' to worker", opEntity)
+	maxOpRetries := w.config.MaxOperationRetries - int(opEntity.Retries)
 	err = (&worker{
 		reconRepo:  w.reconRepo,
 		invoker:    w.invoker,
 		logger:     w.logger,
 		maxRetries: w.config.InvokerMaxRetries,
 		retryDelay: w.config.InvokerRetryDelay,
-	}).run(ctx, clusterState, opEntity)
+	}).run(ctx, clusterState, opEntity, maxOpRetries)
 	if err != nil {
 		w.logger.Warnf("Worker pool received an error from worker assigned to operation '%s': %s", opEntity, err)
 	}
@@ -159,6 +160,7 @@ func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) (int, error) 
 		return 0, err
 	}
 
+	ops = w.filterProcessableOpsByMaxRetries(ops)
 	opsCnt := len(ops)
 	w.logger.Debugf("Worker pool found %d processable operations: %s", opsCnt, func() string {
 		var opNames []string
@@ -194,6 +196,21 @@ func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) (int, error) 
 		w.logger.Errorf("Worker pool failed to update worker pool occupancy: %s", err)
 	}
 	return opsCnt, nil
+}
+
+func (w *Pool) filterProcessableOpsByMaxRetries(ops []*model.OperationEntity) []*model.OperationEntity {
+	var filteredOps []*model.OperationEntity
+	for _, op := range ops {
+		if op.Retries >= int64(w.config.MaxOperationRetries) {
+			err := w.reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateError, true, fmt.Sprintf("operation exceeds max. operation retries limit (maxOperationRetries:%d)", w.config.MaxOperationRetries))
+			if err != nil {
+				w.logger.Warnf("could not update operation state with schedulingID %s and correlationID %s to %v state", op.SchedulingID, op.CorrelationID, model.OperationStateError)
+			}
+		} else {
+			filteredOps = append(filteredOps, op)
+		}
+	}
+	return filteredOps
 }
 
 func (w *Pool) invokeProcessableOpsWithInterval(ctx context.Context, workerPool *ants.PoolWithFunc) error {
