@@ -5,6 +5,7 @@ import (
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiRes "k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
 	"path/filepath"
@@ -74,8 +75,8 @@ func TestPatchReplace(t *testing.T) {
 		require.NoError(t, err)
 
 		var expectedImage = containerBaseImage
-		var expectedLimits int64 = 1024 * 1024 * 100 //100Mi limit defined in manifest
-		if idxManifest%2 == 1 {                      //each second update updates the image from 'alpine' to 'alpine:3.14'
+		var expectedLimits int64 = 100
+		if idxManifest%2 == 1 { //each second update updates the image from 'alpine' to 'alpine:3.14'
 			expectedImage = fmt.Sprintf("%s:3.14", expectedImage)
 			expectedLimits = expectedLimits * 2
 		}
@@ -141,8 +142,8 @@ func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, la
 				FromUnstructured(unstruct.UnstructuredContent(), &deployment)
 			require.NoError(t, err)
 			for _, container := range deployment.Spec.Template.Spec.Containers {
-				require.Equal(t, expectedSize, container.Resources.Limits.Memory().Value())
-				require.Equal(t, expectedSize, container.Resources.Limits.Cpu().Value())
+				require.True(t, container.Resources.Limits.Memory().Equal(apiRes.MustParse(fmt.Sprintf("%dMi", expectedSize))))
+				require.True(t, container.Resources.Limits.Cpu().Equal(apiRes.MustParse(fmt.Sprintf("%dm", expectedSize))))
 				if requireImageName(t, expectedImage, container) {
 					return
 				}
