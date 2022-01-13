@@ -84,7 +84,7 @@ func Test_TriggerSynchronization(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NoError(t, err)
-		kubeclient.AssertCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		kubeclient.AssertCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 }
