@@ -193,19 +193,6 @@ func (cmd *CliCleaner) deleteKymaNamespaces() error {
 			defer wg.Done()
 			err := retry.Do(func() error {
 				cmd.logger.Info(fmt.Sprintf("Deleting Namespace \"%s\"", ns))
-				//HACK: drop kyma-system finalizers -> TBD: remove this hack after issue is fixed (https://github.com/kyma-project/kyma/issues/10470)
-				if ns == kymaNamespace {
-
-					_, err := cmd.k8s.Static().CoreV1().Namespaces().Finalize(context.Background(), &v1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:       ns,
-							Finalizers: []string{},
-						},
-					}, metav1.UpdateOptions{})
-					if err != nil {
-						errorCh <- err
-					}
-				}
 
 				if err := cmd.k8s.Static().CoreV1().Namespaces().Delete(context.Background(), ns, metav1.DeleteOptions{}); err != nil && !apierr.IsNotFound(err) {
 					errorCh <- err
