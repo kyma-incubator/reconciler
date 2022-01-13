@@ -1,8 +1,7 @@
 ALTER TABLE scheduler_operations
     ADD COLUMN "retry_id" VARCHAR(255);
 
-UPDATE scheduler_operations
-SET retry_id = CONCAT(scheduling_id, correlation_id);
+UPDATE scheduler_operations SET retry_id = CONCAT(scheduling_id, correlation_id);
 
 ALTER TABLE scheduler_operations
     ALTER COLUMN "retry_id" SET NOT NULL;
