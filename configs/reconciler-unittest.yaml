@@ -1,6 +1,6 @@
 ---
 db:
-  driver: postgres
+  driver: sqlite
   encryption:
     keyFile: "./encryption/unittest.key"
   blockQueries: true

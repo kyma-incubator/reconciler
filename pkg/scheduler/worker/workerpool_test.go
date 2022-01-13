@@ -34,6 +34,7 @@ func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
 	i.Lock()
 	i.params = append(i.params, params)
 	i.Unlock()
+	time.Sleep(1 * time.Second)
 	return nil
 }
 
@@ -100,10 +101,15 @@ func TestWorkerPoolParallel(t *testing.T) {
 
 	t.Run("Multiple WorkerPools watching same reconciliation repository", func(t *testing.T) {
 
-		//initialize WaitGroup
 		var wg sync.WaitGroup
+
+		const countWorkerPools = 5
+		const countKebClusters = 3
+		const countOperations = 3 //should be the same count as prio1 operations from all clusters; here three clusters with one prio1 operation each
+
 		//prepare keb clusters
-		kebClusters := []*keb.Cluster{kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy),
+		kebClusters := []*keb.Cluster{
+			kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy),
 			kebTest.NewCluster(t, "2", 1, false, kebTest.OneComponentDummy),
 			kebTest.NewCluster(t, "3", 1, false, kebTest.OneComponentDummy),
 		}
@@ -116,7 +122,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		require.NoError(t, err)
 
 		//add clusters to inventory
-		var clusterStates [3]*cluster.State
+		var clusterStates [countKebClusters]*cluster.State
 		for i := range kebClusters {
 			clusterStates[i], err = inventory.CreateOrUpdate(1, kebClusters[i])
 		}
@@ -127,46 +133,51 @@ func TestWorkerPoolParallel(t *testing.T) {
 
 		//create reconciliation for cluster
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo}) //cleanup before
 		require.NoError(t, err)
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo}) //cleanup before
+
 		for i := range clusterStates {
 			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], nil)
+			require.NoError(t, err)
 		}
-		require.NoError(t, err)
+
 		opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
-		require.Len(t, opsProcessable, 3) // only first prio
+		require.Len(t, opsProcessable, countOperations) // only first priority
 		require.NoError(t, err)
 
 		//initialize worker pool
-		workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
-		require.NoError(t, err)
+		wPools := make([]*Pool, countWorkerPools)
+		for i := 0; i < countWorkerPools; i++ {
+			workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, &Config{PoolSize: 5}, logger.NewLogger(true))
+			require.NoError(t, err)
+			wPools[i] = workerPool
+		}
 
 		//create time limited context
-		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancelFct := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancelFct()
 
 		//start multiple worker pools
 		errChannel := make(chan error)
 		startAt := time.Now().Add(1 * time.Second)
-		for i := 0; i < 3; i++ {
+		for i := 0; i < countWorkerPools; i++ {
 			wg.Add(1)
-			go func(errChannel chan error, workerPool *Pool) {
+			i := i
+			go func(errChannel chan error, wPools []*Pool) {
 				defer wg.Done()
 				time.Sleep(time.Until(startAt))
-				err := workerPool.Run(ctx)
+				err := wPools[i].Run(ctx)
 				if err != nil {
 					errChannel <- err
 				}
-			}(errChannel, workerPool)
+			}(errChannel, wPools)
 		}
 		wg.Wait()
 
-		//verify that invoker was properly called
-		//12 errors are expected, since three workerpools are started, watching 6 operations
-		//each operation should only be assigned once, which results in 12 errors
-		require.Equal(t, 12, len(testInvoker.errChannel))
-		require.Len(t, testInvoker.params, 3)
-		for i := 0; i < 3; i++ {
+		//check how often the invokes were successful
+		require.Len(t, testInvoker.params, countOperations)
+		for i := 0; i < len(testInvoker.params); i++ {
+			//check for updated status and component
 			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
 			require.Equal(t, model.CleanupComponent, testInvoker.params[i].ComponentToReconcile.Component)
 		}
