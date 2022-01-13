@@ -5,6 +5,7 @@ import (
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiRes "k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
 	"path/filepath"
@@ -48,20 +49,22 @@ func TestPatchReplace(t *testing.T) {
 		require.NoError(t, err)
 
 		var expectedImage = containerBaseImage
+		var expectedLimits int64 = 100
 		if idxManifest%2 == 1 { //each second update updates the image from 'alpine' to 'alpine:3.14'
 			expectedImage = fmt.Sprintf("%s:3.14", expectedImage)
+			expectedLimits = expectedLimits * 2
 		}
 
 		for idxUnstruct, unstruct := range unstructs {
 			t.Run(
 				fmt.Sprintf("Applying %s", unstruct.GetName()),
-				newTestFunc(kubeClient, unstruct, fmt.Sprintf("%d_%d", idxManifest, idxUnstruct), expectedImage))
+				newTestFunc(kubeClient, unstruct, fmt.Sprintf("%d_%d", idxManifest, idxUnstruct), expectedImage, expectedLimits))
 		}
 	}
 
 }
 
-func newTestFunc(kubeClient Client, unstruct *unstructured.Unstructured, label, expectedImage string) func(t *testing.T) {
+func newTestFunc(kubeClient Client, unstruct *unstructured.Unstructured, label, expectedImage string, expectedSize int64) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Logf("Applying %s and setting label %s", unstruct.GetKind(), label)
 		unstruct.SetLabels(map[string]string{"applied": label})
@@ -104,7 +107,7 @@ func newTestFunc(kubeClient Client, unstruct *unstructured.Unstructured, label, 
 				FromUnstructured(unstruct.UnstructuredContent(), &statefulSet)
 			require.NoError(t, err)
 			for _, container := range statefulSet.Spec.Template.Spec.Containers {
-				if requireImageName(t, container, expectedImage) {
+				if requireImageName(t, expectedImage, container) {
 					return
 				}
 			}
@@ -115,7 +118,9 @@ func newTestFunc(kubeClient Client, unstruct *unstructured.Unstructured, label, 
 				FromUnstructured(unstruct.UnstructuredContent(), &deployment)
 			require.NoError(t, err)
 			for _, container := range deployment.Spec.Template.Spec.Containers {
-				if requireImageName(t, container, expectedImage) {
+				require.True(t, container.Resources.Limits.Memory().Equal(apiRes.MustParse(fmt.Sprintf("%dMi", expectedSize))))
+				require.True(t, container.Resources.Limits.Cpu().Equal(apiRes.MustParse(fmt.Sprintf("%dm", expectedSize))))
+				if requireImageName(t, expectedImage, container) {
 					return
 				}
 			}
@@ -123,7 +128,7 @@ func newTestFunc(kubeClient Client, unstruct *unstructured.Unstructured, label, 
 	}
 }
 
-func requireImageName(t *testing.T, container corev1.Container, expectedImage string) bool {
+func requireImageName(t *testing.T, expectedImage string, container corev1.Container) bool {
 	if strings.HasPrefix(container.Image, containerBaseImage) {
 		t.Logf("Found container image '%s'", expectedImage)
 		require.Equal(t, expectedImage, container.Image)
