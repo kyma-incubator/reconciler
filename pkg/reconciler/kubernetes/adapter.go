@@ -7,6 +7,7 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"helm.sh/helm/v3/pkg/kube"
+	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
@@ -17,9 +18,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"time"
-
-	batchv1 "k8s.io/api/batch/v1"
 
 	"strings"
 
@@ -42,10 +40,6 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: ""`
-	progressTrackerInterval = 5 * time.Second
-	progressTrackerTimeout  = 2 * time.Minute
-	maxRetries              = 10
-	retryDelay              = 1 * time.Second
 )
 
 type kubeClientAdapter struct {
