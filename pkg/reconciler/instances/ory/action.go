@@ -2,10 +2,10 @@ package ory
 
 import (
 	"context"
-	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s"
 	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	oryChart     = "ory"
-	oryNamespace = "kyma-system"
-	jwksAlg      = "RSA256"
-	jwksBits     = 2048
+	oryChart        = "ory"
+	oryNamespace    = "kyma-system"
+	jwksAlg         = "RSA256"
+	jwksBits        = 2048
+	hydraDeployment = "ory-hydra"
 )
 
 type oryAction struct {
@@ -37,7 +38,8 @@ type preReconcileAction struct {
 
 type postReconcileAction struct {
 	*oryAction
-	hydraSyncer hydra.Syncer
+	hydraSyncer    hydra.Syncer
+	rolloutHandler k8s.RolloutHandler
 }
 
 type postDeleteAction struct {
@@ -47,6 +49,7 @@ type postDeleteAction struct {
 var (
 	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: oryNamespace}
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
+	rolloutHydra       = false
 )
 
 func (a *postReconcileAction) Run(context *service.ActionContext) error {
@@ -54,15 +57,26 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to read postReconcileAction context")
 	}
+
+	if rolloutHydra {
+		logger.Info("Rolling out Ory Hydra")
+		if err := a.rolloutHydraDeployment(context.Context, kubeclient, hydraDeployment, logger); err != nil {
+			return errors.Wrap(err, "failed to roll out Hydra deployment")
+		}
+	}
+
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
-		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace)
+		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace, rolloutHydra)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
 		}
 	} else {
 		logger.Debug("Hydra is in persistence mode, no synchronization needed")
 	}
+
+	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
+
 	return nil
 }
 
@@ -113,18 +127,16 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "failed to update db credentials data for Ory Hydra")
 		}
 
-		if len(newSecretData) == 0 {
+		if !isUpdate(newSecretData) {
 			logger.Info("Ory DB secret is the same as values, no need to update")
+			rolloutHydra = false
 		} else {
 			logger.Info("Ory DB secret is different than values, updating it")
 			dbSecretObject.StringData = newSecretData
+			rolloutHydra = true
 
 			if err := a.updateSecret(context.Context, client, dbNamespacedName, *dbSecretObject, logger); err != nil {
 				return errors.Wrap(err, "failed to update Ory secret")
-			}
-			logger.Info("Rolling out ory hydra")
-			if err := a.rolloutHydraDeployment(context.Context, client, logger); err != nil {
-				return err
 			}
 		}
 	}
@@ -171,10 +183,6 @@ func (a *postDeleteAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func isEmpty(secret *v1.Secret) bool {
-	return len(secret.Data) == 0
-}
-
 func getSecret(ctx context.Context, client kubernetes.Interface, name types.NamespacedName) (*v1.Secret, error) {
 	secret, err := client.CoreV1().Secrets(name.Namespace).Get(ctx, name.Name, metav1.GetOptions{})
 	if err != nil {
@@ -194,15 +202,12 @@ func (a *preReconcileAction) updateSecret(ctx context.Context, client kubernetes
 	return err
 }
 
-func (a *preReconcileAction) rolloutHydraDeployment(ctx context.Context, client kubernetes.Interface, logger *zap.SugaredLogger) error {
-	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
-
-	_, err := client.AppsV1().Deployments("kyma-system").Patch(ctx, "ory-hydra", types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
-
+func (a *postReconcileAction) rolloutHydraDeployment(ctx context.Context, client internalKubernetes.Client, deployment string, logger *zap.SugaredLogger) error {
+	err := a.rolloutHandler.RolloutAndWaitForDeployment(ctx, deployment, oryNamespace, client, logger)
 	if err != nil {
-		return errors.Wrap(err, "Failed to rollout ory hydra")
+		return errors.Wrapf(err, "Failed to rollout %s deployment", deployment)
 	}
-	logger.Info("ory-hydra restarted")
+	logger.Infof("Performed rollout restart of %s deployment", deployment)
 
 	return nil
 }
@@ -263,4 +268,8 @@ func readActionContext(context *service.ActionContext) (*zap.SugaredLogger, inte
 
 func isInMemoryMode(cfg *db.Config) bool {
 	return !cfg.Global.Ory.Hydra.Persistence.Enabled
+}
+
+func isUpdate(diff map[string]string) bool {
+	return len(diff) != 0
 }

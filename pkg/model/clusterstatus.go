@@ -36,6 +36,10 @@ func (s Status) IsFinal() bool {
 	return s == ClusterStatusReady || s == ClusterStatusReconcileError || s == ClusterStatusDeleted || s == ClusterStatusDeleteError || s == ClusterStatusReconcileErrorRetryable || s == ClusterStatusDeleteErrorRetryable
 }
 
+func (s Status) IsFinalStable() bool {
+	return s == ClusterStatusReady || s == ClusterStatusDeleted
+}
+
 func (s Status) IsInProgress() bool {
 	return s == ClusterStatusDeleting || s == ClusterStatusReconciling
 }

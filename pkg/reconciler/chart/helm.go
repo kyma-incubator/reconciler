@@ -2,6 +2,7 @@ package chart
 
 import (
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -31,20 +32,44 @@ func NewHelmClient(chartDir string, logger *zap.SugaredLogger) (*HelmClient, err
 	}, nil
 }
 
+func (c *HelmClient) getPath(component *Component) (string, error) {
+	if component.isExternalComponent() {
+		path := ""
+		err := filepath.WalkDir(c.chartDir, func(p string, d fs.DirEntry, err error) error {
+			if filepath.Base(p) == "Chart.yaml" && path == "" {
+				path = p
+			}
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+		if path == "" {
+			return "", fmt.Errorf("Failed to find Chart.yaml in %v recursively", c.chartDir)
+		}
+		return filepath.Dir(path), nil
+	}
+	return filepath.Join(c.chartDir, component.name), nil
+}
+
 func (c *HelmClient) Render(component *Component) (string, error) {
-	helmChart, err := loader.Load(filepath.Join(c.chartDir, component.name))
+	path, err := c.getPath(component)
 	if err != nil {
 		return "", err
+	}
+	helmChart, err := loader.Load(path)
+	if err != nil {
+		return "", errors.Wrap(err, "loader failed to load helm chart")
 	}
 
 	config, err := c.mergeChartConfiguration(helmChart, component, false)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "client failed to merge chart configuration")
 	}
 
 	tplAction, err := c.newTemplatingAction(component)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "templating action failed")
 	}
 
 	helmRelease, err := tplAction.Run(helmChart, config)

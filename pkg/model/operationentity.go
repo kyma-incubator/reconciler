@@ -21,6 +21,8 @@ type OperationEntity struct {
 	Reason        string         `db:""`
 	Created       time.Time      `db:"readOnly"`
 	Updated       time.Time      `db:""`
+	Retries       int64          `db:""`
+	RetryID       string         `db:"notNull"`
 }
 
 func (o *OperationEntity) String() string {

@@ -24,7 +24,7 @@ var clusterStatuses = []model.Status{
 
 func TestInventory(t *testing.T) {
 	inventory := newInventory(t)
-
+	defer db.CleanUpTables(t)
 	t.Run("Create a cluster", func(t *testing.T) {
 		//create cluster1
 		expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
@@ -142,8 +142,6 @@ func TestInventory(t *testing.T) {
 	})
 
 	t.Run("Get clusters to reconcile", func(t *testing.T) {
-		inventory := newInventory(t)
-
 		//create cluster1, clusterVersion1, clusterConfigVersion1-1, status: Ready
 		cluster1v1v1 := test.NewCluster(t, "1", 1, false, test.Production)
 		clusterState1v1v1a, err := inventory.CreateOrUpdate(1, cluster1v1v1)
@@ -245,7 +243,6 @@ func TestInventory(t *testing.T) {
 	})
 
 	t.Run("Get status changes", func(t *testing.T) {
-		inventory := newInventory(t)
 		expectedStatuses := append(clusterStatuses, model.ClusterStatusReconcilePending)
 		newCluster := test.NewCluster(t, "1", 1, false, test.Production)
 		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
@@ -275,52 +272,67 @@ func TestInventory(t *testing.T) {
 
 func TestCountRetries(t *testing.T) {
 	inventory := newInventory(t)
+	defer db.CleanUpTables(t)
 
-	t.Run("Empty clusterStatus slice", func(t *testing.T) {
-		//count how often retry happened
-		cnt, err := inventory.CountRetries("", 0, 10)
-		require.Error(t, err)
-		require.Equal(t, -1, cnt)
-	})
-
-	t.Run("Calculate retry count for a cluster in status READY", func(t *testing.T) {
-		//create Cluster
+	t.Run("When there are retry before status ready, expect to be skipped and not take into count.", func(t *testing.T) {
 		expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
 		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
 		require.NoError(t, err)
-		//update clusterState with retryableError state
-		clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconcileErrorRetryable)
-		require.NoError(t, err)
-		//update clusterState with ready state
+
+		const errorStatus = model.ClusterStatusReconcileErrorRetryable
+		skippedRetry := 10
+		for i := 0; i < skippedRetry; i++ {
+			clusterState, err = inventory.UpdateStatus(clusterState, errorStatus)
+			require.NoError(t, err)
+		}
+
 		clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReady)
 		require.NoError(t, err)
-		//count how often retry happened
-		cnt, err := inventory.CountRetries(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version, 10, model.ClusterStatusReconcileErrorRetryable, model.ClusterStatusReconcileError)
+		cnt, err := inventory.CountRetries(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version, 10, errorStatus)
 		require.NoError(t, err)
+
 		require.Equal(t, 0, cnt)
 	})
 
-	t.Run("Calculate retry count for a  retryable cluster", func(t *testing.T) {
+	t.Run("When there are retry after status ready, expect to be counted.", func(t *testing.T) {
 		expectedErrRetryable := 50
-		//create Cluster
-		expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
-		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
+		expectedCluster := test.NewCluster(t, "2", 2, false, test.Production)
+		clusterState, err := inventory.CreateOrUpdate(2, expectedCluster)
 		require.NoError(t, err)
-		//update clusterState with retryableError state
-		clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconcileErrorRetryable)
-		require.NoError(t, err)
-		//update clusterState with final state; unequal to ClusterStatusReconcileError or ClusterStatusReconcileErrorRetryable
+
+		const errorStatusTobeCounted = model.ClusterStatusReconcileErrorRetryable
+
 		clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReady)
 		require.NoError(t, err)
-		//update cluster state with a retryable error multiple times
+
 		for i := 0; i < expectedErrRetryable; i++ {
-			clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconcileErrorRetryable)
+			clusterState, err = inventory.UpdateStatus(clusterState, errorStatusTobeCounted)
 			require.NoError(t, err)
 			clusterState, err = inventory.UpdateStatus(clusterState, model.ClusterStatusReconciling)
 			require.NoError(t, err)
 		}
-		//count how often retry happened
-		cnt, err := inventory.CountRetries(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version, 150, model.ClusterStatusReconcileErrorRetryable, model.ClusterStatusReconcileError)
+
+		cnt, err := inventory.CountRetries(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version, 150, errorStatusTobeCounted)
+		require.NoError(t, err)
+		require.Equal(t, expectedErrRetryable, cnt)
+	})
+
+	t.Run("When there are not expected error status, expect them to be skipped and only count expected status", func(t *testing.T) {
+		expectedErrRetryable := 50
+		expectedCluster := test.NewCluster(t, "3", 3, false, test.Production)
+		clusterState, err := inventory.CreateOrUpdate(3, expectedCluster)
+		require.NoError(t, err)
+
+		const errorStatusTobeCounted = model.ClusterStatusReconcileErrorRetryable
+		const errorStatusNotTobCounted = model.ClusterStatusReconciling
+
+		for i := 0; i < expectedErrRetryable; i++ {
+			clusterState, err = inventory.UpdateStatus(clusterState, errorStatusTobeCounted)
+			require.NoError(t, err)
+			clusterState, err = inventory.UpdateStatus(clusterState, errorStatusNotTobCounted)
+			require.NoError(t, err)
+		}
+		cnt, err := inventory.CountRetries(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version, 150, errorStatusTobeCounted)
 		require.NoError(t, err)
 		require.Equal(t, expectedErrRetryable, cnt)
 	})

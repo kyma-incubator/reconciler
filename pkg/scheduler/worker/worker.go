@@ -3,13 +3,15 @@ package worker
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/invoker"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"go.uber.org/zap"
-	"time"
 )
 
 type worker struct {
@@ -20,7 +22,7 @@ type worker struct {
 	retryDelay time.Duration
 }
 
-func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model.OperationEntity) error {
+func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model.OperationEntity, maxOpRetries int) error {
 	if !w.isProcessable(op) {
 		w.logger.Warnf("Worker cannot start processing of operation '%s' because it is in non-processable state '%s'",
 			op, op.State)
@@ -48,6 +50,7 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 			SchedulingID:         op.SchedulingID,
 			CorrelationID:        op.CorrelationID,
 			ClusterState:         clusterState,
+			MaxOperationRetries:  maxOpRetries,
 		})
 	}
 
@@ -68,7 +71,12 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 }
 
 func (w *worker) componentsReady(op *model.OperationEntity) ([]string, error) {
-	opsReady, err := w.reconRepo.GetOperations(op.SchedulingID, model.OperationStateDone)
+	opsReady, err := w.reconRepo.GetOperations(&operation.FilterMixer{
+		Filters: []operation.Filter{
+			&operation.WithSchedulingID{SchedulingID: op.SchedulingID},
+			&operation.WithStates{States: []model.OperationState{model.OperationStateDone}},
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
