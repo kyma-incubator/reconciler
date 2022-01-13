@@ -74,8 +74,8 @@ func TestPatchReplace(t *testing.T) {
 		require.NoError(t, err)
 
 		var expectedImage = containerBaseImage
-		var expectedLimits int64 = 100
-		if idxManifest%2 == 1 { //each second update updates the image from 'alpine' to 'alpine:3.14'
+		var expectedLimits int64 = 1024 * 1024 * 100 //100Mi limit defined in manifest
+		if idxManifest%2 == 1 {                      //each second update updates the image from 'alpine' to 'alpine:3.14'
 			expectedImage = fmt.Sprintf("%s:3.14", expectedImage)
 			expectedLimits = expectedLimits * 2
 		}
