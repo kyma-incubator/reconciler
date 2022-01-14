@@ -134,7 +134,8 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//create reconciliation for cluster
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 		require.NoError(t, err)
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo}) //cleanup before
+		//cleanup before
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 
 		for i := range clusterStates {
 			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], nil)
@@ -181,7 +182,8 @@ func TestWorkerPoolParallel(t *testing.T) {
 			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
 			require.Equal(t, model.CleanupComponent, testInvoker.params[i].ComponentToReconcile.Component)
 		}
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo}) //cleanup after
+		//cleanup after
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 	})
 }
 

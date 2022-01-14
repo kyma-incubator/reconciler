@@ -858,20 +858,8 @@ func TestReconciliationParallel(t *testing.T) {
 			dbConn = nil
 			//set amount of threads
 			threadCnt := 25
-
-			//repo := newPersistentRepository(t)
-			//removeExistingReconciliations(t, map[string]Repository{"": repo}) //cleanup before
-			//inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
-			//require.NoError(t, err)
-
+			//initialize error Channel
 			errChannel := make(chan error, threadCnt)
-			//add cluster to inventory
-			//clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
-			//require.NoError(t, err)
-
-			//defer func() {
-			//	require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
-			//}()
 
 			//create mock database connection
 			dbConn := db.NewTestConnection(t)
@@ -886,11 +874,14 @@ func TestReconciliationParallel(t *testing.T) {
 			//trigger reconciliation for cluster
 			reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
+			//cleanup before
+			removeExistingReconciliations(t, map[string]Repository{"": reconRepo})
 
-			removeExistingReconciliations(t, map[string]Repository{"": reconRepo}) //cleanup before
+			defer func() {
+				require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+			}()
 
 			recon, allOperations := tc.preparationFunc(reconRepo, clusterState)
-
 			startAt := time.Now().Add(1 * time.Second)
 			for i := 0; i < threadCnt; i++ {
 				wg.Add(1)
@@ -906,8 +897,8 @@ func TestReconciliationParallel(t *testing.T) {
 			wg.Wait()
 
 			tc.check(reconRepo, threadCnt, errChannel)
-
-			removeExistingReconciliations(t, map[string]Repository{"": reconRepo}) //cleanup after
+			//cleanup after
+			removeExistingReconciliations(t, map[string]Repository{"": reconRepo})
 		})
 	}
 

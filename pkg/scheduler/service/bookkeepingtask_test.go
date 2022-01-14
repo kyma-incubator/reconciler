@@ -144,8 +144,8 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
-
-			removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo}) //cleanup before
+			//cleanup before
+			removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
 
 			reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
 			require.NoError(t, err)
@@ -203,8 +203,8 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			for _, o := range operations {
 				require.Equal(t, tc.expectedStatus, o.State)
 			}
-
-			removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo}) //cleanup after
+			//cleanup after
+			removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
 		})
 	}
 }
