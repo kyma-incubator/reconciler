@@ -2,12 +2,12 @@ package hydra
 
 import (
 	"context"
-	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s"
+	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"time"
 )
@@ -19,14 +19,16 @@ type Syncer interface {
 	//that is basically the case when hydra pods started earlier than hydra maester pods, then hydra might be out of sync
 	//as it has potentially lost the OAuth clients in his DB
 	//See also: https://github.com/ory/hydra-maester/tree/master/docs
-	TriggerSynchronization(context context.Context, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) error
+	TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string, forceSync bool) error
 }
 
-type DefaultHydraSyncer struct{}
+type DefaultHydraSyncer struct {
+	rolloutHandler k8s.RolloutHandler
+}
 
 // NewDefaultHydraSyncer returns an instance of DefaultHydraSyncer
-func NewDefaultHydraSyncer() *DefaultHydraSyncer {
-	return &DefaultHydraSyncer{}
+func NewDefaultHydraSyncer(rolloutHandler k8s.RolloutHandler) *DefaultHydraSyncer {
+	return &DefaultHydraSyncer{rolloutHandler: rolloutHandler}
 }
 
 const (
@@ -35,19 +37,23 @@ const (
 	hydraMaesterDeployment = "ory-hydra-maester"
 )
 
-func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client kubernetes.Interface,
-	logger *zap.SugaredLogger, namespace string) error {
-	restartHydraMaesterDeploymentNeeded, err := restartHydraMaesterDeploymentNeeded(context, client, logger, namespace)
+func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string, forceSync bool) error {
+	clientset, err := client.Clientset()
 	if err != nil {
-		return errors.Wrap(err, "Failed to determine hydra pod status")
+		return errors.Wrap(err, "Failed to read clientset")
 	}
-	if restartHydraMaesterDeploymentNeeded {
-		logger.Info("Rolling out hydra-maester deployment")
-		data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
-		_, err := client.AppsV1().Deployments(namespace).Patch(context, hydraMaesterDeployment,
-			types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+	var restartHydraMaester = false
+	if !forceSync {
+		restartHydraMaester, err = restartHydraMaesterDeploymentNeeded(context, clientset, logger, namespace)
 		if err != nil {
-			return errors.Wrap(err, "Failed to patch ory hydra-maester deployment")
+			return errors.Wrap(err, "Failed to determine hydra pod status")
+		}
+	}
+	if restartHydraMaester || forceSync {
+		logger.Info("Rolling out hydra-maester deployment")
+		err = c.rolloutHandler.RolloutAndWaitForDeployment(context, hydraMaesterDeployment, namespace, client, logger)
+		if err != nil {
+			return errors.Wrap(err, "Failed to rollout ory hydra-maester deployment")
 		}
 	} else {
 		logger.Debug("hydra and hydra-maester are in sync")

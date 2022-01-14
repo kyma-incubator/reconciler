@@ -33,8 +33,8 @@ func TestDeletingNatsOperatorResources(t *testing.T) {
 	// ensure the right calls were invoked
 	mockProvider.AssertCalled(t, "RenderManifest", mockedComponentBuilder)
 	k8sClient.AssertCalled(t, "Delete", actionContext.Context, manifestString, namespace)
-	k8sClient.AssertCalled(t, "DeleteResource", crdPlural, natsOperatorCRDsToDelete[0], namespace)
-	k8sClient.AssertCalled(t, "DeleteResource", crdPlural, natsOperatorCRDsToDelete[1], namespace)
+	k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, crdPlural, natsOperatorCRDsToDelete[0], namespace)
+	k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, crdPlural, natsOperatorCRDsToDelete[1], namespace)
 }
 
 // todo execute this test, when the check for kyma2x version is available, see the the todo comment from removenatsoperatorstep:Execute()
@@ -73,12 +73,14 @@ func testSetup() (removeNatsOperatorStep, *service.ActionContext, *pmock.Provide
 	k8sClient.On("Delete", ctx, manifestString, namespace).Return([]*kubernetes.Resource{}, nil)
 	k8sClient.On(
 		"DeleteResource",
+		ctx,
 		crdPlural,
 		natsOperatorCRDsToDelete[0],
 		namespace,
 	).Return(nil, nil)
 	k8sClient.On(
 		"DeleteResource",
+		ctx,
 		crdPlural,
 		natsOperatorCRDsToDelete[1],
 		namespace,

@@ -43,7 +43,7 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().StringVar(&o.componentsFile, "components-file", "", `Path to the components file (default "<workspace>/installation/resources/components.yaml")`)
 	cmd.Flags().StringSliceVar(&o.values, "value", []string{}, "Set configuration values. Can specify one or more values, also as a comma-separated list (e.g. --value component.a='1' --value component.b='2' or --value component.a='1',component.b='2').")
 	cmd.Flags().StringVar(&o.version, "version", "main", "Kyma version")
-	cmd.Flags().StringVar(&o.profile, "profile", "evaluation", "Kyma profile")
+	cmd.Flags().StringVar(&o.profile, "profile", "", "Kyma profile")
 	cmd.Flags().BoolVarP(&o.delete, "delete", "d", false, "Provide this flag to do a deletion instead of reconciliation")
 	return cmd
 }

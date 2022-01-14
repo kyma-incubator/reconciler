@@ -51,7 +51,7 @@ func TestParsePaths(t *testing.T) {
 		_, err := parsePaths(paths, alwaysValidFn)
 		//then
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "No paths defined")
+		require.Contains(t, err.Error(), "ISTIOCTL_PATH env variable is undefined or empty")
 	})
 	t.Run("parsePaths should return an error on an all-spaces path", func(t *testing.T) {
 		//given
@@ -60,7 +60,7 @@ func TestParsePaths(t *testing.T) {
 		_, err := parsePaths(paths, alwaysValidFn)
 		//then
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "No paths defined")
+		require.Contains(t, err.Error(), "ISTIOCTL_PATH env variable is undefined or empty")
 	})
 	t.Run("parsePaths should return an error on paths containing just a colon", func(t *testing.T) {
 		//given

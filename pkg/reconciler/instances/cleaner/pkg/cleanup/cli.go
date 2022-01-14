@@ -25,11 +25,9 @@ import (
 const (
 	defaultHTTPTimeout = 30 * time.Second //Expose as a configuration option if necessary
 	namespaceTimeout   = 6 * time.Minute  //Expose as a configuration option if necessary
-)
-
-const (
-	crLabelReconciler = "reconciler.kyma-project.io/managed-by=reconciler"
-	crLabelIstio      = "install.operator.istio.io/owning-resource-namespace=istio-system"
+	crLabelReconciler  = "reconciler.kyma-project.io/managed-by=reconciler"
+	crLabelIstio       = "install.operator.istio.io/owning-resource-namespace=istio-system"
+	kymaNamespace      = "kyma-system"
 )
 
 //Implements cleanup logic taken from kyma-cli
@@ -59,16 +57,14 @@ func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.Sugar
 
 //Run runs the command
 func (cmd *CliCleaner) Run() error {
-	if err := cmd.deleteKymaNamespaces(); err != nil {
+
+	if err := cmd.deletePVCSAndWait(kymaNamespace); err != nil {
 		return err
 	}
 
-	//	if !cmd.keepCRDs {
-	//		if err := cmd.deleteKymaCRDs(); err != nil {
-	//			return err
-	//
-	//		}
-	//	}
+	if err := cmd.deleteKymaNamespaces(); err != nil {
+		return err
+	}
 
 	if err := cmd.waitForNamespaces(); err != nil {
 		return err
@@ -197,18 +193,7 @@ func (cmd *CliCleaner) deleteKymaNamespaces() error {
 			defer wg.Done()
 			err := retry.Do(func() error {
 				cmd.logger.Info(fmt.Sprintf("Deleting Namespace \"%s\"", ns))
-				//HACK: drop kyma-system finalizers -> TBD: remove this hack after issue is fixed (https://github.com/kyma-project/kyma/issues/10470)
-				if ns == "kyma-system" {
-					_, err := cmd.k8s.Static().CoreV1().Namespaces().Finalize(context.Background(), &v1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:       ns,
-							Finalizers: []string{},
-						},
-					}, metav1.UpdateOptions{})
-					if err != nil {
-						errorCh <- err
-					}
-				}
+
 				if err := cmd.k8s.Static().CoreV1().Namespaces().Delete(context.Background(), ns, metav1.DeleteOptions{}); err != nil && !apierr.IsNotFound(err) {
 					errorCh <- err
 				}
@@ -284,6 +269,7 @@ func (cmd *CliCleaner) waitForNamespaces() error {
 }
 
 func (cmd *CliCleaner) removeFinalizers() error {
+
 	if err := cmd.removeServerlessCredentialFinalizers(); err != nil {
 		return err
 	}

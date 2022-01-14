@@ -2,8 +2,8 @@ package chart
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
@@ -17,6 +17,10 @@ const (
 
 type Workspace struct {
 	WorkspaceDir string
+}
+
+func (ws *Workspace) delete() error {
+	return os.RemoveAll(ws.WorkspaceDir)
 }
 
 func newWorkspace(workspaceDir string, validators ...func(*Workspace) error) (*Workspace, error) {
@@ -40,19 +44,27 @@ var validateDir = func(w *Workspace) error {
 	return nil
 }
 
-func validateFile(filepath string) func(*Workspace) error {
+func containsFile(filename string) func(*Workspace) error {
 	return func(w *Workspace) error {
-		charPath := path.Join(w.WorkspaceDir, filepath)
-		if _, err := os.Stat(charPath); err != nil {
+		found := false
+		err := filepath.WalkDir(w.WorkspaceDir, func(path string, d fs.DirEntry, err error) error {
+			if filepath.Base(path) == filename {
+				found = true
+			}
+			return nil
+		})
+		if !found {
+			return fmt.Errorf("Failed to find %v in %v", filename, w.WorkspaceDir)
+		}
+		if err != nil {
 			return err
 		}
 		return nil
 	}
 }
 
-func newComponentWorkspace(workspaceDir, componentName string) (*Workspace, error) {
-	chartLocation := path.Join(componentName, "Chart.yaml")
-	validateChart := validateFile(chartLocation)
+func newComponentWorkspace(workspaceDir string) (*Workspace, error) {
+	validateChart := containsFile("Chart.yaml")
 	return newWorkspace(workspaceDir, validateDir, validateChart)
 }
 

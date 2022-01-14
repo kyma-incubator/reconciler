@@ -1,7 +1,6 @@
-package internal
+package kubernetes
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/cli-runtime/pkg/resource"
 )
 
@@ -14,7 +13,7 @@ const (
 type UpdateStrategy string
 
 type UpdateStrategyResolver interface {
-	Resolve(resource *unstructured.Unstructured) (UpdateStrategy, error)
+	Resolve(resource *resource.Info) (UpdateStrategy, error)
 }
 
 func newDefaultUpdateStrategyResolver(helper *resource.Helper) UpdateStrategyResolver {
@@ -27,6 +26,6 @@ type DefaultUpdateStrategyResolver struct {
 	helper *resource.Helper
 }
 
-func (d *DefaultUpdateStrategyResolver) Resolve(_ *unstructured.Unstructured) (UpdateStrategy, error) {
+func (d *DefaultUpdateStrategyResolver) Resolve(_ *resource.Info) (UpdateStrategy, error) {
 	return PatchUpdateStrategy, nil
 }

@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
@@ -260,7 +259,7 @@ func newRunner(t *testing.T, preAct, reconcileAct, postAct Action, interval, tim
 
 	recon.Debug().
 		WithWorkspace(workspaceDir).
-		WithRetry(3, 1*time.Second).
+		WithRetryDelay(1*time.Second).
 		WithWorkers(5, timeout).
 		WithHeartbeatSenderConfig(interval, timeout).
 		WithPreReconcileAction(preAct).
@@ -301,7 +300,8 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string) *reconciler.Task 
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
 		//global parameters - required by some Kyma components
-		Configuration: reconTest.NewGlobalComponentConfiguration(),
+		Configuration:          reconTest.NewGlobalComponentConfiguration(),
+		ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 1},
 	}
 }
 

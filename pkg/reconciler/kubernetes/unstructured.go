@@ -1,4 +1,4 @@
-package internal
+package kubernetes
 
 import (
 	"bufio"
@@ -12,6 +12,7 @@ import (
 	yamlToJson "sigs.k8s.io/yaml"
 )
 
+// ToUnstructured Unmarshalls given manifest in YAML format into k8s.io Unstructured data type.
 func ToUnstructured(manifest []byte, async bool) ([]*unstructured.Unstructured, error) {
 	var result []*unstructured.Unstructured
 	var err error

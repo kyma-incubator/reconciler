@@ -145,14 +145,14 @@ func (cer *Repository) CreateKey(key *model.KeyEntity) (*model.KeyEntity, error)
 
 func (cer *Repository) DeleteKey(key string) error {
 	//bundle DB operations
-	dbOps := func() error {
+	dbOps := func(tx *db.TxConnection) error {
 		//delete all cache entities which were using a value of this key
-		if err := cer.CacheDep.Invalidate().WithKey(key).Exec(false); err != nil {
+		if err := cer.CacheDep.Invalidate().WithKey(key).Exec(tx); err != nil {
 			return err
 		}
 
 		//delete the values mapped to this key
-		q, err := db.NewQuery(cer.Conn, &model.ValueEntity{}, cer.Logger)
+		q, err := db.NewQuery(tx, &model.ValueEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func (cer *Repository) DeleteKey(key string) error {
 		}
 
 		//delete the key
-		qKey, err := db.NewQuery(cer.Conn, &model.KeyEntity{}, cer.Logger)
+		qKey, err := db.NewQuery(tx, &model.KeyEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}
@@ -350,9 +350,9 @@ func (cer *Repository) CreateValue(value *model.ValueEntity) (*model.ValueEntity
 	}
 
 	//insert operation
-	dbOps := func() (interface{}, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		//add value entity
-		q, err := db.NewQuery(cer.Conn, value, cer.Logger)
+		q, err := db.NewQuery(tx, value, cer.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -362,7 +362,7 @@ func (cer *Repository) CreateValue(value *model.ValueEntity) (*model.ValueEntity
 		}
 
 		//new value provided - invalidate caches which were using the old value
-		if err := cer.CacheDep.Invalidate().WithBucket(value.Bucket).WithKey(value.Key).Exec(false); err != nil {
+		if err := cer.CacheDep.Invalidate().WithBucket(value.Bucket).WithKey(value.Key).Exec(tx); err != nil {
 			return valueEntity, err
 		}
 
@@ -381,14 +381,14 @@ func (cer *Repository) CreateValue(value *model.ValueEntity) (*model.ValueEntity
 
 func (cer *Repository) DeleteValue(key, bucket string) error {
 	//bundle DB operations
-	dbOps := func() error {
+	dbOps := func(tx *db.TxConnection) error {
 		//delete all cache entities which were using a value of this key in this bucket
-		if err := cer.CacheDep.Invalidate().WithKey(key).WithBucket(bucket).Exec(false); err != nil {
+		if err := cer.CacheDep.Invalidate().WithKey(key).WithBucket(bucket).Exec(tx); err != nil {
 			return err
 		}
 
 		//delete the values mapped to this key in this bucket
-		q, err := db.NewQuery(cer.Conn, &model.ValueEntity{}, cer.Logger)
+		q, err := db.NewQuery(tx, &model.ValueEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}
@@ -459,14 +459,16 @@ func (cer *Repository) bucketNames() ([]string, error) {
 }
 
 func (cer *Repository) DeleteBucket(bucket string) error {
-	dbOps := func() error {
+	dbOps := func(tx *db.TxConnection) error {
 		//invalidate all cache entities which were using values from this bucket
-		if err := cer.CacheDep.Invalidate().WithBucket(bucket).Exec(false); err != nil {
+		if err := cer.CacheDep.Invalidate().WithBucket(bucket).Exec(tx); err != nil {
 			return err
 		}
 
-		//delete the bucket
-		q, err := db.NewQuery(cer.Conn, &model.BucketEntity{}, cer.Logger)
+		//as bucket dependencies are optional we cannot rely that the previous
+		//invalidation dropped the bucket entity: delete the bucket also explicitly
+		//deletion does not have to be rolled back in error case, thus tx is not used here
+		q, err := db.NewQuery(tx, &model.BucketEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}
