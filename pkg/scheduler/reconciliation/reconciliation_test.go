@@ -782,15 +782,17 @@ func TestReconciliationParallel(t *testing.T) {
 				return nil, nil
 			},
 			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
-				_, err := repo.CreateReconciliation(state, nil)
+				reconEntity, err := repo.CreateReconciliation(state, nil)
+				fmt.Printf("REconEntity: %#v\n", reconEntity)
 				return err
 			},
 			check: func(repo Repository, threadCnt int, errChannel chan error) {
+				time.Sleep(2 * time.Second)
+				require.Equal(t, threadCnt-1, len(errChannel))
 				recons, err := repo.GetReconciliations(nil)
 				require.NoError(t, err)
 				require.Equal(t, 1, len(recons))
 				require.False(t, recons[0].Finished)
-				require.Equal(t, threadCnt-1, len(errChannel))
 			},
 		},
 		{name: "Update single operation state in multiple parallel threads",
@@ -807,7 +809,7 @@ func TestReconciliationParallel(t *testing.T) {
 				ops, err := repo.GetReconcilingOperations()
 				require.NoError(t, err)
 				for i := 0; i < len(ops); i++ {
-					if ops[i].Component == "comp1" {
+					if ops[i].Component == "dummy" {
 						err = repo.UpdateOperationState(reconEntity.SchedulingID, ops[i].CorrelationID, model.OperationStateError, false, "")
 					}
 				}
@@ -816,9 +818,9 @@ func TestReconciliationParallel(t *testing.T) {
 			check: func(repo Repository, threadCnt int, errChannel chan error) {
 				ops, err := repo.GetReconcilingOperations()
 				require.NoError(t, err)
-				require.Equal(t, 5, len(ops))
-				for i := 0; i < 5; i++ {
-					if ops[i].Component == "comp1" {
+				require.Equal(t, 3, len(ops))
+				for i := 0; i < 3; i++ {
+					if ops[i].Component == "dummy" {
 						require.Equal(t, model.OperationStateError, ops[i].State)
 					} else {
 						require.Equal(t, model.OperationStateNew, ops[i].State)
@@ -857,19 +859,37 @@ func TestReconciliationParallel(t *testing.T) {
 			//set amount of threads
 			threadCnt := 25
 
-			repo := newPersistentRepository(t)
-			removeExistingReconciliations(t, map[string]Repository{"": repo}) //cleanup before
-			inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
-			require.NoError(t, err)
+			//repo := newPersistentRepository(t)
+			//removeExistingReconciliations(t, map[string]Repository{"": repo}) //cleanup before
+			//inventory, err := cluster.NewInventory(db.NewTestConnection(t), true, cluster.MetricsCollectorMock{})
+			//require.NoError(t, err)
 
 			errChannel := make(chan error, threadCnt)
-			mockClusterState, _ := createClusterStates(t, inventory)
+			//add cluster to inventory
+			//clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+			//require.NoError(t, err)
 
-			defer func() {
-				require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
-			}()
+			//defer func() {
+			//	require.NoError(t, inventory.Delete(mockClusterState.Cluster.RuntimeID))
+			//}()
 
-			recon, allOperations := tc.preparationFunc(repo, mockClusterState)
+			//create mock database connection
+			dbConn := db.NewTestConnection(t)
+			//prepare inventory
+			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
+			require.NoError(t, err)
+
+			//add cluster to inventory
+			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+			require.NoError(t, err)
+
+			//trigger reconciliation for cluster
+			reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
+			require.NoError(t, err)
+
+			removeExistingReconciliations(t, map[string]Repository{"": reconRepo}) //cleanup before
+
+			recon, allOperations := tc.preparationFunc(reconRepo, clusterState)
 
 			startAt := time.Now().Add(1 * time.Second)
 			for i := 0; i < threadCnt; i++ {
@@ -877,16 +897,17 @@ func TestReconciliationParallel(t *testing.T) {
 				go func(errChannel chan error, repo Repository) {
 					defer wg.Done()
 					time.Sleep(time.Until(startAt))
-					err := tc.mainFunc(repo, mockClusterState, recon, allOperations)
+					err := tc.mainFunc(repo, clusterState, recon, allOperations)
 					if err != nil {
 						errChannel <- err
 					}
-				}(errChannel, repo)
+				}(errChannel, reconRepo)
 			}
 			wg.Wait()
 
-			tc.check(repo, threadCnt, errChannel)
-			removeExistingReconciliations(t, map[string]Repository{"": repo}) //cleanup after
+			tc.check(reconRepo, threadCnt, errChannel)
+
+			removeExistingReconciliations(t, map[string]Repository{"": reconRepo}) //cleanup after
 		})
 	}
 
