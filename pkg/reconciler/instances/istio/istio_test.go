@@ -313,7 +313,7 @@ func newFakeKubeClient() *k8smocks.Client {
 	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockClient.On("CoreV1").Return(nil)
 	mockClient.On("Delete", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	mockClient.On("PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	return mockClient
 }

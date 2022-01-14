@@ -33,7 +33,7 @@ func (h *DefaultRolloutHandler) RolloutAndWaitForDeployment(ctx context.Context,
 	client internalKubernetes.Client, logger *zap.SugaredLogger) error {
 	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`,
 		time.Now().String())
-	err := client.PatchUsingStrategy("Deployment", deployment, namespace, []byte(data), types.StrategicMergePatchType)
+	err := client.PatchUsingStrategy(ctx, "Deployment", deployment, namespace, []byte(data), types.StrategicMergePatchType)
 	if err != nil {
 		return errors.Wrap(err, "Failed to patch deployment")
 	}

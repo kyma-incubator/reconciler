@@ -185,13 +185,13 @@ paths:
         - name: schedulingID
           required: false
           in: query
-          schema: 
+          schema:
             type: string
             format: uuid
         - name: correlationID
           required: false
           in: query
-          schema: 
+          schema:
             type: string
             format: uuid
       responses:
