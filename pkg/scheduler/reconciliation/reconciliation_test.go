@@ -782,8 +782,7 @@ func TestReconciliationParallel(t *testing.T) {
 				return nil, nil
 			},
 			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
-				reconEntity, err := repo.CreateReconciliation(state, nil)
-				fmt.Printf("REconEntity: %#v\n", reconEntity)
+				_, err := repo.CreateReconciliation(state, nil)
 				return err
 			},
 			check: func(repo Repository, threadCnt int, errChannel chan error) {
