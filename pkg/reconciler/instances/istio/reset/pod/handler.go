@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
+	tracker "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	kctlutil "k8s.io/kubectl/pkg/util/deployment"
 )
@@ -20,7 +21,7 @@ import (
 type Handler interface {
 	// Execute action on the Kubernetes object with regards of the type of handler.
 	// Returns error if action was unsuccessful or wait timeout was reached.
-	ExecuteAndWaitFor(CustomObject) error
+	ExecuteAndWaitFor(context.Context, CustomObject) error
 }
 
 type WaitOptions struct {
@@ -54,7 +55,7 @@ type NoActionHandler struct {
 	handlerCfg
 }
 
-func (i *NoActionHandler) ExecuteAndWaitFor(object CustomObject) error {
+func (i *NoActionHandler) ExecuteAndWaitFor(context context.Context, object CustomObject) error {
 	if i.debug {
 		i.log.Infof("Not doing any action for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
 	}
@@ -66,14 +67,14 @@ type DeleteObjectHandler struct {
 	handlerCfg
 }
 
-func (i *DeleteObjectHandler) ExecuteAndWaitFor(object CustomObject) error {
+func (i *DeleteObjectHandler) ExecuteAndWaitFor(context context.Context, object CustomObject) error {
 	i.log.Infof("Deleting pod %s/%s", object.Namespace, object.Name)
 	if i.debug {
 		return nil
 	}
 
 	err := retry.Do(func() error {
-		err := i.kubeClient.CoreV1().Pods(object.Namespace).Delete(context.Background(), object.Name, metav1.DeleteOptions{})
+		err := i.kubeClient.CoreV1().Pods(object.Namespace).Delete(context, object.Name, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
@@ -96,14 +97,14 @@ type RolloutHandler struct {
 	handlerCfg
 }
 
-func (i *RolloutHandler) ExecuteAndWaitFor(object CustomObject) error {
+func (i *RolloutHandler) ExecuteAndWaitFor(context context.Context, object CustomObject) error {
 	i.log.Infof("Doing rollout for %s/%s/%s", object.Kind, object.Namespace, object.Name)
 	if i.debug {
 		return nil
 	}
 
 	err := retry.Do(func() error {
-		err := doRollout(object, i.kubeClient)
+		err := doRollout(context, object, i.kubeClient)
 		if err != nil {
 			return err
 		}
@@ -116,29 +117,29 @@ func (i *RolloutHandler) ExecuteAndWaitFor(object CustomObject) error {
 		return err
 	}
 
-	return i.WaitForResources(object)
+	return i.WaitForResources(context, object)
 }
 
-func (i *RolloutHandler) WaitForResources(object CustomObject) error {
+func (i *RolloutHandler) WaitForResources(context context.Context, object CustomObject) error {
 	i.log.Infof("Waiting for %s/%s/%s to be ready", object.Kind, object.Namespace, object.Name)
 	switch object.Kind {
 	case "DaemonSet":
-		err := i.waitForDaemonSet(object)
+		err := i.waitForDaemonSet(context, object)
 		if err != nil {
 			return err
 		}
 	case "Deployment":
-		err := i.waitForDeployment(object)
+		err := i.waitForDeployment(context, object)
 		if err != nil {
 			return err
 		}
 	case "StatefulSet":
-		err := i.waitForStatefulSet(object)
+		err := i.waitForStatefulSet(context, object)
 		if err != nil {
 			return err
 		}
 	case "ReplicaSet":
-		err := i.waitForReplicaSet(object)
+		err := i.waitForReplicaSet(context, object)
 		if err != nil {
 			return err
 		}
@@ -161,18 +162,18 @@ func getParentObjectFromOwnerReferences(ownerReferences []metav1.OwnerReference)
 	}
 }
 
-func doRollout(customObject CustomObject, kubeClient kubernetes.Interface) (err error) {
+func doRollout(context context.Context, customObject CustomObject, kubeClient kubernetes.Interface) (err error) {
 	data := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().String())
 
 	switch customObject.Kind {
 	case "DaemonSet":
-		_, err = kubeClient.AppsV1().DaemonSets(customObject.Namespace).Patch(context.Background(), customObject.Name, types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+		_, err = kubeClient.AppsV1().DaemonSets(customObject.Namespace).Patch(context, customObject.Name, types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
 	case "Deployment":
-		_, err = kubeClient.AppsV1().Deployments(customObject.Namespace).Patch(context.Background(), customObject.Name, types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+		_, err = kubeClient.AppsV1().Deployments(customObject.Namespace).Patch(context, customObject.Name, types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
 	case "ReplicaSet":
-		_, err = kubeClient.AppsV1().ReplicaSets(customObject.Namespace).Patch(context.Background(), customObject.Name, types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+		_, err = kubeClient.AppsV1().ReplicaSets(customObject.Namespace).Patch(context, customObject.Name, types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
 	case "StatefulSet":
-		_, err = kubeClient.AppsV1().StatefulSets(customObject.Namespace).Patch(context.Background(), customObject.Name, types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+		_, err = kubeClient.AppsV1().StatefulSets(customObject.Namespace).Patch(context, customObject.Name, types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
 	default:
 		err = fmt.Errorf("kind %s not found", customObject.Kind)
 	}
@@ -245,68 +246,76 @@ func isReplicaSetReady(rs *v1.ReplicaSet) bool {
 	return true
 }
 
-func (i *RolloutHandler) waitForDeployment(object CustomObject) error {
-	err := wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
-		dep, err := i.kubeClient.AppsV1().Deployments(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		ready := isDeploymentReady(dep, i.kubeClient)
-		return ready, nil
-	})
+func (i *RolloutHandler) waitForDeployment(context context.Context, object CustomObject) error {
+	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
+	watchable, err2 := tracker.NewWatchableResource(object.Kind)
+	if err2 == nil {
+		i.log.Infof("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
+		pt.AddResource(watchable, object.Namespace, object.Name)
+	} else {
+		return errors.Wrap(err2, "Failed to register watchable resources")
+	}
+
+	err := pt.Watch(context, tracker.ReadyState)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
 	}
 	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 
 	return nil
 }
 
-func (i *RolloutHandler) waitForDaemonSet(object CustomObject) error {
-	err := wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
-		ds, err := i.kubeClient.AppsV1().DaemonSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		ready := isDaemonSetReady(ds)
-		return ready, nil
-	})
+func (i *RolloutHandler) waitForDaemonSet(context context.Context, object CustomObject) error {
+	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
+	watchable, err2 := tracker.NewWatchableResource(object.Kind)
+	if err2 == nil {
+		i.log.Infof("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
+		pt.AddResource(watchable, object.Namespace, object.Name)
+	} else {
+		return errors.Wrap(err2, "Failed to register watchable resources")
+	}
+
+	err := pt.Watch(context, tracker.ReadyState)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
 	}
 	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 
 	return nil
 }
 
-func (i *RolloutHandler) waitForStatefulSet(object CustomObject) error {
-	err := wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
-		sts, err := i.kubeClient.AppsV1().StatefulSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		ready := isStatefulSetReady(sts)
-		return ready, nil
-	})
+func (i *RolloutHandler) waitForStatefulSet(context context.Context, object CustomObject) error {
+	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
+	watchable, err2 := tracker.NewWatchableResource(object.Kind)
+	if err2 == nil {
+		i.log.Infof("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
+		pt.AddResource(watchable, object.Namespace, object.Name)
+	} else {
+		return errors.Wrap(err2, "Failed to register watchable resources")
+	}
+
+	err := pt.Watch(context, tracker.ReadyState)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
 	}
 	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 
 	return nil
 }
 
-func (i *RolloutHandler) waitForReplicaSet(object CustomObject) error {
-	err := wait.Poll(i.waitOpts.Interval, i.waitOpts.Timeout, func() (done bool, err error) {
-		rs, err := i.kubeClient.AppsV1().ReplicaSets(object.Namespace).Get(context.Background(), object.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		ready := isReplicaSetReady(rs)
-		return ready, nil
-	})
+func (i *RolloutHandler) waitForReplicaSet(context context.Context, object CustomObject) error {
+	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
+	watchable, err2 := tracker.NewWatchableResource(object.Kind)
+	if err2 == nil {
+		i.log.Debugf("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
+		pt.AddResource(watchable, object.Namespace, object.Name)
+	} else {
+		return errors.Wrap(err2, "Failed to register watchable resources")
+	}
+
+	err := pt.Watch(context, tracker.ReadyState)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
 	}
 	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 

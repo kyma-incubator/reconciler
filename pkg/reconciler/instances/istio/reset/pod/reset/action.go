@@ -1,6 +1,8 @@
 package reset
 
 import (
+	"context"
+
 	"github.com/avast/retry-go"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -13,7 +15,7 @@ import (
 
 //go:generate mockery --name=Action --outpkg=mocks --case=underscore
 type Action interface {
-	Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) error
+	Reset(context context.Context, kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) error
 }
 
 // DefaultResetAction assigns pods to handlers and executes them
@@ -27,16 +29,15 @@ func NewDefaultPodsResetAction(matcher pod.Matcher) *DefaultResetAction {
 	}
 }
 
-func (i *DefaultResetAction) Reset(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) error {
+func (i *DefaultResetAction) Reset(context context.Context, kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) error {
 	handlersMap := i.matcher.GetHandlersMap(kubeClient, retryOpts, podsList, log, debug, waitOpts)
-	g := new(errgroup.Group)
-
+	g, ctx := errgroup.WithContext(context)
 	for handler := range handlersMap {
 		for _, object := range handlersMap[handler] {
 			handler := handler
 			object := object
 			g.Go(func() error {
-				err := handler.ExecuteAndWaitFor(object)
+				err := handler.ExecuteAndWaitFor(ctx, object)
 				if err != nil {
 					return err
 				}

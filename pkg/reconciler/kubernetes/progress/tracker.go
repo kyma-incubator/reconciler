@@ -3,9 +3,10 @@ package progress
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"go.uber.org/zap"
