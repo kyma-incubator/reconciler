@@ -9,11 +9,9 @@ import (
 	tracker "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	kctlutil "k8s.io/kubectl/pkg/util/deployment"
 )
 
 //go:generate mockery --name=Handler --outpkg=mocks --case=underscore
@@ -122,30 +120,20 @@ func (i *RolloutHandler) ExecuteAndWaitFor(context context.Context, object Custo
 
 func (i *RolloutHandler) WaitForResources(context context.Context, object CustomObject) error {
 	i.log.Infof("Waiting for %s/%s/%s to be ready", object.Kind, object.Namespace, object.Name)
-	switch object.Kind {
-	case "DaemonSet":
-		err := i.waitForDaemonSet(context, object)
-		if err != nil {
-			return err
-		}
-	case "Deployment":
-		err := i.waitForDeployment(context, object)
-		if err != nil {
-			return err
-		}
-	case "StatefulSet":
-		err := i.waitForStatefulSet(context, object)
-		if err != nil {
-			return err
-		}
-	case "ReplicaSet":
-		err := i.waitForReplicaSet(context, object)
-		if err != nil {
-			return err
-		}
-	default:
-		i.log.Infof("Not waiting for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
+	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
+	watchable, err2 := tracker.NewWatchableResource(object.Kind)
+	if err2 == nil {
+		i.log.Infof("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
+		pt.AddResource(watchable, object.Namespace, object.Name)
+	} else {
+		return errors.Wrap(err2, "Failed to register watchable resources")
 	}
+
+	err := pt.Watch(context, tracker.ReadyState)
+	if err != nil {
+		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
+	}
+	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 
 	return nil
 }
@@ -183,141 +171,4 @@ func doRollout(context context.Context, customObject CustomObject, kubeClient ku
 	}
 
 	return
-}
-
-func isDeploymentReady(deployment *v1.Deployment, kubeClient kubernetes.Interface) bool {
-	if deployment.DeletionTimestamp != nil {
-		return false
-	}
-	_, _, newReplicaSet, err := kctlutil.GetAllReplicaSets(deployment, kubeClient.AppsV1())
-	if err != nil || newReplicaSet == nil {
-		return false
-	}
-	if newReplicaSet.Status.ReadyReplicas < *deployment.Spec.Replicas {
-		return false
-	}
-
-	return true
-}
-
-func isStatefulSetReady(sts *v1.StatefulSet) bool {
-	if sts.DeletionTimestamp != nil {
-		return false
-	}
-
-	if sts.Generation <= sts.Status.ObservedGeneration {
-		if sts.Status.UpdateRevision != sts.Status.CurrentRevision {
-			return false
-		}
-		if sts.Status.ReadyReplicas != *sts.Spec.Replicas {
-			return false
-		}
-	}
-
-	return true
-}
-
-func isDaemonSetReady(ds *v1.DaemonSet) bool {
-	if ds.DeletionTimestamp != nil {
-		return false
-	}
-
-	if ds.Generation <= ds.Status.ObservedGeneration {
-		if ds.Status.UpdatedNumberScheduled < ds.Status.DesiredNumberScheduled {
-			return false
-		}
-		if ds.Status.NumberAvailable < ds.Status.DesiredNumberScheduled {
-			return false
-		}
-	}
-
-	return true
-}
-
-func isReplicaSetReady(rs *v1.ReplicaSet) bool {
-	if rs.DeletionTimestamp != nil {
-		return false
-	}
-	if rs.Status.Replicas != rs.Status.AvailableReplicas &&
-		rs.Status.Replicas != rs.Status.ReadyReplicas {
-		return false
-	}
-
-	return true
-}
-
-func (i *RolloutHandler) waitForDeployment(context context.Context, object CustomObject) error {
-	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
-	watchable, err2 := tracker.NewWatchableResource(object.Kind)
-	if err2 == nil {
-		i.log.Infof("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
-		pt.AddResource(watchable, object.Namespace, object.Name)
-	} else {
-		return errors.Wrap(err2, "Failed to register watchable resources")
-	}
-
-	err := pt.Watch(context, tracker.ReadyState)
-	if err != nil {
-		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
-	}
-	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
-
-	return nil
-}
-
-func (i *RolloutHandler) waitForDaemonSet(context context.Context, object CustomObject) error {
-	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
-	watchable, err2 := tracker.NewWatchableResource(object.Kind)
-	if err2 == nil {
-		i.log.Infof("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
-		pt.AddResource(watchable, object.Namespace, object.Name)
-	} else {
-		return errors.Wrap(err2, "Failed to register watchable resources")
-	}
-
-	err := pt.Watch(context, tracker.ReadyState)
-	if err != nil {
-		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
-	}
-	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
-
-	return nil
-}
-
-func (i *RolloutHandler) waitForStatefulSet(context context.Context, object CustomObject) error {
-	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
-	watchable, err2 := tracker.NewWatchableResource(object.Kind)
-	if err2 == nil {
-		i.log.Infof("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
-		pt.AddResource(watchable, object.Namespace, object.Name)
-	} else {
-		return errors.Wrap(err2, "Failed to register watchable resources")
-	}
-
-	err := pt.Watch(context, tracker.ReadyState)
-	if err != nil {
-		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
-	}
-	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
-
-	return nil
-}
-
-func (i *RolloutHandler) waitForReplicaSet(context context.Context, object CustomObject) error {
-	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
-	watchable, err2 := tracker.NewWatchableResource(object.Kind)
-	if err2 == nil {
-		i.log.Debugf("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
-		pt.AddResource(watchable, object.Namespace, object.Name)
-	} else {
-		return errors.Wrap(err2, "Failed to register watchable resources")
-	}
-
-	err := pt.Watch(context, tracker.ReadyState)
-	if err != nil {
-		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
-	}
-	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
-
-	return nil
 }
