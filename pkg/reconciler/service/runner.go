@@ -81,7 +81,6 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 	kubeClient, err := k8s.NewKubernetesClient(task.Kubeconfig, r.logger, &k8s.Config{
 		ProgressInterval: r.progressTrackerConfig.interval,
 		ProgressTimeout:  r.progressTrackerConfig.timeout,
-		MaxRetries:       task.ComponentConfiguration.MaxRetries,
 	})
 	if err != nil {
 		return err
