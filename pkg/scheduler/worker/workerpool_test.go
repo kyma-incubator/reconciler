@@ -23,10 +23,27 @@ type testInvoker struct {
 	params     []*invoker.Params
 	reconRepo  reconciliation.Repository
 	errChannel chan error
+	sync.WaitGroup
+}
+
+type testInvokerParallel struct {
+	params     []*invoker.Params
+	reconRepo  reconciliation.Repository
+	errChannel chan error
 	sync.Mutex
 }
 
 func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
+	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, false, ""); err != nil {
+		return err
+	}
+	i.params = append(i.params, params)
+	time.Sleep(1 * time.Second)
+	i.Done()
+	return nil
+}
+
+func (i *testInvokerParallel) Invoke(_ context.Context, params *invoker.Params) error {
 	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, false, ""); err != nil {
 		i.errChannel <- errors.New("Update failed")
 		return err
@@ -55,7 +72,7 @@ func TestWorkerPool(t *testing.T) {
 	}()
 
 	//create test invoker to be able to verify invoker calls
-	testInvoker := &testInvoker{}
+	testInvoker := &testInvoker{errChannel: make(chan error, 10)}
 
 	//create reconciliation for cluster
 	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
@@ -75,17 +92,22 @@ func TestWorkerPool(t *testing.T) {
 
 	//ensure worker pool stops when context gets closed
 	startTime := time.Now()
+	testInvoker.Add(1)
 	require.NoError(t, workerPool.Run(ctx))
 	require.WithinDuration(t, startTime, time.Now(), 3*time.Second) //ensure workerPool is considering ctx
+	testInvoker.Wait()
+	paramLock := sync.Mutex{}
+	paramLock.Lock()
+	params := testInvoker.params
+	paramLock.Unlock()
 
 	//verify that invoker was properly called
-	require.Len(t, testInvoker.params, 1)
-	require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
-
+	require.Len(t, params, 1)
+	require.Equal(t, clusterState, params[0].ClusterState)
 	//Check cleanup params
-	require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
+	require.Equal(t, reconEntity.SchedulingID, params[0].SchedulingID)
 
-	requireOpsProcessableExists(t, opsProcessable, testInvoker.params[0].CorrelationID)
+	requireOpsProcessableExists(t, opsProcessable, params[0].CorrelationID)
 }
 
 func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.OperationEntity, correlationID string) {
@@ -129,7 +151,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		require.NoError(t, err)
 
 		//create test invoker to be able to verify invoker calls and update operation state
-		testInvoker := &testInvoker{errChannel: make(chan error, 100)}
+		testInvoker := &testInvokerParallel{errChannel: make(chan error, 100)}
 
 		//create reconciliation for cluster
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
