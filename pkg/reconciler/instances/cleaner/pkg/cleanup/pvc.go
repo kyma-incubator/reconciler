@@ -29,14 +29,7 @@ func (cmd *CliCleaner) deletePVCSAndWait(namespace string) error {
 		return err
 	}
 
-	var attempts uint = 3
-	delay := time.Second * 2
-	err := retry.Do(retryFunc, retry.Attempts(attempts), retry.Delay(delay))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return retry.Do(retryFunc, retry.Attempts(3), retry.Delay(time.Second * 2))
 }
 
 func (cmd *CliCleaner) deletePVCS(namespace string) error {
