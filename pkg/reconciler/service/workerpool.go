@@ -2,13 +2,17 @@ package service
 
 import (
 	"context"
-
+	"fmt"
+	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"net/http"
+	"strings"
+	"time"
 )
 
 type workPoolBuilder struct {
@@ -20,6 +24,8 @@ type WorkerPool struct {
 	debug        bool
 	logger       *zap.SugaredLogger
 	antsPool     *ants.Pool
+	PoolID       string
+	callbackURL  string
 	newRunnerFct func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error
 }
 
@@ -54,17 +60,40 @@ func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
 		return nil, err
 	}
 	pb.workerPool.antsPool = antsPool
+	pb.workerPool.PoolID = uuid.NewString()
 
 	go func(ctx context.Context, antsPool *ants.Pool) {
 		<-ctx.Done()
 		log.Info("Shutting down worker pool")
 		antsPool.Release()
+
+		if pb.workerPool.callbackURL != "" {
+			client := &http.Client{
+				Timeout: 10 * time.Second,
+			}
+
+			opsIdx := strings.Index(pb.workerPool.callbackURL, "operations")
+
+			occupancyURLTemplate := pb.workerPool.callbackURL[:opsIdx] + "occupancy/%s"
+			destURL := fmt.Sprintf(occupancyURLTemplate, pb.workerPool.PoolID)
+			req, err := http.NewRequest(http.MethodDelete, destURL, nil)
+			if err != nil {
+				log.Error(err.Error())
+			}
+			_, err = client.Do(req)
+			if err != nil {
+				log.Error(err.Error())
+			}
+		}
+
 	}(ctx, antsPool)
 
 	return pb.workerPool, nil
 }
 
 func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Task) error {
+
+	wa.callbackURL = model.CallbackURL
 	//enrich logger with correlation ID and component name
 	loggerNew := logger.NewLogger(wa.debug).With(
 		zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID},

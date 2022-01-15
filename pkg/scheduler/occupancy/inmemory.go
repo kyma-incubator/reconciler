@@ -2,7 +2,6 @@ package occupancy
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"sync"
@@ -20,31 +19,42 @@ func NewInMemoryWorkerRepository() Repository {
 	}
 }
 
-func (r *InMemoryOccupancyRepository) CreateWorkerPoolOccupancy(component string, poolSize int) (string, error) {
+func (r *InMemoryOccupancyRepository) CreateWorkerPoolOccupancy(poolID, component string, poolSize int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	poolId := uuid.NewString()
 	//create worker-pool occupancy
 	occupancyEntity := &model.WorkerPoolOccupancyEntity{
-		WorkerPoolID:       poolId,
-		Component: component,
+		WorkerPoolID:       poolID,
+		Component:          component,
 		RunningWorkers:     0,
 		WorkerPoolCapacity: int64(poolSize),
 		Created:            time.Now().UTC(),
 	}
-	r.occupancies[poolId] = occupancyEntity
-	return poolId, nil
+	r.occupancies[poolID] = occupancyEntity
+	return nil
 }
 
-func (r *InMemoryOccupancyRepository) UpdateWorkerPoolOccupancy(poolId string, runningWorkers int) error {
+func (r *InMemoryOccupancyRepository) FindWorkerPoolOccupancyByID(poolID string) (*model.WorkerPoolOccupancyEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	//get worker-pool occupancy by WorkerPoolID
-	occupancyEntity, ok := r.occupancies[poolId]
+	occupancyEntity, ok := r.occupancies[poolID]
 	if !ok {
-		return fmt.Errorf("could not find a worker pool occupancy with a poolID: %s", poolId)
+		return nil, fmt.Errorf("could not find a worker pool occupancy with a poolID: %s", poolID)
+	}
+	return occupancyEntity, nil
+}
+
+func (r *InMemoryOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string, runningWorkers int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	//get worker-pool occupancy by WorkerPoolID
+	occupancyEntity, ok := r.occupancies[poolID]
+	if !ok {
+		return fmt.Errorf("could not find a worker pool occupancy with a poolID: %s", poolID)
 	}
 
 	//copy entity to avoid race conditions
@@ -54,7 +64,7 @@ func (r *InMemoryOccupancyRepository) UpdateWorkerPoolOccupancy(poolId string, r
 			"(running: %d, capacity:%d)", runningWorkers, occCopy.WorkerPoolCapacity)
 	}
 	occCopy.RunningWorkers = int64(runningWorkers)
-	r.occupancies[poolId] = &occCopy
+	r.occupancies[poolID] = &occCopy
 	return nil
 }
 
@@ -76,17 +86,17 @@ func (r *InMemoryOccupancyRepository) GetMeanWorkerPoolOccupancy() (float64, err
 	return aggregatedOccupancy, nil
 }
 
-func (r *InMemoryOccupancyRepository) RemoveWorkerPoolOccupancy(poolId string) error {
+func (r *InMemoryOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	//get worker-pool occupancy by WorkerPoolID
-	_, ok := r.occupancies[poolId]
+	_, ok := r.occupancies[poolID]
 	if !ok {
-		return fmt.Errorf("could not find a worker pool occupancy with a poolID: %s", poolId)
+		return fmt.Errorf("could not find a worker pool occupancy with a poolID: %s", poolID)
 	}
 
-	delete(r.occupancies, poolId)
+	delete(r.occupancies, poolID)
 	return nil
 }
 
@@ -105,7 +115,7 @@ func (r *InMemoryOccupancyRepository) GetComponentList() ([]string, error) {
 	return componentList, nil
 }
 
-func (r *InMemoryOccupancyRepository) GetMeanWorkerPoolOccupancyByComponent(component string) (float64, error){
+func (r *InMemoryOccupancyRepository) GetMeanWorkerPoolOccupancyByComponent(component string) (float64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -116,7 +126,7 @@ func (r *InMemoryOccupancyRepository) GetMeanWorkerPoolOccupancyByComponent(comp
 	var aggregatedCapacity int64
 	var aggregatedUsage int64
 	for _, occupancyEntity := range r.occupancies {
-		if occupancyEntity.Component == component{
+		if occupancyEntity.Component == component {
 			aggregatedUsage += occupancyEntity.RunningWorkers
 			aggregatedCapacity += occupancyEntity.WorkerPoolCapacity
 		}

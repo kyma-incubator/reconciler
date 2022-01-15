@@ -124,12 +124,16 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 		})
 		return
 	}
-	sendResponse(w)
+	sendResponse(workerPool.PoolID, o.WorkerConfig.Workers, w)
 }
 
-func sendResponse(w http.ResponseWriter) {
+func sendResponse(poolID string, poolSize int, w http.ResponseWriter) {
+	httpReconResponse := &reconciler.HTTPReconciliationResponse{
+		PoolID:   poolID,
+		PoolSize: poolSize,
+	}
 	w.Header().Set("content-type", "application/json")
-	if err := json.NewEncoder(w).Encode(&reconciler.HTTPReconciliationResponse{}); err != nil {
+	if err := json.NewEncoder(w).Encode(httpReconResponse); err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to encode response payload to JSON").Error(),
 		})

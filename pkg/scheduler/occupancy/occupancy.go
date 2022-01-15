@@ -2,21 +2,16 @@ package occupancy
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 )
 
 type Repository interface {
-
-	CreateWorkerPoolOccupancy(component string, poolSize int) (string, error)
-	UpdateWorkerPoolOccupancy(poolId string, runningWorkers int) error
+	CreateWorkerPoolOccupancy(poolID, component string, poolSize int) error
+	UpdateWorkerPoolOccupancy(poolID string, runningWorkers int) error
 	GetMeanWorkerPoolOccupancy() (float64, error)
-	RemoveWorkerPoolOccupancy(poolId string) error
+	RemoveWorkerPoolOccupancy(poolID string) error
 	GetComponentList() ([]string, error)
 	GetMeanWorkerPoolOccupancyByComponent(component string) (float64, error)
 	WithTx(tx *db.TxConnection) (Repository, error)
-
-}
-
-type ComponentOccupancy struct{
-	ComponentName string
-	Occupancy float64
+	FindWorkerPoolOccupancyByID(poolID string) (*model.WorkerPoolOccupancyEntity, error)
 }

@@ -70,7 +70,7 @@ func TestWorkerPool(t *testing.T) {
 
 	//start worker pool
 	testInvoker.workerRepo = occupancy.NewInMemoryWorkerRepository()
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo,testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	//create time limited context
@@ -137,7 +137,8 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, testConfig, logger.NewLogger(true))
+	testInvoker.workerRepo = occupancy.NewInMemoryWorkerRepository()
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, testConfig, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	ctx, cancelFct := context.WithTimeout(context.Background(), 1*time.Second)
@@ -215,7 +216,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 
 		//initialize worker pool
 		testInvoker.workerRepo = occupancy.NewInMemoryWorkerRepository()
-		workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo,testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
+		workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
 		require.NoError(t, err)
 
 		//create time limited context

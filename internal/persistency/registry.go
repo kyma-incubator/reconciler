@@ -12,11 +12,11 @@ import (
 )
 
 type Registry struct {
-	debug           bool
-	logger          *zap.SugaredLogger
-	connection      db.Connection
-	inventory       cluster.Inventory
-	kvRepository    *kv.Repository
+	debug            bool
+	logger           *zap.SugaredLogger
+	connection       db.Connection
+	inventory        cluster.Inventory
+	kvRepository     *kv.Repository
 	reconRepository  reconciliation.Repository
 	workerRepository occupancy.Repository
 	initialized      bool
