@@ -69,7 +69,7 @@ func TestWorkerPool(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	testInvoker.workerRepo = occupancy.NewInMemoryWorkerRepository()
+	testInvoker.workerRepo = occupancy.NewInMemoryOccupancyRepository()
 	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
@@ -137,7 +137,7 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	testInvoker.workerRepo = occupancy.NewInMemoryWorkerRepository()
+	testInvoker.workerRepo = occupancy.NewInMemoryOccupancyRepository()
 	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, testConfig, logger.NewLogger(true))
 	require.NoError(t, err)
 
@@ -215,7 +215,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		require.NoError(t, err)
 
 		//initialize worker pool
-		testInvoker.workerRepo = occupancy.NewInMemoryWorkerRepository()
+		testInvoker.workerRepo = occupancy.NewInMemoryOccupancyRepository()
 		workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
 		require.NoError(t, err)
 

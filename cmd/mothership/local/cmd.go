@@ -85,7 +85,7 @@ func RunLocal(o *Options) error {
 		return err
 	}
 
-	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), occupancy.NewInMemoryWorkerRepository(), l)
+	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), occupancy.NewInMemoryOccupancyRepository(), l)
 
 	status := model.ClusterStatusReconcilePending
 	if o.delete {

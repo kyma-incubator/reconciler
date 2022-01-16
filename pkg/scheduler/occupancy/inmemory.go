@@ -13,13 +13,17 @@ type InMemoryOccupancyRepository struct {
 	mu          sync.Mutex
 }
 
-func NewInMemoryWorkerRepository() Repository {
+func NewInMemoryOccupancyRepository() Repository {
 	return &InMemoryOccupancyRepository{
 		occupancies: make(map[string]*model.WorkerPoolOccupancyEntity),
 	}
 }
 
-func (r *InMemoryOccupancyRepository) CreateWorkerPoolOccupancy(poolID, component string, poolSize int) error {
+func (r *InMemoryOccupancyRepository) WithTx(tx *db.TxConnection) (Repository, error) {
+	return r, nil
+}
+
+func (r *InMemoryOccupancyRepository) CreateWorkerPoolOccupancy(poolID, component string, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -32,7 +36,7 @@ func (r *InMemoryOccupancyRepository) CreateWorkerPoolOccupancy(poolID, componen
 		Created:            time.Now().UTC(),
 	}
 	r.occupancies[poolID] = occupancyEntity
-	return nil
+	return occupancyEntity, nil
 }
 
 func (r *InMemoryOccupancyRepository) FindWorkerPoolOccupancyByID(poolID string) (*model.WorkerPoolOccupancyEntity, error) {
@@ -86,6 +90,20 @@ func (r *InMemoryOccupancyRepository) GetMeanWorkerPoolOccupancy() (float64, err
 	return aggregatedOccupancy, nil
 }
 
+func (r *InMemoryOccupancyRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error){
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.occupancies) == 0 {
+		return nil, fmt.Errorf("unable to get worker pool occupancies: no record was found")
+	}
+	var occupancyEntities []*model.WorkerPoolOccupancyEntity
+	for _, occupancyEntity := range r.occupancies {
+		occupancyEntities = append(occupancyEntities, occupancyEntity)
+	}
+
+	return occupancyEntities, nil
+}
+
 func (r *InMemoryOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -133,8 +151,4 @@ func (r *InMemoryOccupancyRepository) GetMeanWorkerPoolOccupancyByComponent(comp
 	}
 	aggregatedOccupancy := 100 * float64(aggregatedUsage) / float64(aggregatedCapacity)
 	return aggregatedOccupancy, nil
-}
-
-func (r *InMemoryOccupancyRepository) WithTx(tx *db.TxConnection) (Repository, error) {
-	return r, nil
 }

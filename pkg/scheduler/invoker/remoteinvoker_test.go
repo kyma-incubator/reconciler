@@ -24,7 +24,7 @@ import (
 
 func TestRemoteInvoker(t *testing.T) {
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-	occupRepo := occupancy.NewInMemoryWorkerRepository()
+	occupRepo := occupancy.NewInMemoryOccupancyRepository()
 
 	//create reconciliation entity
 	reconEntity, err := reconRepo.CreateReconciliation(clusterStateMock, nil)

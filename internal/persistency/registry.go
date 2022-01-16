@@ -112,7 +112,7 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 }
 
 func (or *Registry) initWorkerRepository() (occupancy.Repository, error) {
-	workerRepo, err := occupancy.NewPersistentWorkerRepository(or.connection, or.debug)
+	workerRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)
 	if err != nil {
 		or.logger.Errorf("Failed to create worker repository: %s", err)
 	}

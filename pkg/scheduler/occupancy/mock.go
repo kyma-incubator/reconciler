@@ -6,13 +6,15 @@ import (
 )
 
 type MockRepository struct {
-	CreateWorkerPoolOccupancyResult             error
+	CreateWorkerPoolOccupancyResult             *model.WorkerPoolOccupancyEntity
 	UpdateWorkerPoolOccupancyResult             error
 	GetMeanWorkerPoolOccupancyResult            float64
 	RemoveWorkerPoolOccupancyResult             error
 	GetComponentListResult                      []string
 	GetMeanWorkerPoolOccupancyByComponentResult float64
+	GetWorkerPoolOccupanciesResult []*model.WorkerPoolOccupancyEntity
 	FindWorkerPoolOccupancyByIDResult           *model.WorkerPoolOccupancyEntity
+
 }
 
 func (mr *MockRepository) GetComponentList() ([]string, error) {
@@ -27,13 +29,17 @@ func (mr *MockRepository) FindWorkerPoolOccupancyByID(poolID string) (*model.Wor
 	return mr.FindWorkerPoolOccupancyByIDResult, nil
 }
 
-func (mr *MockRepository) CreateWorkerPoolOccupancy(poolID, component string, poolSize int) error {
-	return mr.CreateWorkerPoolOccupancyResult
+func (mr *MockRepository) CreateWorkerPoolOccupancy(poolID, component string, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
+	return mr.CreateWorkerPoolOccupancyResult, nil
 }
 
 func (mr *MockRepository) UpdateWorkerPoolOccupancy(poolID string, runningWorkers int) error {
 	return mr.UpdateWorkerPoolOccupancyResult
 }
+func (mr *MockRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error) {
+	return mr.GetWorkerPoolOccupanciesResult, nil
+}
+
 func (mr *MockRepository) GetMeanWorkerPoolOccupancy() (float64, error) {
 	return mr.GetMeanWorkerPoolOccupancyResult, nil
 }

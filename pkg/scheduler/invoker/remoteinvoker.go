@@ -215,7 +215,7 @@ func (i *RemoteReconcilerInvoker) updateWorkerPoolOccupancy(poolID, component st
 			return fmt.Errorf("could not update occupancy for component %s and poolID %s", component, poolID)
 		}
 	} else if occupancyEntity == nil {
-		err = i.occupRepo.CreateWorkerPoolOccupancy(poolID, component, poolSize)
+		_, err = i.occupRepo.CreateWorkerPoolOccupancy(poolID, component, poolSize)
 		if err != nil {
 			return fmt.Errorf("invoker could not create occupancy for component %s and poolID %s", component, poolID)
 		}

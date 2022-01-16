@@ -99,7 +99,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	require.NoError(t, err)
 
 	//create worker repository
-	workerRepo, err := occupancy.NewPersistentWorkerRepository(dbConn, debugLogging)
+	workerRepo, err := occupancy.NewPersistentOccupancyRepository(dbConn, debugLogging)
 	require.NoError(t, err)
 
 	//cleanup
@@ -258,7 +258,7 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	//create reconciliation repository
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 	//create worker repository
-	workerRepo := occupancy.NewInMemoryWorkerRepository()
+	workerRepo := occupancy.NewInMemoryOccupancyRepository()
 
 	//configure local runner
 

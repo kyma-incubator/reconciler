@@ -19,9 +19,9 @@ import (
 
 type Pool struct {
 	retriever  ClusterStateRetriever
-	reconRepo  reconciliation.Repository
-	workerRepo occupancy.Repository
-	invoker    invoker.Invoker
+	reconRepo reconciliation.Repository
+	occupRepo occupancy.Repository
+	invoker   invoker.Invoker
 	config     *Config
 	logger     *zap.SugaredLogger
 	poolID     string
@@ -30,7 +30,7 @@ type Pool struct {
 func NewWorkerPool(
 	retriever ClusterStateRetriever,
 	repo reconciliation.Repository,
-	workerRepo occupancy.Repository,
+	occupRepo occupancy.Repository,
 	invoker invoker.Invoker,
 	config *Config,
 	logger *zap.SugaredLogger) (*Pool, error) {
@@ -44,12 +44,12 @@ func NewWorkerPool(
 	}
 
 	return &Pool{
-		retriever:  retriever,
-		reconRepo:  repo,
-		workerRepo: workerRepo,
-		invoker:    invoker,
-		config:     config,
-		logger:     logger,
+		retriever: retriever,
+		reconRepo: repo,
+		occupRepo: occupRepo,
+		invoker:   invoker,
+		config:    config,
+		logger:    logger,
 	}, nil
 }
 
@@ -69,9 +69,10 @@ func (w *Pool) run(ctx context.Context, runOnce bool) error {
 	defer func() {
 		w.logger.Info("Stopping worker pool")
 		workerPool.Release()
-		if err = w.workerRepo.RemoveWorkerPoolOccupancy(w.poolID); err != nil {
-			w.logger.Warnf("Unable to remove worker pool occupancy: %v", err)
+		if err = w.occupRepo.RemoveWorkerPoolOccupancy(w.poolID); err != nil {
+			w.logger.Errorf("Unable to remove worker pool occupancy: %v", err)
 		}
+		w.poolID="" //do we really need this?
 	}()
 
 	if runOnce {
@@ -112,7 +113,7 @@ func (w *Pool) invokeProcessableOpsOnce(ctx context.Context, workerPool *ants.Po
 func (w *Pool) startWorkerPool(ctx context.Context) (*ants.PoolWithFunc, error) {
 	w.logger.Infof("Starting worker pool with capacity of %d workers", w.config.PoolSize)
 	w.poolID = uuid.NewString()
-	err := w.workerRepo.CreateWorkerPoolOccupancy(w.poolID, "mothership", w.config.PoolSize)
+	_, err := w.occupRepo.CreateWorkerPoolOccupancy(w.poolID, "mothership", w.config.PoolSize)
 	if err != nil {
 		w.logger.Error(err.Error())
 	}
@@ -192,7 +193,7 @@ func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) (int, error) 
 		idx++
 	}
 	w.logger.Infof("Worker pool assigned %d of %d processable operations to workers", idx, opsCnt)
-	err = w.workerRepo.UpdateWorkerPoolOccupancy(w.poolID, workerPool.Running())
+	err = w.occupRepo.UpdateWorkerPoolOccupancy(w.poolID, workerPool.Running())
 	if err != nil {
 		w.logger.Errorf("Worker pool failed to update worker pool occupancy: %s", err)
 	}
