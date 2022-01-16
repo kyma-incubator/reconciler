@@ -18,13 +18,13 @@ import (
 )
 
 type Pool struct {
-	retriever  ClusterStateRetriever
+	retriever ClusterStateRetriever
 	reconRepo reconciliation.Repository
 	occupRepo occupancy.Repository
 	invoker   invoker.Invoker
-	config     *Config
-	logger     *zap.SugaredLogger
-	poolID     string
+	config    *Config
+	logger    *zap.SugaredLogger
+	poolID    string
 }
 
 func NewWorkerPool(
@@ -72,7 +72,7 @@ func (w *Pool) run(ctx context.Context, runOnce bool) error {
 		if err = w.occupRepo.RemoveWorkerPoolOccupancy(w.poolID); err != nil {
 			w.logger.Errorf("Unable to remove worker pool occupancy: %v", err)
 		}
-		w.poolID="" //do we really need this?
+		w.poolID = "" //do we really need this?
 	}()
 
 	if runOnce {

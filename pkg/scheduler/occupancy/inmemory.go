@@ -90,7 +90,7 @@ func (r *InMemoryOccupancyRepository) GetMeanWorkerPoolOccupancy() (float64, err
 	return aggregatedOccupancy, nil
 }
 
-func (r *InMemoryOccupancyRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error){
+func (r *InMemoryOccupancyRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if len(r.occupancies) == 0 {

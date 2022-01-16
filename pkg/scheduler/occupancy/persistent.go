@@ -102,7 +102,7 @@ func (r *PersistentOccupancyRepository) GetMeanWorkerPoolOccupancyByComponent(co
 	return aggregatedOccupancy, nil
 }
 
-func (r *PersistentOccupancyRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error){
+func (r *PersistentOccupancyRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error) {
 	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 	if err != nil {
 		return nil, err

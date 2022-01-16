@@ -12,9 +12,8 @@ type MockRepository struct {
 	RemoveWorkerPoolOccupancyResult             error
 	GetComponentListResult                      []string
 	GetMeanWorkerPoolOccupancyByComponentResult float64
-	GetWorkerPoolOccupanciesResult []*model.WorkerPoolOccupancyEntity
+	GetWorkerPoolOccupanciesResult              []*model.WorkerPoolOccupancyEntity
 	FindWorkerPoolOccupancyByIDResult           *model.WorkerPoolOccupancyEntity
-
 }
 
 func (mr *MockRepository) GetComponentList() ([]string, error) {

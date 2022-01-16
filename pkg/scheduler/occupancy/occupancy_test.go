@@ -88,7 +88,7 @@ func TestOccupancyRepository(t *testing.T) {
 				require.NoError(t, err)
 				err = occupRepo.UpdateWorkerPoolOccupancy(secondPoolID, 10)
 				require.NoError(t, err)
-				meanOccupancy, err:= occupRepo.GetMeanWorkerPoolOccupancyByComponent(component)
+				meanOccupancy, err := occupRepo.GetMeanWorkerPoolOccupancyByComponent(component)
 				require.NoError(t, err)
 				require.Equal(t, 50.0, meanOccupancy)
 			},
