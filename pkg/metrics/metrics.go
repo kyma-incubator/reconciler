@@ -7,9 +7,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func RegisterAll(inventory cluster.Inventory, workerRepository occupancy.Repository, logger *zap.SugaredLogger) {
+func RegisterAll(inventory cluster.Inventory, workerRepository occupancy.Repository, reconcilersList []string, logger *zap.SugaredLogger) {
 	reconciliationWaitingCollector := NewReconciliationWaitingCollector(inventory, logger)
 	reconciliationNotReadyCollector := NewReconciliationNotReadyCollector(inventory, logger)
-	freeWorkersRatioCollector := NewWorkerPoolOccupancyCollector(workerRepository, logger)
-	prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector, freeWorkersRatioCollector)
+	workerPoolOccupancyCollector := NewWorkerPoolOccupancyCollector(workerRepository, reconcilersList, logger)
+	prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector, workerPoolOccupancyCollector)
 }

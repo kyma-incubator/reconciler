@@ -6,8 +6,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// WorkerPoolOccupancyCollector provides the ratio of free workers in the worker-pool:
-// - mothership_free_workers - number of free workers in the worker-pool
+// WorkerPoolOccupancyCollector provides the mean ratio of running workers in the worker-pool(s):
+// - worker_pool_occupancy - mean ratio of running workers in the worker-pool(s)
 type WorkerPoolOccupancyCollector struct {
 	occupancyRepository         occupancy.Repository
 	logger                      *zap.SugaredLogger
@@ -15,25 +15,20 @@ type WorkerPoolOccupancyCollector struct {
 	workerPoolOccupancyGaugeVec *prometheus.GaugeVec
 }
 
-func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
+func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, reconcilersList []string, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
 	if occupancyRepository == nil {
 		logger.Error("unable to register metric: repository is nil")
-		return nil
-	}
-	componentList, err := occupancyRepository.GetComponentList()
-	if err != nil {
-		logger.Error(err.Error())
 		return nil
 	}
 	return &WorkerPoolOccupancyCollector{
 		occupancyRepository: occupancyRepository,
 		logger:              logger,
-		componentList:       componentList,
+		componentList:       reconcilersList,
 		workerPoolOccupancyGaugeVec: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "worker_pool_occupancy",
 			Help:      "Mean ratio of all running workers in all running worker-pools",
-		}, componentList),
+		}, reconcilersList),
 	}
 }
 
@@ -53,7 +48,7 @@ func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
 		workerPoolOccupancy, err := c.occupancyRepository.GetMeanWorkerPoolOccupancyByComponent(component)
 		if err != nil {
 			c.logger.Error(err.Error())
-			return
+			continue
 		}
 		m.Set(workerPoolOccupancy)
 	}

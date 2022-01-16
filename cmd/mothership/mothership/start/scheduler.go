@@ -17,6 +17,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 		return err
 	}
 
+	o.ReconcilersList = getListOfreconcilers(schedulerCfg)
 	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), o.Registry.WorkerRepository(), logger.NewLogger(o.Verbose))
 
 	return runtimeBuilder.
@@ -48,6 +49,14 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 			CleanerInterval:        o.CleanerInterval,
 		}).
 		Run(ctx)
+}
+
+func getListOfreconcilers(cfg *config.Config) []string {
+	reconcilersList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
+	for reconName := range cfg.Scheduler.Reconcilers {
+		reconcilersList = append(reconcilersList, reconName)
+	}
+	return append(reconcilersList, "mothership")
 }
 
 func parseSchedulerConfig(configFile string) (*config.Config, error) {

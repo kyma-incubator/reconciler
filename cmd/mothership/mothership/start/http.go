@@ -116,7 +116,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, deleteComponentWorkerPoolOccupancy)).Methods(http.MethodDelete)
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.WorkerRepository(), o.Logger())
+	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.WorkerRepository(), o.ReconcilersList, o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks

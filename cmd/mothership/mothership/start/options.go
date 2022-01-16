@@ -26,6 +26,7 @@ type Options struct {
 	AuditLog                 bool
 	AuditLogFile             string
 	AuditLogTenantID         string
+	ReconcilersList          []string
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -44,6 +45,7 @@ func NewOptions(o *cli.Options) *Options {
 		false,           //AuditLog
 		"",              //AuditLogFIle
 		"",              //AuditLogTenant
+		[]string{"mothership"},
 	}
 }
 
