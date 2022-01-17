@@ -3,9 +3,7 @@ module github.com/kyma-incubator/reconciler
 go 1.16
 
 require (
-	github.com/Peripli/service-manager v0.21.5 // indirect
-	github.com/SAP/sap-btp-service-operator v0.1.1
-	github.com/SAP/sap-btp-service-operator-migration v0.1.2
+	github.com/SAP/sap-btp-service-operator v0.1.21
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/coreos/go-semver v0.3.0
@@ -51,8 +49,6 @@ require (
 	k8s.io/cli-runtime v0.22.4
 	k8s.io/client-go v0.22.4
 	k8s.io/kubectl v0.22.4
+	sigs.k8s.io/controller-runtime v0.9.0 // indirect
 	sigs.k8s.io/yaml v1.2.0
 )
-
-// NOTE: remove with sc-migration reconciler
-replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.9.0
