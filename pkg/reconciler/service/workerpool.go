@@ -73,16 +73,17 @@ func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
 			}
 
 			opsIdx := strings.Index(pb.workerPool.callbackURL, "operations")
-
-			occupancyURLTemplate := pb.workerPool.callbackURL[:opsIdx] + "occupancy/%s"
-			destURL := fmt.Sprintf(occupancyURLTemplate, pb.workerPool.PoolID)
-			req, err := http.NewRequest(http.MethodDelete, destURL, nil)
-			if err != nil {
-				log.Error(err.Error())
-			}
-			_, err = client.Do(req)
-			if err != nil {
-				log.Error(err.Error())
+			if opsIdx != -1 {
+				occupancyURLTemplate := pb.workerPool.callbackURL[:opsIdx] + "occupancy/%s"
+				destURL := fmt.Sprintf(occupancyURLTemplate, pb.workerPool.PoolID)
+				req, err := http.NewRequest(http.MethodDelete, destURL, nil)
+				if err != nil {
+					log.Error(err.Error())
+				}
+				_, err = client.Do(req)
+				if err != nil {
+					log.Error(err.Error())
+				}
 			}
 		}
 
