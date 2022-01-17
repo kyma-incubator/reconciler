@@ -29,6 +29,7 @@ import (
 	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
+	apiMeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -83,7 +84,6 @@ func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, err
 	}
 	return kubernetes.NewForConfig(inClusterConfig)
 }
-
 func adapt(kubeconfig string, logger *zap.SugaredLogger, config *Config, restConfig *rest.Config, mapper *restmapper.DeferredDiscoveryRESTMapper, dynamicClient dynamic.Interface) *kubeClientAdapter {
 	return &kubeClientAdapter{
 		kubeconfig:    kubeconfig,
@@ -95,9 +95,12 @@ func adapt(kubeconfig string, logger *zap.SugaredLogger, config *Config, restCon
 		helmClient:    kube.New(NewRESTClientGetter(restConfig)),
 	}
 }
-
 func (g *kubeClientAdapter) Kubeconfig() string {
 	return g.kubeconfig
+}
+
+func (g *kubeClientAdapter) invalidateClientCache() {
+	g.mapper.Reset()
 }
 
 func (g *kubeClientAdapter) PatchUsingStrategy(context context.Context, kind, name, namespace string, p []byte, strategy types.PatchType) error {
@@ -148,13 +151,18 @@ func (g *kubeClientAdapter) DeployByCompareWithOriginal(ctx context.Context, man
 		return nil, err
 	}
 
-	resourceInfoTarget, err := g.convertToResourceInfoWithInterceptors(manifestTarget, namespace, interceptors)
+	unstructsTarget, err := g.applyInterceptors(manifestTarget, namespace, interceptors)
 	if err != nil {
 		g.logger.Errorf("Failed to process target manifest data for deploy: %s", err)
 		g.logger.Debugf("Manifest data: %s", manifestTarget)
 		return nil, err
 	}
-
+	resourceInfoTarget, err := g.filterAndConvertToInfoList(unstructsTarget, namespace, false)
+	if err != nil {
+		g.logger.Errorf("Failed to convert target unstructs data: %s", err)
+		g.logger.Debugf("Manifest data: %s", manifestTarget)
+		return nil, err
+	}
 	deployedResources, err := g.deployResources(ctx, resourceInfoOriginal, resourceInfoTarget)
 
 	if len(deployedResources) == 0 {
@@ -172,13 +180,18 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifestTarget, namespac
 		namespace = defaultNamespace
 	}
 
-	resourceInfoTarget, err := g.convertToResourceInfoWithInterceptors(manifestTarget, namespace, interceptors)
+	unstructsTarget, err := g.applyInterceptors(manifestTarget, namespace, interceptors)
 	if err != nil {
 		g.logger.Errorf("Failed to process target manifest data for deploy: %s", err)
 		g.logger.Debugf("Manifest data: %s", manifestTarget)
 		return nil, err
 	}
-
+	resourceInfoTarget, err := g.filterAndConvertToInfoList(unstructsTarget, namespace, false)
+	if err != nil {
+		g.logger.Errorf("Failed to convert target unstructs data: %s", err)
+		g.logger.Debugf("Manifest data: %s", manifestTarget)
+		return nil, err
+	}
 	deployedResources, err := g.deployResources(ctx, resourceInfoTarget, resourceInfoTarget)
 
 	if len(deployedResources) == 0 {
@@ -189,7 +202,7 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifestTarget, namespac
 	return deployedResources, err
 }
 
-func (g *kubeClientAdapter) convertToResourceInfoWithInterceptors(manifestTarget string, namespace string, interceptors []ResourceInterceptor) ([]*resource.Info, error) {
+func (g *kubeClientAdapter) applyInterceptors(manifestTarget string, namespace string, interceptors []ResourceInterceptor) ([]*unstructured.Unstructured, error) {
 
 	unstructsTarget, err := g.manifestToUnstructured(manifestTarget)
 	if err != nil {
@@ -215,14 +228,7 @@ func (g *kubeClientAdapter) convertToResourceInfoWithInterceptors(manifestTarget
 			return nil, err
 		}
 	}
-
-	resourceInfoTarget, err := g.convertToInfoList(resourceListTarget.resources, namespace)
-	if err != nil {
-		g.logger.Errorf("Failed to convert target unstructs data: %s", err)
-		g.logger.Debugf("Manifest data: %s", manifestTarget)
-		return nil, err
-	}
-	return resourceInfoTarget, nil
+	return resourceListTarget.resources, nil
 }
 
 func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalList kube.ResourceList, infoTargetList kube.ResourceList) ([]*Resource, error) {
@@ -299,11 +305,14 @@ func getRestConfig(kubeconfig string) (*rest.Config, error) {
 	})
 }
 
-func (g *kubeClientAdapter) convertToInfoList(unstructs []*unstructured.Unstructured, namespaceOverride string) ([]*resource.Info, error) {
+func (g *kubeClientAdapter) filterAndConvertToInfoList(unstructs []*unstructured.Unstructured, namespaceOverride string, ignoreNotMatchError bool) ([]*resource.Info, error) {
 	var resourceInfos []*resource.Info
 
 	for _, unstruct := range unstructs {
 		info, err := g.convertToInfo(unstruct, namespaceOverride)
+		if ignoreNotMatchError && apiMeta.IsNoMatchError(err) {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -540,7 +549,7 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifestTarget, namespac
 		g.logger.Debugf("Manifest data: %s", manifestTarget)
 		return nil, err
 	}
-	resourceInfoTarget, err := g.convertToInfoList(unstructsTarget, namespace)
+	resourceInfoTarget, err := g.filterAndConvertToInfoList(unstructsTarget, namespace, true)
 	if err != nil {
 		g.logger.Errorf("Failed to convert target unstructs data: %s", err)
 		g.logger.Debugf("Manifest data: %s", manifestTarget)

@@ -66,6 +66,57 @@ func (i *testInterceptor) Intercept(resources *ResourceCacheList, _ string) erro
 	return resources.Visit(interceptorFunc)
 }
 
+func TestCustomerResources(t *testing.T) {
+	test.IntegrationTest(t)
+
+	//create client
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), nil)
+	require.NoError(t, err)
+
+	defer deleteTestResources(t, kubeClient, false)
+	t.Run("Should get error when deploy CR without CRD", func(t *testing.T) {
+		manifest := readManifest(t, "unittest-cr.yaml")
+
+		_, err := kubeClient.Deploy(context.TODO(), manifest, "unittest-cr")
+
+		require.Error(t, err)
+	})
+
+	t.Run("Should not get error when delete CR without CRD", func(t *testing.T) {
+		manifest := readManifest(t, "unittest-cr.yaml")
+
+		_, err := kubeClient.Delete(context.TODO(), manifest, "unittest-cr")
+
+		require.NoError(t, err)
+	})
+
+	t.Run("Should not get error when deploy CR after CRD", func(t *testing.T) {
+		crdManifest := readManifest(t, "unittest-crd.yaml")
+
+		_, err := kubeClient.Deploy(context.TODO(), crdManifest, "unittest-cr")
+		require.NoError(t, err)
+
+		crManifest := readManifest(t, "unittest-cr.yaml")
+		kubeClient.(*kubeClientAdapter).invalidateClientCache()
+		_, err = kubeClient.Deploy(context.TODO(), crManifest, "unittest-cr")
+
+		require.NoError(t, err)
+	})
+}
+
+func deleteTestResources(t *testing.T, client Client, b bool) {
+	err := deleteResources(t, client, "unittest-crd.yaml", "unittest-cr")
+	require.NoError(t, err)
+	err = deleteResources(t, client, "unittest-cr.yaml", "unittest-cr")
+	require.NoError(t, err)
+}
+
+func deleteResources(t *testing.T, client Client, filename, namespace string) error {
+	manifest := readManifest(t, filename)
+	_, err := client.Delete(context.TODO(), manifest, namespace)
+	return err
+}
+
 func TestKubernetesClient(t *testing.T) {
 	test.IntegrationTest(t)
 
