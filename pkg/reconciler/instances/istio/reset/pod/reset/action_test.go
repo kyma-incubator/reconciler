@@ -90,7 +90,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {simpleCustomObject}}
 
-		handler.On("ExecuteAndWaitFor", mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler.On("ExecuteAndWaitFor", mock.Anything, mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
 			Return(handlersMap)
 
@@ -110,7 +110,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {simpleCustomObject, simpleCustomObject}}
 
-		handler.On("ExecuteAndWaitFor", mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler.On("ExecuteAndWaitFor", mock.Anything, mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
 			Return(handlersMap)
 
@@ -131,8 +131,8 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler2 := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler1: {simpleCustomObject}, &handler2: {simpleCustomObject}}
 
-		handler1.On("ExecuteAndWaitFor", mock.AnythingOfType("pod.CustomObject")).Return(nil)
-		handler2.On("ExecuteAndWaitFor", mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler1.On("ExecuteAndWaitFor", mock.Anything, mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler2.On("ExecuteAndWaitFor", mock.Anything, mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
 			Return(handlersMap)
 
