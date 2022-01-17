@@ -120,18 +120,22 @@ func (i *RolloutHandler) ExecuteAndWaitFor(context context.Context, object Custo
 
 func (i *RolloutHandler) WaitForResources(context context.Context, object CustomObject) error {
 	i.log.Infof("Waiting for %s/%s/%s to be ready", object.Kind, object.Namespace, object.Name)
-	pt, _ := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
-	watchable, err2 := tracker.NewWatchableResource(object.Kind)
-	if err2 == nil {
+	pt, err := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
+	if err != nil {
+		return errors.Wrap(err, "Failed to setup the tracker")
+	}
+
+	watchable, err := tracker.NewWatchableResource(object.Kind)
+	if err == nil {
 		i.log.Infof("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
 		pt.AddResource(watchable, object.Namespace, object.Name)
 	} else {
-		return errors.Wrap(err2, "Failed to register watchable resources")
+		return errors.Wrap(err, "Failed to register watchable resources")
 	}
 
-	err := pt.Watch(context, tracker.ReadyState)
+	err = pt.Watch(context, tracker.ReadyState)
 	if err != nil {
-		return errors.Wrap(err, "Failed to wait for deployment to be rolled out")
+		return errors.Wrapf(err, "Failed to wait for %s/%s/%s to be rolled out", object.Kind, object.Namespace, object.Name)
 	}
 	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 
