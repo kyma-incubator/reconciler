@@ -185,7 +185,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Kubeconfig:      test.ReadKubeconfig(t),
 				CorrelationID:   "test-correlation-id",
 				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
+					MaxRetries: 5,
 				},
 			},
 			expectedHTTPCode: http.StatusOK,
@@ -195,26 +195,29 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			},
 			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
-		//{
-		//	name: "Install external component from scratch",
-		//	model: &reconciler.Task{
-		//		Component:       externalComponentName,
-		//		Namespace:       externalComponentNamespace,
-		//		Version:         externalComponentVersion,
-		//		URL:             externalComponentURL,
-		//		Type:            model.OperationTypeReconcile,
-		//		Profile:         "",
-		//		Configuration:   nil,
-		//		Kubeconfig:      test.ReadKubeconfig(t),
-		//		CorrelationID:   "test-correlation-id",
-		//	},
-		//	expectedHTTPCode: http.StatusOK,
-		//	expectedResponse: &reconciler.HTTPReconciliationResponse{},
-		//	verifyResponseFct: func(t *testing.T, i interface{}) {
-		//		expectPodInState(t, externalComponentDeployment, progress.ReadyState, kubeClient) //wait until pod is ready
-		//	},
-		//	verifyCallbacksFct: expectSuccessfulReconciliation,
-		//},
+		{
+			name: "Install external component from scratch",
+			model: &reconciler.Task{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       componentName,
+				Namespace:       componentNamespace,
+				Version:         componentVersion,
+				Type:            model.OperationTypeReconcile,
+				Profile:         "",
+				Configuration:   nil,
+				Kubeconfig:      test.ReadKubeconfig(t),
+				CorrelationID:   "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{
+					MaxRetries: 5,
+				},
+			},
+			expectedHTTPCode: http.StatusOK,
+			expectedResponse: &reconciler.HTTPReconciliationResponse{},
+			verifyResponseFct: func(t *testing.T, i interface{}) {
+				expectPodInState(t, componentDeployment, progress.ReadyState, kubeClient) //wait until pod is ready
+			},
+			verifyCallbacksFct: expectSuccessfulReconciliation,
+		},
 		//{
 		//	name: "Try to apply impossible change: change api version",
 		//	model: &reconciler.Task{
