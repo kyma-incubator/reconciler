@@ -44,6 +44,12 @@ const (
 	componentNamespace  = "inttest-comprecon"
 	componentVersion    = "0.0.0"
 	componentDeployment = "dummy-deployment"
+
+	externalComponentName       = "sap-btp-operator-controller-manager"
+	externalComponentNamespace  = "inttest-comprecon"
+	externalComponentVersion    = "0.0.0"
+	externalComponentDeployment = "sap-btp-operator-controller-manager"
+	externalComponentURL        = "https://github.com/kyma-incubator/sap-btp-service-operator/releases/download/v0.1.18-custom/sap-btp-operator-0.1.18.tar.gz"
 )
 
 type testCase struct {
@@ -167,6 +173,30 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			},
 		},
 		{
+			name: "Install external component from scratch",
+			model: &reconciler.Task{
+				ComponentsReady: []string{"abc", "xyz"},
+				Component:       externalComponentName,
+				URL:             externalComponentURL,
+				Namespace:       externalComponentNamespace,
+				Version:         externalComponentVersion,
+				Type:            model.OperationTypeReconcile,
+				Profile:         "",
+				Configuration:   nil,
+				Kubeconfig:      test.ReadKubeconfig(t),
+				CorrelationID:   "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{
+					MaxRetries: 5,
+				},
+			},
+			expectedHTTPCode: http.StatusOK,
+			expectedResponse: &reconciler.HTTPReconciliationResponse{},
+			verifyResponseFct: func(t *testing.T, i interface{}) {
+				expectPodInState(t, externalComponentDeployment, progress.ReadyState, kubeClient) //wait until pod is ready
+			},
+			verifyCallbacksFct: expectSuccessfulReconciliation,
+		},
+		{
 			name: "Install component from scratch",
 			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
@@ -179,13 +209,13 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				Kubeconfig:      test.ReadKubeconfig(t),
 				CorrelationID:   "test-correlation-id",
 				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
+					MaxRetries: 5,
 				},
 			},
 			expectedHTTPCode: http.StatusOK,
 			expectedResponse: &reconciler.HTTPReconciliationResponse{},
 			verifyResponseFct: func(t *testing.T, i interface{}) {
-				expectPodInState(t, progress.ReadyState, kubeClient) //wait until pod is ready
+				expectPodInState(t, componentDeployment, progress.ReadyState, kubeClient) //wait until pod is ready
 			},
 			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
@@ -299,7 +329,7 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			expectedHTTPCode: http.StatusOK,
 			expectedResponse: &reconciler.HTTPReconciliationResponse{},
 			verifyResponseFct: func(t *testing.T, i interface{}) {
-				expectPodInState(t, progress.TerminatedState, kubeClient) // check that deletion was successful
+				expectPodInState(t, componentDeployment, progress.TerminatedState, kubeClient) // check that deletion was successful
 			},
 			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
@@ -431,16 +461,16 @@ Loop:
 	return received
 }
 
-func expectPodInState(t *testing.T, state progress.State, kubeClient kubernetes.Client) {
+func expectPodInState(t *testing.T, deployment string, state progress.State, kubeClient kubernetes.Client) {
 	clientSet, err := kubeClient.Clientset()
 	require.NoError(t, err)
 
 	watchable, err := progress.NewWatchableResource("deployment")
 	require.NoError(t, err)
 
-	t.Logf("Waiting for deployment '%s' to reach %s state", componentDeployment, strings.ToUpper(string(state)))
+	t.Logf("Waiting for deployment '%s' to reach %s state", deployment, strings.ToUpper(string(state)))
 	prog := newProgressTracker(t, clientSet)
-	prog.AddResource(watchable, componentNamespace, componentDeployment)
+	prog.AddResource(watchable, componentNamespace, deployment)
 	require.NoError(t, prog.Watch(context.TODO(), state))
-	t.Logf("DEployment '%s' reached %s state", componentDeployment, strings.ToUpper(string(state)))
+	t.Logf("Deployment '%s' reached %s state", deployment, strings.ToUpper(string(state)))
 }
