@@ -1,11 +1,13 @@
 package preaction
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"go.uber.org/zap"
+	v1 "k8s.io/api/apps/v1"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
@@ -21,6 +23,7 @@ const (
 	oldConfigValue             = "global.image.repository"
 	newConfigValue             = "eu.gcr.io/kyma-project"
 	crdPlural                  = "customresourcedefinitions"
+	serviceKind                = "service"
 )
 
 var (
@@ -92,10 +95,47 @@ func (r *removeNatsOperatorStep) removeNatsOperatorResources(context *service.Ac
 	// set the right eventing name, which went lost after rendering
 	manifest.Manifest = strings.ReplaceAll(manifest.Manifest, natsSubChartPath, eventingNats)
 
+	clientSet, err := kubeClient.Clientset()
+	tracker, err := progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: progressTrackerInterval, Timeout: progressTrackerTimeout})
+	if err != nil {
+		return err
+	}
+
 	logger.Info("Removing nats-operator chart resources")
 	// remove all the existing nats-operator resources, installed via charts
-	_, err = kubeClient.Delete(context.Context, manifest.Manifest, namespace)
-	return err
+	statefulSet, err := getStatefulSet(context, kubeClient, eventingNats)
+	if err != nil {
+		return err
+	}
+
+	m := []byte(manifest.Manifest)
+	unstructs, err := kubernetes.ToUnstructured(m, true)
+	for _, u := range unstructs {
+		// since the old nats-operator was deployed using the k8s deployment
+		// do not delete the nats service if there is a statefulSet deployed
+		if statefulSet != nil && u.GetName() == eventingNats && strings.EqualFold(u.GetKind(), serviceKind) {
+			continue
+		}
+
+		//if resource is watchable, add it to progress tracker
+		watchable, err := progress.NewWatchableResource(u.GetKind())
+		if err == nil { //add only watchable resources to progress tracker
+			tracker.AddResource(watchable, u.GetNamespace(), u.GetName())
+		}
+
+		logger.Infof("Deleting: kind: %s, name: %s, namespace: %s", u.GetKind(), u.GetName(), namespace)
+		_, err = kubeClient.DeleteResource(u.GetKind(), u.GetName(), namespace)
+		if err != nil {
+			return err
+		}
+	}
+
+	//wait until all resources were deleted
+	if err := tracker.Watch(context.Context, progress.TerminatedState); err != nil {
+		logger.Warnf("Watching progress of deleted resources failed: %s", err)
+	}
+
+	return nil
 }
 
 // delete the leftover CRDs, which were outside of charts
@@ -122,4 +162,16 @@ func GetResourcesFromVersion(version, chartPath string) *chart.Component {
 		}).
 		WithNamespace(namespace).
 		Build()
+}
+
+// getStatefulSet returns a Kubernetes statefulSet given its name
+func getStatefulSet(context *service.ActionContext, kubeClient kubernetes.Client, name string) (*v1.StatefulSet, error) {
+	statefulSet, err := kubeClient.GetStatefulSet(context.Context, name, namespace)
+	if err == nil {
+		return statefulSet, nil
+	}
+	if errors.IsNotFound(err) {
+		return nil, nil
+	}
+	return nil, err
 }
