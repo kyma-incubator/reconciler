@@ -2,6 +2,7 @@ package clusteressentials
 
 import (
 	"context"
+	rkubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	pmock "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
-	rkubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )

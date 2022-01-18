@@ -75,13 +75,13 @@ func (_m *Client) Delete(ctx context.Context, manifest string, namespace string)
 	return r0, r1
 }
 
-// DeleteResource provides a mock function with given fields: kind, name, namespace
-func (_m *Client) DeleteResource(kind string, name string, namespace string) (*reconcilerkubernetes.Resource, error) {
-	ret := _m.Called(kind, name, namespace)
+// DeleteResource provides a mock function with given fields: ctx, kind, name, namespace
+func (_m *Client) DeleteResource(ctx context.Context, kind string, name string, namespace string) (*reconcilerkubernetes.Resource, error) {
+	ret := _m.Called(ctx, kind, name, namespace)
 
 	var r0 *reconcilerkubernetes.Resource
-	if rf, ok := ret.Get(0).(func(string, string, string) *reconcilerkubernetes.Resource); ok {
-		r0 = rf(kind, name, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *reconcilerkubernetes.Resource); ok {
+		r0 = rf(ctx, kind, name, namespace)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*reconcilerkubernetes.Resource)
@@ -89,8 +89,8 @@ func (_m *Client) DeleteResource(kind string, name string, namespace string) (*r
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
-		r1 = rf(kind, name, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, kind, name, namespace)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -98,20 +98,20 @@ func (_m *Client) DeleteResource(kind string, name string, namespace string) (*r
 	return r0, r1
 }
 
-// Deploy provides a mock function with given fields: ctx, manifest, namespace, interceptors
-func (_m *Client) Deploy(ctx context.Context, manifest string, namespace string, interceptors ...reconcilerkubernetes.ResourceInterceptor) ([]*reconcilerkubernetes.Resource, error) {
+// Deploy provides a mock function with given fields: ctx, manifestTarget, namespace, interceptors
+func (_m *Client) Deploy(ctx context.Context, manifestTarget string, namespace string, interceptors ...reconcilerkubernetes.ResourceInterceptor) ([]*reconcilerkubernetes.Resource, error) {
 	_va := make([]interface{}, len(interceptors))
 	for _i := range interceptors {
 		_va[_i] = interceptors[_i]
 	}
 	var _ca []interface{}
-	_ca = append(_ca, ctx, manifest, namespace)
+	_ca = append(_ca, ctx, manifestTarget, namespace)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
 	var r0 []*reconcilerkubernetes.Resource
 	if rf, ok := ret.Get(0).(func(context.Context, string, string, ...reconcilerkubernetes.ResourceInterceptor) []*reconcilerkubernetes.Resource); ok {
-		r0 = rf(ctx, manifest, namespace, interceptors...)
+		r0 = rf(ctx, manifestTarget, namespace, interceptors...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*reconcilerkubernetes.Resource)
@@ -120,7 +120,37 @@ func (_m *Client) Deploy(ctx context.Context, manifest string, namespace string,
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, string, string, ...reconcilerkubernetes.ResourceInterceptor) error); ok {
-		r1 = rf(ctx, manifest, namespace, interceptors...)
+		r1 = rf(ctx, manifestTarget, namespace, interceptors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DeployByCompareWithOriginal provides a mock function with given fields: ctx, manifestOriginal, manifestTarget, namespace, interceptors
+func (_m *Client) DeployByCompareWithOriginal(ctx context.Context, manifestOriginal string, manifestTarget string, namespace string, interceptors ...reconcilerkubernetes.ResourceInterceptor) ([]*reconcilerkubernetes.Resource, error) {
+	_va := make([]interface{}, len(interceptors))
+	for _i := range interceptors {
+		_va[_i] = interceptors[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, manifestOriginal, manifestTarget, namespace)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 []*reconcilerkubernetes.Resource
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, ...reconcilerkubernetes.ResourceInterceptor) []*reconcilerkubernetes.Resource); ok {
+		r0 = rf(ctx, manifestOriginal, manifestTarget, namespace, interceptors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*reconcilerkubernetes.Resource)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, ...reconcilerkubernetes.ResourceInterceptor) error); ok {
+		r1 = rf(ctx, manifestOriginal, manifestTarget, namespace, interceptors...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -317,13 +347,13 @@ func (_m *Client) Kubeconfig() string {
 	return r0
 }
 
-// ListResource provides a mock function with given fields: resource, lo
-func (_m *Client) ListResource(resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
-	ret := _m.Called(resource, lo)
+// ListResource provides a mock function with given fields: ctx, resource, lo
+func (_m *Client) ListResource(ctx context.Context, resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	ret := _m.Called(ctx, resource, lo)
 
 	var r0 *unstructured.UnstructuredList
-	if rf, ok := ret.Get(0).(func(string, metav1.ListOptions) *unstructured.UnstructuredList); ok {
-		r0 = rf(resource, lo)
+	if rf, ok := ret.Get(0).(func(context.Context, string, metav1.ListOptions) *unstructured.UnstructuredList); ok {
+		r0 = rf(ctx, resource, lo)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*unstructured.UnstructuredList)
@@ -331,8 +361,8 @@ func (_m *Client) ListResource(resource string, lo metav1.ListOptions) (*unstruc
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, metav1.ListOptions) error); ok {
-		r1 = rf(resource, lo)
+	if rf, ok := ret.Get(1).(func(context.Context, string, metav1.ListOptions) error); ok {
+		r1 = rf(ctx, resource, lo)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -340,13 +370,13 @@ func (_m *Client) ListResource(resource string, lo metav1.ListOptions) (*unstruc
 	return r0, r1
 }
 
-// PatchUsingStrategy provides a mock function with given fields: kind, name, namespace, p, strategy
-func (_m *Client) PatchUsingStrategy(kind string, name string, namespace string, p []byte, strategy types.PatchType) error {
-	ret := _m.Called(kind, name, namespace, p, strategy)
+// PatchUsingStrategy provides a mock function with given fields: ctx, kind, name, namespace, p, strategy
+func (_m *Client) PatchUsingStrategy(ctx context.Context, kind string, name string, namespace string, p []byte, strategy types.PatchType) error {
+	ret := _m.Called(ctx, kind, name, namespace, p, strategy)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, []byte, types.PatchType) error); ok {
-		r0 = rf(kind, name, namespace, p, strategy)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, []byte, types.PatchType) error); ok {
+		r0 = rf(ctx, kind, name, namespace, p, strategy)
 	} else {
 		r0 = ret.Error(0)
 	}

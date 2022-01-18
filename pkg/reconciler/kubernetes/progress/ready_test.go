@@ -72,7 +72,7 @@ func TestIsDeploymentReady(t *testing.T) {
 
 	clientset := fake.NewSimpleClientset(objects...)
 
-	ready, err := isDeploymentReady(context.Background(), clientset, &resource{name: "foo", namespace: "kyma-system"})
+	ready, err := isDeploymentReady(context.Background(), clientset, &trackerResource{name: "foo", namespace: "kyma-system"})
 
 	require.NoError(t, err)
 	require.True(t, ready)
@@ -113,7 +113,7 @@ func TestIsDeploymentNotReady(t *testing.T) {
 
 	clientset := fake.NewSimpleClientset(objects...)
 
-	ready, err := isDeploymentReady(context.Background(), clientset, &resource{name: "foo", namespace: "kyma-system"})
+	ready, err := isDeploymentReady(context.Background(), clientset, &trackerResource{name: "foo", namespace: "kyma-system"})
 
 	require.NoError(t, err)
 	require.False(t, ready)
@@ -170,7 +170,7 @@ func TestIsIgnoringOtherDeployments(t *testing.T) {
 
 	clientset := fake.NewSimpleClientset(objects...)
 
-	ready, err := isDeploymentReady(context.Background(), clientset, &resource{name: "foo", namespace: "kyma-system"})
+	ready, err := isDeploymentReady(context.Background(), clientset, &trackerResource{name: "foo", namespace: "kyma-system"})
 
 	require.NoError(t, err)
 	require.False(t, ready)
@@ -214,7 +214,7 @@ func TestIsStatefulSetReady(t *testing.T) {
 
 			c := fake.NewSimpleClientset(statefulSet)
 
-			ready, err := isStatefulSetReady(context.Background(), c, &resource{name: "foo", namespace: "kyma-system"})
+			ready, err := isStatefulSetReady(context.Background(), c, &trackerResource{name: "foo", namespace: "kyma-system"})
 
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, ready)
@@ -253,7 +253,7 @@ func TestIsDaemonSetReady(t *testing.T) {
 
 			clientset := fake.NewSimpleClientset(daemonSet)
 
-			ready, err := isDaemonSetReady(context.Background(), clientset, &resource{name: "foo", namespace: "kyma-system"})
+			ready, err := isDaemonSetReady(context.Background(), clientset, &trackerResource{name: "foo", namespace: "kyma-system"})
 
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, ready)

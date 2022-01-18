@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
-	"github.com/pkg/errors"
-
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -125,7 +125,9 @@ func (bk *bookkeeper) Run(ctx context.Context, tasks ...BookkeepingTask) error {
 }
 
 func (bk *bookkeeper) newReconciliationResult(recon *model.ReconciliationEntity) (*ReconciliationResult, error) {
-	ops, err := bk.repo.GetOperations(recon.SchedulingID)
+	ops, err := bk.repo.GetOperations(&operation.WithSchedulingID{
+		SchedulingID: recon.SchedulingID,
+	})
 	if err != nil {
 		return nil, err
 	}

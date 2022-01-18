@@ -11,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -60,7 +61,9 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 	require.NoError(t, err)
 
 	//retrieve ops of reconciliation entity
-	opEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+	opEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+		SchedulingID: reconEntity.SchedulingID,
+	})
 	require.NoError(t, err)
 	require.Len(t, opEntities, 7)
 	opEntity := opEntities[0]
@@ -81,10 +84,11 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 			Namespace:     "kyma-system",
 			Version:       "1.2.3",
 		},
-		ComponentsReady: nil,
-		ClusterState:    clusterStateMock,
-		SchedulingID:    opEntity.SchedulingID,
-		CorrelationID:   opEntity.CorrelationID,
+		ComponentsReady:     nil,
+		ClusterState:        clusterStateMock,
+		SchedulingID:        opEntity.SchedulingID,
+		CorrelationID:       opEntity.CorrelationID,
+		MaxOperationRetries: 5,
 	})
 
 	if simulateError {

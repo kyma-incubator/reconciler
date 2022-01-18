@@ -50,6 +50,15 @@ var (
 		require.NoError(t, err)
 	}
 
+	requireClusterStateResponseFct = func(t *testing.T, response interface{}) {
+		resp, ok := response.(*keb.HTTPClusterStateResponse)
+		require.Equal(t, true, ok)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Cluster)
+		require.NotNil(t, resp.Configuration)
+		require.NotNil(t, resp.Status)
+	}
+
 	requireClusterStateChangeFct = func(state keb.Status) func(t *testing.T, response interface{}) {
 		return func(t *testing.T, response interface{}) {
 			require.Equal(t, state, response.(*keb.HTTPClusterResponse).Status)
@@ -365,6 +374,74 @@ func TestMothership(t *testing.T) {
 			responseModel:    &keb.HTTPReconciliationInfo{},
 			verifier:         threeReconciliationOps,
 			// no need for waiting in initFn
+		},
+		{
+			name:             "Get cluster state: based on runtimeID",
+			url:              fmt.Sprintf("%s/clusters/state?runtimeID=%s", baseURL, clusterName2),
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.HTTPClusterStateResponse{},
+			verifier:         requireClusterStateResponseFct,
+		},
+		{
+			name: "Get cluster state: based on schedulingID",
+			dynamicURL: func() string {
+				resp := callMothership(t, &testCase{
+					url:              fmt.Sprintf("%s/reconciliations?runtimeID=%s", baseURL, clusterName2),
+					method:           httpGet,
+					expectedHTTPCode: 200,
+					responseModel:    &keb.ReconcilationsOKResponse{},
+				})
+
+				respModel := *(resp.(*keb.ReconcilationsOKResponse))
+				if len(respModel) < 1 {
+					t.Errorf("no reconciliations in db")
+				}
+
+				return fmt.Sprintf("%s/clusters/state?schedulingID=%s", baseURL, respModel[0].SchedulingID)
+			},
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.HTTPClusterStateResponse{},
+			verifier:         requireClusterStateResponseFct,
+		},
+		{
+			name: "Get cluster state: based on correlationID",
+			dynamicURL: func() string {
+				resp := callMothership(t, &testCase{
+					url:              fmt.Sprintf("%s/reconciliations?runtimeID=%s", baseURL, clusterName2),
+					method:           httpGet,
+					expectedHTTPCode: 200,
+					responseModel:    &keb.ReconcilationsOKResponse{},
+				})
+
+				reconciliations := *(resp.(*keb.ReconcilationsOKResponse))
+				if len(reconciliations) < 1 {
+					t.Errorf("no reconciliations in db")
+				}
+
+				respInfo := callMothership(t, &testCase{
+					url:              fmt.Sprintf("%s/reconciliations/%s/info", baseURL, reconciliations[0].SchedulingID),
+					method:           httpGet,
+					expectedHTTPCode: 200,
+					responseModel:    &keb.HTTPReconciliationInfo{},
+				})
+
+				recoInfo := *(respInfo.(*keb.HTTPReconciliationInfo))
+
+				return fmt.Sprintf("%s/clusters/state?CorrelationID=%s", baseURL, recoInfo.Operations[0].CorrelationID)
+			},
+			method:           httpGet,
+			expectedHTTPCode: 200,
+			responseModel:    &keb.HTTPClusterStateResponse{},
+			verifier:         requireClusterStateResponseFct,
+		},
+		{
+			name:             "Get cluster state: not found",
+			url:              fmt.Sprintf("%s/clusters/state?runtimeID=unknown", baseURL),
+			method:           httpGet,
+			expectedHTTPCode: 404,
+			responseModel:    &keb.HTTPErrorResponse{},
 		},
 		{
 			name:             "Disable reconciliation",

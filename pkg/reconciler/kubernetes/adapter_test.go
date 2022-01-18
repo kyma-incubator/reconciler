@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
-	"testing"
-	"time"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
+	"path/filepath"
+	"testing"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
@@ -59,7 +57,7 @@ type testInterceptor struct {
 	err error
 }
 
-func (i *testInterceptor) Intercept(resources *ResourceList, _ string) error {
+func (i *testInterceptor) Intercept(resources *ResourceCacheList, _ string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
 		u.SetLabels(expectedLabels)
 		return i.err
@@ -72,10 +70,7 @@ func TestKubernetesClient(t *testing.T) {
 	test.IntegrationTest(t)
 
 	//create client
-	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), &Config{
-		ProgressInterval: 1 * time.Second,
-		ProgressTimeout:  1 * time.Minute,
-	})
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	t.Run("Deploy no resources because interceptor was failing", func(t *testing.T) {

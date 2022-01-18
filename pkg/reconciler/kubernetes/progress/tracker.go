@@ -22,13 +22,13 @@ const (
 
 type State string
 
-type resource struct {
+type trackerResource struct {
 	kind      WatchableResource
 	name      string
 	namespace string
 }
 
-func (o *resource) String() string {
+func (o *trackerResource) String() string {
 	return fmt.Sprintf("%s [namespace:%s|name:%s]", o.kind, o.namespace, o.name)
 }
 
@@ -58,7 +58,7 @@ func (ptc *Config) validate() error {
 }
 
 type Tracker struct {
-	objects  []*resource
+	objects  []*trackerResource
 	client   kubernetes.Interface
 	interval time.Duration
 	timeout  time.Duration
@@ -132,7 +132,7 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 }
 
 func (pt *Tracker) AddResource(kind WatchableResource, namespace, name string) {
-	pt.objects = append(pt.objects, &resource{
+	pt.objects = append(pt.objects, &trackerResource{
 		kind:      kind,
 		namespace: namespace,
 		name:      name,

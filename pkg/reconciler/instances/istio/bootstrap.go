@@ -80,7 +80,7 @@ func newDefaultCommanderResolver(paths []string, log *zap.SugaredLogger) (action
 func parsePaths(input string, isValid func(string) error) ([]string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
-		return nil, errors.Errorf("No paths defined")
+		return nil, errors.Errorf("%s env variable is undefined or empty", istioctlBinaryPathEnvKey)
 	}
 	if len(trimmed) > istioctlBinaryPathMaxLen {
 		return nil, errors.New(fmt.Sprintf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen))

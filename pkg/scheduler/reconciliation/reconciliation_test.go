@@ -13,6 +13,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/stretchr/testify/require"
 )
 
@@ -362,7 +363,9 @@ func TestReconciliationRepository(t *testing.T) {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, [][]string{{"comp3"}})
 				require.NoError(t, err)
 
-				opsEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
 				require.NoError(t, err)
 				require.Len(t, opsEntities, 5)
 
@@ -388,7 +391,9 @@ func TestReconciliationRepository(t *testing.T) {
 				err = reconRepo.RemoveReconciliation(reconEntity.SchedulingID)
 				require.NoError(t, err)
 
-				opsEntities, err = reconRepo.GetOperations(reconEntity.SchedulingID)
+				opsEntities, err = reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
 				require.NoError(t, err)
 				require.Empty(t, opsEntities)
 			},
@@ -399,17 +404,25 @@ func TestReconciliationRepository(t *testing.T) {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 
-				opsEntitiesAll, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				opsEntitiesAll, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesAll, 5)
 
-				opsEntitiesNew, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateNew)
+				opsEntitiesNew, err := reconRepo.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
+					&operation.WithSchedulingID{SchedulingID: reconEntity.SchedulingID},
+					&operation.WithStates{States: []model.OperationState{model.OperationStateNew}},
+				}})
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesNew, 5)
 
 				err = reconRepo.UpdateOperationState(opsEntitiesAll[0].SchedulingID, opsEntitiesAll[0].CorrelationID, model.OperationStateError, false, "err")
 				require.NoError(t, err)
-				opsEntitiesErr, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateError)
+				opsEntitiesErr, err := reconRepo.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
+					&operation.WithSchedulingID{SchedulingID: reconEntity.SchedulingID},
+					&operation.WithStates{States: []model.OperationState{model.OperationStateError}},
+				}})
 
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesErr, 1)
@@ -417,7 +430,10 @@ func TestReconciliationRepository(t *testing.T) {
 
 				err = reconRepo.UpdateOperationState(opsEntitiesAll[1].SchedulingID, opsEntitiesAll[1].CorrelationID, model.OperationStateFailed, false, "err")
 				require.NoError(t, err)
-				opsEntitiesFailed, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateFailed)
+				opsEntitiesFailed, err := reconRepo.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
+					&operation.WithSchedulingID{SchedulingID: reconEntity.SchedulingID},
+					&operation.WithStates{States: []model.OperationState{model.OperationStateFailed}},
+				}})
 
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesFailed, 1)
@@ -430,7 +446,10 @@ func TestReconciliationRepository(t *testing.T) {
 				err = reconRepo.UpdateOperationState(opsEntitiesAll[4].SchedulingID, opsEntitiesAll[4].CorrelationID,
 					model.OperationStateDone, false)
 				require.NoError(t, err)
-				opsEntitiesDone, err := reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateDone)
+				opsEntitiesDone, err := reconRepo.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
+					&operation.WithSchedulingID{SchedulingID: reconEntity.SchedulingID},
+					&operation.WithStates{States: []model.OperationState{model.OperationStateDone}},
+				}})
 
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesDone, 3)
@@ -445,7 +464,10 @@ func TestReconciliationRepository(t *testing.T) {
 				})
 
 				//no operation should be in state NEW anymore
-				opsEntitiesNew, err = reconRepo.GetOperations(reconEntity.SchedulingID, model.OperationStateNew)
+				opsEntitiesNew, err = reconRepo.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
+					&operation.WithSchedulingID{SchedulingID: reconEntity.SchedulingID},
+					&operation.WithStates{States: []model.OperationState{model.OperationStateNew}},
+				}})
 
 				require.NoError(t, err)
 				require.Len(t, opsEntitiesNew, 0)
@@ -458,7 +480,10 @@ func TestReconciliationRepository(t *testing.T) {
 				require.NoError(t, err)
 
 				//get existing operations
-				opsEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+
 				require.NoError(t, err)
 				require.Len(t, opsEntities, 5)
 
@@ -499,10 +524,14 @@ func TestReconciliationRepository(t *testing.T) {
 				require.NoError(t, err)
 
 				//get existing operations
-				opsEntities1, err := reconRepo.GetOperations(reconEntity1.SchedulingID)
+				opsEntities1, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity1.SchedulingID,
+				})
 				require.NoError(t, err)
 				require.Len(t, opsEntities1, 5)
-				opsEntities2, err := reconRepo.GetOperations(reconEntity2.SchedulingID)
+				opsEntities2, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity2.SchedulingID,
+				})
 				require.NoError(t, err)
 				require.Len(t, opsEntities2, 3)
 
@@ -560,7 +589,9 @@ func TestReconciliationRepository(t *testing.T) {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
 				require.NoError(t, err)
 
-				opsEntities, err := reconRepo.GetOperations(reconEntity.SchedulingID)
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
 				require.NoError(t, err)
 				require.Len(t, opsEntities, 5)
 
@@ -769,7 +800,9 @@ func TestReconciliationParallel(t *testing.T) {
 			preparationFunc: func(repo Repository, state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
 				recon, err := repo.CreateReconciliation(state, nil)
 				require.NoError(t, err)
-				allOperations, err := repo.GetOperations(recon.SchedulingID)
+				allOperations, err := repo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: recon.SchedulingID,
+				})
 				require.NoError(t, err)
 				return recon, allOperations
 			},
