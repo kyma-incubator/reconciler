@@ -120,7 +120,7 @@ func (r *removeNatsOperatorStep) removeNatsOperatorResources(context *service.Ac
 		//if resource is watchable, add it to progress tracker
 		watchable, err := progress.NewWatchableResource(u.GetKind())
 		if err == nil { //add only watchable resources to progress tracker
-			tracker.AddResource(watchable, u.GetNamespace(), u.GetName())
+			tracker.AddResource(watchable, namespace, u.GetName())
 		}
 
 		logger.Infof("Deleting: kind: %s, name: %s, namespace: %s", u.GetKind(), u.GetName(), namespace)
