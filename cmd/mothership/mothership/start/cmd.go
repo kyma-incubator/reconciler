@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
@@ -28,6 +29,10 @@ func NewCmd(o *Options) *cobra.Command {
 				o.Logger().Infof("New encryption key file created: %s", encKeyFile)
 			}
 
+			if o.StopAfterMigration {
+				return db.MigrateDatabase(viper.ConfigFileUsed(), o.Verbose)
+			}
+
 			if err := o.InitApplicationRegistry(true); err != nil {
 				return err
 			}
@@ -49,7 +54,7 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().BoolVar(&o.AuditLog, "audit-log", false, "Enable audit logging")
 	cmd.Flags().StringVar(&o.AuditLogFile, "audit-log-file", "/var/log/auditlog/mothership-audit.log", "Path for mothership audit log file")
 	cmd.Flags().StringVar(&o.AuditLogTenantID, "audit-log-tenant-id", "", "tenant id for audit logging")
-
+	cmd.Flags().BoolVar(&o.StopAfterMigration, "stop-after-migrate", false, "Stop mothership after database migration to the latest release")
 	return cmd
 }
 
