@@ -99,7 +99,7 @@ func TestCustomerResources(t *testing.T) {
 		crManifest := readManifest(t, "unittest-cr.yaml")
 
 		//have to wait a bit to make sure CRD is fully deployed
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		_, err = kubeClient.Deploy(context.TODO(), crManifest, "unittest-cr")
 
 		require.NoError(t, err)
