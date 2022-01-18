@@ -73,7 +73,7 @@ func TestCustomerResources(t *testing.T) {
 	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), nil)
 	require.NoError(t, err)
 
-	defer deleteTestResources(t, kubeClient, false)
+	defer deleteTestResources(t, kubeClient)
 	t.Run("Should get error when deploy CR without CRD", func(t *testing.T) {
 		manifest := readManifest(t, "unittest-cr.yaml")
 
@@ -106,7 +106,7 @@ func TestCustomerResources(t *testing.T) {
 	})
 }
 
-func deleteTestResources(t *testing.T, client Client, b bool) {
+func deleteTestResources(t *testing.T, client Client) {
 	err := deleteResources(t, client, "unittest-crd.yaml", "unittest-cr")
 	require.NoError(t, err)
 	err = deleteResources(t, client, "unittest-cr.yaml", "unittest-cr")
