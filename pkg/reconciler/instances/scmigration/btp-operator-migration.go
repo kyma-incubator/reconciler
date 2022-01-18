@@ -10,7 +10,7 @@ import (
 	"github.com/SAP/sap-btp-service-operator/api/v1alpha1"
 	"github.com/SAP/sap-btp-service-operator/client/sm"
 	"github.com/SAP/sap-btp-service-operator/client/sm/types"
-	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/v1beta1"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/scmigration/apis/servicecatalog/v1beta1"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 
 	corev1 "k8s.io/api/core/v1"
