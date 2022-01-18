@@ -18,7 +18,6 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
-	github.com/kubernetes-sigs/service-catalog v0.3.1
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-sqlite3 v1.14.7
@@ -49,6 +48,6 @@ require (
 	k8s.io/cli-runtime v0.22.4
 	k8s.io/client-go v0.22.4
 	k8s.io/kubectl v0.22.4
-	sigs.k8s.io/controller-runtime v0.9.0 // indirect
+	sigs.k8s.io/controller-runtime v0.9.0
 	sigs.k8s.io/yaml v1.2.0
 )
