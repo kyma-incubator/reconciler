@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -176,9 +175,10 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			name: "Install component from scratch",
 			model: &reconciler.Task{
 				ComponentsReady: []string{"abc", "xyz"},
-				Component:       componentName,
-				Namespace:       componentNamespace,
-				Version:         componentVersion,
+				Component:       externalComponentName,
+				URL:             externalComponentURL,
+				Namespace:       externalComponentNamespace,
+				Version:         externalComponentVersion,
 				Type:            model.OperationTypeReconcile,
 				Profile:         "",
 				Configuration:   nil,
@@ -187,27 +187,6 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 				ComponentConfiguration: reconciler.ComponentConfiguration{
 					MaxRetries: 1,
 				},
-			},
-			expectedHTTPCode: http.StatusOK,
-			expectedResponse: &reconciler.HTTPReconciliationResponse{},
-			verifyResponseFct: func(t *testing.T, i interface{}) {
-				expectPodInState(t, componentDeployment, progress.ReadyState, kubeClient) //wait until pod is ready
-			},
-			verifyCallbacksFct: expectSuccessfulReconciliation,
-		},
-		{
-			name: "Install external component from scratch",
-			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Component:       externalComponentName,
-				Namespace:       externalComponentNamespace,
-				Version:         externalComponentVersion,
-				URL:             externalComponentURL,
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      test.ReadKubeconfig(t),
-				CorrelationID:   "test-correlation-id",
 			},
 			expectedHTTPCode: http.StatusOK,
 			expectedResponse: &reconciler.HTTPReconciliationResponse{},
@@ -216,120 +195,140 @@ func runTestCases(t *testing.T, kubeClient kubernetes.Client) {
 			},
 			verifyCallbacksFct: expectSuccessfulReconciliation,
 		},
-		{
-			name: "Try to apply impossible change: change api version",
-			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Component:       componentName,
-				Namespace:       componentNamespace,
-				Version:         componentVersion,
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration: map[string]interface{}{
-					"v1k": "true",
-				},
-				Kubeconfig:    test.ReadKubeconfig(t),
-				CorrelationID: "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
-			},
-			expectedHTTPCode:   http.StatusOK,
-			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
-			verifyCallbacksFct: expectFailingReconciliation,
-		},
-		{
-			name: "Try to reconcile unreachable cluster",
-			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Component:       componentName,
-				Namespace:       componentNamespace,
-				Version:         componentVersion,
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig: func() string {
-					kc, err := ioutil.ReadFile(filepath.Join("test", "kubeconfig-unreachable.yaml"))
-					require.NoError(t, err)
-					return string(kc)
-				}(),
-				CorrelationID: "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
-			},
-			expectedHTTPCode:   http.StatusOK,
-			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
-			verifyCallbacksFct: expectFailingReconciliation,
-		},
-		{
-			name: "Try to deploy defective HELM chart",
-			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Component:       componentName,
-				Namespace:       componentNamespace,
-				Version:         componentVersion,
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration: map[string]interface{}{
-					"breakHelmChart": true,
-				},
-				Kubeconfig:    test.ReadKubeconfig(t),
-				CorrelationID: "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
-			},
-			expectedHTTPCode:   http.StatusOK,
-			expectedResponse:   &reconciler.HTTPReconciliationResponse{},
-			verifyCallbacksFct: expectFailingReconciliation,
-		},
-		{
-			name: "Simulate non-available mothership",
-			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Component:       componentName,
-				Namespace:       componentNamespace,
-				Version:         componentVersion,
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      test.ReadKubeconfig(t),
-				CallbackURL:     "https://127.0.0.1:12345",
-				CorrelationID:   "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
-			},
-			expectedHTTPCode: http.StatusOK,
-			expectedResponse: &reconciler.HTTPReconciliationResponse{},
-			verifyCallbacksFct: func(t *testing.T, callbacks []*reconciler.CallbackMessage) {
-				require.Empty(t, callbacks)
-			},
-		},
-		{
-			name: "Delete component",
-			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Component:       componentName,
-				Namespace:       componentNamespace,
-				Version:         componentVersion,
-				Type:            model.OperationTypeDelete,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      test.ReadKubeconfig(t),
-				CorrelationID:   "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
-			},
-			expectedHTTPCode: http.StatusOK,
-			expectedResponse: &reconciler.HTTPReconciliationResponse{},
-			verifyResponseFct: func(t *testing.T, i interface{}) {
-				expectPodInState(t, componentDeployment, progress.TerminatedState, kubeClient) // check that deletion was successful
-			},
-			verifyCallbacksFct: expectSuccessfulReconciliation,
-		},
+		//{
+		//	name: "Install external component from scratch",
+		//	model: &reconciler.Task{
+		//		Component:       externalComponentName,
+		//		Namespace:       externalComponentNamespace,
+		//		Version:         externalComponentVersion,
+		//		URL:             externalComponentURL,
+		//		Type:            model.OperationTypeReconcile,
+		//		Profile:         "",
+		//		Configuration:   nil,
+		//		Kubeconfig:      test.ReadKubeconfig(t),
+		//		CorrelationID:   "test-correlation-id",
+		//	},
+		//	expectedHTTPCode: http.StatusOK,
+		//	expectedResponse: &reconciler.HTTPReconciliationResponse{},
+		//	verifyResponseFct: func(t *testing.T, i interface{}) {
+		//		expectPodInState(t, externalComponentDeployment, progress.ReadyState, kubeClient) //wait until pod is ready
+		//	},
+		//	verifyCallbacksFct: expectSuccessfulReconciliation,
+		//},
+		//{
+		//	name: "Try to apply impossible change: change api version",
+		//	model: &reconciler.Task{
+		//		ComponentsReady: []string{"abc", "xyz"},
+		//		Component:       componentName,
+		//		Namespace:       componentNamespace,
+		//		Version:         componentVersion,
+		//		Type:            model.OperationTypeReconcile,
+		//		Profile:         "",
+		//		Configuration: map[string]interface{}{
+		//			"v1k": "true",
+		//		},
+		//		Kubeconfig:    test.ReadKubeconfig(t),
+		//		CorrelationID: "test-correlation-id",
+		//		ComponentConfiguration: reconciler.ComponentConfiguration{
+		//			MaxRetries: 1,
+		//		},
+		//	},
+		//	expectedHTTPCode:   http.StatusOK,
+		//	expectedResponse:   &reconciler.HTTPReconciliationResponse{},
+		//	verifyCallbacksFct: expectFailingReconciliation,
+		//},
+		//{
+		//	name: "Try to reconcile unreachable cluster",
+		//	model: &reconciler.Task{
+		//		ComponentsReady: []string{"abc", "xyz"},
+		//		Component:       componentName,
+		//		Namespace:       componentNamespace,
+		//		Version:         componentVersion,
+		//		Type:            model.OperationTypeReconcile,
+		//		Profile:         "",
+		//		Configuration:   nil,
+		//		Kubeconfig: func() string {
+		//			kc, err := ioutil.ReadFile(filepath.Join("test", "kubeconfig-unreachable.yaml"))
+		//			require.NoError(t, err)
+		//			return string(kc)
+		//		}(),
+		//		CorrelationID: "test-correlation-id",
+		//		ComponentConfiguration: reconciler.ComponentConfiguration{
+		//			MaxRetries: 1,
+		//		},
+		//	},
+		//	expectedHTTPCode:   http.StatusOK,
+		//	expectedResponse:   &reconciler.HTTPReconciliationResponse{},
+		//	verifyCallbacksFct: expectFailingReconciliation,
+		//},
+		//{
+		//	name: "Try to deploy defective HELM chart",
+		//	model: &reconciler.Task{
+		//		ComponentsReady: []string{"abc", "xyz"},
+		//		Component:       componentName,
+		//		Namespace:       componentNamespace,
+		//		Version:         componentVersion,
+		//		Type:            model.OperationTypeReconcile,
+		//		Profile:         "",
+		//		Configuration: map[string]interface{}{
+		//			"breakHelmChart": true,
+		//		},
+		//		Kubeconfig:    test.ReadKubeconfig(t),
+		//		CorrelationID: "test-correlation-id",
+		//		ComponentConfiguration: reconciler.ComponentConfiguration{
+		//			MaxRetries: 1,
+		//		},
+		//	},
+		//	expectedHTTPCode:   http.StatusOK,
+		//	expectedResponse:   &reconciler.HTTPReconciliationResponse{},
+		//	verifyCallbacksFct: expectFailingReconciliation,
+		//},
+		//{
+		//	name: "Simulate non-available mothership",
+		//	model: &reconciler.Task{
+		//		ComponentsReady: []string{"abc", "xyz"},
+		//		Component:       componentName,
+		//		Namespace:       componentNamespace,
+		//		Version:         componentVersion,
+		//		Type:            model.OperationTypeReconcile,
+		//		Profile:         "",
+		//		Configuration:   nil,
+		//		Kubeconfig:      test.ReadKubeconfig(t),
+		//		CallbackURL:     "https://127.0.0.1:12345",
+		//		CorrelationID:   "test-correlation-id",
+		//		ComponentConfiguration: reconciler.ComponentConfiguration{
+		//			MaxRetries: 1,
+		//		},
+		//	},
+		//	expectedHTTPCode: http.StatusOK,
+		//	expectedResponse: &reconciler.HTTPReconciliationResponse{},
+		//	verifyCallbacksFct: func(t *testing.T, callbacks []*reconciler.CallbackMessage) {
+		//		require.Empty(t, callbacks)
+		//	},
+		//},
+		//{
+		//	name: "Delete component",
+		//	model: &reconciler.Task{
+		//		ComponentsReady: []string{"abc", "xyz"},
+		//		Component:       componentName,
+		//		Namespace:       componentNamespace,
+		//		Version:         componentVersion,
+		//		Type:            model.OperationTypeDelete,
+		//		Profile:         "",
+		//		Configuration:   nil,
+		//		Kubeconfig:      test.ReadKubeconfig(t),
+		//		CorrelationID:   "test-correlation-id",
+		//		ComponentConfiguration: reconciler.ComponentConfiguration{
+		//			MaxRetries: 1,
+		//		},
+		//	},
+		//	expectedHTTPCode: http.StatusOK,
+		//	expectedResponse: &reconciler.HTTPReconciliationResponse{},
+		//	verifyResponseFct: func(t *testing.T, i interface{}) {
+		//		expectPodInState(t, componentDeployment, progress.TerminatedState, kubeClient) // check that deletion was successful
+		//	},
+		//	verifyCallbacksFct: expectSuccessfulReconciliation,
+		//},
 	}
 
 	for _, testCase := range testCases {
