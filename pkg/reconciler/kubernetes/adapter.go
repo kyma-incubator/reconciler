@@ -18,8 +18,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -327,11 +327,23 @@ func (g *kubeClientAdapter) convertToInfo(unstruct *unstructured.Unstructured, n
 		return nil, err
 	}
 	info.Client = client
-	restMapping, err := g.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	err = retry.Do(func() error {
+		restMapping, err := g.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		if err != nil {
+			g.mapper.Reset()
+			return err
+		}
+		info.Mapping = restMapping
+		return nil
+	},
+		retry.Attempts(uint(5)),
+		retry.Delay(1*time.Second),
+		retry.LastErrorOnly(true))
+
 	if err != nil {
 		return nil, err
 	}
-	info.Mapping = restMapping
+
 	info.Namespace = unstruct.GetNamespace()
 	setNamespaceIfScoped(namespaceOverride, info)
 	info.Name = unstruct.GetName()

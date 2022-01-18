@@ -12,7 +12,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 var expectedResourcesWithoutNs = []*Resource{
@@ -91,16 +90,12 @@ func TestCustomerResources(t *testing.T) {
 	})
 
 	t.Run("Should not get error when deploy CR after CRD", func(t *testing.T) {
-		t.Skip("skip until we have better solution to watch CRD deployment progress")
 		crdManifest := readManifest(t, "unittest-crd.yaml")
 
 		_, err := kubeClient.Deploy(context.TODO(), crdManifest, "unittest-cr")
 		require.NoError(t, err)
 
 		crManifest := readManifest(t, "unittest-cr.yaml")
-
-		//have to wait a bit to make sure CRD is fully deployed
-		time.Sleep(20 * time.Second)
 		_, err = kubeClient.Deploy(context.TODO(), crManifest, "unittest-cr")
 
 		require.NoError(t, err)
