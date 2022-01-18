@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/resource"
 	"time"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
@@ -26,6 +27,7 @@ type trackerResource struct {
 	kind      WatchableResource
 	name      string
 	namespace string
+	info      *resource.Info
 }
 
 func (o *trackerResource) String() string {
@@ -139,6 +141,15 @@ func (pt *Tracker) AddResource(kind WatchableResource, namespace, name string) {
 	})
 }
 
+func (pt *Tracker) AddResourceWithInfo(kind WatchableResource, namespace, name string, info *resource.Info) {
+	pt.objects = append(pt.objects, &trackerResource{
+		kind:      kind,
+		namespace: namespace,
+		name:      name,
+		info:      info,
+	})
+}
+
 func (pt *Tracker) allWatchableInState(ctx context.Context, targetState State) (bool, error) {
 	switch targetState {
 	case ReadyState:
@@ -166,6 +177,14 @@ func (pt *Tracker) isInReadyState(ctx context.Context) (bool, error) {
 			ready, err = isStatefulSetReady(ctx, pt.client, object)
 		case Job:
 			ready, err = isJobReady(ctx, pt.client, object)
+		case CustomResourceDefinition:
+			if object.info == nil {
+				return false, fmt.Errorf("please use AddResourceWithInfo instead of AddResource for progress tracking CRD resources")
+			}
+			ready, err = isCRDReady(ctx, object)
+			if err != nil {
+				ready, err = isCRDBetaReady(ctx, object)
+			}
 		}
 
 		if err != nil {
@@ -198,6 +217,12 @@ func (pt *Tracker) isInTerminatedState(ctx context.Context) (bool, error) {
 			_, err = pt.client.AppsV1().StatefulSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 		case Job:
 			_, err = pt.client.BatchV1().Jobs(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
+		case CustomResourceDefinition:
+			if object.info == nil {
+				err = fmt.Errorf("please use AddResourceWithInfo instead of AddResource for progress tracking CRD resources")
+			} else {
+				err = object.info.Get()
+			}
 		}
 
 		if err == nil {

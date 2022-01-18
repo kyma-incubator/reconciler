@@ -279,7 +279,7 @@ func (g *kubeClientAdapter) addWatchableResourceInfoToProgressTracker(info *reso
 	}
 	watchable, nonWatchableErr := progress.NewWatchableResource(resource.Kind)
 	if nonWatchableErr == nil {
-		pt.AddResource(watchable, resource.Namespace, resource.Name)
+		pt.AddResourceWithInfo(watchable, resource.Namespace, resource.Name, info)
 	}
 	return resource
 }
@@ -327,15 +327,7 @@ func (g *kubeClientAdapter) convertToInfo(unstruct *unstructured.Unstructured, n
 		return nil, err
 	}
 	info.Client = client
-	err = retry.Do(func() error {
-		restMapping, err := g.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-		if err != nil {
-			g.mapper.Reset()
-			return err
-		}
-		info.Mapping = restMapping
-		return nil
-	},
+	err = retry.Do(g.constructRestMappingFunc(gvk, info),
 		retry.Attempts(uint(5)),
 		retry.Delay(1*time.Second),
 		retry.LastErrorOnly(true))
@@ -349,6 +341,18 @@ func (g *kubeClientAdapter) convertToInfo(unstruct *unstructured.Unstructured, n
 	info.Name = unstruct.GetName()
 	info.Object = unstruct.DeepCopyObject()
 	return info, nil
+}
+
+func (g *kubeClientAdapter) constructRestMappingFunc(gvk schema.GroupVersionKind, info *resource.Info) func() error {
+	return func() error {
+		restMapping, err := g.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		if err != nil {
+			g.mapper.Reset()
+			return err
+		}
+		info.Mapping = restMapping
+		return nil
+	}
 }
 
 func newRestClient(restConfig rest.Config, gv schema.GroupVersion) (rest.Interface, error) {
@@ -580,7 +584,7 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifestTarget, namespac
 
 		watchable, err := progress.NewWatchableResource(deletedResource.Kind)
 		if err == nil {
-			pt.AddResource(watchable, deletedResource.Namespace, deletedResource.Name)
+			pt.AddResourceWithInfo(watchable, deletedResource.Namespace, deletedResource.Name, info)
 		}
 	}
 

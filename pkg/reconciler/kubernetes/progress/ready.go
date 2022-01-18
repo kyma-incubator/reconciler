@@ -4,9 +4,12 @@ import (
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	appsclient "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"sort"
 )
@@ -97,6 +100,74 @@ func isJobReady(ctx context.Context, client kubernetes.Interface, object *tracke
 		}
 	}
 	return true, err
+}
+
+func isCRDBetaReady(ctx context.Context, object *trackerResource) (bool, error) {
+	if err := object.info.Get(); err != nil {
+		return false, err
+	}
+	crd := &apiextv1beta1.CustomResourceDefinition{}
+	if err := scheme.Scheme.Convert(object.info.Object, crd, ctx); err != nil {
+		return false, err
+	}
+	if !crdBetaReady(*crd) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func isCRDReady(ctx context.Context, object *trackerResource) (bool, error) {
+	if err := object.info.Get(); err != nil {
+		return false, err
+	}
+	crd := &apiextv1.CustomResourceDefinition{}
+	if err := scheme.Scheme.Convert(object.info.Object, crd, ctx); err != nil {
+		return false, err
+	}
+	if !crdReady(*crd) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func crdBetaReady(crd apiextv1beta1.CustomResourceDefinition) bool {
+	for _, cond := range crd.Status.Conditions {
+		switch cond.Type {
+		case apiextv1beta1.Established:
+			if cond.Status == apiextv1beta1.ConditionTrue {
+				return true
+			}
+		case apiextv1beta1.NamesAccepted:
+			if cond.Status == apiextv1beta1.ConditionFalse {
+				// This indicates a naming conflict, but it's probably not the
+				// job of this function to fail because of that. Instead,
+				// we treat it as a success, since the process should be able to
+				// continue.
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func crdReady(crd apiextv1.CustomResourceDefinition) bool {
+	for _, cond := range crd.Status.Conditions {
+		switch cond.Type {
+		case apiextv1.Established:
+			if cond.Status == apiextv1.ConditionTrue {
+				return true
+			}
+		case apiextv1.NamesAccepted:
+			if cond.Status == apiextv1.ConditionFalse {
+				// This indicates a naming conflict, but it's probably not the
+				// job of this function to fail because of that. Instead,
+				// we treat it as a success, since the process should be able to
+				// continue.
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func getLatestReplicaSet(ctx context.Context, deployment *appsv1.Deployment, client appsclient.AppsV1Interface) (*appsv1.ReplicaSet, error) {

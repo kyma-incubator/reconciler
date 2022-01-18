@@ -97,7 +97,6 @@ func TestCustomerResources(t *testing.T) {
 
 		crManifest := readManifest(t, "unittest-cr.yaml")
 		_, err = kubeClient.Deploy(context.TODO(), crManifest, "unittest-cr")
-
 		require.NoError(t, err)
 	})
 }
