@@ -3,16 +3,16 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/test"
+	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 	"path/filepath"
 	"testing"
-
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/stretchr/testify/require"
+	"time"
 )
 
 var expectedResourcesWithoutNs = []*Resource{
@@ -97,7 +97,9 @@ func TestCustomerResources(t *testing.T) {
 		require.NoError(t, err)
 
 		crManifest := readManifest(t, "unittest-cr.yaml")
-		kubeClient.(*kubeClientAdapter).invalidateClientCache()
+
+		//have to wait a bit to make sure CRD is fully deployed
+		time.Sleep(5 * time.Second)
 		_, err = kubeClient.Deploy(context.TODO(), crManifest, "unittest-cr")
 
 		require.NoError(t, err)
