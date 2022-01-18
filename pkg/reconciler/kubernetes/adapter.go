@@ -99,10 +99,6 @@ func (g *kubeClientAdapter) Kubeconfig() string {
 	return g.kubeconfig
 }
 
-func (g *kubeClientAdapter) invalidateClientCache() {
-	g.mapper.Reset()
-}
-
 func (g *kubeClientAdapter) PatchUsingStrategy(context context.Context, kind, name, namespace string, p []byte, strategy types.PatchType) error {
 	gvk, err := g.mapper.KindFor(schema.GroupVersionResource{Resource: kind})
 	if err != nil {
