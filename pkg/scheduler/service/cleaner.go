@@ -70,6 +70,7 @@ func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, conf
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
 func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, config *CleanerConfig) {
+	now := time.Now()
 
 	latestReconciliations, err := c.getLatestReconciliations(transition, config.keepLatestEntitiesCount())
 	if err != nil {
@@ -82,9 +83,9 @@ func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, c
 	}
 
 	oldestInRange := findOldestReconciliation(latestReconciliations)
-	oldestReconciliationAgeDays := diffDays(oldestInRange.Created, time.Now())
+	oldestInRangeAgeDays := diffDays(oldestInRange.Created, now)
 
-	if oldestReconciliationAgeDays > config.keepUnsuccessfulEntitiesDays() {
+	if oldestInRangeAgeDays > config.keepUnsuccessfulEntitiesDays() {
 		//The set of last 'N' reconciliations (which we must keep) contains an entity that is older than configured 'KeepUnsuccessfulEntitiesDays'
 		//It's enough to drop all records older than the oldest from the set.
 		err = c.dropRecordsOlderThan(transition, oldestInRange.Created)
@@ -96,7 +97,7 @@ func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, c
 
 	//if we're here, there may exist unsuccessful entities older than 'oldestInRange', but within 'KeepUnsuccessfulEntitiesDays' time range.
 	//We have to preserve these (if exist) and remove everything else.
-	deadline := beginningOfTheDay(time.Now()).AddDate(0, 0, -1*config.keepUnsuccessfulEntitiesDays())
+	deadline := beginningOfTheDay(now).AddDate(0, 0, -1*config.keepUnsuccessfulEntitiesDays())
 	err = c.dropRecordsOlderThan(transition, deadline)
 	if err != nil {
 		c.logger.Errorf("Cleaner failed to remove reconciliations older than %s: %s", deadline.String(), err.Error())
