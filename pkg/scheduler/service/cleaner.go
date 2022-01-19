@@ -35,7 +35,7 @@ func newCleaner(logger *zap.SugaredLogger) *cleaner {
 }
 
 func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, config *CleanerConfig) error {
-	c.logger.Infof("Starting entities cleaner: interval for clearing old Reconciliation and Operation entities "+
+	c.logger.Infof("[CLEANER] Starting entities cleaner: interval for clearing old Reconciliation and Operation entities "+
 		"is %s. Cleaner will remove entities older than %s", config.CleanerInterval.String(), config.PurgeEntitiesOlderThan.String())
 
 	ticker := time.NewTicker(config.CleanerInterval)
@@ -45,7 +45,7 @@ func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, 
 		case <-ticker.C:
 			c.purgeReconciliations(transition, config)
 		case <-ctx.Done():
-			c.logger.Info("Stopping cleaner because parent context got closed")
+			c.logger.Info("[CLEANER] Stopping because parent context got closed")
 			ticker.Stop()
 			return nil
 		}
@@ -54,7 +54,7 @@ func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, 
 
 func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, config *CleanerConfig) {
 
-	c.logger.Info("Cleaning process started")
+	c.logger.Info("[CLEANER] Process started")
 
 	if config.KeepLatestEntitiesCount > 0 {
 		c.purgeReconciliationsNew(transition, config)
@@ -62,12 +62,12 @@ func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, conf
 		c.purgeReconciliationsOld(transition, config)
 	}
 
-	c.logger.Info("Cleaning process finished")
+	c.logger.Info("[CLEANER] Process finished")
 }
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
 func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, config *CleanerConfig) {
-	c.logger.Info("DEBUG: new purgeReconciliations logic")
+	c.logger.Info("[CLEANER] DEBUG: new purgeReconciliations logic")
 	now := time.Now()
 
 	latestReconciliations, err := c.getLatestReconciliations(transition, config.keepLatestEntitiesCount())
@@ -75,43 +75,42 @@ func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, c
 		c.logger.Errorf("Cleaner failed to get last %d reconciliations: %s", config.keepLatestEntitiesCount(), err.Error())
 	}
 
-	c.logger.Infof("DEBUG: latestReconciliations count: %d", len(latestReconciliations))
 	if len(latestReconciliations) < config.keepLatestEntitiesCount() {
 		//Nothing to clean up
 		return
 	}
 
 	oldestInRange := findOldestReconciliation(latestReconciliations)
-	c.logger.Infof("DEBUG: oldestInRange: %s", oldestInRange.Created)
+	c.logger.Infof("[CLEANER] DEBUG: oldestInRange: %s", oldestInRange.Created)
 	oldestInRangeAgeDays := diffDays(oldestInRange.Created, now)
 
 	if oldestInRangeAgeDays > config.keepUnsuccessfulEntitiesDays() {
-		c.logger.Info("DEBUG: oldestInRangeAgeDays > config.keepUnsuccessfulEntitiesDays()")
+		c.logger.Info("[CLEANER] DEBUG: oldestInRangeAgeDays > config.keepUnsuccessfulEntitiesDays()")
 		//The set of last 'N' reconciliations (which we must keep) contains an entity that is older than configured 'KeepUnsuccessfulEntitiesDays'
 		//It's enough to drop all records older than the oldest from the set.
-		err = c.dropRecordsOlderThan(transition, oldestInRange.Created)
+		err = c.dropRecordsOlderThan(oldestInRange.Created, transition)
 		if err != nil {
 			c.logger.Errorf("Cleaner failed to remove all reconciliations older than %s: %s", oldestInRange.Created.String(), err.Error())
 		}
 		return
 	}
 
-	c.logger.Info("DEBUG: oldestInRangeAgeDays <= config.keepUnsuccessfulEntitiesDays()")
+	c.logger.Info("[CLEANER] DEBUG: oldestInRangeAgeDays <= config.keepUnsuccessfulEntitiesDays()")
 	//if we're here, there may exist unsuccessful entities older than 'oldestInRange', but within 'KeepUnsuccessfulEntitiesDays' time range.
 	//We have to preserve these (if exist) and remove everything else.
 	deadline := beginningOfTheDay(now).AddDate(0, 0, -1*config.keepUnsuccessfulEntitiesDays())
-	err = c.dropRecordsOlderThan(transition, deadline)
+	err = c.dropRecordsOlderThan(deadline, transition)
 	if err != nil {
 		c.logger.Errorf("Cleaner failed to remove reconciliations older than %s: %s", deadline.String(), err.Error())
 	}
-	err = c.dropSuccessfulRecordsOlderThan(transition, oldestInRange.Created)
+	err = c.dropSuccessfulRecordsOlderThan(oldestInRange.Created, transition)
 	if err != nil {
 		c.logger.Errorf("Cleaner failed to remove all successful reconciliations older than %s: %s", deadline.String(), err.Error())
 	}
 }
 
 func (c *cleaner) purgeReconciliationsOld(transition *ClusterStatusTransition, config *CleanerConfig) {
-	c.logger.Info("DEBUG: old purgeReconciliations logic")
+	c.logger.Info("[CLEANER] DEBUG: old purgeReconciliations logic")
 	deadline := time.Now().UTC().Add(-1 * config.PurgeEntitiesOlderThan)
 	reconciliations, err := transition.ReconciliationRepository().GetReconciliations(&reconciliation.WithCreationDateBefore{
 		Time: deadline,
@@ -121,7 +120,7 @@ func (c *cleaner) purgeReconciliationsOld(transition *ClusterStatusTransition, c
 	}
 
 	for i := range reconciliations {
-		c.logger.Infof("Cleaner triggered for the Reconciliation and dependent Operations with SchedulingID '%s' "+
+		c.logger.Infof("[CLEANER] Is triggered for the Reconciliation and dependent Operations with SchedulingID '%s' "+
 			"(created: %s)", reconciliations[i].SchedulingID, reconciliations[i].Created)
 
 		id := reconciliations[i].SchedulingID
@@ -136,65 +135,63 @@ func (c *cleaner) getLatestReconciliations(transition *ClusterStatusTransition, 
 	return transition.ReconciliationRepository().GetReconciliations(&reconciliation.Limit{Count: keepLatestEntitiesCount})
 }
 
-func (c *cleaner) dropRecordsOlderThan(transition *ClusterStatusTransition, t time.Time) error {
+func (c *cleaner) dropRecordsOlderThan(t time.Time, transition *ClusterStatusTransition) error {
 	deadline := t.UTC()
-	reconciliations, err := transition.ReconciliationRepository().GetReconciliations(&reconciliation.WithCreationDateBefore{
-		Time: deadline,
-	})
-
+	list, err := c.findReconciliationsOlderThan(deadline, transition)
 	if err != nil {
-		c.logger.Errorf("Cleaner failed to get reconciliations older than %s: %s", deadline.String(), err.Error())
 		return err
 	}
 
-	c.logger.Infof("DEBUG: dropRecordsOlderThan: %s, records found: %d", deadline.String(), len(reconciliations))
-	cnt := 1
-	for i := range reconciliations {
-		id := reconciliations[i].SchedulingID
-		err := transition.ReconciliationRepository().RemoveReconciliation(id)
-		if err == nil {
-			if cnt%100 == 0 {
-				c.logger.Infof("Removed %d entities", cnt)
-			}
-			cnt++
-		} else {
-			c.logger.Errorf("Cleaner failed to remove reconciliation with schedulingID '%s': %s", id, err.Error())
-		}
-
+	c.logger.Infof("[CLEANER] Removing records older than: %s. Records found: %d", deadline.String(), len(list))
+	if len(list) > 0 {
+		c.removeReconciliations(list, transition, func(m *model.ReconciliationEntity) bool { return true })
 	}
-
 	return err
 }
 
-func (c *cleaner) dropSuccessfulRecordsOlderThan(transition *ClusterStatusTransition, t time.Time) error {
+func (c *cleaner) dropSuccessfulRecordsOlderThan(t time.Time, transition *ClusterStatusTransition) error {
 	deadline := t.UTC()
-	reconciliations, err := transition.ReconciliationRepository().GetReconciliations(&reconciliation.WithCreationDateBefore{
-		Time: deadline,
-	})
+	list, err := c.findReconciliationsOlderThan(deadline, transition)
 	if err != nil {
-		c.logger.Errorf("Cleaner failed to get reconciliations older than %s: %s", deadline.String(), err.Error())
 		return err
 	}
 
-	c.logger.Infof("DEBUG: dropSuccessfulRecordsOlderThan: %s, records found: %d", deadline.String(), len(reconciliations))
+	c.logger.Infof("[CLEANER] Removing successful records older than: %s. Records found: %d (only some must be removed)", deadline.String(), len(list))
+	if len(list) > 0 {
+		c.removeReconciliations(list, transition, func(m *model.ReconciliationEntity) bool { return m.Status.IsFinalStable() })
+	}
+	return err
+}
 
-	cnt := 1
-	for i := range reconciliations {
-		id := reconciliations[i].SchedulingID
+func (c *cleaner) findReconciliationsOlderThan(t time.Time, transition *ClusterStatusTransition) ([]*model.ReconciliationEntity, error) {
+	reconciliations, err := transition.ReconciliationRepository().GetReconciliations(&reconciliation.WithCreationDateBefore{
+		Time: t,
+	})
+	if err != nil {
+		c.logger.Errorf("Cleaner failed to get reconciliations older than %s: %s", t.String(), err.Error())
+		return nil, err
+	}
+	return reconciliations, nil
+}
+
+func (c *cleaner) removeReconciliations(list []*model.ReconciliationEntity, transition *ClusterStatusTransition, filter func(*model.ReconciliationEntity) bool) {
+	cnt := 0
+	for i := range list {
+		id := list[i].SchedulingID
 		//TODO: does this mean "successful" ?
-		if reconciliations[i].Status.IsFinalStable() {
+		if filter(list[i]) {
 			err := transition.ReconciliationRepository().RemoveReconciliation(id)
 			if err == nil {
-				if cnt%100 == 0 {
-					c.logger.Infof("Removed %d entities", cnt)
-				}
 				cnt++
+				if cnt%100 == 0 {
+					c.logger.Infof("[CLEANER] Removed %d entities", cnt)
+				}
 			} else {
 				c.logger.Errorf("Cleaner failed to remove reconciliation with schedulingID '%s': %s", id, err.Error())
 			}
 		}
 	}
-	return err
+	c.logger.Infof("[CLEANER] Removed %d entities (finished)", cnt)
 }
 
 func findOldestReconciliation(list []*model.ReconciliationEntity) *model.ReconciliationEntity {
