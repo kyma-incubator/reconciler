@@ -1,2 +1,0 @@
-CREATE INDEX inventory_cluster__idx_deleted_id_status_created ON "inventory_cluster_config_statuses" ("deleted","id","status","created");
-CREATE INDEX inventory_cluster__idx_cluster_version_id ON "inventory_cluster_config_statuses" ("cluster_version","id");
