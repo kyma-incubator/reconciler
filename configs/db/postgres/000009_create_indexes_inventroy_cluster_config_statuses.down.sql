@@ -1,0 +1,2 @@
+DROP INDEX public.inventory_cluster__idx_cluster_version_id;
+DROP INDEX public.inventory_cluster__idx_deleted_id_status_created;
