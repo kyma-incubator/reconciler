@@ -98,7 +98,7 @@ func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, c
 	c.logger.Info("[CLEANER] DEBUG: oldestInRangeAgeDays <= config.keepUnsuccessfulEntitiesDays()")
 	//if we're here, there may exist unsuccessful entities older than 'oldestInRange', but within 'KeepUnsuccessfulEntitiesDays' time range.
 	//We have to preserve these (if exist) and remove everything else.
-	deadline := beginningOfTheDay(now).AddDate(0, 0, -1*config.keepUnsuccessfulEntitiesDays())
+	deadline := beginningOfTheDay(now.UTC()).AddDate(0, 0, -1*config.keepUnsuccessfulEntitiesDays())
 	err = c.dropRecordsOlderThan(deadline, transition)
 	if err != nil {
 		c.logger.Errorf("Cleaner failed to remove reconciliations older than %s: %s", deadline.String(), err.Error())
