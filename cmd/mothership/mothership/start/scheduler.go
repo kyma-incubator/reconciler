@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -46,8 +47,10 @@ func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config
 			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		WithCleanerConfig(&service.CleanerConfig{
-			PurgeEntitiesOlderThan: o.PurgeEntitiesOlderThan,
-			CleanerInterval:        o.CleanerInterval,
+			PurgeEntitiesOlderThan:       o.PurgeEntitiesOlderThan,
+			CleanerInterval:              o.CleanerInterval,
+			KeepLatestEntitiesCount:      uintOrDie(o.KeepLatestEntitiesCount),
+			KeepUnsuccessfulEntitiesDays: uintOrDie(o.KeepUnsuccessfulEntitiesDays),
 		}).
 		Run(ctx)
 }
@@ -68,4 +71,11 @@ func parseSchedulerConfig(configFile string) (*config.Config, error) {
 
 	var cfg config.Config
 	return &cfg, viper.UnmarshalKey("mothership", &cfg)
+}
+
+func uintOrDie(v int) uint {
+	if v < 0 {
+		panic("Can't convert negative value: '" + strconv.Itoa(v) + "' to the uint type")
+	}
+	return uint(v)
 }
