@@ -34,7 +34,6 @@ require (
 	github.com/spf13/viper v1.8.1
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.7.0
-	github.com/tidwall/gjson v1.13.0 // indirect
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
