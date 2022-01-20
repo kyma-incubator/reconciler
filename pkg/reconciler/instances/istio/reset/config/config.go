@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"time"
 
 	"go.uber.org/zap"
@@ -9,6 +10,9 @@ import (
 
 // IstioProxyConfig stores input information for IstioProxyReset.
 type IstioProxyConfig struct {
+	// Reconcile action context
+	Context context.Context
+
 	// ImagePrefix of Istio
 	ImagePrefix string
 
