@@ -20,7 +20,7 @@ type K8sLoader struct {
 
 func (a *K8sLoader) FindBindingOperator(context *service.ActionContext) (*unstructured.Unstructured, error) {
 	search := Search{}
-	return search.findByCriteria([]Locator{
+	return search.findByCriteria(context.Context, []Locator{
 		{
 			resource:       "serviceinstance",
 			field:          "spec.serviceOfferingName",
@@ -39,7 +39,7 @@ func (a *K8sLoader) FindBindingOperator(context *service.ActionContext) (*unstru
 
 func (a *K8sLoader) FindBindingCatalog(context *service.ActionContext) (*unstructured.Unstructured, error) {
 	search := Search{}
-	return search.findByCriteria([]Locator{
+	return search.findByCriteria(context.Context, []Locator{
 		{
 			resource:       "serviceinstance",
 			field:          "spec.clusterServiceClassExternalName",

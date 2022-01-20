@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"

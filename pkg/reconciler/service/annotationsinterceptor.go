@@ -13,7 +13,7 @@ const (
 type AnnotationsInterceptor struct {
 }
 
-func (l *AnnotationsInterceptor) Intercept(resources *kubernetes.ResourceList, _ string) error {
+func (l *AnnotationsInterceptor) Intercept(resources *kubernetes.ResourceCacheList, _ string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
 		annotations := u.GetAnnotations()
 		if annotations == nil {

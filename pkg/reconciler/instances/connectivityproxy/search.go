@@ -1,6 +1,7 @@
 package connectivityproxy
 
 import (
+	"context"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
@@ -23,13 +24,13 @@ type Locator struct {
 	client         kubernetes.Client
 }
 
-func (si *Search) findByCriteria(criteria []Locator) (*unstructured.Unstructured, error) {
+func (si *Search) findByCriteria(context context.Context, criteria []Locator) (*unstructured.Unstructured, error) {
 	if len(criteria) == 0 {
 		return nil, nil
 	}
 
 	crit := criteria[0]
-	result, err := crit.find()
+	result, err := crit.find(context)
 	if err != nil {
 		return nil, err
 	}
@@ -43,14 +44,14 @@ func (si *Search) findByCriteria(criteria []Locator) (*unstructured.Unstructured
 
 		var result Map = result.Object
 		criteria[1].referenceValue = result.getValue(fields...)
-		return si.findByCriteria(criteria[1:])
+		return si.findByCriteria(context, criteria[1:])
 	}
 
 	return nil, nil
 }
 
-func (c *Locator) find() (*unstructured.Unstructured, error) {
-	resources, err := c.client.ListResource(strings.ToLower(c.resource), metav1.ListOptions{})
+func (c *Locator) find(context context.Context) (*unstructured.Unstructured, error) {
+	resources, err := c.client.ListResource(context, strings.ToLower(c.resource), metav1.ListOptions{})
 
 	if err != nil && k8serr.IsNotFound(err) {
 		return nil, nil

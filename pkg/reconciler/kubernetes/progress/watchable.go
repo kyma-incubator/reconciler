@@ -6,11 +6,12 @@ import (
 )
 
 const (
-	Deployment  WatchableResource = "Deployment"
-	Pod         WatchableResource = "Pod"
-	DaemonSet   WatchableResource = "DaemonSet"
-	StatefulSet WatchableResource = "StatefulSet"
-	Job         WatchableResource = "Job"
+	Deployment               WatchableResource = "Deployment"
+	Pod                      WatchableResource = "Pod"
+	DaemonSet                WatchableResource = "DaemonSet"
+	StatefulSet              WatchableResource = "StatefulSet"
+	Job                      WatchableResource = "Job"
+	CustomResourceDefinition WatchableResource = "CustomResourceDefinition"
 )
 
 type WatchableResource string
@@ -27,6 +28,8 @@ func NewWatchableResource(kind string) (WatchableResource, error) {
 		return StatefulSet, nil
 	case strings.ToLower(string(Job)):
 		return Job, nil
+	case strings.ToLower(string(CustomResourceDefinition)):
+		return CustomResourceDefinition, nil
 	default:
 		return "", fmt.Errorf("WatchableResource '%s' is not supported", kind)
 	}

@@ -1,6 +1,7 @@
 package preaction
 
 import (
+	"context"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"strings"
 
@@ -43,10 +44,7 @@ func newRemoveNatsOperatorStep() *removeNatsOperatorStep {
 }
 
 func defaultKubeClientProvider(context *service.ActionContext, logger *zap.SugaredLogger) (kubernetes.Client, error) {
-	kubeClient, err := kubernetes.NewKubernetesClient(context.Task.Kubeconfig, logger, &kubernetes.Config{
-		ProgressInterval: progressTrackerInterval,
-		ProgressTimeout:  progressTrackerTimeout,
-	})
+	kubeClient, err := kubernetes.NewKubernetesClient(context.Task.Kubeconfig, logger, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +77,7 @@ func (r *removeNatsOperatorStep) Execute(context *service.ActionContext, logger 
 		return err
 	}
 
-	err = r.removeNatsOperatorCRDs(kubeClient, logger)
+	err = r.removeNatsOperatorCRDs(context.Context, kubeClient, logger)
 	return err
 }
 
@@ -124,7 +122,7 @@ func (r *removeNatsOperatorStep) removeNatsOperatorResources(context *service.Ac
 		}
 
 		logger.Infof("Deleting: kind: %s, name: %s, namespace: %s", u.GetKind(), u.GetName(), namespace)
-		_, err = kubeClient.DeleteResource(u.GetKind(), u.GetName(), namespace)
+		_, err = kubeClient.DeleteResource(context.Context, u.GetKind(), u.GetName(), namespace)
 		if err != nil {
 			return err
 		}
@@ -139,10 +137,10 @@ func (r *removeNatsOperatorStep) removeNatsOperatorResources(context *service.Ac
 }
 
 // delete the leftover CRDs, which were outside of charts
-func (r *removeNatsOperatorStep) removeNatsOperatorCRDs(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
+func (r *removeNatsOperatorStep) removeNatsOperatorCRDs(context context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
 	logger.Info("Removing nats-operator CRDs")
 	for _, crdName := range natsOperatorCRDsToDelete {
-		_, err := kubeClient.DeleteResource(crdPlural, crdName, namespace)
+		_, err := kubeClient.DeleteResource(context, crdPlural, crdName, namespace)
 		if err != nil && !errors.IsNotFound(err) {
 			logger.Errorf("Failed to delete the nats-operator CRDs, name='%s', namespace='%s': %s", crdName, namespace, err)
 			return err

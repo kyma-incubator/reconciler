@@ -41,13 +41,13 @@ func TestDeletingNatsOperatorResources(t *testing.T) {
 	require.NoError(t, err)
 	for _, u := range unstructs {
 		if u.GetName() == eventingNats && strings.EqualFold(u.GetKind(), serviceKind) {
-			k8sClient.AssertNotCalled(t, "DeleteResource", u.GetKind(), u.GetName(), namespace)
+			k8sClient.AssertNotCalled(t, "DeleteResource", actionContext.Context, u.GetKind(), u.GetName(), namespace)
 			continue
 		}
-		k8sClient.AssertCalled(t, "DeleteResource", u.GetKind(), u.GetName(), namespace)
+		k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, u.GetKind(), u.GetName(), namespace)
 	}
-	k8sClient.AssertCalled(t, "DeleteResource", crdPlural, natsOperatorCRDsToDelete[0], namespace)
-	k8sClient.AssertCalled(t, "DeleteResource", crdPlural, natsOperatorCRDsToDelete[1], namespace)
+	k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, crdPlural, natsOperatorCRDsToDelete[0], namespace)
+	k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, crdPlural, natsOperatorCRDsToDelete[1], namespace)
 	k8sClient.AssertCalled(t, "GetStatefulSet", actionContext.Context, eventingNats, namespace)
 }
 
@@ -89,6 +89,7 @@ func testSetup() (removeNatsOperatorStep, *service.ActionContext, *pmock.Provide
 	for _, u := range unstructs {
 		k8sClient.On(
 			"DeleteResource",
+			ctx,
 			u.GetKind(),
 			u.GetName(),
 			namespace,
@@ -105,12 +106,14 @@ func testSetup() (removeNatsOperatorStep, *service.ActionContext, *pmock.Provide
 	).Return(statefulSet, nil)
 	k8sClient.On(
 		"DeleteResource",
+		ctx,
 		crdPlural,
 		natsOperatorCRDsToDelete[0],
 		namespace,
 	).Return(nil, nil)
 	k8sClient.On(
 		"DeleteResource",
+		ctx,
 		crdPlural,
 		natsOperatorCRDsToDelete[1],
 		namespace,

@@ -37,23 +37,23 @@ func (r *Resource) String() string {
 	return fmt.Sprintf("KubernetesResource [Kind:%s,Namespace:%s,Name:%s]", r.Kind, r.Namespace, r.Name)
 }
 
-type ResourceList struct {
+type ResourceCacheList struct {
 	resources []*unstructured.Unstructured
 	cache     cache
 }
 
-func NewResourceList(unstructs []*unstructured.Unstructured) *ResourceList {
+func NewResourceList(unstructs []*unstructured.Unstructured) *ResourceCacheList {
 	cache := make(cache)
 	for _, u := range unstructs {
 		cache.Add(u)
 	}
-	return &ResourceList{
+	return &ResourceCacheList{
 		resources: unstructs,
 		cache:     cache,
 	}
 }
 
-func (r *ResourceList) visit(unstructs []*unstructured.Unstructured, callback func(u *unstructured.Unstructured) error) error {
+func (r *ResourceCacheList) visit(unstructs []*unstructured.Unstructured, callback func(u *unstructured.Unstructured) error) error {
 	for _, u := range unstructs {
 		if err := callback(u); err != nil {
 			return err
@@ -62,15 +62,15 @@ func (r *ResourceList) visit(unstructs []*unstructured.Unstructured, callback fu
 	return nil
 }
 
-func (r *ResourceList) Visit(callback func(u *unstructured.Unstructured) error) error {
+func (r *ResourceCacheList) Visit(callback func(u *unstructured.Unstructured) error) error {
 	return r.visit(r.resources, callback)
 }
 
-func (r *ResourceList) VisitByKind(kind string, callback func(u *unstructured.Unstructured) error) error {
+func (r *ResourceCacheList) VisitByKind(kind string, callback func(u *unstructured.Unstructured) error) error {
 	return r.visit(r.cache.GetKind(kind), callback)
 }
 
-func (r *ResourceList) VisitByKindAndAPIVersion(kind string, apiversion string, callback func(u *unstructured.Unstructured) error) error {
+func (r *ResourceCacheList) VisitByKindAndAPIVersion(kind string, apiversion string, callback func(u *unstructured.Unstructured) error) error {
 	cachedByKind := r.cache.GetKind(kind)
 	cachedByKindAndVersion := make([]*unstructured.Unstructured, 0)
 	for i := range cachedByKind {
@@ -81,7 +81,7 @@ func (r *ResourceList) VisitByKindAndAPIVersion(kind string, apiversion string, 
 	return r.visit(cachedByKindAndVersion, callback)
 }
 
-func (r *ResourceList) Get(kind, name, namespace string) *unstructured.Unstructured {
+func (r *ResourceCacheList) Get(kind, name, namespace string) *unstructured.Unstructured {
 	for _, u := range r.cache.GetKind(kind) {
 		if u.GetKind() == kind && u.GetName() == name {
 			if u.GetNamespace() == "" || u.GetNamespace() == namespace {
@@ -93,27 +93,27 @@ func (r *ResourceList) Get(kind, name, namespace string) *unstructured.Unstructu
 	return nil
 }
 
-func (r *ResourceList) GetByKind(kind string) []*unstructured.Unstructured {
+func (r *ResourceCacheList) GetByKind(kind string) []*unstructured.Unstructured {
 	return r.cache.GetKind(kind)
 }
 
-func (r *ResourceList) Remove(u *unstructured.Unstructured) {
+func (r *ResourceCacheList) Remove(u *unstructured.Unstructured) {
 	r.resources = removeFromSlice(r.resources, u)
 	r.cache.Remove(u)
 }
 
-func (r *ResourceList) Replace(u *unstructured.Unstructured) {
+func (r *ResourceCacheList) Replace(u *unstructured.Unstructured) {
 	r.resources = replaceFromSlice(r.resources, u)
 	r.cache.Replace(u)
 }
 
-func (r *ResourceList) Add(u *unstructured.Unstructured) {
+func (r *ResourceCacheList) Add(u *unstructured.Unstructured) {
 	r.Remove(u) //ensure resource does not exist before adding it
 	r.resources = append(r.resources, u)
 	r.cache.Add(u)
 }
 
-func (r *ResourceList) Len() int {
+func (r *ResourceCacheList) Len() int {
 	return len(r.resources)
 }
 

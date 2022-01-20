@@ -3,18 +3,15 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
-	"testing"
-	"time"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/kubernetes"
-
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes"
+	"path/filepath"
+	"testing"
 )
 
 var expectedResourcesWithoutNs = []*Resource{
@@ -59,7 +56,7 @@ type testInterceptor struct {
 	err error
 }
 
-func (i *testInterceptor) Intercept(resources *ResourceList, _ string) error {
+func (i *testInterceptor) Intercept(resources *ResourceCacheList, _ string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
 		u.SetLabels(expectedLabels)
 		return i.err
@@ -68,14 +65,60 @@ func (i *testInterceptor) Intercept(resources *ResourceList, _ string) error {
 	return resources.Visit(interceptorFunc)
 }
 
+func TestCustomerResources(t *testing.T) {
+	test.IntegrationTest(t)
+
+	//create client
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), nil)
+	require.NoError(t, err)
+
+	defer deleteTestResources(t, kubeClient)
+	t.Run("Should get error when deploy CR without CRD", func(t *testing.T) {
+		manifest := readManifest(t, "unittest-cr.yaml")
+
+		_, err := kubeClient.Deploy(context.TODO(), manifest, "unittest-cr")
+
+		require.Error(t, err)
+	})
+
+	t.Run("Should not get error when delete CR without CRD", func(t *testing.T) {
+		manifest := readManifest(t, "unittest-cr.yaml")
+
+		_, err := kubeClient.Delete(context.TODO(), manifest, "unittest-cr")
+
+		require.NoError(t, err)
+	})
+
+	t.Run("Should not get error when deploy CR after CRD", func(t *testing.T) {
+		crdManifest := readManifest(t, "unittest-crd.yaml")
+
+		_, err := kubeClient.Deploy(context.TODO(), crdManifest, "unittest-cr")
+		require.NoError(t, err)
+
+		crManifest := readManifest(t, "unittest-cr.yaml")
+		_, err = kubeClient.Deploy(context.TODO(), crManifest, "unittest-cr")
+		require.NoError(t, err)
+	})
+}
+
+func deleteTestResources(t *testing.T, client Client) {
+	err := deleteResources(t, client, "unittest-crd.yaml", "unittest-cr")
+	require.NoError(t, err)
+	err = deleteResources(t, client, "unittest-cr.yaml", "unittest-cr")
+	require.NoError(t, err)
+}
+
+func deleteResources(t *testing.T, client Client, filename, namespace string) error {
+	manifest := readManifest(t, filename)
+	_, err := client.Delete(context.TODO(), manifest, namespace)
+	return err
+}
+
 func TestKubernetesClient(t *testing.T) {
 	test.IntegrationTest(t)
 
 	//create client
-	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), &Config{
-		ProgressInterval: 1 * time.Second,
-		ProgressTimeout:  1 * time.Minute,
-	})
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	t.Run("Deploy no resources because interceptor was failing", func(t *testing.T) {

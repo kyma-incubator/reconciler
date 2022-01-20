@@ -18,7 +18,7 @@ type HPAInterceptor struct {
 	logger     *zap.SugaredLogger
 }
 
-func (i *HPAInterceptor) Intercept(resources *kubernetes.ResourceList, namespace string) error {
+func (i *HPAInterceptor) Intercept(resources *kubernetes.ResourceCacheList, namespace string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
 		namespace := kubernetes.ResolveNamespace(u, namespace)
 
