@@ -93,36 +93,42 @@ func (r *removeNatsOperatorStep) removeNatsOperatorResources(context *service.Ac
 	// set the right eventing name, which went lost after rendering
 	manifest.Manifest = strings.ReplaceAll(manifest.Manifest, natsSubChartPath, eventingNats)
 
-	clientSet, err := kubeClient.Clientset()
+	clientSet, err2 := kubeClient.Clientset()
+	if err2 != nil {
+		return err2
+	}
 	tracker, err := progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: progressTrackerInterval, Timeout: progressTrackerTimeout})
 	if err != nil {
 		return err
 	}
 
 	logger.Info("Removing nats-operator chart resources")
-	// remove all the existing nats-operator resources, installed via charts
-	statefulSet, err := getStatefulSet(context, kubeClient, eventingNats)
+
+	var statefulSet *v1.StatefulSet
+	statefulSet, err = getStatefulSet(context, kubeClient, eventingNats)
 	if err != nil {
 		return err
 	}
 
 	m := []byte(manifest.Manifest)
-	unstructs, err := kubernetes.ToUnstructured(m, true)
-	for _, u := range unstructs {
+	natsResources, _ := kubernetes.ToUnstructured(m, true)
+	for _, resource := range natsResources {
 		// since the old nats-operator was deployed using the k8s deployment
 		// do not delete the nats service if there is a statefulSet deployed
-		if statefulSet != nil && u.GetName() == eventingNats && strings.EqualFold(u.GetKind(), serviceKind) {
+		if statefulSet != nil && resource.GetName() == eventingNats && strings.EqualFold(resource.GetKind(), serviceKind) {
 			continue
 		}
 
 		//if resource is watchable, add it to progress tracker
-		watchable, err := progress.NewWatchableResource(u.GetKind())
+		watchable, err := progress.NewWatchableResource(resource.GetKind())
 		if err == nil { //add only watchable resources to progress tracker
-			tracker.AddResource(watchable, namespace, u.GetName())
+			tracker.AddResource(watchable, namespace, resource.GetName())
+		} else {
+			logger.Infof("Cannot add the resource kind: %s, name: %s to watchables", resource.GetKind(), resource.GetName())
 		}
 
-		logger.Infof("Deleting: kind: %s, name: %s, namespace: %s", u.GetKind(), u.GetName(), namespace)
-		_, err = kubeClient.DeleteResource(context.Context, u.GetKind(), u.GetName(), namespace)
+		logger.Infof("Deleting: kind: %s, name: %s, namespace: %s", resource.GetKind(), resource.GetName(), namespace)
+		_, err = kubeClient.DeleteResource(context.Context, resource.GetKind(), resource.GetName(), namespace)
 		if err != nil {
 			return err
 		}
@@ -131,6 +137,7 @@ func (r *removeNatsOperatorStep) removeNatsOperatorResources(context *service.Ac
 	//wait until all resources were deleted
 	if err := tracker.Watch(context.Context, progress.TerminatedState); err != nil {
 		logger.Warnf("Watching progress of deleted resources failed: %s", err)
+		return err
 	}
 
 	return nil

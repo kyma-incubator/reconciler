@@ -27,28 +27,40 @@ const (
 	//kyma2xVersion  = "2.0"
 )
 
+var testCases = []struct {
+	givenStatefulSet bool
+}{
+	{
+		givenStatefulSet: true,
+	},
+	{
+		givenStatefulSet: false,
+	},
+}
+
 func TestDeletingNatsOperatorResources(t *testing.T) {
-	action, actionContext, mockProvider, k8sClient, mockedComponentBuilder := testSetup()
+	for _, testCase := range testCases {
+		action, actionContext, mockProvider, k8sClient, mockedComponentBuilder := testSetup(testCase.givenStatefulSet)
+		// execute the step
+		err := action.Execute(actionContext, actionContext.Logger)
+		require.NoError(t, err)
 
-	// execute the step
-	err := action.Execute(actionContext, actionContext.Logger)
-	require.NoError(t, err)
-
-	// ensure the right calls were invoked
-	mockProvider.AssertCalled(t, "RenderManifest", mockedComponentBuilder)
-	m := []byte(manifestString)
-	unstructs, err := kubernetes.ToUnstructured(m, true)
-	require.NoError(t, err)
-	for _, u := range unstructs {
-		if u.GetName() == eventingNats && strings.EqualFold(u.GetKind(), serviceKind) {
-			k8sClient.AssertNotCalled(t, "DeleteResource", actionContext.Context, u.GetKind(), u.GetName(), namespace)
-			continue
+		// ensure the right calls were invoked
+		mockProvider.AssertCalled(t, "RenderManifest", mockedComponentBuilder)
+		m := []byte(manifestString)
+		unstructs, err := kubernetes.ToUnstructured(m, true)
+		require.NoError(t, err)
+		for _, u := range unstructs {
+			if testCase.givenStatefulSet && u.GetName() == eventingNats && strings.EqualFold(u.GetKind(), serviceKind) {
+				k8sClient.AssertNotCalled(t, "DeleteResource", actionContext.Context, u.GetKind(), u.GetName(), namespace)
+				continue
+			}
+			k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, u.GetKind(), u.GetName(), namespace)
 		}
-		k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, u.GetKind(), u.GetName(), namespace)
+		k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, crdPlural, natsOperatorCRDsToDelete[0], namespace)
+		k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, crdPlural, natsOperatorCRDsToDelete[1], namespace)
+		k8sClient.AssertCalled(t, "GetStatefulSet", actionContext.Context, eventingNats, namespace)
 	}
-	k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, crdPlural, natsOperatorCRDsToDelete[0], namespace)
-	k8sClient.AssertCalled(t, "DeleteResource", actionContext.Context, crdPlural, natsOperatorCRDsToDelete[1], namespace)
-	k8sClient.AssertCalled(t, "GetStatefulSet", actionContext.Context, eventingNats, namespace)
 }
 
 // todo execute this test, when the check for kyma2x version is available, see the the todo comment from removenatsoperatorstep:Execute()
@@ -65,7 +77,7 @@ func TestDeletingNatsOperatorResources(t *testing.T) {
 //	k8sClient.AssertNotCalled(t, "DeleteResource", mock.Anything, mock.Anything, mock.Anything)
 //}
 
-func testSetup() (removeNatsOperatorStep, *service.ActionContext, *pmock.Provider, *mocks.Client, *chart.Component) {
+func testSetup(givenStatefulSet bool) (removeNatsOperatorStep, *service.ActionContext, *pmock.Provider, *mocks.Client, *chart.Component) {
 	ctx := context.TODO()
 	k8sClient := mocks.Client{}
 	log := logger.NewLogger(false)
@@ -82,21 +94,25 @@ func testSetup() (removeNatsOperatorStep, *service.ActionContext, *pmock.Provide
 	mockedComponentBuilder := GetResourcesFromVersion(natsOperatorLastVersion, natsSubChartPath)
 	mockProvider.On("RenderManifest", mockedComponentBuilder).Return(&mockManifest, nil)
 
-	// mock the delete calls
+	var statefulSet *v1.StatefulSet
+	if givenStatefulSet {
+		statefulSet = &v1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{Name: eventingNats, Namespace: namespace},
+		}
+	}
+
+	// mock the delete-calls
 	k8sClient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
 	m := []byte(manifestString)
-	unstructs, _ := kubernetes.ToUnstructured(m, true)
-	for _, u := range unstructs {
+	resources, _ := kubernetes.ToUnstructured(m, true)
+	for _, resource := range resources {
 		k8sClient.On(
 			"DeleteResource",
 			ctx,
-			u.GetKind(),
-			u.GetName(),
+			resource.GetKind(),
+			resource.GetName(),
 			namespace,
 		).Return(nil, nil)
-	}
-	var statefulSet = &v1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: eventingNats, Namespace: namespace},
 	}
 	k8sClient.On(
 		"GetStatefulSet",
