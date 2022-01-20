@@ -13,7 +13,7 @@ import (
 )
 
 func Test_cleaner_Run(t *testing.T) {
-	t.Run("Test run", func(t *testing.T) {
+	t.Run("Test run with old logic", func(t *testing.T) {
 		cleaner := newCleaner(logger.NewLogger(true))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -39,6 +39,92 @@ func Test_cleaner_Run(t *testing.T) {
 			PurgeEntitiesOlderThan: 2 * time.Second,
 			CleanerInterval:        5 * time.Second,
 		})
+		require.NoError(t, err)
+
+		time.Sleep(500 * time.Millisecond) //give it some time to shutdown
+
+		require.WithinDuration(t, start, time.Now(), 2*time.Second)
+	})
+
+	t.Run("Test run with new logic", func(t *testing.T) {
+		cleaner := newCleaner(logger.NewLogger(true))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		start := time.Now()
+
+		reconRepo := reconciliation.MockRepository{
+			RemoveReconciliationResult: nil,
+			GetReconciliationsResult: []*model.ReconciliationEntity{
+				{
+					SchedulingID: "test-id-0",
+					Created:      start,
+					Status:       model.ClusterStatusReady,
+				},
+				{
+					SchedulingID: "test-id-1",
+					Created:      start.Add((-24*1 - 1) * time.Hour),
+					Status:       model.ClusterStatusReconcileError,
+				},
+				{
+					SchedulingID: "test-id-2",
+					Created:      start.Add((-24*2 - 1) * time.Hour),
+					Status:       model.ClusterStatusReady,
+				},
+				{
+					SchedulingID: "test-id-3",
+					Created:      start.Add((-24*3 - 1) * time.Hour),
+					Status:       model.ClusterStatusReconcileError,
+				},
+				{
+					SchedulingID: "test-id-4",
+					Created:      start.Add((-24*4 - 1) * time.Hour),
+					Status:       model.ClusterStatusReady,
+				},
+				{
+					SchedulingID: "test-id-5",
+					Created:      start.Add((-24*5 - 1) * time.Hour),
+					Status:       model.ClusterStatusReconcileError,
+				},
+				{
+					SchedulingID: "test-id-6",
+					Created:      start.Add((-24*6 - 1) * time.Hour),
+					Status:       model.ClusterStatusReady,
+				},
+				{
+					SchedulingID: "test-id-7",
+					Created:      start.Add((-24*7 - 1) * time.Hour),
+					Status:       model.ClusterStatusReconcileError,
+				},
+				{
+					SchedulingID: "test-id-8",
+					Created:      start.Add((-24*8 - 1) * time.Hour),
+					Status:       model.ClusterStatusReady,
+				},
+				{
+					SchedulingID: "test-id-9",
+					Created:      start.Add((-24*9 - 1) * time.Hour),
+					Status:       model.ClusterStatusReconcileError,
+				},
+				{
+					SchedulingID: "test-id-10",
+					Created:      start.Add((-24*10 - 1) * time.Hour),
+					Status:       model.ClusterStatusReady,
+				},
+			},
+		}
+
+		err := cleaner.Run(ctx, &ClusterStatusTransition{
+			conn:      db.NewTestConnection(t),
+			reconRepo: &reconRepo,
+			logger:    logger.NewLogger(true),
+		}, &CleanerConfig{
+			KeepLatestEntitiesCount:      5,
+			KeepUnsuccessfulEntitiesDays: 3,
+			CleanerInterval:              5 * time.Second,
+		})
+
 		require.NoError(t, err)
 
 		time.Sleep(500 * time.Millisecond) //give it some time to shutdown

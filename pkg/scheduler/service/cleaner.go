@@ -67,10 +67,9 @@ func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, conf
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
 func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, config *CleanerConfig) {
-	c.logger.Info("[CLEANER] DEBUG: new purgeReconciliations logic")
 	now := time.Now()
 
-	latestReconciliations, err := c.getLatestReconciliations(transition, config.keepLatestEntitiesCount())
+	latestReconciliations, err := c.getLatestReconciliations(config.keepLatestEntitiesCount(), transition)
 	if err != nil {
 		c.logger.Errorf("Cleaner failed to get last %d reconciliations: %s", config.keepLatestEntitiesCount(), err.Error())
 	}
@@ -81,11 +80,9 @@ func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, c
 	}
 
 	oldestInRange := findOldestReconciliation(latestReconciliations)
-	c.logger.Infof("[CLEANER] DEBUG: oldestInRange: %s", oldestInRange.Created)
 	oldestInRangeAgeDays := diffDays(oldestInRange.Created, now)
 
 	if oldestInRangeAgeDays > config.keepUnsuccessfulEntitiesDays() {
-		c.logger.Info("[CLEANER] DEBUG: oldestInRangeAgeDays > config.keepUnsuccessfulEntitiesDays()")
 		//The set of last 'N' reconciliations (which we must keep) contains an entity that is older than configured 'KeepUnsuccessfulEntitiesDays'
 		//It's enough to drop all records older than the oldest from the set.
 		err = c.dropRecordsOlderThan(oldestInRange.Created, transition)
@@ -95,7 +92,6 @@ func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, c
 		return
 	}
 
-	c.logger.Info("[CLEANER] DEBUG: oldestInRangeAgeDays <= config.keepUnsuccessfulEntitiesDays()")
 	//if we're here, there may exist unsuccessful entities older than 'oldestInRange', but within 'KeepUnsuccessfulEntitiesDays' time range.
 	//We have to preserve these (if exist) and remove everything else.
 	deadline := beginningOfTheDay(now.UTC()).AddDate(0, 0, -1*config.keepUnsuccessfulEntitiesDays())
@@ -110,7 +106,6 @@ func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, c
 }
 
 func (c *cleaner) purgeReconciliationsOld(transition *ClusterStatusTransition, config *CleanerConfig) {
-	c.logger.Info("[CLEANER] DEBUG: old purgeReconciliations logic")
 	deadline := time.Now().UTC().Add(-1 * config.PurgeEntitiesOlderThan)
 	reconciliations, err := transition.ReconciliationRepository().GetReconciliations(&reconciliation.WithCreationDateBefore{
 		Time: deadline,
@@ -131,8 +126,8 @@ func (c *cleaner) purgeReconciliationsOld(transition *ClusterStatusTransition, c
 	}
 }
 
-func (c *cleaner) getLatestReconciliations(transition *ClusterStatusTransition, keepLatestEntitiesCount int) ([]*model.ReconciliationEntity, error) {
-	return transition.ReconciliationRepository().GetReconciliations(&reconciliation.Limit{Count: keepLatestEntitiesCount})
+func (c *cleaner) getLatestReconciliations(latestEntitiesCount int, transition *ClusterStatusTransition) ([]*model.ReconciliationEntity, error) {
+	return transition.ReconciliationRepository().GetReconciliations(&reconciliation.Limit{Count: latestEntitiesCount})
 }
 
 func (c *cleaner) dropRecordsOlderThan(t time.Time, transition *ClusterStatusTransition) error {
