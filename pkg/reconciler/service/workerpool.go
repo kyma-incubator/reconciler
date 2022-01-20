@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"net/http"
-	"strings"
+	"net/url"
 	"time"
 )
 
@@ -89,17 +89,12 @@ func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
 
 func occupancyCallbackURL(callbackURL string, poolID string) string {
 	if callbackURL != "" {
-		schemaDelimiter := "://"
-		hostDelimiter := ":"
-		portDelimiter := "/"
-		schemaIdx := strings.Index(callbackURL, schemaDelimiter)
-		hostIdx := strings.Index(callbackURL[schemaIdx+len(schemaDelimiter):], hostDelimiter)
-		portIdx := strings.Index(callbackURL[hostIdx+len(hostDelimiter):], portDelimiter)
-		schema := callbackURL[:schemaIdx]
-		host := callbackURL[schemaIdx+len(schemaDelimiter) : hostIdx]
-		port := callbackURL[hostIdx+len(hostDelimiter) : portIdx]
+		u, err := url.Parse(callbackURL)
+		if err != nil {
+			return ""
+		}
 		occupancyURLTemplate := "%s://%s:%s/v1/occupancy/%s"
-		return fmt.Sprintf(occupancyURLTemplate, schema, host, port, poolID)
+		return fmt.Sprintf(occupancyURLTemplate, u.Scheme, u.Hostname(), u.Port(), poolID)
 	}
 	return ""
 }
