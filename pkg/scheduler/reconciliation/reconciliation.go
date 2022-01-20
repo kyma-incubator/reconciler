@@ -90,7 +90,7 @@ func prios(opsByPrio map[int64][]*model.OperationEntity, reverse bool) []int64 {
 	return prios
 }
 
-//opGroupType finds out the operation type on a group of operations with the same scheduling WorkerPoolID.
+//opGroupType finds out the operation type on a group of operations with the same scheduling ID.
 // Since priorities can be arbitrary keys, a key can't be hardcoded and the map needs to be iterated and immediately return after the first iteration.
 func opGroupType(opsByPrio map[int64][]*model.OperationEntity) model.OperationType {
 	for _, ops := range opsByPrio {

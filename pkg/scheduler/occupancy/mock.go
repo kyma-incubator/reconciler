@@ -8,7 +8,6 @@ import (
 type MockRepository struct {
 	CreateWorkerPoolOccupancyResult             *model.WorkerPoolOccupancyEntity
 	UpdateWorkerPoolOccupancyResult             error
-	GetMeanWorkerPoolOccupancyResult            float64
 	RemoveWorkerPoolOccupancyResult             error
 	GetComponentListResult                      []string
 	GetMeanWorkerPoolOccupancyByComponentResult float64
@@ -37,10 +36,6 @@ func (mr *MockRepository) UpdateWorkerPoolOccupancy(poolID string, runningWorker
 }
 func (mr *MockRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error) {
 	return mr.GetWorkerPoolOccupanciesResult, nil
-}
-
-func (mr *MockRepository) GetMeanWorkerPoolOccupancy() (float64, error) {
-	return mr.GetMeanWorkerPoolOccupancyResult, nil
 }
 
 func (mr *MockRepository) RemoveWorkerPoolOccupancy(poolID string) error {

@@ -67,29 +67,41 @@ func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
 		log.Info("Shutting down worker pool")
 		antsPool.Release()
 
-		if pb.workerPool.callbackURL != "" {
-			client := &http.Client{
-				Timeout: 10 * time.Second,
+		client := &http.Client{
+			Timeout: 10 * time.Second,
+		}
+		occupancyURL := occupancyCallbackURL(pb.workerPool.callbackURL, pb.workerPool.PoolID)
+		if occupancyURL != "" {
+			req, err := http.NewRequest(http.MethodDelete, occupancyURL, nil)
+			if err != nil {
+				log.Error(err.Error())
 			}
-
-			opsIdx := strings.Index(pb.workerPool.callbackURL, "operations")
-			if opsIdx != -1 {
-				occupancyURLTemplate := pb.workerPool.callbackURL[:opsIdx] + "occupancy/%s"
-				destURL := fmt.Sprintf(occupancyURLTemplate, pb.workerPool.PoolID)
-				req, err := http.NewRequest(http.MethodDelete, destURL, nil)
-				if err != nil {
-					log.Error(err.Error())
-				}
-				_, err = client.Do(req)
-				if err != nil {
-					log.Error(err.Error())
-				}
+			_, err = client.Do(req)
+			if err != nil {
+				log.Error(err.Error())
 			}
 		}
 
 	}(ctx, antsPool)
 
 	return pb.workerPool, nil
+}
+
+func occupancyCallbackURL(callbackURL string, poolID string) string {
+	if callbackURL != "" {
+		schemaDelimiter := "://"
+		hostDelimiter := ":"
+		portDelimiter := "/"
+		schemaIdx := strings.Index(callbackURL, schemaDelimiter)
+		hostIdx := strings.Index(callbackURL[schemaIdx+len(schemaDelimiter):], hostDelimiter)
+		portIdx := strings.Index(callbackURL[hostIdx+len(hostDelimiter):], portDelimiter)
+		schema := callbackURL[:schemaIdx]
+		host := callbackURL[schemaIdx+len(schemaDelimiter) : hostIdx]
+		port := callbackURL[hostIdx+len(hostDelimiter) : portIdx]
+		occupancyURLTemplate := "%s://%s:%s/v1/occupancy/%s"
+		return fmt.Sprintf(occupancyURLTemplate, schema, host, port, poolID)
+	}
+	return ""
 }
 
 func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Task) error {
