@@ -31,7 +31,7 @@ func newMigrateLogger(debug bool) *migrateLogger {
 	}
 }
 
-func (ml migrateLogger) Printf(format string, v ...interface{}) {
+func (ml *migrateLogger) Printf(format string, v ...interface{}) {
 	if ml.verbose {
 		ml.logger.Debugf(format, v...)
 	}
