@@ -1,6 +1,7 @@
 package reset
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 	simplePod := v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "name"}}
 	simpleCustomObject := pod.CustomObject{Name: "name"}
+	ctx := context.Background()
+	defer ctx.Done()
 	log := logger.NewLogger(true)
 	debug := true
 	fixRetryOpts := []retry.Option{
@@ -40,7 +43,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			Return(nil)
 
 		// when
-		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
+		err := action.Reset(ctx, kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
 
 		// then
 		require.NoError(t, err)
@@ -57,7 +60,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			Return(handlersMap)
 
 		// when
-		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
+		err := action.Reset(ctx, kubeClient, fixRetryOpts, v1.PodList{}, log, debug, fixWaitOpts)
 
 		// then
 		require.NoError(t, err)
@@ -73,7 +76,7 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 			Return(nil)
 
 		// when
-		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
+		err := action.Reset(ctx, kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
 
 		// then
 		require.NoError(t, err)
@@ -87,12 +90,12 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {simpleCustomObject}}
 
-		handler.On("ExecuteAndWaitFor", mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler.On("ExecuteAndWaitFor", mock.Anything, mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
 			Return(handlersMap)
 
 		// when
-		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod}}, log, debug, fixWaitOpts)
+		err := action.Reset(ctx, kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod}}, log, debug, fixWaitOpts)
 
 		// then
 		require.NoError(t, err)
@@ -107,12 +110,12 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler: {simpleCustomObject, simpleCustomObject}}
 
-		handler.On("ExecuteAndWaitFor", mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler.On("ExecuteAndWaitFor", mock.Anything, mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
 			Return(handlersMap)
 
 		// when
-		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
+		err := action.Reset(ctx, kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
 
 		// then
 		require.NoError(t, err)
@@ -128,13 +131,13 @@ func Test_DefaultPodsResetAction_Reset(t *testing.T) {
 		handler2 := mocks.Handler{}
 		handlersMap := map[pod.Handler][]pod.CustomObject{&handler1: {simpleCustomObject}, &handler2: {simpleCustomObject}}
 
-		handler1.On("ExecuteAndWaitFor", mock.AnythingOfType("pod.CustomObject")).Return(nil)
-		handler2.On("ExecuteAndWaitFor", mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler1.On("ExecuteAndWaitFor", mock.Anything, mock.AnythingOfType("pod.CustomObject")).Return(nil)
+		handler2.On("ExecuteAndWaitFor", mock.Anything, mock.AnythingOfType("pod.CustomObject")).Return(nil)
 		matcher.On("GetHandlersMap", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
 			Return(handlersMap)
 
 		// when
-		err := action.Reset(kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
+		err := action.Reset(ctx, kubeClient, fixRetryOpts, v1.PodList{Items: []v1.Pod{simplePod, simplePod}}, log, debug, fixWaitOpts)
 
 		// then
 		require.NoError(t, err)

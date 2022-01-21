@@ -399,7 +399,7 @@ func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStat
 		OrderBy(map[string]string{"ID": "desc"}).
 		GetOne()
 	if err != nil {
-		return nil, i.NewNotFoundError(err, statusEntity, whereCond)
+		return nil, i.MapError(err, statusEntity, whereCond)
 	}
 	return statusEntity.(*model.ClusterStatusEntity), nil
 }
@@ -417,7 +417,7 @@ func (i *DefaultInventory) config(runtimeID string, configVersion int64) (*model
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, i.NewNotFoundError(err, configEntity, whereCond)
+		return nil, i.MapError(err, configEntity, whereCond)
 	}
 	return configEntity.(*model.ClusterConfigurationEntity), nil
 }
@@ -435,7 +435,7 @@ func (i *DefaultInventory) latestConfig(clusterVersion int64) (*model.ClusterCon
 		OrderBy(map[string]string{"Version": "desc"}).
 		GetOne()
 	if err != nil {
-		return nil, i.NewNotFoundError(err, configEntity, whereCond)
+		return nil, i.MapError(err, configEntity, whereCond)
 	}
 	return configEntity.(*model.ClusterConfigurationEntity), nil
 }
@@ -453,7 +453,7 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 		Where(whereCond).
 		GetOne()
 	if err != nil {
-		return nil, i.NewNotFoundError(err, clusterEntity, whereCond)
+		return nil, i.MapError(err, clusterEntity, whereCond)
 	}
 	return clusterEntity.(*model.ClusterEntity), nil
 }
@@ -474,7 +474,7 @@ func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity
 		}).
 		GetOne()
 	if err != nil {
-		return nil, i.NewNotFoundError(err, clusterEntity, whereCond)
+		return nil, i.MapError(err, clusterEntity, whereCond)
 	}
 	return clusterEntity.(*model.ClusterEntity), nil
 }

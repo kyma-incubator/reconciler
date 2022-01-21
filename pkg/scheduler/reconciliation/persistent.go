@@ -241,7 +241,7 @@ func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) (
 			return nil, errors.Wrap(err, "failed to apply sql filter")
 		}
 	}
-	recons, err := selectQ.GetMany()
+	recons, err := selectQ.OrderBy(map[string]string{"Created": "DESC"}).GetMany()
 	if err != nil {
 		return nil, err
 	}
