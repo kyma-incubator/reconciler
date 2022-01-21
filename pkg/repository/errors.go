@@ -18,14 +18,14 @@ func (r *Repository) NewNotFoundError(err error, entity db.DatabaseEntity,
 }
 
 func (r *Repository) MapError(err error, entity db.DatabaseEntity, identifier map[string]interface{}) error {
-	if err != sql.ErrNoRows {
-		return err
+	if err == sql.ErrNoRows {
+		return &EntityNotFoundError{
+			entity:     entity,
+			identifier: identifier,
+			err:        err,
+		}
 	}
-	return &EntityNotFoundError{
-		entity:     entity,
-		identifier: identifier,
-		err:        err,
-	}
+	return err
 }
 
 type EntityNotFoundError struct {
