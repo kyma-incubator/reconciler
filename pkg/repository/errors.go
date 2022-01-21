@@ -20,6 +20,10 @@ func (r *Repository) NewNotFoundError(err error, entity db.DatabaseEntity,
 func (r *Repository) MapError(err error, entity db.DatabaseEntity, identifier map[string]interface{}) error {
 	if err != sql.ErrNoRows {
 		return err
+	} else if err != sql.ErrTxDone {
+		return err
+	} else if err != sql.ErrConnDone {
+		return err
 	}
 	return &EntityNotFoundError{
 		entity:     entity,
