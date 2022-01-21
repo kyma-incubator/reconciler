@@ -43,7 +43,7 @@ func NewOptions(o *cli.Options) *Options {
 		false,           //CreateEncyptionKey
 		0,               //MaxParallelOperations
 		false,           //AuditLog
-		"",              //AuditLogFIle
+		"",              //AuditLogFile
 		"",              //AuditLogTenant
 		false,           //StopAfterMigration
 	}
