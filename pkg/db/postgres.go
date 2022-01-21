@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
 
@@ -34,6 +35,8 @@ func newMigrateLogger(debug bool) *migrateLogger {
 func (ml *migrateLogger) Printf(format string, v ...interface{}) {
 	if ml.verbose {
 		ml.logger.Debugf(format, v...)
+	} else {
+		ml.logger.Infof(format, v...)
 	}
 }
 
@@ -234,6 +237,7 @@ func (pcf *postgresConnectionFactory) migrateDatabase() error {
 	if err != nil {
 		return errors.Wrap(err, "not able to instantiate migrator with database instance")
 	}
+	m.Log = migrateLogger
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return errors.Wrapf(err, "not able to execute migrations: %s", err)
 	}
