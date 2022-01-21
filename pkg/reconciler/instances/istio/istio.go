@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	ReconcilerName = "istio-configuration"
+	ReconcilerNameIstio              = "istio"
+	ReconcilerNameIstioConfiguration = "istio-configuration"
 )
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
@@ -19,10 +20,10 @@ func init() {
 
 	log := logger.NewLogger(false)
 
-	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
-	reconciler, err := service.NewComponentReconciler(ReconcilerName)
+	log.Debugf("Initializing component reconciler '%s'", ReconcilerNameIstio)
+	reconcilerIstio, err := service.NewComponentReconciler(ReconcilerNameIstio)
 	if err != nil {
-		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
+		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerNameIstio, err)
 	}
 
 	gatherer := data.NewDefaultGatherer()
@@ -31,8 +32,18 @@ func init() {
 	action := reset.NewDefaultPodsResetAction(matcher)
 	istioProxyReset := proxy.NewDefaultIstioProxyReset(gatherer, action)
 
-	performerCreatorFn := istioPerformerCreator(istioProxyReset, &provider)
+	istioPerformerCreatorFn := istioPerformerCreator(istioProxyReset, &provider, ReconcilerNameIstio)
+	reconcilerIstio.WithReconcileAction(NewReconcileAction(istioPerformerCreatorFn)).
+		WithDeleteAction(NewUninstallAction(istioPerformerCreatorFn))
 
-	reconciler.WithReconcileAction(NewReconcileAction(performerCreatorFn)).
-		WithDeleteAction(NewUninstallAction(performerCreatorFn))
+	log.Debugf("Initializing component reconciler '%s'", ReconcilerNameIstioConfiguration)
+	reconcilerIstioConfiguration, err := service.NewComponentReconciler(ReconcilerNameIstioConfiguration)
+	if err != nil {
+		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerNameIstioConfiguration, err)
+	}
+
+	istioConfigurationPerformerCreatorFn := istioPerformerCreator(istioProxyReset, &provider, ReconcilerNameIstioConfiguration)
+	reconcilerIstioConfiguration.WithReconcileAction(NewReconcileIstioConfigurationAction(istioConfigurationPerformerCreatorFn)).
+		WithDeleteAction(NewUninstallAction(istioConfigurationPerformerCreatorFn))
+
 }

@@ -20,19 +20,19 @@ const (
 
 //IstioPerformer instance should be created only once in the Istio Reconciler life.
 //Due to current Reconciler limitations - lack of well defined reconciler instances lifetime - we have to initialize it once per reconcile/delete action.
-func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clientset.Provider) bootstrapIstioPerformer {
+func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clientset.Provider, name string) bootstrapIstioPerformer {
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
 		pathsConfig := os.Getenv(istioctlBinaryPathEnvKey)
 		istioctlPaths, err := parsePaths(pathsConfig, validatePath)
 		if err != nil {
-			logger.Errorf("Could not create '%s' component reconciler: Error parsing env variable '%s': %s", ReconcilerName, istioctlBinaryPathEnvKey, err.Error())
+			logger.Errorf("Could not create '%s' component reconciler: Error parsing env variable '%s': %s", name, istioctlBinaryPathEnvKey, err.Error())
 			return nil, err
 		}
 
 		resolver, err := newDefaultCommanderResolver(istioctlPaths, logger)
 		if err != nil {
-			logger.Errorf("Could not create '%s' component reconciler: Error parsing env variable '%s': %s", ReconcilerName, istioctlBinaryPathEnvKey, err.Error())
+			logger.Errorf("Could not create '%s' component reconciler: Error parsing env variable '%s': %s", name, istioctlBinaryPathEnvKey, err.Error())
 			return nil, err
 		}
 
@@ -86,7 +86,7 @@ func parsePaths(input string, isValid func(string) error) ([]string, error) {
 		return nil, errors.New(fmt.Sprintf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen))
 	}
 	pathDefs := strings.Split(trimmed, ":")
-	res := []string{}
+	var res []string
 	for _, path := range pathDefs {
 		val := strings.TrimSpace(path)
 		if val == "" {
