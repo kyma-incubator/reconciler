@@ -37,7 +37,7 @@ func (ml *migrateLogger) Printf(format string, v ...interface{}) {
 	}
 }
 
-func (ml migrateLogger) Verbose() bool {
+func (ml *migrateLogger) Verbose() bool {
 	return ml.verbose
 }
 
