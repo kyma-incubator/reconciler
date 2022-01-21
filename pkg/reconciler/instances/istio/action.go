@@ -135,7 +135,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 
-		err = performer.ResetProxy(context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, context.Logger)
+		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not reset Istio proxy")
 		}
