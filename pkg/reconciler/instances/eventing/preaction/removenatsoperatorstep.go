@@ -2,7 +2,6 @@ package preaction
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -13,6 +12,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
