@@ -3,12 +3,13 @@ package worker
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
-	"github.com/pkg/errors"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
+	"github.com/pkg/errors"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -60,7 +61,7 @@ func TestWorkerPool(t *testing.T) {
 
 	//create reconciliation for cluster
 	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
-	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, nil)
+	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
 	require.Len(t, opsProcessable, 1)

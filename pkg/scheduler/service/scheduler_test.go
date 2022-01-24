@@ -28,14 +28,14 @@ func TestScheduler(t *testing.T) {
 	t.Run("Test run once", func(t *testing.T) {
 		clusterState := testClusterState("testCluster", 1)
 		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-		scheduler := newScheduler(nil, logger.NewLogger(true))
-		require.NoError(t, scheduler.RunOnce(clusterState, reconRepo))
+		scheduler := newScheduler(logger.NewLogger(true))
+		require.NoError(t, scheduler.RunOnce(clusterState, reconRepo, &SchedulerConfig{}))
 		requiredReconciliationEntity(t, reconRepo, clusterState)
 	})
 
 	t.Run("Test run", func(t *testing.T) {
 		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-		scheduler := newScheduler(nil, logger.NewLogger(true))
+		scheduler := newScheduler(logger.NewLogger(true))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -152,7 +152,7 @@ func TestSchedulerParallel(t *testing.T) {
 		require.NoError(t, err)
 		createClusterStates(t, inventory)
 
-		scheduler := newScheduler(nil, logger.NewLogger(true))
+		scheduler := newScheduler(logger.NewLogger(true))
 		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
 		require.NoError(t, err)
 
@@ -184,4 +184,34 @@ func TestSchedulerParallel(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, len(recons))
 	})
+}
+
+func TestDeleteStrategy(t *testing.T) {
+
+	// Happy paths
+	ds, err := NewDeleteStrategy("system")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategySystem, ds)
+
+	ds, err = NewDeleteStrategy("all")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategyAll, ds)
+
+	// Upper case resistant
+	ds, err = NewDeleteStrategy("System")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategySystem, ds)
+
+	ds, err = NewDeleteStrategy("All")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategyAll, ds)
+
+	// empty value guard
+	ds, err = NewDeleteStrategy("")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategySystem, ds)
+
+	// unsupported value
+	_, err = NewDeleteStrategy("")
+	require.Error(t, err)
 }

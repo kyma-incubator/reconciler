@@ -360,7 +360,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Get operations",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, [][]string{{"comp3"}})
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, testSequenceConfig([][]string{{"comp3"}}))
 				require.NoError(t, err)
 
 				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
@@ -476,7 +476,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Get processable operations using 1 reconciliation",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, [][]string{{"comp1"}})
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, testSequenceConfig([][]string{{"comp1"}}))
 				require.NoError(t, err)
 
 				//get existing operations
@@ -518,7 +518,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Get processable operations using 2 reconciliation",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, [][]string{{"comp1"}})
+				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, testSequenceConfig([][]string{{"comp1"}}))
 				require.NoError(t, err)
 				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, nil)
 				require.NoError(t, err)
@@ -572,7 +572,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Get reconciling operations",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				_, err := reconRepo.CreateReconciliation(stateMock1, [][]string{{"comp1"}})
+				_, err := reconRepo.CreateReconciliation(stateMock1, testSequenceConfig([][]string{{"comp1"}}))
 				require.NoError(t, err)
 				_, err = reconRepo.CreateReconciliation(stateMock2, nil)
 				require.NoError(t, err)
@@ -884,4 +884,11 @@ func TestReconciliationParallel(t *testing.T) {
 		})
 	}
 
+}
+
+func testSequenceConfig(preComps [][]string) *model.ReconciliationSequenceConfig {
+	return &model.ReconciliationSequenceConfig{
+		PreComponents:  preComps,
+		DeleteStrategy: "",
+	}
 }

@@ -31,7 +31,7 @@ func (r *PersistentReconciliationRepository) WithTx(tx *db.TxConnection) (Reposi
 	return NewPersistedReconciliationRepository(tx, r.Debug)
 }
 
-func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
+func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
 	if len(state.Configuration.Components) == 0 {
 		return nil, newEmptyComponentsReconciliationError(state)
 	}
@@ -82,9 +82,6 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		r.Logger.Debugf("ReconRepo created new reconciliation for runtime '%s' with schedulingID '%s'",
 			state.Cluster.RuntimeID, reconEntity.SchedulingID)
 
-		//get reconciliation sequence
-		reconSeq := state.Configuration.GetReconciliationSequence(preComponents)
-
 		opType := model.OperationTypeReconcile
 		if state.Status.Status.IsDeletion() {
 			opType = model.OperationTypeDelete
@@ -93,7 +90,10 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		//iterate over reconciliation sequence and create operations with proper priorities
 		var opsList bytes.Buffer
 
-		for idx, components := range reconSeq.Queue {
+		//get reconciliation sequence
+		sequence := state.Configuration.GetReconciliationSequence(cfg)
+
+		for idx, components := range sequence.Queue {
 			priority := idx + 1
 			for _, component := range components {
 				createOpQ, err := db.NewQuery(tx, &model.OperationEntity{
