@@ -115,7 +115,7 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	//create reconciliation for cluster
 	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 	require.NoError(t, err)
-	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, nil)
+	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 
 	maxParallelOps := 25
@@ -204,7 +204,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 		require.NoError(t, err)
 		for i := range clusterStates {
-			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], nil)
+			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], &model.ReconciliationSequenceConfig{})
 		}
 		require.NoError(t, err)
 		opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
