@@ -21,7 +21,7 @@ type MockRepository struct {
 	UpdateOperationRetryIDResult   error
 }
 
-func (mr *MockRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
+func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
 	return mr.CreateReconciliationResult, nil
 }
 

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 )
 
@@ -12,8 +13,9 @@ type ComponentReconciler struct {
 }
 
 type SchedulerConfig struct {
-	PreComponents [][]string
-	Reconcilers   map[string]ComponentReconciler
+	PreComponents  [][]string
+	Reconcilers    map[string]ComponentReconciler
+	DeleteStrategy string
 }
 
 type Config struct {

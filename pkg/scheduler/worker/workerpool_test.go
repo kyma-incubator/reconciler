@@ -3,12 +3,13 @@ package worker
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
-	"github.com/pkg/errors"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	kebTest "github.com/kyma-incubator/reconciler/pkg/keb/test"
+	"github.com/pkg/errors"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -60,7 +61,7 @@ func TestWorkerPool(t *testing.T) {
 
 	//create reconciliation for cluster
 	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
-	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, nil)
+	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
 	require.Len(t, opsProcessable, 1)
@@ -114,7 +115,7 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	//create reconciliation for cluster
 	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 	require.NoError(t, err)
-	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, nil)
+	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 
 	maxParallelOps := 25
@@ -203,7 +204,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 		require.NoError(t, err)
 		for i := range clusterStates {
-			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], nil)
+			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], &model.ReconciliationSequenceConfig{})
 		}
 		require.NoError(t, err)
 		opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
