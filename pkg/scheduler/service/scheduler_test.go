@@ -212,6 +212,6 @@ func TestDeleteStrategy(t *testing.T) {
 	require.Equal(t, DeleteStrategySystem, ds)
 
 	// unsupported value
-	_, err = NewDeleteStrategy("")
+	_, err = NewDeleteStrategy("not-a-strategy")
 	require.Error(t, err)
 }

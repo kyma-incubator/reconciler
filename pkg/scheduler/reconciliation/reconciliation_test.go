@@ -260,7 +260,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Create reconciliation",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 
 				require.NoError(t, err)
 				require.NotEmpty(t, reconEntity.SchedulingID)
@@ -272,7 +272,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Get existing reconciliation",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 				reconGot, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
 				require.NoError(t, err)
@@ -290,10 +290,10 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Create duplicate reconciliation",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				_, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				_, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 
-				_, err = reconRepo.CreateReconciliation(stateMock1, nil)
+				_, err = reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.Error(t, err)
 				require.True(t, IsDuplicateClusterReconciliationError(err))
 			},
@@ -301,7 +301,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Finish reconciliation",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 
 				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, stateMock1.Status)
@@ -315,9 +315,9 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Get reconciliations with and without filter",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
-				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, nil)
+				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 
 				all, err := reconRepo.GetReconciliations(nil)
@@ -346,7 +346,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Remove reconciliation",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 
 				err = reconRepo.RemoveReconciliation(reconEntity.SchedulingID)
@@ -401,7 +401,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Get operations with filter",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 
 				opsEntitiesAll, err := reconRepo.GetOperations(&operation.WithSchedulingID{
@@ -520,7 +520,7 @@ func TestReconciliationRepository(t *testing.T) {
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
 				reconEntity1, err := reconRepo.CreateReconciliation(stateMock1, testSequenceConfig([][]string{{"comp1"}}))
 				require.NoError(t, err)
-				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, nil)
+				reconEntity2, err := reconRepo.CreateReconciliation(stateMock2, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 
 				//get existing operations
@@ -574,7 +574,7 @@ func TestReconciliationRepository(t *testing.T) {
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
 				_, err := reconRepo.CreateReconciliation(stateMock1, testSequenceConfig([][]string{{"comp1"}}))
 				require.NoError(t, err)
-				_, err = reconRepo.CreateReconciliation(stateMock2, nil)
+				_, err = reconRepo.CreateReconciliation(stateMock2, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 
 				//get existing operations
@@ -586,7 +586,7 @@ func TestReconciliationRepository(t *testing.T) {
 		{
 			name: "Set operation states",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
-				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, nil)
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 
 				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
@@ -744,9 +744,9 @@ func TestTransaction(t *testing.T) {
 			require.NoError(t, err)
 
 			//create two clusters
-			_, err = reconRepoTx.CreateReconciliation(clusterState, nil)
+			_, err = reconRepoTx.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 			require.NoError(t, err)
-			_, err = reconRepoTx.CreateReconciliation(clusterState2, nil)
+			_, err = reconRepoTx.CreateReconciliation(clusterState2, &model.ReconciliationSequenceConfig{})
 			require.NoError(t, err)
 
 			//check if reconciliations are created
@@ -785,7 +785,7 @@ func TestReconciliationParallel(t *testing.T) {
 				return nil, nil
 			},
 			mainFunc: func(repo Repository, state *cluster.State, reconEntity *model.ReconciliationEntity, entities []*model.OperationEntity) error {
-				_, err := repo.CreateReconciliation(state, nil)
+				_, err := repo.CreateReconciliation(state, &model.ReconciliationSequenceConfig{})
 				return err
 			},
 			check: func(repo Repository, threadCnt int, errChannel chan error) {
@@ -798,7 +798,7 @@ func TestReconciliationParallel(t *testing.T) {
 		},
 		{name: "Update single operation state in multiple parallel threads",
 			preparationFunc: func(repo Repository, state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
-				recon, err := repo.CreateReconciliation(state, nil)
+				recon, err := repo.CreateReconciliation(state, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 				allOperations, err := repo.GetOperations(&operation.WithSchedulingID{
 					SchedulingID: recon.SchedulingID,
@@ -823,7 +823,7 @@ func TestReconciliationParallel(t *testing.T) {
 		},
 		{name: "Mark single reconciliation as finished in multiple parallel threads",
 			preparationFunc: func(repo Repository, state *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity) {
-				recon, err := repo.CreateReconciliation(state, nil)
+				recon, err := repo.CreateReconciliation(state, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 				return recon, nil
 			},
