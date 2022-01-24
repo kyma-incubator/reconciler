@@ -104,6 +104,15 @@ func TestBookkeepingtask(t *testing.T) {
 
 func TestBookkeepingtaskParallel(t *testing.T) {
 
+	threadCount := 25
+	//errorCount should be equal to 72, since there are three operations scheduled,
+	//and 25 threads try to mark them as orphans at the same time
+	//three should succeed, resolving in 72 errors
+	orphanErrors := 72
+	//finishErrors should be equal to 24, since 25 threads try to update the cluster state to be finished
+	//only one should succeed resolving in 24 errors
+	finishErrors := 24
+
 	tests := []struct {
 		name           string
 		markOpsAs      model.OperationState
@@ -117,13 +126,13 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				transition: transition,
 				logger:     logger.NewLogger(true),
 			}
-		}, errMessage: "Bookkeeper failed to update status of orphan operation", errCount: 72, expectedStatus: model.OperationStateOrphan},
+		}, errMessage: "Bookkeeper failed to update status of orphan operation", errCount: orphanErrors, expectedStatus: model.OperationStateOrphan},
 		{name: "Finish two operations in multiple parallel threads", markOpsAs: model.OperationStateDone, customFunc: func(transition *ClusterStatusTransition) BookkeepingTask {
 			return finishOperation{
 				transition: transition,
 				logger:     logger.NewLogger(true),
 			}
-		}, errMessage: "Bookkeeper failed to update cluster", errCount: 24, expectedStatus: model.OperationStateDone},
+		}, errMessage: "Bookkeeper failed to update cluster", errCount: finishErrors, expectedStatus: model.OperationStateDone},
 	}
 
 	for _, tc := range tests {
@@ -182,7 +191,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			//call Apply in parallel threads
 			errChannel := make(chan error, 100)
 			startAt := time.Now().Add(2 * time.Second)
-			for i := 0; i < 25; i++ {
+			for i := 0; i < threadCount; i++ {
 				wg.Add(1)
 				go func(errChannel chan error, bookkeeperOperation BookkeepingTask) {
 					defer wg.Done()
