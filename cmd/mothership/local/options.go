@@ -114,30 +114,30 @@ func componentsFromStrings(list []string, values []string) ([]*keb.Component, er
 }
 
 func componentsFromClusterState(cluster cluster.State, values []string) ([]*keb.Component, error) {
-	components := cluster.Configuration.Components
 	vals := map[string]interface{}{}
-
 	for _, value := range values {
-		err := strvals.ParseInto(value, vals)
+		err := strvals.ParseIntoString(value, vals)
 		if err != nil {
 			return nil, fmt.Errorf("can't parse value %s", value)
 		}
 	}
 
+	components := cluster.Configuration.Components
 	for i := range components {
 		name := components[i].Component
-		if vals[name] == nil {
-			continue
+		if vals[name] != nil {
+			mapValue, ok := vals[name].(map[string]interface{})
+			if ok {
+				for key, value := range mapValue {
+					components[i].Configuration = append(components[i].Configuration, keb.Configuration{Key: key, Value: value})
+				}
+			} else {
+				return nil, fmt.Errorf("expected nested values for component %s, got value %s", name, vals[name])
+			}
 		}
 
-		configuration := components[i].Configuration
-		mapValue, ok := vals[name].(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("expected nested values for component %s, got value %s", name, vals[name])
-		}
-
-		for key, value := range mapValue {
-			configuration = append(configuration, keb.Configuration{Key: key, Value: value})
+		if vals["global"] != nil {
+			components[i].Configuration = append(components[i].Configuration, keb.Configuration{Key: "global", Value: vals["global"]})
 		}
 	}
 
