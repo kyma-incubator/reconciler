@@ -91,7 +91,7 @@ func (pc *postgresConnection) Exec(query string, args ...interface{}) (sql.Resul
 
 func (pc *postgresConnection) Begin() (*TxConnection, error) {
 	pc.logger.Debug("Postgres Begin()")
-	tx, err := pc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	tx, err := pc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (pcf *postgresConnectionFactory) checkPostgresIsolationLevel() error {
 		if isoLevel == sql.LevelReadUncommitted.String() {
 			//stop bootstrapping if isolation level is too low
 			return fmt.Errorf("postgres isolation level has to be >= '%s' but was '%s'",
-				isoLevel, sql.LevelReadCommitted.String())
+				sql.LevelReadCommitted.String(), isoLevel)
 		}
 	} else {
 		return errors.New("Postgres isolation level unknown")

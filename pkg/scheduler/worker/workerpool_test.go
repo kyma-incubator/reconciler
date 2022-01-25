@@ -28,10 +28,27 @@ type testInvoker struct {
 	reconRepo  reconciliation.Repository
 	workerRepo occupancy.Repository
 	errChannel chan error
+	sync.WaitGroup
+}
+
+type testInvokerParallel struct {
+	params     []*invoker.Params
+	reconRepo  reconciliation.Repository
+	errChannel chan error
 	sync.Mutex
 }
 
 func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
+	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, false, ""); err != nil {
+		return err
+	}
+	i.params = append(i.params, params)
+	time.Sleep(1 * time.Second)
+	i.Done()
+	return nil
+}
+
+func (i *testInvokerParallel) Invoke(_ context.Context, params *invoker.Params) error {
 	if err := i.reconRepo.UpdateOperationState(params.SchedulingID, params.CorrelationID, model.OperationStateInProgress, false, ""); err != nil {
 		i.errChannel <- errors.New("Update failed")
 		return err
@@ -39,6 +56,7 @@ func (i *testInvoker) Invoke(_ context.Context, params *invoker.Params) error {
 	i.Lock()
 	i.params = append(i.params, params)
 	i.Unlock()
+	time.Sleep(1 * time.Second)
 	return nil
 }
 
@@ -59,7 +77,7 @@ func TestWorkerPool(t *testing.T) {
 	}()
 
 	//create test invoker to be able to verify invoker calls
-	testInvoker := &testInvoker{}
+	testInvoker := &testInvoker{errChannel: make(chan error, 10)}
 
 	//create reconciliation for cluster
 	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
@@ -80,17 +98,22 @@ func TestWorkerPool(t *testing.T) {
 
 	//ensure worker pool stops when context gets closed
 	startTime := time.Now()
+	testInvoker.Add(1)
 	require.NoError(t, workerPool.Run(ctx))
 	require.WithinDuration(t, startTime, time.Now(), 3*time.Second) //ensure workerPool is considering ctx
+	testInvoker.Wait()
+	paramLock := sync.Mutex{}
+	paramLock.Lock()
+	params := testInvoker.params
+	paramLock.Unlock()
 
 	//verify that invoker was properly called
-	require.Len(t, testInvoker.params, 1)
-	require.Equal(t, clusterState, testInvoker.params[0].ClusterState)
-
+	require.Len(t, params, 1)
+	require.Equal(t, clusterState, params[0].ClusterState)
 	//Check cleanup params
-	require.Equal(t, reconEntity.SchedulingID, testInvoker.params[0].SchedulingID)
+	require.Equal(t, reconEntity.SchedulingID, params[0].SchedulingID)
 
-	requireOpsProcessableExists(t, opsProcessable, testInvoker.params[0].CorrelationID)
+	requireOpsProcessableExists(t, opsProcessable, params[0].CorrelationID)
 }
 
 func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
@@ -175,14 +198,17 @@ func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.Operation
 
 func TestWorkerPoolParallel(t *testing.T) {
 
-	t.SkipNow() //skipping test until #559 is verified/fixed.
-
 	t.Run("Multiple WorkerPools watching same reconciliation repository", func(t *testing.T) {
 
-		//initialize WaitGroup
 		var wg sync.WaitGroup
+
+		const countWorkerPools = 5
+		const countKebClusters = 3
+		const countOperations = 3 //should be the same count as prio1 operations from all clusters; here three clusters with one prio1 operation each
+
 		//prepare keb clusters
-		kebClusters := []*keb.Cluster{kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy),
+		kebClusters := []*keb.Cluster{
+			kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy),
 			kebTest.NewCluster(t, "2", 1, false, kebTest.OneComponentDummy),
 			kebTest.NewCluster(t, "3", 1, false, kebTest.OneComponentDummy),
 		}
@@ -195,59 +221,78 @@ func TestWorkerPoolParallel(t *testing.T) {
 		require.NoError(t, err)
 
 		//add clusters to inventory
-		var clusterStates [3]*cluster.State
+		var clusterStates [countKebClusters]*cluster.State
 		for i := range kebClusters {
 			clusterStates[i], err = inventory.CreateOrUpdate(1, kebClusters[i])
 		}
 		require.NoError(t, err)
 
 		//create test invoker to be able to verify invoker calls and update operation state
-		testInvoker := &testInvoker{errChannel: make(chan error, 100)}
+		testInvoker := &testInvokerParallel{errChannel: make(chan error, 100)}
 
 		//create reconciliation for cluster
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 		require.NoError(t, err)
+		//cleanup before
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
+
 		for i := range clusterStates {
 			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], &model.ReconciliationSequenceConfig{})
+			require.NoError(t, err)
 		}
-		require.NoError(t, err)
+
 		opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
-		require.Len(t, opsProcessable, 3) // only first prio
+		require.Len(t, opsProcessable, countOperations) // only first priority
 		require.NoError(t, err)
 
 		//initialize worker pool
 		testInvoker.workerRepo = occupancy.NewInMemoryOccupancyRepository()
-		workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
-		require.NoError(t, err)
+		wPools := make([]*Pool, countWorkerPools)
+		for i := 0; i < countWorkerPools; i++ {
+			workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, &Config{PoolSize: 5}, logger.NewLogger(true))
+			require.NoError(t, err)
+			wPools[i] = workerPool
+		}
 
 		//create time limited context
-		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancelFct := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancelFct()
 
 		//start multiple worker pools
 		errChannel := make(chan error)
 		startAt := time.Now().Add(1 * time.Second)
-		for i := 0; i < 3; i++ {
+		for i := 0; i < countWorkerPools; i++ {
 			wg.Add(1)
-			go func(errChannel chan error, workerPool *Pool) {
+			i := i
+			go func(errChannel chan error, wPools []*Pool) {
 				defer wg.Done()
 				time.Sleep(time.Until(startAt))
-				err := workerPool.Run(ctx)
+				err := wPools[i].Run(ctx)
 				if err != nil {
 					errChannel <- err
 				}
-			}(errChannel, workerPool)
+			}(errChannel, wPools)
 		}
 		wg.Wait()
 
-		//verify that invoker was properly called
-		//12 errors are expected, since three workerpools are started, watching 6 operations
-		//each operation should only be assigned once, which results in 12 errors
-		require.Equal(t, 12, len(testInvoker.errChannel))
-		require.Len(t, testInvoker.params, 3)
-		for i := 0; i < 3; i++ {
+		//check how often the invokes were successful
+		require.Len(t, testInvoker.params, countOperations)
+		for i := 0; i < len(testInvoker.params); i++ {
+			//check for updated status and component
 			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
-			require.Equal(t, model.CRDComponent, testInvoker.params[i].ComponentToReconcile.Component)
+			require.Equal(t, model.CleanupComponent, testInvoker.params[i].ComponentToReconcile.Component)
 		}
+		//cleanup after
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 	})
+}
+
+func removeExistingReconciliations(t *testing.T, repos map[string]reconciliation.Repository) {
+	for _, repo := range repos {
+		recons, err := repo.GetReconciliations(nil)
+		require.NoError(t, err)
+		for _, recon := range recons {
+			require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
+		}
+	}
 }

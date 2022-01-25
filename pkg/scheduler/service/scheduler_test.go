@@ -142,8 +142,6 @@ func dbConnection(t *testing.T) db.Connection {
 
 func TestSchedulerParallel(t *testing.T) {
 
-	t.SkipNow() //skipping test until #559 is verified/fixed.
-
 	t.Run("Multiple scheduler watching same inventory", func(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
@@ -155,6 +153,8 @@ func TestSchedulerParallel(t *testing.T) {
 		scheduler := newScheduler(logger.NewLogger(true))
 		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
 		require.NoError(t, err)
+		//cleanup before
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
 
 		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelFct()
@@ -183,6 +183,8 @@ func TestSchedulerParallel(t *testing.T) {
 		recons, err := reconRepo.GetReconciliations(nil)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(recons))
+		//cleanup after
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
 	})
 }
 
