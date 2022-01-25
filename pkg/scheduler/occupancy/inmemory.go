@@ -52,14 +52,14 @@ func (r *InMemoryOccupancyRepository) FindWorkerPoolOccupancyByID(poolID string)
 }
 
 func (r *InMemoryOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string, runningWorkers int) error {
-	r.Lock()
-	defer r.Unlock()
 
 	occupancyEntity, err := r.FindWorkerPoolOccupancyByID(poolID)
 	if err != nil {
 		return fmt.Errorf("could not find a worker pool occupancy with a poolID: %s", poolID)
 	}
 
+	r.Lock()
+	defer r.Unlock()
 	//copy entity to avoid race conditions
 	occCopy := *occupancyEntity
 	if int64(runningWorkers) > occCopy.WorkerPoolCapacity {
@@ -86,14 +86,14 @@ func (r *InMemoryOccupancyRepository) GetWorkerPoolOccupancies() ([]*model.Worke
 }
 
 func (r *InMemoryOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string) error {
-	r.Lock()
-	defer r.Unlock()
 
 	_, err := r.FindWorkerPoolOccupancyByID(poolID)
 	if err != nil {
 		return fmt.Errorf("could not find a worker pool occupancy with a poolID: %s", poolID)
 	}
 
+	r.Lock()
+	defer r.Unlock()
 	delete(r.occupancies, poolID)
 	return nil
 }

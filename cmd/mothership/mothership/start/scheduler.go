@@ -18,7 +18,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 	}
 
 	o.ReconcilerList = getListOfReconcilers(schedulerCfg)
-	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), o.Registry.WorkerRepository(), logger.NewLogger(o.Verbose))
+	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), logger.NewLogger(o.Verbose))
 
 	return runtimeBuilder.
 		RunRemote(

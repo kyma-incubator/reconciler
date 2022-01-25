@@ -17,9 +17,9 @@ type Registry struct {
 	connection       db.Connection
 	inventory        cluster.Inventory
 	kvRepository     *kv.Repository
-	reconRepository  reconciliation.Repository
-	workerRepository occupancy.Repository
-	initialized      bool
+	reconRepository     reconciliation.Repository
+	occupancyRepository occupancy.Repository
+	initialized         bool
 }
 
 func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
@@ -50,7 +50,7 @@ func (or *Registry) init() error {
 	if or.reconRepository, err = or.initReconciliationRepository(); err != nil {
 		return err
 	}
-	if or.workerRepository, err = or.initWorkerRepository(); err != nil {
+	if or.occupancyRepository, err = or.initWorkerRepository(); err != nil {
 		return err
 	}
 
@@ -82,8 +82,8 @@ func (or *Registry) ReconciliationRepository() reconciliation.Repository {
 	return or.reconRepository
 }
 
-func (or *Registry) WorkerRepository() occupancy.Repository {
-	return or.workerRepository
+func (or *Registry) OccupancyRepository() occupancy.Repository {
+	return or.occupancyRepository
 }
 
 func (or *Registry) initRepository() (*kv.Repository, error) {

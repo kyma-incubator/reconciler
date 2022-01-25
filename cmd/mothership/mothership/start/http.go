@@ -116,7 +116,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, deleteComponentWorkerPoolOccupancy)).Methods(http.MethodDelete)
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.WorkerRepository(), o.ReconcilerList, o.Logger())
+	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -152,7 +152,7 @@ func deleteComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *ht
 		})
 		return
 	}
-	err = o.Registry.WorkerRepository().RemoveWorkerPoolOccupancy(poolID)
+	err = o.Registry.OccupancyRepository().RemoveWorkerPoolOccupancy(poolID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: err.Error(),
@@ -729,6 +729,8 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = updateComponentOccupancy(o, body.PoolID, body.RunningWorkers)
+
 	switch body.Status {
 	case reconciler.StatusNotstarted, reconciler.StatusRunning:
 		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateInProgress)
@@ -804,6 +806,17 @@ func updateOperationStateAndRetryID(o *Options, schedulingID, correlationID, ret
 			"retryID '%s': %s", schedulingID, correlationID, retryID, err)
 	}
 	return err
+}
+
+func updateComponentOccupancy(o *Options, poolID string, runningWorkers int) error {
+	occupancy, err := o.Registry.OccupancyRepository().FindWorkerPoolOccupancyByID(poolID)
+	if err != nil {
+		return err
+	}
+	if occupancy.RunningWorkers == int64(runningWorkers) {
+		return nil
+	}
+	return o.Registry.OccupancyRepository().UpdateWorkerPoolOccupancy(poolID, runningWorkers)
 }
 
 func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.OperationEntity, error) {

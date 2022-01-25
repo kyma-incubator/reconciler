@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/occupancy"
 	"os"
 	"path/filepath"
 	"testing"
@@ -92,7 +93,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, &occupancy.WorkerPoolOccupancy{})
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -119,7 +120,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, &occupancy.WorkerPoolOccupancy{})
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -141,7 +142,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, &occupancy.WorkerPoolOccupancy{})
 		require.NoError(t, err)
 
 		//reconcile action has to be executed
@@ -164,7 +165,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//failing run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, &occupancy.WorkerPoolOccupancy{})
 		require.Error(t, err)
 
 		//pre action has to be executed
@@ -187,7 +188,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//failing run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, &occupancy.WorkerPoolOccupancy{})
 		require.Error(t, err)
 
 		//reconcile action has to be executed
@@ -214,7 +215,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//failing run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, &occupancy.WorkerPoolOccupancy{})
 		require.Error(t, err)
 
 		//reconcile and post action have to be executed
@@ -235,7 +236,7 @@ func TestRunner(t *testing.T) {
 		start := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
-		err = runner.Run(ctx, model, cbh)
+		err = runner.Run(ctx, model, cbh, &occupancy.WorkerPoolOccupancy{})
 		require.Error(t, err)
 		require.WithinDuration(t, time.Now(), start, 2*time.Second)
 	})

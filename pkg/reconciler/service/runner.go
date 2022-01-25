@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
-	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/occupancy"
 	"strings"
+
+	"github.com/google/uuid"
 
 	"go.uber.org/zap"
 
@@ -23,7 +25,7 @@ type runner struct {
 	logger *zap.SugaredLogger
 }
 
-func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler) error {
+func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler, poolOccupancy *occupancy.WorkerPoolOccupancy) error {
 	heartbeatSender, err := heartbeat.NewHeartbeatSender(ctx, callback, r.logger, heartbeat.Config{
 		Interval: r.heartbeatSenderConfig.interval,
 		Timeout:  r.heartbeatSenderConfig.timeout,
@@ -34,7 +36,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	var retryID string
 	retryable := func() error {
 		retryID = uuid.NewString()
-		if err := heartbeatSender.Running(retryID); err != nil {
+		if err := heartbeatSender.Running(retryID, poolOccupancy); err != nil {
 			r.logger.Warnf("Runner: failed to start status updater: %s", err)
 			return err
 		}
@@ -42,7 +44,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		if err != nil {
 			r.logger.Warnf("Runner: failing reconciliation of '%s' in version '%s' with profile '%s': %s",
 				task.Component, task.Version, task.Profile, err)
-			if heartbeatErr := heartbeatSender.Failed(err, retryID); heartbeatErr != nil {
+			if heartbeatErr := heartbeatSender.Failed(err, retryID, poolOccupancy); heartbeatErr != nil {
 				err = errors.Wrap(err, heartbeatErr.Error())
 			}
 		}
@@ -59,7 +61,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	if err == nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
-		if err := heartbeatSender.Success(retryID); err != nil {
+		if err := heartbeatSender.Success(retryID, poolOccupancy); err != nil {
 			return err
 		}
 	} else if ctx.Err() != nil {
@@ -69,7 +71,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	} else {
 		r.logger.Errorf("Runner: retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			task.Component, task.Version)
-		if heartbeatErr := heartbeatSender.Error(err, retryID); heartbeatErr != nil {
+		if heartbeatErr := heartbeatSender.Error(err, retryID, poolOccupancy); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
 		}
 	}

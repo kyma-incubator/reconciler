@@ -124,7 +124,7 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 		})
 		return
 	}
-	sendResponse(workerPool.PoolID, o.WorkerConfig.Workers, w)
+	sendResponse(workerPool.PoolOccupancy.PoolID, o.WorkerConfig.Workers, w)
 }
 
 func sendResponse(poolID string, poolSize int, w http.ResponseWriter) {

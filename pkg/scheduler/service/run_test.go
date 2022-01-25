@@ -99,7 +99,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	require.NoError(t, err)
 
 	//create worker repository
-	workerRepo, err := occupancy.NewPersistentOccupancyRepository(dbConn, debugLogging)
+	occupancyRepository, err := occupancy.NewPersistentOccupancyRepository(dbConn, debugLogging)
 	require.NoError(t, err)
 
 	//cleanup
@@ -113,7 +113,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	}()
 
 	//configure remote runner
-	runtimeBuilder := NewRuntimeBuilder(reconRepo, workerRepo, logger.NewLogger(debugLogging))
+	runtimeBuilder := NewRuntimeBuilder(reconRepo, occupancyRepository, logger.NewLogger(debugLogging))
 	remoteRunner := runtimeBuilder.RunRemote(dbConn, inventory, &config.Config{
 		Scheme: "https",
 		Host:   "httpbin.org",
