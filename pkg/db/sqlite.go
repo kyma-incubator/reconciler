@@ -86,7 +86,7 @@ func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result,
 
 func (sc *sqliteConnection) Begin() (*TxConnection, error) {
 	sc.logger.Debug("Sqlite3 Begin()")
-	tx, err := sc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	tx, err := sc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, err
 	}
