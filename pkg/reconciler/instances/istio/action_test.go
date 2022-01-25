@@ -86,9 +86,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertNotCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
-		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("context.Context"), mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertNotCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -113,9 +113,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
-		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("context.Context"), mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertNotCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -148,9 +148,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
-		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("context.Context"), mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertNotCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -170,7 +170,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(errors.New("Performer Patch error"))
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(errors.New("Performer Patch error"))
 
 		action := ReconcileAction{performerCreatorFn(&performer)}
 
@@ -183,9 +183,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertNotCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 	})
 
 	t.Run("should perform istio install action when istio was not detected on the cluster", func(t *testing.T) {
@@ -204,7 +204,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 
 		action := ReconcileAction{performerCreatorFn(&performer)}
 
@@ -216,9 +216,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertNotCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -241,7 +241,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 
 		action := ReconcileAction{performerCreatorFn(&performer)}
 
@@ -253,9 +253,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("context.Context"), mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertNotCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -278,7 +278,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooHighPilotAndDataPlaneVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 
 		action := ReconcileAction{performerCreatorFn(&performer)}
 
@@ -290,9 +290,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("context.Context"), mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertNotCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -315,7 +315,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowPilotAndDataPlaneVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 
 		action := ReconcileAction{performerCreatorFn(&performer)}
 
@@ -327,9 +327,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("context.Context"), mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
+		performer.AssertNotCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -352,9 +352,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(istioVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Proxy reset error"))
+		performer.On("ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Proxy reset error"))
 
 		action := ReconcileAction{performerCreatorFn(&performer)}
 
@@ -367,9 +367,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
+		performer.AssertCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -392,9 +392,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(istioVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("PatchMutatingWebhook", actionContext.KubeClient, actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 
 		action := ReconcileAction{performerCreatorFn(&performer)}
 
@@ -407,8 +407,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "ResetProxy", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
+		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
 		kubeClient.AssertCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 }

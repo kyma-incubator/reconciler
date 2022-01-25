@@ -57,7 +57,7 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 
 	//create reconciliation entity
-	reconEntity, err := reconRepo.CreateReconciliation(clusterStateMock, nil)
+	reconEntity, err := reconRepo.CreateReconciliation(clusterStateMock, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 
 	//retrieve ops of reconciliation entity

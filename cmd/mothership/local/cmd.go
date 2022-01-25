@@ -3,10 +3,11 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
+
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
-	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -20,6 +21,7 @@ import (
 	//Register all reconcilers
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	scheduler "github.com/kyma-incubator/reconciler/pkg/scheduler/service"
 	"github.com/spf13/cobra"
 )
 
@@ -91,31 +93,40 @@ func RunLocal(o *Options) error {
 	if o.delete {
 		status = model.ClusterStatusDeletePending
 	}
-	reconResult, err := runtimeBuilder.RunLocal(preComps, printStatus).Run(cli.NewContext(), &cluster.State{
-		Cluster: &model.ClusterEntity{
-			Version:    1,
-			RuntimeID:  "local",
-			Metadata:   &keb.Metadata{},
-			Kubeconfig: o.kubeconfig,
-			Contract:   1,
-		},
-		Configuration: &model.ClusterConfigurationEntity{
-			Version:        1,
-			RuntimeID:      "local",
-			ClusterVersion: 1,
-			KymaVersion:    o.version,
-			KymaProfile:    o.profile,
-			Components:     comps,
-			Contract:       1,
-		},
-		Status: &model.ClusterStatusEntity{
-			ID:             1,
-			RuntimeID:      "local",
-			ClusterVersion: 1,
-			ConfigVersion:  1,
-			Status:         status,
-		},
-	})
+	reconResult, err := runtimeBuilder.RunLocal(printStatus).
+		WithSchedulerConfig(
+			&scheduler.SchedulerConfig{
+				PreComponents:            preComps,
+				InventoryWatchInterval:   0, // not relevant for local (will change with unification of remote/local cases)
+				ClusterReconcileInterval: 0, // not relevant for local (will change with unification of remote/local cases)
+				ClusterQueueSize:         10,
+				DeleteStrategy:           scheduler.DeleteStrategySystem, // local runners always use default (will change with unification of remote/local cases)
+			}).
+		Run(cli.NewContext(), &cluster.State{
+			Cluster: &model.ClusterEntity{
+				Version:    1,
+				RuntimeID:  "local",
+				Metadata:   &keb.Metadata{},
+				Kubeconfig: o.kubeconfig,
+				Contract:   1,
+			},
+			Configuration: &model.ClusterConfigurationEntity{
+				Version:        1,
+				RuntimeID:      "local",
+				ClusterVersion: 1,
+				KymaVersion:    o.version,
+				KymaProfile:    o.profile,
+				Components:     comps,
+				Contract:       1,
+			},
+			Status: &model.ClusterStatusEntity{
+				ID:             1,
+				RuntimeID:      "local",
+				ClusterVersion: 1,
+				ConfigVersion:  1,
+				Status:         status,
+			},
+		})
 	if err != nil {
 		return err //general issue occurred
 	}

@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -232,7 +233,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 	t.Run("should not patch MutatingWebhookConfiguration when kubeclient had returned an error", func(t *testing.T) {
 		// given
 		kubeClient := mocks.Client{}
-		kubeClient.On("PatchUsingStrategy", "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(errors.New("kubeclient error"))
+		kubeClient.On("PatchUsingStrategy", context.TODO(), "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(errors.New("kubeclient error"))
 		cmder := istioctlmocks.Commander{}
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
 
@@ -241,7 +242,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(&kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
 
 		// then
 		require.Error(t, err)
@@ -251,7 +252,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error", func(t *testing.T) {
 		// given
 		kubeClient := mocks.Client{}
-		kubeClient.On("PatchUsingStrategy", "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(nil)
+		kubeClient.On("PatchUsingStrategy", context.TODO(), "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(nil)
 		cmder := istioctlmocks.Commander{}
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
 
@@ -260,7 +261,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(&kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
 
 		// then
 		require.NoError(t, err)
@@ -351,7 +352,8 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 
 	kubeConfig := "kubeconfig"
 	log := logger.NewLogger(false)
-
+	ctx := context.Background()
+	defer ctx.Done()
 	t.Run("should return error when kubeclient could not be retrieved", func(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
@@ -365,7 +367,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
 
 		// then
 		require.Error(t, err)
@@ -386,7 +388,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
 
 		// then
 		require.Error(t, err)
@@ -407,7 +409,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
 
 		// then
 		require.NoError(t, err)

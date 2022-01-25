@@ -52,7 +52,7 @@ func TestBookkeepingtask(t *testing.T) {
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
-			reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
+			reconEntity, err := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 			require.NoError(t, err)
 			require.NotEmpty(t, reconEntity.Lock)
 			require.False(t, reconEntity.Finished)
@@ -146,7 +146,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
-			reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
+			reconEntity, err := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 			require.NoError(t, err)
 			require.NotEmpty(t, reconEntity.Lock)
 			require.False(t, reconEntity.Finished)

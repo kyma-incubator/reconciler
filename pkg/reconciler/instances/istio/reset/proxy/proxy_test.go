@@ -32,7 +32,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{})
 
 		action := podresetmocks.Action{}
-		action.On("Reset", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
+		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
 			Return(nil)
 		istioProxyReset := NewDefaultIstioProxyReset(&gatherer, &action)
 
@@ -54,7 +54,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{Items: []v1.Pod{{}}})
 
 		action := podresetmocks.Action{}
-		action.On("Reset", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
+		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
 			Return(nil)
 		istioProxyReset := NewDefaultIstioProxyReset(&gatherer, &action)
 
@@ -77,7 +77,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{})
 
 		action := podresetmocks.Action{}
-		action.On("Reset", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
+		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
 			Return(nil)
 		istioProxyReset := DefaultIstioProxyReset{&gatherer, &action}
 

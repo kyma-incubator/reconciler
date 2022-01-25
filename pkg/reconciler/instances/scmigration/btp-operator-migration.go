@@ -7,12 +7,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SAP/sap-btp-service-operator-migration/migrate"
-	"github.com/SAP/sap-btp-service-operator-migration/sapoperator"
 	"github.com/SAP/sap-btp-service-operator/api/v1alpha1"
 	"github.com/SAP/sap-btp-service-operator/client/sm"
 	"github.com/SAP/sap-btp-service-operator/client/sm/types"
-	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/v1beta1"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/scmigration/apis/servicecatalog/v1beta1"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/scheme"
 )
@@ -30,7 +29,9 @@ import (
 // https://github.com/SAP/sap-btp-service-operator-migration/blob/v0.1.2/migrate/migrator.go
 
 const (
-	migratedLabel = "migrated"
+	migratedLabel    = "migrated"
+	serviceInstances = "serviceinstances"
+	serviceBindings  = "servicebindings"
 )
 
 type serviceInstancePair struct {
@@ -49,8 +50,14 @@ type object interface {
 }
 
 type migrator struct {
-	*migrate.Migrator
-	ac *service.ActionContext
+	SMClient              sm.Client
+	SvcatRestClient       *rest.RESTClient
+	SapOperatorRestClient *rest.RESTClient
+	ClientSet             *kubernetes.Clientset
+	ClusterID             string
+	Services              map[string]types.ServiceOffering
+	Plans                 map[string]types.ServicePlan
+	ac                    *service.ActionContext
 }
 
 func newMigrator(ac *service.ActionContext) (*migrator, error) {
@@ -64,7 +71,7 @@ func newMigrator(ac *service.ActionContext) (*migrator, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = sapoperator.AddToScheme(scheme.Scheme)
+	err = v1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +83,10 @@ func newMigrator(ac *service.ActionContext) (*migrator, error) {
 	if err != nil {
 		return nil, err
 	}
-	smClient := migrate.GetSMClient(ctx, secret)
+	smClient, err := getSMClient(ctx, secret)
+	if err != nil {
+		return nil, err
+	}
 	services, err := getServices(smClient)
 	if err != nil {
 		return nil, err
@@ -85,18 +95,17 @@ func newMigrator(ac *service.ActionContext) (*migrator, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &migrator{
-		ac: ac,
-		Migrator: &migrate.Migrator{
-			SMClient:              smClient,
-			SvcatRestClient:       migrate.GetK8sClient(cfg, sapoperator.SVCATGroupName, sapoperator.SVCATGroupVersion),
-			SapOperatorRestClient: migrate.GetK8sClient(cfg, sapoperator.OperatorGroupName, sapoperator.OperatorGroupVersion),
-			ClientSet:             cs,
-			ClusterID:             configMap.Data["CLUSTER_ID"],
-			Services:              services,
-			Plans:                 plans,
-		},
-	}, nil
+	migrator := &migrator{
+		ac:                    ac,
+		SMClient:              smClient,
+		SvcatRestClient:       getK8sClient(cfg, svCatGroupName, svCatGroupVersion),
+		SapOperatorRestClient: getK8sClient(cfg, operatorGroupName, operatorGroupVersion),
+		ClientSet:             cs,
+		ClusterID:             configMap.Data["CLUSTER_ID"],
+		Services:              services,
+		Plans:                 plans,
+	}
+	return migrator, nil
 }
 
 func getPlans(smclient sm.Client) (map[string]types.ServicePlan, error) {
@@ -144,14 +153,14 @@ func (m *migrator) migrateBTPOperator() error {
 
 	ctx := m.ac.Context
 	svcatInstances := v1beta1.ServiceInstanceList{}
-	err = m.SvcatRestClient.Get().Namespace("").Resource(migrate.ServiceInstances).Do(ctx).Into(&svcatInstances)
+	err = m.SvcatRestClient.Get().Namespace("").Resource(serviceInstances).Do(ctx).Into(&svcatInstances)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	m.ac.Logger.Infof("Fetched %v svcat instances from cluster", len(svcatInstances.Items))
 
 	svcatBindings := v1beta1.ServiceBindingList{}
-	err = m.SvcatRestClient.Get().Namespace("").Resource(migrate.ServiceBindings).Do(ctx).Into(&svcatBindings)
+	err = m.SvcatRestClient.Get().Namespace("").Resource(serviceBindings).Do(ctx).Into(&svcatBindings)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -259,7 +268,7 @@ func (m *migrator) migrateInstance(pair serviceInstancePair) error {
 	res := &v1alpha1.ServiceInstance{}
 	err = m.SapOperatorRestClient.Post().
 		Namespace(pair.svcatInstance.Namespace).
-		Resource(migrate.ServiceInstances).
+		Resource(serviceInstances).
 		Body(instance).
 		Do(m.ac.Context).
 		Into(res)
@@ -277,12 +286,12 @@ func (m *migrator) migrateInstance(pair serviceInstancePair) error {
 	}
 
 	pair.svcatInstance.Finalizers = []string{}
-	err = m.SvcatRestClient.Put().Name(pair.svcatInstance.Name).Namespace(pair.svcatInstance.Namespace).Resource(migrate.ServiceInstances).Body(pair.svcatInstance).Do(m.ac.Context).Error()
+	err = m.SvcatRestClient.Put().Name(pair.svcatInstance.Name).Namespace(pair.svcatInstance.Namespace).Resource(serviceInstances).Body(pair.svcatInstance).Do(m.ac.Context).Error()
 	if err != nil {
 		return fmt.Errorf("failed to delete finalizer from instance '%s'. Error: %v", pair.svcatInstance.Name, err.Error())
 	}
 
-	err = m.deleteSvcatResource(res.Name, res.Namespace, migrate.ServiceInstances)
+	err = m.deleteSvcatResource(res.Name, res.Namespace, serviceInstances)
 	if err != nil {
 		m.ac.Logger.Infof("failed to delete svcat resource. Error: %v", err.Error())
 	}
@@ -330,7 +339,7 @@ func (m *migrator) migrateBinding(pair serviceBindingPair) error {
 	res := &v1alpha1.ServiceBinding{}
 	err = m.SapOperatorRestClient.Post().
 		Namespace(binding.Namespace).
-		Resource(migrate.ServiceBindings).
+		Resource(serviceBindings).
 		Body(binding).
 		Do(m.ac.Context).
 		Into(res)
@@ -366,12 +375,12 @@ func (m *migrator) migrateBinding(pair serviceBindingPair) error {
 
 	//remove finalizer from binding to avoid deletion of the secret
 	pair.svcatBinding.Finalizers = []string{}
-	err = m.SvcatRestClient.Put().Name(pair.svcatBinding.Name).Namespace(pair.svcatBinding.Namespace).Resource(migrate.ServiceBindings).Body(pair.svcatBinding).Do(m.ac.Context).Error()
+	err = m.SvcatRestClient.Put().Name(pair.svcatBinding.Name).Namespace(pair.svcatBinding.Namespace).Resource(serviceBindings).Body(pair.svcatBinding).Do(m.ac.Context).Error()
 	if err != nil {
 		return fmt.Errorf("failed to delete finalizer from binding '%s'. Error: %v", pair.svcatBinding.Name, err.Error())
 	}
 
-	err = m.deleteSvcatResource(res.Name, res.Namespace, migrate.ServiceBindings)
+	err = m.deleteSvcatResource(res.Name, res.Namespace, serviceBindings)
 	if err != nil {
 		return fmt.Errorf("failed to delete svcat binding. Error: %v", err.Error())
 	}
@@ -400,7 +409,7 @@ func (m *migrator) getInstanceStruct(pair serviceInstancePair) *v1alpha1.Service
 
 	return &v1alpha1.ServiceInstance{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: fmt.Sprintf("%s/%s", sapoperator.OperatorGroupName, sapoperator.OperatorGroupVersion),
+			APIVersion: fmt.Sprintf("%s/%s", operatorGroupName, operatorGroupVersion),
 			Kind:       "ServiceInstance",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -441,7 +450,7 @@ func (m *migrator) getBindingStruct(pair serviceBindingPair) *v1alpha1.ServiceBi
 
 	return &v1alpha1.ServiceBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: fmt.Sprintf("%s/%s", sapoperator.OperatorGroupName, sapoperator.OperatorGroupVersion),
+			APIVersion: fmt.Sprintf("%s/%s", operatorGroupName, operatorGroupVersion),
 			Kind:       "ServiceBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{

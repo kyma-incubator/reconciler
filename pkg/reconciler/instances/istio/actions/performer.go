@@ -84,13 +84,13 @@ type IstioPerformer interface {
 	Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error
 
 	// PatchMutatingWebhook patches Istio's webhook configuration.
-	PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
+	PatchMutatingWebhook(ctx context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster to the targetVersion using istioChart.
 	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
 	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version, it always adds "-distroless" suffix to the provided value.
-	ResetProxy(kubeConfig string, proxyImageVersion string, logger *zap.SugaredLogger) error
+	ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, logger *zap.SugaredLogger) error
 
 	// Version reports status of Istio installation on the cluster.
 	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error)
@@ -178,7 +178,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 	return nil
 }
 
-func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
 	patchContent := []webhookPatchJSON{{
 		Op:   "add",
 		Path: "/webhooks/4/namespaceSelector/matchExpressions/-",
@@ -198,7 +198,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(kubeClient kubernetes.Clien
 
 	logger.Info("Patching istio-sidecar-injector MutatingWebhookConfiguration...")
 
-	err = kubeClient.PatchUsingStrategy("MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", patchContentJSON, types.JSONPatchType)
+	err = kubeClient.PatchUsingStrategy(context, "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", patchContentJSON, types.JSONPatchType)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 	return nil
 }
 
-func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, proxyImageVersion string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, logger *zap.SugaredLogger) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
@@ -244,6 +244,7 @@ func (c *DefaultIstioPerformer) ResetProxy(kubeConfig string, proxyImageVersion 
 	}
 
 	cfg := istioConfig.IstioProxyConfig{
+		Context:             context,
 		ImagePrefix:         istioImagePrefix,
 		ImageVersion:        fmt.Sprintf("%s-distroless", proxyImageVersion),
 		RetriesCount:        retriesCount,
