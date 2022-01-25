@@ -34,6 +34,7 @@ type testInvoker struct {
 type testInvokerParallel struct {
 	params     []*invoker.Params
 	reconRepo  reconciliation.Repository
+	workerRepo occupancy.Repository
 	errChannel chan error
 	sync.Mutex
 }
