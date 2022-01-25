@@ -19,7 +19,7 @@ type Syncer interface {
 	//that is basically the case when hydra pods started earlier than hydra maester pods, then hydra might be out of sync
 	//as it has potentially lost the OAuth clients in his DB
 	//See also: https://github.com/ory/hydra-maester/tree/master/docs
-	TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string) error
+	TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string, forceSync bool) error
 }
 
 type DefaultHydraSyncer struct {
@@ -37,16 +37,19 @@ const (
 	hydraMaesterDeployment = "ory-hydra-maester"
 )
 
-func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string) error {
+func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string, forceSync bool) error {
 	clientset, err := client.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "Failed to read clientset")
 	}
-	restartHydraMaesterDeploymentNeeded, err := restartHydraMaesterDeploymentNeeded(context, clientset, logger, namespace)
-	if err != nil {
-		return errors.Wrap(err, "Failed to determine hydra pod status")
+	var restartHydraMaester = false
+	if !forceSync {
+		restartHydraMaester, err = restartHydraMaesterDeploymentNeeded(context, clientset, logger, namespace)
+		if err != nil {
+			return errors.Wrap(err, "Failed to determine hydra pod status")
+		}
 	}
-	if restartHydraMaesterDeploymentNeeded {
+	if restartHydraMaester || forceSync {
 		logger.Info("Rolling out hydra-maester deployment")
 		err = c.rolloutHandler.RolloutAndWaitForDeployment(context, hydraMaesterDeployment, namespace, client, logger)
 		if err != nil {

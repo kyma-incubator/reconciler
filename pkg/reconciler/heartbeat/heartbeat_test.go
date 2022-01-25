@@ -24,6 +24,7 @@ type testCallbackHandler struct {
 
 func newTestCallbackHandler(t *testing.T) *testCallbackHandler {
 	require.NoError(t, os.Unsetenv("_testCallbackHandlerStatuses"))
+	require.NoError(t, os.Unsetenv("_testCallbackHandlerRetryID"))
 	return &testCallbackHandler{t}
 }
 
@@ -35,7 +36,11 @@ func (cb *testCallbackHandler) Callback(msg *reconciler.CallbackMessage) error {
 	} else {
 		statusList = fmt.Sprintf("%s,%s", statusList, msg.Status)
 	}
-	return os.Setenv("_testCallbackHandlerStatuses", statusList)
+	err := os.Setenv("_testCallbackHandlerStatuses", statusList)
+	if err != nil {
+		return err
+	}
+	return os.Setenv("_testCallbackHandlerRetryID", msg.RetryID)
 }
 
 func (cb *testCallbackHandler) Statuses() []reconciler.Status {
@@ -57,6 +62,10 @@ func (cb *testCallbackHandler) LatestStatus() reconciler.Status {
 	return reconciler.Status(statuses[len(statuses)-1])
 }
 
+func (cb *testCallbackHandler) RetryID() string {
+	return os.Getenv("_testCallbackHandlerRetryID")
+}
+
 func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLEL!
 	test.IntegrationTest(t)
 
@@ -69,7 +78,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		defer cancel()
 
 		callbackHdlr := newTestCallbackHandler(t)
-
+		retryID := "retryID"
 		heartbeatSender, err := NewHeartbeatSender(ctx, callbackHdlr, logger, Config{
 			Interval: 500 * time.Millisecond,
 			Timeout:  10 * time.Second,
@@ -77,21 +86,27 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		require.NoError(t, err)
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
 
-		require.NoError(t, heartbeatSender.Running())
+		require.NoError(t, heartbeatSender.Running(retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
+		time.Sleep(500 * time.Millisecond)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
 
-		require.NoError(t, heartbeatSender.Failed(errors.New("I'm currently failing")))
+		require.NoError(t, heartbeatSender.Failed(errors.New("I'm currently failing"), retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusFailed)
+		time.Sleep(500 * time.Millisecond)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
 
-		require.NoError(t, heartbeatSender.Success())
+		require.NoError(t, heartbeatSender.Success(retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusSuccess)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
 
 		//check fired status updates
 		require.GreaterOrEqual(t, len(callbackHdlr.Statuses()), 4) //anything >= 4 is sufficient to ensure the heartbeatSenders works
 		require.Equal(t, callbackHdlr.LatestStatus(), reconciler.StatusSuccess)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 	})
 
 	t.Run("Test heartbeat sender with context timeout", func(t *testing.T) {
@@ -99,7 +114,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		defer cancel()
 
 		callbackHdlr := newTestCallbackHandler(t)
-
+		retryID := "retryID"
 		heartbeatSender, err := NewHeartbeatSender(ctx, callbackHdlr, logger, Config{
 			Interval: 500 * time.Millisecond,
 			Timeout:  10 * time.Second,
@@ -107,8 +122,10 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		require.NoError(t, err)
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
 
-		require.NoError(t, heartbeatSender.Running())
+		require.NoError(t, heartbeatSender.Running(retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
+		time.Sleep(500 * time.Millisecond)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 
 		time.Sleep(3 * time.Second) //wait longer than timeout to simulate expired context
 
@@ -118,6 +135,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		statuses := callbackHdlr.Statuses()
 		require.GreaterOrEqual(t, len(statuses), 2) //anything >= 2 is sufficient to ensure the heartbeatSenders worked
 		require.Equal(t, statuses[len(statuses)-1], reconciler.StatusError)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 	})
 
 	t.Run("Test heartbeat sender with context canceled", func(t *testing.T) {
@@ -125,7 +143,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		defer cancel()
 
 		callbackHdlr := newTestCallbackHandler(t)
-
+		retryID := "retryID"
 		heartbeatSender, err := NewHeartbeatSender(ctx, callbackHdlr, logger, Config{
 			Interval: 500 * time.Millisecond,
 			Timeout:  10 * time.Second,
@@ -133,8 +151,11 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		require.NoError(t, err)
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
 
-		require.NoError(t, heartbeatSender.Running())
+		require.NoError(t, heartbeatSender.Running(retryID))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
+
+		time.Sleep(500 * time.Millisecond)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 
 		time.Sleep(3 * time.Second) //wait longer than timeout to simulate expired context
 		cancel()
@@ -146,6 +167,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		statuses := callbackHdlr.Statuses()
 		require.GreaterOrEqual(t, len(statuses), 2) //anything >= 2 is sufficient to ensure the heartbeatSenders worked
 		require.Equal(t, statuses[len(statuses)-1], reconciler.StatusFailed)
+		require.Equal(t, retryID, callbackHdlr.RetryID())
 	})
 
 }

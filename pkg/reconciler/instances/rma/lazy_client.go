@@ -1,9 +1,9 @@
 package rma
 
 import (
+	reconK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"sync"
 
-	reconK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/action"
 	"k8s.io/cli-runtime/pkg/genericclioptions"

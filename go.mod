@@ -3,6 +3,7 @@ module github.com/kyma-incubator/reconciler
 go 1.16
 
 require (
+	github.com/SAP/sap-btp-service-operator v0.1.21
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/coreos/go-semver v0.3.0
@@ -33,6 +34,7 @@ require (
 	github.com/spf13/viper v1.8.1
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.7.0
+	github.com/tidwall/gjson v1.13.0 // indirect
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
@@ -47,5 +49,6 @@ require (
 	k8s.io/cli-runtime v0.22.4
 	k8s.io/client-go v0.22.4
 	k8s.io/kubectl v0.22.4
+	sigs.k8s.io/controller-runtime v0.9.0
 	sigs.k8s.io/yaml v1.2.0
 )

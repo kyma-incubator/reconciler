@@ -27,7 +27,7 @@ func TestHPAInterceptor(t *testing.T) {
 	manifest, err := ioutil.ReadFile(filepath.Join("test", "hpainterceptor.yaml"))
 	require.NoError(t, err)
 
-	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), &kubernetes.Config{})
+	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	//cleanup

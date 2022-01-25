@@ -17,7 +17,7 @@ type Filter interface {
 }
 
 type Repository interface {
-	CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error)
+	CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error)
 	RemoveReconciliation(schedulingID string) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
@@ -30,6 +30,7 @@ type Repository interface {
 	GetReconcilingOperations() ([]*model.OperationEntity, error)
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error
 	WithTx(tx *db.TxConnection) (Repository, error)
+	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.

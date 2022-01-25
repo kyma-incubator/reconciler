@@ -324,7 +324,7 @@ func TestReconciliationSequence(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := tc.entity.GetReconciliationSequence(tc.preComps)
+			result := tc.entity.GetReconciliationSequence(&ReconciliationSequenceConfig{PreComponents: tc.preComps, DeleteStrategy: "system"})
 			for idx, expected := range tc.expected.Queue {
 				require.ElementsMatch(t, result.Queue[idx], expected)
 			}

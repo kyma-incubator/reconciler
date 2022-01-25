@@ -1,12 +1,13 @@
-package internal
+package kubernetes
 
 import (
 	"context"
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiRes "k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
-	"os"
+	"k8s.io/cli-runtime/pkg/resource"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,34 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/cli-runtime/pkg/resource"
 )
-
-func TestSetNamespaceIfScoped(t *testing.T) {
-	t.Run("Should set namespace if scoped", func(t *testing.T) {
-		u := &unstructured.Unstructured{}
-		setNamespaceIfScoped("test", u, &resource.Helper{
-			NamespaceScoped: true,
-		})
-		require.Equal(t, "test", u.GetNamespace())
-	})
-
-	t.Run("Ignore namespace if not scoped", func(t *testing.T) {
-		u := &unstructured.Unstructured{}
-		u.SetNamespace("")
-		setNamespaceIfScoped("test", u, &resource.Helper{
-			NamespaceScoped: false,
-		})
-		require.Equal(t, "", u.GetNamespace())
-
-		u.SetNamespace("initial")
-		setNamespaceIfScoped("test", u, &resource.Helper{
-			NamespaceScoped: false,
-		})
-		require.Equal(t, "initial", u.GetNamespace())
-
-	})
-}
 
 const (
 	namespace          = "kubeclient-test"
@@ -59,7 +33,8 @@ func TestPatchReplace(t *testing.T) {
 
 	t.Parallel()
 
-	kubeClient, err := NewKubeClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
+	//create client
+	kubeClient, err := NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)
 	require.NoError(t, err)
 
 	deleteNamespace(t, kubeClient, true)
@@ -70,32 +45,36 @@ func TestPatchReplace(t *testing.T) {
 		"manifest-after.yaml",
 		"manifest-before.yaml",
 		"manifest-after.yaml"} {
-		unstructs, err := ToUnstructured(readFile(t, filepath.Join("test", manifest)), true)
+		unstructs, err := ToUnstructured(test.ReadFile(t, filepath.Join("test", manifest)), true)
 		require.NoError(t, err)
 
 		var expectedImage = containerBaseImage
+		var expectedLimits int64 = 100
 		if idxManifest%2 == 1 { //each second update updates the image from 'alpine' to 'alpine:3.14'
 			expectedImage = fmt.Sprintf("%s:3.14", expectedImage)
+			expectedLimits = expectedLimits * 2
 		}
 
 		for idxUnstruct, unstruct := range unstructs {
 			t.Run(
 				fmt.Sprintf("Applying %s", unstruct.GetName()),
-				newTestFunc(kubeClient, unstruct, fmt.Sprintf("%d_%d", idxManifest, idxUnstruct), expectedImage))
+				newTestFunc(kubeClient, unstruct, fmt.Sprintf("%d_%d", idxManifest, idxUnstruct), expectedImage, expectedLimits))
 		}
 	}
 
 }
 
-func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, label, expectedImage string) func(t *testing.T) {
+func newTestFunc(kubeClient Client, unstruct *unstructured.Unstructured, label, expectedImage string, expectedSize int64) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Logf("Applying %s and setting label %s", unstruct.GetKind(), label)
 		unstruct.SetLabels(map[string]string{"applied": label})
-
-		_, err := kubeClient.Apply(unstruct)
+		clientAdapter := kubeClient.(*kubeClientAdapter)
+		info, err := clientAdapter.convertToInfo(unstruct, "")
+		require.NoError(t, err)
+		_, err = clientAdapter.deployResources(context.TODO(), []*resource.Info{info}, []*resource.Info{info})
 		require.NoError(t, err)
 
-		k8sResourceUnstruct, err := kubeClient.Get(unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
+		k8sResourceUnstruct, err := clientAdapter.Get(unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
 		require.NoError(t, err)
 
 		//verify label
@@ -114,7 +93,7 @@ func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, la
 		switch strings.ToLower(k8sResourceUnstruct.GetKind()) {
 		case "serviceaccount":
 			//verify that not multiple service-accounts were created during reconciliation
-			clientSet, err := kubeClient.GetClientSet()
+			clientSet, err := kubeClient.Clientset()
 			require.NoError(t, err)
 			saList, err := clientSet.CoreV1().ServiceAccounts(unstruct.GetNamespace()).List(context.Background(), metav1.ListOptions{
 				LabelSelector: fmt.Sprintf("applied=%s", label),
@@ -128,7 +107,7 @@ func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, la
 				FromUnstructured(unstruct.UnstructuredContent(), &statefulSet)
 			require.NoError(t, err)
 			for _, container := range statefulSet.Spec.Template.Spec.Containers {
-				if requireImageName(t, container, expectedImage) {
+				if requireImageName(t, expectedImage, container) {
 					return
 				}
 			}
@@ -139,7 +118,9 @@ func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, la
 				FromUnstructured(unstruct.UnstructuredContent(), &deployment)
 			require.NoError(t, err)
 			for _, container := range deployment.Spec.Template.Spec.Containers {
-				if requireImageName(t, container, expectedImage) {
+				require.True(t, container.Resources.Limits.Memory().Equal(apiRes.MustParse(fmt.Sprintf("%dMi", expectedSize))))
+				require.True(t, container.Resources.Limits.Cpu().Equal(apiRes.MustParse(fmt.Sprintf("%dm", expectedSize))))
+				if requireImageName(t, expectedImage, container) {
 					return
 				}
 			}
@@ -147,7 +128,7 @@ func newTestFunc(kubeClient *KubeClient, unstruct *unstructured.Unstructured, la
 	}
 }
 
-func requireImageName(t *testing.T, container corev1.Container, expectedImage string) bool {
+func requireImageName(t *testing.T, expectedImage string, container corev1.Container) bool {
 	if strings.HasPrefix(container.Image, containerBaseImage) {
 		t.Logf("Found container image '%s'", expectedImage)
 		require.Equal(t, expectedImage, container.Image)
@@ -156,8 +137,8 @@ func requireImageName(t *testing.T, container corev1.Container, expectedImage st
 	return false
 }
 
-func deleteNamespace(t *testing.T, kubeClient *KubeClient, ignoreError bool) {
-	clientSet, err := kubeClient.GetClientSet()
+func deleteNamespace(t *testing.T, kubeClient Client, ignoreError bool) {
+	clientSet, err := kubeClient.Clientset()
 	require.NoError(t, err)
 	err = clientSet.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
 	if !ignoreError {
@@ -176,10 +157,4 @@ func deleteNamespace(t *testing.T, kubeClient *KubeClient, ignoreError bool) {
 		t.Logf("Timeout reached: namespace '%s' not deleted within expected time range", namespace)
 		break
 	}
-}
-
-func readFile(t *testing.T, file string) []byte {
-	data, err := os.ReadFile(file)
-	require.NoError(t, err)
-	return data
 }

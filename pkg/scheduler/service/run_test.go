@@ -42,7 +42,7 @@ func TestRuntimeBuilder(t *testing.T) {
 	//register custom 'base' component reconciler for this unittest
 	compRecon, err := service.NewComponentReconciler("base")
 	require.NoError(t, err)
-	compRecon.WithRetry(1, 1*time.Second)
+	compRecon.WithRetryDelay(1 * time.Second)
 
 	t.Run("Run local with success (waiting for CRDs)", func(t *testing.T) {
 		compRecon.WithReconcileAction(&customAction{true})
@@ -259,9 +259,9 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 
 	//use a channel because callbacks are invoked from multiple goroutines
 	callbackData := make(chan *reconciler.CallbackMessage, 10)
-	localRunner := runtimeBuilder.RunLocal(nil, func(component string, msg *reconciler.CallbackMessage) {
+	localRunner := runtimeBuilder.RunLocal(func(component string, msg *reconciler.CallbackMessage) {
 		callbackData <- msg
-	})
+	}).WithWorkerPoolMaxRetries(1).WithSchedulerConfig(&SchedulerConfig{})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

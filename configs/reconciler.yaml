@@ -23,8 +23,12 @@ mothership:
   host: localhost
   port: 8080
   scheduler:
+    # Deletion strategy can be ne of the follwing:
+    # - system: only kyma components and resources will be deleted
+    # - all: all components and resources will be deleted
+    deleteStrategy: system
     reconcilers:
       base:
         url: "http://localhost:8081/v1/run"
     preComponents:
-      - [cluster-essentials, istio-configuration, certificates]
+      - [ cluster-essentials, istio-configuration, certificates ]

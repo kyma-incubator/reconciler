@@ -30,7 +30,7 @@ func (r *InMemoryReconciliationRepository) WithTx(tx *db.TxConnection) (Reposito
 	return r, nil
 }
 
-func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
+func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -55,9 +55,6 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	}
 	r.reconciliations[state.Cluster.RuntimeID] = reconEntity
 
-	//create operations
-	reconSeq := state.Configuration.GetReconciliationSequence(preComponents)
-
 	if _, ok := r.operations[reconEntity.SchedulingID]; !ok {
 		r.operations[reconEntity.SchedulingID] = make(map[string]*model.OperationEntity)
 	}
@@ -67,7 +64,9 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 		opType = model.OperationTypeDelete
 	}
 
-	for idx, components := range reconSeq.Queue {
+	//get reconciliation sequence
+	sequence := state.Configuration.GetReconciliationSequence(cfg)
+	for idx, components := range sequence.Queue {
 		priority := idx + 1
 		for _, component := range components {
 			correlationID := fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString())
@@ -81,6 +80,8 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 				Component:     component.Component,
 				State:         model.OperationStateNew,
 				Type:          opType,
+				Retries:       0,
+				RetryID:       uuid.NewString(),
 				Created:       time.Now().UTC(),
 				Updated:       time.Now().UTC(),
 			}
@@ -205,7 +206,6 @@ func (r *InMemoryReconciliationRepository) GetReconcilingOperations() ([]*model.
 func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
 	_, ok := r.operations[schedulingID]
 	if !ok {
 		return &repository.EntityNotFoundError{}
@@ -214,7 +214,6 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	if !ok {
 		return &repository.EntityNotFoundError{}
 	}
-
 	if err := operationAlreadyInState(op, state); err != nil && !allowInState {
 		return err
 	}
@@ -236,6 +235,35 @@ func (r *InMemoryReconciliationRepository) UpdateOperationState(schedulingID, co
 	//update operation
 	opCopy.State = state
 	opCopy.Reason = reason
+	opCopy.Updated = time.Now().UTC()
+
+	r.operations[schedulingID][correlationID] = &opCopy
+
+	return nil
+}
+
+func (r *InMemoryReconciliationRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	_, ok := r.operations[schedulingID]
+	if !ok {
+		return &repository.EntityNotFoundError{}
+	}
+	op, ok := r.operations[schedulingID][correlationID]
+	if !ok {
+		return &repository.EntityNotFoundError{}
+	}
+
+	// copy the operation to avoid having data races while writing
+	opCopy := *op
+
+	//update operation
+	if opCopy.RetryID != retryID {
+		opCopy.RetryID = retryID
+		opCopy.Retries++
+	}
+
 	opCopy.Updated = time.Now().UTC()
 
 	r.operations[schedulingID][correlationID] = &opCopy

@@ -31,7 +31,7 @@ func (r *PersistentReconciliationRepository) WithTx(tx *db.TxConnection) (Reposi
 	return NewPersistedReconciliationRepository(tx, r.Debug)
 }
 
-func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
+func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
 	if len(state.Configuration.Components) == 0 {
 		return nil, newEmptyComponentsReconciliationError(state)
 	}
@@ -82,9 +82,6 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		r.Logger.Debugf("ReconRepo created new reconciliation for runtime '%s' with schedulingID '%s'",
 			state.Cluster.RuntimeID, reconEntity.SchedulingID)
 
-		//get reconciliation sequence
-		reconSeq := state.Configuration.GetReconciliationSequence(preComponents)
-
 		opType := model.OperationTypeReconcile
 		if state.Status.Status.IsDeletion() {
 			opType = model.OperationTypeDelete
@@ -93,7 +90,10 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		//iterate over reconciliation sequence and create operations with proper priorities
 		var opsList bytes.Buffer
 
-		for idx, components := range reconSeq.Queue {
+		//get reconciliation sequence
+		sequence := state.Configuration.GetReconciliationSequence(cfg)
+
+		for idx, components := range sequence.Queue {
 			priority := idx + 1
 			for _, component := range components {
 				createOpQ, err := db.NewQuery(tx, &model.OperationEntity{
@@ -105,6 +105,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 					Component:     component.Component,
 					State:         model.OperationStateNew,
 					Type:          opType,
+					RetryID:       uuid.NewString(),
 					Updated:       time.Now().UTC(),
 				}, r.Logger)
 				if err != nil {
@@ -240,7 +241,7 @@ func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) (
 			return nil, errors.Wrap(err, "failed to apply sql filter")
 		}
 	}
-	recons, err := selectQ.GetMany()
+	recons, err := selectQ.OrderBy(map[string]string{"Created": "DESC"}).GetMany()
 	if err != nil {
 		return nil, err
 	}
@@ -398,6 +399,47 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		}
 
 		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
+
+	dbOps := func(tx *db.TxConnection) error {
+		op, err := r.GetOperation(schedulingID, correlationID)
+		if err != nil {
+			if repository.IsNotFoundError(err) {
+				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
+			}
+			return err
+		}
+		if retryID == op.RetryID {
+			return nil
+		}
+
+		//update operation-entity
+		op.RetryID = retryID
+		op.Retries++
+		op.Updated = time.Now().UTC()
+
+		//prepare update query
+		q, err := db.NewQuery(r.Conn, op, r.Logger)
+		if err != nil {
+			return err
+		}
+		whereCond := map[string]interface{}{
+			"CorrelationID": correlationID,
+			"SchedulingID":  schedulingID,
+		}
+		cnt, err := q.Update().
+			Where(whereCond).
+			ExecCount()
+
+		if cnt == 0 {
+			return fmt.Errorf("update of operation '%s' retryID '%s' failed: no row was updated", op, retryID)
+		}
+
+		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }

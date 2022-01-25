@@ -57,7 +57,7 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 
 	//create reconciliation entity
-	reconEntity, err := reconRepo.CreateReconciliation(clusterStateMock, nil)
+	reconEntity, err := reconRepo.CreateReconciliation(clusterStateMock, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 
 	//retrieve ops of reconciliation entity
@@ -84,10 +84,11 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 			Namespace:     "kyma-system",
 			Version:       "1.2.3",
 		},
-		ComponentsReady: nil,
-		ClusterState:    clusterStateMock,
-		SchedulingID:    opEntity.SchedulingID,
-		CorrelationID:   opEntity.CorrelationID,
+		ComponentsReady:     nil,
+		ClusterState:        clusterStateMock,
+		SchedulingID:        opEntity.SchedulingID,
+		CorrelationID:       opEntity.CorrelationID,
+		MaxOperationRetries: 5,
 	})
 
 	if simulateError {

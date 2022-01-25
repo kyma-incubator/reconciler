@@ -115,6 +115,10 @@ spec:
             - /bin/sh
             - -c
             - sleep 60000
+          resources:
+            limits:
+              memory: "200Mi"
+              cpu: "200m"
 #---
 #apiVersion: v1
 #kind: Pod
