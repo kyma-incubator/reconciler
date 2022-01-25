@@ -115,11 +115,6 @@ func RunLocal(o *Options) error {
 	cluster.Configuration.Components = comps
 
 	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), occupancy.NewInMemoryOccupancyRepository(), l)
-
-	status := model.ClusterStatusReconcilePending
-	if o.delete {
-		status = model.ClusterStatusDeletePending
-	}
 	reconResult, err := runtimeBuilder.RunLocal(printStatus).
 		WithSchedulerConfig(
 			&scheduler.SchedulerConfig{
