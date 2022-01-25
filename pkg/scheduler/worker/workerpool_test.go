@@ -233,7 +233,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 
 		for i := range clusterStates {
-			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], nil)
+			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], &model.ReconciliationSequenceConfig{})
 			require.NoError(t, err)
 		}
 

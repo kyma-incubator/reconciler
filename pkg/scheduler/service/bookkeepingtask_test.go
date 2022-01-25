@@ -156,7 +156,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			//cleanup before
 			removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
 
-			reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
+			reconEntity, err := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 
 			require.NoError(t, err)
 			require.NotEmpty(t, reconEntity.Lock)
