@@ -28,12 +28,24 @@ func TestDeletingNatsOperatorResources(t *testing.T) {
 		givenStatefulSet    bool // used to simulate Kyma 2.X Eventing
 		givenNatsPodsLength int  // used to simulate orphaned NATS pods from Kyma 1.X
 	}{
+		// simulate reconciling Kyma 1.X clusters without orphaned NATS pods
+		{
+			givenStatefulSet:    false,
+			givenNatsPodsLength: 0,
+		},
+		// simulate reconciling Kyma 1.X clusters with orphaned NATS pods
+		{
+			givenStatefulSet:    false,
+			givenNatsPodsLength: 3,
+		},
+		// simulate reconciling Kyma 2.X clusters without orphaned NATS pods
 		{
 			givenStatefulSet:    true,
 			givenNatsPodsLength: 0,
 		},
+		// simulate reconciling Kyma 2.X clusters with orphaned NATS pods
 		{
-			givenStatefulSet:    false,
+			givenStatefulSet:    true,
 			givenNatsPodsLength: 3,
 		},
 	}
