@@ -86,6 +86,8 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 	su.stopJob() //ensure previous interval-loop is stopped before starting a new loop
 
 	task := func(status reconciler.Status, rootCause error) error {
+		poolOccupancy.Lock()
+		defer poolOccupancy.Unlock()
 		err := su.callback.Callback(&reconciler.CallbackMessage{
 			Status: status,
 			Error: func(err error) string {

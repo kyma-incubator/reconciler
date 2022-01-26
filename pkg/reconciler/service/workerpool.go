@@ -91,8 +91,9 @@ func (pb *workPoolBuilder) Build(ctx context.Context, occupancyUpdateInterval ti
 				return
 			case <-ticker.C:
 				log.Debugf("Updating worker pool occupancy from %d to %d", pb.workerPool.PoolOccupancy.RunningWorkers, antsPool.Running())
+				pb.workerPool.PoolOccupancy.Lock()
 				pb.workerPool.PoolOccupancy.RunningWorkers = antsPool.Running()
-
+				pb.workerPool.PoolOccupancy.Unlock()
 			}
 		}
 
