@@ -17,6 +17,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	scheduler "github.com/kyma-incubator/reconciler/pkg/scheduler/service"
 	schedulerSvc "github.com/kyma-incubator/reconciler/pkg/scheduler/service"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	//Register all reconcilers
@@ -154,7 +155,7 @@ func prepareClusterState(o *Options) (*cluster.State, error) {
 	clusterState := &cluster.State{}
 	err := json.Unmarshal([]byte(stateString), clusterState)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to parse the Cluster State")
 	}
 
 	status := model.ClusterStatusReconcilePending
