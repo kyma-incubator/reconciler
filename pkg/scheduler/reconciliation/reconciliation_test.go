@@ -372,9 +372,9 @@ func TestReconciliationRepository(t *testing.T) {
 				//verify priorities
 				for _, opEntity := range opsEntities {
 					switch opEntity.Component {
-					case "cleaner":
-						require.Equal(t, int64(1), opEntity.Priority)
 					case "CRDs":
+						require.Equal(t, int64(1), opEntity.Priority)
+					case "cleaner":
 						require.Equal(t, int64(2), opEntity.Priority)
 					case "comp3":
 						require.Equal(t, int64(3), opEntity.Priority)
