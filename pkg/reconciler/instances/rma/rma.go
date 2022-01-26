@@ -4,8 +4,8 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 
-	// Only for debug purposes, should be removed
 	"net/http"
+	// Only for debug purposes, should be removed
 	_ "net/http/pprof"
 )
 
