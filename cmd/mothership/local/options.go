@@ -182,13 +182,13 @@ func (o *Options) Validate() error {
 	}
 
 	if isInputFromPipe() {
-		fmt.Println("PIPE DETECTED!!!!!!")
 		b, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}
 
 		o.clusterState = string(b)
+		fmt.Printf("PIPE DETECTED!!!!!! - %s \n", o.clusterState)
 	}
 
 	if o.kubeconfigFile == "" {
