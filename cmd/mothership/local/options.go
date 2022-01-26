@@ -188,7 +188,6 @@ func (o *Options) Validate() error {
 		}
 
 		o.clusterState = string(b)
-		fmt.Printf("PIPE DETECTED!!!!!! - %s \n", o.clusterState)
 	}
 
 	if o.kubeconfigFile == "" {
