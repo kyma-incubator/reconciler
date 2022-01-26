@@ -1,6 +1,6 @@
 package occupancy
 
 type WorkerPoolOccupancy struct {
-	PoolID string
+	PoolID         string
 	RunningWorkers int
 }

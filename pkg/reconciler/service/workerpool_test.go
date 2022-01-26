@@ -25,7 +25,7 @@ func TestWorkerPool(t *testing.T) {
 		wp, err := newWorkerPoolBuilder(newRunnerFct()).
 			WithPoolSize(5).
 			WithDebug(true).
-			Build(ctx, 500 *time.Millisecond)
+			Build(ctx, 500*time.Millisecond)
 		require.NoError(t, err)
 		require.NotEmpty(t, wp.antsPool)
 		require.False(t, wp.antsPool.IsClosed())

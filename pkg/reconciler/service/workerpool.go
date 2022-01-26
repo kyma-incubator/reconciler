@@ -96,7 +96,6 @@ func (pb *workPoolBuilder) Build(ctx context.Context, occupancyUpdateInterval ti
 			}
 		}
 
-
 	}(ctx, antsPool)
 
 	return pb.workerPool, nil
