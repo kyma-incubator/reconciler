@@ -352,7 +352,8 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 
 	kubeConfig := "kubeconfig"
 	log := logger.NewLogger(false)
-
+	ctx := context.Background()
+	defer ctx.Done()
 	t.Run("should return error when kubeclient could not be retrieved", func(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
@@ -366,7 +367,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
 
 		// then
 		require.Error(t, err)
@@ -387,7 +388,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
 
 		// then
 		require.Error(t, err)
@@ -408,7 +409,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
 
 		// then
 		require.NoError(t, err)

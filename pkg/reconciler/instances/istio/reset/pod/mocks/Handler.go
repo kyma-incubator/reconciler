@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	pod "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -12,13 +14,13 @@ type Handler struct {
 	mock.Mock
 }
 
-// ExecuteAndWaitFor provides a mock function with given fields: _a0
-func (_m *Handler) ExecuteAndWaitFor(_a0 pod.CustomObject) error {
-	ret := _m.Called(_a0)
+// ExecuteAndWaitFor provides a mock function with given fields: _a0, _a1
+func (_m *Handler) ExecuteAndWaitFor(_a0 context.Context, _a1 pod.CustomObject) error {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(pod.CustomObject) error); ok {
-		r0 = rf(_a0)
+	if rf, ok := ret.Get(0).(func(context.Context, pod.CustomObject) error); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}

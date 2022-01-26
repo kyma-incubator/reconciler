@@ -28,14 +28,14 @@ func TestScheduler(t *testing.T) {
 	t.Run("Test run once", func(t *testing.T) {
 		clusterState := testClusterState("testCluster", 1)
 		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-		scheduler := newScheduler(nil, logger.NewLogger(true))
-		require.NoError(t, scheduler.RunOnce(clusterState, reconRepo))
+		scheduler := newScheduler(logger.NewLogger(true))
+		require.NoError(t, scheduler.RunOnce(clusterState, reconRepo, &SchedulerConfig{}))
 		requiredReconciliationEntity(t, reconRepo, clusterState)
 	})
 
 	t.Run("Test run", func(t *testing.T) {
 		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-		scheduler := newScheduler(nil, logger.NewLogger(true))
+		scheduler := newScheduler(logger.NewLogger(true))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -142,8 +142,6 @@ func dbConnection(t *testing.T) db.Connection {
 
 func TestSchedulerParallel(t *testing.T) {
 
-	t.SkipNow() //skipping test until #559 is verified/fixed.
-
 	t.Run("Multiple scheduler watching same inventory", func(t *testing.T) {
 		//initialize WaitGroup
 		var wg sync.WaitGroup
@@ -152,9 +150,11 @@ func TestSchedulerParallel(t *testing.T) {
 		require.NoError(t, err)
 		createClusterStates(t, inventory)
 
-		scheduler := newScheduler(nil, logger.NewLogger(true))
+		scheduler := newScheduler(logger.NewLogger(true))
 		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
 		require.NoError(t, err)
+		//cleanup before
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
 
 		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelFct()
@@ -183,5 +183,37 @@ func TestSchedulerParallel(t *testing.T) {
 		recons, err := reconRepo.GetReconciliations(nil)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(recons))
+		//cleanup after
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
 	})
+}
+
+func TestDeleteStrategy(t *testing.T) {
+
+	// Happy paths
+	ds, err := NewDeleteStrategy("system")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategySystem, ds)
+
+	ds, err = NewDeleteStrategy("all")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategyAll, ds)
+
+	// Upper case resistant
+	ds, err = NewDeleteStrategy("System")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategySystem, ds)
+
+	ds, err = NewDeleteStrategy("All")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategyAll, ds)
+
+	// empty value guard
+	ds, err = NewDeleteStrategy("")
+	require.NoError(t, err)
+	require.Equal(t, DeleteStrategySystem, ds)
+
+	// unsupported value
+	_, err = NewDeleteStrategy("not-a-strategy")
+	require.Error(t, err)
 }

@@ -44,6 +44,11 @@ func TestTransition(t *testing.T) {
 	//create transition which will change cluster states
 	transition := newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true))
 
+	testSequenceConfig := &model.ReconciliationSequenceConfig{
+		PreComponents:  nil,
+		DeleteStrategy: "",
+	}
+
 	//cleanup at the end of the execution
 	defer func() {
 		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
@@ -56,11 +61,11 @@ func TestTransition(t *testing.T) {
 
 	t.Run("Start Reconciliation", func(t *testing.T) {
 		oldClusterStateID := clusterState.Status.ID
-		err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, nil)
+		err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, testSequenceConfig)
 		require.NoError(t, err)
 
 		//starting reconciliation twice is not allowed
-		err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, nil)
+		err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, testSequenceConfig)
 		require.Error(t, err)
 
 		//verify created reconciliation
@@ -108,7 +113,7 @@ func TestTransition(t *testing.T) {
 
 	t.Run("Finish Reconciliation When Cluster is not in progress", func(t *testing.T) {
 		//get reconciliation entity
-		reconEntity, err := reconRepo.CreateReconciliation(clusterState, nil)
+		reconEntity, err := reconRepo.CreateReconciliation(clusterState, testSequenceConfig)
 		require.NoError(t, err)
 		require.NotNil(t, reconEntity)
 		require.False(t, reconEntity.Finished)

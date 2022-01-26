@@ -19,7 +19,6 @@ import (
 type RuntimeBuilder struct {
 	reconRepo        reconciliation.Repository
 	logger           *zap.SugaredLogger
-	preComponents    [][]string
 	workerPoolConfig *worker.Config
 }
 
@@ -35,10 +34,9 @@ func (rb *RuntimeBuilder) newWorkerPool(retriever worker.ClusterStateRetriever, 
 	return worker.NewWorkerPool(retriever, rb.reconRepo, invoke, rb.workerPoolConfig, rb.logger)
 }
 
-//FIXME: The 'statusFunc' callback is called from multiple goroutines, it MUST be goroutine-safe
-func (rb *RuntimeBuilder) RunLocal(preComponents [][]string, statusFunc invoker.ReconcilerStatusFunc) *RunLocal {
-	runL := &RunLocal{rb, statusFunc}
-	runL.runtimeBuilder.preComponents = preComponents
+func (rb *RuntimeBuilder) RunLocal(statusFunc invoker.ReconcilerStatusFunc) *RunLocal {
+	runL := &RunLocal{runtimeBuilder: rb, statusFunc: statusFunc}
+
 	//Make sure local runner will NOT retry if the local invoker returns an error!
 	//If retries are enabled, operations which are reaching a final state (e.g. 'error') would try to switch back
 	//to 'running' or another interim state which is not allowed and causes errors.
@@ -57,12 +55,11 @@ func (rb *RuntimeBuilder) RunRemote(
 	config *config.Config) *RunRemote {
 
 	runR := &RunRemote{rb, conn, inventory, config, &SchedulerConfig{}, &BookkeeperConfig{}, &CleanerConfig{}}
-	runR.runtimeBuilder.preComponents = config.Scheduler.PreComponents
 	return runR
 }
 
 func (rb *RuntimeBuilder) newScheduler() *scheduler {
-	return newScheduler(rb.preComponents, rb.logger)
+	return newScheduler(rb.logger)
 }
 
 func (rb *RuntimeBuilder) newCleaner() *cleaner {
@@ -70,8 +67,9 @@ func (rb *RuntimeBuilder) newCleaner() *cleaner {
 }
 
 type RunLocal struct {
-	runtimeBuilder *RuntimeBuilder
-	statusFunc     invoker.ReconcilerStatusFunc
+	runtimeBuilder  *RuntimeBuilder
+	statusFunc      invoker.ReconcilerStatusFunc
+	schedulerConfig *SchedulerConfig
 }
 
 func (l *RunLocal) logger() *zap.SugaredLogger { //convenient function
@@ -92,10 +90,18 @@ func (l *RunLocal) WithWorkerPoolMaxRetries(maxOperationsRetries int) *RunLocal 
 	return l
 }
 
+func (l *RunLocal) WithSchedulerConfig(cfg *SchedulerConfig) *RunLocal {
+	l.schedulerConfig = cfg
+	return l
+}
+
 func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*ReconciliationResult, error) {
+	if err := l.schedulerConfig.validate(); err != nil {
+		return nil, err
+	}
 	//enqueue cluster state and create reconciliation entity
 	l.logger().Info("Starting local scheduler")
-	if err := l.runtimeBuilder.newScheduler().RunOnce(clusterState, l.reconciliationRepository()); err == nil {
+	if err := l.runtimeBuilder.newScheduler().RunOnce(clusterState, l.reconciliationRepository(), l.schedulerConfig); err == nil {
 		l.logger().Info("Local scheduler finished successfully")
 	} else {
 		l.logger().Errorf("Local scheduler returned an error: %s", err)

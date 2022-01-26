@@ -30,7 +30,7 @@ func (r *InMemoryReconciliationRepository) WithTx(tx *db.TxConnection) (Reposito
 	return r, nil
 }
 
-func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, preComponents [][]string) (*model.ReconciliationEntity, error) {
+func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -55,9 +55,6 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	}
 	r.reconciliations[state.Cluster.RuntimeID] = reconEntity
 
-	//create operations
-	reconSeq := state.Configuration.GetReconciliationSequence(preComponents)
-
 	if _, ok := r.operations[reconEntity.SchedulingID]; !ok {
 		r.operations[reconEntity.SchedulingID] = make(map[string]*model.OperationEntity)
 	}
@@ -67,7 +64,9 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 		opType = model.OperationTypeDelete
 	}
 
-	for idx, components := range reconSeq.Queue {
+	//get reconciliation sequence
+	sequence := state.Configuration.GetReconciliationSequence(cfg)
+	for idx, components := range sequence.Queue {
 		priority := idx + 1
 		for _, component := range components {
 			correlationID := fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString())

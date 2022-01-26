@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	CRDComponent            = "CRDs"
-	CleanupComponent        = "cleaner"
-	tblConfiguration string = "inventory_cluster_configs"
+	CRDComponent             = "CRDs"
+	CleanupComponent         = "cleaner"
+	DeleteStrategyKey        = "delete_strategy"
+	tblConfiguration  string = "inventory_cluster_configs"
 )
 
 var (
@@ -105,8 +106,8 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 	return nil
 }
 
-func (c *ClusterConfigurationEntity) GetReconciliationSequence(preComponents [][]string) *ReconciliationSequence {
-	reconSeq := newReconciliationSequence(preComponents)
+func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
+	reconSeq := newReconciliationSequence(cfg)
 	reconSeq.addComponents(c.Components)
 	return reconSeq
 }
@@ -116,11 +117,18 @@ type ReconciliationSequence struct {
 	preComponents [][]string
 }
 
-func newReconciliationSequence(preComponents [][]string) *ReconciliationSequence {
+type ReconciliationSequenceConfig struct {
+	PreComponents  [][]string
+	DeleteStrategy string
+}
+
+func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
 	reconSeq := &ReconciliationSequence{
-		preComponents: preComponents,
+		preComponents: cfg.PreComponents,
 	}
-	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning
+
+	cleanupComponent.Configuration = append(cleanupComponent.Configuration, keb.Configuration{Key: DeleteStrategyKey, Value: cfg.DeleteStrategy})
+	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{
 		cleanupComponent,
 	})
 	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning

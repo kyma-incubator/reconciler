@@ -19,6 +19,11 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 
 	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
 
+	ds, err := service.NewDeleteStrategy(schedulerCfg.Scheduler.DeleteStrategy)
+	if err != nil {
+		return err
+	}
+
 	return runtimeBuilder.
 		RunRemote(
 			o.Registry.Connnection(),
@@ -38,6 +43,7 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 				InventoryWatchInterval:   o.WatchInterval,
 				ClusterReconcileInterval: o.ClusterReconcileInterval,
 				ClusterQueueSize:         10,
+				DeleteStrategy:           ds,
 			}).
 		WithBookkeeperConfig(&service.BookkeeperConfig{
 			OperationsWatchInterval: 45 * time.Second,

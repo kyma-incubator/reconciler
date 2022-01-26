@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -14,12 +16,32 @@ const (
 	defaultQueueSize                = 50
 	defaultInventoryWatchInterval   = 1 * time.Minute
 	defaultClusterReconcileInterval = 15 * time.Minute
+
+	DeleteStrategySystem DeleteStrategy = "system"
+	DeleteStrategyAll    DeleteStrategy = "all"
 )
 
+type DeleteStrategy string
+
+func NewDeleteStrategy(s string) (DeleteStrategy, error) {
+	switch strings.ToLower(s) {
+	case "": // return default if empty
+		return DeleteStrategySystem, nil
+	case string(DeleteStrategySystem):
+		return DeleteStrategySystem, nil
+	case string(DeleteStrategyAll):
+		return DeleteStrategyAll, nil
+	default:
+		return "", errors.Errorf("Delete strategy %s not supported", s)
+	}
+}
+
 type SchedulerConfig struct {
+	PreComponents            [][]string
 	InventoryWatchInterval   time.Duration
 	ClusterReconcileInterval time.Duration
 	ClusterQueueSize         int
+	DeleteStrategy           DeleteStrategy
 }
 
 func (wc *SchedulerConfig) validate() error {
@@ -41,24 +63,33 @@ func (wc *SchedulerConfig) validate() error {
 	if wc.ClusterQueueSize == 0 {
 		wc.ClusterQueueSize = defaultQueueSize
 	}
+	switch wc.DeleteStrategy {
+	case "": // set default if empty (should not happen)
+		wc.DeleteStrategy = DeleteStrategySystem
+	case DeleteStrategyAll, DeleteStrategySystem: // valid options
+		break
+	default: // invalid
+		return errors.Errorf("Delete strategy %s not supported", wc.DeleteStrategy)
+	}
 	return nil
 }
 
 type scheduler struct {
-	logger        *zap.SugaredLogger
-	preComponents [][]string
+	logger *zap.SugaredLogger
 }
 
-func newScheduler(preComponents [][]string, logger *zap.SugaredLogger) *scheduler {
+func newScheduler(logger *zap.SugaredLogger) *scheduler {
 	return &scheduler{
-		preComponents: preComponents,
-		logger:        logger,
+		logger: logger,
 	}
 }
 
-func (s *scheduler) RunOnce(clusterState *cluster.State, reconRepo reconciliation.Repository) error {
+func (s *scheduler) RunOnce(clusterState *cluster.State, reconRepo reconciliation.Repository, config *SchedulerConfig) error {
 	s.logger.Debugf("Starting local scheduler")
-	reconEntity, err := reconRepo.CreateReconciliation(clusterState, s.preComponents)
+	reconEntity, err := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{
+		PreComponents:  config.PreComponents,
+		DeleteStrategy: string(config.DeleteStrategy),
+	})
 	if err == nil {
 		s.logger.Debugf("Scheduler created reconciliation entity: '%s", reconEntity)
 	}
@@ -76,7 +107,10 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 	for {
 		select {
 		case clusterState := <-queue:
-			if err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, s.preComponents); err == nil {
+			if err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, &model.ReconciliationSequenceConfig{
+				PreComponents:  config.PreComponents,
+				DeleteStrategy: string(config.DeleteStrategy),
+			}); err == nil {
 				s.logger.Infof("Scheduler triggered reconciliation for cluster '%s' "+
 					"(clusterVersion:%d/configVersion:%d/status:%s/last status update:%.2f min)", clusterState.Cluster.RuntimeID,
 					clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status,
