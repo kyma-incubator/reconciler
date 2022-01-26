@@ -126,13 +126,12 @@ func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *Reconciliatio
 	reconSeq := &ReconciliationSequence{
 		preComponents: cfg.PreComponents,
 	}
-
+	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning (or at the very end in deletion)
+		crdComponent,
+	})
 	cleanupComponent.Configuration = append(cleanupComponent.Configuration, keb.Configuration{Key: DeleteStrategyKey, Value: cfg.DeleteStrategy})
 	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{
 		cleanupComponent,
-	})
-	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning
-		crdComponent,
 	})
 
 	return reconSeq

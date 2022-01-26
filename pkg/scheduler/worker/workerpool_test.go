@@ -275,7 +275,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		for i := 0; i < len(testInvoker.params); i++ {
 			//check for updated status and component
 			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
-			require.Equal(t, model.CleanupComponent, testInvoker.params[i].ComponentToReconcile.Component)
+			require.Equal(t, model.CRDComponent, testInvoker.params[i].ComponentToReconcile.Component)
 		}
 		//cleanup after
 		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
