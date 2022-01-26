@@ -182,6 +182,7 @@ func (o *Options) Validate() error {
 	}
 
 	if isInputFromPipe() {
+		fmt.Println("PIPE DETECTED!!!!!!")
 		b, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err
