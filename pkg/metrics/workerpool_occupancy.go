@@ -15,7 +15,7 @@ type WorkerPoolOccupancyCollector struct {
 	workerPoolOccupancyGaugeVec *prometheus.GaugeVec
 }
 
-func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, reconcilersList []string, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
+func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, reconcilerList []string, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
 	if occupancyRepository == nil {
 		logger.Error("unable to register metric: repository is nil")
 		return nil
@@ -23,12 +23,12 @@ func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, r
 	return &WorkerPoolOccupancyCollector{
 		occupancyRepository: occupancyRepository,
 		logger:              logger,
-		componentList:       reconcilersList,
+		componentList:       reconcilerList,
 		workerPoolOccupancyGaugeVec: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "worker_pool_occupancy",
 			Help:      "Mean ratio of all running workers in all running worker-pools",
-		}, reconcilersList),
+		}, reconcilerList),
 	}
 }
 
