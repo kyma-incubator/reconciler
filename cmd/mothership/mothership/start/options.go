@@ -32,22 +32,22 @@ type Options struct {
 
 func NewOptions(o *cli.Options) *Options {
 	return &Options{o,
-		0,               //Port
-		"",              //SSLCrt
-		"",              //SSLKey
-		0,               //Workers
-		0 * time.Second, //WatchInterval
-		0 * time.Minute, //Orphan timeout
-		0 * time.Second, //ClusterReconcileInterval
-		0 * time.Minute, // PurgeEntitiesOlderThan
-		0 * time.Minute, // CleanerInterval
-		false,           //CreateEncyptionKey
-		0,               //MaxParallelOperations
-		false,           //AuditLog
-		"",              //AuditLogFile
-		"",              //AuditLogTenant
-		[]string{"mothership"},
-		false,           //StopAfterMigration
+		0,                      //Port
+		"",                     //SSLCrt
+		"",                     //SSLKey
+		0,                      //Workers
+		0 * time.Second,        //WatchInterval
+		0 * time.Minute,        //Orphan timeout
+		0 * time.Second,        //ClusterReconcileInterval
+		0 * time.Minute,        // PurgeEntitiesOlderThan
+		0 * time.Minute,        // CleanerInterval
+		false,                  //CreateEncyptionKey
+		0,                      //MaxParallelOperations
+		false,                  //AuditLog
+		"",                     //AuditLogFile
+		"",                     //AuditLogTenant
+		[]string{"mothership"}, //ReconcilerList
+		false,                  //StopAfterMigration
 	}
 }
 
