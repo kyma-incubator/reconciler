@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/occupancy"
 	"os"
 	"strings"
 	"testing"
@@ -86,19 +87,19 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		require.NoError(t, err)
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
 
-		require.NoError(t, heartbeatSender.Running(retryID))
+		require.NoError(t, heartbeatSender.Running(retryID, &occupancy.WorkerPoolOccupancy{}))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
 		time.Sleep(500 * time.Millisecond)
 		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
 
-		require.NoError(t, heartbeatSender.Failed(errors.New("I'm currently failing"), retryID))
+		require.NoError(t, heartbeatSender.Failed(errors.New("I'm currently failing"), retryID, &occupancy.WorkerPoolOccupancy{}))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusFailed)
 		time.Sleep(500 * time.Millisecond)
 		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
 
-		require.NoError(t, heartbeatSender.Success(retryID))
+		require.NoError(t, heartbeatSender.Success(retryID, &occupancy.WorkerPoolOccupancy{}))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusSuccess)
 		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
@@ -122,7 +123,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		require.NoError(t, err)
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
 
-		require.NoError(t, heartbeatSender.Running(retryID))
+		require.NoError(t, heartbeatSender.Running(retryID, &occupancy.WorkerPoolOccupancy{}))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
 		time.Sleep(500 * time.Millisecond)
 		require.Equal(t, retryID, callbackHdlr.RetryID())
@@ -151,7 +152,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		require.NoError(t, err)
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusNotstarted)
 
-		require.NoError(t, heartbeatSender.Running(retryID))
+		require.NoError(t, heartbeatSender.Running(retryID, &occupancy.WorkerPoolOccupancy{}))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusRunning)
 
 		time.Sleep(500 * time.Millisecond)

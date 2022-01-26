@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"sync"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ import (
 type testInvoker struct {
 	params     []*invoker.Params
 	reconRepo  reconciliation.Repository
+	workerRepo occupancy.Repository
 	errChannel chan error
 	sync.WaitGroup
 }
@@ -32,6 +34,7 @@ type testInvoker struct {
 type testInvokerParallel struct {
 	params     []*invoker.Params
 	reconRepo  reconciliation.Repository
+	workerRepo occupancy.Repository
 	errChannel chan error
 	sync.Mutex
 }
@@ -86,7 +89,8 @@ func TestWorkerPool(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
+	testInvoker.workerRepo = occupancy.NewInMemoryOccupancyRepository()
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	//create time limited context
@@ -158,7 +162,8 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, testConfig, logger.NewLogger(true))
+	testInvoker.workerRepo = occupancy.NewInMemoryOccupancyRepository()
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, testConfig, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	ctx, cancelFct := context.WithTimeout(context.Background(), 1*time.Second)
@@ -242,9 +247,10 @@ func TestWorkerPoolParallel(t *testing.T) {
 		require.NoError(t, err)
 
 		//initialize worker pool
+		testInvoker.workerRepo = occupancy.NewInMemoryOccupancyRepository()
 		wPools := make([]*Pool, countWorkerPools)
 		for i := 0; i < countWorkerPools; i++ {
-			workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, &Config{PoolSize: 5}, logger.NewLogger(true))
+			workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.workerRepo, testInvoker, &Config{PoolSize: 5}, logger.NewLogger(true))
 			require.NoError(t, err)
 			wPools[i] = workerPool
 		}

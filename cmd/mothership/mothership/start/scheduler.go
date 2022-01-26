@@ -11,13 +11,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-func startScheduler(ctx context.Context, o *Options, configFile string) error {
-	schedulerCfg, err := parseSchedulerConfig(configFile)
-	if err != nil {
-		return err
-	}
+func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config) error {
 
-	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
+	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), logger.NewLogger(o.Verbose))
 
 	ds, err := service.NewDeleteStrategy(schedulerCfg.Scheduler.DeleteStrategy)
 	if err != nil {
@@ -54,6 +50,14 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 			CleanerInterval:        o.CleanerInterval,
 		}).
 		Run(ctx)
+}
+
+func getListOfReconcilers(cfg *config.Config) []string {
+	reconcilerList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
+	for reconName := range cfg.Scheduler.Reconcilers {
+		reconcilerList = append(reconcilerList, reconName)
+	}
+	return append(reconcilerList, "mothership")
 }
 
 func parseSchedulerConfig(configFile string) (*config.Config, error) {

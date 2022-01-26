@@ -59,8 +59,13 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(ctx context.Context, o *Options) error {
+	schedulerCfg, err := parseSchedulerConfig(viper.ConfigFileUsed())
+	if err != nil {
+		return err
+	}
+	o.ReconcilerList = getListOfReconcilers(schedulerCfg)
 	go func(ctx context.Context, o *Options) {
-		err := startScheduler(ctx, o, viper.ConfigFileUsed())
+		err = startScheduler(ctx, o, schedulerCfg)
 		if err != nil {
 			panic(err)
 		}
