@@ -5,6 +5,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 
 	// Only for debug purposes, should be removed
+	"net/http"
 	_ "net/http/pprof"
 )
 
@@ -26,4 +27,7 @@ func init() {
 		WithPreReconcileAction(NewIntegrationAction("runtime-monitoring-integration-reconcile", lazyClient)).
 		// register reconciler post-delete action (executed AFTER deletion happens)
 		WithPostDeleteAction(NewIntegrationAction("runtime-monitoring-integration-delete", lazyClient))
+	go func() {
+		http.ListenAndServe("localhost:9090", nil)
+	}()
 }
