@@ -19,6 +19,31 @@ import (
 	"go.uber.org/zap"
 )
 
+type migrateLogger struct {
+	logger  *zap.SugaredLogger
+	verbose bool
+}
+
+func newMigrateLogger(debug bool) *migrateLogger {
+	logger := log.NewLogger(debug)
+	return &migrateLogger{
+		logger:  logger,
+		verbose: debug,
+	}
+}
+
+func (ml *migrateLogger) Printf(format string, v ...interface{}) {
+	if ml.verbose {
+		ml.logger.Debugf(format, v...)
+	} else {
+		ml.logger.Infof(format, v...)
+	}
+}
+
+func (ml *migrateLogger) Verbose() bool {
+	return ml.verbose
+}
+
 type postgresConnection struct {
 	db        *sql.DB
 	encryptor *Encryptor
@@ -194,14 +219,14 @@ func (pcf *postgresConnectionFactory) checkPostgresIsolationLevel() error {
 }
 
 func (pcf *postgresConnectionFactory) migrateDatabase() error {
-	logger := log.NewLogger(pcf.debug)
+	migrateLogger := newMigrateLogger(pcf.debug)
 	dbConn, err := pcf.NewConnection()
 	if err != nil {
 		return errors.Wrap(err, "not able to open DB connection to perform migration")
 	}
 	defer func() {
 		if err := dbConn.Close(); err != nil {
-			logger.Warnf("Failed to close DB connection which was used to perform migration: %s", err)
+			migrateLogger.logger.Warnf("Failed to close DB connection which was used to perform migration: %s", err)
 		}
 	}()
 	driver, err := postgres.WithInstance(dbConn.DB(), &postgres.Config{})
@@ -212,9 +237,10 @@ func (pcf *postgresConnectionFactory) migrateDatabase() error {
 	if err != nil {
 		return errors.Wrap(err, "not able to instantiate migrator with database instance")
 	}
+	m.Log = migrateLogger
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return errors.Wrapf(err, "not able to execute migrations: %s", err)
 	}
-	logger.Info("Database migrated")
+	migrateLogger.logger.Info("Database migrated")
 	return nil
 }
