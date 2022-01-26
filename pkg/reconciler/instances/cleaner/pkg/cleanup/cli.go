@@ -13,13 +13,11 @@ import (
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	k8sRetry "k8s.io/client-go/util/retry"
 )
 
 const (
@@ -30,17 +28,22 @@ const (
 	kymaNamespace      = "kyma-system"
 )
 
-//Implements cleanup logic taken from kyma-cli
+//KymaCRDsFinder returns a list of all CRDs defined explicitly in Kyma sources/charts.
+type KymaCRDsFinder func() ([]schema.GroupVersionResource, error)
+
+//Implements cleanup logic
 type CliCleaner struct {
-	k8s              KymaKube
-	apixClient       apixv1beta1client.ApiextensionsV1beta1Interface
-	keepCRDs         bool
-	namespaces       []string
-	namespaceTimeout time.Duration
-	logger           *zap.SugaredLogger
+	k8s                          KymaKube
+	apixClient                   apixv1beta1client.ApiextensionsV1beta1Interface
+	keepCRDs                     bool
+	dropFinalizersOnlyForKymaCRs bool
+	kymaCRDsFinder               KymaCRDsFinder
+	namespaces                   []string
+	namespaceTimeout             time.Duration
+	logger                       *zap.SugaredLogger
 }
 
-func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.SugaredLogger) (*CliCleaner, error) {
+func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.SugaredLogger, dropFinalizersOnlyForKymaCRs bool, crdsFinder KymaCRDsFinder) (*CliCleaner, error) {
 
 	kymaKube, err := NewFromConfigWithTimeout(kubeconfigData, defaultHTTPTimeout)
 	if err != nil {
@@ -52,7 +55,7 @@ func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.Sugar
 		return nil, err
 	}
 
-	return &CliCleaner{kymaKube, apixClient, true, namespaces, namespaceTimeout, logger}, nil
+	return &CliCleaner{kymaKube, apixClient, true, dropFinalizersOnlyForKymaCRs, crdsFinder, namespaces, namespaceTimeout, logger}, nil
 }
 
 //Run runs the command
@@ -62,10 +65,13 @@ func (cmd *CliCleaner) Run() error {
 		return err
 	}
 
-	if err := cmd.deleteKymaNamespaces(); err != nil {
+	if err := cmd.removeResourcesFinalizers(); err != nil {
 		return err
 	}
 
+	if err := cmd.deleteKymaNamespaces(); err != nil {
+		return err
+	}
 	if err := cmd.waitForNamespaces(); err != nil {
 		return err
 	}
@@ -98,85 +104,6 @@ func (cmd *CliCleaner) removeServerlessCredentialFinalizers() error {
 		cmd.logger.Info(fmt.Sprintf("Deleted finalizer from \"%s\" Secret", secret.GetName()))
 	}
 
-	return nil
-}
-
-func (cmd *CliCleaner) removeCustomResourcesFinalizers() error {
-	if err := cmd.removeCustomResourceFinalizersByLabel(crLabelReconciler); err != nil {
-		return err
-	}
-	if err := cmd.removeCustomResourceFinalizersByLabel(crLabelIstio); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cmd *CliCleaner) removeCustomResourceFinalizersByLabel(label string) error {
-	crds, err := cmd.apixClient.CustomResourceDefinitions().List(context.Background(), metav1.ListOptions{LabelSelector: label})
-	if err != nil && !apierr.IsNotFound(err) {
-		return err
-	}
-	if crds == nil {
-		return nil
-	}
-
-	for _, crd := range crds.Items {
-		gvr := schema.GroupVersionResource{
-			Group:    crd.Spec.Group,
-			Version:  crd.Spec.Version,
-			Resource: crd.Spec.Names.Plural,
-		}
-
-		customResourceList, err := cmd.k8s.Dynamic().Resource(gvr).Namespace(v1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-		if err != nil && !apierr.IsNotFound(err) {
-			return err
-		}
-		if customResourceList == nil {
-			continue
-		}
-
-		for i := range customResourceList.Items {
-			cr := customResourceList.Items[i]
-			retryErr := k8sRetry.RetryOnConflict(k8sRetry.DefaultRetry, func() error { return cmd.removeCustomResourceFinalizers(gvr, cr) })
-			if retryErr != nil {
-				return errors.Wrap(retryErr, "deleting finalizer failed:")
-			}
-		}
-	}
-
-	return nil
-}
-
-func (cmd *CliCleaner) removeCustomResourceFinalizers(gvr schema.GroupVersionResource, cr unstructured.Unstructured) error {
-	// Retrieve the latest version of Custom Resource before attempting update
-	// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
-	res, err := cmd.k8s.Dynamic().Resource(gvr).Namespace(cr.GetNamespace()).Get(context.Background(), cr.GetName(), metav1.GetOptions{})
-	if err != nil && !apierr.IsNotFound(err) {
-		return err
-	}
-	if res == nil {
-		return nil
-	}
-
-	if len(res.GetFinalizers()) > 0 {
-		cmd.logger.Info(fmt.Sprintf("Deleting finalizer for \"%s\" %s", res.GetName(), cr.GetKind()))
-
-		res.SetFinalizers(nil)
-		_, err := cmd.k8s.Dynamic().Resource(gvr).Namespace(res.GetNamespace()).Update(context.Background(), res, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-
-		cmd.logger.Info(fmt.Sprintf("Deleted finalizer for \"%s\" %s", res.GetName(), res.GetKind()))
-	}
-
-	if !cmd.keepCRDs {
-		err = cmd.k8s.Dynamic().Resource(gvr).Namespace(res.GetNamespace()).Delete(context.Background(), res.GetName(), metav1.DeleteOptions{})
-		if err != nil && !apierr.IsNotFound(err) {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -255,7 +182,7 @@ func (cmd *CliCleaner) waitForNamespaces() error {
 		case <-timeout:
 			return errors.New("Timed out while waiting for Namespace deletion")
 		case <-poll.C:
-			if err := cmd.removeFinalizers(); err != nil {
+			if err := cmd.removeResourcesFinalizers(); err != nil {
 				return err
 			}
 			ok, err := cmd.checkKymaNamespaces()
@@ -268,7 +195,7 @@ func (cmd *CliCleaner) waitForNamespaces() error {
 	}
 }
 
-func (cmd *CliCleaner) removeFinalizers() error {
+func (cmd *CliCleaner) removeResourcesFinalizers() error {
 
 	if err := cmd.removeServerlessCredentialFinalizers(); err != nil {
 		return err
