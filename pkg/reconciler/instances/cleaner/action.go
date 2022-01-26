@@ -27,11 +27,11 @@ func (a *CleanupAction) Run(context *service.ActionContext) error {
 		return nil
 	}
 
+	context.Logger.Infof("Action '%s' executed: passed version was '%s', passed type was %s", a.name, context.Task.Version, context.Task.Type)
+
 	if _, err := context.KubeClient.Clientset(); err != nil { //cleaner how to retrieve native Kubernetes GO client
 		return err
 	}
-
-	context.Logger.Infof("Action '%s' executed: passed version was '%s', passed type was %s", a.name, context.Task.Version, context.Task.Type)
 
 	namespaces := []string{"kyma-system", "kyma-integration"}
 
