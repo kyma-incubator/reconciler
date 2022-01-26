@@ -28,6 +28,9 @@ func init() {
 		// register reconciler post-delete action (executed AFTER deletion happens)
 		WithPostDeleteAction(NewIntegrationAction("runtime-monitoring-integration-delete", lazyClient))
 	go func() {
-		http.ListenAndServe("localhost:9090", nil)
+		err := http.ListenAndServe("localhost:9090", nil)
+		if err != nil {
+			log.Error(err)
+		}
 	}()
 }
