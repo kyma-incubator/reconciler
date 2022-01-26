@@ -27,6 +27,7 @@ type Options struct {
 	AuditLogFile             string
 	AuditLogTenantID         string
 	ReconcilerList           []string
+	StopAfterMigration       bool
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -43,9 +44,10 @@ func NewOptions(o *cli.Options) *Options {
 		false,           //CreateEncyptionKey
 		0,               //MaxParallelOperations
 		false,           //AuditLog
-		"",              //AuditLogFIle
+		"",              //AuditLogFile
 		"",              //AuditLogTenant
 		[]string{"mothership"},
+		false,           //StopAfterMigration
 	}
 }
 

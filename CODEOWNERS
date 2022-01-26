@@ -1,5 +1,5 @@
 # These are the default owners for the whole content of the repository. The default owners are automatically added as reviewers when you open a pull request, unless different owners are specified in the file.
-* @khlifi411 @jeremyharisch @ruanxin @tobiscr @pbochynski @varbanv @suleymanakbas91 @m00g3n @dbadura @pPrecel @kwiatekus @moelsayed @clebs
+* @khlifi411 @jeremyharisch @ruanxin @tobiscr @pbochynski @varbanv @m00g3n @dbadura @pPrecel @kwiatekus @moelsayed @clebs @Tomasz-Smelcerz-SAP
 
 # All .md files
 *.md @kazydek @klaudiagrz @mmitoraj @majakurcius @alexandra-simeonova @superojla @nhingerl

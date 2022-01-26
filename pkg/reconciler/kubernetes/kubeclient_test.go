@@ -56,9 +56,14 @@ func TestPatchReplace(t *testing.T) {
 		}
 
 		for idxUnstruct, unstruct := range unstructs {
+			expectedLabel := fmt.Sprintf("%d_%d", idxManifest, idxUnstruct)
+			if unstruct.GetKind() == "Job" {
+				expectedLabel = "jobLabels_are_never_updated"
+			}
+
 			t.Run(
 				fmt.Sprintf("Applying %s", unstruct.GetName()),
-				newTestFunc(kubeClient, unstruct, fmt.Sprintf("%d_%d", idxManifest, idxUnstruct), expectedImage, expectedLimits))
+				newTestFunc(kubeClient, unstruct, expectedLabel, expectedImage, expectedLimits))
 		}
 	}
 
