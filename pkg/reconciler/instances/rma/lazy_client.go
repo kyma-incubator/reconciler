@@ -1,8 +1,9 @@
 package rma
 
 import (
-	reconK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"sync"
+
+	reconK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/action"
@@ -13,19 +14,22 @@ import (
 
 type IntegrationClient interface {
 	KubernetesClientSet() (kubernetes.Interface, error)
-	HelmActionConfiguration(namespace string, log action.DebugLog) (*action.Configuration, error)
+	HelmActionConfiguration(namespace string) (*action.Configuration, error)
 }
 
 type LazyClient struct {
-	client      kubernetes.Interface
-	clientErr   error
-	configFlags *genericclioptions.ConfigFlags
-	initClient  sync.Once
-	log         *zap.SugaredLogger
+	client        kubernetes.Interface
+	clientErr     error
+	configFlags   *genericclioptions.ConfigFlags
+	initClient    sync.Once
+	mux           sync.Mutex
+	log           *zap.SugaredLogger
+	actionConfigs map[string]*action.Configuration
 }
 
 func (c *LazyClient) init() error {
 	c.initClient.Do(func() {
+		c.actionConfigs = make(map[string]*action.Configuration)
 		c.client, c.clientErr = reconK8s.NewInClusterClientSet(c.log)
 		if c.clientErr != nil {
 			return
@@ -52,12 +56,21 @@ func (c *LazyClient) KubernetesClientSet() (kubernetes.Interface, error) {
 	return c.client, nil
 }
 
-func (c *LazyClient) HelmActionConfiguration(namespace string, log action.DebugLog) (*action.Configuration, error) {
+func (c *LazyClient) HelmActionConfiguration(namespace string) (*action.Configuration, error) {
+	var err error = nil
 	if err := c.init(); err != nil {
 		return nil, err
 	}
-	cfg := new(action.Configuration)
-	err := cfg.Init(c.configFlags, namespace, RmiHelmDriver, log)
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	cfg := c.actionConfigs[namespace]
+	if cfg == nil {
+		cfg := new(action.Configuration)
+		err = cfg.Init(c.configFlags, namespace, RmiHelmDriver, c.log.Debugf)
+		if err == nil {
+			c.actionConfigs[namespace] = cfg
+		}
+	}
 
 	return cfg, err
 }
