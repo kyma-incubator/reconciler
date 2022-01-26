@@ -55,16 +55,7 @@ func defaultKubeClientProvider(context *service.ActionContext, logger *zap.Sugar
 }
 
 func (r *removeNatsOperatorStep) Execute(context *service.ActionContext, logger *zap.SugaredLogger) error {
-	// todo skip the step for kyma 2.x+ version for that use the check which will be implemented as a follow-up for https://github.com/kyma-incubator/reconciler/issues/334
-	// no kyma 2.x+ clusters contain nats-operator resources
-	//clusterVersion, err := cluster.Version()
-	//if err != nil {
-	//	return err
-	//}
-	//if clusterVersion > 1 {
-	//	logger.With(log.KeyReason, "NATS-operator resources do not exist on clusters with kyma 2.x+ version").Info("Step skipped")
-	//	return nil
-	//}
+	// TODO skip this step for Kyma 2.X when the following issue is done https://github.com/kyma-incubator/reconciler/issues/334
 
 	// decorate logger
 	logger = logger.With(log.KeyStep, removeNatsOperatorStepName)
