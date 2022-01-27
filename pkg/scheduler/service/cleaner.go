@@ -131,18 +131,18 @@ func (c *cleaner) getLatestReconciliations(latestEntitiesCount int, transition *
 }
 
 func (c *cleaner) dropRecordsOlderThan(t time.Time, transition *ClusterStatusTransition) error {
-	c.logger.Infof("[CLEANER] Removing all records older than: %s", deadline.String())
+	c.logger.Infof("[CLEANER] Removing all records older than: %s", t.UTC().String())
 	removeAllEntitiesFilter := func(m *model.ReconciliationEntity) bool { return true }
-	return dropRecordsOlderThanByFilter(t, transition, removeAllEntitiesFilter)
+	return c.dropRecordsOlderThanByFilter(t, transition, removeAllEntitiesFilter)
 }
 
 func (c *cleaner) dropSuccessfulRecordsOlderThan(t time.Time, transition *ClusterStatusTransition) error {
-	c.logger.Infof("[CLEANER] Removing only successful records older than: %s", deadline.String())
+	c.logger.Infof("[CLEANER] Removing only successful records older than: %s", t.UTC().String())
 	removeOnlySuccessfullEntitiesFilter := func(m *model.ReconciliationEntity) bool { return m.Status.IsFinalStable() }
-	return dropRecordsOlderThanByFilter(t, transition, removeOnlySuccessfullEntitiesFilter)
+	return c.dropRecordsOlderThanByFilter(t, transition, removeOnlySuccessfullEntitiesFilter)
 }
 
-func (c *cleaner) dropRecordsOlderThanByFilter(t time.Time, transition *ClusterStatusTransition, shoudRemoveFilter func(*model.ReconciliationEntity) bool) {
+func (c *cleaner) dropRecordsOlderThanByFilter(t time.Time, transition *ClusterStatusTransition, shouldRemoveFilter func(*model.ReconciliationEntity) bool) error {
 	deadline := t.UTC()
 	list, err := c.findReconciliationsOlderThan(deadline, transition)
 	if err != nil {
