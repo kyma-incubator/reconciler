@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -11,13 +12,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-func startScheduler(ctx context.Context, o *Options, configFile string) error {
-	schedulerCfg, err := parseSchedulerConfig(configFile)
-	if err != nil {
-		return err
-	}
+func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config) error {
 
-	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
+	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), logger.NewLogger(o.Verbose))
 
 	ds, err := service.NewDeleteStrategy(schedulerCfg.Scheduler.DeleteStrategy)
 	if err != nil {
@@ -50,10 +47,20 @@ func startScheduler(ctx context.Context, o *Options, configFile string) error {
 			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		WithCleanerConfig(&service.CleanerConfig{
-			PurgeEntitiesOlderThan: o.PurgeEntitiesOlderThan,
-			CleanerInterval:        o.CleanerInterval,
+			PurgeEntitiesOlderThan:       o.PurgeEntitiesOlderThan,
+			CleanerInterval:              o.CleanerInterval,
+			KeepLatestEntitiesCount:      uintOrDie(o.KeepLatestEntitiesCount),
+			KeepUnsuccessfulEntitiesDays: uintOrDie(o.KeepUnsuccessfulEntitiesDays),
 		}).
 		Run(ctx)
+}
+
+func getListOfReconcilers(cfg *config.Config) []string {
+	reconcilerList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
+	for reconName := range cfg.Scheduler.Reconcilers {
+		reconcilerList = append(reconcilerList, reconName)
+	}
+	return append(reconcilerList, "mothership")
 }
 
 func parseSchedulerConfig(configFile string) (*config.Config, error) {
@@ -64,4 +71,11 @@ func parseSchedulerConfig(configFile string) (*config.Config, error) {
 
 	var cfg config.Config
 	return &cfg, viper.UnmarshalKey("mothership", &cfg)
+}
+
+func uintOrDie(v int) uint {
+	if v < 0 {
+		panic("Can't convert negative value: '" + strconv.Itoa(v) + "' to the uint type")
+	}
+	return uint(v)
 }

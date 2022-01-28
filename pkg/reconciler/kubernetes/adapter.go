@@ -257,7 +257,7 @@ func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalLis
 
 func (g *kubeClientAdapter) getUpdateStrategy(infoTarget *resource.Info) (UpdateStrategy, error) {
 	helper := resource.NewHelper(infoTarget.Client, infoTarget.Mapping)
-	strategy, err := newDefaultUpdateStrategyResolver(helper).Resolve(infoTarget)
+	strategy, err := newDefaultUpdateStrategyResolver(helper, g.logger).Resolve(infoTarget)
 	return strategy, err
 }
 
@@ -272,16 +272,16 @@ func (g *kubeClientAdapter) manifestToUnstructured(manifest string) ([]*unstruct
 }
 
 func (g *kubeClientAdapter) addWatchableResourceInfoToProgressTracker(info *resource.Info, pt *progress.Tracker) *Resource {
-	resource := &Resource{
+	res := &Resource{
 		Name:      info.Name,
 		Kind:      info.Object.GetObjectKind().GroupVersionKind().Kind,
 		Namespace: info.Namespace,
 	}
-	watchable, nonWatchableErr := progress.NewWatchableResource(resource.Kind)
+	watchable, nonWatchableErr := progress.NewWatchableResource(res.Kind)
 	if nonWatchableErr == nil {
-		pt.AddResourceWithInfo(watchable, resource.Namespace, resource.Name, info)
+		pt.AddResourceWithInfo(watchable, res.Namespace, res.Name, info)
 	}
-	return resource
+	return res
 }
 
 func getDiscoveryMapper(restConfig *rest.Config) (*restmapper.DeferredDiscoveryRESTMapper, error) {

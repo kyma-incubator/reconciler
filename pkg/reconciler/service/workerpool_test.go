@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/occupancy"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ func TestWorkerPool(t *testing.T) {
 		wp, err := newWorkerPoolBuilder(newRunnerFct()).
 			WithPoolSize(5).
 			WithDebug(true).
-			Build(ctx)
+			Build(ctx, 500*time.Millisecond)
 		require.NoError(t, err)
 		require.NotEmpty(t, wp.antsPool)
 		require.False(t, wp.antsPool.IsClosed())
@@ -39,8 +40,8 @@ func TestWorkerPool(t *testing.T) {
 	})
 }
 
-func newRunnerFct() func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error {
-	return func(ctx context.Context, reconciliation *reconciler.Task, handler callback.Handler, logger *zap.SugaredLogger) func() error {
+func newRunnerFct() func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger, *occupancy.WorkerPoolOccupancy) func() error {
+	return func(ctx context.Context, reconciliation *reconciler.Task, handler callback.Handler, logger *zap.SugaredLogger, occupancy *occupancy.WorkerPoolOccupancy) func() error {
 		return func() error {
 			return nil
 		}
