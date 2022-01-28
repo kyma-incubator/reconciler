@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kyma-incubator/reconciler/internal/components"
-
 	"github.com/kyma-incubator/reconciler/internal/cli"
+	"github.com/kyma-incubator/reconciler/internal/components"
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/pkg/errors"
@@ -17,6 +17,7 @@ import (
 
 type Options struct {
 	*cli.Options
+	clusterState   string
 	kubeconfigFile string
 	kubeconfig     string
 	version        string
@@ -29,6 +30,7 @@ type Options struct {
 
 func NewOptions(o *cli.Options) *Options {
 	return &Options{o,
+		"",         // clusterState
 		"",         // kubeconfigFile
 		"",         // kubeconfig
 		"",         // version
@@ -96,7 +98,6 @@ func componentsFromStrings(list []string, values []string) ([]*keb.Component, er
 			if ok {
 				for key, value := range mapValue {
 					configuration = append(configuration, keb.Configuration{Key: key, Value: value})
-
 				}
 			} else {
 				return nil, fmt.Errorf("expected nested values for component %s, got value %s", name, val)
@@ -112,39 +113,81 @@ func componentsFromStrings(list []string, values []string) ([]*keb.Component, er
 	return comps, nil
 }
 
+func componentsFromClusterState(cluster cluster.State, values []string) ([]*keb.Component, error) {
+	vals := map[string]interface{}{}
+	for _, value := range values {
+		err := strvals.ParseIntoString(value, vals)
+		if err != nil {
+			return nil, fmt.Errorf("can't parse value %s", value)
+		}
+	}
+
+	components := cluster.Configuration.Components
+	for i := range components {
+		name := components[i].Component
+		if vals[name] != nil {
+			mapValue, ok := vals[name].(map[string]interface{})
+			if ok {
+				for key, value := range mapValue {
+					components[i].Configuration = append(components[i].Configuration, keb.Configuration{Key: key, Value: value})
+				}
+			} else {
+				return nil, fmt.Errorf("expected nested values for component %s, got value %s", name, vals[name])
+			}
+		}
+
+		if vals["global"] != nil {
+			components[i].Configuration = append(components[i].Configuration, keb.Configuration{Key: "global", Value: vals["global"]})
+		}
+	}
+
+	return components, nil
+}
+
 func setURLRepository(url string) string {
 	// TODO add support for credentials
 	return strings.TrimSpace(url)
 }
 
-func (o *Options) Components(defaultComponentsFile string) ([][]string, []*keb.Component, error) {
+func (o *Options) Components(defaultComponentsFile string, cluster cluster.State) ([][]string, []*keb.Component, error) {
 	var preComps [][]string
+	var comps []*keb.Component
 
-	comps := o.components
-	if len(o.components) == 0 {
-		cFile := o.componentsFile
-		if cFile == "" {
-			cFile = defaultComponentsFile
-		}
-		var err error
-		preComps, comps, err = componentsFromFile(cFile)
-		if err != nil {
-			return preComps, nil, err
-		}
+	cFile := o.componentsFile
+	if cFile == "" {
+		cFile = defaultComponentsFile
 	}
 
-	mergedComps, err := componentsFromStrings(comps, o.values)
+	preComps, compSlice, err := componentsFromFile(cFile)
 	if err != nil {
 		return preComps, nil, err
 	}
 
-	return preComps, mergedComps, err
+	switch {
+	case len(o.components) > 0:
+		comps, err = componentsFromStrings(o.components, o.values)
+	case cluster.Configuration != nil && len(cluster.Configuration.Components) > 0:
+		comps, err = componentsFromClusterState(cluster, o.values)
+	default:
+		comps, err = componentsFromStrings(compSlice, o.values)
+	}
+
+	return preComps, comps, err
 }
 
 func (o *Options) Validate() error {
 	err := o.Options.Validate()
 	if err != nil {
 		return err
+	}
+
+	if isInputFromPipe() {
+		b, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		o.clusterState = string(b)
 	}
 
 	if o.kubeconfigFile == "" {
@@ -169,4 +212,9 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("use one of 'components' or 'component-file' flag")
 	}
 	return nil
+}
+
+func isInputFromPipe() bool {
+	fileInfo, _ := os.Stdin.Stat()
+	return fileInfo.Mode()&os.ModeCharDevice == 0
 }
