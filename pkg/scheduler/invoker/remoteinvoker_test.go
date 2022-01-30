@@ -3,6 +3,7 @@ package invoker
 import (
 	"context"
 	"encoding/json"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"net/http"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ import (
 
 func TestRemoteInvoker(t *testing.T) {
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
+	occupRepo := occupancy.NewInMemoryOccupancyRepository()
 
 	//create reconciliation entity
 	reconEntity, err := reconRepo.CreateReconciliation(clusterStateMock, &model.ReconciliationSequenceConfig{})
@@ -49,7 +51,7 @@ func TestRemoteInvoker(t *testing.T) {
 				Reconcilers:   nil,
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntities[0], cfg)
+		err := invokeRemoteInvoker(reconRepo, occupRepo, opEntities[0], cfg)
 		require.Error(t, err)
 		require.True(t, IsNoFallbackReconcilerDefinedError(err))
 	})
@@ -68,7 +70,7 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntities[1], cfg)
+		err := invokeRemoteInvoker(reconRepo, occupRepo, opEntities[1], cfg)
 		require.Error(t, err)
 
 		//invocation of component reconciler failed... marking operation to be in error state
@@ -89,7 +91,7 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntities[2], cfg)
+		err := invokeRemoteInvoker(reconRepo, occupRepo, opEntities[2], cfg)
 		require.NoError(t, err)
 
 		requireOperationState(t, reconRepo, opEntities[2], model.OperationStateInProgress)
@@ -109,7 +111,7 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntities[3], cfg)
+		err := invokeRemoteInvoker(reconRepo, occupRepo, opEntities[3], cfg)
 		require.NoError(t, err)
 
 		requireOperationState(t, reconRepo, opEntities[3], model.OperationStateFailed)
@@ -129,7 +131,7 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntities[4], cfg)
+		err := invokeRemoteInvoker(reconRepo, occupRepo, opEntities[4], cfg)
 		require.NoError(t, err)
 
 		requireOperationState(t, reconRepo, opEntities[4], model.OperationStateClientError)
@@ -149,14 +151,14 @@ func TestRemoteInvoker(t *testing.T) {
 				},
 			},
 		}
-		err := invokeRemoteInvoker(reconRepo, opEntities[5], cfg)
+		err := invokeRemoteInvoker(reconRepo, occupRepo, opEntities[5], cfg)
 		require.NoError(t, err)
 
 		requireOperationState(t, reconRepo, opEntities[5], model.OperationStateClientError)
 	})
 }
 
-func invokeRemoteInvoker(reconRepo reconciliation.Repository, op *model.OperationEntity, cfg *config.Config) error {
+func invokeRemoteInvoker(reconRepo reconciliation.Repository, occuppRepo occupancy.Repository, op *model.OperationEntity, cfg *config.Config) error {
 	//reset operation state
 	if err := reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateNew, false); err != nil {
 		if !reconciliation.IsAlreadyInStateError(err) {
@@ -164,7 +166,7 @@ func invokeRemoteInvoker(reconRepo reconciliation.Repository, op *model.Operatio
 		}
 	}
 
-	invoker := NewRemoteReoncilerInvoker(reconRepo, cfg, logger.NewLogger(true))
+	invoker := NewRemoteReoncilerInvoker(reconRepo, occuppRepo, cfg, logger.NewLogger(true))
 	return invoker.Invoke(context.Background(), &Params{
 		ComponentToReconcile: &keb.Component{
 			Component: model.CRDComponent,
