@@ -82,6 +82,13 @@ func TestReconciliationResult(t *testing.T) {
 					State:         model.OperationStateOrphan,
 					Updated:       time.Now(),
 				},
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.4",
+					State:         model.OperationStateDone,
+					Updated:       time.Now(),
+				},
 			},
 			expectedResultReconcile: model.ClusterStatusReconcileError,
 			expectedResultDelete:    model.ClusterStatusDeleteError,
