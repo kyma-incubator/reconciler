@@ -51,6 +51,8 @@ func (rs *ReconciliationResult) AddOperation(op *model.OperationEntity) error {
 		rs.error = append(rs.error, op)
 	case model.OperationStateNew:
 		rs.new = append(rs.new, op)
+	case model.OperationStateOrphan: //orphans will be treated like new operations
+		rs.new = append(rs.new, op)
 	default:
 		rs.running = append(rs.running, op)
 	}
