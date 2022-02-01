@@ -28,6 +28,7 @@ import (
 	"go.uber.org/zap"
 	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	apixV1ClientSet "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	apiMeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,6 +52,7 @@ type kubeClientAdapter struct {
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
 	helmClient    *kube.Client
 	dynamicClient dynamic.Interface
+	apixClient    apixV1ClientSet.ApiextensionsV1Interface
 }
 
 func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *Config) (Client, error) {
@@ -73,7 +75,11 @@ func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *C
 	if err != nil {
 		return nil, err
 	}
-	return adapt(kubeconfig, logger, config, restConfig, mapper, dynamicClient), err
+	apixClient, err := apixV1ClientSet.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	return adapt(kubeconfig, logger, config, restConfig, mapper, dynamicClient, apixClient), err
 }
 
 func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, error) {
@@ -84,7 +90,8 @@ func NewInClusterClientSet(logger *zap.SugaredLogger) (kubernetes.Interface, err
 	}
 	return kubernetes.NewForConfig(inClusterConfig)
 }
-func adapt(kubeconfig string, logger *zap.SugaredLogger, config *Config, restConfig *rest.Config, mapper *restmapper.DeferredDiscoveryRESTMapper, dynamicClient dynamic.Interface) *kubeClientAdapter {
+
+func adapt(kubeconfig string, logger *zap.SugaredLogger, config *Config, restConfig *rest.Config, mapper *restmapper.DeferredDiscoveryRESTMapper, dynamicClient dynamic.Interface, apixClient *apixV1ClientSet.ApiextensionsV1Client) *kubeClientAdapter {
 	return &kubeClientAdapter{
 		kubeconfig:    kubeconfig,
 		logger:        logger,
@@ -93,8 +100,10 @@ func adapt(kubeconfig string, logger *zap.SugaredLogger, config *Config, restCon
 		mapper:        mapper,
 		dynamicClient: dynamicClient,
 		helmClient:    kube.New(NewRESTClientGetter(restConfig)),
+		apixClient:    apixClient,
 	}
 }
+
 func (g *kubeClientAdapter) Kubeconfig() string {
 	return g.kubeconfig
 }
@@ -159,7 +168,7 @@ func (g *kubeClientAdapter) DeployByCompareWithOriginal(ctx context.Context, man
 		g.logger.Debugf("Manifest data: %s", manifestTarget)
 		return nil, err
 	}
-	deployedResources, err := g.deployResources(ctx, resourceInfoOriginal, resourceInfoTarget)
+	deployedResources, err := g.deployResources(ctx, resourceInfoOriginal, resourceInfoTarget, nil)
 
 	if len(deployedResources) == 0 {
 		g.logger.Warnf("Namespace '%s' was required for deploying the manifestTarget "+
@@ -188,7 +197,8 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifestTarget, namespac
 		g.logger.Debugf("Manifest data: %s", manifestTarget)
 		return nil, err
 	}
-	deployedResources, err := g.deployResources(ctx, resourceInfoTarget, resourceInfoTarget)
+	crDGroupKinds, err := g.getCRDGroupKinds(ctx)
+	deployedResources, err := g.deployResources(ctx, resourceInfoTarget, resourceInfoTarget, crDGroupKinds)
 
 	if len(deployedResources) == 0 {
 		g.logger.Warnf("Namespace '%s' was required for deploying the manifestTarget "+
@@ -227,7 +237,7 @@ func (g *kubeClientAdapter) applyInterceptors(manifestTarget string, namespace s
 	return resourceListTarget.resources, nil
 }
 
-func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalList kube.ResourceList, infoTargetList kube.ResourceList) ([]*Resource, error) {
+func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalList kube.ResourceList, infoTargetList kube.ResourceList, crdGroupKinds []schema.GroupKind) ([]*Resource, error) {
 	pt, err := g.newProgressTracker()
 	if err != nil {
 		return nil, err
@@ -244,7 +254,7 @@ func (g *kubeClientAdapter) deployResources(ctx context.Context, infoOriginalLis
 		deployingResource := g.addWatchableResourceInfoToProgressTracker(infoTarget, pt)
 		deployedResources = append(deployedResources, deployingResource)
 
-		err = g.deployResource(intersectOriginal[0], infoTarget)
+		err = g.deployResource(ctx, intersectOriginal[0], infoTarget, crdGroupKinds)
 		if err != nil {
 			g.logger.Errorf("Failed to apply Kubernetes unstructured entity: %s", err)
 			return nil, err
@@ -337,7 +347,8 @@ func (g *kubeClientAdapter) convertToInfo(unstruct *unstructured.Unstructured, n
 	}
 
 	info.Namespace = unstruct.GetNamespace()
-	setNamespaceIfScoped(namespaceOverride, info)
+	helper := resource.NewHelper(info.Client, info.Mapping)
+	setDefaultOrOverwriteNamespaceIfScopedAndNoneSet(namespaceOverride, info, helper, unstruct)
 	info.Name = unstruct.GetName()
 	info.Object = unstruct.DeepCopyObject()
 	return info, nil
@@ -391,7 +402,7 @@ func (g *kubeClientAdapter) deleteResource(infoTarget *resource.Info) (*Resource
 	}, nil
 }
 
-func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.Info) error {
+func (g *kubeClientAdapter) deployResource(ctx context.Context, infoOriginal, infoTarget *resource.Info, crdGroupKinds []schema.GroupKind) error {
 
 	strategy, err := g.getUpdateStrategy(infoTarget)
 	if err != nil {
@@ -401,7 +412,10 @@ func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.In
 		return nil
 	}
 
-	//retry the reconciliation in case of an error
+	infoOriginal, err = g.fetchExistingResourceAndConvertToInfo(ctx, infoOriginal, crdGroupKinds)
+	if err != nil {
+		return err
+	}
 	err = retry.Do(g.deployResourceFunc(infoOriginal, infoTarget, strategy),
 		retry.Attempts(uint(g.config.MaxRetries)),
 		retry.Delay(g.config.RetryDelay),
@@ -413,6 +427,43 @@ func (g *kubeClientAdapter) deployResource(infoOriginal, infoTarget *resource.In
 			infoTarget.Object.GetObjectKind().GroupVersionKind().Kind, infoTarget.Name, infoTarget.Namespace)
 	}
 	return nil
+}
+
+//fetchExistingResourceAndConvertToInfo: skip non CR resources, get existing CR definitions from cluster, and convert as resource.Info
+func (g *kubeClientAdapter) fetchExistingResourceAndConvertToInfo(ctx context.Context, info *resource.Info, crdGroupKinds []schema.GroupKind) (*resource.Info, error) {
+
+	if !containsGroupKind(crdGroupKinds, info.Object.GetObjectKind().GroupVersionKind().GroupKind()) {
+		return info, nil
+	}
+	existingResource, err := g.dynamicClient.Resource(info.Mapping.Resource).Namespace(info.Namespace).Get(ctx, info.Name, metav1.GetOptions{})
+	if existingResource != nil {
+		removeIgnoredFields(existingResource)
+		info, err = g.convertToInfo(existingResource, info.Namespace)
+		if err != nil {
+			return info, errors.Wrapf(err, "Failed to convert existing unstructs data")
+		}
+	}
+	return info, nil
+}
+
+func removeIgnoredFields(existingResource *unstructured.Unstructured) {
+	unstructured.RemoveNestedField(existingResource.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(existingResource.Object, "metadata", "creationTimestamp")
+	unstructured.RemoveNestedField(existingResource.Object, "metadata", "generation")
+	unstructured.RemoveNestedField(existingResource.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(existingResource.Object, "metadata", "uid")
+}
+
+func containsGroupKind(groupKinds []schema.GroupKind, groupKind schema.GroupKind) bool {
+	if groupKinds == nil {
+		return false
+	}
+	for _, gk := range groupKinds {
+		if gk.Group == groupKind.Group && gk.Kind == groupKind.Kind {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *kubeClientAdapter) deployResourceFunc(infoOriginal, infoTarget *resource.Info, strategy UpdateStrategy) func() error {
@@ -430,24 +481,38 @@ func (g *kubeClientAdapter) deployResourceFunc(infoOriginal, infoTarget *resourc
 	}
 }
 
-func setDefaultNamespaceIfScopedAndNoneSet(namespace string, resourceInfo *resource.Info, helper *resource.Helper) {
+func setDefaultOrOverwriteNamespaceIfScopedAndNoneSet(namespaceOverride string, resourceInfo *resource.Info, helper *resource.Helper, unstruct *unstructured.Unstructured) {
 	if helper.NamespaceScoped {
-		resNamespace := resourceInfo.Namespace
-		if resNamespace == "" {
-			if namespace == "" {
-				namespace = "default"
+		if resourceInfo.Namespace == "" {
+			if namespaceOverride == "" {
+				namespaceOverride = "default"
 			}
-			resourceInfo.Namespace = namespace
+			resourceInfo.Namespace = namespaceOverride
 		}
+		unstructured.SetNestedField(unstruct.Object, resourceInfo.Namespace, "metadata", "namespace")
 	}
 }
 
-func setNamespaceIfScoped(namespace string, resourceInfo *resource.Info) {
-	helper := resource.NewHelper(resourceInfo.Client, resourceInfo.Mapping)
-	setDefaultNamespaceIfScopedAndNoneSet(namespace, resourceInfo, helper)
-	if resourceInfo.Namespace == "" && helper.NamespaceScoped {
-		resourceInfo.Namespace = namespace
+func (g *kubeClientAdapter) getCRDGroupKinds(ctx context.Context) ([]schema.GroupKind, error) {
+	res := []schema.GroupKind{}
+	crds, err := g.apixClient.CustomResourceDefinitions().List(ctx, metav1.ListOptions{})
+	if err != nil && !k8serr.IsNotFound(err) {
+		return nil, err
 	}
+
+	if crds == nil {
+		return res, nil
+	}
+
+	for _, crd := range crds.Items {
+		gk := schema.GroupKind{
+			Group: crd.Spec.Group,
+			Kind:  crd.Spec.Names.Kind,
+		}
+		res = append(res, gk)
+	}
+
+	return res, nil
 }
 
 func (g *kubeClientAdapter) addNamespaceUnstruct(unstructs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {

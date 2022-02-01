@@ -99,6 +99,21 @@ func TestCustomerResources(t *testing.T) {
 		_, err = kubeClient.Deploy(context.TODO(), crManifest, "unittest-cr")
 		require.NoError(t, err)
 	})
+
+	t.Run("Should not get error when update CR", func(t *testing.T) {
+		crdManifest := readManifest(t, "unittest-crd.yaml")
+
+		_, err := kubeClient.Deploy(context.TODO(), crdManifest, "unittest-cr")
+		require.NoError(t, err)
+
+		crManifest := readManifest(t, "unittest-cr.yaml")
+		_, err = kubeClient.Deploy(context.TODO(), crManifest, "unittest-cr")
+		require.NoError(t, err)
+
+		crManifestUpdated := readManifest(t, "unittest-cr-updated.yaml")
+		_, err = kubeClient.Deploy(context.TODO(), crManifestUpdated, "unittest-cr")
+		require.NoError(t, err)
+	})
 }
 
 func deleteTestResources(t *testing.T, client Client) {

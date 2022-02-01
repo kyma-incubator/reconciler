@@ -1,0 +1,9 @@
+apiVersion: foocr.kyma/v1
+kind: Foo
+metadata:
+  name: example-foo
+  labels:
+    testField: testValue
+spec:
+  deploymentName: example-foo
+  replicas: 1
