@@ -70,7 +70,12 @@ test-all: test
 .PHONY: test-ory
 test-ory: export ORY_RECONCILER_INTEGRATION_TESTS = 1
 test-ory:
-	go test -v -timeout 5m ./pkg/reconciler/instances/ory/test
+	go test -v -timeout 5m ./pkg/reconciler/instances/ory/test/ory_integration_test.go
+
+.PHONY: test-ory-eval
+test-ory-eval: export ORY_RECONCILER_INTEGRATION_TESTS_EVALUATION = 1
+test-ory-eval:
+	go test -v -timeout 5m ./pkg/reconciler/instances/ory/test/ory_integration_evaluation_test.go
 
 .PHONY: clean
 clean:
