@@ -76,7 +76,7 @@ func newTestFunc(kubeClient Client, unstruct *unstructured.Unstructured, label, 
 		clientAdapter := kubeClient.(*kubeClientAdapter)
 		info, err := clientAdapter.convertToInfo(unstruct, "")
 		require.NoError(t, err)
-		_, err = clientAdapter.deployResources(context.TODO(), []*resource.Info{info}, []*resource.Info{info})
+		_, err = clientAdapter.deployResources(context.TODO(), []*resource.Info{info}, []*resource.Info{info}, nil)
 		require.NoError(t, err)
 
 		k8sResourceUnstruct, err := clientAdapter.Get(unstruct.GetKind(), unstruct.GetName(), unstruct.GetNamespace())
