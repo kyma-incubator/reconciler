@@ -442,7 +442,7 @@ func (g *kubeClientAdapter) fetchExistingResourceAndConvertToInfo(ctx context.Co
 		return info, nil
 	}
 	existingResource, err := g.dynamicClient.Resource(info.Mapping.Resource).Namespace(info.Namespace).Get(ctx, info.Name, metav1.GetOptions{})
-	if err != nil {
+	if err != nil && !k8serr.IsNotFound(err) {
 		return info, err
 	}
 	if existingResource != nil {
