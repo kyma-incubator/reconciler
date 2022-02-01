@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -59,8 +58,7 @@ func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config
 func getListOfReconcilers(cfg *config.Config) []string {
 	reconcilerList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
 	for reconName := range cfg.Scheduler.Reconcilers {
-		formattedReconName := strings.Replace(reconName, "-", "_", -1)
-		reconcilerList = append(reconcilerList, formattedReconName)
+		reconcilerList = append(reconcilerList, reconName)
 	}
 	return append(reconcilerList, "mothership")
 }
