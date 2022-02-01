@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"time"
 
 	"go.uber.org/zap"
@@ -19,22 +18,20 @@ import (
 
 type RuntimeBuilder struct {
 	reconRepo        reconciliation.Repository
-	workerRepo       occupancy.Repository
 	logger           *zap.SugaredLogger
 	workerPoolConfig *worker.Config
 }
 
-func NewRuntimeBuilder(reconRepo reconciliation.Repository, workerRepo occupancy.Repository, logger *zap.SugaredLogger) *RuntimeBuilder {
+func NewRuntimeBuilder(reconRepo reconciliation.Repository, logger *zap.SugaredLogger) *RuntimeBuilder {
 	return &RuntimeBuilder{
 		reconRepo:        reconRepo,
-		workerRepo:       workerRepo,
 		logger:           logger,
 		workerPoolConfig: &worker.Config{},
 	}
 }
 
 func (rb *RuntimeBuilder) newWorkerPool(retriever worker.ClusterStateRetriever, invoke invoker.Invoker) (*worker.Pool, error) {
-	return worker.NewWorkerPool(retriever, rb.reconRepo, rb.workerRepo, invoke, rb.workerPoolConfig, rb.logger)
+	return worker.NewWorkerPool(retriever, rb.reconRepo, invoke, rb.workerPoolConfig, rb.logger)
 }
 
 func (rb *RuntimeBuilder) RunLocal(statusFunc invoker.ReconcilerStatusFunc) *RunLocal {
@@ -170,10 +167,6 @@ func (r *RunRemote) reconciliationRepository() reconciliation.Repository { //con
 	return r.runtimeBuilder.reconRepo
 }
 
-func (r *RunRemote) occupancyRepository() occupancy.Repository { //convenient function
-	return r.runtimeBuilder.workerRepo
-}
-
 func (r *RunRemote) WithWorkerPoolConfig(cfg *worker.Config) *RunRemote {
 	r.runtimeBuilder.workerPoolConfig = cfg
 	return r
@@ -210,7 +203,7 @@ func (r *RunRemote) Run(ctx context.Context) error {
 
 	//start worker pool
 	go func() {
-		remoteInvoker := invoker.NewRemoteReoncilerInvoker(r.reconciliationRepository(), r.occupancyRepository(), r.config, r.logger())
+		remoteInvoker := invoker.NewRemoteReoncilerInvoker(r.reconciliationRepository(), r.config, r.logger())
 		workerPool, err := r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker)
 		if err == nil {
 			r.logger().Info("Worker pool created")

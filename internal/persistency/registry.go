@@ -6,20 +6,18 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"go.uber.org/zap"
 )
 
 type Registry struct {
-	debug               bool
-	logger              *zap.SugaredLogger
-	connection          db.Connection
-	inventory           cluster.Inventory
-	kvRepository        *kv.Repository
-	reconRepository     reconciliation.Repository
-	occupancyRepository occupancy.Repository
-	initialized         bool
+	debug           bool
+	logger          *zap.SugaredLogger
+	connection      db.Connection
+	inventory       cluster.Inventory
+	kvRepository    *kv.Repository
+	reconRepository reconciliation.Repository
+	initialized     bool
 }
 
 func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
@@ -48,9 +46,6 @@ func (or *Registry) init() error {
 		return err
 	}
 	if or.reconRepository, err = or.initReconciliationRepository(); err != nil {
-		return err
-	}
-	if or.occupancyRepository, err = or.initWorkerRepository(); err != nil {
 		return err
 	}
 
@@ -82,10 +77,6 @@ func (or *Registry) ReconciliationRepository() reconciliation.Repository {
 	return or.reconRepository
 }
 
-func (or *Registry) OccupancyRepository() occupancy.Repository {
-	return or.occupancyRepository
-}
-
 func (or *Registry) initRepository() (*kv.Repository, error) {
 	repository, err := kv.NewRepository(or.connection, or.debug)
 	if err != nil {
@@ -109,12 +100,4 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 		or.logger.Errorf("Failed to create reconciliation repository: %s", err)
 	}
 	return reconRepo, err
-}
-
-func (or *Registry) initWorkerRepository() (occupancy.Repository, error) {
-	workerRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)
-	if err != nil {
-		or.logger.Errorf("Failed to create worker repository: %s", err)
-	}
-	return workerRepo, err
 }
