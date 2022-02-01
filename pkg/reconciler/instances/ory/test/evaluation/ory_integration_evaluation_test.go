@@ -67,9 +67,9 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	// hydra-maester
 	label := "app.kubernetes.io/name=hydra-maester"
 	hpalist, err := getHpas(
+		setup.context,
 		label,
 		setup.kubeClient,
-		setup.context,
 		namespace,
 	)
 	require.NoError(t, err)
@@ -77,9 +77,9 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	setup.logger.Infof("No hpa for app: %v is deployed", label)
 
 	podsList, err := getPods(
-		"app.kubernetes.io/name=hydra-maester",
-		setup.kubeClient,
 		setup.context,
+		label,
+		setup.kubeClient,
 		namespace,
 	)
 	require.NoError(t, err)
@@ -90,9 +90,9 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	// hydra
 	label = "app.kubernetes.io/name=hydra"
 	hpalist, err = getHpas(
+		setup.context,
 		label,
 		setup.kubeClient,
-		setup.context,
 		namespace,
 	)
 	require.NoError(t, err)
@@ -100,9 +100,9 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	setup.logger.Infof("No hpa for app: %v is deployed", label)
 
 	podsList, err = getPods(
+		setup.context,
 		label,
 		setup.kubeClient,
-		setup.context,
 		namespace,
 	)
 	require.NoError(t, err)
@@ -113,9 +113,9 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	// oathkeeper
 	label = "app.kubernetes.io/name=oathkeeper"
 	hpalist, err = getHpas(
+		setup.context,
 		label,
 		setup.kubeClient,
-		setup.context,
 		namespace,
 	)
 	require.NoError(t, err)
@@ -123,9 +123,9 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	setup.logger.Infof("No hpa for app: %v is deployed", label)
 
 	podsList, err = getPods(
+		setup.context,
 		label,
 		setup.kubeClient,
-		setup.context,
 		namespace,
 	)
 	require.NoError(t, err)
@@ -134,13 +134,13 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	setup.logger.Infof("Single pod %v is deployed for app: %v", pod.Name, label)
 }
 
-func getPods(label string, client kubernetes.Interface, ctx context.Context, namespace string) (*v1.PodList, error) {
+func getPods(ctx context.Context, label string, client kubernetes.Interface, namespace string) (*v1.PodList, error) {
 	options := metav1.ListOptions{
 		LabelSelector: label,
 	}
 	return client.CoreV1().Pods(namespace).List(ctx, options)
 }
-func getHpas(label string, client kubernetes.Interface, ctx context.Context, namespace string) (*autoscalingv1.HorizontalPodAutoscalerList, error) {
+func getHpas(ctx context.Context, label string, client kubernetes.Interface, namespace string) (*autoscalingv1.HorizontalPodAutoscalerList, error) {
 	options := metav1.ListOptions{
 		LabelSelector: label,
 	}
