@@ -198,6 +198,9 @@ func (g *kubeClientAdapter) Deploy(ctx context.Context, manifestTarget, namespac
 		return nil, err
 	}
 	crDGroupKinds, err := g.getCRDGroupKinds(ctx)
+	if err != nil {
+		return nil, err
+	}
 	deployedResources, err := g.deployResources(ctx, resourceInfoTarget, resourceInfoTarget, crDGroupKinds)
 
 	if len(deployedResources) == 0 {
