@@ -71,7 +71,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 	}
 	releaseName := context.Task.Metadata.ShootName
 
-	cfg, err := a.client.HelmActionConfiguration(namespace, context.Logger.Debugf)
+	cfg, err := a.client.HelmActionConfiguration(namespace)
 	if err != nil {
 		return err
 	}

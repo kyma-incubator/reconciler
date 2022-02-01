@@ -42,6 +42,11 @@ func NewConnectionFactory(configFile string, migrate bool, debug bool) (Connecti
 	}
 }
 
+func MigrateDatabase(configFile string, debug bool) error {
+	_, err := NewConnectionFactory(configFile, true, debug)
+	return err
+}
+
 func readEncryptionKey() (string, error) {
 	encKeyFile := viper.GetString("db.encryption.keyFile")
 	if encKeyFile != "" {

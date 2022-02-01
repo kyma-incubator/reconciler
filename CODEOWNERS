@@ -1,8 +1,5 @@
 # These are the default owners for the whole content of the repository. The default owners are automatically added as reviewers when you open a pull request, unless different owners are specified in the file.
-* @khlifi411 @jeremyharisch @ruanxin @tobiscr @pbochynski @varbanv @suleymanakbas91 @m00g3n @dbadura @pPrecel @kwiatekus @moelsayed @clebs
-
-# All .md files
-*.md @kazydek @klaudiagrz @mmitoraj @majakurcius @alexandra-simeonova @superojla @nhingerl
+* @khlifi411 @jeremyharisch @ruanxin @tobiscr @pbochynski @varbanv @m00g3n @dbadura @pPrecel @kwiatekus @moelsayed @clebs @Tomasz-Smelcerz-SAP
 
 # Ory reconciler
 /pkg/reconciler/instances/ory/ @strekm @werdes72 @Tomasz-Smelcerz-SAP @mjakobczyk @dariusztutaj @cnvergence @veichtj @piotrkpc
@@ -27,3 +24,6 @@
 
 # Runtime Monitoring Agent (rma) reconciler
 /pkg/reconciler/instances/rma/ @ebensom @AdrianPei @fhivemind @lauraanddola @life0215 @lumi017 @Balazs23 @tobiscr @varbanv
+
+# All .md files
+*.md @klaudiagrz @mmitoraj @majakurcius @alexandra-simeonova @nhingerl @grego952

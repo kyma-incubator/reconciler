@@ -65,6 +65,40 @@ func TestReconciliationResult(t *testing.T) {
 					Priority:      1,
 					SchedulingID:  "schedulingID",
 					CorrelationID: "1.1",
+					State:         model.OperationStateNew,
+					Updated:       time.Now(),
+				},
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.2",
+					State:         model.OperationStateError,
+					Updated:       time.Now(),
+				},
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.3",
+					State:         model.OperationStateOrphan,
+					Updated:       time.Now(),
+				},
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.4",
+					State:         model.OperationStateDone,
+					Updated:       time.Now(),
+				},
+			},
+			expectedResultReconcile: model.ClusterStatusReconcileError,
+			expectedResultDelete:    model.ClusterStatusDeleteError,
+		},
+		{
+			operations: []*model.OperationEntity{
+				{
+					Priority:      1,
+					SchedulingID:  "schedulingID",
+					CorrelationID: "1.1",
 					State:         model.OperationStateFailed,
 					Updated:       time.Now().Add(-3 * time.Second),
 				},
@@ -232,8 +266,8 @@ func TestReconciliationResult(t *testing.T) {
 		}, logger.NewLogger(true))
 
 		require.NoError(t, reconResult.AddOperations(testCase.operations))
-		require.Equal(t, reconResult.GetResult(), testCase.expectedResultReconcile)
-		require.ElementsMatch(t, reconResult.GetOperations(), testCase.operations)
+		require.Equal(t, testCase.expectedResultReconcile, reconResult.GetResult())
+		require.ElementsMatch(t, testCase.operations, reconResult.GetOperations())
 
 		//check detected orphans
 		allDetectedOrphans := make(map[string]*model.OperationEntity)
