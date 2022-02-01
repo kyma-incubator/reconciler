@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -335,5 +336,40 @@ func (c *scremoval) removeResources(ac *service.ActionContext) error {
 			errs = append(errs, gerr.Wrap(err, fmt.Sprintf("deleting all resources %v", gvk)))
 		}
 	}
+	return errors.NewAggregate(errs)
+}
+
+func (c *scremoval) waitForPodsGone(ac *service.ActionContext, dep unstructured.Unstructured) error {
+	path := []string{"spec", "selector", "matchLabels"}
+	ls, found, err := unstructured.NestedStringMap(dep.Object, path...)
+	if err != nil {
+		msg := fmt.Sprintf("unstructured dep %v/%v failed to find selector %v: %v", dep.GetNamespace(), dep.GetName(), path, err)
+		return gerr.Wrap(err, msg)
+	}
+	if !found {
+		return fmt.Errorf("unstructured dep %v/%v missing selector %v", dep.GetNamespace(), dep.GetName(), path)
+	}
+	cnd := func() (bool, error) {
+		pods := &v1.PodList{}
+		opts := []client.ListOption{client.InNamespace(dep.GetNamespace()), client.MatchingLabels(ls)}
+		if err := c.k8sCli.List(ac.Context, pods, opts...); err != nil {
+			return false, err
+		}
+		return len(pods.Items) == 0, nil
+	}
+	return wait.PollImmediate(5*time.Second, 10*time.Minute, cnd)
+}
+
+func (c *scremoval) ensureServiceCatalogNotRunning(ac *service.ActionContext) error {
+	done := make(chan error, 2)
+	go func() {
+		done <- c.waitForPodsGone(ac, serviceCatalogCatalogControllerManagerUnstructuredDeployment)
+	}()
+	go func() {
+		done <- c.waitForPodsGone(ac, helmBrokerUnstructuredDeployment)
+	}()
+	var errs []error
+	errs = append(errs, <-done)
+	errs = append(errs, <-done)
 	return errors.NewAggregate(errs)
 }

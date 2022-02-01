@@ -1,8 +1,6 @@
 package scmigration
 
 import (
-	"time"
-
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
@@ -49,13 +47,16 @@ func (a *reconcileAction) Run(ac *service.ActionContext) error {
 		return err
 	}
 
-	time.Sleep(10 * time.Second)
+	ac.Logger.Infof("Ensure service catalog is not running")
+	if err := cleaner.ensureServiceCatalogNotRunning(ac); err != nil {
+		return err
+	}
+
 	ac.Logger.Infof("Remove finalizers")
 	if err := cleaner.prepareForRemoval(ac); err != nil {
 		return err
 	}
 
-	time.Sleep(4 * time.Second)
 	ac.Logger.Infof("Delete resources")
 	if err := cleaner.removeResources(ac); err != nil {
 		return err
