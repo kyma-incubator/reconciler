@@ -3,9 +3,11 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"github.com/avast/retry-go"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"sync"
+	"time"
 )
 
 func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
@@ -97,7 +99,11 @@ func (t *TxConnection) commit() error {
 	t.decreaseCounter()
 	if t.counter == 0 {
 		t.logger.Debug("Transaction Committed")
-		return t.tx.Commit()
+		return retry.Do(t.tx.Commit,
+			retry.DelayType(retry.RandomDelay),
+			retry.MaxJitter(time.Millisecond*250),
+			retry.Attempts(uint(3)),
+			retry.LastErrorOnly(false))
 	}
 	return nil
 }
