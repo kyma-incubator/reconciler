@@ -351,7 +351,10 @@ func (g *kubeClientAdapter) convertToInfo(unstruct *unstructured.Unstructured, n
 
 	info.Namespace = unstruct.GetNamespace()
 	helper := resource.NewHelper(info.Client, info.Mapping)
-	setDefaultOrOverwriteNamespaceIfScopedAndNoneSet(namespaceOverride, info, helper, unstruct)
+	err = setDefaultOrOverwriteNamespaceIfScopedAndNoneSet(namespaceOverride, info, helper, unstruct)
+	if err != nil {
+		return nil, err
+	}
 	info.Name = unstruct.GetName()
 	info.Object = unstruct.DeepCopyObject()
 	return info, nil
@@ -439,6 +442,9 @@ func (g *kubeClientAdapter) fetchExistingResourceAndConvertToInfo(ctx context.Co
 		return info, nil
 	}
 	existingResource, err := g.dynamicClient.Resource(info.Mapping.Resource).Namespace(info.Namespace).Get(ctx, info.Name, metav1.GetOptions{})
+	if err != nil {
+		return info, err
+	}
 	if existingResource != nil {
 		removeIgnoredFields(existingResource)
 		info, err = g.convertToInfo(existingResource, info.Namespace)
@@ -484,7 +490,7 @@ func (g *kubeClientAdapter) deployResourceFunc(infoOriginal, infoTarget *resourc
 	}
 }
 
-func setDefaultOrOverwriteNamespaceIfScopedAndNoneSet(namespaceOverride string, resourceInfo *resource.Info, helper *resource.Helper, unstruct *unstructured.Unstructured) {
+func setDefaultOrOverwriteNamespaceIfScopedAndNoneSet(namespaceOverride string, resourceInfo *resource.Info, helper *resource.Helper, unstruct *unstructured.Unstructured) error {
 	if helper.NamespaceScoped {
 		if resourceInfo.Namespace == "" {
 			if namespaceOverride == "" {
@@ -492,8 +498,12 @@ func setDefaultOrOverwriteNamespaceIfScopedAndNoneSet(namespaceOverride string, 
 			}
 			resourceInfo.Namespace = namespaceOverride
 		}
-		unstructured.SetNestedField(unstruct.Object, resourceInfo.Namespace, "metadata", "namespace")
+		err := unstructured.SetNestedField(unstruct.Object, resourceInfo.Namespace, "metadata", "namespace")
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (g *kubeClientAdapter) getCRDGroupKinds(ctx context.Context) ([]schema.GroupKind, error) {
