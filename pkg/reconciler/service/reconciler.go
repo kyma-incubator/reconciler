@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/occupancy"
 	"sync"
 	"time"
 
@@ -243,7 +242,7 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.
 		return err
 	}
 
-	runnerFunc := r.newRunnerFunc(ctx, model, localCbh, logger, &occupancy.WorkerPoolOccupancy{})
+	runnerFunc := r.newRunnerFunc(ctx, model, localCbh, logger)
 	return runnerFunc()
 }
 
@@ -254,14 +253,14 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context) (*WorkerPool, err
 	return newWorkerPoolBuilder(r.newRunnerFunc).
 		WithPoolSize(r.workers).
 		WithDebug(r.debug).
-		Build(ctx, r.heartbeatSenderConfig.interval)
+		Build(ctx)
 }
 
-func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Task, callback callback.Handler, logger *zap.SugaredLogger, poolOccupancy *occupancy.WorkerPoolOccupancy) func() error {
+func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Task, callback callback.Handler, logger *zap.SugaredLogger) func() error {
 	r.logger.Debugf("Creating new runner closure with execution timeout of %.1f secs", r.timeout.Seconds())
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 		defer cancel()
-		return (&runner{r, NewInstall(logger), logger}).Run(timeoutCtx, model, callback, poolOccupancy)
+		return (&runner{r, NewInstall(logger), logger}).Run(timeoutCtx, model, callback)
 	}
 }

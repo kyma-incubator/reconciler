@@ -56,7 +56,7 @@ components:
   schemas:
     callbackMessage:
       type: object
-      required: [ status, error, retryID, poolID, runningWorkers ]
+      required: [ status, error, retryID ]
       properties:
         status:
           $ref: '#/components/schemas/status'
@@ -65,11 +65,6 @@ components:
         retryID:
           type: string
           format: uuid
-        poolID:
-          type: string
-          format: uuid
-        runningWorkers:
-          type: integer
 
     status:
       type: string

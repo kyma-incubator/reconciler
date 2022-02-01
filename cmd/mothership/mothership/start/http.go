@@ -42,7 +42,6 @@ const (
 	paramAfter      = "after"
 	paramLast       = "last"
 	paramTimeFormat = time.RFC3339
-	paramPoolID     = "poolID"
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
@@ -111,12 +110,8 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
 
-	apiRouter.HandleFunc(
-		fmt.Sprintf("/v{%s}/occupancy/{%s}", paramContractVersion, paramPoolID),
-		callHandler(o, deleteComponentWorkerPoolOccupancy)).Methods(http.MethodDelete)
-
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger())
+	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -141,24 +136,6 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Router:     mainRouter,
 	}
 	return srv.Start(ctx) //blocking call
-}
-
-func deleteComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := server.NewParams(r)
-	poolID, err := params.String(paramPoolID)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
-	err = o.Registry.OccupancyRepository().RemoveWorkerPoolOccupancy(poolID)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
 }
 
 func live(w http.ResponseWriter, _ *http.Request) {
@@ -729,8 +706,6 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = updateComponentOccupancy(o, body.PoolID, body.RunningWorkers)
-
 	switch body.Status {
 	case reconciler.StatusNotstarted, reconciler.StatusRunning:
 		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateInProgress)
@@ -806,17 +781,6 @@ func updateOperationStateAndRetryID(o *Options, schedulingID, correlationID, ret
 			"retryID '%s': %s", schedulingID, correlationID, retryID, err)
 	}
 	return err
-}
-
-func updateComponentOccupancy(o *Options, poolID string, runningWorkers int) error {
-	occupancy, err := o.Registry.OccupancyRepository().FindWorkerPoolOccupancyByID(poolID)
-	if err != nil {
-		return err
-	}
-	if occupancy.RunningWorkers == int64(runningWorkers) {
-		return nil
-	}
-	return o.Registry.OccupancyRepository().UpdateWorkerPoolOccupancy(poolID, runningWorkers)
 }
 
 func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.OperationEntity, error) {
