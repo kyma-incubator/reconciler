@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	envOryIntegrationTests = "ORY_RECONCILER_INTEGRATION_TESTS_EVALUATION"
+	envOryIntegrationTests = "ORY_RECONCILER_INTEGRATION_TESTS"
 	namespace              = "kyma-system"
 )
 
