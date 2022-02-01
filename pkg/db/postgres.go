@@ -116,7 +116,7 @@ func (pc *postgresConnection) Exec(query string, args ...interface{}) (sql.Resul
 
 func (pc *postgresConnection) Begin() (*TxConnection, error) {
 	pc.logger.Debug("Postgres Begin()")
-	tx, err := pc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := pc.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return nil, err
 	}
