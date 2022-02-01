@@ -729,7 +729,7 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = updateComponentOccupancy(o, body.PoolID, body.RunningWorkers)
+	err = o.Registry.OccupancyRepository().UpdateWorkerPoolOccupancy(body.PoolID, body.RunningWorkers)
 
 	switch body.Status {
 	case reconciler.StatusNotstarted, reconciler.StatusRunning:
@@ -806,17 +806,6 @@ func updateOperationStateAndRetryID(o *Options, schedulingID, correlationID, ret
 			"retryID '%s': %s", schedulingID, correlationID, retryID, err)
 	}
 	return err
-}
-
-func updateComponentOccupancy(o *Options, poolID string, runningWorkers int) error {
-	occupancy, err := o.Registry.OccupancyRepository().FindWorkerPoolOccupancyByID(poolID)
-	if err != nil {
-		return err
-	}
-	if occupancy.RunningWorkers == int64(runningWorkers) {
-		return nil
-	}
-	return o.Registry.OccupancyRepository().UpdateWorkerPoolOccupancy(poolID, runningWorkers)
 }
 
 func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.OperationEntity, error) {
