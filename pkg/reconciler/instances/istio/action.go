@@ -42,7 +42,7 @@ func NewUninstallAction(getIstioPerformer bootstrapIstioPerformer) *UninstallAct
 }
 
 func (a *UninstallAction) Run(context *service.ActionContext) error {
-	context.Logger.Debugf("Uninstall action of istio triggered")
+	context.Logger.Debug("Uninstall action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
 	if err != nil {
@@ -79,7 +79,7 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 }
 
 func (a *ReconcileAction) Run(context *service.ActionContext) error {
-	context.Logger.Debugf("Reconcile action of istio triggered")
+	context.Logger.Debug("Reconcile action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
 	if err != nil {
@@ -155,7 +155,7 @@ func NewReconcileIstioConfigurationAction(getIstioPerformer bootstrapIstioPerfor
 }
 
 func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) error {
-	context.Logger.Debugf("Reconcile action of istio-configuration triggered")
+	context.Logger.Debug("Reconcile action of istio-configuration triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
 	if err != nil {
