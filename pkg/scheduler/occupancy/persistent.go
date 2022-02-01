@@ -147,7 +147,7 @@ func (r *PersistentOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string,
 
 	dbOps := func(tx *db.TxConnection) error {
 
-		findOccupancyQ, err := db.NewQuery(tx, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+		findOccupancyQ, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -167,7 +167,7 @@ func (r *PersistentOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string,
 				"(running: %d, capacity:%d)", runningWorkers, occupancyEntity.WorkerPoolCapacity)
 		}
 		occupancyEntity.RunningWorkers = int64(runningWorkers)
-		updateOccupancyQ, err := db.NewQuery(tx, occupancyEntity, r.Logger)
+		updateOccupancyQ, err := db.NewQuery(r.Conn, occupancyEntity, r.Logger)
 		if err != nil {
 			return err
 		}
