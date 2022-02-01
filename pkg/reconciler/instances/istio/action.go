@@ -18,7 +18,6 @@ import (
 
 const (
 	istioNamespace = "istio-system"
-	istioChart     = "istio-configuration"
 )
 
 type bootstrapIstioPerformer func(logger *zap.SugaredLogger) (actions.IstioPerformer, error)
@@ -55,7 +54,7 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 		return err
 	}
 	if canUninstall(istioStatus) {
-		component := chart.NewComponentBuilder(context.Task.Version, istioChart).
+		component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).
 			WithNamespace(istioNamespace).
 			WithProfile(context.Task.Profile).
 			WithConfiguration(context.Task.Configuration).Build()
@@ -87,7 +86,7 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	component := chart.NewComponentBuilder(context.Task.Version, istioChart).
+	component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).
 		WithNamespace(istioNamespace).
 		WithProfile(context.Task.Profile).
 		WithConfiguration(context.Task.Configuration).Build()
@@ -163,7 +162,7 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 		return err
 	}
 
-	component := chart.NewComponentBuilder(context.Task.Version, istioChart).
+	component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).
 		WithNamespace(istioNamespace).
 		WithProfile(context.Task.Profile).
 		WithConfiguration(context.Task.Configuration).Build()
@@ -307,7 +306,7 @@ func canUninstall(istioStatus actions.IstioStatus) bool {
 }
 
 func getInstalledVersion(context *service.ActionContext, performer actions.IstioPerformer) (actions.IstioStatus, error) {
-	istioStatus, err := performer.Version(context.WorkspaceFactory, context.Task.Version, istioChart, context.KubeClient.Kubeconfig(), context.Logger)
+	istioStatus, err := performer.Version(context.WorkspaceFactory, context.Task.Version, context.Task.Component, context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
 		return actions.IstioStatus{}, errors.Wrap(err, "Could not fetch Istio version")
 	}

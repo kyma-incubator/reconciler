@@ -18,7 +18,7 @@ const (
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
 
-	log := logger.NewLogger(false)
+	log := logger.NewLogger(true)
 
 	log.Debugf("Initializing component reconciler '%s'", ReconcilerNameIstio)
 	reconcilerIstio, err := service.NewComponentReconciler(ReconcilerNameIstio)
