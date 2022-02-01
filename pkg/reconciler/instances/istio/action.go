@@ -150,8 +150,8 @@ type ReconcileIstioConfigurationAction struct {
 }
 
 // NewReconcileIstioConfigurationAction returns an instance of ReconcileIstioConfigurationAction
-func NewReconcileIstioConfigurationAction(getIstioPerformer bootstrapIstioPerformer) *ReconcileAction {
-	return (*ReconcileAction)(&ReconcileIstioConfigurationAction{getIstioPerformer})
+func NewReconcileIstioConfigurationAction(getIstioPerformer bootstrapIstioPerformer) *ReconcileIstioConfigurationAction {
+	return &ReconcileIstioConfigurationAction{getIstioPerformer}
 }
 
 func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) error {
