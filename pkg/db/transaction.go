@@ -71,11 +71,11 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 func randomJitter() time.Duration {
 	rand.Seed(time.Now().UnixNano())
 	//nolint:gosec //no security relevance, linter complains can be ignored
-	jitter := time.Duration(rand.Int63n(txMaxJitter))
+	jitter := rand.Int63n(txMaxJitter)
 	if jitter < txMinJitter {
 		jitter = jitter + txMinJitter
 	}
-	return jitter * time.Millisecond
+	return time.Duration(jitter) * time.Millisecond
 }
 
 func Transaction(conn Connection, dbOps func(tx *TxConnection) error, logger *zap.SugaredLogger) error {
