@@ -19,9 +19,10 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 	var txErr error
 
 	log := func(msg string, args ...interface{}) {
-		if logger != nil {
-			logger.Debugf(msg, args...)
+		if logger == nil {
+			return
 		}
+		logger.Infof(msg, args...)
 	}
 
 	for i := 0; i < txMaxRetries; i++ {
@@ -52,8 +53,11 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 			return result, nil
 		} else {
 			txErr = errors.Wrap(txErr, commitErr.Error())
+			log("Rollback transactional DB context because commit failed: %s", commitErr.Error())
+			if txRollbackErr := txConnection.Rollback(); txRollbackErr != nil {
+				txErr = errors.Wrap(txErr, txRollbackErr.Error())
+			}
 		}
-
 	}
 
 	return result, txErr
