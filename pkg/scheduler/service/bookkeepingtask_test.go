@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBookkeepingtask(t *testing.T) {
+func TestBookkeepingTask(t *testing.T) {
 	tests := []struct {
 		name           string
 		markOpsAs      model.OperationState
@@ -45,17 +45,23 @@ func TestBookkeepingtask(t *testing.T) {
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
 
+			testCluster := test.NewCluster(t, "1", 1, false, test.OneComponentDummy)
+			defer func() {
+				require.NoError(t, inventory.Delete(testCluster.RuntimeID))
+			}()
+
 			//add cluster to inventory
-			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+			clusterState, err := inventory.CreateOrUpdate(1, testCluster)
 			require.NoError(t, err)
 
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
-			reconEntity, err := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
-			require.NoError(t, err)
-			require.NotEmpty(t, reconEntity.Lock)
-			require.False(t, reconEntity.Finished)
+
+			reconEntity := newReconciliation(t, reconRepo, clusterState)
+			defer func() {
+				removeExistingReconciliations(t, reconRepo)
+			}()
 
 			//mark all operations to a specific state, if needed for tc
 			if tc.markOpsAs != "" {
@@ -102,7 +108,25 @@ func TestBookkeepingtask(t *testing.T) {
 	}
 }
 
-func TestBookkeepingtaskParallel(t *testing.T) {
+func newReconciliation(t *testing.T, reconRepo reconciliation.Repository, clusterState *cluster.State) *model.ReconciliationEntity {
+	var reconEntity *model.ReconciliationEntity
+	recons, err := reconRepo.GetReconciliations(&reconciliation.CurrentlyReconcilingWithRuntimeID{
+		RuntimeID: clusterState.Cluster.RuntimeID,
+	})
+	require.NoError(t, err)
+	if len(recons) == 0 {
+		reconEntity, err = reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
+		require.NoError(t, err)
+	} else {
+		require.Len(t, recons, 1)
+		reconEntity = recons[0]
+	}
+	require.NotEmpty(t, reconEntity.Lock)
+	require.False(t, reconEntity.Finished)
+	return reconEntity
+}
+
+func TestBookkeepingTaskParallel(t *testing.T) {
 
 	threadCount := 25
 	//errorCount should be equal to 72, since there are three operations scheduled,
@@ -154,7 +178,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
 			//cleanup before
-			removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
+			removeExistingReconciliations(t, reconRepo)
 
 			reconEntity, err := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 
@@ -214,7 +238,7 @@ func TestBookkeepingtaskParallel(t *testing.T) {
 				require.Equal(t, tc.expectedStatus, o.State)
 			}
 			//cleanup after
-			removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
+			removeExistingReconciliations(t, reconRepo)
 		})
 	}
 }
@@ -227,12 +251,10 @@ func getReconResult(t *testing.T, reconRepo reconciliation.Repository, bk *bookk
 	return reconResult
 }
 
-func removeExistingReconciliations(t *testing.T, repos map[string]reconciliation.Repository) {
-	for _, repo := range repos {
-		recons, err := repo.GetReconciliations(nil)
-		require.NoError(t, err)
-		for _, recon := range recons {
-			require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
-		}
+func removeExistingReconciliations(t *testing.T, repo reconciliation.Repository) {
+	recons, err := repo.GetReconciliations(nil)
+	require.NoError(t, err)
+	for _, recon := range recons {
+		require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
 	}
 }

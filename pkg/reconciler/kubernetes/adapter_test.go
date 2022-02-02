@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"path/filepath"
 	"testing"
@@ -73,10 +74,12 @@ func TestCustomerResources(t *testing.T) {
 	require.NoError(t, err)
 
 	defer deleteTestResources(t, kubeClient)
+	const testNamespace = "unittest-cr"
+
 	t.Run("Should get error when deploy CR without CRD", func(t *testing.T) {
 		manifest := readManifest(t, "unittest-cr.yaml")
 
-		_, err := kubeClient.Deploy(context.TODO(), manifest, "unittest-cr")
+		_, err := kubeClient.Deploy(context.TODO(), manifest, testNamespace)
 
 		require.Error(t, err)
 	})
@@ -84,7 +87,7 @@ func TestCustomerResources(t *testing.T) {
 	t.Run("Should not get error when delete CR without CRD", func(t *testing.T) {
 		manifest := readManifest(t, "unittest-cr.yaml")
 
-		_, err := kubeClient.Delete(context.TODO(), manifest, "unittest-cr")
+		_, err := kubeClient.Delete(context.TODO(), manifest, testNamespace)
 
 		require.NoError(t, err)
 	})
@@ -92,12 +95,38 @@ func TestCustomerResources(t *testing.T) {
 	t.Run("Should not get error when deploy CR after CRD", func(t *testing.T) {
 		crdManifest := readManifest(t, "unittest-crd.yaml")
 
-		_, err := kubeClient.Deploy(context.TODO(), crdManifest, "unittest-cr")
+		_, err := kubeClient.Deploy(context.TODO(), crdManifest, testNamespace)
 		require.NoError(t, err)
 
 		crManifest := readManifest(t, "unittest-cr.yaml")
-		_, err = kubeClient.Deploy(context.TODO(), crManifest, "unittest-cr")
+		_, err = kubeClient.Deploy(context.TODO(), crManifest, testNamespace)
 		require.NoError(t, err)
+	})
+
+	t.Run("Should patch successfully when update CR", func(t *testing.T) {
+		crdManifest := readManifest(t, "unittest-crd.yaml")
+
+		_, err := kubeClient.Deploy(context.TODO(), crdManifest, testNamespace)
+		require.NoError(t, err)
+
+		crManifest := readManifest(t, "unittest-cr.yaml")
+		_, err = kubeClient.Deploy(context.TODO(), crManifest, testNamespace)
+		require.NoError(t, err)
+
+		crManifestUpdated := readManifest(t, "unittest-cr-updated.yaml")
+		_, err = kubeClient.Deploy(context.TODO(), crManifestUpdated, testNamespace)
+		require.NoError(t, err)
+
+		//verify patched label get updated
+		clientAdapter := kubeClient.(*kubeClientAdapter)
+		cr, err := clientAdapter.dynamicClient.
+			Resource(schema.GroupVersionResource{Group: "foocr.kyma", Version: "v1", Resource: "foos"}).
+			Namespace(testNamespace).Get(context.TODO(), "example-foo", metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, "Foo", cr.GetObjectKind().GroupVersionKind().Kind)
+		patchedValue, _, err := unstructured.NestedString(cr.Object, "metadata", "labels", "testField")
+		require.NoError(t, err)
+		require.Equal(t, "testValue", patchedValue)
 	})
 }
 

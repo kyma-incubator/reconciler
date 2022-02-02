@@ -2,6 +2,7 @@ package reconciliation
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"sync"
 	"testing"
 	"time"
@@ -755,8 +756,7 @@ func TestTransaction(t *testing.T) {
 			require.Equal(t, 2, len(recons))
 
 			//rollback transactions
-			require.NoError(t, tx.GetTx().Rollback())
-			return err
+			return errors.New("Fake error")
 		}
 		require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
 
