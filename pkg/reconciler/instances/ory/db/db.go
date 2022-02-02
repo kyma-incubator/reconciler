@@ -15,11 +15,13 @@ import (
 )
 
 const (
-	dsnOpts      = "sslmode=disable&max_conn_lifetime=10s"
-	mysqlDsnOpts = "parseTime=true&max_conn_lifetime=10s"
-	dsnTemplate  = "%s://%s:%s@%s/%s?%s"
-	postgresURL  = "ory-postgresql.kyma-system.svc.cluster.local:5432"
-	inMemoryURL  = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
+	dsnOpts         = "sslmode=disable&max_conn_lifetime=10s"
+	mysqlDsnOpts    = "parseTime=true&max_conn_lifetime=10s"
+	dsnTemplate     = "%s://%s:%s@%s/%s?%s"
+	postgresURL     = "ory-postgresql.kyma-system.svc.cluster.local:5432"
+	inMemoryURL     = "sqlite://file::memory:?cache=shared&busy_timeout=5000&_fk=true"
+	disclaimerKey   = "reconciler.kyma-project.io/managed-by-reconciler-disclaimer"
+	disclaimerValue = "DO NOT EDIT - This resource is managed by Kyma.\nAny modifications are discarded and the resource is reverted to the original state."
 )
 
 func NewDBConfig(chartValues map[string]interface{}) (*Config, error) {
@@ -48,8 +50,9 @@ func Get(name types.NamespacedName, chartValues map[string]interface{}, logger *
 
 	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
+			Name:        name.Name,
+			Namespace:   name.Namespace,
+			Annotations: map[string]string{disclaimerKey: disclaimerValue},
 		},
 		StringData: data,
 	}, nil
