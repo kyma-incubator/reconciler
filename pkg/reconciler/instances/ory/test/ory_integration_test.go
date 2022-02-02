@@ -49,7 +49,6 @@ func TestOryIntegrationProduction(t *testing.T) {
 		require.GreaterOrEqual(t, int32(1), hpa.Status.CurrentReplicas)
 		require.Equal(t, int32(3), hpa.Spec.MaxReplicas)
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
-
 	})
 
 	t.Run("ory-oathkeeper on production profile is deployed", func(t *testing.T) {
@@ -70,6 +69,17 @@ func TestOryIntegrationProduction(t *testing.T) {
 		setup.logger.Infof("StatefulSet %v is deployed", sts.Name)
 	})
 
+	t.Run("ory secrets on production profile are deployed", func(t *testing.T) {
+		jwksName := "ory-oathkeeper-jwks-secret"
+		credsName := "ory-hydra-credentials"
+		jwks := setup.getSecret(t, jwksName)
+		creds := setup.getSecret(t, credsName)
+
+		require.NotNil(t, jwks.Data)
+		require.NotNil(t, creds.Data)
+		setup.logger.Infof("Secret %v is deployed", jwks.Name)
+		setup.logger.Infof("Secret %v is deployed", creds.Name)
+	})
 }
 
 func (s *oryTest) getHpa(t *testing.T, name string) *autoscalingv1.HorizontalPodAutoscaler {
@@ -84,4 +94,11 @@ func (s *oryTest) getSts(t *testing.T, name string) *v1apps.StatefulSet {
 	require.NoError(t, err)
 
 	return sts
+}
+
+func (s *oryTest) getSecret(t *testing.T, name string) *v1.Secret {
+	secret, err := s.kubeClient.CoreV1().Secrets(namespace).Get(s.context, name, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	return secret
 }
