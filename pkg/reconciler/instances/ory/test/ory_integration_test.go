@@ -42,54 +42,50 @@ func TestOryIntegrationProduction(t *testing.T) {
 	setup := newOryTest(t)
 	defer setup.contextCancel()
 
-	t.Run("ory-hydra on production profile is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-hydra is deployed", func(t *testing.T) {
 		name := "ory-hydra"
-		hpa := setup.getHpa(t, name)
+		hpa := setup.getHorizontalPodAutoscaler(t, name)
 
 		require.GreaterOrEqual(t, int32(1), hpa.Status.CurrentReplicas)
 		require.Equal(t, int32(3), hpa.Spec.MaxReplicas)
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
 	})
 
-	t.Run("ory-oathkeeper on production profile is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-oathkeeper is deployed", func(t *testing.T) {
 		name := "ory-oathkeeper"
-		hpa := setup.getHpa(t, name)
+		hpa := setup.getHorizontalPodAutoscaler(t, name)
 
 		require.GreaterOrEqual(t, int32(3), hpa.Status.CurrentReplicas)
 		require.Equal(t, int32(10), hpa.Spec.MaxReplicas)
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
 	})
 
-	t.Run("ory-postgresql on production profile is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-postgresql is deployed", func(t *testing.T) {
 		name := "ory-postgresql"
-		sts := setup.getSts(t, name)
+		sts := setup.getStatefulSet(t, name)
 
 		require.Equal(t, int32(1), sts.Status.Replicas)
 		require.Equal(t, int32(1), sts.Status.ReadyReplicas)
 		setup.logger.Infof("StatefulSet %v is deployed", sts.Name)
 	})
 
-	t.Run("ory secrets on production profile are deployed", func(t *testing.T) {
+	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
 		jwksName := "ory-oathkeeper-jwks-secret"
 		credsName := "ory-hydra-credentials"
-		jwks := setup.getSecret(t, jwksName)
-		creds := setup.getSecret(t, credsName)
 
-		require.NotNil(t, jwks.Data)
-		require.NotNil(t, creds.Data)
-		setup.logger.Infof("Secret %v is deployed", jwks.Name)
-		setup.logger.Infof("Secret %v is deployed", creds.Name)
+		setup.ensureSecretIsDeployed(t, jwksName)
+		setup.ensureSecretIsDeployed(t, credsName)
 	})
 }
 
-func (s *oryTest) getHpa(t *testing.T, name string) *autoscalingv1.HorizontalPodAutoscaler {
+func (s *oryTest) getHorizontalPodAutoscaler(t *testing.T, name string) *autoscalingv1.HorizontalPodAutoscaler {
 	hpa, err := s.kubeClient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(s.context, name, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	return hpa
 }
 
-func (s *oryTest) getSts(t *testing.T, name string) *v1apps.StatefulSet {
+func (s *oryTest) getStatefulSet(t *testing.T, name string) *v1apps.StatefulSet {
 	sts, err := s.kubeClient.AppsV1().StatefulSets(namespace).Get(s.context, name, metav1.GetOptions{})
 	require.NoError(t, err)
 
@@ -101,4 +97,10 @@ func (s *oryTest) getSecret(t *testing.T, name string) *v1.Secret {
 	require.NoError(t, err)
 
 	return secret
+}
+
+func (s *oryTest) ensureSecretIsDeployed(t *testing.T, name string) {
+	secret := s.getSecret(t, name)
+	require.NotNil(t, secret.Data)
+	s.logger.Infof("Secret %v is deployed", secret.Name)
 }
