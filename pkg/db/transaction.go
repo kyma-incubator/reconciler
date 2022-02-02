@@ -100,7 +100,6 @@ func (t *TxConnection) Query(query string, args ...interface{}) (DataRows, error
 }
 
 func (t *TxConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
-	t.logger.Debugf("TxExec(): %s | %v", query, args)
 	return t.tx.Exec(query, args...)
 }
 
