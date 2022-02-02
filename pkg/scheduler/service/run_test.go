@@ -155,24 +155,28 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	require.NoError(t, err)
 	require.Equal(t, expectedClusterStatus, newClusterState.Status.Status)
 
+	//verify that reconciliation was correctly created
+	recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: newClusterState.Cluster.RuntimeID})
 	require.NoError(t, err)
-	require.Equal(t, 1, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
-	require.Equal(t, 3, getEntityLen(t, dbConn, &model.OperationEntity{}))
+	require.Len(t, recons, 1)
+
+	schedulingID := recons[0].SchedulingID
+	require.Equal(t, 3, countOperations(t, reconRepo, schedulingID))
 
 	time.Sleep(15 * time.Second) //give the cleaner some time to remove old entities
 
+	//check whether the cleaner was removing the entities properly
+	recons, err = reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: newClusterState.Cluster.RuntimeID})
 	require.NoError(t, err)
-	require.Equal(t, 0, getEntityLen(t, dbConn, &model.ReconciliationEntity{}))
-	require.Equal(t, 0, getEntityLen(t, dbConn, &model.OperationEntity{}))
+	require.Len(t, recons, 0)
+	require.Equal(t, 0, countOperations(t, reconRepo, schedulingID))
 
 }
 
-func getEntityLen(t *testing.T, dbConn db.Connection, entity db.DatabaseEntity) int {
-	query, err := db.NewQuery(dbConn, entity, logger.NewLogger(debugLogging))
+func countOperations(t *testing.T, reconRepo reconciliation.Repository, schedulingID string) int {
+	ops, err := reconRepo.GetOperations(&operation.WithSchedulingID{SchedulingID: schedulingID})
 	require.NoError(t, err)
-	entities, err := query.Select().GetMany()
-	require.NoError(t, err)
-	return len(entities)
+	return len(ops)
 }
 
 //setOperationState will update all operation status accordingly to expected cluster state
@@ -269,9 +273,8 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	reconResult, err := localRunner.Run(ctx, clusterState)
 	require.NoError(t, err)
 
-	receivedUpdates := []*reconciler.CallbackMessage{}
-
 	//Collect received callbacks
+	var receivedUpdates []*reconciler.CallbackMessage
 	close(callbackData)
 	for msg := range callbackData {
 		receivedUpdates = append(receivedUpdates, msg)

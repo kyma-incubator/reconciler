@@ -5,30 +5,66 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"math/rand"
 	"sync"
+	"time"
 )
 
+const txMaxRetries = 3
+const txMaxJitter = 350
+const txMinJitter = 25
+
 func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
+	var result interface{}
+	var txErr error
+
 	log := func(msg string, args ...interface{}) {
-		if logger != nil {
-			logger.Debugf(msg, args...)
+		if logger == nil {
+			return
 		}
-	}
-	txConnection, err := conn.Begin()
-	if err != nil {
-		return nil, err
+		logger.Infof(msg, args...)
 	}
 
-	result, err := dbOps(txConnection)
-	if err != nil {
-		log("Rollback transactional DB context because an error occurred: %s", err)
-		if rollbackErr := txConnection.Rollback(); rollbackErr != nil {
-			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
+	//retry the transaction until txMaxRetries is reached. Each retry has a few msec delay for better load balancing
+	for i := 0; i < txMaxRetries; i++ {
+		if i > 0 {
+			rand.Seed(time.Now().UnixNano())
+			//nolint:gosec //no security relevance, linter complains can be ignored
+			jitter := time.Duration(rand.Int63n(txMaxJitter))
+			if jitter < txMinJitter {
+				jitter = jitter + txMinJitter
+			}
+			time.Sleep(jitter)
 		}
-		return result, err
+
+		txConnection, err := conn.Begin()
+		if err != nil {
+			return nil, err
+		}
+
+		result, err = dbOps(txConnection)
+		if err != nil {
+			log("Rollback transactional DB context because an error occurred: %s", err)
+			if rollbackErr := txConnection.Rollback(); rollbackErr != nil {
+				err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
+			}
+			return result, err
+		}
+
+		commitErr := txConnection.commit()
+		if commitErr == nil {
+			return result, nil
+		}
+
+		txErr = errors.Wrap(txErr, commitErr.Error())
+		log("Rollback transactional DB context because commit failed: %s", commitErr.Error())
+		if txRollbackErr := txConnection.Rollback(); txRollbackErr != nil {
+			txErr = errors.Wrap(txErr, txRollbackErr.Error())
+		}
+
 	}
 
-	return result, txConnection.commit()
+	return result, txErr
 }
 
 func Transaction(conn Connection, dbOps func(tx *TxConnection) error, logger *zap.SugaredLogger) error {

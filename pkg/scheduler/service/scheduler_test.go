@@ -154,7 +154,7 @@ func TestSchedulerParallel(t *testing.T) {
 		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
 		require.NoError(t, err)
 		//cleanup before
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
+		removeExistingReconciliations(t, reconRepo)
 
 		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelFct()
@@ -184,7 +184,7 @@ func TestSchedulerParallel(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, len(recons))
 		//cleanup after
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": reconRepo})
+		removeExistingReconciliations(t, reconRepo)
 	})
 }
 

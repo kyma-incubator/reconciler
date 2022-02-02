@@ -41,6 +41,7 @@ func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config
 				ClusterReconcileInterval: o.ClusterReconcileInterval,
 				ClusterQueueSize:         10,
 				DeleteStrategy:           ds,
+				PreComponents:            schedulerCfg.Scheduler.PreComponents,
 			}).
 		WithBookkeeperConfig(&service.BookkeeperConfig{
 			OperationsWatchInterval: 45 * time.Second,

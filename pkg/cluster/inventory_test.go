@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
+	"github.com/pkg/errors"
 	"strconv"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ var clusterStatuses = []model.Status{
 
 func TestInventory(t *testing.T) {
 	inventory := newInventory(t)
-	defer db.CleanUpTables(t)
+
 	t.Run("Create a cluster", func(t *testing.T) {
 		//create cluster1
 		expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
@@ -271,12 +272,23 @@ func TestInventory(t *testing.T) {
 }
 
 func TestCountRetries(t *testing.T) {
+	expectedCluster1 := test.NewCluster(t, "1", 1, false, test.Production)
+	expectedCluster2 := test.NewCluster(t, "2", 2, false, test.Production)
+	expectedCluster3 := test.NewCluster(t, "3", 3, false, test.Production)
+
 	inventory := newInventory(t)
-	defer db.CleanUpTables(t)
+	defer func() {
+		for _, runtimeID := range []string{
+			expectedCluster1.RuntimeID,
+			expectedCluster2.RuntimeID,
+			expectedCluster3.RuntimeID,
+		} {
+			require.NoError(t, inventory.Delete(runtimeID))
+		}
+	}()
 
 	t.Run("When there are retry before status ready, expect to be skipped and not take into count.", func(t *testing.T) {
-		expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
-		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
+		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster1)
 		require.NoError(t, err)
 
 		const errorStatus = model.ClusterStatusReconcileErrorRetryable
@@ -296,8 +308,8 @@ func TestCountRetries(t *testing.T) {
 
 	t.Run("When there are retry after status ready, expect to be counted.", func(t *testing.T) {
 		expectedErrRetryable := 50
-		expectedCluster := test.NewCluster(t, "2", 2, false, test.Production)
-		clusterState, err := inventory.CreateOrUpdate(2, expectedCluster)
+
+		clusterState, err := inventory.CreateOrUpdate(2, expectedCluster2)
 		require.NoError(t, err)
 
 		const errorStatusTobeCounted = model.ClusterStatusReconcileErrorRetryable
@@ -319,8 +331,8 @@ func TestCountRetries(t *testing.T) {
 
 	t.Run("When there are not expected error status, expect them to be skipped and only count expected status", func(t *testing.T) {
 		expectedErrRetryable := 50
-		expectedCluster := test.NewCluster(t, "3", 3, false, test.Production)
-		clusterState, err := inventory.CreateOrUpdate(3, expectedCluster)
+
+		clusterState, err := inventory.CreateOrUpdate(3, expectedCluster3)
 		require.NoError(t, err)
 
 		const errorStatusTobeCounted = model.ClusterStatusReconcileErrorRetryable
@@ -356,9 +368,9 @@ func TestTransaction(t *testing.T) {
 			require.NoError(t, err)
 
 			//create two clusters
-			clusterState, err = inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+			clusterState, err = inventory.CreateOrUpdate(1, test.NewCluster(t, "neverExist1", 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
-			clusterState2, err = inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.OneComponentDummy))
+			clusterState2, err = inventory.CreateOrUpdate(1, test.NewCluster(t, "neverExist2", 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
 
 			//check if clusters are created
@@ -370,9 +382,7 @@ func TestTransaction(t *testing.T) {
 			require.NotNil(t, state2)
 
 			//rollback transactions
-			require.NoError(t, tx.GetTx().Rollback())
-
-			return err
+			return errors.New("Faking an error")
 		}
 		require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
 
