@@ -3,34 +3,60 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"github.com/avast/retry-go"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"math/rand"
 	"sync"
 	"time"
 )
 
+const txMaxRetries = 3
+const txMaxJitter = 350
+const txMinJitter = 25
+
 func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
+	var result interface{}
+	var txErr error
+
 	log := func(msg string, args ...interface{}) {
 		if logger != nil {
 			logger.Debugf(msg, args...)
 		}
 	}
-	txConnection, err := conn.Begin()
-	if err != nil {
-		return nil, err
-	}
 
-	result, err := dbOps(txConnection)
-	if err != nil {
-		log("Rollback transactional DB context because an error occurred: %s", err)
-		if rollbackErr := txConnection.Rollback(); rollbackErr != nil {
-			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
+	for i := 0; i < txMaxRetries; i++ {
+		if i > 0 {
+			rand.Seed(time.Now().UnixNano())
+			jitter := time.Duration(rand.Int63n(txMaxJitter))
+			if jitter < txMinJitter {
+				jitter = jitter + txMinJitter
+			}
+			time.Sleep(jitter)
 		}
-		return result, err
+
+		txConnection, err := conn.Begin()
+		if err != nil {
+			return nil, err
+		}
+
+		result, err = dbOps(txConnection)
+		if err != nil {
+			log("Rollback transactional DB context because an error occurred: %s", err)
+			if rollbackErr := txConnection.Rollback(); rollbackErr != nil {
+				err = errors.Wrap(err, fmt.Sprintf("Rollback of db operations failed: %s", rollbackErr))
+			}
+			return result, err
+		}
+
+		if commitErr := txConnection.commit(); commitErr == nil {
+			return result, nil
+		} else {
+			txErr = errors.Wrap(txErr, commitErr.Error())
+		}
+
 	}
 
-	return result, txConnection.commit()
+	return result, txErr
 }
 
 func Transaction(conn Connection, dbOps func(tx *TxConnection) error, logger *zap.SugaredLogger) error {
@@ -74,6 +100,7 @@ func (t *TxConnection) Query(query string, args ...interface{}) (DataRows, error
 }
 
 func (t *TxConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
+	t.logger.Debugf("TxExec(): %s | %v", query, args)
 	return t.tx.Exec(query, args...)
 }
 
@@ -99,11 +126,7 @@ func (t *TxConnection) commit() error {
 	t.decreaseCounter()
 	if t.counter == 0 {
 		t.logger.Debug("Transaction Committed")
-		return retry.Do(t.tx.Commit,
-			retry.DelayType(retry.RandomDelay),
-			retry.MaxJitter(time.Millisecond*250),
-			retry.Attempts(uint(3)),
-			retry.LastErrorOnly(false))
+		return t.tx.Commit()
 	}
 	return nil
 }
