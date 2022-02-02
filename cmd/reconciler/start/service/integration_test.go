@@ -119,7 +119,7 @@ func startReconciler(ctx context.Context, t *testing.T) {
 
 		require.NoError(t, StartWebserver(ctx, o, workerPool))
 	}()
-	cliTest.WaitForTCPSocket(t, "localhost", serverPort, 5*time.Second)
+	cliTest.WaitForTCPSocket(t, "localhost", serverPort, 10*time.Second)
 }
 
 func post(t *testing.T, testCase testCase) interface{} {
