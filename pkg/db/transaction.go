@@ -28,7 +28,7 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 	for i := 0; i < txMaxRetries; i++ {
 		if i > 0 {
 			rand.Seed(time.Now().UnixNano())
-			//nolint:gosec - no security relevance, linter complains can be ignored
+			//nolint:gosec //no security relevance, linter complains can be ignored
 			jitter := time.Duration(rand.Int63n(txMaxJitter))
 			if jitter < txMinJitter {
 				jitter = jitter + txMinJitter
