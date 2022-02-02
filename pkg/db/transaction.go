@@ -25,6 +25,7 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 		logger.Infof(msg, args...)
 	}
 
+	//retry the transaction until txMaxRetries is reached. Each retry has a few msec delay for better load balancing
 	for i := 0; i < txMaxRetries; i++ {
 		if i > 0 {
 			rand.Seed(time.Now().UnixNano())
