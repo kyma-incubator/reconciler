@@ -310,12 +310,14 @@ func getTargetVersionFromPilotInChartValues(workspace chart.Factory, branch stri
 		return "", err
 	}
 
-	mapAsJson, err := json.Marshal(helmChart.Values); if err != nil {
+	mapAsJson, err := json.Marshal(helmChart.Values)
+	if err != nil {
 		return "", err
 	}
 
 	var chartValues chartValues
-	err = json.Unmarshal(mapAsJson, &chartValues); if err != nil {
+	err = json.Unmarshal(mapAsJson, &chartValues)
+	if err != nil {
 		return "", err
 	}
 
