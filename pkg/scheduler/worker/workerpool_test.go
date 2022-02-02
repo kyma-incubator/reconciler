@@ -135,11 +135,16 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	//create test invoker to be able to verify invoker calls
 	testInvoker := &testInvoker{}
 
-	//create reconciliation for cluster
 	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 	require.NoError(t, err)
+
+	//create reconciliation for cluster (cleanup old recons up-front)
+	removeExistingReconciliations(t, testInvoker.reconRepo)
 	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
+	defer func() {
+		removeExistingReconciliations(t, testInvoker.reconRepo)
+	}()
 
 	maxParallelOps := 25
 	numberOfProcessableOps := 1
@@ -198,9 +203,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 
 		var wg sync.WaitGroup
 
-		const countWorkerPools = 5
-		const countKebClusters = 3
-		const countOperations = 3 //should be the same count as prio1 operations from all clusters; here three clusters with one prio1 operation each
+		const countWorkerPools = 10
 
 		//prepare keb clusters
 		kebClusters := []*keb.Cluster{
@@ -217,11 +220,18 @@ func TestWorkerPoolParallel(t *testing.T) {
 		require.NoError(t, err)
 
 		//add clusters to inventory
-		var clusterStates [countKebClusters]*cluster.State
+		var clusterStates []*cluster.State
 		for i := range kebClusters {
-			clusterStates[i], err = inventory.CreateOrUpdate(1, kebClusters[i])
+			clusterState, err := inventory.CreateOrUpdate(1, kebClusters[i])
+			require.NoError(t, err)
+			clusterStates = append(clusterStates, clusterState)
 		}
-		require.NoError(t, err)
+		//cleanup clusters at the end
+		defer func() {
+			for _, kebCluster := range kebClusters {
+				require.NoError(t, inventory.Delete(kebCluster.RuntimeID))
+			}
+		}()
 
 		//create test invoker to be able to verify invoker calls and update operation state
 		testInvoker := &testInvokerParallel{errChannel: make(chan error, 100)}
@@ -229,16 +239,20 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//create reconciliation for cluster
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 		require.NoError(t, err)
-		//cleanup before
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 
+		//create reconciliations (up-front and at the end cleanup the old one)
+		removeExistingReconciliations(t, testInvoker.reconRepo)
 		for i := range clusterStates {
 			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], &model.ReconciliationSequenceConfig{})
 			require.NoError(t, err)
 		}
+		defer func() {
+			removeExistingReconciliations(t, testInvoker.reconRepo)
+		}()
 
+		//ensure ops were created
 		opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
-		require.Len(t, opsProcessable, countOperations) // only first priority
+		require.True(t, len(opsProcessable) > 2) //just ensure ops were created as well
 		require.NoError(t, err)
 
 		//initialize worker pool
@@ -270,24 +284,19 @@ func TestWorkerPoolParallel(t *testing.T) {
 		}
 		wg.Wait()
 
-		//check how often the invokes were successful
-		require.Len(t, testInvoker.params, countOperations)
+		require.Len(t, testInvoker.params, len(opsProcessable)) //ensure all ops were processed
 		for i := 0; i < len(testInvoker.params); i++ {
 			//check for updated status and component
 			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
 			require.Equal(t, model.CRDComponent, testInvoker.params[i].ComponentToReconcile.Component)
 		}
-		//cleanup after
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 	})
 }
 
-func removeExistingReconciliations(t *testing.T, repos map[string]reconciliation.Repository) {
-	for _, repo := range repos {
-		recons, err := repo.GetReconciliations(nil)
-		require.NoError(t, err)
-		for _, recon := range recons {
-			require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
-		}
+func removeExistingReconciliations(t *testing.T, repo reconciliation.Repository) {
+	recons, err := repo.GetReconciliations(nil)
+	require.NoError(t, err)
+	for _, recon := range recons {
+		require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
 	}
 }

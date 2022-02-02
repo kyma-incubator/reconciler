@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"math/rand"
@@ -16,56 +17,41 @@ const txMinJitter = 25
 
 func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
 	var result interface{}
-	var txErr error
+	var err error
+	var allErr error
 
-	log := func(msg string, args ...interface{}) {
-		if logger == nil {
-			return
+	for retries := 0; retries < txMaxRetries; retries++ {
+		result, err = execTransaction(conn, dbOps, logger)
+		if err == nil {
+			if retries > 0 {
+				logger.Debugf("DB transaction after %d retries successfully finished", retries)
+			}
+			break //all good: leave retry loop
 		}
-		logger.Infof(msg, args...)
+
+		//chain all retrieved TX errors for better debugging
+		if allErr == nil {
+			allErr = err
+		} else {
+			allErr = errors.Wrap(allErr, err.Error())
+		}
+
+		if isAlreadyCommitedOrRolledBackError(err) { //TX is already closed: give up
+			break
+		}
+
+		if isCollidingTxError(err) { //TX collided: retry
+			delay := randomJitter()
+			logger.Debugf("DB transaction collision occurred and transaction will be retried in %d msec",
+				delay.Milliseconds())
+			time.Sleep(delay)
+			continue
+		}
+
+		break //anything else went wrong: give up
 	}
 
-	//retry the transaction until txMaxRetries is reached. Each retry has a few msec delay for better load balancing
-	for i := 0; i < txMaxRetries; i++ {
-		if i > 0 {
-			time.Sleep(randomJitter())
-		}
-
-		txConnection, err := conn.Begin()
-		if err != nil {
-			return nil, err
-		}
-
-		result, err = dbOps(txConnection)
-		if err != nil {
-			log("Rollback transactional DB context because an error occurred: %s", err)
-			if rollbackErr := txConnection.Rollback(); rollbackErr != nil {
-				log("Rollback failed: %s", rollbackErr)
-			}
-
-			if strings.Contains(err.Error(), "could not serialize access") {
-				log("Rollback caused by colliding transaction: will retry this transaction")
-				txErr = errors.Wrap(txErr, err.Error()) //remember this error when retrying
-				continue
-			}
-
-			return result, err
-		}
-
-		commitErr := txConnection.commit()
-		if commitErr == nil {
-			return result, nil
-		}
-		txErr = errors.Wrap(txErr, commitErr.Error()) //remember this error when retrying
-
-		log("Rollback transactional DB context because commit failed: %s", commitErr.Error())
-		if txRollbackErr := txConnection.Rollback(); txRollbackErr != nil {
-			log("Rollback failed: %s", txRollbackErr)
-		}
-
-	}
-
-	return result, txErr
+	return result, allErr
 }
 
 func randomJitter() time.Duration {
@@ -76,6 +62,30 @@ func randomJitter() time.Duration {
 		jitter = jitter + txMinJitter
 	}
 	return time.Duration(jitter) * time.Millisecond
+}
+
+func execTransaction(conn Connection, dbOps func(tx *TxConnection) (interface{}, error), logger *zap.SugaredLogger) (interface{}, error) {
+	log := func(msg string, args ...interface{}) {
+		if logger != nil {
+			logger.Infof(msg, args...)
+		}
+	}
+
+	txConnection, err := conn.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := dbOps(txConnection)
+	if err != nil {
+		log("Rollback transactional DB context because an error occurred: %s", err)
+		if rollbackErr := txConnection.Rollback(); rollbackErr != nil {
+			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operation failed: %s", rollbackErr))
+		}
+		return result, err
+	}
+
+	return result, txConnection.commit()
 }
 
 func Transaction(conn Connection, dbOps func(tx *TxConnection) error, logger *zap.SugaredLogger) error {
@@ -163,4 +173,12 @@ func (t *TxConnection) decreaseCounter() {
 
 func (t *TxConnection) Rollback() error {
 	return t.tx.Rollback()
+}
+
+func isCollidingTxError(err error) bool {
+	return strings.Contains(err.Error(), "could not serialize access")
+}
+
+func isAlreadyCommitedOrRolledBackError(err error) bool {
+	return strings.Contains(err.Error(), "already been committed or rolled back")
 }

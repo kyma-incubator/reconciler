@@ -173,6 +173,10 @@ func TestBookkeepingTaskParallel(t *testing.T) {
 			//add cluster to inventory
 			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
+			//cleanup cluster at the end
+			defer func() {
+				require.NoError(t, inventory.Delete(clusterState.Status.RuntimeID))
+			}()
 
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
