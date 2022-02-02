@@ -48,6 +48,10 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 			continue
 		}
 
+		if retries > 0 {
+			logger.Debugf("DB transaction failed non-recoverable in retry #%d: %s", retries, err)
+		}
+
 		break //anything else went wrong: give up
 	}
 
