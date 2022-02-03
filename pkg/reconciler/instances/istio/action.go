@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
 
@@ -23,7 +24,7 @@ const (
 type bootstrapIstioPerformer func(logger *zap.SugaredLogger) (actions.IstioPerformer, error)
 
 type ReconcileAction struct {
-	//Temporary solution to overcome Reconciler limitation: Unable to bootstrap IstioPerformer only once in the component reconciler lifetime
+	// Temporary solution to overcome Reconciler limitation: Unable to bootstrap IstioPerformer only once in the component reconciler lifetime
 	getIstioPerformer bootstrapIstioPerformer
 }
 
@@ -62,7 +63,7 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 		if err != nil {
 			return err
 		}
-		//Before removing istio himself, undeploy all related objects like dashboards
+		// Before removing istio himself, undeploy all related objects like dashboards
 		err = unDeployIstioRelatedResources(context.Context, istioManifest.Manifest, context.KubeClient, context.Logger)
 		if err != nil {
 			return err
@@ -109,6 +110,11 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion))
 	}
 
+	targetVersion, err := semver.NewVersion(istioStatus.TargetVersion)
+	if err != nil {
+		return fmt.Errorf("could not decode component version %v: %w", istioStatus.TargetVersion, err)
+	}
+
 	if canInstall(istioStatus) {
 		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
 
@@ -117,19 +123,24 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Could not install Istio")
 		}
 
-		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
+		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger, *targetVersion)
 		if err != nil {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 	} else if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult {
 		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioStatus.PilotVersion, istioStatus.DataPlaneVersion, istioStatus.TargetVersion)
 
+		pilotVersion, err := semver.NewVersion(istioStatus.PilotVersion)
+		if err != nil {
+			return fmt.Errorf("could not decode component version %v: %w", istioStatus.PilotVersion, err)
+		}
+
 		err = performer.Update(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not update Istio")
 		}
 
-		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
+		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger, *pilotVersion)
 		if err != nil {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
@@ -185,6 +196,11 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion))
 	}
 
+	targetVersion, err := semver.NewVersion(istioStatus.TargetVersion)
+	if err != nil {
+		return fmt.Errorf("could not decode component version %v: %w", istioStatus.TargetVersion, err)
+	}
+
 	if canInstall(istioStatus) {
 		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
 
@@ -193,7 +209,7 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 			return errors.Wrap(err, "Could not install Istio")
 		}
 
-		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
+		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger, *targetVersion)
 		if err != nil {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
@@ -203,6 +219,10 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 			return errors.Wrap(err, "Could not deploy Istio resources")
 		}
 	} else if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult {
+		pilotVersion, err := semver.NewVersion(istioStatus.PilotVersion)
+		if err != nil {
+			return fmt.Errorf("could not decode component version %v: %w", istioStatus.PilotVersion, err)
+		}
 		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioStatus.PilotVersion, istioStatus.DataPlaneVersion, istioStatus.TargetVersion)
 
 		err = performer.Update(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
@@ -210,7 +230,7 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 			return errors.Wrap(err, "Could not update Istio")
 		}
 
-		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
+		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger, *pilotVersion)
 		if err != nil {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
@@ -387,7 +407,7 @@ func deployIstioResources(context context.Context, chartManifest string, client 
 
 func unDeployIstioRelatedResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
 	logger.Infof("Undeploying istio related dashboards")
-	//multiple calls necessary, please see: https://github.com/kyma-incubator/reconciler/issues/367
+	// multiple calls necessary, please see: https://github.com/kyma-incubator/reconciler/issues/367
 	_, err := client.Delete(context, manifest, "kyma-system")
 	if err != nil {
 		return err

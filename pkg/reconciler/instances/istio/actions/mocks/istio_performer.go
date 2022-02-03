@@ -3,6 +3,7 @@
 package mock
 
 import (
+	"github.com/coreos/go-semver/semver"
 	chart "github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	actions "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 
@@ -35,7 +36,7 @@ func (_m *IstioPerformer) Install(kubeConfig string, istioChart string, version 
 }
 
 // PatchMutatingWebhook provides a mock function with given fields: ctx, kubeClient, logger
-func (_m *IstioPerformer) PatchMutatingWebhook(ctx context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
+func (_m *IstioPerformer) PatchMutatingWebhook(ctx context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger, istioVersion semver.Version) error {
 	ret := _m.Called(ctx, kubeClient, logger)
 
 	var r0 error

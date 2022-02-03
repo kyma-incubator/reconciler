@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
@@ -84,7 +85,7 @@ type IstioPerformer interface {
 	Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error
 
 	// PatchMutatingWebhook patches Istio's webhook configuration.
-	PatchMutatingWebhook(ctx context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
+	PatchMutatingWebhook(ctx context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger, istioVersion semver.Version) error
 
 	// Update Istio on the cluster to the targetVersion using istioChart.
 	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
@@ -99,9 +100,9 @@ type IstioPerformer interface {
 	Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error
 }
 
-//CommanderResolver interface implementations must be able to provide istioctl.Commander instances for given istioctl.Version
+// CommanderResolver interface implementations must be able to provide istioctl.Commander instances for given istioctl.Version
 type CommanderResolver interface {
-	//GetCommander function returns istioctl.Commander instance for given istioctl version if supported, returns an error otherwise.
+	// GetCommander function returns istioctl.Commander instance for given istioctl version if supported, returns an error otherwise.
 	GetCommander(version istioctl.Version) (istioctl.Commander, error)
 }
 
@@ -178,7 +179,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 	return nil
 }
 
-func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) PatchMutatingWebhook(ctx context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger, istioVersion semver.Version) error {
 	patchContent := []webhookPatchJSON{{
 		Op:   "add",
 		Path: "/webhooks/4/namespaceSelector/matchExpressions/-",
@@ -198,7 +199,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 
 	logger.Info("Patching istio-sidecar-injector MutatingWebhookConfiguration...")
 
-	err = kubeClient.PatchUsingStrategy(context, "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", patchContentJSON, types.JSONPatchType)
+	err = kubeClient.PatchUsingStrategy(ctx, "MutatingWebhookConfiguration", selectWebhook(istioVersion), "istio-system", patchContentJSON, types.JSONPatchType)
 	if err != nil {
 		return err
 	}
@@ -343,4 +344,11 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string) (IstioStatus
 		PilotVersion:     getVersionFromJSON("pilot", version),
 		DataPlaneVersion: getVersionFromJSON("dataPlane", version),
 	}, nil
+}
+
+func selectWebhook(istioVersion semver.Version) string {
+	if istioVersion.LessThan(*(semver.New("1.12.0"))) {
+		return "istio-sidecar-injector"
+	}
+	return "istio-revision-tag-default"
 }

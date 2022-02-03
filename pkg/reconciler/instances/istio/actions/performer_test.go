@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
+	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -242,7 +244,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(&cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log, semver.Version{})
 
 		// then
 		require.Error(t, err)
@@ -261,7 +263,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log, semver.Version{})
 
 		// then
 		require.NoError(t, err)
@@ -628,6 +630,20 @@ func TestGetVersionFromJSON(t *testing.T) {
 		require.Equal(t, "1.11.1", gotDataPlane)
 		require.Equal(t, "", gotNothing)
 
+	})
+}
+
+func TestSelectWebhook(t *testing.T) {
+	t.Run("for istio <1.12", func(t *testing.T) {
+		istio111 := *semver.New("1.11.999")
+		selectWebhook(istio111)
+		assert.Equal(t, "istio-sidecar-injector", selectWebhook(istio111))
+	})
+
+	t.Run("for istio >=1.12", func(t *testing.T) {
+		istio112 := *semver.New("1.12.0")
+		selectWebhook(istio112)
+		assert.Equal(t, "istio-revision-tag-default", selectWebhook(istio112))
 	})
 }
 
