@@ -499,7 +499,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.2", TargetVersion: "1.11.2"}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.2", TargetVersion: "1.2.3-solo-fips-distroless"}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -520,14 +520,14 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.1", TargetVersion: "1.11.2", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.1", TargetVersion: "1.2.3-solo-fips-distroless", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
 	})
 }
 
-func TestGetTargetVersionFromChart(t *testing.T) {
+func Test_getTargetVersionFromPilotInChartValues(t *testing.T) {
 	branch := "branch"
 
 	t.Run("should not get target version when the workspace is not resolved", func(t *testing.T) {
@@ -537,7 +537,7 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{}, nil)
 
 		// when
-		_, err := getTargetVersionFromChart(factory, branch, istioChart)
+		_, err := getTargetVersionFromPilotInChartValues(factory, branch, istioChart)
 
 		// then
 		require.Error(t, err)
@@ -551,25 +551,25 @@ func TestGetTargetVersionFromChart(t *testing.T) {
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		_, err := getTargetVersionFromChart(factory, branch, istioChart)
+		_, err := getTargetVersionFromPilotInChartValues(factory, branch, istioChart)
 
 		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no such file or directory")
 	})
 
-	t.Run("should get target version when Chart.yml is resolved", func(t *testing.T) {
+	t.Run("should get target version when values.yaml file is resolved", func(t *testing.T) {
 		// given
 		istioChart := "istio-test"
 		factory := &workspacemocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		targetVersion, err := getTargetVersionFromChart(factory, branch, istioChart)
+		targetVersion, err := getTargetVersionFromPilotInChartValues(factory, branch, istioChart)
 
 		// then
 		require.NoError(t, err)
-		require.EqualValues(t, "1.11.2", targetVersion)
+		require.EqualValues(t, "1.2.3-solo-fips-distroless", targetVersion)
 	})
 }
 
