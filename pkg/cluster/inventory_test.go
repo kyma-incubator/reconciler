@@ -243,7 +243,7 @@ func TestInventoryForReconcile(t *testing.T) {
 		require.NoError(t, err)
 
 		//create cluster4, clusterVersion2, clusterConfigVersion1-2, status: Ready
-		cluster4v2v2 := test.NewClusterFromExisting(*cluster4v1v2, 2, true)
+		cluster4v2v2 := test.NewClusterFromExisting(*cluster4v2v1, 2, true)
 		clusterState4v2v2a, err := inventory.CreateOrUpdate(1, cluster4v2v2)
 		require.NoError(t, err)
 		expectedClusterState4v2v2b, err := inventory.UpdateStatus(clusterState4v2v2a, model.ClusterStatusReady) //<-EXPECTED STATE
