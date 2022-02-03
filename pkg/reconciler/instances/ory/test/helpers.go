@@ -61,3 +61,8 @@ func isProductionProfile() bool {
 
 	return ok && prodEnabled == "production"
 }
+func isEvaluationProfile() bool {
+	evalEnabled, ok := os.LookupEnv(envExecutionProfile)
+
+	return ok && evalEnabled == "evaluation"
+}

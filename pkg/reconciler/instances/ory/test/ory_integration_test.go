@@ -21,7 +21,7 @@ func TestOryIntegration(t *testing.T) {
 		LabelSelector: "app.kubernetes.io/instance=ory",
 	}
 
-	podsList, err := setup.kubeClient.CoreV1().Pods(namespace).List(setup.context, options)
+	podsList, err := setup.getPods(options)
 	require.NoError(t, err)
 
 	for i, pod := range podsList.Items {
@@ -44,8 +44,8 @@ func TestOryIntegrationProduction(t *testing.T) {
 
 	t.Run("ensure that ory-hydra is deployed", func(t *testing.T) {
 		name := "ory-hydra"
-		hpa := setup.getHorizontalPodAutoscaler(t, name)
-
+		hpa, err := setup.getHorizontalPodAutoscaler(name)
+		require.NoError(t, err)
 		require.GreaterOrEqual(t, int32(1), hpa.Status.CurrentReplicas)
 		require.Equal(t, int32(3), hpa.Spec.MaxReplicas)
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
@@ -53,8 +53,8 @@ func TestOryIntegrationProduction(t *testing.T) {
 
 	t.Run("ensure that ory-oathkeeper is deployed", func(t *testing.T) {
 		name := "ory-oathkeeper"
-		hpa := setup.getHorizontalPodAutoscaler(t, name)
-
+		hpa, err := setup.getHorizontalPodAutoscaler(name)
+		require.NoError(t, err)
 		require.GreaterOrEqual(t, int32(3), hpa.Status.CurrentReplicas)
 		require.Equal(t, int32(10), hpa.Spec.MaxReplicas)
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
@@ -77,12 +77,75 @@ func TestOryIntegrationProduction(t *testing.T) {
 		setup.ensureSecretIsDeployed(t, credsName)
 	})
 }
+func TestOryIntegrationEvaluation(t *testing.T) {
+	skipTestIfDisabled(t)
 
-func (s *oryTest) getHorizontalPodAutoscaler(t *testing.T, name string) *autoscalingv1.HorizontalPodAutoscaler {
-	hpa, err := s.kubeClient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(s.context, name, metav1.GetOptions{})
-	require.NoError(t, err)
+	if !isEvaluationProfile() {
+		t.Skipf("Integration tests disabled: skipping parts of test case '%s'", t.Name())
+	}
 
-	return hpa
+	setup := newOryTest(t)
+	defer setup.contextCancel()
+
+	t.Run("ensure that ory-hydra hpa is not deployed", func(t *testing.T) {
+		name := "ory-hydra"
+		_, err := setup.getHorizontalPodAutoscaler(name)
+		require.Error(t, err)
+		setup.logger.Infof("HorizontalPodAutoscaler is not deployed")
+	})
+
+	t.Run("ensure that ory-oathkeeper hpa is not deployed", func(t *testing.T) {
+		name := "ory-oathkeeper"
+		_, err := setup.getHorizontalPodAutoscaler(name)
+		require.Error(t, err)
+		setup.logger.Infof("HorizontalPodAutoscaler is not deployed")
+	})
+
+	t.Run("ensure that ory-oathkeeper pod is deployed", func(t *testing.T) {
+		options := metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/name=oathkeeper",
+		}
+		podsList, err := setup.getPods(options)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsList.Items))
+		setup.logger.Infof("Single pod %v is deployed for app: oathkeeper", podsList.Items[0].Name)
+	})
+	t.Run("ensure that ory-hydra pod is deployed", func(t *testing.T) {
+		options := metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/name=hydra",
+		}
+		podsList, err := setup.getPods(options)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsList.Items))
+		setup.logger.Infof("Single pod %v is deployed for app: hydra", podsList.Items[0].Name)
+	})
+	t.Run("ensure that ory-hydra-maester pod is deployed", func(t *testing.T) {
+		options := metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/name=hydra-maester",
+		}
+		podsList, err := setup.getPods(options)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsList.Items))
+		setup.logger.Infof("Single pod %v is deployed for app: hydra-maester", podsList.Items[0].Name)
+	})
+	/*
+		t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
+			jwksName := "ory-oathkeeper-jwks-secret"
+			credsName := "ory-hydra-credentials"
+
+			setup.ensureSecretIsDeployed(t, jwksName)
+			setup.ensureSecretIsDeployed(t, credsName)
+		})
+
+	*/
+}
+
+func (s *oryTest) getPods(options metav1.ListOptions) (*v1.PodList, error) {
+	return s.kubeClient.CoreV1().Pods(namespace).List(s.context, options)
+}
+
+func (s *oryTest) getHorizontalPodAutoscaler(name string) (*autoscalingv1.HorizontalPodAutoscaler, error) {
+	return s.kubeClient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
 func (s *oryTest) getStatefulSet(t *testing.T, name string) *v1apps.StatefulSet {
