@@ -769,6 +769,7 @@ func TestTransaction(t *testing.T) {
 
 func TestReconciliationParallel(t *testing.T) {
 	t.Skip("redesign the parallel test")
+	//nolint:unused
 	type testCase struct {
 		name            string
 		preparationFunc func(Repository, *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity)
