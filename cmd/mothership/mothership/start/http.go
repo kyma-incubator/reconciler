@@ -409,7 +409,7 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 		filters = append(filters, &reconciliation.Limit{Count: limit})
 	}
 
-	// Fetch all reconciliation entitlies
+	// Fetch all reconciliation entities
 	reconciles, err := o.Registry.
 		ReconciliationRepository().
 		GetReconciliations(

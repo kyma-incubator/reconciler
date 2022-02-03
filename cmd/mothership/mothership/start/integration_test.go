@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -116,20 +119,26 @@ type testCase struct {
 
 func TestMothership(t *testing.T) {
 	test.IntegrationTest(t)
+	dbConn := db.NewTestConnection(t)
 
+	//create inventory and test cluster entry
+	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
+	require.NoError(t, err)
 	//start mothership service
 	ctx := context.Background()
-	defer ctx.Done()
+	defer func() {
+		require.NoError(t, inventory.Delete(clusterName))
+		require.NoError(t, inventory.Delete(clusterName2))
+		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
+		require.NoError(t, err)
+		removeExistingReconciliations(t, reconRepo)
+		ctx.Done()
+	}()
 
 	serverPort := startMothershipReconciler(ctx, t)
 	baseURL := fmt.Sprintf("http://localhost:%d/v1", serverPort)
 
 	tests := []*testCase{
-		{
-			name:   "Delete old relicts before test starts",
-			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName),
-			method: httpDelete,
-		},
 		{
 			name:             "Create cluster:happy path",
 			url:              fmt.Sprintf("%s/clusters", baseURL),
@@ -462,16 +471,6 @@ func TestMothership(t *testing.T) {
 			verifier:         requireClusterStateChangeFct("ready"),
 		},
 		{
-			name:   "Cleanup test context",
-			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName),
-			method: httpDelete,
-		},
-		{
-			name:   "Cleanup test context2",
-			url:    fmt.Sprintf("%s/clusters/%s", baseURL, clusterName2),
-			method: httpDelete,
-		},
-		{
 			name:             "Test metrics endpoint",
 			url:              fmt.Sprintf("http://localhost:%d/metrics", serverPort),
 			method:           httpGet,
@@ -493,6 +492,15 @@ func TestMothership(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, newTestFct(testCase))
+	}
+
+}
+
+func removeExistingReconciliations(t *testing.T, repo reconciliation.Repository) {
+	recons, err := repo.GetReconciliations(nil)
+	require.NoError(t, err)
+	for _, recon := range recons {
+		require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
 	}
 }
 
@@ -528,7 +536,7 @@ func startMothershipReconciler(ctx context.Context, t *testing.T) int {
 		require.NoError(t, Run(ctx, o))
 	}(ctx)
 
-	cliTest.WaitForTCPSocket(t, "127.0.0.1", serverPort, 8*time.Second)
+	cliTest.WaitForTCPSocket(t, "127.0.0.1", serverPort, 60*time.Second)
 
 	return serverPort
 }
