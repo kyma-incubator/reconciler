@@ -30,21 +30,21 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return nil
 	}
 
-	context.Logger.Info("Checking statefulset")
+	context.Logger.Info("Checking StatefulSet")
 	app, err := context.KubeClient.
 		GetStatefulSet(context.Context, context.Task.Component, context.Task.Namespace)
 	if err != nil {
-		return errors.Wrap(err, "Error while retrieving app")
+		return errors.Wrap(err, "Error while retrieving StatefulSet")
 	}
 
-	context.Logger.Info("Checking operator binding")
+	context.Logger.Info("Checking BTP Operator binding")
 	binding, err := a.Loader.FindBindingOperator(context)
 	if err != nil {
-		return errors.Wrap(err, "Error while retrieving binding from BTP")
+		return errors.Wrap(err, "Error while retrieving binding from BTP Operator")
 	}
 
 	if binding == nil {
-		context.Logger.Info("Checking catalog binding")
+		context.Logger.Info("Checking Service Catalog binding")
 		binding, err = a.Loader.FindBindingCatalog(context)
 		if err != nil {
 			return errors.Wrap(err, "Error while retrieving binding from Service Catalog")
@@ -52,10 +52,10 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 
 	if binding != nil {
-		context.Logger.Info("Reading secret")
+		context.Logger.Info("Reading ServiceBinding Secret")
 		bindingSecret, err := a.Loader.FindSecret(context, binding)
 
-		context.Logger.Info("Secret check")
+		context.Logger.Info("Service Binding Secret check")
 		if err != nil || bindingSecret == nil {
 			return errors.Wrap(err, "Error while retrieving secret")
 		}

@@ -38,7 +38,6 @@ func init() {
 			},
 			install: service.NewInstall(log),
 			copyFactory: []CopyFactory{
-				registrySecretCopy,
 				istioSecretCopy,
 			},
 		},
@@ -46,22 +45,6 @@ func init() {
 	reconcilerInstance.
 		WithDeleteAction(&action).
 		WithReconcileAction(&action)
-}
-
-func registrySecretCopy(task *reconciler.Task, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
-	configs := task.Configuration
-	toNamespace := task.Namespace
-
-	return &SecretCopy{
-		Namespace:       fmt.Sprintf("%v", toNamespace),
-		Name:            fmt.Sprintf("%v", configs[registryConfigPrefix+".secret.name"]),
-		targetClientSet: targetClientSet,
-		from: &FromSecret{
-			Name:      fmt.Sprintf("%v", configs[registryConfigPrefix+".secret.name"]),
-			Namespace: fmt.Sprintf("%v", configs[registryConfigPrefix+".secret.from.namespace"]),
-			inCluster: inClusterClientSet,
-		},
-	}
 }
 
 func istioSecretCopy(task *reconciler.Task, _, targetClientSet k8s.Interface) *SecretCopy {
