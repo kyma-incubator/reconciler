@@ -10,6 +10,7 @@ import (
 )
 
 func NewCluster(t *testing.T, runtimeID string, clusterVersion uint64, newConfigVersion bool, clusterType Cluster) *keb.Cluster {
+	runtimeID += uuid.NewString()
 	cluster := &keb.Cluster{}
 	err := json.Unmarshal(clusterType, cluster)
 	require.NoError(t, err)
