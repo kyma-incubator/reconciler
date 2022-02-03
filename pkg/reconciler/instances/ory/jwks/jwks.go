@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/json"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -14,6 +15,11 @@ import (
 
 	"github.com/google/uuid"
 	jose "github.com/square/go-jose/v3"
+)
+
+const (
+	disclaimerKey   = "reconciler.kyma-project.io/managed-by-reconciler-disclaimer"
+	disclaimerValue = "DO NOT EDIT - This resource is managed by Kyma.\nAny modifications are discarded and the resource is reverted to the original state."
 )
 
 type JWKS struct {
@@ -40,8 +46,9 @@ func Get(name types.NamespacedName, alg string, bits int) (*v1.Secret, error) {
 
 	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
+			Name:        name.Name,
+			Namespace:   name.Namespace,
+			Annotations: map[string]string{disclaimerKey: disclaimerValue},
 		},
 		Data: data,
 	}, nil
