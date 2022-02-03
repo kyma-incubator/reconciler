@@ -24,7 +24,7 @@ type MockConnection struct {
 type MockDataRow struct {
 }
 
-func (dr *MockDataRow) Scan(dest ...interface{}) error {
+func (dr *MockDataRow) Scan(_ ...interface{}) error {
 	return nil
 }
 
@@ -45,6 +45,10 @@ func (r *MockResult) LastInsertId() (int64, error) {
 
 func (r *MockResult) RowsAffected() (int64, error) {
 	return MockRowsAffected, nil
+}
+
+func (c *MockConnection) Id() string {
+	return newId(5)
 }
 
 func (c *MockConnection) DB() *sql.DB {
@@ -105,7 +109,7 @@ func (fake *MockDbEntity) Table() string {
 	return "mockTable"
 }
 
-func (fake *MockDbEntity) Equal(other DatabaseEntity) bool {
+func (fake *MockDbEntity) Equal(_ DatabaseEntity) bool {
 	return false
 }
 

@@ -45,6 +45,7 @@ func (ml *migrateLogger) Verbose() bool {
 }
 
 type postgresConnection struct {
+	id        string
 	db        *sql.DB
 	encryptor *Encryptor
 	validator *Validator
@@ -63,10 +64,15 @@ func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQu
 
 	return &postgresConnection{
 		db:        db,
+		id:        newId(5),
 		encryptor: encryptor,
 		validator: validator,
 		logger:    logger,
 	}, nil
+}
+
+func (pc *postgresConnection) Id() string {
+	return pc.id
 }
 
 func (pc *postgresConnection) DB() *sql.DB {

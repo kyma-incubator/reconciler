@@ -15,6 +15,7 @@ import (
 )
 
 type sqliteConnection struct {
+	id        string
 	db        *sql.DB
 	encryptor *Encryptor
 	validator *Validator
@@ -32,11 +33,16 @@ func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries boo
 	validator := NewValidator(blockQueries, logger)
 
 	return &sqliteConnection{
+		id:        newId(5),
 		db:        db,
 		encryptor: encryptor,
 		validator: validator,
 		logger:    logger,
 	}, nil
+}
+
+func (sc *sqliteConnection) Id() string {
+	return sc.id
 }
 
 func (sc *sqliteConnection) DB() *sql.DB {

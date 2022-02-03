@@ -20,13 +20,20 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 	var err error
 	var allErr error
 
+	txCtxID := newId(5)
 	for retries := 0; retries < txMaxRetries; retries++ {
 		result, err = execTransaction(conn, dbOps, logger)
 		if err == nil {
 			if retries > 0 {
-				logger.Debugf("DB transaction after %d retries successfully finished", retries)
+				logger.Debugf("DB transaction (txCtxID:%s/connID:%s) after %d retries successfully finished",
+					txCtxID, conn.Id(), retries)
 			}
-			break //all good: leave retry loop
+			return result, nil
+		}
+
+		if retries > 0 {
+			logger.Debugf("DB transaction (txCtxID:%s/connID:%s) failed again in retry #%d: %s",
+				txCtxID, conn.Id(), retries, err)
 		}
 
 		//chain all retrieved TX errors for better debugging
@@ -42,14 +49,12 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 
 		if isCollidingTxError(err) { //TX collided: retry
 			delay := randomJitter()
-			logger.Debugf("DB transaction collision occurred and transaction will be retried in %d msec",
+			logger.Debugf("DB transaction (txCtxID:%s/connID:%s) collision occurred and transaction will be retried in %d msec",
+				txCtxID,
+				conn.Id(),
 				delay.Milliseconds())
 			time.Sleep(delay)
 			continue
-		}
-
-		if retries > 0 {
-			logger.Debugf("DB transaction failed non-recoverable in retry #%d: %s", retries, err)
 		}
 
 		break //anything else went wrong: give up
@@ -82,9 +87,10 @@ func execTransaction(conn Connection, dbOps func(tx *TxConnection) (interface{},
 
 	result, err := dbOps(txConnection)
 	if err != nil {
-		log("Rollback transactional DB context because an error occurred: %s", err)
+		log("Rollback DB transaction (txID:%s) because an error occurred: %s", txConnection.Id(), err)
 		if rollbackErr := txConnection.Rollback(); rollbackErr != nil {
-			err = errors.Wrap(err, fmt.Sprintf("Rollback of db operation failed: %s", rollbackErr))
+			err = errors.Wrap(err, fmt.Sprintf("Rollback of DB transaction (txID:%s ) failed: %s",
+				txConnection.Id(), rollbackErr))
 		}
 		return result, err
 	}
@@ -101,17 +107,30 @@ func Transaction(conn Connection, dbOps func(tx *TxConnection) error, logger *za
 }
 
 type TxConnection struct {
-	tx      *sql.Tx
-	conn    Connection
-	counter uint
-	logger  *zap.SugaredLogger
+	id                    string
+	tx                    *sql.Tx
+	conn                  Connection
+	counter               uint
+	logger                *zap.SugaredLogger
+	committedOrRolledBack bool
 	sync.Mutex
 }
 
 func NewTxConnection(tx *sql.Tx, conn Connection, logger *zap.SugaredLogger) *TxConnection {
 	//setting counter to 1 since first begin is not called with counter increase
-	return &TxConnection{tx: tx, conn: conn, counter: 1, logger: logger}
+	return &TxConnection{
+		id:      fmt.Sprintf("%s-%s", conn.Id(), newId(5)),
+		tx:      tx,
+		conn:    conn,
+		counter: 1,
+		logger:  logger,
+	}
 }
+
+func (t *TxConnection) Id() string {
+	return t.id
+}
+
 func (t *TxConnection) DB() *sql.DB {
 	return t.conn.DB()
 }
@@ -137,7 +156,11 @@ func (t *TxConnection) Exec(query string, args ...interface{}) (sql.Result, erro
 }
 
 func (t *TxConnection) Begin() (*TxConnection, error) {
-	t.logger.Debug("Transaction Begin")
+	t.logger.Debugf("Transaction Begin (txID: %s)", t.id)
+	if t.committedOrRolledBack {
+		return t, errors.Errorf("transaction (txID:%s) is already committed or rolled back "+
+			"and cannot be used anymore", t.id)
+	}
 	t.increaseCounter()
 	return t, nil
 }
@@ -157,7 +180,8 @@ func (t *TxConnection) GetTx() *sql.Tx {
 func (t *TxConnection) commit() error {
 	t.decreaseCounter()
 	if t.counter == 0 {
-		t.logger.Debug("Transaction Committed")
+		t.logger.Debugf("Transaction Committed (txID: %s)", t.id)
+		t.committedOrRolledBack = true
 		return t.tx.Commit()
 	}
 	return nil
@@ -176,6 +200,7 @@ func (t *TxConnection) decreaseCounter() {
 }
 
 func (t *TxConnection) Rollback() error {
+	t.committedOrRolledBack = true
 	return t.tx.Rollback()
 }
 
