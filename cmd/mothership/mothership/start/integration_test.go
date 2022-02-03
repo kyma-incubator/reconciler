@@ -623,12 +623,6 @@ func payload(t *testing.T, file, kubeconfig string) string {
 	return string(result)
 }
 
-func wait(d time.Duration) func() {
-	return func() {
-		time.Sleep(d)
-	}
-}
-
 type verifier = func(*testing.T, interface{})
 
 func hasReconciliation(p func(int) bool) verifier {
