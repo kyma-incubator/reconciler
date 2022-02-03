@@ -150,7 +150,13 @@ func TestSchedulerParallel(t *testing.T) {
 
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
-		clusterIDs := createClusterStates(t, inventory)
+
+		clusterRuntimeIDs := createClusterStates(t, inventory)
+		defer func() {
+			for _, runtimeID := range clusterRuntimeIDs {
+				require.NoError(t, inventory.Delete(runtimeID))
+			}
+		}()
 
 		scheduler := newScheduler(logger.NewLogger(true))
 		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
@@ -182,7 +188,7 @@ func TestSchedulerParallel(t *testing.T) {
 		}
 		wg.Wait()
 
-		cif := runtimeIDFilter{clusterIDs}
+		cif := runtimeIDFilter{clusterRuntimeIDs}
 		recons, err := reconRepo.GetReconciliations(&cif)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(recons))

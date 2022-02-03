@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -36,7 +37,7 @@ func TestBookkeepingTask(t *testing.T) {
 		}, expectedStatus: model.OperationStateDone},
 	}
 
-	for _, tc := range tests {
+	for index, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
 			//create mock database connection
@@ -45,7 +46,7 @@ func TestBookkeepingTask(t *testing.T) {
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
 
-			testCluster := test.NewCluster(t, "1", 1, false, test.OneComponentDummy)
+			testCluster := test.NewCluster(t, strconv.Itoa(index), 1, false, test.OneComponentDummy)
 			defer func() {
 				require.NoError(t, inventory.Delete(testCluster.RuntimeID))
 			}()
@@ -159,7 +160,7 @@ func TestBookkeepingTaskParallel(t *testing.T) {
 		}, errMessage: "Bookkeeper failed to update cluster", errCount: finishErrors, expectedStatus: model.OperationStateDone},
 	}
 
-	for _, tc := range tests {
+	for index, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			//initialize WaitGroup
 			var wg sync.WaitGroup
@@ -171,8 +172,13 @@ func TestBookkeepingTaskParallel(t *testing.T) {
 			require.NoError(t, err)
 
 			//add cluster to inventory
-			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, strconv.Itoa(index), 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
+
+			//cleanup cluster at the end
+			defer func() {
+				require.NoError(t, inventory.Delete(clusterState.Status.RuntimeID))
+			}()
 
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)

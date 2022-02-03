@@ -14,9 +14,9 @@ func NewCluster(t *testing.T, runtimeID string, clusterVersion uint64, newConfig
 	cluster := &keb.Cluster{}
 	err := json.Unmarshal(clusterType, cluster)
 	require.NoError(t, err)
-
 	cluster.RuntimeID = fmt.Sprintf("runtime%s", runtimeID)
 	cluster.RuntimeInput.Name = fmt.Sprintf("runtimeName%d", clusterVersion)
+	cluster.RuntimeInput.Description = fmt.Sprintf("For test: %s", t.Name())
 	cluster.Metadata.GlobalAccountID = fmt.Sprintf("globalAccountId%d", clusterVersion)
 	cluster.Kubeconfig = "fake kubeconfig"
 

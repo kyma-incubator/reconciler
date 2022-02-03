@@ -878,6 +878,7 @@ func TestReconciliationParallel(t *testing.T) {
 
 			defer func() {
 				require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+				removeExistingReconciliations(t, map[string]Repository{"": reconRepo})
 			}()
 
 			recon, allOperations := tc.preparationFunc(reconRepo, clusterState)
@@ -896,8 +897,6 @@ func TestReconciliationParallel(t *testing.T) {
 			wg.Wait()
 
 			tc.check(reconRepo, threadCnt, errChannel)
-			//cleanup after
-			removeExistingReconciliations(t, map[string]Repository{"": reconRepo})
 		})
 	}
 

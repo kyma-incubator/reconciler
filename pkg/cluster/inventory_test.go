@@ -98,6 +98,10 @@ func TestInventory(t *testing.T) {
 		require.True(t, repository.IsNotFoundError(err))
 	})
 
+}
+func TestInventoryForClusterStatues(t *testing.T) {
+	inventory := newInventory(t)
+
 	t.Run("Get clusters with particular status", func(t *testing.T) {
 		var expectedClusters []*keb.Cluster
 
@@ -138,8 +142,34 @@ func TestInventory(t *testing.T) {
 			listStatuses(statesNotReady),
 			[]model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileError, model.ClusterStatusDeleting, model.ClusterStatusDeleteError})
 	})
-}
+	t.Run("Get status changes", func(t *testing.T) {
+		expectedStatuses := append(clusterStatuses, model.ClusterStatusReconcilePending)
+		newCluster := test.NewCluster(t, "1", 1, false, test.Production)
+		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
+		require.NoError(t, err)
+		// //create for each cluster-status a new cluster
+		for _, clusterStatus := range clusterStatuses {
+			//add expected status
+			_, err = inventory.UpdateStatus(clusterState, clusterStatus)
+			require.NoError(t, err)
+		}
 
+		defer func() {
+			//cleanup
+			require.NoError(t, inventory.Delete(newCluster.RuntimeID))
+		}()
+		duration, err := time.ParseDuration("10h")
+		require.NoError(t, err)
+		changes, err := inventory.StatusChanges(newCluster.RuntimeID, duration)
+		require.NoError(t, err)
+
+		require.Len(t, changes, 9)
+		require.ElementsMatch(t,
+			listStatusesForStatusChanges(changes),
+			expectedStatuses)
+	})
+
+}
 func TestInventoryForReconcile(t *testing.T) {
 	inventory := newInventory(t)
 	t.Run("Get clusters to reconcile", func(t *testing.T) {
@@ -242,33 +272,6 @@ func TestInventoryForReconcile(t *testing.T) {
 		require.ElementsMatch(t, []*State{expectedCluster2State2b, expectedClusterState3v1v1c}, statesNotReady)
 
 	})
-
-	t.Run("Get status changes", func(t *testing.T) {
-		expectedStatuses := append(clusterStatuses, model.ClusterStatusReconcilePending)
-		newCluster := test.NewCluster(t, "1", 1, false, test.Production)
-		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
-		require.NoError(t, err)
-		// //create for each cluster-status a new cluster
-		for _, clusterStatus := range clusterStatuses {
-			//add expected status
-			_, err = inventory.UpdateStatus(clusterState, clusterStatus)
-			require.NoError(t, err)
-		}
-
-		defer func() {
-			//cleanup
-			require.NoError(t, inventory.Delete(newCluster.RuntimeID))
-		}()
-		duration, err := time.ParseDuration("10h")
-		require.NoError(t, err)
-		changes, err := inventory.StatusChanges(newCluster.RuntimeID, duration)
-		require.NoError(t, err)
-
-		require.Len(t, changes, 9)
-		require.ElementsMatch(t,
-			listStatusesForStatusChanges(changes),
-			expectedStatuses)
-	})
 }
 
 func TestCountRetries(t *testing.T) {
@@ -358,9 +361,15 @@ func TestTransaction(t *testing.T) {
 
 		//create inventory
 		inventory, err := NewInventory(dbConn, true, MetricsCollectorMock{})
+
 		require.NoError(t, err)
 		var clusterState *State
 		var clusterState2 *State
+		defer func() {
+			//cleanup
+			require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+			require.NoError(t, inventory.Delete(clusterState2.Cluster.RuntimeID))
+		}()
 		dbOp := func(tx *db.TxConnection) error {
 
 			//converts inventory with given tx

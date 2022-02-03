@@ -283,15 +283,6 @@ func TestMothership(t *testing.T) {
 			verifier:         requireErrorResponseFct,
 		},
 		{
-			name:             "Get list of reconciliations: all",
-			url:              fmt.Sprintf("%s/reconciliations", baseURL),
-			method:           httpGet,
-			expectedHTTPCode: 200,
-			responseModel:    &keb.ReconcilationsOKResponse{},
-			beforeTestCase:   wait(3 * time.Second),
-			verifier:         twoReconciliations,
-		},
-		{
 			name:             "Get list of reconciliations: no runtime id",
 			url:              fmt.Sprintf("%s/reconciliations?runtimeID=none", baseURL),
 			method:           httpGet,
@@ -310,7 +301,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of reconciliations: filter by runtimeId",
-			url:              fmt.Sprintf("%s/reconciliations?runtimeID=e2etest-cluster2", baseURL),
+			url:              fmt.Sprintf("%s/reconciliations?runtimeID=%s", baseURL, clusterName2),
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.ReconcilationsOKResponse{},
@@ -319,7 +310,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of reconciliations: filter by multiple runtimeId",
-			url:              fmt.Sprintf("%s/reconciliations?runtimeID=e2etest-cluster2&runtimeID=unknown", baseURL),
+			url:              fmt.Sprintf("%s/reconciliations?runtimeID=%s&runtimeID=unknown", baseURL, clusterName2),
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.ReconcilationsOKResponse{},
@@ -328,7 +319,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of reconciliations: filter by multiple runtimeId",
-			url:              fmt.Sprintf("%s/reconciliations?runtimeID=unknown&runtimeID=e2etest-cluster2", baseURL),
+			url:              fmt.Sprintf("%s/reconciliations?runtimeID=unknown&runtimeID=%s", baseURL, clusterName2),
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.ReconcilationsOKResponse{},
@@ -337,7 +328,7 @@ func TestMothership(t *testing.T) {
 		},
 		{
 			name:             "Get list of reconciliations: filter by status",
-			url:              fmt.Sprintf("%s/reconciliations?status=reconciling&runtimeID=e2etest-cluster2", baseURL),
+			url:              fmt.Sprintf("%s/reconciliations?status=reconciling&runtimeID=%s", baseURL, clusterName2),
 			method:           httpGet,
 			expectedHTTPCode: 200,
 			responseModel:    &keb.ReconcilationsOKResponse{},
@@ -657,6 +648,5 @@ func hasReconciliationOpt(p func(int) bool) verifier {
 var (
 	zeroReconciliations    verifier = hasReconciliation(func(i int) bool { return i == 0 })
 	oneReconciliation      verifier = hasReconciliation(func(i int) bool { return i == 1 })
-	twoReconciliations     verifier = hasReconciliation(func(i int) bool { return i == 2 })
 	threeReconciliationOps verifier = hasReconciliationOpt(func(i int) bool { return i == 3 })
 )
