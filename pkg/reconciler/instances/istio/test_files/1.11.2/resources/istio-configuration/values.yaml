@@ -1,6 +1,0 @@
----
-
-global:
-  images:
-    istio_pilot:
-      version: "1.11.2-solo-fips-distroless"

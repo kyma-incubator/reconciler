@@ -76,16 +76,6 @@ type DataPlaneVersion struct {
 	IstioVersion string `json:"IstioVersion,omitempty"`
 }
 
-type chartValues struct {
-	Global struct {
-		Images struct {
-			IstioPilot struct {
-				Version string `json:"version"`
-			} `json:"istio_pilot"`
-		} `json:"images"`
-	} `json:"global"`
-}
-
 //go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
 type IstioPerformer interface {
@@ -275,7 +265,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 }
 
 func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error) {
-	targetVersion, err := getTargetVersionFromPilotInChartValues(workspace, branchVersion, istioChart)
+	targetVersion, err := getTargetVersionFromChart(workspace, branchVersion, istioChart)
 	if err != nil {
 		return IstioStatus{}, errors.Wrap(err, "Target Version could not be obtained")
 	}
@@ -300,7 +290,7 @@ func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion s
 	return mappedIstioVersion, err
 }
 
-func getTargetVersionFromPilotInChartValues(workspace chart.Factory, branch string, istioChart string) (string, error) {
+func getTargetVersionFromChart(workspace chart.Factory, branch string, istioChart string) (string, error) {
 	ws, err := workspace.Get(branch)
 	if err != nil {
 		return "", err
@@ -309,19 +299,7 @@ func getTargetVersionFromPilotInChartValues(workspace chart.Factory, branch stri
 	if err != nil {
 		return "", err
 	}
-
-	mapAsJSON, err := json.Marshal(helmChart.Values)
-	if err != nil {
-		return "", err
-	}
-
-	var chartValues chartValues
-	err = json.Unmarshal(mapAsJSON, &chartValues)
-	if err != nil {
-		return "", err
-	}
-
-	return chartValues.Global.Images.IstioPilot.Version, nil
+	return helmChart.Metadata.AppVersion, nil
 }
 
 func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string {
