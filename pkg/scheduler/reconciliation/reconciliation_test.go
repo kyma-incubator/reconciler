@@ -768,6 +768,7 @@ func TestTransaction(t *testing.T) {
 }
 
 func TestReconciliationParallel(t *testing.T) {
+	t.Skip("redesign the parallel test")
 	type testCase struct {
 		name            string
 		preparationFunc func(Repository, *cluster.State) (*model.ReconciliationEntity, []*model.OperationEntity)
@@ -877,19 +878,18 @@ func TestReconciliationParallel(t *testing.T) {
 			reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
 			require.NoError(t, err)
 			//cleanup before
-			removeExistingReconciliations(t, map[string]Repository{"": reconRepo})
-
-			defer func() {
-				require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
-				removeExistingReconciliations(t, map[string]Repository{"": reconRepo})
-			}()
+			//removeExistingReconciliations(t, map[string]Repository{"": reconRepo})
 
 			recon, allOperations := tc.preparationFunc(reconRepo, clusterState)
 			startAt := time.Now().Add(1 * time.Second)
 			for i := 0; i < threadCnt; i++ {
 				wg.Add(1)
 				go func(errChannel chan error, repo Repository) {
-					defer wg.Done()
+					defer func() {
+						require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+						removeExistingReconciliations(t, map[string]Repository{"": reconRepo})
+						wg.Done()
+					}()
 					time.Sleep(time.Until(startAt))
 					err := tc.mainFunc(repo, clusterState, recon, allOperations)
 					if err != nil {
