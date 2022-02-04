@@ -15,11 +15,11 @@ type CustomAction struct {
 }
 
 func (a *CustomAction) Run(context *service.ActionContext) error {
-	context.Logger.Infof("Starting reconcilation of component %s", context.Task.Component)
+	context.Logger.Infof("Starting reconciliation of component %s", context.Task.Component)
 	context.Logger.Infof("Sleeping for %d...", sleepTime)
 	time.Sleep(sleepTime)
 	context.Logger.Infof("Action '%s' executed (passed version was '%s')", a.name, context.Task.Version)
-	context.Logger.Infof("Finished reconcilation of component %s", context.Task.Component)
+	context.Logger.Infof("Finished reconciliation of component %s", context.Task.Component)
 
 	return nil
 }
