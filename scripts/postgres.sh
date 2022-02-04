@@ -6,7 +6,7 @@ readonly CWD=$(pwd)
 cd - > /dev/null || return
 
 # Script configuration
-readonly CONTAINER_NAME="postgres"
+readonly CONTAINER_NAME="postgres:9.6-alpine"
 readonly POSTGRES_DATA_DIR="${CWD}/tmp/postgres"
 readonly POSTGRES_PORT=5432
 readonly POSTGRES_USER="kyma"
