@@ -118,6 +118,7 @@ type testCase struct {
 }
 
 func TestMothership(t *testing.T) {
+	t.Skip("redesign the test later")
 	test.IntegrationTest(t)
 	dbConn := db.NewTestConnection(t)
 
