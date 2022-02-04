@@ -6,7 +6,8 @@ readonly CWD=$(pwd)
 cd - > /dev/null || return
 
 # Script configuration
-readonly CONTAINER_NAME="postgres:9.6-alpine"
+readonly CONTAINER_NAME="postgres"
+readonly CONTAINER_TAG="11-alpine"
 readonly POSTGRES_DATA_DIR="${CWD}/tmp/postgres"
 readonly POSTGRES_PORT=5432
 readonly POSTGRES_USER="kyma"
@@ -57,7 +58,7 @@ function start() {
     -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
     -e POSTGRES_USER=$POSTGRES_USER \
     -e POSTGRES_DB=$POSTGRES_DB \
-    postgres)$
+     "$CONTAINER_NAME:$CONTAINER_TAG")$
   exitCode=$?
 
   if [ $exitCode -eq 0 ]; then
