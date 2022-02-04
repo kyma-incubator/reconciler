@@ -21,13 +21,15 @@ const (
 	//send a heartbeat message for such operations before the bookkeeper starts running and marks them as orphan.
 	defaultOperationsWatchInterval = 45 * time.Second
 	defaultOrphanOperationTimeout  = 10 * time.Minute
-	defaultMaxRetries              = 150
+	defaultMaxReconcileErrRetries  = 150
+	defaultMaxDeleteErrRetries     = 15
 )
 
 type BookkeeperConfig struct {
 	OperationsWatchInterval time.Duration
 	OrphanOperationTimeout  time.Duration
-	MaxRetries              int
+	MaxReconcileErrRetries  int
+	MaxDeleteErrRetries     int
 }
 
 func (wc *BookkeeperConfig) validate() error {
@@ -43,11 +45,17 @@ func (wc *BookkeeperConfig) validate() error {
 	if wc.OrphanOperationTimeout == 0 {
 		wc.OrphanOperationTimeout = defaultOrphanOperationTimeout
 	}
-	if wc.MaxRetries < 0 {
-		return errors.New("maxRetries cannot be < 0")
+	if wc.MaxReconcileErrRetries < 0 {
+		return errors.New("maxReconcileErrRetries cannot be < 0")
 	}
-	if wc.MaxRetries == 0 {
-		wc.MaxRetries = defaultMaxRetries
+	if wc.MaxReconcileErrRetries == 0 {
+		wc.MaxReconcileErrRetries = defaultMaxReconcileErrRetries
+	}
+	if wc.MaxDeleteErrRetries < 0 {
+		return errors.New("maxDeleteErrRetries cannot be < 0")
+	}
+	if wc.MaxDeleteErrRetries == 0 {
+		wc.MaxDeleteErrRetries = defaultMaxDeleteErrRetries
 	}
 	return nil
 }
