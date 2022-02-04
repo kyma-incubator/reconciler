@@ -8,6 +8,11 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 )
 
+type Filter interface {
+	FilterByQuery(q *db.Select) error
+	FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity //return nil to ignore instance in result
+}
+
 type FilterMixer struct {
 	Filters []Filter
 }

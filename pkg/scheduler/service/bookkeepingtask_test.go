@@ -45,7 +45,7 @@ func TestBookkeepingTask(t *testing.T) {
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
 
-			testCluster := test.NewCluster(t, "1", 1, false, test.OneComponentDummy)
+			testCluster := test.NewCluster(t, "random", 1, false, test.OneComponentDummy)
 			defer func() {
 				require.NoError(t, inventory.Delete(testCluster.RuntimeID))
 			}()
@@ -171,8 +171,13 @@ func TestBookkeepingTaskParallel(t *testing.T) {
 			require.NoError(t, err)
 
 			//add cluster to inventory
-			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "random", 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
+
+			//cleanup cluster at the end
+			defer func() {
+				require.NoError(t, inventory.Delete(clusterState.Status.RuntimeID))
+			}()
 
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)

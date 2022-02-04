@@ -69,16 +69,14 @@ func TestWorkerPool(t *testing.T) {
 	clusterState, err := inventory.CreateOrUpdate(1, kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy))
 	require.NoError(t, err)
 
-	//cleanup created cluster
-	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
-	}()
-
 	//create test invoker to be able to verify invoker calls
 	testInvoker := &testInvoker{errChannel: make(chan error, 10)}
 
 	//create reconciliation for cluster
 	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
+	//cleanup created cluster
+	defer cleanup(t, testInvoker, inventory, clusterState)
+
 	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
@@ -127,17 +125,15 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	clusterState, err := inventory.CreateOrUpdate(1, kebTest.NewCluster(t, "2", 1, false, kebTest.OneComponentDummy))
 	require.NoError(t, err)
 
-	//cleanup created cluster
-	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
-	}()
-
 	//create test invoker to be able to verify invoker calls
 	testInvoker := &testInvoker{}
 
 	//create reconciliation for cluster
 	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 	require.NoError(t, err)
+	//cleanup created cluster
+	defer cleanup(t, testInvoker, inventory, clusterState)
+
 	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 
@@ -183,6 +179,13 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 
 }
 
+func cleanup(t *testing.T, testInvoker *testInvoker, inventory cluster.Inventory, clusterState *cluster.State) {
+	func() {
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+	}()
+}
+
 func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.OperationEntity, correlationID string) {
 	for i := range opsProcessable {
 		if opsProcessable[i].CorrelationID == correlationID {
@@ -208,13 +211,17 @@ func TestWorkerPoolParallel(t *testing.T) {
 			kebTest.NewCluster(t, "2", 1, false, kebTest.OneComponentDummy),
 			kebTest.NewCluster(t, "3", 1, false, kebTest.OneComponentDummy),
 		}
-
-		//create mock database connection
 		testDB := db.NewTestConnection(t)
 
-		//create cluster inventory
 		inventory, err := cluster.NewInventory(testDB, true, &cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
+		//create cluster inventory
+		//create mock database connection
+		defer func() {
+			for _, kebCluster := range kebClusters {
+				require.NoError(t, inventory.Delete(kebCluster.RuntimeID))
+			}
+		}()
 
 		//add clusters to inventory
 		var clusterStates [countKebClusters]*cluster.State
