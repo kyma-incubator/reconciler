@@ -9,7 +9,7 @@ const (
 	sleepTime = 1000
 )
 
-// CustomAction for mock component reconcilation.
+// CustomAction for mock component reconciliation.
 type CustomAction struct {
 	name string
 }
