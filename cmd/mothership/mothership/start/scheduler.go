@@ -23,7 +23,7 @@ func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config
 
 	return runtimeBuilder.
 		RunRemote(
-			o.Registry.Connnection(),
+			o.Registry.Connection(),
 			o.Registry.Inventory(),
 			schedulerCfg).
 		WithWorkerPoolConfig(&worker.Config{

@@ -18,6 +18,7 @@ type Registry struct {
 	inventory       cluster.Inventory
 	kvRepository    *kv.Repository
 	reconRepository reconciliation.Repository
+	occupancyRepo   occupancy.Repository
 	initialized     bool
 }
 
@@ -49,6 +50,9 @@ func (or *Registry) init() error {
 	if or.reconRepository, err = or.initReconciliationRepository(); err != nil {
 		return err
 	}
+	if or.occupancyRepo, err = or.initOccupancyRepository(); err != nil {
+		return err
+	}
 
 	or.initialized = true
 
@@ -62,7 +66,7 @@ func (or *Registry) Close() error {
 	return or.connection.Close()
 }
 
-func (or *Registry) Connnection() db.Connection {
+func (or *Registry) Connection() db.Connection {
 	return or.connection
 }
 
@@ -76,6 +80,10 @@ func (or *Registry) KVRepository() *kv.Repository {
 
 func (or *Registry) ReconciliationRepository() reconciliation.Repository {
 	return or.reconRepository
+}
+
+func (or *Registry) OccupancyRepository() occupancy.Repository {
+	return or.occupancyRepo
 }
 
 func (or *Registry) initRepository() (*kv.Repository, error) {
@@ -103,7 +111,10 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 	return reconRepo, err
 }
 
-func (or *Registry) OccupancyRepository() occupancy.Repository {
-	//TODO: implement
-	return nil
+func (or *Registry) initOccupancyRepository() (occupancy.Repository, error) {
+	occupancyRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)
+	if err != nil {
+		or.logger.Errorf("Failed to create occupancy repository: %s", err)
+	}
+	return occupancyRepo, err
 }

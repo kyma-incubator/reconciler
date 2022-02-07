@@ -144,7 +144,7 @@ func live(w http.ResponseWriter, _ *http.Request) {
 
 func ready(o *Options) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		if o.Registry.Connnection().Ping() != nil {
+		if o.Registry.Connection().Ping() != nil {
 			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 			return
 		}
