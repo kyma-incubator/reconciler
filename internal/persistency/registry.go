@@ -6,6 +6,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"go.uber.org/zap"
 )
@@ -100,4 +101,9 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 		or.logger.Errorf("Failed to create reconciliation repository: %s", err)
 	}
 	return reconRepo, err
+}
+
+func (or *Registry) OccupancyRepository() occupancy.Repository {
+	//TODO: implement
+	return nil
 }

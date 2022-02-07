@@ -627,7 +627,7 @@ type verifier = func(*testing.T, interface{})
 
 func hasReconciliation(p func(int) bool) verifier {
 	return func(t *testing.T, response interface{}) {
-		var status keb.ReconcilationsOKResponse = *response.(*keb.ReconcilationsOKResponse)
+		var status = *response.(*keb.ReconcilationsOKResponse)
 		actualReconciliationSize := len(status)
 
 		if !p(actualReconciliationSize) {
@@ -638,7 +638,7 @@ func hasReconciliation(p func(int) bool) verifier {
 
 func hasReconciliationOpt(p func(int) bool) verifier {
 	return func(t *testing.T, response interface{}) {
-		var result keb.HTTPReconciliationInfo = *response.(*keb.HTTPReconciliationInfo)
+		var result = *response.(*keb.HTTPReconciliationInfo)
 		actualReconciliationSize := len(result.Operations)
 
 		if !p(actualReconciliationSize) {
@@ -648,7 +648,7 @@ func hasReconciliationOpt(p func(int) bool) verifier {
 }
 
 var (
-	zeroReconciliations    verifier = hasReconciliation(func(i int) bool { return i == 0 })
-	oneReconciliation      verifier = hasReconciliation(func(i int) bool { return i == 1 })
-	threeReconciliationOps verifier = hasReconciliationOpt(func(i int) bool { return i == 3 })
+	zeroReconciliations    = hasReconciliation(func(i int) bool { return i == 0 })
+	oneReconciliation      = hasReconciliation(func(i int) bool { return i == 1 })
+	threeReconciliationOps = hasReconciliationOpt(func(i int) bool { return i == 3 })
 )
