@@ -6,5 +6,6 @@ type HTTPErrorResponse struct {
 }
 
 type HTTPReconciliationResponse struct {
-	//mothership reconciler expects no payload in the reconciliation response at the moment
+	PoolID   string
+	PoolSize int
 }

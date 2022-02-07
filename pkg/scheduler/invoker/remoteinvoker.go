@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -21,16 +22,18 @@ import (
 const callbackURLTemplate = "%s://%s:%d/v1/operations/%s/callback/%s"
 
 type RemoteReconcilerInvoker struct {
-	reconRepo reconciliation.Repository
-	config    *config.Config
-	logger    *zap.SugaredLogger
+	reconRepo           reconciliation.Repository
+	occupancyRepository occupancy.Repository
+	config              *config.Config
+	logger              *zap.SugaredLogger
 }
 
-func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, cfg *config.Config, logger *zap.SugaredLogger) *RemoteReconcilerInvoker {
+func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, occupancyRepository occupancy.Repository, cfg *config.Config, logger *zap.SugaredLogger) *RemoteReconcilerInvoker {
 	return &RemoteReconcilerInvoker{
-		reconRepo: reconRepo,
-		config:    cfg,
-		logger:    logger,
+		reconRepo:           reconRepo,
+		occupancyRepository: occupancyRepository,
+		config:              cfg,
+		logger:              logger,
 	}
 }
 
@@ -65,6 +68,11 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		respModel := &reconciler.HTTPReconciliationResponse{}
 		err := i.unmarshalHTTPResponse(body, respModel, params)
 		if err == nil {
+			//update occupancy for component worker-pool
+			err = i.updateWorkerPoolOccupancy(respModel.PoolID, params.ComponentToReconcile.Component, respModel.PoolSize)
+			if err != nil {
+				i.logger.Error(err.Error())
+			}
 			return nil //request successfully fired
 		}
 		i.reportUnmarshalError(resp.StatusCode, body, err)
@@ -197,4 +205,20 @@ func (i *RemoteReconcilerInvoker) fireError(subject string, params *Params, err 
 		err = errors.Wrap(updateErr, err.Error())
 	}
 	return err
+}
+
+func (i *RemoteReconcilerInvoker) updateWorkerPoolOccupancy(poolID, component string, poolSize int) error {
+	occupancyEntity, err := i.occupancyRepository.FindWorkerPoolOccupancyByID(poolID)
+	if err == nil && occupancyEntity != nil {
+		err = i.occupancyRepository.UpdateWorkerPoolOccupancy(poolID, int(occupancyEntity.RunningWorkers)+1)
+		if err != nil {
+			return fmt.Errorf("could not update occupancy for component %s and poolID %s", component, poolID)
+		}
+	} else if occupancyEntity == nil {
+		_, err = i.occupancyRepository.CreateWorkerPoolOccupancy(poolID, component, poolSize)
+		if err != nil {
+			return fmt.Errorf("invoker could not create occupancy for component %s and poolID %s", component, poolID)
+		}
+	}
+	return nil
 }
