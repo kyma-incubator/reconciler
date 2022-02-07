@@ -270,3 +270,8 @@ func (r *InMemoryReconciliationRepository) UpdateOperationRetryID(schedulingID, 
 
 	return nil
 }
+
+func (r *InMemoryReconciliationRepository) GetMeanOperationLifetime(component string) (time.Duration, error) {
+	// TODO: implement
+	return 0, nil
+}

@@ -443,3 +443,27 @@ func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
+
+func (r *PersistentReconciliationRepository) GetMeanOperationLifetime(component string, state model.OperationState) (time.Duration, error) {
+	if state != model.OperationStateDone && state != model.OperationStateError {
+		return 0, errors.Errorf("Unsupported Operation State: %s", state)
+	}
+	duration := time.Duration(0)
+	var operationCount int64 = 0
+
+	operations, err := r.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
+		&operation.WithComponentName{Component: component},
+		&operation.Limit{Count: metricsQueryLimit},
+	}})
+	if err != nil {
+		return 0, err
+	}
+	for _, op := range operations {
+		if op.State == state {
+			duration += op.Updated.Sub(op.Created)
+			operationCount++
+		}
+	}
+	meanLifetime := time.Duration(duration.Nanoseconds() / operationCount)
+	return meanLifetime, nil
+}

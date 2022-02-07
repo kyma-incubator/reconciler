@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
+
+const metricsQueryLimit = 500
 
 type Filter interface {
 	FilterByQuery(q *db.Select) error
@@ -31,6 +34,7 @@ type Repository interface {
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error
 	WithTx(tx *db.TxConnection) (Repository, error)
 	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
+	GetMeanOperationLifetime(component string, state model.OperationState) (time.Duration, error)
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.
