@@ -33,7 +33,10 @@ func init() {
 	istioProxyReset := proxy.NewDefaultIstioProxyReset(gatherer, action)
 
 	istioPerformerCreatorFn := istioPerformerCreator(istioProxyReset, &provider, ReconcilerNameIstio)
-	reconcilerIstio.WithReconcileAction(NewReconcileAction(istioPerformerCreatorFn)).
+	reconcilerIstio.
+		WithPreReconcileAction(NewPreReconcileAction(istioPerformerCreatorFn)).
+		WithReconcileAction(NewReconcileAction(istioPerformerCreatorFn)).
+		WithPostReconcileAction(NewPostReconcileAction(istioPerformerCreatorFn)).
 		WithDeleteAction(NewUninstallAction(istioPerformerCreatorFn))
 
 	log.Debugf("Initializing component reconciler '%s'", ReconcilerNameIstioConfiguration)
