@@ -1,29 +1,31 @@
-# istio-configuration reconciler
+# Istio-configuration reconciler
 
 ## Overview
 
-The istio-configuration reconciler manages `istio-configuration` Kyma component.
+Istio-configuration reconciler manages the [istio-configuration](https://github.com/kyma-project/kyma/tree/main/resources/istio-configuration) Kyma component.
 
-## Run Reconciler locally (Mac OS)
+## Prerequisites
 
-Follow these steps to run istio-configuration reconciler locally on your cluster:
+The `istio-configuration` component requires `cluster-essentials` to be installed beforehand for Istio to be functioning properly.
 
-1. Export `KUBECONFIG` variable to point to your cluster.
+## Usage
+
+Follow these steps to run Istio reconciler locally on your cluster:
+
+1. Export the `KUBECONFIG` variable pointing to your cluster and the `ISTIOCTL_PATH` variable.
 
    ```bash
    export KUBECONFIG=<path-to-the-kubeconfig-file>
+   export ISTIOCTL_PATH=<path-to-the-istioctl-binary>
    ```
 
-2. Build the Reconciler binary:
+2. Build the reconciler binary:
 
    ```bash
    make build-darwin
    ```
 
-3. Run Reconciler.
-   > **CAUTION:** `istio-configuration` requires `cluster-essentials` component to be installed on the cluster
-   > beforehand for Istio to be functioning properly. Also, pass appropriate domain name for the two values
-   > listed in the command.
+3. Pass an appropriate domain name for the two values listed in the command and run Istio reconciler:
 
    ```bash
     ./bin/mothership-darwin local --value global.ingress.domainName=example.com,global.domainName=example.com --components cluster-essentials,istio-configuration
