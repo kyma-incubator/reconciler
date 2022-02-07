@@ -42,6 +42,7 @@ const (
 	paramAfter      = "after"
 	paramLast       = "last"
 	paramTimeFormat = time.RFC3339
+	paramPoolID     = "poolID"
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
@@ -110,8 +111,12 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
 
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/occupancy/{%s}", paramContractVersion, paramPoolID),
+		callHandler(o, deleteComponentWorkerPoolOccupancy)).Methods(http.MethodDelete)
+
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Logger())
+	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -758,6 +763,24 @@ func getKymaConfig(o *Options, w http.ResponseWriter, r *http.Request) {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to encode response payload to JSON").Error(),
 		})
+	}
+}
+
+func deleteComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	poolID, err := params.String(paramPoolID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	err = o.Registry.OccupancyRepository().RemoveWorkerPoolOccupancy(poolID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
 	}
 }
 
