@@ -56,6 +56,14 @@ func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config
 		Run(ctx)
 }
 
+func getListOfReconcilers(cfg *config.Config) []string {
+	reconcilerList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
+	for reconName := range cfg.Scheduler.Reconcilers {
+		reconcilerList = append(reconcilerList, reconName)
+	}
+	return append(reconcilerList, "mothership")
+}
+
 func parseSchedulerConfig(configFile string) (*config.Config, error) {
 	viper.SetConfigFile(configFile)
 	if err := viper.ReadInConfig(); err != nil {
