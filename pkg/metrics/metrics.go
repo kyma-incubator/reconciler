@@ -2,12 +2,14 @@ package metrics
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 )
 
-func RegisterAll(inventory cluster.Inventory, logger *zap.SugaredLogger) {
+func RegisterAll(inventory cluster.Inventory, reconciliations reconciliation.Repository, logger *zap.SugaredLogger) {
 	reconciliationWaitingCollector := NewReconciliationWaitingCollector(inventory, logger)
 	reconciliationNotReadyCollector := NewReconciliationNotReadyCollector(inventory, logger)
-	prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector)
+	processingTimeCollector := NewProcessingTimeCollector(reconciliations, logger)
+	prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector, processingTimeCollector)
 }
