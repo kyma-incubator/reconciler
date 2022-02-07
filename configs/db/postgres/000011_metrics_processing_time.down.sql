@@ -1,0 +1,1 @@
+ALTER TABLE scheduler_operations DROP COLUMN "picked_up";
