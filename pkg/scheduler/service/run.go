@@ -206,7 +206,7 @@ func (r *RunRemote) Run(ctx context.Context) error {
 
 	//start worker pool
 	go func() {
-		remoteInvoker := invoker.NewRemoteReoncilerInvoker(r.reconciliationRepository(), r.config, r.logger())
+		remoteInvoker := invoker.NewRemoteReconcilerInvoker(r.reconciliationRepository(), r.config, r.logger())
 		workerPool, err := r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker)
 		if err == nil {
 			r.logger().Info("Worker pool created")
