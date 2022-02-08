@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -60,7 +62,7 @@ func (pb *workPoolBuilder) WithDebug(debug bool) *workPoolBuilder {
 	return pb
 }
 
-func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
+func (pb *workPoolBuilder) Build(ctx context.Context, reconcilerName string) (*WorkerPool, error) {
 	//add logger
 	log := logger.NewLogger(pb.workerPool.debug)
 	pb.workerPool.logger = log
@@ -75,26 +77,70 @@ func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
 	pb.workerPool.PoolID = uuid.NewString()
 
 	go func(ctx context.Context, antsPool *ants.Pool) {
-		<-ctx.Done()
-		log.Info("Shutting down worker pool")
-		antsPool.Release()
-		occupancyURL, err := occupancyCallbackURL(pb.workerPool.callbackURL, pb.workerPool.PoolID)
-		if err == nil {
-			client := &http.Client{
-				Timeout: 10 * time.Second,
-			}
-			req, err := http.NewRequest(http.MethodDelete, occupancyURL, nil)
-			if err != nil {
-				log.Error(err.Error())
-			}
-			_, err = client.Do(req)
-			if err != nil {
-				log.Error(err.Error())
+		ticker := time.NewTicker(defaultInterval)
+		for {
+			select {
+			case <-ctx.Done():
+				log.Info("Shutting down worker pool")
+				antsPool.Release()
+				pb.deleteWorkerPoolOccupancy(log)
+				return
+			case <-ticker.C:
+				if pb.workerPool.callbackURL != "" {
+					err = pb.updateComponentReconcilerOccupancy(reconcilerName, antsPool.Running())
+					if err != nil {
+						log.Error(err.Error())
+					}
+				}
 			}
 		}
+
 	}(ctx, antsPool)
 
 	return pb.workerPool, nil
+}
+
+func (pb *workPoolBuilder) updateComponentReconcilerOccupancy(reconcilerName string, runningWorkers int) error {
+	httpOccupancyUpdateRequest := reconciler.HTTPOccupancyUpdateRequest{
+		Component:      reconcilerName,
+		RunningWorkers: runningWorkers,
+		PoolSize:       pb.poolSize,
+	}
+	jsonPayload, err := json.Marshal(httpOccupancyUpdateRequest)
+	if err != nil {
+		return fmt.Errorf("failed to marshal HTTP payload to update occupancy of component '%s': %s", reconcilerName, err)
+	}
+	occupancyURL, err := occupancyCallbackURL(pb.workerPool.callbackURL, pb.workerPool.PoolID)
+	if err != nil {
+		return fmt.Errorf("failed to parse callbackURL '%s': %s", pb.workerPool.callbackURL, err)
+	}
+	resp, err := http.Post(occupancyURL, "application/json", bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return err
+	} else {
+		if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
+			pb.workerPool.logger.Infof("Component reconciler '%s' updated occupancy successfully", reconcilerName)
+		}
+		pb.workerPool.logger.Warnf("Mothership failed to update occupancy for '%s' component with status code: '%d'", reconcilerName, resp.StatusCode)
+	}
+	return nil
+}
+
+func (pb *workPoolBuilder) deleteWorkerPoolOccupancy(log *zap.SugaredLogger) {
+	occupancyURL, err := occupancyCallbackURL(pb.workerPool.callbackURL, pb.workerPool.PoolID)
+	if err == nil {
+		client := &http.Client{
+			Timeout: 10 * time.Second,
+		}
+		req, err := http.NewRequest(http.MethodDelete, occupancyURL, nil)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		_, err = client.Do(req)
+		if err != nil {
+			log.Error(err.Error())
+		}
+	}
 }
 
 func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Task) error {

@@ -6,7 +6,11 @@ type HTTPErrorResponse struct {
 }
 
 type HTTPReconciliationResponse struct {
-	PoolID         string `json:"poolID"`
+	//mothership reconciler expects no payload in the reconciliation response at the moment
+}
+
+type HTTPOccupancyUpdateRequest struct {
+	Component      string `json:"component"`
 	RunningWorkers int    `json:"runningWorkers"`
 	PoolSize       int    `json:"poolSize"`
 }

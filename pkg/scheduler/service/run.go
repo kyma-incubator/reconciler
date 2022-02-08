@@ -170,10 +170,6 @@ func (r *RunRemote) reconciliationRepository() reconciliation.Repository { //con
 	return r.runtimeBuilder.reconRepo
 }
 
-func (r *RunRemote) occupancyRepository() occupancy.Repository { //convenient function
-	return r.runtimeBuilder.occupancyRepo
-}
-
 func (r *RunRemote) WithWorkerPoolConfig(cfg *worker.Config) *RunRemote {
 	r.runtimeBuilder.workerPoolConfig = cfg
 	return r
@@ -210,7 +206,7 @@ func (r *RunRemote) Run(ctx context.Context) error {
 
 	//start worker pool
 	go func() {
-		remoteInvoker := invoker.NewRemoteReconcilerInvoker(r.reconciliationRepository(), r.occupancyRepository(), r.config, r.logger())
+		remoteInvoker := invoker.NewRemoteReconcilerInvoker(r.reconciliationRepository(), r.config, r.logger())
 		workerPool, err := r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker)
 		if err == nil {
 			r.logger().Info("Worker pool created")

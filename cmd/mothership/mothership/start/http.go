@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -114,6 +115,10 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/occupancy/{%s}", paramContractVersion, paramPoolID),
 		callHandler(o, deleteComponentWorkerPoolOccupancy)).Methods(http.MethodDelete)
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/occupancy/{%s}", paramContractVersion, paramPoolID),
+		callHandler(o, updateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
 	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger(), o.OccupancyTracking)
@@ -764,6 +769,60 @@ func getKymaConfig(o *Options, w http.ResponseWriter, r *http.Request) {
 			Error: errors.Wrap(err, "Failed to encode response payload to JSON").Error(),
 		})
 	}
+}
+
+func updateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {
+
+	params := server.NewParams(r)
+	poolID, err := params.String(paramPoolID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	var body reconciler.HTTPOccupancyUpdateRequest
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
+		})
+		return
+	}
+
+	err = json.Unmarshal(reqBody, &body)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
+		})
+		return
+	}
+
+	err = updateWorkerPoolOccupancy(poolID, body.Component, body.PoolSize, body.RunningWorkers, o.Registry.OccupancyRepository())
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func updateWorkerPoolOccupancy(poolID, component string, poolSize, runningWorkers int, occupancyRepository occupancy.Repository) error {
+	occupancyEntity, err := occupancyRepository.FindWorkerPoolOccupancyByID(poolID)
+	if err == nil && occupancyEntity != nil {
+		err = occupancyRepository.UpdateWorkerPoolOccupancy(poolID, runningWorkers)
+		if err != nil {
+			return fmt.Errorf("could not update occupancy for component %s and poolID %s", component, poolID)
+		}
+	} else if occupancyEntity == nil {
+		_, err = occupancyRepository.CreateWorkerPoolOccupancy(poolID, component, poolSize)
+		if err != nil {
+			return fmt.Errorf("invoker could not create occupancy for component %s and poolID %s", component, poolID)
+		}
+	}
+	return nil
 }
 
 func deleteComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {

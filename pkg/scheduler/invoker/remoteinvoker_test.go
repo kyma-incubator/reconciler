@@ -166,7 +166,7 @@ func invokeRemoteInvoker(reconRepo reconciliation.Repository, occupancyRepo occu
 		}
 	}
 
-	invoker := NewRemoteReconcilerInvoker(reconRepo, occupancyRepo, cfg, logger.NewLogger(true))
+	invoker := NewRemoteReconcilerInvoker(reconRepo, cfg, logger.NewLogger(true))
 	return invoker.Invoke(context.Background(), &Params{
 		ComponentToReconcile: &keb.Component{
 			Component: model.CRDComponent,
