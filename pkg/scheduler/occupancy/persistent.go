@@ -35,7 +35,7 @@ func (r *PersistentOccupancyRepository) CreateWorkerPoolOccupancy(poolID, compon
 			Created:            time.Now().UTC(),
 		}
 
-		createOccupancyQ, err := db.NewQuery(r.Conn, occupancyEntity, r.Logger)
+		createOccupancyQ, err := db.NewQuery(tx, occupancyEntity, r.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +151,11 @@ func (r *PersistentOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string,
 
 	dbOps := func(tx *db.TxConnection) error {
 
-		occupancyEntity, err := r.FindWorkerPoolOccupancyByID(poolID)
+		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return err
+		}
+		occupancyEntity, err := rTx.FindWorkerPoolOccupancyByID(poolID)
 		if err != nil {
 			return err
 		}
@@ -167,7 +171,7 @@ func (r *PersistentOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string,
 				"(running: %d, capacity:%d)", runningWorkers, occupancyEntity.WorkerPoolCapacity)
 		}
 		occupancyEntity.RunningWorkers = int64(runningWorkers)
-		updateOccupancyQ, err := db.NewQuery(r.Conn, occupancyEntity, r.Logger)
+		updateOccupancyQ, err := db.NewQuery(tx, occupancyEntity, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -188,7 +192,7 @@ func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string)
 
 	dbOps := func(tx *db.TxConnection) error {
 
-		deleteOccupancyQ, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+		deleteOccupancyQ, err := db.NewQuery(tx, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 		if err != nil {
 			return err
 		}
