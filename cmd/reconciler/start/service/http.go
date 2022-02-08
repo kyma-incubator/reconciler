@@ -43,7 +43,24 @@ func newRouter(ctx context.Context, o *reconCli.Options, workerPool *service.Wor
 	router.HandleFunc("/health/live", live)
 	router.HandleFunc("/health/ready", ready(workerPool))
 
+	router.HandleFunc("/occupancy", occupancy(o, workerPool))
+
 	return router
+}
+
+func occupancy(o *reconCli.Options, workerPool *service.WorkerPool) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		if workerPool.IsClosed() {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+		httpReconResponse := &reconciler.HTTPReconciliationResponse{
+			PoolID:         workerPool.PoolID,
+			RunningWorkers: workerPool.RunningWorkers(),
+			PoolSize:       o.WorkerConfig.Workers,
+		}
+		sendResponse(w, httpReconResponse)
+	}
 }
 
 func live(w http.ResponseWriter, _ *http.Request) {
@@ -124,15 +141,15 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 		})
 		return
 	}
-	sendResponse(workerPool.PoolID, o.WorkerConfig.Workers, w)
+	httpReconResponse := &reconciler.HTTPReconciliationResponse{
+		PoolID:   workerPool.PoolID,
+		PoolSize: o.WorkerConfig.Workers,
+	}
+	sendResponse(w, httpReconResponse)
 }
 
-func sendResponse(poolID string, poolSize int, w http.ResponseWriter) {
+func sendResponse(w http.ResponseWriter, httpReconResponse *reconciler.HTTPReconciliationResponse) {
 	w.Header().Set("content-type", "application/json")
-	httpReconResponse := &reconciler.HTTPReconciliationResponse{
-		PoolID:   poolID,
-		PoolSize: poolSize,
-	}
 	if err := json.NewEncoder(w).Encode(httpReconResponse); err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to encode response payload to JSON").Error(),

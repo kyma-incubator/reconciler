@@ -69,7 +69,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		err := i.unmarshalHTTPResponse(body, respModel, params)
 		if err == nil {
 			//update occupancy for component worker-pool
-			err = i.updateWorkerPoolOccupancy(respModel.PoolID, params.ComponentToReconcile.Component, respModel.PoolSize)
+			err = i.updateWorkerPoolOccupancy(respModel.PoolID, params.ComponentToReconcile.Component, respModel.PoolSize, respModel.RunningWorkers)
 			if err != nil {
 				i.logger.Error(err.Error())
 			}
@@ -207,10 +207,10 @@ func (i *RemoteReconcilerInvoker) fireError(subject string, params *Params, err 
 	return err
 }
 
-func (i *RemoteReconcilerInvoker) updateWorkerPoolOccupancy(poolID, component string, poolSize int) error {
+func (i *RemoteReconcilerInvoker) updateWorkerPoolOccupancy(poolID, component string, poolSize, runningWorkers int) error {
 	occupancyEntity, err := i.occupancyRepository.FindWorkerPoolOccupancyByID(poolID)
 	if err == nil && occupancyEntity != nil {
-		err = i.occupancyRepository.UpdateWorkerPoolOccupancy(poolID, int(occupancyEntity.RunningWorkers)+1)
+		err = i.occupancyRepository.UpdateWorkerPoolOccupancy(poolID, runningWorkers)
 		if err != nil {
 			return fmt.Errorf("could not update occupancy for component %s and poolID %s", component, poolID)
 		}

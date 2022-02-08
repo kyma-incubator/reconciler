@@ -132,3 +132,7 @@ func (wa *WorkerPool) IsClosed() bool {
 	}
 	return wa.antsPool.IsClosed()
 }
+
+func (wa *WorkerPool) RunningWorkers() int {
+	return wa.antsPool.Running()
+}

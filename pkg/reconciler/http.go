@@ -6,6 +6,7 @@ type HTTPErrorResponse struct {
 }
 
 type HTTPReconciliationResponse struct {
-	PoolID   string
-	PoolSize int
+	PoolID         string `json:"poolID"`
+	RunningWorkers int    `json:"runningWorkers"`
+	PoolSize       int    `json:"poolSize"`
 }
