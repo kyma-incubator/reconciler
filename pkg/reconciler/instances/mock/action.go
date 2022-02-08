@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	sleepTime = 1000
+	sleepTime = 4 * time.Minute
 )
 
 // CustomAction for mock component reconciliation.
