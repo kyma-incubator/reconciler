@@ -19,7 +19,7 @@ func NewTestOptions(t *testing.T) *cli.Options {
 	}
 
 	var err error
-	cliOptions.Registry, err = persistency.NewRegistry(db.NewTestConnectionFactory(t), true)
+	cliOptions.Registry, err = persistency.NewRegistry(db.NewTestConnectionFactory(t), true, false)
 	require.NoError(t, err)
 
 	return cliOptions

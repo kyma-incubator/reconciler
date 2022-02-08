@@ -6,31 +6,34 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"go.uber.org/zap"
 )
 
 type Registry struct {
-	debug           bool
-	logger          *zap.SugaredLogger
-	connection      db.Connection
-	inventory       cluster.Inventory
-	kvRepository    *kv.Repository
-	reconRepository reconciliation.Repository
-	occupancyRepo   occupancy.Repository
-	initialized     bool
+	debug             bool
+	logger            *zap.SugaredLogger
+	connection        db.Connection
+	inventory         cluster.Inventory
+	kvRepository      *kv.Repository
+	reconRepository   reconciliation.Repository
+	occupancyRepo     occupancy.Repository
+	occupancyTracking bool
+	initialized       bool
 }
 
-func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
+func NewRegistry(cf db.ConnectionFactory, debug bool, occupancyTracking bool) (*Registry, error) {
 	conn, err := cf.NewConnection()
 	if err != nil {
 		return nil, err
 	}
 	registry := &Registry{
-		debug:      debug,
-		connection: conn,
-		logger:     logger.NewLogger(debug),
+		debug:             debug,
+		connection:        conn,
+		logger:            logger.NewLogger(debug),
+		occupancyTracking: occupancyTracking,
 	}
 	return registry, registry.init()
 }
@@ -112,6 +115,16 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 }
 
 func (or *Registry) initOccupancyRepository() (occupancy.Repository, error) {
+	if or.occupancyTracking == false {
+		return &occupancy.MockRepository{
+			CreateWorkerPoolOccupancyResult:   &model.WorkerPoolOccupancyEntity{},
+			UpdateWorkerPoolOccupancyResult:   nil,
+			RemoveWorkerPoolOccupancyResult:   nil,
+			GetComponentListResult:            []string{"mothership"},
+			GetWorkerPoolOccupanciesResult:    nil,
+			FindWorkerPoolOccupancyByIDResult: &model.WorkerPoolOccupancyEntity{},
+		}, nil
+	}
 	occupancyRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)
 	if err != nil {
 		or.logger.Errorf("Failed to create occupancy repository: %s", err)

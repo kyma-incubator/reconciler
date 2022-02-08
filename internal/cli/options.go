@@ -13,13 +13,14 @@ import (
 )
 
 type Options struct {
-	Migrate        bool
-	Verbose        bool
-	InitRegistry   bool
-	NonInteractive bool
-	OutputFormat   string
-	logger         *zap.SugaredLogger
-	Registry       *persistency.Registry //will be initialized during CLI bootstrap in main.go
+	Migrate           bool
+	Verbose           bool
+	InitRegistry      bool
+	NonInteractive    bool
+	OutputFormat      string
+	logger            *zap.SugaredLogger
+	Registry          *persistency.Registry //will be initialized during CLI bootstrap in main.go
+	OccupancyTracking bool
 }
 
 func (o *Options) String() string {
@@ -49,7 +50,7 @@ func (o *Options) InitApplicationRegistry(forceInitialization bool) error {
 		if err != nil {
 			return err
 		}
-		o.Registry, err = persistency.NewRegistry(dbConnFact, o.Verbose)
+		o.Registry, err = persistency.NewRegistry(dbConnFact, o.Verbose, o.OccupancyTracking)
 		return err
 	}
 	return nil

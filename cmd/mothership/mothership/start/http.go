@@ -116,7 +116,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, deleteComponentWorkerPoolOccupancy)).Methods(http.MethodDelete)
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger())
+	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger(), o.OccupancyTracking)
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -782,6 +782,7 @@ func deleteComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *ht
 		})
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func updateOperationState(o *Options, schedulingID, correlationID string, state model.OperationState, reason ...string) error {
