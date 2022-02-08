@@ -115,7 +115,7 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 }
 
 func (or *Registry) initOccupancyRepository() (occupancy.Repository, error) {
-	if or.occupancyTracking == false {
+	if !or.occupancyTracking {
 		return &occupancy.MockRepository{
 			CreateWorkerPoolOccupancyResult:   &model.WorkerPoolOccupancyEntity{},
 			UpdateWorkerPoolOccupancyResult:   nil,
