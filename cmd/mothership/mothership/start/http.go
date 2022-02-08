@@ -435,6 +435,7 @@ func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
 			SchedulingID: reconcile.SchedulingID,
 			Status:       keb.Status(reconcile.Status),
 			Updated:      reconcile.Updated,
+			Finished:     reconcile.Finished,
 		})
 	}
 
