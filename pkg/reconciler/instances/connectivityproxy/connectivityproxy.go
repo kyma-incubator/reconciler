@@ -66,7 +66,7 @@ func istioSecretCopy(task *reconciler.Task, _, targetClientSet k8s.Interface) *S
 		from: &FromURL{
 			URL: fmt.Sprintf("%v%v",
 				configs[BindingKey+"url"],
-				configs[BindingKey+"CAs_signing_path"]),
+				configs[BindingKey+"CAs_path"]),
 			Key: fmt.Sprintf("%v", istioSecretKey),
 		},
 	}
