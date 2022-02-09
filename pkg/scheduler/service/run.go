@@ -19,22 +19,20 @@ import (
 
 type RuntimeBuilder struct {
 	reconRepo        reconciliation.Repository
-	occupancyRepo    occupancy.Repository
 	logger           *zap.SugaredLogger
 	workerPoolConfig *worker.Config
 }
 
-func NewRuntimeBuilder(reconRepo reconciliation.Repository, occupancyRepo occupancy.Repository, logger *zap.SugaredLogger) *RuntimeBuilder {
+func NewRuntimeBuilder(reconRepo reconciliation.Repository, logger *zap.SugaredLogger) *RuntimeBuilder {
 	return &RuntimeBuilder{
 		reconRepo:        reconRepo,
-		occupancyRepo:    occupancyRepo,
 		logger:           logger,
 		workerPoolConfig: &worker.Config{},
 	}
 }
 
-func (rb *RuntimeBuilder) newWorkerPool(retriever worker.ClusterStateRetriever, invoke invoker.Invoker) (*worker.Pool, error) {
-	return worker.NewWorkerPool(retriever, rb.reconRepo, rb.occupancyRepo, invoke, rb.workerPoolConfig, rb.logger)
+func (rb *RuntimeBuilder) newWorkerPool(retriever worker.ClusterStateRetriever, invoke invoker.Invoker, occupancyRepo occupancy.Repository) (*worker.Pool, error) {
+	return worker.NewWorkerPool(retriever, rb.reconRepo, occupancyRepo, invoke, rb.workerPoolConfig, rb.logger)
 }
 
 func (rb *RuntimeBuilder) RunLocal(statusFunc invoker.ReconcilerStatusFunc) *RunLocal {
@@ -54,10 +52,10 @@ func (rb *RuntimeBuilder) RunLocal(statusFunc invoker.ReconcilerStatusFunc) *Run
 
 func (rb *RuntimeBuilder) RunRemote(
 	conn db.Connection,
-	inventory cluster.Inventory,
+	inventory cluster.Inventory, occupancyRepo occupancy.Repository,
 	config *config.Config) *RunRemote {
 
-	runR := &RunRemote{rb, conn, inventory, config, &SchedulerConfig{}, &BookkeeperConfig{}, &CleanerConfig{}}
+	runR := &RunRemote{rb, conn, inventory, occupancyRepo, config, &SchedulerConfig{}, &BookkeeperConfig{}, &CleanerConfig{}}
 	return runR
 }
 
@@ -114,7 +112,8 @@ func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*Recon
 	//start worker pool
 	l.logger().Info("Starting worker pool")
 	localInvoker := invoker.NewLocalReconcilerInvoker(l.runtimeBuilder.reconRepo, l.statusFunc, l.logger())
-	workerPool, err := l.runtimeBuilder.newWorkerPool(&worker.PassThroughRetriever{State: clusterState}, localInvoker)
+	localOccupancyRepo := occupancy.NewInMemoryOccupancyRepository()
+	workerPool, err := l.runtimeBuilder.newWorkerPool(&worker.PassThroughRetriever{State: clusterState}, localInvoker, localOccupancyRepo)
 	if err != nil {
 		l.logger().Errorf("Failed to create worker pool: %s", err)
 		return nil, err
@@ -156,6 +155,7 @@ type RunRemote struct {
 	runtimeBuilder   *RuntimeBuilder
 	conn             db.Connection
 	inventory        cluster.Inventory
+	occupancyRepo    occupancy.Repository
 	config           *config.Config
 	schedulerConfig  *SchedulerConfig
 	bookkeeperConfig *BookkeeperConfig
@@ -207,7 +207,7 @@ func (r *RunRemote) Run(ctx context.Context) error {
 	//start worker pool
 	go func() {
 		remoteInvoker := invoker.NewRemoteReconcilerInvoker(r.reconciliationRepository(), r.config, r.logger())
-		workerPool, err := r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker)
+		workerPool, err := r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker, r.occupancyRepo)
 		if err == nil {
 			r.logger().Info("Worker pool created")
 		} else {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"path/filepath"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
@@ -115,7 +114,7 @@ func RunLocal(o *Options) error {
 	}
 	cluster.Configuration.Components = comps
 
-	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), occupancy.NewInMemoryOccupancyRepository(), l)
+	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), l)
 	reconResult, err := runtimeBuilder.RunLocal(printStatus).
 		WithSchedulerConfig(
 			&scheduler.SchedulerConfig{

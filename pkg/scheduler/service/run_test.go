@@ -112,8 +112,8 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	}()
 
 	//configure remote runner
-	runtimeBuilder := NewRuntimeBuilder(reconRepo, occupancyRepo, logger.NewLogger(debugLogging))
-	remoteRunner := runtimeBuilder.RunRemote(dbConn, inventory, &config.Config{
+	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
+	remoteRunner := runtimeBuilder.RunRemote(dbConn, inventory, occupancyRepo, &config.Config{
 		Scheme: "https",
 		Host:   "httpbin.org",
 		Port:   443,
@@ -260,11 +260,9 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 
 	//create reconciliation repository
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-	occupancyRepo := occupancy.NewInMemoryOccupancyRepository()
 
 	//configure local runner
-
-	runtimeBuilder := NewRuntimeBuilder(reconRepo, occupancyRepo, logger.NewLogger(debugLogging))
+	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
 
 	//use a channel because callbacks are invoked from multiple goroutines
 	callbackData := make(chan *reconciler.CallbackMessage, 10)
