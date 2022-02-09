@@ -444,7 +444,46 @@ func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) GetMeanOperationLifetime(component string, state model.OperationState) (time.Duration, error) {
+func (r *PersistentReconciliationRepository) UpdateOperationPickedUp(schedulingID, correlationID string) error {
+	dbOps := func(tx *db.TxConnection) error {
+		op, err := r.GetOperation(schedulingID, correlationID)
+		if err != nil {
+			if repository.IsNotFoundError(err) {
+				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
+			}
+			return err
+		}
+
+		if !op.PickedUp.IsZero() {
+			r.Logger.Warnf("Operation with schedulingID %s has already picked up at %s", schedulingID, op.PickedUp)
+		}
+
+		//update operation-entity
+		op.PickedUp = time.Now().UTC()
+
+		//prepare update query
+		q, err := db.NewQuery(r.Conn, op, r.Logger)
+		if err != nil {
+			return err
+		}
+		whereCond := map[string]interface{}{
+			"CorrelationID": correlationID,
+			"SchedulingID":  schedulingID,
+		}
+		cnt, err := q.Update().
+			Where(whereCond).
+			ExecCount()
+
+		if cnt == 0 {
+			return fmt.Errorf("update of operation '%s' pickedUp timestamp failed: no row was updated", op)
+		}
+
+		return err
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) GetMeanOperationProcessingtime(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
 	if state != model.OperationStateDone && state != model.OperationStateError {
 		return 0, errors.Errorf("Unsupported Operation State: %s", state)
 	}
@@ -460,7 +499,12 @@ func (r *PersistentReconciliationRepository) GetMeanOperationLifetime(component 
 	}
 	for _, op := range operations {
 		if op.State == state {
-			duration += op.Updated.Sub(op.Created)
+			switch startTime {
+			case Created:
+				duration += op.Updated.Sub(op.Created)
+			case PickedUp:
+				duration += op.Updated.Sub(op.PickedUp)
+			}
 			operationCount++
 		}
 	}

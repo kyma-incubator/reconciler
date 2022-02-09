@@ -78,15 +78,13 @@ func (c *ProcessingTimeCollector) getProcessingTime(component, metric string) (t
 	//TODO: Calulate metrics here
 	switch metric {
 	case prefixOperationLifetimeMothershipSuccessful:
-		return c.reconRepo.GetMeanOperationLifetime(component, model.OperationStateDone)
+		return c.reconRepo.GetMeanOperationProcessingtime(component, model.OperationStateDone, reconciliation.Created)
 	case prefixOperationLifetimeMothershipUnsuccessful:
-		return c.reconRepo.GetMeanOperationLifetime(component, model.OperationStateError)
+		return c.reconRepo.GetMeanOperationProcessingtime(component, model.OperationStateError, reconciliation.Created)
 	case prefixOperationProcessingTimeMothershipSuccessful:
-		//TODO
-		return 0, nil
+		return c.reconRepo.GetMeanOperationProcessingtime(component, model.OperationStateDone, reconciliation.PickedUp)
 	case prefixOperationProcessingTimeMothershipUnsuccessful:
-		//TODO
-		return 0, nil
+		return c.reconRepo.GetMeanOperationProcessingtime(component, model.OperationStateError, reconciliation.PickedUp)
 	case prefixOperationProcessingTimeComponentSuccessful:
 		//TODO
 		return 0, nil

@@ -21,6 +21,7 @@ type OperationEntity struct {
 	Reason        string         `db:""`
 	Created       time.Time      `db:"readOnly"`
 	Updated       time.Time      `db:""`
+	PickedUp      time.Time      `db:""`
 	Retries       int64          `db:""`
 	RetryID       string         `db:"notNull"`
 }
@@ -51,6 +52,7 @@ func (o *OperationEntity) Marshaller() *db.EntityMarshaller {
 	})
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	marshaller.AddUnmarshaller("Updated", convertTimestampToTime)
+	marshaller.AddUnmarshaller("PickedUp", convertTimestampToTime)
 	return marshaller
 }
 

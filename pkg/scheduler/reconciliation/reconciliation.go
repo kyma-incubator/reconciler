@@ -19,6 +19,13 @@ type Filter interface {
 	FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity //return nil to ignore instance in result
 }
 
+type metricStartTime int
+
+const (
+	Created metricStartTime = iota
+	PickedUp
+)
+
 type Repository interface {
 	CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error)
 	RemoveReconciliation(schedulingID string) error
@@ -34,7 +41,8 @@ type Repository interface {
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error
 	WithTx(tx *db.TxConnection) (Repository, error)
 	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
-	GetMeanOperationLifetime(component string, state model.OperationState) (time.Duration, error)
+	UpdateOperationPickedUp(schedulingID, correlationID string) error
+	GetMeanOperationProcessingtime(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error)
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.

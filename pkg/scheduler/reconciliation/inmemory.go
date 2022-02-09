@@ -271,7 +271,12 @@ func (r *InMemoryReconciliationRepository) UpdateOperationRetryID(schedulingID, 
 	return nil
 }
 
-func (r *InMemoryReconciliationRepository) GetMeanOperationLifetime(component string, state model.OperationState) (time.Duration, error) {
+func (r *InMemoryReconciliationRepository) UpdateOperationPickedUp(schedulingID, correlationID string) error {
+	//TODO implement
+	return nil
+}
+
+func (r *InMemoryReconciliationRepository) GetMeanOperationProcessingtime(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
 	// TODO: implement
 	return 0, nil
 }
