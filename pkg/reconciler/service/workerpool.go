@@ -23,12 +23,12 @@ type workPoolBuilder struct {
 }
 
 type WorkerPool struct {
-	debug        bool
-	logger       *zap.SugaredLogger
-	antsPool     *ants.Pool
-	PoolID       string
-	callbackURL  string
-	newRunnerFct func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error
+	debug                bool
+	logger               *zap.SugaredLogger
+	antsPool             *ants.Pool
+	PoolID               string
+	occupancyCallbackURL string
+	newRunnerFct         func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error
 }
 
 func newWorkerPoolBuilder(newRunnerFct func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error) *workPoolBuilder {
@@ -86,7 +86,7 @@ func (pb *workPoolBuilder) Build(ctx context.Context, reconcilerName string) (*W
 				pb.deleteWorkerPoolOccupancy(log)
 				return
 			case <-ticker.C:
-				if pb.workerPool.callbackURL != "" {
+				if pb.workerPool.occupancyCallbackURL != "" {
 					err = pb.updateComponentReconcilerOccupancy(reconcilerName, antsPool.Running())
 					if err != nil {
 						log.Error(err.Error())
@@ -110,29 +110,26 @@ func (pb *workPoolBuilder) updateComponentReconcilerOccupancy(reconcilerName str
 	if err != nil {
 		return fmt.Errorf("failed to marshal HTTP payload to update occupancy of component '%s': %s", reconcilerName, err)
 	}
-	occupancyURL, err := occupancyCallbackURL(pb.workerPool.callbackURL, pb.workerPool.PoolID)
-	if err != nil {
-		return fmt.Errorf("failed to parse callbackURL '%s': %s", pb.workerPool.callbackURL, err)
-	}
-	resp, err := http.Post(occupancyURL, "application/json", bytes.NewBuffer(jsonPayload))
+	resp, err := http.Post(pb.workerPool.occupancyCallbackURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		return err
-	} else {
-		if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
-			pb.workerPool.logger.Infof("Component reconciler '%s' updated occupancy successfully", reconcilerName)
-		}
-		pb.workerPool.logger.Warnf("Mothership failed to update occupancy for '%s' component with status code: '%d'", reconcilerName, resp.StatusCode)
 	}
+
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
+		pb.workerPool.logger.Infof("Component reconciler '%s' updated occupancy successfully", reconcilerName)
+	}
+
+	pb.workerPool.logger.Warnf("Mothership failed to update occupancy for '%s' component with status code: '%d'", reconcilerName, resp.StatusCode)
+
 	return nil
 }
 
 func (pb *workPoolBuilder) deleteWorkerPoolOccupancy(log *zap.SugaredLogger) {
-	occupancyURL, err := occupancyCallbackURL(pb.workerPool.callbackURL, pb.workerPool.PoolID)
-	if err == nil {
+	if pb.workerPool.occupancyCallbackURL != "" {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
-		req, err := http.NewRequest(http.MethodDelete, occupancyURL, nil)
+		req, err := http.NewRequest(http.MethodDelete, pb.workerPool.occupancyCallbackURL, nil)
 		if err != nil {
 			log.Error(err.Error())
 		}
@@ -145,12 +142,17 @@ func (pb *workPoolBuilder) deleteWorkerPoolOccupancy(log *zap.SugaredLogger) {
 
 func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Task) error {
 
-	//track callbackURL to use it when deleting WP occupancy
-	wa.callbackURL = model.CallbackURL
 	//enrich logger with correlation ID and component name
 	loggerNew := logger.NewLogger(wa.debug).With(
 		zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID},
 		zap.Field{Key: "component-name", Type: zapcore.StringType, String: model.Component})
+
+	//track occupancyCallbackURL to use it when creating, deleting and updating WP occupancy
+	var err error
+	wa.occupancyCallbackURL, err = occupancyCallbackURL(model.CallbackURL, wa.PoolID)
+	if err != nil {
+		wa.logger.Warnf("failed to parse callbackURL '%s': %s", model.CallbackURL, err)
+	}
 
 	//create callback handler
 	remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, loggerNew)
