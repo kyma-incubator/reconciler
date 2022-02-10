@@ -119,6 +119,53 @@ func TestIsDeploymentNotReady(t *testing.T) {
 	require.False(t, ready)
 }
 
+func TestIsDeploymentNotReadyWithIgnorePodStateAnnotation(t *testing.T) {
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "kyma-system",
+			Annotations: map[string]string{
+				ignorePodStateAnnotation: "true",
+			},
+		},
+	}
+
+	replicaSets := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-123",
+				Namespace:         "kyma-system",
+				OwnerReferences:   []metav1.OwnerReference{*metav1.NewControllerRef(deployment, deployment.GroupVersionKind())},
+				CreationTimestamp: metav1.NewTime(time.Now()),
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-456",
+				Namespace:         "kyma-system",
+				OwnerReferences:   []metav1.OwnerReference{*metav1.NewControllerRef(deployment, deployment.GroupVersionKind())},
+				CreationTimestamp: metav1.NewTime(time.Now().Add(time.Second)),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 0,
+			},
+		},
+	}
+
+	var objects []runtime.Object
+	objects = append(objects, deployment)
+	for _, rs := range replicaSets {
+		objects = append(objects, rs)
+	}
+
+	clientset := fake.NewSimpleClientset(objects...)
+
+	ready, err := isDeploymentReady(context.Background(), clientset, &trackerResource{name: "foo", namespace: "kyma-system"})
+
+	require.NoError(t, err)
+	require.True(t, ready)
+}
+
 func TestIsIgnoringOtherDeployments(t *testing.T) {
 	ownedDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "kyma-system"},

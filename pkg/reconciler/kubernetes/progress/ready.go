@@ -16,11 +16,16 @@ import (
 
 const expectedReadyReplicas = 1
 const expectedReadyDaemonSet = 1
+const ignorePodStateAnnotation = "reconciler.kyma-project.io/ignore-pod-state"
 
 func isDeploymentReady(ctx context.Context, client kubernetes.Interface, object *trackerResource) (bool, error) {
 	deployment, err := client.AppsV1().Deployments(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
+	}
+
+	if ignorePodState(deployment.Annotations) {
+		return true, nil
 	}
 
 	replicaSet, err := getLatestReplicaSet(ctx, deployment, client.AppsV1())
@@ -36,6 +41,10 @@ func isStatefulSetReady(ctx context.Context, client kubernetes.Interface, object
 	statefulSet, err := client.AppsV1().StatefulSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
+	}
+
+	if ignorePodState(statefulSet.Annotations) {
+		return true, nil
 	}
 
 	var partition, replicas = 0, 1
@@ -62,6 +71,10 @@ func isPodReady(ctx context.Context, client kubernetes.Interface, object *tracke
 		return false, err
 	}
 
+	if ignorePodState(pod.Annotations) {
+		return true, nil
+	}
+
 	if pod.Status.Phase != corev1.PodRunning {
 		return false, nil
 	}
@@ -78,6 +91,10 @@ func isDaemonSetReady(ctx context.Context, client kubernetes.Interface, object *
 	daemonSet, err := client.AppsV1().DaemonSets(object.namespace).Get(ctx, object.name, metav1.GetOptions{})
 	if err != nil {
 		return false, err
+	}
+
+	if ignorePodState(daemonSet.Annotations) {
+		return true, nil
 	}
 
 	if daemonSet.Status.UpdatedNumberScheduled != daemonSet.Status.DesiredNumberScheduled {
@@ -100,6 +117,18 @@ func isJobReady(ctx context.Context, client kubernetes.Interface, object *tracke
 		}
 	}
 	return true, err
+}
+
+func ignorePodState(annotations map[string]string) bool {
+	if annotations == nil {
+		return false
+	}
+
+	if val, ok := annotations[ignorePodStateAnnotation]; ok {
+		return val == "true"
+	}
+
+	return false
 }
 
 func isCRDBetaReady(ctx context.Context, object *trackerResource) (bool, error) {
