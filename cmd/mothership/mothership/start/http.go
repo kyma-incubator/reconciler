@@ -781,7 +781,7 @@ func updateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *ht
 		})
 		return
 	}
-	var body reconciler.HTTPOccupancyUpdateRequest
+	var body reconciler.HTTPOccupancyRequest
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{

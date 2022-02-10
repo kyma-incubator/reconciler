@@ -9,7 +9,7 @@ type HTTPReconciliationResponse struct {
 	//mothership reconciler expects no payload in the reconciliation response at the moment
 }
 
-type HTTPOccupancyUpdateRequest struct {
+type HTTPOccupancyRequest struct {
 	Component      string `json:"component"`
 	RunningWorkers int    `json:"runningWorkers"`
 	PoolSize       int    `json:"poolSize"`

@@ -101,7 +101,7 @@ func (pb *workPoolBuilder) Build(ctx context.Context, reconcilerName string) (*W
 }
 
 func (pb *workPoolBuilder) updateComponentReconcilerOccupancy(reconcilerName string, runningWorkers int) error {
-	httpOccupancyUpdateRequest := reconciler.HTTPOccupancyUpdateRequest{
+	httpOccupancyUpdateRequest := reconciler.HTTPOccupancyRequest{
 		Component:      reconcilerName,
 		RunningWorkers: runningWorkers,
 		PoolSize:       pb.poolSize,
