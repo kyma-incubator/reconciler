@@ -2,7 +2,7 @@
 
 ## Overview
 
-Istio reconciler manages the [istio-configuration](https://github.com/kyma-project/kyma/tree/main/resources/istio-configuration) Kyma component.
+Istio reconciler manages [Istio](https://github.com/kyma-project/kyma/tree/main/resources/istio-configuration) Kyma component. We support two latest minor Kyma 2.x releases and the main Kyma version.
 
 ## Prerequisites
 
@@ -28,5 +28,5 @@ Follow these steps to run Istio reconciler locally, on your cluster:
 3. Pass an appropriate domain name for the two values listed in the command, and run Istio reconciler:
 
    ```bash
-    ./bin/mothership-darwin local --value global.ingress.domainName=example.com,global.domainName=example.com --components cluster-essentials,istio-configuration
+    ./bin/mothership-darwin local --value global.ingress.domainName=example.com,global.domainName=example.com --components cluster-essentials,istio
    ```
