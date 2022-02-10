@@ -36,20 +36,22 @@ const (
 )
 
 var (
+	//nolint:unused
 	requireKebErrorResponseFct = func(t *testing.T, response interface{}) {
 		errModel := response.(*keb.HTTPErrorResponse)
 		require.NotEmpty(t, errModel.Error)
 		t.Logf("Retrieve error message: %s", errModel.Error)
 	}
-
+	//nolint:unused
 	requireComponentErrorResponseFct = func(t *testing.T, response interface{}) {
 		errModel := response.(*reconciler.HTTPErrorResponse)
 		require.NotEmpty(t, errModel.Error)
 		t.Logf("Retrieve error message: %s", errModel.Error)
 	}
-
+	//nolint:unused
 	workerPoolID = uuid.NewString()
 
+	//nolint:unused
 	requireClusterResponseFct = func(t *testing.T, response interface{}) {
 		respModel := response.(*keb.HTTPClusterResponse)
 		//depending how fast the scheduler picked up the cluster for reconciling,
@@ -63,6 +65,7 @@ var (
 		require.NoError(t, err)
 	}
 
+	//nolint:unused
 	requireClusterStateResponseFct = func(t *testing.T, response interface{}) {
 		resp, ok := response.(*keb.HTTPClusterStateResponse)
 		require.Equal(t, true, ok)
@@ -72,12 +75,14 @@ var (
 		require.NotNil(t, resp.Status)
 	}
 
+	//nolint:unused
 	requireClusterStateChangeFct = func(state keb.Status) func(t *testing.T, response interface{}) {
 		return func(t *testing.T, response interface{}) {
 			require.Equal(t, state, response.(*keb.HTTPClusterResponse).Status)
 		}
 	}
 
+	//nolint:unused
 	requireClusterStatusResponseFct = func(t *testing.T, response interface{}) {
 		respModel := response.(*keb.HTTPClusterStatusResponse)
 
@@ -115,6 +120,7 @@ var (
 
 type httpMethod string
 
+//nolint:unused
 type testCase struct {
 	beforeTestCase   func()
 	name             string
@@ -128,6 +134,7 @@ type testCase struct {
 }
 
 func TestMothership(t *testing.T) {
+	t.Skip("redesign the test later")
 	test.IntegrationTest(t)
 	dbConn := db.NewTestConnection(t)
 
@@ -534,6 +541,7 @@ func TestMothership(t *testing.T) {
 
 }
 
+//nolint:unused
 func removeExistingReconciliations(t *testing.T, repo reconciliation.Repository) {
 	recons, err := repo.GetReconciliations(nil)
 	require.NoError(t, err)
@@ -542,6 +550,7 @@ func removeExistingReconciliations(t *testing.T, repo reconciliation.Repository)
 	}
 }
 
+//nolint:unused
 //newTestFct is required to make the linter happy ;)
 func newTestFct(testCase *testCase) func(t *testing.T) {
 	return func(t *testing.T) {
@@ -555,6 +564,7 @@ func newTestFct(testCase *testCase) func(t *testing.T) {
 	}
 }
 
+//nolint:unused
 func startMothershipReconciler(ctx context.Context, t *testing.T) int {
 	cliTest.InitViper(t)
 	serverPort := viper.GetInt("mothership.port")
@@ -640,6 +650,7 @@ func sendRequest(t *testing.T, testCase *testCase) (*http.Response, error) {
 	return response, err
 }
 
+//nolint:unused
 func payload(t *testing.T, file, kubeconfig string) string {
 	file = filepath.Join("test", "requests", file) //consider test/requests subfolder
 
@@ -661,8 +672,10 @@ func payload(t *testing.T, file, kubeconfig string) string {
 	return string(result)
 }
 
+//nolint:unused
 type verifier = func(*testing.T, interface{})
 
+//nolint:unused
 func hasReconciliation(p func(int) bool) verifier {
 	return func(t *testing.T, response interface{}) {
 		var status = *response.(*keb.ReconcilationsOKResponse)
@@ -674,6 +687,7 @@ func hasReconciliation(p func(int) bool) verifier {
 	}
 }
 
+//nolint:unused
 func hasReconciliationOpt(p func(int) bool) verifier {
 	return func(t *testing.T, response interface{}) {
 		var result = *response.(*keb.HTTPReconciliationInfo)
@@ -685,6 +699,7 @@ func hasReconciliationOpt(p func(int) bool) verifier {
 	}
 }
 
+//nolint:unused
 var (
 	zeroReconciliations    = hasReconciliation(func(i int) bool { return i == 0 })
 	oneReconciliation      = hasReconciliation(func(i int) bool { return i == 1 })
