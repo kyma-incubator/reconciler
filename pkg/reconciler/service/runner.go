@@ -62,7 +62,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 			task.Component, task.Version)
 		if err := heartbeatSender.Success(retryID); err != nil {
 			return err
-		}
+		} //TODO: send here succes processing time
 	} else if ctx.Err() != nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
 			task.Component, task.Version)
@@ -72,7 +72,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 			task.Component, task.Version)
 		if heartbeatErr := heartbeatSender.Error(err, retryID); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
-		}
+		} //TODO: send here failed processing time
 	}
 
 	return err

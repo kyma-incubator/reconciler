@@ -5,6 +5,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
+	"time"
 )
 
 type MockRepository struct {
@@ -67,4 +68,14 @@ func (mr *MockRepository) WithTx(tx *db.TxConnection) (Repository, error) {
 
 func (mr *MockRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
 	return mr.UpdateOperationRetryIDResult
+}
+
+func (r *MockRepository) UpdateOperationPickedUp(schedulingID, correlationID string) error {
+	//TODO implement
+	return nil
+}
+
+func (r *MockRepository) GetMeanOperationProcessingtime(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
+	// TODO: implement
+	return 0, nil
 }
