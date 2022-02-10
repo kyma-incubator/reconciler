@@ -2,22 +2,15 @@ package reconciliation
 
 import (
 	"fmt"
-	"sort"
-	"strings"
-	"time"
-
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
+	"sort"
+	"strings"
 )
 
 const metricsQueryLimit = 500
-
-type Filter interface {
-	FilterByQuery(q *db.Select) error
-	FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity //return nil to ignore instance in result
-}
 
 type metricStartTime int
 
