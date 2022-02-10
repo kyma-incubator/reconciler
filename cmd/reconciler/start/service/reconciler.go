@@ -14,5 +14,5 @@ func StartComponentReconciler(ctx context.Context, o *reconCli.Options, reconcil
 	}
 
 	o.Logger().Infof("Starting component reconciler '%s'", reconcilerName)
-	return recon.StartRemote(ctx)
+	return recon.StartRemote(ctx, reconcilerName)
 }

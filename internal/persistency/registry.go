@@ -6,29 +6,33 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"go.uber.org/zap"
 )
 
 type Registry struct {
-	debug           bool
-	logger          *zap.SugaredLogger
-	connection      db.Connection
-	inventory       cluster.Inventory
-	kvRepository    *kv.Repository
-	reconRepository reconciliation.Repository
-	initialized     bool
+	debug             bool
+	logger            *zap.SugaredLogger
+	connection        db.Connection
+	inventory         cluster.Inventory
+	kvRepository      *kv.Repository
+	reconRepository   reconciliation.Repository
+	occupancyRepo     occupancy.Repository
+	occupancyTracking bool
+	initialized       bool
 }
 
-func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
+func NewRegistry(cf db.ConnectionFactory, debug bool, occupancyTracking bool) (*Registry, error) {
 	conn, err := cf.NewConnection()
 	if err != nil {
 		return nil, err
 	}
 	registry := &Registry{
-		debug:      debug,
-		connection: conn,
-		logger:     logger.NewLogger(debug),
+		debug:             debug,
+		connection:        conn,
+		logger:            logger.NewLogger(debug),
+		occupancyTracking: occupancyTracking,
 	}
 	return registry, registry.init()
 }
@@ -48,6 +52,9 @@ func (or *Registry) init() error {
 	if or.reconRepository, err = or.initReconciliationRepository(); err != nil {
 		return err
 	}
+	if or.occupancyRepo, err = or.initOccupancyRepository(); err != nil {
+		return err
+	}
 
 	or.initialized = true
 
@@ -61,7 +68,7 @@ func (or *Registry) Close() error {
 	return or.connection.Close()
 }
 
-func (or *Registry) Connnection() db.Connection {
+func (or *Registry) Connection() db.Connection {
 	return or.connection
 }
 
@@ -75,6 +82,10 @@ func (or *Registry) KVRepository() *kv.Repository {
 
 func (or *Registry) ReconciliationRepository() reconciliation.Repository {
 	return or.reconRepository
+}
+
+func (or *Registry) OccupancyRepository() occupancy.Repository {
+	return or.occupancyRepo
 }
 
 func (or *Registry) initRepository() (*kv.Repository, error) {
@@ -100,4 +111,15 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 		or.logger.Errorf("Failed to create reconciliation repository: %s", err)
 	}
 	return reconRepo, err
+}
+
+func (or *Registry) initOccupancyRepository() (occupancy.Repository, error) {
+	if !or.occupancyTracking {
+		return occupancy.CreateMockRepository(), nil
+	}
+	occupancyRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)
+	if err != nil {
+		or.logger.Errorf("Failed to create occupancy repository: %s", err)
+	}
+	return occupancyRepo, err
 }

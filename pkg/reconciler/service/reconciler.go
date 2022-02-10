@@ -246,14 +246,14 @@ func (r *ComponentReconciler) StartLocal(ctx context.Context, model *reconciler.
 	return runnerFunc()
 }
 
-func (r *ComponentReconciler) StartRemote(ctx context.Context) (*WorkerPool, error) {
+func (r *ComponentReconciler) StartRemote(ctx context.Context, reconcilerName string) (*WorkerPool, error) {
 	if err := r.validate(); err != nil {
 		return nil, err
 	}
 	return newWorkerPoolBuilder(r.newRunnerFunc).
 		WithPoolSize(r.workers).
 		WithDebug(r.debug).
-		Build(ctx)
+		Build(ctx, reconcilerName)
 }
 
 func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Task, callback callback.Handler, logger *zap.SugaredLogger) func() error {
