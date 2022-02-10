@@ -6,7 +6,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"go.uber.org/zap"
@@ -116,14 +115,7 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 
 func (or *Registry) initOccupancyRepository() (occupancy.Repository, error) {
 	if !or.occupancyTracking {
-		return &occupancy.MockRepository{
-			CreateWorkerPoolOccupancyResult:   &model.WorkerPoolOccupancyEntity{},
-			UpdateWorkerPoolOccupancyResult:   nil,
-			RemoveWorkerPoolOccupancyResult:   nil,
-			GetComponentListResult:            []string{"mothership"},
-			GetWorkerPoolOccupanciesResult:    nil,
-			FindWorkerPoolOccupancyByIDResult: &model.WorkerPoolOccupancyEntity{},
-		}, nil
+		return occupancy.CreateMockRepository(), nil
 	}
 	occupancyRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)
 	if err != nil {

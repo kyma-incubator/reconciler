@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"io/ioutil"
 	"net/http"
@@ -34,11 +36,19 @@ const (
 )
 
 var (
-	requireErrorResponseFct = func(t *testing.T, response interface{}) {
+	requireKebErrorResponseFct = func(t *testing.T, response interface{}) {
 		errModel := response.(*keb.HTTPErrorResponse)
 		require.NotEmpty(t, errModel.Error)
 		t.Logf("Retrieve error message: %s", errModel.Error)
 	}
+
+	requireComponentErrorResponseFct = func(t *testing.T, response interface{}) {
+		errModel := response.(*reconciler.HTTPErrorResponse)
+		require.NotEmpty(t, errModel.Error)
+		t.Logf("Retrieve error message: %s", errModel.Error)
+	}
+
+	workerPoolID = uuid.NewString()
 
 	requireClusterResponseFct = func(t *testing.T, response interface{}) {
 		respModel := response.(*keb.HTTPClusterResponse)
@@ -164,7 +174,7 @@ func TestMothership(t *testing.T) {
 			payload:          payload(t, "create_cluster_invalid_kubeconfig.json", ""),
 			expectedHTTPCode: 400,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name:             "Create cluster: invalid JSON payload",
@@ -173,7 +183,7 @@ func TestMothership(t *testing.T) {
 			payload:          payload(t, "invalid.json", ""),
 			expectedHTTPCode: 400,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name:             "Create cluster: empty body",
@@ -182,7 +192,7 @@ func TestMothership(t *testing.T) {
 			payload:          payload(t, "empty.json", ""),
 			expectedHTTPCode: 400,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name: "Get cluster status: happy path",
@@ -207,7 +217,7 @@ func TestMothership(t *testing.T) {
 			method:           httpGet,
 			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name:             "Get cluster status: using non-existing version",
@@ -215,7 +225,7 @@ func TestMothership(t *testing.T) {
 			method:           httpGet,
 			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name:             "Get cluster: happy path",
@@ -231,7 +241,7 @@ func TestMothership(t *testing.T) {
 			method:           httpGet,
 			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name:             "Get list of status changes: without offset",
@@ -255,7 +265,7 @@ func TestMothership(t *testing.T) {
 			method:           httpGet,
 			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name:             "Get list of status changes: using invalid offset",
@@ -263,7 +273,7 @@ func TestMothership(t *testing.T) {
 			method:           httpGet,
 			expectedHTTPCode: 400,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name:             "Component reconciler heartbeat: using invalid IDs",
@@ -272,7 +282,7 @@ func TestMothership(t *testing.T) {
 			method:           httpPost,
 			expectedHTTPCode: 404,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name:             "Component reconciler heartbeat: using non-expected JSON payload (JSON is valid)",
@@ -281,7 +291,7 @@ func TestMothership(t *testing.T) {
 			method:           httpPost,
 			expectedHTTPCode: 400,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
 		},
 		{
 			name:             "Component reconciler heartbeat: without payload",
@@ -289,7 +299,35 @@ func TestMothership(t *testing.T) {
 			method:           httpPost,
 			expectedHTTPCode: 400,
 			responseModel:    &keb.HTTPErrorResponse{},
-			verifier:         requireErrorResponseFct,
+			verifier:         requireKebErrorResponseFct,
+		},
+		{
+			name:             "Component reconciler occupancy: using invalid IDs",
+			url:              fmt.Sprintf("%s/occupancy/%s", baseURL, "poolID"),
+			method:           httpPost,
+			expectedHTTPCode: 400,
+			responseModel:    &reconciler.HTTPErrorResponse{},
+			verifier:         requireComponentErrorResponseFct,
+		},
+		{
+			name:             "Component reconciler occupancy: create new occupancy",
+			url:              fmt.Sprintf("%s/occupancy/%s", baseURL, workerPoolID),
+			method:           httpPost,
+			payload:          payload(t, "new_occupancy.json", ""),
+			expectedHTTPCode: 201,
+		},
+		{
+			name:             "Component reconciler occupancy: update occupancy",
+			url:              fmt.Sprintf("%s/occupancy/%s", baseURL, workerPoolID),
+			method:           httpPost,
+			payload:          payload(t, "update_occupancy.json", ""),
+			expectedHTTPCode: 200,
+		},
+		{
+			name:             "Component reconciler occupancy: delete occupancy",
+			url:              fmt.Sprintf("%s/occupancy/%s", baseURL, workerPoolID),
+			method:           httpDelete,
+			expectedHTTPCode: 200,
 		},
 		{
 			name:             "Get list of reconciliations: no runtime id",

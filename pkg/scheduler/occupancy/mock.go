@@ -45,3 +45,14 @@ func (mr *MockRepository) RemoveWorkerPoolOccupancy(poolID string) error {
 func (mr *MockRepository) WithTx(tx *db.TxConnection) (Repository, error) {
 	return mr, nil
 }
+
+func CreateMockRepository() Repository {
+	return &MockRepository{
+		CreateWorkerPoolOccupancyResult:   &model.WorkerPoolOccupancyEntity{},
+		UpdateWorkerPoolOccupancyResult:   nil,
+		RemoveWorkerPoolOccupancyResult:   nil,
+		GetComponentListResult:            []string{"mothership"},
+		GetWorkerPoolOccupanciesResult:    nil,
+		FindWorkerPoolOccupancyByIDResult: &model.WorkerPoolOccupancyEntity{},
+	}
+}

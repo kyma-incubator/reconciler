@@ -138,9 +138,6 @@ func (r *PersistentOccupancyRepository) FindWorkerPoolOccupancyByID(poolID strin
 
 	databaseEntity, err := q.Select().Where(whereCond).GetOne()
 	if err != nil {
-		if repository.IsNotFoundError(err) {
-			r.Logger.Errorf("could not find a worker pool occupancy with a poolID: %s", poolID)
-		}
 		return nil, err
 	}
 
