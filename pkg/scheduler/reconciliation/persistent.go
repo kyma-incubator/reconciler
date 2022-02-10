@@ -406,7 +406,11 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
 
 	dbOps := func(tx *db.TxConnection) error {
-		op, err := r.GetOperation(schedulingID, correlationID)
+		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return err
+		}
+		op, err := rTx.GetOperation(schedulingID, correlationID)
 		if err != nil {
 			if repository.IsNotFoundError(err) {
 				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
@@ -423,7 +427,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID
 		op.Updated = time.Now().UTC()
 
 		//prepare update query
-		q, err := db.NewQuery(r.Conn, op, r.Logger)
+		q, err := db.NewQuery(tx, op, r.Logger)
 		if err != nil {
 			return err
 		}

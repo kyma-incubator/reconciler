@@ -26,7 +26,7 @@ type RemoteReconcilerInvoker struct {
 	logger    *zap.SugaredLogger
 }
 
-func NewRemoteReoncilerInvoker(reconRepo reconciliation.Repository, cfg *config.Config, logger *zap.SugaredLogger) *RemoteReconcilerInvoker {
+func NewRemoteReconcilerInvoker(reconRepo reconciliation.Repository, cfg *config.Config, logger *zap.SugaredLogger) *RemoteReconcilerInvoker {
 	return &RemoteReconcilerInvoker{
 		reconRepo: reconRepo,
 		config:    cfg,

@@ -65,7 +65,7 @@ func Run(ctx context.Context, o *Options) error {
 	if err != nil {
 		return err
 	}
-	o.ReconcilerList = getListOfReconcilers(schedulerCfg)
+	o.ReconcilerList = getReconcilers(schedulerCfg)
 	go func(ctx context.Context, o *Options) {
 		err = startScheduler(ctx, o, schedulerCfg)
 		if err != nil {

@@ -41,8 +41,6 @@ type Repository interface {
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error
 	WithTx(tx *db.TxConnection) (Repository, error)
 	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
-	UpdateOperationPickedUp(schedulingID, correlationID string) error
-	GetMeanOperationProcessingtime(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error)
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.

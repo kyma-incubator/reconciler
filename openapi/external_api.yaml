@@ -535,7 +535,7 @@ components:
     reconciliation:
       type: object
       required:
-        [ lock, runtimeID, shootName, schedulingID, created, updated, status ]
+        [ lock, runtimeID, shootName, schedulingID, created, updated, status, finished ]
       properties:
         lock:
           type: string
@@ -551,6 +551,8 @@ components:
           format: date-time
         status:
           $ref: "#/components/schemas/status"
+        finished:
+          type: boolean
 
     operation:
       type: object

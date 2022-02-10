@@ -121,14 +121,16 @@ func testClusterState(clusterID string, statusID int64) *cluster.State {
 	}
 }
 
-func createClusterStates(t *testing.T, inventory cluster.Inventory) {
+func createClusterStates(t *testing.T, inventory cluster.Inventory) []string {
 	clusterID1 := uuid.NewString()
-	_, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID1, 1, false, test.ThreeComponentsDummy))
+	s1, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID1, 1, false, test.ThreeComponentsDummy))
 	require.NoError(t, err)
 
 	clusterID2 := uuid.NewString()
-	_, err = inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.OneComponentDummy))
+	s2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, clusterID2, 1, false, test.OneComponentDummy))
 	require.NoError(t, err)
+
+	return []string{s1.Cluster.RuntimeID, s2.Cluster.RuntimeID}
 }
 
 func dbConnection(t *testing.T) db.Connection {
@@ -148,7 +150,13 @@ func TestSchedulerParallel(t *testing.T) {
 
 		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
-		createClusterStates(t, inventory)
+
+		clusterRuntimeIDs := createClusterStates(t, inventory)
+		defer func() {
+			for _, runtimeID := range clusterRuntimeIDs {
+				require.NoError(t, inventory.Delete(runtimeID))
+			}
+		}()
 
 		scheduler := newScheduler(logger.NewLogger(true))
 		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
@@ -180,7 +188,8 @@ func TestSchedulerParallel(t *testing.T) {
 		}
 		wg.Wait()
 
-		recons, err := reconRepo.GetReconciliations(nil)
+		cif := runtimeIDFilter{clusterRuntimeIDs}
+		recons, err := reconRepo.GetReconciliations(&cif)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(recons))
 		//cleanup after
@@ -216,4 +225,17 @@ func TestDeleteStrategy(t *testing.T) {
 	// unsupported value
 	_, err = NewDeleteStrategy("not-a-strategy")
 	require.Error(t, err)
+}
+
+type runtimeIDFilter struct {
+	clusterIDs []string
+}
+
+func (c *runtimeIDFilter) FilterByQuery(q *db.Select) error {
+	q.WhereIn("RuntimeID", "$1, $2", c.clusterIDs[0], c.clusterIDs[1])
+	return nil
+}
+
+func (c *runtimeIDFilter) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
+	return i
 }

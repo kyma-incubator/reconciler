@@ -129,3 +129,12 @@ CREATE TABLE IF NOT EXISTS scheduler_operations(
     FOREIGN KEY("runtime_id") REFERENCES inventory_clusters("runtime_id") ON UPDATE CASCADE,
     FOREIGN KEY("cluster_config") REFERENCES inventory_cluster_configs("version")
 );
+
+CREATE TABLE IF NOT EXISTS worker_pool_occupancy
+(
+    "worker_pool_id"       text NOT NULL PRIMARY KEY,
+    "component"            text NOT NULL,
+    "running_workers"      int  NOT NULL,
+    "worker_pool_capacity" int,
+    "created"              TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

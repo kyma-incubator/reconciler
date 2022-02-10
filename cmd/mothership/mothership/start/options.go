@@ -28,8 +28,8 @@ type Options struct {
 	AuditLog                     bool
 	AuditLogFile                 string
 	AuditLogTenantID             string
-	ReconcilerList               []string
 	StopAfterMigration           bool
+	ReconcilerList               []string
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -50,8 +50,8 @@ func NewOptions(o *cli.Options) *Options {
 		false,                  //AuditLog
 		"",                     //AuditLogFile
 		"",                     //AuditLogTenant
-		[]string{"mothership"}, //ReconcilerList
 		false,                  //StopAfterMigration
+		[]string{"mothership"}, //ReconcilerList
 	}
 }
 
