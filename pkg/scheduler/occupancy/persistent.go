@@ -24,13 +24,14 @@ func (r *PersistentOccupancyRepository) WithTx(tx *db.TxConnection) (Repository,
 	return NewPersistentOccupancyRepository(tx, r.Debug)
 }
 
-func (r *PersistentOccupancyRepository) CreateWorkerPoolOccupancy(poolID, component string, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
+func (r *PersistentOccupancyRepository) CreateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
 
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 
 		occupancyEntity := &model.WorkerPoolOccupancyEntity{
 			WorkerPoolID:       poolID,
 			Component:          component,
+			RunningWorkers:     int64(runningWorkers),
 			WorkerPoolCapacity: int64(poolSize),
 			Created:            time.Now().UTC(),
 		}
@@ -183,6 +184,38 @@ func (r *PersistentOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string,
 		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentOccupancyRepository) CreateOrUpdateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (bool, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+
+		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return false, err
+		}
+		occupancyEntity, err := rTx.FindWorkerPoolOccupancyByID(poolID)
+		if err != nil {
+			_, err = rTx.CreateWorkerPoolOccupancy(poolID, component, runningWorkers, poolSize)
+			if err != nil {
+				return false, fmt.Errorf("could not create occupancy for component %s and poolID %s", component, poolID)
+			}
+			return true, nil
+		}
+		if component != occupancyEntity.Component || int64(poolSize) != occupancyEntity.WorkerPoolCapacity {
+			return false, fmt.Errorf("component '%s' with poolID '%s' and poolSize '%d' not found", component, poolID, poolSize)
+		}
+		err = rTx.UpdateWorkerPoolOccupancy(poolID, runningWorkers)
+		if err != nil {
+			return false, fmt.Errorf("could not update occupancy for component %s and poolID %s", component, poolID)
+		}
+
+		return false, nil
+	}
+	created, err := db.TransactionResult(r.Conn, dbOps, r.Logger)
+	if err != nil {
+		return false, err
+	}
+	return created.(bool), nil
 }
 
 func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string) error {

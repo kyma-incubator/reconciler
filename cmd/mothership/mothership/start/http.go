@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -119,7 +118,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/occupancy/{%s}", paramContractVersion, paramPoolID),
-		callHandler(o, updateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
+		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
 	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger(), o.OccupancyTracking)
@@ -773,7 +772,7 @@ func getKymaConfig(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func updateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {
+func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	params := server.NewParams(r)
 	poolID, err := params.String(paramPoolID)
@@ -806,36 +805,18 @@ func updateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *ht
 		})
 		return
 	}
-
-	httpStatus, err := updateWorkerPoolOccupancy(poolID, body.Component, body.PoolSize, body.RunningWorkers, o.Registry.OccupancyRepository())
+	created, err := o.Registry.OccupancyRepository().CreateOrUpdateWorkerPoolOccupancy(poolID, body.Component, body.PoolSize, body.RunningWorkers)
 	if err != nil {
-		server.SendHTTPError(w, httpStatus, &reconciler.HTTPErrorResponse{
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: err.Error(),
 		})
 		return
 	}
-
-	w.WriteHeader(httpStatus)
-}
-
-func updateWorkerPoolOccupancy(poolID, component string, poolSize, runningWorkers int, occupancyRepository occupancy.Repository) (int, error) {
-
-	_, err := occupancyRepository.FindWorkerPoolOccupancyByID(poolID)
-	if err != nil {
-		_, err = occupancyRepository.CreateWorkerPoolOccupancy(poolID, component, poolSize)
-		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("could not create occupancy for component %s and poolID %s", component, poolID)
-		}
-		return http.StatusCreated, nil
+	if created {
+		w.WriteHeader(http.StatusCreated)
+		return
 	}
-
-	err = occupancyRepository.UpdateWorkerPoolOccupancy(poolID, runningWorkers)
-	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("could not update occupancy for component %s and poolID %s", component, poolID)
-	}
-
-	return http.StatusOK, nil
-
+	w.WriteHeader(http.StatusOK)
 }
 
 func deleteComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {

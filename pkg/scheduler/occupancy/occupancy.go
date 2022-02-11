@@ -6,12 +6,13 @@ import (
 )
 
 type Repository interface {
-	CreateWorkerPoolOccupancy(poolID, component string, poolSize int) (*model.WorkerPoolOccupancyEntity, error)
+	CreateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (*model.WorkerPoolOccupancyEntity, error)
 	FindWorkerPoolOccupancyByID(poolID string) (*model.WorkerPoolOccupancyEntity, error)
 	GetComponentList() ([]string, error)
 	GetMeanWorkerPoolOccupancyByComponent(component string) (float64, error)
 	GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error)
 	RemoveWorkerPoolOccupancy(poolID string) error
 	UpdateWorkerPoolOccupancy(poolID string, runningWorkers int) error
+	CreateOrUpdateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (bool, error)
 	WithTx(tx *db.TxConnection) (Repository, error)
 }

@@ -87,7 +87,7 @@ func (pb *workPoolBuilder) Build(ctx context.Context, reconcilerName string) (*W
 				return
 			case <-ticker.C:
 				if pb.workerPool.occupancyCallbackURL != "" {
-					err = pb.updateComponentReconcilerOccupancy(reconcilerName, antsPool.Running())
+					err = pb.createOrUpdateComponentReconcilerOccupancy(reconcilerName, antsPool.Running())
 					if err != nil {
 						log.Error(err.Error())
 					}
@@ -100,7 +100,7 @@ func (pb *workPoolBuilder) Build(ctx context.Context, reconcilerName string) (*W
 	return pb.workerPool, nil
 }
 
-func (pb *workPoolBuilder) updateComponentReconcilerOccupancy(reconcilerName string, runningWorkers int) error {
+func (pb *workPoolBuilder) createOrUpdateComponentReconcilerOccupancy(reconcilerName string, runningWorkers int) error {
 	httpOccupancyUpdateRequest := reconciler.HTTPOccupancyRequest{
 		Component:      reconcilerName,
 		RunningWorkers: runningWorkers,
@@ -117,10 +117,10 @@ func (pb *workPoolBuilder) updateComponentReconcilerOccupancy(reconcilerName str
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
 		pb.workerPool.logger.Infof("Component reconciler '%s' updated occupancy successfully", reconcilerName)
+		return nil
 	}
 
 	pb.workerPool.logger.Warnf("Mothership failed to update occupancy for '%s' component with status code: '%d'", reconcilerName, resp.StatusCode)
-
 	return nil
 }
 
