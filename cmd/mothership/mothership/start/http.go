@@ -805,7 +805,7 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 		})
 		return
 	}
-	created, err := o.Registry.OccupancyRepository().CreateOrUpdateWorkerPoolOccupancy(poolID, body.Component, body.PoolSize, body.RunningWorkers)
+	created, err := o.Registry.OccupancyRepository().CreateOrUpdateWorkerPoolOccupancy(poolID, body.Component, body.RunningWorkers, body.PoolSize)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: err.Error(),
