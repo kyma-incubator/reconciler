@@ -8,7 +8,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"sort"
 	"strings"
-	"time"
 )
 
 const metricsQueryLimit = 500
@@ -37,7 +36,8 @@ type Repository interface {
 	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
 	UpdateOperationPickedUp(schedulingID, correlationID string) error
 	UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error
-	GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error)
+	GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error)
+	GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error)
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.

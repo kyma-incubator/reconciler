@@ -522,7 +522,31 @@ func (r *PersistentReconciliationRepository) UpdateComponentOperationProcessingD
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
+func (r *PersistentReconciliationRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
+	if state != model.OperationStateDone && state != model.OperationStateError {
+		return 0, errors.Errorf("Unsupported Operation State: %s", state)
+	}
+	var duration int64 = 0
+	var operationCount int64 = 0
+
+	operations, err := r.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
+		&operation.WithComponentName{Component: component},
+		&operation.Limit{Count: metricsQueryLimit},
+	}})
+	if err != nil {
+		return 0, err
+	}
+	for _, op := range operations {
+		if op.State == state {
+			duration += op.ProcessingDuration
+			operationCount++
+		}
+	}
+	meanLifetime := duration / operationCount
+	return meanLifetime, nil
+}
+
+func (r *PersistentReconciliationRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
 	if state != model.OperationStateDone && state != model.OperationStateError {
 		return 0, errors.Errorf("Unsupported Operation State: %s", state)
 	}
@@ -547,6 +571,6 @@ func (r *PersistentReconciliationRepository) GetMeanMothershipOperationProcessin
 			operationCount++
 		}
 	}
-	meanLifetime := time.Duration(duration.Nanoseconds() / operationCount)
+	meanLifetime := duration.Milliseconds() / operationCount
 	return meanLifetime, nil
 }

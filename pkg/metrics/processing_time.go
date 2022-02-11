@@ -5,7 +5,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
-	"time"
 )
 
 // TODO: come up with reasonable prefixes
@@ -67,15 +66,14 @@ func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 				c.logger.Errorf(err.Error())
 				continue
 			}
-			m.Set(processingDuration.Seconds()) // TODO: Maybe smaller, but float64 here needed
+			m.Set(float64(processingDuration))
 		}
 	}
 	c.reconciliationStatusGauge.Collect(ch)
 
 }
 
-func (c *ProcessingDurationCollector) getProcessingDuration(component, metric string) (time.Duration, error) {
-	//TODO: Calulate metrics here
+func (c *ProcessingDurationCollector) getProcessingDuration(component, metric string) (int64, error) {
 	switch metric {
 	case prefixOperationLifetimeMothershipSuccessful:
 		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateDone, reconciliation.Created)
@@ -86,11 +84,9 @@ func (c *ProcessingDurationCollector) getProcessingDuration(component, metric st
 	case prefixOperationProcessingDurationMothershipUnsuccessful:
 		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateError, reconciliation.PickedUp)
 	case prefixOperationProcessingDurationComponentSuccessful:
-		//TODO
-		return 0, nil
+		return c.reconRepo.GetMeanComponentOperationProcessingDuration(component, model.OperationStateDone)
 	case prefixOperationProcessingDurationComponentUnsuccessful:
-		//TODO
-		return 0, nil
+		return c.reconRepo.GetMeanComponentOperationProcessingDuration(component, model.OperationStateError)
 	}
 	return 0, nil
 }

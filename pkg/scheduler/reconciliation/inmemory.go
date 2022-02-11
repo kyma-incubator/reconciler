@@ -281,7 +281,12 @@ func (r *InMemoryReconciliationRepository) UpdateComponentOperationProcessingDur
 	return nil
 }
 
-func (r *InMemoryReconciliationRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
+func (r *InMemoryReconciliationRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
+	//TODO: implement
+	return 0, nil
+}
+
+func (r *InMemoryReconciliationRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
 	// TODO: implement
 	return 0, nil
 }

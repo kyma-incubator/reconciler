@@ -5,7 +5,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
-	"time"
 )
 
 type MockRepository struct {
@@ -80,7 +79,12 @@ func (r *MockRepository) UpdateComponentOperationProcessingDuration(schedulingID
 	return nil
 }
 
-func (r *MockRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
+func (r *MockRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
+	//TODO: implement
+	return 0, nil
+}
+
+func (r *MockRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
 	// TODO: implement
 	return 0, nil
 }
