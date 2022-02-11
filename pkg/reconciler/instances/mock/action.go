@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"errors"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"math/rand"
 	"time"
@@ -12,7 +13,7 @@ const (
 
 // CustomAction for mock component reconciliation.
 type CustomAction struct {
-	name string
+	name      string
 	generator MockedActionGenerator
 }
 
@@ -30,11 +31,13 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
+// MockedActionGenerator for generating MockedActionExecution.
 type MockedActionGenerator interface {
 	Generate() MockedActionExecution
 }
 
-type RandomMockedActionGenerator struct {}
+// RandomMockedActionGenerator provides an implementation of MockedActionGenerator that returns random action.
+type RandomMockedActionGenerator struct{}
 
 func (c *RandomMockedActionGenerator) Generate() MockedActionExecution {
 	rand.Seed(time.Now().UnixNano())
@@ -45,47 +48,59 @@ func (c *RandomMockedActionGenerator) Generate() MockedActionExecution {
 		return &Fail{}
 	} else if generatedNumber < 4 {
 		return &Timeout{}
-	}  else if generatedNumber < 5 {
+	} else if generatedNumber < 5 {
 		return &SleepAndFail{}
-	}  else if generatedNumber < 7 {
+	} else if generatedNumber < 7 {
 		return &SleepAndSuccess{}
 	} else {
 		return &Success{}
 	}
 }
 
+// MockedActionExecution defines how mocked action should execute.
 type MockedActionExecution interface {
 	Execute(context *service.ActionContext) error
 }
 
-type Success struct {}
+type Success struct{}
 
 func (c *Success) Execute(context *service.ActionContext) error {
+	context.Logger.Infof("Success action execution")
+	context.Logger.Infof("Sleeping for 1 second...")
+	time.Sleep(1 * time.Second)
 	return nil
 }
 
-type SleepAndSuccess struct {}
+type SleepAndSuccess struct{}
 
 func (c *SleepAndSuccess) Execute(context *service.ActionContext) error {
+	context.Logger.Infof("SleepAndSuccess action execution")
+	context.Logger.Infof("Sleeping for 1 minute...")
+	time.Sleep(1 * time.Minute)
 	return nil
 }
 
-type Fail struct {}
+type Fail struct{}
 
 func (c *Fail) Execute(context *service.ActionContext) error {
-	return nil
+	context.Logger.Infof("Fail action execution")
+	return errors.New("error from Fail action")
 }
 
-type SleepAndFail struct {}
+type SleepAndFail struct{}
 
 func (c *SleepAndFail) Execute(context *service.ActionContext) error {
-	return nil
+	context.Logger.Infof("SleepAndFail action execution")
+	context.Logger.Infof("Sleeping for 1 minute...")
+	time.Sleep(1 * time.Minute)
+	return errors.New("error from SleepAndFail action")
 }
 
-type Timeout struct {}
+type Timeout struct{}
 
 func (c *Timeout) Execute(context *service.ActionContext) error {
+	context.Logger.Infof("Timeout action execution")
+	context.Logger.Infof("Sleeping for 10 minutes...")
+	time.Sleep(10 * time.Minute)
 	return nil
 }
-
-
