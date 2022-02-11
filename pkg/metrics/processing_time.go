@@ -12,14 +12,14 @@ import (
 // label for metrics is prefix + operation name (component name of operation)
 const prefixOperationLifetimeMothershipSuccessful = "0"
 const prefixOperationLifetimeMothershipUnsuccessful = "1"
-const prefixOperationProcessingTimeMothershipSuccessful = "2"
-const prefixOperationProcessingTimeMothershipUnsuccessful = "3"
-const prefixOperationProcessingTimeComponentSuccessful = "4"
-const prefixOperationProcessingTimeComponentUnsuccessful = "5"
+const prefixOperationProcessingDurationMothershipSuccessful = "2"
+const prefixOperationProcessingDurationMothershipUnsuccessful = "3"
+const prefixOperationProcessingDurationComponentSuccessful = "4"
+const prefixOperationProcessingDurationComponentUnsuccessful = "5"
 
 // TODO: Describe
 
-type ProcessingTimeCollector struct {
+type ProcessingDurationCollector struct {
 	reconciliationStatusGauge *prometheus.GaugeVec
 	componentList             []string
 	metricsList               []string
@@ -27,8 +27,8 @@ type ProcessingTimeCollector struct {
 	logger                    *zap.SugaredLogger
 }
 
-func NewProcessingTimeCollector(reconciliations reconciliation.Repository, reconcilerList []string, logger *zap.SugaredLogger) *ProcessingTimeCollector {
-	collector := &ProcessingTimeCollector{
+func NewProcessingDurationCollector(reconciliations reconciliation.Repository, reconcilerList []string, logger *zap.SugaredLogger) *ProcessingDurationCollector {
+	collector := &ProcessingDurationCollector{
 		reconciliationStatusGauge: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
@@ -38,10 +38,10 @@ func NewProcessingTimeCollector(reconciliations reconciliation.Repository, recon
 		metricsList: []string{
 			prefixOperationLifetimeMothershipSuccessful,
 			prefixOperationLifetimeMothershipUnsuccessful,
-			prefixOperationProcessingTimeMothershipSuccessful,
-			prefixOperationProcessingTimeMothershipUnsuccessful,
-			prefixOperationProcessingTimeComponentSuccessful,
-			prefixOperationProcessingTimeComponentUnsuccessful},
+			prefixOperationProcessingDurationMothershipSuccessful,
+			prefixOperationProcessingDurationMothershipUnsuccessful,
+			prefixOperationProcessingDurationComponentSuccessful,
+			prefixOperationProcessingDurationComponentUnsuccessful},
 		reconRepo: reconciliations,
 		logger:    logger,
 	}
@@ -49,11 +49,11 @@ func NewProcessingTimeCollector(reconciliations reconciliation.Repository, recon
 	return collector
 }
 
-func (c *ProcessingTimeCollector) Describe(ch chan<- *prometheus.Desc) {
+func (c *ProcessingDurationCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.reconciliationStatusGauge.Describe(ch)
 }
 
-func (c *ProcessingTimeCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for _, component := range c.componentList {
 		for _, metric := range c.metricsList {
@@ -62,33 +62,33 @@ func (c *ProcessingTimeCollector) Collect(ch chan<- prometheus.Metric) {
 				c.logger.Errorf("unable to retrieve metric with label=%s: %s", component, err.Error())
 				return
 			}
-			processingTime, err := c.getProcessingTime(component, metric)
+			processingDuration, err := c.getProcessingDuration(component, metric)
 			if err != nil {
 				c.logger.Errorf(err.Error())
 				continue
 			}
-			m.Set(processingTime.Seconds()) // TODO: Maybe smaller, but float64 here needed
+			m.Set(processingDuration.Seconds()) // TODO: Maybe smaller, but float64 here needed
 		}
 	}
 	c.reconciliationStatusGauge.Collect(ch)
 
 }
 
-func (c *ProcessingTimeCollector) getProcessingTime(component, metric string) (time.Duration, error) {
+func (c *ProcessingDurationCollector) getProcessingDuration(component, metric string) (time.Duration, error) {
 	//TODO: Calulate metrics here
 	switch metric {
 	case prefixOperationLifetimeMothershipSuccessful:
-		return c.reconRepo.GetMeanOperationProcessingtime(component, model.OperationStateDone, reconciliation.Created)
+		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateDone, reconciliation.Created)
 	case prefixOperationLifetimeMothershipUnsuccessful:
-		return c.reconRepo.GetMeanOperationProcessingtime(component, model.OperationStateError, reconciliation.Created)
-	case prefixOperationProcessingTimeMothershipSuccessful:
-		return c.reconRepo.GetMeanOperationProcessingtime(component, model.OperationStateDone, reconciliation.PickedUp)
-	case prefixOperationProcessingTimeMothershipUnsuccessful:
-		return c.reconRepo.GetMeanOperationProcessingtime(component, model.OperationStateError, reconciliation.PickedUp)
-	case prefixOperationProcessingTimeComponentSuccessful:
+		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateError, reconciliation.Created)
+	case prefixOperationProcessingDurationMothershipSuccessful:
+		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateDone, reconciliation.PickedUp)
+	case prefixOperationProcessingDurationMothershipUnsuccessful:
+		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateError, reconciliation.PickedUp)
+	case prefixOperationProcessingDurationComponentSuccessful:
 		//TODO
 		return 0, nil
-	case prefixOperationProcessingTimeComponentUnsuccessful:
+	case prefixOperationProcessingDurationComponentUnsuccessful:
 		//TODO
 		return 0, nil
 	}

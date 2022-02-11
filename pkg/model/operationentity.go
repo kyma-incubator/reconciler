@@ -10,20 +10,21 @@ import (
 const tblOperation string = "scheduler_operations"
 
 type OperationEntity struct {
-	Priority      int64          `db:"notNull"`
-	SchedulingID  string         `db:"notNull"`
-	CorrelationID string         `db:"notNull"`
-	RuntimeID     string         `db:"notNull"`
-	ClusterConfig int64          `db:"notNull"`
-	Component     string         `db:"notNull"`
-	Type          OperationType  `db:"notNull"`
-	State         OperationState `db:"notNull"`
-	Reason        string         `db:""`
-	Created       time.Time      `db:"readOnly"`
-	Updated       time.Time      `db:""`
-	PickedUp      time.Time      `db:""`
-	Retries       int64          `db:""`
-	RetryID       string         `db:"notNull"`
+	Priority           int64          `db:"notNull"`
+	SchedulingID       string         `db:"notNull"`
+	CorrelationID      string         `db:"notNull"`
+	RuntimeID          string         `db:"notNull"`
+	ClusterConfig      int64          `db:"notNull"`
+	Component          string         `db:"notNull"`
+	Type               OperationType  `db:"notNull"`
+	State              OperationState `db:"notNull"`
+	Reason             string         `db:""`
+	Created            time.Time      `db:"readOnly"`
+	Updated            time.Time      `db:""`
+	PickedUp           time.Time      `db:""`
+	ProcessingDuration int64          `db:""`
+	Retries            int64          `db:""`
+	RetryID            string         `db:"notNull"`
 }
 
 func (o *OperationEntity) String() string {
@@ -53,6 +54,9 @@ func (o *OperationEntity) Marshaller() *db.EntityMarshaller {
 	marshaller.AddUnmarshaller("Created", convertTimestampToTime)
 	marshaller.AddUnmarshaller("Updated", convertTimestampToTime)
 	marshaller.AddUnmarshaller("PickedUp", convertTimestampToTime)
+	marshaller.AddUnmarshaller("ProcessingDuration", func(value interface{}) (interface{}, error) {
+		return value.(int64), nil
+	})
 	return marshaller
 }
 

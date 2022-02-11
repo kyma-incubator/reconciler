@@ -11,11 +11,11 @@ import (
 func RegisterAll(inventory cluster.Inventory, reconciliations reconciliation.Repository, occupancyRepo occupancy.Repository, reconcilerList []string, logger *zap.SugaredLogger, occupancyTracking bool) {
 	reconciliationWaitingCollector := NewReconciliationWaitingCollector(inventory, logger)
 	reconciliationNotReadyCollector := NewReconciliationNotReadyCollector(inventory, logger)
-	processingTimeCollector := NewProcessingTimeCollector(reconciliations, reconcilerList, logger)
+	processingDurationCollector := NewProcessingDurationCollector(reconciliations, reconcilerList, logger)
 	if !occupancyTracking {
-		prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector, processingTimeCollector)
+		prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector, processingDurationCollector)
 	} else {
 		workerPoolOccupancyCollector := NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilerList, logger)
-		prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector, processingTimeCollector, workerPoolOccupancyCollector)
+		prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector, processingDurationCollector, workerPoolOccupancyCollector)
 	}
 }

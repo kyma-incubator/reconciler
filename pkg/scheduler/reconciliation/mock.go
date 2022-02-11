@@ -75,7 +75,12 @@ func (r *MockRepository) UpdateOperationPickedUp(schedulingID, correlationID str
 	return nil
 }
 
-func (r *MockRepository) GetMeanOperationProcessingtime(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
+func (r *MockRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error {
+	//TODO: implement
+	return nil
+}
+
+func (r *MockRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
 	// TODO: implement
 	return 0, nil
 }

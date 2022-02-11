@@ -4,6 +4,7 @@ import (
 	"context"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -50,19 +51,22 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		return err
 	}
 
+	startTime := time.Now()
 	//retry the reconciliation in case of an error
 	err = retry.Do(retryable,
 		retry.Attempts(uint(task.ComponentConfiguration.MaxRetries)),
 		retry.Delay(r.retryDelay),
 		retry.LastErrorOnly(false),
 		retry.Context(ctx))
+	processingDuration := time.Now().Sub(startTime)
 
 	if err == nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
 		if err := heartbeatSender.Success(retryID); err != nil {
 			return err
-		} //TODO: send here succes processing time
+		}
+		//TODO: Send processTime to new endpoint of mothership instead through heartbeat
 	} else if ctx.Err() != nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
 			task.Component, task.Version)
@@ -72,7 +76,8 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 			task.Component, task.Version)
 		if heartbeatErr := heartbeatSender.Error(err, retryID); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
-		} //TODO: send here failed processing time
+		}
+		//TODO: Send processTime to new endpoint of mothership instead through heartbeatq
 	}
 
 	return err

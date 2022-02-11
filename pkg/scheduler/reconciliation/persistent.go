@@ -477,7 +477,6 @@ func (r *PersistentReconciliationRepository) UpdateOperationPickedUp(schedulingI
 		cnt, err := q.Update().
 			Where(whereCond).
 			ExecCount()
-
 		if cnt == 0 {
 			return fmt.Errorf("update of operation '%s' pickedUp timestamp failed: no row was updated", op)
 		}
@@ -487,7 +486,43 @@ func (r *PersistentReconciliationRepository) UpdateOperationPickedUp(schedulingI
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) GetMeanOperationProcessingtime(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
+func (r *PersistentReconciliationRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error {
+	dbOps := func(tx *db.TxConnection) error {
+		operations, err := r.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
+			&operation.WithSchedulingID{
+				SchedulingID: schedulingID,
+			},
+			&operation.WithCorrelationID{CorrelationID: correlationID},
+		}})
+		if err != nil {
+			return err
+		}
+		if len(operations) != 1 {
+			return fmt.Errorf("error finding operation with schedulingID %s and correlationID %s, found instead: %v", schedulingID, correlationID, operations)
+		}
+		operations[0].ProcessingDuration = processingDuration
+
+		//prepare update query
+		q, err := db.NewQuery(r.Conn, operations[0], r.Logger)
+		if err != nil {
+			return err
+		}
+		whereCond := map[string]interface{}{
+			"CorrelationID": correlationID,
+			"SchedulingID":  schedulingID,
+		}
+		cnt, err := q.Update().
+			Where(whereCond).
+			ExecCount()
+		if cnt == 0 {
+			return fmt.Errorf("update of operation '%s' processingDuration failed: no row was updated", operations[0])
+		}
+		return err
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (time.Duration, error) {
 	if state != model.OperationStateDone && state != model.OperationStateError {
 		return 0, errors.Errorf("Unsupported Operation State: %s", state)
 	}
