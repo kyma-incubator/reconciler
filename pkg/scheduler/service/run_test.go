@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"testing"
 	"time"
 
@@ -93,6 +94,9 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	})
 	require.NoError(t, err)
 
+	//create occupancy repository
+	occupancyRepo, err := occupancy.NewPersistentOccupancyRepository(dbConn, debugLogging)
+	require.NoError(t, err)
 	//create reconciliation repository
 	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, debugLogging)
 	require.NoError(t, err)
@@ -109,7 +113,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 
 	//configure remote runner
 	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
-	remoteRunner := runtimeBuilder.RunRemote(dbConn, inventory, &config.Config{
+	remoteRunner := runtimeBuilder.RunRemote(dbConn, inventory, occupancyRepo, &config.Config{
 		Scheme: "https",
 		Host:   "httpbin.org",
 		Port:   443,
@@ -258,7 +262,6 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 
 	//configure local runner
-
 	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
 
 	//use a channel because callbacks are invoked from multiple goroutines

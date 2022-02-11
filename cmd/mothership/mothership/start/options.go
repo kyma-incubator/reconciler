@@ -29,27 +29,29 @@ type Options struct {
 	AuditLogFile                 string
 	AuditLogTenantID             string
 	StopAfterMigration           bool
+	ReconcilerList               []string
 }
 
 func NewOptions(o *cli.Options) *Options {
 	return &Options{o,
-		0,               //Port
-		"",              //SSLCrt
-		"",              //SSLKey
-		0,               //Workers
-		0 * time.Second, //WatchInterval
-		0 * time.Minute, //Orphan timeout
-		0 * time.Second, //ClusterReconcileInterval
-		0 * time.Minute, //PurgeEntitiesOlderThan
-		0 * time.Minute, //CleanerInterval
-		0,               //KeepLatestEntitiesCount
-		0,               //KeepUnsuccessfulEntitiesDays
-		false,           //CreateEncyptionKey
-		0,               //MaxParallelOperations
-		false,           //AuditLog
-		"",              //AuditLogFile
-		"",              //AuditLogTenant
-		false,           //StopAfterMigration
+		0,                      //Port
+		"",                     //SSLCrt
+		"",                     //SSLKey
+		0,                      //Workers
+		0 * time.Second,        //WatchInterval
+		0 * time.Minute,        //Orphan timeout
+		0 * time.Second,        //ClusterReconcileInterval
+		0 * time.Minute,        //PurgeEntitiesOlderThan
+		0 * time.Minute,        //CleanerInterval
+		0,                      //KeepLatestEntitiesCount
+		0,                      //KeepUnsuccessfulEntitiesDays
+		false,                  //CreateEncyptionKey
+		0,                      //MaxParallelOperations
+		false,                  //AuditLog
+		"",                     //AuditLogFile
+		"",                     //AuditLogTenant
+		false,                  //StopAfterMigration
+		[]string{"mothership"}, //ReconcilerList
 	}
 }
 
