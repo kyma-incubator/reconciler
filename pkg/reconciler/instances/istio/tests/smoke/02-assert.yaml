@@ -1,0 +1,27 @@
+---
+apiVersion: gateway.kyma-project.io/v1alpha1
+kind: APIRule
+spec:
+  gateway: kyma-gateway.kyma-system.svc.cluster.local
+  rules:
+  - accessStrategies:
+    - config: {}
+      handler: allow
+    methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - HEAD
+    path: /.*
+  service:
+    name: httpbin
+    port: 8000
+status:
+  APIRuleStatus:
+    code: OK
+  accessRuleStatus:
+    code: OK
+  virtualServiceStatus:
+    code: OK
