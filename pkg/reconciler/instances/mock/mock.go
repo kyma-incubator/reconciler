@@ -20,5 +20,6 @@ func init() {
 	reconciler.
 		WithReconcileAction(&CustomAction{
 			name: "install-action",
+			generator: &RandomMockedActionGenerator{},
 		})
 }
