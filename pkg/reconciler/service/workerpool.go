@@ -117,6 +117,7 @@ func (pb *workPoolBuilder) updateComponentReconcilerOccupancy(reconcilerName str
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
 		pb.workerPool.logger.Infof("Component reconciler '%s' updated occupancy successfully", reconcilerName)
+		return nil
 	}
 
 	pb.workerPool.logger.Warnf("Mothership failed to update occupancy for '%s' component with status code: '%d'", reconcilerName, resp.StatusCode)

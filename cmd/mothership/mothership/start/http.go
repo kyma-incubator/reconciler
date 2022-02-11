@@ -60,10 +60,6 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Methods(http.MethodPost)
 
 	apiRouter.HandleFunc(
-		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/processingDuration", paramContractVersion, paramSchedulingID, paramCorrelationID),
-		callHandler(o, updateOperationProcessingDuration)).Methods(http.MethodPost)
-
-	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdateCluster)).
 		Methods(http.MethodPost, http.MethodPut)
@@ -101,6 +97,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, operationCallback)).
+		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}/processingDuration", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		callHandler(o, updateOperationProcessingDuration)).
 		Methods(http.MethodPost)
 
 	apiRouter.HandleFunc(

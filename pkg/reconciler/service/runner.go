@@ -1,8 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"net/http"
 	"strings"
 	"time"
 
@@ -21,8 +25,7 @@ import (
 type runner struct {
 	*ComponentReconciler
 	install *Install
-
-	logger *zap.SugaredLogger
+	logger  *zap.SugaredLogger
 }
 
 func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler) error {
@@ -58,15 +61,18 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		retry.Delay(r.retryDelay),
 		retry.LastErrorOnly(false),
 		retry.Context(ctx))
-	processingDuration := time.Now().Sub(startTime)
 
+	processingDuration := time.Now().Sub(startTime)
 	if err == nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
 		if err := heartbeatSender.Success(retryID); err != nil {
 			return err
 		}
-		//TODO: Send processTime to new endpoint of mothership instead through heartbeat
+		err := r.updateProcessingDurationOccupancy(processingDuration.Milliseconds(), task)
+		if err != nil {
+			r.logger.Warnf("Could not update the processingDuration: %s", err.Error())
+		}
 	} else if ctx.Err() != nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
 			task.Component, task.Version)
@@ -77,7 +83,10 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		if heartbeatErr := heartbeatSender.Error(err, retryID); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
 		}
-		//TODO: Send processTime to new endpoint of mothership instead through heartbeatq
+		err := r.updateProcessingDurationOccupancy(processingDuration.Milliseconds(), task)
+		if err != nil {
+			r.logger.Warnf("Could not update the processingDuration: %s", err.Error())
+		}
 	}
 
 	return err
@@ -148,4 +157,39 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 	}
 
 	return nil
+}
+
+func processingDurationCallbackURL(callbackURL string) (string, error) {
+
+	if callbackURL == "" {
+		return "", fmt.Errorf("error parsing callback URL from model: received empty string")
+	}
+	processingDurationURLTemplate := "%s/%s"
+	return fmt.Sprintf(processingDurationURLTemplate, callbackURL, "processingDuration"), nil
+}
+
+func (r *runner) updateProcessingDurationOccupancy(processingDuration int64, task *reconciler.Task) error {
+	processingDurationCallbackURL, err := processingDurationCallbackURL(task.CallbackURL)
+	if err != nil {
+		return fmt.Errorf("failed to parse callbackURL '%s': %s", task.CallbackURL, err)
+	}
+
+	httpProcessingDurationUpdateRequest := reconciler.ProcessingDuration{
+		Duration: int(processingDuration),
+	}
+	jsonPayload, err := json.Marshal(httpProcessingDurationUpdateRequest)
+	if err != nil {
+		return fmt.Errorf("failed to marshal HTTP payload to update processing duration of operation with correlationID '%s': %s", task.CorrelationID, err)
+	}
+	resp, err := http.Post(processingDurationCallbackURL, "application/json", bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
+		r.logger.Infof("ProcessingDuration for operation with correlationID '%s' updated occupancy successfully", task.CorrelationID)
+		return nil
+	}
+
+	return fmt.Errorf("mothership failed to update processingDUration for operation with correlationID '%s' with status code: '%d'", task.CorrelationID, resp.StatusCode)
 }
