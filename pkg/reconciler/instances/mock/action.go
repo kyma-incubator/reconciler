@@ -7,10 +7,6 @@ import (
 	"time"
 )
 
-const (
-	sleepTime = 4 * time.Minute
-)
-
 // CustomAction for mock component reconciliation.
 type CustomAction struct {
 	name      string
@@ -75,8 +71,8 @@ type SleepAndSuccess struct{}
 
 func (c *SleepAndSuccess) Execute(context *service.ActionContext) error {
 	context.Logger.Infof("SleepAndSuccess action execution")
-	context.Logger.Infof("Sleeping for 1 minute...")
-	time.Sleep(1 * time.Minute)
+	context.Logger.Infof("Sleeping for 1 minutes...")
+	time.Sleep(2 * time.Minute)
 	return nil
 }
 
