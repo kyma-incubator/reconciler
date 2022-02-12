@@ -1,62 +1,15 @@
 package test
 
 import (
-	"context"
-	"os"
 	"testing"
-	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	reconcilerk8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
+	v1apps "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/util/podutils"
 )
-
-const (
-	envOryIntegrationTests = "ORY_RECONCILER_INTEGRATION_TESTS"
-	namespace              = "kyma-system"
-)
-
-type oryTest struct {
-	logger        *zap.SugaredLogger
-	kubeClient    kubernetes.Interface
-	context       context.Context
-	contextCancel context.CancelFunc
-}
-
-func newOryTest(t *testing.T) *oryTest {
-	log := logger.NewLogger(false)
-	kubeClient, err := reconcilerk8s.NewKubernetesClient(test.ReadKubeconfig(t), log, &reconcilerk8s.Config{})
-	require.NoError(t, err)
-
-	client, err := kubeClient.Clientset()
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-
-	return &oryTest{
-		logger:        log,
-		kubeClient:    client,
-		context:       ctx,
-		contextCancel: cancel,
-	}
-}
-
-func skipTestIfDisabled(t *testing.T) {
-	if !isIntegrationTestEnabled() {
-		t.Skipf("Integration tests disabled: skipping parts of test case '%s'", t.Name())
-	}
-}
-
-func isIntegrationTestEnabled() bool {
-	testEnabled, ok := os.LookupEnv(envOryIntegrationTests)
-	return ok && testEnabled == "1"
-}
 
 func TestOryIntegration(t *testing.T) {
 	skipTestIfDisabled(t)
@@ -77,4 +30,77 @@ func TestOryIntegration(t *testing.T) {
 		ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
 		require.Equal(t, true, ready)
 	}
+}
+
+func TestOryIntegrationProduction(t *testing.T) {
+	skipTestIfDisabled(t)
+
+	if !isProductionProfile() {
+		t.Skipf("Integration tests disabled: skipping parts of test case '%s'", t.Name())
+	}
+
+	setup := newOryTest(t)
+	defer setup.contextCancel()
+
+	t.Run("ensure that ory-hydra is deployed", func(t *testing.T) {
+		name := "ory-hydra"
+		hpa := setup.getHorizontalPodAutoscaler(t, name)
+
+		require.GreaterOrEqual(t, int32(1), hpa.Status.CurrentReplicas)
+		require.Equal(t, int32(3), hpa.Spec.MaxReplicas)
+		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
+	})
+
+	t.Run("ensure that ory-oathkeeper is deployed", func(t *testing.T) {
+		name := "ory-oathkeeper"
+		hpa := setup.getHorizontalPodAutoscaler(t, name)
+
+		require.GreaterOrEqual(t, int32(3), hpa.Status.CurrentReplicas)
+		require.Equal(t, int32(10), hpa.Spec.MaxReplicas)
+		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
+	})
+
+	t.Run("ensure that ory-postgresql is deployed", func(t *testing.T) {
+		name := "ory-postgresql"
+		sts := setup.getStatefulSet(t, name)
+
+		require.Equal(t, int32(1), sts.Status.Replicas)
+		require.Equal(t, int32(1), sts.Status.ReadyReplicas)
+		setup.logger.Infof("StatefulSet %v is deployed", sts.Name)
+	})
+
+	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
+		jwksName := "ory-oathkeeper-jwks-secret"
+		credsName := "ory-hydra-credentials"
+
+		setup.ensureSecretIsDeployed(t, jwksName)
+		setup.ensureSecretIsDeployed(t, credsName)
+	})
+}
+
+func (s *oryTest) getHorizontalPodAutoscaler(t *testing.T, name string) *autoscalingv1.HorizontalPodAutoscaler {
+	hpa, err := s.kubeClient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(s.context, name, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	return hpa
+}
+
+func (s *oryTest) getStatefulSet(t *testing.T, name string) *v1apps.StatefulSet {
+	sts, err := s.kubeClient.AppsV1().StatefulSets(namespace).Get(s.context, name, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	return sts
+}
+
+func (s *oryTest) getSecret(t *testing.T, name string) *v1.Secret {
+	secret, err := s.kubeClient.CoreV1().Secrets(namespace).Get(s.context, name, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	return secret
+}
+
+func (s *oryTest) ensureSecretIsDeployed(t *testing.T, name string) {
+	secret := s.getSecret(t, name)
+	require.NotNil(t, secret.Data)
+	s.logger.Infof("Secret %v is deployed", secret.Name)
 }

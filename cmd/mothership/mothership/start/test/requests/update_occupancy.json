@@ -1,0 +1,5 @@
+{
+  "component": "component",
+  "runningWorkers": 10,
+  "poolSize": 50
+}

@@ -192,6 +192,7 @@ type ReconcilerStatus struct {
 // Reconciliation defines model for reconciliation.
 type Reconciliation struct {
 	Created      time.Time `json:"created"`
+	Finished     bool      `json:"finished"`
 	Lock         string    `json:"lock"`
 	RuntimeID    string    `json:"runtimeID"`
 	SchedulingID string    `json:"schedulingID"`

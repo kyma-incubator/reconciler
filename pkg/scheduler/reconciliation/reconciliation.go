@@ -11,11 +11,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
 
-type Filter interface {
-	FilterByQuery(q *db.Select) error
-	FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity //return nil to ignore instance in result
-}
-
 type Repository interface {
 	CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error)
 	RemoveReconciliation(schedulingID string) error
