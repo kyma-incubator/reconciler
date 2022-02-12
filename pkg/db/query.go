@@ -290,7 +290,7 @@ func (s *Select) sql() string {
 	if s.Conn.Type() == Postgres {
 		useForUpdate := true
 		queryLC := strings.ToLower(query)
-		for _, aggrKeyword := range []string{"group by", "max(", "count(", "min("} {
+		for _, aggrKeyword := range []string{"group by", "max(", "count(", "avg(", "min(", "sum("} {
 			if strings.Contains(queryLC, aggrKeyword) {
 				useForUpdate = false
 				break
