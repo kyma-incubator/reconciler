@@ -19,6 +19,7 @@ func NewTestConnectionFactory(t *testing.T) ConnectionFactory {
 }
 
 func NewTestConnection(t *testing.T) Connection {
+	test.IntegrationTest(t)
 	connFac := NewTestConnectionFactory(t)
 	conn, err := connFac.NewConnection()
 	require.NoError(t, err)

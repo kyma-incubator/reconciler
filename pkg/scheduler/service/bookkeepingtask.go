@@ -2,10 +2,11 @@ package service
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"time"
 )
 
 type BookkeepingTask interface {
@@ -47,22 +48,22 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 	newClusterStatus := reconResult.GetResult()
 
 	if newClusterStatus == model.ClusterStatusDeleteError {
-		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, config.MaxRetries, model.ClusterStatusDeleteError, model.ClusterStatusDeleteErrorRetryable)
+		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, config.MaxDeleteErrRetries, model.ClusterStatusDeleteError, model.ClusterStatusDeleteErrorRetryable)
 		if err != nil {
 			fo.logger.Error(err)
 		}
-		if errCnt < config.MaxRetries {
+		if errCnt < config.MaxDeleteErrRetries {
 			newClusterStatus = model.ClusterStatusDeleteErrorRetryable
 			fo.logger.Infof("BookkeeperTask finishOperation: deletion for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
 				"deletion will be retried (count of applied retries: %d)",
 				reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
 		}
 	} else if newClusterStatus == model.ClusterStatusReconcileError {
-		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, config.MaxRetries, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)
+		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, config.MaxReconcileErrRetries, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)
 		if err != nil {
 			fo.logger.Error(err)
 		}
-		if errCnt < config.MaxRetries {
+		if errCnt < config.MaxReconcileErrRetries {
 			newClusterStatus = model.ClusterStatusReconcileErrorRetryable
 			fo.logger.Infof("BookkeeperTask finishOperation: reconciliation for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
 				"reconciliation will be retried (count of applied retries: %d)",

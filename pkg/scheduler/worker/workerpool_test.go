@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"sync"
 	"testing"
 	"time"
@@ -23,16 +24,18 @@ import (
 )
 
 type testInvoker struct {
-	params     []*invoker.Params
-	reconRepo  reconciliation.Repository
-	errChannel chan error
+	params        []*invoker.Params
+	reconRepo     reconciliation.Repository
+	occupancyRepo occupancy.Repository
+	errChannel    chan error
 	sync.WaitGroup
 }
 
 type testInvokerParallel struct {
-	params     []*invoker.Params
-	reconRepo  reconciliation.Repository
-	errChannel chan error
+	params        []*invoker.Params
+	reconRepo     reconciliation.Repository
+	occupancyRepo occupancy.Repository
+	errChannel    chan error
 	sync.Mutex
 }
 
@@ -69,16 +72,16 @@ func TestWorkerPool(t *testing.T) {
 	clusterState, err := inventory.CreateOrUpdate(1, kebTest.NewCluster(t, "1", 1, false, kebTest.OneComponentDummy))
 	require.NoError(t, err)
 
-	//cleanup created cluster
-	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
-	}()
-
 	//create test invoker to be able to verify invoker calls
 	testInvoker := &testInvoker{errChannel: make(chan error, 10)}
 
+	testInvoker.occupancyRepo = occupancy.NewInMemoryOccupancyRepository()
+
 	//create reconciliation for cluster
 	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
+	//cleanup created cluster
+	defer cleanup(t, testInvoker, inventory, clusterState)
+
 	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 	opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
@@ -86,7 +89,7 @@ func TestWorkerPool(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.occupancyRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	//create time limited context
@@ -127,24 +130,20 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	clusterState, err := inventory.CreateOrUpdate(1, kebTest.NewCluster(t, "2", 1, false, kebTest.OneComponentDummy))
 	require.NoError(t, err)
 
-	//cleanup created cluster
-	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
-	}()
-
 	//create test invoker to be able to verify invoker calls
 	testInvoker := &testInvoker{}
 
-	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
+	testInvoker.occupancyRepo, err = occupancy.NewPersistentOccupancyRepository(testDB, true)
 	require.NoError(t, err)
 
-	//create reconciliation for cluster (cleanup old recons up-front)
-	removeExistingReconciliations(t, testInvoker.reconRepo)
+	//create reconciliation for cluster
+	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
+	require.NoError(t, err)
+	//cleanup created cluster
+	defer cleanup(t, testInvoker, inventory, clusterState)
+
 	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
-	defer func() {
-		removeExistingReconciliations(t, testInvoker.reconRepo)
-	}()
 
 	maxParallelOps := 25
 	numberOfProcessableOps := 1
@@ -163,7 +162,7 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, testConfig, logger.NewLogger(true))
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.occupancyRepo, testInvoker, testConfig, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	ctx, cancelFct := context.WithTimeout(context.Background(), 1*time.Second)
@@ -188,6 +187,13 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 
 }
 
+func cleanup(t *testing.T, testInvoker *testInvoker, inventory cluster.Inventory, clusterState *cluster.State) {
+	func() {
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+	}()
+}
+
 func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.OperationEntity, correlationID string) {
 	for i := range opsProcessable {
 		if opsProcessable[i].CorrelationID == correlationID {
@@ -203,7 +209,9 @@ func TestWorkerPoolParallel(t *testing.T) {
 
 		var wg sync.WaitGroup
 
-		const countWorkerPools = 10
+		const countWorkerPools = 5
+		const countKebClusters = 3
+		const countOperations = 3 //should be the same count as prio1 operations from all clusters; here three clusters with one prio1 operation each
 
 		//prepare keb clusters
 		kebClusters := []*keb.Cluster{
@@ -211,54 +219,49 @@ func TestWorkerPoolParallel(t *testing.T) {
 			kebTest.NewCluster(t, "2", 1, false, kebTest.OneComponentDummy),
 			kebTest.NewCluster(t, "3", 1, false, kebTest.OneComponentDummy),
 		}
-
-		//create mock database connection
 		testDB := db.NewTestConnection(t)
 
-		//create cluster inventory
 		inventory, err := cluster.NewInventory(testDB, true, &cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
-
-		//add clusters to inventory
-		var clusterStates []*cluster.State
-		for i := range kebClusters {
-			clusterState, err := inventory.CreateOrUpdate(1, kebClusters[i])
-			require.NoError(t, err)
-			clusterStates = append(clusterStates, clusterState)
-		}
-		//cleanup clusters at the end
+		//create cluster inventory
+		//create mock database connection
 		defer func() {
 			for _, kebCluster := range kebClusters {
 				require.NoError(t, inventory.Delete(kebCluster.RuntimeID))
 			}
 		}()
 
+		//add clusters to inventory
+		var clusterStates [countKebClusters]*cluster.State
+		for i := range kebClusters {
+			clusterStates[i], err = inventory.CreateOrUpdate(1, kebClusters[i])
+		}
+		require.NoError(t, err)
+
 		//create test invoker to be able to verify invoker calls and update operation state
 		testInvoker := &testInvokerParallel{errChannel: make(chan error, 100)}
 
 		//create reconciliation for cluster
+		testInvoker.occupancyRepo, err = occupancy.NewPersistentOccupancyRepository(testDB, true)
+		require.NoError(t, err)
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 		require.NoError(t, err)
+		//cleanup before
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 
-		//create reconciliations (up-front and at the end cleanup the old one)
-		removeExistingReconciliations(t, testInvoker.reconRepo)
 		for i := range clusterStates {
 			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], &model.ReconciliationSequenceConfig{})
 			require.NoError(t, err)
 		}
-		defer func() {
-			removeExistingReconciliations(t, testInvoker.reconRepo)
-		}()
 
-		//ensure ops were created
 		opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
-		require.True(t, len(opsProcessable) > 2) //just ensure ops were created as well
+		require.Len(t, opsProcessable, countOperations) // only first priority
 		require.NoError(t, err)
 
 		//initialize worker pool
 		wPools := make([]*Pool, countWorkerPools)
 		for i := 0; i < countWorkerPools; i++ {
-			workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, &Config{PoolSize: 5}, logger.NewLogger(true))
+			workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.occupancyRepo, testInvoker, &Config{PoolSize: 5}, logger.NewLogger(true))
 			require.NoError(t, err)
 			wPools[i] = workerPool
 		}
@@ -284,19 +287,24 @@ func TestWorkerPoolParallel(t *testing.T) {
 		}
 		wg.Wait()
 
-		require.Len(t, testInvoker.params, len(opsProcessable)) //ensure all ops were processed
+		//check how often the invokes were successful
+		require.Len(t, testInvoker.params, countOperations)
 		for i := 0; i < len(testInvoker.params); i++ {
 			//check for updated status and component
 			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
 			require.Equal(t, model.CRDComponent, testInvoker.params[i].ComponentToReconcile.Component)
 		}
+		//cleanup after
+		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 	})
 }
 
-func removeExistingReconciliations(t *testing.T, repo reconciliation.Repository) {
-	recons, err := repo.GetReconciliations(nil)
-	require.NoError(t, err)
-	for _, recon := range recons {
-		require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
+func removeExistingReconciliations(t *testing.T, repos map[string]reconciliation.Repository) {
+	for _, repo := range repos {
+		recons, err := repo.GetReconciliations(nil)
+		require.NoError(t, err)
+		for _, recon := range recons {
+			require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
+		}
 	}
 }
