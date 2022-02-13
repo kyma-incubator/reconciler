@@ -27,6 +27,9 @@ func TestInventory(t *testing.T) {
 
 	expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
 
+	removeAllClusters(t, inventory)       //cleanup before the test runs
+	defer removeAllClusters(t, inventory) //cleanup after test is finished
+
 	t.Run("Create expectedCluster", func(t *testing.T) {
 		//create cluster1
 		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
@@ -85,6 +88,28 @@ func TestInventory(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, newState2.Status.Status, model.ClusterStatusReconciling)
 		require.True(t, oldStatusID < newState2.Status.ID)
+	})
+
+	t.Run("Get all", func(t *testing.T) {
+		//verify the expected cluster is returned
+		clustersOld, err := inventory.GetAll()
+		require.NoError(t, err)
+		require.Len(t, clustersOld, 1)
+
+		//add a new cluster
+		newCluster, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.Production))
+		require.NoError(t, err)
+
+		//check that both clusters are now returned
+		clustersNew, err := inventory.GetAll()
+		require.NoError(t, err)
+		require.Len(t, clustersNew, 2)
+
+		//verify that just the expected cluster is returned after removing the new created cluster
+		require.NoError(t, inventory.Delete(newCluster.Cluster.RuntimeID))
+		clusterOldRefershed, err := inventory.GetAll()
+		require.NoError(t, err)
+		require.ElementsMatch(t, clustersOld, clusterOldRefershed)
 	})
 
 	t.Run("Delete expectedCluster", func(t *testing.T) {
@@ -459,4 +484,14 @@ func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 
 	// *** ClusterStatusEntity ***
 	require.Equal(t, model.ClusterStatusReconcilePending, state.Status.Status)
+}
+
+func removeAllClusters(t *testing.T, inventory Inventory) {
+	t.Log("Remove all clusters from inventory")
+	allClusters, err := inventory.GetAll()
+	require.NoError(t, err)
+	for _, cluster := range allClusters {
+		require.NoError(t, inventory.Delete(cluster.Cluster.RuntimeID))
+	}
+
 }
