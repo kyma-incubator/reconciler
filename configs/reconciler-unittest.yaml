@@ -12,6 +12,7 @@ db:
     user: kyma
     password: kyma
     useSsl: false
+    migrationsDir: "./configs/db/postgres"
   sqlite:
     file: "test/unittest.db"
     deploySchema: true
@@ -25,4 +26,4 @@ mothership:
       base:
         url: "http://localhost:8081/v1/run"
     preComponents:
-      - [cluster-essentials, istio-configuration, certificates]
+      - [ cluster-essentials, istio-configuration, certificates ]

@@ -46,7 +46,7 @@ func (o *Options) Logger() *zap.SugaredLogger {
 
 func (o *Options) InitApplicationRegistry(forceInitialization bool) error {
 	if forceInitialization || o.InitRegistry {
-		dbConnFact, err := db.NewConnectionFactory(viper.ConfigFileUsed(), o.Migrate, o.Verbose)
+		dbConnFact, err := db.NewConnectionFactory(viper.ConfigFileUsed(), false, o.Migrate, o.Verbose)
 		if err != nil {
 			return err
 		}

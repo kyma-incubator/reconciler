@@ -11,10 +11,9 @@ func NewTestConnectionFactory(t *testing.T) ConnectionFactory {
 	configFile, err := test.GetConfigFile()
 	require.NoError(t, err)
 
-	connFac, err := NewConnectionFactory(configFile, false, true)
+	connFac, err := NewConnectionFactory(configFile, false, true, true) //TODO: set reset to TRUE after further testing
 	require.NoError(t, err)
 
-	require.NoError(t, connFac.Init(false))
 	return connFac
 }
 

@@ -23,7 +23,7 @@ type Connection interface {
 }
 
 type ConnectionFactory interface {
-	Init(migrate bool) error
+	Init(reset, migrate bool) error
 	NewConnection() (Connection, error)
 }
 

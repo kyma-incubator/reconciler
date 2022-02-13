@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func NewConnectionFactory(configFile string, migrate bool, debug bool) (ConnectionFactory, error) {
+func NewConnectionFactory(configFile string, reset bool, migrate bool, debug bool) (ConnectionFactory, error) {
 	viper.SetConfigFile(configFile)
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
@@ -28,14 +28,14 @@ func NewConnectionFactory(configFile string, migrate bool, debug bool) (Connecti
 	switch dbToUse {
 	case "postgres":
 		connFact := createPostgresConnectionFactory(encKey, debug, blockQueries, logQueries)
-		return connFact, connFact.Init(migrate)
+		return connFact, connFact.Init(reset, migrate)
 
 	case "sqlite":
 		connFact, err := createSqliteConnectionFactory(encKey, debug, blockQueries, logQueries)
 		if err != nil {
 			return nil, errors.Wrap(err, "error creating sqliteConnectionFactory")
 		}
-		return connFact, connFact.Init(migrate)
+		return connFact, connFact.Init(reset, migrate)
 
 	default:
 		return nil, fmt.Errorf("DB type '%s' not supported", dbToUse)
@@ -43,7 +43,7 @@ func NewConnectionFactory(configFile string, migrate bool, debug bool) (Connecti
 }
 
 func MigrateDatabase(configFile string, debug bool) error {
-	_, err := NewConnectionFactory(configFile, true, debug)
+	_, err := NewConnectionFactory(configFile, false, true, debug)
 	return err
 }
 
@@ -94,7 +94,7 @@ func createPostgresConnectionFactory(encKey string, _ bool, blockQueries, logQue
 	user := viper.GetString("db.postgres.user")
 	password := viper.GetString("db.postgres.password")
 	sslMode := viper.GetBool("db.postgres.sslMode")
-	migrationsDir := viper.GetString("db.postgres.migrationsDir")
+	migrationsDir := filepath.Join(filepath.Dir(viper.ConfigFileUsed()), "..", viper.GetString("db.postgres.migrationsDir"))
 
 	if viper.IsSet("DATABASE_HOST") {
 		host = viper.GetString("DATABASE_HOST")

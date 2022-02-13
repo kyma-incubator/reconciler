@@ -112,7 +112,7 @@ type sqliteConnectionFactory struct {
 	logQueries    bool
 }
 
-func (scf *sqliteConnectionFactory) Init(_ bool) error {
+func (scf *sqliteConnectionFactory) Init(_ bool, _ bool) error {
 	if scf.reset {
 		if err := scf.resetFile(); err != nil {
 			return err
