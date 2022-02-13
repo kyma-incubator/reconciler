@@ -494,5 +494,4 @@ func removeAllClusters(t *testing.T, inventory Inventory) {
 	for _, cluster := range allClusters {
 		require.NoError(t, inventory.Delete(cluster.Cluster.RuntimeID))
 	}
-
 }
