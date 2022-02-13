@@ -104,6 +104,7 @@ func TestInventory(t *testing.T) {
 		clustersNew, err := inventory.GetAll()
 		require.NoError(t, err)
 		require.Len(t, clustersNew, 2)
+		require.Contains(t, clustersNew, newCluster)
 
 		//verify that just the expected cluster is returned after removing the new created cluster
 		require.NoError(t, inventory.Delete(newCluster.Cluster.RuntimeID))
