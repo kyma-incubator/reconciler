@@ -33,7 +33,7 @@ func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries boo
 	validator := NewValidator(blockQueries, logger)
 
 	return &sqliteConnection{
-		id:        newId(5),
+		id:        newID(),
 		db:        db,
 		encryptor: encryptor,
 		validator: validator,
@@ -41,7 +41,7 @@ func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries boo
 	}, nil
 }
 
-func (sc *sqliteConnection) Id() string {
+func (sc *sqliteConnection) ID() string {
 	return sc.id
 }
 

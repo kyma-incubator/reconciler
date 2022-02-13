@@ -47,8 +47,8 @@ func (r *MockResult) RowsAffected() (int64, error) {
 	return MockRowsAffected, nil
 }
 
-func (c *MockConnection) Id() string {
-	return "mockConnectionId"
+func (c *MockConnection) ID() string {
+	return "mockConnectionID"
 }
 
 func (c *MockConnection) DB() *sql.DB {

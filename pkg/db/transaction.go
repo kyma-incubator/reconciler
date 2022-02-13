@@ -20,20 +20,20 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 	var err error
 	var allErr error
 
-	txCtxID := newId(5)
+	txCtxID := newID()
 	for retries := 0; retries < txMaxRetries; retries++ {
 		result, err = execTransaction(conn, dbOps, logger)
 		if err == nil {
 			if retries > 0 {
 				logger.Debugf("DB transaction (txCtxID:%s/connID:%s) after %d retries successfully finished",
-					txCtxID, conn.Id(), retries)
+					txCtxID, conn.ID(), retries)
 			}
 			return result, nil
 		}
 
 		if retries > 0 {
 			logger.Debugf("DB transaction (txCtxID:%s/connID:%s) failed again in retry #%d: %s",
-				txCtxID, conn.Id(), retries, err)
+				txCtxID, conn.ID(), retries, err)
 		}
 
 		//chain all retrieved TX errors for better debugging
@@ -51,7 +51,7 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 			delay := randomJitter()
 			logger.Debugf("DB transaction (txCtxID:%s/connID:%s) collision occurred and transaction will be retried in %d msec",
 				txCtxID,
-				conn.Id(),
+				conn.ID(),
 				delay.Milliseconds())
 			time.Sleep(delay)
 			continue
@@ -87,10 +87,10 @@ func execTransaction(conn Connection, dbOps func(tx *TxConnection) (interface{},
 
 	result, err := dbOps(txConnection)
 	if err != nil {
-		log("Rollback DB transaction (txID:%s) because an error occurred: %s", txConnection.Id(), err)
+		log("Rollback DB transaction (txID:%s) because an error occurred: %s", txConnection.ID(), err)
 		if rollbackErr := txConnection.Rollback(); rollbackErr != nil {
 			err = errors.Wrap(err, fmt.Sprintf("Rollback of DB transaction (txID:%s ) failed: %s",
-				txConnection.Id(), rollbackErr))
+				txConnection.ID(), rollbackErr))
 		}
 		return result, err
 	}
@@ -119,7 +119,7 @@ type TxConnection struct {
 func NewTxConnection(tx *sql.Tx, conn Connection, logger *zap.SugaredLogger) *TxConnection {
 	//setting counter to 1 since first begin is not called with counter increase
 	return &TxConnection{
-		id:      fmt.Sprintf("%s-%s", conn.Id(), newId(5)),
+		id:      fmt.Sprintf("%s-%s", conn.ID(), newID()),
 		tx:      tx,
 		conn:    conn,
 		counter: 1,
@@ -127,7 +127,7 @@ func NewTxConnection(tx *sql.Tx, conn Connection, logger *zap.SugaredLogger) *Tx
 	}
 }
 
-func (t *TxConnection) Id() string {
+func (t *TxConnection) ID() string {
 	return t.id
 }
 

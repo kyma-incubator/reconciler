@@ -64,14 +64,14 @@ func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQu
 
 	return &postgresConnection{
 		db:        db,
-		id:        newId(5),
+		id:        newID(),
 		encryptor: encryptor,
 		validator: validator,
 		logger:    logger,
 	}, nil
 }
 
-func (pc *postgresConnection) Id() string {
+func (pc *postgresConnection) ID() string {
 	return pc.id
 }
 
