@@ -272,21 +272,106 @@ func (r *InMemoryReconciliationRepository) UpdateOperationRetryID(schedulingID, 
 }
 
 func (r *InMemoryReconciliationRepository) UpdateOperationPickedUp(schedulingID, correlationID string) error {
-	//TODO implement
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	_, ok := r.operations[schedulingID]
+	if !ok {
+		return &repository.EntityNotFoundError{}
+	}
+	op, ok := r.operations[schedulingID][correlationID]
+	if !ok {
+		return &repository.EntityNotFoundError{}
+	}
+
+	// copy the operation to avoid having data races while writing
+	opCopy := *op
+
+	opCopy.PickedUp = time.Now()
+	r.operations[schedulingID][correlationID] = &opCopy
+
 	return nil
 }
 
 func (r *InMemoryReconciliationRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error {
-	//TODO: implement
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	_, ok := r.operations[schedulingID]
+	if !ok {
+		return &repository.EntityNotFoundError{}
+	}
+	op, ok := r.operations[schedulingID][correlationID]
+	if !ok {
+		return &repository.EntityNotFoundError{}
+	}
+
+	// copy the operation to avoid having data races while writing
+	opCopy := *op
+
+	opCopy.ProcessingDuration = processingDuration
+	r.operations[schedulingID][correlationID] = &opCopy
+
 	return nil
 }
 
 func (r *InMemoryReconciliationRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
-	//TODO: implement
-	return 0, nil
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var duration int64 = 0
+	var operationCount int64 = 0
+
+	ops, err := r.GetOperations(&operation.FilterMixer{
+		Filters: []operation.Filter{
+			&operation.WithComponentName{Component: component},
+			&operation.WithStates{
+				States: []model.OperationState{state},
+			},
+		},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	for _, op := range ops {
+		duration += op.ProcessingDuration
+		operationCount++
+	}
+
+	meanlifetime := duration / operationCount
+	return meanlifetime, nil
 }
 
 func (r *InMemoryReconciliationRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
-	// TODO: implement
-	return 0, nil
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var duration time.Duration = 0
+	var operationCount int64 = 0
+
+	ops, err := r.GetOperations(&operation.FilterMixer{
+		Filters: []operation.Filter{
+			&operation.WithComponentName{Component: component},
+			&operation.WithStates{
+				States: []model.OperationState{state},
+			},
+		},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	for _, op := range ops {
+		switch startTime {
+		case Created:
+			duration += op.Updated.Sub(op.Created)
+		case PickedUp:
+			duration += op.Updated.Sub(op.PickedUp)
+		}
+		operationCount++
+	}
+
+	meanLifetime := duration.Milliseconds() / operationCount
+	return meanLifetime, nil
 }

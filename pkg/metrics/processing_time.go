@@ -7,14 +7,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// TODO: come up with reasonable prefixes
-// label for metrics is prefix + operation name (component name of operation)
-const prefixOperationLifetimeMothershipSuccessful = "0"
-const prefixOperationLifetimeMothershipUnsuccessful = "1"
-const prefixOperationProcessingDurationMothershipSuccessful = "2"
-const prefixOperationProcessingDurationMothershipUnsuccessful = "3"
-const prefixOperationProcessingDurationComponentSuccessful = "4"
-const prefixOperationProcessingDurationComponentUnsuccessful = "5"
+// label for metrics is prefix + operation name (component name of operation) + unit suffix
+// stick to prometheus naming conventions
+const prefixOperationLifetimeMothershipSuccessful = "operation_lifetime_mothership_successful_"
+const prefixOperationLifetimeMothershipUnsuccessful = "operation_lifetime_mothership_unsuccessful_"
+const prefixOperationProcessingDurationMothershipSuccessful = "operation_processing_duration_mothership_successful_"
+const prefixOperationProcessingDurationMothershipUnsuccessful = "operation_processing_duration_mothership_unsuccessful_"
+const prefixOperationProcessingDurationComponentSuccessful = "operation_processing_duration_reconciler_successful_"
+const prefixOperationProcessingDurationComponentUnsuccessful = "operation_processing_duration_reconciler_unsuccessful_"
+
+const suffix_unit = "_milliseconds"
 
 // TODO: Describe
 
@@ -56,7 +58,7 @@ func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for _, component := range c.componentList {
 		for _, metric := range c.metricsList {
-			m, err := c.reconciliationStatusGauge.GetMetricWithLabelValues(metric + component)
+			m, err := c.reconciliationStatusGauge.GetMetricWithLabelValues(metric + component + suffix_unit)
 			if err != nil {
 				c.logger.Errorf("unable to retrieve metric with label=%s: %s", component, err.Error())
 				return
