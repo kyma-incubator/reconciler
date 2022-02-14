@@ -84,9 +84,9 @@ func (mr *MockRepository) UpdateComponentOperationProcessingDuration(schedulingI
 }
 
 func (mr *MockRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
-	return mr.GetMeanComponentOperationProcessingDurationResult, r.GetMeanComponentOperationProcessingDurationResultError
+	return mr.GetMeanComponentOperationProcessingDurationResult, mr.GetMeanComponentOperationProcessingDurationResultError
 }
 
 func (mr *MockRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
-	return mr.GetMeanMothershipOperationProcessingDurationResult, r.GetMeanMothershipOperationProcessingDurationResultError
+	return mr.GetMeanMothershipOperationProcessingDurationResult, mr.GetMeanMothershipOperationProcessingDurationResultError
 }
