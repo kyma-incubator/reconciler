@@ -62,7 +62,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		retry.LastErrorOnly(false),
 		retry.Context(ctx))
 
-	processingDuration := time.Now().Sub(startTime)
+	processingDuration := time.Since(startTime)
 	if err == nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
@@ -181,6 +181,7 @@ func (r *runner) updateProcessingDuration(processingDuration int64, task *reconc
 	if err != nil {
 		return fmt.Errorf("failed to marshal HTTP payload to update processing duration of operation with correlationID '%s': %s", task.CorrelationID, err)
 	}
+	//nolint:gosec //http request needs to be done with variable here, since we first need to add the correct sub-endpoint to the callback
 	resp, err := http.Post(processingDurationCallbackURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		return err

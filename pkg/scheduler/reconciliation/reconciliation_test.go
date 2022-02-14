@@ -695,6 +695,7 @@ func TestReconciliationRepository(t *testing.T) {
 					require.NoError(t, err)
 				}
 				meanDuration, err := reconRepo.GetMeanComponentOperationProcessingDuration("comp1", model.OperationStateDone)
+				require.NoError(t, err)
 				require.Equal(t, int64(50), meanDuration)
 			},
 		},
@@ -717,6 +718,7 @@ func TestReconciliationRepository(t *testing.T) {
 					require.NoError(t, err)
 				}
 				meanDuration, err := reconRepo.GetMeanMothershipOperationProcessingDuration("comp1", model.OperationStateDone, Created)
+				require.NoError(t, err)
 				require.GreaterOrEqual(t, meanDuration, int64(1000))
 			},
 		},

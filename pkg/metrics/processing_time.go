@@ -16,7 +16,7 @@ const prefixOperationProcessingDurationMothershipUnsuccessful = "operation_proce
 const prefixOperationProcessingDurationComponentSuccessful = "operation_processing_duration_reconciler_successful_"
 const prefixOperationProcessingDurationComponentUnsuccessful = "operation_processing_duration_reconciler_unsuccessful_"
 
-const suffix_unit = "_milliseconds"
+const suffixUnit = "_milliseconds"
 
 // TODO: Describe
 
@@ -56,7 +56,7 @@ func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for _, component := range c.componentList {
 		for _, metric := range c.metricsList {
-			m, err := c.reconciliationStatusGauge.GetMetricWithLabelValues(metric + component + suffix_unit)
+			m, err := c.reconciliationStatusGauge.GetMetricWithLabelValues(metric + component + suffixUnit)
 			if err != nil {
 				c.logger.Errorf("unable to retrieve metric with label=%s: %s", component, err.Error())
 				return
