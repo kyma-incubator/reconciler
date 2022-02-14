@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	ReconcilerName       = "connectivity-proxy"
-	istioConfigPrefix    = "istio"
+	ReconcilerName    = "connectivity-proxy"
+	istioConfigPrefix = "istio"
 )
 
 type CopyFactory func(task *reconciler.Task, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy
