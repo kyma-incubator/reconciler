@@ -12,7 +12,6 @@ import (
 
 const (
 	ReconcilerName       = "connectivity-proxy"
-	registryConfigPrefix = "registry"
 	istioConfigPrefix    = "istio"
 )
 
