@@ -17,8 +17,9 @@ type MockDbEntity struct {
 }
 
 type MockConnection struct {
-	query string
-	args  []interface{}
+	query  string
+	args   []interface{}
+	dbType Type
 }
 
 type MockDataRow struct {
@@ -94,7 +95,10 @@ func (c *MockConnection) Close() error {
 }
 
 func (c *MockConnection) Type() Type {
-	return Mock
+	if c.dbType == "" {
+		return Mock
+	}
+	return c.dbType
 }
 
 func (fake *MockDbEntity) String() string {

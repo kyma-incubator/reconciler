@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/google/uuid"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
@@ -64,7 +65,7 @@ func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQu
 
 	return &postgresConnection{
 		db:        db,
-		id:        newID(),
+		id:        uuid.NewString(),
 		encryptor: encryptor,
 		validator: validator,
 		logger:    logger,

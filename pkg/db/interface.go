@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"math/rand"
 )
 
 type Type string
@@ -47,16 +46,4 @@ type DataRow interface {
 type DataRows interface {
 	Scan(dest ...interface{}) error
 	Next() bool
-}
-
-func newID() string {
-	const idLength = 5
-	var letters = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
-
-	b := make([]rune, idLength)
-	for i := range b {
-		//nolint:gosec //this code is not used for any security related functionality and linter finding can be ignored
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
 }

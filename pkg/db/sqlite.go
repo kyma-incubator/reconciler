@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"github.com/google/uuid"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -33,7 +34,7 @@ func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries boo
 	validator := NewValidator(blockQueries, logger)
 
 	return &sqliteConnection{
-		id:        newID(),
+		id:        uuid.NewString(),
 		db:        db,
 		encryptor: encryptor,
 		validator: validator,

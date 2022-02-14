@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"math/rand"
@@ -20,7 +21,7 @@ func TransactionResult(conn Connection, dbOps func(tx *TxConnection) (interface{
 	var err error
 	var allErr error
 
-	txCtxID := newID()
+	txCtxID := uuid.NewString()
 	for retries := 0; retries < txMaxRetries; retries++ {
 		result, err = execTransaction(conn, dbOps, logger)
 		if err == nil {
@@ -119,7 +120,7 @@ type TxConnection struct {
 func NewTxConnection(tx *sql.Tx, conn Connection, logger *zap.SugaredLogger) *TxConnection {
 	//setting counter to 1 since first begin is not called with counter increase
 	return &TxConnection{
-		id:      fmt.Sprintf("%s-%s", conn.ID(), newID()),
+		id:      fmt.Sprintf("%s-%s", conn.ID(), uuid.NewString()),
 		tx:      tx,
 		conn:    conn,
 		counter: 1,
