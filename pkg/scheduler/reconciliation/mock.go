@@ -75,18 +75,18 @@ func (mr *MockRepository) UpdateOperationRetryID(schedulingID, correlationID, re
 	return mr.UpdateOperationRetryIDResult
 }
 
-func (r *MockRepository) UpdateOperationPickedUp(schedulingID, correlationID string) error {
-	return r.UpdateOperationPickedUpResult
+func (mr *MockRepository) UpdateOperationPickedUp(schedulingID, correlationID string) error {
+	return mr.UpdateOperationPickedUpResult
 }
 
-func (r *MockRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error {
-	return r.UpdateComponentOperationProcessingDurationResult
+func (mr *MockRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error {
+	return mr.UpdateComponentOperationProcessingDurationResult
 }
 
-func (r *MockRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
-	return r.GetMeanComponentOperationProcessingDurationResult, r.GetMeanComponentOperationProcessingDurationResultError
+func (mr *MockRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
+	return mr.GetMeanComponentOperationProcessingDurationResult, r.GetMeanComponentOperationProcessingDurationResultError
 }
 
-func (r *MockRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
-	return r.GetMeanMothershipOperationProcessingDurationResult, r.GetMeanMothershipOperationProcessingDurationResultError
+func (mr *MockRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
+	return mr.GetMeanMothershipOperationProcessingDurationResult, r.GetMeanMothershipOperationProcessingDurationResultError
 }
