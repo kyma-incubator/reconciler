@@ -89,6 +89,7 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 		SchedulingID:        opEntity.SchedulingID,
 		CorrelationID:       opEntity.CorrelationID,
 		MaxOperationRetries: 5,
+		Type:                opEntity.Type,
 	})
 
 	if simulateError {
