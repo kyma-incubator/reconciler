@@ -37,7 +37,7 @@ const (
 	urlReconcilerRun = "http://localhost:9999/v1/run"
 
 	componentReconcilerName = "unittest"
-	workerTimeout           = 1 * time.Minute
+	workerTimeout           = 70 * time.Second
 	serverPort              = 9999
 
 	componentName       = "component-1"
