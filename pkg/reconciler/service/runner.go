@@ -69,7 +69,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		if err := heartbeatSender.Success(retryID); err != nil {
 			return err
 		}
-		err := r.updateProcessingDurationOccupancy(processingDuration.Milliseconds(), task)
+		err := r.updateProcessingDuration(processingDuration.Milliseconds(), task)
 		if err != nil {
 			r.logger.Warnf("Could not update the processingDuration: %s", err.Error())
 		}
@@ -83,7 +83,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		if heartbeatErr := heartbeatSender.Error(err, retryID); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
 		}
-		err := r.updateProcessingDurationOccupancy(processingDuration.Milliseconds(), task)
+		err := r.updateProcessingDuration(processingDuration.Milliseconds(), task)
 		if err != nil {
 			r.logger.Warnf("Could not update the processingDuration: %s", err.Error())
 		}
@@ -168,7 +168,7 @@ func processingDurationCallbackURL(callbackURL string) (string, error) {
 	return fmt.Sprintf(processingDurationURLTemplate, callbackURL, "processingDuration"), nil
 }
 
-func (r *runner) updateProcessingDurationOccupancy(processingDuration int64, task *reconciler.Task) error {
+func (r *runner) updateProcessingDuration(processingDuration int64, task *reconciler.Task) error {
 	processingDurationCallbackURL, err := processingDurationCallbackURL(task.CallbackURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse callbackURL '%s': %s", task.CallbackURL, err)
@@ -187,9 +187,9 @@ func (r *runner) updateProcessingDurationOccupancy(processingDuration int64, tas
 	}
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
-		r.logger.Infof("ProcessingDuration for operation with correlationID '%s' updated occupancy successfully", task.CorrelationID)
+		r.logger.Infof("ProcessingDuration for operation with correlationID '%s' updated successfully", task.CorrelationID)
 		return nil
 	}
 
-	return fmt.Errorf("mothership failed to update processingDUration for operation with correlationID '%s' with status code: '%d'", task.CorrelationID, resp.StatusCode)
+	return fmt.Errorf("mothership failed to update processingDuration for operation with correlationID '%s' with status code: '%d'", task.CorrelationID, resp.StatusCode)
 }
