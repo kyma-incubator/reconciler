@@ -316,25 +316,27 @@ func (r *InMemoryReconciliationRepository) UpdateComponentOperationProcessingDur
 }
 
 func (r *InMemoryReconciliationRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	var duration int64 = 0
 	var operationCount int64 = 0
 
-	ops, err := r.GetOperations(&operation.FilterMixer{
+	operations, err := r.GetOperations(&operation.FilterMixer{
 		Filters: []operation.Filter{
 			&operation.WithComponentName{Component: component},
 			&operation.WithStates{
 				States: []model.OperationState{state},
 			},
+			&operation.Limit{Count: metricsQueryLimit},
 		},
 	})
 	if err != nil {
 		return 0, err
 	}
+	if len(operations) == 0 {
+		return 0, nil
+	}
 
-	for _, op := range ops {
+	for _, op := range operations {
 		duration += op.ProcessingDuration
 		operationCount++
 	}
@@ -344,25 +346,27 @@ func (r *InMemoryReconciliationRepository) GetMeanComponentOperationProcessingDu
 }
 
 func (r *InMemoryReconciliationRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	var duration time.Duration = 0
 	var operationCount int64 = 0
 
-	ops, err := r.GetOperations(&operation.FilterMixer{
+	operations, err := r.GetOperations(&operation.FilterMixer{
 		Filters: []operation.Filter{
 			&operation.WithComponentName{Component: component},
 			&operation.WithStates{
 				States: []model.OperationState{state},
 			},
+			&operation.Limit{Count: metricsQueryLimit},
 		},
 	})
 	if err != nil {
 		return 0, err
 	}
+	if len(operations) == 0 {
+		return 0, nil
+	}
 
-	for _, op := range ops {
+	for _, op := range operations {
 		switch startTime {
 		case Created:
 			duration += op.Updated.Sub(op.Created)

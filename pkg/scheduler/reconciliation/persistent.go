@@ -266,7 +266,7 @@ func (r *PersistentReconciliationRepository) GetOperations(filter operation.Filt
 			return nil, errors.Wrap(err, "failed to apply sql filter")
 		}
 	}
-
+	fmt.Println(selectQ.String())
 	ops, err := selectQ.GetMany()
 	if err != nil {
 		return nil, err
@@ -531,16 +531,18 @@ func (r *PersistentReconciliationRepository) GetMeanComponentOperationProcessing
 
 	operations, err := r.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
 		&operation.WithComponentName{Component: component},
+		&operation.WithStates{States: []model.OperationState{state}},
 		&operation.Limit{Count: metricsQueryLimit},
 	}})
 	if err != nil {
 		return 0, err
 	}
+	if len(operations) == 0 {
+		return 0, nil
+	}
 	for _, op := range operations {
-		if op.State == state {
-			duration += op.ProcessingDuration
-			operationCount++
-		}
+		duration += op.ProcessingDuration
+		operationCount++
 	}
 	meanLifetime := duration / operationCount
 	return meanLifetime, nil
@@ -555,21 +557,24 @@ func (r *PersistentReconciliationRepository) GetMeanMothershipOperationProcessin
 
 	operations, err := r.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
 		&operation.WithComponentName{Component: component},
+		&operation.WithStates{States: []model.OperationState{state}},
 		&operation.Limit{Count: metricsQueryLimit},
 	}})
 	if err != nil {
 		return 0, err
 	}
+	if len(operations) == 0 {
+		return 0, nil
+	}
+
 	for _, op := range operations {
-		if op.State == state {
-			switch startTime {
-			case Created:
-				duration += op.Updated.Sub(op.Created)
-			case PickedUp:
-				duration += op.Updated.Sub(op.PickedUp)
-			}
-			operationCount++
+		switch startTime {
+		case Created:
+			duration += op.Updated.Sub(op.Created)
+		case PickedUp:
+			duration += op.Updated.Sub(op.PickedUp)
 		}
+		operationCount++
 	}
 	meanLifetime := duration.Milliseconds() / operationCount
 	return meanLifetime, nil
