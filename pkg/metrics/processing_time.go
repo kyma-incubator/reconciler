@@ -18,8 +18,13 @@ const prefixOperationProcessingDurationComponentUnsuccessful = "operation_proces
 
 const suffixUnit = "_milliseconds"
 
-// TODO: Describe
-
+// ProcessingDurationCollector provides average duration of last 500 operations in error and done state:
+// - operation_lifetime_mothership_successful_<component-name>_milliseconds - avg. lifetime time of a component-operation in the mothership reconciler (created and successfully finished)
+// - operation_lifetime_mothership_unsuccessful_<component-name>_milliseconds - avg. lifetime time of a component-operation in the mothership reconciler (created and non-successfully finished)
+// - operation_processing_duration_mothership_successful_<component-name>_milliseconds - the avg. processing time by the mothership reconciler (picked up and finished by worker in mothership-reconciler if operation was successful)
+// - operation_processing_duration_mothership_unsuccessful_<component-name>_milliseconds - the avg. processing time by the mothership reconciler (picked up and finished by worker in mothership-reconciler if operation was non-successful)
+// - operation_processing_duration_reconciler_successful_<component-name>_milliseconds - avg. processing time by the component reconciler (rendered and finished to be deployed in K8s successfully)
+// - operation_processing_duration_reconciler_unsuccessful_<component-name>_milliseconds - avg. processing time by the component reconciler (rendered and finished to be deployed in K8s non-successfully)
 type ProcessingDurationCollector struct {
 	reconciliationStatusGauge *prometheus.GaugeVec
 	componentList             []string
@@ -33,7 +38,7 @@ func NewProcessingDurationCollector(reconciliations reconciliation.Repository, r
 		reconciliationStatusGauge: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
-			Help:      "Average processing time of operations", //TODO: better explanation
+			Help:      "Average processing time of operations",
 		}, []string{"runtime_id", "runtime_name"}),
 		componentList: reconcilerList,
 		metricsList: []string{
