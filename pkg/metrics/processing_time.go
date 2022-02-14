@@ -29,7 +29,7 @@ type ProcessingDurationCollector struct {
 }
 
 func NewProcessingDurationCollector(reconciliations reconciliation.Repository, reconcilerList []string, logger *zap.SugaredLogger) *ProcessingDurationCollector {
-	collector := &ProcessingDurationCollector{
+	return &ProcessingDurationCollector{
 		reconciliationStatusGauge: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
@@ -46,8 +46,6 @@ func NewProcessingDurationCollector(reconciliations reconciliation.Repository, r
 		reconRepo: reconciliations,
 		logger:    logger,
 	}
-	prometheus.MustRegister(collector)
-	return collector
 }
 
 func (c *ProcessingDurationCollector) Describe(ch chan<- *prometheus.Desc) {
