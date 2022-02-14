@@ -115,7 +115,7 @@ func (pb *workPoolBuilder) createOrUpdateComponentReconcilerOccupancy(reconciler
 		return err
 	}
 
-	if resp.StatusCode <= http.StatusOK || resp.StatusCode >= 299 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
 		return fmt.Errorf("mothership failed to update occupancy for '%s' component with status code: '%d'", reconcilerName, resp.StatusCode)
 	}
 
