@@ -30,6 +30,13 @@ func TestOryIntegration(t *testing.T) {
 		ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
 		require.Equal(t, true, ready)
 	}
+
+	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
+		jwksName := "ory-oathkeeper-jwks-secret"
+		credsName := "ory-hydra-credentials"
+		setup.ensureSecretIsDeployed(t, jwksName)
+		setup.ensureSecretIsDeployed(t, credsName)
+	})
 }
 
 func TestOryIntegrationProduction(t *testing.T) {
@@ -77,6 +84,7 @@ func TestOryIntegrationProduction(t *testing.T) {
 		setup.ensureSecretIsDeployed(t, credsName)
 	})
 }
+
 func TestOryIntegrationEvaluation(t *testing.T) {
 	skipTestIfDisabled(t)
 
@@ -110,6 +118,7 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		require.Equal(t, 1, len(podsList.Items))
 		setup.logger.Infof("Single pod %v is deployed for app: oathkeeper", podsList.Items[0].Name)
 	})
+
 	t.Run("ensure that ory-hydra pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=hydra",
@@ -119,6 +128,7 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		require.Equal(t, 1, len(podsList.Items))
 		setup.logger.Infof("Single pod %v is deployed for app: hydra", podsList.Items[0].Name)
 	})
+
 	t.Run("ensure that ory-hydra-maester pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=hydra-maester",
@@ -128,16 +138,6 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		require.Equal(t, 1, len(podsList.Items))
 		setup.logger.Infof("Single pod %v is deployed for app: hydra-maester", podsList.Items[0].Name)
 	})
-	/*
-		t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
-			jwksName := "ory-oathkeeper-jwks-secret"
-			credsName := "ory-hydra-credentials"
-
-			setup.ensureSecretIsDeployed(t, jwksName)
-			setup.ensureSecretIsDeployed(t, credsName)
-		})
-
-	*/
 }
 
 func (s *oryTest) getPods(options metav1.ListOptions) (*v1.PodList, error) {
