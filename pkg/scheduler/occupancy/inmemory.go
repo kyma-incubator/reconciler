@@ -23,14 +23,14 @@ func (r *InMemoryOccupancyRepository) WithTx(tx *db.TxConnection) (Repository, e
 	return r, nil
 }
 
-func (r *InMemoryOccupancyRepository) CreateWorkerPoolOccupancy(poolID, component string, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
+func (r *InMemoryOccupancyRepository) CreateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
 	r.Lock()
 	defer r.Unlock()
 
 	occupancyEntity := &model.WorkerPoolOccupancyEntity{
 		WorkerPoolID:       poolID,
 		Component:          component,
-		RunningWorkers:     0,
+		RunningWorkers:     int64(runningWorkers),
 		WorkerPoolCapacity: int64(poolSize),
 		Created:            time.Now().UTC(),
 	}
@@ -67,6 +67,25 @@ func (r *InMemoryOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string, r
 	occCopy.RunningWorkers = int64(runningWorkers)
 	r.occupancies[poolID] = &occCopy
 	return nil
+}
+
+func (r *InMemoryOccupancyRepository) CreateOrUpdateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (bool, error) {
+	occupancyEntity, err := r.FindWorkerPoolOccupancyByID(poolID)
+	if err != nil {
+		_, err := r.CreateWorkerPoolOccupancy(poolID, component, runningWorkers, poolSize)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	if component != occupancyEntity.Component || int64(poolSize) != occupancyEntity.WorkerPoolCapacity {
+		return false, fmt.Errorf("component '%s' with poolID '%s' and poolSize '%d' not found", component, poolID, poolSize)
+	}
+	err = r.UpdateWorkerPoolOccupancy(poolID, runningWorkers)
+	if err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 func (r *InMemoryOccupancyRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error) {
