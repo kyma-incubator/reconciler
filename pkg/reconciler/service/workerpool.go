@@ -89,7 +89,7 @@ func (pb *workPoolBuilder) Build(ctx context.Context, reconcilerName string) (*W
 				if pb.workerPool.occupancyCallbackURL != "" {
 					err = pb.createOrUpdateComponentReconcilerOccupancy(reconcilerName, antsPool.Running())
 					if err != nil {
-						log.Error(err.Error())
+						log.Warn(err.Error())
 					}
 				}
 			}
@@ -115,12 +115,11 @@ func (pb *workPoolBuilder) createOrUpdateComponentReconcilerOccupancy(reconciler
 		return err
 	}
 
-	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
-		pb.workerPool.logger.Infof("Component reconciler '%s' updated occupancy successfully", reconcilerName)
-		return nil
+	if resp.StatusCode <= http.StatusOK || resp.StatusCode >= 299 {
+		return fmt.Errorf("mothership failed to update occupancy for '%s' component with status code: '%d'", reconcilerName, resp.StatusCode)
 	}
 
-	pb.workerPool.logger.Warnf("Mothership failed to update occupancy for '%s' component with status code: '%d'", reconcilerName, resp.StatusCode)
+	pb.workerPool.logger.Infof("Component reconciler '%s' updated occupancy successfully", reconcilerName)
 	return nil
 }
 
@@ -135,7 +134,7 @@ func (pb *workPoolBuilder) deleteWorkerPoolOccupancy(log *zap.SugaredLogger) {
 		}
 		_, err = client.Do(req)
 		if err != nil {
-			log.Error(err.Error())
+			log.Warn(err.Error())
 		}
 	}
 }
