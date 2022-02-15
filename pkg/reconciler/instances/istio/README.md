@@ -2,7 +2,7 @@
 
 ## Overview
 
-Istio Reconciler manages [Istio](https://github.com/kyma-project/kyma/tree/main/resources/istio-configuration) Kyma component. We support two latest minor Kyma 2.x releases and the `main` Kyma version.
+Istio Reconciler manages the [Istio](https://github.com/kyma-project/kyma/tree/main/resources/istio-configuration) Kyma component. We support two latest minor Kyma 2.x releases and the `main` Kyma version.
 
 ## Prerequisites
 
@@ -10,9 +10,9 @@ The Istio component requires `cluster-essentials` to be installed as a prerequis
 
 ## Usage
 
-Follow these steps to run Istio Reconciler locally, on your cluster:
+Follow these steps to run Istio Reconciler on your local machine:
 
-1. Export the **KUBECONFIG** variable pointing to your cluster and the `ISTIOCTL_PATH` variable:
+1. Export the **KUBECONFIG** variable pointing to your cluster and the **ISTIOCTL_PATH** variable:
 
    ```bash
    export KUBECONFIG={PATH_TO_THE_KUBECONFIG_FILE}
