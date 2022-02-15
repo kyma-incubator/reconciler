@@ -19,8 +19,16 @@ const (
 )
 
 var clusterStatuses = []model.Status{
-	model.ClusterStatusReconcileError, model.ClusterStatusReady, model.ClusterStatusReconcilePending, model.ClusterStatusReconciling,
-	model.ClusterStatusDeleteError, model.ClusterStatusDeleted, model.ClusterStatusDeletePending, model.ClusterStatusDeleting}
+	model.ClusterStatusReconcilePending,
+	model.ClusterStatusReconciling,
+	model.ClusterStatusReconcileError,
+	model.ClusterStatusReconcileErrorRetryable,
+	model.ClusterStatusReady,
+	model.ClusterStatusDeletePending,
+	model.ClusterStatusDeleting,
+	model.ClusterStatusDeleteError,
+	model.ClusterStatusDeleteErrorRetryable,
+	model.ClusterStatusDeleted}
 
 func TestInventory(t *testing.T) {
 	inventory := newInventory(t)
@@ -137,13 +145,18 @@ func TestInventoryForClusterStatues(t *testing.T) {
 		//check clusters which are not ready
 		statesNotReady, err := inventory.ClustersNotReady()
 		require.NoError(t, err)
-		require.Len(t, statesNotReady, 4)
+		require.Len(t, statesNotReady, 5)
 		require.ElementsMatch(t,
 			listStatuses(statesNotReady),
-			[]model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileError, model.ClusterStatusDeleting, model.ClusterStatusDeleteError})
+			[]model.Status{
+				model.ClusterStatusReconcileError,
+				model.ClusterStatusReconcileErrorRetryable,
+				model.ClusterStatusDeleting,
+				model.ClusterStatusDeleteError,
+				model.ClusterStatusDeleteErrorRetryable},
+		)
 	})
 	t.Run("Get status changes", func(t *testing.T) {
-		expectedStatuses := append(clusterStatuses, model.ClusterStatusReconcilePending)
 		newCluster := test.NewCluster(t, "1", 1, false, test.Production)
 		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
 		require.NoError(t, err)
@@ -163,10 +176,10 @@ func TestInventoryForClusterStatues(t *testing.T) {
 		changes, err := inventory.StatusChanges(newCluster.RuntimeID, duration)
 		require.NoError(t, err)
 
-		require.Len(t, changes, 9)
+		require.Len(t, changes, 10)
 		require.ElementsMatch(t,
 			listStatusesForStatusChanges(changes),
-			expectedStatuses)
+			clusterStatuses)
 	})
 
 }
