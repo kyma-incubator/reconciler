@@ -22,6 +22,7 @@ type Params struct {
 	SchedulingID         string
 	CorrelationID        string
 	MaxOperationRetries  int
+	Type                 model.OperationType
 }
 
 func (p *Params) newLocalTask(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Task {
@@ -52,11 +53,6 @@ func (p *Params) newTask() *reconciler.Task {
 		tokenNamespace = ""
 	}
 
-	taskType := model.OperationTypeReconcile
-	if p.ClusterState.Status.Status.IsDeletion() {
-		taskType = model.OperationTypeDelete
-	}
-
 	return &reconciler.Task{
 		ComponentsReady: p.ComponentsReady,
 		Component:       p.ComponentToReconcile.Component,
@@ -72,7 +68,7 @@ func (p *Params) newTask() *reconciler.Task {
 			URL:            url,
 			TokenNamespace: fmt.Sprint(tokenNamespace),
 		},
-		Type: taskType,
+		Type: p.Type,
 		ComponentConfiguration: reconciler.ComponentConfiguration{
 			MaxRetries: p.MaxOperationRetries,
 		},

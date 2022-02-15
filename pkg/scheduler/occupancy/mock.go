@@ -27,7 +27,7 @@ func (mr *MockRepository) FindWorkerPoolOccupancyByID(poolID string) (*model.Wor
 	return mr.FindWorkerPoolOccupancyByIDResult, nil
 }
 
-func (mr *MockRepository) CreateWorkerPoolOccupancy(poolID, component string, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
+func (mr *MockRepository) CreateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
 	return mr.CreateWorkerPoolOccupancyResult, nil
 }
 
@@ -40,6 +40,13 @@ func (mr *MockRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupan
 
 func (mr *MockRepository) RemoveWorkerPoolOccupancy(poolID string) error {
 	return mr.RemoveWorkerPoolOccupancyResult
+}
+
+func (mr *MockRepository) CreateOrUpdateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (bool, error) {
+	if mr.CreateWorkerPoolOccupancyResult != nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (mr *MockRepository) WithTx(tx *db.TxConnection) (Repository, error) {
