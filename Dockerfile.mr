@@ -2,7 +2,7 @@
 FROM golang:1.17.6-alpine3.15 AS build
 
 ENV SRC_DIR=/go/src/github.com/kyma-incubator/reconciler
-ADD . $SRC_DIR
+COPY . $SRC_DIR
 
 RUN mkdir /user && \
     echo 'appuser:x:2000:2000:appuser:/:' > /user/passwd && \
@@ -14,8 +14,9 @@ COPY configs /configs
 RUN CGO_ENABLED=0 go build -o /bin/mothership -ldflags '-s -w' ./cmd/mothership/main.go
 
 # Get latest CA certs
+# hadolint ignore=DL3007
 FROM alpine:latest as certs
-RUN apk --update add ca-certificates
+RUN apk add --no-cache ca-certificates
 
 # Final image
 FROM scratch

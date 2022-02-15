@@ -5,7 +5,7 @@ FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.11.4 AS istio-1_11_4
 FROM golang:1.17.6-alpine3.15 AS build
 
 ENV SRC_DIR=/go/src/github.com/kyma-incubator/reconciler
-ADD . $SRC_DIR
+COPY . $SRC_DIR
 
 RUN mkdir /user && \
     echo 'appuser:x:2000:2000:appuser:/:' > /user/passwd && \
@@ -17,8 +17,9 @@ COPY configs /configs
 RUN CGO_ENABLED=0 go build -o /bin/reconciler -ldflags '-s -w' ./cmd/reconciler/main.go
 
 # Get latest CA certs
+# hadolint ignore=DL3007
 FROM alpine:latest as certs
-RUN apk --update add ca-certificates
+RUN apk add --no-cache ca-certificates
 
 # Final image
 FROM scratch

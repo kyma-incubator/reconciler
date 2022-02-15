@@ -1,4 +1,4 @@
-package test
+package tests
 
 import (
 	"context"
@@ -11,35 +11,41 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
-	envOryIntegrationTests = "ORY_RECONCILER_INTEGRATION_TESTS"
-	envExecutionProfile    = "EXECUTION_PROFILE"
-	namespace              = "kyma-system"
+	envIstioIntegrationTests = "ISTIO_RECONCILER_INTEGRATION_TESTS"
+	namespace                = "kyma-system"
 )
 
-type oryTest struct {
+type istioTest struct {
 	logger        *zap.SugaredLogger
-	kubeClient    kubernetes.Interface
+	kubeClient    reconcilerk8s.Client
+	dynamicClient dynamic.Interface
 	context       context.Context
 	contextCancel context.CancelFunc
 }
 
-func newOryTest(t *testing.T) *oryTest {
+func newIstioTest(t *testing.T) *istioTest {
 	log := logger.NewLogger(false)
-	kubeClient, err := reconcilerk8s.NewKubernetesClient(test.ReadKubeconfig(t), log, &reconcilerk8s.Config{})
+	kubeconfig := test.ReadKubeconfig(t)
+	kubeClient, err := reconcilerk8s.NewKubernetesClient(kubeconfig, log, &reconcilerk8s.Config{})
+	require.NoError(t, err)
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfig))
+	require.NoError(t, err)
+	dynamicClient, err := dynamic.NewForConfig(config)
 	require.NoError(t, err)
 
-	client, err := kubeClient.Clientset()
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 
-	return &oryTest{
+	return &istioTest{
 		logger:        log,
-		kubeClient:    client,
+		kubeClient:    kubeClient,
+		dynamicClient: dynamicClient,
 		context:       ctx,
 		contextCancel: cancel,
 	}
@@ -52,17 +58,6 @@ func skipTestIfDisabled(t *testing.T) {
 }
 
 func isIntegrationTestEnabled() bool {
-	testEnabled, ok := os.LookupEnv(envOryIntegrationTests)
+	testEnabled, ok := os.LookupEnv(envIstioIntegrationTests)
 	return ok && testEnabled == "1"
-}
-
-func isProductionProfile() bool {
-	prodEnabled, ok := os.LookupEnv(envExecutionProfile)
-
-	return ok && prodEnabled == "production"
-}
-func isEvaluationProfile() bool {
-	evalEnabled, ok := os.LookupEnv(envExecutionProfile)
-
-	return ok && evalEnabled == "evaluation"
 }

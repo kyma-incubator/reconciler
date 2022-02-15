@@ -24,13 +24,14 @@ func (r *PersistentOccupancyRepository) WithTx(tx *db.TxConnection) (Repository,
 	return NewPersistentOccupancyRepository(tx, r.Debug)
 }
 
-func (r *PersistentOccupancyRepository) CreateWorkerPoolOccupancy(poolID, component string, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
+func (r *PersistentOccupancyRepository) CreateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (*model.WorkerPoolOccupancyEntity, error) {
 
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 
 		occupancyEntity := &model.WorkerPoolOccupancyEntity{
 			WorkerPoolID:       poolID,
 			Component:          component,
+			RunningWorkers:     int64(runningWorkers),
 			WorkerPoolCapacity: int64(poolSize),
 			Created:            time.Now().UTC(),
 		}
@@ -40,11 +41,11 @@ func (r *PersistentOccupancyRepository) CreateWorkerPoolOccupancy(poolID, compon
 			return nil, err
 		}
 		if err = createOccupancyQ.Insert().Exec(); err != nil {
-			r.Logger.Errorf("ReconRepo failed to create new worker-pool occupancy entity: %s", err)
+			r.Logger.Errorf("OccupancyRepo failed to create new worker-pool occupancy entity: %s", err)
 			return nil, err
 		}
 
-		r.Logger.Debugf("ReconRepo created new worker-pool occupancy entity with poolID '%s'", poolID)
+		r.Logger.Debugf("OccupancyRepo created new worker-pool occupancy entity with poolID '%s'", poolID)
 		return occupancyEntity, err
 	}
 	occupancyEntity, err := db.TransactionResult(r.Conn, dbOps, r.Logger)
@@ -175,14 +176,46 @@ func (r *PersistentOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string,
 
 		whereCond := map[string]interface{}{"WorkerPoolID": poolID}
 		if err = updateOccupancyQ.Update().Where(whereCond).Exec(); err != nil {
-			r.Logger.Errorf("ReconRepo failed to update occupancy entity with poolID '%s': %s", occupancyEntity.WorkerPoolID, err)
+			r.Logger.Errorf("OccupancyRepo failed to update occupancy entity with poolID '%s': %s", occupancyEntity.WorkerPoolID, err)
 			return err
 		}
 
-		r.Logger.Debugf("ReconRepo updated workersCnt of occupancy entity with poolID '%s' to '%d'", occupancyEntity.WorkerPoolID, runningWorkers)
+		r.Logger.Debugf("OccupancyRepo updated workersCnt of occupancy entity with poolID '%s' to '%d'", occupancyEntity.WorkerPoolID, runningWorkers)
 		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentOccupancyRepository) CreateOrUpdateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (bool, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+
+		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return false, err
+		}
+		occupancyEntity, err := rTx.FindWorkerPoolOccupancyByID(poolID)
+		if err != nil {
+			_, err = rTx.CreateWorkerPoolOccupancy(poolID, component, runningWorkers, poolSize)
+			if err != nil {
+				return false, fmt.Errorf("could not create occupancy for component %s and poolID %s", component, poolID)
+			}
+			return true, nil
+		}
+		if component != occupancyEntity.Component || int64(poolSize) != occupancyEntity.WorkerPoolCapacity {
+			return false, fmt.Errorf("component '%s' with poolID '%s' and poolSize '%d' not found", component, poolID, poolSize)
+		}
+		err = rTx.UpdateWorkerPoolOccupancy(poolID, runningWorkers)
+		if err != nil {
+			return false, fmt.Errorf("could not update occupancy for component %s and poolID %s", component, poolID)
+		}
+
+		return false, nil
+	}
+	created, err := db.TransactionResult(r.Conn, dbOps, r.Logger)
+	if err != nil {
+		return false, err
+	}
+	return created.(bool), nil
 }
 
 func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string) error {
@@ -201,11 +234,11 @@ func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string)
 
 		deletionCnt, err := deleteOccupancyQ.Delete().Where(whereCond).Exec()
 		if err != nil {
-			r.Logger.Errorf("ReconRepo failed to delete occupancy entity with poolID '%s': %s", poolID, err)
+			r.Logger.Errorf("OccupancyRepo failed to delete occupancy entity with poolID '%s': %s", poolID, err)
 			return err
 		}
 
-		r.Logger.Debugf("ReconRepo deleted '%d' occupancy entity with poolID '%s'", deletionCnt, poolID)
+		r.Logger.Debugf("OccupancyRepo deleted '%d' occupancy entity with poolID '%s'", deletionCnt, poolID)
 		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
