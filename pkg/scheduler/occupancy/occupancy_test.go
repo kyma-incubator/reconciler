@@ -3,6 +3,7 @@ package occupancy
 import (
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
@@ -25,7 +26,7 @@ type testCase struct {
 }
 
 func TestOccupancyRepository(t *testing.T) {
-
+	test.IntegrationTest(t)
 	occupancies := []*Occupancy{
 		{
 			PoolID:    "1",
@@ -46,13 +47,25 @@ func TestOccupancyRepository(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			"create occupancy",
+			"create occupancy with 0 running workers",
 			func(t *testing.T, occupancyRepo Repository) {
 				poolID := uuid.NewString()
-				occupEntity, err := occupancyRepo.CreateWorkerPoolOccupancy(poolID, "component1", 50)
+				occupEntity, err := occupancyRepo.CreateWorkerPoolOccupancy(poolID, "component1", 0, 50)
 				require.NoError(t, err)
 				require.Equal(t, poolID, occupEntity.WorkerPoolID)
 				require.Equal(t, 50, int(occupEntity.WorkerPoolCapacity))
+				require.Equal(t, 0, int(occupEntity.RunningWorkers))
+			},
+		},
+		{
+			"create occupancy with 10 running workers",
+			func(t *testing.T, occupancyRepo Repository) {
+				poolID := uuid.NewString()
+				occupEntity, err := occupancyRepo.CreateWorkerPoolOccupancy(poolID, "component1", 10, 50)
+				require.NoError(t, err)
+				require.Equal(t, poolID, occupEntity.WorkerPoolID)
+				require.Equal(t, 50, int(occupEntity.WorkerPoolCapacity))
+				require.Equal(t, 10, int(occupEntity.RunningWorkers))
 			},
 		},
 		{
@@ -64,6 +77,60 @@ func TestOccupancyRepository(t *testing.T) {
 				occupEntity, err := occupancyRepo.FindWorkerPoolOccupancyByID(poolID)
 				require.NoError(t, err)
 				require.Equal(t, 10, int(occupEntity.RunningWorkers))
+			},
+		},
+		{
+			"create or update occupancy: create a new one",
+			func(t *testing.T, occupancyRepo Repository) {
+				poolID := uuid.NewString()
+				created, err := occupancyRepo.CreateOrUpdateWorkerPoolOccupancy(poolID, "dummy", 10, 50)
+				require.NoError(t, err)
+				require.Equal(t, true, created)
+				occupEntity, err := occupancyRepo.FindWorkerPoolOccupancyByID(poolID)
+				require.NoError(t, err)
+				require.Equal(t, 10, int(occupEntity.RunningWorkers))
+				require.Equal(t, poolID, occupEntity.WorkerPoolID)
+				require.Equal(t, 50, int(occupEntity.WorkerPoolCapacity))
+			},
+		},
+		{
+			"create or update occupancy: update an existing one with correct name and poolSize",
+			func(t *testing.T, occupancyRepo Repository) {
+				poolID := occupancies[1].PoolID
+				created, err := occupancyRepo.CreateOrUpdateWorkerPoolOccupancy(poolID, "cp2", 10, 100)
+				require.NoError(t, err)
+				require.Equal(t, false, created)
+				occupEntity, err := occupancyRepo.FindWorkerPoolOccupancyByID(poolID)
+				require.NoError(t, err)
+				require.Equal(t, 10, int(occupEntity.RunningWorkers))
+				require.Equal(t, poolID, occupEntity.WorkerPoolID)
+				require.Equal(t, 100, int(occupEntity.WorkerPoolCapacity))
+			},
+		},
+		{
+			"create or update occupancy: update an existing one with incorrect name",
+			func(t *testing.T, occupancyRepo Repository) {
+				poolID := occupancies[1].PoolID
+				created, err := occupancyRepo.CreateOrUpdateWorkerPoolOccupancy(poolID, "dummy", 10, 100)
+				require.Error(t, err)
+				require.Equal(t, false, created)
+				occupEntity, err := occupancyRepo.FindWorkerPoolOccupancyByID(poolID)
+				require.NoError(t, err)
+				require.Equal(t, 0, int(occupEntity.RunningWorkers))
+				require.Equal(t, 100, int(occupEntity.WorkerPoolCapacity))
+			},
+		},
+		{
+			"create or update occupancy: update an existing one with incorrect poolSize",
+			func(t *testing.T, occupancyRepo Repository) {
+				poolID := occupancies[1].PoolID
+				created, err := occupancyRepo.CreateOrUpdateWorkerPoolOccupancy(poolID, "cp2", 10, 50)
+				require.Error(t, err)
+				require.Equal(t, false, created)
+				occupEntity, err := occupancyRepo.FindWorkerPoolOccupancyByID(poolID)
+				require.NoError(t, err)
+				require.Equal(t, 0, int(occupEntity.RunningWorkers))
+				require.Equal(t, 100, int(occupEntity.WorkerPoolCapacity))
 			},
 		},
 		{
@@ -84,7 +151,7 @@ func TestOccupancyRepository(t *testing.T) {
 				err := occupancyRepo.UpdateWorkerPoolOccupancy(firstPoolID, 40)
 				require.NoError(t, err)
 				secondPoolID := "4"
-				_, err = occupancyRepo.CreateWorkerPoolOccupancy(secondPoolID, component, 50)
+				_, err = occupancyRepo.CreateWorkerPoolOccupancy(secondPoolID, component, 0, 50)
 				require.NoError(t, err)
 				err = occupancyRepo.UpdateWorkerPoolOccupancy(secondPoolID, 10)
 				require.NoError(t, err)
@@ -94,19 +161,21 @@ func TestOccupancyRepository(t *testing.T) {
 			},
 		},
 	}
+	occupancyRepos := newPersistentAndInmemoryRepositories(t)
+	for _, occupancyRepo := range occupancyRepos {
+		for _, testCase := range testCases {
+			unitTestSetup(t, occupancyRepo, occupancies)
+			t.Run(testCase.name, newTestFct(testCase, occupancyRepo))
+			testCleanUp(t, occupancyRepo)
+		}
 
-	for _, testCase := range testCases {
-		occupancyRepo := newPersistentRepository(t)
-		unitTestSetup(t, occupancyRepo, occupancies)
-		t.Run(testCase.name, newTestFct(testCase, occupancyRepo))
-		testCleanUp(t, occupancyRepo)
 	}
 
 }
 
 func unitTestSetup(t *testing.T, occupRepo Repository, occupancies []*Occupancy) {
 	for _, occupancy := range occupancies {
-		_, err := occupRepo.CreateWorkerPoolOccupancy(occupancy.PoolID, occupancy.Component, occupancy.Capacity)
+		_, err := occupRepo.CreateWorkerPoolOccupancy(occupancy.PoolID, occupancy.Component, 0, occupancy.Capacity)
 		require.NoError(t, err)
 	}
 }
@@ -136,9 +205,9 @@ func dbConnection(t *testing.T) db.Connection {
 	return dbConn
 }
 
-func newPersistentRepository(t *testing.T) Repository {
-	occupancyRepository, err := NewPersistentOccupancyRepository(dbConnection(t), true)
+func newPersistentAndInmemoryRepositories(t *testing.T) []Repository {
+	persistentOccupancyRepository, err := NewPersistentOccupancyRepository(dbConnection(t), true)
 	require.NoError(t, err)
-
-	return occupancyRepository
+	inmemoryOccupancyRepository := NewInMemoryOccupancyRepository()
+	return []Repository{persistentOccupancyRepository, inmemoryOccupancyRepository}
 }
