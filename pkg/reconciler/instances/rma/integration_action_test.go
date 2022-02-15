@@ -17,8 +17,10 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
@@ -185,10 +187,14 @@ func fixActionContext(chartURL string) *service.ActionContext {
 		Type: model.OperationTypeReconcile,
 	}
 
+	mockClient := &mocks.Client{}
+	mockClient.On("DeleteResource", mock.Anything, "deployment", "avs-bridge", "kyma-system").Return(nil, nil)
+
 	return &service.ActionContext{
-		Context: context.Background(),
-		Logger:  logger,
-		Task:    &model,
+		Context:    context.Background(),
+		Logger:     logger,
+		Task:       &model,
+		KubeClient: mockClient,
 	}
 }
 

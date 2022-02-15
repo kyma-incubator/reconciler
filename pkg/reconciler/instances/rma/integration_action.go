@@ -86,6 +86,12 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 
 	switch context.Task.Type {
 	case model.OperationTypeReconcile:
+		// Ensure avs-bridge deployment is absent from the runtime
+		_, kubeErr := context.KubeClient.DeleteResource(context.Context, "deployment", "avs-bridge", "kyma-system")
+		if kubeErr != nil {
+			context.Logger.Errorf("failed to delete avs-bridge deployment from runtime: %s", kubeErr)
+		}
+
 		// If a release does not exist, run helm install
 		if err == driver.ErrReleaseNotFound {
 			return a.install(context, cfg, chartURL, releaseName, namespace)
