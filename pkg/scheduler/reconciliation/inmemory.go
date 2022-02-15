@@ -332,6 +332,9 @@ func (r *InMemoryReconciliationRepository) GetMeanComponentOperationProcessingDu
 	if err != nil {
 		return 0, err
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if len(operations) == 0 {
 		return 0, nil
 	}
@@ -362,6 +365,9 @@ func (r *InMemoryReconciliationRepository) GetMeanMothershipOperationProcessingD
 	if err != nil {
 		return 0, err
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if len(operations) == 0 {
 		return 0, nil
 	}
