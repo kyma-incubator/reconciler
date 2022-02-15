@@ -1,6 +1,8 @@
 package db
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type Type string
 
@@ -20,6 +22,7 @@ type Connection interface {
 	Begin() (*TxConnection, error)
 	Close() error
 	Type() Type
+	ID() string
 }
 
 type ConnectionFactory interface {
