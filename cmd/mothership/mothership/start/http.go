@@ -715,7 +715,7 @@ func updateOperationProcessingDuration(o *Options, w http.ResponseWriter, r *htt
 		return
 	}
 
-	err = o.Registry.ReconciliationRepository().UpdateComponentOperationProcessingDuration(schedulingID, correlationID, int64(processingDuration.Duration))
+	err = o.Registry.ReconciliationRepository().UpdateComponentOperationProcessingDuration(schedulingID, correlationID, processingDuration.Duration)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "while updating operation processing duration").Error(),

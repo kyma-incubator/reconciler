@@ -35,7 +35,7 @@ type Repository interface {
 	WithTx(tx *db.TxConnection) (Repository, error)
 	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
 	UpdateOperationPickedUp(schedulingID, correlationID string) error
-	UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error
+	UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int) error
 	GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error)
 	GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error)
 }

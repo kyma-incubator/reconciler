@@ -293,7 +293,7 @@ func (r *InMemoryReconciliationRepository) UpdateOperationPickedUp(schedulingID,
 	return nil
 }
 
-func (r *InMemoryReconciliationRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error {
+func (r *InMemoryReconciliationRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -309,7 +309,7 @@ func (r *InMemoryReconciliationRepository) UpdateComponentOperationProcessingDur
 	// copy the operation to avoid having data races while writing
 	opCopy := *op
 
-	opCopy.ProcessingDuration = processingDuration
+	opCopy.ProcessingDuration = int64(processingDuration)
 	r.operations[schedulingID][correlationID] = &opCopy
 
 	return nil

@@ -79,7 +79,7 @@ func (mr *MockRepository) UpdateOperationPickedUp(schedulingID, correlationID st
 	return mr.UpdateOperationPickedUpResult
 }
 
-func (mr *MockRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error {
+func (mr *MockRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int) error {
 	return mr.UpdateComponentOperationProcessingDurationResult
 }
 

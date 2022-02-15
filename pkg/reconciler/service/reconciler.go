@@ -261,6 +261,6 @@ func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconcil
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 		defer cancel()
-		return (&runner{r, NewInstall(logger), logger}).Run(timeoutCtx, model, callback) //TODO: pass schedulingID and correlationID
+		return (&runner{r, NewInstall(logger), logger}).Run(timeoutCtx, model, callback)
 	}
 }

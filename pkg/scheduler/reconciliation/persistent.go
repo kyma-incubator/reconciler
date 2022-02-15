@@ -266,7 +266,6 @@ func (r *PersistentReconciliationRepository) GetOperations(filter operation.Filt
 			return nil, errors.Wrap(err, "failed to apply sql filter")
 		}
 	}
-	fmt.Println(selectQ.String())
 	ops, err := selectQ.GetMany()
 	if err != nil {
 		return nil, err
@@ -450,7 +449,11 @@ func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID
 
 func (r *PersistentReconciliationRepository) UpdateOperationPickedUp(schedulingID, correlationID string) error {
 	dbOps := func(tx *db.TxConnection) error {
-		op, err := r.GetOperation(schedulingID, correlationID)
+		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return err
+		}
+		op, err := rTx.GetOperation(schedulingID, correlationID)
 		if err != nil {
 			if repository.IsNotFoundError(err) {
 				r.Logger.Warnf("ReconRepo could not find operation (schedulingID:%s/correlationID:%s)", schedulingID, correlationID)
@@ -459,14 +462,15 @@ func (r *PersistentReconciliationRepository) UpdateOperationPickedUp(schedulingI
 		}
 
 		if !op.PickedUp.IsZero() {
-			r.Logger.Warnf("Operation with schedulingID %s has already picked up at %s", schedulingID, op.PickedUp)
+			r.Logger.Debugf("Operation with schedulingID %s has initially been picked up at %s; PickedUp timestamp will not be updated", schedulingID, op.PickedUp)
+			return nil // Not an error, since this happens when an operation was an orphan and gets picked up again
 		}
 
 		//update operation-entity
 		op.PickedUp = time.Now().UTC()
 
 		//prepare update query
-		q, err := db.NewQuery(r.Conn, op, r.Logger)
+		q, err := db.NewQuery(tx, op, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -481,14 +485,20 @@ func (r *PersistentReconciliationRepository) UpdateOperationPickedUp(schedulingI
 			return fmt.Errorf("update of operation '%s' pickedUp timestamp failed: no row was updated", op)
 		}
 
+		r.Logger.Debugf("Operation with schedulingID %s picked up at %s", schedulingID, op.PickedUp)
+
 		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int64) error {
+func (r *PersistentReconciliationRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int) error {
 	dbOps := func(tx *db.TxConnection) error {
-		operations, err := r.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
+		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return err
+		}
+		operations, err := rTx.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
 			&operation.WithSchedulingID{
 				SchedulingID: schedulingID,
 			},
@@ -500,10 +510,10 @@ func (r *PersistentReconciliationRepository) UpdateComponentOperationProcessingD
 		if len(operations) != 1 {
 			return fmt.Errorf("error finding operation with schedulingID %s and correlationID %s, found instead: %v", schedulingID, correlationID, operations)
 		}
-		operations[0].ProcessingDuration = processingDuration
+		operations[0].ProcessingDuration = int64(processingDuration)
 
 		//prepare update query
-		q, err := db.NewQuery(r.Conn, operations[0], r.Logger)
+		q, err := db.NewQuery(tx, operations[0], r.Logger)
 		if err != nil {
 			return err
 		}
