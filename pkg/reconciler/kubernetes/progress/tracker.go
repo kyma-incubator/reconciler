@@ -244,7 +244,7 @@ func (pt *Tracker) isInTerminatedState(ctx context.Context) (bool, error) {
 func (pt Tracker) logWatchableResourcesAsInfo() {
 	for _, rs := range pt.objects {
 		pt.logger.Infof("Tracker stopped checking the progress of "+
-			"the following resource: %v. ", rs)
+			"the following resource: %v", rs)
 	}
 }
 
