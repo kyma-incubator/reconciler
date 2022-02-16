@@ -27,6 +27,8 @@ func TestOryIntegration(t *testing.T) {
 
 	for i, pod := range podsList.Items {
 		setup.logger.Infof("Pod %v is deployed", pod.Name)
+		i := i
+		pod := pod
 
 		err := retry.Do(func() error {
 			require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
