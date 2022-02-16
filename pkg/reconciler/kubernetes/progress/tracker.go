@@ -296,12 +296,11 @@ func (pt Tracker) resourceJSON(ctx context.Context, rs *trackerResource) ([]byte
 	case CustomResourceDefinition:
 		if rs.info == nil {
 			return nil, fmt.Errorf("please use AddResourceWithInfo instead of AddResource for progress tracking CRD resources")
-		} else {
-			if err := rs.info.Get(); err != nil {
-				return nil, err
-			}
-			return json.Marshal(rs.info.Object)
 		}
+		if err := rs.info.Get(); err != nil {
+			return nil, err
+		}
+		return json.Marshal(rs.info.Object)
 	default:
 		return nil, fmt.Errorf("Resource type not supported: %s", rs.kind)
 	}
