@@ -3,7 +3,7 @@ package mock
 import (
 	"errors"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"math/rand"
+	"crypto/rand"
 	"time"
 )
 
