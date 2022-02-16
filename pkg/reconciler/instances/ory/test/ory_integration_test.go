@@ -3,6 +3,7 @@ package test
 import (
 	"testing"
 
+	"github.com/avast/retry-go"
 	"github.com/stretchr/testify/require"
 	v1apps "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -26,9 +27,15 @@ func TestOryIntegration(t *testing.T) {
 
 	for i, pod := range podsList.Items {
 		setup.logger.Infof("Pod %v is deployed", pod.Name)
-		require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
-		ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
-		require.Equal(t, true, ready)
+
+		err := retry.Do(func() error {
+			require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
+			ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
+			require.Equal(t, true, ready)
+			return nil
+		}, retry.DelayType(retry.BackOffDelay))
+
+		require.NoError(t, err)
 	}
 
 	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
@@ -76,13 +83,6 @@ func TestOryIntegrationProduction(t *testing.T) {
 		setup.logger.Infof("StatefulSet %v is deployed", sts.Name)
 	})
 
-	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
-		jwksName := "ory-oathkeeper-jwks-secret"
-		credsName := "ory-hydra-credentials"
-
-		setup.ensureSecretIsDeployed(t, jwksName)
-		setup.ensureSecretIsDeployed(t, credsName)
-	})
 }
 
 func TestOryIntegrationEvaluation(t *testing.T) {
