@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"github.com/google/uuid"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 )
 
 type sqliteConnection struct {
+	id        string
 	db        *sql.DB
 	encryptor *Encryptor
 	validator *Validator
@@ -32,11 +34,16 @@ func newSqliteConnection(db *sql.DB, encKey string, debug bool, blockQueries boo
 	validator := NewValidator(blockQueries, logger)
 
 	return &sqliteConnection{
+		id:        uuid.NewString(),
 		db:        db,
 		encryptor: encryptor,
 		validator: validator,
 		logger:    logger,
 	}, nil
+}
+
+func (sc *sqliteConnection) ID() string {
+	return sc.id
 }
 
 func (sc *sqliteConnection) DB() *sql.DB {

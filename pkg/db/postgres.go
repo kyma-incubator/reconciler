@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/google/uuid"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
@@ -45,6 +46,7 @@ func (ml *migrateLogger) Verbose() bool {
 }
 
 type postgresConnection struct {
+	id        string
 	db        *sql.DB
 	encryptor *Encryptor
 	validator *Validator
@@ -63,10 +65,15 @@ func newPostgresConnection(db *sql.DB, encryptionKey string, debug bool, blockQu
 
 	return &postgresConnection{
 		db:        db,
+		id:        uuid.NewString(),
 		encryptor: encryptor,
 		validator: validator,
 		logger:    logger,
 	}, nil
+}
+
+func (pc *postgresConnection) ID() string {
+	return pc.id
 }
 
 func (pc *postgresConnection) DB() *sql.DB {

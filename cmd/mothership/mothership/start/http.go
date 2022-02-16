@@ -56,57 +56,62 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, updateOperationStatus)).
-		Methods("POST")
+		Methods(http.MethodPost)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdateCluster)).
-		Methods("PUT", "POST")
+		Methods(http.MethodPost, http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramRuntimeID),
 		callHandler(o, deleteCluster)).
-		Methods("DELETE")
+		Methods(http.MethodDelete)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%v}/clusters/state", paramContractVersion),
 		callHandler(o, getClustersState)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getCluster)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, getLatestCluster)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, updateLatestCluster)).
-		Methods("PUT")
+		Methods(http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges", paramContractVersion, paramRuntimeID), //supports offset-param
 		callHandler(o, statusChanges)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, operationCallback)).
-		Methods("POST")
+		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}/processingDuration", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		callHandler(o, updateOperationProcessingDuration)).
+		Methods(http.MethodPost)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations", paramContractVersion),
 		callHandler(o, getReconciliations)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations/{%s}/info", paramContractVersion, paramSchedulingID),
 		callHandler(o, getReconciliationInfo)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
@@ -121,7 +126,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger(), o.OccupancyTracking)
+	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger(), o.OccupancyTracking)
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -669,6 +674,51 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "while updating operation status").Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func updateOperationProcessingDuration(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	correlationID, err := params.String(paramCorrelationID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	var processingDuration reconciler.ProcessingDuration
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
+		})
+		return
+	}
+
+	err = json.Unmarshal(reqBody, &processingDuration)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
+		})
+		return
+	}
+
+	err = o.Registry.ReconciliationRepository().UpdateComponentOperationProcessingDuration(schedulingID, correlationID, processingDuration.Duration)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: errors.Wrap(err, "while updating operation processing duration").Error(),
 		})
 		return
 	}

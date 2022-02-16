@@ -34,7 +34,7 @@ func TestValidator(t *testing.T) {
 		require.Error(t, err)
 	})
 	t.Run("Validate valid select query", func(t *testing.T) {
-		query := "SELECT col FROM table WHERE y=$1"
+		query := "SELECT col FROM table WHERE y=$1 FOR UPDATE"
 		err := validator.Validate(query)
 		require.NoError(t, err)
 	})
