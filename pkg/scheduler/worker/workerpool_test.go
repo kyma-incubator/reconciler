@@ -179,10 +179,14 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	startTime := time.Now()
 	require.NoError(t, workerPool.Run(ctx))
 	require.WithinDuration(t, startTime, time.Now(), 3*time.Second) //ensure workerPool is considering ctx
+	paramLock := sync.Mutex{}
+	paramLock.Lock()
+	params := testInvoker.params
+	paramLock.Unlock()
 
 	//verify that invoker wasn't called
 	invokedCnt := 0
-	require.Len(t, testInvoker.params, invokedCnt)
+	require.Len(t, params, invokedCnt)
 
 	//get updated operation from the repository
 	updatedOp, err := testInvoker.reconRepo.GetOperation(op.SchedulingID, op.CorrelationID)

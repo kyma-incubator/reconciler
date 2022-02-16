@@ -250,10 +250,14 @@ func (r *ComponentReconciler) StartRemote(ctx context.Context, reconcilerName st
 	if err := r.validate(); err != nil {
 		return nil, err
 	}
-	return newWorkerPoolBuilder(r.newRunnerFunc).
-		WithPoolSize(r.workers).
-		WithDebug(r.debug).
-		Build(ctx, reconcilerName)
+	workerPool, err := newWorkerPoolBuilder(r.newRunnerFunc).WithPoolSize(r.workers).WithDebug(r.debug).Build(ctx)
+	if err != nil {
+		return nil, err
+	}
+	//start occupancy tracker to track worker pool
+	newOccupancyTracker(r.debug, r.workers).Track(ctx, workerPool, reconcilerName)
+
+	return workerPool, nil
 }
 
 func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconciler.Task, callback callback.Handler, logger *zap.SugaredLogger) func() error {
