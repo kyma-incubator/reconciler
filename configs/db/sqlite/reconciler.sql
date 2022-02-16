@@ -123,8 +123,6 @@ CREATE TABLE IF NOT EXISTS scheduler_operations(
     "retry_id" text NOT NULL,
     "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "picked_up" TIMESTAMP,
-    "processing_duration" int,
     CONSTRAINT scheduler_operations_pk UNIQUE ("scheduling_id", "correlation_id"),
     FOREIGN KEY("scheduling_id") REFERENCES scheduler_reconciliations("scheduling_id") ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY("runtime_id") REFERENCES inventory_clusters("runtime_id") ON UPDATE CASCADE,

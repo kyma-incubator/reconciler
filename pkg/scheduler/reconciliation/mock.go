@@ -8,23 +8,17 @@ import (
 )
 
 type MockRepository struct {
-	CreateReconciliationResult                              *model.ReconciliationEntity
-	RemoveReconciliationResult                              error
-	GetReconciliationResult                                 *model.ReconciliationEntity
-	GetReconciliationsResult                                []*model.ReconciliationEntity
-	FinishReconciliationResult                              error
-	GetOperationsResult                                     []*model.OperationEntity
-	GetOperationResult                                      *model.OperationEntity
-	GetProcessableOperationsResult                          []*model.OperationEntity
-	GetReconcilingOperationsResult                          []*model.OperationEntity
-	UpdateOperationStateResult                              error
-	UpdateOperationRetryIDResult                            error
-	UpdateOperationPickedUpResult                           error
-	UpdateComponentOperationProcessingDurationResult        error
-	GetMeanComponentOperationProcessingDurationResult       int64
-	GetMeanComponentOperationProcessingDurationResultError  error
-	GetMeanMothershipOperationProcessingDurationResult      int64
-	GetMeanMothershipOperationProcessingDurationResultError error
+	CreateReconciliationResult     *model.ReconciliationEntity
+	RemoveReconciliationResult     error
+	GetReconciliationResult        *model.ReconciliationEntity
+	GetReconciliationsResult       []*model.ReconciliationEntity
+	FinishReconciliationResult     error
+	GetOperationsResult            []*model.OperationEntity
+	GetOperationResult             *model.OperationEntity
+	GetProcessableOperationsResult []*model.OperationEntity
+	GetReconcilingOperationsResult []*model.OperationEntity
+	UpdateOperationStateResult     error
+	UpdateOperationRetryIDResult   error
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
@@ -73,20 +67,4 @@ func (mr *MockRepository) WithTx(tx *db.TxConnection) (Repository, error) {
 
 func (mr *MockRepository) UpdateOperationRetryID(schedulingID, correlationID, retryID string) error {
 	return mr.UpdateOperationRetryIDResult
-}
-
-func (mr *MockRepository) UpdateOperationPickedUp(schedulingID, correlationID string) error {
-	return mr.UpdateOperationPickedUpResult
-}
-
-func (mr *MockRepository) UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int) error {
-	return mr.UpdateComponentOperationProcessingDurationResult
-}
-
-func (mr *MockRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
-	return mr.GetMeanComponentOperationProcessingDurationResult, mr.GetMeanComponentOperationProcessingDurationResultError
-}
-
-func (mr *MockRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
-	return mr.GetMeanMothershipOperationProcessingDurationResult, mr.GetMeanMothershipOperationProcessingDurationResultError
 }

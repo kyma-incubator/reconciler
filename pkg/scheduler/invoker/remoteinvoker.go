@@ -186,13 +186,6 @@ func (i *RemoteReconcilerInvoker) updateOperationState(params *Params, state mod
 		return errors.Wrap(err, fmt.Sprintf("remote invoker failed to update operation "+
 			"(schedulingID:%s/correlationID:%s) to state '%s'", params.SchedulingID, params.CorrelationID, state))
 	}
-	if state == model.OperationStateInProgress { // Only update the pickedUp timestamp if the new state is InProgress
-		err = i.reconRepo.UpdateOperationPickedUp(params.SchedulingID, params.CorrelationID)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("remote invoker failed to update pickedUp timestamp of operation "+
-				"(schedulingID:%s/correlationID:%s)", params.SchedulingID, params.CorrelationID))
-		}
-	}
 	return nil
 }
 
