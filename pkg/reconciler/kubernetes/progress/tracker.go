@@ -250,7 +250,7 @@ func (pt Tracker) logWatchableResourcesAsInfo() {
 
 func (pt Tracker) dumpWatchableResourcesAsInfo(ctx context.Context) {
 	for _, rs := range pt.objects {
-		buf, err := pt.getResourceJSON(ctx, rs)
+		buf, err := pt.resourceJSON(ctx, rs)
 
 		if err != nil {
 			pt.logger.Errorf("Tracker stopped checking the progress of "+
@@ -261,7 +261,7 @@ func (pt Tracker) dumpWatchableResourcesAsInfo(ctx context.Context) {
 	}
 }
 
-func (pt Tracker) getResourceJSON(ctx context.Context, rs *trackerResource) ([]byte, error) {
+func (pt Tracker) resourceJSON(ctx context.Context, rs *trackerResource) ([]byte, error) {
 	switch rs.kind {
 	case Pod:
 		r, err := pt.client.CoreV1().Pods(rs.namespace).Get(ctx, rs.name, metav1.GetOptions{})
