@@ -3,7 +3,7 @@ module github.com/kyma-incubator/reconciler
 go 1.16
 
 require (
-	github.com/SAP/sap-btp-service-operator v0.1.21
+	github.com/SAP/sap-btp-service-operator v0.1.22
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/coreos/go-semver v0.3.0

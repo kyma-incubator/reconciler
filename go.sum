@@ -142,8 +142,8 @@ github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbt
 github.com/PuerkitoBio/urlesc v0.0.0-20160726150825-5bd2802263f2/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 h1:d+Bc7a5rLufV/sSk/8dngufqelfh6jnri85riMAaF/M=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
-github.com/SAP/sap-btp-service-operator v0.1.21 h1:4f7P9g8XYvtZ9AHFayiZmY7TqEZElc4nvdR3rgKhkKo=
-github.com/SAP/sap-btp-service-operator v0.1.21/go.mod h1:l2xMJAjn+6vJ16uzBBFf9NiAqIUKEUvn1cN3tD05AjQ=
+github.com/SAP/sap-btp-service-operator v0.1.22 h1:F9iwVLlassCa8gtZkD46PyO5YLaupKL/io+rwVH87vg=
+github.com/SAP/sap-btp-service-operator v0.1.22/go.mod h1:l2xMJAjn+6vJ16uzBBFf9NiAqIUKEUvn1cN3tD05AjQ=
 github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d h1:UrqY+r/OJnIp5u0s1SbQ8dVfLCZJsnvazdBP5hS4iRs=
 github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d/go.mod h1:HI8ITrYtUY+O+ZhtlqUnD8+KwNPOyugEhfP9fdUIaEQ=
 github.com/acomagu/bufpipe v1.0.3 h1:fxAGrHZTgQ9w5QqVItgzwj235/uYZYgbXitB+dLupOk=
