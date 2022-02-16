@@ -2,13 +2,21 @@ package reconciliation
 
 import (
 	"fmt"
-	"sort"
-	"strings"
-
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
+	"sort"
+	"strings"
+)
+
+const metricsQueryLimit = 500
+
+type metricStartTime int
+
+const (
+	Created metricStartTime = iota
+	PickedUp
 )
 
 type Repository interface {
@@ -26,6 +34,10 @@ type Repository interface {
 	UpdateOperationState(schedulingID, correlationID string, state model.OperationState, allowInState bool, reasons ...string) error
 	WithTx(tx *db.TxConnection) (Repository, error)
 	UpdateOperationRetryID(schedulingID, correlationID, retryID string) error
+	UpdateOperationPickedUp(schedulingID, correlationID string) error
+	UpdateComponentOperationProcessingDuration(schedulingID, correlationID string, processingDuration int) error
+	GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error)
+	GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error)
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.
