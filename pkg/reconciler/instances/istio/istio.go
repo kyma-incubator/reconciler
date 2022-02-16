@@ -10,6 +10,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
+// Test
 const (
 	ReconcilerNameIstio              = "istio"
 	ReconcilerNameIstioConfiguration = "istio-configuration"
