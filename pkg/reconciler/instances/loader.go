@@ -17,6 +17,8 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing"
 	//import required to register component reconciler 'istio' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
+	//import required to register component reconciler 'mock' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/mock"
 	//import required to register component reconciler 'ory' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory"
 	//import required to register component reconciler 'rafter' in reconciler registry
@@ -27,4 +29,6 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/scmigration"
 	//import required to register component reconciler 'serverless' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/serverless"
+	//import required to register component reconciler 'utils' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/utils"
 )
