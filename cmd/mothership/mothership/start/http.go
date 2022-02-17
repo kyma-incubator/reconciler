@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -96,11 +97,6 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, operationCallback)).
-		Methods(http.MethodPost)
-
-	apiRouter.HandleFunc(
-		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}/processingDuration", paramContractVersion, paramSchedulingID, paramCorrelationID),
-		callHandler(o, updateOperationProcessingDuration)).
 		Methods(http.MethodPost)
 
 	apiRouter.HandleFunc(
@@ -681,51 +677,6 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func updateOperationProcessingDuration(o *Options, w http.ResponseWriter, r *http.Request) {
-	params := server.NewParams(r)
-	schedulingID, err := params.String(paramSchedulingID)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
-	correlationID, err := params.String(paramCorrelationID)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
-
-	var processingDuration reconciler.ProcessingDuration
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
-			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
-		})
-		return
-	}
-
-	err = json.Unmarshal(reqBody, &processingDuration)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
-			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
-		})
-		return
-	}
-
-	err = o.Registry.ReconciliationRepository().UpdateComponentOperationProcessingDuration(schedulingID, correlationID, processingDuration.Duration)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
-			Error: errors.Wrap(err, "while updating operation processing duration").Error(),
-		})
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
 func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	schedulingID, err := params.String(paramSchedulingID)
@@ -773,9 +724,9 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	case reconciler.StatusFailed:
 		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateFailed, body.Error)
 	case reconciler.StatusSuccess:
-		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateDone)
+		err = updateOperationStateAndRetryIDAndProcessingDuration(o, schedulingID, correlationID, body.RetryID, model.OperationStateDone, body.ProcessingDuration)
 	case reconciler.StatusError:
-		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateError, body.Error)
+		err = updateOperationStateAndRetryIDAndProcessingDuration(o, schedulingID, correlationID, body.RetryID, model.OperationStateError, body.ProcessingDuration, body.Error)
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
@@ -904,8 +855,45 @@ func updateOperationState(o *Options, schedulingID, correlationID string, state 
 	return err
 }
 
+func updateOperationStateAndProcessingDuration(o *Options, schedulingID, correlationID string, state model.OperationState, processingDuration int, reason ...string) error {
+	dbOps := func(tx *db.TxConnection) error {
+		rTx, err := o.Registry.ReconciliationRepository().WithTx(tx)
+		if err != nil {
+			return err
+		}
+
+		err = rTx.UpdateOperationState(schedulingID, correlationID, state, true, strings.Join(reason, ", "))
+		if err != nil {
+			o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+				"to state '%s': %s", schedulingID, correlationID, state, err)
+			return err
+		}
+
+		err = rTx.UpdateComponentOperationProcessingDuration(schedulingID, correlationID, processingDuration)
+		if err != nil {
+			o.Logger().Errorf("REST endpoint failed to update operation processingDuration (schedulingID:%s/correlationID:%s) "+
+				"to '%s': %s", schedulingID, correlationID, state, err)
+		}
+		return err
+	}
+	return db.Transaction(o.Registry.Connection(), dbOps, o.Logger())
+}
+
 func updateOperationStateAndRetryID(o *Options, schedulingID, correlationID, retryID string, state model.OperationState, reason ...string) error {
 	err := updateOperationState(o, schedulingID, correlationID, state, reason...)
+	if err != nil {
+		return err
+	}
+	err = o.Registry.ReconciliationRepository().UpdateOperationRetryID(schedulingID, correlationID, retryID)
+	if err != nil {
+		o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+			"retryID '%s': %s", schedulingID, correlationID, retryID, err)
+	}
+	return err
+}
+
+func updateOperationStateAndRetryIDAndProcessingDuration(o *Options, schedulingID, correlationID, retryID string, state model.OperationState, processingDuration int, reason ...string) error {
+	err := updateOperationStateAndProcessingDuration(o, schedulingID, correlationID, state, processingDuration, reason...)
 	if err != nil {
 		return err
 	}

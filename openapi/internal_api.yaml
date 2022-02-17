@@ -52,45 +52,11 @@ paths:
                 $ref: './external_api.yaml#/components/schemas/HTTPErrorResponse'
         '500':
           $ref: './external_api.yaml#/components/responses/InternalError'
-  /operations/{schedulingID}/{correlationID}/processingDuration:
-    post:
-      description: test
-      parameters:
-        - name: schedulingID
-          required: true
-          in: path
-          schema:
-            type: string
-            format: uuid
-        - name: correlationID
-          required: true
-          in: path
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/processingDuration'
-      responses:
-        '200':
-          description: "Ok"
-        '400':
-          $ref: './external_api.yaml#/components/responses/BadRequest'
-        '404':
-          description: 'Given operation not found'
-          content:
-            application/json:
-              schema:
-                $ref: './external_api.yaml#/components/schemas/HTTPErrorResponse'
-        '500':
-          $ref: './external_api.yaml#/components/responses/InternalError'
 components:
   schemas:
     callbackMessage:
       type: object
-      required: [ status, error, retryID ]
+      required: [ status, error, retryID, processingDuration ]
       properties:
         status:
           $ref: '#/components/schemas/status'
@@ -99,7 +65,8 @@ components:
         retryID:
           type: string
           format: uuid
-
+        processingDuration:
+          type: integer
     status:
       type: string
       enum:
@@ -108,10 +75,3 @@ components:
         - running
         - success
         - failed
-
-    processingDuration:
-      type: object
-      required: [ duration ]
-      properties:
-        duration:
-          type: integer
