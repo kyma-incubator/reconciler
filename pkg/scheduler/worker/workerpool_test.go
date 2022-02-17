@@ -80,7 +80,9 @@ func TestWorkerPool(t *testing.T) {
 	//create reconciliation for cluster
 	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
 	//cleanup created cluster
-	defer cleanup(t, testInvoker, inventory, clusterState)
+	defer func() {
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+	}()
 
 	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
@@ -140,10 +142,15 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 	require.NoError(t, err)
 	//cleanup created cluster
-	defer cleanup(t, testInvoker, inventory, clusterState)
+	defer func() {
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+	}()
 
-	_, err = testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
+	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
+	defer func() { //cleanup at the end of the execution
+		require.NoError(t, testInvoker.reconRepo.RemoveReconciliation(reconEntity.SchedulingID))
+	}()
 
 	maxParallelOps := 25
 	numberOfProcessableOps := 1
@@ -185,13 +192,6 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	opErrReason := fmt.Sprintf("operation exceeds max. operation retries limit (maxOperationRetries:%d)", testConfig.MaxOperationRetries)
 	require.Equal(t, opErrReason, updatedOp.Reason)
 
-}
-
-func cleanup(t *testing.T, testInvoker *testInvoker, inventory cluster.Inventory, clusterState *cluster.State) {
-	func() {
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
-		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
-	}()
 }
 
 func requireOpsProcessableExists(t *testing.T, opsProcessable []*model.OperationEntity, correlationID string) {
@@ -246,13 +246,19 @@ func TestWorkerPoolParallel(t *testing.T) {
 		require.NoError(t, err)
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 		require.NoError(t, err)
-		//cleanup before
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 
+		var recons []*model.ReconciliationEntity
 		for i := range clusterStates {
-			_, err = testInvoker.reconRepo.CreateReconciliation(clusterStates[i], &model.ReconciliationSequenceConfig{})
+			recon, err := testInvoker.reconRepo.CreateReconciliation(clusterStates[i], &model.ReconciliationSequenceConfig{})
 			require.NoError(t, err)
+			recons = append(recons, recon)
 		}
+
+		defer func() { //cleanup at the end of the test execution
+			for _, recon := range recons {
+				require.NoError(t, testInvoker.reconRepo.RemoveReconciliation(recon.SchedulingID))
+			}
+		}()
 
 		opsProcessable, err := testInvoker.reconRepo.GetProcessableOperations(0)
 		require.Len(t, opsProcessable, countOperations) // only first priority
@@ -294,17 +300,5 @@ func TestWorkerPoolParallel(t *testing.T) {
 			require.Equal(t, model.ClusterStatusReconcilePending, testInvoker.params[i].ClusterState.Status.Status)
 			require.Equal(t, model.CRDComponent, testInvoker.params[i].ComponentToReconcile.Component)
 		}
-		//cleanup after
-		removeExistingReconciliations(t, map[string]reconciliation.Repository{"": testInvoker.reconRepo})
 	})
-}
-
-func removeExistingReconciliations(t *testing.T, repos map[string]reconciliation.Repository) {
-	for _, repo := range repos {
-		recons, err := repo.GetReconciliations(nil)
-		require.NoError(t, err)
-		for _, recon := range recons {
-			require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
-		}
-	}
 }

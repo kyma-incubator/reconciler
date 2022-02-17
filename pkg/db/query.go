@@ -246,8 +246,10 @@ func (s *Select) GetOne() (DatabaseEntity, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
+
 	defer s.reset()
-	row, err := s.Conn.QueryRow(s.buffer.String(), s.args...)
+
+	row, err := s.Conn.QueryRow(s.sql(), s.args...)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +264,7 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	defer s.reset()
 
 	//get results
-	rows, err := s.Conn.Query(s.buffer.String(), s.args...)
+	rows, err := s.Conn.Query(s.sql(), s.args...)
 	if err != nil {
 		return nil, err
 	}
@@ -281,6 +283,24 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 		result = append(result, entity)
 	}
 	return result, nil
+}
+
+func (s *Select) sql() string {
+	query := s.buffer.String()
+	if s.Conn.Type() == Postgres {
+		useForUpdate := true
+		queryLC := strings.ToLower(query)
+		for _, aggrKeyword := range []string{"group by", "max(", "count(", "avg(", "min(", "sum("} {
+			if strings.Contains(queryLC, aggrKeyword) {
+				useForUpdate = false
+				break
+			}
+		}
+		if useForUpdate { //add FOR UPDATE to PG-queries to use row-locking
+			query = fmt.Sprintf("%s FOR UPDATE", query)
+		}
+	}
+	return query
 }
 
 func (s *Select) NextPlaceholderCount() int {

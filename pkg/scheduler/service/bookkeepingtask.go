@@ -21,7 +21,7 @@ type markOrphanOperation struct {
 func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult, config *BookkeeperConfig) []error {
 	var result []error = nil
 	orphans := reconResult.GetOrphans(config.OrphanOperationTimeout)
-	oo.logger.Debugf("found operations which are orphan: %v", orphans)
+	oo.logger.Debugf("BookkeeperTask markOrphanOperation: found operations which are orphan: %v", orphans)
 	for _, orphanOp := range orphans {
 		if orphanOp.State == model.OperationStateOrphan {
 			//don't update orphan operations which are already marked as 'orphan'
@@ -29,7 +29,7 @@ func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult, config *B
 		}
 
 		if err := oo.transition.reconRepo.UpdateOperationState(orphanOp.SchedulingID, orphanOp.CorrelationID, model.OperationStateOrphan, false); err == nil {
-			oo.logger.Infof("markOrphanOperation marked operation '%s' as orphan: "+
+			oo.logger.Infof("BookkeeperTask markOrphanOperation: marked operation '%s' as orphan: "+
 				"last update %.2f minutes ago)", orphanOp, time.Since(orphanOp.Updated).Minutes())
 		} else {
 			result = append(result, errors.Wrap(err, fmt.Sprintf("Bookkeeper failed to update status of orphan operation %s", orphanOp)))
@@ -54,8 +54,9 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 		}
 		if errCnt < config.MaxDeleteErrRetries {
 			newClusterStatus = model.ClusterStatusDeleteErrorRetryable
-			fo.logger.Infof("Deletion for cluster with runtimeID %s and clusterConfig %d failed, deletion "+
-				"will be retried. Count of retries: %d", reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
+			fo.logger.Infof("BookkeeperTask finishOperation: deletion for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
+				"deletion will be retried (count of applied retries: %d)",
+				reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
 		}
 	} else if newClusterStatus == model.ClusterStatusReconcileError {
 		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, config.MaxReconcileErrRetries, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)
@@ -64,7 +65,7 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 		}
 		if errCnt < config.MaxReconcileErrRetries {
 			newClusterStatus = model.ClusterStatusReconcileErrorRetryable
-			fo.logger.Infof("Reconciliation for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
+			fo.logger.Infof("BookkeeperTask finishOperation: reconciliation for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
 				"reconciliation will be retried (count of applied retries: %d)",
 				reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
 		}
@@ -76,13 +77,11 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 
 	err := fo.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
 	if err == nil {
-		fo.logger.Infof("finishOperation updated cluster '%s' to status '%s' "+
-			"(triggered by reconciliation with schedulingID '%s')",
+		fo.logger.Infof("BookkeeperTask finishOperation: updated cluster '%s' to status '%s' (schedulingID:%s)",
 			recon.RuntimeID, newClusterStatus, recon.SchedulingID)
 		return nil
 	}
 
-	return []error{errors.New(fmt.Sprintf("finishOperation failed to update cluster '%s' to status '%s' "+
-		"(triggered by reconciliation with schedulingID '%s'): %s",
-		recon.RuntimeID, newClusterStatus, recon.SchedulingID, err))}
+	return []error{errors.Errorf("BookkeeperTask finishOperation: failed to update cluster '%s' to status '%s' "+
+		"(schedulingID:%s): %s", recon.RuntimeID, newClusterStatus, recon.SchedulingID, err)}
 }

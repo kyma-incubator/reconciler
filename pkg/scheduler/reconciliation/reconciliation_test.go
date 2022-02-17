@@ -2,6 +2,7 @@ package reconciliation
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/pkg/errors"
 	"sync"
 	"testing"
@@ -13,7 +14,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
-	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/stretchr/testify/require"
 )
@@ -629,11 +629,105 @@ func TestReconciliationRepository(t *testing.T) {
 				verifyOperationState(t, op, model.OperationStateError, "operation error reason")
 			},
 		},
+		{
+			name: "Set operation pickedUp timestamp",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					err := reconRepo.UpdateOperationPickedUp(op.SchedulingID, op.CorrelationID)
+					require.NoError(t, err)
+				}
+
+				opsEntities, err = reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+				for _, op := range opsEntities {
+					require.False(t, op.PickedUp.IsZero())
+				}
+			},
+		},
+		{
+			name: "Update component-operation-processing-duration",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					err := reconRepo.UpdateComponentOperationProcessingDuration(op.SchedulingID, op.CorrelationID, 50)
+					require.NoError(t, err)
+				}
+
+				opsEntities, err = reconRepo.GetOperations(nil)
+				require.NoError(t, err)
+				for _, op := range opsEntities {
+					require.Equal(t, int64(50), op.ProcessingDuration)
+				}
+			},
+		},
+		{
+			name: "Get mean component-operation-processing-duration",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					err := reconRepo.UpdateComponentOperationProcessingDuration(op.SchedulingID, op.CorrelationID, 50)
+					require.NoError(t, err)
+					err = reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateDone, true)
+					require.NoError(t, err)
+				}
+				meanDuration, err := reconRepo.GetMeanComponentOperationProcessingDuration("comp1", model.OperationStateDone)
+				require.NoError(t, err)
+				require.Equal(t, int64(50), meanDuration)
+			},
+		},
+		{
+			name: "Get mean mothership-operation-processing-duration",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					err := reconRepo.UpdateComponentOperationProcessingDuration(op.SchedulingID, op.CorrelationID, 50)
+					require.NoError(t, err)
+					time.Sleep(1 * time.Second) //let test sleep for 1 second to have an actual time span between created and updated timestamps
+					err = reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateDone, true)
+					require.NoError(t, err)
+				}
+				meanDuration, err := reconRepo.GetMeanMothershipOperationProcessingDuration("comp1", model.OperationStateDone, Created)
+				require.NoError(t, err)
+				require.GreaterOrEqual(t, meanDuration, int64(1000))
+			},
+		},
 	}
 
 	repos := map[string]Repository{
 		"persistent": newPersistentRepository(t),
-		"in-memory":  NewInMemoryReconciliationRepository()}
+		"in-memory":  NewInMemoryReconciliationRepository(),
+	}
 
 	inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)

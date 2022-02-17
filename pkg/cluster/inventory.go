@@ -20,6 +20,7 @@ type Inventory interface {
 	Delete(runtimeID string) error
 	Get(runtimeID string, configVersion int64) (*State, error)
 	GetLatest(runtimeID string) (*State, error)
+	GetAll() ([]*State, error)
 	StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
@@ -384,6 +385,10 @@ func (i *DefaultInventory) GetLatest(runtimeID string) (*State, error) {
 		Configuration: configEntity,
 		Status:        statusEntity,
 	}, nil
+}
+
+func (i *DefaultInventory) GetAll() ([]*State, error) {
+	return i.filterClusters()
 }
 
 func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStatusEntity, error) {
