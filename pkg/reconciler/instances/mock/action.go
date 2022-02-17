@@ -3,7 +3,7 @@ package mock
 import (
 	"errors"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"crypto/rand"
+	"math/rand"
 	"time"
 )
 
@@ -38,7 +38,8 @@ type RandomMockedActionGenerator struct{}
 func (c *RandomMockedActionGenerator) Generate() MockedActionExecution {
 	rand.Seed(time.Now().UnixNano())
 
-	generatedNumber := rand.Intn(10)
+	//nolint:gosec // Not security relevant
+	generatedNumber := rand.Intn(100)
 
 	if generatedNumber < 2 {
 		return &Fail{}
@@ -72,7 +73,7 @@ type SleepAndSuccess struct{}
 func (c *SleepAndSuccess) Execute(context *service.ActionContext) error {
 	context.Logger.Infof("SleepAndSuccess action execution")
 	context.Logger.Infof("Sleeping for 1 minutes...")
-	time.Sleep(2 * time.Minute)
+	time.Sleep(1 * time.Minute)
 	return nil
 }
 
@@ -96,7 +97,7 @@ type Timeout struct{}
 
 func (c *Timeout) Execute(context *service.ActionContext) error {
 	context.Logger.Infof("Timeout action execution")
-	context.Logger.Infof("Sleeping for 10 minutes...")
-	time.Sleep(10 * time.Minute)
+	context.Logger.Infof("Sleeping for 11 minutes...")
+	time.Sleep(11 * time.Minute)
 	return nil
 }
