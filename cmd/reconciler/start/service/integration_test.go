@@ -117,7 +117,7 @@ func startReconciler(ctx context.Context, t *testing.T) {
 		workerPool, err := StartComponentReconciler(ctx, o, componentReconcilerName)
 		require.NoError(t, err)
 
-		require.NoError(t, StartWebserver(ctx, o, workerPool))
+		require.NoError(t, StartWebserver(ctx, o, workerPool, nil))
 	}()
 	cliTest.WaitForTCPSocket(t, "localhost", serverPort, 15*time.Second)
 }

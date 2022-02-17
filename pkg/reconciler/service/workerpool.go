@@ -19,7 +19,6 @@ type WorkerPool struct {
 	debug        bool
 	logger       *zap.SugaredLogger
 	antsPool     *ants.Pool
-	CallbackURL  string
 	newRunnerFct func(context.Context, *reconciler.Task, callback.Handler, *zap.SugaredLogger) func() error
 }
 
@@ -71,9 +70,6 @@ func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Task) 
 		zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID},
 		zap.Field{Key: "component-name", Type: zapcore.StringType, String: model.Component})
 
-	//track CallbackURL to use it when creating, deleting and updating WP occupancy
-	wa.CallbackURL = model.CallbackURL
-
 	//create callback handler
 	remoteCbh, err := callback.NewRemoteCallbackHandler(model.CallbackURL, loggerNew)
 	if err != nil {
@@ -103,4 +99,8 @@ func (wa *WorkerPool) IsClosed() bool {
 
 func (wa *WorkerPool) RunningWorkers() int {
 	return wa.antsPool.Running()
+}
+
+func (wa *WorkerPool) Size() int {
+	return wa.antsPool.Cap()
 }
