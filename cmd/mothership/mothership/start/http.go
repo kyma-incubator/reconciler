@@ -855,10 +855,30 @@ func updateOperationState(o *Options, schedulingID, correlationID string, state 
 	return err
 }
 
-func updateOperationStateAndProcessingDuration(o *Options, schedulingID, correlationID string, state model.OperationState, processingDuration int, reason ...string) error {
+func updateOperationStateAndRetryID(o *Options, schedulingID, correlationID, retryID string, state model.OperationState, reason ...string) error {
+	err := updateOperationState(o, schedulingID, correlationID, state, reason...)
+	if err != nil {
+		return err
+	}
+	err = o.Registry.ReconciliationRepository().UpdateOperationRetryID(schedulingID, correlationID, retryID)
+	if err != nil {
+		o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+			"retryID '%s': %s", schedulingID, correlationID, retryID, err)
+	}
+	return err
+}
+
+func updateOperationStateAndRetryIDAndProcessingDuration(o *Options, schedulingID, correlationID, retryID string, state model.OperationState, processingDuration int, reason ...string) error {
 	dbOps := func(tx *db.TxConnection) error {
 		rTx, err := o.Registry.ReconciliationRepository().WithTx(tx)
 		if err != nil {
+			return err
+		}
+
+		err = rTx.UpdateOperationRetryID(schedulingID, correlationID, retryID)
+		if err != nil {
+			o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+				"retryID '%s': %s", schedulingID, correlationID, retryID, err)
 			return err
 		}
 
@@ -877,32 +897,6 @@ func updateOperationStateAndProcessingDuration(o *Options, schedulingID, correla
 		return err
 	}
 	return db.Transaction(o.Registry.Connection(), dbOps, o.Logger())
-}
-
-func updateOperationStateAndRetryID(o *Options, schedulingID, correlationID, retryID string, state model.OperationState, reason ...string) error {
-	err := updateOperationState(o, schedulingID, correlationID, state, reason...)
-	if err != nil {
-		return err
-	}
-	err = o.Registry.ReconciliationRepository().UpdateOperationRetryID(schedulingID, correlationID, retryID)
-	if err != nil {
-		o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
-			"retryID '%s': %s", schedulingID, correlationID, retryID, err)
-	}
-	return err
-}
-
-func updateOperationStateAndRetryIDAndProcessingDuration(o *Options, schedulingID, correlationID, retryID string, state model.OperationState, processingDuration int, reason ...string) error {
-	err := updateOperationStateAndProcessingDuration(o, schedulingID, correlationID, state, processingDuration, reason...)
-	if err != nil {
-		return err
-	}
-	err = o.Registry.ReconciliationRepository().UpdateOperationRetryID(schedulingID, correlationID, retryID)
-	if err != nil {
-		o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
-			"retryID '%s': %s", schedulingID, correlationID, retryID, err)
-	}
-	return err
 }
 
 func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.OperationEntity, error) {
