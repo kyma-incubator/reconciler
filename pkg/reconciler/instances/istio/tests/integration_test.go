@@ -17,9 +17,12 @@ import (
 )
 
 const (
+	maxCleanupCallAttempts = 10
+	clusterDomainEnvVar    = "CLUSTER_DOMAIN"
+	ingressPortEnvVar      = "INGRESS_PORT"
+	healthzTestURLFormat   = "http://%s:%s/healthz/ready"
 	istioNamespace         = "istio-system"
 	pilotIngressGwSelector = "istio in (pilot, ingressgateway)"
-	healthzTestURLFormat   = "http://%s:%s/healthz/ready"
 	gatewayManifest        = `
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
@@ -68,25 +71,26 @@ func TestIstioIntegration(t *testing.T) {
 
 	setup := newIstioTest(t)
 	defer setup.contextCancel()
-
-	options := metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/instance=istio",
-	}
-
 	clientset, err := setup.kubeClient.Clientset()
-	require.NoError(t, err)
 
-	podsList, err := clientset.CoreV1().Pods(namespace).List(setup.context, options)
-	require.NoError(t, err)
+	t.Run("istio pods are running and available", func(t *testing.T) {
+		options := metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/instance=istio",
+		}
 
-	for i, pod := range podsList.Items {
-		setup.logger.Infof("Pod %v is deployed", pod.Name)
-		require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
-		ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
-		require.Equal(t, true, ready)
-	}
+		require.NoError(t, err)
 
-	t.Run("istio pods should be running", func(t *testing.T) {
+		podsList, err := clientset.CoreV1().Pods(namespace).List(setup.context, options)
+		require.NoError(t, err)
+
+		for i, pod := range podsList.Items {
+			setup.logger.Infof("Pod %v is deployed", pod.Name)
+			require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
+			require.Equal(t, true, podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now()))
+		}
+	})
+
+	t.Run("istio deployments are synced", func(t *testing.T) {
 		pilotSelectorOpt := metav1.ListOptions{LabelSelector: pilotIngressGwSelector}
 		deploymentList, err := clientset.AppsV1().Deployments(istioNamespace).List(setup.context, pilotSelectorOpt)
 		require.NoError(t, err)
@@ -97,12 +101,10 @@ func TestIstioIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("healthz returns 200", func(t *testing.T) {
-		gateway := &unstructured.Unstructured{}
-		vs := &unstructured.Unstructured{}
-		setupIstioGateway(t, gateway, setup)
+	t.Run("ingressgw's healthz returns 200 when exposed via Gateway and VirtualService", func(t *testing.T) {
+		gateway := setupIstioGateway(t, setup)
 		defer cleanupObject(t, setup, gatewayGVR, gateway)
-		setupVirtualService(t, vs, setup)
+		vs := setupVirtualService(t, setup)
 		defer cleanupObject(t, setup, vsGVR, vs)
 		healthzURL := readHealthzURL(t)
 		var statusCode int
@@ -120,11 +122,11 @@ func TestIstioIntegration(t *testing.T) {
 }
 
 func readHealthzURL(t *testing.T) string {
-	clusterDomain, ok := os.LookupEnv("CLUSTER_DOMAIN")
+	clusterDomain, ok := os.LookupEnv(clusterDomainEnvVar)
 	if !ok {
 		t.Fatal("CLUSTER_DOMAIN env var is required")
 	}
-	ingressPort, ok := os.LookupEnv("INGRESS_PORT")
+	ingressPort, ok := os.LookupEnv(ingressPortEnvVar)
 	if !ok {
 		t.Fatal("INGRESS_PORT env var is required")
 	}
@@ -132,14 +134,18 @@ func readHealthzURL(t *testing.T) string {
 	return healthzURL
 }
 
-func setupIstioGateway(t *testing.T, gateway *unstructured.Unstructured, setup *istioTest) {
+func setupIstioGateway(t *testing.T, setup *istioTest) *unstructured.Unstructured {
+	gateway := &unstructured.Unstructured{}
 	buildObject(t, gateway, gatewayManifest)
 	createObject(t, setup, gatewayGVR, gateway)
+	return gateway
 }
 
-func setupVirtualService(t *testing.T, vs *unstructured.Unstructured, setup *istioTest) {
+func setupVirtualService(t *testing.T, setup *istioTest) *unstructured.Unstructured {
+	vs := &unstructured.Unstructured{}
 	buildObject(t, vs, virutalServiceManifest)
 	createObject(t, setup, vsGVR, vs)
+	return vs
 }
 
 func cleanupObject(t *testing.T, setup *istioTest, gvr schema.GroupVersionResource, gw *unstructured.Unstructured) {
@@ -148,7 +154,7 @@ func cleanupObject(t *testing.T, setup *istioTest, gvr schema.GroupVersionResour
 		err := setup.dynamicClient.Resource(gvr).Namespace(istioNamespace).
 			Delete(setup.context, gw.GetName(), metav1.DeleteOptions{PropagationPolicy: &deletionPropagation})
 		return err
-	}, retry.Attempts(5))
+	}, retry.Attempts(maxCleanupCallAttempts))
 	require.NoError(t, err)
 
 }
