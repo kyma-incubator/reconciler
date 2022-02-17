@@ -80,7 +80,7 @@ func TestIstioIntegration(t *testing.T) {
 
 		require.NoError(t, err)
 
-		podsList, err := clientset.CoreV1().Pods(namespace).List(setup.context, options)
+		podsList, err := clientset.CoreV1().Pods(istioNamespace).List(setup.context, options)
 		require.NoError(t, err)
 
 		for i, pod := range podsList.Items {
