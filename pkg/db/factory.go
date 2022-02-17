@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
 	"os"
 	"path/filepath"
@@ -29,10 +28,6 @@ func NewConnectionFactory(configFile string, migrate bool, debug bool) (Connecti
 	switch dbToUse {
 	case "postgres":
 		connFact := createPostgresConnectionFactory(encKey, debug, blockQueries, logQueries)
-		if debug {
-			logger := log.NewLogger(debug)
-			logger.Debugf("Create db with Postgres")
-		}
 		return connFact, connFact.Init(migrate)
 
 	case "sqlite":
