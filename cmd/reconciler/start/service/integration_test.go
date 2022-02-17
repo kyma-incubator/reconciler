@@ -114,10 +114,10 @@ func startReconciler(ctx context.Context, t *testing.T) {
 		o.RetryConfig.RetryDelay = 2 * time.Second
 		o.RetryConfig.MaxRetries = 3
 
-		workerPool, err := StartComponentReconciler(ctx, o, componentReconcilerName)
+		workerPool, tracker, err := StartComponentReconciler(ctx, o, componentReconcilerName)
 		require.NoError(t, err)
 
-		require.NoError(t, StartWebserver(ctx, o, workerPool, nil))
+		require.NoError(t, StartWebserver(ctx, o, workerPool, tracker))
 	}()
 	cliTest.WaitForTCPSocket(t, "localhost", serverPort, 15*time.Second)
 }
