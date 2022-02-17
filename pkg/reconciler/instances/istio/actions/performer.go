@@ -20,6 +20,7 @@ import (
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	helmChart "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -74,6 +75,16 @@ type MeshInfo struct {
 
 type DataPlaneVersion struct {
 	IstioVersion string `json:"IstioVersion,omitempty"`
+}
+
+type chartValues struct {
+	Global struct {
+		Images struct {
+			IstioPilot struct {
+				Version string `json:"version"`
+			} `json:"istio_pilot"`
+		} `json:"images"`
+	} `json:"global"`
 }
 
 //go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
@@ -265,9 +276,9 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 }
 
 func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error) {
-	targetVersion, err := getTargetVersionFromChart(workspace, branchVersion, istioChart)
+	targetVersion, err := getTargetVersionFromIstioChart(workspace, branchVersion, istioChart, logger)
 	if err != nil {
-		return IstioStatus{}, errors.Wrap(err, "Target Version could not be obtained")
+		return IstioStatus{}, errors.Wrap(err, "Target Version could not be found")
 	}
 
 	version, err := istioctl.VersionFromString(targetVersion)
@@ -290,16 +301,53 @@ func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion s
 	return mappedIstioVersion, err
 }
 
-func getTargetVersionFromChart(workspace chart.Factory, branch string, istioChart string) (string, error) {
+func getTargetVersionFromIstioChart(workspace chart.Factory, branch string, istioChart string, logger *zap.SugaredLogger) (string, error) {
 	ws, err := workspace.Get(branch)
 	if err != nil {
 		return "", err
 	}
+
 	helmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
 	if err != nil {
 		return "", err
 	}
-	return helmChart.Metadata.AppVersion, nil
+
+	pilotVersion, err := getTargetVersionFromPilotInChartValues(helmChart)
+	if err != nil {
+		return "", err
+	}
+
+	if pilotVersion != "" {
+		logger.Infof("Resolved target Istio version: %s from values", pilotVersion)
+		return pilotVersion, nil
+	}
+
+	appVersion := getTargetVersionFromAppVersionInChartDefinition(helmChart)
+	if appVersion != "" {
+		logger.Infof("Resolved target Istio version: %s from Chart definition", appVersion)
+		return appVersion, nil
+	}
+
+	return "", errors.New("Target Istio version could not be found neither in Chart.yaml nor in helm values")
+}
+
+func getTargetVersionFromAppVersionInChartDefinition(helmChart *helmChart.Chart) string {
+	return helmChart.Metadata.AppVersion
+}
+
+func getTargetVersionFromPilotInChartValues(helmChart *helmChart.Chart) (string, error) {
+	mapAsJSON, err := json.Marshal(helmChart.Values)
+	if err != nil {
+		return "", err
+	}
+
+	var chartValues chartValues
+	err = json.Unmarshal(mapAsJSON, &chartValues)
+	if err != nil {
+		return "", err
+	}
+
+	return chartValues.Global.Images.IstioPilot.Version, nil
 }
 
 func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string {
