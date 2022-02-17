@@ -25,6 +25,7 @@ type Pool struct {
 	config        *Config
 	logger        *zap.SugaredLogger
 	poolID        string
+	antsPool      *ants.PoolWithFunc
 }
 
 func NewWorkerPool(retriever ClusterStateRetriever, reconRepo reconciliation.Repository, occupancyRepo occupancy.Repository, invoker invoker.Invoker, config *Config, logger *zap.SugaredLogger) (*Pool, error) {
@@ -234,4 +235,18 @@ func (w *Pool) invokeProcessableOpsWithInterval(ctx context.Context, workerPool 
 			return nil
 		}
 	}
+}
+
+func (w *Pool) IsClosed() bool {
+	if w.antsPool == nil {
+		return true
+	}
+	return w.antsPool.IsClosed()
+}
+
+func (w *Pool) RunningWorkers() (int, error) {
+	if w.antsPool == nil {
+		return 0, fmt.Errorf("could not retrieve number of running workers: worker pool is nil")
+	}
+	return w.antsPool.Running(), nil
 }
