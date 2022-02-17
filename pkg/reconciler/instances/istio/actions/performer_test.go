@@ -529,21 +529,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 
 func Test_getTargetVersionFromIstioChart(t *testing.T) {
 	branch := "branch"
-
-	t.Run("should not get target version when the workspace is not resolved", func(t *testing.T) {
-		// given
-		istioChart := "not-existing-chart"
-		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{}, nil)
-
-		// when
-		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart)
-
-		// then
-		require.Empty(t, targetVersion)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "no such file or directory")
-	})
+	log := logger.NewLogger(false)
 
 	t.Run("should not get target version when the istio Chart does not exist", func(t *testing.T) {
 		// given
@@ -552,7 +538,7 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart)
+		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart, log)
 
 		// then
 		require.Empty(t, targetVersion)
@@ -567,7 +553,7 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart)
+		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart, log)
 
 		// then
 		require.Empty(t, targetVersion)
@@ -582,7 +568,7 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart)
+		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart, log)
 
 		// then
 		require.NoError(t, err)
@@ -596,7 +582,7 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart)
+		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart, log)
 
 		// then
 		require.NoError(t, err)
@@ -610,7 +596,7 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart)
+		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart, log)
 
 		// then
 		require.NoError(t, err)

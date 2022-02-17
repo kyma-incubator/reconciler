@@ -276,7 +276,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 }
 
 func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error) {
-	targetVersion, err := getTargetVersionFromIstioChart(workspace, branchVersion, istioChart)
+	targetVersion, err := getTargetVersionFromIstioChart(workspace, branchVersion, istioChart, logger)
 	if err != nil {
 		return IstioStatus{}, errors.Wrap(err, "Target Version could not be found")
 	}
@@ -301,7 +301,7 @@ func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion s
 	return mappedIstioVersion, err
 }
 
-func getTargetVersionFromIstioChart(workspace chart.Factory, branch string, istioChart string) (string, error) {
+func getTargetVersionFromIstioChart(workspace chart.Factory, branch string, istioChart string, logger *zap.SugaredLogger) (string, error) {
 	ws, err := workspace.Get(branch)
 	if err != nil {
 		return "", err
@@ -318,18 +318,20 @@ func getTargetVersionFromIstioChart(workspace chart.Factory, branch string, isti
 	}
 
 	if pilotVersion != "" {
+		logger.Infof("Resolved target Istio version: %s from values", pilotVersion)
 		return pilotVersion, nil
 	}
 
-	appVersion := getTargetVersionFromAppVersionInChartDefiinition(helmChart)
+	appVersion := getTargetVersionFromAppVersionInChartDefinition(helmChart)
 	if appVersion != "" {
+		logger.Infof("Resolved target Istio version: %s from Chart definition", appVersion)
 		return appVersion, nil
 	}
 
 	return "", errors.New("Target Istio version could not be found neither in Chart.yaml nor in helm values")
 }
 
-func getTargetVersionFromAppVersionInChartDefiinition(helmChart *helmChart.Chart) string {
+func getTargetVersionFromAppVersionInChartDefinition(helmChart *helmChart.Chart) string {
 	return helmChart.Metadata.AppVersion
 }
 
