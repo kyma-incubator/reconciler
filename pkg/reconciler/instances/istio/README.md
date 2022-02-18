@@ -21,13 +21,13 @@ See the diagram for details:
 
 ![Istio Reconciler](./assets/istio-reconciler.svg)
 
-The folllwing activity diagram presents detailed steps of the Istio installation/update process.
+The following activity diagram presents detailed steps of the Istio installation/update process.
 
 ![Istio Reconciliation](./assets/istio-reconciliation-action.svg)
 
-The reconcilation is executed by the Istio Reconciler. First, it verifies, using the rules explained in the diagram, if the Istio version found on the cluster and the Client version (istioctl) match. If the versions are compatibile, either an installation or update process is triggered. Before the update, the version from the Istio [`values.yaml`](https://github.com/kyma-project/kyma/blob/main/resources/istio-configuration/values.yaml) is compared with the cluster version.
+The reconciliation is executed by the Istio Reconciler. First, it verifies, using the rules explained in the diagram, if the Istio version found on the cluster and the Client version (istioctl) match. If the versions are compatible, either an installation or update process is triggered. Before the update, the version from the Istio [`values.yaml`](https://github.com/kyma-project/kyma/blob/main/resources/istio-configuration/values.yaml) is compared with the cluster version.
 
-If a customer makes changes in the Istio configuration that are not compatibile with the Kyma setup configured within `istio-operator.yaml`, the Istio Reconciler automatically overwrites them with the default values.
+If a customer makes changes in the Istio configuration that are not compatible with the Kyma setup configured within `istio-operator.yaml`, the Istio Reconciler automatically overwrites them with the default values.
 
 After choosing the proper Istio version for installation and applying back the default values, the Istio Reconciler patches the Istio Webhook to base on Kyma and Gardener assumptions.
 
