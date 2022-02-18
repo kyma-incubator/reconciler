@@ -18,14 +18,10 @@ const (
 
 // CallbackMessage defines model for callbackMessage.
 type CallbackMessage struct {
-	Error   string `json:"error"`
-	RetryID string `json:"retryID"`
-	Status  Status `json:"status"`
-}
-
-// ProcessingDuration defines model for processingDuration.
-type ProcessingDuration struct {
-	Duration int `json:"duration"`
+	Error              string `json:"error"`
+	ProcessingDuration int    `json:"processingDuration"`
+	RetryID            string `json:"retryID"`
+	Status             Status `json:"status"`
 }
 
 // Status defines model for status.
@@ -34,11 +30,5 @@ type Status string
 // PostOperationsSchedulingIDCallbackCorrelationIDJSONBody defines parameters for PostOperationsSchedulingIDCallbackCorrelationID.
 type PostOperationsSchedulingIDCallbackCorrelationIDJSONBody CallbackMessage
 
-// PostOperationsSchedulingIDCorrelationIDProcessingDurationJSONBody defines parameters for PostOperationsSchedulingIDCorrelationIDProcessingDuration.
-type PostOperationsSchedulingIDCorrelationIDProcessingDurationJSONBody ProcessingDuration
-
 // PostOperationsSchedulingIDCallbackCorrelationIDJSONRequestBody defines body for PostOperationsSchedulingIDCallbackCorrelationID for application/json ContentType.
 type PostOperationsSchedulingIDCallbackCorrelationIDJSONRequestBody PostOperationsSchedulingIDCallbackCorrelationIDJSONBody
-
-// PostOperationsSchedulingIDCorrelationIDProcessingDurationJSONRequestBody defines body for PostOperationsSchedulingIDCorrelationIDProcessingDuration for application/json ContentType.
-type PostOperationsSchedulingIDCorrelationIDProcessingDurationJSONRequestBody PostOperationsSchedulingIDCorrelationIDProcessingDurationJSONBody

@@ -87,7 +87,7 @@ func createSqliteConnectionFactory(encKey string, debug bool, blockQueries, logQ
 	return connFact, nil
 }
 
-func createPostgresConnectionFactory(encKey string, _ bool, blockQueries, logQueries bool) *postgresConnectionFactory {
+func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, logQueries bool) *postgresConnectionFactory {
 	host := viper.GetString("db.postgres.host")
 	port := viper.GetInt("db.postgres.port")
 	database := viper.GetString("db.postgres.database")
@@ -129,5 +129,6 @@ func createPostgresConnectionFactory(encKey string, _ bool, blockQueries, logQue
 		migrationsDir: migrationsDir,
 		blockQueries:  blockQueries,
 		logQueries:    logQueries,
+		debug:         debug,
 	}
 }

@@ -98,7 +98,7 @@ func TestHeartbeatSender(t *testing.T) { //DO NOT RUN THIS TEST CASES IN PARALLE
 		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)
 
-		require.NoError(t, heartbeatSender.Success(retryID))
+		require.NoError(t, heartbeatSender.Success(retryID, 0))
 		require.Equal(t, heartbeatSender.CurrentStatus(), reconciler.StatusSuccess)
 		require.Equal(t, retryID, callbackHdlr.RetryID())
 		time.Sleep(2 * time.Second)

@@ -3,16 +3,15 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
-	"path/filepath"
-	"testing"
 )
 
 var expectedResourcesWithoutNs = []*Resource{
@@ -77,7 +76,7 @@ func TestCustomerResources(t *testing.T) {
 	const testNamespace = "unittest-cr"
 
 	t.Run("Should get error when deploy CR without CRD", func(t *testing.T) {
-		manifest := readManifest(t, "unittest-cr.yaml")
+		manifest := test.ReadManifest(t, "unittest-cr.yaml")
 
 		_, err := kubeClient.Deploy(context.TODO(), manifest, testNamespace)
 
@@ -85,7 +84,7 @@ func TestCustomerResources(t *testing.T) {
 	})
 
 	t.Run("Should not get error when delete CR without CRD", func(t *testing.T) {
-		manifest := readManifest(t, "unittest-cr.yaml")
+		manifest := test.ReadManifest(t, "unittest-cr.yaml")
 
 		_, err := kubeClient.Delete(context.TODO(), manifest, testNamespace)
 
@@ -93,27 +92,27 @@ func TestCustomerResources(t *testing.T) {
 	})
 
 	t.Run("Should not get error when deploy CR after CRD", func(t *testing.T) {
-		crdManifest := readManifest(t, "unittest-crd.yaml")
+		crdManifest := test.ReadManifest(t, "unittest-crd.yaml")
 
 		_, err := kubeClient.Deploy(context.TODO(), crdManifest, testNamespace)
 		require.NoError(t, err)
 
-		crManifest := readManifest(t, "unittest-cr.yaml")
+		crManifest := test.ReadManifest(t, "unittest-cr.yaml")
 		_, err = kubeClient.Deploy(context.TODO(), crManifest, testNamespace)
 		require.NoError(t, err)
 	})
 
 	t.Run("Should patch successfully when update CR", func(t *testing.T) {
-		crdManifest := readManifest(t, "unittest-crd.yaml")
+		crdManifest := test.ReadManifest(t, "unittest-crd.yaml")
 
 		_, err := kubeClient.Deploy(context.TODO(), crdManifest, testNamespace)
 		require.NoError(t, err)
 
-		crManifest := readManifest(t, "unittest-cr.yaml")
+		crManifest := test.ReadManifest(t, "unittest-cr.yaml")
 		_, err = kubeClient.Deploy(context.TODO(), crManifest, testNamespace)
 		require.NoError(t, err)
 
-		crManifestUpdated := readManifest(t, "unittest-cr-updated.yaml")
+		crManifestUpdated := test.ReadManifest(t, "unittest-cr-updated.yaml")
 		_, err = kubeClient.Deploy(context.TODO(), crManifestUpdated, testNamespace)
 		require.NoError(t, err)
 
@@ -138,7 +137,7 @@ func deleteTestResources(t *testing.T, client Client) {
 }
 
 func deleteResources(t *testing.T, client Client, filename, namespace string) error {
-	manifest := readManifest(t, filename)
+	manifest := test.ReadManifest(t, filename)
 	_, err := client.Delete(context.TODO(), manifest, namespace)
 	return err
 }
@@ -151,7 +150,7 @@ func TestKubernetesClient(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Deploy no resources because interceptor was failing", func(t *testing.T) {
-		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
+		manifestWithNs := test.ReadManifest(t, "unittest-with-namespace.yaml")
 
 		//deploy
 		deployedResources, err := kubeClient.Deploy(context.TODO(), manifestWithNs, "unittest-adapter", &testInterceptor{
@@ -162,7 +161,7 @@ func TestKubernetesClient(t *testing.T) {
 	})
 
 	t.Run("Deploy and delete resources with namespace", func(t *testing.T) {
-		manifestWithNs := readManifest(t, "unittest-with-namespace.yaml")
+		manifestWithNs := test.ReadManifest(t, "unittest-with-namespace.yaml")
 
 		//deploy
 		t.Log("Deploying test resources")
@@ -186,7 +185,7 @@ func TestKubernetesClient(t *testing.T) {
 	})
 
 	t.Run("Deploy and delete resources without namespace", func(t *testing.T) {
-		manifestWithNs := readManifest(t, "unittest-without-namespace.yaml")
+		manifestWithNs := test.ReadManifest(t, "unittest-without-namespace.yaml")
 
 		//deploy
 		t.Log("Deploying test resources")
@@ -209,10 +208,4 @@ func TestKubernetesClient(t *testing.T) {
 
 	//TODO: test all getter methods
 
-}
-
-func readManifest(t *testing.T, fileName string) string {
-	manifest, err := ioutil.ReadFile(filepath.Join("test", fileName))
-	require.NoError(t, err)
-	return string(manifest)
 }

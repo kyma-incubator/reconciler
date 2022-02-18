@@ -194,7 +194,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.EqualError(t, err, "Istio could not be updated since the binary version: 1.09.2 is not compatible with the target version: 1.11.2 - the difference between versions exceeds one minor version")
+		require.EqualError(t, err, "Istio could not be updated since the binary version: 1.09.2 is not compatible with the target version: 1.11.2-solo-fips-distroless - the difference between versions exceeds one minor version")
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
 		commanderMock.AssertNotCalled(t, "Upgrade", mock.Anything, mock.Anything, mock.Anything)
 	})

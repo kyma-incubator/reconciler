@@ -47,11 +47,11 @@ func Run(o *Options, reconcilerName string) error {
 	o.Logger().Infof("Starting component reconciler '%s'", reconcilerName)
 	ctx := cli.NewContext()
 
-	workerPool, err := startSvcCmd.StartComponentReconciler(ctx, o.Options, reconcilerName)
+	workerPool, tracker, err := startSvcCmd.StartComponentReconciler(ctx, o.Options, reconcilerName)
 	if err != nil {
 		return err
 	}
-	return startSvcCmd.StartWebserver(ctx, o.Options, workerPool)
+	return startSvcCmd.StartWebserver(ctx, o.Options, workerPool, tracker)
 }
 
 func showCurl(o *Options) error {
