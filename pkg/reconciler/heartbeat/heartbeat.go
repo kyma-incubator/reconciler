@@ -81,7 +81,7 @@ func (su *Sender) isContextClosed() bool {
 	return su.ctxClosed
 }
 
-func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bool, retryID string) {
+func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bool, retryID string, processingDuration time.Duration) {
 	su.stopJob() //ensure previous interval-loop is stopped before starting a new loop
 
 	task := func(status reconciler.Status, rootCause error) error {
@@ -93,7 +93,8 @@ func (su *Sender) sendUpdate(status reconciler.Status, reason error, onlyOnce bo
 				}
 				return ""
 			}(rootCause),
-			RetryID: retryID,
+			RetryID:            retryID,
+			ProcessingDuration: int(processingDuration.Milliseconds()),
 		})
 		if err == nil {
 			su.logger.Debugf("Heartbeat communicated status '%s' successfully to mothership-reconciler", status)
@@ -181,7 +182,7 @@ func (su *Sender) Running(retryID string) error {
 	if err := su.statusChangeAllowed(reconciler.StatusRunning); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.StatusRunning, nil, false, retryID) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
+	su.sendUpdate(reconciler.StatusRunning, nil, false, retryID, 0) //Running is an interim status: use interval to send heartbeat-request to reconciler-controller
 	return nil
 }
 
@@ -189,23 +190,23 @@ func (su *Sender) Failed(err error, retryID string) error {
 	if err := su.statusChangeAllowed(reconciler.StatusFailed); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.StatusFailed, err, false, retryID) //Failed is an interim status: use interval to send heartbeat-request to reconciler-controller
+	su.sendUpdate(reconciler.StatusFailed, err, false, retryID, 0) //Failed is an interim status: use interval to send heartbeat-request to reconciler-controller
 	return nil
 }
 
-func (su *Sender) Success(retryID string) error {
+func (su *Sender) Success(retryID string, processingDuration time.Duration) error {
 	if err := su.statusChangeAllowed(reconciler.StatusSuccess); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.StatusSuccess, nil, true, retryID) //Success is a final status: use retry because heartbeat-requests are no longer needed
+	su.sendUpdate(reconciler.StatusSuccess, nil, true, retryID, processingDuration) //Success is a final status: use retry because heartbeat-requests are no longer needed
 	return nil
 }
 
-func (su *Sender) Error(err error, retryID string) error {
+func (su *Sender) Error(err error, retryID string, processingDuration time.Duration) error {
 	if err := su.statusChangeAllowed(reconciler.StatusError); err != nil {
 		return err
 	}
-	su.sendUpdate(reconciler.StatusError, err, true, retryID) //Error is a final status: use retry because heartbeat-requests are no longer needed
+	su.sendUpdate(reconciler.StatusError, err, true, retryID, processingDuration) //Error is a final status: use retry because heartbeat-requests are no longer needed
 	return nil
 }
 

@@ -19,13 +19,24 @@ const (
 )
 
 var clusterStatuses = []model.Status{
-	model.ClusterStatusReconcileError, model.ClusterStatusReady, model.ClusterStatusReconcilePending, model.ClusterStatusReconciling,
-	model.ClusterStatusDeleteError, model.ClusterStatusDeleted, model.ClusterStatusDeletePending, model.ClusterStatusDeleting}
+	model.ClusterStatusReconcilePending,
+	model.ClusterStatusReconciling,
+	model.ClusterStatusReconcileError,
+	model.ClusterStatusReconcileErrorRetryable,
+	model.ClusterStatusReady,
+	model.ClusterStatusDeletePending,
+	model.ClusterStatusDeleting,
+	model.ClusterStatusDeleteError,
+	model.ClusterStatusDeleteErrorRetryable,
+	model.ClusterStatusDeleted}
 
 func TestInventory(t *testing.T) {
 	inventory := newInventory(t)
 
 	expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
+
+	removeAllClusters(t, inventory)       //cleanup before the test runs
+	defer removeAllClusters(t, inventory) //cleanup after test is finished
 
 	t.Run("Create expectedCluster", func(t *testing.T) {
 		//create cluster1
@@ -87,6 +98,29 @@ func TestInventory(t *testing.T) {
 		require.True(t, oldStatusID < newState2.Status.ID)
 	})
 
+	t.Run("Get all", func(t *testing.T) {
+		//verify the expected cluster is returned
+		clustersOld, err := inventory.GetAll()
+		require.NoError(t, err)
+		require.Len(t, clustersOld, 1)
+
+		//add a new cluster
+		newCluster, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.Production))
+		require.NoError(t, err)
+
+		//check that both clusters are now returned
+		clustersNew, err := inventory.GetAll()
+		require.NoError(t, err)
+		require.Len(t, clustersNew, 2)
+		require.Contains(t, clustersNew, newCluster)
+
+		//verify that just the expected cluster is returned after removing the new created cluster
+		require.NoError(t, inventory.Delete(newCluster.Cluster.RuntimeID))
+		clusterOldRefershed, err := inventory.GetAll()
+		require.NoError(t, err)
+		require.ElementsMatch(t, clustersOld, clusterOldRefershed)
+	})
+
 	t.Run("Delete expectedCluster", func(t *testing.T) {
 		_, err := inventory.GetLatest(expectedCluster.RuntimeID)
 		require.NoError(t, err)
@@ -137,13 +171,18 @@ func TestInventoryForClusterStatues(t *testing.T) {
 		//check clusters which are not ready
 		statesNotReady, err := inventory.ClustersNotReady()
 		require.NoError(t, err)
-		require.Len(t, statesNotReady, 4)
+		require.Len(t, statesNotReady, 5)
 		require.ElementsMatch(t,
 			listStatuses(statesNotReady),
-			[]model.Status{model.ClusterStatusReconciling, model.ClusterStatusReconcileError, model.ClusterStatusDeleting, model.ClusterStatusDeleteError})
+			[]model.Status{
+				model.ClusterStatusReconcileError,
+				model.ClusterStatusReconcileErrorRetryable,
+				model.ClusterStatusDeleting,
+				model.ClusterStatusDeleteError,
+				model.ClusterStatusDeleteErrorRetryable},
+		)
 	})
 	t.Run("Get status changes", func(t *testing.T) {
-		expectedStatuses := append(clusterStatuses, model.ClusterStatusReconcilePending)
 		newCluster := test.NewCluster(t, "1", 1, false, test.Production)
 		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
 		require.NoError(t, err)
@@ -163,10 +202,10 @@ func TestInventoryForClusterStatues(t *testing.T) {
 		changes, err := inventory.StatusChanges(newCluster.RuntimeID, duration)
 		require.NoError(t, err)
 
-		require.Len(t, changes, 9)
+		require.Len(t, changes, 10)
 		require.ElementsMatch(t,
 			listStatusesForStatusChanges(changes),
-			expectedStatuses)
+			clusterStatuses)
 	})
 
 }
@@ -459,4 +498,13 @@ func compareState(t *testing.T, state *State, cluster *keb.Cluster) {
 
 	// *** ClusterStatusEntity ***
 	require.Equal(t, model.ClusterStatusReconcilePending, state.Status.Status)
+}
+
+func removeAllClusters(t *testing.T, inventory Inventory) {
+	t.Log("Remove all clusters from inventory")
+	allClusters, err := inventory.GetAll()
+	require.NoError(t, err)
+	for _, cluster := range allClusters {
+		require.NoError(t, inventory.Delete(cluster.Cluster.RuntimeID))
+	}
 }

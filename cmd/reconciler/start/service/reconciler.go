@@ -7,10 +7,10 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-func StartComponentReconciler(ctx context.Context, o *reconCli.Options, reconcilerName string) (*service.WorkerPool, error) {
+func StartComponentReconciler(ctx context.Context, o *reconCli.Options, reconcilerName string) (*service.WorkerPool, *service.OccupancyTracker, error) {
 	recon, err := reconCli.NewComponentReconciler(o, reconcilerName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	o.Logger().Infof("Starting component reconciler '%s'", reconcilerName)

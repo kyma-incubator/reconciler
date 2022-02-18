@@ -107,6 +107,24 @@ func (ws *WithCorrelationID) FilterByInstance(i *model.OperationEntity) *model.O
 	return nil
 }
 
+type WithComponentName struct {
+	Component string
+}
+
+func (wc *WithComponentName) FilterByQuery(q *db.Select) error {
+	q.Where(map[string]interface{}{
+		"Component": wc.Component,
+	})
+	return nil
+}
+
+func (wc *WithComponentName) FilterByInstance(i *model.OperationEntity) *model.OperationEntity {
+	if i.Component == wc.Component {
+		return i
+	}
+	return nil
+}
+
 type Limit struct {
 	Count       int
 	actualCount int

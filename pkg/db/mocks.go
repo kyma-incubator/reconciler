@@ -17,14 +17,15 @@ type MockDbEntity struct {
 }
 
 type MockConnection struct {
-	query string
-	args  []interface{}
+	query  string
+	args   []interface{}
+	dbType Type
 }
 
 type MockDataRow struct {
 }
 
-func (dr *MockDataRow) Scan(dest ...interface{}) error {
+func (dr *MockDataRow) Scan(_ ...interface{}) error {
 	return nil
 }
 
@@ -45,6 +46,10 @@ func (r *MockResult) LastInsertId() (int64, error) {
 
 func (r *MockResult) RowsAffected() (int64, error) {
 	return MockRowsAffected, nil
+}
+
+func (c *MockConnection) ID() string {
+	return "mockConnectionID"
 }
 
 func (c *MockConnection) DB() *sql.DB {
@@ -90,7 +95,10 @@ func (c *MockConnection) Close() error {
 }
 
 func (c *MockConnection) Type() Type {
-	return Mock
+	if c.dbType == "" {
+		return Mock
+	}
+	return c.dbType
 }
 
 func (fake *MockDbEntity) String() string {
@@ -105,7 +113,7 @@ func (fake *MockDbEntity) Table() string {
 	return "mockTable"
 }
 
-func (fake *MockDbEntity) Equal(other DatabaseEntity) bool {
+func (fake *MockDbEntity) Equal(_ DatabaseEntity) bool {
 	return false
 }
 

@@ -44,7 +44,8 @@ func (e *EntityNotFoundError) Error() string {
 			idents.WriteString(fmt.Sprintf("%s=%v", k, v))
 		}
 	}
-	return fmt.Sprintf("Entity of type '%T' with identifier '%v' not found", e.entity, idents.String())
+	return fmt.Sprintf("Entity of type '%T' with identifier '%v' not found (initial error: %s)",
+		e.entity, idents.String(), e.err)
 }
 
 func (e *EntityNotFoundError) Is(err error) bool {

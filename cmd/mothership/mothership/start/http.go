@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -56,57 +57,57 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, updateOperationStatus)).
-		Methods("POST")
+		Methods(http.MethodPost)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
 		callHandler(o, createOrUpdateCluster)).
-		Methods("PUT", "POST")
+		Methods(http.MethodPost, http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}", paramContractVersion, paramRuntimeID),
 		callHandler(o, deleteCluster)).
-		Methods("DELETE")
+		Methods(http.MethodDelete)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%v}/clusters/state", paramContractVersion),
 		callHandler(o, getClustersState)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/configs/{%s}/status", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getCluster)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, getLatestCluster)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/status", paramContractVersion, paramRuntimeID),
 		callHandler(o, updateLatestCluster)).
-		Methods("PUT")
+		Methods(http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/statusChanges", paramContractVersion, paramRuntimeID), //supports offset-param
 		callHandler(o, statusChanges)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, operationCallback)).
-		Methods("POST")
+		Methods(http.MethodPost)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations", paramContractVersion),
 		callHandler(o, getReconciliations)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations/{%s}/info", paramContractVersion, paramSchedulingID),
 		callHandler(o, getReconciliationInfo)).
-		Methods("GET")
+		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
@@ -121,7 +122,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger(), o.OccupancyTracking)
+	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger(), o.OccupancyTracking)
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -723,9 +724,9 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	case reconciler.StatusFailed:
 		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateFailed, body.Error)
 	case reconciler.StatusSuccess:
-		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateDone)
+		err = updateOperationStateAndRetryIDAndProcessingDuration(o, schedulingID, correlationID, body.RetryID, model.OperationStateDone, body.ProcessingDuration)
 	case reconciler.StatusError:
-		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateError, body.Error)
+		err = updateOperationStateAndRetryIDAndProcessingDuration(o, schedulingID, correlationID, body.RetryID, model.OperationStateError, body.ProcessingDuration, body.Error)
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
@@ -865,6 +866,37 @@ func updateOperationStateAndRetryID(o *Options, schedulingID, correlationID, ret
 			"retryID '%s': %s", schedulingID, correlationID, retryID, err)
 	}
 	return err
+}
+
+func updateOperationStateAndRetryIDAndProcessingDuration(o *Options, schedulingID, correlationID, retryID string, state model.OperationState, processingDuration int, reason ...string) error {
+	dbOps := func(tx *db.TxConnection) error {
+		rTx, err := o.Registry.ReconciliationRepository().WithTx(tx)
+		if err != nil {
+			return err
+		}
+
+		err = rTx.UpdateOperationRetryID(schedulingID, correlationID, retryID)
+		if err != nil {
+			o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+				"retryID '%s': %s", schedulingID, correlationID, retryID, err)
+			return err
+		}
+
+		err = rTx.UpdateOperationState(schedulingID, correlationID, state, true, strings.Join(reason, ", "))
+		if err != nil {
+			o.Logger().Errorf("REST endpoint failed to update operation (schedulingID:%s/correlationID:%s) "+
+				"to state '%s': %s", schedulingID, correlationID, state, err)
+			return err
+		}
+
+		err = rTx.UpdateComponentOperationProcessingDuration(schedulingID, correlationID, processingDuration)
+		if err != nil {
+			o.Logger().Errorf("REST endpoint failed to update operation processingDuration (schedulingID:%s/correlationID:%s) "+
+				"to '%s': %s", schedulingID, correlationID, state, err)
+		}
+		return err
+	}
+	return db.Transaction(o.Registry.Connection(), dbOps, o.Logger())
 }
 
 func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.OperationEntity, error) {

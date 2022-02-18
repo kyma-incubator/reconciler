@@ -2,11 +2,13 @@ package progress
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/resource"
-	"time"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"go.uber.org/zap"
@@ -127,7 +129,7 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 				"stop checking progress of resource transition to state '%s'",
 				pt.timeout.Seconds(), targetState)
 			pt.logger.Warn(err.Error())
-			pt.logWatchableResourcesAsInfo()
+			pt.dumpWatchableResourcesAsInfo(ctx)
 			return err
 		}
 	}
@@ -243,5 +245,63 @@ func (pt Tracker) logWatchableResourcesAsInfo() {
 	for _, rs := range pt.objects {
 		pt.logger.Infof("Tracker stopped checking the progress of "+
 			"the following resource: %v", rs)
+	}
+}
+
+func (pt Tracker) dumpWatchableResourcesAsInfo(ctx context.Context) {
+	for _, rs := range pt.objects {
+		buf, err := pt.resourceJSON(ctx, rs)
+
+		if err != nil {
+			pt.logger.Errorf("Tracker stopped checking the progress of "+
+				"the following resource: %v. Failed to get resource: %s", rs, err)
+		}
+		pt.logger.Infof("Tracker stopped checking the progress of "+
+			"the following resource: %v. Resource state: %s", rs, buf)
+	}
+}
+
+func (pt Tracker) resourceJSON(ctx context.Context, rs *trackerResource) ([]byte, error) {
+	switch rs.kind {
+	case Pod:
+		r, err := pt.client.CoreV1().Pods(rs.namespace).Get(ctx, rs.name, metav1.GetOptions{})
+		if err == nil {
+			return json.Marshal(r)
+		}
+		return nil, err
+	case Deployment:
+		r, err := pt.client.AppsV1().Deployments(rs.namespace).Get(ctx, rs.name, metav1.GetOptions{})
+		if err == nil {
+			return json.Marshal(r)
+		}
+		return nil, err
+	case DaemonSet:
+		r, err := pt.client.AppsV1().DaemonSets(rs.namespace).Get(ctx, rs.name, metav1.GetOptions{})
+		if err == nil {
+			return json.Marshal(r)
+		}
+		return nil, err
+	case StatefulSet:
+		r, err := pt.client.AppsV1().StatefulSets(rs.namespace).Get(ctx, rs.name, metav1.GetOptions{})
+		if err == nil {
+			return json.Marshal(r)
+		}
+		return nil, err
+	case Job:
+		r, err := pt.client.BatchV1().Jobs(rs.namespace).Get(ctx, rs.name, metav1.GetOptions{})
+		if err == nil {
+			return json.Marshal(r)
+		}
+		return nil, err
+	case CustomResourceDefinition:
+		if rs.info == nil {
+			return nil, fmt.Errorf("please use AddResourceWithInfo instead of AddResource for progress tracking CRD resources")
+		}
+		if err := rs.info.Get(); err != nil {
+			return nil, err
+		}
+		return json.Marshal(rs.info.Object)
+	default:
+		return nil, fmt.Errorf("Resource type not supported: %s", rs.kind)
 	}
 }

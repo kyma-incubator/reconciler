@@ -4,6 +4,7 @@ import (
 	"context"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -20,8 +21,7 @@ import (
 type runner struct {
 	*ComponentReconciler
 	install *Install
-
-	logger *zap.SugaredLogger
+	logger  *zap.SugaredLogger
 }
 
 func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler) error {
@@ -50,6 +50,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		return err
 	}
 
+	startTime := time.Now()
 	//retry the reconciliation in case of an error
 	err = retry.Do(retryable,
 		retry.Attempts(uint(task.ComponentConfiguration.MaxRetries)),
@@ -57,12 +58,13 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		retry.LastErrorOnly(false),
 		retry.Context(ctx))
 
+	processingDuration := time.Since(startTime)
 	if err == nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
-		if err := heartbeatSender.Success(retryID); err != nil {
+		if err := heartbeatSender.Success(retryID, processingDuration); err != nil {
 			return err
-		}
+		} // TODO: enrich heartbeat with processduration
 	} else if ctx.Err() != nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
 			task.Component, task.Version)
@@ -70,7 +72,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	} else {
 		r.logger.Errorf("Runner: retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			task.Component, task.Version)
-		if heartbeatErr := heartbeatSender.Error(err, retryID); heartbeatErr != nil {
+		if heartbeatErr := heartbeatSender.Error(err, retryID, processingDuration); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
 		}
 	}

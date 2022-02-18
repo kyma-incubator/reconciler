@@ -56,7 +56,7 @@ components:
   schemas:
     callbackMessage:
       type: object
-      required: [ status, error, retryID ]
+      required: [ status, error, retryID, processingDuration ]
       properties:
         status:
           $ref: '#/components/schemas/status'
@@ -65,7 +65,8 @@ components:
         retryID:
           type: string
           format: uuid
-
+        processingDuration:
+          type: integer
     status:
       type: string
       enum:

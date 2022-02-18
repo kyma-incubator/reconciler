@@ -20,6 +20,7 @@ type Inventory interface {
 	Delete(runtimeID string) error
 	Get(runtimeID string, configVersion int64) (*State, error)
 	GetLatest(runtimeID string) (*State, error)
+	GetAll() ([]*State, error)
 	StatusChanges(runtimeID string, offset time.Duration) ([]*StatusChange, error)
 	ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error)
 	ClustersNotReady() ([]*State, error)
@@ -386,6 +387,10 @@ func (i *DefaultInventory) GetLatest(runtimeID string) (*State, error) {
 	}, nil
 }
 
+func (i *DefaultInventory) GetAll() ([]*State, error) {
+	return i.filterClusters()
+}
+
 func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStatusEntity, error) {
 	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
@@ -495,8 +500,8 @@ func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) 
 func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	statusFilter := &statusFilter{
 		allowedStatuses: []model.Status{
-			model.ClusterStatusReconciling, model.ClusterStatusReconcileError, model.ClusterStatusReconcileDisabled,
-			model.ClusterStatusDeleting, model.ClusterStatusDeleteError},
+			model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable,
+			model.ClusterStatusDeleting, model.ClusterStatusDeleteError, model.ClusterStatusDeleteErrorRetryable},
 	}
 	return i.filterClusters(statusFilter)
 }

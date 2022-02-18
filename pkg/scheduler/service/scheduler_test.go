@@ -161,11 +161,14 @@ func TestSchedulerParallel(t *testing.T) {
 		scheduler := newScheduler(logger.NewLogger(true))
 		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
 		require.NoError(t, err)
-		//cleanup before
-		removeExistingReconciliations(t, reconRepo)
+
+		removeExistingReconciliations(t, reconRepo)       //cleanup before test execution
+		defer removeExistingReconciliations(t, reconRepo) //cleanup after test execution
 
 		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelFct()
+
+		require.Len(t, getReconciliations(t, clusterRuntimeIDs, reconRepo), 0) //ensure no reconciliation exist
 
 		startAt := time.Now().Add(1 * time.Second)
 		for i := 0; i < 25; i++ {
@@ -188,13 +191,15 @@ func TestSchedulerParallel(t *testing.T) {
 		}
 		wg.Wait()
 
-		cif := runtimeIDFilter{clusterRuntimeIDs}
-		recons, err := reconRepo.GetReconciliations(&cif)
-		require.NoError(t, err)
-		require.Equal(t, 2, len(recons))
-		//cleanup after
-		removeExistingReconciliations(t, reconRepo)
+		require.Len(t, getReconciliations(t, clusterRuntimeIDs, reconRepo), 2) //ensure reconciliations were created
 	})
+}
+
+func getReconciliations(t *testing.T, clusterRuntimeIDs []string, reconRepo reconciliation.Repository) []*model.ReconciliationEntity {
+	cif := runtimeIDFilter{clusterRuntimeIDs}
+	recons, err := reconRepo.GetReconciliations(&cif)
+	require.NoError(t, err)
+	return recons
 }
 
 func TestDeleteStrategy(t *testing.T) {
