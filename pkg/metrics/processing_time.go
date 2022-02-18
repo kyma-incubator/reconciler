@@ -16,7 +16,7 @@ const prefixOperationProcessingDurationMothershipUnsuccessful = "operation_proce
 const prefixOperationProcessingDurationComponentSuccessful = "operation_processing_duration_reconciler_successful_"
 const prefixOperationProcessingDurationComponentUnsuccessful = "operation_processing_duration_reconciler_unsuccessful_"
 
-const suffixUnit = "_milliseconds"
+const suffixUnit = "milliseconds"
 
 // ProcessingDurationCollector provides average duration of last 500 operations in error and done state:
 // - operation_lifetime_mothership_successful_<component-name>_milliseconds - avg. lifetime time of a component-operation in the mothership reconciler (created and successfully finished)
@@ -39,7 +39,7 @@ func NewProcessingDurationCollector(reconciliations reconciliation.Repository, r
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
 			Help:      "Average processing time of operations",
-		}, []string{"runtime_id", "runtime_name"}),
+		}, []string{"component", "metric"}),
 		componentList: reconcilerList,
 		metricsList: []string{
 			prefixOperationLifetimeMothershipSuccessful,
@@ -61,21 +61,20 @@ func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for _, component := range c.componentList {
 		for _, metric := range c.metricsList {
-			m, err := c.reconciliationStatusGauge.GetMetricWithLabelValues(metric + component + suffixUnit)
+			m, err := c.reconciliationStatusGauge.GetMetricWithLabelValues(component, metric+suffixUnit)
 			if err != nil {
-				c.logger.Errorf("unable to retrieve metric with label=%s: %s", component, err.Error())
+				c.logger.Errorf("processingDurationCollector: unable to retrieve metric with label=%s: %s", component, err.Error())
 				return
 			}
 			processingDuration, err := c.getProcessingDuration(component, metric)
 			if err != nil {
-				c.logger.Errorf(err.Error())
+				c.logger.Errorf("Error getting ProcessingDuration: %s", err.Error())
 				continue
 			}
 			m.Set(float64(processingDuration))
+			ch <- m
 		}
 	}
-	c.reconciliationStatusGauge.Collect(ch)
-
 }
 
 func (c *ProcessingDurationCollector) getProcessingDuration(component, metric string) (int64, error) {
