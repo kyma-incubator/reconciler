@@ -25,6 +25,8 @@ type MockRepository struct {
 	GetMeanComponentOperationProcessingDurationResultError  error
 	GetMeanMothershipOperationProcessingDurationResult      int64
 	GetMeanMothershipOperationProcessingDurationResultError error
+	GetAllComponentsResult                                  []string
+	GetAllComponentsResultError                             error
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
@@ -89,4 +91,8 @@ func (mr *MockRepository) GetMeanComponentOperationProcessingDuration(component 
 
 func (mr *MockRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
 	return mr.GetMeanMothershipOperationProcessingDurationResult, mr.GetMeanMothershipOperationProcessingDurationResultError
+}
+
+func (mr *MockRepository) GetAllComponents() ([]string, error) {
+	return mr.GetAllComponentsResult, mr.GetAllComponentsResultError
 }

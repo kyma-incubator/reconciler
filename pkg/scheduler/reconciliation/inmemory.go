@@ -385,3 +385,33 @@ func (r *InMemoryReconciliationRepository) GetMeanMothershipOperationProcessingD
 	meanLifetime := duration.Milliseconds() / operationCount
 	return meanLifetime, nil
 }
+
+func (r *InMemoryReconciliationRepository) GetAllComponents() ([]string, error) {
+	operations, err := r.GetOperations(&operation.FilterMixer{
+		Filters: []operation.Filter{
+			&operation.Limit{Count: metricsQueryLimit},
+		},
+	})
+	if err != nil {
+		return []string{}, err
+	}
+
+	var components []string
+	for _, op := range operations {
+		components = append(components, op.Component)
+	}
+	components = unique(components)
+	return components, nil
+}
+
+func unique(slice []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range slice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
+}

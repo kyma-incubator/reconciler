@@ -27,20 +27,18 @@ const suffixUnit = "milliseconds"
 // - operation_processing_duration_reconciler_unsuccessful_<component-name>_milliseconds - avg. processing time by the component reconciler (rendered and finished to be deployed in K8s non-successfully)
 type ProcessingDurationCollector struct {
 	reconciliationStatusGauge *prometheus.GaugeVec
-	componentList             []string
 	metricsList               []string
 	reconRepo                 reconciliation.Repository
 	logger                    *zap.SugaredLogger
 }
 
-func NewProcessingDurationCollector(reconciliations reconciliation.Repository, reconcilerList []string, logger *zap.SugaredLogger) *ProcessingDurationCollector {
+func NewProcessingDurationCollector(reconciliations reconciliation.Repository, logger *zap.SugaredLogger) *ProcessingDurationCollector {
 	return &ProcessingDurationCollector{
 		reconciliationStatusGauge: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
 			Help:      "Average processing time of operations",
 		}, []string{"component", "metric"}),
-		componentList: reconcilerList,
 		metricsList: []string{
 			prefixOperationLifetimeMothershipSuccessful,
 			prefixOperationLifetimeMothershipUnsuccessful,
@@ -59,7 +57,12 @@ func (c *ProcessingDurationCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 
-	for _, component := range c.componentList {
+	componentList, err := c.reconRepo.GetAllComponents()
+	if err != nil {
+		c.logger.Warnf("Could not receive componentList from db: %s", err)
+	}
+
+	for _, component := range componentList {
 		for _, metric := range c.metricsList {
 			m, err := c.reconciliationStatusGauge.GetMetricWithLabelValues(component, metric+suffixUnit)
 			if err != nil {

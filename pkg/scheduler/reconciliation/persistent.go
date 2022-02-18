@@ -589,3 +589,37 @@ func (r *PersistentReconciliationRepository) GetMeanMothershipOperationProcessin
 	meanLifetime := duration.Milliseconds() / operationCount
 	return meanLifetime, nil
 }
+
+func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error) {
+	reconEntity := &model.ReconciliationEntity{}
+	colHdr, err := db.NewColumnHandler(reconEntity, r.Conn, r.Logger)
+	if err != nil {
+		return nil, err
+	}
+	componentCol, err := colHdr.ColumnName("component")
+	if err != nil {
+		return nil, err
+	}
+
+	opEntity := &model.OperationEntity{}
+	q, err := db.NewQuery(r.Conn, opEntity, r.Logger)
+	if err != nil {
+		return nil, err
+	}
+
+	dataRows, err := q.Conn.Query("SELECT %s from %s group by %s", componentCol, opEntity.Table(), componentCol)
+	if err != nil {
+		return nil, err
+	}
+
+	for dataRows.Next() {
+		dataRows.Scan()
+	}
+
+	var components []string
+	for _, op := range ops {
+		components = append(components, op.(*model.OperationEntity).Component)
+		r.Logger.Infof("Component Lits: %s", components)
+	}
+	return components, nil
+}
