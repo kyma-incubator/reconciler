@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -13,8 +12,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config) error {
+func startScheduler(ctx context.Context, o *Options) error {
 
+	schedulerCfg, err := parseSchedulerConfig(viper.ConfigFileUsed())
+	if err != nil {
+		return err
+	}
+	//passing config value to be used by metrics collectors and trackers
+	o.Config = schedulerCfg
 	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
 
 	ds, err := service.NewDeleteStrategy(schedulerCfg.Scheduler.DeleteStrategy)
@@ -56,15 +61,6 @@ func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config
 			KeepUnsuccessfulEntitiesDays: uintOrDie(o.KeepUnsuccessfulEntitiesDays),
 		}).
 		Run(ctx)
-}
-
-func getReconcilers(cfg *config.Config) []string {
-	reconcilerList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
-	for reconciler := range cfg.Scheduler.Reconcilers {
-		formattedReconciler := strings.Replace(reconciler, "-", "_", -1)
-		reconcilerList = append(reconcilerList, formattedReconciler)
-	}
-	return append(reconcilerList, "mothership")
 }
 
 func parseSchedulerConfig(configFile string) (*config.Config, error) {

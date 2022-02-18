@@ -250,3 +250,10 @@ func (w *Pool) RunningWorkers() (int, error) {
 	}
 	return w.antsPool.Running(), nil
 }
+
+func (w *Pool) Size() (int, error) {
+	if w.antsPool == nil {
+		return 0, fmt.Errorf("could not retrieve pool size: worker pool is nil")
+	}
+	return w.antsPool.Cap(), nil
+}

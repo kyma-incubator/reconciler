@@ -3,7 +3,6 @@ package occupancy
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
 	"go.uber.org/zap"
@@ -26,30 +25,33 @@ const (
 type Tracker struct {
 	occupancyID          string
 	workerPool           *worker.Pool
-	poolSize             int
 	repo                 Repository
 	logger               *zap.SugaredLogger
 	scalableServiceNames []string
 }
 
-func NewTracker(workerPool *worker.Pool, repo Repository, cfg *config.Config, poolSize int, debug bool) *Tracker {
+func NewTracker(workerPool *worker.Pool, repo Repository, cfg *config.Config, logger *zap.SugaredLogger) *Tracker {
 	return &Tracker{
-		//using hostname (= pod name) as the id to be able
-		//to clean up pods that have died w/o being able to delete their occupancy
-		occupancyID:          getHostname(),
 		workerPool:           workerPool,
-		poolSize:             poolSize,
 		repo:                 repo,
-		logger:               logger.NewLogger(debug),
-		scalableServiceNames: getReconcilers(cfg),
+		logger:               logger,
+		scalableServiceNames: GetReconcilerList(cfg),
 	}
 }
 
 func (t *Tracker) Run(ctx context.Context) {
-
+	//using hostname (= pod name) as the id to be able
+	//to clean up pods that have died w/o being able to delete their occupancy
+	var err error
+	t.occupancyID, err = os.Hostname()
+	if err != nil {
+		t.logger.Errorf("occupancy tracker failed to get pod name: %s", err)
+		return
+	}
 	//create in-cluster K8s client
 	clientset, err := createK8sInClusterClientSet()
 	if err != nil {
+		t.logger.Errorf("occupancy tracker failed to create in-cluster clientset: %s", err)
 		return
 	}
 	//start occupancy tracking && cleaning
@@ -63,7 +65,12 @@ func (t *Tracker) Run(ctx context.Context) {
 				t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
 				break
 			}
-			_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipScalableServiceName, runningWorkers, t.poolSize)
+			poolSize, err := t.workerPool.Size()
+			if err != nil {
+				t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
+				break
+			}
+			_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipScalableServiceName, runningWorkers, poolSize)
 			if err != nil {
 				t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
 			}
@@ -73,17 +80,15 @@ func (t *Tracker) Run(ctx context.Context) {
 				t.logger.Errorf("could not cleanup orphan occupancies : %s", err)
 				break
 			}
-			<-ctx.Done()
-			if !t.workerPool.IsClosed() {
-				t.logger.Info("Deleting Worker Pool Occupancy")
-				trackingTicker.Stop()
-				cleanupTicker.Stop()
-				err := t.repo.RemoveWorkerPoolOccupancy(t.occupancyID)
-				if err != nil {
-					t.logger.Errorf("could not delete occupancy for %s: %s", t.occupancyID, err)
-				}
-				return
+		case <-ctx.Done():
+			t.logger.Info("Deleting Worker Pool Occupancy")
+			trackingTicker.Stop()
+			cleanupTicker.Stop()
+			err := t.repo.RemoveWorkerPoolOccupancy(t.occupancyID)
+			if err != nil {
+				t.logger.Errorf("could not delete occupancy for %s: %s", t.occupancyID, err)
 			}
+			return
 		}
 	}
 }
@@ -141,19 +146,11 @@ func binarySearch(name string, components []string) bool {
 	return false
 }
 
-func getHostname() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return ""
-	}
-	return hostname
-}
-
-func getReconcilers(cfg *config.Config) []string {
+func GetReconcilerList(cfg *config.Config) []string {
 	reconcilerList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
 	for reconciler := range cfg.Scheduler.Reconcilers {
 		formattedReconciler := strings.Replace(reconciler, "-", "_", -1)
 		reconcilerList = append(reconcilerList, formattedReconciler)
 	}
-	return append(reconcilerList, "mothership")
+	return append(reconcilerList, mothershipScalableServiceName)
 }

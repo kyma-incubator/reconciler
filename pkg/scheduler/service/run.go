@@ -55,7 +55,16 @@ func (rb *RuntimeBuilder) RunRemote(
 	inventory cluster.Inventory, occupancyRepo occupancy.Repository,
 	config *config.Config) *RunRemote {
 
-	runR := &RunRemote{rb, conn, inventory, occupancyRepo, config, &SchedulerConfig{}, &BookkeeperConfig{}, &CleanerConfig{}}
+	runR := &RunRemote{
+		runtimeBuilder:   rb,
+		conn:             conn,
+		inventory:        inventory,
+		occupancyRepo:    occupancyRepo,
+		config:           config,
+		schedulerConfig:  &SchedulerConfig{},
+		bookkeeperConfig: &BookkeeperConfig{},
+		cleanerConfig:    &CleanerConfig{},
+	}
 	return runR
 }
 
@@ -160,6 +169,7 @@ type RunRemote struct {
 	schedulerConfig  *SchedulerConfig
 	bookkeeperConfig *BookkeeperConfig
 	cleanerConfig    *CleanerConfig
+	workerPool       *worker.Pool
 }
 
 func (r *RunRemote) logger() *zap.SugaredLogger { //convenient function
@@ -207,16 +217,23 @@ func (r *RunRemote) Run(ctx context.Context) error {
 	//start worker pool
 	go func() {
 		remoteInvoker := invoker.NewRemoteReconcilerInvoker(r.reconciliationRepository(), r.config, r.logger())
-		workerPool, err := r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker, r.occupancyRepo)
+		var err error
+		r.workerPool, err = r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker, r.occupancyRepo)
 		if err == nil {
 			r.logger().Info("Worker pool created")
 		} else {
 			r.logger().Fatalf("Failed to create worker pool: %s", err)
 		}
 
-		if err := workerPool.Run(ctx); err != nil {
+		if err := r.workerPool.Run(ctx); err != nil {
 			r.logger().Fatalf("Worker pool returned an error: %s", err)
 		}
+	}()
+
+	//start occupancy tracker
+	go func() {
+		//TODO: make tracker return errors
+		occupancy.NewTracker(r.workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
 	}()
 
 	//start scheduler
