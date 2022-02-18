@@ -591,35 +591,34 @@ func (r *PersistentReconciliationRepository) GetMeanMothershipOperationProcessin
 }
 
 func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error) {
-	reconEntity := &model.ReconciliationEntity{}
-	colHdr, err := db.NewColumnHandler(reconEntity, r.Conn, r.Logger)
+	opEntity := &model.OperationEntity{}
+	colHdr, err := db.NewColumnHandler(opEntity, r.Conn, r.Logger)
 	if err != nil {
 		return nil, err
 	}
-	componentCol, err := colHdr.ColumnName("component")
+	componentCol, err := colHdr.ColumnName("Component")
 	if err != nil {
 		return nil, err
 	}
 
-	opEntity := &model.OperationEntity{}
 	q, err := db.NewQuery(r.Conn, opEntity, r.Logger)
 	if err != nil {
 		return nil, err
 	}
 
-	dataRows, err := q.Conn.Query("SELECT %s from %s group by %s", componentCol, opEntity.Table(), componentCol)
+	dataRows, err := q.Conn.Query(fmt.Sprintf("SELECT %s FROM %s GROUP BY %s", componentCol, opEntity.Table(), componentCol))
 	if err != nil {
 		return nil, err
 	}
+	var components []string
 
 	for dataRows.Next() {
-		dataRows.Scan()
+		var component string
+		err := dataRows.Scan(&component)
+		if err == nil {
+			components = append(components, component)
+		}
 	}
 
-	var components []string
-	for _, op := range ops {
-		components = append(components, op.(*model.OperationEntity).Component)
-		r.Logger.Infof("Component Lits: %s", components)
-	}
 	return components, nil
 }
