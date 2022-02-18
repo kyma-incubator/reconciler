@@ -19,23 +19,23 @@ const (
 	paramContractVersion = "version"
 )
 
-func StartWebserver(ctx context.Context, o *reconCli.Options, workerPool *service.WorkerPool) error {
+func StartWebserver(ctx context.Context, o *reconCli.Options, workerPool *service.WorkerPool, tracker *service.OccupancyTracker) error {
 	srv := server.Webserver{
 		Logger:     o.Logger(),
 		Port:       o.ServerConfig.Port,
 		SSLCrtFile: o.ServerConfig.SSLCrtFile,
 		SSLKeyFile: o.ServerConfig.SSLKeyFile,
-		Router:     newRouter(ctx, o, workerPool),
+		Router:     newRouter(ctx, o, workerPool, tracker),
 	}
 	return srv.Start(ctx) //blocking until ctx gets closed
 }
 
-func newRouter(ctx context.Context, o *reconCli.Options, workerPool *service.WorkerPool) *mux.Router {
+func newRouter(ctx context.Context, o *reconCli.Options, workerPool *service.WorkerPool, tracker *service.OccupancyTracker) *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc(
 		fmt.Sprintf("/v{%s}/run", paramContractVersion),
 		func(w http.ResponseWriter, r *http.Request) { //just an adapter for the reconcile-fct call
-			reconcile(ctx, w, r, o, workerPool)
+			reconcile(ctx, w, r, o, workerPool, tracker)
 		},
 	).Methods("PUT", "POST")
 
@@ -95,7 +95,7 @@ func modelForVersion(contractVersion string) (*reconciler.Task, error) {
 	return &reconciler.Task{}, nil //change this function if multiple contract versions have to be supported
 }
 
-func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o *reconCli.Options, workerPool *service.WorkerPool) {
+func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o *reconCli.Options, workerPool *service.WorkerPool, tracker *service.OccupancyTracker) {
 	o.Logger().Debug("Start processing reconciliation request")
 
 	//marshal model
@@ -118,6 +118,8 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 	}
 
 	o.Logger().Debugf("Assigning reconciliation worker to model '%s'", model)
+	//setting callback URL for occupancy tracking
+	tracker.AssignCallbackURL(model.CallbackURL)
 	if err := workerPool.AssignWorker(ctx, model); err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: err.Error(),
