@@ -52,6 +52,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 		ClusterConfig:       state.Configuration.Version,
 		ClusterConfigStatus: state.Status.ID,
 		SchedulingID:        fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
+		Created:             time.Now().UTC(),
 	}
 	r.reconciliations[state.Cluster.RuntimeID] = reconEntity
 
