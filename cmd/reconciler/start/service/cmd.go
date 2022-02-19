@@ -26,9 +26,9 @@ func NewCmd(o *reconCli.Options, reconcilerName string) *cobra.Command {
 
 func Run(o *reconCli.Options, reconcilerName string) error {
 	ctx := cli.NewContext()
-	workerPool, err := StartComponentReconciler(ctx, o, reconcilerName)
+	workerPool, tracker, err := StartComponentReconciler(ctx, o, reconcilerName)
 	if err != nil {
 		return err
 	}
-	return StartWebserver(ctx, o, workerPool)
+	return StartWebserver(ctx, o, workerPool, tracker)
 }

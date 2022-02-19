@@ -1,12 +1,8 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	"net/http"
 	"strings"
 	"time"
 
@@ -66,13 +62,9 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	if err == nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
-		if err := heartbeatSender.Success(retryID); err != nil {
+		if err := heartbeatSender.Success(retryID, processingDuration); err != nil {
 			return err
-		}
-		err := r.updateProcessingDuration(processingDuration.Milliseconds(), task)
-		if err != nil {
-			r.logger.Warnf("Could not update the processingDuration: %s", err.Error())
-		}
+		} // TODO: enrich heartbeat with processduration
 	} else if ctx.Err() != nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
 			task.Component, task.Version)
@@ -80,12 +72,8 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	} else {
 		r.logger.Errorf("Runner: retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			task.Component, task.Version)
-		if heartbeatErr := heartbeatSender.Error(err, retryID); heartbeatErr != nil {
+		if heartbeatErr := heartbeatSender.Error(err, retryID, processingDuration); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
-		}
-		err := r.updateProcessingDuration(processingDuration.Milliseconds(), task)
-		if err != nil {
-			r.logger.Warnf("Could not update the processingDuration: %s", err.Error())
 		}
 	}
 
@@ -157,40 +145,4 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 	}
 
 	return nil
-}
-
-func processingDurationCallbackURL(callbackURL string) (string, error) {
-
-	if callbackURL == "" {
-		return "", fmt.Errorf("error parsing callback URL from model: received empty string")
-	}
-	processingDurationURLTemplate := "%s/%s"
-	return fmt.Sprintf(processingDurationURLTemplate, callbackURL, "processingDuration"), nil
-}
-
-func (r *runner) updateProcessingDuration(processingDuration int64, task *reconciler.Task) error {
-	processingDurationCallbackURL, err := processingDurationCallbackURL(task.CallbackURL)
-	if err != nil {
-		return fmt.Errorf("failed to parse callbackURL '%s': %s", task.CallbackURL, err)
-	}
-
-	httpProcessingDurationUpdateRequest := reconciler.ProcessingDuration{
-		Duration: int(processingDuration),
-	}
-	jsonPayload, err := json.Marshal(httpProcessingDurationUpdateRequest)
-	if err != nil {
-		return fmt.Errorf("failed to marshal HTTP payload to update processing duration of operation with correlationID '%s': %s", task.CorrelationID, err)
-	}
-	//nolint:gosec //http request needs to be done with variable here, since we first need to add the correct sub-endpoint to the callback
-	resp, err := http.Post(processingDurationCallbackURL, "application/json", bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
-		r.logger.Infof("ProcessingDuration for operation with correlationID '%s' updated successfully", task.CorrelationID)
-		return nil
-	}
-
-	return fmt.Errorf("mothership failed to update processingDuration for operation with correlationID '%s' with status code: '%d'", task.CorrelationID, resp.StatusCode)
 }

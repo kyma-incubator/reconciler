@@ -2,9 +2,8 @@ package kubernetes
 
 import (
 	"context"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
-	"io/ioutil"
-	"strings"
 
 	e "github.com/kyma-incubator/reconciler/pkg/error"
 	"go.uber.org/zap"
@@ -12,9 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -36,7 +33,7 @@ func TestProgressTracker(t *testing.T) {
 	clientSet, err := kubeClient.Clientset()
 	require.NoError(t, err)
 
-	resources := readManifestToUnstructured(t, "all.yaml")
+	resources := test.ReadManifestToUnstructured(t, "all.yaml")
 	require.Len(t, resources, 5)
 
 	cleanup := func() {
@@ -55,8 +52,8 @@ func TestProgressTracker(t *testing.T) {
 
 	//install test resources
 	t.Log("Creating test resources")
-	manifest := test.ReadFile(t, filepath.Join("test", "all.yaml"))
-	_, err = kubeClient.Deploy(context.TODO(), string(manifest), "")
+	manifest := test.ReadManifest(t, "all.yaml")
+	_, err = kubeClient.Deploy(context.TODO(), manifest, "")
 	require.NoError(t, err)
 
 	t.Run("Test progress tracking with timeout", func(t *testing.T) {
@@ -146,9 +143,9 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 
 	t.Log("Creating daemon set")
 
-	ds := readManifestToUnstructured(t, "ds-before-rolling-update.yaml")[0]
-	manifest := test.ReadFile(t, filepath.Join("test", "ds-before-rolling-update.yaml"))
-	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
+	ds := test.ReadManifestToUnstructured(t, "ds-before-rolling-update.yaml")[0]
+	manifest := test.ReadManifest(t, "ds-before-rolling-update.yaml")
+	_, err = kubeClient.Deploy(context.TODO(), manifest, testNs)
 	require.NoError(t, err)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
@@ -163,9 +160,9 @@ func TestDaemonSetRollingUpdate(t *testing.T) {
 
 	t.Log("Updating daemon set")
 
-	ds = readManifestToUnstructured(t, "ds-after-rolling-update.yaml")[0]
-	manifest = test.ReadFile(t, filepath.Join("test", "ds-after-rolling-update.yaml"))
-	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
+	ds = test.ReadManifestToUnstructured(t, "ds-after-rolling-update.yaml")[0]
+	manifest = test.ReadManifest(t, "ds-after-rolling-update.yaml")
+	_, err = kubeClient.Deploy(context.TODO(), manifest, testNs)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
@@ -202,9 +199,9 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 
 	t.Log("Creating stateful set")
 
-	ss := readManifestToUnstructured(t, "ss-before-rolling-update.yaml")[0]
-	manifest := test.ReadFile(t, filepath.Join("test", "ss-before-rolling-update.yaml"))
-	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
+	ss := test.ReadManifestToUnstructured(t, "ss-before-rolling-update.yaml")[0]
+	manifest := test.ReadManifest(t, "ss-before-rolling-update.yaml")
+	_, err = kubeClient.Deploy(context.TODO(), manifest, testNs)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
@@ -218,9 +215,9 @@ func TestStatefulSetRollingUpdate(t *testing.T) {
 
 	t.Log("Updating stateful set")
 
-	ss = readManifestToUnstructured(t, "ss-after-rolling-update.yaml")[0]
-	manifest = test.ReadFile(t, filepath.Join("test", "ss-before-rolling-update.yaml"))
-	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
+	ss = test.ReadManifestToUnstructured(t, "ss-after-rolling-update.yaml")[0]
+	manifest = test.ReadManifest(t, "ss-before-rolling-update.yaml")
+	_, err = kubeClient.Deploy(context.TODO(), manifest, testNs)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
@@ -257,9 +254,9 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 
 	t.Log("Creating deployment")
 
-	dep := readManifestToUnstructured(t, "dep-before-rolling-update.yaml")[0]
-	manifest := test.ReadFile(t, filepath.Join("test", "dep-before-rolling-update.yaml"))
-	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
+	dep := test.ReadManifestToUnstructured(t, "dep-before-rolling-update.yaml")[0]
+	manifest := test.ReadManifest(t, "dep-before-rolling-update.yaml")
+	_, err = kubeClient.Deploy(context.TODO(), manifest, testNs)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
@@ -273,9 +270,9 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 
 	t.Log("Updating deployment")
 
-	dep = readManifestToUnstructured(t, "dep-after-rolling-update.yaml")[0]
-	manifest = test.ReadFile(t, filepath.Join("test", "dep-after-rolling-update.yaml"))
-	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
+	dep = test.ReadManifestToUnstructured(t, "dep-after-rolling-update.yaml")[0]
+	manifest = test.ReadManifest(t, "dep-after-rolling-update.yaml")
+	_, err = kubeClient.Deploy(context.TODO(), manifest, testNs)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
@@ -288,9 +285,9 @@ func TestDeploymentRollingUpdate(t *testing.T) {
 
 	t.Log("Updating deployment again")
 
-	dep = readManifestToUnstructured(t, "dep-before-rolling-update.yaml")[0]
-	manifest = test.ReadFile(t, filepath.Join("test", "dep-before-rolling-update.yaml"))
-	_, err = kubeClient.Deploy(context.TODO(), string(manifest), testNs)
+	dep = test.ReadManifestToUnstructured(t, "dep-before-rolling-update.yaml")[0]
+	manifest = test.ReadManifest(t, "dep-before-rolling-update.yaml")
+	_, err = kubeClient.Deploy(context.TODO(), manifest, testNs)
 	require.NoError(t, err)
 
 	tracker, err = progress.NewProgressTracker(clientSet, logger, progress.Config{Interval: 1 * time.Second, Timeout: 3 * time.Minute})
@@ -313,24 +310,4 @@ func addWatchable(t *testing.T, resources []*unstructured.Unstructured, pt *prog
 		}
 	}
 	require.Equal(t, 4, cntWatchable)
-}
-
-func readManifestToUnstructured(t *testing.T, filename string) []*unstructured.Unstructured {
-	manifest, err := ioutil.ReadFile(filepath.Join("test", filename))
-	require.NoError(t, err)
-
-	var result []*unstructured.Unstructured
-	for _, resourceYAML := range strings.Split(string(manifest), "---") {
-		if strings.TrimSpace(resourceYAML) == "" {
-			continue
-		}
-		obj := &unstructured.Unstructured{}
-		dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-		_, _, err := dec.Decode([]byte(resourceYAML), nil, obj)
-		require.NoError(t, err)
-
-		result = append(result, obj)
-	}
-
-	return result
 }

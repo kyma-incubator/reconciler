@@ -17,7 +17,6 @@ import (
 
 const (
 	envIstioIntegrationTests = "ISTIO_RECONCILER_INTEGRATION_TESTS"
-	namespace                = "kyma-system"
 )
 
 type istioTest struct {
