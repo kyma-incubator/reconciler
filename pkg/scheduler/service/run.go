@@ -232,7 +232,7 @@ func (r *RunRemote) Run(ctx context.Context) error {
 	//start occupancy tracker
 	go func() {
 		//TODO: make tracker return errors
-		occupancy.NewTracker(r.workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
+		NewOccupancyTracker(r.workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
 	}()
 
 	//start scheduler

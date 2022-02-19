@@ -1,10 +1,14 @@
 package metrics
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
+	"strings"
 )
+
+const mothershipScalableServiceName = "mothership"
 
 // WorkerPoolOccupancyCollector provides the mean ratio of running workers in the worker-pool(s):
 // - worker_pool_occupancy - mean ratio of running workers in the worker-pool(s)
@@ -54,4 +58,13 @@ func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	c.workerPoolOccupancyGaugeVec.Collect(ch)
 
+}
+
+func GetReconcilerList(cfg *config.Config) []string {
+	reconcilerList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
+	for reconciler := range cfg.Scheduler.Reconcilers {
+		formattedReconciler := strings.Replace(reconciler, "-", "_", -1)
+		reconcilerList = append(reconcilerList, formattedReconciler)
+	}
+	return append(reconcilerList, mothershipScalableServiceName)
 }

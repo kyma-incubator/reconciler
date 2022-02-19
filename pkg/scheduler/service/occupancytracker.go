@@ -1,16 +1,17 @@
-package occupancy
+package service
 
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -22,24 +23,24 @@ const (
 	nameLabelSelector                = "app.kubernetes.io/name:"
 )
 
-type Tracker struct {
+type OccupancyTracker struct {
 	occupancyID          string
 	workerPool           *worker.Pool
-	repo                 Repository
+	repo                 occupancy.Repository
 	logger               *zap.SugaredLogger
 	scalableServiceNames []string
 }
 
-func NewTracker(workerPool *worker.Pool, repo Repository, cfg *config.Config, logger *zap.SugaredLogger) *Tracker {
-	return &Tracker{
+func NewOccupancyTracker(workerPool *worker.Pool, repo occupancy.Repository, cfg *config.Config, logger *zap.SugaredLogger) *OccupancyTracker {
+	return &OccupancyTracker{
 		workerPool:           workerPool,
 		repo:                 repo,
 		logger:               logger,
-		scalableServiceNames: GetReconcilerList(cfg),
+		scalableServiceNames: metrics.GetReconcilerList(cfg),
 	}
 }
 
-func (t *Tracker) Run(ctx context.Context) {
+func (t *OccupancyTracker) Run(ctx context.Context) {
 	//using hostname (= pod name) as the id to be able
 	//to clean up pods that have died w/o being able to delete their occupancy
 	var err error
@@ -101,7 +102,7 @@ func createK8sInClusterClientSet() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(inClusterConfig)
 }
 
-func (t *Tracker) getScalablePodNames(clientset *kubernetes.Clientset) ([]string, error) {
+func (t *OccupancyTracker) getScalablePodNames(clientset *kubernetes.Clientset) ([]string, error) {
 	var scalablePodNames []string
 	for _, scalableServiceName := range t.scalableServiceNames {
 		pods, err := clientset.CoreV1().Pods(defaultKcpNamespace).List(context.TODO(), metav1.ListOptions{
@@ -119,7 +120,7 @@ func (t *Tracker) getScalablePodNames(clientset *kubernetes.Clientset) ([]string
 	return scalablePodNames, nil
 }
 
-func (t *Tracker) cleanUpOrphanOccupancies(clientset *kubernetes.Clientset) error {
+func (t *OccupancyTracker) cleanUpOrphanOccupancies(clientset *kubernetes.Clientset) error {
 	scalablePodNames, err := t.getScalablePodNames(clientset)
 	if err != nil {
 		return err
@@ -144,13 +145,4 @@ func (t *Tracker) cleanUpOrphanOccupancies(clientset *kubernetes.Clientset) erro
 func binarySearch(name string, components []string) bool {
 	//TODO: implement
 	return false
-}
-
-func GetReconcilerList(cfg *config.Config) []string {
-	reconcilerList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
-	for reconciler := range cfg.Scheduler.Reconcilers {
-		formattedReconciler := strings.Replace(reconciler, "-", "_", -1)
-		reconcilerList = append(reconcilerList, formattedReconciler)
-	}
-	return append(reconcilerList, mothershipScalableServiceName)
 }
