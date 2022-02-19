@@ -41,6 +41,7 @@ Top five main quality goals are:
 |Product Management|Ensure fast and stable Kyma installations and ensure SLAs for managed Kyma clusters.|
 |SRE|Reduction of efforts by automated health and recovery functionality for managed Kyma clusters. Operability of the reconciler is simple and widely automated.|
 |Kyma component developers|Simple way to provide custom reconciliation logic and easy ways to test the reconciliation of a Kyma component.|
+|On call engineers|Support for efficient analysis of incidents related to Kyma reconciliations or defective Kyma installations.|
 |Reconciler team (Jellyfish)|Code base is easy to understand, enhance and to test. Code quality is high (regularly measured), documented and technical debts are regularly removed.|
 
 # 2. Architecture Constraints
@@ -61,7 +62,68 @@ decisions or decision about the development process.
 
 ## 3.1 Business context
 
+The reconciler run in two business contexts:
+
+1. *microservice* inside the KCP ecosystem
+2. *embedded* as library into another application (e.g. Kyma CLI)
+
+### 3.1.1 Microservice
+
+{diagram}
+
+Within the KCP landscape is the reconciler running in a microservice setup which consist of two components:
+
+1. Mothership reconciler
+
+   Responsible for coordinating the reconciliation processes applied on Kyma clusters by interacting with component
+   reconcilers. It is the leader of all reconciliation related data.
+
+3. Component reconcilers
+
+   Responsible for rendering particular Kyma component charts and applying them on Kubernetes clusters. The mothership
+   reconciler is the only client of component reconcilers.
+
+Surrounding services are:
+
+|Neighbour|Purpose|Output|Input|
+|---|---|---|---|
+|KEB|Notifying the reconciler about new Kyma clusters, clusters which require an update of their Kyma installation or have to be deleted. It is the leading system for cluster data.|Cluster data|Reconciliation status|
+|KCP CLI|Command line tool used by SRE and on-call engineers to retrieve reconciliation data or triggering administrative actions (e.g. disabling the reconciliation for a cluster).|Administrative calls to reconciler API|Reconciliation data and results|
+|SRE observability stack|Track monitoring metrics and log data and expose enhanced analysis and debugging possibilities of administrative engineers via dashboards.|-|Monitoring metrics and log-data|
+|SAP Audit log|Store critical events triggered on the reconciler by humans / 3rd party system for analysis and traceability reasons.|-|Critical system events|
+
+### 3.1.2 Embedded
+
+Other applications can reuse the reconciler logic to offer also lifecycle management capabilities for Kyma.
+
+The Kyma CLI is one of the most important consumer of the reconciler and includes its library.
+
+Main difference of the embedded setup compared to micoservices is the missing REST API and a cluster reconciliation
+happens just once instead in a interval loop.
+
+In the embedded setup, the mothership and component reconcilers interact over Go function calls with each other instead
+of HTTP REST calls.
+
 ## 3.2 Technical context
+
+### 3.2.1 Ingress (Incoming)
+
+The reconciler interface is based on REST as its currently only used by technical clients.
+
+Two OpenAPI specifications are established:
+
+* [Internal API](blob/main/openapi/internal_api.yaml)
+
+  Defines the interface contract between the mothership and the component reconcilers.
+
+* [External API](blob/main/openapi/external_api.yaml)
+
+  Includes the interface contract of the REST API exposed to 3rd party system (e.g. KEB, KCP CLI etc.) by the mothership
+  reconciler. Most of the communication happening between the mothership reconciler and 3rd party systems is based on a
+  pull-approach:
+  the external system asks the reconciler for particular data or triggers an actions.
+
+### 3.2.2 Egress (Outgoing)
 
 # 4. Solution Strategy
 
