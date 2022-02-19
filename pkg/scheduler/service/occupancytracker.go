@@ -125,13 +125,22 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(clientset *kubernetes.Client
 	if err != nil {
 		return err
 	}
-	//TODO: implement get occupancy IDs
-	componentsIDs, err := t.repo.GetComponentList()
+
+	componentsIDs, err := t.repo.GetComponentIDs()
 	if err != nil {
 		return err
 	}
+	if len(componentsIDs) == 0 {
+		return fmt.Errorf("received empty list of ids: nothing to clean")
+	}
 	for _, componentID := range componentsIDs {
-		found := binarySearch(componentID, scalablePodNames)
+		found := false
+		for _, scalablePodName := range scalablePodNames {
+			if componentID == scalablePodName {
+				found = true
+				break
+			}
+		}
 		if !found {
 			err = t.repo.RemoveWorkerPoolOccupancy(componentID)
 			if err != nil {
@@ -140,9 +149,4 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(clientset *kubernetes.Client
 		}
 	}
 	return nil
-}
-
-func binarySearch(name string, components []string) bool {
-	//TODO: implement
-	return false
 }

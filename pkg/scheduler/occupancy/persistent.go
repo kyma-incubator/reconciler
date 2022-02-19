@@ -12,6 +12,27 @@ type PersistentOccupancyRepository struct {
 	*repository.Repository
 }
 
+func (r *PersistentOccupancyRepository) GetComponentIDs() ([]string, error) {
+	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+	if err != nil {
+		return nil, err
+	}
+
+	databaseEntities, err := q.Select().GetMany()
+	if err != nil {
+		return nil, err
+	}
+	if len(databaseEntities) == 0 {
+		return nil, fmt.Errorf("unable to get component list: no record was found")
+	}
+	var componentIDs []string
+	for _, occupancy := range databaseEntities {
+		occupancyEntity := occupancy.(*model.WorkerPoolOccupancyEntity)
+		componentIDs = append(componentIDs, occupancyEntity.WorkerPoolID)
+	}
+	return componentIDs, nil
+}
+
 func NewPersistentOccupancyRepository(conn db.Connection, debug bool) (Repository, error) {
 	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {

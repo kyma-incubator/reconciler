@@ -25,6 +25,8 @@ type testCase struct {
 	testFct func(t *testing.T, occupRepo Repository)
 }
 
+//TODO: implement test for get occupancy IDs
+
 func TestOccupancyRepository(t *testing.T) {
 	test.IntegrationTest(t)
 	occupancies := []*Occupancy{

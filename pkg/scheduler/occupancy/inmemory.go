@@ -13,6 +13,16 @@ type InMemoryOccupancyRepository struct {
 	sync.Mutex
 }
 
+func (r *InMemoryOccupancyRepository) GetComponentIDs() ([]string, error) {
+	r.Lock()
+	defer r.Unlock()
+	componentIDs := make([]string, 0, len(r.occupancies))
+	for _, occupancy := range r.occupancies {
+		componentIDs = append(componentIDs, occupancy.WorkerPoolID)
+	}
+	return componentIDs, nil
+}
+
 func NewInMemoryOccupancyRepository() Repository {
 	return &InMemoryOccupancyRepository{
 		occupancies: make(map[string]*model.WorkerPoolOccupancyEntity),
