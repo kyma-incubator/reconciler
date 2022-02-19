@@ -130,10 +130,10 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(clientset *kubernetes.Client
 	if err != nil {
 		return err
 	}
-	for _, componentId := range componentsIDs {
-		found := binarySearch(componentId, scalablePodNames)
+	for _, componentID := range componentsIDs {
+		found := binarySearch(componentID, scalablePodNames)
 		if !found {
-			err = t.repo.RemoveWorkerPoolOccupancy(componentId)
+			err = t.repo.RemoveWorkerPoolOccupancy(componentID)
 			if err != nil {
 				return err
 			}
