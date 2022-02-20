@@ -14,41 +14,46 @@ import (
 	"time"
 )
 
-const occupancyURLTemplate = "%s://%s:%s/v1/occupancy/%s"
+const (
+	occupancyURLTemplate   = "%s://%s:%s/v1/occupancy/%s"
+	defaultBackOffInterval = 5 * time.Minute
+)
 
 type OccupancyTracker struct {
 	logger               *zap.SugaredLogger
 	occupancyID          string
 	occupancyCallbackURL string
+	ticker               *time.Ticker
 }
 
 func newOccupancyTracker(debug bool) *OccupancyTracker {
 	return &OccupancyTracker{
 		logger: logger.NewLogger(debug),
+		ticker: time.NewTicker(defaultInterval),
 	}
 }
 
 func (t *OccupancyTracker) Track(ctx context.Context, pool *WorkerPool, reconcilerName string) {
 	podName, err := os.Hostname()
 	if err != nil {
-		t.logger.Errorf("occupancy tracker could not retrieve pod name: %s", err)
+		t.logger.Errorf("occupancy tracker is failing: could not retrieve pod name: %s", err)
 		return
 	}
 	//using hostname (= pod name) as the id to be able
 	//to clean up pods that have crashed w/o being able to delete their occupancy
 	t.occupancyID = podName
 	go func() {
-		ticker := time.NewTicker(defaultInterval)
 		for {
 			select {
 			case <-ctx.Done():
 				if t.occupancyCallbackURL != "" {
-					t.logger.Info("occupancy tracker is deleting Worker Pool occupancy")
+					t.logger.Info("occupancy tracker is stopping and deleting Worker Pool occupancy")
+					t.ticker.Stop()
 					t.deleteWorkerPoolOccupancy()
 					return
 				}
 
-			case <-ticker.C:
+			case <-t.ticker.C:
 				if t.occupancyCallbackURL != "" && !pool.IsClosed() {
 					t.createOrUpdateComponentReconcilerOccupancy(reconcilerName, pool.RunningWorkers(), pool.Size())
 				}
@@ -76,6 +81,10 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
+		if resp.StatusCode == http.StatusNotFound {
+			t.logger.Debugf("occupancy tracker is setting update interval to its back off value: %d", defaultBackOffInterval)
+			t.ticker.Reset(defaultBackOffInterval)
+		}
 		t.logger.Warnf("mothership failed to update occupancy for '%s' service with status code: '%d'", t.occupancyID, resp.StatusCode)
 		return
 	}
@@ -112,7 +121,10 @@ func parseOccupancyCallbackURL(callbackURL, occupancyID string) (string, error) 
 }
 
 func (t *OccupancyTracker) AssignCallbackURL(callbackURL string) {
-	if t.occupancyID != "" {
+	if t.occupancyCallbackURL != "" && t.ticker != nil {
+		t.logger.Debugf("occupancy tracker is resetting update interval to its original value: %d", defaultInterval)
+		t.ticker.Reset(defaultInterval)
+	} else if t.occupancyID != "" {
 		var err error
 		t.occupancyCallbackURL, err = parseOccupancyCallbackURL(callbackURL, t.occupancyID)
 		if err != nil {
