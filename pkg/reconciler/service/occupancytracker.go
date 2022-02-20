@@ -16,7 +16,7 @@ import (
 
 const (
 	occupancyURLTemplate   = "%s://%s:%s/v1/occupancy/%s"
-	defaultBackOffInterval = 5 * time.Minute
+	defaultBackOffInterval = 2 * time.Minute
 )
 
 type OccupancyTracker struct {
