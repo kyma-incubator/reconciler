@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -169,6 +170,7 @@ type RunRemote struct {
 	bookkeeperConfig *BookkeeperConfig
 	cleanerConfig    *CleanerConfig
 	workerPool       *worker.Pool
+	sync.Mutex
 }
 
 func (r *RunRemote) logger() *zap.SugaredLogger { //convenient function
@@ -217,6 +219,8 @@ func (r *RunRemote) Run(ctx context.Context) error {
 	go func() {
 		remoteInvoker := invoker.NewRemoteReconcilerInvoker(r.reconciliationRepository(), r.config, r.logger())
 		var err error
+		r.Lock()
+		defer r.Unlock()
 		r.workerPool, err = r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker)
 		if err == nil {
 			r.logger().Info("Worker pool created")
@@ -231,8 +235,12 @@ func (r *RunRemote) Run(ctx context.Context) error {
 
 	//start occupancy tracker
 	go func() {
-		//TODO: make tracker return errors
-		NewOccupancyTracker(r.workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
+		r.Lock()
+		defer r.Unlock()
+		err := NewOccupancyTracker(r.workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
+		if err != nil {
+			r.logger().Errorf("Occupancy tracker failed to start: %s", err)
+		}
 	}()
 
 	//start scheduler

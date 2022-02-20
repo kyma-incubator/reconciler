@@ -52,35 +52,32 @@ func (w *Pool) Run(ctx context.Context) error {
 }
 
 func (w *Pool) run(ctx context.Context, runOnce bool) error {
-	workerPool, err := w.startWorkerPool(ctx)
+	err := w.startWorkerPool(ctx)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		w.logger.Info("Stopping worker pool")
-		workerPool.Release()
-		if err != nil {
-			w.logger.Errorf("Unable to remove worker pool occupancy: %v", err)
-		}
+		w.antsPool.Release()
 	}()
 
 	if runOnce {
-		return w.invokeProcessableOpsOnce(ctx, workerPool)
+		return w.invokeProcessableOpsOnce(ctx)
 	}
-	return w.invokeProcessableOpsWithInterval(ctx, workerPool)
+	return w.invokeProcessableOpsWithInterval(ctx)
 }
 
-func (w *Pool) invokeProcessableOpsOnce(ctx context.Context, workerPool *ants.PoolWithFunc) error {
+func (w *Pool) invokeProcessableOpsOnce(ctx context.Context) error {
 	//wait until workers are ready
 	ticker := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
-			runningWorkers := workerPool.Running()
+			runningWorkers := w.antsPool.Running()
 			if runningWorkers == 0 {
 				w.logger.Debug("Worker pool has no running workers")
 
-				invoked, err := w.invokeProcessableOps(workerPool)
+				invoked, err := w.invokeProcessableOps()
 				if err != nil {
 					return errors.Wrap(err, "worker pool failed to assign processable operations to workers")
 				}
@@ -93,17 +90,19 @@ func (w *Pool) invokeProcessableOpsOnce(ctx context.Context, workerPool *ants.Po
 			}
 		case <-ctx.Done():
 			w.logger.Info("Stopping worker pool because parent context got closed")
-			workerPool.Release()
+			w.antsPool.Release()
 			return nil
 		}
 	}
 }
 
-func (w *Pool) startWorkerPool(ctx context.Context) (*ants.PoolWithFunc, error) {
+func (w *Pool) startWorkerPool(ctx context.Context) error {
 	w.logger.Infof("Starting worker pool with capacity of %d workers", w.config.PoolSize)
-	return ants.NewPoolWithFunc(w.config.PoolSize, func(op interface{}) {
+	var err error
+	w.antsPool, err = ants.NewPoolWithFunc(w.config.PoolSize, func(op interface{}) {
 		w.assignWorker(ctx, op.(*model.OperationEntity))
 	})
+	return err
 }
 
 func (w *Pool) assignWorker(ctx context.Context, opEntity *model.OperationEntity) {
@@ -137,7 +136,7 @@ func (w *Pool) assignWorker(ctx context.Context, opEntity *model.OperationEntity
 	}
 }
 
-func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) (int, error) {
+func (w *Pool) invokeProcessableOps() (int, error) {
 	w.logger.Debugf("Worker pool is checking for processable operations (max parallel ops per cluster: %d)",
 		w.config.MaxParallelOperations)
 	ops, err := w.reconRepo.GetProcessableOperations(w.config.MaxParallelOperations)
@@ -161,13 +160,13 @@ func (w *Pool) invokeProcessableOps(workerPool *ants.PoolWithFunc) (int, error) 
 
 	idx := 0
 	for idx < opsCnt {
-		if workerPool.Free() == 0 {
+		if w.antsPool.Free() == 0 {
 			remainingOpsCnt := opsCnt - idx
-			w.logger.Warnf("could not assign %d operations to workers because workerpool capacity reached: capacity=%d", remainingOpsCnt, workerPool.Cap())
+			w.logger.Warnf("could not assign %d operations to workers because workerpool capacity reached: capacity=%d", remainingOpsCnt, w.antsPool.Cap())
 			break
 		}
 		op := ops[idx]
-		if err := workerPool.Invoke(op); err == nil {
+		if err := w.antsPool.Invoke(op); err == nil {
 			w.logger.Infof("Worker pool assigned worker to reconcile component '%s' on cluster '%s' (%s)",
 				op.Component, op.RuntimeID, op)
 		} else {
@@ -195,12 +194,12 @@ func (w *Pool) filterProcessableOpsByMaxRetries(ops []*model.OperationEntity) []
 	return filteredOps
 }
 
-func (w *Pool) invokeProcessableOpsWithInterval(ctx context.Context, workerPool *ants.PoolWithFunc) error {
+func (w *Pool) invokeProcessableOpsWithInterval(ctx context.Context) error {
 	w.logger.Debugf("Worker pool starts watching for processable operations each %.1f secs",
 		w.config.OperationCheckInterval.Seconds())
 
 	//check now otherwise first check would happen by ticker (after the configured interval is over)
-	if _, err := w.invokeProcessableOps(workerPool); err != nil {
+	if _, err := w.invokeProcessableOps(); err != nil {
 		return err
 	}
 
@@ -208,7 +207,7 @@ func (w *Pool) invokeProcessableOpsWithInterval(ctx context.Context, workerPool 
 	for {
 		select {
 		case <-ticker.C:
-			if _, err := w.invokeProcessableOps(workerPool); err != nil {
+			if _, err := w.invokeProcessableOps(); err != nil {
 				w.logger.Warnf("Worker pool failed to invoke all processable operations "+
 					"but will retry after %.1f seconds again",
 					w.config.OperationCheckInterval.Seconds())
@@ -237,8 +236,5 @@ func (w *Pool) RunningWorkers() (int, error) {
 }
 
 func (w *Pool) Size() (int, error) {
-	if w.antsPool == nil {
-		return 0, fmt.Errorf("could not retrieve pool size: worker pool is nil")
-	}
-	return w.antsPool.Cap(), nil
+	return w.config.PoolSize, nil
 }

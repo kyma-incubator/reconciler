@@ -42,7 +42,7 @@ func (t *OccupancyTracker) Track(ctx context.Context, pool *WorkerPool, reconcil
 		for {
 			select {
 			case <-ctx.Done():
-				if t.occupancyCallbackURL != "" && !pool.IsClosed() {
+				if t.occupancyCallbackURL != "" {
 					t.logger.Info("occupancy tracker is deleting Worker Pool occupancy")
 					t.deleteWorkerPoolOccupancy()
 					return
@@ -76,7 +76,7 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
-		t.logger.Errorf("mothership failed to update occupancy for '%s' service with status code: '%d'", t.occupancyID, resp.StatusCode)
+		t.logger.Warnf("mothership failed to update occupancy for '%s' service with status code: '%d'", t.occupancyID, resp.StatusCode)
 		return
 	}
 
@@ -119,7 +119,7 @@ func (t *OccupancyTracker) AssignCallbackURL(callbackURL string) {
 			t.logger.Errorf("occupancy tracker failed to assign callback URL: %s", err)
 			return
 		}
-		t.logger.Debugf("occupancy tracker assigned callback URL successfully")
+		t.logger.Debugf("occupancy tracker assigned callback URL successfully: %s", t.occupancyCallbackURL)
 	}
 
 }

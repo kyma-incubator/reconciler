@@ -40,20 +40,18 @@ func NewOccupancyTracker(workerPool *worker.Pool, repo occupancy.Repository, cfg
 	}
 }
 
-func (t *OccupancyTracker) Run(ctx context.Context) {
+func (t *OccupancyTracker) Run(ctx context.Context) error {
 	//using hostname (= pod name) as the id to be able
 	//to clean up pods that have died w/o being able to delete their occupancy
 	var err error
 	t.occupancyID, err = os.Hostname()
 	if err != nil {
-		t.logger.Errorf("occupancy tracker failed to get pod name: %s", err)
-		return
+		return fmt.Errorf("occupancy tracker failed to get host name: %s", err)
 	}
 	//create in-cluster K8s client
 	clientset, err := createK8sInClusterClientSet()
 	if err != nil {
-		t.logger.Errorf("occupancy tracker failed to create in-cluster clientset: %s", err)
-		return
+		return fmt.Errorf("occupancy tracker failed to create in-cluster clientset: %s", err)
 	}
 	//start occupancy tracking && cleaning
 	trackingTicker := time.NewTicker(defaultOccupancyTrackingInterval)
@@ -85,11 +83,11 @@ func (t *OccupancyTracker) Run(ctx context.Context) {
 			t.logger.Info("Deleting Worker Pool Occupancy")
 			trackingTicker.Stop()
 			cleanupTicker.Stop()
-			err := t.repo.RemoveWorkerPoolOccupancy(t.occupancyID)
+			err = t.repo.RemoveWorkerPoolOccupancy(t.occupancyID)
 			if err != nil {
-				t.logger.Errorf("could not delete occupancy for %s: %s", t.occupancyID, err)
+				return err
 			}
-			return
+			return nil
 		}
 	}
 }
@@ -103,6 +101,7 @@ func createK8sInClusterClientSet() (*kubernetes.Clientset, error) {
 }
 
 func (t *OccupancyTracker) getScalablePodNames(clientset *kubernetes.Clientset) ([]string, error) {
+
 	var scalablePodNames []string
 	for _, scalableServiceName := range t.scalableServiceNames {
 		pods, err := clientset.CoreV1().Pods(defaultKcpNamespace).List(context.TODO(), metav1.ListOptions{
@@ -131,7 +130,8 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(clientset *kubernetes.Client
 		return err
 	}
 	if len(componentsIDs) == 0 {
-		return fmt.Errorf("received empty list of ids: nothing to clean")
+		t.logger.Warnf("occupancy tracker received empty list of ids: nothing to clean")
+		return nil
 	}
 	for _, componentID := range componentsIDs {
 		found := false
