@@ -26,18 +26,18 @@ const suffixUnit = "milliseconds"
 // - operation_processing_duration_reconciler_successful_<component-name>_milliseconds - avg. processing time by the component reconciler (rendered and finished to be deployed in K8s successfully)
 // - operation_processing_duration_reconciler_unsuccessful_<component-name>_milliseconds - avg. processing time by the component reconciler (rendered and finished to be deployed in K8s non-successfully)
 type ProcessingDurationCollector struct {
-	reconciliationStatusGauge *prometheus.GaugeVec
-	metricsList               []string
-	reconRepo                 reconciliation.Repository
-	logger                    *zap.SugaredLogger
+	processingDurationHistogram *prometheus.HistogramVec
+	metricsList                 []string
+	reconRepo                   reconciliation.Repository
+	logger                      *zap.SugaredLogger
 }
 
 func NewProcessingDurationCollector(reconciliations reconciliation.Repository, logger *zap.SugaredLogger) *ProcessingDurationCollector {
 	return &ProcessingDurationCollector{
-		reconciliationStatusGauge: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		processingDurationHistogram: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
-			Help:      "Average processing time of operations",
+			Help:      "Processing time of operations",
 		}, []string{"component", "metric"}),
 		metricsList: []string{
 			prefixOperationLifetimeMothershipSuccessful,
@@ -52,7 +52,7 @@ func NewProcessingDurationCollector(reconciliations reconciliation.Repository, l
 }
 
 func (c *ProcessingDurationCollector) Describe(ch chan<- *prometheus.Desc) {
-	c.reconciliationStatusGauge.Describe(ch)
+	c.processingDurationHistogram.Describe(ch)
 }
 
 func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
@@ -64,7 +64,7 @@ func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for _, component := range componentList {
 		for _, metric := range c.metricsList {
-			m, err := c.reconciliationStatusGauge.GetMetricWithLabelValues(component, metric+suffixUnit)
+			m, err := c.processingDurationHistogram.GetMetricWithLabelValues(component, metric+suffixUnit)
 			if err != nil {
 				c.logger.Errorf("processingDurationCollector: unable to retrieve metric with label=%s: %s", component, err.Error())
 				return
@@ -74,8 +74,8 @@ func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 				c.logger.Errorf("Error getting ProcessingDuration: %s", err.Error())
 				continue
 			}
-			m.Set(float64(processingDuration))
-			ch <- m
+			m.Observe(float64(processingDuration))
+			ch <- 
 		}
 	}
 }
