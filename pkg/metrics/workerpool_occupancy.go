@@ -51,6 +51,6 @@ func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 		m.Set(workerPoolOccupancy)
-		ch <- m
 	}
+	c.workerPoolOccupancyGaugeVec.Collect(ch)
 }

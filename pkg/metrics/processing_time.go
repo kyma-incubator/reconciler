@@ -75,9 +75,9 @@ func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 				continue
 			}
 			m.Observe(float64(processingDuration))
-			ch <- 
 		}
 	}
+	c.processingDurationHistogram.Collect(ch)
 }
 
 func (c *ProcessingDurationCollector) getProcessingDuration(component, metric string) (int64, error) {
