@@ -1,0 +1,1 @@
+UPDATE scheduler_operations SET processing_duration=0 WHERE processing_duration is NULL 
