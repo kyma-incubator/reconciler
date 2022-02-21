@@ -25,8 +25,6 @@ type testCase struct {
 	testFct func(t *testing.T, occupRepo Repository)
 }
 
-//TODO: implement test for get occupancy IDs
-
 func TestOccupancyRepository(t *testing.T) {
 	test.IntegrationTest(t)
 	occupancies := []*Occupancy{
@@ -142,6 +140,15 @@ func TestOccupancyRepository(t *testing.T) {
 				require.NoError(t, err)
 				expectedComponents := []string{"cp1", "cp2", "cp3"}
 				require.ElementsMatch(t, expectedComponents, componentList)
+			},
+		},
+		{
+			"get componentIDs for components that registered their occupancy",
+			func(t *testing.T, occupancyRepo Repository) {
+				componentIDs, err := occupancyRepo.GetComponentIDs()
+				require.NoError(t, err)
+				expectedComponentIDs := []string{"1", "2", "3"}
+				require.ElementsMatch(t, expectedComponentIDs, componentIDs)
 			},
 		},
 		{
