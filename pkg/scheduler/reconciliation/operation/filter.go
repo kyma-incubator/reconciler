@@ -142,3 +142,21 @@ func (l *Limit) FilterByInstance(re *model.OperationEntity) *model.OperationEnti
 	}
 	return nil
 }
+
+type LimitByLastUpdate struct {
+	Count       int
+	actualCount int
+}
+
+func (l *LimitByLastUpdate) FilterByQuery(q *db.Select) error {
+	q.OrderBy(map[string]string{"Updated": "DESC"}).Limit(l.Count)
+	return nil
+}
+
+func (l *LimitByLastUpdate) FilterByInstance(re *model.OperationEntity) *model.OperationEntity {
+	if l.actualCount < l.Count {
+		l.actualCount++
+		return re
+	}
+	return nil
+}

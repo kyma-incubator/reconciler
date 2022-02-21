@@ -21,8 +21,8 @@ type MockRepository struct {
 	UpdateOperationRetryIDResult                            error
 	UpdateOperationPickedUpResult                           error
 	UpdateComponentOperationProcessingDurationResult        error
-	GetMeanComponentOperationProcessingDurationResult       int64
-	GetMeanComponentOperationProcessingDurationResultError  error
+	GetComponentOperationProcessingDurationResult           int64
+	GetComponentOperationProcessingDurationResultError      error
 	GetMeanMothershipOperationProcessingDurationResult      int64
 	GetMeanMothershipOperationProcessingDurationResultError error
 	GetAllComponentsResult                                  []string
@@ -85,11 +85,11 @@ func (mr *MockRepository) UpdateComponentOperationProcessingDuration(schedulingI
 	return mr.UpdateComponentOperationProcessingDurationResult
 }
 
-func (mr *MockRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
-	return mr.GetMeanComponentOperationProcessingDurationResult, mr.GetMeanComponentOperationProcessingDurationResultError
+func (mr *MockRepository) GetComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
+	return mr.GetComponentOperationProcessingDurationResult, mr.GetComponentOperationProcessingDurationResultError
 }
 
-func (mr *MockRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
+func (mr *MockRepository) GetMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
 	return mr.GetMeanMothershipOperationProcessingDurationResult, mr.GetMeanMothershipOperationProcessingDurationResultError
 }
 

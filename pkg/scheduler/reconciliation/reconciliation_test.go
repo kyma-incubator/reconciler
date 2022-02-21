@@ -694,7 +694,7 @@ func TestReconciliationRepository(t *testing.T) {
 					err = reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateDone, true)
 					require.NoError(t, err)
 				}
-				meanDuration, err := reconRepo.GetMeanComponentOperationProcessingDuration("comp1", model.OperationStateDone)
+				meanDuration, err := reconRepo.GetComponentOperationProcessingDuration("comp1", model.OperationStateDone)
 				require.NoError(t, err)
 				require.Equal(t, int64(50), meanDuration)
 			},
@@ -717,7 +717,7 @@ func TestReconciliationRepository(t *testing.T) {
 					err = reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateDone, true)
 					require.NoError(t, err)
 				}
-				meanDuration, err := reconRepo.GetMeanMothershipOperationProcessingDuration("comp1", model.OperationStateDone, Created)
+				meanDuration, err := reconRepo.GetMothershipOperationProcessingDuration("comp1", model.OperationStateDone, Created)
 				require.NoError(t, err)
 				require.GreaterOrEqual(t, meanDuration, int64(1000))
 			},
