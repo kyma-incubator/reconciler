@@ -57,6 +57,8 @@ decisions or decision about the development process.
 * Scalability is required and parallel accesses on data (race conditions) is expected.
 * Integration into existing observability and security scanner stack in SAP is needed.
 * Usage of Kyma CI/CD system (Prow) and reuse/adaption of existing pipelines (if possible).
+* Use HELM templating and installation logic as it's a mainstream library but don't use hooks. Also be aware
+  about [its drawbacks](https://banzaicloud.com/blog/helm3-the-good-the-bad-and-the-ugly/).
 
 ## 3. Context and Scope
 
@@ -94,6 +96,8 @@ Surrounding services are:
 
 ### 3.1.2 Embedded
 
+{diagram}
+
 Other applications can reuse the reconciler logic to offer also lifecycle management capabilities for Kyma.
 
 The Kyma CLI is one of the most important consumer of the reconciler and includes its library.
@@ -108,7 +112,8 @@ of HTTP REST calls.
 
 ### 3.2.1 Ingress (Incoming)
 
-The reconciler interface is based on REST as its currently only used by technical clients.
+The reconciler interfaces (mothership and component reconcilers) are based on REST as its currently only used by
+technical clients.
 
 Two OpenAPI specifications are established:
 
@@ -125,9 +130,79 @@ Two OpenAPI specifications are established:
 
 ### 3.2.2 Egress (Outgoing)
 
+No reconciler is initiation a communication to external system. Outgoing communciation happens just between the
+mothership and component reconciler:
+
+* The mothership calls the component reconciler and informs it about a required reconciliation of a Kyma component on a
+  remote cluster.
+* The component reconciler replies with a regular heartbeat message to the mothership reconciler about the progress of
+  the requested reconciliation.
+
 # 4. Solution Strategy
 
+## 4.1 Technical decisions
+
+|Decision|Description|Goal|
+|---|---|---|
+|System design of the mothership reconciler is based on a [data centered architecture](https://www.tutorialspoint.com/software_architecture_design/data_centered_architecture.htm).|A repository system architecture is an established pattern in Cloud applications because Kubernetes is based on it (ETCD is the data storage and operators are listeners reaching on data changes).|Reuse simple and well known design principals.|
+|Use [event-sourcing pattern](https://martinfowler.com/eaaDev/EventSourcing.html) for storing cluster data|Cluster data have to be auditable (all changes have to be tracked) and also save against race-conditions. E.g. an update of the cluster data during an ongoing reconciliation process should still allow us to reproduce the cluster-state which was used at the beginning of the reconciliation.|Establish immutable and auditable data records for cluster data.|
+|Use [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping) layer for data access|Using ORM libraries for converting the object oriented model to relational managed datasets in a RDBMS is best practise. ORM frameworks in Golang with support for SQLIte and Postgres were quite heavyweight and complex, therefore a custom lightweight ORM optimised for the reconciler use-case is used.|Standardised access to manage object oriented data models in relations data structures.|
+|Support multi-instance setup|To scale proportionally, each reconciler has to support the execution of mutiple instances in parallel. Race-conditions have to be expected, addresses and handled by the reconciler accordingly.|Proportional scaling.|
+
+## 4.2. System Decomposition
+
+Following the [single responsibility principle (SRP)](https://en.wikipedia.org/wiki/Single-responsibility_principle),
+the decomposition of the reconciler happend based on two major concerns:
+
+1. Data leading unit which administrates reconciliation processes.
+2. Executing unit which assembles and applies Kyma component charts.
+
+### 4.2.1 Mothership reconciler
+
+Management of the Kyma clusters, when and how it has to be reconciled is controlled by the so called
+*mothership reconciler*. Depending on the configuration of a Kyma cluster, the reconciliation of a Kyma installation
+consists of multiple Kyma components (normally packaged as [Helm chart](https://helm.sh/docs/topics/charts/)).
+
+The mothership reconciler is responsible for managing all reconciliation related data and to coordinate that Kyma
+clusters get reconciled either because their configuration was changed or the last reconciliation was too long ago.
+
+It is a pure management unit which doesn't interact with any managed Kyma cluster.
+
+### 4.2.2 Component reconciler
+
+Any actions required to apply Kubernetes resources, respectively resources defined within a Kyma component, is handled
+by so called *component reconcilers*.
+
+The mothership delegates the reconciliation of a particular Kyma component to a component reconciler which can be either
+a generalist capable to handle multiple different Kyma components or specialised for reconciling just a particular
+component.
+
+Component reconcilers are taking the workload of a reconciliation and have to be
+
+* stateless,
+* not require a database,
+* quick and easy scalable.
+
+## 4.3 Decisions to achieve quality goals
+
+|Quality goal|Decision|
+|---|---|
+|Reliability|Daily review of CI/CD pipelines which apply full install and upgrade procedures for Kyma clusters. Issue for re-occuring failures, which seem not to be related to temporary infrastructure issues, have to be raised.|
+|Reliability|Also ensure proper reporting of success- and failure-rates via monitoring metrics.|
+|Performance efficient|Establish automated load and performance test and execute it regularly in the CI/CD system.|
+|Performance efficient| Team receives automatically the test reports and reacts on negative tendencies or unexpected results.|
+|Operability|Operational readiness will be challenged during retrospectives of incidents.|
+|Operability|The operational toolings (e.g. KCP CLI or Kitbag) have to be enhanced if required analysis features are missing.|
+|Security|Security review for the reconciler product has to be passed and regularly repeated.|
+|Security|Mandatory security scanner are executed as required quality gate for any reconciler code change. Findings are reviewed during daily team meeting.|
+|Security|Any user action has to be authenticated and authorized via the company SSO|
+|Security|Critical system actions have to be reported to a auditlog system and include a reference to the user who applied them.|
+|Maintainability|Any potential code smells have to be reported by the team members in the daily meeting.|
+|Maintainability|Code-smells / code quality gaps have to be tracked in issue tickets, become part of the backlog and the team defines their priority.|
+
 # 5. Building Block View
+
+{diagram}
 
 ## 5.1 Whitebox Overall System
 
