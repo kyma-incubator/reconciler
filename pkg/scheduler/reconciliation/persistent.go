@@ -532,62 +532,51 @@ func (r *PersistentReconciliationRepository) UpdateComponentOperationProcessingD
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
+func (r *PersistentReconciliationRepository) GetComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
 	if state != model.OperationStateDone && state != model.OperationStateError {
-		return 0, errors.Errorf("Unsupported Operation State: %s", state)
+		return 0, errors.Errorf("Unsupported Operation State %s for component %s", state, component)
 	}
-	var duration int64 = 0
-	var operationCount int64 = 0
 
 	operations, err := r.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
 		&operation.WithComponentName{Component: component},
 		&operation.WithStates{States: []model.OperationState{state}},
-		&operation.Limit{Count: metricsQueryLimit},
+		&operation.LimitByLastUpdate{Count: 1},
 	}})
 	if err != nil {
 		return 0, err
 	}
 	if len(operations) == 0 {
-		return 0, nil
+		return 0, errors.Errorf("No operation for component %s found with desired state %s", component, state)
 	}
-	for _, op := range operations {
-		duration += op.ProcessingDuration
-		operationCount++
-	}
-	meanLifetime := duration / operationCount
-	return meanLifetime, nil
+	return operations[0].ProcessingDuration, nil
 }
 
-func (r *PersistentReconciliationRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
+func (r *PersistentReconciliationRepository) GetMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
 	if state != model.OperationStateDone && state != model.OperationStateError {
 		return 0, errors.Errorf("Unsupported Operation State: %s", state)
 	}
-	duration := time.Duration(0)
-	var operationCount int64 = 0
 
 	operations, err := r.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
 		&operation.WithComponentName{Component: component},
 		&operation.WithStates{States: []model.OperationState{state}},
-		&operation.Limit{Count: metricsQueryLimit},
+		&operation.LimitByLastUpdate{Count: 1},
 	}})
 	if err != nil {
 		return 0, err
 	}
 	if len(operations) == 0 {
-		return 0, nil
+		return 0, errors.Errorf("No operation for component %s found with desired state %s", component, state)
 	}
+	var duration time.Duration
+	op := operations[0]
 
-	for _, op := range operations {
-		switch startTime {
-		case Created:
-			duration += op.Updated.Sub(op.Created)
-		case PickedUp:
-			duration += op.Updated.Sub(op.PickedUp)
-		}
-		operationCount++
+	switch startTime {
+	case Created:
+		duration = op.Updated.Sub(op.Created)
+	case PickedUp:
+		duration = op.Updated.Sub(op.PickedUp)
 	}
-	meanLifetime := duration.Milliseconds() / operationCount
-	return meanLifetime, nil
+	return duration.Milliseconds(), nil
 }
 
 func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error) {

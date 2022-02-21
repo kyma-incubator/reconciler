@@ -38,6 +38,7 @@ func NewProcessingDurationCollector(reconciliations reconciliation.Repository, l
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
 			Help:      "Processing time of operations",
+			Buckets:   prometheus.LinearBuckets(100, 2000, 500),
 		}, []string{"component", "metric"}),
 		metricsList: []string{
 			prefixOperationLifetimeMothershipSuccessful,
@@ -75,25 +76,25 @@ func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
 				continue
 			}
 			m.Observe(float64(processingDuration))
-			ch <- 
 		}
 	}
+	c.processingDurationHistogram.Collect(ch)
 }
 
 func (c *ProcessingDurationCollector) getProcessingDuration(component, metric string) (int64, error) {
 	switch metric {
 	case prefixOperationLifetimeMothershipSuccessful:
-		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateDone, reconciliation.Created)
+		return c.reconRepo.GetMothershipOperationProcessingDuration(component, model.OperationStateDone, reconciliation.Created)
 	case prefixOperationLifetimeMothershipUnsuccessful:
-		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateError, reconciliation.Created)
+		return c.reconRepo.GetMothershipOperationProcessingDuration(component, model.OperationStateError, reconciliation.Created)
 	case prefixOperationProcessingDurationMothershipSuccessful:
-		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateDone, reconciliation.PickedUp)
+		return c.reconRepo.GetMothershipOperationProcessingDuration(component, model.OperationStateDone, reconciliation.PickedUp)
 	case prefixOperationProcessingDurationMothershipUnsuccessful:
-		return c.reconRepo.GetMeanMothershipOperationProcessingDuration(component, model.OperationStateError, reconciliation.PickedUp)
+		return c.reconRepo.GetMothershipOperationProcessingDuration(component, model.OperationStateError, reconciliation.PickedUp)
 	case prefixOperationProcessingDurationComponentSuccessful:
-		return c.reconRepo.GetMeanComponentOperationProcessingDuration(component, model.OperationStateDone)
+		return c.reconRepo.GetComponentOperationProcessingDuration(component, model.OperationStateDone)
 	case prefixOperationProcessingDurationComponentUnsuccessful:
-		return c.reconRepo.GetMeanComponentOperationProcessingDuration(component, model.OperationStateError)
+		return c.reconRepo.GetComponentOperationProcessingDuration(component, model.OperationStateError)
 	}
 	return 0, nil
 }
