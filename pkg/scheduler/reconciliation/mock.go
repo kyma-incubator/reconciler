@@ -8,25 +8,25 @@ import (
 )
 
 type MockRepository struct {
-	CreateReconciliationResult                              *model.ReconciliationEntity
-	RemoveReconciliationResult                              error
-	GetReconciliationResult                                 *model.ReconciliationEntity
-	GetReconciliationsResult                                []*model.ReconciliationEntity
-	FinishReconciliationResult                              error
-	GetOperationsResult                                     []*model.OperationEntity
-	GetOperationResult                                      *model.OperationEntity
-	GetProcessableOperationsResult                          []*model.OperationEntity
-	GetReconcilingOperationsResult                          []*model.OperationEntity
-	UpdateOperationStateResult                              error
-	UpdateOperationRetryIDResult                            error
-	UpdateOperationPickedUpResult                           error
-	UpdateComponentOperationProcessingDurationResult        error
-	GetComponentOperationProcessingDurationResult           int64
-	GetComponentOperationProcessingDurationResultError      error
-	GetMeanMothershipOperationProcessingDurationResult      int64
-	GetMeanMothershipOperationProcessingDurationResultError error
-	GetAllComponentsResult                                  []string
-	GetAllComponentsResultError                             error
+	CreateReconciliationResult                          *model.ReconciliationEntity
+	RemoveReconciliationResult                          error
+	GetReconciliationResult                             *model.ReconciliationEntity
+	GetReconciliationsResult                            []*model.ReconciliationEntity
+	FinishReconciliationResult                          error
+	GetOperationsResult                                 []*model.OperationEntity
+	GetOperationResult                                  *model.OperationEntity
+	GetProcessableOperationsResult                      []*model.OperationEntity
+	GetReconcilingOperationsResult                      []*model.OperationEntity
+	UpdateOperationStateResult                          error
+	UpdateOperationRetryIDResult                        error
+	UpdateOperationPickedUpResult                       error
+	UpdateComponentOperationProcessingDurationResult    error
+	GetComponentOperationProcessingDurationResult       int64
+	GetComponentOperationProcessingDurationResultError  error
+	GetMothershipOperationProcessingDurationResult      int64
+	GetMothershipOperationProcessingDurationResultError error
+	GetAllComponentsResult                              []string
+	GetAllComponentsResultError                         error
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
@@ -90,7 +90,7 @@ func (mr *MockRepository) GetComponentOperationProcessingDuration(component stri
 }
 
 func (mr *MockRepository) GetMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
-	return mr.GetMeanMothershipOperationProcessingDurationResult, mr.GetMeanMothershipOperationProcessingDurationResultError
+	return mr.GetMothershipOperationProcessingDurationResult, mr.GetMothershipOperationProcessingDurationResultError
 }
 
 func (mr *MockRepository) GetAllComponents() ([]string, error) {

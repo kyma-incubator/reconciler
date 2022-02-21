@@ -555,32 +555,28 @@ func (r *PersistentReconciliationRepository) GetMothershipOperationProcessingDur
 	if state != model.OperationStateDone && state != model.OperationStateError {
 		return 0, errors.Errorf("Unsupported Operation State: %s", state)
 	}
-	duration := time.Duration(0)
-	var operationCount int64 = 0
 
 	operations, err := r.GetOperations(&operation.FilterMixer{Filters: []operation.Filter{
 		&operation.WithComponentName{Component: component},
 		&operation.WithStates{States: []model.OperationState{state}},
-		&operation.Limit{Count: metricsQueryLimit},
+		&operation.LimitByLastUpdate{Count: 1},
 	}})
 	if err != nil {
 		return 0, err
 	}
 	if len(operations) == 0 {
-		return 0, nil
+		return 0, errors.Errorf("No operation for component %s found with desired state %s", component, state)
 	}
+	var duration time.Duration
+	op := operations[0]
 
-	for _, op := range operations {
-		switch startTime {
-		case Created:
-			duration += op.Updated.Sub(op.Created)
-		case PickedUp:
-			duration += op.Updated.Sub(op.PickedUp)
-		}
-		operationCount++
+	switch startTime {
+	case Created:
+		duration = op.Updated.Sub(op.Created)
+	case PickedUp:
+		duration = op.Updated.Sub(op.PickedUp)
 	}
-	meanLifetime := duration.Milliseconds() / operationCount
-	return meanLifetime, nil
+	return duration.Milliseconds(), nil
 }
 
 func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error) {
