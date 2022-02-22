@@ -24,6 +24,7 @@ import (
 )
 
 const (
+	unequal       = -1
 	istioManifest = `---
 apiVersion: version/v1
 kind: Kind1
@@ -58,6 +59,126 @@ metadata:
   name: name
 `
 )
+
+func Test_newVersionHelperFrom(t *testing.T) {
+
+	t.Run("should return an error when input string contains less than three numbers", func(t *testing.T) {
+		// when
+		_, err := newHelperVersionFrom("1.2.")
+
+		// then
+		require.Error(t, err)
+	})
+
+	t.Run("should return an error when input string contains less than two dots", func(t *testing.T) {
+		// when
+		_, err := newHelperVersionFrom("1.23")
+
+		// then
+		require.Error(t, err)
+	})
+
+	t.Run("should return an error when input string contains three numbers, two dots and prefix", func(t *testing.T) {
+		// when
+		_, err := newHelperVersionFrom("prefix-1.2.3")
+
+		// then
+		require.Error(t, err)
+	})
+
+	t.Run("should return no error when input string contains three numbers, two dots, prefix and suffix", func(t *testing.T) {
+		// when
+		_, err := newHelperVersionFrom("prefix-1.2.3-suffix")
+
+		// then
+		require.Error(t, err)
+	})
+
+	t.Run("should return an error when input string contains three numbers, two dots and text in between", func(t *testing.T) {
+		// when
+		_, err := newHelperVersionFrom("1.text2.3")
+
+		// then
+		require.Error(t, err)
+	})
+
+	t.Run("should return no error when input string contains three numbers and two dots", func(t *testing.T) {
+		// when
+		_, err := newHelperVersionFrom("1.2.3")
+
+		// then
+		require.NoError(t, err)
+	})
+
+	t.Run("should return no error when input string contains three numbers, two dots and suffix", func(t *testing.T) {
+		// when
+		_, err := newHelperVersionFrom("1.2.3-suffix")
+
+		// then
+		require.NoError(t, err)
+	})
+
+}
+
+func Test_helperVersion_compare(t *testing.T) {
+
+	t.Run("should return true when helper versions are of different numbers", func(t *testing.T) {
+		// given
+		v1, err := newHelperVersionFrom("1.2.3")
+		require.NoError(t, err)
+		v2, err := newHelperVersionFrom("4.5.6")
+		require.NoError(t, err)
+
+		// when
+		result := v1.compare(v2)
+
+		// then
+		require.Equal(t, unequal, result)
+	})
+
+	t.Run("should return true when helper versions are of equal numbers", func(t *testing.T) {
+		// given
+		v1, err := newHelperVersionFrom("1.2.3")
+		require.NoError(t, err)
+		v2, err := newHelperVersionFrom("1.2.3")
+		require.NoError(t, err)
+
+		// when
+		result := v1.compare(v2)
+
+		// then
+		require.Zero(t, result)
+	})
+
+	t.Run("should return true when helper versions are of equal numbers and one has suffix", func(t *testing.T) {
+		// given
+		v1, err := newHelperVersionFrom("1.2.3-suffix")
+		require.NoError(t, err)
+		v2, err := newHelperVersionFrom("1.2.3")
+		require.NoError(t, err)
+
+		// when
+		result := v1.compare(v2)
+
+		// then
+		require.Zero(t, result)
+	})
+
+	t.Run("should return true when helper versions are of equal numbers and both have different suffixes", func(t *testing.T) {
+		// given
+		v1, err := newHelperVersionFrom("1.2.3-suffix1")
+		require.NoError(t, err)
+		v2, err := newHelperVersionFrom("1.2.3-suffix2")
+		require.NoError(t, err)
+
+		// when
+		result := v1.compare(v2)
+
+		// then
+		require.Zero(t, result)
+	})
+
+}
 
 func Test_ReconcileAction_Run(t *testing.T) {
 
@@ -126,8 +247,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    "1.0",
-			TargetVersion:    "1.0",
+			ClientVersion:    "1.0.0",
+			TargetVersion:    "1.0.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -159,8 +280,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    "1.0",
-			TargetVersion:    "1.0",
+			ClientVersion:    "1.0.0",
+			TargetVersion:    "1.0.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -188,8 +309,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    "1.0",
-			TargetVersion:    "1.0",
+			ClientVersion:    "1.0.0",
+			TargetVersion:    "1.0.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -257,10 +378,10 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooHighPilotAndDataPlaneVersion := actions.IstioStatus{
-			ClientVersion:    "0.9",
-			TargetVersion:    "0.9",
-			PilotVersion:     "1.1",
-			DataPlaneVersion: "1.1",
+			ClientVersion:    "0.9.0",
+			TargetVersion:    "0.9.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.1.0",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooHighPilotAndDataPlaneVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
@@ -272,7 +393,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.EqualError(t, err, "Could not perform downgrade for Pilot from version: 1.1 to version: 0.9 - the difference between versions exceed one minor version")
+		require.Error(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -293,10 +414,10 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooLowPilotAndDataPlaneVersion := actions.IstioStatus{
-			ClientVersion:    "1.3",
-			TargetVersion:    "1.3",
-			PilotVersion:     "1.1",
-			DataPlaneVersion: "1.1",
+			ClientVersion:    "1.3.0",
+			TargetVersion:    "1.3.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.1.0",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowPilotAndDataPlaneVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
@@ -308,7 +429,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.EqualError(t, err, "Could not perform upgrade for Pilot from version: 1.1 to version: 1.3 - the difference between versions exceed one minor version")
+		require.Error(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -452,8 +573,8 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    "1.0",
-			TargetVersion:    "1.0",
+			ClientVersion:    "1.0.0",
+			TargetVersion:    "1.0.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -487,8 +608,8 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    "1.0",
-			TargetVersion:    "1.0",
+			ClientVersion:    "1.0.0",
+			TargetVersion:    "1.0.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -521,8 +642,8 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    "1.0",
-			TargetVersion:    "1.0",
+			ClientVersion:    "1.0.0",
+			TargetVersion:    "1.0.0",
 			PilotVersion:     "",
 			DataPlaneVersion: "",
 		}
@@ -573,7 +694,7 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.EqualError(t, err, "Istio could not be updated since the binary version: 1.0 is not compatible with the target version: 1.2 - the difference between versions exceeds one minor version")
+		require.Error(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -595,10 +716,10 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooHighPilotAndDataPlaneVersion := actions.IstioStatus{
-			ClientVersion:    "0.9",
-			TargetVersion:    "0.9",
-			PilotVersion:     "1.1",
-			DataPlaneVersion: "1.1",
+			ClientVersion:    "0.9.0",
+			TargetVersion:    "0.9.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.1.0",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooHighPilotAndDataPlaneVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
@@ -610,7 +731,7 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.EqualError(t, err, "Could not perform downgrade for Pilot from version: 1.1 to version: 0.9 - the difference between versions exceed one minor version")
+		require.Error(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -632,10 +753,10 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooLowPilotAndDataPlaneVersion := actions.IstioStatus{
-			ClientVersion:    "1.3",
-			TargetVersion:    "1.3",
-			PilotVersion:     "1.1",
-			DataPlaneVersion: "1.1",
+			ClientVersion:    "1.3.0",
+			TargetVersion:    "1.3.0",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.1.0",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowPilotAndDataPlaneVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
@@ -647,7 +768,7 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.EqualError(t, err, "Could not perform upgrade for Pilot from version: 1.1 to version: 1.3 - the difference between versions exceed one minor version")
+		require.Error(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
@@ -1103,6 +1224,20 @@ func Test_canUpdate(t *testing.T) {
 }
 
 func Test_isMismatchPresent(t *testing.T) {
+	t.Run("should return false if version string is semver incompatible", func(t *testing.T) {
+		// given
+		differentVersions := actions.IstioStatus{
+			ClientVersion:    "version1",
+			PilotVersion:     "version2",
+			DataPlaneVersion: "version3",
+		}
+
+		// when
+		got := isMismatchPresent(differentVersions)
+
+		// then
+		require.False(t, got)
+	})
 	t.Run("Different Pilot and DataPlane versions is a mismatch", func(t *testing.T) {
 		// given
 		differentVersions := actions.IstioStatus{
@@ -1114,7 +1249,7 @@ func Test_isMismatchPresent(t *testing.T) {
 		// when
 		got := isMismatchPresent(differentVersions)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1135,6 +1270,21 @@ func Test_isMismatchPresent(t *testing.T) {
 }
 
 func Test_isClientCompatible(t *testing.T) {
+	t.Run("should return false if version string is semver incompatible", func(t *testing.T) {
+		// given
+		badVersions := actions.IstioStatus{
+			ClientVersion:    "version1",
+			PilotVersion:     "version2",
+			DataPlaneVersion: "version3",
+		}
+
+		// when
+		got := isClientCompatibleWithTargetVersion(badVersions)
+
+		// then
+		require.False(t, got)
+	})
+
 	t.Run("should return true when client and target versions are the same", func(t *testing.T) {
 		// given
 		exactSameClientVersion := actions.IstioStatus{
@@ -1147,7 +1297,7 @@ func Test_isClientCompatible(t *testing.T) {
 		// when
 		got := isClientCompatibleWithTargetVersion(exactSameClientVersion)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1163,7 +1313,7 @@ func Test_isClientCompatible(t *testing.T) {
 		// when
 		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1179,7 +1329,7 @@ func Test_isClientCompatible(t *testing.T) {
 		// when
 		got := isClientCompatibleWithTargetVersion(sameMinorClientVersion)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1195,7 +1345,7 @@ func Test_isClientCompatible(t *testing.T) {
 		// when
 		got := isClientCompatibleWithTargetVersion(oneHigherMinorClientVersion)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1211,7 +1361,7 @@ func Test_isClientCompatible(t *testing.T) {
 		// when
 		got := isClientCompatibleWithTargetVersion(oneLowerMinorClientVersion)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1227,7 +1377,7 @@ func Test_isClientCompatible(t *testing.T) {
 		// when
 		got := isClientCompatibleWithTargetVersion(twoLowerMinorClientVersion)
 
-		//then
+		// then
 		require.False(t, got)
 	})
 
@@ -1243,106 +1393,129 @@ func Test_isClientCompatible(t *testing.T) {
 		// when
 		got := isClientCompatibleWithTargetVersion(greaterThanOneMinorClientVersion)
 
-		//then
+		// then
 		require.False(t, got)
 	})
 }
 
 func Test_isComponentCompatible(t *testing.T) {
 	componentName := "component"
-	t.Run("Equal target and pilot component version is compatible", func(t *testing.T) {
+
+	t.Run("should return false when version string is semver incompatible", func(t *testing.T) {
 		// given
-		istioVersion := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.11.2",
-			DataPlaneVersion: "1.11.2",
+		badVersions := actions.IstioStatus{
+			ClientVersion:    "version1",
+			PilotVersion:     "version2",
+			DataPlaneVersion: "version3",
 		}
 
 		// when
-		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
+		got, err := isComponentCompatible(badVersions.PilotVersion, badVersions.TargetVersion, componentName)
 
-		//then
-		require.True(t, got)
-	})
-
-	t.Run("Same major and minor of target and pilot component version is compatible", func(t *testing.T) {
-		// given
-		istioVersion := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.11.6",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		// when
-		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
-
-		//then
-		require.True(t, got)
-	})
-
-	t.Run("Upgrade scenario of Pilot component with one minor lower version is compatible", func(t *testing.T) {
-		// given
-		istioVersion := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.10.6",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		// when
-		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
-
-		//then
-		require.True(t, got)
-	})
-
-	t.Run("Downgrade scenario of Pilot component with one minor higher version is compatible", func(t *testing.T) {
-		// given
-		istioVersion := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.12.6",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		// when
-		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
-
-		//then
-		require.True(t, got)
-	})
-
-	t.Run("Upgrade scenario of Pilot component with more than one minor lower version is NOT compatible", func(t *testing.T) {
-		// given
-		istioVersion := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.9.6",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		// when
-		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
-
-		//then
+		// then
+		require.Error(t, err)
 		require.False(t, got)
 	})
 
-	t.Run("Downgrade scenario of Pilot component with more than one minor higher version is NOT compatible", func(t *testing.T) {
+	t.Run("should return true when pilot and target versions are equal", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			TargetVersion:    "1.11.2",
-			PilotVersion:     "1.13.6",
-			DataPlaneVersion: "1.11.2",
+			ClientVersion:    "1.2.3",
+			TargetVersion:    "1.2.3",
+			PilotVersion:     "1.2.3",
+			DataPlaneVersion: "1.2.3",
 		}
 
 		// when
-		got, _ := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
+		got, err := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
 
-		//then
+		// then
+		require.NoError(t, err)
+		require.True(t, got)
+	})
+
+	t.Run("should return true when pilot and targets version are vary only in patch", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioStatus{
+			ClientVersion:    "1.2.3",
+			TargetVersion:    "1.2.3",
+			PilotVersion:     "1.2.0",
+			DataPlaneVersion: "1.2.3",
+		}
+
+		// when
+		got, err := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
+
+		// then
+		require.NoError(t, err)
+		require.True(t, got)
+	})
+
+	t.Run("should return true when pilot version is one minor lower than target", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioStatus{
+			ClientVersion:    "1.2.3",
+			TargetVersion:    "1.2.3",
+			PilotVersion:     "1.1.0",
+			DataPlaneVersion: "1.2.3",
+		}
+
+		// when
+		got, err := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
+
+		// then
+		require.NoError(t, err)
+		require.True(t, got)
+	})
+
+	t.Run("should return true when pilot version is one minor higher than target", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioStatus{
+			ClientVersion:    "1.2.3",
+			TargetVersion:    "1.2.3",
+			PilotVersion:     "1.3.0",
+			DataPlaneVersion: "1.2.3",
+		}
+
+		// when
+		got, err := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
+
+		// then
+		require.NoError(t, err)
+		require.True(t, got)
+	})
+
+	t.Run("should return false when pilot version is more than one minor lower than target", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioStatus{
+			ClientVersion:    "1.2.3",
+			TargetVersion:    "1.2.3",
+			PilotVersion:     "1.0.0",
+			DataPlaneVersion: "1.2.3",
+		}
+
+		// when
+		got, err := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
+
+		// then
+		require.Error(t, err)
+		require.False(t, got)
+	})
+
+	t.Run("should return false when pilot version is more than one minor higher than target", func(t *testing.T) {
+		// given
+		istioVersion := actions.IstioStatus{
+			ClientVersion:    "1.2.3",
+			TargetVersion:    "1.2.3",
+			PilotVersion:     "1.4.0",
+			DataPlaneVersion: "1.2.3",
+		}
+
+		// when
+		got, err := isComponentCompatible(istioVersion.PilotVersion, istioVersion.TargetVersion, componentName)
+
+		// then
+		require.Error(t, err)
 		require.False(t, got)
 	})
 }
@@ -1356,13 +1529,15 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.11.6",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
-		targetHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
+		pilotHelperVersion, err := newHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
+		require.NoError(t, err)
+		targetHelperVersion, err := newHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
+		require.NoError(t, err)
 
 		// when
 		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1374,13 +1549,15 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
-		targetHelperVersion := newHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
+		pilotHelperVersion, err := newHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
+		require.NoError(t, err)
+		targetHelperVersion, err := newHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
+		require.NoError(t, err)
 
 		// when
 		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1392,13 +1569,15 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.12.6",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion := newHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
-		targetHelperVersion := newHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
+		pilotHelperVersion, err := newHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
+		require.NoError(t, err)
+		targetHelperVersion, err := newHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
+		require.NoError(t, err)
 
 		// when
 		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1410,13 +1589,15 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.10.1",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion := newHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
-		targetHelperVersion := newHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
+		pilotHelperVersion, err := newHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
+		require.NoError(t, err)
+		targetHelperVersion, err := newHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
+		require.NoError(t, err)
 
 		// when
 		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
-		//then
+		// then
 		require.True(t, got)
 	})
 
@@ -1428,13 +1609,15 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.13.6",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion := newHelperVersionFrom(greaterThanOneMinorPilotVersion.PilotVersion)
-		targetHelperVersion := newHelperVersionFrom(greaterThanOneMinorPilotVersion.TargetVersion)
+		pilotHelperVersion, err := newHelperVersionFrom(greaterThanOneMinorPilotVersion.PilotVersion)
+		require.NoError(t, err)
+		targetHelperVersion, err := newHelperVersionFrom(greaterThanOneMinorPilotVersion.TargetVersion)
+		require.NoError(t, err)
 
 		// when
 		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
-		//then
+		// then
 		require.False(t, got)
 	})
 
@@ -1446,13 +1629,15 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.9.1",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion := newHelperVersionFrom(lesserThanOneMinorPilotVersion.PilotVersion)
-		targetHelperVersion := newHelperVersionFrom(lesserThanOneMinorPilotVersion.TargetVersion)
+		pilotHelperVersion, err := newHelperVersionFrom(lesserThanOneMinorPilotVersion.PilotVersion)
+		require.NoError(t, err)
+		targetHelperVersion, err := newHelperVersionFrom(lesserThanOneMinorPilotVersion.TargetVersion)
+		require.NoError(t, err)
 
 		// when
 		got := amongOneMinor(pilotHelperVersion, targetHelperVersion)
 
-		//then
+		// then
 		require.False(t, got)
 	})
 }

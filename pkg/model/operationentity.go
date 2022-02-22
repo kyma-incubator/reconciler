@@ -55,6 +55,9 @@ func (o *OperationEntity) Marshaller() *db.EntityMarshaller {
 	marshaller.AddUnmarshaller("Updated", convertTimestampToTime)
 	marshaller.AddUnmarshaller("PickedUp", convertTimestampToTime)
 	marshaller.AddUnmarshaller("ProcessingDuration", func(value interface{}) (interface{}, error) {
+		if value == nil {
+			return int64(0), nil
+		}
 		return value.(int64), nil
 	})
 	return marshaller

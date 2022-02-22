@@ -3,9 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
-
+	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
 
@@ -306,21 +304,19 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 }
 
 type helperVersion struct {
-	major int
-	minor int
-	patch int
+	ver semver.Version
 }
 
-func (h *helperVersion) compare(second *helperVersion) int {
-	if h.major > second.major {
+func (h helperVersion) compare(second helperVersion) int {
+	if h.ver.Major > second.ver.Major {
 		return 1
-	} else if h.major == second.major {
-		if h.minor > second.minor {
+	} else if h.ver.Major == second.ver.Major {
+		if h.ver.Minor > second.ver.Minor {
 			return 1
-		} else if h.minor == second.minor {
-			if h.patch > second.patch {
+		} else if h.ver.Minor == second.ver.Minor {
+			if h.ver.Patch > second.ver.Patch {
 				return 1
-			} else if h.patch == second.patch {
+			} else if h.ver.Patch == second.ver.Patch {
 				return 0
 			} else {
 				return -1
@@ -333,38 +329,12 @@ func (h *helperVersion) compare(second *helperVersion) int {
 	}
 }
 
-func newHelperVersionFrom(versionInString string) helperVersion {
-	var major, minor, patch int
-
-	versionsSliceByDot := strings.Split(versionInString, ".")
-	valuesCount := len(versionsSliceByDot)
-
-	if valuesCount > 2 {
-		convertedPatchValue, err := strconv.Atoi(versionsSliceByDot[2])
-		if err == nil {
-			patch = convertedPatchValue
-		}
+func newHelperVersionFrom(versionInString string) (helperVersion, error) {
+	version, err := semver.NewVersion(versionInString)
+	if err != nil {
+		return helperVersion{}, err
 	}
-
-	if valuesCount > 1 {
-		convertedMinorValue, err := strconv.Atoi(versionsSliceByDot[1])
-		if err == nil {
-			minor = convertedMinorValue
-		}
-	}
-
-	if valuesCount > 0 {
-		convertedMajorValue, err := strconv.Atoi(versionsSliceByDot[0])
-		if err == nil {
-			major = convertedMajorValue
-		}
-	}
-
-	return helperVersion{
-		major: major,
-		minor: minor,
-		patch: patch,
-	}
+	return helperVersion{ver: *version}, err
 }
 
 func canInstall(istioStatus actions.IstioStatus) bool {
@@ -390,8 +360,14 @@ func getInstalledVersion(context *service.ActionContext, performer actions.Istio
 
 func isClientCompatibleWithTargetVersion(istioStatus actions.IstioStatus) bool {
 
-	clientHelperVersion := newHelperVersionFrom(istioStatus.ClientVersion)
-	targetHelperVersion := newHelperVersionFrom(istioStatus.TargetVersion)
+	clientHelperVersion, err := newHelperVersionFrom(istioStatus.ClientVersion)
+	if err != nil {
+		return false
+	}
+	targetHelperVersion, err := newHelperVersionFrom(istioStatus.TargetVersion)
+	if err != nil {
+		return false
+	}
 
 	return amongOneMinor(clientHelperVersion, targetHelperVersion)
 }
@@ -409,10 +385,16 @@ func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
 }
 
 func isComponentCompatible(componentVersion, targetVersion, componentName string) (bool, error) {
-	componentHelperVersion := newHelperVersionFrom(componentVersion)
-	targetHelperVersion := newHelperVersionFrom(targetVersion)
+	componentHelperVersion, err := newHelperVersionFrom(componentVersion)
+	if err != nil {
+		return false, err
+	}
+	targetHelperVersion, err := newHelperVersionFrom(targetVersion)
+	if err != nil {
+		return false, err
+	}
 
-	componentVsTargetComparison := targetHelperVersion.compare(&componentHelperVersion)
+	componentVsTargetComparison := targetHelperVersion.compare(componentHelperVersion)
 	if !amongOneMinor(componentHelperVersion, targetHelperVersion) {
 		return false, errors.New(fmt.Sprintf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
 			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion))
@@ -435,13 +417,19 @@ func getActionTypeFrom(comparison int) string {
 }
 
 func amongOneMinor(first, second helperVersion) bool {
-	return first.major == second.major && (first.minor == second.minor || first.minor-second.minor == -1 || first.minor-second.minor == 1)
+	return first.ver.Major == second.ver.Major && (first.ver.Minor == second.ver.Minor || first.ver.Minor-second.ver.Minor == -1 || first.ver.Minor-second.ver.Minor == 1)
 }
 
 func isMismatchPresent(istioStatus actions.IstioStatus) bool {
-	pilot := newHelperVersionFrom(istioStatus.PilotVersion)
-	dataPlane := newHelperVersionFrom(istioStatus.DataPlaneVersion)
-	return pilot.compare(&dataPlane) != 0
+	pilot, err := newHelperVersionFrom(istioStatus.PilotVersion)
+	if err != nil {
+		return false
+	}
+	dataPlane, err := newHelperVersionFrom(istioStatus.DataPlaneVersion)
+	if err != nil {
+		return false
+	}
+	return pilot.compare(dataPlane) != 0
 }
 
 func deployIstioResources(context context.Context, chartManifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
@@ -461,7 +449,7 @@ func deployIstioResources(context context.Context, chartManifest string, client 
 
 func unDeployIstioRelatedResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
 	logger.Infof("Undeploying istio related dashboards")
-	//multiple calls necessary, please see: https://github.com/kyma-incubator/reconciler/issues/367
+	// multiple calls necessary, please see: https://github.com/kyma-incubator/reconciler/issues/367
 	_, err := client.Delete(context, manifest, "kyma-system")
 	if err != nil {
 		return err
