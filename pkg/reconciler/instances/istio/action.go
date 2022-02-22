@@ -20,15 +20,15 @@ const (
 
 type bootstrapIstioPerformer func(logger *zap.SugaredLogger) (actions.IstioPerformer, error)
 
-type PreReconcileAction struct {
+type ReconcileAction struct {
 	getIstioPerformer bootstrapIstioPerformer
 }
 
-func NewPreReconcileAction(getIstioPerformer bootstrapIstioPerformer) *PreReconcileAction {
-	return &PreReconcileAction{getIstioPerformer}
+func NewReconcileAction(getIstioPerformer bootstrapIstioPerformer) *ReconcileAction {
+	return &ReconcileAction{getIstioPerformer}
 }
 
-func (a *PreReconcileAction) Run(context *service.ActionContext) error {
+func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Pre reconcile action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
@@ -81,17 +81,17 @@ func (a *PreReconcileAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-type ReconcileAction struct {
+type MutatingWebhookPostAction struct {
 	//Temporary solution to overcome Reconciler limitation: Unable to bootstrap IstioPerformer only once in the component reconciler lifetime
 	getIstioPerformer bootstrapIstioPerformer
 }
 
-// NewReconcileAction returns an instance of ReconcileAction
-func NewReconcileAction(getIstioPerformer bootstrapIstioPerformer) *ReconcileAction {
-	return &ReconcileAction{getIstioPerformer}
+// NewMutatingWebhookPostAction returns an instance of MutatingWebhookPostAction
+func NewMutatingWebhookPostAction(getIstioPerformer bootstrapIstioPerformer) *MutatingWebhookPostAction {
+	return &MutatingWebhookPostAction{getIstioPerformer}
 }
 
-func (a *ReconcileAction) Run(context *service.ActionContext) error {
+func (a *MutatingWebhookPostAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Reconcile action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
@@ -127,15 +127,15 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-type PostReconcileAction struct {
+type ProxyResetPostAction struct {
 	getIstioPerformer bootstrapIstioPerformer
 }
 
-func NewPostReconcileAction(getIstioPerformer bootstrapIstioPerformer) *PostReconcileAction {
-	return &PostReconcileAction{getIstioPerformer}
+func NewProxyResetPostAction(getIstioPerformer bootstrapIstioPerformer) *ProxyResetPostAction {
+	return &ProxyResetPostAction{getIstioPerformer}
 }
 
-func (a *PostReconcileAction) Run(context *service.ActionContext) error {
+func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Post reconcile action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
