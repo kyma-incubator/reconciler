@@ -34,6 +34,7 @@ func init() {
 
 	istioPerformerCreatorFn := istioPerformerCreator(istioProxyReset, &provider, ReconcilerNameIstio)
 	reconcilerIstio.
+		WithPreReconcileAction(NewPreReconcileAction(istioPerformerCreatorFn)).
 		WithReconcileAction(NewReconcileAction(istioPerformerCreatorFn)).
 		WithPostReconcileAction(NewMutatingWebhookPostAction(istioPerformerCreatorFn)).
 		WithPostReconcileAction(NewProxyResetPostAction(istioPerformerCreatorFn)).

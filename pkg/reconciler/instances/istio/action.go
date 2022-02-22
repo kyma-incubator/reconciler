@@ -20,6 +20,39 @@ const (
 
 type bootstrapIstioPerformer func(logger *zap.SugaredLogger) (actions.IstioPerformer, error)
 
+type PreReconcileAction struct {
+	getIstioPerformer bootstrapIstioPerformer
+}
+
+func NewPreReconcileAction(getIstioPerformer bootstrapIstioPerformer) *PreReconcileAction {
+	return &PreReconcileAction{getIstioPerformer}
+}
+
+func (a *PreReconcileAction) Run(context *service.ActionContext) error {
+	context.Logger.Debug("Pre reconcile action of istio triggered")
+
+	performer, err := a.getIstioPerformer(context.Logger)
+	if err != nil {
+		return err
+	}
+
+	istioStatus, err := getInstalledVersion(context, performer)
+	if err != nil {
+		return err
+	}
+
+	if isMismatchPresent(istioStatus) {
+		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", istioStatus.PilotVersion, istioStatus.DataPlaneVersion)
+		return errors.New(errorMessage)
+	}
+
+	if !isClientCompatibleWithTargetVersion(istioStatus) {
+		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion))
+	}
+
+	return nil
+}
+
 type ReconcileAction struct {
 	getIstioPerformer bootstrapIstioPerformer
 }
@@ -29,7 +62,7 @@ func NewReconcileAction(getIstioPerformer bootstrapIstioPerformer) *ReconcileAct
 }
 
 func (a *ReconcileAction) Run(context *service.ActionContext) error {
-	context.Logger.Debug("Pre reconcile action of istio triggered")
+	context.Logger.Debug("Reconcile action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
 	if err != nil {
@@ -48,15 +81,6 @@ func (a *ReconcileAction) Run(context *service.ActionContext) error {
 	istioStatus, err := getInstalledVersion(context, performer)
 	if err != nil {
 		return err
-	}
-
-	if isMismatchPresent(istioStatus) {
-		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", istioStatus.PilotVersion, istioStatus.DataPlaneVersion)
-		return errors.New(errorMessage)
-	}
-
-	if !isClientCompatibleWithTargetVersion(istioStatus) {
-		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion))
 	}
 
 	if canInstall(istioStatus) {
@@ -92,7 +116,7 @@ func NewMutatingWebhookPostAction(getIstioPerformer bootstrapIstioPerformer) *Mu
 }
 
 func (a *MutatingWebhookPostAction) Run(context *service.ActionContext) error {
-	context.Logger.Debug("Reconcile action of istio triggered")
+	context.Logger.Debug("Patch mutating webhook post action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
 	if err != nil {
@@ -102,15 +126,6 @@ func (a *MutatingWebhookPostAction) Run(context *service.ActionContext) error {
 	istioStatus, err := getInstalledVersion(context, performer)
 	if err != nil {
 		return err
-	}
-
-	if isMismatchPresent(istioStatus) {
-		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", istioStatus.PilotVersion, istioStatus.DataPlaneVersion)
-		return errors.New(errorMessage)
-	}
-
-	if !isClientCompatibleWithTargetVersion(istioStatus) {
-		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion))
 	}
 
 	if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult || canInstall(istioStatus) {
@@ -136,7 +151,7 @@ func NewProxyResetPostAction(getIstioPerformer bootstrapIstioPerformer) *ProxyRe
 }
 
 func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
-	context.Logger.Debug("Post reconcile action of istio triggered")
+	context.Logger.Debug("Proxy reset post action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
 	if err != nil {
@@ -146,15 +161,6 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 	istioStatus, err := getInstalledVersion(context, performer)
 	if err != nil {
 		return err
-	}
-
-	if isMismatchPresent(istioStatus) {
-		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", istioStatus.PilotVersion, istioStatus.DataPlaneVersion)
-		return errors.New(errorMessage)
-	}
-
-	if !isClientCompatibleWithTargetVersion(istioStatus) {
-		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion))
 	}
 
 	if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult {
