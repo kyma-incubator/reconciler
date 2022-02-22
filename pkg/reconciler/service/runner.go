@@ -25,6 +25,20 @@ type runner struct {
 }
 
 func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler) error {
+
+	if r.dryRun {
+		chartProvider, err := r.newChartProvider(task.Repository)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create chart provider instance")
+		}
+
+		manifest, err := r.install.renderManifest(chartProvider, task)
+		callback.Callback(&reconciler.CallbackMessage{
+			Payload: manifest,
+		})
+		return err
+	}
+
 	heartbeatSender, err := heartbeat.NewHeartbeatSender(ctx, callback, r.logger, heartbeat.Config{
 		Interval: r.heartbeatSenderConfig.interval,
 		Timeout:  r.heartbeatSenderConfig.timeout,

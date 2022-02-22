@@ -22,6 +22,7 @@ type CallbackMessage struct {
 	ProcessingDuration int    `json:"processingDuration"`
 	RetryID            string `json:"retryID"`
 	Status             Status `json:"status"`
+	Manifest           string `json:"manifest"`
 }
 
 // Status defines model for status.

@@ -67,6 +67,8 @@ components:
           format: uuid
         processingDuration:
           type: integer
+        manifest:
+          type: string
     status:
       type: string
       enum:
