@@ -20,15 +20,15 @@ const (
 
 type bootstrapIstioPerformer func(logger *zap.SugaredLogger) (actions.IstioPerformer, error)
 
-type PreReconcileAction struct {
+type StatusPreAction struct {
 	getIstioPerformer bootstrapIstioPerformer
 }
 
-func NewPreReconcileAction(getIstioPerformer bootstrapIstioPerformer) *PreReconcileAction {
-	return &PreReconcileAction{getIstioPerformer}
+func NewStatusPreAction(getIstioPerformer bootstrapIstioPerformer) *StatusPreAction {
+	return &StatusPreAction{getIstioPerformer}
 }
 
-func (a *PreReconcileAction) Run(context *service.ActionContext) error {
+func (a *StatusPreAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Pre reconcile action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)
@@ -53,15 +53,15 @@ func (a *PreReconcileAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-type ReconcileAction struct {
+type MainReconcileAction struct {
 	getIstioPerformer bootstrapIstioPerformer
 }
 
-func NewReconcileAction(getIstioPerformer bootstrapIstioPerformer) *ReconcileAction {
-	return &ReconcileAction{getIstioPerformer}
+func NewIstioMainReconcileAction(getIstioPerformer bootstrapIstioPerformer) *MainReconcileAction {
+	return &MainReconcileAction{getIstioPerformer}
 }
 
-func (a *ReconcileAction) Run(context *service.ActionContext) error {
+func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Reconcile action of istio triggered")
 
 	performer, err := a.getIstioPerformer(context.Logger)

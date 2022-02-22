@@ -196,7 +196,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
-		action := ReconcileAction{performerCreatorFn(&performer)}
+		action := MainReconcileAction{performerCreatorFn(&performer)}
 
 		// when
 		err := action.Run(actionContext)
@@ -222,7 +222,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer := actionsmocks.IstioPerformer{}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioStatus{}, errors.New("Version error"))
 
-		action := ReconcileAction{performerCreatorFn(&performer)}
+		action := MainReconcileAction{performerCreatorFn(&performer)}
 
 		// when
 		err := action.Run(actionContext)
@@ -256,7 +256,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
 			Return(errors.New("Perfomer Install error"))
 
-		action := ReconcileAction{performerCreatorFn(&performer)}
+		action := MainReconcileAction{performerCreatorFn(&performer)}
 
 		// when
 		err := action.Run(actionContext)
@@ -317,7 +317,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 
-		action := ReconcileAction{performerCreatorFn(&performer)}
+		action := MainReconcileAction{performerCreatorFn(&performer)}
 
 		// when
 		err := action.Run(actionContext)
@@ -351,7 +351,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 
-		action := ReconcileAction{performerCreatorFn(&performer)}
+		action := MainReconcileAction{performerCreatorFn(&performer)}
 
 		// when
 		err := action.Run(actionContext)
@@ -387,7 +387,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 
-		action := ReconcileAction{performerCreatorFn(&performer)}
+		action := MainReconcileAction{performerCreatorFn(&performer)}
 
 		// when
 		err := action.Run(actionContext)
@@ -423,7 +423,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 
-		action := ReconcileAction{performerCreatorFn(&performer)}
+		action := MainReconcileAction{performerCreatorFn(&performer)}
 
 		// when
 		err := action.Run(actionContext)
@@ -490,7 +490,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(istioVersion, nil)
 		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 
-		action := ReconcileAction{performerCreatorFn(&performer)}
+		action := MainReconcileAction{performerCreatorFn(&performer)}
 
 		// when
 		err := action.Run(actionContext)

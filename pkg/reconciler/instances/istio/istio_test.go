@@ -168,7 +168,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		proxy.On("Run", mock.Anything).Return(nil)
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, &proxy, &providerMock)
 
-		action := istio.NewReconcileAction(performerCreatorFn(performer))
+		action := istio.NewIstioMainReconcileAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -188,7 +188,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
 
-		action := istio.NewReconcileAction(performerCreatorFn(performer))
+		action := istio.NewIstioMainReconcileAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -207,7 +207,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
-		action := istio.NewReconcileAction(performerCreatorFn(performer))
+		action := istio.NewIstioMainReconcileAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -227,7 +227,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
-		action := istio.NewReconcileAction(performerCreatorFn(performer))
+		action := istio.NewIstioMainReconcileAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
