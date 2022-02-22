@@ -38,7 +38,7 @@ func NewProcessingDurationCollector(reconciliations reconciliation.Repository, l
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
 			Help:      "Processing time of operations",
-			Buckets:   prometheus.ExponentialBuckets(100, 2, 10),
+			Buckets:   prometheus.ExponentialBuckets(100, 2, 15),
 		}, []string{"component", "metric"}),
 		metricsList: []string{
 			prefixOperationLifetimeMothershipSuccessful,
