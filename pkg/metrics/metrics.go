@@ -11,7 +11,7 @@ import (
 func RegisterAll(inventory cluster.Inventory, reconciliations reconciliation.Repository, occupancyRepo occupancy.Repository, reconcilerList []string, logger *zap.SugaredLogger, occupancyTracking bool) {
 	reconciliationWaitingCollector := NewReconciliationWaitingCollector(inventory, logger)
 	reconciliationNotReadyCollector := NewReconciliationNotReadyCollector(inventory, logger)
-	processingDurationCollector := NewProcessingDurationCollector(reconciliations, reconcilerList, logger)
+	processingDurationCollector := NewProcessingDurationCollector(reconciliations, logger)
 	if !occupancyTracking {
 		prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector, processingDurationCollector)
 	} else {

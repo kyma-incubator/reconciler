@@ -11,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
+	"github.com/pkg/errors"
 )
 
 type InMemoryReconciliationRepository struct {
@@ -316,18 +317,14 @@ func (r *InMemoryReconciliationRepository) UpdateComponentOperationProcessingDur
 	return nil
 }
 
-func (r *InMemoryReconciliationRepository) GetMeanComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
-
-	var duration int64 = 0
-	var operationCount int64 = 0
-
+func (r *InMemoryReconciliationRepository) GetComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error) {
 	operations, err := r.GetOperations(&operation.FilterMixer{
 		Filters: []operation.Filter{
 			&operation.WithComponentName{Component: component},
 			&operation.WithStates{
 				States: []model.OperationState{state},
 			},
-			&operation.Limit{Count: metricsQueryLimit},
+			&operation.LimitByLastUpdate{Count: 1},
 		},
 	})
 	if err != nil {
@@ -337,30 +334,20 @@ func (r *InMemoryReconciliationRepository) GetMeanComponentOperationProcessingDu
 	defer r.mu.Unlock()
 
 	if len(operations) == 0 {
-		return 0, nil
+		return 0, errors.Errorf("No operation for component %s found with desired state %s", component, state)
 	}
 
-	for _, op := range operations {
-		duration += op.ProcessingDuration
-		operationCount++
-	}
-
-	meanlifetime := duration / operationCount
-	return meanlifetime, nil
+	return operations[0].ProcessingDuration, nil
 }
 
-func (r *InMemoryReconciliationRepository) GetMeanMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
-
-	var duration time.Duration = 0
-	var operationCount int64 = 0
-
+func (r *InMemoryReconciliationRepository) GetMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error) {
 	operations, err := r.GetOperations(&operation.FilterMixer{
 		Filters: []operation.Filter{
 			&operation.WithComponentName{Component: component},
 			&operation.WithStates{
 				States: []model.OperationState{state},
 			},
-			&operation.Limit{Count: metricsQueryLimit},
+			&operation.LimitByLastUpdate{Count: 1},
 		},
 	})
 	if err != nil {
@@ -370,19 +357,43 @@ func (r *InMemoryReconciliationRepository) GetMeanMothershipOperationProcessingD
 	defer r.mu.Unlock()
 
 	if len(operations) == 0 {
-		return 0, nil
+		return 0, errors.Errorf("No operation for component %s found with desired state %s", component, state)
 	}
 
+	var duration time.Duration
+	op := operations[0]
+
+	switch startTime {
+	case Created:
+		duration = op.Updated.Sub(op.Created)
+	case PickedUp:
+		duration = op.Updated.Sub(op.PickedUp)
+	}
+	return duration.Milliseconds(), nil
+}
+
+func (r *InMemoryReconciliationRepository) GetAllComponents() ([]string, error) {
+	operations, err := r.GetOperations(nil)
+	if err != nil {
+		return []string{}, err
+	}
+
+	var components []string
 	for _, op := range operations {
-		switch startTime {
-		case Created:
-			duration += op.Updated.Sub(op.Created)
-		case PickedUp:
-			duration += op.Updated.Sub(op.PickedUp)
-		}
-		operationCount++
+		components = append(components, op.Component)
 	}
+	components = unique(components)
+	return components, nil
+}
 
-	meanLifetime := duration.Milliseconds() / operationCount
-	return meanLifetime, nil
+func unique(slice []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range slice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }

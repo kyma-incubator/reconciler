@@ -23,9 +23,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
+	"github.com/pkg/errors"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 )
@@ -783,13 +783,7 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 		})
 		return
 	}
-	_, err = uuid.Parse(poolID)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
+
 	var body reconciler.HTTPOccupancyRequest
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
