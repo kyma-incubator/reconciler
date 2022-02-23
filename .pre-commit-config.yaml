@@ -1,0 +1,5 @@
+repos:
+  - repo: local
+    hooks:
+      - id: lint
+        entry: make lint
