@@ -134,7 +134,7 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(ctx context.Context, clients
 	if err != nil {
 		return 0, nil
 	}
-	componentPodNames, err := t.getMotherShipPodNames(ctx, clientset)
+	componentPodNames, err := t.getComponentReconcilerPodNames(ctx, clientset)
 	if err != nil {
 		return 0, nil
 	}
