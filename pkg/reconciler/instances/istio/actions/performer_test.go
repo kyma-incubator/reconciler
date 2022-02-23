@@ -7,6 +7,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
+	v1 "k8s.io/api/admissionregistration/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -233,7 +234,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 	t.Run("should not patch MutatingWebhookConfiguration when kubeclient had returned an error", func(t *testing.T) {
 		// given
 		kubeClient := mocks.Client{}
-		kubeClient.On("PatchUsingStrategy", context.TODO(), "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(errors.New("kubeclient error"))
+		kubeClient.On("Clientset").Return(nil, errors.New("kubeclient error"))
 		cmder := istioctlmocks.Commander{}
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
 
@@ -252,6 +253,9 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error", func(t *testing.T) {
 		// given
 		kubeClient := mocks.Client{}
+		kubeClient.On("Clientset").Return(fake.NewSimpleClientset(&v1.MutatingWebhookConfiguration{
+			ObjectMeta: metav1.ObjectMeta{Name: "istio-sidecar-injector"},
+		}), nil)
 		kubeClient.On("PatchUsingStrategy", context.TODO(), "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(nil)
 		cmder := istioctlmocks.Commander{}
 		cmdResolver := TestCommanderResolver{cmder: &cmder}

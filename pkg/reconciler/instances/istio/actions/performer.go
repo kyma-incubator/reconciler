@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	v1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clientgo "k8s.io/client-go/kubernetes"
 
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/pkg/errors"
@@ -110,9 +111,9 @@ type IstioPerformer interface {
 	Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error
 }
 
-//CommanderResolver interface implementations must be able to provide istioctl.Commander instances for given istioctl.Version
+// CommanderResolver interface implementations must be able to provide istioctl.Commander instances for given istioctl.Version
 type CommanderResolver interface {
-	//GetCommander function returns istioctl.Commander instance for given istioctl version if supported, returns an error otherwise.
+	// GetCommander function returns istioctl.Commander instance for given istioctl version if supported, returns an error otherwise.
 	GetCommander(version istioctl.Version) (istioctl.Commander, error)
 }
 
@@ -190,6 +191,20 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 }
 
 func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
+	clientSet, err := kubeClient.Clientset()
+	if err != nil {
+		return err
+	}
+
+	primary := "istio-revision-tag-default"
+	secondary := "istio-sidecar-injector"
+
+	candidatesNames := []string{primary, secondary}
+	wh, err := c.selectWebhookToPatch(context, candidatesNames, clientSet)
+	if err != nil {
+		return err
+	}
+
 	patchContent := []webhookPatchJSON{{
 		Op:   "add",
 		Path: "/webhooks/4/namespaceSelector/matchExpressions/-",
@@ -201,15 +216,14 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 			},
 		},
 	}}
-
 	patchContentJSON, err := json.Marshal(patchContent)
 	if err != nil {
 		return err
 	}
 
-	logger.Info("Patching istio-sidecar-injector MutatingWebhookConfiguration...")
+	logger.Infof("Patching %s MutatingWebhookConfiguration...", wh.Name)
 
-	err = kubeClient.PatchUsingStrategy(context, "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", patchContentJSON, types.JSONPatchType)
+	err = kubeClient.PatchUsingStrategy(context, "MutatingWebhookConfiguration", wh.Name, "istio-system", patchContentJSON, types.JSONPatchType)
 	if err != nil {
 		return err
 	}
@@ -217,6 +231,19 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	logger.Infof("Patch has been applied successfully")
 
 	return nil
+}
+
+func (c *DefaultIstioPerformer) selectWebhookToPatch(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (*v1.MutatingWebhookConfiguration, error) {
+	var wh *v1.MutatingWebhookConfiguration
+	var err error
+	for _, webhookName := range candidatesNames {
+		wh, err = clientSet.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context, webhookName, metav1.GetOptions{})
+		if err != nil {
+			continue
+		}
+		return wh, err
+	}
+	return nil, errors.Wrap(err, "candidates MutatingWebhookConfigurations could not be selected")
 }
 
 func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
