@@ -13,6 +13,7 @@ import (
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	_ "net/http/pprof"
 )
 
 const (

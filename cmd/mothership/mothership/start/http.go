@@ -28,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
-	_ "net/http/pprof"
 )
 
 const (
