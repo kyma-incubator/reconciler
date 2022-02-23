@@ -73,7 +73,7 @@ func (t *OccupancyTracker) Run(ctx context.Context) error {
 				t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
 			}
 		case <-cleanupTicker.C:
-			deletionCnt, err := t.cleanUpOrphanOccupancies(clientset, ctx)
+			deletionCnt, err := t.cleanUpOrphanOccupancies(ctx, clientset)
 			if err != nil {
 				t.logger.Errorf("cleaned up orphan %d occupancies but failed on last operation with: %s", deletionCnt, err)
 				break
@@ -99,20 +99,20 @@ func createK8sInClusterClientSet() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(inClusterConfig)
 }
 
-func (t *OccupancyTracker) getComponentReconcilerPodNames(clientset *kubernetes.Clientset, ctx context.Context) ([]string, error) {
+func (t *OccupancyTracker) getComponentReconcilerPodNames(ctx context.Context, clientset *kubernetes.Clientset) ([]string, error) {
 	componentReconcilersQualifier := fmt.Sprintf("%s=%s", componentQualifier, "")
 	commaSeparatedComponentNames := strings.Join(t.componentReconcilerNames, ",")
 	componentLabelSelectorValue := fmt.Sprintf("%s in (%s)", componentLabelSelector, commaSeparatedComponentNames)
-	return getScalablePodNames(clientset, ctx, fmt.Sprintf("%s, %s", componentReconcilersQualifier, componentLabelSelectorValue))
+	return getScalablePodNames(ctx, clientset, fmt.Sprintf("%s, %s", componentReconcilersQualifier, componentLabelSelectorValue))
 }
 
-func (t *OccupancyTracker) getMotherShipPodNames(clientset *kubernetes.Clientset, ctx context.Context) ([]string, error) {
+func (t *OccupancyTracker) getMotherShipPodNames(ctx context.Context, clientset *kubernetes.Clientset) ([]string, error) {
 	labelSelectorValue := fmt.Sprintf("%s-%s", mothershipName, mothershipNameSuffix)
 	mothershipLabelSelector := fmt.Sprintf("%s=%s", nameLabelSelector, labelSelectorValue)
-	return getScalablePodNames(clientset, ctx, mothershipLabelSelector)
+	return getScalablePodNames(ctx, clientset, mothershipLabelSelector)
 }
 
-func getScalablePodNames(clientset *kubernetes.Clientset, ctx context.Context, labelSelector string) ([]string, error) {
+func getScalablePodNames(ctx context.Context, clientset *kubernetes.Clientset, labelSelector string) ([]string, error) {
 	var scalablePodNames []string
 	pods, err := clientset.CoreV1().Pods(defaultKcpNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
@@ -128,13 +128,13 @@ func getScalablePodNames(clientset *kubernetes.Clientset, ctx context.Context, l
 	return scalablePodNames, nil
 }
 
-func (t *OccupancyTracker) cleanUpOrphanOccupancies(clientset *kubernetes.Clientset, ctx context.Context) (int, error) {
+func (t *OccupancyTracker) cleanUpOrphanOccupancies(ctx context.Context, clientset *kubernetes.Clientset) (int, error) {
 	var occupancyTrackingPods []string
-	mothershipPodNames, err := t.getMotherShipPodNames(clientset, ctx)
+	mothershipPodNames, err := t.getMotherShipPodNames(ctx, clientset)
 	if err != nil {
 		return 0, nil
 	}
-	componentPodNames, err := t.getMotherShipPodNames(clientset, ctx)
+	componentPodNames, err := t.getMotherShipPodNames(ctx, clientset)
 	if err != nil {
 		return 0, nil
 	}
