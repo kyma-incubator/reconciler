@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -241,7 +242,11 @@ func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) (
 			return nil, errors.Wrap(err, "failed to apply sql filter")
 		}
 	}
-	recons, err := selectQ.OrderBy(map[string]string{"Created": "DESC"}).GetMany()
+	// TODO: the ORM should maintain the correct SQL statement order and handle duplicated clauses.
+	if !strings.Contains(selectQ.String(), "ORDER BY") {
+		selectQ = selectQ.OrderBy(map[string]string{"Created": "DESC"})
+	}
+	recons, err := selectQ.GetMany()
 	if err != nil {
 		return nil, err
 	}
