@@ -25,14 +25,19 @@ type runner struct {
 }
 
 func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler) error {
-
 	if r.dryRun {
+		var err error
 		chartProvider, err := r.newChartProvider(task.Repository)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create chart provider instance")
 		}
 
-		manifest, err := r.install.renderManifest(chartProvider, task)
+		var manifest string
+		if task.Component == model.CRDComponent {
+			manifest, err = r.install.renderCRDs(chartProvider, task)
+		} else {
+			manifest, err = r.install.renderManifest(chartProvider, task)
+		}
 		var status reconciler.Status
 		if err != nil {
 			status = reconciler.StatusFailed
