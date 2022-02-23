@@ -149,7 +149,6 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 		compRecon.URL, params.ComponentToReconcile.Component, params.SchedulingID, params.CorrelationID)
 
 	resp, err := http.Post(compRecon.URL, "application/json", bytes.NewBuffer(jsonPayload))
-	defer resp.Body.Close()
 
 	if err == nil {
 		respDump, err := httputil.DumpResponse(resp, true)
@@ -166,6 +165,7 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 			compRecon.URL, err)
 		return resp, errors.Wrap(err, fmt.Sprintf("failed to call remote reconciler (URL: %s)", compRecon.URL))
 	}
+	defer resp.Body.Close()
 
 	i.logger.Infof("Remote invoker triggered reconciliation of component '%s' on remote component reconciler '%s': %d",
 		component, compRecon.URL, resp.StatusCode)
