@@ -2,7 +2,7 @@
 FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.11.4 AS istio-1_11_4
 
 # Build image
-FROM golang:1.17.6-alpine3.15 AS build
+FROM golang:1.17.7-alpine3.15 AS build
 
 ENV SRC_DIR=/go/src/github.com/kyma-incubator/reconciler
 COPY . $SRC_DIR
