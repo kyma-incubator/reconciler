@@ -2,4 +2,7 @@ repos:
   - repo: local
     hooks:
       - id: lint
-        entry: make lint
+        name: lint
+        language: system
+        entry: make
+        args: [ "lint" ]
