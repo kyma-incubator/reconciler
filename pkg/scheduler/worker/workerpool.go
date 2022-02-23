@@ -235,6 +235,6 @@ func (w *Pool) RunningWorkers() (int, error) {
 	return w.antsPool.Running(), nil
 }
 
-func (w *Pool) Size() (int, error) {
-	return w.config.PoolSize, nil
+func (w *Pool) Size() int {
+	return w.config.PoolSize
 }

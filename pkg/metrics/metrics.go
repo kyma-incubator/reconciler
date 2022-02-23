@@ -10,8 +10,8 @@ import (
 )
 
 func RegisterProcessingDuration(reconciliations reconciliation.Repository, cfg *config.Config, logger *zap.SugaredLogger) {
-	reconcilerList := GetReconcilerList(cfg)
-	processingDurationCollector := NewProcessingDurationCollector(reconciliations, reconcilerList, logger)
+	labelValues := GetLabelValues(cfg)
+	processingDurationCollector := NewProcessingDurationCollector(reconciliations, labelValues, logger)
 	prometheus.MustRegister(processingDurationCollector)
 
 }
@@ -23,6 +23,5 @@ func RegisterWaitingAndNotReadyReconciliations(inventory cluster.Inventory, logg
 }
 
 func RegisterOccupancy(occupancyRepo occupancy.Repository, cfg *config.Config, logger *zap.SugaredLogger) {
-	reconcilerList := GetReconcilerList(cfg)
-	prometheus.MustRegister(NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilerList, logger))
+	prometheus.MustRegister(NewWorkerPoolOccupancyCollector(occupancyRepo, cfg, logger))
 }

@@ -12,6 +12,27 @@ type PersistentOccupancyRepository struct {
 	*repository.Repository
 }
 
+func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return 0, err
+		}
+		deletionCnt := 0
+		for _, poolID := range poolIDs {
+			err = rTx.RemoveWorkerPoolOccupancy(poolID)
+			if err != nil {
+				return deletionCnt, err
+			}
+			deletionCnt++
+		}
+
+		return deletionCnt, nil
+	}
+	result, err := db.TransactionResult(r.Conn, dbOps, r.Logger)
+	return result.(int), err
+}
+
 func (r *PersistentOccupancyRepository) GetComponentIDs() ([]string, error) {
 	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 	if err != nil {

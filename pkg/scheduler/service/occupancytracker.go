@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
@@ -12,31 +11,35 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
+	"strings"
 	"time"
 )
 
 const (
 	defaultOccupancyCleanUpInterval  = 5 * time.Minute
 	defaultOccupancyTrackingInterval = 30 * time.Second
-	mothershipScalableServiceName    = "mothership"
 	defaultKcpNamespace              = "kcp-system"
-	nameLabelSelector                = "app.kubernetes.io/name:"
+	nameLabelSelector                = "app.kubernetes.io/name"
+	mothershipName                   = "mothership"
+	mothershipNameSuffix             = "reconciler"
+	componentQualifier               = "kyma-project.io/component-reconciler"
+	componentLabelSelector           = "component"
 )
 
 type OccupancyTracker struct {
-	occupancyID          string
-	workerPool           *worker.Pool
-	repo                 occupancy.Repository
-	logger               *zap.SugaredLogger
-	scalableServiceNames []string
+	occupancyID              string
+	workerPool               *worker.Pool
+	repo                     occupancy.Repository
+	logger                   *zap.SugaredLogger
+	componentReconcilerNames []string
 }
 
 func NewOccupancyTracker(workerPool *worker.Pool, repo occupancy.Repository, cfg *config.Config, logger *zap.SugaredLogger) *OccupancyTracker {
 	return &OccupancyTracker{
-		workerPool:           workerPool,
-		repo:                 repo,
-		logger:               logger,
-		scalableServiceNames: metrics.GetReconcilerList(cfg),
+		workerPool:               workerPool,
+		repo:                     repo,
+		logger:                   logger,
+		componentReconcilerNames: getComponentReconcilerNames(cfg),
 	}
 }
 
@@ -64,19 +67,15 @@ func (t *OccupancyTracker) Run(ctx context.Context) error {
 				t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
 				break
 			}
-			poolSize, err := t.workerPool.Size()
-			if err != nil {
-				t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
-				break
-			}
-			_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipScalableServiceName, runningWorkers, poolSize)
+			poolSize := t.workerPool.Size()
+			_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipName, runningWorkers, poolSize)
 			if err != nil {
 				t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
 			}
 		case <-cleanupTicker.C:
-			err = t.cleanUpOrphanOccupancies(clientset)
+			deletionCnt, err := t.cleanUpOrphanOccupancies(clientset, ctx)
 			if err != nil {
-				t.logger.Errorf("could not cleanup orphan occupancies : %s", err)
+				t.logger.Errorf("cleaned up orphan %d occupancies but failed on last operation with: %s", deletionCnt, err)
 				break
 			}
 		case <-ctx.Done():
@@ -100,53 +99,76 @@ func createK8sInClusterClientSet() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(inClusterConfig)
 }
 
-func (t *OccupancyTracker) getScalablePodNames(clientset *kubernetes.Clientset) ([]string, error) {
+func (t *OccupancyTracker) getComponentReconcilerPodNames(clientset *kubernetes.Clientset, ctx context.Context) ([]string, error) {
+	componentReconcilersQualifier := fmt.Sprintf("%s=%s", componentQualifier, "")
+	commaSeparatedComponentNames := strings.Join(t.componentReconcilerNames, ",")
+	componentLabelSelectorValue := fmt.Sprintf("%s in (%s)", componentLabelSelector, commaSeparatedComponentNames)
+	return getScalablePodNames(clientset, ctx, fmt.Sprintf("%s, %s", componentReconcilersQualifier, componentLabelSelectorValue))
+}
 
+func (t *OccupancyTracker) getMotherShipPodNames(clientset *kubernetes.Clientset, ctx context.Context) ([]string, error) {
+	labelSelectorValue := fmt.Sprintf("%s-%s", mothershipName, mothershipNameSuffix)
+	mothershipLabelSelector := fmt.Sprintf("%s=%s", nameLabelSelector, labelSelectorValue)
+	return getScalablePodNames(clientset, ctx, mothershipLabelSelector)
+}
+
+func getScalablePodNames(clientset *kubernetes.Clientset, ctx context.Context, labelSelector string) ([]string, error) {
 	var scalablePodNames []string
-	for _, scalableServiceName := range t.scalableServiceNames {
-		pods, err := clientset.CoreV1().Pods(defaultKcpNamespace).List(context.TODO(), metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s%s", nameLabelSelector, scalableServiceName),
-		})
-		if err != nil {
-			return nil, err
-		}
-		for _, pod := range pods.Items {
-			podName := pod.Name
-			scalablePodNames = append(scalablePodNames, podName)
-		}
+	pods, err := clientset.CoreV1().Pods(defaultKcpNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, pod := range pods.Items {
+		podName := pod.Name
+		scalablePodNames = append(scalablePodNames, podName)
 	}
 
 	return scalablePodNames, nil
 }
 
-func (t *OccupancyTracker) cleanUpOrphanOccupancies(clientset *kubernetes.Clientset) error {
-	scalablePodNames, err := t.getScalablePodNames(clientset)
+func (t *OccupancyTracker) cleanUpOrphanOccupancies(clientset *kubernetes.Clientset, ctx context.Context) (int, error) {
+	var occupancyTrackingPods []string
+	mothershipPodNames, err := t.getMotherShipPodNames(clientset, ctx)
 	if err != nil {
-		return err
+		return 0, nil
 	}
+	componentPodNames, err := t.getMotherShipPodNames(clientset, ctx)
+	if err != nil {
+		return 0, nil
+	}
+	occupancyTrackingPods = append(componentPodNames, mothershipPodNames...)
 
-	componentsIDs, err := t.repo.GetComponentIDs()
+	componentIDs, err := t.repo.GetComponentIDs()
 	if err != nil {
-		return err
+		return 0, nil
 	}
-	if len(componentsIDs) == 0 {
+	if len(componentIDs) == 0 {
 		t.logger.Warnf("occupancy tracker received empty list of ids: nothing to clean")
-		return nil
+		return 0, nil
 	}
-	for _, componentID := range componentsIDs {
+	var idsOfOrphanComponents []string
+	for _, componentID := range componentIDs {
 		found := false
-		for _, scalablePodName := range scalablePodNames {
-			if componentID == scalablePodName {
+		for _, occupancyTrackingPod := range occupancyTrackingPods {
+			if componentID == occupancyTrackingPod {
 				found = true
 				break
 			}
 		}
 		if !found {
-			err = t.repo.RemoveWorkerPoolOccupancy(componentID)
-			if err != nil {
-				return err
-			}
+			idsOfOrphanComponents = append(idsOfOrphanComponents, componentID)
 		}
 	}
-	return nil
+
+	return t.repo.RemoveWorkerPoolOccupancies(idsOfOrphanComponents)
+}
+
+func getComponentReconcilerNames(cfg *config.Config) []string {
+	componentReconcilerNames := make([]string, 0, len(cfg.Scheduler.Reconcilers))
+	for reconciler := range cfg.Scheduler.Reconcilers {
+		componentReconcilerNames = append(componentReconcilerNames, reconciler)
+	}
+	return componentReconcilerNames
 }

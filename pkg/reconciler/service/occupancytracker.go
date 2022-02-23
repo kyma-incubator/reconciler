@@ -82,7 +82,7 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
 		if resp.StatusCode == http.StatusNotFound {
-			t.logger.Debugf("occupancy tracker is setting update interval to its back off value: %d", defaultBackOffInterval)
+			t.logger.Debugf("occupancy tracker is setting update interval to its back off value: %v", defaultBackOffInterval)
 			t.ticker.Reset(defaultBackOffInterval)
 		}
 		t.logger.Warnf("mothership failed to update occupancy for '%s' service with status code: '%d'", t.occupancyID, resp.StatusCode)

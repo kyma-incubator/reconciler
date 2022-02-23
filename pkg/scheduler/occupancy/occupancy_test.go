@@ -197,12 +197,10 @@ func newTestFct(testCase testCase, repo Repository) func(t *testing.T) {
 }
 
 func testCleanUp(t *testing.T, occupRepo Repository) {
-	occupancies, err := occupRepo.GetWorkerPoolOccupancies()
+	componentIDs, err := occupRepo.GetComponentIDs()
 	require.NoError(t, err)
-	for _, occupancy := range occupancies {
-		err := occupRepo.RemoveWorkerPoolOccupancy(occupancy.WorkerPoolID)
-		require.NoError(t, err)
-	}
+	_, err = occupRepo.RemoveWorkerPoolOccupancies(componentIDs)
+	require.NoError(t, err)
 }
 
 func dbConnection(t *testing.T) db.Connection {

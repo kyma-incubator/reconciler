@@ -13,6 +13,7 @@ type Repository interface {
 	GetMeanWorkerPoolOccupancyByComponent(component string) (float64, error)
 	GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error)
 	RemoveWorkerPoolOccupancy(poolID string) error
+	RemoveWorkerPoolOccupancies(poolIDs []string) (int, error)
 	UpdateWorkerPoolOccupancy(poolID string, runningWorkers int) error
 	CreateOrUpdateWorkerPoolOccupancy(poolID, component string, runningWorkers, poolSize int) (bool, error)
 	WithTx(tx *db.TxConnection) (Repository, error)

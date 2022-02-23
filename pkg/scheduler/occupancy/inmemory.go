@@ -13,6 +13,18 @@ type InMemoryOccupancyRepository struct {
 	sync.Mutex
 }
 
+func (r *InMemoryOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, error) {
+	deletionCnt := 0
+	for _, poolID := range poolIDs {
+		err := r.RemoveWorkerPoolOccupancy(poolID)
+		if err != nil {
+			return deletionCnt, err
+		}
+		deletionCnt++
+	}
+	return deletionCnt, nil
+}
+
 func (r *InMemoryOccupancyRepository) GetComponentIDs() ([]string, error) {
 	r.Lock()
 	defer r.Unlock()
