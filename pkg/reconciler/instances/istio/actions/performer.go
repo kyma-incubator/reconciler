@@ -196,11 +196,11 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		return err
 	}
 
-	primary := "istio-revision-tag-default"
-	secondary := "istio-sidecar-injector"
-
+	const primary = "istio-revision-tag-default"
+	const secondary = "istio-sidecar-injector"
 	candidatesNames := []string{primary, secondary}
-	wh, err := c.selectWebhookToPatch(context, candidatesNames, clientSet)
+
+	wh, err := c.selectExistingWebhookFormCandidates(context, candidatesNames, clientSet)
 	if err != nil {
 		return err
 	}
@@ -233,17 +233,15 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	return nil
 }
 
-func (c *DefaultIstioPerformer) selectWebhookToPatch(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (*v1.MutatingWebhookConfiguration, error) {
-	var wh *v1.MutatingWebhookConfiguration
-	var err error
+func (c *DefaultIstioPerformer) selectExistingWebhookFormCandidates(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (wh *v1.MutatingWebhookConfiguration, err error) {
 	for _, webhookName := range candidatesNames {
 		wh, err = clientSet.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context, webhookName, metav1.GetOptions{})
 		if err != nil {
 			continue
 		}
-		return wh, err
+		return
 	}
-	return nil, errors.Wrap(err, "candidates MutatingWebhookConfigurations could not be selected")
+	return nil, errors.Wrap(err, "MutatingWebhookConfigurations could not be selected from candidates")
 }
 
 func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
