@@ -38,18 +38,10 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		} else {
 			manifest, err = r.install.renderManifest(chartProvider, task)
 		}
-		message := ""
-		var status reconciler.Status
-		if err != nil {
-			status = reconciler.StatusFailed
-			message = err.Error()
-		} else {
-			status = reconciler.StatusSuccess
-		}
+
 		callback.Callback(&reconciler.CallbackMessage{
 			Manifest: manifest,
-			Error:    message,
-			Status:   status,
+			Status:   reconciler.StatusSuccess,
 		})
 		return err
 	}
