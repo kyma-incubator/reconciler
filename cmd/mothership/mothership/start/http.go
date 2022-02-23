@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
+	_ "net/http/pprof"
 )
 
 const (
@@ -53,6 +54,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter := mainRouter.PathPrefix("/").Subrouter()
 	metricsRouter := mainRouter.Path("/metrics").Subrouter()
 	healthRouter := mainRouter.PathPrefix("/health").Subrouter()
+	mainRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
