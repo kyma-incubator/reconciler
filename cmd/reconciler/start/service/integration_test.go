@@ -131,6 +131,7 @@ func post(t *testing.T, testCase testCase) interface{} {
 	resp, err := http.Post(urlReconcilerRun, "application/json",
 		bytes.NewBuffer(jsonPayload))
 	require.NoError(t, err)
+	defer resp.Body.Close()
 	require.Equal(t, testCase.expectedHTTPCode, resp.StatusCode)
 
 	//read body
