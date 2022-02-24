@@ -149,7 +149,6 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 		compRecon.URL, params.ComponentToReconcile.Component, params.SchedulingID, params.CorrelationID)
 
 	resp, err := http.Post(compRecon.URL, "application/json", bytes.NewBuffer(jsonPayload))
-
 	if err == nil {
 		respDump, err := httputil.DumpResponse(resp, true)
 		if err == nil {
