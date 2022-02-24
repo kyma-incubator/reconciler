@@ -13,10 +13,15 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
 	paramContractVersion = "version"
+)
+
+var (
+	EnableMetrics = false
 )
 
 func StartWebserver(ctx context.Context, o *reconCli.Options, workerPool *service.WorkerPool, tracker *service.OccupancyTracker) error {
@@ -42,6 +47,9 @@ func newRouter(ctx context.Context, o *reconCli.Options, workerPool *service.Wor
 	//liveness and readiness checks
 	router.HandleFunc("/health/live", live)
 	router.HandleFunc("/health/ready", ready(workerPool))
+	if EnableMetrics {
+		router.Path("/metrics").Handler(promhttp.Handler())
+	}
 
 	return router
 }

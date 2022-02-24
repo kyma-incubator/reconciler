@@ -9,6 +9,7 @@ type reconcileAction struct {
 }
 
 func (a *reconcileAction) Run(ac *service.ActionContext) error {
+	ac.Logger = ac.Logger.With("instanceID", ac.Task.Metadata.InstanceID)
 	if _, err := ac.KubeClient.Clientset(); err != nil {
 		ac.Logger.Errorf("Failed to retrieve native Kubernetes GO client")
 	}

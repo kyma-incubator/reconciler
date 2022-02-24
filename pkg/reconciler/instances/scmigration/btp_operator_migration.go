@@ -12,6 +12,7 @@ import (
 	"github.com/SAP/sap-btp-service-operator/client/sm/types"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/scmigration/apis/servicecatalog/v1beta1"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/prometheus/client_golang/prometheus"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -169,6 +170,11 @@ func (m *migrator) migrateBTPOperator() error {
 	m.ac.Logger.Infof("Preparing resources")
 	instancesToMigrate := m.getInstancesToMigrate(smInstances, svcatInstances)
 	bindingsToMigrate := m.getBindingsToMigrate(smBindings, svcatBindings)
+	l := prometheus.Labels{"instance_id": m.ac.Task.Metadata.InstanceID}
+	svcatInstancesTotal.With(l).Set(float64(len(svcatInstances.Items)))
+	smInstancesTotal.With(l).Set(float64(len(smInstances.ServiceInstances)))
+	svcatBindingsTotal.With(l).Set(float64(len(svcatBindings.Items)))
+	smBindingsTotal.With(l).Set(float64(len(smBindings.ServiceBindings)))
 	if len(instancesToMigrate) == 0 && len(bindingsToMigrate) == 0 {
 		m.ac.Logger.Infof("no svcat instances or bindings found for migration")
 		return nil
@@ -180,7 +186,10 @@ func (m *migrator) migrateBTPOperator() error {
 		err := m.migrateInstance(pair)
 		if err != nil {
 			m.ac.Logger.Error(err)
+			migratedInstancesFailures.With(l).Add(1)
 			failuresBuffer.WriteString(err.Error() + "\n")
+		} else {
+			migratedInstancesTotal.With(l).Add(1)
 		}
 	}
 
@@ -188,7 +197,10 @@ func (m *migrator) migrateBTPOperator() error {
 		err := m.migrateBinding(pair)
 		if err != nil {
 			m.ac.Logger.Error(err)
+			migratedBindingsFailures.With(l).Add(1)
 			failuresBuffer.WriteString(err.Error() + "\n")
+		} else {
+			migratedBindingsTotal.With(l).Add(1)
 		}
 	}
 
