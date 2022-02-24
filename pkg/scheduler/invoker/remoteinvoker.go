@@ -165,7 +165,6 @@ func (i *RemoteReconcilerInvoker) sendHTTPRequest(params *Params) (*http.Respons
 			compRecon.URL, err)
 		return resp, errors.Wrap(err, fmt.Sprintf("failed to call remote reconciler (URL: %s)", compRecon.URL))
 	}
-	defer resp.Body.Close()
 
 	i.logger.Infof("Remote invoker triggered reconciliation of component '%s' on remote component reconciler '%s': %d",
 		component, compRecon.URL, resp.StatusCode)
