@@ -113,6 +113,7 @@ func TestIstioIntegration(t *testing.T) {
 			if err != nil {
 				return err
 			}
+			defer resp.Body.Close()
 			statusCode = resp.StatusCode
 			return nil
 		}, retry.DelayType(retry.BackOffDelay))
