@@ -40,7 +40,7 @@ const (
 //		provisionerClient := NewProvisioner(gardenerNamespace, shootClient, nil, auditLogsPolicyCMName, maintWindowConfigPath)
 //
 //		// when
-//		apperr := provisionerClient.ProvisionCluster(cluster, operationId)
+//		apperr := provisionerClient.StartProvisioning(cluster, operationId)
 //		require.NoError(t, apperr)
 //
 //		// then
@@ -107,9 +107,9 @@ const (
 //		provisionerClient_B := NewProvisioner(gardenerNamespace, shootClient_B, nil, auditLogsPolicyCMName, maintWindowConfigPath)
 //
 //		//when
-//		apperr_A := provisionerClient_A.ProvisionCluster(cluster_A, operationId)
+//		apperr_A := provisionerClient_A.StartProvisioning(cluster_A, operationId)
 //		require.NoError(t, apperr_A)
-//		apperr_B := provisionerClient_B.ProvisionCluster(cluster_B, operationId)
+//		apperr_B := provisionerClient_B.StartProvisioning(cluster_B, operationId)
 //		require.NoError(t, apperr_B)
 //
 //		//then

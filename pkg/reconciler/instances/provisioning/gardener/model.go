@@ -40,8 +40,8 @@ type DNSProvider struct {
 }
 
 type GardenerConfig struct {
-	ID                                  string
-	ClusterID                           string
+	ID                                  string // TODO: consider removing
+	ClusterID                           string // TODO: consider removing
 	Name                                string
 	ProjectName                         string
 	KubernetesVersion                   string

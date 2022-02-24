@@ -17,6 +17,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gardener/gardener/pkg/apis/core/v1beta1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 //go:generate mockery -name=Client
@@ -45,7 +46,7 @@ type GardenerProvisioner struct {
 	maintenanceWindowConfigPath string
 }
 
-func (g *GardenerProvisioner) ProvisionCluster(cluster GardenerConfig, tenant string, subaccountID *string, operationId string) error {
+func (g *GardenerProvisioner) StartProvisioning(cluster GardenerConfig, tenant string, subaccountID *string, operationId string) error {
 	shootTemplate, err := cluster.ToShootTemplate(g.namespace, tenant, util.UnwrapStr(subaccountID), cluster.OIDCConfig, cluster.DNSConfig)
 	if err != nil {
 		return errors.New("failed to convert cluster config to Shoot template")
@@ -74,13 +75,77 @@ func (g *GardenerProvisioner) ProvisionCluster(cluster GardenerConfig, tenant st
 		g.applyAuditConfig(shootTemplate)
 	}
 
-	_, k8serr := g.shootClient.Create(context.Background(), shootTemplate, v1.CreateOptions{})
+	_, err = g.shootClient.Create(context.Background(), shootTemplate, v1.CreateOptions{})
+
+	return err
+}
+
+type ShootOperationStatus string
+
+const (
+	StatusNotExists             ShootOperationStatus = "NotStarted"
+	StatusInProgress            ShootOperationStatus = "InProgress"
+	StatusFailed                ShootOperationStatus = "Failed"
+	StatusCompletedSuccessfully ShootOperationStatus = "Succeeded"
+)
+
+type OperationStatus struct {
+	Status  ShootOperationStatus
+	Message string
+}
+
+func (g *GardenerProvisioner) GetStatus(cluster GardenerConfig) (OperationStatus, error) {
+	shoot, k8serr := g.shootClient.Get(context.Background(), cluster.Name, v1.GetOptions{})
 	if k8serr != nil {
-		appError := util.K8SErrorToAppError(k8serr)
-		return appError.Append("error creating Shoot for %s cluster: %s", cluster.ID)
+		if k8serrors.IsNotFound(k8serr) {
+			return OperationStatus{
+				Status: StatusNotExists,
+			}, nil
+		}
+		return OperationStatus{}, nil
 	}
 
-	return nil
+	lastOperation := shoot.Status.LastOperation
+
+	if lastOperation != nil {
+		if lastOperation.State == gardener_types.LastOperationStateSucceeded {
+			return OperationStatus{
+				Status: StatusCompletedSuccessfully,
+			}, nil
+		}
+
+		if lastOperation.State == gardener_types.LastOperationStateFailed {
+			if lastOperation.Type == gardener_types.LastOperationTypeReconcile {
+				return OperationStatus{
+					Status: StatusFailed,
+					// TODO: make sure Desription contains error message
+					Message: "reconciliation error: " + lastOperation.Description,
+				}, nil
+			}
+
+			// TODO: gardencorev1beta1helper "github.com/gardener/gardener/pkg/apis/core/v1beta1/helper" package was removed, make sure it is still needed
+			//if gardencorev1beta1helper.HasErrorCode(shoot.Status.LastErrors, gardener_types.ErrorInfraRateLimitsExceeded) {
+			//	return OperationStatus{
+			//		Status: StatusFailed,
+			//		// TODO: make sure Desription contains error message
+			//		Message: "reconciliation error: rate limits exceeded",
+			//	}, nil
+			//}
+		}
+	}
+
+	return OperationStatus{
+		Status: StatusInProgress,
+	}, nil
+}
+
+func (g *GardenerProvisioner) ClusterExists(cluster GardenerConfig) (bool, error) {
+	status, err := g.GetStatus(cluster)
+	if err != nil {
+		return false, err
+	}
+
+	return status.Status == StatusNotExists, nil
 }
 
 func (g *GardenerProvisioner) shouldSetMaintenanceWindow(purpose string) bool {
