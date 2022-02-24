@@ -14,5 +14,6 @@ func New() *action.Action {
 		// add PreAction steps here
 		newRemoveNatsOperatorStep(),
 		newMigrateEventTypePrefixConfigStep(),
+		newHandleEnablingJetstream(),
 	})
 }
