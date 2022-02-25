@@ -8,7 +8,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	v1 "k8s.io/api/admissionregistration/v1"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -22,7 +21,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -235,12 +233,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		// given
 		kubeClient := mocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("kubeclient error"))
-		cmder := istioctlmocks.Commander{}
-		cmdResolver := TestCommanderResolver{cmder: &cmder}
-
-		proxy := proxymocks.IstioProxyReset{}
-		provider := clientsetmocks.Provider{}
-		wrapper := NewDefaultIstioPerformer(&cmdResolver, &proxy, &provider)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
 
 		// when
 		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
@@ -252,25 +245,67 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 
 	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error", func(t *testing.T) {
 		// given
+		whConfName := "istio-sidecar-injector"
 		kubeClient := mocks.Client{}
-		kubeClient.On("Clientset").Return(fake.NewSimpleClientset(&v1.MutatingWebhookConfiguration{
-			ObjectMeta: metav1.ObjectMeta{Name: "istio-sidecar-injector"},
-		}), nil)
-		kubeClient.On("PatchUsingStrategy", context.TODO(), "MutatingWebhookConfiguration", "istio-sidecar-injector", "istio-system", mock.Anything, types.JSONPatchType).Return(nil)
-		cmder := istioctlmocks.Commander{}
-		cmdResolver := TestCommanderResolver{cmder: &cmder}
-
-		proxy := proxymocks.IstioProxyReset{}
-		provider := clientsetmocks.Provider{}
-		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
+		clientset := fake.NewSimpleClientset(createIstioMutatingWebhookConf(whConfName))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
 
 		// when
 		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		require.NoError(t, err)
 
 		// then
+		got, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
 		require.NoError(t, err)
+		want := metav1.LabelSelectorRequirement{
+			Key:      "gardener.cloud/purpose",
+			Operator: "NotIn",
+			Values:   []string{"kube-system"},
+		}
+		require.Contains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
 	})
 
+	t.Run("should patch new `istio-revision-tag-default` MutatingWebhookConfiguration instead of old", func(t *testing.T) {
+		// given
+		oldWhConfName := "istio-sidecar-injector"
+		newWhConfName := "istio-revision-tag-default"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createIstioMutatingWebhookConf(newWhConfName), createIstioMutatingWebhookConf(oldWhConfName))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+
+		// when
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		require.NoError(t, err)
+
+		// then
+		gotNew, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), newWhConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		gotOld, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), oldWhConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		want := metav1.LabelSelectorRequirement{
+			Key:      "gardener.cloud/purpose",
+			Operator: "NotIn",
+			Values:   []string{"kube-system"},
+		}
+		require.Contains(t, gotNew.Webhooks[0].NamespaceSelector.MatchExpressions, want)
+		require.NotContains(t, gotOld.Webhooks[0].NamespaceSelector.MatchExpressions, want)
+	})
+}
+
+func createIstioMutatingWebhookConf(whConfName string) *v1.MutatingWebhookConfiguration {
+	return &v1.MutatingWebhookConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: whConfName},
+		Webhooks: []v1.MutatingWebhook{
+			{
+				Name: "auto.sidecar-injector.istio.io",
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{},
+				},
+			},
+		},
+	}
 }
 
 func Test_DefaultIstioPerformer_Update(t *testing.T) {

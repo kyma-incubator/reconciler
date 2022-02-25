@@ -17,13 +17,13 @@ import (
 	v1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientgo "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	helmChart "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -35,18 +35,6 @@ const (
 )
 
 type VersionType string
-
-type webhookPatchJSON struct {
-	Op    string                `json:"op"`
-	Path  string                `json:"path"`
-	Value webhookPatchJSONValue `json:"value"`
-}
-
-type webhookPatchJSONValue struct {
-	Key      string   `json:"key"`
-	Operator string   `json:"operator"`
-	Values   []string `json:"values"`
-}
 
 type IstioStatus struct {
 	ClientVersion    string
@@ -200,30 +188,28 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	const secondary = "istio-sidecar-injector"
 	candidatesNames := []string{primary, secondary}
 
-	wh, err := c.selectExistingWebhookFormCandidates(context, candidatesNames, clientSet)
-	if err != nil {
-		return err
+	webhookNameToChange := "auto.sidecar-injector.istio.io"
+
+	requiredLabelSelector := metav1.LabelSelectorRequirement{
+		Key:      "gardener.cloud/purpose",
+		Operator: "NotIn",
+		Values:   []string{"kube-system"},
 	}
 
-	patchContent := []webhookPatchJSON{{
-		Op:   "add",
-		Path: "/webhooks/4/namespaceSelector/matchExpressions/-",
-		Value: webhookPatchJSONValue{
-			Key:      "gardener.cloud/purpose",
-			Operator: "NotIn",
-			Values: []string{
-				"kube-system",
-			},
-		},
-	}}
-	patchContentJSON, err := json.Marshal(patchContent)
-	if err != nil {
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		whConf, err := c.selectWebhookConfFormCandidates(context, candidatesNames, clientSet)
+		if err != nil {
+			return err
+		}
+		err = c.addLabelSelectorToWebhook(whConf, webhookNameToChange, requiredLabelSelector)
+		if err != nil {
+			return err
+		}
+		_, err = clientSet.AdmissionregistrationV1().
+			MutatingWebhookConfigurations().
+			Update(context, whConf, metav1.UpdateOptions{})
 		return err
-	}
-
-	logger.Infof("Patching %s MutatingWebhookConfiguration...", wh.Name)
-
-	err = kubeClient.PatchUsingStrategy(context, "MutatingWebhookConfiguration", wh.Name, "istio-system", patchContentJSON, types.JSONPatchType)
+	})
 	if err != nil {
 		return err
 	}
@@ -233,7 +219,24 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	return nil
 }
 
-func (c *DefaultIstioPerformer) selectExistingWebhookFormCandidates(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (wh *v1.MutatingWebhookConfiguration, err error) {
+func (c *DefaultIstioPerformer) addLabelSelectorToWebhook(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
+	var whFound bool
+	for i := range whConf.Webhooks {
+		if whConf.Webhooks[i].Name == webhookNameToChange {
+			whFound = true
+			whConf.Webhooks[i].NamespaceSelector.MatchExpressions = append(
+				whConf.Webhooks[i].NamespaceSelector.MatchExpressions,
+				requiredLabelSelector,
+			)
+		}
+	}
+	if !whFound {
+		return fmt.Errorf("could not find webhook %s in WebhookConfiguration %s", webhookNameToChange, whConf.Name)
+	}
+	return nil
+}
+
+func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (wh *v1.MutatingWebhookConfiguration, err error) {
 	for _, webhookName := range candidatesNames {
 		wh, err = clientSet.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context, webhookName, metav1.GetOptions{})
 		if err != nil {
