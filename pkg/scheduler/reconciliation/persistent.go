@@ -551,7 +551,8 @@ func (r *PersistentReconciliationRepository) GetComponentOperationProcessingDura
 		return 0, err
 	}
 	if len(operations) == 0 {
-		return 0, errors.Errorf("No operation for component %s found with desired state %s", component, state)
+		r.Logger.Infof("No operation for component %s found with desired state %s", component, state)
+		return 0, nil
 	}
 	return operations[0].ProcessingDuration, nil
 }
@@ -570,7 +571,8 @@ func (r *PersistentReconciliationRepository) GetMothershipOperationProcessingDur
 		return 0, err
 	}
 	if len(operations) == 0 {
-		return 0, errors.Errorf("No operation for component %s found with desired state %s", component, state)
+		r.Logger.Infof("No operation for component %s found with desired state %s", component, state)
+		return 0, nil
 	}
 	var duration time.Duration
 	op := operations[0]
