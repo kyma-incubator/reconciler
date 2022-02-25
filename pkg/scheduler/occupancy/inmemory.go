@@ -15,7 +15,7 @@ type InMemoryOccupancyRepository struct {
 }
 
 func (r *InMemoryOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, error) {
-	if poolIDs == nil || len(poolIDs) == 0 {
+	if len(poolIDs) == 0 {
 		return 0, nil
 	}
 	deletionCnt := 0

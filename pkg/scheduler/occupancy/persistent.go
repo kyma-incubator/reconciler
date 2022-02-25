@@ -15,7 +15,7 @@ type PersistentOccupancyRepository struct {
 //deletionCnt=0, err!=nil
 func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, error) {
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
-		if poolIDs == nil || len(poolIDs) == 0 {
+		if len(poolIDs) == 0 {
 			r.Logger.Warnf("OccupancyRepo received empty list of ids: nothing to remove")
 			return 0, nil
 		}
