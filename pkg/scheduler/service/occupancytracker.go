@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultOccupancyCleanUpInterval  = 5 * time.Minute
+	defaultOccupancyCleanUpInterval  = 5 * time.Minute //default: 5 mins
 	defaultOccupancyTrackingInterval = 30 * time.Second
 	defaultKcpNamespace              = "kcp-system"
 	nameLabelSelector                = "app.kubernetes.io/name"
@@ -59,36 +59,40 @@ func (t *OccupancyTracker) Run(ctx context.Context) error {
 	//start occupancy tracking && cleaning
 	trackingTicker := time.NewTicker(defaultOccupancyTrackingInterval)
 	cleanupTicker := time.NewTicker(defaultOccupancyCleanUpInterval)
-	for {
-		select {
-		case <-trackingTicker.C:
-			runningWorkers, err := t.workerPool.RunningWorkers()
-			if err != nil {
-				t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
-				break
+	go func() {
+		for {
+			select {
+			case <-trackingTicker.C:
+				runningWorkers, err := t.workerPool.RunningWorkers()
+				if err != nil {
+					t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
+					break
+				}
+				poolSize := t.workerPool.Size()
+				_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipName, runningWorkers, poolSize)
+				if err != nil {
+					t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
+				}
+			case <-cleanupTicker.C:
+				deletionCnt, err := t.cleanUpOrphanOccupancies(ctx, clientset)
+				if err == nil {
+					t.logger.Infof("cleaned up %d orphan occupancies successfully", deletionCnt)
+				} else {
+					t.logger.Errorf("failed to cleaned up orphan occupancies: %s", err)
+				}
+			case <-ctx.Done():
+				t.logger.Info("Deleting Worker Pool Occupancy")
+				trackingTicker.Stop()
+				cleanupTicker.Stop()
+				err = t.repo.RemoveWorkerPoolOccupancy(t.occupancyID)
+				if err != nil {
+					t.logger.Errorf(err.Error())
+				}
+				return
 			}
-			poolSize := t.workerPool.Size()
-			_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipName, runningWorkers, poolSize)
-			if err != nil {
-				t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
-			}
-		case <-cleanupTicker.C:
-			deletionCnt, err := t.cleanUpOrphanOccupancies(ctx, clientset)
-			if err != nil {
-				t.logger.Errorf("cleaned up orphan %d occupancies but failed on last operation with: %s", deletionCnt, err)
-				break
-			}
-		case <-ctx.Done():
-			t.logger.Info("Deleting Worker Pool Occupancy")
-			trackingTicker.Stop()
-			cleanupTicker.Stop()
-			err = t.repo.RemoveWorkerPoolOccupancy(t.occupancyID)
-			if err != nil {
-				return err
-			}
-			return nil
 		}
-	}
+	}()
+	return nil
 }
 
 func createK8sInClusterClientSet() (*kubernetes.Clientset, error) {
@@ -103,21 +107,22 @@ func (t *OccupancyTracker) getComponentReconcilerPodNames(ctx context.Context, c
 	componentReconcilersQualifier := fmt.Sprintf("%s=%s", componentQualifier, "")
 	commaSeparatedComponentNames := strings.Join(t.componentReconcilerNames, ",")
 	componentLabelSelectorValue := fmt.Sprintf("%s in (%s)", componentLabelSelector, commaSeparatedComponentNames)
-	return getScalablePodNames(ctx, clientset, fmt.Sprintf("%s, %s", componentReconcilersQualifier, componentLabelSelectorValue))
+	return t.getScalablePodNames(ctx, clientset, fmt.Sprintf("%s, %s", componentReconcilersQualifier, componentLabelSelectorValue))
 }
 
 func (t *OccupancyTracker) getMotherShipPodNames(ctx context.Context, clientset *kubernetes.Clientset) ([]string, error) {
 	labelSelectorValue := fmt.Sprintf("%s-%s", mothershipName, mothershipNameSuffix)
 	mothershipLabelSelector := fmt.Sprintf("%s=%s", nameLabelSelector, labelSelectorValue)
-	return getScalablePodNames(ctx, clientset, mothershipLabelSelector)
+	return t.getScalablePodNames(ctx, clientset, mothershipLabelSelector)
 }
 
-func getScalablePodNames(ctx context.Context, clientset *kubernetes.Clientset, labelSelector string) ([]string, error) {
+func (t *OccupancyTracker) getScalablePodNames(ctx context.Context, clientset *kubernetes.Clientset, labelSelector string) ([]string, error) {
 	var scalablePodNames []string
 	pods, err := clientset.CoreV1().Pods(defaultKcpNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
+		t.logger.Errorf("occupancy tracker failed to list pods in %s namespace using the %s label selector: %s", defaultKcpNamespace, labelSelector, err)
 		return nil, err
 	}
 	for _, pod := range pods.Items {
@@ -132,17 +137,17 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(ctx context.Context, clients
 	var occupancyTrackingPods []string
 	mothershipPodNames, err := t.getMotherShipPodNames(ctx, clientset)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	componentPodNames, err := t.getComponentReconcilerPodNames(ctx, clientset)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	occupancyTrackingPods = append(componentPodNames, mothershipPodNames...)
 
 	componentIDs, err := t.repo.GetComponentIDs()
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	if len(componentIDs) == 0 {
 		t.logger.Warnf("occupancy tracker received empty list of ids: nothing to clean")
@@ -161,7 +166,10 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(ctx context.Context, clients
 			idsOfOrphanComponents = append(idsOfOrphanComponents, componentID)
 		}
 	}
-
+	if len(idsOfOrphanComponents) == 0 {
+		t.logger.Warnf("occupancy tracker found 0 orphan occupancies: nothing to clean")
+		return 0, nil
+	}
 	return t.repo.RemoveWorkerPoolOccupancies(idsOfOrphanComponents)
 }
 

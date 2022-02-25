@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
-	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -169,8 +168,6 @@ type RunRemote struct {
 	schedulerConfig  *SchedulerConfig
 	bookkeeperConfig *BookkeeperConfig
 	cleanerConfig    *CleanerConfig
-	workerPool       *worker.Pool
-	sync.Mutex
 }
 
 func (r *RunRemote) logger() *zap.SugaredLogger { //convenient function
@@ -218,28 +215,22 @@ func (r *RunRemote) Run(ctx context.Context) error {
 	//start worker pool
 	go func() {
 		remoteInvoker := invoker.NewRemoteReconcilerInvoker(r.reconciliationRepository(), r.config, r.logger())
-		var err error
-		r.Lock()
-		defer r.Unlock()
-		r.workerPool, err = r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker)
+		workerPool, err := r.runtimeBuilder.newWorkerPool(&worker.InventoryRetriever{Inventory: r.inventory}, remoteInvoker)
 		if err == nil {
 			r.logger().Info("Worker pool created")
 		} else {
 			r.logger().Fatalf("Failed to create worker pool: %s", err)
 		}
-
-		if err := r.workerPool.Run(ctx); err != nil {
-			r.logger().Fatalf("Worker pool returned an error: %s", err)
-		}
-	}()
-
-	//start occupancy tracker
-	go func() {
-		r.Lock()
-		defer r.Unlock()
-		err := NewOccupancyTracker(r.workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
-		if err != nil {
+		//start occupancy tracker to track worker pool
+		err = NewOccupancyTracker(workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
+		if err == nil {
+			r.logger().Info("Occupancy tracker started")
+		} else {
 			r.logger().Errorf("Occupancy tracker failed to start: %s", err)
+		}
+
+		if err := workerPool.Run(ctx); err != nil {
+			r.logger().Fatalf("Worker pool returned an error: %s", err)
 		}
 	}()
 

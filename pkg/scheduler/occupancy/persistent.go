@@ -12,8 +12,13 @@ type PersistentOccupancyRepository struct {
 	*repository.Repository
 }
 
+//deletionCnt=0, err!=nil
 func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, error) {
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+		if poolIDs == nil || len(poolIDs) == 0 {
+			r.Logger.Warnf("OccupancyRepo received empty list of ids: nothing to remove")
+			return 0, nil
+		}
 		rTx, err := r.WithTx(tx)
 		if err != nil {
 			return 0, err
@@ -22,7 +27,7 @@ func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []st
 		for _, poolID := range poolIDs {
 			err = rTx.RemoveWorkerPoolOccupancy(poolID)
 			if err != nil {
-				return deletionCnt, err
+				return 0, err
 			}
 			deletionCnt++
 		}
@@ -281,7 +286,7 @@ func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string)
 		}
 
 		r.Logger.Debugf("OccupancyRepo deleted '%d' occupancy entity with poolID '%s'", deletionCnt, poolID)
-		return err
+		return nil
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }

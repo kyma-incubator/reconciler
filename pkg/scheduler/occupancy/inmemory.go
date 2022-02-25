@@ -8,12 +8,16 @@ import (
 	"time"
 )
 
+// InMemoryOccupancyRepository TODO: do we need an in-memory impl of occupancy repository?
 type InMemoryOccupancyRepository struct {
 	occupancies map[string]*model.WorkerPoolOccupancyEntity
 	sync.Mutex
 }
 
 func (r *InMemoryOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, error) {
+	if poolIDs == nil || len(poolIDs) == 0 {
+		return 0, nil
+	}
 	deletionCnt := 0
 	for _, poolID := range poolIDs {
 		err := r.RemoveWorkerPoolOccupancy(poolID)
