@@ -45,6 +45,5 @@ func ConvertOperation(operation *model.OperationEntity) keb.Operation {
 		SchedulingID:  operation.SchedulingID,
 		State:         string(operation.State),
 		Updated:       operation.Updated,
-		Type:          string(operation.Type),
 	}
 }
