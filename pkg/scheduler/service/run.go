@@ -50,20 +50,18 @@ func (rb *RuntimeBuilder) RunLocal(statusFunc invoker.ReconcilerStatusFunc) *Run
 	return runL
 }
 
-func (rb *RuntimeBuilder) RunRemote(
-	conn db.Connection,
-	inventory cluster.Inventory, occupancyRepo occupancy.Repository,
-	config *config.Config) *RunRemote {
+func (rb *RuntimeBuilder) RunRemote(conn db.Connection, inventory cluster.Inventory, occupancyRepo occupancy.Repository, occupancyTracking bool, config *config.Config) *RunRemote {
 
 	runR := &RunRemote{
-		runtimeBuilder:   rb,
-		conn:             conn,
-		inventory:        inventory,
-		occupancyRepo:    occupancyRepo,
-		config:           config,
-		schedulerConfig:  &SchedulerConfig{},
-		bookkeeperConfig: &BookkeeperConfig{},
-		cleanerConfig:    &CleanerConfig{},
+		runtimeBuilder:    rb,
+		conn:              conn,
+		inventory:         inventory,
+		occupancyRepo:     occupancyRepo,
+		occupancyTracking: occupancyTracking,
+		config:            config,
+		schedulerConfig:   &SchedulerConfig{},
+		bookkeeperConfig:  &BookkeeperConfig{},
+		cleanerConfig:     &CleanerConfig{},
 	}
 	return runR
 }
@@ -160,14 +158,15 @@ func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*Recon
 }
 
 type RunRemote struct {
-	runtimeBuilder   *RuntimeBuilder
-	conn             db.Connection
-	inventory        cluster.Inventory
-	occupancyRepo    occupancy.Repository
-	config           *config.Config
-	schedulerConfig  *SchedulerConfig
-	bookkeeperConfig *BookkeeperConfig
-	cleanerConfig    *CleanerConfig
+	runtimeBuilder    *RuntimeBuilder
+	conn              db.Connection
+	inventory         cluster.Inventory
+	occupancyRepo     occupancy.Repository
+	occupancyTracking bool
+	config            *config.Config
+	schedulerConfig   *SchedulerConfig
+	bookkeeperConfig  *BookkeeperConfig
+	cleanerConfig     *CleanerConfig
 }
 
 func (r *RunRemote) logger() *zap.SugaredLogger { //convenient function
@@ -221,12 +220,14 @@ func (r *RunRemote) Run(ctx context.Context) error {
 		} else {
 			r.logger().Fatalf("Failed to create worker pool: %s", err)
 		}
-		//start occupancy tracker to track worker pool
-		err = NewOccupancyTracker(workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
-		if err == nil {
-			r.logger().Info("Occupancy tracker started")
-		} else {
-			r.logger().Errorf("Occupancy tracker failed to start: %s", err)
+		if r.occupancyTracking {
+			//start occupancy tracker to track worker pool
+			err = NewOccupancyTracker(workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
+			if err == nil {
+				r.logger().Info("Occupancy tracker started")
+			} else {
+				r.logger().Errorf("Occupancy tracker failed to start: %s", err)
+			}
 		}
 
 		if err := workerPool.Run(ctx); err != nil {

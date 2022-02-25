@@ -12,7 +12,6 @@ type PersistentOccupancyRepository struct {
 	*repository.Repository
 }
 
-//deletionCnt=0, err!=nil
 func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, error) {
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		if len(poolIDs) == 0 {

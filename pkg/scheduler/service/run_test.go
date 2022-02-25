@@ -113,7 +113,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 
 	//configure remote runner
 	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
-	remoteRunner := runtimeBuilder.RunRemote(dbConn, inventory, occupancyRepo, &config.Config{
+	remoteRunner := runtimeBuilder.RunRemote(dbConn, inventory, occupancyRepo, false, &config.Config{
 		Scheme: "https",
 		Host:   "httpbin.org",
 		Port:   443,

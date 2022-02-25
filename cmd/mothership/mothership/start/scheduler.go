@@ -32,6 +32,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 			o.Registry.Connection(),
 			o.Registry.Inventory(),
 			o.Registry.OccupancyRepository(),
+			o.OccupancyTracking,
 			schedulerCfg).
 		WithWorkerPoolConfig(&worker.Config{
 			MaxParallelOperations: o.MaxParallelOperations,
