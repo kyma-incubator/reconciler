@@ -23,9 +23,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
+	"github.com/pkg/errors"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 )
@@ -53,6 +53,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter := mainRouter.PathPrefix("/").Subrouter()
 	metricsRouter := mainRouter.Path("/metrics").Subrouter()
 	healthRouter := mainRouter.PathPrefix("/health").Subrouter()
+	mainRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
@@ -787,6 +788,7 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 		})
 		return
 	}
+
 	var body reconciler.HTTPOccupancyRequest
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {

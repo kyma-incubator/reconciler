@@ -42,6 +42,7 @@ type Limit struct {
 	actualCount int
 }
 
+// TODO: Limit should only apply limit without sorting.
 func (l *Limit) FilterByQuery(q *db.Select) error {
 	q.OrderBy(map[string]string{"Created": "DESC"}).Limit(l.Count)
 	return nil

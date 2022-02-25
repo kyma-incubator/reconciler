@@ -49,7 +49,7 @@ func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
 	for name, labelValue := range c.labelValuesMap {
 		m, err := c.workerPoolOccupancyGaugeVec.GetMetricWithLabelValues(occupancyLabelName, labelValue)
 		if err != nil {
-			c.logger.Errorf("unable to retrieve metric for component=%s: %s", name, err)
+			c.logger.Errorf("workerPoolOccupancyCollector: unable to retrieve metric for component=%s: %s", name, err)
 			return
 		}
 		workerPoolOccupancy, err := c.occupancyRepository.GetMeanWorkerPoolOccupancyByComponent(name)
@@ -58,9 +58,8 @@ func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 		m.Set(workerPoolOccupancy)
-		ch <- m
 	}
-
+	c.workerPoolOccupancyGaugeVec.Collect(ch)
 }
 
 func FormatPrometheusLabelNames(reconcilerNames []string) []string {

@@ -10,8 +10,7 @@ import (
 )
 
 func RegisterProcessingDuration(reconciliations reconciliation.Repository, cfg *config.Config, logger *zap.SugaredLogger) {
-	labelValues := GetLabelValues(cfg)
-	processingDurationCollector := NewProcessingDurationCollector(reconciliations, labelValues, logger)
+	processingDurationCollector := NewProcessingDurationCollector(reconciliations, logger)
 	prometheus.MustRegister(processingDurationCollector)
 
 }

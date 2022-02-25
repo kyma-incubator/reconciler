@@ -79,6 +79,7 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 		t.logger.Error(err.Error())
 		return
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
 		if resp.StatusCode == http.StatusNotFound {
