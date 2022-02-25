@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachineryRuntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -67,7 +68,7 @@ type GardenerConfig struct {
 	OIDCConfig                          *OIDCConfig
 	DNSConfig                           *DNSConfig
 	ExposureClassName                   *string
-	GardenerProviderConfig              GardenerProviderConfig
+	ProviderSpecificConfig              ProviderSpecificConfig
 }
 
 func (c GardenerConfig) ToShootTemplate(namespace string, accountId string, subAccountId string, oidcConfig *OIDCConfig, dnsInputConfig *DNSConfig) (*gardenertypes.Shoot, error) {
@@ -154,12 +155,50 @@ func (c GardenerConfig) ToShootTemplate(namespace string, accountId string, subA
 		},
 	}
 
-	err := c.GardenerProviderConfig.ExtendShootConfig(c, shoot)
+	err := c.AddProviderSpecificConfig(shoot)
 	if err != nil {
 		return nil, errors.New("error extending shoot config with Provider")
 	}
 
 	return shoot, nil
+}
+func (c GardenerConfig) AddProviderSpecificConfig(shoot *gardenertypes.Shoot) error {
+	if c.ProviderSpecificConfig.GCP != nil {
+		return c.ProviderSpecificConfig.GCP.ExtendShootConfig(c, shoot)
+	} else if c.ProviderSpecificConfig.Azure != nil {
+		return c.ProviderSpecificConfig.Azure.ExtendShootConfig(c, shoot)
+	} else if c.ProviderSpecificConfig.Aws != nil {
+		return c.ProviderSpecificConfig.Aws.ExtendShootConfig(c, shoot)
+	} else {
+		return errors.New("invalid provider config")
+	}
+}
+
+type GCPProviderConfig struct {
+	Zones []string `json:"zones"`
+}
+
+type AzureProviderConfig struct {
+	VnetCidr string   `json:"vnetCidr"`
+	Zones    []string `json:"zones"`
+}
+
+type AWSProviderConfig struct {
+	VpcCidr  string     `json:"vpcCidr"`
+	AwsZones []*AWSZone `json:"awsZones"`
+}
+
+type AWSZone struct {
+	Name         string `json:"name"`
+	PublicCidr   string `json:"publicCidr"`
+	InternalCidr string `json:"internalCidr"`
+	WorkerCidr   string `json:"workerCidr"`
+}
+
+type ProviderSpecificConfig struct {
+	GCP   *GCPProviderConfig
+	Azure *AzureProviderConfig
+	Aws   *AWSProviderConfig
 }
 
 type GardenerProviderConfig interface {
@@ -167,6 +206,135 @@ type GardenerProviderConfig interface {
 	AsProviderSpecificConfig() gqlschema.ProviderSpecificConfig
 	ExtendShootConfig(gardenerConfig GardenerConfig, shoot *gardenertypes.Shoot) error
 	EditShootConfig(gardenerConfig GardenerConfig, shoot *gardenertypes.Shoot) error
+}
+
+func (c GCPProviderConfig) ExtendShootConfig(gardenerConfig GardenerConfig, shoot *gardenertypes.Shoot) error {
+	shoot.Spec.CloudProfileName = "gcp"
+
+	workers := []gardenertypes.Worker{getWorkerConfig(gardenerConfig, c.Zones)}
+
+	gcpInfra := NewGCPInfrastructure(gardenerConfig.WorkerCidr)
+	jsonData, err := json.Marshal(gcpInfra)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error encoding infrastructure config: %s", err.Error()))
+	}
+
+	gcpControlPlane := NewGCPControlPlane(c.Zones)
+	jsonCPData, err := json.Marshal(gcpControlPlane)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error encoding control plane config: %s", err.Error()))
+	}
+
+	shoot.Spec.Provider = gardenertypes.Provider{
+		Type:                 "gcp",
+		ControlPlaneConfig:   &apimachineryRuntime.RawExtension{Raw: jsonCPData},
+		InfrastructureConfig: &apimachineryRuntime.RawExtension{Raw: jsonData},
+		Workers:              workers,
+	}
+
+	return nil
+}
+
+func (c AzureProviderConfig) ExtendShootConfig(gardenerConfig GardenerConfig, shoot *gardenertypes.Shoot) error {
+	shoot.Spec.CloudProfileName = "az"
+
+	workers := []gardenertypes.Worker{getWorkerConfig(gardenerConfig, c.Zones)}
+
+	azInfra := NewAzureInfrastructure(gardenerConfig.WorkerCidr, c)
+	jsonData, err := json.Marshal(azInfra)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error encoding infrastructure config: %s", err.Error()))
+	}
+
+	azureControlPlane := NewAzureControlPlane(c.Zones)
+	jsonCPData, err := json.Marshal(azureControlPlane)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error encoding control plane config: %s", err.Error()))
+	}
+
+	shoot.Spec.Provider = gardenertypes.Provider{
+		Type:                 "azure",
+		ControlPlaneConfig:   &apimachineryRuntime.RawExtension{Raw: jsonCPData},
+		InfrastructureConfig: &apimachineryRuntime.RawExtension{Raw: jsonData},
+		Workers:              workers,
+	}
+
+	return nil
+}
+
+func (c AWSProviderConfig) ExtendShootConfig(gardenerConfig GardenerConfig, shoot *gardenertypes.Shoot) error {
+	shoot.Spec.CloudProfileName = "aws"
+
+	zoneNames := getAWSZonesNames(c.AwsZones)
+
+	workers := []gardenertypes.Worker{getWorkerConfig(gardenerConfig, zoneNames)}
+
+	awsInfra := NewAWSInfrastructure(c)
+	jsonData, err := json.Marshal(awsInfra)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error encoding infrastructure config: %s", err.Error()))
+	}
+
+	awsControlPlane := NewAWSControlPlane()
+	jsonCPData, err := json.Marshal(awsControlPlane)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error encoding control plane config: %s", err.Error()))
+	}
+
+	shoot.Spec.Provider = gardenertypes.Provider{
+		Type:                 "aws",
+		ControlPlaneConfig:   &apimachineryRuntime.RawExtension{Raw: jsonCPData},
+		InfrastructureConfig: &apimachineryRuntime.RawExtension{Raw: jsonData},
+		Workers:              workers,
+	}
+
+	return nil
+}
+
+func getAWSZonesNames(zones []*AWSZone) []string {
+	zoneNames := make([]string, 0)
+
+	for _, zone := range zones {
+		zoneNames = append(zoneNames, zone.Name)
+	}
+	return zoneNames
+}
+
+func getWorkerConfig(gardenerConfig GardenerConfig, zones []string) gardenertypes.Worker {
+	worker := gardenertypes.Worker{
+		Name:           "cpu-worker-0",
+		MaxSurge:       util.IntOrStringPtr(intstr.FromInt(gardenerConfig.MaxSurge)),
+		MaxUnavailable: util.IntOrStringPtr(intstr.FromInt(gardenerConfig.MaxUnavailable)),
+		Machine:        getMachineConfig(gardenerConfig),
+		Maximum:        int32(gardenerConfig.AutoScalerMax),
+		Minimum:        int32(gardenerConfig.AutoScalerMin),
+		Zones:          zones,
+	}
+
+	if gardenerConfig.DiskType != nil && gardenerConfig.VolumeSizeGB != nil {
+		worker.Volume = &gardenertypes.Volume{
+			Type:       gardenerConfig.DiskType,
+			VolumeSize: fmt.Sprintf("%dGi", *gardenerConfig.VolumeSizeGB),
+		}
+	}
+
+	return worker
+}
+
+func getMachineConfig(config GardenerConfig) gardenertypes.Machine {
+	machine := gardenertypes.Machine{
+		Type: config.MachineType,
+	}
+	if util.NotNilOrEmpty(config.MachineImage) {
+		machine.Image = &gardenertypes.ShootMachineImage{
+			Name: *config.MachineImage,
+		}
+		if util.NotNilOrEmpty(config.MachineImageVersion) {
+			machine.Image.Version = config.MachineImageVersion
+		}
+	}
+	return machine
+
 }
 
 func gardenerDnsConfig(dnsConfig *DNSConfig) *gardenertypes.DNS {
@@ -187,7 +355,6 @@ func gardenerDnsConfig(dnsConfig *DNSConfig) *gardenertypes.DNS {
 					Type:       &v.Type,
 				})
 			}
-
 		}
 
 		return &dns

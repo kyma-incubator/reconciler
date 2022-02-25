@@ -18,7 +18,7 @@ func (p provisioner) ProvisionCluster(context context.Context, cluster gardener.
 		return err
 	}
 
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(10 * time.Second)
 	done := make(chan bool)
 	resultChannel := make(chan bool)
 	errorChannel := make(chan error)
