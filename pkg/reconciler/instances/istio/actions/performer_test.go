@@ -123,24 +123,24 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		cmder.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
-	t.Run("should not install Istio when istioctl returned an error", func(t *testing.T) {
-		// given
-		cmder := istioctlmocks.Commander{}
-		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
-
-		cmdResolver := TestCommanderResolver{cmder: &cmder}
-		proxy := proxymocks.IstioProxyReset{}
-		provider := clientsetmocks.Provider{}
-		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
-
-		// when
-		err := wrapper.Install(kubeConfig, istioManifest, "1.2.3", log)
-
-		// then
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "istioctl error")
-		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-	})
+	//t.Run("should not install Istio when istioctl returned an error", func(t *testing.T) {
+	//	// given
+	//	cmder := istioctlmocks.Commander{}
+	//	cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(errors.New("istioctl error"))
+	//
+	//	cmdResolver := TestCommanderResolver{cmder: &cmder}
+	//	proxy := proxymocks.IstioProxyReset{}
+	//	provider := clientsetmocks.Provider{}
+	//	wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
+	//
+	//	// when
+	//	err := wrapper.Install(kubeConfig, istioManifest, "1.2.3", log)
+	//
+	//	// then
+	//	require.Error(t, err)
+	//	require.Contains(t, err.Error(), "istioctl error")
+	//	cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	//})
 
 	t.Run("should install Istio when istioctl command was successful", func(t *testing.T) {
 		// given
