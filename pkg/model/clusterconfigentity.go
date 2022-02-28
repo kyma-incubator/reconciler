@@ -120,6 +120,7 @@ type ReconciliationSequence struct {
 type ReconciliationSequenceConfig struct {
 	PreComponents  [][]string
 	DeleteStrategy string
+	DesiredStatus  Status
 }
 
 func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
@@ -129,10 +130,16 @@ func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *Reconciliatio
 	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning (or at the very end in deletion)
 		crdComponent,
 	})
-	cleanupComponent.Configuration = append(cleanupComponent.Configuration, keb.Configuration{Key: DeleteStrategyKey, Value: cfg.DeleteStrategy})
-	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{
-		cleanupComponent,
-	})
+
+	// if a cluster is pending deletion, we need to add the cleanup component into the reconciliation
+	if cfg.DesiredStatus.IsDeletion() {
+		cleanupComponent.Configuration = append(cleanupComponent.Configuration, keb.Configuration{
+			Key: DeleteStrategyKey, Value: cfg.DeleteStrategy,
+		})
+		reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{
+			cleanupComponent,
+		})
+	}
 
 	return reconSeq
 }

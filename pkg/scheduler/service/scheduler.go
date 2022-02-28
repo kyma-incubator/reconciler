@@ -110,6 +110,7 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 			if err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, &model.ReconciliationSequenceConfig{
 				PreComponents:  config.PreComponents,
 				DeleteStrategy: string(config.DeleteStrategy),
+				DesiredStatus:  clusterState.Status.Status,
 			}); err == nil {
 				s.logger.Infof("Scheduler triggered reconciliation for cluster '%s' "+
 					"(clusterVersion:%d/configVersion:%d/status:%s/last status update:%.2f min)", clusterState.Cluster.RuntimeID,

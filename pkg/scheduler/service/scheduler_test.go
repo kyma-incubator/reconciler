@@ -86,7 +86,11 @@ func requiredReconciliationEntity(t *testing.T, reconRepo reconciliation.Reposit
 		SchedulingID: recons[0].SchedulingID,
 	})
 	require.NoError(t, err)
-	require.Len(t, ops, 3)
+	if state.Status.Status.IsDeletion() {
+		require.Len(t, ops, 3) // cleaner is expected if reconciliation is a deletion
+	} else {
+		require.Len(t, ops, 2)
+	}
 	require.Equal(t, ops[0].RuntimeID, state.Cluster.RuntimeID)
 }
 
