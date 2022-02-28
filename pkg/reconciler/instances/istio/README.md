@@ -41,11 +41,11 @@ The Istio component installs Istio on a Kyma cluster. For installation purposes,
 
 The Istio Resources component provides charts for additional resources that are related to Istio itself but are not related to the installation process. The resources are as follows:
 
-- Istio monitoring configuration details providing Grafana dashboards specification
-- Istio Ingress Gateway configuring incoming traffic to Kyma
-- Mutual TLS (mTLS) configuration enabling mTLS cluster-wide in the STRICT mode
-- Service Monitor configuring monitoring for the Istio component
-- Istio [VirtualService](https://istio.io/docs/reference/config/networking/virtual-service/) informing whether Istio is up and running
+- Istio monitoring configuration details that provide Grafana dashboards specification
+- Istio Ingress Gateway that configures incoming traffic to Kyma
+- Mutual TLS (mTLS) configuration that enables mTLS cluster-wide in the STRICT mode
+- Service Monitor that configures monitoring for the Istio component
+- Istio [VirtualService](https://istio.io/docs/reference/config/networking/virtual-service/) that informs whether Istio is up and running
 
 See the diagram for details:
 
