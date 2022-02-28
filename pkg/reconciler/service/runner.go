@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"fmt"
 	"strings"
 	"time"
+
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"github.com/google/uuid"
 
@@ -39,10 +41,24 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 			manifest, err = r.install.renderManifest(chartProvider, task)
 		}
 
+		if err != nil {
+			if !strings.Contains(err.Error(), "no such file or directory") {
+				callback.Callback(&reconciler.CallbackMessage{
+					Manifest: manifest,
+					Error:    fmt.Sprintf("Unable to render manifest for '%s': %s", task.Component, err.Error()),
+					Status:   reconciler.StatusError,
+				})
+				return err
+			}
+			// Report back file not found
+			manifest = err.Error()
+		}
+
 		callback.Callback(&reconciler.CallbackMessage{
 			Manifest: manifest,
 			Status:   reconciler.StatusSuccess,
 		})
+
 		return err
 	}
 
