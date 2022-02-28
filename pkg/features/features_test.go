@@ -16,7 +16,7 @@ func TestFeatures(t *testing.T) {
 		expectedResult bool
 	}
 
-	for _, test := range []testCases{
+	for _, testCase := range []testCases{
 		{description: "Workerpool Occupancy set to 1", funcToTest: WorkerpoolOccupancyTrackingEnabled, envVar: workerpoolOccupancyTrackingEnvVar, envVarValue: "1", expectedResult: true},
 		{description: "Workerpool Occupancy set to lowercase true", funcToTest: WorkerpoolOccupancyTrackingEnabled, envVar: workerpoolOccupancyTrackingEnvVar, envVarValue: "true", expectedResult: true},
 		{description: "Workerpool Occupancy set to TrUe; not lowercase", funcToTest: WorkerpoolOccupancyTrackingEnabled, envVar: workerpoolOccupancyTrackingEnvVar, envVarValue: "TrUe", expectedResult: true},
@@ -28,6 +28,7 @@ func TestFeatures(t *testing.T) {
 		{description: "Processing Duration Metric set to 0", funcToTest: ProcessingDurationMetricsEnabled, envVar: processingDurationMetricEnvVar, envVarValue: "0", expectedResult: false},
 		{description: "Processing Duration Metric not set", funcToTest: ProcessingDurationMetricsEnabled, envVar: processingDurationMetricEnvVar, envVarValue: "", expectedResult: false},
 	} {
+		test := testCase
 		t.Run(test.description, func(t *testing.T) {
 			if test.envVarValue != "" {
 				err := os.Setenv(test.envVar, test.envVarValue)
