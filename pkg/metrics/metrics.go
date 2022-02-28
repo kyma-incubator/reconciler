@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func RegisterAll(inventory cluster.Inventory, reconciliations reconciliation.Repository, occupancyRepo occupancy.Repository, reconcilerList []string, logger *zap.SugaredLogger, occupancyTracking bool) {
+func RegisterAll(inventory cluster.Inventory, reconciliations reconciliation.Repository, occupancyRepo occupancy.Repository, reconcilerList []string, logger *zap.SugaredLogger) {
 	var collectors []prometheus.Collector
 	reconciliationWaitingCollector := NewReconciliationWaitingCollector(inventory, logger)
 	collectors = append(collectors, reconciliationWaitingCollector)
@@ -19,7 +19,7 @@ func RegisterAll(inventory cluster.Inventory, reconciliations reconciliation.Rep
 		processingDurationCollector := NewProcessingDurationCollector(reconciliations, logger)
 		collectors = append(collectors, processingDurationCollector)
 	}
-	if occupancyTracking {
+	if features.WorkerpoolOccupancyTrackingEnabled() {
 		workerPoolOccupancyCollector := NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilerList, logger)
 		collectors = append(collectors, workerPoolOccupancyCollector)
 	}
