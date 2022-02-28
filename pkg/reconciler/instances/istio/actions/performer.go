@@ -172,7 +172,8 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 
 	err = commander.Install(istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
-		return errors.Wrap(err, "Error occurred when calling istioctl")
+		logger.Warnf("Error occurred when calling istioctl: %s", err)
+		//return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
 	return nil
