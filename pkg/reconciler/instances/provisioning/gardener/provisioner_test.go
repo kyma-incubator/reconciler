@@ -4,20 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	gardener_types "github.com/gardener/gardener/pkg/apis/core/v1beta1"
+	gardenerTypes "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
 	gardenerNamespace = "default"
-	runtimeId         = "runtimeId"
-	tenant            = "tenant"
-	operationId       = "operationId"
 	clusterName       = "test-cluster"
-	region            = "westeurope"
-	purpose           = "production"
-
-	auditLogsPolicyCMName = "audit-logs-policy"
 )
 
 //
@@ -65,7 +58,7 @@ const (
 //		ID:           runtimeId,
 //		Tenant:       tenant,
 //		SubAccountId: subAccountID,
-//		ClusterConfig: model.GardenerConfig{
+//		ClusterConfig: model.Config{
 //			ID:                     "id",
 //			ClusterID:              runtimeId,
 //			Name:                   name,
@@ -121,7 +114,7 @@ const (
 //	})
 //}
 
-func assertAnnotation(t *testing.T, shoot *gardener_types.Shoot, name, value string) {
+func assertAnnotation(t *testing.T, shoot *gardenerTypes.Shoot, name, value string) {
 	annotations := shoot.Annotations
 	if annotations == nil {
 		t.Errorf("annotations are nil, expected annotation: %s, value: %s", name, value)

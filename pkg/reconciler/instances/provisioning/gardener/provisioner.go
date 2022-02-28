@@ -4,20 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"os"
 
 	"github.com/mitchellh/mapstructure"
 
-	gardener_types "github.com/gardener/gardener/pkg/apis/core/v1beta1"
+	gardenerTypes "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	v12 "k8s.io/api/core/v1"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gardener/gardener/pkg/apis/core/v1beta1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 )
@@ -32,8 +31,8 @@ type Client interface {
 func NewProvisioner(
 	namespace string,
 	shootClient Client,
-	policyConfigMapName string, maintenanceWindowConfigPath string) *GardenerProvisioner {
-	return &GardenerProvisioner{
+	policyConfigMapName string, maintenanceWindowConfigPath string) *Provisioner {
+	return &Provisioner{
 		namespace:                   namespace,
 		shootClient:                 shootClient,
 		policyConfigMapName:         policyConfigMapName,
@@ -41,15 +40,15 @@ func NewProvisioner(
 	}
 }
 
-type GardenerProvisioner struct {
+type Provisioner struct {
 	namespace                   string
 	shootClient                 Client
 	policyConfigMapName         string
 	maintenanceWindowConfigPath string
 }
 
-func (g *GardenerProvisioner) StartProvisioning(cluster keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
-	shootTemplate, err := GardenerConfig(cluster).ToShootTemplate(g.namespace, tenant, util.UnwrapStr(subaccountID), cluster.OidcConfig, cluster.DnsConfig)
+func (g *Provisioner) StartProvisioning(cluster keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+	shootTemplate, err := Config(cluster).ToShootTemplate(g.namespace, tenant, unwrapStr(subaccountID), cluster.OidcConfig, cluster.DnsConfig)
 	if err != nil {
 		return errors.New("failed to convert cluster config to Shoot template")
 	}
@@ -64,7 +63,7 @@ func (g *GardenerProvisioner) StartProvisioning(cluster keb.GardenerConfig, tena
 		err := g.setMaintenanceWindow(shootTemplate, region)
 
 		if err != nil {
-			return errors.New(fmt.Sprint("error setting maintenance window for %s cluster", clusterId))
+			return errors.New(fmt.Sprintf("error setting maintenance window for %s cluster", clusterId))
 		}
 	}
 
@@ -100,10 +99,10 @@ type OperationStatus struct {
 	Message string
 }
 
-func (g *GardenerProvisioner) GetStatus(cluster keb.GardenerConfig) (OperationStatus, error) {
+func (g *Provisioner) GetStatus(cluster keb.GardenerConfig) (OperationStatus, error) {
 	shoot, k8serr := g.shootClient.Get(context.Background(), cluster.Name, v1.GetOptions{})
 	if k8serr != nil {
-		if k8serrors.IsNotFound(k8serr) {
+		if k8sErrors.IsNotFound(k8serr) {
 			return OperationStatus{
 				Status: StatusNotExists,
 			}, nil
@@ -114,23 +113,23 @@ func (g *GardenerProvisioner) GetStatus(cluster keb.GardenerConfig) (OperationSt
 	lastOperation := shoot.Status.LastOperation
 
 	if lastOperation != nil {
-		if lastOperation.State == gardener_types.LastOperationStateSucceeded {
+		if lastOperation.State == gardenerTypes.LastOperationStateSucceeded {
 			return OperationStatus{
 				Status: StatusCompletedSuccessfully,
 			}, nil
 		}
 
-		if lastOperation.State == gardener_types.LastOperationStateFailed {
-			if lastOperation.Type == gardener_types.LastOperationTypeReconcile {
+		if lastOperation.State == gardenerTypes.LastOperationStateFailed {
+			if lastOperation.Type == gardenerTypes.LastOperationTypeReconcile {
 				return OperationStatus{
 					Status: StatusFailed,
-					// TODO: make sure Desription contains error message
+					// TODO: make sure Description contains error message
 					Message: "reconciliation error: " + lastOperation.Description,
 				}, nil
 			}
 
 			// TODO: gardencorev1beta1helper "github.com/gardener/gardener/pkg/apis/core/v1beta1/helper" package was removed, make sure it is still needed
-			//if gardencorev1beta1helper.HasErrorCode(shoot.Status.LastErrors, gardener_types.ErrorInfraRateLimitsExceeded) {
+			//if gardencorev1beta1helper.HasErrorCode(shoot.Status.LastErrors, gardenerTypes.ErrorInfraRateLimitsExceeded) {
 			//	return OperationStatus{
 			//		Status: StatusFailed,
 			//		// TODO: make sure Description contains error message
@@ -145,7 +144,7 @@ func (g *GardenerProvisioner) GetStatus(cluster keb.GardenerConfig) (OperationSt
 	}, nil
 }
 
-func (g *GardenerProvisioner) ClusterExists(cluster keb.GardenerConfig) (bool, error) {
+func (g *Provisioner) ClusterExists(cluster keb.GardenerConfig) (bool, error) {
 	status, err := g.GetStatus(cluster)
 	if err != nil {
 		return false, err
@@ -154,23 +153,23 @@ func (g *GardenerProvisioner) ClusterExists(cluster keb.GardenerConfig) (bool, e
 	return status.Status == StatusNotExists, nil
 }
 
-func (g *GardenerProvisioner) shouldSetMaintenanceWindow(purpose string) bool {
+func (g *Provisioner) shouldSetMaintenanceWindow(purpose string) bool {
 	return g.maintenanceWindowConfigPath != "" && purpose == "production"
 }
 
-func (g *GardenerProvisioner) applyAuditConfig(template *gardener_types.Shoot) {
+func (g *Provisioner) applyAuditConfig(template *gardenerTypes.Shoot) {
 	if template.Spec.Kubernetes.KubeAPIServer == nil {
-		template.Spec.Kubernetes.KubeAPIServer = &gardener_types.KubeAPIServerConfig{}
+		template.Spec.Kubernetes.KubeAPIServer = &gardenerTypes.KubeAPIServerConfig{}
 	}
 
-	template.Spec.Kubernetes.KubeAPIServer.AuditConfig = &gardener_types.AuditConfig{
-		AuditPolicy: &gardener_types.AuditPolicy{
+	template.Spec.Kubernetes.KubeAPIServer.AuditConfig = &gardenerTypes.AuditConfig{
+		AuditPolicy: &gardenerTypes.AuditPolicy{
 			ConfigMapRef: &v12.ObjectReference{Name: g.policyConfigMapName},
 		},
 	}
 }
 
-func (g *GardenerProvisioner) setMaintenanceWindow(template *gardener_types.Shoot, region string) error {
+func (g *Provisioner) setMaintenanceWindow(template *gardenerTypes.Shoot, region string) error {
 	window, err := g.getWindowByRegion(region)
 
 	if err != nil {
@@ -185,11 +184,11 @@ func (g *GardenerProvisioner) setMaintenanceWindow(template *gardener_types.Shoo
 	return nil
 }
 
-func setMaintenanceWindow(window TimeWindow, template *gardener_types.Shoot) {
-	template.Spec.Maintenance.TimeWindow = &gardener_types.MaintenanceTimeWindow{Begin: window.Begin, End: window.End}
+func setMaintenanceWindow(window TimeWindow, template *gardenerTypes.Shoot) {
+	template.Spec.Maintenance.TimeWindow = &gardenerTypes.MaintenanceTimeWindow{Begin: window.Begin, End: window.End}
 }
 
-func (g *GardenerProvisioner) getWindowByRegion(region string) (TimeWindow, error) {
+func (g *Provisioner) getWindowByRegion(region string) (TimeWindow, error) {
 	data, err := getDataFromFile(g.maintenanceWindowConfigPath, region)
 
 	if err != nil {
@@ -230,4 +229,12 @@ func getDataFromFile(filepath, region string) (interface{}, error) {
 		return "", errors.New(fmt.Sprintf("failed to decode json: %s", err.Error()))
 	}
 	return data[region], nil
+}
+
+// UnwrapStr returns string value from pointer
+func unwrapStr(strPtr *string) string {
+	if strPtr == nil {
+		return ""
+	}
+	return *strPtr
 }

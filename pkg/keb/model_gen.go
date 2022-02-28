@@ -79,7 +79,8 @@ type HTTPReconciliationInfo struct {
 
 // AwsProviderConfig defines model for awsProviderConfig.
 type AwsProviderConfig struct {
-	AwsZones []AwsZone `json:"awsZones"`
+	AwsZones *[]AwsZone `json:"awsZones,omitempty"`
+	VpcCidr  string     `json:"vpcCidr"`
 }
 
 // AwsZone defines model for awsZone.
@@ -247,7 +248,7 @@ type GardenerConfig struct {
 	TargetSecret string `json:"targetSecret"`
 
 	// Size of the available disk, provided in GB
-	VolumeSizeGB *string `json:"volumeSizeGB,omitempty"`
+	VolumeSizeGB *int `json:"volumeSizeGB,omitempty"`
 
 	// Classless Inter-Domain Routing range for the nodes
 	WorkerCidr string `json:"workerCidr"`
