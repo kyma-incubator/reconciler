@@ -3,7 +3,7 @@ package util
 import (
 	"testing"
 
-	"github.com/kyma-project/control-plane/components/provisioner/internal/apperrors"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/apperrors"
 	"github.com/stretchr/testify/require"
 )
 

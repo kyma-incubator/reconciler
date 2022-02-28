@@ -73,15 +73,17 @@ func NewAWSInfrastructure(awsConfig AWSProviderConfig) *aws.InfrastructureConfig
 			Kind:       infrastructureConfigKind,
 			APIVersion: awsAPIVersion,
 		},
-		Networks: aws.Networks{
-			Zones: createAWSZones(awsConfig.AwsZones),
-			VPC: aws.VPC{
-				CIDR: util.StringPtr(awsConfig.VpcCidr),
-			},
-		},
+		// TODO implement AWSZones
+		//Networks: aws.Networks{
+		//	Zones: createAWSZones(awsConfig.AwsZones),
+		//	VPC: aws.VPC{
+		//		CIDR: util.StringPtr(awsConfig.VpcCidr),
+		//	},
+		//},
 	}
 }
 
+/*
 func createAWSZones(inputZones []*AWSZone) []aws.Zone {
 	zones := make([]aws.Zone, 0)
 
@@ -95,7 +97,7 @@ func createAWSZones(inputZones []*AWSZone) []aws.Zone {
 		zones = append(zones, zone)
 	}
 	return zones
-}
+}*/
 
 func NewAWSControlPlane() *aws.ControlPlaneConfig {
 	return &aws.ControlPlaneConfig{

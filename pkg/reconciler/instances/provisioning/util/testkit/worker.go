@@ -2,9 +2,9 @@ package testkit
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/util"
 
 	"github.com/gardener/gardener/pkg/apis/core/v1beta1"
-	"github.com/kyma-project/control-plane/components/provisioner/internal/util"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
