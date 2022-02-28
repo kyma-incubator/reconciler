@@ -18,6 +18,8 @@ import (
 
 	"github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 )
 
 //go:generate mockery -name=Client
@@ -46,8 +48,8 @@ type GardenerProvisioner struct {
 	maintenanceWindowConfigPath string
 }
 
-func (g *GardenerProvisioner) StartProvisioning(cluster GardenerConfig, tenant string, subaccountID *string, operationId string) error {
-	shootTemplate, err := cluster.ToShootTemplate(g.namespace, tenant, util.UnwrapStr(subaccountID), cluster.OIDCConfig, cluster.DNSConfig)
+func (g *GardenerProvisioner) StartProvisioning(cluster keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+	shootTemplate, err := GardenerConfig(cluster).ToShootTemplate(g.namespace, tenant, util.UnwrapStr(subaccountID), cluster.OidcConfig, cluster.DnsConfig)
 	if err != nil {
 		return errors.New("failed to convert cluster config to Shoot template")
 	}
@@ -62,13 +64,17 @@ func (g *GardenerProvisioner) StartProvisioning(cluster GardenerConfig, tenant s
 		err := g.setMaintenanceWindow(shootTemplate, region)
 
 		if err != nil {
-			return errors.New(fmt.Sprint("error setting maintenance window for %s cluster", cluster.ID))
+			return errors.New(fmt.Sprint("error setting maintenance window for %s cluster", clusterId))
 		}
 	}
 
-	annotate(shootTemplate, runtimeIDAnnotation, cluster.ID)
+	// TODO: this annotation needs to be set when runtime is registered in Compass
+	//annotate(shootTemplate, runtimeIDAnnotation, cluster.ID)
+
 	annotate(shootTemplate, operationIDAnnotation, operationId)
-	annotate(shootTemplate, legacyRuntimeIDAnnotation, cluster.ID)
+
+	// TODO: this annotation needs to be set when runtime is registered in Compass
+	//annotate(shootTemplate, legacyRuntimeIDAnnotation, clusterId)
 	annotate(shootTemplate, legacyOperationIDAnnotation, operationId)
 
 	if g.policyConfigMapName != "" {
@@ -94,7 +100,7 @@ type OperationStatus struct {
 	Message string
 }
 
-func (g *GardenerProvisioner) GetStatus(cluster GardenerConfig) (OperationStatus, error) {
+func (g *GardenerProvisioner) GetStatus(cluster keb.GardenerConfig) (OperationStatus, error) {
 	shoot, k8serr := g.shootClient.Get(context.Background(), cluster.Name, v1.GetOptions{})
 	if k8serr != nil {
 		if k8serrors.IsNotFound(k8serr) {
@@ -127,7 +133,7 @@ func (g *GardenerProvisioner) GetStatus(cluster GardenerConfig) (OperationStatus
 			//if gardencorev1beta1helper.HasErrorCode(shoot.Status.LastErrors, gardener_types.ErrorInfraRateLimitsExceeded) {
 			//	return OperationStatus{
 			//		Status: StatusFailed,
-			//		// TODO: make sure Desription contains error message
+			//		// TODO: make sure Description contains error message
 			//		Message: "reconciliation error: rate limits exceeded",
 			//	}, nil
 			//}
@@ -139,7 +145,7 @@ func (g *GardenerProvisioner) GetStatus(cluster GardenerConfig) (OperationStatus
 	}, nil
 }
 
-func (g *GardenerProvisioner) ClusterExists(cluster GardenerConfig) (bool, error) {
+func (g *GardenerProvisioner) ClusterExists(cluster keb.GardenerConfig) (bool, error) {
 	status, err := g.GetStatus(cluster)
 	if err != nil {
 		return false, err

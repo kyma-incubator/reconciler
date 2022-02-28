@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	gardenertypes "github.com/gardener/gardener/pkg/apis/core/v1beta1"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/util"
-	"github.com/kyma-project/control-plane/components/provisioner/pkg/gqlschema"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	apimachineryRuntime "k8s.io/apimachinery/pkg/runtime"
@@ -19,15 +19,6 @@ const (
 	LicenceTypeAnnotation = "kcp.provisioner.kyma-project.io/licence-type"
 )
 
-type OIDCConfig struct {
-	ClientID       string   `json:"clientID"`
-	GroupsClaim    string   `json:"groupsClaim"`
-	IssuerURL      string   `json:"issuerURL"`
-	SigningAlgs    []string `json:"signingAlgs"`
-	UsernameClaim  string   `json:"usernameClaim"`
-	UsernamePrefix string   `json:"usernamePrefix"`
-}
-
 type DNSConfig struct {
 	Domain    string         `json:"domain"`
 	Providers []*DNSProvider `json:"providers"`
@@ -40,38 +31,9 @@ type DNSProvider struct {
 	Type           string   `json:"type"`
 }
 
-type GardenerConfig struct {
-	ID                                  string // TODO: consider removing
-	ClusterID                           string // TODO: consider removing
-	Name                                string
-	ProjectName                         string
-	KubernetesVersion                   string
-	VolumeSizeGB                        *int
-	DiskType                            *string
-	MachineType                         string
-	MachineImage                        *string
-	MachineImageVersion                 *string
-	Provider                            string
-	Purpose                             *string
-	LicenceType                         *string
-	Seed                                string
-	TargetSecret                        string
-	Region                              string
-	WorkerCidr                          string
-	AutoScalerMin                       int
-	AutoScalerMax                       int
-	MaxSurge                            int
-	MaxUnavailable                      int
-	EnableKubernetesVersionAutoUpdate   bool
-	EnableMachineImageVersionAutoUpdate bool
-	AllowPrivilegedContainers           bool
-	OIDCConfig                          *OIDCConfig
-	DNSConfig                           *DNSConfig
-	ExposureClassName                   *string
-	ProviderSpecificConfig              ProviderSpecificConfig
-}
+type GardenerConfig keb.GardenerConfig
 
-func (c GardenerConfig) ToShootTemplate(namespace string, accountId string, subAccountId string, oidcConfig *OIDCConfig, dnsInputConfig *DNSConfig) (*gardenertypes.Shoot, error) {
+func (c GardenerConfig) ToShootTemplate(namespace string, accountId string, subAccountId string, oidcConfig *keb.OidcConfig, dnsInputConfig *keb.DnsConfig) (*gardenertypes.Shoot, error) {
 	enableBasicAuthentication := false
 
 	var seed *string = nil
@@ -163,50 +125,22 @@ func (c GardenerConfig) ToShootTemplate(namespace string, accountId string, subA
 	return shoot, nil
 }
 func (c GardenerConfig) AddProviderSpecificConfig(shoot *gardenertypes.Shoot) error {
-	if c.ProviderSpecificConfig.GCP != nil {
-		return c.ProviderSpecificConfig.GCP.ExtendShootConfig(c, shoot)
+	if c.ProviderSpecificConfig.Gcp != nil {
+		return GCPProviderConfig(*c.ProviderSpecificConfig.Gcp).ExtendShootConfig(c, shoot)
 	} else if c.ProviderSpecificConfig.Azure != nil {
-		return c.ProviderSpecificConfig.Azure.ExtendShootConfig(c, shoot)
+		return AzureProviderConfig(*c.ProviderSpecificConfig.Azure).ExtendShootConfig(c, shoot)
 	} else if c.ProviderSpecificConfig.Aws != nil {
-		return c.ProviderSpecificConfig.Aws.ExtendShootConfig(c, shoot)
+		return AWSProviderConfig(*c.ProviderSpecificConfig.Aws).ExtendShootConfig(c, shoot)
 	} else {
 		return errors.New("invalid provider config")
 	}
+	return nil
 }
 
-type GCPProviderConfig struct {
-	Zones []string `json:"zones"`
-}
-
-type AzureProviderConfig struct {
-	VnetCidr string   `json:"vnetCidr"`
-	Zones    []string `json:"zones"`
-}
-
-type AWSProviderConfig struct {
-	VpcCidr  string     `json:"vpcCidr"`
-	AwsZones []*AWSZone `json:"awsZones"`
-}
-
-type AWSZone struct {
-	Name         string `json:"name"`
-	PublicCidr   string `json:"publicCidr"`
-	InternalCidr string `json:"internalCidr"`
-	WorkerCidr   string `json:"workerCidr"`
-}
-
-type ProviderSpecificConfig struct {
-	GCP   *GCPProviderConfig
-	Azure *AzureProviderConfig
-	Aws   *AWSProviderConfig
-}
-
-type GardenerProviderConfig interface {
-	RawJSON() string
-	AsProviderSpecificConfig() gqlschema.ProviderSpecificConfig
-	ExtendShootConfig(gardenerConfig GardenerConfig, shoot *gardenertypes.Shoot) error
-	EditShootConfig(gardenerConfig GardenerConfig, shoot *gardenertypes.Shoot) error
-}
+type GCPProviderConfig keb.GcpProviderConfig
+type AzureProviderConfig keb.AzureProviderConfig
+type AWSProviderConfig keb.AwsProviderConfig
+type ProviderSpecificConfig keb.ProviderSpecificConfig
 
 func (c GCPProviderConfig) ExtendShootConfig(gardenerConfig GardenerConfig, shoot *gardenertypes.Shoot) error {
 	shoot.Spec.CloudProfileName = "gcp"
@@ -291,7 +225,7 @@ func (c AWSProviderConfig) ExtendShootConfig(gardenerConfig GardenerConfig, shoo
 	return nil
 }
 
-func getAWSZonesNames(zones []*AWSZone) []string {
+func getAWSZonesNames(zones []keb.AwsZone) []string {
 	zoneNames := make([]string, 0)
 
 	for _, zone := range zones {
@@ -337,13 +271,13 @@ func getMachineConfig(config GardenerConfig) gardenertypes.Machine {
 
 }
 
-func gardenerDnsConfig(dnsConfig *DNSConfig) *gardenertypes.DNS {
+func gardenerDnsConfig(dnsConfig *keb.DnsConfig) *gardenertypes.DNS {
 	dns := gardenertypes.DNS{}
 
 	if dnsConfig != nil {
 		dns.Domain = &dnsConfig.Domain
-		if len(dnsConfig.Providers) != 0 {
-			for _, v := range dnsConfig.Providers {
+		if dnsConfig.Providers != nil {
+			for _, v := range *dnsConfig.Providers {
 				domainsInclude := &gardenertypes.DNSIncludeExclude{
 					Include: v.DomainsInclude,
 				}
@@ -363,7 +297,7 @@ func gardenerDnsConfig(dnsConfig *DNSConfig) *gardenertypes.DNS {
 	return nil
 }
 
-func gardenerOidcConfig(oidcConfig *OIDCConfig) *gardenertypes.OIDCConfig {
+func gardenerOidcConfig(oidcConfig *keb.OidcConfig) *gardenertypes.OIDCConfig {
 	if oidcConfig != nil {
 		return &gardenertypes.OIDCConfig{
 			ClientID:       &oidcConfig.ClientID,

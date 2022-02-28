@@ -77,6 +77,25 @@ type HTTPReconciliationInfo struct {
 	Updated       time.Time   `json:"updated"`
 }
 
+// AwsProviderConfig defines model for awsProviderConfig.
+type AwsProviderConfig struct {
+	AwsZones []AwsZone `json:"awsZones"`
+}
+
+// AwsZone defines model for awsZone.
+type AwsZone struct {
+	InternalCidr string `json:"internalCidr"`
+	Name         string `json:"name"`
+	PublicCidr   string `json:"publicCidr"`
+	WorkerCidr   string `json:"workerCidr"`
+}
+
+// AzureProviderConfig defines model for azureProviderConfig.
+type AzureProviderConfig struct {
+	VnetCidr string   `json:"vnetCidr"`
+	Zones    []string `json:"zones"`
+}
+
 // Cluster defines model for cluster.
 type Cluster struct {
 	// valid kubeconfig to cluster
@@ -99,16 +118,17 @@ type ClusterState struct {
 
 // ClusterStateConfiguration defines model for clusterStateConfiguration.
 type ClusterStateConfiguration struct {
-	Administrators *[]string    `json:"administrators,omitempty"`
-	ClusterVersion *int64       `json:"clusterVersion,omitempty"`
-	Components     *[]Component `json:"components,omitempty"`
-	Contract       *int64       `json:"contract,omitempty"`
-	Created        *time.Time   `json:"created,omitempty"`
-	Deleted        *bool        `json:"deleted,omitempty"`
-	KymaProfile    *string      `json:"kymaProfile,omitempty"`
-	KymaVersion    *string      `json:"kymaVersion,omitempty"`
-	RuntimeID      *string      `json:"runtimeID,omitempty"`
-	Version        *int64       `json:"version,omitempty"`
+	Administrators *[]string       `json:"administrators,omitempty"`
+	ClusterVersion *int64          `json:"clusterVersion,omitempty"`
+	Components     *[]Component    `json:"components,omitempty"`
+	Contract       *int64          `json:"contract,omitempty"`
+	Created        *time.Time      `json:"created,omitempty"`
+	Deleted        *bool           `json:"deleted,omitempty"`
+	GardenerConfig *GardenerConfig `json:"gardenerConfig,omitempty"`
+	KymaProfile    *string         `json:"kymaProfile,omitempty"`
+	KymaVersion    *string         `json:"kymaVersion,omitempty"`
+	RuntimeID      *string         `json:"runtimeID,omitempty"`
+	Version        *int64          `json:"version,omitempty"`
 }
 
 // ClusterStateStatus defines model for clusterStateStatus.
@@ -138,10 +158,104 @@ type Configuration struct {
 	Value  interface{} `json:"value"`
 }
 
+// DnsConfig defines model for dnsConfig.
+type DnsConfig struct {
+	Domain    string         `json:"domain"`
+	Providers *[]DnsProvider `json:"providers,omitempty"`
+}
+
+// DnsProvider defines model for dnsProvider.
+type DnsProvider struct {
+	DomainsInclude []string `json:"domainsInclude"`
+	Primary        bool     `json:"primary"`
+	SecretName     string   `json:"secretName"`
+	Type           string   `json:"type"`
+}
+
 // Failure defines model for failure.
 type Failure struct {
 	Component string `json:"component"`
 	Reason    string `json:"reason"`
+}
+
+// GardenerConfig defines model for gardenerConfig.
+type GardenerConfig struct {
+	// Indicates whether privileged containers are allowed in the Shoot
+	AllowPrivilegedContainers bool `json:"allowPrivilegedContainers"`
+
+	// Maximum number of VMs to create
+	AutoScalerMax int `json:"autoScalerMax"`
+
+	// Minimum number of VMs to create
+	AutoScalerMin int `json:"autoScalerMin"`
+
+	// Disk type, varies depending on the target provider
+	DiskType  *string    `json:"diskType,omitempty"`
+	DnsConfig *DnsConfig `json:"dnsConfig,omitempty"`
+
+	// Indicates whether the patch Kubernetes version should be automatically updated
+	EnableKubernetesVersionAutoUpdate bool `json:"enableKubernetesVersionAutoUpdate"`
+
+	// Indicates whether the machine image version may be automatically updated
+	EnableMachineImageVersionAutoUpdate bool    `json:"enableMachineImageVersionAutoUpdate"`
+	ExposureClassName                   *string `json:"exposureClassName,omitempty"`
+
+	// Kubernetes version to be installed on the cluster
+	KubernetesVersion string `json:"kubernetesVersion"`
+
+	// LicenceType informs about the licence type of the cluster (Test, Development,Demo)
+	LicenceType *string `json:"licenceType,omitempty"`
+
+	// Machine OS image name
+	MachineImage *string `json:"machineImage,omitempty"`
+
+	// Machine OS image version
+	MachineImageVersion *string `json:"machineImageVersion,omitempty"`
+
+	//  Type of node machines, varies depending on the target provider
+	MachineType string `json:"machineType"`
+
+	// Maximum number of VMs created during an update
+	MaxSurge int `json:"maxSurge"`
+
+	// Maximum number of VMs that can be unavailable during an update
+	MaxUnavailable int `json:"maxUnavailable"`
+
+	// Name of the cluster
+	Name       string      `json:"name"`
+	OidcConfig *OidcConfig `json:"oidcConfig,omitempty"`
+
+	// Name of the project
+	ProjectName string `json:"projectName"`
+
+	// Target provider on which to provision the cluster (Azure, AWS, GCP)
+	Provider string `json:"provider"`
+
+	// Additional parameters, vary depending on the target provider
+	ProviderSpecificConfig *ProviderSpecificConfig `json:"providerSpecificConfig,omitempty"`
+
+	// Purpose is the purpose class for this cluster
+	Purpose *string `json:"purpose,omitempty"`
+
+	// Region in which the cluster is created
+	Region string `json:"region"`
+
+	// Name of the seed cluster that runs the control plane of the Shoot. If not provided will be assigned automatically
+	Seed string `json:"seed"`
+
+	// Name of the secret containing credentials for hyperscaler account
+	TargetSecret string `json:"targetSecret"`
+
+	// Size of the available disk, provided in GB
+	VolumeSizeGB *string `json:"volumeSizeGB,omitempty"`
+
+	// Classless Inter-Domain Routing range for the nodes
+	WorkerCidr string `json:"workerCidr"`
+}
+
+// GcpProviderConfig defines model for gcpProviderConfig.
+type GcpProviderConfig struct {
+	Zones []string `json:"zones"`
 }
 
 // KymaConfig defines model for kymaConfig.
@@ -164,6 +278,16 @@ type Metadata struct {
 	SubAccountID    string `json:"subAccountID"`
 }
 
+// OidcConfig defines model for oidcConfig.
+type OidcConfig struct {
+	ClientID       string   `json:"clientID"`
+	GroupsClaim    string   `json:"groupsClaim"`
+	IssuerURL      string   `json:"issuerURL"`
+	SigningAlgs    []string `json:"signingAlgs"`
+	UsernameClaim  string   `json:"usernameClaim"`
+	UsernamePrefix string   `json:"usernamePrefix"`
+}
+
 // Operation defines model for operation.
 type Operation struct {
 	Component     string    `json:"component"`
@@ -179,6 +303,13 @@ type Operation struct {
 // OperationStop defines model for operationStop.
 type OperationStop struct {
 	Reason string `json:"reason"`
+}
+
+// Additional parameters, vary depending on the target provider
+type ProviderSpecificConfig struct {
+	Aws   *AwsProviderConfig   `json:"aws,omitempty"`
+	Azure *AzureProviderConfig `json:"azure,omitempty"`
+	Gcp   *GcpProviderConfig   `json:"gcp,omitempty"`
 }
 
 // ReconcilerStatus defines model for reconcilerStatus.

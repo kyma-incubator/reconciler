@@ -485,6 +485,8 @@ components:
         runtimeID:
           type: string
           format: uuid
+        gardenerConfig:
+          $ref: "#/components/schemas/gardenerConfig"
         clusterVersion:
           type: integer
           format: int64
@@ -762,3 +764,216 @@ components:
             - type: number
         secret:
           type: boolean
+
+    gardenerConfig:
+      type: 'object'
+      required:
+        [
+            name,
+            projectName,
+            kubernetesVersion,
+            machineType,
+            provider,
+            seed,
+            targetSecret,
+            region,
+            workerCidr,
+            autoScalerMin,
+            autoScalerMax,
+            maxSurge,
+            maxUnavailable,
+            enableKubernetesVersionAutoUpdate,
+            enableMachineImageVersionAutoUpdate,
+            allowPrivilegedContainers,
+        ]
+      properties:
+        name:
+          type: 'string'
+          description: 'Name of the cluster'
+        projectName:
+          type: 'string'
+          description: 'Name of the project'
+        targetSecret:
+          type: 'string'
+          description: 'Name of the secret containing credentials for hyperscaler account'
+        kubernetesVersion:
+          type: 'string'
+          description: 'Kubernetes version to be installed on the cluster'
+        provider:
+          type: 'string'
+          description: 'Target provider on which to provision the cluster (Azure, AWS, GCP)'
+        region:
+          type: 'string'
+          description: 'Region in which the cluster is created'
+        seed:
+          type: 'string'
+          description: 'Name of the seed cluster that runs the control plane of the Shoot. If not provided will be assigned automatically'
+        machineType:
+          type: 'string'
+          description: ' Type of node machines, varies depending on the target provider'
+        machineImage:
+          type: 'string'
+          description: 'Machine OS image name'
+        machineImageVersion:
+          type: 'string'
+          description: 'Machine OS image version'
+        diskType:
+          type: 'string'
+          description: 'Disk type, varies depending on the target provider'
+        volumeSizeGB:
+          type: 'string'
+          description: 'Size of the available disk, provided in GB'
+        workerCidr:
+          type: 'string'
+          description: 'Classless Inter-Domain Routing range for the nodes'
+        autoScalerMin:
+          type: 'integer'
+          description: 'Minimum number of VMs to create'
+        autoScalerMax:
+          type: 'integer'
+          description: 'Maximum number of VMs to create'
+        maxSurge:
+          type: 'integer'
+          description: 'Maximum number of VMs created during an update'
+        maxUnavailable:
+          type: 'integer'
+          description: 'Maximum number of VMs that can be unavailable during an update'
+        purpose:
+          type: 'string'
+          description: 'Purpose is the purpose class for this cluster'
+        licenceType:
+          type: 'string'
+          description: 'LicenceType informs about the licence type of the cluster (Test, Development,Demo)'
+        enableKubernetesVersionAutoUpdate:
+          type: 'boolean'
+          description: 'Indicates whether the patch Kubernetes version should be automatically updated'
+        enableMachineImageVersionAutoUpdate:
+          type: 'boolean'
+          description: 'Indicates whether the machine image version may be automatically updated'
+        allowPrivilegedContainers:
+          type: 'boolean'
+          description: 'Indicates whether privileged containers are allowed in the Shoot'
+        providerSpecificConfig:
+          $ref: "#/components/schemas/providerSpecificConfig"
+        oidcConfig:
+          $ref: "#/components/schemas/oidcConfig"
+        dnsConfig:
+          $ref: "#/components/schemas/dnsConfig"
+        exposureClassName:
+          type: 'string'
+          description: ''
+
+    gcpProviderConfig:
+      type: object
+      description: ''
+      required: [ zones ]
+      properties:
+        zones:
+          type: 'array'
+          items:
+            type: 'string'
+    azureProviderConfig:
+      type: object
+      description: ''
+      required: [ vnetCidr,zones ]
+      properties:
+        vnetCidr:
+          type: 'string'
+          description: ''
+        zones:
+          type: 'array'
+          items:
+            type: 'string'
+    awsProviderConfig:
+      type: object
+      description: ''
+      required: [ awsZones,vpcCidr ]
+      properties:
+        awsZones:
+          type: 'array'
+          description: ''
+          items:
+            $ref: "#/components/schemas/awsZone"
+    providerSpecificConfig:
+      type: object
+      description: 'Additional parameters, vary depending on the target provider'
+      properties:
+        gcp:
+          $ref: "#/components/schemas/gcpProviderConfig"
+        azure:
+          $ref: "#/components/schemas/azureProviderConfig"
+        aws:
+          $ref: "#/components/schemas/awsProviderConfig"
+
+    awsZone:
+      type: object
+      required: [ name,publicCidr,internalCidr,workerCidr ]
+      properties:
+        name:
+          type: 'string'
+          description: ''
+        publicCidr:
+          type: 'string'
+          description: ''
+        internalCidr:
+          type: 'string'
+          description: ''
+        workerCidr:
+          type: 'string'
+          description: ''
+    oidcConfig:
+      type: 'object'
+      description: ''
+      required: [clientID,groupsClaim,issuerURL,signingAlgs,usernameClaim,usernamePrefix]
+      properties:
+        clientID:
+          type: 'string'
+          description: ''
+        groupsClaim:
+          type: 'string'
+          description: ''
+        issuerURL:
+          type: 'string'
+          description: ''
+        signingAlgs:
+          type: 'array'
+          items:
+            type: 'string'
+          description: ''
+        usernameClaim:
+          type: 'string'
+          description: ''
+        usernamePrefix:
+          type: 'string'
+          description: ''
+    dnsProvider:
+      type: 'object'
+      description: ''
+      required: [domainsInclude,primary,secretName,type]
+      properties:
+        domainsInclude:
+          type: 'array'
+          description: ''
+          items:
+            type: 'string'
+        primary:
+          type: 'boolean'
+          description: ''
+        secretName:
+          type: 'string'
+          description: ''
+        type:
+          type: 'string'
+          description: ''
+    dnsConfig:
+      type: object
+      description: ''
+      required: [domain]
+      properties:
+        domain:
+          type: 'string'
+          description: ''
+        providers:
+          type: 'array'
+          items:
+            $ref: "#/components/schemas/dnsProvider"

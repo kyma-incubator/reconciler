@@ -7,6 +7,7 @@ require (
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/coreos/go-semver v0.3.0
+	github.com/deepmap/oapi-codegen v1.8.2 // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/gardener/gardener v1.40.0
 	github.com/go-git/go-git/v5 v5.4.2
@@ -32,6 +33,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.9.0
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
+	github.com/stoplightio/spectral v6.0.0+incompatible // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.13.0 // indirect
 	github.com/traefik/yaegi v0.9.17
@@ -40,7 +42,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	gotest.tools v2.2.0+incompatible
+	gotest.tools v2.2.0+incompatible // indirect
 	helm.sh/helm/v3 v3.7.2
 	k8s.io/api v0.22.4
 	k8s.io/apiextensions-apiserver v0.22.4

@@ -2,6 +2,7 @@ package provisioning
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/gardener"
 	"github.com/pkg/errors"
 	"time"
@@ -11,8 +12,8 @@ type provisioner struct {
 	gardenerProvisioner gardener.GardenerProvisioner
 }
 
-func (p provisioner) ProvisionCluster(context context.Context, cluster gardener.GardenerConfig, tenant string, subaccountID *string, operationId string) error {
-	err := p.gardenerProvisioner.StartProvisioning(cluster, tenant, subaccountID, operationId)
+func (p provisioner) ProvisionCluster(context context.Context, cluster keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+	err := p.gardenerProvisioner.StartProvisioning(cluster, tenant, subaccountID, clusterId, operationId)
 
 	if err != nil {
 		return err
@@ -20,6 +21,7 @@ func (p provisioner) ProvisionCluster(context context.Context, cluster gardener.
 
 	ticker := time.NewTicker(10 * time.Second)
 	done := make(chan bool)
+
 	resultChannel := make(chan bool)
 	errorChannel := make(chan error)
 
