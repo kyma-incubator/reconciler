@@ -165,6 +165,16 @@ func (pcf *postgresConnectionFactory) Init(migrate bool) error {
 	return nil
 }
 
+func (pcf *postgresConnectionFactory) Reset() error {
+	return pcf.runMigration(func(m *migrate.Migrate) error {
+		if err := m.Drop(); err != nil && err != migrate.ErrNoChange {
+			return errors.Wrapf(err, "not able to reset database: %s", err)
+		}
+		m.Log.Printf("dropped database")
+		return nil
+	})
+}
+
 func (pcf *postgresConnectionFactory) NewConnection() (Connection, error) {
 	sslMode := "disable"
 	if pcf.sslMode {
@@ -226,6 +236,16 @@ func (pcf *postgresConnectionFactory) checkPostgresIsolationLevel() error {
 }
 
 func (pcf *postgresConnectionFactory) migrateDatabase() error {
+	return pcf.runMigration(func(m *migrate.Migrate) error {
+		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+			return errors.Wrapf(err, "not able to migrate database: %s", err)
+		}
+		m.Log.Printf("Database migration finished")
+		return nil
+	})
+}
+
+func (pcf *postgresConnectionFactory) runMigration(migrateFct func(m *migrate.Migrate) error) error {
 	migrateLogger := newMigrateLogger(pcf.debug)
 	dbConn, err := pcf.NewConnection()
 	if err != nil {
@@ -246,8 +266,11 @@ func (pcf *postgresConnectionFactory) migrateDatabase() error {
 	}
 	m.Log = migrateLogger
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return errors.Wrapf(err, "not able to execute migrations: %s", err)
+		if err := migrateFct(m); err != nil {
+			return errors.Wrapf(err, "not able to execute migrations: %s", err)
+		}
+		migrateLogger.logger.Info("Database migrated")
+		return nil
 	}
-	migrateLogger.logger.Info("Database migrated")
-	return nil
+	return err
 }
