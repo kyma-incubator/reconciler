@@ -23,12 +23,17 @@ lint:
 	./scripts/lint.sh
 
 .PHONY: build
-build: build-linux build-darwin build-linux-arm
+build: build-linux build-darwin build-linux-arm build-windows
 
 .PHONY: build-linux
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./bin/reconciler-linux $(FLAGS) ./cmd/reconciler
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./bin/mothership-linux $(FLAGS) ./cmd/mothership
+
+.PHONY: build-windows
+build-windows:
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o ./bin/reconciler-windows.exe $(FLAGS) ./cmd/reconciler
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o ./bin/mothership-windows.exe $(FLAGS) ./cmd/mothership
 
 .PHONY: build-linux-arm
 build-linux-arm:
