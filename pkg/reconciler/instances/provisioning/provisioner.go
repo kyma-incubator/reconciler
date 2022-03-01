@@ -9,16 +9,17 @@ import (
 )
 
 type provisioner struct {
-	gardenerProvisioner gardener.GardenerProvisioner
+	gardenerProvisioner gardener.Provisioner
 }
 
-func (p provisioner) ProvisionCluster(context context.Context, cluster keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
-	err := p.gardenerProvisioner.StartProvisioning(cluster, tenant, subaccountID, clusterId, operationId)
+func (p provisioner) ProvisionCluster(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+	err := p.gardenerProvisioner.StartProvisioning(gardenerConfig, tenant, subaccountID, clusterId, operationId)
 
 	if err != nil {
 		return err
 	}
 
+	// TODO: make the time configurable
 	ticker := time.NewTicker(10 * time.Second)
 	done := make(chan bool)
 
@@ -31,7 +32,8 @@ func (p provisioner) ProvisionCluster(context context.Context, cluster keb.Garde
 			case <-done:
 				return
 			case <-ticker.C:
-				status, err := p.gardenerProvisioner.GetStatus(cluster)
+				status, err := p.gardenerProvisioner.GetStatus(gardenerConfig)
+				// TODO: write error to log
 				if err == nil {
 					if status.Status == gardener.StatusCompletedSuccessfully {
 						resultChannel <- true

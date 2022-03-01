@@ -36,7 +36,7 @@ type Zone struct {
 	Internal string `json:"internal"`
 	// Public is the public subnet range to create (used for bastion and load balancers).
 	Public string `json:"public"`
-	// Workers isis the workers subnet range to create  (used for the VMs).
+	// Workers is the workers subnet range to create  (used for the VMs).
 	Workers string `json:"workers"`
 }
 

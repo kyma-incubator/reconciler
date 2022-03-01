@@ -821,7 +821,7 @@ components:
           type: 'string'
           description: 'Disk type, varies depending on the target provider'
         volumeSizeGB:
-          type: 'string'
+          type: 'integer'
           description: 'Size of the available disk, provided in GB'
         workerCidr:
           type: 'string'
@@ -887,8 +887,11 @@ components:
     awsProviderConfig:
       type: object
       description: ''
-      required: [ awsZones,vpcCidr ]
+      required: [vpcCidr]
       properties:
+        vpcCidr:
+          type: 'string'
+          description: ''
         awsZones:
           type: 'array'
           description: ''

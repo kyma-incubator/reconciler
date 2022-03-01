@@ -1,10 +1,10 @@
 package gardener
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/gardener/infrastructure/aws"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/gardener/infrastructure/azure"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/gardener/infrastructure/gcp"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/util"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -12,10 +12,9 @@ const (
 	infrastructureConfigKind = "InfrastructureConfig"
 	controlPlaneConfigKind   = "ControlPlaneConfig"
 
-	gcpAPIVersion       = "gcp.provider.extensions.gardener.cloud/v1alpha1"
-	azureAPIVersion     = "azure.provider.extensions.gardener.cloud/v1alpha1"
-	awsAPIVersion       = "aws.provider.extensions.gardener.cloud/v1alpha1"
-	openStackApiVersion = "openstack.provider.extensions.gardener.cloud/v1alpha1"
+	gcpAPIVersion   = "gcp.provider.extensions.gardener.cloud/v1alpha1"
+	azureAPIVersion = "azure.provider.extensions.gardener.cloud/v1alpha1"
+	awsAPIVersion   = "aws.provider.extensions.gardener.cloud/v1alpha1"
 )
 
 func NewGCPInfrastructure(workerCIDR string) *gcp.InfrastructureConfig {
@@ -26,7 +25,7 @@ func NewGCPInfrastructure(workerCIDR string) *gcp.InfrastructureConfig {
 		},
 		Networks: gcp.NetworkConfig{
 			Worker:  workerCIDR,
-			Workers: util.StringPtr(workerCIDR),
+			Workers: stringPtr(workerCIDR),
 		},
 	}
 }
@@ -67,27 +66,25 @@ func NewAzureControlPlane(zones []string) *azure.ControlPlaneConfig {
 	}
 }
 
-func NewAWSInfrastructure(awsConfig AWSProviderConfig) *aws.InfrastructureConfig {
+func NewAWSInfrastructure(awsConfig keb.AwsProviderConfig) *aws.InfrastructureConfig {
 	return &aws.InfrastructureConfig{
 		TypeMeta: v1.TypeMeta{
 			Kind:       infrastructureConfigKind,
 			APIVersion: awsAPIVersion,
 		},
-		// TODO implement AWSZones
-		//Networks: aws.Networks{
-		//	Zones: createAWSZones(awsConfig.AwsZones),
-		//	VPC: aws.VPC{
-		//		CIDR: util.StringPtr(awsConfig.VpcCidr),
-		//	},
-		//},
+		Networks: aws.Networks{
+			Zones: createAWSZones(awsConfig.AwsZones),
+			VPC: aws.VPC{
+				CIDR: stringPtr(awsConfig.VpcCidr),
+			},
+		},
 	}
 }
 
-/*
-func createAWSZones(inputZones []*AWSZone) []aws.Zone {
+func createAWSZones(inputZones *[]keb.AwsZone) []aws.Zone {
 	zones := make([]aws.Zone, 0)
 
-	for _, inputZone := range inputZones {
+	for _, inputZone := range *inputZones {
 		zone := aws.Zone{
 			Name:     inputZone.Name,
 			Internal: inputZone.InternalCidr,
@@ -97,7 +94,7 @@ func createAWSZones(inputZones []*AWSZone) []aws.Zone {
 		zones = append(zones, zone)
 	}
 	return zones
-}*/
+}
 
 func NewAWSControlPlane() *aws.ControlPlaneConfig {
 	return &aws.ControlPlaneConfig{

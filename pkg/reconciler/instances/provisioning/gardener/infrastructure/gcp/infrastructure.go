@@ -19,7 +19,7 @@ type InfrastructureConfig struct {
 type NetworkConfig struct {
 	// VPC indicates whether to use an existing VPC or create a new one.
 	VPC *VPC `json:"vpc,omitempty"`
-	// CloudNAT contains configation about the the CloudNAT resource
+	// CloudNAT contains configation about the CloudNAT resource
 	CloudNAT *CloudNAT `json:"cloudNat,omitempty"`
 	// Internal is a private subnet (used for internal load balancers).
 	Internal *string `json:"internal,omitempty"`
@@ -40,13 +40,13 @@ type VPC struct {
 	CloudRouter *CloudRouter `json:"cloudRouter,omitempty"`
 }
 
-// CloudRouter contains information about the the CloudRouter configuration
+// CloudRouter contains information about the CloudRouter configuration
 type CloudRouter struct {
 	// Name is the CloudRouter name.
 	Name string `json:"name"`
 }
 
-// CloudNAT contains information about the the CloudNAT configuration
+// CloudNAT contains information about the CloudNAT configuration
 type CloudNAT struct {
 	// MinPortsPerVM is the minimum number of ports allocated to a VM in the NAT config.
 	// The default value is 2048 ports.
