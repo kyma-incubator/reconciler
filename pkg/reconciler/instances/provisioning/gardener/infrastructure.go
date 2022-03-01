@@ -94,7 +94,7 @@ func createAWSZones(inputZones *[]keb.AwsZone) []aws.Zone {
 		zones = append(zones, zone)
 	}
 	return zones
-}*/
+}
 
 func NewAWSControlPlane() *aws.ControlPlaneConfig {
 	return &aws.ControlPlaneConfig{
