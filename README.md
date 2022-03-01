@@ -202,13 +202,46 @@ Component reconcilers are taking the workload of a reconciliation and have to be
 
 # 5. Building Block View
 
-{diagram}
+![Building Block View](docs/assets/reconciler_buildingblocks.png)
 
 ## 5.1 Whitebox Overall System
 
-## 5.2 Level 2
+|Component|Description|
+|---|---|
+|KEB|Kyma environment broker coordinates business processes exposed to the BTP cockpit which enables customers to create an SAP managed Kyma runtimes (SKR).|
+|Mothership reconciler|Coordinates the lifecycle of Kyma installations on manage Kyma clusters.|
+|Component reconciler|Renders and applies Kyma component charts on managed Kyma clusters.|
+|KEDA Pod Autoscaler|Horizontal pod autoscaler project which allows a flexible configuration for automated pod scaling.|
 
-## 5.3 Level 3
+## 5.2 Level 1
+
+### 5.2.1 Mothership reconciler
+
+|Component|Description|
+|---|---|
+|Cluster Inventory|Store cluster related data, offers CRUD operations and lookup functionalities.|
+|Scheduler|Queries the cluster inventory for clusters which require a reconciliation and adds them to the reconciliation queue.|
+|Reconciliation Repository|Stores reconciliation related data, offers CRUD operations and manages the reconciliation queue.|
+|Worker Pool|Queries the reconciliation repository |
+|Worker||
+|Invoker||
+|Bookkeeper||
+|Cleaner||
+|Metrics Collector||
+|Occupancy Repository||
+|Metrics Exporter||
+
+### 5.2.2 Component reconciler
+
+|Component|Description|
+|---|---|
+|Worker Pool||
+|Runner||
+|Chart Provider||
+|Workspace Factory||
+|Heartbeat||
+|Callback||
+|Metrics Exporter||
 
 # 6. Runtime View
 
