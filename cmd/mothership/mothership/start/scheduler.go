@@ -21,12 +21,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 	}
 
 	return runtimeBuilder.
-		RunRemote(
-			o.Registry.Connection(),
-			o.Registry.Inventory(),
-			o.Registry.OccupancyRepository(),
-			o.OccupancyTracking,
-			o.Config).
+		RunRemote(o.Registry.Connection(), o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.Config).
 		WithWorkerPoolConfig(&worker.Config{
 			MaxParallelOperations: o.MaxParallelOperations,
 			PoolSize:              o.Workers,
