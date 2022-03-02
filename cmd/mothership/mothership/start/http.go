@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/features"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -124,11 +123,9 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
-	if features.WorkerpoolOccupancyTrackingEnabled() {
-		metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config, o.Logger())
-	}
+	metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config, o.Logger())
+	metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
 	metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
-	metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Config, o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
