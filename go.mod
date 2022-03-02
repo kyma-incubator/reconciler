@@ -17,7 +17,7 @@ require (
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kyma-project/control-plane/components/provisioner v0.0.0-20220223183051-30e1c263b47b
+	github.com/kyma-project/control-plane/components/provisioner v0.0.0-20220223183051-30e1c263b47b // indirect
 	github.com/lib/pq v1.10.4
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-sqlite3 v1.14.7
@@ -37,6 +37,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.13.0 // indirect
 	github.com/traefik/yaegi v0.9.17
+	github.com/vrischmann/envconfig v1.3.0
 	go.uber.org/zap v1.19.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0

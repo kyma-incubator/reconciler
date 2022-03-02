@@ -2,17 +2,89 @@ package provisioning
 
 import (
 	"context"
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/provisioning/gardener"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
+	"github.com/vrischmann/envconfig"
+	"io/ioutil"
+	restclient "k8s.io/client-go/rest"
 	"time"
 )
 
-type provisioner struct {
+type asyncProvisioner struct {
 	gardenerProvisioner gardener.Provisioner
 }
 
-func (p provisioner) ProvisionCluster(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+const ReconcilerName = "provisioning"
+
+//nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
+func init() {
+	log := logger.NewLogger(false)
+
+	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
+	reconciler, err := service.NewComponentReconciler(ReconcilerName)
+	if err != nil {
+		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
+	}
+
+	var provisioner *asyncProvisioner = nil
+	// load configuration gardener config location and gardener project
+	// if we cannot initialize it - we will make dummy empty action anyway
+
+	cfg := config{}
+	err = envconfig.InitWithPrefix(&cfg, "APP")
+	if err == nil {
+
+		log.Infof("Config: %s", cfg.String())
+
+		gardenerNamespace := fmt.Sprintf("garden-%s", cfg.GardenerProject)
+
+		gardenerClient, err := newGardenerClusterConfig(cfg)
+		if err == nil {
+			gardenerClientSet, err := gardener.NewClient(gardenerClient)
+			if err == nil {
+				shootClient := gardenerClientSet.Shoots(gardenerNamespace)
+				prov := gardener.NewProvisioner(gardenerNamespace, shootClient, "config_map_name", "config_path")
+				if err == nil {
+					provisioner = &asyncProvisioner{
+						gardenerProvisioner: *prov,
+					}
+				}
+			}
+		}
+	}
+
+	reconciler.
+		//register reconciler action (custom reconciliation logic). If no custom reconciliation action is provided,
+		//the default reconciliation logic provided by reconciler-framework will be used.
+		WithReconcileAction(&ProvisioningAction{
+			name:        "provision-action",
+			provisioner: provisioner,
+		})
+
+	// log.Fatalf("Could not read config for %s reconciler: %s", ReconcilerName, err)
+	// log.Fatalf("Failed to initialize Gardener cluster client for %s reconciler: %s", ReconcilerName, err)
+	// log.Fatalf("Failed to create Gardener cluster clientset for %s reconciler: %s", ReconcilerName, err)
+	// gardener.NewProvisioner(gardenerNamespace, gardenerClientSet, "config_map_name", "config_path")
+}
+
+func newGardenerClusterConfig(cfg config) (*restclient.Config, error) {
+	rawKubeconfig, err := ioutil.ReadFile(cfg.GardenerKubeconfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read Gardener Kubeconfig from path %s: %s", cfg.GardenerKubeconfigPath, err.Error())
+	}
+
+	gardenerClusterConfig, err := gardener.RestClientConfig(rawKubeconfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Gardener cluster config: %s", err.Error())
+	}
+	return gardenerClusterConfig, nil
+}
+
+func (p asyncProvisioner) ProvisionCluster(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
 	err := p.gardenerProvisioner.StartProvisioning(gardenerConfig, tenant, subaccountID, clusterId, operationId)
 
 	if err != nil {
@@ -60,5 +132,4 @@ func (p provisioner) ProvisionCluster(context context.Context, gardenerConfig ke
 			return err
 		}
 	}
-
 }
