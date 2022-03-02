@@ -61,6 +61,12 @@ func NewCmd(o *Options) *cobra.Command {
 }
 
 func Run(ctx context.Context, o *Options) error {
+	schedulerCfg, err := parseSchedulerConfig(viper.ConfigFileUsed())
+	if err != nil {
+		return err
+	}
+	//passing config value to be used by metrics collectors and trackers
+	o.Config = schedulerCfg
 	go func(ctx context.Context, o *Options) {
 		err := startScheduler(ctx, o)
 		if err != nil {

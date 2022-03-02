@@ -14,15 +14,8 @@ import (
 
 func startScheduler(ctx context.Context, o *Options) error {
 
-	schedulerCfg, err := parseSchedulerConfig(viper.ConfigFileUsed())
-	if err != nil {
-		return err
-	}
-	//passing config value to be used by metrics collectors and trackers
-	o.Config = schedulerCfg
 	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
-
-	ds, err := service.NewDeleteStrategy(schedulerCfg.Scheduler.DeleteStrategy)
+	ds, err := service.NewDeleteStrategy(o.Config.Scheduler.DeleteStrategy)
 	if err != nil {
 		return err
 	}
@@ -33,7 +26,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 			o.Registry.Inventory(),
 			o.Registry.OccupancyRepository(),
 			o.OccupancyTracking,
-			schedulerCfg).
+			o.Config).
 		WithWorkerPoolConfig(&worker.Config{
 			MaxParallelOperations: o.MaxParallelOperations,
 			PoolSize:              o.Workers,
@@ -49,7 +42,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 				ClusterReconcileInterval: o.ClusterReconcileInterval,
 				ClusterQueueSize:         10,
 				DeleteStrategy:           ds,
-				PreComponents:            schedulerCfg.Scheduler.PreComponents,
+				PreComponents:            o.Config.Scheduler.PreComponents,
 			}).
 		WithBookkeeperConfig(&service.BookkeeperConfig{
 			OperationsWatchInterval: 45 * time.Second,
