@@ -11,7 +11,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
-	"github.com/pkg/errors"
 )
 
 type InMemoryReconciliationRepository struct {
@@ -334,7 +333,8 @@ func (r *InMemoryReconciliationRepository) GetComponentOperationProcessingDurati
 	defer r.mu.Unlock()
 
 	if len(operations) == 0 {
-		return 0, errors.Errorf("No operation for component %s found with desired state %s", component, state)
+
+		return 0, nil
 	}
 
 	return operations[0].ProcessingDuration, nil
@@ -357,7 +357,7 @@ func (r *InMemoryReconciliationRepository) GetMothershipOperationProcessingDurat
 	defer r.mu.Unlock()
 
 	if len(operations) == 0 {
-		return 0, errors.Errorf("No operation for component %s found with desired state %s", component, state)
+		return 0, nil
 	}
 
 	var duration time.Duration

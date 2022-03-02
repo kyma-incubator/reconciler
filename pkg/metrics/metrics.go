@@ -3,6 +3,7 @@ package metrics
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
+	"github.com/kyma-incubator/reconciler/pkg/features"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/prometheus/client_golang/prometheus"

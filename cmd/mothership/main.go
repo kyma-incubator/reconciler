@@ -65,7 +65,6 @@ func newCmd(o *cli.Options, name, shortDesc, longDesc string) *cobra.Command {
 	cmd.PersistentFlags().BoolVarP(&o.Verbose, "verbose", "v", false, "Show detailed information about the executed command actions")
 	cmd.PersistentFlags().BoolVar(&o.NonInteractive, "non-interactive", false, "Enables the non-interactive shell mode")
 	cmd.PersistentFlags().BoolVarP(&o.InitRegistry, "init-registry", "r", false, "Auto-initialize application registry ")
-	cmd.PersistentFlags().BoolVarP(&o.OccupancyTracking, "occupancy-tracking", "t", false, "Activate worker pool occupancy tracking")
 	cmd.PersistentFlags().BoolP("help", "h", false, "Command help")
 	return cmd
 }
