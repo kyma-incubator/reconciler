@@ -5,23 +5,40 @@ import (
 	"fmt"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
-	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"go.uber.org/zap"
 	"strconv"
 )
 
-type ContainerBootstrap interface {
-	testcontainers.Container
-	Bootstrap(ctx context.Context) error
+func BootstrapNewPostgresContainer(env postgresEnvironment, ctx context.Context) (ContainerBootstrap, error) {
+	cont := NewPostgresContainer(env)
+	if bootstrapError := cont.Bootstrap(ctx); bootstrapError != nil {
+		return nil, bootstrapError
+	}
+	if logProducerErr := cont.StartLogProducer(ctx); logProducerErr != nil {
+		return nil, logProducerErr
+	}
+	return &cont, nil
 }
 
+func NewPostgresContainer(env postgresEnvironment) PostgresContainer {
+	return PostgresContainer{
+		containerBaseName: "postgres",
+		image:             "postgres:11-alpine",
+		host:              env.host,
+		port:              env.port,
+		username:          env.user,
+		password:          env.password,
+		database:          env.database,
+	}
+}
+
+//PostgresContainer is a testcontainer that is able to provision a postgres database with given credentials
 type PostgresContainer struct {
 	testcontainers.Container
 
-	executionId uuid.UUID
-	Log         *zap.SugaredLogger
+	executionId  uuid.UUID
+	bootstrapped bool
 
 	containerBaseName string
 	image             string
@@ -34,6 +51,10 @@ type PostgresContainer struct {
 	dataVolumeMapping string
 
 	DebugLogs bool
+}
+
+func (s *PostgresContainer) isBootstrapped() bool {
+	return s.bootstrapped
 }
 
 func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
@@ -49,7 +70,6 @@ func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
 		)
 	}
 
-	s.Log = log.NewLogger(s.DebugLogs).With("container", execContainer)
 	postgres, requestError := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        s.image,
@@ -63,6 +83,7 @@ func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
 				"POSTGRES_DB":       s.database,
 			},
 			AutoRemove: true,
+			SkipReaper: true,
 		},
 		Started: true,
 	})
@@ -72,6 +93,6 @@ func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
 	}
 
 	s.Container = postgres
-
+	s.bootstrapped = true
 	return nil
 }

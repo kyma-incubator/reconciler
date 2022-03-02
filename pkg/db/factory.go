@@ -156,15 +156,3 @@ func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, lo
 		debug:         debug,
 	}
 }
-
-func createPostgresContainer(env postgresEnvironment) PostgresContainer {
-	return PostgresContainer{
-		containerBaseName: "postgres",
-		image:             "postgres:11-alpine",
-		host:              env.host,
-		port:              env.port,
-		username:          env.user,
-		password:          env.password,
-		database:          env.database,
-	}
-}
