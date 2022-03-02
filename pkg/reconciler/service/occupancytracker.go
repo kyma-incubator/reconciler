@@ -74,6 +74,7 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 		t.logger.Error(err.Error())
 		return
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
 		t.logger.Errorf("mothership failed to update occupancy for '%s' service with status code: '%d'", t.occupancyID, resp.StatusCode)

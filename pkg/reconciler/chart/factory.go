@@ -247,6 +247,7 @@ func (f *DefaultFactory) downloadArchive(URL, dstDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode == 404 {
 		return "", fmt.Errorf("not found: %q", URL)
 	}
