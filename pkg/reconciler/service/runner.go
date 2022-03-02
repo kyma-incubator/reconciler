@@ -44,7 +44,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		if err != nil {
 			if !strings.Contains(err.Error(), "no such file or directory") {
 				callback.Callback(&reconciler.CallbackMessage{
-					Manifest: manifest,
+					Manifest: &manifest,
 					Error:    fmt.Sprintf("Unable to render manifest for '%s': %s", task.Component, err.Error()),
 					Status:   reconciler.StatusError,
 				})
@@ -55,7 +55,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		}
 
 		callback.Callback(&reconciler.CallbackMessage{
-			Manifest: manifest,
+			Manifest: &manifest,
 			Status:   reconciler.StatusSuccess,
 		})
 
