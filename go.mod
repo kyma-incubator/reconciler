@@ -7,6 +7,9 @@ require (
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/coreos/go-semver v0.3.0
+	github.com/docker/cli v20.10.12+incompatible // indirect
+	github.com/docker/distribution v2.8.0+incompatible // indirect
+	github.com/docker/docker v20.10.12+incompatible // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
@@ -16,7 +19,6 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-isatty v0.0.14 // indirect
@@ -27,7 +29,7 @@ require (
 	github.com/otiai10/copy v1.7.0
 	github.com/panjf2000/ants/v2 v2.4.6
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.12.1
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/cobra v1.2.1
@@ -38,7 +40,6 @@ require (
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211031064116-611d5d643895 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
