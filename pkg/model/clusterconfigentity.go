@@ -118,9 +118,9 @@ type ReconciliationSequence struct {
 }
 
 type ReconciliationSequenceConfig struct {
-	PreComponents  [][]string
-	DeleteStrategy string
-	DesiredStatus  Status
+	PreComponents        [][]string
+	DeleteStrategy       string
+	ReconciliationStatus Status
 }
 
 func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
@@ -132,7 +132,7 @@ func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *Reconciliatio
 	})
 
 	// if a cluster is pending deletion, we need to add the cleanup component into the reconciliation
-	if cfg.DesiredStatus.IsDeletionInProgress() {
+	if cfg.ReconciliationStatus.IsDeletionInProgress() {
 		cleanupComponent.Configuration = append(cleanupComponent.Configuration, keb.Configuration{
 			Key: DeleteStrategyKey, Value: cfg.DeleteStrategy,
 		})

@@ -144,14 +144,14 @@ func TestReconciliationSequence(t *testing.T) {
 		name                 string
 		preComps             [][]string
 		entity               *ClusterConfigurationEntity
-		desiredClusterStatus Status
+		reconciliationStatus Status
 		expected             *ReconciliationSequence
 		err                  error
 	}{
 		{
 			name:                 "Components and single pre-components",
 			preComps:             [][]string{{"Pre1"}, {"Pre2"}},
-			desiredClusterStatus: ClusterStatusReconciling,
+			reconciliationStatus: ClusterStatusReconciling,
 			entity: &ClusterConfigurationEntity{
 				Components: []*keb.Component{
 					{
@@ -198,7 +198,7 @@ func TestReconciliationSequence(t *testing.T) {
 		{
 			name:                 "Component and Pre-Component with ClusterStatusDeleting",
 			preComps:             [][]string{{"Pre"}},
-			desiredClusterStatus: ClusterStatusDeleting,
+			reconciliationStatus: ClusterStatusDeleting,
 			entity: &ClusterConfigurationEntity{
 				Components: []*keb.Component{
 					{
@@ -234,7 +234,7 @@ func TestReconciliationSequence(t *testing.T) {
 		{
 			name:                 "Components and multiple pre components",
 			preComps:             [][]string{{"Pre1.1", "Pre1.2"}, {"Pre2"}, {"Pre3.1", "Pre3.2"}},
-			desiredClusterStatus: ClusterStatusReconciling,
+			reconciliationStatus: ClusterStatusReconciling,
 			entity: &ClusterConfigurationEntity{
 				Components: []*keb.Component{
 					{
@@ -301,7 +301,7 @@ func TestReconciliationSequence(t *testing.T) {
 		{
 			name:                 "Components and multiple pre-components with missing pre-components",
 			preComps:             [][]string{{"Pre1.1", "Pre1.2"}, {"Pre2"}, {"Pre3.1", "Pre3.2"}},
-			desiredClusterStatus: ClusterStatusReconciling,
+			reconciliationStatus: ClusterStatusReconciling,
 			entity: &ClusterConfigurationEntity{
 				Components: []*keb.Component{
 					{
@@ -356,9 +356,9 @@ func TestReconciliationSequence(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.entity.GetReconciliationSequence(&ReconciliationSequenceConfig{
-				PreComponents:  tc.preComps,
-				DeleteStrategy: "system",
-				DesiredStatus:  tc.desiredClusterStatus,
+				PreComponents:        tc.preComps,
+				DeleteStrategy:       "system",
+				ReconciliationStatus: tc.reconciliationStatus,
 			})
 			for idx, expected := range tc.expected.Queue {
 				require.ElementsMatch(t, result.Queue[idx], expected)
