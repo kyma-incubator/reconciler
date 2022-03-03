@@ -8,24 +8,23 @@ import (
 )
 
 type ProvisioningAction struct {
-	name        string
-	kubeconfig  string
-	provisioner *asyncProvisioner
+	name       string
+	kubeconfig string
 }
 
 func (a *ProvisioningAction) Run(ctx *service.ActionContext) error {
-	if a.provisioner == nil {
-		ctx.Logger.Infof("Action '%s' skipped (passed version was '%s')", a.name, ctx.Task.Version)
-		return nil
-	}
 
 	if ctx.Task.Type == model.OperationTypeReconcile {
 		gardenerConfig, err := a.getGardenerConfig(ctx)
 		if err != nil {
 			return err
 		}
+		provisioner, err := createProvisioner(ctx.Logger)
+		if err != nil {
+			return err
+		}
 
-		err = a.provisioner.ProvisionOrUpgrade(ctx.Context, gardenerConfig, ctx.Task.Metadata.GlobalAccountID, &ctx.Task.Metadata.SubAccountID, a.getClusterID(ctx), a.getOperationID(ctx))
+		err = provisioner.ProvisionOrUpgrade(ctx.Context, gardenerConfig, ctx.Task.Metadata.GlobalAccountID, &ctx.Task.Metadata.SubAccountID, a.getClusterID(ctx), a.getOperationID(ctx))
 
 		if err != nil {
 			ctx.Logger.Errorf("Action '%s' failed: %s", a.name, err)

@@ -9,6 +9,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"github.com/vrischmann/envconfig"
+	"go.uber.org/zap"
 	"io/ioutil"
 	restclient "k8s.io/client-go/rest"
 	"time"
@@ -24,10 +25,21 @@ const ReconcilerName = "provisioning"
 func init() {
 	log := logger.NewLogger(false)
 
-	var provisioner *asyncProvisioner = nil
-	// load configuration gardener config location and gardener project
-	// if we cannot initialize it - we will make dummy empty action anyway
+	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
+	reconciler, err := service.NewComponentReconciler(ReconcilerName)
+	if err != nil {
+		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
+	}
 
+	reconciler.
+		//register reconciler action (custom reconciliation logic). If no custom reconciliation action is provided,
+		//the default reconciliation logic provided by reconciler-framework will be used.
+		WithReconcileAction(&ProvisioningAction{
+			name: "provision-action",
+		})
+}
+
+func createProvisioner(log *zap.SugaredLogger) (*asyncProvisioner, error) {
 	cfg := config{}
 	err := envconfig.InitWithPrefix(&cfg, "APP")
 	if err == nil {
@@ -43,32 +55,14 @@ func init() {
 				shootClient := gardenerClientSet.Shoots(gardenerNamespace)
 				prov := gardener.NewProvisioner(gardenerNamespace, shootClient, "")
 				if err == nil {
-					provisioner = &asyncProvisioner{
+					return &asyncProvisioner{
 						gardenerProvisioner: *prov,
-					}
+					}, nil
 				}
 			}
 		}
 	}
-
-	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
-	reconciler, err := service.NewComponentReconciler(ReconcilerName)
-	if err != nil {
-		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
-	}
-
-	reconciler.
-		//register reconciler action (custom reconciliation logic). If no custom reconciliation action is provided,
-		//the default reconciliation logic provided by reconciler-framework will be used.
-		WithReconcileAction(&ProvisioningAction{
-			name:        "provision-action",
-			provisioner: provisioner,
-		})
-
-	// log.Fatalf("Could not read config for %s reconciler: %s", ReconcilerName, err)
-	// log.Fatalf("Failed to initialize Gardener cluster client for %s reconciler: %s", ReconcilerName, err)
-	// log.Fatalf("Failed to create Gardener cluster clientset for %s reconciler: %s", ReconcilerName, err)
-	// gardener.NewProvisioner(gardenerNamespace, gardenerClientSet, "config_map_name", "config_path")
+	return nil, err
 }
 
 func newGardenerClusterConfig(cfg config) (*restclient.Config, error) {
