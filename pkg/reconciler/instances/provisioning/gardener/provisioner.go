@@ -11,8 +11,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 
 	gardenerTypes "github.com/gardener/gardener/pkg/apis/core/v1beta1"
-	v12 "k8s.io/api/core/v1"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gardener/gardener/pkg/apis/core/v1beta1"
@@ -31,11 +29,10 @@ type Client interface {
 func NewProvisioner(
 	namespace string,
 	shootClient Client,
-	policyConfigMapName string, maintenanceWindowConfigPath string) *Provisioner {
+	maintenanceWindowConfigPath string) *Provisioner {
 	return &Provisioner{
 		namespace:                   namespace,
 		shootClient:                 shootClient,
-		policyConfigMapName:         policyConfigMapName,
 		maintenanceWindowConfigPath: maintenanceWindowConfigPath,
 	}
 }
@@ -44,7 +41,6 @@ func NewProvisioner(
 type Provisioner struct {
 	namespace                   string
 	shootClient                 Client
-	policyConfigMapName         string
 	maintenanceWindowConfigPath string
 }
 
@@ -76,10 +72,6 @@ func (g *Provisioner) StartProvisioning(cluster keb.GardenerConfig, tenant strin
 	// TODO: this annotation needs to be set when runtime is registered in Compass
 	//annotate(shootTemplate, legacyRuntimeIDAnnotation, clusterId)
 	annotate(shootTemplate, legacyOperationIDAnnotation, operationId)
-
-	if g.policyConfigMapName != "" {
-		g.applyAuditConfig(shootTemplate)
-	}
 
 	_, err = g.shootClient.Create(context.Background(), shootTemplate, v1.CreateOptions{})
 
@@ -156,18 +148,6 @@ func (g *Provisioner) ClusterExists(cluster keb.GardenerConfig) (bool, error) {
 
 func (g *Provisioner) shouldSetMaintenanceWindow(purpose string) bool {
 	return g.maintenanceWindowConfigPath != "" && purpose == "production"
-}
-
-func (g *Provisioner) applyAuditConfig(template *gardenerTypes.Shoot) {
-	if template.Spec.Kubernetes.KubeAPIServer == nil {
-		template.Spec.Kubernetes.KubeAPIServer = &gardenerTypes.KubeAPIServerConfig{}
-	}
-
-	template.Spec.Kubernetes.KubeAPIServer.AuditConfig = &gardenerTypes.AuditConfig{
-		AuditPolicy: &gardenerTypes.AuditPolicy{
-			ConfigMapRef: &v12.ObjectReference{Name: g.policyConfigMapName},
-		},
-	}
 }
 
 func (g *Provisioner) setMaintenanceWindow(template *gardenerTypes.Shoot, region string) error {

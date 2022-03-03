@@ -24,18 +24,12 @@ const ReconcilerName = "provisioning"
 func init() {
 	log := logger.NewLogger(false)
 
-	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
-	reconciler, err := service.NewComponentReconciler(ReconcilerName)
-	if err != nil {
-		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
-	}
-
 	var provisioner *asyncProvisioner = nil
 	// load configuration gardener config location and gardener project
 	// if we cannot initialize it - we will make dummy empty action anyway
 
 	cfg := config{}
-	err = envconfig.InitWithPrefix(&cfg, "APP")
+	err := envconfig.InitWithPrefix(&cfg, "APP")
 	if err == nil {
 
 		log.Infof("Config: %s", cfg.String())
@@ -47,7 +41,7 @@ func init() {
 			gardenerClientSet, err := gardener.NewClient(gardenerClient)
 			if err == nil {
 				shootClient := gardenerClientSet.Shoots(gardenerNamespace)
-				prov := gardener.NewProvisioner(gardenerNamespace, shootClient, "config_map_name", "config_path")
+				prov := gardener.NewProvisioner(gardenerNamespace, shootClient, "")
 				if err == nil {
 					provisioner = &asyncProvisioner{
 						gardenerProvisioner: *prov,
@@ -55,6 +49,12 @@ func init() {
 				}
 			}
 		}
+	}
+
+	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
+	reconciler, err := service.NewComponentReconciler(ReconcilerName)
+	if err != nil {
+		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
 	reconciler.
@@ -84,7 +84,20 @@ func newGardenerClusterConfig(cfg config) (*restclient.Config, error) {
 	return gardenerClusterConfig, nil
 }
 
-func (p asyncProvisioner) ProvisionCluster(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+func (p asyncProvisioner) ProvisionOrUpgrade(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+	exists, err := p.gardenerProvisioner.ClusterExists(gardenerConfig)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return p.provisionCluster(context, gardenerConfig, tenant, subaccountID, clusterId, operationId)
+	} else {
+		return p.upgradeCluster(context, gardenerConfig, tenant, subaccountID, clusterId, operationId)
+	}
+}
+
+func (p asyncProvisioner) provisionCluster(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
 	err := p.gardenerProvisioner.StartProvisioning(gardenerConfig, tenant, subaccountID, clusterId, operationId)
 
 	if err != nil {
@@ -132,4 +145,8 @@ func (p asyncProvisioner) ProvisionCluster(context context.Context, gardenerConf
 			return err
 		}
 	}
+}
+
+func (p asyncProvisioner) upgradeCluster(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+	return nil
 }
