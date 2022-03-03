@@ -118,7 +118,12 @@ func TestCommands(t *testing.T) {
 				Manifest: cpManifest("1.2.4")}, nil)
 		ctx := context.Background()
 		kubeClient := &mocks.Client{}
-		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor"), mock.AnythingOfType("*service.ClusterWideResourceInterceptor")).
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+			mock.AnythingOfType("*service.LabelsInterceptor"),
+			mock.AnythingOfType("*service.AnnotationsInterceptor"),
+			mock.AnythingOfType("*service.ServicesInterceptor"),
+			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
+			mock.AnythingOfType("*service.NamespaceInterceptor")).
 			Return(nil, nil).Once()
 
 		actionContext := &service.ActionContext{
@@ -163,7 +168,12 @@ func TestCommands(t *testing.T) {
 				Manifest: emptyManifest}, nil)
 		ctx := context.Background()
 		kubeClient := &mocks.Client{}
-		kubeClient.On("Deploy", ctx, emptyManifest, mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor"), mock.AnythingOfType("*service.ClusterWideResourceInterceptor")).
+		kubeClient.On("Deploy", ctx, emptyManifest, mock.AnythingOfType("string"),
+			mock.AnythingOfType("*service.LabelsInterceptor"),
+			mock.AnythingOfType("*service.AnnotationsInterceptor"),
+			mock.AnythingOfType("*service.ServicesInterceptor"),
+			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
+			mock.AnythingOfType("*service.NamespaceInterceptor")).
 			Return(nil, nil).Once()
 
 		actionContext := &service.ActionContext{
@@ -204,7 +214,12 @@ func TestCommands(t *testing.T) {
 
 		ctx := context.Background()
 		kubeClient := &mocks.Client{}
-		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor"), mock.AnythingOfType("*service.ClusterWideResourceInterceptor")).
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+			mock.AnythingOfType("*service.LabelsInterceptor"),
+			mock.AnythingOfType("*service.AnnotationsInterceptor"),
+			mock.AnythingOfType("*service.ServicesInterceptor"),
+			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
+			mock.AnythingOfType("*service.NamespaceInterceptor")).
 			Return(nil, nil).Once()
 		actionContext := &service.ActionContext{
 			Context:       ctx,
@@ -242,7 +257,12 @@ func TestCommands(t *testing.T) {
 
 		ctx := context.Background()
 		kubeClient := &mocks.Client{}
-		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.LabelsInterceptor"), mock.AnythingOfType("*service.AnnotationsInterceptor"), mock.AnythingOfType("*service.ServicesInterceptor"), mock.AnythingOfType("*service.ClusterWideResourceInterceptor")).
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+			mock.AnythingOfType("*service.LabelsInterceptor"),
+			mock.AnythingOfType("*service.AnnotationsInterceptor"),
+			mock.AnythingOfType("*service.ServicesInterceptor"),
+			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
+			mock.AnythingOfType("*service.NamespaceInterceptor")).
 			Return(nil, nil).Once()
 		actionContext := &service.ActionContext{
 			Context:       ctx,
