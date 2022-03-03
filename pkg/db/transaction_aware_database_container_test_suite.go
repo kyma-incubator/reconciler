@@ -26,7 +26,6 @@ type TransactionAwareDatabaseContainerTestSuite struct {
 
 	connectionResilienceSpecification []retry.Option
 
-	schemaMigrateOnSetup       bool
 	schemaResetOnSetup         bool
 	debugLogs                  bool
 	commitAfterExecution       bool

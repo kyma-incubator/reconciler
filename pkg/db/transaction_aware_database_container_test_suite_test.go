@@ -12,19 +12,17 @@ type SampleDatabaseDatabaseTestSuite struct {
 	TransactionAwareDatabaseContainerTestSuite
 }
 
-type testCase struct {
-	testCaseName     string
-	debug            bool
-	migrate          bool
-	connectionCount  int
-	rollbackCount    int
-	commitCount      int
-	schemaResetCount int
-}
-
 func TestDatabaseContainerTestSuite(t *testing.T) {
 	test.IntegrationTest(t)
-	testCases := []*testCase{
+	testCases := []struct {
+		testCaseName     string
+		debug            bool
+		migrate          bool
+		connectionCount  int
+		rollbackCount    int
+		commitCount      int
+		schemaResetCount int
+	}{
 		{
 			testCaseName:     "Managed Suite Without Method Isolation",
 			debug:            false,
@@ -62,14 +60,6 @@ func (s *SampleDatabaseDatabaseTestSuite) TestDbConnectivityThirdTest() {
 	s.NoError(s.TxConnection().Ping())
 }
 
-type singleContainerTestCase struct {
-	testCaseName     string
-	connectionCount  int
-	rollbackCount    int
-	commitCount      int
-	schemaResetCount int
-}
-
 type SingleContainerSampleDatabaseIntegrationTestSuite struct {
 	TransactionAwareDatabaseContainerTestSuite
 }
@@ -78,10 +68,16 @@ func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {
 	test.IntegrationTest(t)
 	ctx := context.Background()
 
-	runtime, runtimeErr := RunPostgresContainer(false, false, ctx)
+	runtime, runtimeErr := RunPostgresContainer(ctx, false, false)
 	require.NoError(t, runtimeErr)
 
-	testCases := []*singleContainerTestCase{
+	testCases := []struct {
+		testCaseName     string
+		connectionCount  int
+		rollbackCount    int
+		commitCount      int
+		schemaResetCount int
+	}{
 		{
 			testCaseName:     "Unmanaged Suite With Method Isolation",
 			connectionCount:  1,
@@ -95,7 +91,7 @@ func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {
 		t.Run(testCase.testCaseName, func(tInner *testing.T) {
 			tInner.Parallel()
 			testSuite := &SingleContainerSampleDatabaseIntegrationTestSuite{
-				NewUnmanagedContainerTestSuite(runtime, nil, ctx).TransactionAwareDatabaseContainerTestSuite,
+				NewUnmanagedContainerTestSuite(ctx, runtime, nil).TransactionAwareDatabaseContainerTestSuite,
 			}
 			suite.Run(tInner, testSuite)
 			testSuite.Equal(testCase.connectionCount, testSuite.connectionCount)

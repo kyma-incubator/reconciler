@@ -48,7 +48,7 @@ func NewManagedContainerTestSuite(
 		LogConsumer:                       listener,
 	}
 
-	if runTime, runError := RunPostgresContainer(debug, migrate, newSuite); runError == nil {
+	if runTime, runError := RunPostgresContainer(newSuite, migrate, debug); runError == nil {
 		newSuite.ContainerRuntime = runTime
 	} else {
 		panic(runError)
@@ -57,11 +57,7 @@ func NewManagedContainerTestSuite(
 	return ContainerTestSuite{newSuite}
 }
 
-func NewUnmanagedContainerTestSuite(
-	containerRuntime ContainerRuntime,
-	listener testcontainers.LogConsumer,
-	ctx context.Context,
-) ContainerTestSuite {
+func NewUnmanagedContainerTestSuite(ctx context.Context, containerRuntime ContainerRuntime, listener testcontainers.LogConsumer) ContainerTestSuite {
 	newSuite := TransactionAwareDatabaseContainerTestSuite{
 		Context:                           ctx,
 		terminateContainerAfterAll:        false,

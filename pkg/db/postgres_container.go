@@ -10,7 +10,7 @@ import (
 	"strconv"
 )
 
-func BootstrapNewPostgresContainer(env postgresEnvironment, ctx context.Context) (ContainerBootstrap, error) {
+func BootstrapNewPostgresContainer(ctx context.Context, env postgresEnvironment) (ContainerBootstrap, error) {
 	cont := NewPostgresContainer(env)
 	if bootstrapError := cont.Bootstrap(ctx); bootstrapError != nil {
 		return nil, bootstrapError
@@ -34,7 +34,7 @@ func NewPostgresContainer(env postgresEnvironment) PostgresContainer {
 type PostgresContainer struct {
 	testcontainers.Container
 
-	executionId  uuid.UUID
+	executionID  uuid.UUID
 	bootstrapped bool
 
 	containerBaseName string
@@ -45,8 +45,6 @@ type PostgresContainer struct {
 	password          string
 	database          string
 
-	dataVolumeMapping string
-
 	DebugLogs bool
 }
 
@@ -55,9 +53,9 @@ func (s *PostgresContainer) isBootstrapped() bool {
 }
 
 func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
-	s.executionId = uuid.New()
+	s.executionID = uuid.New()
 
-	execContainer := s.containerBaseName + "-" + s.executionId.String()
+	execContainer := s.containerBaseName + "-" + s.executionID.String()
 
 	finalPortSpec := strconv.Itoa(s.port) + "/tcp"
 

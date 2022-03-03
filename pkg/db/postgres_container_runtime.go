@@ -19,11 +19,7 @@ type PostgresContainerRuntime struct {
 	ConnectionFactory
 }
 
-func RunPostgresContainer(
-	debug bool,
-	migrate bool,
-	ctx context.Context,
-) (*PostgresContainerRuntime, error) {
+func RunPostgresContainer(ctx context.Context, migrate bool, debug bool) (*PostgresContainerRuntime, error) {
 	configFile, err := test.GetConfigFile()
 
 	if err != nil {
@@ -46,7 +42,7 @@ func RunPostgresContainer(
 
 	env := getPostgresEnvironment()
 
-	cont, bootstrapError := BootstrapNewPostgresContainer(env, ctx)
+	cont, bootstrapError := BootstrapNewPostgresContainer(ctx, env)
 
 	if bootstrapError != nil {
 		return nil, err
