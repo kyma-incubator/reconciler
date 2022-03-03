@@ -33,7 +33,7 @@ func TestRemoteInvoker(t *testing.T) {
 		SchedulingID: reconEntity.SchedulingID,
 	})
 	require.NoError(t, err)
-	if clusterStateMock.Status.Status.IsDeletion() {
+	if clusterStateMock.Status.Status.IsDeletionInProgress() {
 		require.Len(t, opEntities, 7, "reconciliation sequence has 7 ops (5 + crds + cleaner)")
 	} else {
 		require.Len(t, opEntities, 6, "reconciliation sequence has 6 ops (5 + crds)")

@@ -132,7 +132,7 @@ func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *Reconciliatio
 	})
 
 	// if a cluster is pending deletion, we need to add the cleanup component into the reconciliation
-	if cfg.DesiredStatus.IsDeletion() {
+	if cfg.DesiredStatus.IsDeletionInProgress() {
 		cleanupComponent.Configuration = append(cleanupComponent.Configuration, keb.Configuration{
 			Key: DeleteStrategyKey, Value: cfg.DeleteStrategy,
 		})

@@ -196,9 +196,9 @@ func TestReconciliationSequence(t *testing.T) {
 			err: nil,
 		},
 		{
-			name:                 "Component and Pre-Component with ClusterStatusDeletePending",
+			name:                 "Component and Pre-Component with ClusterStatusDeleting",
 			preComps:             [][]string{{"Pre"}},
-			desiredClusterStatus: ClusterStatusDeletePending,
+			desiredClusterStatus: ClusterStatusDeleting,
 			entity: &ClusterConfigurationEntity{
 				Components: []*keb.Component{
 					{
