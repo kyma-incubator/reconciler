@@ -133,7 +133,8 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 
 	err = commander.Uninstall(kubeClientSet.Kubeconfig(), logger)
 	if err != nil {
-		return errors.Wrap(err, "Error occurred when calling istioctl")
+		logger.Warnf("Error occurred when calling istioctl uninstall: %s", err)
+		//return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 	logger.Info("Istio uninstall triggered")
 	kubeClient, err := kubeClientSet.Clientset()
@@ -172,7 +173,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 
 	err = commander.Install(istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
-		logger.Warnf("Error occurred when calling istioctl: %s", err)
+		logger.Warnf("Error occurred when calling istioctl install: %s", err)
 		//return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
@@ -268,7 +269,8 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 
 	err = commander.Upgrade(istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
-		return errors.Wrap(err, "Error occurred when calling istioctl")
+		logger.Warnf("Error occurred when calling istioctl update: %s", err)
+		//return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
 	logger.Info("Istio has been updated successfully")
