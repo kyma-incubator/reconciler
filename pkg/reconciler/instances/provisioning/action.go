@@ -24,7 +24,7 @@ func (a *ProvisioningAction) Run(ctx *service.ActionContext) error {
 			return err
 		}
 
-		err = provisioner.ProvisionOrUpgrade(ctx.Context, gardenerConfig, ctx.Task.Metadata.GlobalAccountID, &ctx.Task.Metadata.SubAccountID, a.getClusterID(ctx), a.getOperationID(ctx))
+		err = provisioner.ProvisionOrUpgrade(ctx.Context, ctx.Logger, gardenerConfig, ctx.Task.Metadata.GlobalAccountID, &ctx.Task.Metadata.SubAccountID, a.getClusterID(ctx), a.getOperationID(ctx))
 
 		if err != nil {
 			ctx.Logger.Errorf("Action '%s' failed: %s", a.name, err)

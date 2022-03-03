@@ -78,20 +78,20 @@ func newGardenerClusterConfig(cfg config) (*restclient.Config, error) {
 	return gardenerClusterConfig, nil
 }
 
-func (p asyncProvisioner) ProvisionOrUpgrade(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+func (p asyncProvisioner) ProvisionOrUpgrade(context context.Context, logger *zap.SugaredLogger, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
 	notExists, err := p.gardenerProvisioner.ClusterNotExists(gardenerConfig)
 	if err != nil {
 		return err
 	}
 
 	if notExists {
-		return p.provisionCluster(context, gardenerConfig, tenant, subaccountID, clusterId, operationId)
+		return p.provisionCluster(context, logger, gardenerConfig, tenant, subaccountID, clusterId, operationId)
 	} else {
-		return p.upgradeCluster(context, gardenerConfig, tenant, subaccountID, clusterId, operationId)
+		return p.upgradeCluster(context, logger, gardenerConfig, tenant, subaccountID, clusterId, operationId)
 	}
 }
 
-func (p asyncProvisioner) provisionCluster(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+func (p asyncProvisioner) provisionCluster(context context.Context, logger *zap.SugaredLogger, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
 	err := p.gardenerProvisioner.StartProvisioning(gardenerConfig, tenant, subaccountID, clusterId, operationId)
 
 	if err != nil {
@@ -109,16 +109,20 @@ func (p asyncProvisioner) provisionCluster(context context.Context, gardenerConf
 		for {
 			select {
 			case <-done:
+				logger.Info("Stop checking cluster status go routine. ")
 				return
 			case <-ticker.C:
+				logger.Info("Checking cluster status... ")
 				status, err := p.gardenerProvisioner.GetStatus(gardenerConfig)
 				// TODO: write error to log
 				if err == nil {
 					if status.Status == gardener.StatusCompletedSuccessfully {
+						logger.Info("Cluster provisioning succeeded... ")
 						resultChannel <- true
 					}
 
 					if status.Status == gardener.StatusFailed {
+						logger.Errorf("Cluster provisioning failed: %s ", status.Message)
 						errorChannel <- errors.New(status.Message)
 					}
 				}
@@ -129,18 +133,24 @@ func (p asyncProvisioner) provisionCluster(context context.Context, gardenerConf
 	for {
 		select {
 		case <-context.Done():
+			logger.Info("Context cancelled, stopping go routine checking cluster status ")
+			ticker.Stop()
 			done <- true
 			return errors.New("provisioning operation not completed: " + context.Err().Error())
 		case <-resultChannel:
+			logger.Info("Finishing cluster provisioning...")
+			ticker.Stop()
 			done <- true
 			return nil
 		case err := <-errorChannel:
+			logger.Error("Finishing cluster provisioning with error ...")
+			ticker.Stop()
 			done <- true
 			return err
 		}
 	}
 }
 
-func (p asyncProvisioner) upgradeCluster(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
+func (p asyncProvisioner) upgradeCluster(context context.Context, logger *zap.SugaredLogger, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
 	return nil
 }
