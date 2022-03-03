@@ -120,9 +120,9 @@ func Test_cleaner_Run(t *testing.T) {
 			reconRepo: &reconRepo,
 			logger:    logger.NewLogger(true),
 		}, &CleanerConfig{
-			KeepLatestEntitiesCount:      5,
-			KeepUnsuccessfulEntitiesDays: 3,
-			CleanerInterval:              5 * time.Second,
+			KeepLatestEntitiesCount: 5,
+			MaxEntitiesAgeDays:      3,
+			CleanerInterval:         5 * time.Second,
 		})
 
 		require.NoError(t, err)
@@ -177,50 +177,4 @@ func Test_diffDays(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, tc.expected, diffDays(time1, time2), "For time %s and %s", tc.time1, tc.time2)
 	}
-}
-
-func Test_findOldestReconciliation(t *testing.T) {
-	t.Run("should return nil for nil input", func(t *testing.T) {
-		require.Nil(t, findOldestReconciliation(nil))
-	})
-
-	t.Run("should return nil for empty input", func(t *testing.T) {
-		var list []*model.ReconciliationEntity = nil
-		require.Nil(t, findOldestReconciliation(list))
-	})
-
-	t.Run("should find oldest in a list with a single item", func(t *testing.T) {
-		e1 := model.ReconciliationEntity{
-			Created: time.Now(),
-		}
-		list := []*model.ReconciliationEntity{&e1}
-		require.Equal(t, &e1, findOldestReconciliation(list))
-	})
-
-	t.Run("should find oldest in a list with the same items", func(t *testing.T) {
-		e1 := model.ReconciliationEntity{
-			Created: time.Now(),
-		}
-		list := []*model.ReconciliationEntity{&e1, &e1, &e1}
-		require.Equal(t, &e1, findOldestReconciliation(list))
-	})
-
-	t.Run("should find oldest in a list with different items", func(t *testing.T) {
-		e1 := model.ReconciliationEntity{
-			SchedulingID: "now",
-			Created:      time.Now(),
-		}
-		e2 := model.ReconciliationEntity{
-			SchedulingID: "now - 1h",
-			Created:      time.Now().Add(-1 * time.Second * 3600),
-		}
-		e3 := model.ReconciliationEntity{
-			SchedulingID: "now - 2h",
-			Created:      time.Now().Add(-2 * time.Second * 3600),
-		}
-
-		list := []*model.ReconciliationEntity{&e1, &e3, &e2}
-		require.Equal(t, "now - 2h", findOldestReconciliation(list).SchedulingID)
-
-	})
 }

@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 
 	"github.com/pkg/errors"
 
@@ -13,24 +14,24 @@ import (
 
 type Options struct {
 	*cli.Options
-	Port                         int
-	SSLCrt                       string
-	SSLKey                       string
-	Workers                      int
-	WatchInterval                time.Duration
-	OrphanOperationTimeout       time.Duration
-	ClusterReconcileInterval     time.Duration
-	PurgeEntitiesOlderThan       time.Duration
-	CleanerInterval              time.Duration
-	KeepLatestEntitiesCount      int
-	KeepUnsuccessfulEntitiesDays int
-	CreateEncyptionKey           bool
-	MaxParallelOperations        int
-	AuditLog                     bool
-	AuditLogFile                 string
-	AuditLogTenantID             string
-	StopAfterMigration           bool
-	Config                       *config.Config
+	Port                           int
+	SSLCrt                         string
+	SSLKey                         string
+	Workers                        int
+	WatchInterval                  time.Duration
+	OrphanOperationTimeout         time.Duration
+	ClusterReconcileInterval       time.Duration
+	PurgeEntitiesOlderThan         time.Duration
+	CleanerInterval                time.Duration
+	ReconciliationsKeepLatestCount int
+	ReconciliationsMaxAgeDays      int
+	CreateEncyptionKey             bool
+	MaxParallelOperations          int
+	AuditLog                       bool
+	AuditLogFile                   string
+	AuditLogTenantID               string
+	StopAfterMigration             bool
+	Config                         *config.Config
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -72,10 +73,10 @@ func (o *Options) Validate() error {
 	if o.ClusterReconcileInterval <= 0 {
 		return errors.New("cluster reconciliation interval cannot be <= 0")
 	}
-	if o.KeepLatestEntitiesCount < 0 {
+	if o.ReconciliationsKeepLatestCount < 0 {
 		return errors.New("cleaner count of latest entities to keep cannot be < 0")
 	}
-	if o.KeepUnsuccessfulEntitiesDays < 0 {
+	if o.ReconciliationsMaxAgeDays < 0 {
 		return errors.New("cleaner count of days to keep unsuccessful entities cannot be < 0")
 	}
 	if o.MaxParallelOperations < 0 {
