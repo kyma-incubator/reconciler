@@ -10,7 +10,6 @@ import (
 
 func TestPostgresContainer(t *testing.T) {
 	test.IntegrationTest(t)
-	ctx := context.Background()
 
 	configFile, err := test.GetConfigFile()
 	require.NoError(t, err)
@@ -24,13 +23,13 @@ func TestPostgresContainer(t *testing.T) {
 
 	t.Run("Run New Postgres Container", func(t *testing.T) {
 		t.Parallel()
+		ctx := context.Background()
 		c := NewPostgresContainer(env)
-
-		require.NoError(t, c.Bootstrap(ctx), "container should start normally")
-
 		t.Cleanup(func() {
 			require.NoError(t, c.Terminate(ctx))
 		})
+
+		require.NoError(t, c.Bootstrap(ctx), "container should start normally")
 
 		stateAfterStart, startStateFetchError := c.State(ctx)
 		require.NoError(t, startStateFetchError, "container should have stateAfterStart")
