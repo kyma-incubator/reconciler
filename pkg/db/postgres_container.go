@@ -15,9 +15,6 @@ func BootstrapNewPostgresContainer(env postgresEnvironment, ctx context.Context)
 	if bootstrapError := cont.Bootstrap(ctx); bootstrapError != nil {
 		return nil, bootstrapError
 	}
-	if logProducerErr := cont.StartLogProducer(ctx); logProducerErr != nil {
-		return nil, logProducerErr
-	}
 	return &cont, nil
 }
 

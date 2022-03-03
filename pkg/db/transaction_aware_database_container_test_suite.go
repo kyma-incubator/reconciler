@@ -30,7 +30,6 @@ type TransactionAwareDatabaseContainerTestSuite struct {
 	schemaResetOnSetup         bool
 	debugLogs                  bool
 	commitAfterExecution       bool
-	methodLevelIsolation       bool
 	terminateContainerAfterAll bool
 
 	connectionCount  int
@@ -41,23 +40,24 @@ type TransactionAwareDatabaseContainerTestSuite struct {
 
 func (s *TransactionAwareDatabaseContainerTestSuite) SetupSuite() {
 	s.T().Log("START OF TEST SUITE")
-	s.T().Logf("schema reset on startup:%v,debug:%v,commit after execution:%v,method level isolation:%v,terminateContainerAfterAll: %v",
-		s.schemaResetOnSetup, s.debugLogs, s.commitAfterExecution, s.methodLevelIsolation, s.terminateContainerAfterAll,
+	s.T().Logf("schema reset on startup:%v,debug:%v,commit after execution:%v,terminateContainerAfterAll: %v",
+		s.schemaResetOnSetup, s.debugLogs, s.commitAfterExecution, s.terminateContainerAfterAll,
 	)
 
 	if s.LogConsumer != nil {
+		s.NoError(s.StartLogProducer(s))
 		s.NoError(s.ContainerRuntime.StartLogProducer(s))
 		s.ContainerRuntime.FollowOutput(s.LogConsumer)
 	}
 
-	if !s.methodLevelIsolation && s.schemaResetOnSetup {
+	if s.schemaResetOnSetup {
 		errorDuringReset := s.Reset()
 		s.NoError(errorDuringReset)
 	}
 }
 
 func (s *TransactionAwareDatabaseContainerTestSuite) TearDownSuite() {
-	if !s.methodLevelIsolation && s.activeConnection != nil {
+	if s.activeConnection != nil {
 		s.tearDownConnection()
 	}
 
@@ -65,23 +65,14 @@ func (s *TransactionAwareDatabaseContainerTestSuite) TearDownSuite() {
 		s.NoError(s.Terminate(s))
 	}
 
+	if s.LogConsumer != nil {
+		s.NoError(s.ContainerRuntime.StopLogProducer())
+	}
+
 	s.T().Log("END OF TEST SUITE")
 	s.T().Logf("connectionCount:%v,rollbackCount:%v,commitCount:%v,schemaResetCount:%v",
 		s.connectionCount, s.rollbackCount, s.commitCount, s.schemaResetCount,
 	)
-}
-
-func (s *TransactionAwareDatabaseContainerTestSuite) BeforeTest(string, string) {
-	if s.methodLevelIsolation && s.schemaResetOnSetup {
-		errorDuringReset := s.Reset()
-		s.NoError(errorDuringReset)
-	}
-}
-
-func (s *TransactionAwareDatabaseContainerTestSuite) AfterTest(string, string) {
-	if s.methodLevelIsolation && s.activeConnection != nil {
-		s.tearDownConnection()
-	}
 }
 
 func (s *TransactionAwareDatabaseContainerTestSuite) TxConnection() *TxConnection {

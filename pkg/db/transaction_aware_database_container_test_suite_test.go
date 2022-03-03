@@ -13,45 +13,33 @@ type SampleDatabaseDatabaseTestSuite struct {
 }
 
 type testCase struct {
-	testCaseName         string
-	debug                bool
-	migrate              bool
-	methodLevelIsolation bool
-	connectionCount      int
-	rollbackCount        int
-	commitCount          int
-	schemaResetCount     int
+	testCaseName     string
+	debug            bool
+	migrate          bool
+	connectionCount  int
+	rollbackCount    int
+	commitCount      int
+	schemaResetCount int
 }
 
 func TestDatabaseContainerTestSuite(t *testing.T) {
 	test.IntegrationTest(t)
 	testCases := []*testCase{
 		{
-			testCaseName:         "Managed Suite Without Method Isolation",
-			debug:                false,
-			migrate:              false,
-			methodLevelIsolation: false,
-			connectionCount:      1,
-			rollbackCount:        1,
-			commitCount:          0,
-			schemaResetCount:     0,
-		},
-		{
-			testCaseName:         "Managed Suite With Method Isolation",
-			debug:                false,
-			migrate:              false,
-			methodLevelIsolation: true,
-			connectionCount:      2,
-			rollbackCount:        2,
-			commitCount:          0,
-			schemaResetCount:     0,
+			testCaseName:     "Managed Suite Without Method Isolation",
+			debug:            false,
+			migrate:          false,
+			connectionCount:  1,
+			rollbackCount:    1,
+			commitCount:      0,
+			schemaResetCount: 0,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.testCaseName, func(tInner *testing.T) {
 			testSuite := &SampleDatabaseDatabaseTestSuite{
-				NewManagedContainerTestSuite(testCase.debug, testCase.migrate, testCase.methodLevelIsolation, nil).TransactionAwareDatabaseContainerTestSuite,
+				NewManagedContainerTestSuite(testCase.debug, testCase.migrate, nil).TransactionAwareDatabaseContainerTestSuite,
 			}
 			suite.Run(tInner, testSuite)
 			testSuite.Equal(testCase.connectionCount, testSuite.connectionCount)
@@ -75,12 +63,11 @@ func (s *SampleDatabaseDatabaseTestSuite) TestDbConnectivityThirdTest() {
 }
 
 type singleContainerTestCase struct {
-	testCaseName         string
-	methodLevelIsolation bool
-	connectionCount      int
-	rollbackCount        int
-	commitCount          int
-	schemaResetCount     int
+	testCaseName     string
+	connectionCount  int
+	rollbackCount    int
+	commitCount      int
+	schemaResetCount int
 }
 
 type SingleContainerSampleDatabaseIntegrationTestSuite struct {
@@ -96,20 +83,11 @@ func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {
 
 	testCases := []*singleContainerTestCase{
 		{
-			testCaseName:         "Unmanaged Suite With Method Isolation",
-			methodLevelIsolation: false,
-			connectionCount:      1,
-			rollbackCount:        1,
-			commitCount:          0,
-			schemaResetCount:     0,
-		},
-		{
-			testCaseName:         "Unmanaged Suite With Method Isolation",
-			methodLevelIsolation: true,
-			connectionCount:      2,
-			rollbackCount:        2,
-			commitCount:          0,
-			schemaResetCount:     0,
+			testCaseName:     "Unmanaged Suite With Method Isolation",
+			connectionCount:  1,
+			rollbackCount:    1,
+			commitCount:      0,
+			schemaResetCount: 0,
 		},
 	}
 
@@ -117,7 +95,7 @@ func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {
 		t.Run(testCase.testCaseName, func(tInner *testing.T) {
 			tInner.Parallel()
 			testSuite := &SingleContainerSampleDatabaseIntegrationTestSuite{
-				NewUnmanagedContainerTestSuite(runtime, testCase.methodLevelIsolation, nil, ctx).TransactionAwareDatabaseContainerTestSuite,
+				NewUnmanagedContainerTestSuite(runtime, nil, ctx).TransactionAwareDatabaseContainerTestSuite,
 			}
 			suite.Run(tInner, testSuite)
 			testSuite.Equal(testCase.connectionCount, testSuite.connectionCount)

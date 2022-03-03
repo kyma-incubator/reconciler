@@ -14,7 +14,7 @@ type ContainerTestSuite struct {
 
 func IsolatedContainerTestSuite(t *testing.T, debug bool) *ContainerTestSuite {
 	test.IntegrationTest(t)
-	suite := NewManagedContainerTestSuite(debug, false, false, nil)
+	suite := NewManagedContainerTestSuite(debug, false, nil)
 	return &suite
 }
 
@@ -39,14 +39,12 @@ func SharedContainerTestSuite(t *testing.T, debug bool, instance SharedInstance)
 func NewManagedContainerTestSuite(
 	debug bool,
 	migrate bool,
-	methodLevelIsolation bool,
 	listener testcontainers.LogConsumer,
 ) ContainerTestSuite {
 	newSuite := TransactionAwareDatabaseContainerTestSuite{
 		Context:                           context.Background(),
 		terminateContainerAfterAll:        true,
 		connectionResilienceSpecification: []retry.Option{retry.Attempts(3)},
-		methodLevelIsolation:              methodLevelIsolation,
 		LogConsumer:                       listener,
 	}
 
@@ -61,7 +59,6 @@ func NewManagedContainerTestSuite(
 
 func NewUnmanagedContainerTestSuite(
 	containerRuntime ContainerRuntime,
-	methodLevelIsolation bool,
 	listener testcontainers.LogConsumer,
 	ctx context.Context,
 ) ContainerTestSuite {
@@ -69,7 +66,6 @@ func NewUnmanagedContainerTestSuite(
 		Context:                           ctx,
 		terminateContainerAfterAll:        false,
 		connectionResilienceSpecification: []retry.Option{retry.Attempts(3)},
-		methodLevelIsolation:              methodLevelIsolation,
 		LogConsumer:                       listener,
 	}
 	newSuite.ContainerRuntime = containerRuntime
