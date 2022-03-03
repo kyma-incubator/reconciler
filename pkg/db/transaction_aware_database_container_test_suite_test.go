@@ -35,8 +35,8 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
+		testCase := testCase
 		t.Run(testCase.testCaseName, func(tInner *testing.T) {
-			testCase := testCase
 			testSuite := &SampleDatabaseDatabaseTestSuite{
 				NewManagedContainerTestSuite(testCase.debug, testCase.migrate, nil).TransactionAwareDatabaseContainerTestSuite,
 			}
@@ -89,8 +89,8 @@ func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
+		testCase := testCase
 		t.Run(testCase.testCaseName, func(tInner *testing.T) {
-			testCase := testCase
 			tInner.Parallel()
 			testSuite := &SingleContainerSampleDatabaseIntegrationTestSuite{
 				NewUnmanagedContainerTestSuite(ctx, runtime, nil).TransactionAwareDatabaseContainerTestSuite,
