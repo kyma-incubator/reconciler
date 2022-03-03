@@ -79,7 +79,7 @@ func newGardenerClusterConfig(cfg config) (*restclient.Config, error) {
 }
 
 func (p asyncProvisioner) ProvisionOrUpgrade(context context.Context, gardenerConfig keb.GardenerConfig, tenant string, subaccountID *string, clusterId, operationId string) error {
-	exists, err := p.gardenerProvisioner.ClusterExists(gardenerConfig)
+	exists, err := p.gardenerProvisioner.ClusterNotExists(gardenerConfig)
 	if err != nil {
 		return err
 	}

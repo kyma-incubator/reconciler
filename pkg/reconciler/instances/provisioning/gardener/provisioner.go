@@ -137,7 +137,7 @@ func (g *Provisioner) GetStatus(cluster keb.GardenerConfig) (OperationStatus, er
 	}, nil
 }
 
-func (g *Provisioner) ClusterExists(cluster keb.GardenerConfig) (bool, error) {
+func (g *Provisioner) ClusterNotExists(cluster keb.GardenerConfig) (bool, error) {
 	status, err := g.GetStatus(cluster)
 	if err != nil {
 		return false, err
