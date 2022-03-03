@@ -39,16 +39,6 @@ func TestQuery(t *testing.T) {
 		require.Equal(t, []interface{}{"col1Value", true}, conn.args)
 	})
 
-	t.Run("Test FOR UPDATE statement when using Postgres queries", func(t *testing.T) {
-		conn.dbType = Postgres
-		defer func() {
-			conn.dbType = Mock
-		}()
-		_, err := q.Select().Where(map[string]interface{}{"Col1": "col1Value"}).GetMany()
-		require.NoError(t, err)
-		require.Equal(t, "SELECT col_1, col_2, col_3 FROM mockTable WHERE col_1=$1 FOR UPDATE", conn.query)
-	})
-
 	t.Run("Select In", func(t *testing.T) {
 		subQ := "SELECT col FROM table WHERE y=z"
 		_, err := q.Select().

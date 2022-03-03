@@ -26,9 +26,9 @@ func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, r
 		componentList:       reconcilerList,
 		workerPoolOccupancyGaugeVec: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
-			Name:      "worker_pool_occupancy",
+			Name:      "worker_pool_occupancy_ratio",
 			Help:      "Mean ratio of all running workers in all running worker-pools",
-		}, reconcilerList),
+		}, []string{"component"}),
 	}
 }
 
@@ -42,7 +42,7 @@ func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, component := range c.componentList {
 		m, err := c.workerPoolOccupancyGaugeVec.GetMetricWithLabelValues(component)
 		if err != nil {
-			c.logger.Errorf("unable to retrieve metric with label=%s: %s", component, err.Error())
+			c.logger.Errorf("workerPoolOccupancyCollector: unable to retrieve metric with label=%s: %s", component, err.Error())
 			return
 		}
 		workerPoolOccupancy, err := c.occupancyRepository.GetMeanWorkerPoolOccupancyByComponent(component)
@@ -53,5 +53,4 @@ func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
 		m.Set(workerPoolOccupancy)
 	}
 	c.workerPoolOccupancyGaugeVec.Collect(ch)
-
 }

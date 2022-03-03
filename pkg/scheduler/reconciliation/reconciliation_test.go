@@ -2,11 +2,12 @@ package reconciliation
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/repository"
-	"github.com/pkg/errors"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/repository"
+	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -341,6 +342,11 @@ func TestReconciliationRepository(t *testing.T) {
 				recon, err := reconRepo.GetReconciliations(&CurrentlyReconciling{})
 				require.NoError(t, err)
 				require.Len(t, recon, 1)
+				require.Equal(t, reconEntity2.SchedulingID, recon[0].SchedulingID)
+
+				limit, err := reconRepo.GetReconciliations(&Limit{Count: 1})
+				require.NoError(t, err)
+				require.Len(t, limit, 1)
 				require.Equal(t, reconEntity2.SchedulingID, recon[0].SchedulingID)
 			},
 		},
@@ -694,7 +700,7 @@ func TestReconciliationRepository(t *testing.T) {
 					err = reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateDone, true)
 					require.NoError(t, err)
 				}
-				meanDuration, err := reconRepo.GetMeanComponentOperationProcessingDuration("comp1", model.OperationStateDone)
+				meanDuration, err := reconRepo.GetComponentOperationProcessingDuration("comp1", model.OperationStateDone)
 				require.NoError(t, err)
 				require.Equal(t, int64(50), meanDuration)
 			},
@@ -717,7 +723,7 @@ func TestReconciliationRepository(t *testing.T) {
 					err = reconRepo.UpdateOperationState(op.SchedulingID, op.CorrelationID, model.OperationStateDone, true)
 					require.NoError(t, err)
 				}
-				meanDuration, err := reconRepo.GetMeanMothershipOperationProcessingDuration("comp1", model.OperationStateDone, Created)
+				meanDuration, err := reconRepo.GetMothershipOperationProcessingDuration("comp1", model.OperationStateDone, Created)
 				require.NoError(t, err)
 				require.GreaterOrEqual(t, meanDuration, int64(1000))
 			},

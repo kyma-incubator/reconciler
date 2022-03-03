@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	v12 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -168,7 +169,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		proxy.On("Run", mock.Anything).Return(nil)
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, &proxy, &providerMock)
 
-		action := istio.NewReconcileAction(performerCreatorFn(performer))
+		action := istio.NewIstioMainReconcileAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -184,11 +185,10 @@ func Test_RunUpdateAction(t *testing.T) {
 		provider := clientset.DefaultProvider{}
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockTooNewVersion), nil)
-		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
 
-		action := istio.NewReconcileAction(performerCreatorFn(performer))
+		action := istio.NewStatusPreAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -196,7 +196,6 @@ func Test_RunUpdateAction(t *testing.T) {
 		// then
 		require.EqualError(t, err, "Istio could not be updated since the binary version: 1.09.2 is not compatible with the target version: 1.11.2-solo-fips-distroless - the difference between versions exceeds one minor version")
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
-		commanderMock.AssertNotCalled(t, "Upgrade", mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("Istio update should return an error when there is data plane and pilot version mismatch", func(t *testing.T) {
@@ -204,10 +203,9 @@ func Test_RunUpdateAction(t *testing.T) {
 		provider := clientset.DefaultProvider{}
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockDataPlanePilotMismatchVersion), nil)
-		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
-		action := istio.NewReconcileAction(performerCreatorFn(performer))
+		action := istio.NewStatusPreAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -216,7 +214,6 @@ func Test_RunUpdateAction(t *testing.T) {
 		require.Error(t, err)
 		require.EqualError(t, err, "Istio components version mismatch detected: pilot version: 1.13.4, data plane version: 1.13.5")
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
-		commanderMock.AssertNotCalled(t, "Upgrade", mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("Istio update should return an error when there is data plane and pilot version mismatch", func(t *testing.T) {
@@ -224,10 +221,9 @@ func Test_RunUpdateAction(t *testing.T) {
 		provider := clientset.DefaultProvider{}
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockDataPlanePilotMismatchVersion), nil)
-		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
-		action := istio.NewReconcileAction(performerCreatorFn(performer))
+		action := istio.NewStatusPreAction(performerCreatorFn(performer))
 
 		// when
 		err := action.Run(actionContext)
@@ -236,7 +232,6 @@ func Test_RunUpdateAction(t *testing.T) {
 		require.Error(t, err)
 		require.EqualError(t, err, "Istio components version mismatch detected: pilot version: 1.13.4, data plane version: 1.13.5")
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
-		commanderMock.AssertNotCalled(t, "Upgrade", mock.Anything, mock.Anything, mock.Anything)
 	})
 }
 
@@ -275,7 +270,7 @@ func Test_RunUninstallAction(t *testing.T) {
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
 		commanderMock.AssertCalled(t, "Uninstall", mock.Anything, mock.Anything)
 
-		//istio-system namespace should be deleted
+		// istio-system namespace should be deleted
 		fakeClient, _ := actionContext.KubeClient.Clientset()
 		_, nserror := fakeClient.CoreV1().Namespaces().Get(context.TODO(), "istio-system", metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
@@ -307,7 +302,11 @@ func newFakeKubeClient() *k8smocks.Client {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "istio-system",
 		},
-	})
+	},
+		&v12.MutatingWebhookConfiguration{
+			ObjectMeta: metav1.ObjectMeta{Name: "istio-sidecar-injector"},
+		},
+	)
 	mockClient.On("Clientset").Return(fakeClient, nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
 	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
