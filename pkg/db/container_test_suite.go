@@ -5,6 +5,7 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/testcontainers/testcontainers-go"
+	"path/filepath"
 	"sync"
 	"testing"
 )
@@ -30,7 +31,10 @@ func IsolatedContainerTestSuite(t *testing.T, debug bool, migrations Migrations)
 }
 
 var (
-	Default                                      = SharedContainerSettings{"default-db-shared", Migrations("../../configs/db/postgres")}
+	Default = SharedContainerSettings{
+		"default-db-shared",
+		Migrations(filepath.Join("..", "..", "configs", "db", "postgres")),
+	}
 	syncedSharedContainerTestSuiteInstanceHolder *SyncedSharedContainerTestSuiteInstanceHolder
 )
 
