@@ -20,7 +20,7 @@ require (
 	github.com/iancoleman/strcase v0.1.3
 	github.com/imdario/mergo v0.3.12
 	github.com/kr/pretty v0.3.0 // indirect
-	github.com/lib/pq v1.10.0
+	github.com/lib/pq v1.10.2
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mholt/archiver/v3 v3.5.1
@@ -39,6 +39,7 @@ require (
 	github.com/tidwall/gjson v1.13.0 // indirect
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0
+	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
