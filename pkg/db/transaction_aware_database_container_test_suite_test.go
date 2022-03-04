@@ -38,7 +38,7 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.testCaseName, func(tInner *testing.T) {
 			testSuite := &SampleDatabaseDatabaseTestSuite{
-				NewManagedContainerTestSuite(testCase.debug, testCase.migrate, nil).TransactionAwareDatabaseContainerTestSuite,
+				NewManagedContainerTestSuite(testCase.debug, NoMigrations, nil).TransactionAwareDatabaseContainerTestSuite,
 			}
 			suite.Run(tInner, testSuite)
 			testSuite.Equal(testCase.connectionCount, testSuite.connectionCount)
@@ -69,7 +69,7 @@ func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {
 	test.IntegrationTest(t)
 	ctx := context.Background()
 
-	runtime, runtimeErr := RunPostgresContainer(ctx, false, false)
+	runtime, runtimeErr := RunPostgresContainer(ctx, NoMigrations, false)
 	require.NoError(t, runtimeErr)
 
 	testCases := []struct {

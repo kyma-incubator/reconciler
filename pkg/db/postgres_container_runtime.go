@@ -9,8 +9,7 @@ import (
 )
 
 type PostgresContainerRuntime struct {
-	debug   bool
-	migrate bool
+	debug bool
 
 	env    postgresEnvironment
 	encKey string
@@ -19,7 +18,11 @@ type PostgresContainerRuntime struct {
 	ConnectionFactory
 }
 
-func RunPostgresContainer(ctx context.Context, migrate bool, debug bool) (*PostgresContainerRuntime, error) {
+type Migrations string
+
+var NoMigrations Migrations = ""
+
+func RunPostgresContainer(ctx context.Context, migrations Migrations, debug bool) (*PostgresContainerRuntime, error) {
 	configFile, err := test.GetConfigFile()
 
 	if err != nil {
@@ -62,19 +65,20 @@ func RunPostgresContainer(ctx context.Context, migrate bool, debug bool) (*Postg
 		password:      env.password,
 		sslMode:       env.sslMode,
 		encryptionKey: encKey,
-		migrationsDir: env.migrationsDir,
+		migrationsDir: string(migrations),
 		blockQueries:  true,
 		logQueries:    true,
 		debug:         debug,
 	}
 
-	if initError := connectionFactory.Init(migrate); initError != nil {
+	shouldMigrate := len(string(migrations)) > 0
+
+	if initError := connectionFactory.Init(shouldMigrate); initError != nil {
 		panic(initError)
 	}
 
 	return &PostgresContainerRuntime{
 		debug:              debug,
-		migrate:            migrate,
 		env:                env,
 		encKey:             encKey,
 		ContainerBootstrap: cont,

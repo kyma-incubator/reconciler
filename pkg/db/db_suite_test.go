@@ -10,5 +10,7 @@ type DbTestSuite struct{ *ContainerTestSuite }
 
 func TestDbSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, &DbTestSuite{SharedContainerTestSuite(t, true, Default)})
+	suite.Run(t, &DbTestSuite{SharedContainerTestSuite(
+		t, true, Default,
+	)})
 }

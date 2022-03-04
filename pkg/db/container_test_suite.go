@@ -5,6 +5,7 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/testcontainers/testcontainers-go"
+	"sync"
 	"testing"
 )
 
@@ -12,33 +13,46 @@ type ContainerTestSuite struct {
 	TransactionAwareDatabaseContainerTestSuite
 }
 
-func IsolatedContainerTestSuite(t *testing.T, debug bool) *ContainerTestSuite {
+type SharedContainerSettings struct {
+	name       string
+	migrations Migrations
+}
+
+type SyncedSharedContainerTestSuiteInstanceHolder struct {
+	mu     sync.Mutex
+	suites map[SharedContainerSettings]*ContainerTestSuite
+}
+
+func IsolatedContainerTestSuite(t *testing.T, debug bool, migrations Migrations) *ContainerTestSuite {
 	test.IntegrationTest(t)
-	suite := NewManagedContainerTestSuite(debug, false, nil)
+	suite := NewManagedContainerTestSuite(debug, migrations, NewConsoleContainerLogListener(debug))
 	return &suite
 }
 
 var (
-	Default SharedInstance = "default-db-shared"
+	Default                                      = SharedContainerSettings{"default-db-shared", Migrations("../../configs/db/postgres")}
+	syncedSharedContainerTestSuiteInstanceHolder *SyncedSharedContainerTestSuiteInstanceHolder
 )
 
-type SharedInstance string
-
-var sharedContainerTestSuites map[SharedInstance]*ContainerTestSuite
-
-func SharedContainerTestSuite(t *testing.T, debug bool, instance SharedInstance) *ContainerTestSuite {
-	if sharedContainerTestSuites == nil {
-		sharedContainerTestSuites = make(map[SharedInstance]*ContainerTestSuite)
+func SharedContainerTestSuite(t *testing.T, debug bool, instance SharedContainerSettings) *ContainerTestSuite {
+	h := syncedSharedContainerTestSuiteInstanceHolder
+	if h == nil {
+		h = &SyncedSharedContainerTestSuiteInstanceHolder{
+			mu:     sync.Mutex{},
+			suites: make(map[SharedContainerSettings]*ContainerTestSuite),
+		}
 	}
-	if sharedContainerTestSuites[instance] == nil {
-		sharedContainerTestSuites[instance] = IsolatedContainerTestSuite(t, debug)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.suites[instance] == nil {
+		h.suites[instance] = IsolatedContainerTestSuite(t, debug, instance.migrations)
 	}
-	return sharedContainerTestSuites[instance]
+	return h.suites[instance]
 }
 
 func NewManagedContainerTestSuite(
 	debug bool,
-	migrate bool,
+	migrations Migrations,
 	listener testcontainers.LogConsumer,
 ) ContainerTestSuite {
 	newSuite := TransactionAwareDatabaseContainerTestSuite{
@@ -48,7 +62,7 @@ func NewManagedContainerTestSuite(
 		LogConsumer:                       listener,
 	}
 
-	if runTime, runError := RunPostgresContainer(newSuite, migrate, debug); runError == nil {
+	if runTime, runError := RunPostgresContainer(newSuite, migrations, debug); runError == nil {
 		newSuite.ContainerRuntime = runTime
 	} else {
 		panic(runError)

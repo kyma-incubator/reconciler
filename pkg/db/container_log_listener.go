@@ -1,17 +1,19 @@
 package db
 
 import (
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/testcontainers/testcontainers-go"
 	"go.uber.org/zap"
 )
 
+func NewConsoleContainerLogListener(debug bool) *ContainerLogListener {
+	return &ContainerLogListener{log.NewLogger(debug)}
+}
+
 type ContainerLogListener struct {
-	debug bool
-	Log   *zap.SugaredLogger
+	*zap.SugaredLogger
 }
 
 func (s *ContainerLogListener) Accept(l testcontainers.Log) {
-	if s.debug {
-		s.Log.With("containerLogType", l.LogType).Debug(string(l.Content))
-	}
+	s.With("containerLogType", l.LogType).Debug(string(l.Content))
 }
