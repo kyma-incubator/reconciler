@@ -27,6 +27,7 @@ var (
 )
 
 type ComponentReconciler struct {
+	dryRun                bool
 	workspace             string
 	heartbeatSenderConfig heartbeatSenderConfig
 	progressTrackerConfig progressTrackerConfig
@@ -87,6 +88,10 @@ func RefreshGlobalWorkspaceFactory(workspaceFactory chart.Factory) error {
 
 	wsFactory = workspaceFactory
 	return nil
+}
+
+func (r *ComponentReconciler) EnableDryRun(dryRun bool) {
+	r.dryRun = dryRun
 }
 
 func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*chart.DefaultProvider, error) {
