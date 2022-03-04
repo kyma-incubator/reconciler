@@ -149,7 +149,7 @@ func Test_RunUpdateAction(t *testing.T) {
 
 	wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
 	model := reconciler.Task{
-		Component: "istio-configuration",
+		Component: "istio",
 		Namespace: "istio-system",
 		Version:   "1.11.2",
 		Profile:   "production",
@@ -247,7 +247,7 @@ func Test_RunUninstallAction(t *testing.T) {
 		// given
 		wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
 		model := reconciler.Task{
-			Component: "istio-configuration",
+			Component: "istio",
 			Namespace: "istio-system",
 			Version:   "0.0.0",
 			Profile:   "production",
