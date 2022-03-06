@@ -67,6 +67,10 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
+		clientset, _ := kubeclient.Clientset()
+		podList, err := clientset.CoreV1().Pods(oryNamespace).List(context.Context, metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/name=hydra-maester"})
+		logger.Debug("ORY hydra-maester pods: %f", podList.String())
 		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace, rolloutHydra)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
