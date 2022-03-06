@@ -70,6 +70,9 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 		clientset, _ := kubeclient.Clientset()
 		podList, err := clientset.CoreV1().Pods(oryNamespace).List(context.Context, metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=hydra-maester"})
+		if err != nil {
+			return errors.Wrap(err, "Cannot list hydra-maester pods")
+		}
 		logger.Debug("ORY hydra-maester pods: %f", podList.String())
 		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace, rolloutHydra)
 		if err != nil {
