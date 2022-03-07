@@ -51,15 +51,11 @@ func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout 
 
 // Clone clones the repository from the given remote URL to the given `path` in the local filesystem.
 func (r *Cloner) Clone(path string) (*git.Repository, error) {
-	auth, err := r.buildAuth()
-	if err != nil {
-		return nil, err
-	}
 	return r.repoClient.Clone(context.Background(), path, false, &git.CloneOptions{
 		Depth:             0,
 		URL:               r.repo.URL,
 		NoCheckout:        !r.autoCheckout,
-		Auth:              auth,
+		Auth:              r.buildAuth(),
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	})
 
@@ -112,19 +108,17 @@ func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
 	return r.Checkout(rev, repo)
 }
 
-func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
-	// TODO: Remove the returned error as it's not needed anywhere anymore
-
+func (r *Cloner) buildAuth() transport.AuthMethod {
 	token := os.Getenv(gitCloneTokenEnv)
 	if token == "" {
 		r.logger.Warnf("Could not find the authorization token for %s repository, %s environment variable is not set", r.repo.URL, gitCloneTokenEnv)
-		return nil, nil
+		return nil
 	}
 
 	return &http.BasicAuth{
 		Username: "xxx", // anything but an empty string
 		Password: token,
-	}, nil
+	}
 }
 
 func mapSecretKey(URL string) (string, error) {
@@ -151,16 +145,12 @@ func mapSecretKey(URL string) (string, error) {
 }
 
 func (r *Cloner) FetchAndCheckout(path, version string) error {
-	auth, err := r.buildAuth()
-	if err != nil {
-		return err
-	}
 	gitClient, err := NewClientWithPath(path)
 	if err != nil {
 		return err
 	}
 	err = gitClient.Fetch(&git.FetchOptions{
-		Auth:       auth,
+		Auth:       r.buildAuth(),
 		RemoteName: "origin",
 	})
 	if err != nil {

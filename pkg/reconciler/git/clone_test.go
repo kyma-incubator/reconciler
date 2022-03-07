@@ -113,88 +113,32 @@ func TestCloneRepo(t *testing.T) {
 func TestTokenRead(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Should read correct token secret", func(t *testing.T) {
-		client := clientWithToken("localhost", "default", "token", "tokenValue")
+	t.Run("Should read correct token", func(t *testing.T) {
+		t.Setenv("GIT_CLONE_TOKEN", "tokenValue")
 
-		repo := reconciler.Repository{
-			URL:            "https://localhost",
-			TokenNamespace: "default",
-		}
+		cloner := Cloner{}
 
-		cloner := Cloner{
-			repo:               &repo,
-			autoCheckout:       false,
-			repoClient:         nil,
-			inClusterClientSet: client,
-			logger:             logger.NewLogger(true),
-		}
+		auth := cloner.buildAuth()
 
-		auth, err := cloner.buildAuth()
-
-		assert.NoError(t, err)
 		assert.Equal(t, &http.BasicAuth{
 			Username: "xxx",
 			Password: "tokenValue",
 		}, auth)
 	})
 
-	t.Run("Should ignore error when token secret not found", func(t *testing.T) {
-		client := fake.NewSimpleClientset()
-
+	t.Run("Should return nil when token not found", func(t *testing.T) {
 		repo := reconciler.Repository{
 			URL:            "https://localhost",
 			TokenNamespace: "default",
 		}
-
 		cloner := Cloner{
-			repo:               &repo,
-			autoCheckout:       false,
-			repoClient:         nil,
-			inClusterClientSet: client,
-			logger:             logger.NewLogger(true),
+			repo:   &repo,
+			logger: logger.NewLogger(true),
 		}
 
-		_, err := cloner.buildAuth()
+		auth := cloner.buildAuth()
 
-		assert.NoError(t, err)
-	})
-
-	t.Run("Should ignore error when clientset not set", func(t *testing.T) {
-		repo := reconciler.Repository{
-			URL:            "https://localhost",
-			TokenNamespace: "default",
-		}
-
-		cloner := Cloner{
-			repo:               &repo,
-			autoCheckout:       false,
-			repoClient:         nil,
-			inClusterClientSet: nil,
-			logger:             logger.NewLogger(true),
-		}
-
-		_, err := cloner.buildAuth()
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("Should ignore error when TokenNamespace not set", func(t *testing.T) {
-		repo := reconciler.Repository{
-			URL:            "https://localhost",
-			TokenNamespace: "",
-		}
-
-		cloner := Cloner{
-			repo:               &repo,
-			autoCheckout:       false,
-			repoClient:         nil,
-			inClusterClientSet: nil,
-			logger:             logger.NewLogger(true),
-		}
-
-		_, err := cloner.buildAuth()
-
-		assert.NoError(t, err)
+		assert.Nil(t, auth)
 	})
 
 	t.Run("Should parse URL", func(t *testing.T) {
