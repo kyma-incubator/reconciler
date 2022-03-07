@@ -2,7 +2,6 @@ package ory
 
 import (
 	"context"
-
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s"
 	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -67,13 +66,17 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
+		logger.Debug("=============== ORY hydra-maester pods BEGIN ===============")
 		clientset, _ := kubeclient.Clientset()
 		podList, err := clientset.CoreV1().Pods(oryNamespace).List(context.Context, metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/name=hydra-maester"})
+			LabelSelector: "app.kubernetes.io/instance=ory"})
 		if err != nil {
 			return errors.Wrap(err, "Cannot list hydra-maester pods")
 		}
-		logger.Debug("ORY hydra-maester pods: %f", podList.String())
+		for _, pod := range podList.Items {
+			logger.Debugf("%s : %s", pod.Name, pod.CreationTimestamp)
+		}
+		logger.Debug("=============== ORY hydra-maester pods END ===============")
 		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace, rolloutHydra)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
