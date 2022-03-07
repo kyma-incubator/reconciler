@@ -28,6 +28,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 )
 
 const (
@@ -710,6 +712,10 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
 		})
 		return
+	}
+
+	if body.Manifest != nil {
+		logger.NewLogger(true).Debugf("Dry run (correlationID: %s)\n, %s", *body.Manifest)
 	}
 
 	if body.Status == "" {

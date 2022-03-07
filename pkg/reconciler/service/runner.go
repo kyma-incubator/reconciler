@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
-	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"fmt"
 	"strings"
 	"time"
+
+	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
 	"github.com/google/uuid"
 
@@ -25,6 +27,41 @@ type runner struct {
 }
 
 func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler) error {
+	if r.dryRun {
+		var err error
+		chartProvider, err := r.newChartProvider(task.Repository)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create chart provider instance")
+		}
+
+		var manifest string
+		if task.Component == model.CRDComponent {
+			manifest, err = r.install.renderCRDs(chartProvider, task)
+		} else {
+			manifest, err = r.install.renderManifest(chartProvider, task)
+		}
+
+		if err != nil {
+			if !strings.Contains(err.Error(), "no such file or directory") {
+				err = callback.Callback(&reconciler.CallbackMessage{
+					Manifest: &manifest,
+					Error:    fmt.Sprintf("Unable to render manifest for '%s': %s", task.Component, err.Error()),
+					Status:   reconciler.StatusError,
+				})
+				return err
+			}
+			// Report back file not found
+			manifest = err.Error()
+		}
+
+		err = callback.Callback(&reconciler.CallbackMessage{
+			Manifest: &manifest,
+			Status:   reconciler.StatusSuccess,
+		})
+
+		return err
+	}
+
 	heartbeatSender, err := heartbeat.NewHeartbeatSender(ctx, callback, r.logger, heartbeat.Config{
 		Interval: r.heartbeatSenderConfig.interval,
 		Timeout:  r.heartbeatSenderConfig.timeout,
