@@ -1,0 +1,3 @@
+DROP VIEW IF EXISTS v_active_inventory_cluster_latest_status;
+DROP VIEW IF EXISTS v_active_inventory_cluster_config_status_history;
+DROP VIEW IF EXISTS v_active_inventory_cluster_configs;
