@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"go.uber.org/zap"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/go-git/go-git/v5"
@@ -18,6 +17,8 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/pkg/errors"
 )
+
+const gitCloneTokenEnv = "GIT_CLONE_TOKEN"
 
 type Cloner struct {
 	repo         *reconciler.Repository
@@ -112,38 +113,18 @@ func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
 }
 
 func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
-	tokenNamespace := "default"
-	if r.repo.TokenNamespace != "" {
-		tokenNamespace = r.repo.TokenNamespace
-	}
+	// TODO: Remove the returned error as it's not needed anywhere anymore
 
-	if r.inClusterClientSet == nil {
+	token := os.Getenv(gitCloneTokenEnv)
+	if token == "" {
+		r.logger.Warnf("Could not find the authorization token for %s repository, %s environment variable is not set", r.repo.URL, gitCloneTokenEnv)
 		return nil, nil
 	}
 
-	secretKey, err := mapSecretKey(r.repo.URL)
-	if err != nil {
-		return nil, err
-	}
-
-	secret, err := r.inClusterClientSet.CoreV1().
-		Secrets(tokenNamespace).
-		Get(context.Background(), secretKey, v1.GetOptions{})
-
-	if err != nil && !apierrors.IsNotFound(err) && !apierrors.IsForbidden(err) {
-		return nil, err
-	}
-
-	if secret != nil && err == nil {
-		return &http.BasicAuth{
-			Username: "xxx", // anything but an empty string
-			Password: strings.Trim(string(secret.Data["token"]), "\n"),
-		}, nil
-	}
-
-	r.logger.Info("Token not found or forbidden")
-
-	return nil, nil
+	return &http.BasicAuth{
+		Username: "xxx", // anything but an empty string
+		Password: token,
+	}, nil
 }
 
 func mapSecretKey(URL string) (string, error) {
