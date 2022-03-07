@@ -52,6 +52,7 @@ func (s *TransactionAwareDatabaseContainerTestSuite) SetupSuite() {
 	if s.schemaResetOnSetup {
 		errorDuringReset := s.Reset()
 		s.NoError(errorDuringReset)
+		s.schemaResetCount++
 	}
 }
 

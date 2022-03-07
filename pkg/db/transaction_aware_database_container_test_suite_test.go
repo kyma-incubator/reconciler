@@ -5,6 +5,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"path/filepath"
 	"testing"
 )
 
@@ -21,14 +22,25 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 		rollbackCount    int
 		commitCount      int
 		schemaResetCount int
+		migrations       Migrations
 	}{
 		{
-			testCaseName:     "Managed Suite Without Method Isolation",
+			testCaseName:     "Managed Suite Without Method Isolation and Migrations",
 			debug:            false,
 			connectionCount:  1,
 			rollbackCount:    1,
 			commitCount:      0,
 			schemaResetCount: 0,
+			migrations:       NoMigrations,
+		},
+		{
+			testCaseName:     "Managed Suite Without Method Isolation and with Migrations",
+			debug:            false,
+			connectionCount:  1,
+			rollbackCount:    0,
+			commitCount:      1,
+			schemaResetCount: 1,
+			migrations:       Migrations(filepath.Join("..", "..", "configs", "db", "postgres")),
 		},
 	}
 
@@ -36,7 +48,13 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.testCaseName, func(tInner *testing.T) {
 			testSuite := &SampleDatabaseDatabaseTestSuite{
-				NewManagedContainerTestSuite(testCase.debug, NoMigrations, nil).TransactionAwareDatabaseContainerTestSuite,
+				NewManagedContainerTestSuite(testCase.debug, testCase.migrations, nil).TransactionAwareDatabaseContainerTestSuite,
+			}
+			if testCase.schemaResetCount > 0 {
+				testSuite.schemaResetOnSetup = true
+			}
+			if testCase.commitCount > 0 {
+				testSuite.commitAfterExecution = true
 			}
 			suite.Run(tInner, testSuite)
 			testSuite.Equal(testCase.connectionCount, testSuite.connectionCount)
