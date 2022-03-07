@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
@@ -73,5 +75,14 @@ func Run(ctx context.Context, o *Options) error {
 		}
 	}(ctx, o)
 
-	return startWebserver(ctx, o)
+	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger())
+
+	processingDurationCollector := metrics.NewProcessingDurationCollector(o.Registry.ReconciliationRepository(), o.Logger())
+	err = prometheus.Register(processingDurationCollector.ProcessingDurationHistogram)
+	if err != nil {
+		o.Logger().Errorf("Prometheus can't register ProcessingDurationHistogram")
+	}
+
+	webserver := NewWebserver(processingDurationCollector)
+	return webserver.startWebserver(ctx, o)
 }

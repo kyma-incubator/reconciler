@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	v12 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -269,7 +270,7 @@ func Test_RunUninstallAction(t *testing.T) {
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
 		commanderMock.AssertCalled(t, "Uninstall", mock.Anything, mock.Anything)
 
-		//istio-system namespace should be deleted
+		// istio-system namespace should be deleted
 		fakeClient, _ := actionContext.KubeClient.Clientset()
 		_, nserror := fakeClient.CoreV1().Namespaces().Get(context.TODO(), "istio-system", metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
@@ -301,7 +302,11 @@ func newFakeKubeClient() *k8smocks.Client {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "istio-system",
 		},
-	})
+	},
+		&v12.MutatingWebhookConfiguration{
+			ObjectMeta: metav1.ObjectMeta{Name: "istio-sidecar-injector"},
+		},
+	)
 	mockClient.On("Clientset").Return(fakeClient, nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")
 	mockClient.On("Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)

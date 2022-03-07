@@ -156,16 +156,6 @@ func (c *scremoval) prepareForRemoval(ac *service.ActionContext) error {
 	gvkList := []schema.GroupVersionKind{
 		{
 			Group:   "servicecatalog.k8s.io",
-			Kind:    "ServiceBindingList",
-			Version: "v1beta1",
-		},
-		{
-			Group:   "servicecatalog.k8s.io",
-			Kind:    "ServiceInstanceList",
-			Version: "v1beta1",
-		},
-		{
-			Group:   "servicecatalog.k8s.io",
 			Kind:    "ServiceBrokerList",
 			Version: "v1beta1",
 		},
@@ -268,16 +258,6 @@ func (c *scremoval) removeResources(ac *service.ActionContext) error {
 			Kind:    "UsageKind",
 			Group:   "servicecatalog.kyma-project.io",
 			Version: "v1alpha1",
-		},
-		{
-			Kind:    "ServiceBinding",
-			Group:   "servicecatalog.k8s.io",
-			Version: "v1beta1",
-		},
-		{
-			Kind:    "ServiceInstance",
-			Group:   "servicecatalog.k8s.io",
-			Version: "v1beta1",
 		},
 		{
 			Kind:    "ServiceBroker",

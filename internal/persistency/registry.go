@@ -3,6 +3,7 @@ package persistency
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/features"
 	"github.com/kyma-incubator/reconciler/pkg/kv"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
@@ -23,7 +24,7 @@ type Registry struct {
 	initialized       bool
 }
 
-func NewRegistry(cf db.ConnectionFactory, debug bool, occupancyTracking bool) (*Registry, error) {
+func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
 	conn, err := cf.NewConnection()
 	if err != nil {
 		return nil, err
@@ -32,7 +33,7 @@ func NewRegistry(cf db.ConnectionFactory, debug bool, occupancyTracking bool) (*
 		debug:             debug,
 		connection:        conn,
 		logger:            logger.NewLogger(debug),
-		occupancyTracking: occupancyTracking,
+		occupancyTracking: features.WorkerpoolOccupancyTrackingEnabled(),
 	}
 	return registry, registry.init()
 }
