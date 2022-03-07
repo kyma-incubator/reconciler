@@ -15,8 +15,8 @@ type ContainerTestSuite struct {
 }
 
 type SharedContainerSettings struct {
-	name       string
-	migrations Migrations
+	name string
+	MigrationConfig
 }
 
 type SyncedSharedContainerTestSuiteInstanceHolder struct {
@@ -24,7 +24,7 @@ type SyncedSharedContainerTestSuiteInstanceHolder struct {
 	suites map[SharedContainerSettings]*ContainerTestSuite
 }
 
-func IsolatedContainerTestSuite(t *testing.T, debug bool, migrations Migrations) *ContainerTestSuite {
+func IsolatedContainerTestSuite(t *testing.T, debug bool, migrations MigrationConfig) *ContainerTestSuite {
 	test.IntegrationTest(t)
 	suite := NewManagedContainerTestSuite(debug, migrations, NewConsoleContainerLogListener(debug))
 	return &suite
@@ -33,7 +33,7 @@ func IsolatedContainerTestSuite(t *testing.T, debug bool, migrations Migrations)
 var (
 	Default = SharedContainerSettings{
 		"default-db-shared",
-		Migrations(filepath.Join("..", "..", "configs", "db", "postgres")),
+		MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres")),
 	}
 	syncedSharedContainerTestSuiteInstanceHolder *SyncedSharedContainerTestSuiteInstanceHolder
 )
@@ -49,14 +49,14 @@ func SharedContainerTestSuite(t *testing.T, debug bool, instance SharedContainer
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.suites[instance] == nil {
-		h.suites[instance] = IsolatedContainerTestSuite(t, debug, instance.migrations)
+		h.suites[instance] = IsolatedContainerTestSuite(t, debug, instance.MigrationConfig)
 	}
 	return h.suites[instance]
 }
 
 func NewManagedContainerTestSuite(
 	debug bool,
-	migrations Migrations,
+	migrations MigrationConfig,
 	listener testcontainers.LogConsumer,
 ) ContainerTestSuite {
 	newSuite := TransactionAwareDatabaseContainerTestSuite{

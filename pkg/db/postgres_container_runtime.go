@@ -18,11 +18,13 @@ type PostgresContainerRuntime struct {
 	ConnectionFactory
 }
 
-type Migrations string
+//MigrationConfig is currently just a migrationConfig directory but could be extended at will for further configuration
+type MigrationConfig string
 
-var NoMigrations Migrations = ""
+//NoOpMigrationConfig is a shortcut to not have any migrationConfig at all
+var NoOpMigrationConfig MigrationConfig = ""
 
-func RunPostgresContainer(ctx context.Context, migrations Migrations, debug bool) (*PostgresContainerRuntime, error) {
+func RunPostgresContainer(ctx context.Context, migrationConfig MigrationConfig, debug bool) (*PostgresContainerRuntime, error) {
 	configFile, err := test.GetConfigFile()
 
 	if err != nil {
@@ -65,13 +67,13 @@ func RunPostgresContainer(ctx context.Context, migrations Migrations, debug bool
 		password:      env.password,
 		sslMode:       env.sslMode,
 		encryptionKey: encKey,
-		migrationsDir: string(migrations),
+		migrationsDir: string(migrationConfig),
 		blockQueries:  true,
 		logQueries:    true,
 		debug:         debug,
 	}
 
-	shouldMigrate := len(string(migrations)) > 0
+	shouldMigrate := len(string(migrationConfig)) > 0
 
 	if initError := connectionFactory.Init(shouldMigrate); initError != nil {
 		panic(initError)

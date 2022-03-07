@@ -22,25 +22,25 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 		rollbackCount    int
 		commitCount      int
 		schemaResetCount int
-		migrations       Migrations
+		migrationConfig  MigrationConfig
 	}{
 		{
-			testCaseName:     "Managed Suite Without Method Isolation and Migrations",
+			testCaseName:     "Managed Suite Without Method Isolation and MigrationConfig",
 			debug:            false,
 			connectionCount:  1,
 			rollbackCount:    1,
 			commitCount:      0,
 			schemaResetCount: 0,
-			migrations:       NoMigrations,
+			migrationConfig:  NoOpMigrationConfig,
 		},
 		{
-			testCaseName:     "Managed Suite Without Method Isolation and with Migrations",
+			testCaseName:     "Managed Suite Without Method Isolation and with MigrationConfig",
 			debug:            false,
 			connectionCount:  1,
 			rollbackCount:    0,
 			commitCount:      1,
 			schemaResetCount: 1,
-			migrations:       Migrations(filepath.Join("..", "..", "configs", "db", "postgres")),
+			migrationConfig:  MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres")),
 		},
 	}
 
@@ -48,7 +48,7 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.testCaseName, func(tInner *testing.T) {
 			testSuite := &SampleDatabaseDatabaseTestSuite{
-				NewManagedContainerTestSuite(testCase.debug, testCase.migrations, nil).TransactionAwareDatabaseContainerTestSuite,
+				NewManagedContainerTestSuite(testCase.debug, testCase.migrationConfig, nil).TransactionAwareDatabaseContainerTestSuite,
 			}
 			if testCase.schemaResetCount > 0 {
 				testSuite.schemaResetOnSetup = true
@@ -85,7 +85,7 @@ func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {
 	test.IntegrationTest(t)
 	ctx := context.Background()
 
-	runtime, runtimeErr := RunPostgresContainer(ctx, NoMigrations, false)
+	runtime, runtimeErr := RunPostgresContainer(ctx, NoOpMigrationConfig, false)
 	require.NoError(t, runtimeErr)
 
 	testCases := []struct {

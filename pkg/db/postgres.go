@@ -267,7 +267,7 @@ func (pcf *postgresConnectionFactory) runMigration(migrateFct func(m *migrate.Mi
 	m.Log = migrateLogger
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		if err := migrateFct(m); err != nil {
-			return errors.Wrapf(err, "not able to execute migrations: %s", err)
+			return errors.Wrapf(err, "not able to execute migrationConfig: %s", err)
 		}
 		migrateLogger.logger.Info("Database migrated")
 		return nil
