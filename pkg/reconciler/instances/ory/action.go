@@ -48,7 +48,7 @@ type postDeleteAction struct {
 var (
 	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: oryNamespace}
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
-	rolloutHydra       = false
+	rolloutHydra       = true
 )
 
 func (a *postReconcileAction) Run(context *service.ActionContext) error {
