@@ -105,3 +105,7 @@ func (mr *MockRepository) GetMothershipOperationProcessingDuration(component str
 func (mr *MockRepository) GetAllComponents() ([]string, error) {
 	return mr.GetAllComponentsResult, mr.GetAllComponentsResultError
 }
+
+func (mr *MockRepository) RemoveReconciliationEntities(reconciliationEntities []*model.ReconciliationEntity) error {
+	return nil
+}

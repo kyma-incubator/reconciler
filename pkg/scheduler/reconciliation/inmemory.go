@@ -106,6 +106,10 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID str
 	return nil
 }
 
+func (r *InMemoryReconciliationRepository) RemoveReconciliationEntities(reconciliationEntities []*model.ReconciliationEntity) error {
+	return nil
+}
+
 func (r *InMemoryReconciliationRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

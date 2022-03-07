@@ -174,6 +174,38 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
+func (r *PersistentReconciliationRepository) RemoveReconciliationEntities(reconciliationEntities []*model.ReconciliationEntity) error {
+	dbOps := func(tx *db.TxConnection) error {
+		// format scheduling IDs
+		sIdsDuplicate := make(map[string]interface{}, len(reconciliationEntities))
+		var buffer bytes.Buffer
+		for _, reconciliationEntity := range reconciliationEntities {
+			if _, ok := sIdsDuplicate[reconciliationEntity.SchedulingID]; ok {
+				continue
+			}
+			sIdsDuplicate[reconciliationEntity.SchedulingID] = nil
+
+			if buffer.Len() > 0 {
+				buffer.WriteRune(',')
+			}
+			buffer.WriteString(fmt.Sprintf("'%s'", reconciliationEntity.SchedulingID))
+		}
+
+		//delete operations
+		deleteQuery, err := db.NewQuery(tx, &model.OperationEntity{}, r.Logger)
+		if err != nil {
+			return err
+		}
+		deleteQueryCount, err := deleteQuery.Delete().WhereIn("SchedulingID", buffer.String()).Exec()
+		if err != nil {
+			return err
+		}
+		r.Logger.Debugf("ReconRepo deleted %d operations which were assigned to reconciliation with schedulingIDs '%s'", deleteQueryCount, buffer.String())
+		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
 func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
 	q, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
 	if err != nil {
