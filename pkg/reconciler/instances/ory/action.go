@@ -63,20 +63,13 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "failed to roll out Hydra deployment")
 		}
 	}
-
+	logger.Debug("POSTRECONCILE #1")
+	err = getOryPods(context)
+	if err != nil {
+		return errors.Wrap(err, "failed to get ory pods")
+	}
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
-		logger.Debug("=============== ORY pods BEGIN ===============")
-		clientset, _ := kubeclient.Clientset()
-		podList, err := clientset.CoreV1().Pods(oryNamespace).List(context.Context, metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/instance=ory"})
-		if err != nil {
-			return errors.Wrap(err, "Cannot list hydra-maester pods")
-		}
-		for _, pod := range podList.Items {
-			logger.Debugf("%s : %s", pod.Name, pod.CreationTimestamp)
-		}
-		logger.Debug("=============== ORY pods END ===============")
 		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace, rolloutHydra)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
@@ -84,7 +77,11 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	} else {
 		logger.Debug("Hydra is in persistence mode, no synchronization needed")
 	}
-
+	logger.Debug("POSTRECONCILE #2")
+	err = getOryPods(context)
+	if err != nil {
+		return errors.Wrap(err, "failed to get ory pods")
+	}
 	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
 	return nil
@@ -150,7 +147,11 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 			}
 		}
 	}
-
+	logger.Debug("PRERECONCILE ")
+	err = getOryPods(context)
+	if err != nil {
+		return errors.Wrap(err, "failed to get ory pods")
+	}
 	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
 	return nil
@@ -282,4 +283,19 @@ func isInMemoryMode(cfg *db.Config) bool {
 
 func isUpdate(diff map[string]string) bool {
 	return len(diff) != 0
+}
+func getOryPods(context *service.ActionContext) error {
+	logger, kubeClient, _, _, err := readActionContext(context)
+	logger.Debug("=============== ORY pods BEGIN ===============")
+	clientset, _ := kubeClient.Clientset()
+	podList, err := clientset.CoreV1().Pods(oryNamespace).List(context.Context, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/instance=ory"})
+	if err != nil {
+		return errors.Wrap(err, "Cannot list hydra-maester pods")
+	}
+	for _, pod := range podList.Items {
+		logger.Debugf("%s : %s", pod.Name, pod.CreationTimestamp)
+	}
+	logger.Debug("=============== ORY pods END ===============")
+	return nil
 }
