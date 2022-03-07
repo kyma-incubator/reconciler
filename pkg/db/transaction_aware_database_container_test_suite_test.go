@@ -17,7 +17,6 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 	testCases := []struct {
 		testCaseName     string
 		debug            bool
-		migrate          bool
 		connectionCount  int
 		rollbackCount    int
 		commitCount      int
@@ -26,7 +25,6 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 		{
 			testCaseName:     "Managed Suite Without Method Isolation",
 			debug:            false,
-			migrate:          false,
 			connectionCount:  1,
 			rollbackCount:    1,
 			commitCount:      0,
