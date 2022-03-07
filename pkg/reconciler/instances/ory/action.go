@@ -70,8 +70,7 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	}
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
-		rolloutHydra = true
-		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace, rolloutHydra)
+		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace, true)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
 		}
