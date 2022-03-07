@@ -48,7 +48,7 @@ type postDeleteAction struct {
 var (
 	jwksNamespacedName = types.NamespacedName{Name: "ory-oathkeeper-jwks-secret", Namespace: oryNamespace}
 	dbNamespacedName   = types.NamespacedName{Name: "ory-hydra-credentials", Namespace: oryNamespace}
-	rolloutHydra       = true
+	rolloutHydra       = false
 )
 
 func (a *postReconcileAction) Run(context *service.ActionContext) error {
@@ -70,6 +70,7 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 	}
 	if isInMemoryMode(cfg) {
 		logger.Debug("Detected in hydra in memory mode, triggering synchronization")
+		rolloutHydra = true
 		err = a.hydraSyncer.TriggerSynchronization(context.Context, kubeclient, logger, oryNamespace, rolloutHydra)
 		if err != nil {
 			return errors.Wrap(err, "failed to trigger hydra sychronization")
