@@ -1,6 +1,6 @@
 # Reconciler
 
-## Overview
+## Overview ##
 
 The Reconciler is a central system to reconcile Kyma clusters.
 
