@@ -285,7 +285,9 @@ func isUpdate(diff map[string]string) bool {
 	return len(diff) != 0
 }
 func getOryPods(context *service.ActionContext) error {
-	logger, kubeClient, _, _, err := readActionContext(context)
+	//logger, kubeClient, _, _, err := readActionContext(context)
+	logger := context.Logger
+	kubeClient := context.KubeClient
 	logger.Debug("=============== ORY pods BEGIN ===============")
 	clientset, _ := kubeClient.Clientset()
 	podList, err := clientset.CoreV1().Pods(oryNamespace).List(context.Context, metav1.ListOptions{
