@@ -47,7 +47,17 @@ const (
 	paramPoolID     = "poolID"
 )
 
-func startWebserver(ctx context.Context, o *Options) error {
+type Webserver struct {
+	processingTimeCollector *metrics.ProcessingDurationCollector
+}
+
+func NewWebserver(processingTimeCollector *metrics.ProcessingDurationCollector) *Webserver {
+	return &Webserver{
+		processingTimeCollector: processingTimeCollector,
+	}
+}
+
+func (webserver *Webserver) startWebserver(ctx context.Context, o *Options) error {
 	//routing
 	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/").Subrouter()
@@ -97,7 +107,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/callback/{%s}", paramContractVersion, paramSchedulingID, paramCorrelationID),
-		callHandler(o, operationCallback)).
+		callHandler(o, webserver.operationCallback)).
 		Methods(http.MethodPost)
 
 	apiRouter.HandleFunc(
@@ -122,8 +132,6 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/occupancy/{%s}", paramContractVersion, paramPoolID),
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
-	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -678,7 +686,7 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
+func (webserver *Webserver) operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	schedulingID, err := params.String(paramSchedulingID)
 	if err != nil {
@@ -725,9 +733,9 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	case reconciler.StatusFailed:
 		err = updateOperationStateAndRetryID(o, schedulingID, correlationID, body.RetryID, model.OperationStateFailed, body.Error)
 	case reconciler.StatusSuccess:
-		err = updateOperationStateAndRetryIDAndProcessingDuration(o, schedulingID, correlationID, body.RetryID, model.OperationStateDone, body.ProcessingDuration)
+		err = updateOperationStateAndRetryIDAndProcessingDuration(webserver.processingTimeCollector, o, schedulingID, correlationID, body.RetryID, model.OperationStateDone, body.ProcessingDuration)
 	case reconciler.StatusError:
-		err = updateOperationStateAndRetryIDAndProcessingDuration(o, schedulingID, correlationID, body.RetryID, model.OperationStateError, body.ProcessingDuration, body.Error)
+		err = updateOperationStateAndRetryIDAndProcessingDuration(webserver.processingTimeCollector, o, schedulingID, correlationID, body.RetryID, model.OperationStateError, body.ProcessingDuration, body.Error)
 	}
 	if err != nil {
 		httpCode := http.StatusBadRequest
@@ -863,7 +871,7 @@ func updateOperationStateAndRetryID(o *Options, schedulingID, correlationID, ret
 	return err
 }
 
-func updateOperationStateAndRetryIDAndProcessingDuration(o *Options, schedulingID, correlationID, retryID string, state model.OperationState, processingDuration int, reason ...string) error {
+func updateOperationStateAndRetryIDAndProcessingDuration(processingDurationCollector *metrics.ProcessingDurationCollector, o *Options, schedulingID, correlationID, retryID string, state model.OperationState, processingDuration int, reason ...string) error {
 	dbOps := func(tx *db.TxConnection) error {
 		rTx, err := o.Registry.ReconciliationRepository().WithTx(tx)
 		if err != nil {
@@ -889,6 +897,12 @@ func updateOperationStateAndRetryIDAndProcessingDuration(o *Options, schedulingI
 			o.Logger().Errorf("REST endpoint failed to update operation processingDuration (schedulingID:%s/correlationID:%s) "+
 				"to '%s': %s", schedulingID, correlationID, state, err)
 		}
+		operationEntity, err := rTx.GetOperation(schedulingID, correlationID)
+		if err != nil {
+			o.Logger().Errorf("REST endpoint failed to get operation")
+		}
+
+		processingDurationCollector.ExposeProcessingDuration(operationEntity.Component, state, processingDuration)
 		return err
 	}
 	return db.Transaction(o.Registry.Connection(), dbOps, o.Logger())

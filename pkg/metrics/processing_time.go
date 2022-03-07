@@ -26,7 +26,7 @@ const suffixUnit = "milliseconds"
 // - operation_processing_duration_reconciler_successful_<component-name>_milliseconds - avg. processing time by the component reconciler (rendered and finished to be deployed in K8s successfully)
 // - operation_processing_duration_reconciler_unsuccessful_<component-name>_milliseconds - avg. processing time by the component reconciler (rendered and finished to be deployed in K8s non-successfully)
 type ProcessingDurationCollector struct {
-	processingDurationHistogram *prometheus.HistogramVec
+	ProcessingDurationHistogram *prometheus.HistogramVec
 	metricsList                 []string
 	reconRepo                   reconciliation.Repository
 	logger                      *zap.SugaredLogger
@@ -34,7 +34,7 @@ type ProcessingDurationCollector struct {
 
 func NewProcessingDurationCollector(reconciliations reconciliation.Repository, logger *zap.SugaredLogger) *ProcessingDurationCollector {
 	return &ProcessingDurationCollector{
-		processingDurationHistogram: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		ProcessingDurationHistogram: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
 			Help:      "Processing time of operations",
@@ -52,35 +52,56 @@ func NewProcessingDurationCollector(reconciliations reconciliation.Repository, l
 	}
 }
 
-func (c *ProcessingDurationCollector) Describe(ch chan<- *prometheus.Desc) {
-	c.processingDurationHistogram.Describe(ch)
-}
+//func (c *ProcessingDurationCollector) Describe(ch chan<- *prometheus.Desc) {
+//	c.processingDurationHistogram.Describe(ch)
+//}
+//
+//func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
+//
+//	componentList, err := c.reconRepo.GetAllComponents()
+//	if err != nil {
+//		c.logger.Warnf("Could not receive componentList from db: %s", err)
+//	}
+//
+//	for _, component := range componentList {
+//		for _, metric := range c.metricsList {
+//			m, err := c.processingDurationHistogram.GetMetricWithLabelValues(component, metric+suffixUnit)
+//			if err != nil {
+//				c.logger.Errorf("processingDurationCollector: unable to retrieve metric with label=%s: %s", component, err.Error())
+//				return
+//			}
+//			processingDuration, err := c.getProcessingDuration(component, metric)
+//			if err != nil {
+//				c.logger.Errorf("Error getting ProcessingDuration: %s", err.Error())
+//				continue
+//			}
+//			m.Observe(float64(processingDuration))
+//		}
+//	}
+//	c.processingDurationHistogram.Collect(ch)
+//}
 
-func (c *ProcessingDurationCollector) Collect(ch chan<- prometheus.Metric) {
-
-	componentList, err := c.reconRepo.GetAllComponents()
+func (c *ProcessingDurationCollector) ExposeProcessingDuration(component string, state model.OperationState, duration int) {
+	metricLabel := getMetricLabel(state)
+	m, err := c.ProcessingDurationHistogram.GetMetricWithLabelValues(component, metricLabel)
 	if err != nil {
-		c.logger.Warnf("Could not receive componentList from db: %s", err)
+		c.logger.Errorf("processingDurationCollector: unable to retrieve metric with label=%s: %s", component, err.Error())
+		return
 	}
-
-	for _, component := range componentList {
-		for _, metric := range c.metricsList {
-			m, err := c.processingDurationHistogram.GetMetricWithLabelValues(component, metric+suffixUnit)
-			if err != nil {
-				c.logger.Errorf("processingDurationCollector: unable to retrieve metric with label=%s: %s", component, err.Error())
-				return
-			}
-			processingDuration, err := c.getProcessingDuration(component, metric)
-			if err != nil {
-				c.logger.Errorf("Error getting ProcessingDuration: %s", err.Error())
-				continue
-			}
-			m.Observe(float64(processingDuration))
-		}
-	}
-	c.processingDurationHistogram.Collect(ch)
+	m.Observe(float64(duration))
 }
 
+func getMetricLabel(state model.OperationState) string {
+	switch state {
+	case model.OperationStateDone:
+		return prefixOperationLifetimeMothershipSuccessful + suffixUnit
+	case model.OperationStateFailed:
+		return prefixOperationLifetimeMothershipUnsuccessful + suffixUnit
+	}
+	return "undefined"
+}
+
+//nolint:unused
 func (c *ProcessingDurationCollector) getProcessingDuration(component, metric string) (int64, error) {
 	switch metric {
 	case prefixOperationLifetimeMothershipSuccessful:
