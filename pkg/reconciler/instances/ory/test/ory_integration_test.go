@@ -112,6 +112,7 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	t.Run("ensure that ory-oathkeeper pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=oathkeeper",
+			FieldSelector: "status.phase=Running",
 		}
 		podsList, err := setup.getPods(options)
 		require.NoError(t, err)
@@ -122,6 +123,7 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	t.Run("ensure that ory-hydra pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=hydra",
+			FieldSelector: "status.phase=Running",
 		}
 		podsList, err := setup.getPods(options)
 		require.NoError(t, err)
@@ -132,6 +134,7 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 	t.Run("ensure that ory-hydra-maester pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=hydra-maester",
+			FieldSelector: "status.phase=Running",
 		}
 		podsList, err := setup.getPods(options)
 		require.NoError(t, err)
