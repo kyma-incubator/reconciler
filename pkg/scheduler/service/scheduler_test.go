@@ -26,7 +26,8 @@ var (
 
 func TestScheduler(t *testing.T) {
 	t.Run("Test run once", func(t *testing.T) {
-		clusterState := testClusterState("testCluster", 1)
+		// run once will already expect the reconciliation to be in progress as there is no scheduling in place
+		clusterState := testClusterState("testCluster", 1, model.ClusterStatusReconciling)
 		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 		scheduler := newScheduler(logger.NewLogger(true))
 		require.NoError(t, scheduler.RunOnce(clusterState, reconRepo, &SchedulerConfig{}))
@@ -42,7 +43,8 @@ func TestScheduler(t *testing.T) {
 
 		start := time.Now()
 
-		clusterState := testClusterState("testCluster", 1)
+		// for a regular run within the scheduling loop, the cluster to be processed must be in pending state first
+		clusterState := testClusterState("testCluster", 1, model.ClusterStatusReconcilePending)
 
 		err := scheduler.Run(ctx, &ClusterStatusTransition{
 			conn: db.NewTestConnection(t),
@@ -53,8 +55,9 @@ func TestScheduler(t *testing.T) {
 				},
 				//simulate an updated cluster status (required when transition updates the cluster status)
 				UpdateStatusResult: func() *cluster.State {
-					updatedState := testClusterState("testCluster", 1)
-					updatedState.Status.Status = model.ClusterStatusReconciling
+					// here we expect that after updating the cluster, it will set it to reconciling as it is no longer
+					// waiting to be scheduled
+					updatedState := testClusterState("testCluster", 2, model.ClusterStatusReconciling)
 					return updatedState
 				}(),
 				GetResult: func() *cluster.State {
@@ -94,7 +97,7 @@ func requiredReconciliationEntity(t *testing.T, reconRepo reconciliation.Reposit
 	require.Equal(t, ops[0].RuntimeID, state.Cluster.RuntimeID)
 }
 
-func testClusterState(clusterID string, statusID int64) *cluster.State {
+func testClusterState(clusterID string, statusID int64, status model.Status) *cluster.State {
 	return &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version:    1,
@@ -120,7 +123,7 @@ func testClusterState(clusterID string, statusID int64) *cluster.State {
 			RuntimeID:      clusterID,
 			ClusterVersion: 1,
 			ConfigVersion:  1,
-			Status:         model.ClusterStatusReconcilePending,
+			Status:         status,
 		},
 	}
 }
