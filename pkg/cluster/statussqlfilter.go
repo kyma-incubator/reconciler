@@ -10,10 +10,11 @@ import (
 )
 
 const (
-	CreatedAtColumnName = "StatusCreatedAt"
-	StatusColumnName    = "Status"
-	RuntimeIDColumnName = "RuntimeID"
-	ConfigIDColumnName  = "ConfigID"
+	CreatedAtColumnName       = "Created"
+	StatusCreatedAtColumnName = "StatusCreatedAt"
+	StatusColumnName          = "Status"
+	RuntimeIDColumnName       = "RuntimeID"
+	ConfigIDColumnName        = "ConfigID"
 )
 
 type statusSQLFilter interface {
@@ -25,7 +26,7 @@ type statusFilter struct {
 }
 
 func (sf *statusFilter) Filter(_ db.Type, statusColHdr *db.ColumnHandler) (string, error) {
-	statusColName, err := statusColHdr.ColumnName(CreatedAtColumnName)
+	statusColName, err := statusColHdr.ColumnName(StatusColumnName)
 	if err != nil {
 		return "", err
 	}
@@ -49,7 +50,7 @@ func (rif *reconcileIntervalFilter) Filter(dbType db.Type, statusColHdr *db.Colu
 	if err != nil {
 		return "", err
 	}
-	createdColName, err := statusColHdr.ColumnName(CreatedAtColumnName)
+	createdColName, err := statusColHdr.ColumnName(StatusCreatedAtColumnName)
 	if err != nil {
 		return "", err
 	}
