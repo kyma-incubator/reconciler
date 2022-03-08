@@ -51,9 +51,14 @@ func TestPersistentReconciliationRepository_RemoveSchedulingIds(t *testing.T) {
 			reconciliations: 1,
 		},
 		{
-			name:            "with multiple scheduling IDs",
+			name:            "with multiple scheduling IDs less than 100 (1 block)",
 			wantErr:         false,
-			reconciliations: 150,
+			reconciliations: 69,
+		},
+		{
+			name:            "with multiple scheduling IDs more than 100 (3 blocks)",
+			wantErr:         false,
+			reconciliations: 209,
 		},
 	}
 	for _, tt := range tests {
