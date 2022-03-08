@@ -146,20 +146,6 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 			"SchedulingID": schedulingID,
 		}
 
-		//delete operations
-		qDelOps, err := db.NewQuery(tx, &model.OperationEntity{}, r.Logger)
-		if err != nil {
-			return err
-		}
-		delOpsCnt, err := qDelOps.Delete().
-			Where(whereCond).
-			Exec()
-		if err != nil {
-			return err
-		}
-		r.Logger.Debugf("ReconRepo deleted %d operations which were assigned to reconciliation with schedulingID '%s'",
-			delOpsCnt, schedulingID)
-
 		//delete reconciliation
 		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
 		if err != nil {
@@ -174,33 +160,43 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) RemoveReconciliationEntities(reconciliationEntities []*model.ReconciliationEntity) error {
+func (r *PersistentReconciliationRepository) RemoveReconciliations(reconEntities []*model.ReconciliationEntity) error {
+	if len(reconEntities) == 0 {
+		return nil
+	}
+
+	var args []interface{}
 	dbOps := func(tx *db.TxConnection) error {
+
 		// format scheduling IDs
-		sIdsDuplicate := make(map[string]interface{}, len(reconciliationEntities))
+		sIdsDuplicate := make(map[string]interface{}, len(reconEntities))
+
 		var buffer bytes.Buffer
-		for _, reconciliationEntity := range reconciliationEntities {
-			if _, ok := sIdsDuplicate[reconciliationEntity.SchedulingID]; ok {
+
+		for i, reconEntity := range reconEntities {
+			if _, ok := sIdsDuplicate[reconEntity.SchedulingID]; ok {
 				continue
 			}
-			sIdsDuplicate[reconciliationEntity.SchedulingID] = nil
+			sIdsDuplicate[reconEntity.SchedulingID] = nil
 
 			if buffer.Len() > 0 {
 				buffer.WriteRune(',')
 			}
-			buffer.WriteString(fmt.Sprintf("'%s'", reconciliationEntity.SchedulingID))
+			buffer.WriteString(fmt.Sprintf("$%d", i+1))
+			args = append(args, reconEntity.SchedulingID)
 		}
 
-		//delete operations
-		deleteQuery, err := db.NewQuery(tx, &model.OperationEntity{}, r.Logger)
+		//delete reconciliations
+		deleteQuery, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
 		if err != nil {
 			return err
 		}
-		deleteQueryCount, err := deleteQuery.Delete().WhereIn("SchedulingID", buffer.String()).Exec()
+
+		deleteQueryCount, err := deleteQuery.Delete().WhereIn("SchedulingID", buffer.String(), args...).Exec()
 		if err != nil {
 			return err
 		}
-		r.Logger.Debugf("ReconRepo deleted %d operations which were assigned to reconciliation with schedulingIDs '%s'", deleteQueryCount, buffer.String())
+		r.Logger.Debugf("ReconRepo deleted %d reconciliations which were assigned to reconciliation with schedulingIDs '%s'", deleteQueryCount, buffer.String())
 		return nil
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)

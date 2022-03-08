@@ -106,6 +106,6 @@ func (mr *MockRepository) GetAllComponents() ([]string, error) {
 	return mr.GetAllComponentsResult, mr.GetAllComponentsResultError
 }
 
-func (mr *MockRepository) RemoveReconciliationEntities(reconciliationEntities []*model.ReconciliationEntity) error {
+func (mr *MockRepository) RemoveReconciliations(reconEntities []*model.ReconciliationEntity) error {
 	return nil
 }

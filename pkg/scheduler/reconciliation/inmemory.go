@@ -106,7 +106,15 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID str
 	return nil
 }
 
-func (r *InMemoryReconciliationRepository) RemoveReconciliationEntities(reconciliationEntities []*model.ReconciliationEntity) error {
+func (r *InMemoryReconciliationRepository) RemoveReconciliations(reconEntities []*model.ReconciliationEntity) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, recon := range reconEntities {
+		delete(r.reconciliations, recon.RuntimeID)
+		delete(r.operations, recon.SchedulingID)
+	}
+
 	return nil
 }
 

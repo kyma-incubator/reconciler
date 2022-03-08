@@ -20,7 +20,7 @@ const (
 type Repository interface {
 	CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error)
 	RemoveReconciliation(schedulingID string) error
-	RemoveReconciliationEntities(reconciliationEntities []*model.ReconciliationEntity) error
+	RemoveReconciliations(reconEntities []*model.ReconciliationEntity) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error
