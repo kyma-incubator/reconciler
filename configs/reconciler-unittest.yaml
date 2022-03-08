@@ -12,6 +12,10 @@ db:
     user: kyma
     password: kyma
     useSsl: false
+    maxOpenConns: 50
+    maxIdleConns: 5
+    connMaxLifetime: 30s
+    connMaxIdleTime: 1m
   sqlite:
     file: "test/unittest.db"
     deploySchema: true

@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"os"
 	"path/filepath"
+	"sync"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/viper"
@@ -95,6 +96,10 @@ func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, lo
 	password := viper.GetString("db.postgres.password")
 	sslMode := viper.GetBool("db.postgres.sslMode")
 	migrationsDir := viper.GetString("db.postgres.migrationsDir")
+	maxOpenConns := viper.GetInt("db.postgres.maxOpenConns")
+	maxIdleConns := viper.GetInt("db.postgres.maxIdleConns")
+	connMaxLifetime := viper.GetDuration("db.postgres.connMaxLifetime")
+	connMaxIdleTime := viper.GetDuration("db.postgres.connMaxIdleTime")
 
 	if viper.IsSet("DATABASE_HOST") {
 		host = viper.GetString("DATABASE_HOST")
@@ -117,18 +122,35 @@ func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, lo
 	if viper.IsSet("DATABASE_MIGRATIONS_DIR") {
 		migrationsDir = viper.GetString("DATABASE_MIGRATIONS_DIR")
 	}
+	if viper.IsSet("DATABASE_MAX_OPEN_CONNS") {
+		maxOpenConns = viper.GetInt("DATABASE_MAX_OPEN_CONNS")
+	}
+	if viper.IsSet("DATABASE_MAX_IDLE_CONNS") {
+		maxIdleConns = viper.GetInt("DATABASE_MAX_IDLE_CONNS")
+	}
+	if viper.IsSet("DATABASE_CONN_MAX_LIFETIME") {
+		connMaxLifetime = viper.GetDuration("DATABASE_CONN_MAX_LIFETIME")
+	}
+	if viper.IsSet("DATABASE_CONN_MAX_IDLE_TIME") {
+		connMaxIdleTime = viper.GetDuration("DATABASE_CONN_MAX_IDLE_TIME")
+	}
 
 	return &postgresConnectionFactory{
-		host:          host,
-		port:          port,
-		database:      database,
-		user:          user,
-		password:      password,
-		sslMode:       sslMode,
-		encryptionKey: encKey,
-		migrationsDir: migrationsDir,
-		blockQueries:  blockQueries,
-		logQueries:    logQueries,
-		debug:         debug,
+		host:            host,
+		port:            port,
+		database:        database,
+		user:            user,
+		password:        password,
+		sslMode:         sslMode,
+		encryptionKey:   encKey,
+		migrationsDir:   migrationsDir,
+		blockQueries:    blockQueries,
+		logQueries:      logQueries,
+		debug:           debug,
+		maxOpenConns:    maxOpenConns,
+		maxIdleConns:    maxIdleConns,
+		connMaxIdleTime: connMaxIdleTime,
+		connMaxLifetime: connMaxLifetime,
+		dbAccessSync:    sync.Mutex{},
 	}
 }
