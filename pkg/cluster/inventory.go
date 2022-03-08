@@ -348,44 +348,39 @@ func (i *DefaultInventory) Delete(runtimeID string) error {
 }
 
 func (i *DefaultInventory) Get(runtimeID string, configVersion int64) (*State, error) {
-	configEntity, err := i.config(runtimeID, configVersion)
-	if err != nil {
-		return nil, err
+	states, statesFetchErr := i.filterClusters(
+		&runtimeIDFilter{runtimeID}, &configIDFilter{configVersion},
+	)
+
+	if statesFetchErr != nil {
+		return nil, statesFetchErr
 	}
-	statusEntity, err := i.latestStatus(configVersion)
-	if err != nil {
-		return nil, err
+
+	if len(states) > 0 {
+		return states[0], nil
+	} else {
+		return nil, i.Repository.NewNotFoundError(
+			errors.New(fmt.Sprintf("latest state for runtime %v does not exist", runtimeID)),
+			&model.ActiveInventoryClusterStatusDetailsEntity{}, make(map[string]interface{}, 0),
+		)
 	}
-	clusterEntity, err := i.cluster(configEntity.ClusterVersion)
-	if err != nil {
-		return nil, err
-	}
-	return &State{
-		Cluster:       clusterEntity,
-		Configuration: configEntity,
-		Status:        statusEntity,
-	}, nil
 }
 
 func (i *DefaultInventory) GetLatest(runtimeID string) (*State, error) {
-	clusterEntity, err := i.latestCluster(runtimeID)
-	if err != nil {
-		return nil, err
-	}
-	configEntity, err := i.latestConfig(clusterEntity.Version)
-	if err != nil {
-		return nil, err
-	}
-	statusEntity, err := i.latestStatus(configEntity.Version)
-	if err != nil {
-		return nil, err
+	states, statesFetchErr := i.filterClusters(&runtimeIDFilter{runtimeID})
+
+	if statesFetchErr != nil {
+		return nil, statesFetchErr
 	}
 
-	return &State{
-		Cluster:       clusterEntity,
-		Configuration: configEntity,
-		Status:        statusEntity,
-	}, nil
+	if len(states) > 0 {
+		return states[0], nil
+	} else {
+		return nil, i.Repository.NewNotFoundError(
+			errors.New(fmt.Sprintf("latest state for runtime %v does not exist", runtimeID)),
+			&model.ActiveInventoryClusterStatusDetailsEntity{}, make(map[string]interface{}, 0),
+		)
+	}
 }
 
 func (i *DefaultInventory) GetAll() ([]*State, error) {

@@ -13,6 +13,7 @@ const (
 	CreatedAtColumnName = "StatusCreatedAt"
 	StatusColumnName    = "Status"
 	RuntimeIDColumnName = "RuntimeID"
+	ConfigIDColumnName  = "ConfigID"
 )
 
 type statusSQLFilter interface {
@@ -88,4 +89,28 @@ func (rif *createdIntervalFilter) Filter(dbType db.Type, statusColHdr *db.Column
 	default:
 		return "", fmt.Errorf("database type '%s' is not supported by this filter", dbType)
 	}
+}
+
+type runtimeIDFilter struct {
+	runtimeID string
+}
+
+func (r *runtimeIDFilter) Filter(_ db.Type, statusColHdr *db.ColumnHandler) (string, error) {
+	runtimeIDColName, err := statusColHdr.ColumnName(RuntimeIDColumnName)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s = '%s'", runtimeIDColName, r.runtimeID), nil
+}
+
+type configIDFilter struct {
+	configID int64
+}
+
+func (r *configIDFilter) Filter(_ db.Type, statusColHdr *db.ColumnHandler) (string, error) {
+	configIDColName, err := statusColHdr.ColumnName(ConfigIDColumnName)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s = '%v'", configIDColName, r.configID), nil
 }
