@@ -15,6 +15,12 @@ type SampleDatabaseDatabaseTestSuite struct {
 
 func TestDatabaseContainerTestSuite(t *testing.T) {
 	test.IntegrationTest(t)
+
+	noMigrationSettings := testPosgresContainerSettings()
+
+	migrationSettings := testPosgresContainerSettings()
+	migrationSettings.config = MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres"))
+
 	testCases := []struct {
 		testCaseName     string
 		debug            bool
@@ -22,7 +28,7 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 		rollbackCount    int
 		commitCount      int
 		schemaResetCount int
-		migrationConfig  MigrationConfig
+		settings         PostgresContainerSettings
 	}{
 		{
 			testCaseName:     "Managed Suite Without Method Isolation and MigrationConfig",
@@ -31,7 +37,7 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 			rollbackCount:    1,
 			commitCount:      0,
 			schemaResetCount: 0,
-			migrationConfig:  NoOpMigrationConfig,
+			settings:         noMigrationSettings,
 		},
 		{
 			testCaseName:     "Managed Suite Without Method Isolation and with MigrationConfig",
@@ -40,7 +46,7 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 			rollbackCount:    0,
 			commitCount:      1,
 			schemaResetCount: 1,
-			migrationConfig:  MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres")),
+			settings:         migrationSettings,
 		},
 	}
 
@@ -48,7 +54,7 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.testCaseName, func(tInner *testing.T) {
 			testSuite := &SampleDatabaseDatabaseTestSuite{
-				NewManagedContainerTestSuite(testCase.debug, testCase.migrationConfig, nil).TransactionAwareDatabaseContainerTestSuite,
+				NewManagedContainerTestSuite(testCase.debug, testCase.settings, nil).TransactionAwareDatabaseContainerTestSuite,
 			}
 			if testCase.schemaResetCount > 0 {
 				testSuite.schemaResetOnSetup = true
@@ -85,7 +91,7 @@ func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {
 	test.IntegrationTest(t)
 	ctx := context.Background()
 
-	runtime, runtimeErr := RunPostgresContainer(ctx, NoOpMigrationConfig, false)
+	runtime, runtimeErr := RunPostgresContainer(ctx, testPosgresContainerSettings(), false)
 	require.NoError(t, runtimeErr)
 
 	testCases := []struct {
@@ -130,4 +136,19 @@ func (s *SingleContainerSampleDatabaseIntegrationTestSuite) TestFirstSimplePingT
 
 func (s *SingleContainerSampleDatabaseIntegrationTestSuite) TestSecondSimplePingTestForSingleContainer() {
 	s.NoError(s.TxConnection().Ping())
+}
+
+func testPosgresContainerSettings() PostgresContainerSettings {
+	return PostgresContainerSettings{
+		"default-db-shared",
+		"postgres:11-alpine",
+		NoOpMigrationConfig,
+		"127.0.0.1",
+		"kyma",
+		5432,
+		"kyma",
+		"kyma",
+		false,
+		filepath.Join("..", "..", "configs", "encryption", "unittest.key"),
+	}
 }

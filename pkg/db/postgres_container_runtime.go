@@ -3,19 +3,47 @@ package db
 import (
 	"context"
 	"github.com/docker/go-connections/nat"
-	"github.com/kyma-incubator/reconciler/pkg/test"
-	"github.com/spf13/viper"
 	"strconv"
 )
 
 type PostgresContainerRuntime struct {
 	debug bool
 
-	env    postgresEnvironment
-	encKey string
+	settings PostgresContainerSettings
 
 	ContainerBootstrap
 	ConnectionFactory
+}
+
+type ContainerSettings interface {
+	containerName() string
+	containerImage() string
+	migrationConfig() MigrationConfig
+}
+
+type PostgresContainerSettings struct {
+	name              string
+	image             string
+	config            MigrationConfig
+	host              string
+	database          string
+	port              int
+	user              string
+	password          string
+	useSsl            bool
+	encryptionKeyFile string
+}
+
+func (p PostgresContainerSettings) containerName() string {
+	return p.name
+}
+
+func (p PostgresContainerSettings) containerImage() string {
+	return p.image
+}
+
+func (p PostgresContainerSettings) migrationConfig() MigrationConfig {
+	return p.config
 }
 
 //MigrationConfig is currently just a migrationConfig directory but could be extended at will for further configuration
@@ -24,56 +52,39 @@ type MigrationConfig string
 //NoOpMigrationConfig is a shortcut to not have any migrationConfig at all
 var NoOpMigrationConfig MigrationConfig = ""
 
-func RunPostgresContainer(ctx context.Context, migrationConfig MigrationConfig, debug bool) (*PostgresContainerRuntime, error) {
-	configFile, err := test.GetConfigFile()
+func RunPostgresContainer(ctx context.Context, settings PostgresContainerSettings, debug bool) (*PostgresContainerRuntime, error) {
+	cont, bootstrapError := BootstrapNewPostgresContainer(ctx, settings)
 
-	if err != nil {
-		return nil, err
-	}
-
-	viper.SetConfigFile(configFile)
-
-	configReadError := viper.ReadInConfig()
-
-	if configReadError != nil {
-		return nil, err
-	}
-
-	encKey, encryptError := readEncryptionKey()
-
+	encKey, encryptError := readKeyFile(settings.encryptionKeyFile)
 	if encryptError != nil {
-		return nil, err
+		return nil, encryptError
 	}
-
-	env := getPostgresEnvironment()
-
-	cont, bootstrapError := BootstrapNewPostgresContainer(ctx, env)
 
 	if bootstrapError != nil {
-		return nil, err
+		return nil, bootstrapError
 	}
 
-	externalPort, portFetchError := cont.MappedPort(ctx, nat.Port(strconv.Itoa(env.port)))
+	externalPort, portFetchError := cont.MappedPort(ctx, nat.Port(strconv.Itoa(settings.port)))
 
 	if portFetchError != nil {
 		panic(portFetchError)
 	}
 
 	connectionFactory := postgresConnectionFactory{
-		host:          env.host,
+		host:          settings.host,
 		port:          externalPort.Int(),
-		database:      env.database,
-		user:          env.user,
-		password:      env.password,
-		sslMode:       env.sslMode,
+		database:      settings.database,
+		user:          settings.user,
+		password:      settings.password,
+		sslMode:       settings.useSsl,
 		encryptionKey: encKey,
-		migrationsDir: string(migrationConfig),
+		migrationsDir: string(settings.migrationConfig()),
 		blockQueries:  true,
 		logQueries:    true,
 		debug:         debug,
 	}
 
-	shouldMigrate := len(string(migrationConfig)) > 0
+	shouldMigrate := len(string(settings.migrationConfig())) > 0
 
 	if initError := connectionFactory.Init(shouldMigrate); initError != nil {
 		panic(initError)
@@ -81,8 +92,7 @@ func RunPostgresContainer(ctx context.Context, migrationConfig MigrationConfig, 
 
 	return &PostgresContainerRuntime{
 		debug:              debug,
-		env:                env,
-		encKey:             encKey,
+		settings:           settings,
 		ContainerBootstrap: cont,
 		ConnectionFactory:  &connectionFactory,
 	}, nil

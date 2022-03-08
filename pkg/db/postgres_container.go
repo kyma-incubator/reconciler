@@ -10,23 +10,23 @@ import (
 	"strconv"
 )
 
-func BootstrapNewPostgresContainer(ctx context.Context, env postgresEnvironment) (ContainerBootstrap, error) {
-	cont := NewPostgresContainer(env)
+func BootstrapNewPostgresContainer(ctx context.Context, settings PostgresContainerSettings) (ContainerBootstrap, error) {
+	cont := NewPostgresContainer(settings)
 	if bootstrapError := cont.Bootstrap(ctx); bootstrapError != nil {
 		return nil, bootstrapError
 	}
 	return &cont, nil
 }
 
-func NewPostgresContainer(env postgresEnvironment) PostgresContainer {
+func NewPostgresContainer(settings PostgresContainerSettings) PostgresContainer {
 	return PostgresContainer{
-		containerBaseName: "postgres",
-		image:             "postgres:11-alpine",
-		host:              env.host,
-		port:              env.port,
-		username:          env.user,
-		password:          env.password,
-		database:          env.database,
+		containerBaseName: settings.name,
+		image:             settings.image,
+		host:              settings.host,
+		port:              settings.port,
+		username:          settings.user,
+		password:          settings.password,
+		database:          settings.database,
 	}
 }
 
