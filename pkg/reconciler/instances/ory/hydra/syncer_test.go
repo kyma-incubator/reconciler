@@ -33,7 +33,7 @@ func Test_TriggerSynchronization(t *testing.T) {
 		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod1, t, v1.PodRunning)
 		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t, v1.PodRunning)
 		addPod(kubeclient, "hydra3", "hydra", hydraStartTimePod3, t, v1.PodFailed)
-		createDeployment(kubeclient, "ory-hydra-maester", hydraMasesterPodStartTime, t)
+		createDeployment(kubeclient, hydraMasesterPodStartTime, t)
 		addPod(kubeclient, "hydra-maester1", "hydra-maester", hydraMasesterPodStartTime, t, v1.PodRunning)
 
 		// when
@@ -54,7 +54,7 @@ func Test_TriggerSynchronization(t *testing.T) {
 		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod1, t, v1.PodRunning)
 		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t, v1.PodRunning)
 		addPod(kubeclient, "hydra3", "hydra", hydraStartTimePod3, t, v1.PodPending)
-		createDeployment(kubeclient, "ory-hydra-maester", hydraMasesterPodStartTime, t)
+		createDeployment(kubeclient, hydraMasesterPodStartTime, t)
 		addPod(kubeclient, "hydra-maester", "hydra-maester", hydraMasesterPodStartTime, t, v1.PodRunning)
 
 		// when
@@ -75,7 +75,7 @@ func Test_TriggerSynchronization(t *testing.T) {
 		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod1, t, v1.PodRunning)
 		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t, v1.PodRunning)
 		addPod(kubeclient, "hydra3", "hydra", hydraStartTimePod3, t, v1.PodPending)
-		createDeployment(kubeclient, "ory-hydra-maester", hydraMasesterPodStartTime, t)
+		createDeployment(kubeclient, hydraMasesterPodStartTime, t)
 		addPod(kubeclient, "hydra-maester", "hydra-maester", hydraMasesterPodStartTime, t, v1.PodRunning)
 
 		// when
@@ -91,13 +91,13 @@ func Test_TriggerSynchronization(t *testing.T) {
 		// given
 		hydraStartTimePod1 := time.Date(2021, 10, 10, 10, 10, 10, 10, time.UTC)
 		hydraStartTimePod2 := time.Date(2021, 10, 10, 10, 10, 7, 10, time.UTC)
-		hydraMasesterPodStartTime := time.Date(2021, 10, 10, 10, 10, 7, 100, time.UTC)
+		hydraMaesterPodStartTime := time.Date(2021, 10, 10, 10, 10, 7, 100, time.UTC)
 
 		kubeclient := fakeClient()
 		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod1, t, v1.PodRunning)
 		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t, v1.PodRunning)
-		createDeployment(kubeclient, "ory-hydra-maester", hydraMasesterPodStartTime, t)
-		addPod(kubeclient, "hydra-maester1", "hydra-maester", hydraMasesterPodStartTime, t, v1.PodRunning)
+		createDeployment(kubeclient, hydraMaesterPodStartTime, t)
+		addPod(kubeclient, "hydra-maester1", "hydra-maester", hydraMaesterPodStartTime, t, v1.PodRunning)
 
 		// when
 		err := NewDefaultHydraSyncer(handler.NewDefaultRolloutHandler()).TriggerSynchronization(context.TODO(), kubeclient, logger, testNamespace, false)
@@ -202,7 +202,7 @@ func addPod(client *k8smocks.Client, podName string, podLabel string, startTime 
 	require.NoError(t, err)
 }
 
-func createDeployment(client *k8smocks.Client, deploymentName string, startTime time.Time, t *testing.T) {
+func createDeployment(client *k8smocks.Client, startTime time.Time, t *testing.T) {
 	fakeClient, _ := client.Clientset()
 	deplMock := fakeClient.AppsV1().Deployments(testNamespace)
 
@@ -214,7 +214,7 @@ func createDeployment(client *k8smocks.Client, deploymentName string, startTime 
 	replicas := int32(1)
 	deploymentSpec := &appv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              deploymentName,
+			Name:              "ory-hydra-maester",
 			Namespace:         testNamespace,
 			CreationTimestamp: metav1.NewTime(startTime),
 		},
@@ -228,7 +228,7 @@ func createDeployment(client *k8smocks.Client, deploymentName string, startTime 
 	}
 	replicaSets := &appv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              deploymentName + "-1",
+			Name:              "ory-hydra-maester" + "-1",
 			Namespace:         testNamespace,
 			CreationTimestamp: metav1.NewTime(startTime),
 			OwnerReferences:   []metav1.OwnerReference{*metav1.NewControllerRef(deploymentSpec, deploymentSpec.GroupVersionKind())},
