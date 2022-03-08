@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"net/http"
 
@@ -38,6 +39,8 @@ func newRouter(ctx context.Context, o *reconCli.Options, workerPool *service.Wor
 			reconcile(ctx, w, r, o, workerPool, tracker)
 		},
 	).Methods("PUT", "POST")
+	metricsRouter := router.Path("/metrics").Subrouter()
+	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
 	router.HandleFunc("/health/live", live)
