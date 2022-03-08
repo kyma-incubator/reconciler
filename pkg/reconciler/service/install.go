@@ -58,6 +58,7 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 				kubeClient: kubeClient,
 			},
 			newClusterWideResourceInterceptor(),
+			&NamespaceInterceptor{},
 		)
 		if err == nil {
 			r.logger.Debugf("Deployment of manifest finished successfully: %d resources deployed", len(resources))
