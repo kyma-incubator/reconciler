@@ -3,6 +3,7 @@ package cluster
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/pkg/errors"
@@ -507,80 +508,56 @@ func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 }
 
 func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State, error) {
-	//get DDL for sub-query
-	clusterStatusEntity := &model.ClusterStatusEntity{}
 
-	statusColHandler, err := db.NewColumnHandler(clusterStatusEntity, i.Conn, i.Logger)
-	if err != nil {
-		return nil, err
-	}
-	idColName, err := statusColHandler.ColumnName("ID")
-	if err != nil {
-		return nil, err
-	}
-	runtimeIDColName, err := statusColHandler.ColumnName("RuntimeID")
-	if err != nil {
-		return nil, err
-	}
-	clusterVersionColName, err := statusColHandler.ColumnName("ClusterVersion")
-	if err != nil {
-		return nil, err
-	}
-	configVersionColName, err := statusColHandler.ColumnName("ConfigVersion")
-	if err != nil {
-		return nil, err
-	}
-	deletedColName, err := statusColHandler.ColumnName("Deleted")
+	entity := &model.ActiveInventoryClusterStatusDetailsEntity{}
+
+	colHandler, err := db.NewColumnHandler(entity, i.Conn, i.Logger)
 	if err != nil {
 		return nil, err
 	}
 
-	q, err := db.NewQuery(i.Conn, clusterStatusEntity, i.Logger)
-	if err != nil {
-		return nil, err
-	}
+	v := reflect.ValueOf(*entity)
+	typeOfS := v.Type()
 
-	columnMap := map[string]string{ //just for convenience to avoid longer parameter lists
-		"ID":             idColName,
-		"RuntimeID":      runtimeIDColName,
-		"ClusterVersion": clusterVersionColName,
-		"ConfigVersion":  configVersionColName,
-		"Deleted":        deletedColName,
-	}
-	statusIdsSQL, statusIdsArgs, err := i.buildLatestStatusIdsSQL(columnMap, clusterStatusEntity)
-	if err != nil {
-		return nil, err
-	}
-	if statusIdsSQL == "" { //no status entities found to reconcile
-		return nil, nil
-	}
+	columns := make([]string, v.NumField())
 
-	statusFilterSQL, err := i.buildStatusFilterSQL(filters, statusColHandler)
-	if err != nil {
-		return nil, err
-	}
-
-	clusterStatuses, err := q.Select().
-		WhereIn("ID", statusIdsSQL, statusIdsArgs...). //query latest cluster states (= max(configVersion) within max(clusterVersion))
-		WhereRaw(statusFilterSQL).                     //filter these states also by provided criteria (by statuses, reconcile-interval etc.)
-		Where(map[string]interface{}{"Deleted": false}).
-		GetMany()
-	if err != nil {
-		return nil, err
-	}
-
-	//retrieve clusters which require a reconciliation
-	var result []*State
-	for _, clusterStatus := range clusterStatuses {
-		clStateEntity := clusterStatus.(*model.ClusterStatusEntity)
-		state, err := i.Get(clStateEntity.RuntimeID, clStateEntity.ConfigVersion)
-		if err != nil {
+	for ci := range columns {
+		fieldName := typeOfS.Field(ci).Name
+		if columns[ci], err = colHandler.ColumnName(fieldName); err != nil {
 			return nil, err
 		}
-		result = append(result, state)
 	}
 
-	return result, nil
+	q, err := db.NewQuery(i.Conn, entity, i.Logger)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		details []db.DatabaseEntity
+		dbErr   error
+		qs      = q.Select()
+	)
+	if len(filters) == 0 {
+		details, dbErr = qs.GetMany()
+	} else {
+		statusFilterSQL, filterErr := i.buildStatusFilterSQL(filters, colHandler)
+		if filterErr != nil {
+			return nil, filterErr
+		}
+		details, dbErr = qs.WhereRaw(statusFilterSQL).GetMany()
+	}
+	if dbErr != nil {
+		return nil, dbErr
+	}
+
+	states := make([]*State, len(details))
+
+	for di, dbEntity := range details {
+		states[di] = detailsEntityToState(dbEntity.(*model.ActiveInventoryClusterStatusDetailsEntity))
+	}
+
+	return states, nil
 }
 
 func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, clusterStatusEntity *model.ClusterStatusEntity) (string, []interface{}, error) {
@@ -638,9 +615,6 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 
 func (i *DefaultInventory) buildStatusFilterSQL(filters []statusSQLFilter, statusColHandler *db.ColumnHandler) (string, error) {
 	var sqlFilterStmt bytes.Buffer
-	if len(filters) == 0 {
-		sqlFilterStmt.WriteString("1=1") //if no filters are provided, use 1=1 as placeholder to ensure valid SQL query
-	}
 	for _, filter := range filters {
 		sqlCond, err := filter.Filter(i.Conn.Type(), statusColHandler)
 		if err != nil {
