@@ -20,7 +20,6 @@ func NewCmd(o *reconCli.Options, reconcilerName string) *cobra.Command {
 			return Run(o, reconcilerName)
 		},
 	}
-
 	return cmd
 }
 

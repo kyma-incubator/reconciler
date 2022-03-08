@@ -1,8 +1,9 @@
 # Istioctl source images
 FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.11.4 AS istio-1_11_4
+FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.12.3 AS istio-1_12_3
 
 # Build image
-FROM golang:1.17.6-alpine3.15 AS build
+FROM golang:1.17.7-alpine3.15 AS build
 
 ENV SRC_DIR=/go/src/github.com/kyma-incubator/reconciler
 COPY . $SRC_DIR
@@ -37,8 +38,9 @@ COPY --from=build /configs/ /configs/
 
 # Add istioctl tools
 COPY --from=istio-1_11_4 /usr/local/bin/istioctl /bin/istioctl-1.11.4
+COPY --from=istio-1_12_3 /usr/local/bin/istioctl /bin/istioctl-1.12.3
 # For multiple istioctl binaries, provide their paths separated with a colon (:) like in the Linux PATH variable.
-ENV ISTIOCTL_PATH=/bin/istioctl-1.11.4
+ENV ISTIOCTL_PATH=/bin/istioctl-1.12.3:/bin/istioctl-1.11.4
 
 USER appuser:appuser
 

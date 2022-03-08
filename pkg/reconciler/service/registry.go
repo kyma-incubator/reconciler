@@ -5,6 +5,7 @@ import (
 )
 
 var reconcilers = make(map[string]*ComponentReconciler)
+var dryRun bool
 
 func RegisterReconciler(reconcilerName string, reconciler *ComponentReconciler) {
 	reconcilers[reconcilerName] = reconciler
@@ -15,6 +16,7 @@ func GetReconciler(reconcilerName string) (*ComponentReconciler, error) {
 	if !ok {
 		return nil, fmt.Errorf("component reconciler '%s' not found in reconciler registry", reconcilerName)
 	}
+	reconciler.EnableDryRun(dryRun)
 	return reconciler, nil
 }
 
@@ -24,4 +26,8 @@ func RegisteredReconcilers() []string {
 		reconNames = append(reconNames, reconName)
 	}
 	return reconNames
+}
+
+func EnableReconcilerDryRun() {
+	dryRun = true
 }

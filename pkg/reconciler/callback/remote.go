@@ -48,6 +48,7 @@ func (cb *RemoteCallbackHandler) Callback(msg *reconciler.CallbackMessage) error
 		cb.logger.Errorf("Remote callback handler failed to send HTTP request: %s", err)
 		return err
 	}
+	defer resp.Body.Close()
 	//dump request for debugging purposes
 	dumpResp, dumpErr := httputil.DumpResponse(resp, true)
 	if dumpErr == nil {

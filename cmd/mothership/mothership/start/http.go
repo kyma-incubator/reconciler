@@ -23,11 +23,13 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/kyma-incubator/reconciler/pkg/server"
+	"github.com/pkg/errors"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 )
 
 const (
@@ -53,6 +55,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter := mainRouter.PathPrefix("/").Subrouter()
 	metricsRouter := mainRouter.Path("/metrics").Subrouter()
 	healthRouter := mainRouter.PathPrefix("/health").Subrouter()
+	mainRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
@@ -122,7 +125,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger(), o.OccupancyTracking)
+	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -711,6 +714,10 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if body.Manifest != nil {
+		logger.NewLogger(true).Debugf("Dry run (correlationID: %s)\n, %s", *body.Manifest)
+	}
+
 	if body.Status == "" {
 		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
 			Error: fmt.Errorf("status not provided in payload").Error(),
@@ -783,13 +790,7 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 		})
 		return
 	}
-	_, err = uuid.Parse(poolID)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
+
 	var body reconciler.HTTPOccupancyRequest
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
