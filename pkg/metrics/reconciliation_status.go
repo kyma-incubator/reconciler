@@ -32,7 +32,7 @@ func NewReconciliationStatusCollector() *ReconciliationStatusCollector {
 			Subsystem: prometheusSubsystem,
 			Name:      "reconciliation_status",
 			Help:      "Status of the reconciliation",
-		}, []string{"runtime_id", "runtime_name", "global_accountid"}),
+		}, []string{"runtime_id", "runtime_name", "global_accountid", "plan_id"}),
 	}
 	prometheus.MustRegister(collector)
 	return collector
@@ -53,7 +53,7 @@ func (c *ReconciliationStatusCollector) OnClusterStateUpdate(state *cluster.Stat
 	}
 
 	c.reconciliationStatusGauge.
-		WithLabelValues(state.Cluster.RuntimeID, state.Cluster.Runtime.Name, state.Cluster.Metadata.GlobalAccountID).
+		WithLabelValues(state.Cluster.RuntimeID, state.Cluster.Runtime.Name, state.Cluster.Metadata.GlobalAccountID, state.Cluster.Metadata.ServicePlanID).
 		Set(status.ID)
 
 	return nil
