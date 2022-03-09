@@ -34,12 +34,12 @@ type OccupancyTracker struct {
 	componentReconcilerNames []string
 }
 
-func NewOccupancyTracker(workerPool *worker.Pool, repo occupancy.Repository, cfg *config.Config, logger *zap.SugaredLogger) *OccupancyTracker {
+func NewOccupancyTracker(workerPool *worker.Pool, repo occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) *OccupancyTracker {
 	return &OccupancyTracker{
 		workerPool:               workerPool,
 		repo:                     repo,
 		logger:                   logger,
-		componentReconcilerNames: getComponentReconcilerNames(cfg),
+		componentReconcilerNames: getComponentReconcilerNames(reconcilers),
 	}
 }
 
@@ -173,9 +173,9 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(ctx context.Context, clients
 	return t.repo.RemoveWorkerPoolOccupancies(idsOfOrphanComponents)
 }
 
-func getComponentReconcilerNames(cfg *config.Config) []string {
-	componentReconcilerNames := make([]string, 0, len(cfg.Scheduler.Reconcilers))
-	for reconciler := range cfg.Scheduler.Reconcilers {
+func getComponentReconcilerNames(reconcilers map[string]config.ComponentReconciler) []string {
+	componentReconcilerNames := make([]string, 0, len(reconcilers))
+	for reconciler := range reconcilers {
 		componentReconcilerNames = append(componentReconcilerNames, reconciler)
 	}
 	return componentReconcilerNames

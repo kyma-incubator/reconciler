@@ -221,7 +221,7 @@ func (r *RunRemote) Run(ctx context.Context) error {
 		}
 		if features.WorkerpoolOccupancyTrackingEnabled() {
 			//start occupancy tracker to track worker pool
-			err = NewOccupancyTracker(workerPool, r.occupancyRepo, r.config, r.logger()).Run(ctx)
+			err = NewOccupancyTracker(workerPool, r.occupancyRepo, r.config.Scheduler.Reconcilers, r.logger()).Run(ctx)
 			if err == nil {
 				r.logger().Info("Occupancy tracker started")
 			} else {
