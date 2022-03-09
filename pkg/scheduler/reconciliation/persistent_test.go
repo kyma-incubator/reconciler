@@ -10,26 +10,46 @@ import (
 	"time"
 )
 
-func prepareTest(t *testing.T, schedulingIDsCount int) (Repository, []string) {
-	schedulingIDs := make([]string, 0, schedulingIDsCount)
+func dbTestConnection(t *testing.T) db.Connection {
+	mu.Lock()
+	defer mu.Unlock()
+	if dbConn == nil {
+		dbConn = db.NewTestConnection(t)
+	}
+	return dbConn
+}
+
+func prepareTest(t *testing.T, schedulingIDsCount int) (Repository, Repository, []string, []string) {
 	//create mock database connection
-	dbConn := db.NewTestConnection(t)
-	reconRepo, _ := NewPersistedReconciliationRepository(dbConn, true)
+	dbConn = dbTestConnection(t)
+
+	persistenceSchedulingIDs := make([]string, 0, schedulingIDsCount)
+	inMemorySchedulingIDs := make([]string, 0, schedulingIDsCount)
+
+	persistenceRepo, err := NewPersistedReconciliationRepository(dbConn, true)
+	require.NoError(t, err)
+	inMemoryRepo := NewInMemoryReconciliationRepository()
 
 	//prepare inventory
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 
-	//add cluster(s) to inventory
 	for i := 0; i < schedulingIDsCount; i++ {
+		//add cluster(s) to inventory
 		clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 		require.NoError(t, err)
 
 		//trigger reconciliation for cluster
-		reconEntity, _ := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
-		schedulingIDs = append(schedulingIDs, reconEntity.SchedulingID)
+		persistenceReconEntity, err := persistenceRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
+		require.NoError(t, err)
+		inMemoryReconEntity, err := inMemoryRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
+		require.NoError(t, err)
+
+		// collect schedulingIDs for deletion
+		persistenceSchedulingIDs = append(persistenceSchedulingIDs, persistenceReconEntity.SchedulingID)
+		inMemorySchedulingIDs = append(inMemorySchedulingIDs, inMemoryReconEntity.SchedulingID)
 	}
-	return reconRepo, schedulingIDs
+	return persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs
 }
 
 func TestPersistentReconciliationRepository_RemoveSchedulingIds(t *testing.T) {
@@ -64,16 +84,22 @@ func TestPersistentReconciliationRepository_RemoveSchedulingIds(t *testing.T) {
 	for _, tt := range tests {
 		testCase := tt
 		t.Run(testCase.name, func(t *testing.T) {
-			reconRepo, schedulingIDsCount := prepareTest(t, testCase.reconciliations)
+			persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs := prepareTest(t, testCase.reconciliations)
 
-			if err := reconRepo.RemoveReconciliations(schedulingIDsCount); (err != nil) != testCase.wantErr {
-				t.Errorf("RemoveschedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
+			if err := persistenceRepo.RemoveReconciliations(persistenceSchedulingIDs); (err != nil) != testCase.wantErr {
+				t.Errorf("Persistence RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+			if err := inMemoryRepo.RemoveReconciliations(inMemorySchedulingIDs); (err != nil) != testCase.wantErr {
+				t.Errorf("InMemory RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 
-			// clean up
-			reconciliations, err := reconRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			// check - also ensures clean up
+			persistenceReconciliations, err := persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
-			require.Equal(t, 0, len(reconciliations))
+			require.Equal(t, 0, len(persistenceReconciliations))
+			inMemoryReconciliations, err := inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			require.NoError(t, err)
+			require.Equal(t, 0, len(inMemoryReconciliations))
 		})
 	}
 }
