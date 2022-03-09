@@ -86,20 +86,20 @@ func (c *cleaner) purgeReconciliationsForCluster(runtimeID string, transition *C
 	c.logger.Infof("[Cleaner] Cleaning reconciliation entries for cluster with RuntimeID: %s", runtimeID)
 
 	//1. Bulk delete old records, keeping the most recent one (should never be deleted)
-	if err := c.deleteRecordsByDays(runtimeID, config.maxEntitiesAgeDays(), transition); err != nil {
+	if err := c.deleteRecordsByAge(runtimeID, config.maxEntitiesAgeDays(), transition); err != nil {
 		c.logger.Errorf("[CLEANER] Failed to delete reconciliations older than %d days: %s", config.maxEntitiesAgeDays(), err.Error())
 		return
 	}
 
 	//2. Delete remaining records according to "count" and "status" criteria.
-	if err := c.deleteRecordsByCount(runtimeID, transition, config); err != nil {
+	if err := c.deleteRecordsByCountAndStatus(runtimeID, transition, config); err != nil {
 		c.logger.Errorf("[CLEANER] Failed to delete reconciliations more than %d: %s", config.keepLatestEntitiesCount(), err.Error())
 		return
 	}
 }
 
-//deleteRecordsByDays deletes all reconciliations for a given cluster that's older than configured number of days except the single most recent record - that one is never deleted
-func (c *cleaner) deleteRecordsByDays(runtimeID string, numberOfDays int, transition *ClusterStatusTransition) error {
+//deleteRecordsByAge deletes all reconciliations for a given cluster that's older than configured number of days except the single most recent record - that one is never deleted
+func (c *cleaner) deleteRecordsByAge(runtimeID string, numberOfDays int, transition *ClusterStatusTransition) error {
 	//TODO: Replace with bulk delete function (delete with filter) once it's added to the reconciliation.Repository interface
 
 	now := time.Now()
@@ -123,23 +123,34 @@ func (c *cleaner) deleteRecordsByDays(runtimeID string, numberOfDays int, transi
 	return c.dropReconciliationsOlderThanByFilter(runtimeID, deadline, removeExceptOneFilter, transition)
 }
 
-//deleteRecordsByCount deletes record between deadline and now. It keeps the config.KeepLatestEntitiesCount() of the most recent records and the ones that are not successfully finished.
-func (c *cleaner) deleteRecordsByCount(runtimeID string, transition *ClusterStatusTransition, config *CleanerConfig) error {
-	latestEntitiesCount := config.keepLatestEntitiesCount()
-	if latestEntitiesCount == 0 {
+//deleteRecordsByCount deletes record between some deadline in the past and now. It keeps the config.KeepLatestEntitiesCount() of the most recent records and the ones that are not successfully finished.
+func (c *cleaner) deleteRecordsByCountAndStatus(runtimeID string, transition *ClusterStatusTransition, config *CleanerConfig) error {
+	//Note: This functions assumes that deleteRecordsByAge() has already deleted records older than the "deadline"!
+
+	mostRecentEntitiesToKeep := config.keepLatestEntitiesCount()
+	if mostRecentEntitiesToKeep == 0 {
 		return nil
 	}
+
 	reconciliations, err := transition.ReconciliationRepository().GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: runtimeID})
 	if err != nil {
 		return err
 	}
 
-	if len(reconciliations) > latestEntitiesCount {
-		stableStatusFilter := func(m *model.ReconciliationEntity) bool {
-			return m.Status.IsFinalStable()
+	if len(reconciliations) <= mostRecentEntitiesToKeep {
+		return nil
+	}
+
+	reconciliationsToDrop := []*model.ReconciliationEntity{}
+	for i := mostRecentEntitiesToKeep; i < len(reconciliations); i++ {
+		if reconciliations[i].Status.IsFinalStable() {
+			reconciliationsToDrop = append(reconciliationsToDrop, reconciliations[i])
 		}
-		lastAllowedReconciliation := reconciliations[latestEntitiesCount-1]
-		return c.dropReconciliationsOlderThanByFilter(runtimeID, lastAllowedReconciliation.Created, stableStatusFilter, transition)
+	}
+
+	if len(reconciliationsToDrop) > 0 {
+		c.logger.Debugf("[CLEANER] Found %d records with a \"successfull\" status to delete for the cluster %s", len(reconciliationsToDrop), runtimeID)
+		c.removeReconciliations(reconciliationsToDrop, transition)
 	}
 
 	return nil
