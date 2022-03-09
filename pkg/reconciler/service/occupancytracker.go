@@ -45,6 +45,12 @@ func (t *OccupancyTracker) Track(ctx context.Context, pool *WorkerPool, reconcil
 	go func() {
 		for {
 			select {
+
+			case <-t.ticker.C:
+				if t.occupancyCallbackURL != "" && !pool.IsClosed() {
+					t.createOrUpdateComponentReconcilerOccupancy(reconcilerName, pool.RunningWorkers(), pool.Size())
+				}
+
 			case <-ctx.Done():
 				if t.occupancyCallbackURL != "" {
 					t.logger.Info("occupancy tracker is stopping and deleting Worker Pool occupancy")
@@ -53,10 +59,6 @@ func (t *OccupancyTracker) Track(ctx context.Context, pool *WorkerPool, reconcil
 					return
 				}
 
-			case <-t.ticker.C:
-				if t.occupancyCallbackURL != "" && !pool.IsClosed() {
-					t.createOrUpdateComponentReconcilerOccupancy(reconcilerName, pool.RunningWorkers(), pool.Size())
-				}
 			}
 		}
 
@@ -79,7 +81,12 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 		t.logger.Error(err.Error())
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			t.logger.Debugf("occupancy tracker failed to close HTTP response body: %s", err)
+		}
+	}()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
 		if resp.StatusCode == http.StatusNotFound {
@@ -89,8 +96,11 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 		t.logger.Warnf("mothership failed to update occupancy for '%s' service with status code: '%d'", t.occupancyID, resp.StatusCode)
 		return
 	}
-
-	t.logger.Infof("occupancy tracker updated occupancy successfully for %s service", t.occupancyID)
+	trackerAction := "updated"
+	if resp.StatusCode == http.StatusCreated {
+		trackerAction = "created"
+	}
+	t.logger.Infof("occupancy tracker %s occupancy successfully for %s service", trackerAction, t.occupancyID)
 }
 
 func (t *OccupancyTracker) deleteWorkerPoolOccupancy() {

@@ -37,7 +37,7 @@ func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []st
 	return result.(int), err
 }
 
-func (r *PersistentOccupancyRepository) GetComponentIDs() ([]string, error) {
+func (r *PersistentOccupancyRepository) GetWorkerPoolIDs() ([]string, error) {
 	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 	if err != nil {
 		return nil, err

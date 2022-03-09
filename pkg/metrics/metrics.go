@@ -23,8 +23,8 @@ func RegisterWaitingAndNotReadyReconciliations(inventory cluster.Inventory, logg
 	prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector)
 }
 
-func RegisterOccupancy(occupancyRepo occupancy.Repository, cfg *config.Config, logger *zap.SugaredLogger) {
+func RegisterOccupancy(occupancyRepo occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) {
 	if features.WorkerpoolOccupancyTrackingEnabled() {
-		prometheus.MustRegister(NewWorkerPoolOccupancyCollector(occupancyRepo, cfg, logger))
+		prometheus.MustRegister(NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilers, logger))
 	}
 }

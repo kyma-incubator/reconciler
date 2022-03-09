@@ -22,7 +22,7 @@ type WorkerPoolOccupancyCollector struct {
 	workerPoolOccupancyGaugeVec *prometheus.GaugeVec
 }
 
-func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, cfg *config.Config, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
+func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) *WorkerPoolOccupancyCollector {
 	if occupancyRepository == nil {
 		logger.Error("unable to register metric: repository is nil")
 		return nil
@@ -30,7 +30,7 @@ func NewWorkerPoolOccupancyCollector(occupancyRepository occupancy.Repository, c
 	return &WorkerPoolOccupancyCollector{
 		occupancyRepository: occupancyRepository,
 		logger:              logger,
-		labelValuesMap:      buildLabelValuesMap(cfg),
+		labelValuesMap:      buildLabelValuesMap(reconcilers),
 		workerPoolOccupancyGaugeVec: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "worker_pool_occupancy_ratio",
@@ -62,9 +62,9 @@ func (c *WorkerPoolOccupancyCollector) Collect(ch chan<- prometheus.Metric) {
 	c.workerPoolOccupancyGaugeVec.Collect(ch)
 }
 
-func buildLabelValuesMap(cfg *config.Config) map[string]string {
-	labelValuesMap := make(map[string]string, len(cfg.Scheduler.Reconcilers)+1)
-	for reconciler := range cfg.Scheduler.Reconcilers {
+func buildLabelValuesMap(reconcilers map[string]config.ComponentReconciler) map[string]string {
+	labelValuesMap := make(map[string]string, len(reconcilers)+1)
+	for reconciler := range reconcilers {
 		labelValue := strings.Replace(reconciler, "-", "_", -1)
 		labelValuesMap[reconciler] = labelValue
 	}

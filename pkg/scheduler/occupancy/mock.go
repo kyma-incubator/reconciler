@@ -21,7 +21,7 @@ func (mr *MockRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, er
 	return mr.RemoveWorkerPoolOccupanciesResult, nil
 }
 
-func (mr *MockRepository) GetComponentIDs() ([]string, error) {
+func (mr *MockRepository) GetWorkerPoolIDs() ([]string, error) {
 	return mr.GetComponentIDsResult, nil
 }
 

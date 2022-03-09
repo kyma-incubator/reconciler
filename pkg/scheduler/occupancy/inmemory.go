@@ -29,7 +29,7 @@ func (r *InMemoryOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []stri
 	return deletionCnt, nil
 }
 
-func (r *InMemoryOccupancyRepository) GetComponentIDs() ([]string, error) {
+func (r *InMemoryOccupancyRepository) GetWorkerPoolIDs() ([]string, error) {
 	r.Lock()
 	defer r.Unlock()
 	componentIDs := make([]string, 0, len(r.occupancies))

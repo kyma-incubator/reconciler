@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultOccupancyCleanUpInterval  = 5 * time.Minute //default: 5 mins
+	defaultOccupancyCleanUpInterval  = 5 * time.Minute
 	defaultOccupancyTrackingInterval = 30 * time.Second
 	defaultKcpNamespace              = "kcp-system"
 	nameLabelSelector                = "app.kubernetes.io/name"
@@ -145,12 +145,12 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(ctx context.Context, clients
 	}
 	occupancyTrackingPods = append(componentPodNames, mothershipPodNames...)
 
-	componentIDs, err := t.repo.GetComponentIDs()
+	componentIDs, err := t.repo.GetWorkerPoolIDs()
 	if err != nil {
 		return 0, err
 	}
 	if len(componentIDs) == 0 {
-		t.logger.Warnf("occupancy tracker received empty list of ids: nothing to clean")
+		t.logger.Debug("occupancy tracker received empty list of ids: nothing to clean")
 		return 0, nil
 	}
 	var idsOfOrphanComponents []string
@@ -167,7 +167,7 @@ func (t *OccupancyTracker) cleanUpOrphanOccupancies(ctx context.Context, clients
 		}
 	}
 	if len(idsOfOrphanComponents) == 0 {
-		t.logger.Warnf("occupancy tracker found 0 orphan occupancies: nothing to clean")
+		t.logger.Debug("occupancy tracker found 0 orphan occupancies: nothing to clean")
 		return 0, nil
 	}
 	return t.repo.RemoveWorkerPoolOccupancies(idsOfOrphanComponents)

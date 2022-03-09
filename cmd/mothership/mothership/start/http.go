@@ -123,7 +123,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
-	metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config, o.Logger())
+	metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config.Scheduler.Reconcilers, o.Logger())
 	metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
 	metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
