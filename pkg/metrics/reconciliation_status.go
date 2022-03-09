@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -32,7 +34,7 @@ func NewReconciliationStatusCollector() *ReconciliationStatusCollector {
 			Subsystem: prometheusSubsystem,
 			Name:      "reconciliation_status",
 			Help:      "Status of the reconciliation",
-		}, []string{"runtime_id", "runtime_name"}),
+		}, []string{"runtime_id", "runtime_name", "global_accountid"}),
 	}
 	prometheus.MustRegister(collector)
 	return collector
@@ -53,7 +55,7 @@ func (c *ReconciliationStatusCollector) OnClusterStateUpdate(state *cluster.Stat
 	}
 
 	c.reconciliationStatusGauge.
-		WithLabelValues(state.Cluster.RuntimeID, state.Cluster.Runtime.Name).
+		WithLabelValues(state.Cluster.RuntimeID, state.Cluster.Runtime.Name, fmt.Sprintf("%s", state.Cluster.Metadata.GlobalAccountID)).
 		Set(status.ID)
 
 	return nil
