@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
-	"sync"
 	"time"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
@@ -158,8 +157,6 @@ type postgresConnectionFactory struct {
 	maxIdleConns    int
 	connMaxLifetime time.Duration
 	connMaxIdleTime time.Duration
-	dbAccessSync    sync.Mutex
-	db              *sql.DB
 }
 
 func (pcf *postgresConnectionFactory) Init(migrate bool) error {
@@ -175,37 +172,30 @@ func (pcf *postgresConnectionFactory) Init(migrate bool) error {
 }
 
 func (pcf *postgresConnectionFactory) NewConnection() (Connection, error) {
-	pcf.dbAccessSync.Lock()
-	defer pcf.dbAccessSync.Unlock()
-
 	sslMode := "disable"
 	if pcf.sslMode {
 		sslMode = "require"
 	}
 
-	if pcf.db == nil {
-		db, err := sql.Open(
-			"postgres",
-			fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-				pcf.host, pcf.port, pcf.user, pcf.password, pcf.database, sslMode))
+	db, err := sql.Open(
+		"postgres",
+		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+			pcf.host, pcf.port, pcf.user, pcf.password, pcf.database, sslMode))
 
-		db.SetMaxOpenConns(pcf.maxOpenConns)
-		db.SetMaxIdleConns(pcf.maxIdleConns)
-		db.SetConnMaxLifetime(pcf.connMaxLifetime)
-		db.SetConnMaxIdleTime(pcf.connMaxIdleTime)
+	db.SetMaxOpenConns(pcf.maxOpenConns)
+	db.SetMaxIdleConns(pcf.maxIdleConns)
+	db.SetConnMaxLifetime(pcf.connMaxLifetime)
+	db.SetConnMaxIdleTime(pcf.connMaxIdleTime)
 
-		if err == nil {
-			err = db.Ping()
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		pcf.db = db
+	if err == nil {
+		err = db.Ping()
 	}
 
-	return newPostgresConnection(pcf.db, pcf.encryptionKey, pcf.logQueries, pcf.blockQueries)
+	if err != nil {
+		return nil, err
+	}
+
+	return newPostgresConnection(db, pcf.encryptionKey, pcf.logQueries, pcf.blockQueries)
 }
 
 func (pcf *postgresConnectionFactory) checkPostgresIsolationLevel() error {

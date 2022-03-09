@@ -2,13 +2,11 @@ package db
 
 import (
 	"fmt"
+	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
-	"sync"
-
-	file "github.com/kyma-incubator/reconciler/pkg/files"
-	"github.com/spf13/viper"
 )
 
 func NewConnectionFactory(configFile string, migrate bool, debug bool) (ConnectionFactory, error) {
@@ -151,6 +149,5 @@ func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, lo
 		maxIdleConns:    maxIdleConns,
 		connMaxIdleTime: connMaxIdleTime,
 		connMaxLifetime: connMaxLifetime,
-		dbAccessSync:    sync.Mutex{},
 	}
 }
