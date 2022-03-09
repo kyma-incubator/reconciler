@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -201,7 +202,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		if err != nil {
 			return err
 		}
-		err = c.addLabelSelectorToWebhook(whConf, webhookNameToChange, requiredLabelSelector)
+		err = c.setLabelSelectorToWebhook(whConf, webhookNameToChange, requiredLabelSelector)
 		if err != nil {
 			return err
 		}
@@ -219,15 +220,20 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	return nil
 }
 
-func (c *DefaultIstioPerformer) addLabelSelectorToWebhook(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
+func (c *DefaultIstioPerformer) setLabelSelectorToWebhook(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
 	var whFound bool
 	for i := range whConf.Webhooks {
 		if whConf.Webhooks[i].Name == webhookNameToChange {
 			whFound = true
-			whConf.Webhooks[i].NamespaceSelector.MatchExpressions = append(
-				whConf.Webhooks[i].NamespaceSelector.MatchExpressions,
-				requiredLabelSelector,
-			)
+			matchExpressions := whConf.Webhooks[i].NamespaceSelector.MatchExpressions
+			var hasRequiredLabel bool
+			for j := range matchExpressions {
+				hasRequiredLabel = reflect.DeepEqual(matchExpressions[j], requiredLabelSelector)
+			}
+			if !hasRequiredLabel {
+				matchExpressions = append(matchExpressions, requiredLabelSelector)
+				whConf.Webhooks[i].NamespaceSelector.MatchExpressions = matchExpressions
+			}
 		}
 	}
 	if !whFound {

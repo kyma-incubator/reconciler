@@ -292,6 +292,29 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		require.Contains(t, gotNew.Webhooks[0].NamespaceSelector.MatchExpressions, want)
 		require.NotContains(t, gotOld.Webhooks[0].NamespaceSelector.MatchExpressions, want)
 	})
+
+	t.Run("patching mutating webhook should be idempotent", func(t *testing.T) {
+		// given
+		whConfName := "istio-revision-tag-default"
+		kubeClient := mocks.Client{}
+		mutatingWebhookConf := createIstioMutatingWebhookConf(whConfName)
+		clientset := fake.NewSimpleClientset(mutatingWebhookConf)
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+
+		// when
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		require.NoError(t, err)
+		intermediateWhConf, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		err = wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		require.NoError(t, err)
+
+		// then
+		finalWhConf, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, intermediateWhConf, finalWhConf)
+	})
 }
 
 func createIstioMutatingWebhookConf(whConfName string) *v1.MutatingWebhookConfiguration {
