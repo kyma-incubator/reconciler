@@ -160,29 +160,29 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) RemoveReconciliations(reconEntities []*model.ReconciliationEntity) error {
-	blocks := splitReconciliationEntitites(reconEntities)
+func (r *PersistentReconciliationRepository) RemoveReconciliations(schedulingIDs []string) error {
+	schedulingIDsBlocks := splitStringSlice(schedulingIDs, 200)
 
 	dbOps := func(tx *db.TxConnection) error {
-		for _, reconEntitiesBlock := range blocks {
+		for _, schedulingIDsBlock := range schedulingIDsBlocks {
 			var args []interface{}
 
 			// format scheduling IDs
-			sIdsDuplicate := make(map[string]interface{}, len(reconEntitiesBlock))
+			sIdsDuplicate := make(map[string]interface{}, len(schedulingIDsBlock))
 
 			var buffer bytes.Buffer
 
-			for i, reconEntity := range reconEntitiesBlock {
-				if _, ok := sIdsDuplicate[reconEntity.SchedulingID]; ok {
+			for i, schedulingID := range schedulingIDsBlock {
+				if _, ok := sIdsDuplicate[schedulingID]; ok {
 					continue
 				}
-				sIdsDuplicate[reconEntity.SchedulingID] = nil
+				sIdsDuplicate[schedulingID] = nil
 
 				if buffer.Len() > 0 {
 					buffer.WriteRune(',')
 				}
 				buffer.WriteString(fmt.Sprintf("$%d", i+1))
-				args = append(args, reconEntity.SchedulingID)
+				args = append(args, schedulingID)
 			}
 
 			//delete reconciliations
@@ -648,21 +648,20 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 	return components, nil
 }
 
-func splitReconciliationEntitites(reconEntities []*model.ReconciliationEntity) [][]*model.ReconciliationEntity {
-	reconEntitiesCount := len(reconEntities)
-	if len(reconEntities) == 0 {
+func splitStringSlice(slice []string, blockSize int) [][]string {
+	count := len(slice)
+	if len(slice) == 0 {
 		return nil
 	}
-	var blocks [][]*model.ReconciliationEntity
-	blockSize := 100
+	var blocks [][]string
 	var j int
-	for i := 0; i < reconEntitiesCount; i += blockSize {
+	for i := 0; i < count; i += blockSize {
 		j += blockSize
-		if j > reconEntitiesCount {
-			j = reconEntitiesCount
+		if j > count {
+			j = count
 		}
 
-		blocks = append(blocks, reconEntities[i:j])
+		blocks = append(blocks, slice[i:j])
 	}
 	return blocks
 }

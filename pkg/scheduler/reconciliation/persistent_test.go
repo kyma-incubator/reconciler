@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-func prepareTest(t *testing.T, reconCount int) (Repository, []*model.ReconciliationEntity) {
-	reconEntities := make([]*model.ReconciliationEntity, 0, reconCount)
+func prepareTest(t *testing.T, schedulingIDsCount int) (Repository, []string) {
+	schedulingIDs := make([]string, 0, schedulingIDsCount)
 	//create mock database connection
 	dbConn := db.NewTestConnection(t)
 	reconRepo, _ := NewPersistedReconciliationRepository(dbConn, true)
@@ -21,15 +21,15 @@ func prepareTest(t *testing.T, reconCount int) (Repository, []*model.Reconciliat
 	require.NoError(t, err)
 
 	//add cluster(s) to inventory
-	for i := 0; i < reconCount; i++ {
+	for i := 0; i < schedulingIDsCount; i++ {
 		clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 		require.NoError(t, err)
 
 		//trigger reconciliation for cluster
 		reconEntity, _ := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
-		reconEntities = append(reconEntities, reconEntity)
+		schedulingIDs = append(schedulingIDs, reconEntity.SchedulingID)
 	}
-	return reconRepo, reconEntities
+	return reconRepo, schedulingIDs
 }
 
 func TestPersistentReconciliationRepository_RemoveSchedulingIds(t *testing.T) {
@@ -51,24 +51,26 @@ func TestPersistentReconciliationRepository_RemoveSchedulingIds(t *testing.T) {
 			reconciliations: 1,
 		},
 		{
-			name:            "with multiple scheduling IDs less than 100 (1 block)",
+			name:            "with multiple scheduling IDs less than 200 (1 block)",
 			wantErr:         false,
 			reconciliations: 69,
 		},
 		{
-			name:            "with multiple scheduling IDs more than 100 (3 blocks)",
+			name:            "with multiple scheduling IDs more than 200 (3 blocks)",
 			wantErr:         false,
-			reconciliations: 209,
+			reconciliations: 409,
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reconRepo, reconEntities := prepareTest(t, tt.reconciliations)
+		testCase := tt
+		t.Run(testCase.name, func(t *testing.T) {
+			reconRepo, schedulingIDsCount := prepareTest(t, testCase.reconciliations)
 
-			if err := reconRepo.RemoveReconciliations(reconEntities); (err != nil) != tt.wantErr {
-				t.Errorf("RemoveschedulingIds() error = %v, wantErr %v", err, tt.wantErr)
+			if err := reconRepo.RemoveReconciliations(schedulingIDsCount); (err != nil) != testCase.wantErr {
+				t.Errorf("RemoveschedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 
+			// clean up
 			reconciliations, err := reconRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(reconciliations))
