@@ -14,9 +14,9 @@ type ContainerTestSuite struct {
 	*TransactionAwareDatabaseContainerTestSuite
 }
 
-func IsolatedContainerTestSuite(t *testing.T, debug bool, settings ContainerSettings) *ContainerTestSuite {
+func IsolatedContainerTestSuite(t *testing.T, debug bool, settings ContainerSettings, commitAfterExecution bool) *ContainerTestSuite {
 	test.IntegrationTest(t)
-	return NewManagedContainerTestSuite(debug, settings, NewConsoleContainerLogListener(debug))
+	return NewManagedContainerTestSuite(debug, settings, commitAfterExecution, NewConsoleContainerLogListener(debug))
 }
 
 var (
@@ -37,6 +37,7 @@ var (
 func NewManagedContainerTestSuite(
 	debug bool,
 	settings ContainerSettings,
+	commitAfterExecution bool,
 	listener testcontainers.LogConsumer,
 ) *ContainerTestSuite {
 	newSuite := TransactionAwareDatabaseContainerTestSuite{
@@ -44,6 +45,7 @@ func NewManagedContainerTestSuite(
 		terminateContainerAfterAll:        true,
 		connectionResilienceSpecification: []retry.Option{retry.Attempts(3)},
 		LogConsumer:                       listener,
+		commitAfterExecution:              commitAfterExecution,
 	}
 
 	postgresSettings, settingsAreForPostgres := settings.(PostgresContainerSettings)
@@ -61,12 +63,13 @@ func NewManagedContainerTestSuite(
 	return &ContainerTestSuite{&newSuite}
 }
 
-func NewUnmanagedContainerTestSuite(ctx context.Context, containerRuntime ContainerRuntime, listener testcontainers.LogConsumer) *ContainerTestSuite {
+func NewUnmanagedContainerTestSuite(ctx context.Context, containerRuntime ContainerRuntime, commitAfterExecution bool, listener testcontainers.LogConsumer) *ContainerTestSuite {
 	newSuite := TransactionAwareDatabaseContainerTestSuite{
 		Context:                           ctx,
 		terminateContainerAfterAll:        false,
 		connectionResilienceSpecification: []retry.Option{retry.Attempts(3)},
 		LogConsumer:                       listener,
+		commitAfterExecution:              commitAfterExecution,
 	}
 	newSuite.ContainerRuntime = containerRuntime
 

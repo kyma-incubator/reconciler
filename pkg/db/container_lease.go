@@ -62,7 +62,7 @@ func (l *containerTestSuiteLeaseID) release() {
 	}
 }
 
-func newContainerTestSuiteLease(debug bool) (*containerTestSuiteLeaseID, error) {
+func newContainerTestSuiteLease(debug bool, commitAfterExecution bool) (*containerTestSuiteLeaseID, error) {
 	lh := globalContainerTestSuiteLeases
 	lh.Lock()
 	defer lh.Unlock()
@@ -77,19 +77,19 @@ func newContainerTestSuiteLease(debug bool) (*containerTestSuiteLeaseID, error) 
 
 	lh.leases[id] = &leasedSuite{
 		0,
-		NewUnmanagedContainerTestSuite(ctx, r, nil),
+		NewUnmanagedContainerTestSuite(ctx, r, commitAfterExecution, nil),
 	}
 
 	return &id, nil
 }
 
-func LeaseSharedContainerTestSuite(t *testing.T, settings ContainerSettings, debug bool) *ContainerTestSuite {
+func LeaseSharedContainerTestSuite(t *testing.T, settings ContainerSettings, debug bool, commitAfterExecution bool) *ContainerTestSuite {
 	t.Helper()
 	h := globalContainerTestSuiteLeaseHolder
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.suites[settings] == nil {
-		lid, err := newContainerTestSuiteLease(debug)
+		lid, err := newContainerTestSuiteLease(debug, commitAfterExecution)
 		if err != nil {
 			panic(err)
 		}
