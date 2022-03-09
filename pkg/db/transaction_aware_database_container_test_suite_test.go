@@ -10,7 +10,7 @@ import (
 )
 
 type SampleDatabaseDatabaseTestSuite struct {
-	TransactionAwareDatabaseContainerTestSuite
+	*TransactionAwareDatabaseContainerTestSuite
 }
 
 func TestDatabaseContainerTestSuite(t *testing.T) {
@@ -84,7 +84,7 @@ func (s *SampleDatabaseDatabaseTestSuite) TestDbConnectivityThirdTest() {
 }
 
 type SingleContainerSampleDatabaseIntegrationTestSuite struct {
-	TransactionAwareDatabaseContainerTestSuite
+	*TransactionAwareDatabaseContainerTestSuite
 }
 
 func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {

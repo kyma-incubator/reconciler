@@ -5,6 +5,7 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
+	"sync"
 )
 
 //TransactionAwareDatabaseContainerTestSuite manages a test suiteSpec that handles a transaction-enabled connection.
@@ -22,7 +23,8 @@ type TransactionAwareDatabaseContainerTestSuite struct {
 	ContainerRuntime
 	testcontainers.LogConsumer
 
-	activeConnection *TxConnection
+	activeConnectionMu sync.Mutex
+	activeConnection   *TxConnection
 
 	connectionResilienceSpecification []retry.Option
 
@@ -58,6 +60,8 @@ func (s *TransactionAwareDatabaseContainerTestSuite) SetupSuite() {
 
 func (s *TransactionAwareDatabaseContainerTestSuite) TearDownSuite() {
 	if s.activeConnection != nil {
+		s.activeConnectionMu.Lock()
+		defer s.activeConnectionMu.Unlock()
 		s.tearDownConnection()
 	}
 
@@ -76,6 +80,8 @@ func (s *TransactionAwareDatabaseContainerTestSuite) TearDownSuite() {
 }
 
 func (s *TransactionAwareDatabaseContainerTestSuite) TxConnection() *TxConnection {
+	s.activeConnectionMu.Lock()
+	defer s.activeConnectionMu.Unlock()
 	if s.activeConnection == nil {
 		s.T().Log("first time asking for connection in test suiteSpec, initializing...")
 		s.initializeConnection()
@@ -117,7 +123,7 @@ func (s *TransactionAwareDatabaseContainerTestSuite) tearDownConnection() {
 			s.NoError(executionError)
 		}
 
-		err := (*s.activeConnection).Close()
+		err := s.activeConnection.Close()
 		s.NoError(err)
 
 		s.activeConnection = nil

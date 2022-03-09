@@ -7,27 +7,20 @@ import (
 	"github.com/pkg/errors"
 	"github.com/testcontainers/testcontainers-go"
 	"path/filepath"
-	"sync"
 	"testing"
 )
 
 type ContainerTestSuite struct {
-	TransactionAwareDatabaseContainerTestSuite
-}
-
-type SyncedSharedContainerTestSuiteInstanceHolder struct {
-	mu     sync.Mutex
-	suites map[ContainerSettings]*ContainerTestSuite
+	*TransactionAwareDatabaseContainerTestSuite
 }
 
 func IsolatedContainerTestSuite(t *testing.T, debug bool, settings ContainerSettings) *ContainerTestSuite {
 	test.IntegrationTest(t)
-	suite := NewManagedContainerTestSuite(debug, settings, NewConsoleContainerLogListener(debug))
-	return &suite
+	return NewManagedContainerTestSuite(debug, settings, NewConsoleContainerLogListener(debug))
 }
 
 var (
-	Default = PostgresContainerSettings{
+	DefaultSharedContainerSettings = PostgresContainerSettings{
 		"default-db-shared",
 		"postgres:11-alpine",
 		MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres")),
@@ -39,30 +32,13 @@ var (
 		false,
 		filepath.Join("..", "..", "configs", "encryption", "unittest.key"),
 	}
-	syncedSharedContainerTestSuiteInstanceHolder *SyncedSharedContainerTestSuiteInstanceHolder
 )
-
-func SharedContainerTestSuite(t *testing.T, debug bool, instance ContainerSettings) *ContainerTestSuite {
-	h := syncedSharedContainerTestSuiteInstanceHolder
-	if h == nil {
-		h = &SyncedSharedContainerTestSuiteInstanceHolder{
-			mu:     sync.Mutex{},
-			suites: make(map[ContainerSettings]*ContainerTestSuite),
-		}
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.suites[instance] == nil {
-		h.suites[instance] = IsolatedContainerTestSuite(t, debug, instance)
-	}
-	return h.suites[instance]
-}
 
 func NewManagedContainerTestSuite(
 	debug bool,
 	settings ContainerSettings,
 	listener testcontainers.LogConsumer,
-) ContainerTestSuite {
+) *ContainerTestSuite {
 	newSuite := TransactionAwareDatabaseContainerTestSuite{
 		Context:                           context.Background(),
 		terminateContainerAfterAll:        true,
@@ -76,16 +52,16 @@ func NewManagedContainerTestSuite(
 		panic(errors.New("settings are not for postgres"))
 	}
 
-	if runTime, runError := RunPostgresContainer(newSuite, postgresSettings, debug); runError == nil {
+	if runTime, runError := RunPostgresContainer(newSuite.Context, postgresSettings, debug); runError == nil {
 		newSuite.ContainerRuntime = runTime
 	} else {
 		panic(runError)
 	}
 
-	return ContainerTestSuite{newSuite}
+	return &ContainerTestSuite{&newSuite}
 }
 
-func NewUnmanagedContainerTestSuite(ctx context.Context, containerRuntime ContainerRuntime, listener testcontainers.LogConsumer) ContainerTestSuite {
+func NewUnmanagedContainerTestSuite(ctx context.Context, containerRuntime ContainerRuntime, listener testcontainers.LogConsumer) *ContainerTestSuite {
 	newSuite := TransactionAwareDatabaseContainerTestSuite{
 		Context:                           ctx,
 		terminateContainerAfterAll:        false,
@@ -94,5 +70,5 @@ func NewUnmanagedContainerTestSuite(ctx context.Context, containerRuntime Contai
 	}
 	newSuite.ContainerRuntime = containerRuntime
 
-	return ContainerTestSuite{newSuite}
+	return &ContainerTestSuite{&newSuite}
 }

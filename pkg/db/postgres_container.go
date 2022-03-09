@@ -52,6 +52,10 @@ func (s *PostgresContainer) isBootstrapped() bool {
 	return s.bootstrapped
 }
 
+func (s *PostgresContainer) ExecutionID() string {
+	return s.executionID.String()
+}
+
 func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
 	s.executionID = uuid.New()
 

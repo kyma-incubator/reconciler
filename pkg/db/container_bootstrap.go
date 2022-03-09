@@ -10,4 +10,5 @@ type ContainerBootstrap interface {
 	testcontainers.Container
 	Bootstrap(ctx context.Context) error
 	isBootstrapped() bool
+	ExecutionID() string
 }
