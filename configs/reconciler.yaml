@@ -3,9 +3,9 @@ db:
   driver: postgres
   encryption:
     #Call `./bin/mothership mothership install` to create or update the encryption key file
-    keyFile: "/Users/i303773/Documents/development/golang/src/github.com/kyma-incubator/reconciler/encryption/reconciler.key"
+    keyFile: "./encryption/reconciler.key"
   blockQueries: true
-  logQueries: true
+  logQueries: false
   postgres:
     host: "localhost"
     database: "kyma"

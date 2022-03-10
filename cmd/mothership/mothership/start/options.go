@@ -45,8 +45,8 @@ func NewOptions(o *cli.Options) *Options {
 		0 * time.Second,  //ClusterReconcileInterval
 		0 * time.Minute,  //PurgeEntitiesOlderThan
 		0 * time.Minute,  //CleanerInterval
-		0,                //KeepLatestEntitiesCount
-		0,                //KeepUnsuccessfulEntitiesDays
+		0,                //ReconciliationsKeepLatestCount
+		0,                //ReconciliationsMaxAgeDays
 		false,            //CreateEncyptionKey
 		0,                //MaxParallelOperations
 		false,            //AuditLog
