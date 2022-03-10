@@ -28,6 +28,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 )
 
 const (
@@ -123,7 +125,9 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger())
+	metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config.Scheduler.Reconcilers, o.Logger())
+	metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
+	metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -710,6 +714,10 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
 		})
 		return
+	}
+
+	if body.Manifest != nil {
+		logger.NewLogger(true).Debugf("Dry run (correlationID: %s)\n, %s", *body.Manifest)
 	}
 
 	if body.Status == "" {

@@ -84,7 +84,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			state.Cluster.RuntimeID, reconEntity.SchedulingID)
 
 		opType := model.OperationTypeReconcile
-		if state.Status.Status.IsDeletion() {
+		if state.Status.Status.IsDeletionInProgress() {
 			opType = model.OperationTypeDelete
 		}
 

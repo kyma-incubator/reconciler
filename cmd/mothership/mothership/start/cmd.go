@@ -65,9 +65,10 @@ func Run(ctx context.Context, o *Options) error {
 	if err != nil {
 		return err
 	}
-	o.ReconcilerList = getReconcilers(schedulerCfg)
+	//passing config value to be used by metrics collectors and trackers
+	o.Config = schedulerCfg
 	go func(ctx context.Context, o *Options) {
-		err = startScheduler(ctx, o, schedulerCfg)
+		err := startScheduler(ctx, o)
 		if err != nil {
 			panic(err)
 		}

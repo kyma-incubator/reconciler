@@ -73,7 +73,7 @@ func newCmd(o *cli.Options) *cobra.Command {
 	cmd.PersistentFlags().BoolVarP(&reconcilerOpts.Verbose, "verbose", "v", false, "Show detailed information about the executed command actions")
 	cmd.PersistentFlags().BoolVar(&reconcilerOpts.NonInteractive, "non-interactive", false, "Enables the non-interactive shell mode")
 
-	startCommand := startCmd.NewCmd()
+	startCommand := startCmd.NewCmd(reconcilerOpts)
 	cmd.AddCommand(startCommand)
 	//register component reconcilers in start command:
 	for _, reconcilerName := range reconcilerRegistry.RegisteredReconcilers() {

@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"sync"
 	"testing"
 	"time"
@@ -24,18 +23,16 @@ import (
 )
 
 type testInvoker struct {
-	params        []*invoker.Params
-	reconRepo     reconciliation.Repository
-	occupancyRepo occupancy.Repository
-	errChannel    chan error
+	params     []*invoker.Params
+	reconRepo  reconciliation.Repository
+	errChannel chan error
 	sync.WaitGroup
 }
 
 type testInvokerParallel struct {
-	params        []*invoker.Params
-	reconRepo     reconciliation.Repository
-	occupancyRepo occupancy.Repository
-	errChannel    chan error
+	params     []*invoker.Params
+	reconRepo  reconciliation.Repository
+	errChannel chan error
 	sync.Mutex
 }
 
@@ -75,8 +72,6 @@ func TestWorkerPool(t *testing.T) {
 	//create test invoker to be able to verify invoker calls
 	testInvoker := &testInvoker{errChannel: make(chan error, 10)}
 
-	testInvoker.occupancyRepo = occupancy.NewInMemoryOccupancyRepository()
-
 	//create reconciliation for cluster
 	testInvoker.reconRepo = reconciliation.NewInMemoryReconciliationRepository()
 	//cleanup created cluster
@@ -91,7 +86,7 @@ func TestWorkerPool(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.occupancyRepo, testInvoker, nil, logger.NewLogger(true))
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, nil, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	//create time limited context
@@ -135,9 +130,6 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	//create test invoker to be able to verify invoker calls
 	testInvoker := &testInvoker{}
 
-	testInvoker.occupancyRepo, err = occupancy.NewPersistentOccupancyRepository(testDB, true)
-	require.NoError(t, err)
-
 	//create reconciliation for cluster
 	testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 	require.NoError(t, err)
@@ -169,7 +161,7 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	require.NoError(t, err)
 
 	//start worker pool
-	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.occupancyRepo, testInvoker, testConfig, logger.NewLogger(true))
+	workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, testConfig, logger.NewLogger(true))
 	require.NoError(t, err)
 
 	ctx, cancelFct := context.WithTimeout(context.Background(), 1*time.Second)
@@ -242,8 +234,6 @@ func TestWorkerPoolParallel(t *testing.T) {
 		testInvoker := &testInvokerParallel{errChannel: make(chan error, 100)}
 
 		//create reconciliation for cluster
-		testInvoker.occupancyRepo, err = occupancy.NewPersistentOccupancyRepository(testDB, true)
-		require.NoError(t, err)
 		testInvoker.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(testDB, true)
 		require.NoError(t, err)
 
@@ -267,7 +257,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 		//initialize worker pool
 		wPools := make([]*Pool, countWorkerPools)
 		for i := 0; i < countWorkerPools; i++ {
-			workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker.occupancyRepo, testInvoker, &Config{PoolSize: 5}, logger.NewLogger(true))
+			workerPool, err := NewWorkerPool(&InventoryRetriever{inventory}, testInvoker.reconRepo, testInvoker, &Config{PoolSize: 5}, logger.NewLogger(true))
 			require.NoError(t, err)
 			wPools[i] = workerPool
 		}

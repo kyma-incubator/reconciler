@@ -8,6 +8,9 @@ import (
 )
 
 func StartComponentReconciler(ctx context.Context, o *reconCli.Options, reconcilerName string) (*service.WorkerPool, *service.OccupancyTracker, error) {
+	if o.DryRun {
+		service.EnableReconcilerDryRun()
+	}
 	recon, err := reconCli.NewComponentReconciler(o, reconcilerName)
 	if err != nil {
 		return nil, nil, err

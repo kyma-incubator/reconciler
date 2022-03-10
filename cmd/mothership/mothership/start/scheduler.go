@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -13,21 +12,16 @@ import (
 	"github.com/spf13/viper"
 )
 
-func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config) error {
+func startScheduler(ctx context.Context, o *Options) error {
 
 	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
-
-	ds, err := service.NewDeleteStrategy(schedulerCfg.Scheduler.DeleteStrategy)
+	ds, err := service.NewDeleteStrategy(o.Config.Scheduler.DeleteStrategy)
 	if err != nil {
 		return err
 	}
 
 	return runtimeBuilder.
-		RunRemote(
-			o.Registry.Connection(),
-			o.Registry.Inventory(),
-			o.Registry.OccupancyRepository(),
-			schedulerCfg).
+		RunRemote(o.Registry.Connection(), o.Registry.Inventory(), o.Registry.OccupancyRepository(), o.Config).
 		WithWorkerPoolConfig(&worker.Config{
 			MaxParallelOperations: o.MaxParallelOperations,
 			PoolSize:              o.Workers,
@@ -43,7 +37,7 @@ func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config
 				ClusterReconcileInterval: o.ClusterReconcileInterval,
 				ClusterQueueSize:         10,
 				DeleteStrategy:           ds,
-				PreComponents:            schedulerCfg.Scheduler.PreComponents,
+				PreComponents:            o.Config.Scheduler.PreComponents,
 			}).
 		WithBookkeeperConfig(&service.BookkeeperConfig{
 			OperationsWatchInterval: 45 * time.Second,
@@ -56,15 +50,6 @@ func startScheduler(ctx context.Context, o *Options, schedulerCfg *config.Config
 			KeepUnsuccessfulEntitiesDays: uintOrDie(o.KeepUnsuccessfulEntitiesDays),
 		}).
 		Run(ctx)
-}
-
-func getReconcilers(cfg *config.Config) []string {
-	reconcilerList := make([]string, 0, len(cfg.Scheduler.Reconcilers)+1)
-	for reconciler := range cfg.Scheduler.Reconcilers {
-		formattedReconciler := strings.Replace(reconciler, "-", "_", -1)
-		reconcilerList = append(reconcilerList, formattedReconciler)
-	}
-	return append(reconcilerList, "mothership")
 }
 
 func parseSchedulerConfig(configFile string) (*config.Config, error) {
