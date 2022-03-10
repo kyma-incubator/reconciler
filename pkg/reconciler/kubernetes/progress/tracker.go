@@ -117,7 +117,7 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 				return nil
 			}
 		case <-ctx.Done():
-			pt.logger.Debugf("Stop checking progress of resource transition to state '%s' "+
+			pt.logger.Infof("Stop checking progress of resource transition to state '%s' "+
 				"because parent context got closed", targetState)
 			pt.dumpWatchableResourcesAsInfo(ctx)
 			return &e.ContextClosedError{
@@ -239,13 +239,6 @@ func (pt *Tracker) isInTerminatedState(ctx context.Context) (bool, error) {
 
 	pt.logger.Debug("All resources are terminated")
 	return true, nil
-}
-
-func (pt Tracker) logWatchableResourcesAsInfo() {
-	for _, rs := range pt.objects {
-		pt.logger.Infof("Tracker stopped checking the progress of "+
-			"the following resource: %v", rs)
-	}
 }
 
 func (pt Tracker) dumpWatchableResourcesAsInfo(ctx context.Context) {
