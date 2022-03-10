@@ -59,11 +59,11 @@ func Test_cleaner_Run(t *testing.T) {
 		mockCluster := model.ClusterEntity{
 			RuntimeID: "test-cluster",
 		}
-		clusterState := cluster.State{
+		mockClusterState := cluster.State{
 			Cluster: &mockCluster,
 		}
 		mockInventory := cluster.MockInventory{
-			GetAllResult: []*cluster.State{&clusterState},
+			GetAllResult: []*cluster.State{&mockClusterState},
 		}
 
 		reconciliations := []*model.ReconciliationEntity{
@@ -124,22 +124,20 @@ func Test_cleaner_Run(t *testing.T) {
 			},
 		}
 
-		updateModelCount := 0
 		updateModel := func(repo *reconciliation.MockRepository) {
-			if (updateModelCount) == 0 {
-				repo.GetReconciliationsResult = []*model.ReconciliationEntity{reconciliations[7], reconciliations[8], reconciliations[9], reconciliations[10]} //2nd call for reconciliations older that 6 days (from now)
+			if (repo.GetReconciliationsCount) == 1 {
+				repo.GetReconciliationsResult = []*model.ReconciliationEntity{reconciliations[7], reconciliations[8], reconciliations[9], reconciliations[10]} //setup data for the second call for reconciliations older that 6 days (from now)
 			}
 
-			if (updateModelCount) == 1 {
-				repo.GetReconciliationsResult = []*model.ReconciliationEntity{reconciliations[0], reconciliations[1], reconciliations[2], reconciliations[3], reconciliations[4], reconciliations[5], reconciliations[6]} //3nd call for remaining reconciliations (between now and 6 days ago)
+			if (repo.GetReconciliationsCount) == 2 {
+				repo.GetReconciliationsResult = []*model.ReconciliationEntity{reconciliations[0], reconciliations[1], reconciliations[2], reconciliations[3], reconciliations[4], reconciliations[5], reconciliations[6]} //setup data for the third call for remaining reconciliations (between now and 6 days ago)
 			}
 
-			updateModelCount++
 		}
 
 		reconRepo := reconciliation.MockRepository{
 			RemoveReconciliationResult: nil,
-			GetReconciliationsResult:   []*model.ReconciliationEntity{reconciliations[0]}, //1st call for a most recent reconciliation
+			GetReconciliationsResult:   []*model.ReconciliationEntity{reconciliations[0]}, //data for the first call for a most recent reconciliation
 			OnGetReconciliations:       updateModel,
 		}
 
@@ -155,6 +153,7 @@ func Test_cleaner_Run(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, 3, reconRepo.GetReconciliationsCount)
 		recordedIDs := reconRepo.RemoveReconciliationRecording
 
 		//First batch of removals comes from "deleteRecordsByAge"

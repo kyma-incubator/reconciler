@@ -13,6 +13,7 @@ type MockRepository struct {
 	RemoveReconciliationRecording                       []string
 	GetReconciliationResult                             *model.ReconciliationEntity
 	GetReconciliationsResult                            []*model.ReconciliationEntity
+	GetReconciliationsCount                             int
 	OnGetReconciliations                                func(*MockRepository)
 	FinishReconciliationResult                          error
 	GetOperationsResult                                 []*model.OperationEntity
@@ -46,6 +47,7 @@ func (mr *MockRepository) GetReconciliation(schedulingID string) (*model.Reconci
 
 func (mr *MockRepository) GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error) {
 	res := mr.GetReconciliationsResult
+	mr.GetReconciliationsCount++
 	if mr.OnGetReconciliations != nil {
 		mr.OnGetReconciliations(mr) //update state
 	}
