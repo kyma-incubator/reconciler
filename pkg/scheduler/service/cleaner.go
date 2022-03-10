@@ -107,7 +107,7 @@ func (c *cleaner) deleteRecordsByAge(runtimeID string, numberOfDays int, transit
 
 	c.logger.Infof("[CLEANER] Removing reconciliations older than: %s except the most recent one for the cluster %s", deadline.UTC().String(), runtimeID)
 
-	mostRecentReconciliation, err := c.getLatestReconciliation(runtimeID, transition)
+	mostRecentReconciliation, err := c.getMostRecentReconciliation(runtimeID, transition)
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (c *cleaner) deleteRecordsByCountAndStatus(runtimeID string, transition *Cl
 	return nil
 }
 
-func (c *cleaner) getLatestReconciliation(runtimeID string, transition *ClusterStatusTransition) (*model.ReconciliationEntity, error) {
+func (c *cleaner) getMostRecentReconciliation(runtimeID string, transition *ClusterStatusTransition) (*model.ReconciliationEntity, error) {
 	limitFilter := reconciliation.Limit{Count: 1}
 	runtimeIDFilter := reconciliation.WithRuntimeID{runtimeID}
 
