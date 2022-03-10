@@ -119,7 +119,7 @@ func (pt *Tracker) Watch(ctx context.Context, targetState State) error {
 		case <-ctx.Done():
 			pt.logger.Debugf("Stop checking progress of resource transition to state '%s' "+
 				"because parent context got closed", targetState)
-			pt.logWatchableResourcesAsInfo()
+			pt.dumpWatchableResourcesAsInfo(ctx)
 			return &e.ContextClosedError{
 				Message: fmt.Sprintf("Running resource transition to state '%s' was not completed: "+
 					"transition is treated as failed", targetState),
