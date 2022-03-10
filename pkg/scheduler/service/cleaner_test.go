@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -13,6 +14,7 @@ import (
 )
 
 func Test_cleaner_Run(t *testing.T) {
+
 	t.Run("Test run with old logic", func(t *testing.T) {
 		cleaner := newCleaner(logger.NewLogger(true))
 
@@ -54,78 +56,116 @@ func Test_cleaner_Run(t *testing.T) {
 
 		start := time.Now()
 
+		mockCluster := model.ClusterEntity{
+			RuntimeID: "test-cluster",
+		}
+		clusterState := cluster.State{
+			Cluster: &mockCluster,
+		}
+		mockInventory := cluster.MockInventory{
+			GetAllResult: []*cluster.State{&clusterState},
+		}
+
+		reconciliations := []*model.ReconciliationEntity{
+			{
+				SchedulingID: "test-id-0",
+				Created:      start,
+				Status:       model.ClusterStatusReady,
+			},
+			{
+				SchedulingID: "test-id-1",
+				Created:      start.Add((-1 * 24) * time.Hour),
+				Status:       model.ClusterStatusReconcileErrorRetryable,
+			},
+			{
+				SchedulingID: "test-id-2",
+				Created:      start.Add((-2 * 24) * time.Hour),
+				Status:       model.ClusterStatusReady,
+			},
+			{
+				SchedulingID: "test-id-3",
+				Created:      start.Add((-3 * 24) * time.Hour),
+				Status:       model.ClusterStatusReconcileErrorRetryable,
+			},
+			{
+				SchedulingID: "test-id-4",
+				Created:      start.Add((-4 * 24) * time.Hour),
+				Status:       model.ClusterStatusReady,
+			},
+			{
+				SchedulingID: "test-id-5",
+				Created:      start.Add((-5 * 24) * time.Hour),
+				Status:       model.ClusterStatusReconcileErrorRetryable,
+			},
+			{
+				SchedulingID: "test-id-6",
+				Created:      start.Add((-6 * 24) * time.Hour),
+				Status:       model.ClusterStatusReady,
+			},
+			{
+				SchedulingID: "test-id-7",
+				Created:      start.Add((-7 * 24) * time.Hour),
+				Status:       model.ClusterStatusReconcileErrorRetryable,
+			},
+			{
+				SchedulingID: "test-id-8",
+				Created:      start.Add((-8 * 24) * time.Hour),
+				Status:       model.ClusterStatusReady,
+			},
+			{
+				SchedulingID: "test-id-9",
+				Created:      start.Add((-9 * 24) * time.Hour),
+				Status:       model.ClusterStatusReconcileErrorRetryable,
+			},
+			{
+				SchedulingID: "test-id-10",
+				Created:      start.Add((-10 * 24) * time.Hour),
+				Status:       model.ClusterStatusReady,
+			},
+		}
+
+		updateModelCount := 0
+		updateModel := func(repo *reconciliation.MockRepository) {
+			if (updateModelCount) == 0 {
+				repo.GetReconciliationsResult = []*model.ReconciliationEntity{reconciliations[7], reconciliations[8], reconciliations[9], reconciliations[10]} //2nd call for reconciliations older that 6 days (from now)
+			}
+
+			if (updateModelCount) == 1 {
+				repo.GetReconciliationsResult = []*model.ReconciliationEntity{reconciliations[0], reconciliations[1], reconciliations[2], reconciliations[3], reconciliations[4], reconciliations[5], reconciliations[6]} //3nd call for remaining reconciliations (between now and 6 days ago)
+			}
+
+			updateModelCount++
+		}
+
 		reconRepo := reconciliation.MockRepository{
 			RemoveReconciliationResult: nil,
-			GetReconciliationsResult: []*model.ReconciliationEntity{
-				{
-					SchedulingID: "test-id-0",
-					Created:      start,
-					Status:       model.ClusterStatusReady,
-				},
-				{
-					SchedulingID: "test-id-1",
-					Created:      start.Add((-24*1 - 1) * time.Hour),
-					Status:       model.ClusterStatusReconcileError,
-				},
-				{
-					SchedulingID: "test-id-2",
-					Created:      start.Add((-24*2 - 1) * time.Hour),
-					Status:       model.ClusterStatusReady,
-				},
-				{
-					SchedulingID: "test-id-3",
-					Created:      start.Add((-24*3 - 1) * time.Hour),
-					Status:       model.ClusterStatusReconcileError,
-				},
-				{
-					SchedulingID: "test-id-4",
-					Created:      start.Add((-24*4 - 1) * time.Hour),
-					Status:       model.ClusterStatusReady,
-				},
-				{
-					SchedulingID: "test-id-5",
-					Created:      start.Add((-24*5 - 1) * time.Hour),
-					Status:       model.ClusterStatusReconcileError,
-				},
-				{
-					SchedulingID: "test-id-6",
-					Created:      start.Add((-24*6 - 1) * time.Hour),
-					Status:       model.ClusterStatusReady,
-				},
-				{
-					SchedulingID: "test-id-7",
-					Created:      start.Add((-24*7 - 1) * time.Hour),
-					Status:       model.ClusterStatusReconcileError,
-				},
-				{
-					SchedulingID: "test-id-8",
-					Created:      start.Add((-24*8 - 1) * time.Hour),
-					Status:       model.ClusterStatusReady,
-				},
-				{
-					SchedulingID: "test-id-9",
-					Created:      start.Add((-24*9 - 1) * time.Hour),
-					Status:       model.ClusterStatusReconcileError,
-				},
-				{
-					SchedulingID: "test-id-10",
-					Created:      start.Add((-24*10 - 1) * time.Hour),
-					Status:       model.ClusterStatusReady,
-				},
-			},
+			GetReconciliationsResult:   []*model.ReconciliationEntity{reconciliations[0]}, //1st call for a most recent reconciliation
+			OnGetReconciliations:       updateModel,
 		}
 
 		err := cleaner.Run(ctx, &ClusterStatusTransition{
 			conn:      db.NewTestConnection(t),
 			reconRepo: &reconRepo,
+			inventory: &mockInventory,
 			logger:    logger.NewLogger(true),
 		}, &CleanerConfig{
-			KeepLatestEntitiesCount: 5,
-			MaxEntitiesAgeDays:      3,
+			KeepLatestEntitiesCount: 4,
+			MaxEntitiesAgeDays:      6,
 			CleanerInterval:         5 * time.Second,
 		})
 
 		require.NoError(t, err)
+		recordedIDs := reconRepo.RemoveReconciliationRecording
+
+		//First batch of removals comes from "deleteRecordsByAge"
+		require.Equal(t, "test-id-7", recordedIDs[0])
+		require.Equal(t, "test-id-8", recordedIDs[1])
+		require.Equal(t, "test-id-9", recordedIDs[2])
+		require.Equal(t, "test-id-10", recordedIDs[3])
+
+		//Second batch of removals comes from "deleteRecordsByAge"
+		require.Equal(t, "test-id-4", recordedIDs[4])
+		require.Equal(t, "test-id-6", recordedIDs[5])
 
 		time.Sleep(500 * time.Millisecond) //give it some time to shutdown
 
@@ -151,30 +191,5 @@ func Test_beginningOfTheDay(t *testing.T) {
 		require.NoError(t, err)
 		actual := beginningOfTheDay(given)
 		require.Equal(t, tc.expected, actual.Format(time.RFC3339))
-	}
-}
-
-func Test_diffDays(t *testing.T) {
-	type test struct {
-		time1    string
-		time2    string
-		expected int
-	}
-
-	cases := []test{
-		{time1: "2022-01-19T05:22:41Z", time2: "2022-01-19T05:21:41Z", expected: 0},   //time1 > time2
-		{time1: "2022-01-19T05:21:41Z", time2: "2022-01-19T05:21:41Z", expected: 0},   //time1 == time2
-		{time1: "2022-01-19T05:20:40Z", time2: "2022-01-19T05:21:41Z", expected: 0},   //time1 == time2 - 1 minute
-		{time1: "2022-01-18T05:21:41Z", time2: "2022-01-19T05:21:41Z", expected: 1},   //time1 == time2 - 1 day
-		{time1: "2022-01-16T05:21:41Z", time2: "2022-01-19T05:21:41Z", expected: 3},   //time1 == time2 - 3 days
-		{time1: "2021-01-19T05:21:41Z", time2: "2022-01-19T05:21:41Z", expected: 365}, //time1 == time2 - 1 year
-	}
-
-	for _, tc := range cases {
-		time1, err := time.Parse(time.RFC3339, tc.time1)
-		require.NoError(t, err)
-		time2, err := time.Parse(time.RFC3339, tc.time2)
-		require.NoError(t, err)
-		require.Equal(t, tc.expected, diffDays(time1, time2), "For time %s and %s", tc.time1, tc.time2)
 	}
 }
