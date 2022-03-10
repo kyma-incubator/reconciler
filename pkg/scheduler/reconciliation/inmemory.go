@@ -96,13 +96,7 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID str
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for _, recon := range r.reconciliations {
-		if recon.SchedulingID == schedulingID {
-			delete(r.reconciliations, recon.RuntimeID)
-			break
-		}
-	}
-	delete(r.operations, schedulingID)
+	removeSchedulingID(schedulingID, r.reconciliations, r.operations)
 	return nil
 }
 
@@ -111,12 +105,7 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliations(schedulingIDs [
 	defer r.mu.Unlock()
 
 	for _, schedulingID := range schedulingIDs {
-		for _, operation := range r.operations[schedulingID] {
-			delete(r.reconciliations, operation.RuntimeID)
-			// all operations have the same runtimeID
-			break
-		}
-		delete(r.operations, schedulingID)
+		removeSchedulingID(schedulingID, r.reconciliations, r.operations)
 	}
 
 	return nil
@@ -412,4 +401,15 @@ func unique(slice []string) []string {
 		}
 	}
 	return list
+}
+
+func removeSchedulingID(schedulingID string, reconciliations map[string]*model.ReconciliationEntity, operations map[string]map[string]*model.OperationEntity) {
+	for _, recon := range reconciliations {
+		if recon.SchedulingID == schedulingID {
+			delete(reconciliations, recon.RuntimeID)
+			break
+		}
+	}
+
+	delete(operations, schedulingID)
 }

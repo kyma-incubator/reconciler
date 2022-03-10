@@ -166,18 +166,9 @@ func (r *PersistentReconciliationRepository) RemoveReconciliations(schedulingIDs
 	dbOps := func(tx *db.TxConnection) error {
 		for _, schedulingIDsBlock := range schedulingIDsBlocks {
 			var args []interface{}
-
-			// format scheduling IDs
-			sIdsDuplicate := make(map[string]interface{}, len(schedulingIDsBlock))
-
 			var buffer bytes.Buffer
 
 			for i, schedulingID := range schedulingIDsBlock {
-				if _, ok := sIdsDuplicate[schedulingID]; ok {
-					continue
-				}
-				sIdsDuplicate[schedulingID] = nil
-
 				if buffer.Len() > 0 {
 					buffer.WriteRune(',')
 				}
@@ -649,19 +640,21 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 }
 
 func splitStringSlice(slice []string, blockSize int) [][]string {
-	count := len(slice)
-	if len(slice) == 0 {
+	sliceLength := len(slice)
+	if sliceLength == 0 {
 		return nil
 	}
-	var blocks [][]string
-	var j int
-	for i := 0; i < count; i += blockSize {
-		j += blockSize
-		if j > count {
-			j = count
+	subSlicesCount := (sliceLength + blockSize - 1) / blockSize
+	resultSlice := make([][]string, 0, subSlicesCount)
+
+	var high int
+	for low := 0; low < sliceLength; low += blockSize {
+		high += blockSize
+		if high > sliceLength {
+			high = sliceLength
 		}
 
-		blocks = append(blocks, slice[i:j])
+		resultSlice = append(resultSlice, slice[low:high])
 	}
-	return blocks
+	return resultSlice
 }

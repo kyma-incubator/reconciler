@@ -34,10 +34,14 @@ func prepareTest(t *testing.T, schedulingIDsCount int) (Repository, Repository, 
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 
+	var runtimeIDs []string
 	for i := 0; i < schedulingIDsCount; i++ {
 		//add cluster(s) to inventory
 		clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 		require.NoError(t, err)
+
+		//collect runtimeIDs for cleanup
+		runtimeIDs = append(runtimeIDs, clusterState.Cluster.RuntimeID)
 
 		//trigger reconciliation for cluster
 		persistenceReconEntity, err := persistenceRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
@@ -49,6 +53,14 @@ func prepareTest(t *testing.T, schedulingIDsCount int) (Repository, Repository, 
 		persistenceSchedulingIDs = append(persistenceSchedulingIDs, persistenceReconEntity.SchedulingID)
 		inMemorySchedulingIDs = append(inMemorySchedulingIDs, inMemoryReconEntity.SchedulingID)
 	}
+
+	// clean-up created cluster
+	defer func() {
+		for _, runtimeID := range runtimeIDs {
+			require.NoError(t, inventory.Delete(runtimeID))
+		}
+	}()
+
 	return persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs
 }
 
