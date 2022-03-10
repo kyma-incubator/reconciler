@@ -149,7 +149,7 @@ func (c *cleaner) deleteRecordsByCountAndStatus(runtimeID string, transition *Cl
 	}
 
 	if len(reconciliationsToDrop) > 0 {
-		c.logger.Debugf("[CLEANER] Found %d records with a \"successfull\" status to delete for the cluster %s", len(reconciliationsToDrop), runtimeID)
+		c.logger.Debugf("[CLEANER] Found %d records with a \"successful\" status to delete for the cluster %s", len(reconciliationsToDrop), runtimeID)
 		c.removeReconciliations(reconciliationsToDrop, transition)
 	}
 
@@ -158,7 +158,7 @@ func (c *cleaner) deleteRecordsByCountAndStatus(runtimeID string, transition *Cl
 
 func (c *cleaner) getMostRecentReconciliation(runtimeID string, transition *ClusterStatusTransition) (*model.ReconciliationEntity, error) {
 	limitFilter := reconciliation.Limit{Count: 1}
-	runtimeIDFilter := reconciliation.WithRuntimeID{runtimeID}
+	runtimeIDFilter := reconciliation.WithRuntimeID{RuntimeID: runtimeID}
 
 	filter := reconciliation.FilterMixer{Filters: []reconciliation.Filter{&runtimeIDFilter, &limitFilter}}
 
@@ -198,8 +198,8 @@ func (c *cleaner) dropReconciliationsOlderThanByFilter(runtimeID string, t time.
 
 func (c *cleaner) findReconciliationsOlderThan(runtimeID string, t time.Time, transition *ClusterStatusTransition) ([]*model.ReconciliationEntity, error) {
 
-	runtimeIDFilter := reconciliation.WithRuntimeID{runtimeID}
-	dateBeforeFilter := reconciliation.WithCreationDateBefore{t}
+	runtimeIDFilter := reconciliation.WithRuntimeID{RuntimeID: runtimeID}
+	dateBeforeFilter := reconciliation.WithCreationDateBefore{Time: t}
 
 	filter := reconciliation.FilterMixer{Filters: []reconciliation.Filter{&runtimeIDFilter, &dateBeforeFilter}}
 
