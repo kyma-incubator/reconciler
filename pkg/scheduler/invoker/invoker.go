@@ -2,7 +2,6 @@ package invoker
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -66,7 +65,6 @@ func (p *Params) newTask() *reconciler.Task {
 		CorrelationID:   p.CorrelationID,
 		Repository: &reconciler.Repository{
 			URL:            url,
-			TokenNamespace: fmt.Sprint(tokenNamespace),
 		},
 		Type: p.Type,
 		ComponentConfiguration: reconciler.ComponentConfiguration{

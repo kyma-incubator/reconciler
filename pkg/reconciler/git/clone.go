@@ -3,19 +3,15 @@ package git
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
-	"strings"
-
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"go.uber.org/zap"
-	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/go-git/go-git/v5"
 	gitp "github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 const gitCloneTokenEnv = "GIT_CLONE_TOKEN"
@@ -24,9 +20,8 @@ type Cloner struct {
 	repo         *reconciler.Repository
 	autoCheckout bool
 
-	repoClient         RepoClient
-	inClusterClientSet k8s.Interface
-	logger             *zap.SugaredLogger
+	repoClient RepoClient
+	logger     *zap.SugaredLogger
 }
 
 //go:generate mockery --name RepoClient --case=underscore
@@ -39,13 +34,12 @@ type RepoClient interface {
 	DefaultBranch() (*gitp.Reference, error)
 }
 
-func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
+func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, logger *zap.SugaredLogger) (*Cloner, error) {
 	return &Cloner{
-		repo:               repo,
-		autoCheckout:       autoCheckout,
-		repoClient:         repoClient,
-		inClusterClientSet: clientSet,
-		logger:             logger,
+		repo:         repo,
+		autoCheckout: autoCheckout,
+		repoClient:   repoClient,
+		logger:       logger,
 	}, nil
 }
 
@@ -119,29 +113,6 @@ func (r *Cloner) buildAuth() transport.AuthMethod {
 		Username: "xxx", // anything but an empty string
 		Password: token,
 	}
-}
-
-func mapSecretKey(URL string) (string, error) {
-	if !strings.HasPrefix(URL, "http") {
-		URL = "https://" + URL
-	}
-
-	URL = strings.ReplaceAll(URL, "www.", "")
-
-	parsed, err := url.Parse(URL)
-
-	if err != nil {
-		return "", err
-	}
-
-	if parsed.Scheme == "" {
-		return parsed.Path, nil
-	}
-
-	output := strings.ReplaceAll(parsed.Host, ":"+parsed.Port(), "")
-	output = strings.ReplaceAll(output, "www.", "")
-
-	return output, nil
 }
 
 func (r *Cloner) FetchAndCheckout(path, version string) error {
