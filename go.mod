@@ -9,7 +9,7 @@ require (
 	github.com/containerd/containerd v1.5.10 // indirect
 	github.com/coreos/go-semver v0.3.0
 	github.com/docker/cli v20.10.12+incompatible // indirect
-	github.com/docker/distribution v2.8.0+incompatible // indirect
+	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/docker v20.10.12+incompatible // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/fatih/structs v1.1.0
