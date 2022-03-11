@@ -38,9 +38,9 @@ func (c *ComponentProcessingDurationMetric) ExposeProcessingDuration(component s
 func getMetricLabel(state model.OperationState) string {
 	switch state {
 	case model.OperationStateDone:
-		return "operation_processing_duration_reconciler_successful_microsecond"
+		return "processing_duration_successful_microsecond"
 	case model.OperationStateFailed:
-		return "operation_processing_duration_reconciler_unsuccessful_microsecond"
+		return "processing_duration_unsuccessful_microsecond"
 	}
 	return "undefined"
 }
