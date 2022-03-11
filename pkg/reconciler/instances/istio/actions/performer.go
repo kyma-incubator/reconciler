@@ -202,7 +202,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		if err != nil {
 			return err
 		}
-		err = c.setLabelSelectorToWebhook(whConf, webhookNameToChange, requiredLabelSelector)
+		err = c.addNamespaceSelectorIfNotPresent(whConf, webhookNameToChange, requiredLabelSelector)
 		if err != nil {
 			return err
 		}
@@ -220,26 +220,24 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	return nil
 }
 
-func (c *DefaultIstioPerformer) setLabelSelectorToWebhook(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
-	var whFound bool
+func (c *DefaultIstioPerformer) addNamespaceSelectorIfNotPresent(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
 	for i := range whConf.Webhooks {
 		if whConf.Webhooks[i].Name == webhookNameToChange {
-			whFound = true
 			matchExpressions := whConf.Webhooks[i].NamespaceSelector.MatchExpressions
 			var hasRequiredLabel bool
 			for j := range matchExpressions {
-				hasRequiredLabel = reflect.DeepEqual(matchExpressions[j], requiredLabelSelector)
+				if hasRequiredLabel = reflect.DeepEqual(matchExpressions[j], requiredLabelSelector); hasRequiredLabel {
+					break
+				}
 			}
 			if !hasRequiredLabel {
 				matchExpressions = append(matchExpressions, requiredLabelSelector)
 				whConf.Webhooks[i].NamespaceSelector.MatchExpressions = matchExpressions
 			}
+			return nil
 		}
 	}
-	if !whFound {
-		return fmt.Errorf("could not find webhook %s in WebhookConfiguration %s", webhookNameToChange, whConf.Name)
-	}
-	return nil
+	return fmt.Errorf("could not find webhook %s in WebhookConfiguration %s", webhookNameToChange, whConf.Name)
 }
 
 func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (wh *v1.MutatingWebhookConfiguration, err error) {

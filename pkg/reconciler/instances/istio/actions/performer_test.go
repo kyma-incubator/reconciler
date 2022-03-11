@@ -247,7 +247,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		// given
 		whConfName := "istio-sidecar-injector"
 		kubeClient := mocks.Client{}
-		clientset := fake.NewSimpleClientset(createIstioMutatingWebhookConf(whConfName))
+		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(whConfName))
 		kubeClient.On("Clientset").Return(clientset, nil)
 		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
 
@@ -271,7 +271,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		oldWhConfName := "istio-sidecar-injector"
 		newWhConfName := "istio-revision-tag-default"
 		kubeClient := mocks.Client{}
-		clientset := fake.NewSimpleClientset(createIstioMutatingWebhookConf(newWhConfName), createIstioMutatingWebhookConf(oldWhConfName))
+		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(newWhConfName), createIstioAutoMutatingWebhookConf(oldWhConfName))
 		kubeClient.On("Clientset").Return(clientset, nil)
 		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
 
@@ -293,11 +293,23 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		require.NotContains(t, gotOld.Webhooks[0].NamespaceSelector.MatchExpressions, want)
 	})
 
-	t.Run("patching mutating webhook should be idempotent", func(t *testing.T) {
+	t.Run("should not change if the webhook already has the selector", func(t *testing.T) {
 		// given
 		whConfName := "istio-revision-tag-default"
 		kubeClient := mocks.Client{}
-		mutatingWebhookConf := createIstioMutatingWebhookConf(whConfName)
+		selectors := []metav1.LabelSelectorRequirement{
+			{
+				Key:      "gardener.cloud/purpose",
+				Operator: "NotIn",
+				Values:   []string{"kube-system"},
+			},
+			{
+				Key:      "foo",
+				Operator: "bar",
+				Values:   nil,
+			},
+		}
+		mutatingWebhookConf := createIstioAutoMutatingWebhookConfWithSelector(whConfName, selectors...)
 		clientset := fake.NewSimpleClientset(mutatingWebhookConf)
 		kubeClient.On("Clientset").Return(clientset, nil)
 		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
@@ -305,6 +317,26 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		// when
 		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
 		require.NoError(t, err)
+
+		// then
+		whConf, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, len(whConf.Webhooks[0].NamespaceSelector.MatchExpressions), len(selectors))
+	})
+
+	t.Run("should patch mutating webhook only once when patch was performed twice", func(t *testing.T) {
+		// given
+		whConfName := "istio-revision-tag-default"
+		kubeClient := mocks.Client{}
+		mutatingWebhookConf := createIstioAutoMutatingWebhookConf(whConfName)
+		clientset := fake.NewSimpleClientset(mutatingWebhookConf)
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+
+		// when
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		require.NoError(t, err)
+		// saving intermediate result after first iteration
 		intermediateWhConf, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
 		require.NoError(t, err)
 		err = wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
@@ -317,18 +349,22 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 	})
 }
 
-func createIstioMutatingWebhookConf(whConfName string) *v1.MutatingWebhookConfiguration {
+func createIstioAutoMutatingWebhookConfWithSelector(whConfName string, selector ...metav1.LabelSelectorRequirement) *v1.MutatingWebhookConfiguration {
 	return &v1.MutatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: whConfName},
 		Webhooks: []v1.MutatingWebhook{
 			{
 				Name: "auto.sidecar-injector.istio.io",
 				NamespaceSelector: &metav1.LabelSelector{
-					MatchExpressions: []metav1.LabelSelectorRequirement{},
+					MatchExpressions: selector,
 				},
 			},
 		},
 	}
+}
+
+func createIstioAutoMutatingWebhookConf(whConfName string) *v1.MutatingWebhookConfiguration {
+	return createIstioAutoMutatingWebhookConfWithSelector(whConfName, metav1.LabelSelectorRequirement{})
 }
 
 func Test_DefaultIstioPerformer_Update(t *testing.T) {
