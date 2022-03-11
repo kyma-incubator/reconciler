@@ -33,6 +33,5 @@ func TestInvoker(t *testing.T) {
 	}
 
 	task := params.newTask()
-	assert.Equal(t, "", task.Repository.TokenNamespace, "Should parse repo token namespace correctly")
 	assert.Equal(t, model.OperationTypeDelete, task.Type, "Task type should equal operation type")
 }
