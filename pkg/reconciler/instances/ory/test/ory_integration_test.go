@@ -58,7 +58,7 @@ func TestOryIntegrationProduction(t *testing.T) {
 	setup := newOryTest(t)
 	defer setup.contextCancel()
 
-	t.Run("ensure that ory-hydra is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-hydra hpa is deployed", func(t *testing.T) {
 		name := "ory-hydra"
 		hpa, err := setup.getHorizontalPodAutoscaler(name)
 		require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestOryIntegrationProduction(t *testing.T) {
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
 	})
 
-	t.Run("ensure that ory-oathkeeper is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-oathkeeper hpa is deployed", func(t *testing.T) {
 		name := "ory-oathkeeper"
 		hpa, err := setup.getHorizontalPodAutoscaler(name)
 		require.NoError(t, err)
@@ -78,7 +78,8 @@ func TestOryIntegrationProduction(t *testing.T) {
 
 	t.Run("ensure that ory-postgresql is deployed", func(t *testing.T) {
 		name := "ory-postgresql"
-		sts := setup.getStatefulSet(t, name)
+		sts, err := setup.getStatefulSet(t, name)
+		require.NoError(t, err)
 
 		require.Equal(t, int32(1), sts.Status.Replicas)
 		require.Equal(t, int32(1), sts.Status.ReadyReplicas)
@@ -153,22 +154,17 @@ func (s *oryTest) getHorizontalPodAutoscaler(name string) (*autoscalingv1.Horizo
 	return s.kubeClient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
-func (s *oryTest) getStatefulSet(t *testing.T, name string) *v1apps.StatefulSet {
-	sts, err := s.kubeClient.AppsV1().StatefulSets(namespace).Get(s.context, name, metav1.GetOptions{})
-	require.NoError(t, err)
-
-	return sts
+func (s *oryTest) getStatefulSet(t *testing.T, name string) (*v1apps.StatefulSet, error) {
+	return s.kubeClient.AppsV1().StatefulSets(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
-func (s *oryTest) getSecret(t *testing.T, name string) *v1.Secret {
-	secret, err := s.kubeClient.CoreV1().Secrets(namespace).Get(s.context, name, metav1.GetOptions{})
-	require.NoError(t, err)
-
-	return secret
+func (s *oryTest) getSecret(t *testing.T, name string) (*v1.Secret, error) {
+	return s.kubeClient.CoreV1().Secrets(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
 func (s *oryTest) ensureSecretIsDeployed(t *testing.T, name string) {
-	secret := s.getSecret(t, name)
+	secret, err := s.getSecret(t, name)
+	require.NoError(t, err)
 	require.NotNil(t, secret.Data)
 	s.logger.Infof("Secret %v is deployed", secret.Name)
 }
