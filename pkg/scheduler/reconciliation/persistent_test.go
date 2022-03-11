@@ -1,15 +1,16 @@
 package reconciliation
 
 import (
+	"math"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/stretchr/testify/require"
-	"math"
-	"reflect"
-	"testing"
-	"time"
 )
 
 func dbTestConnection(t *testing.T) db.Connection {
@@ -64,6 +65,72 @@ func prepareTest(t *testing.T, count int) (Repository, Repository, []string, []s
 	}()
 
 	return persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs, runtimeIDs
+}
+
+func TestPersistentReconciliationRepository_RemoveReconciliationsByFilter(t *testing.T) {
+	dbConn = dbConnection(t)
+
+	tests := []struct {
+		name            string
+		wantErr         bool
+		reconciliations int
+	}{
+		{
+			name:            "with no scheduling IDs",
+			wantErr:         false,
+			reconciliations: 0,
+		},
+		{
+			name:            "with one scheduling ID",
+			wantErr:         false,
+			reconciliations: 1,
+		},
+		{
+			name:            "with multiple scheduling IDs",
+			wantErr:         false,
+			reconciliations: 101,
+		},
+	}
+	for _, tt := range tests {
+		testCase := tt
+		t.Run(testCase.name, func(t *testing.T) {
+			persistenceRepo, inMemoryRepo, _, _, runtimeIDs := prepareTest(t, testCase.reconciliations)
+
+			timeTo := time.Now().UTC()
+			timeFrom := time.Now().UTC().Add(-1 * 24 * time.Hour)
+
+			for _, runtimeID := range runtimeIDs {
+				timeFromFilter := WithCreationDateAfter{
+					Time: timeFrom,
+				}
+				timeToFilter := WithCreationDateBefore{
+					Time: timeTo,
+				}
+				reconciliationIdFilter := WithRuntimeID{
+					RuntimeID: runtimeID,
+				}
+
+				filter := FilterMixer{
+					Filters: []Filter{&timeFromFilter, &timeToFilter, &reconciliationIdFilter},
+				}
+
+				if err := persistenceRepo.RemoveReconciliations(&filter); (err != nil) != testCase.wantErr {
+					t.Errorf("Persistence RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
+				}
+				if err := inMemoryRepo.RemoveReconciliations(&filter); (err != nil) != testCase.wantErr {
+					t.Errorf("InMemory RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
+				}
+			}
+
+			// check - also ensures clean up
+			persistenceReconciliations, err := persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			require.NoError(t, err)
+			require.Equal(t, 0, len(persistenceReconciliations))
+			inMemoryReconciliations, err := inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			require.NoError(t, err)
+			require.Equal(t, 0, len(inMemoryReconciliations))
+		})
+	}
 }
 
 func TestPersistentReconciliationRepository_RemoveReconciliationsBySchedulingID(t *testing.T) {

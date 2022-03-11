@@ -51,6 +51,10 @@ func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []st
 	return mr.RemoveReconciliationResult
 }
 
+func (mr *MockRepository) RemoveReconciliations(filter Filter) error {
+	return nil
+}
+
 func (mr *MockRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
 	return mr.GetReconciliationResult, nil
 }

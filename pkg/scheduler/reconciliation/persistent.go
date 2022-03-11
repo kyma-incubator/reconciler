@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"go.uber.org/zap"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -179,6 +180,50 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID
 			buffer.Reset()
 		}
 		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) RemoveReconciliations(filter Filter) error {
+
+	q, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
+	if err != nil {
+		return err
+	}
+
+	//query for a list of primary keys (SchedulingID)
+	selectQ, err := q.SelectColumn("SchedulingID")
+
+	if err != nil {
+		return err
+	}
+
+	if filter != nil {
+		if err := filter.FilterByQuery(selectQ); err != nil {
+			return errors.Wrap(err, "failed to apply sql filter")
+		}
+	}
+
+	// TODO: the ORM should maintain the correct SQL statement order and handle duplicated clauses.
+	if !strings.Contains(selectQ.String(), "ORDER BY") {
+		selectQ = selectQ.OrderBy(map[string]string{"Created": "DESC"})
+	}
+
+	//delete records using Select as a subquery
+	dbOps := func(tx *db.TxConnection) error {
+		//delete reconciliation
+		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
+		if err != nil {
+			return err
+		}
+
+		delCnt, err := qDelRecon.Delete().
+			WhereIn("SchedulingID", selectQ.String(), selectQ.GetArgs()...).
+			Exec()
+
+		r.Logger.Debugf("Deleted %d reconciliations by filter", delCnt)
+
+		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
