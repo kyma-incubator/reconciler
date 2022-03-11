@@ -6,6 +6,8 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/stretchr/testify/require"
+	"math"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -112,6 +114,51 @@ func TestPersistentReconciliationRepository_RemoveSchedulingIds(t *testing.T) {
 			inMemoryReconciliations, err := inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(inMemoryReconciliations))
+		})
+	}
+}
+
+func Test_splitStringSlice(t *testing.T) {
+	type args struct {
+		slice     []string
+		blockSize int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    [][]string
+		wantErr bool
+	}{
+		{
+			name: "when block size is more than max int32",
+			args: args{
+				slice:     []string{"item1", "item2", "item3"},
+				blockSize: math.MaxInt32,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "when a slice of 9 items should be split into blocks of 3",
+			args: args{
+				slice:     []string{"item1", "item2", "item3", "item4", "item5", "item6", "item7", "item8", "item9"},
+				blockSize: 3,
+			},
+			want:    [][]string{{"item1", "item2", "item3"}, {"item4", "item5", "item6"}, {"item7", "item8", "item9"}},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		testCase := tt
+		t.Run(testCase.name, func(t *testing.T) {
+			got, err := splitStringSlice(testCase.args.slice, testCase.args.blockSize)
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("splitStringSlice() error = %v, wantErr %v", err, testCase.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, testCase.want) {
+				t.Errorf("splitStringSlice() got = %v, want %v", got, testCase.want)
+			}
 		})
 	}
 }
