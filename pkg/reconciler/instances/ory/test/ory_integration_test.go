@@ -160,16 +160,16 @@ func (s *oryTest) getHorizontalPodAutoscaler(name string) (*autoscalingv1.Horizo
 	return s.kubeClient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
-func (s *oryTest) getStatefulSet(t *testing.T, name string) (*v1apps.StatefulSet, error) {
+func (s *oryTest) getStatefulSet(name string) (*v1apps.StatefulSet, error) {
 	return s.kubeClient.AppsV1().StatefulSets(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
-func (s *oryTest) getSecret(t *testing.T, name string) (*v1.Secret, error) {
+func (s *oryTest) getSecret(name string) (*v1.Secret, error) {
 	return s.kubeClient.CoreV1().Secrets(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
 func (s *oryTest) ensureSecretIsDeployed(t *testing.T, name string) {
-	secret, err := s.getSecret(t, name)
+	secret, err := s.getSecret(name)
 	require.NoError(t, err)
 	require.NotNil(t, secret.Data)
 	s.logger.Infof("Secret %v is deployed", secret.Name)
