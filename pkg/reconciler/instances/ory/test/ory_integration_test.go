@@ -78,7 +78,7 @@ func TestOryIntegrationProduction(t *testing.T) {
 
 	t.Run("ensure that ory-postgresql is deployed", func(t *testing.T) {
 		name := "ory-postgresql"
-		sts, err := setup.getStatefulSet(t, name)
+		sts, err := setup.getStatefulSet(name)
 		require.NoError(t, err)
 
 		require.Equal(t, int32(1), sts.Status.Replicas)
