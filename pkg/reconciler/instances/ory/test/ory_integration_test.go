@@ -3,7 +3,6 @@ package test
 import (
 	"testing"
 
-	"github.com/avast/retry-go"
 	"github.com/stretchr/testify/require"
 	v1apps "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -18,27 +17,24 @@ func TestOryIntegration(t *testing.T) {
 	setup := newOryTest(t)
 	defer setup.contextCancel()
 
-	options := metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/instance=ory",
-	}
-
-	podsList, err := setup.getPods(options)
-	require.NoError(t, err)
-
-	for i, pod := range podsList.Items {
-		setup.logger.Infof("Pod %v is deployed", pod.Name)
-		i := i
-		pod := pod
-
-		err := retry.Do(func() error {
-			require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
-			ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
-			require.Equal(t, true, ready)
-			return nil
-		}, retry.DelayType(retry.BackOffDelay))
-
+	t.Run("ensure that ory pods are deployed and ready", func(t *testing.T) {
+		options := metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/instance=ory",
+		}
+		podsList, err := setup.getPods(options)
 		require.NoError(t, err)
-	}
+
+		for i, pod := range podsList.Items {
+
+			require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
+			if pod.ObjectMeta.DeletionTimestamp == nil {
+				setup.logger.Infof("Pod %v is deployed", pod.Name)
+				ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
+				require.Equal(t, true, ready)
+			}
+			require.NoError(t, err)
+		}
+	})
 
 	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
 		jwksName := "ory-oathkeeper-jwks-secret"
@@ -132,23 +128,6 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsList.Items))
 		setup.logger.Infof("Single pod %v is deployed for app: hydra", podsList.Items[0].Name)
-	})
-
-	t.Run("ensure that single ory-hydra-maester pod is deployed", func(t *testing.T) {
-		options := metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/name=hydra-maester",
-			FieldSelector: "status.phase=Running",
-		}
-		err := retry.Do(func() error {
-			podsList, err := setup.getPods(options)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(podsList.Items))
-			setup.logger.Infof("Single pod %v is deployed for app: hydra-maester", podsList.Items[0].Name)
-
-			return nil
-		}, retry.DelayType(retry.BackOffDelay))
-
-		require.NoError(t, err)
 	})
 }
 
