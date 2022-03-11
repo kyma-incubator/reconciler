@@ -46,12 +46,6 @@ func (p *Params) newTask() *reconciler.Task {
 		version = p.ComponentToReconcile.Version
 	}
 
-	configuration := p.ComponentToReconcile.ConfigurationAsMap()
-	tokenNamespace := configuration["repo.token.namespace"]
-	if tokenNamespace == nil {
-		tokenNamespace = ""
-	}
-
 	return &reconciler.Task{
 		ComponentsReady: p.ComponentsReady,
 		Component:       p.ComponentToReconcile.Component,
@@ -59,12 +53,12 @@ func (p *Params) newTask() *reconciler.Task {
 		Version:         version,
 		URL:             url,
 		Profile:         p.ClusterState.Configuration.KymaProfile,
-		Configuration:   configuration,
+		Configuration:   p.ComponentToReconcile.ConfigurationAsMap(),
 		Kubeconfig:      p.ClusterState.Cluster.Kubeconfig,
 		Metadata:        *p.ClusterState.Cluster.Metadata,
 		CorrelationID:   p.CorrelationID,
 		Repository: &reconciler.Repository{
-			URL:            url,
+			URL: url,
 		},
 		Type: p.Type,
 		ComponentConfiguration: reconciler.ComponentConfiguration{
