@@ -112,7 +112,7 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		setup.logger.Infof("HorizontalPodAutoscaler is not deployed")
 	})
 
-	t.Run("ensure that ory-oathkeeper pod is deployed", func(t *testing.T) {
+	t.Run("ensure that single ory-oathkeeper pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=oathkeeper",
 			FieldSelector: "status.phase=Running",
@@ -123,7 +123,7 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		setup.logger.Infof("Single pod %v is deployed for app: oathkeeper", podsList.Items[0].Name)
 	})
 
-	t.Run("ensure that ory-hydra pod is deployed", func(t *testing.T) {
+	t.Run("ensure that single ory-hydra pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=hydra",
 			FieldSelector: "status.phase=Running",
@@ -134,15 +134,21 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		setup.logger.Infof("Single pod %v is deployed for app: hydra", podsList.Items[0].Name)
 	})
 
-	t.Run("ensure that ory-hydra-maester pod is deployed", func(t *testing.T) {
+	t.Run("ensure that single ory-hydra-maester pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=hydra-maester",
 			FieldSelector: "status.phase=Running",
 		}
-		podsList, err := setup.getPods(options)
+		err := retry.Do(func() error {
+			podsList, err := setup.getPods(options)
+			require.NoError(t, err)
+			require.Equal(t, 1, len(podsList.Items))
+			setup.logger.Infof("Single pod %v is deployed for app: hydra-maester", podsList.Items[0].Name)
+
+			return nil
+		}, retry.DelayType(retry.BackOffDelay))
+
 		require.NoError(t, err)
-		require.Equal(t, 1, len(podsList.Items))
-		setup.logger.Infof("Single pod %v is deployed for app: hydra-maester", podsList.Items[0].Name)
 	})
 }
 
