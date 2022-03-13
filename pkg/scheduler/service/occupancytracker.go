@@ -17,7 +17,7 @@ import (
 
 const (
 	defaultOccupancyCleanUpInterval  = 5 * time.Minute
-	defaultOccupancyTrackingInterval = 30 * time.Second
+	defaultOccupancyTrackingInterval = 1 * time.Second
 	defaultKcpNamespace              = "kcp-system"
 	nameLabelSelector                = "app.kubernetes.io/name"
 	mothershipName                   = "mothership"
@@ -63,13 +63,7 @@ func (t *OccupancyTracker) Run(ctx context.Context) error {
 		for {
 			select {
 			case <-trackingTicker.C:
-				runningWorkers, err := t.workerPool.RunningWorkers()
-				if err != nil {
-					t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
-					break
-				}
-				poolSize := t.workerPool.Size()
-				_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipName, runningWorkers, poolSize)
+				err = t.updateWorkerPoolOccupancy()
 				if err != nil {
 					t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
 				}
@@ -78,7 +72,7 @@ func (t *OccupancyTracker) Run(ctx context.Context) error {
 				if err == nil {
 					t.logger.Infof("cleaned up %d orphan occupancies successfully", deletionCnt)
 				} else {
-					t.logger.Errorf("failed to cleaned up orphan occupancies: %s", err)
+					t.logger.Errorf("failed to clean up orphan occupancies: %s", err)
 				}
 			case <-ctx.Done():
 				t.logger.Info("Deleting Worker Pool Occupancy")
@@ -93,6 +87,16 @@ func (t *OccupancyTracker) Run(ctx context.Context) error {
 		}
 	}()
 	return nil
+}
+
+func (t *OccupancyTracker) updateWorkerPoolOccupancy() error {
+	runningWorkers, err := t.workerPool.RunningWorkers()
+	if err != nil {
+		return err
+	}
+	poolSize := t.workerPool.Size()
+	_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipName, runningWorkers, poolSize)
+	return err
 }
 
 func createK8sInClusterClientSet() (*kubernetes.Clientset, error) {
