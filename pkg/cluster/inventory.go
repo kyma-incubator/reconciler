@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -26,6 +27,7 @@ type Inventory interface {
 	ClustersNotReady() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 	WithTx(tx *db.TxConnection) (Inventory, error)
+	DBStats() *sql.DBStats
 }
 
 type DefaultInventory struct {
@@ -52,6 +54,19 @@ func NewInventory(conn db.Connection, debug bool, collector metricsCollector) (I
 
 func (i *DefaultInventory) WithTx(tx *db.TxConnection) (Inventory, error) {
 	return NewInventory(tx, i.Debug, i.metricsCollector)
+}
+
+func (i *DefaultInventory) DBStats() *sql.DBStats {
+	c := i.Repository.Conn
+	if c == nil {
+		return nil
+	}
+	database := c.DB()
+	if database == nil {
+		return nil
+	}
+	stats := database.Stats()
+	return &stats
 }
 
 func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error) {

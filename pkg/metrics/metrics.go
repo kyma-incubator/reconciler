@@ -23,5 +23,7 @@ func RegisterAll(inventory cluster.Inventory, reconciliations reconciliation.Rep
 		workerPoolOccupancyCollector := NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilerList, logger)
 		collectors = append(collectors, workerPoolOccupancyCollector)
 	}
+	dbPoolMetricsCollector := NewDbPoolCollector(inventory, logger)
+	collectors = append(collectors, dbPoolMetricsCollector)
 	prometheus.MustRegister(collectors...)
 }
