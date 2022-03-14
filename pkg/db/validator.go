@@ -19,7 +19,7 @@ func NewValidator(blockQueries bool, logger *zap.SugaredLogger) *Validator {
 }
 
 func (v *Validator) Validate(query string) error {
-	matchSelect, err := regexp.MatchString("SELECT.*(FROM\\s*\\w+\\s*)+(WHERE (\\(?\\w*\\s*[=<>].*\\$?\\d+.*\\)?(\\s*,\\s*)?(\\s+AND\\s+)?(\\s+OR\\s+)?)*)?(\\w*\\s+IN\\s+[^;]+)?(\\w*\\s+ORDER BY\\s+[^;]+)?(\\w*\\s+GROUP BY\\s+[^;]+)?(\\w*\\s+FOR UPDATE)?$", query)
+	matchSelect, err := regexp.MatchString("SELECT.*(FROM\\s*\\w+\\s*)+(WHERE (\\(*\\w*\\s*[=<>].*\\$?\\d+.*\\)?(\\s*,\\s*)?(\\s+AND\\s+)?(\\s+OR\\s+)?)*)?(\\(*\\w*\\s+IN\\s+[^;]+)?(\\w*\\s+ORDER BY\\s+[^;]+)?(\\w*\\s+GROUP BY\\s+[^;]+)?(\\w*\\s+FOR UPDATE)?$", query)
 	if err != nil {
 		return errors.Wrap(err, "Regex validation failed")
 	}
@@ -27,11 +27,11 @@ func (v *Validator) Validate(query string) error {
 	if err != nil {
 		return errors.Wrap(err, "Regex validation failed")
 	}
-	matchUpdate, err := regexp.MatchString("UPDATE.*SET (\\(?\\w*\\s*[=<>]\\s*\\$\\d+\\)?(\\s*,\\s*)?)+(\\s*WHERE\\s*(\\(?\\w*\\s*[=<>]\\s*\\$\\d+\\)?(\\s*,\\s*)?(\\s+AND\\s+)?(\\s+OR\\s+)?)+)?(\\s+RETURNING\\s+(\\w+(,\\s*)?)+)?$", query)
+	matchUpdate, err := regexp.MatchString("UPDATE.*SET (\\(?\\w*\\s*[=<>]\\s*\\$\\d+\\)?(\\s*,\\s*)?)+(\\s*WHERE\\s*(\\(*\\w*\\s*[=<>]\\s*\\$\\d+\\)?(\\s*,\\s*)?(\\s+AND\\s+)?(\\s+OR\\s+)?)+)?(\\s+RETURNING\\s+(\\w+(,\\s*)?)+)?$", query)
 	if err != nil {
 		return errors.Wrap(err, "Regex validation failed")
 	}
-	matchDelete, err := regexp.MatchString("DELETE FROM.*WHERE (\\(?\\w*\\s*[=<>]\\s*\\$\\d+\\)?(\\s*,\\s*)?(\\s+AND\\s+)?(\\s+OR\\s+)?)*(\\w*\\s+IN\\s+[^;]+)?$", query)
+	matchDelete, err := regexp.MatchString("DELETE FROM.*WHERE (\\(*\\w*\\s*[=<>]\\s*\\$\\d+\\)?(\\s*,\\s*)?(\\s+AND\\s+)?(\\s+OR\\s+)?)*(\\w*\\s+IN\\s+[^;]+)?$", query)
 	if err != nil {
 		return errors.Wrap(err, "Regex validation failed")
 	}

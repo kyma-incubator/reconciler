@@ -173,6 +173,7 @@ type Operation struct {
 	Reason        string    `json:"reason"`
 	SchedulingID  string    `json:"schedulingID"`
 	State         string    `json:"state"`
+	Type          string    `json:"type"`
 	Updated       time.Time `json:"updated"`
 }
 

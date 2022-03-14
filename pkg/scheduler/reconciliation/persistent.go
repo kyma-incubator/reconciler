@@ -84,7 +84,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			state.Cluster.RuntimeID, reconEntity.SchedulingID)
 
 		opType := model.OperationTypeReconcile
-		if state.Status.Status.IsDeletion() {
+		if state.Status.Status.IsDeletionInProgress() {
 			opType = model.OperationTypeDelete
 		}
 
@@ -146,20 +146,6 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 			"SchedulingID": schedulingID,
 		}
 
-		//delete operations
-		qDelOps, err := db.NewQuery(tx, &model.OperationEntity{}, r.Logger)
-		if err != nil {
-			return err
-		}
-		delOpsCnt, err := qDelOps.Delete().
-			Where(whereCond).
-			Exec()
-		if err != nil {
-			return err
-		}
-		r.Logger.Debugf("ReconRepo deleted %d operations which were assigned to reconciliation with schedulingID '%s'",
-			delOpsCnt, schedulingID)
-
 		//delete reconciliation
 		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
 		if err != nil {
@@ -170,6 +156,40 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 			Exec()
 		r.Logger.Debugf("Deleted %d reconciliation with schedulingID '%s'", delCnt, schedulingID)
 		return err
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) RemoveReconciliations(schedulingIDs []string) error {
+	schedulingIDsBlocks := splitStringSlice(schedulingIDs, 200)
+
+	dbOps := func(tx *db.TxConnection) error {
+		for _, schedulingIDsBlock := range schedulingIDsBlocks {
+			var args []interface{}
+			var buffer bytes.Buffer
+
+			for i, schedulingID := range schedulingIDsBlock {
+				if buffer.Len() > 0 {
+					buffer.WriteRune(',')
+				}
+				buffer.WriteString(fmt.Sprintf("$%d", i+1))
+				args = append(args, schedulingID)
+			}
+
+			//delete reconciliations
+			deleteQuery, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
+			if err != nil {
+				return err
+			}
+
+			deleteQueryCount, err := deleteQuery.Delete().WhereIn("SchedulingID", buffer.String(), args...).Exec()
+			if err != nil {
+				return err
+			}
+			r.Logger.Debugf("ReconRepo deleted %d reconciliations which were assigned to reconciliation with schedulingIDs '%s'", deleteQueryCount, args)
+			buffer.Reset()
+		}
+		return nil
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
@@ -617,4 +637,25 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 	}
 
 	return components, nil
+}
+
+func splitStringSlice(slice []string, blockSize int) [][]string {
+	sliceLength := len(slice)
+	if sliceLength == 0 {
+		return nil
+	}
+
+	subSlicesCount := (sliceLength-1)/blockSize + 1
+	resultSlice := make([][]string, 0, subSlicesCount)
+
+	var high int
+	for low := 0; low < sliceLength; low += blockSize {
+		high += blockSize
+		if high > sliceLength {
+			high = sliceLength
+		}
+
+		resultSlice = append(resultSlice, slice[low:high])
+	}
+	return resultSlice
 }

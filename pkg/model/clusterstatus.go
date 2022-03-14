@@ -20,8 +20,8 @@ const (
 	ClusterStatusReady                   Status = "ready"
 )
 
-func (s Status) IsDeletion() bool {
-	return s == ClusterStatusDeletePending || s == ClusterStatusDeleting
+func (s Status) IsDeletionInProgress() bool {
+	return s == ClusterStatusDeleting
 }
 
 func (s Status) IsDeleteCandidate() bool {

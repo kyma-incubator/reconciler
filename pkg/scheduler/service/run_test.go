@@ -165,7 +165,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	require.Len(t, recons, 1)
 
 	schedulingID := recons[0].SchedulingID
-	require.Equal(t, 3, countOperations(t, reconRepo, schedulingID))
+	require.Equal(t, 2, countOperations(t, reconRepo, schedulingID))
 
 	time.Sleep(15 * time.Second) //give the cleaner some time to remove old entities
 

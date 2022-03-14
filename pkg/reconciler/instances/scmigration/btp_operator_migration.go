@@ -77,23 +77,23 @@ func newMigrator(ac *service.ActionContext) (*migrator, error) {
 	}
 	secret, err := cs.CoreV1().Secrets(namespace).Get(ctx, "sap-btp-service-operator", metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get Secret %v/sap-btp-service-operator: %w", namespace, err)
 	}
 	configMap, err := cs.CoreV1().ConfigMaps(namespace).Get(ctx, "sap-btp-operator-config", metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get ConfigMap %v/sap-btp-operator-config: %w", namespace, err)
 	}
 	smClient, err := getSMClient(ctx, secret)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to instantiate SMClient with secret %v/%v: %w", secret.Namespace, secret.Name, err)
 	}
 	services, err := getServices(smClient)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get SM services: %w", err)
 	}
 	plans, err := getPlans(smClient)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get SM plans: %w", err)
 	}
 	migrator := &migrator{
 		ac:                    ac,

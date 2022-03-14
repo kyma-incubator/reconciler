@@ -65,7 +65,11 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 		SchedulingID: reconEntity.SchedulingID,
 	})
 	require.NoError(t, err)
-	require.Len(t, opEntities, 7)
+	if clusterStateMock.Status.Status.IsDeletionInProgress() {
+		require.Len(t, opEntities, 7, "reconciliation sequence has 7 ops (5 + crds + cleaner)")
+	} else {
+		require.Len(t, opEntities, 6, "reconciliation sequence has 6 ops (5 + crds)")
+	}
 	opEntity := opEntities[0]
 
 	//create callback fct for receiving reconciler feedbacks

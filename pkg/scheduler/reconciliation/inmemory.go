@@ -61,7 +61,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	}
 
 	opType := model.OperationTypeReconcile
-	if state.Status.Status.IsDeletion() {
+	if state.Status.Status.IsDeletionInProgress() {
 		opType = model.OperationTypeDelete
 	}
 
@@ -96,13 +96,18 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID str
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for _, recon := range r.reconciliations {
-		if recon.SchedulingID == schedulingID {
-			delete(r.reconciliations, recon.RuntimeID)
-			break
-		}
+	removeSchedulingID(schedulingID, r.reconciliations, r.operations)
+	return nil
+}
+
+func (r *InMemoryReconciliationRepository) RemoveReconciliations(schedulingIDs []string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, schedulingID := range schedulingIDs {
+		removeSchedulingID(schedulingID, r.reconciliations, r.operations)
 	}
-	delete(r.operations, schedulingID)
+
 	return nil
 }
 
@@ -396,4 +401,15 @@ func unique(slice []string) []string {
 		}
 	}
 	return list
+}
+
+func removeSchedulingID(schedulingID string, reconciliations map[string]*model.ReconciliationEntity, operations map[string]map[string]*model.OperationEntity) {
+	for _, recon := range reconciliations {
+		if recon.SchedulingID == schedulingID {
+			delete(reconciliations, recon.RuntimeID)
+			break
+		}
+	}
+
+	delete(operations, schedulingID)
 }

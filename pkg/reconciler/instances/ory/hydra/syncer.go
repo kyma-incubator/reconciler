@@ -35,6 +35,7 @@ const (
 	hydraPodName           = "app.kubernetes.io/name=hydra"
 	hydraMaesterPodName    = "app.kubernetes.io/name=hydra-maester"
 	hydraMaesterDeployment = "ory-hydra-maester"
+	startupShift           = -60 * time.Second
 )
 
 func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string, forceSync bool) error {
@@ -74,8 +75,7 @@ func restartHydraMaesterDeploymentNeeded(context context.Context, client kuberne
 		return false, err
 	}
 	logger.Debugf("Earliest hydra-maester restart time: %s ", earliestHydraMaesterPodStartTime.String())
-
-	return earliestHydraPodStartTime.After(earliestHydraMaesterPodStartTime), nil
+	return earliestHydraPodStartTime.After(earliestHydraMaesterPodStartTime.Add(startupShift)), nil
 }
 
 func getEarliestPodStartTime(context context.Context, label string, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (time.Time, error) {

@@ -9,10 +9,20 @@ type MockRepository struct {
 	CreateWorkerPoolOccupancyResult             *model.WorkerPoolOccupancyEntity
 	UpdateWorkerPoolOccupancyResult             error
 	RemoveWorkerPoolOccupancyResult             error
+	RemoveWorkerPoolOccupanciesResult           int
 	GetComponentListResult                      []string
+	GetComponentIDsResult                       []string
 	GetMeanWorkerPoolOccupancyByComponentResult float64
 	GetWorkerPoolOccupanciesResult              []*model.WorkerPoolOccupancyEntity
 	FindWorkerPoolOccupancyByIDResult           *model.WorkerPoolOccupancyEntity
+}
+
+func (mr *MockRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, error) {
+	return mr.RemoveWorkerPoolOccupanciesResult, nil
+}
+
+func (mr *MockRepository) GetWorkerPoolIDs() ([]string, error) {
+	return mr.GetComponentIDsResult, nil
 }
 
 func (mr *MockRepository) GetComponentList() ([]string, error) {

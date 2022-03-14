@@ -143,6 +143,15 @@ func TestOccupancyRepository(t *testing.T) {
 			},
 		},
 		{
+			"get worker pool IDs for components that registered their occupancy",
+			func(t *testing.T, occupancyRepo Repository) {
+				componentIDs, err := occupancyRepo.GetWorkerPoolIDs()
+				require.NoError(t, err)
+				expectedComponentIDs := []string{"1", "2", "3"}
+				require.ElementsMatch(t, expectedComponentIDs, componentIDs)
+			},
+		},
+		{
 			"get mean occupancy that is running many worker pools",
 			func(t *testing.T, occupancyRepo Repository) {
 
@@ -188,12 +197,10 @@ func newTestFct(testCase testCase, repo Repository) func(t *testing.T) {
 }
 
 func testCleanUp(t *testing.T, occupRepo Repository) {
-	occupancies, err := occupRepo.GetWorkerPoolOccupancies()
+	componentIDs, err := occupRepo.GetWorkerPoolIDs()
 	require.NoError(t, err)
-	for _, occupancy := range occupancies {
-		err := occupRepo.RemoveWorkerPoolOccupancy(occupancy.WorkerPoolID)
-		require.NoError(t, err)
-	}
+	_, err = occupRepo.RemoveWorkerPoolOccupancies(componentIDs)
+	require.NoError(t, err)
 }
 
 func dbConnection(t *testing.T) db.Connection {
