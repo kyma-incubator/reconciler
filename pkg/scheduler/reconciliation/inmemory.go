@@ -95,7 +95,6 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 func (r *InMemoryReconciliationRepository) RemoveReconciliationBySchedulingID(schedulingID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
 	removeSchedulingID(schedulingID, r.reconciliations, r.operations)
 	return nil
 }
@@ -109,7 +108,16 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliationsBySchedulingID(s
 	return nil
 }
 func (r *InMemoryReconciliationRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
-	// TODO: implement
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var schedulingID string
+	if r.reconciliations[runtimeID] != nil {
+		schedulingID = r.reconciliations[runtimeID].SchedulingID
+	}
+	delete(r.reconciliations, runtimeID)
+	delete(r.operations, schedulingID)
+
 	return nil
 }
 
