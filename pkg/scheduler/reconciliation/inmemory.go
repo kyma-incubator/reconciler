@@ -92,7 +92,7 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 	return reconEntity, nil
 }
 
-func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID string) error {
+func (r *InMemoryReconciliationRepository) RemoveReconciliationBySchedulingID(schedulingID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -100,14 +100,16 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID str
 	return nil
 }
 
-func (r *InMemoryReconciliationRepository) RemoveReconciliations(schedulingIDs []string) error {
+func (r *InMemoryReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
 	for _, schedulingID := range schedulingIDs {
 		removeSchedulingID(schedulingID, r.reconciliations, r.operations)
 	}
-
+	return nil
+}
+func (r *InMemoryReconciliationRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
+	// TODO: implement
 	return nil
 }
 

@@ -36,8 +36,13 @@ func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.
 	return mr.CreateReconciliationResult, nil
 }
 
-func (mr *MockRepository) RemoveReconciliation(schedulingID string) error {
+func (mr *MockRepository) RemoveReconciliationBySchedulingID(schedulingID string) error {
 	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, schedulingID)
+	return mr.RemoveReconciliationResult
+}
+
+func (mr *MockRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
+	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, runtimeID)
 	return mr.RemoveReconciliationResult
 }
 
@@ -106,6 +111,6 @@ func (mr *MockRepository) GetAllComponents() ([]string, error) {
 	return mr.GetAllComponentsResult, mr.GetAllComponentsResultError
 }
 
-func (mr *MockRepository) RemoveReconciliations(schedulingIDs []string) error {
+func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
 	return nil
 }

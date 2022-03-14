@@ -141,7 +141,7 @@ func TestWorkerPoolMaxOpRetriesReached(t *testing.T) {
 	reconEntity, err := testInvoker.reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 	require.NoError(t, err)
 	defer func() { //cleanup at the end of the execution
-		require.NoError(t, testInvoker.reconRepo.RemoveReconciliation(reconEntity.SchedulingID))
+		require.NoError(t, testInvoker.reconRepo.RemoveReconciliationBySchedulingID(reconEntity.SchedulingID))
 	}()
 
 	maxParallelOps := 25
@@ -246,7 +246,7 @@ func TestWorkerPoolParallel(t *testing.T) {
 
 		defer func() { //cleanup at the end of the test execution
 			for _, recon := range recons {
-				require.NoError(t, testInvoker.reconRepo.RemoveReconciliation(recon.SchedulingID))
+				require.NoError(t, testInvoker.reconRepo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
 			}
 		}()
 

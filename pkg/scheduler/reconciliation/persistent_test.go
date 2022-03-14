@@ -66,7 +66,7 @@ func prepareTest(t *testing.T, schedulingIDsCount int) (Repository, Repository, 
 	return persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs
 }
 
-func TestPersistentReconciliationRepository_RemoveSchedulingIds(t *testing.T) {
+func TestPersistentReconciliationRepository_RemoveReconciliationsBySchedulingID(t *testing.T) {
 	dbConn = dbConnection(t)
 
 	tests := []struct {
@@ -100,10 +100,10 @@ func TestPersistentReconciliationRepository_RemoveSchedulingIds(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs := prepareTest(t, testCase.reconciliations)
 
-			if err := persistenceRepo.RemoveReconciliations(persistenceSchedulingIDs); (err != nil) != testCase.wantErr {
+			if err := persistenceRepo.RemoveReconciliationsBySchedulingID(persistenceSchedulingIDs); (err != nil) != testCase.wantErr {
 				t.Errorf("Persistence RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 			}
-			if err := inMemoryRepo.RemoveReconciliations(inMemorySchedulingIDs); (err != nil) != testCase.wantErr {
+			if err := inMemoryRepo.RemoveReconciliationsBySchedulingID(inMemorySchedulingIDs); (err != nil) != testCase.wantErr {
 				t.Errorf("InMemory RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 
