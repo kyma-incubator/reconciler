@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
-	"github.com/kyma-incubator/reconciler/pkg/scheduler/worker"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -16,31 +15,42 @@ import (
 )
 
 const (
-	defaultOccupancyCleanUpInterval  = 5 * time.Minute
-	defaultOccupancyTrackingInterval = 1 * time.Second
-	defaultKcpNamespace              = "kcp-system"
-	nameLabelSelector                = "app.kubernetes.io/name"
-	mothershipName                   = "mothership"
-	mothershipNameSuffix             = "reconciler"
-	componentQualifier               = "kyma-project.io/component-reconciler"
-	componentLabelSelector           = "component"
+	defaultOccupancyCleanUpInterval = 5 * time.Minute
+	defaultKcpNamespace             = "kcp-system"
+	nameLabelSelector               = "app.kubernetes.io/name"
+	mothershipName                  = "mothership"
+	mothershipNameSuffix            = "reconciler"
+	componentQualifier              = "kyma-project.io/component-reconciler"
+	componentLabelSelector          = "component"
 )
 
 type OccupancyTracker struct {
 	occupancyID              string
-	workerPool               *worker.Pool
+	workerPool               occupancy.Subject
 	repo                     occupancy.Repository
 	logger                   *zap.SugaredLogger
 	componentReconcilerNames []string
 }
 
-func NewOccupancyTracker(workerPool *worker.Pool, repo occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) *OccupancyTracker {
-	return &OccupancyTracker{
+func NewOccupancyTracker(workerPool occupancy.Subject, repo occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) *OccupancyTracker {
+	tracker := &OccupancyTracker{
 		workerPool:               workerPool,
 		repo:                     repo,
 		logger:                   logger,
 		componentReconcilerNames: getComponentReconcilerNames(reconcilers),
 	}
+	workerPool.RegisterObserver(tracker)
+	return tracker
+}
+
+func (t *OccupancyTracker) UpdateOccupancy() error {
+	runningWorkers, err := t.workerPool.RunningWorkers()
+	if err != nil {
+		return err
+	}
+	poolSize := t.workerPool.Size()
+	_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipName, runningWorkers, poolSize)
+	return err
 }
 
 func (t *OccupancyTracker) Run(ctx context.Context) error {
@@ -56,17 +66,11 @@ func (t *OccupancyTracker) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("occupancy tracker failed to create in-cluster clientset: %s", err)
 	}
-	//start occupancy tracking && cleaning
-	trackingTicker := time.NewTicker(defaultOccupancyTrackingInterval)
+	//start occupancy cleaning
 	cleanupTicker := time.NewTicker(defaultOccupancyCleanUpInterval)
 	go func() {
 		for {
 			select {
-			case <-trackingTicker.C:
-				err = t.updateWorkerPoolOccupancy()
-				if err != nil {
-					t.logger.Errorf("could not create/update occupancy for %s: %s", t.occupancyID, err)
-				}
 			case <-cleanupTicker.C:
 				deletionCnt, err := t.cleanUpOrphanOccupancies(ctx, clientset)
 				if err == nil {
@@ -76,8 +80,8 @@ func (t *OccupancyTracker) Run(ctx context.Context) error {
 				}
 			case <-ctx.Done():
 				t.logger.Info("Deleting Worker Pool Occupancy")
-				trackingTicker.Stop()
 				cleanupTicker.Stop()
+				t.workerPool.UnregisterObserver(t)
 				err = t.repo.RemoveWorkerPoolOccupancy(t.occupancyID)
 				if err != nil {
 					t.logger.Errorf(err.Error())
@@ -87,16 +91,6 @@ func (t *OccupancyTracker) Run(ctx context.Context) error {
 		}
 	}()
 	return nil
-}
-
-func (t *OccupancyTracker) updateWorkerPoolOccupancy() error {
-	runningWorkers, err := t.workerPool.RunningWorkers()
-	if err != nil {
-		return err
-	}
-	poolSize := t.workerPool.Size()
-	_, err = t.repo.CreateOrUpdateWorkerPoolOccupancy(t.occupancyID, mothershipName, runningWorkers, poolSize)
-	return err
 }
 
 func createK8sInClusterClientSet() (*kubernetes.Clientset, error) {
