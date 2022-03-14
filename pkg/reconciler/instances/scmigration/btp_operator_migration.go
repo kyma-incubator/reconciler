@@ -77,23 +77,23 @@ func newMigrator(ac *service.ActionContext) (*migrator, error) {
 	}
 	secret, err := cs.CoreV1().Secrets(namespace).Get(ctx, "sap-btp-service-operator", metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get Secret %v/sap-btp-service-operator: %w", namespace, err)
 	}
 	configMap, err := cs.CoreV1().ConfigMaps(namespace).Get(ctx, "sap-btp-operator-config", metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get ConfigMap %v/sap-btp-operator-config: %w", namespace, err)
 	}
 	smClient, err := getSMClient(ctx, secret)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to instantiate SMClient with secret %v/%v: %w", secret.Namespace, secret.Name, err)
 	}
 	services, err := getServices(smClient)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get SM services: %w", err)
 	}
 	plans, err := getPlans(smClient)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get SM plans: %w", err)
 	}
 	migrator := &migrator{
 		ac:                    ac,
@@ -277,24 +277,6 @@ func (m *migrator) migrateInstance(pair serviceInstancePair) error {
 		return fmt.Errorf("failed to create service instance: %v", err.Error())
 	}
 
-	if !pair.svcatInstance.DeletionTimestamp.IsZero() {
-		m.ac.Logger.Infof("svcat instance '%s' is marked for deletion, deleting it from operator", pair.svcatInstance.Name)
-		err = m.SapOperatorRestClient.Delete().Name(res.Name).Namespace(res.Namespace).Do(m.ac.Context).Error()
-		if err != nil {
-			m.ac.Logger.Errorf("failed to delete instance from operator: %v", err.Error())
-		}
-	}
-
-	pair.svcatInstance.Finalizers = []string{}
-	err = m.SvcatRestClient.Put().Name(pair.svcatInstance.Name).Namespace(pair.svcatInstance.Namespace).Resource(serviceInstances).Body(pair.svcatInstance).Do(m.ac.Context).Error()
-	if err != nil {
-		return fmt.Errorf("failed to delete finalizer from instance '%s'. Error: %v", pair.svcatInstance.Name, err.Error())
-	}
-
-	err = m.deleteSvcatResource(res.Name, res.Namespace, serviceInstances)
-	if err != nil {
-		m.ac.Logger.Infof("failed to delete svcat resource. Error: %v", err.Error())
-	}
 	m.ac.Logger.Infof("instance migrated successfully")
 	return nil
 }
@@ -365,25 +347,6 @@ func (m *migrator) migrateBinding(pair serviceBindingPair) error {
 		}
 	}
 
-	if !pair.svcatBinding.DeletionTimestamp.IsZero() {
-		m.ac.Logger.Infof("svcat binding '%s' is marked for deletion, deleting it from operator", pair.svcatBinding.Name)
-		err = m.SapOperatorRestClient.Delete().Name(res.Name).Namespace(res.Namespace).Do(m.ac.Context).Error()
-		if err != nil {
-			m.ac.Logger.Infof("failed to delete binding from operator. Error: %v", err.Error())
-		}
-	}
-
-	//remove finalizer from binding to avoid deletion of the secret
-	pair.svcatBinding.Finalizers = []string{}
-	err = m.SvcatRestClient.Put().Name(pair.svcatBinding.Name).Namespace(pair.svcatBinding.Namespace).Resource(serviceBindings).Body(pair.svcatBinding).Do(m.ac.Context).Error()
-	if err != nil {
-		return fmt.Errorf("failed to delete finalizer from binding '%s'. Error: %v", pair.svcatBinding.Name, err.Error())
-	}
-
-	err = m.deleteSvcatResource(res.Name, res.Namespace, serviceBindings)
-	if err != nil {
-		return fmt.Errorf("failed to delete svcat binding. Error: %v", err.Error())
-	}
 	m.ac.Logger.Infof("binding migrated successfully")
 	return nil
 }
@@ -488,18 +451,6 @@ func (m *migrator) ignoreAlreadyMigrated(obj, res object, err error) error {
 		return fmt.Errorf("resource already exists and is missing label %v", migratedLabel)
 	}
 	return nil
-}
-
-func (m *migrator) deleteSvcatResource(resourceName string, resourceNamespace string, resourceType string) error {
-	err := m.SapOperatorRestClient.Get().Name(resourceName).Namespace(resourceNamespace).Resource(resourceType).Do(m.ac.Context).Error()
-	if err != nil {
-		m.ac.Logger.Infof("failed to get the migrated service instance '%s' status, corresponding svcat resource will not be deleted. Error: %v", resourceName, err.Error())
-		return err
-	}
-
-	//fmt.Println(fmt.Sprintf("deleting svcat resource type '%s' named '%s' in namespace '%s'", resourceType, resourceName, resourceNamespace))
-	err = m.SvcatRestClient.Delete().Name(resourceName).Namespace(resourceNamespace).Resource(resourceType).Do(m.ac.Context).Error()
-	return err
 }
 
 func (m *migrator) getMigrateBindingRequestBody(k8sName string, secret *corev1.Secret) (string, error) {

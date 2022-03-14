@@ -33,7 +33,11 @@ func TestRemoteInvoker(t *testing.T) {
 		SchedulingID: reconEntity.SchedulingID,
 	})
 	require.NoError(t, err)
-	require.Len(t, opEntities, 7)
+	if clusterStateMock.Status.Status.IsDeletionInProgress() {
+		require.Len(t, opEntities, 7, "reconciliation sequence has 7 ops (5 + crds + cleaner)")
+	} else {
+		require.Len(t, opEntities, 6, "reconciliation sequence has 6 ops (5 + crds)")
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	startServer(ctx, t)

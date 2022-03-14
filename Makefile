@@ -23,7 +23,7 @@ lint:
 	./scripts/lint.sh
 
 .PHONY: build
-build: build-linux build-darwin build-linux-arm
+build: build-linux build-darwin build-linux-arm build-windows
 
 .PHONY: build-linux
 build-linux:
@@ -39,6 +39,11 @@ build-linux-arm:
 build-darwin:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/reconciler-darwin $(FLAGS) ./cmd/reconciler
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/mothership-darwin $(FLAGS) ./cmd/mothership
+
+.PHONY: build-windows
+build-windows:
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o ./bin/reconciler-windows.exe $(FLAGS) ./cmd/reconciler
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o ./bin/mothership-windows.exe $(FLAGS) ./cmd/mothership
 
 .PHONY: docker-build
 docker-build:

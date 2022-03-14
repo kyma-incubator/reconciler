@@ -48,7 +48,7 @@ var clusterStateMock = &cluster.State{
 		RuntimeID:      "testCluster",
 		ClusterVersion: 1,
 		ConfigVersion:  1,
-		Status:         model.ClusterStatusReconcilePending,
+		Status:         model.ClusterStatusReconciling,
 	},
 }
 

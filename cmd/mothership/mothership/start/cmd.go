@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/db"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	"github.com/spf13/cobra"
@@ -48,9 +49,9 @@ func NewCmd(o *Options) *cobra.Command {
 	cmd.Flags().DurationVarP(&o.WatchInterval, "watch-interval", "", 1*time.Minute, "Size of the reconciler worker pool")
 	cmd.Flags().DurationVarP(&o.ClusterReconcileInterval, "reconcile-interval", "", 5*time.Minute, "Defines the time when a cluster will to be reconciled since his last successful reconciliation")
 	cmd.Flags().DurationVar(&o.PurgeEntitiesOlderThan, "purge-older-than", 14*24*time.Hour, "[Deprecated] Defines the minimum age of entities like Reconciliations and Operations that will be removed")
-	cmd.Flags().IntVar(&o.KeepLatestEntitiesCount, "cleaner-keep-n-latest", 0, "Defines the count of most recent entities the cleaner won't remove during it's operation")                            //It's set to zero to disable it by default. Change to a proper value once this mechanism is enabled in the environments.
-	cmd.Flags().IntVar(&o.KeepUnsuccessfulEntitiesDays, "cleaner-keep-failed-ops-days", 0, "Defines the number of days for which the cleaner keeps entities with unsuccessful status before removal") //It's set to zero to disable it by default. Change to a proper value once this mechanism is enabled in the environments.
-	cmd.Flags().DurationVar(&o.CleanerInterval, "cleaner-interval", 14*time.Hour, "Define the time interval when the cleaner will be looking for entities to remove")
+	cmd.Flags().IntVar(&o.ReconciliationsKeepLatestCount, "reconciliations-keep-n-latest", 0, "Defines the count of the most recent reconciliation records the cleaner keeps")          //It's set to zero to disable it by default. Change to a proper value once this mechanism is enabled in the environments.
+	cmd.Flags().IntVar(&o.ReconciliationsMaxAgeDays, "reconciliations-max-age-days", 0, "Defines the number of days for which the cleaner keeps reconciliation records before removal") //It's set to zero to disable it by default. Change to a proper value once this mechanism is enabled in the environments.
+	cmd.Flags().DurationVar(&o.CleanerInterval, "cleaner-interval", 14*time.Hour, "Define the time interval when the cleaner will be looking for reconciliation entities to remove")
 	cmd.Flags().BoolVar(&o.CreateEncyptionKey, "create-encryption-key", false, "Create new encryption key file during startup")
 	cmd.Flags().BoolVar(&o.Migrate, "migrate-database", false, "Migrate database to the latest release")
 	cmd.Flags().BoolVar(&o.AuditLog, "audit-log", false, "Enable audit logging")

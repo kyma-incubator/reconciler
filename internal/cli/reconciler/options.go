@@ -12,6 +12,7 @@ type Options struct {
 	RetryConfig           *RetryConfig
 	HeartbeatSenderConfig *RecurringTaskConfig
 	ProgressTrackerConfig *RecurringTaskConfig
+	DryRun                bool
 }
 
 func NewOptions(o *cli.Options) *Options {
@@ -23,6 +24,7 @@ func NewOptions(o *cli.Options) *Options {
 		&RetryConfig{},
 		&RecurringTaskConfig{},
 		&RecurringTaskConfig{},
+		false,
 	}
 }
 

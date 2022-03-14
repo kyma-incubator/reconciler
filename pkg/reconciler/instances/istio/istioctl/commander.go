@@ -89,34 +89,7 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 }
 
 func (c *DefaultCommander) Upgrade(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
-
-	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		cleanupErr := kubeconfigCf()
-		if cleanupErr != nil {
-			logger.Error(cleanupErr)
-		}
-	}()
-
-	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		cleanupErr := istioOperatorCf()
-		if cleanupErr != nil {
-			logger.Error(cleanupErr)
-		}
-	}()
-
-	cmd := execCommand(c.istioctl.path, "upgrade", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
-
-	return c.execute(cmd, logger)
+	return c.Install(istioOperator, kubeconfig, logger)
 }
 
 func (c *DefaultCommander) Version(kubeconfig string, logger *zap.SugaredLogger) ([]byte, error) {
