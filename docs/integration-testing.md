@@ -1,4 +1,4 @@
-# Integration Testing
+# Integration testing
 
 Integration testing is the phase in software testing in which individual software modules are combined and tested as a group. 
 Integration testing checks whether a system or component complies with specified functional requirements. 
@@ -11,25 +11,25 @@ For each test suite, you should provide the following information:
 - Prerequisite states or step
 - Information about the following tests 
 
-## Database Integration Testing (Postgres)
+## Database integration testing (PostgreSQL)
 
 To run our test suite, we use the go library [testify](https://pkg.go.dev/github.com/stretchr/testify/suite), specifically the suite capability. 
 With this setup, we can manage the lifecycle of tests run inside a suite with a set of predefined methods (for example, run before or after all or individual tests are executed). 
 As a result, we can manage dependent components of the reconciler, in this case, our database.
 
-### How to write a Postgres integration test
+### How to write a PostgreSQL integration test
 
 To write your own test based on PostgreSQL, use the following helper:
 `pkg/db/transaction_aware_database_container_test_suite.go`
 
-This suite is able to manage a container lifecycle of a postgres database with the help of the [testcontainers](https://golang.testcontainers.org/) framework. Thus, we can couple independent database containers with our test suite execution.
+This suite is able to manage a container lifecycle of a PostgreSQL database with the help of the [testcontainers](https://golang.testcontainers.org/) framework. Thus, we can couple independent database containers with our test suite execution.
 Furthermore, we can isolate tests running together with the database.
 
 To write your own tests, you won't have to set up the test suite yourself, but you can use established helpers depending on your use case.
 
 #### Shared container integration tests with automatic rollback
 
-Use this setup if you just want to run some business logic of the reconciler against a postgres-database and within one transaction context. 
+Use this setup if you just want to run some business logic of the reconciler against a PostgreSQL database and within one transaction context. 
 The test suite takes care of using a shared container that is reused between test suites with the same isolation needs. It rolls back your changes made in the test instead of committing them automatically.
 
 The reuse can be achieved by "leasing" a container suite from a globally managed map.
@@ -56,7 +56,7 @@ func TestDbSuite(t *testing.T) {
 }
 ```
 
-#### Fully Isolated Integration Tests
+#### Fully isolated integration tests
 
 If you want a dedicated container for your test (for example, because of special requirements or if you want to have committed changes for something like a collision detection), you can use `IsolatedContainerTestSuite(t *testing.T, debug bool, settings ContainerSettings)`.
 Do not choose this method if you just need simple business logic tests, because it consumes many resources for spinning up a dedicated container.
