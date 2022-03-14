@@ -2,6 +2,9 @@ module github.com/kyma-incubator/reconciler
 
 go 1.16
 
+//required to fix CVE-2021-3538
+replace github.com/satori/go.uuid => github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
+
 require (
 	github.com/SAP/sap-btp-service-operator v0.1.22
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
@@ -32,7 +35,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
-	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.8.1
