@@ -46,9 +46,8 @@ func (s *TransactionAwareDatabaseContainerTestSuite) SetupSuite() {
 	)
 
 	if s.LogConsumer != nil {
-		s.NoError(s.StartLogProducer(s))
-		s.NoError(s.ContainerRuntime.StartLogProducer(s))
 		s.ContainerRuntime.FollowOutput(s.LogConsumer)
+		s.NoError(s.StartLogProducer(s))
 	}
 
 	if s.schemaResetOnSetup {
@@ -66,6 +65,7 @@ func (s *TransactionAwareDatabaseContainerTestSuite) TearDownSuite() {
 	}
 
 	if s.terminateContainerAfterAll {
+		s.NoError(s.StopLogProducer())
 		s.NoError(s.Terminate(s))
 	}
 
