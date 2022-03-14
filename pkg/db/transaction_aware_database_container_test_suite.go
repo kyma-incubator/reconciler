@@ -64,13 +64,12 @@ func (s *TransactionAwareDatabaseContainerTestSuite) TearDownSuite() {
 		s.tearDownConnection()
 	}
 
-	if s.terminateContainerAfterAll {
+	if s.LogConsumer != nil {
 		s.NoError(s.StopLogProducer())
-		s.NoError(s.Terminate(s))
 	}
 
-	if s.LogConsumer != nil {
-		s.NoError(s.ContainerRuntime.StopLogProducer())
+	if s.terminateContainerAfterAll {
+		s.NoError(s.Terminate(s))
 	}
 
 	s.T().Log("END OF TEST SUITE")
