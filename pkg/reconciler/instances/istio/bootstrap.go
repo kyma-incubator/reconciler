@@ -15,11 +15,11 @@ import (
 
 const (
 	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
-	istioctlBinaryPathMaxLen = 12290 //3 times 4096 (maxpath) + 2 colons (separators)
+	istioctlBinaryPathMaxLen = 12290 // 3 times 4096 (maxpath) + 2 colons (separators)
 )
 
-//IstioPerformer instance should be created only once in the Istio Reconciler life.
-//Due to current Reconciler limitations - lack of well defined reconciler instances lifetime - we have to initialize it once per reconcile/delete action.
+// IstioPerformer instance should be created only once in the Istio Reconciler life.
+// Due to current Reconciler limitations - lack of well defined reconciler instances lifetime - we have to initialize it once per reconcile/delete action.
 func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clientset.Provider, name string) bootstrapIstioPerformer {
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
@@ -41,8 +41,8 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 	return res
 }
 
-//defaultCommanderResolver provides default runtime wiring for istioctl.ExecutableResolver
-//Implements actions.CommanderResolver
+// defaultCommanderResolver provides default runtime wiring for istioctl.ExecutableResolver
+// Implements actions.CommanderResolver
 type defaultCommanderResolver struct {
 	log                 *zap.SugaredLogger
 	paths               []string
@@ -75,8 +75,8 @@ func newDefaultCommanderResolver(paths []string, log *zap.SugaredLogger) (action
 	}, nil
 }
 
-//parsePaths func parses and validates executable paths. The input must contain a list of full/absolute filesystem paths of binaries, separated by a colon character ':'
-//isValid function is used to validate every single binary path in the input.
+// parsePaths func parses and validates executable paths. The input must contain a list of full/absolute filesystem paths of binaries, separated by a colon character ':'
+// isValid function is used to validate every single binary path in the input.
 func parsePaths(input string, isValid func(string) error) ([]string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
@@ -100,7 +100,7 @@ func parsePaths(input string, isValid func(string) error) ([]string, error) {
 	return res, nil
 }
 
-//TODO: test it
+// TODO: test it
 func validatePath(path string) error {
 	stat, err := os.Stat(path)
 	if err != nil {
