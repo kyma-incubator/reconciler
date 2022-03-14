@@ -46,6 +46,11 @@ func (mr *MockRepository) RemoveReconciliationByRuntimeID(runtimeID string) erro
 	return mr.RemoveReconciliationResult
 }
 
+func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
+	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, schedulingIDs...)
+	return mr.RemoveReconciliationResult
+}
+
 func (mr *MockRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
 	return mr.GetReconciliationResult, nil
 }
@@ -109,8 +114,4 @@ func (mr *MockRepository) GetMothershipOperationProcessingDuration(component str
 
 func (mr *MockRepository) GetAllComponents() ([]string, error) {
 	return mr.GetAllComponentsResult, mr.GetAllComponentsResultError
-}
-
-func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
-	return nil
 }
