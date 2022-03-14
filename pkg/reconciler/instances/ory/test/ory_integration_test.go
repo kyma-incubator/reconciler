@@ -17,19 +17,24 @@ func TestOryIntegration(t *testing.T) {
 	setup := newOryTest(t)
 	defer setup.contextCancel()
 
-	options := metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/instance=ory",
-	}
+	t.Run("ensure that ory pods are deployed and ready", func(t *testing.T) {
+		options := metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/instance=ory",
+		}
+		podsList, err := setup.getPods(options)
+		require.NoError(t, err)
 
-	podsList, err := setup.getPods(options)
-	require.NoError(t, err)
+		for i, pod := range podsList.Items {
 
-	for i, pod := range podsList.Items {
-		setup.logger.Infof("Pod %v is deployed", pod.Name)
-		require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
-		ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
-		require.Equal(t, true, ready)
-	}
+			require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
+			if pod.ObjectMeta.DeletionTimestamp == nil {
+				setup.logger.Infof("Pod %v is deployed", pod.Name)
+				ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
+				require.Equal(t, true, ready)
+			}
+			require.NoError(t, err)
+		}
+	})
 
 	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
 		jwksName := "ory-oathkeeper-jwks-secret"
@@ -49,7 +54,7 @@ func TestOryIntegrationProduction(t *testing.T) {
 	setup := newOryTest(t)
 	defer setup.contextCancel()
 
-	t.Run("ensure that ory-hydra is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-hydra hpa is deployed", func(t *testing.T) {
 		name := "ory-hydra"
 		hpa, err := setup.getHorizontalPodAutoscaler(name)
 		require.NoError(t, err)
@@ -58,7 +63,7 @@ func TestOryIntegrationProduction(t *testing.T) {
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
 	})
 
-	t.Run("ensure that ory-oathkeeper is deployed", func(t *testing.T) {
+	t.Run("ensure that ory-oathkeeper hpa is deployed", func(t *testing.T) {
 		name := "ory-oathkeeper"
 		hpa, err := setup.getHorizontalPodAutoscaler(name)
 		require.NoError(t, err)
@@ -69,20 +74,14 @@ func TestOryIntegrationProduction(t *testing.T) {
 
 	t.Run("ensure that ory-postgresql is deployed", func(t *testing.T) {
 		name := "ory-postgresql"
-		sts := setup.getStatefulSet(t, name)
+		sts, err := setup.getStatefulSet(name)
+		require.NoError(t, err)
 
 		require.Equal(t, int32(1), sts.Status.Replicas)
 		require.Equal(t, int32(1), sts.Status.ReadyReplicas)
 		setup.logger.Infof("StatefulSet %v is deployed", sts.Name)
 	})
 
-	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
-		jwksName := "ory-oathkeeper-jwks-secret"
-		credsName := "ory-hydra-credentials"
-
-		setup.ensureSecretIsDeployed(t, jwksName)
-		setup.ensureSecretIsDeployed(t, credsName)
-	})
 }
 
 func TestOryIntegrationEvaluation(t *testing.T) {
@@ -109,7 +108,7 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		setup.logger.Infof("HorizontalPodAutoscaler is not deployed")
 	})
 
-	t.Run("ensure that ory-oathkeeper pod is deployed", func(t *testing.T) {
+	t.Run("ensure that single ory-oathkeeper pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=oathkeeper",
 			FieldSelector: "status.phase=Running",
@@ -120,7 +119,7 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		setup.logger.Infof("Single pod %v is deployed for app: oathkeeper", podsList.Items[0].Name)
 	})
 
-	t.Run("ensure that ory-hydra pod is deployed", func(t *testing.T) {
+	t.Run("ensure that single ory-hydra pod is deployed", func(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/name=hydra",
 			FieldSelector: "status.phase=Running",
@@ -129,17 +128,6 @@ func TestOryIntegrationEvaluation(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsList.Items))
 		setup.logger.Infof("Single pod %v is deployed for app: hydra", podsList.Items[0].Name)
-	})
-
-	t.Run("ensure that ory-hydra-maester pod is deployed", func(t *testing.T) {
-		options := metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/name=hydra-maester",
-			FieldSelector: "status.phase=Running",
-		}
-		podsList, err := setup.getPods(options)
-		require.NoError(t, err)
-		require.Equal(t, 1, len(podsList.Items))
-		setup.logger.Infof("Single pod %v is deployed for app: hydra-maester", podsList.Items[0].Name)
 	})
 }
 
@@ -151,22 +139,17 @@ func (s *oryTest) getHorizontalPodAutoscaler(name string) (*autoscalingv1.Horizo
 	return s.kubeClient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
-func (s *oryTest) getStatefulSet(t *testing.T, name string) *v1apps.StatefulSet {
-	sts, err := s.kubeClient.AppsV1().StatefulSets(namespace).Get(s.context, name, metav1.GetOptions{})
-	require.NoError(t, err)
-
-	return sts
+func (s *oryTest) getStatefulSet(name string) (*v1apps.StatefulSet, error) {
+	return s.kubeClient.AppsV1().StatefulSets(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
-func (s *oryTest) getSecret(t *testing.T, name string) *v1.Secret {
-	secret, err := s.kubeClient.CoreV1().Secrets(namespace).Get(s.context, name, metav1.GetOptions{})
-	require.NoError(t, err)
-
-	return secret
+func (s *oryTest) getSecret(name string) (*v1.Secret, error) {
+	return s.kubeClient.CoreV1().Secrets(namespace).Get(s.context, name, metav1.GetOptions{})
 }
 
 func (s *oryTest) ensureSecretIsDeployed(t *testing.T, name string) {
-	secret := s.getSecret(t, name)
+	secret, err := s.getSecret(name)
+	require.NoError(t, err)
 	require.NotNil(t, secret.Data)
 	s.logger.Infof("Secret %v is deployed", secret.Name)
 }

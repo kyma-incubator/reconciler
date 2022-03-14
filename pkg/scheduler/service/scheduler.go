@@ -87,8 +87,9 @@ func newScheduler(logger *zap.SugaredLogger) *scheduler {
 func (s *scheduler) RunOnce(clusterState *cluster.State, reconRepo reconciliation.Repository, config *SchedulerConfig) error {
 	s.logger.Debugf("Starting local scheduler")
 	reconEntity, err := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{
-		PreComponents:  config.PreComponents,
-		DeleteStrategy: string(config.DeleteStrategy),
+		PreComponents:        config.PreComponents,
+		DeleteStrategy:       string(config.DeleteStrategy),
+		ReconciliationStatus: clusterState.Status.Status,
 	})
 	if err == nil {
 		s.logger.Debugf("Scheduler created reconciliation entity: '%s", reconEntity)
@@ -107,11 +108,7 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 	for {
 		select {
 		case clusterState := <-queue:
-			if err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, &model.ReconciliationSequenceConfig{
-				PreComponents:        config.PreComponents,
-				DeleteStrategy:       string(config.DeleteStrategy),
-				ReconciliationStatus: clusterState.Status.Status,
-			}); err == nil {
+			if err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, config); err == nil {
 				s.logger.Infof("Scheduler triggered reconciliation for cluster '%s' "+
 					"(clusterVersion:%d/configVersion:%d/status:%s/last status update:%.2f min)", clusterState.Cluster.RuntimeID,
 					clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status,

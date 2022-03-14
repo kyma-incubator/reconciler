@@ -39,7 +39,7 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 	return t.reconRepo
 }
 
-func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVersion int64, cfg *model.ReconciliationSequenceConfig) error {
+func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVersion int64, cfg *SchedulerConfig) error {
 	var oldClusterState *cluster.State
 	var newClusterState *cluster.State
 	dbOp := func(tx *db.TxConnection) error {
@@ -89,10 +89,14 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 			return err
 		}
 		t.logger.Debugf("Starting reconciliation for cluster '%s': set cluster status to '%s'",
-			newClusterState.Cluster.RuntimeID, model.ClusterStatusReconciling)
+			newClusterState.Cluster.RuntimeID, newClusterState.Status.Status)
 
 		//create reconciliation entity
-		reconEntity, err := reconRepoTx.CreateReconciliation(newClusterState, cfg)
+		reconEntity, err := reconRepoTx.CreateReconciliation(newClusterState, &model.ReconciliationSequenceConfig{
+			PreComponents:        cfg.PreComponents,
+			DeleteStrategy:       string(cfg.DeleteStrategy),
+			ReconciliationStatus: newClusterState.Status.Status,
+		})
 		if err == nil {
 			t.logger.Infof("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
 				"(scheudlingID: %s)", newClusterState.Cluster.RuntimeID, reconEntity.SchedulingID)
