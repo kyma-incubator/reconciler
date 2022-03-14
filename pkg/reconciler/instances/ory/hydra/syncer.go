@@ -35,7 +35,7 @@ const (
 	hydraPodName           = "app.kubernetes.io/name=hydra"
 	hydraMaesterPodName    = "app.kubernetes.io/name=hydra-maester"
 	hydraMaesterDeployment = "ory-hydra-maester"
-	startupShift           = -2 * time.Second
+	startupShift           = -60 * time.Second
 )
 
 func (c *DefaultHydraSyncer) TriggerSynchronization(context context.Context, client internalKubernetes.Client, logger *zap.SugaredLogger, namespace string, forceSync bool) error {
