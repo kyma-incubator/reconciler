@@ -124,10 +124,9 @@ func Test_splitStringSlice(t *testing.T) {
 		blockSize int
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    [][]string
-		wantErr bool
+		name string
+		args args
+		want [][]string
 	}{
 		{
 			name: "when block size is more than max int32",
@@ -135,8 +134,7 @@ func Test_splitStringSlice(t *testing.T) {
 				slice:     []string{"item1", "item2", "item3"},
 				blockSize: math.MaxInt32,
 			},
-			want:    nil,
-			wantErr: true,
+			want: [][]string{{"item1", "item2", "item3"}},
 		},
 		{
 			name: "when a slice of 9 items should be split into blocks of 3",
@@ -144,18 +142,13 @@ func Test_splitStringSlice(t *testing.T) {
 				slice:     []string{"item1", "item2", "item3", "item4", "item5", "item6", "item7", "item8", "item9"},
 				blockSize: 3,
 			},
-			want:    [][]string{{"item1", "item2", "item3"}, {"item4", "item5", "item6"}, {"item7", "item8", "item9"}},
-			wantErr: false,
+			want: [][]string{{"item1", "item2", "item3"}, {"item4", "item5", "item6"}, {"item7", "item8", "item9"}},
 		},
 	}
 	for _, tt := range tests {
 		testCase := tt
 		t.Run(testCase.name, func(t *testing.T) {
-			got, err := splitStringSlice(testCase.args.slice, testCase.args.blockSize)
-			if (err != nil) != testCase.wantErr {
-				t.Errorf("splitStringSlice() error = %v, wantErr %v", err, testCase.wantErr)
-				return
-			}
+			got := splitStringSlice(testCase.args.slice, testCase.args.blockSize)
 			if !reflect.DeepEqual(got, testCase.want) {
 				t.Errorf("splitStringSlice() got = %v, want %v", got, testCase.want)
 			}

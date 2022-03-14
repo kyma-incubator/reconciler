@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -162,10 +161,7 @@ func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID s
 }
 
 func (r *PersistentReconciliationRepository) RemoveReconciliations(schedulingIDs []string) error {
-	schedulingIDsBlocks, err := splitStringSlice(schedulingIDs, 200)
-	if err != nil {
-		return err
-	}
+	schedulingIDsBlocks := splitStringSlice(schedulingIDs, 200)
 
 	dbOps := func(tx *db.TxConnection) error {
 		for _, schedulingIDsBlock := range schedulingIDsBlocks {
@@ -643,17 +639,13 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 	return components, nil
 }
 
-func splitStringSlice(slice []string, blockSize int) ([][]string, error) {
+func splitStringSlice(slice []string, blockSize int) [][]string {
 	sliceLength := len(slice)
 	if sliceLength == 0 {
-		return nil, nil
+		return nil
 	}
 
-	if sliceLength > math.MaxInt32-blockSize || blockSize > math.MaxInt32-sliceLength {
-		return nil, errors.New("Integer overflow detected while splitting string slice")
-	}
-
-	subSlicesCount := (sliceLength + blockSize - 1) / blockSize
+	subSlicesCount := (sliceLength-1)/blockSize + 1
 	resultSlice := make([][]string, 0, subSlicesCount)
 
 	var high int
@@ -665,5 +657,5 @@ func splitStringSlice(slice []string, blockSize int) ([][]string, error) {
 
 		resultSlice = append(resultSlice, slice[low:high])
 	}
-	return resultSlice, nil
+	return resultSlice
 }
