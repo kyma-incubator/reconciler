@@ -172,7 +172,6 @@ func TestDatabaseTestSuiteSharedRuntime(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		require.NoError(t, runtime.StopLogProducer())
 		require.NoError(t, runtime.Terminate(ctx))
 	})
 }
