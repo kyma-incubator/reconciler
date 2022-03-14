@@ -58,9 +58,14 @@ func startWebserver(ctx context.Context, o *Options) error {
 	mainRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 
 	apiRouter.HandleFunc(
-		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
-		callHandler(o, updateOperationStatus)).
-		Methods(http.MethodPost)
+		fmt.Sprintf("/v{%s}/reconciliations/cluster/{%s}", paramContractVersion, paramRuntimeID),
+		callHandler(o, deleteReconcilationsByCluster)).
+		Methods(http.MethodDelete)
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
+		callHandler(o, createOrUpdateCluster)).
+		Methods(http.MethodPost, http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
@@ -169,6 +174,39 @@ func ready(o *Options) http.HandlerFunc {
 func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		handler(o, w, r)
+	}
+}
+
+func deleteReconcilationsByCluster(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	_, err := params.Int64(paramContractVersion)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Contract version undefined").Error(),
+		})
+		return
+	}
+	runtimeID, err := params.String(paramRuntimeID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().RemoveReconciliation(runtimeID)
+	if err == nil {
+		sendResponse(w)
+	}
+	if repository.IsNotFoundError(err) {
+		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	} else {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
 	}
 }
 
