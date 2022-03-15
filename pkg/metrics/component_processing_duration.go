@@ -13,13 +13,13 @@ type ComponentProcessingDurationMetric struct {
 }
 
 func NewComponentProcessingDurationMetric(logger *zap.SugaredLogger) *ComponentProcessingDurationMetric {
-	const startBucketWithMicrosecond = 1e6
+	const startBucketWithMillisecond = 1e3
 	return &ComponentProcessingDurationMetric{
 		Collector: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
 			Help:      "Processing time of operations",
-			Buckets:   prometheus.ExponentialBuckets(startBucketWithMicrosecond, 2, 15),
+			Buckets:   prometheus.ExponentialBuckets(startBucketWithMillisecond, 2, 10),
 		}, []string{"component", "metric"}),
 		logger: logger,
 	}
@@ -32,15 +32,16 @@ func (c *ComponentProcessingDurationMetric) ExposeProcessingDuration(component s
 		c.logger.Errorf("ComponentProcessingDurationMetric: unable to retrieve metric with label=%s: %s", component, err.Error())
 		return
 	}
-	m.Observe(float64(duration))
+	durationToMillisecond := duration / 1e6
+	m.Observe(float64(durationToMillisecond))
 }
 
 func getMetricLabel(state model.OperationState) string {
 	switch state {
 	case model.OperationStateDone:
-		return "processing_duration_successful_microsecond"
+		return "processing_duration_successful_millisecond"
 	case model.OperationStateFailed:
-		return "processing_duration_unsuccessful_microsecond"
+		return "processing_duration_unsuccessful_millisecond"
 	}
 	return "undefined"
 }
