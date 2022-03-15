@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 
 	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
@@ -11,7 +13,14 @@ func StartComponentReconciler(ctx context.Context, o *reconCli.Options, reconcil
 	if o.DryRun {
 		service.EnableReconcilerDryRun()
 	}
-	recon, err := reconCli.NewComponentReconciler(o, reconcilerName)
+
+	durationMetric := metrics.NewComponentProcessingDurationMetric(o.Logger())
+	err := prometheus.Register(durationMetric.Collector)
+	if err != nil {
+		return nil, nil, err
+	}
+	reconcilerMetricsSet := metrics.NewReconcilerMetricsSet(durationMetric)
+	recon, err := reconCli.NewComponentReconciler(o, reconcilerName, reconcilerMetricsSet)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ type runner struct {
 	logger  *zap.SugaredLogger
 }
 
-func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler) error {
+func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler, reconcilerMetricsSet *metrics.ReconcilerMetricsSet) error {
 	if r.dryRun {
 		var err error
 		chartProvider, err := r.newChartProvider(task.Repository)
@@ -99,14 +100,17 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	if err == nil {
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
+		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateDone, processingDuration)
 		if err := heartbeatSender.Success(retryID, processingDuration); err != nil {
 			return err
 		} // TODO: enrich heartbeat with processduration
 	} else if ctx.Err() != nil {
+		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateFailed, processingDuration)
 		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
 			task.Component, task.Version)
 		return err
 	} else {
+		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateFailed, processingDuration)
 		r.logger.Errorf("Runner: retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			task.Component, task.Version)
 		if heartbeatErr := heartbeatSender.Error(err, retryID, processingDuration); heartbeatErr != nil {
@@ -115,6 +119,18 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	}
 
 	return err
+}
+
+func (r *runner) exposeProcessingDuration(reconcilerMetricsSet *metrics.ReconcilerMetricsSet, task *reconciler.Task, state model.OperationState, processingDuration time.Duration) {
+	if reconcilerMetricsSet == nil {
+		r.logger.Warnf("Reconciler Metrics not initialized")
+		return
+	}
+	if reconcilerMetricsSet.ComponentProcessingDurationCollector == nil {
+		r.logger.Warnf("Reconciler Metrics not initialized")
+		return
+	}
+	reconcilerMetricsSet.ComponentProcessingDurationCollector.ExposeProcessingDuration(task.Component, state, processingDuration)
 }
 
 func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
