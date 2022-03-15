@@ -58,14 +58,14 @@ func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, conf
 	c.logger.Infof("%s Process started", CleanerPrefix)
 
 	if config.KeepLatestEntitiesCount > 0 {
-		c.logger.Infof("%s Cleaner will remove unnecessary entities")
+		c.logger.Infof("%s Cleaner will remove unnecessary entities", CleanerPrefix)
 		c.purgeReconciliationsNew(transition, config)
 	} else {
 		c.logger.Infof("%s Cleaner will remove entities older than %s", CleanerPrefix, config.PurgeEntitiesOlderThan.String())
 		c.purgeReconciliationsOld(transition, config)
 	}
 
-	c.logger.Info("%s Process finished")
+	c.logger.Infof("%s Process finished", CleanerPrefix)
 }
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
