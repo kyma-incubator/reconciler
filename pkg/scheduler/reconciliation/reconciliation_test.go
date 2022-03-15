@@ -356,11 +356,11 @@ func TestReconciliationRepository(t *testing.T) {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
 
-				err = reconRepo.RemoveReconciliation(reconEntity.SchedulingID)
+				err = reconRepo.RemoveReconciliationBySchedulingID(reconEntity.SchedulingID)
 				require.NoError(t, err)
 
 				//try to delete non-exiting reconciliation (no error expected)
-				err = reconRepo.RemoveReconciliation("123-456")
+				err = reconRepo.RemoveReconciliationBySchedulingID("123-456")
 				require.NoError(t, err)
 			},
 		},
@@ -393,7 +393,7 @@ func TestReconciliationRepository(t *testing.T) {
 				require.Equal(t, opsEntities[1], op)
 
 				//ensure also operations are dropped
-				err = reconRepo.RemoveReconciliation(reconEntity.SchedulingID)
+				err = reconRepo.RemoveReconciliationBySchedulingID(reconEntity.SchedulingID)
 				require.NoError(t, err)
 
 				opsEntities, err = reconRepo.GetOperations(&operation.WithSchedulingID{
@@ -763,7 +763,7 @@ func removeExistingReconciliations(t *testing.T, repos map[string]Repository) {
 		recons, err := repo.GetReconciliations(nil)
 		require.NoError(t, err)
 		for _, recon := range recons {
-			require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
+			require.NoError(t, repo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
 		}
 	}
 }

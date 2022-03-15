@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"go.uber.org/zap"
 	"strings"
 	"time"
 
@@ -140,27 +141,15 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 	return result.(*model.ReconciliationEntity), nil
 }
 
-func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID string) error {
-	dbOps := func(tx *db.TxConnection) error {
-		whereCond := map[string]interface{}{
-			"SchedulingID": schedulingID,
-		}
-
-		//delete reconciliation
-		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
-		if err != nil {
-			return err
-		}
-		delCnt, err := qDelRecon.Delete().
-			Where(whereCond).
-			Exec()
-		r.Logger.Debugf("Deleted %d reconciliation with schedulingID '%s'", delCnt, schedulingID)
-		return err
-	}
-	return db.Transaction(r.Conn, dbOps, r.Logger)
+func (r *PersistentReconciliationRepository) RemoveReconciliationBySchedulingID(schedulingID string) error {
+	return db.Transaction(r.Conn, getRemoveReconciliationOpFn("SchedulingID", schedulingID, r.Logger), r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) RemoveReconciliations(schedulingIDs []string) error {
+func (r *PersistentReconciliationRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
+	return db.Transaction(r.Conn, getRemoveReconciliationOpFn("RuntimeID", runtimeID, r.Logger), r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
 	schedulingIDsBlocks := splitStringSlice(schedulingIDs, 200)
 
 	dbOps := func(tx *db.TxConnection) error {
@@ -658,4 +647,23 @@ func splitStringSlice(slice []string, blockSize int) [][]string {
 		resultSlice = append(resultSlice, slice[low:high])
 	}
 	return resultSlice
+}
+
+func getRemoveReconciliationOpFn(field string, value string, logger *zap.SugaredLogger) func(tx *db.TxConnection) error {
+	return func(tx *db.TxConnection) error {
+		whereCond := map[string]interface{}{
+			field: value,
+		}
+
+		//delete reconciliation
+		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, logger)
+		if err != nil {
+			return err
+		}
+		delCnt, err := qDelRecon.Delete().
+			Where(whereCond).
+			Exec()
+		logger.Debugf("Deleted %d reconciliation with %s '%s'", delCnt, field, value)
+		return err
+	}
 }
