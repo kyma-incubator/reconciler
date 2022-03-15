@@ -217,7 +217,7 @@ func (c *cleaner) removeReconciliations(list []*model.ReconciliationEntity, tran
 	for _, r := range list {
 		id := r.SchedulingID
 
-		err := transition.ReconciliationRepository().RemoveReconciliation(id)
+		err := transition.ReconciliationRepository().RemoveReconciliationBySchedulingID(id)
 		c.logger.Debugf("[CLEANER] removing reconciliation %s for a cluster: %s", r.SchedulingID, r.RuntimeID)
 		if err == nil {
 			cnt++
@@ -246,8 +246,8 @@ func (c *cleaner) purgeReconciliationsOld(transition *ClusterStatusTransition, c
 			"(created: %s)", reconciliations[i].SchedulingID, reconciliations[i].Created)
 
 		id := reconciliations[i].SchedulingID
-		err := transition.ReconciliationRepository().RemoveReconciliation(id)
-		c.logger.Debugf("[CLEANER] transition.ReconciliationRepository().RemoveReconciliation(%s)", id)
+		err := transition.ReconciliationRepository().RemoveReconciliationBySchedulingID(id)
+		c.logger.Debugf("[CLEANER] transition.ReconciliationRepository().RemoveReconciliationBySchedulingID(%s)", id)
 		if err != nil {
 			c.logger.Errorf("Cleaner failed to remove reconciliation with schedulingID '%s': %s", id, err.Error())
 		}
