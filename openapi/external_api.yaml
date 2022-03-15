@@ -77,11 +77,11 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /reconciliations/cluster/{runtimeID}:
+  /reconciliations/cluster/{schedulingID}:
     delete:
       description: "Purge reconciliations for specified cluster"
       parameters:
-        - name: runtimeID
+        - name: schedulingID
           required: true
           in: path
           schema:

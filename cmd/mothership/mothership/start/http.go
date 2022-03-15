@@ -58,7 +58,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 	mainRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 
 	apiRouter.HandleFunc(
-		fmt.Sprintf("/v{%s}/reconciliations/cluster/{%s}", paramContractVersion, paramRuntimeID),
+		fmt.Sprintf("/v{%s}/reconciliations/cluster/{%s}", paramContractVersion, paramSchedulingID),
 		callHandler(o, deleteReconcilationsByCluster)).
 		Methods(http.MethodDelete)
 
@@ -186,16 +186,17 @@ func deleteReconcilationsByCluster(o *Options, w http.ResponseWriter, r *http.Re
 		})
 		return
 	}
-	runtimeID, err := params.String(paramRuntimeID)
+	schedulingID, err := params.String(paramSchedulingID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: err.Error(),
 		})
 		return
 	}
-	err = o.Registry.ReconciliationRepository().RemoveReconciliation(runtimeID)
+	// runtime ID needed here cause of clusterState?
+	err = o.Registry.ReconciliationRepository().RemoveReconciliation(schedulingID)
 	if err == nil {
-		sendResponse(w)
+		sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
 	}
 	if repository.IsNotFoundError(err) {
 		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
