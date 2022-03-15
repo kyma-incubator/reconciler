@@ -58,6 +58,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 	mainRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 
 	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		callHandler(o, updateOperationStatus)).
+		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations/cluster/{%s}", paramContractVersion, paramRuntimeID),
 		callHandler(o, deleteReconcilationsByCluster)).
 		Methods(http.MethodDelete)
