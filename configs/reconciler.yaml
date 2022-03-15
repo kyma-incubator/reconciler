@@ -14,10 +14,14 @@ db:
     password: kyma
     useSsl: false
     migrationsDir: "./configs/db/postgres"
-    maxOpenConns: 50
-    maxIdleConns: 5
-    connMaxLifetime: 30s
-    connMaxIdleTime: 1m
+    # SetMaxOpenConns sets the maximum number of open connections to the database.
+    maxOpenConns: 0 # if n <= 0, then there is no limit on the number of open connections. The default is 0 (unlimited).
+    # SetMaxIdleConns sets the maximum number of connections in the idle connection pool.
+    maxIdleConns: 2 # If n <= 0, no idle connections are retained. The default max idle connections is currently 2. This may change in a future release.
+    # SetConnMaxLifetime sets the maximum amount of time a connection may be reused
+    connMaxLifetime: 0s # If d <= 0, connections are not closed due to a connection's age.
+    # SetConnMaxIdleTime sets the maximum amount of time a connection may be idle.
+    connMaxIdleTime: 0s # If d <= 0, connections are not closed due to a connection's idle time.
   sqlite:
     file: "reconciler.db"
     deploySchema: true
