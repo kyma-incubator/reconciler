@@ -13,13 +13,13 @@ type ComponentProcessingDurationMetric struct {
 }
 
 func NewComponentProcessingDurationMetric(logger *zap.SugaredLogger) *ComponentProcessingDurationMetric {
-	const start_bucket_with_microsecond = 1e6
+	const startBucketWithMicrosecond = 1e6
 	return &ComponentProcessingDurationMetric{
 		Collector: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
 			Help:      "Processing time of operations",
-			Buckets:   prometheus.ExponentialBuckets(start_bucket_with_microsecond, 2, 15),
+			Buckets:   prometheus.ExponentialBuckets(startBucketWithMicrosecond, 2, 15),
 		}, []string{"component", "metric"}),
 		logger: logger,
 	}
