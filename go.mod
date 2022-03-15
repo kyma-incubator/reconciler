@@ -2,10 +2,13 @@ module github.com/kyma-incubator/reconciler
 
 go 1.16
 
-//required to fix CVE-2021-3538
 replace (
+	//fix for CVE-2022-21698
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.11.1
+	//fix for CVE-2021-3538
 	github.com/satori/go.uuid => github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
+	//fix for WS-2021-0200
+	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.8
 )
 
 require (
