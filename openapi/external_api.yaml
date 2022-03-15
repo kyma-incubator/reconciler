@@ -587,6 +587,7 @@ components:
             reason,
             created,
             updated,
+            type,
         ]
       properties:
         priority:
@@ -610,6 +611,8 @@ components:
         updated:
           type: string
           format: date-time
+        type:
+          type: string
 
     operationStop:
       type: object

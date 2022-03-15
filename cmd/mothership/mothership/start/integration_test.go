@@ -546,7 +546,7 @@ func removeExistingReconciliations(t *testing.T, repo reconciliation.Repository)
 	recons, err := repo.GetReconciliations(nil)
 	require.NoError(t, err)
 	for _, recon := range recons {
-		require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
+		require.NoError(t, repo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
 	}
 }
 

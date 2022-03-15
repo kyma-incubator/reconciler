@@ -129,10 +129,10 @@ func newReconciliation(t *testing.T, reconRepo reconciliation.Repository, cluste
 func TestBookkeepingTaskParallel(t *testing.T) {
 
 	threadCount := 25
-	//errorCount should be equal to 72, since there are three operations scheduled,
+	//errorCount should be equal to 48, since there are 2 operations scheduled,
 	//and 25 threads try to mark them as orphans at the same time
-	//three should succeed, resolving in 72 errors
-	orphanErrors := 72
+	//three should succeed, resolving in (2*25)-2=48 errors
+	orphanErrors := 48
 	//finishErrors should be equal to 24, since 25 threads try to update the cluster state to be finished
 	//only one should succeed resolving in 24 errors
 	finishErrors := 24
@@ -264,6 +264,6 @@ func removeExistingReconciliations(t *testing.T, repo reconciliation.Repository)
 	recons, err := repo.GetReconciliations(nil)
 	require.NoError(t, err)
 	for _, recon := range recons {
-		require.NoError(t, repo.RemoveReconciliation(recon.SchedulingID))
+		require.NoError(t, repo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
 	}
 }
