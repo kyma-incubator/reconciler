@@ -44,7 +44,6 @@ To execute the integration tests, execute the `make test-all` target:
 
      make test-all
 
-
 ## Adding a new component reconciler
 
 If a custom logic must be executed before, during, or after the reconciliation of a component, component reconcilers are required.
