@@ -208,7 +208,7 @@ func deleteReconcilationsByCluster(o *Options, w http.ResponseWriter, r *http.Re
 		return
 	}
 	err = o.Registry.ReconciliationRepository().RemoveReconciliationByRuntimeID(runtimeID)
-	if err == nil {
+	if err == nil && clusterState != nil {
 		sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
 	}
 	if repository.IsNotFoundError(err) {
@@ -995,6 +995,7 @@ func sendClusterStateResponse(w http.ResponseWriter, state *cluster.State) {
 }
 
 func newClusterResponse(r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) (*keb.HTTPClusterResponse, error) {
+	fmt.Printf("%+v", *clusterState)
 	kebStatus, err := clusterState.Status.GetKEBClusterStatus()
 	if err != nil {
 		return nil, err
