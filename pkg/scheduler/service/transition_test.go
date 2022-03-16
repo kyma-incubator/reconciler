@@ -44,7 +44,7 @@ func TestTransition(t *testing.T) {
 	//create transition which will change cluster states
 	transition := newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true))
 
-	testSequenceConfig := &model.ReconciliationSequenceConfig{
+	testSchedulerConfig := &SchedulerConfig{
 		PreComponents:  nil,
 		DeleteStrategy: "",
 	}
@@ -55,17 +55,17 @@ func TestTransition(t *testing.T) {
 		recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 		require.NoError(t, err)
 		for _, recon := range recons {
-			require.NoError(t, reconRepo.RemoveReconciliation(recon.SchedulingID))
+			require.NoError(t, reconRepo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
 		}
 	}()
 
 	t.Run("Start Reconciliation", func(t *testing.T) {
 		oldClusterStateID := clusterState.Status.ID
-		err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, testSequenceConfig)
+		err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, testSchedulerConfig)
 		require.NoError(t, err)
 
 		//starting reconciliation twice is not allowed
-		err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, testSequenceConfig)
+		err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, testSchedulerConfig)
 		require.Error(t, err)
 
 		//verify created reconciliation
@@ -113,7 +113,10 @@ func TestTransition(t *testing.T) {
 
 	t.Run("Finish Reconciliation When Cluster is not in progress", func(t *testing.T) {
 		//get reconciliation entity
-		reconEntity, err := reconRepo.CreateReconciliation(clusterState, testSequenceConfig)
+		reconEntity, err := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{
+			PreComponents:  nil,
+			DeleteStrategy: "",
+		})
 		require.NoError(t, err)
 		require.NotNil(t, reconEntity)
 		require.False(t, reconEntity.Finished)

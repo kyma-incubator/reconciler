@@ -81,13 +81,13 @@ func Test_DefaultCommander_Upgrade(t *testing.T) {
 	log := logger.NewLogger(false)
 	commander := DefaultCommander{}
 
-	t.Run("should run the upgrade command", func(t *testing.T) {
+	t.Run("should run the apply command", func(t *testing.T) {
 		// when
 		errors := commander.Upgrade(istioOperator, kubeconfig, log)
 
 		// then
 		require.NoError(t, errors)
-		require.EqualValues(t, testArgs[0], "upgrade")
+		require.EqualValues(t, testArgs[0], "apply")
 		require.EqualValues(t, testArgs[1], "-f")
 		require.EqualValues(t, testArgs[3], "--kubeconfig")
 		require.EqualValues(t, testArgs[5], "--skip-confirmation")

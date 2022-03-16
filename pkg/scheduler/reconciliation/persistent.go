@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"go.uber.org/zap"
 	"strings"
 	"time"
 
@@ -84,7 +85,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			state.Cluster.RuntimeID, reconEntity.SchedulingID)
 
 		opType := model.OperationTypeReconcile
-		if state.Status.Status.IsDeletion() {
+		if state.Status.Status.IsDeletionInProgress() {
 			opType = model.OperationTypeDelete
 		}
 
@@ -140,36 +141,44 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 	return result.(*model.ReconciliationEntity), nil
 }
 
-func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID string) error {
+func (r *PersistentReconciliationRepository) RemoveReconciliationBySchedulingID(schedulingID string) error {
+	return db.Transaction(r.Conn, getRemoveReconciliationOpFn("SchedulingID", schedulingID, r.Logger), r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
+	return db.Transaction(r.Conn, getRemoveReconciliationOpFn("RuntimeID", runtimeID, r.Logger), r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
+	schedulingIDsBlocks := splitStringSlice(schedulingIDs, 200)
+
 	dbOps := func(tx *db.TxConnection) error {
-		whereCond := map[string]interface{}{
-			"SchedulingID": schedulingID,
-		}
+		for _, schedulingIDsBlock := range schedulingIDsBlocks {
+			var args []interface{}
+			var buffer bytes.Buffer
 
-		//delete operations
-		qDelOps, err := db.NewQuery(tx, &model.OperationEntity{}, r.Logger)
-		if err != nil {
-			return err
-		}
-		delOpsCnt, err := qDelOps.Delete().
-			Where(whereCond).
-			Exec()
-		if err != nil {
-			return err
-		}
-		r.Logger.Debugf("ReconRepo deleted %d operations which were assigned to reconciliation with schedulingID '%s'",
-			delOpsCnt, schedulingID)
+			for i, schedulingID := range schedulingIDsBlock {
+				if buffer.Len() > 0 {
+					buffer.WriteRune(',')
+				}
+				buffer.WriteString(fmt.Sprintf("$%d", i+1))
+				args = append(args, schedulingID)
+			}
 
-		//delete reconciliation
-		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
-		if err != nil {
-			return err
+			//delete reconciliations
+			deleteQuery, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
+			if err != nil {
+				return err
+			}
+
+			deleteQueryCount, err := deleteQuery.Delete().WhereIn("SchedulingID", buffer.String(), args...).Exec()
+			if err != nil {
+				return err
+			}
+			r.Logger.Debugf("ReconRepo deleted %d reconciliations which were assigned to reconciliation with schedulingIDs '%s'", deleteQueryCount, args)
+			buffer.Reset()
 		}
-		delCnt, err := qDelRecon.Delete().
-			Where(whereCond).
-			Exec()
-		r.Logger.Debugf("Deleted %d reconciliation with schedulingID '%s'", delCnt, schedulingID)
-		return err
+		return nil
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
@@ -617,4 +626,44 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 	}
 
 	return components, nil
+}
+
+func splitStringSlice(slice []string, blockSize int) [][]string {
+	sliceLength := len(slice)
+	if sliceLength == 0 {
+		return nil
+	}
+
+	subSlicesCount := (sliceLength-1)/blockSize + 1
+	resultSlice := make([][]string, 0, subSlicesCount)
+
+	var high int
+	for low := 0; low < sliceLength; low += blockSize {
+		high += blockSize
+		if high > sliceLength {
+			high = sliceLength
+		}
+
+		resultSlice = append(resultSlice, slice[low:high])
+	}
+	return resultSlice
+}
+
+func getRemoveReconciliationOpFn(field string, value string, logger *zap.SugaredLogger) func(tx *db.TxConnection) error {
+	return func(tx *db.TxConnection) error {
+		whereCond := map[string]interface{}{
+			field: value,
+		}
+
+		//delete reconciliation
+		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, logger)
+		if err != nil {
+			return err
+		}
+		delCnt, err := qDelRecon.Delete().
+			Where(whereCond).
+			Exec()
+		logger.Debugf("Deleted %d reconciliation with %s '%s'", delCnt, field, value)
+		return err
+	}
 }

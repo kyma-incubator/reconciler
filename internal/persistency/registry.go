@@ -13,15 +13,14 @@ import (
 )
 
 type Registry struct {
-	debug             bool
-	logger            *zap.SugaredLogger
-	connection        db.Connection
-	inventory         cluster.Inventory
-	kvRepository      *kv.Repository
-	reconRepository   reconciliation.Repository
-	occupancyRepo     occupancy.Repository
-	occupancyTracking bool
-	initialized       bool
+	debug           bool
+	logger          *zap.SugaredLogger
+	connection      db.Connection
+	inventory       cluster.Inventory
+	kvRepository    *kv.Repository
+	reconRepository reconciliation.Repository
+	occupancyRepo   occupancy.Repository
+	initialized     bool
 }
 
 func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
@@ -30,10 +29,9 @@ func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
 		return nil, err
 	}
 	registry := &Registry{
-		debug:             debug,
-		connection:        conn,
-		logger:            logger.NewLogger(debug),
-		occupancyTracking: features.WorkerpoolOccupancyTrackingEnabled(),
+		debug:      debug,
+		connection: conn,
+		logger:     logger.NewLogger(debug),
 	}
 	return registry, registry.init()
 }
@@ -115,7 +113,7 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 }
 
 func (or *Registry) initOccupancyRepository() (occupancy.Repository, error) {
-	if !or.occupancyTracking {
+	if !features.WorkerpoolOccupancyTrackingEnabled() {
 		return occupancy.CreateMockRepository(), nil
 	}
 	occupancyRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)

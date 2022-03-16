@@ -10,8 +10,11 @@ import (
 type MockRepository struct {
 	CreateReconciliationResult                          *model.ReconciliationEntity
 	RemoveReconciliationResult                          error
+	RemoveReconciliationRecording                       []string
 	GetReconciliationResult                             *model.ReconciliationEntity
 	GetReconciliationsResult                            []*model.ReconciliationEntity
+	GetReconciliationsCount                             int
+	OnGetReconciliations                                func(*MockRepository)
 	FinishReconciliationResult                          error
 	GetOperationsResult                                 []*model.OperationEntity
 	GetOperationResult                                  *model.OperationEntity
@@ -33,7 +36,18 @@ func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.
 	return mr.CreateReconciliationResult, nil
 }
 
-func (mr *MockRepository) RemoveReconciliation(schedulingID string) error {
+func (mr *MockRepository) RemoveReconciliationBySchedulingID(schedulingID string) error {
+	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, schedulingID)
+	return mr.RemoveReconciliationResult
+}
+
+func (mr *MockRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
+	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, runtimeID)
+	return mr.RemoveReconciliationResult
+}
+
+func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
+	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, schedulingIDs...)
 	return mr.RemoveReconciliationResult
 }
 
@@ -42,7 +56,12 @@ func (mr *MockRepository) GetReconciliation(schedulingID string) (*model.Reconci
 }
 
 func (mr *MockRepository) GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error) {
-	return mr.GetReconciliationsResult, nil
+	res := mr.GetReconciliationsResult
+	mr.GetReconciliationsCount++
+	if mr.OnGetReconciliations != nil {
+		mr.OnGetReconciliations(mr) //update state
+	}
+	return res, nil
 }
 
 func (mr *MockRepository) FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error {

@@ -12,6 +12,52 @@ type PersistentOccupancyRepository struct {
 	*repository.Repository
 }
 
+func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []string) (int, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+		if len(poolIDs) == 0 {
+			r.Logger.Debug("OccupancyRepo received empty list of ids: nothing to remove")
+			return 0, nil
+		}
+		rTx, err := r.WithTx(tx)
+		if err != nil {
+			return 0, err
+		}
+		deletionCnt := 0
+		for _, poolID := range poolIDs {
+			err = rTx.RemoveWorkerPoolOccupancy(poolID)
+			if err != nil {
+				return 0, err
+			}
+			deletionCnt++
+		}
+
+		return deletionCnt, nil
+	}
+	result, err := db.TransactionResult(r.Conn, dbOps, r.Logger)
+	return result.(int), err
+}
+
+func (r *PersistentOccupancyRepository) GetWorkerPoolIDs() ([]string, error) {
+	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+	if err != nil {
+		return nil, err
+	}
+
+	databaseEntities, err := q.Select().GetMany()
+	if err != nil {
+		return nil, err
+	}
+	if len(databaseEntities) == 0 {
+		return nil, fmt.Errorf("unable to get component list: no record was found")
+	}
+	var componentIDs []string
+	for _, occupancy := range databaseEntities {
+		occupancyEntity := occupancy.(*model.WorkerPoolOccupancyEntity)
+		componentIDs = append(componentIDs, occupancyEntity.WorkerPoolID)
+	}
+	return componentIDs, nil
+}
+
 func NewPersistentOccupancyRepository(conn db.Connection, debug bool) (Repository, error) {
 	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {
@@ -239,7 +285,7 @@ func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string)
 		}
 
 		r.Logger.Debugf("OccupancyRepo deleted '%d' occupancy entity with poolID '%s'", deletionCnt, poolID)
-		return err
+		return nil
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }

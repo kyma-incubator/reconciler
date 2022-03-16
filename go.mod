@@ -2,13 +2,23 @@ module github.com/kyma-incubator/reconciler
 
 go 1.16
 
+replace (
+	//fix for CVE-2022-21698
+	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.11.1
+	//fix for CVE-2021-3538
+	github.com/satori/go.uuid => github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
+	//fix for WS-2021-0200
+	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.8
+)
+
 require (
-	github.com/SAP/sap-btp-service-operator v0.1.21
+	github.com/SAP/sap-btp-service-operator v0.1.22
 	github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7
 	github.com/avast/retry-go v3.0.0+incompatible
+	github.com/containerd/containerd v1.5.10 // indirect
 	github.com/coreos/go-semver v0.3.0
 	github.com/docker/cli v20.10.12+incompatible // indirect
-	github.com/docker/distribution v2.8.0+incompatible // indirect
+	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/docker v20.10.12+incompatible // indirect
 	github.com/docker/go-connections v0.4.0
 	github.com/fatih/color v1.10.0 // indirect

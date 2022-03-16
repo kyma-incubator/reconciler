@@ -20,11 +20,12 @@ const operatorGroupVersion = "v1alpha1"
 func getSMClient(ctx context.Context, secret *v1.Secret) (sm.Client, error) {
 	secretData := secret.Data
 	return sm.NewClient(ctx, &sm.ClientConfig{
-		ClientID:     string(secretData["clientid"]),
-		ClientSecret: string(secretData["clientsecret"]),
-		URL:          string(secretData["url"]),
-		TokenURL:     string(secretData["tokenurl"]),
-		SSLDisabled:  false,
+		ClientID:       string(secretData["clientid"]),
+		ClientSecret:   string(secretData["clientsecret"]),
+		URL:            string(secretData["url"]),
+		TokenURL:       string(secretData["tokenurl"]),
+		TokenURLSuffix: "/oauth/token",
+		SSLDisabled:    false,
 	}, nil)
 }
 
