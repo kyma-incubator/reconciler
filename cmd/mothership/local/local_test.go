@@ -54,12 +54,12 @@ func TestSetCustomNamespaceAndUrl(t *testing.T) {
 }
 
 func TestSetClusterStateValues(t *testing.T) {
-	values := []string{"global.domainName=example.com", "istio.config.defaultDomain=example.com"}
+	values := []string{"global.domainName=example.com", "istio-configuration.config.defaultDomain=example.com"}
 	state := cluster.State{
 		Configuration: &model.ClusterConfigurationEntity{
 			Components: []*keb.Component{
 				{
-					Component: "istio",
+					Component: "istio-configuration",
 					Configuration: []keb.Configuration{
 						{
 							Key:   "install",
@@ -75,7 +75,7 @@ func TestSetClusterStateValues(t *testing.T) {
 	}
 	expected := []*keb.Component{
 		{
-			Component: "istio",
+			Component: "istio-configuration",
 			Configuration: []keb.Configuration{
 				{
 					Key:   "install",

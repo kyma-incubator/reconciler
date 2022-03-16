@@ -1,2 +1,2 @@
-name: istio-test
+name: istio-configuration-test
 version: 1.2.3-distroless
