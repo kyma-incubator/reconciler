@@ -6,20 +6,15 @@ import (
 	"path"
 	"testing"
 
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/git/mocks"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/alcortesm/tgz"
 	"github.com/go-git/go-git/v5"
 	gitp "github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/git/mocks"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +62,7 @@ func TestCloneRepo(t *testing.T) {
 	clonerMock.On("ResolveRevision",
 		gitp.Revision("1.0.0")).
 		Return(repo.ResolveRevision("1.0.0"))
-	cloner, _ := NewCloner(clonerMock, &r, true, fake.NewSimpleClientset(), logger.NewLogger(true))
+	cloner, _ := NewCloner(clonerMock, &r, true, logger.NewLogger(true))
 
 	headRef, err := repo.Head()
 	require.NoError(t, err)
@@ -87,7 +82,7 @@ func TestCloneRepo(t *testing.T) {
 	require.Equal(t, "Add README\n", commit.Message)
 
 	t.Run("Should add auth data if token namespace set and token exists", func(t *testing.T) {
-		token := "tokeValue"
+		t.Setenv(gitCloneTokenEnv, "tokenValue")
 
 		clonerMock.On("Clone", context.Background(), "/test", false, &git.CloneOptions{
 			Depth:      0,
@@ -95,15 +90,14 @@ func TestCloneRepo(t *testing.T) {
 			NoCheckout: true,
 			Auth: &http.BasicAuth{
 				Username: "xxx", // anything but an empty string
-				Password: token,
+				Password: "tokenValue",
 			},
 			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 		}).Return(repo, nil)
 
 		cloner, _ := NewCloner(clonerMock, &reconciler.Repository{
-			URL:            repoURL,
-			TokenNamespace: "default",
-		}, false, clientWithToken("github.com", "default", "token", token), logger.NewLogger(true))
+			URL: repoURL,
+		}, false, logger.NewLogger(true))
 
 		_, err := cloner.Clone("/test")
 		assert.NoError(t, err)
@@ -113,121 +107,30 @@ func TestCloneRepo(t *testing.T) {
 func TestTokenRead(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Should read correct token secret", func(t *testing.T) {
-		client := clientWithToken("localhost", "default", "token", "tokenValue")
+	t.Run("Should read correct token", func(t *testing.T) {
+		t.Setenv(gitCloneTokenEnv, "tokenValue")
 
-		repo := reconciler.Repository{
-			URL:            "https://localhost",
-			TokenNamespace: "default",
-		}
+		cloner := Cloner{}
 
-		cloner := Cloner{
-			repo:               &repo,
-			autoCheckout:       false,
-			repoClient:         nil,
-			inClusterClientSet: client,
-			logger:             logger.NewLogger(true),
-		}
+		auth := cloner.buildAuth()
 
-		auth, err := cloner.buildAuth()
-
-		assert.NoError(t, err)
 		assert.Equal(t, &http.BasicAuth{
 			Username: "xxx",
 			Password: "tokenValue",
 		}, auth)
 	})
 
-	t.Run("Should ignore error when token secret not found", func(t *testing.T) {
-		client := fake.NewSimpleClientset()
-
+	t.Run("Should return nil when token not found", func(t *testing.T) {
 		repo := reconciler.Repository{
-			URL:            "https://localhost",
-			TokenNamespace: "default",
+			URL: "https://localhost",
 		}
-
 		cloner := Cloner{
-			repo:               &repo,
-			autoCheckout:       false,
-			repoClient:         nil,
-			inClusterClientSet: client,
-			logger:             logger.NewLogger(true),
+			repo:   &repo,
+			logger: logger.NewLogger(true),
 		}
 
-		_, err := cloner.buildAuth()
+		auth := cloner.buildAuth()
 
-		assert.NoError(t, err)
+		assert.Nil(t, auth)
 	})
-
-	t.Run("Should ignore error when clientset not set", func(t *testing.T) {
-		repo := reconciler.Repository{
-			URL:            "https://localhost",
-			TokenNamespace: "default",
-		}
-
-		cloner := Cloner{
-			repo:               &repo,
-			autoCheckout:       false,
-			repoClient:         nil,
-			inClusterClientSet: nil,
-			logger:             logger.NewLogger(true),
-		}
-
-		_, err := cloner.buildAuth()
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("Should ignore error when TokenNamespace not set", func(t *testing.T) {
-		repo := reconciler.Repository{
-			URL:            "https://localhost",
-			TokenNamespace: "",
-		}
-
-		cloner := Cloner{
-			repo:               &repo,
-			autoCheckout:       false,
-			repoClient:         nil,
-			inClusterClientSet: nil,
-			logger:             logger.NewLogger(true),
-		}
-
-		_, err := cloner.buildAuth()
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("Should parse URL", func(t *testing.T) {
-		assertParsed(t, "localhost", "localhost/path")
-		assertParsed(t, "localhost", "localhost")
-		assertParsed(t, "localhost", "localhost:8080")
-		assertParsed(t, "localhost", "http://localhost:8080")
-		assertParsed(t, "localhost", "www.localhost:8080")
-		assertParsed(t, "localhost", "https://www.localhost:8080")
-		assertParsed(t, "192.168.1.2", "192.168.1.2")
-		assertParsed(t, "192.168.1.2", "192.168.1.2:8080")
-	})
-}
-
-func clientWithToken(name, namespace, key, value string) *fake.Clientset {
-	client := fake.NewSimpleClientset(&v1.Secret{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Immutable: nil,
-		Data: map[string][]byte{
-			key: []byte(value),
-		},
-		StringData: nil,
-		Type:       "",
-	})
-	return client
-}
-
-func assertParsed(t *testing.T, expected string, url string) {
-	key, err := mapSecretKey(url)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, key)
 }
