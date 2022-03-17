@@ -34,6 +34,7 @@ func TestActionAggregate(t *testing.T) {
 		m1 := mockAction{}
 		m2 := mockAction{}
 		m3 := mockAction{}
+
 		aggregate := actions.NewActionAggregate(&m1, &m2, &m3)
 
 		// when
