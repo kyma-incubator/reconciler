@@ -1,10 +1,11 @@
 package reconciler
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-func NewComponentReconciler(o *Options, reconcilerName string) (*service.ComponentReconciler, error) {
+func NewComponentReconciler(o *Options, reconcilerName string, reconcilerMetricsSet *metrics.ReconcilerMetricsSet) (*service.ComponentReconciler, error) {
 	recon, err := service.GetReconciler(reconcilerName)
 	if err != nil {
 		return nil, err
@@ -21,7 +22,8 @@ func NewComponentReconciler(o *Options, reconcilerName string) (*service.Compone
 		//configure status updates send to mothership reconciler
 		WithHeartbeatSenderConfig(o.HeartbeatSenderConfig.Interval, o.HeartbeatSenderConfig.Timeout).
 		//configure reconciliation progress-checks applied on target K8s cluster
-		WithProgressTrackerConfig(o.ProgressTrackerConfig.Interval, o.ProgressTrackerConfig.Timeout)
+		WithProgressTrackerConfig(o.ProgressTrackerConfig.Interval, o.ProgressTrackerConfig.Timeout).
+		WithReconcilerMetricsSet(reconcilerMetricsSet)
 
 	return recon, nil
 }
