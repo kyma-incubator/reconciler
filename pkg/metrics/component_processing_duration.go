@@ -19,7 +19,7 @@ func NewComponentProcessingDurationMetric(logger *zap.SugaredLogger) *ComponentP
 			Subsystem: prometheusSubsystem,
 			Name:      "processing_time",
 			Help:      "Processing time of operations",
-			Buckets:   prometheus.ExponentialBuckets(startBucketWithMillisecond, 2, 10),
+			Buckets:   prometheus.ExponentialBuckets(startBucketWithMillisecond, 2, 11),
 		}, []string{"component", "metric"}),
 		logger: logger,
 	}
