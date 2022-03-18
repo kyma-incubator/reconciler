@@ -89,7 +89,7 @@ paths:
             format: uuid
       responses:
         "200":
-          $ref: "#/components/responses/Ok"
+          description: "Purge Succeded"
         "400":
           $ref: "#/components/responses/BadRequest"
         "500":
