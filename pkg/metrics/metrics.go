@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/features"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
@@ -23,8 +24,8 @@ func RegisterWaitingAndNotReadyReconciliations(inventory cluster.Inventory, logg
 	prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector)
 }
 
-func RegisterDbPool(inventory cluster.Inventory, logger *zap.SugaredLogger) {
-	dbPoolMetricsCollector := NewDbPoolCollector(inventory, logger)
+func RegisterDbPool(connPool db.Connection, logger *zap.SugaredLogger) {
+	dbPoolMetricsCollector := NewDbPoolCollector(connPool, logger)
 	prometheus.MustRegister(dbPoolMetricsCollector)
 }
 

@@ -205,6 +205,10 @@ func (t *TxConnection) Rollback() error {
 	return t.tx.Rollback()
 }
 
+func (t *TxConnection) DBStats() *sql.DBStats {
+	return t.conn.DBStats()
+}
+
 func isCollidingTxError(err error) bool {
 	return strings.Contains(err.Error(), "could not serialize access")
 }

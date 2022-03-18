@@ -140,6 +140,11 @@ func (pc *postgresConnection) Type() Type {
 	return Postgres
 }
 
+func (pc *postgresConnection) DBStats() *sql.DBStats {
+	stats := pc.db.Stats()
+	return &stats
+}
+
 type postgresConnectionFactory struct {
 	host          string
 	port          int

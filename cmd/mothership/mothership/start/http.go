@@ -128,7 +128,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 	metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config.Scheduler.Reconcilers, o.Logger())
 	metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
 	metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
-	metrics.RegisterDbPool(o.Registry.Inventory(), o.Logger())
+	metrics.RegisterDbPool(o.Registry.Connection(), o.Logger())
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks

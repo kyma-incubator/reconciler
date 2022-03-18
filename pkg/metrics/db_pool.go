@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"time"
@@ -19,7 +19,7 @@ type dbMetricInput *sql.DBStats
 type metricDefinition func(i dbMetricInput) *dbMetric
 
 type DbPoolCollector struct {
-	inventory         cluster.Inventory
+	conn              db.Connection
 	logger            *zap.SugaredLogger
 	collectionTimeout time.Duration
 	desc              *prometheus.GaugeVec
@@ -41,9 +41,9 @@ const (
 	dbWaitDuration       = "wait_duration"
 )
 
-func NewDbPoolCollector(inventory cluster.Inventory, logger *zap.SugaredLogger) *DbPoolCollector {
+func NewDbPoolCollector(connPool db.Connection, logger *zap.SugaredLogger) *DbPoolCollector {
 	return &DbPoolCollector{
-		inventory:         inventory,
+		conn:              connPool,
 		logger:            logger,
 		collectionTimeout: 30 * time.Second,
 		desc: prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -86,12 +86,13 @@ func (c *DbPoolCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements the prometheus.Collector interface.
 func (c *DbPoolCollector) Collect(ch chan<- prometheus.Metric) {
-	if c.inventory == nil {
-		c.logger.Error("unable to register accessMetric: inventory is nil")
+
+	if c.conn == nil {
+		c.logger.Error("unable to register accessMetric: connection is nil")
 		return
 	}
 
-	stats := c.inventory.DBStats()
+	stats := c.conn.DBStats()
 	if stats == nil {
 		return
 	}
