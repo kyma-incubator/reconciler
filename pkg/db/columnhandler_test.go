@@ -33,7 +33,7 @@ func TestColumnHandler(t *testing.T) {
 		testStruct := &validateMe{}
 		validate(t, testStruct, false)
 
-		//invalid
+		//invalid invalid
 		testStruct.I = 123
 		validate(t, testStruct, false)
 
