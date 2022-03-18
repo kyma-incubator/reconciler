@@ -178,7 +178,7 @@ func (w *Pool) invokeProcessableOps() (int, error) {
 		idx++
 	}
 	err = w.Notify()
-	if err != nil && w.occupancyObserver != nil {
+	if err != nil {
 		w.logger.Debugf("worker pool failed to notify occupancy observer: %s", err)
 	}
 	w.logger.Infof("Worker pool assigned %d of %d processable operations to workers", idx, opsCnt)
@@ -265,12 +265,12 @@ func (w *Pool) UnregisterObserver(observer occupancy.Observer) {
 
 func (w *Pool) Notify() error {
 	if w.occupancyObserver == nil {
-		return fmt.Errorf("worker pool failed to notify occupancy observer: %v", w.occupancyObserver)
+		return fmt.Errorf("no observer was registered")
 	}
 	err := w.occupancyObserver.UpdateOccupancy()
 	if err != nil {
 		return err
 	}
-	w.logger.Infof("Worker pool notified its occupancy observer")
+	w.logger.Info("Worker pool successfully notified its occupancy observer")
 	return nil
 }
