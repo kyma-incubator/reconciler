@@ -122,12 +122,12 @@ func (c *cleaner) deleteRecordsByAge(runtimeID string, numberOfDays int, transit
 	runtimeFilter := reconciliation.WithRuntimeID{
 		RuntimeID: runtimeID,
 	}
-	schedulingIdFilter := reconciliation.WithNotSchedulingID{
+	schedulingIDFilter := reconciliation.WithNotSchedulingID{
 		SchedulingID: mostRecentReconciliation.SchedulingID,
 	}
 
 	filter := reconciliation.FilterMixer{
-		Filters: []reconciliation.Filter{&timeFilter, &runtimeFilter, &schedulingIdFilter},
+		Filters: []reconciliation.Filter{&timeFilter, &runtimeFilter, &schedulingIDFilter},
 	}
 
 	return transition.ReconciliationRepository().RemoveReconciliations(&filter)

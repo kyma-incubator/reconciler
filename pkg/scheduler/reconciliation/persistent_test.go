@@ -106,12 +106,12 @@ func TestPersistentReconciliationRepository_RemoveReconciliationsByFilter(t *tes
 				timeToFilter := WithCreationDateBefore{
 					Time: timeTo,
 				}
-				reconciliationIdFilter := WithRuntimeID{
+				reconciliationIDFilter := WithRuntimeID{
 					RuntimeID: runtimeID,
 				}
 
 				filter := FilterMixer{
-					Filters: []Filter{&timeFromFilter, &timeToFilter, &reconciliationIdFilter},
+					Filters: []Filter{&timeFromFilter, &timeToFilter, &reconciliationIDFilter},
 				}
 
 				if err := persistenceRepo.RemoveReconciliations(&filter); (err != nil) != testCase.wantErr {
