@@ -95,8 +95,7 @@ func (r *Task) Validate() error {
 }
 
 type Repository struct {
-	URL            string `json:"url"`
-	TokenNamespace string `json:"tokenNamespace"`
+	URL string `json:"url"`
 }
 
 func (r *Repository) String() string {

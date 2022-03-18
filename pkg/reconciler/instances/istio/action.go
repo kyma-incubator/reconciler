@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+
 	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
@@ -106,7 +107,7 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 }
 
 type MutatingWebhookPostAction struct {
-	//Temporary solution to overcome Reconciler limitation: Unable to bootstrap IstioPerformer only once in the component reconciler lifetime
+	// Temporary solution to overcome Reconciler limitation: Unable to bootstrap IstioPerformer only once in the component reconciler lifetime
 	getIstioPerformer bootstrapIstioPerformer
 }
 
@@ -207,7 +208,7 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 		if err != nil {
 			return err
 		}
-		//Before removing istio himself, undeploy all related objects like dashboards
+		// Before removing istio himself, undeploy all related objects like dashboards
 		err = unDeployIstioRelatedResources(context.Context, istioManifest.Manifest, context.KubeClient, context.Logger)
 		if err != nil {
 			return err
@@ -271,6 +272,7 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 			return errors.Wrap(err, "Could not install Istio")
 		}
 
+		context.Logger.Info("Patching Istio provided mutating webhook")
 		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")

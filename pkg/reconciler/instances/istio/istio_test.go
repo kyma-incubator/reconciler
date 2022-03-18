@@ -139,6 +139,7 @@ const (
 	  }`
 )
 
+// TODO(piotrkpc): here we are testing particular action's behaviour not Istio reconciler. Consider moving those to action_test.go
 func Test_RunUpdateAction(t *testing.T) {
 
 	performerCreatorFn := func(p *actions.DefaultIstioPerformer) func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
@@ -328,4 +329,13 @@ func (tcr TestCommanderResolver) GetCommander(version istioctl.Version) (istioct
 	}
 
 	return tcr.cmder, nil
+}
+
+func TestIstioReconciler(t *testing.T) {
+	istioReconciler, err := service.GetReconciler(istio.ReconcilerNameIstio)
+
+	t.Run("should register Istio reconciler", func(t *testing.T) {
+		require.NoError(t, err)
+		require.NotNil(t, istioReconciler)
+	})
 }

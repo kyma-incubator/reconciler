@@ -13,7 +13,7 @@ func convertTimestampToTime(value interface{}) (interface{}, error) {
 		layout := "2006-01-02 15:04:05" //see https://golang.org/src/time/format.go
 		result, err := time.Parse(layout, value.(string))
 		if err != nil { //try to convert with offset before failing
-			result, err = time.Parse(fmt.Sprintf("%s.999999999-07:00", layout), value.(string)) //TODO Recheck
+			result, err = time.Parse(fmt.Sprintf("%s.999999999-07:00", layout), value.(string))
 		}
 		return result, err
 	}

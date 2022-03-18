@@ -107,7 +107,7 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 		recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 		require.NoError(t, err)
 		for _, recon := range recons {
-			require.NoError(t, reconRepo.RemoveReconciliation(recon.SchedulingID))
+			require.NoError(t, reconRepo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
 		}
 	}()
 

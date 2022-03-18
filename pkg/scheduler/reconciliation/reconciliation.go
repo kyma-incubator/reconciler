@@ -19,8 +19,9 @@ const (
 
 type Repository interface {
 	CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error)
-	RemoveReconciliation(schedulingID string) error
-	RemoveReconciliations(schedulingIDs []string) error
+	RemoveReconciliationByRuntimeID(runtimeID string) error
+	RemoveReconciliationBySchedulingID(schedulingID string) error
+	RemoveReconciliationsBySchedulingID(schedulingIDs []string) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error

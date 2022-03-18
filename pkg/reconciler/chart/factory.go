@@ -3,7 +3,6 @@ package chart
 import (
 	"crypto/sha1" //nolint
 	"fmt"
-	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"io"
 	"net/http"
 	"path"
@@ -200,11 +199,6 @@ func (f *DefaultFactory) cloneComponent(component *Component, dstDir string) err
 		URL: component.url,
 	}
 
-	tokenNamespace := component.configuration["repo.token.namespace"]
-	if tokenNamespace != nil {
-		repo.TokenNamespace = fmt.Sprintf("%s", tokenNamespace)
-	}
-
 	dstPath := path.Join(dstDir, component.name)
 	return f.clone(component.version, dstPath, dstDir, repo)
 }
@@ -307,12 +301,7 @@ func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, 
 	f.logger.Infof("Cloning GIT repository '%s' with revision '%s' into workspace '%s'",
 		repo.URL, version, dstDir)
 
-	clientSet, err := reconcilerK8s.NewInClusterClientSet(f.logger)
-	if err != nil {
-		return err
-	}
-
-	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet, f.logger)
+	cloner, _ := git.NewCloner(&git.Client{}, repo, true, f.logger)
 	if err := cloner.CloneAndCheckout(dstDir, version); err != nil {
 		f.logger.Warnf("Deleting workspace '%s' because GIT clone of repository-URL '%s' with revision '%s' failed",
 			dstDir, repo.URL, version)
@@ -373,15 +362,7 @@ func (f *DefaultFactory) fetchComponent(component *Component, dstDir string) err
 		URL: component.url,
 	}
 
-	tokenNamespace := component.configuration["repo.token.namespace"]
-	if tokenNamespace != nil {
-		repo.TokenNamespace = fmt.Sprintf("%s", tokenNamespace)
-	}
-	clientSet, err := reconcilerK8s.NewInClusterClientSet(f.logger)
-	if err != nil {
-		return err
-	}
-	cloner, _ := git.NewCloner(&git.Client{}, repo, true, clientSet, f.logger)
+	cloner, _ := git.NewCloner(&git.Client{}, repo, true, f.logger)
 	return cloner.FetchAndCheckout(dstPath, component.version)
 }
 
@@ -393,7 +374,7 @@ func (f *DefaultFactory) getLatestRevOfVersion(version, path string) (string, er
 		return "", err
 	}
 
-	cloner, _ := git.NewCloner(gitClient, nil, true, nil, f.logger)
+	cloner, _ := git.NewCloner(gitClient, nil, true, f.logger)
 	revision, err := cloner.ResolveRevisionOrBranchHead(version)
 	if err != nil {
 		return "", err
