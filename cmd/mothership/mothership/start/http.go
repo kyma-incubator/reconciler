@@ -199,16 +199,10 @@ func deleteReconciliationsByCluster(o *Options, w http.ResponseWriter, r *http.R
 		})
 		return
 	}
-	clusterState, err := o.Registry.Inventory().GetLatest(runtimeID)
-	if err != nil && !repository.IsNotFoundError(err) {
-		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
-			Error: errors.Wrap(err, "Failed to get latest status").Error(),
-		})
-		return
-	}
 	err = o.Registry.ReconciliationRepository().RemoveReconciliationByRuntimeID(runtimeID)
-	if err == nil && clusterState != nil {
-		sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
+	if err == nil {
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 	if repository.IsNotFoundError(err) {
 		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
@@ -992,7 +986,6 @@ func sendClusterStateResponse(w http.ResponseWriter, state *cluster.State) {
 }
 
 func newClusterResponse(r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) (*keb.HTTPClusterResponse, error) {
-	fmt.Printf("%+v", *clusterState)
 	kebStatus, err := clusterState.Status.GetKEBClusterStatus()
 	if err != nil {
 		return nil, err
