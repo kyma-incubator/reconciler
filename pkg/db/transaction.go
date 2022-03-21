@@ -3,13 +3,14 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"math/rand"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 const txMaxRetries = 5
@@ -153,6 +154,7 @@ func (t *TxConnection) Query(query string, args ...interface{}) (DataRows, error
 }
 
 func (t *TxConnection) Exec(query string, args ...interface{}) (sql.Result, error) {
+	t.logger.Debugf("Transaction Exec(): %s | %v", query, args)
 	return t.tx.Exec(query, args...)
 }
 

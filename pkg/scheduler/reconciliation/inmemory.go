@@ -107,6 +107,7 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliationsBySchedulingID(s
 	}
 	return nil
 }
+
 func (r *InMemoryReconciliationRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -117,6 +118,22 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliationByRuntimeID(runti
 	}
 	delete(r.reconciliations, runtimeID)
 	delete(r.operations, schedulingID)
+
+	return nil
+}
+
+func (r *InMemoryReconciliationRepository) RemoveReconciliations(filter Filter) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	reconciliations, err := r.getReconciliations(filter)
+	if err != nil {
+		return err
+	}
+
+	for _, recon := range reconciliations {
+		removeSchedulingID(recon.SchedulingID, r.reconciliations, r.operations)
+	}
 
 	return nil
 }
@@ -158,6 +175,10 @@ func (r *InMemoryReconciliationRepository) GetReconciliations(filter Filter) ([]
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	return r.getReconciliations(filter)
+}
+
+func (r *InMemoryReconciliationRepository) getReconciliations(filter Filter) ([]*model.ReconciliationEntity, error) {
 	var result []*model.ReconciliationEntity
 	for _, reconciliation := range r.reconciliations {
 		if filter != nil && filter.FilterByInstance(reconciliation) == nil {

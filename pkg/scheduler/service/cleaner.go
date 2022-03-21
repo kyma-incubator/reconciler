@@ -97,6 +97,7 @@ func (c *cleaner) purgeReconciliationsForCluster(runtimeID string, transition *C
 		c.logger.Errorf("%s Failed to delete reconciliations more than %d: %s", CleanerPrefix, config.keepLatestEntitiesCount(), err.Error())
 		return
 	}
+	c.logger.Infof("%s Done cleaning reconciliation entries for cluster with RuntimeID: %s", CleanerPrefix, runtimeID)
 }
 
 //deleteRecordsByAge deletes all reconciliations for a given cluster that's older than configured number of days except the single most recent record - that one is never deleted
@@ -115,11 +116,21 @@ func (c *cleaner) deleteRecordsByAge(runtimeID string, numberOfDays int, transit
 		return nil
 	}
 
-	removeExceptOneFilter := func(m *model.ReconciliationEntity) bool {
-		return m.SchedulingID != mostRecentReconciliation.SchedulingID
+	timeFilter := reconciliation.WithCreationDateBefore{
+		Time: deadline,
+	}
+	runtimeFilter := reconciliation.WithRuntimeID{
+		RuntimeID: runtimeID,
+	}
+	schedulingIDFilter := reconciliation.WithNotSchedulingID{
+		SchedulingID: mostRecentReconciliation.SchedulingID,
 	}
 
-	return c.dropReconciliationsOlderThanByFilter(runtimeID, deadline, removeExceptOneFilter, transition)
+	filter := reconciliation.FilterMixer{
+		Filters: []reconciliation.Filter{&timeFilter, &runtimeFilter, &schedulingIDFilter},
+	}
+
+	return transition.ReconciliationRepository().RemoveReconciliations(&filter)
 }
 
 //deleteRecordsByCountAndStatus deletes record between some deadline in the past and now. It keeps the config.KeepLatestEntitiesCount() of the most recent records and the ones that are not successfully finished.
@@ -143,8 +154,6 @@ func (c *cleaner) deleteRecordsByCountAndStatus(runtimeID string, transition *Cl
 	var schedulingIDsToDrop []string
 	for _, obsoleteReconciliation := range reconciliations[mostRecentEntitiesToKeep:] {
 		if obsoleteReconciliation.Status.IsFinalStable() {
-			// collect schedulingIDs
-			// TODO: when filter for Delete statement is supported, switch back to reconciliationEntities
 			schedulingIDsToDrop = append(schedulingIDsToDrop, obsoleteReconciliation.SchedulingID)
 		}
 	}
@@ -173,42 +182,6 @@ func (c *cleaner) getMostRecentReconciliation(runtimeID string, transition *Clus
 	}
 
 	return res[0], nil
-}
-
-func (c *cleaner) dropReconciliationsOlderThanByFilter(runtimeID string, t time.Time, shouldRemoveFilter reconciliationFilter, transition *ClusterStatusTransition) error {
-	deadline := t.UTC()
-	olderReconciliations, err := c.findReconciliationsOlderThan(runtimeID, deadline, transition)
-	if err != nil {
-		return err
-	}
-
-	var schedulingIDsToDrop []string
-	for _, obsoleteReconciliation := range olderReconciliations {
-		if shouldRemoveFilter(obsoleteReconciliation) {
-			// collect schedulingIDs
-			// TODO: when filter for Delete statement is supported, switch back to reconciliationEntities
-			schedulingIDsToDrop = append(schedulingIDsToDrop, obsoleteReconciliation.SchedulingID)
-		}
-	}
-
-	c.logger.Infof("%s Found %d records older than %s for cluster %s", CleanerPrefix, len(schedulingIDsToDrop), deadline.String(), runtimeID)
-	if len(schedulingIDsToDrop) > 0 {
-		return c.removeReconciliations(schedulingIDsToDrop, transition)
-	}
-	return err
-}
-
-func (c *cleaner) findReconciliationsOlderThan(runtimeID string, t time.Time, transition *ClusterStatusTransition) ([]*model.ReconciliationEntity, error) {
-	runtimeIDFilter := reconciliation.WithRuntimeID{RuntimeID: runtimeID}
-	dateBeforeFilter := reconciliation.WithCreationDateBefore{Time: t}
-	filter := reconciliation.FilterMixer{Filters: []reconciliation.Filter{&runtimeIDFilter, &dateBeforeFilter}}
-
-	reconciliations, err := transition.ReconciliationRepository().GetReconciliations(&filter)
-	if err != nil {
-		c.logger.Errorf("%s Failed to get reconciliations older than %s: %s", CleanerPrefix, t.String(), err.Error())
-		return nil, err
-	}
-	return reconciliations, nil
 }
 
 //removeReconciliations drops all reconciliations provided in the list
@@ -246,5 +219,3 @@ func (c *cleaner) purgeReconciliationsOld(transition *ClusterStatusTransition, c
 func beginningOfTheDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
-
-type reconciliationFilter func(*model.ReconciliationEntity) bool

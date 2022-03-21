@@ -3,9 +3,10 @@ package db
 import (
 	"bytes"
 	"fmt"
-	"go.uber.org/zap"
 	"sort"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type Query struct {
@@ -38,6 +39,16 @@ func (q *Query) Select() *Select {
 	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
 
 	return &Select{q, []interface{}{}, nil}
+}
+
+func (q *Query) SelectColumn(fieldName string) (*Select, error) {
+	columnName, err := q.columnHandler.ColumnName(fieldName)
+	if err != nil {
+		return nil, err
+	}
+	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", columnName, q.entity.Table()))
+
+	return &Select{q, []interface{}{}, nil}, nil
 }
 
 func (q *Query) Insert() *Insert {
@@ -164,6 +175,13 @@ type Select struct {
 	*Query
 	args []interface{}
 	err  error
+}
+
+//GetArgs returns a copy of current Select arguments
+func (s *Select) GetArgs() []interface{} {
+	dst := make([]interface{}, len(s.args))
+	copy(dst, s.args)
+	return dst
 }
 
 func (s *Select) WhereRaw(stmt string, args ...interface{}) *Select {
