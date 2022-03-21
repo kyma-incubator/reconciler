@@ -117,7 +117,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 		return a.upgrade(context, cfg, chartURL, releaseName, namespace, skipHelmUpgrade)
 	case model.OperationTypeDelete:
 		if err == nil {
-			return a.delete(context, cfg, releaseName)
+			return a.delete(cfg, releaseName)
 		}
 	}
 
@@ -153,7 +153,7 @@ func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.
 
 func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace string, skipHelmUpgrade bool) error {
 	username := context.Task.Metadata.InstanceID
-	password, err := a.fetchPassword(context.Context, username, releaseName, namespace)
+	password, err := a.fetchPassword(context.Context, releaseName, namespace)
 	if err != nil {
 		return errors.WithMessage(err, "failed to fetch auth credentials from secret")
 	}
@@ -185,7 +185,7 @@ func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.
 	return nil
 }
 
-func (a *IntegrationAction) delete(context *service.ActionContext, cfg *action.Configuration, releaseName string) error {
+func (a *IntegrationAction) delete(cfg *action.Configuration, releaseName string) error {
 	uninstallAction := action.NewUninstall(cfg)
 	uninstallAction.Timeout = 5 * time.Minute
 
@@ -232,7 +232,7 @@ func (a *IntegrationAction) fetchChart(ctx context.Context, chartURL string) (*c
 	return chart, nil
 }
 
-func (a *IntegrationAction) fetchPassword(ctx context.Context, username, release, namespace string) (string, error) {
+func (a *IntegrationAction) fetchPassword(ctx context.Context, release, namespace string) (string, error) {
 	client, err := a.client.KubernetesClientSet()
 	if err != nil {
 		return "", err
