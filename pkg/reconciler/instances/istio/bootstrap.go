@@ -32,7 +32,7 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 
 		resolver, err := newDefaultCommanderResolver(istioctlPaths, logger)
 		if err != nil {
-			logger.Errorf("Could not create '%s' component reconciler: Error creating DefaultCOmmadnerResolver with istioctLPaths '%s': %s", name, istioctlPaths, err.Error())
+			logger.Errorf("Could not create '%s' component reconciler: Error creating DefaultCommadnerResolver with istioctLPaths '%s': %s", name, istioctlPaths, err.Error())
 			return nil, err
 		}
 
@@ -77,7 +77,7 @@ func newDefaultCommanderResolver(paths []string, log *zap.SugaredLogger) (action
 
 // parsePaths func parses and validates executable paths. The input must contain a list of full/absolute filesystem paths of binaries, separated by a semicolon character ';'
 // isValid function is used to validate every single binary path in the input.
-func parsePaths(input string, isValid func(string) error) ([]string, error) {
+func parsePaths(input string, isValid func(string, *zap.SugaredLogger) error) ([]string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
 		return nil, errors.Errorf("%s env variable is undefined or empty", istioctlBinaryPathEnvKey)
@@ -101,12 +101,13 @@ func parsePaths(input string, isValid func(string) error) ([]string, error) {
 }
 
 // TODO: test it
-func validatePath(path string) error {
+func validatePath(path string, logger *zap.SugaredLogger) error {
 	stat, err := os.Stat(path)
 	if err != nil {
 		return errors.Wrap(err, "Error getting file data")
 	}
 	mode := stat.Mode()
+	logger.Debugf("%s mode: %s", path, mode)
 	if (!mode.IsRegular()) || mode.IsDir() {
 		return errors.New(fmt.Sprintf("\"%s\" is not a regular file", path))
 	}
