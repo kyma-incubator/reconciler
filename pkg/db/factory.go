@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func NewConnectionFactory(configFile string, migrate bool, debug bool) (ConnectionFactory, error) {
@@ -46,23 +47,6 @@ func MigrateDatabase(configFile string, debug bool) error {
 	return err
 }
 
-func readEncryptionKey() (string, error) {
-	encKeyFile := viper.GetString("db.encryption.keyFile")
-	if encKeyFile != "" {
-		if !filepath.IsAbs(encKeyFile) {
-			//define absolute path relative to config-file directory
-			encKeyFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), encKeyFile)
-		}
-	}
-
-	//overwrite encKeyFile if env-var if defined
-	if viper.IsSet("DATABASE_ENCRYPTION_KEYFILE") {
-		encKeyFile = viper.GetString("DATABASE_ENCRYPTION_KEYFILE")
-	}
-
-	return readKeyFile(encKeyFile)
-}
-
 func createSqliteConnectionFactory(encKey string, debug bool, blockQueries, logQueries bool) (*sqliteConnectionFactory, error) {
 	dbFile := viper.GetString("db.sqlite.file")
 	//ensure directory structure of db-file exists
@@ -86,7 +70,21 @@ func createSqliteConnectionFactory(encKey string, debug bool, blockQueries, logQ
 	return connFact, nil
 }
 
-func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, logQueries bool) *postgresConnectionFactory {
+type postgresEnvironment struct {
+	host            string
+	port            int
+	database        string
+	user            string
+	password        string
+	sslMode         bool
+	migrationsDir   string
+	maxOpenConns    int
+	maxIdleConns    int
+	connMaxIdleTime time.Duration
+	connMaxLifetime time.Duration
+}
+
+func getPostgresEnvironment() postgresEnvironment {
 	host := viper.GetString("db.postgres.host")
 	port := viper.GetInt("db.postgres.port")
 	database := viper.GetString("db.postgres.database")
@@ -133,21 +131,57 @@ func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, lo
 		connMaxIdleTime = viper.GetDuration("DATABASE_CONN_MAX_IDLE_TIME")
 	}
 
-	return &postgresConnectionFactory{
+	return postgresEnvironment{
 		host:            host,
 		port:            port,
 		database:        database,
 		user:            user,
 		password:        password,
 		sslMode:         sslMode,
-		encryptionKey:   encKey,
 		migrationsDir:   migrationsDir,
-		blockQueries:    blockQueries,
-		logQueries:      logQueries,
-		debug:           debug,
 		maxOpenConns:    maxOpenConns,
 		maxIdleConns:    maxIdleConns,
 		connMaxIdleTime: connMaxIdleTime,
 		connMaxLifetime: connMaxLifetime,
+	}
+}
+
+func readEncryptionKey() (string, error) {
+	encKeyFile := viper.GetString("db.encryption.keyFile")
+	if encKeyFile != "" {
+		if !filepath.IsAbs(encKeyFile) {
+			//define absolute path relative to config-file directory
+			encKeyFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), encKeyFile)
+		}
+	}
+
+	//overwrite encKeyFile if env-var if defined
+	if viper.IsSet("DATABASE_ENCRYPTION_KEYFILE") {
+		encKeyFile = viper.GetString("DATABASE_ENCRYPTION_KEYFILE")
+	}
+
+	return readKeyFile(encKeyFile)
+}
+
+func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, logQueries bool) *postgresConnectionFactory {
+
+	env := getPostgresEnvironment()
+
+	return &postgresConnectionFactory{
+		host:            env.host,
+		port:            env.port,
+		database:        env.database,
+		user:            env.user,
+		password:        env.password,
+		sslMode:         env.sslMode,
+		encryptionKey:   encKey,
+		migrationsDir:   env.migrationsDir,
+		blockQueries:    blockQueries,
+		logQueries:      logQueries,
+		debug:           debug,
+		maxOpenConns:    env.maxOpenConns,
+		maxIdleConns:    env.maxIdleConns,
+		connMaxIdleTime: env.connMaxIdleTime,
+		connMaxLifetime: env.connMaxLifetime,
 	}
 }

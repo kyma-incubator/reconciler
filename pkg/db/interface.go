@@ -29,6 +29,7 @@ type Connection interface {
 type ConnectionFactory interface {
 	Init(migrate bool) error
 	NewConnection() (Connection, error)
+	Reset() error
 }
 
 type DatabaseEntity interface {

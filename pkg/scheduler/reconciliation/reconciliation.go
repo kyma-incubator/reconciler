@@ -2,12 +2,13 @@ package reconciliation
 
 import (
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
-	"sort"
-	"strings"
 )
 
 type metricStartTime int
@@ -22,6 +23,7 @@ type Repository interface {
 	RemoveReconciliationByRuntimeID(runtimeID string) error
 	RemoveReconciliationBySchedulingID(schedulingID string) error
 	RemoveReconciliationsBySchedulingID(schedulingIDs []string) error
+	RemoveReconciliations(filter Filter) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error

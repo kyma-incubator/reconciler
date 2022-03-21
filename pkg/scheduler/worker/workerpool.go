@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"strings"
 	"time"
 
@@ -16,12 +17,13 @@ import (
 )
 
 type Pool struct {
-	retriever ClusterStateRetriever
-	reconRepo reconciliation.Repository
-	invoker   invoker.Invoker
-	config    *Config
-	logger    *zap.SugaredLogger
-	antsPool  *ants.PoolWithFunc
+	retriever         ClusterStateRetriever
+	reconRepo         reconciliation.Repository
+	invoker           invoker.Invoker
+	config            *Config
+	logger            *zap.SugaredLogger
+	antsPool          *ants.PoolWithFunc
+	occupancyObserver occupancy.Observer
 }
 
 func NewWorkerPool(retriever ClusterStateRetriever, reconRepo reconciliation.Repository, invoker invoker.Invoker, config *Config, logger *zap.SugaredLogger) (*Pool, error) {
@@ -175,6 +177,10 @@ func (w *Pool) invokeProcessableOps() (int, error) {
 		}
 		idx++
 	}
+	err = w.Notify()
+	if err != nil {
+		w.logger.Debugf("worker pool failed to notify occupancy observer: %s", err)
+	}
 	w.logger.Infof("Worker pool assigned %d of %d processable operations to workers", idx, opsCnt)
 	return opsCnt, nil
 }
@@ -237,4 +243,34 @@ func (w *Pool) RunningWorkers() (int, error) {
 
 func (w *Pool) Size() int {
 	return w.config.PoolSize
+}
+
+func (w *Pool) RegisterObserver(observer occupancy.Observer) {
+	if w.occupancyObserver != nil {
+		w.logger.Debug("Worker pool is already registered an occupancy observer")
+		return
+	}
+	w.occupancyObserver = observer
+	w.logger.Infof("Worker pool registered new occupancy observer: %v", observer)
+}
+
+func (w *Pool) UnregisterObserver(observer occupancy.Observer) {
+	if w.occupancyObserver == nil {
+		w.logger.Debug("Worker pool has nil occupancy observer already")
+		return
+	}
+	w.occupancyObserver = nil
+	w.logger.Infof("Worker pool unregistered its occupancy observer: %v", observer)
+}
+
+func (w *Pool) Notify() error {
+	if w.occupancyObserver == nil {
+		return fmt.Errorf("no observer was registered")
+	}
+	err := w.occupancyObserver.UpdateOccupancy()
+	if err != nil {
+		return err
+	}
+	w.logger.Info("Worker pool successfully notified its occupancy observer")
+	return nil
 }
