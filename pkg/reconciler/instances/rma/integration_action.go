@@ -37,7 +37,6 @@ type IntegrationAction struct {
 	client       IntegrationClient
 	mux          sync.Mutex
 	archives     map[string][]byte
-	pwds         map[string]string
 	chartVerExpr *regexp.Regexp
 }
 
@@ -49,7 +48,6 @@ func NewIntegrationAction(name string, client IntegrationClient) *IntegrationAct
 			Timeout: 20 * time.Second,
 		},
 		archives:     make(map[string][]byte),
-		pwds:         make(map[string]string),
 		chartVerExpr: regexp.MustCompile(fmt.Sprintf("%s-([a-zA-Z0-9-.]+)\\.tgz$", RmiChartName)),
 	}
 }
@@ -150,7 +148,6 @@ func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.
 	}
 
 	setAuthCredentialOverrides(context.Task.Configuration, username, password)
-	a.setPassword(username, password)
 	return nil
 }
 
@@ -197,7 +194,6 @@ func (a *IntegrationAction) delete(context *service.ActionContext, cfg *action.C
 		return errors.WithMessagef(err, "helm delete %s-%s failed", RmiChartName, releaseName)
 	}
 
-	a.deletePassword(context.Task.Metadata.InstanceID)
 	return nil
 }
 
@@ -237,29 +233,22 @@ func (a *IntegrationAction) fetchChart(ctx context.Context, chartURL string) (*c
 }
 
 func (a *IntegrationAction) fetchPassword(ctx context.Context, username, release, namespace string) (string, error) {
-	a.mux.Lock()
-	defer a.mux.Unlock()
-	password := a.pwds[username]
-
-	if password == "" {
-		client, err := a.client.KubernetesClientSet()
-		if err != nil {
-			return "", err
-		}
-		secret, err := client.CoreV1().Secrets(namespace).Get(ctx, fmt.Sprintf("vmuser-%s-%s", RmiChartName, release), metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		if secret.Data == nil {
-			return "", errors.New("secret data is empty")
-		}
-		passwordData := secret.Data["password"]
-		if len(passwordData) == 0 {
-			return "", errors.New("missing/empty auth credentials")
-		}
-		password = string(passwordData)
-		a.pwds[username] = password
+	client, err := a.client.KubernetesClientSet()
+	if err != nil {
+		return "", err
 	}
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, fmt.Sprintf("vmuser-%s-%s", RmiChartName, release), metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	if secret.Data == nil {
+		return "", errors.New("secret data is empty")
+	}
+	passwordData := secret.Data["password"]
+	if len(passwordData) == 0 {
+		return "", errors.New("missing/empty auth credentials")
+	}
+	password := string(passwordData)
 
 	return password, nil
 }
@@ -276,18 +265,6 @@ func generatePassword(n int) (string, error) {
 	}
 
 	return string(ret), nil
-}
-
-func (a *IntegrationAction) setPassword(username, password string) {
-	a.mux.Lock()
-	defer a.mux.Unlock()
-	a.pwds[username] = password
-}
-
-func (a *IntegrationAction) deletePassword(username string) {
-	a.mux.Lock()
-	defer a.mux.Unlock()
-	delete(a.pwds, username)
 }
 
 func (a *IntegrationAction) getChartVersionFromURL(chartURL string) string {
