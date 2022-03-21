@@ -52,6 +52,11 @@ func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []st
 }
 
 func (mr *MockRepository) RemoveReconciliations(filter Filter) error {
+	for _, recon := range mr.GetReconciliationsResult {
+		if filter.FilterByInstance(recon) != nil {
+			mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, recon.SchedulingID)
+		}
+	}
 	return nil
 }
 
