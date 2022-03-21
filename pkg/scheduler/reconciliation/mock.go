@@ -65,7 +65,9 @@ func (mr *MockRepository) GetRuntimeIDs() ([]string, error) {
 	runtimeIDsCollector := map[string]interface{}{}
 	var runtimeIDs []string
 	for _, recon := range mr.GetReconciliationsResult {
-		runtimeIDsCollector[recon.RuntimeID] = true
+		if _, ok := runtimeIDsCollector[recon.RuntimeID]; !ok {
+			runtimeIDsCollector[recon.RuntimeID] = true
+		}
 	}
 	for key := range runtimeIDsCollector {
 		runtimeIDs = append(runtimeIDs, key)

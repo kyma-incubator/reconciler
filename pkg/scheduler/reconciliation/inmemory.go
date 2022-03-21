@@ -141,7 +141,11 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliationsBeforeDeadline(r
 }
 
 func (r *InMemoryReconciliationRepository) GetRuntimeIDs() ([]string, error) {
-	return nil, nil
+	var runtimeIDs []string
+	for key := range r.reconciliations {
+		runtimeIDs = append(runtimeIDs, key)
+	}
+	return runtimeIDs, nil
 }
 
 func (r *InMemoryReconciliationRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
