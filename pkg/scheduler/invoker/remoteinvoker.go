@@ -34,7 +34,11 @@ func NewRemoteReconcilerInvoker(reconRepo reconciliation.Repository, cfg *config
 	}
 }
 
-func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) error {
+func (i *RemoteReconcilerInvoker) Invoke(ctx context.Context, params *Params) error {
+	return i.invokeWithRetry(ctx, params, true)
+}
+
+func (i *RemoteReconcilerInvoker) invokeWithRetry(ctx context.Context, params *Params, retry bool) error {
 	if err := i.ensureOperationNotInProgress(params); err != nil {
 		return err
 	}
@@ -70,7 +74,10 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		i.reportUnmarshalError(resp.StatusCode, body, err)
 	}
 
-	if resp.StatusCode >= 400 && resp.StatusCode <= 499 {
+	if resp.StatusCode == http.StatusTooManyRequests && retry {
+		//component-reconciler worker-pool is overloaded and we should retry
+		return i.invokeWithRetry(ctx, params, false)
+	} else if resp.StatusCode >= 400 && resp.StatusCode <= 499 {
 		//component-reconciler can not start because dependencies are missing
 		respModel := &reconciler.HTTPErrorResponse{}
 		err := i.unmarshalHTTPResponse(body, respModel, params)

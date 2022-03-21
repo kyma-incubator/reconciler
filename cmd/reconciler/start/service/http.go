@@ -120,8 +120,15 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 		return
 	}
 
+	if workerPool.IsFull() {
+		server.SendHTTPError(w, http.StatusTooManyRequests, &reconciler.HTTPErrorResponse{
+			Error: errors.Errorf("worker pool for %s has reached it's capacity %v", model.Component, workerPool.Size()).Error(),
+		})
+	}
+
 	o.Logger().Debugf("Assigning reconciliation worker to model '%s'", model)
 	//setting callback URL for occupancy tracking
+
 	tracker.AssignCallbackURL(model.CallbackURL)
 	if err := workerPool.AssignWorker(ctx, model); err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
