@@ -95,29 +95,12 @@ func TestPersistentReconciliationRepository_RemoveReconciliationsByFilter(t *tes
 		testCase := tt
 		t.Run(testCase.name, func(t *testing.T) {
 			persistenceRepo, inMemoryRepo, _, _, runtimeIDs := prepareTest(t, testCase.reconciliations)
-
 			timeTo := time.Now().UTC()
-			timeFrom := time.Now().UTC().Add(-1 * 24 * time.Hour)
-
 			for _, runtimeID := range runtimeIDs {
-				timeFromFilter := WithCreationDateAfter{
-					Time: timeFrom,
-				}
-				timeToFilter := WithCreationDateBefore{
-					Time: timeTo,
-				}
-				reconciliationIDFilter := WithRuntimeID{
-					RuntimeID: runtimeID,
-				}
-
-				filter := FilterMixer{
-					Filters: []Filter{&timeFromFilter, &timeToFilter, &reconciliationIDFilter},
-				}
-
-				if err := persistenceRepo.RemoveReconciliations(&filter); (err != nil) != testCase.wantErr {
+				if err := persistenceRepo.RemoveReconciliationsBeforeDeadline(runtimeID, "nonExistentToMockDeletion", timeTo); (err != nil) != testCase.wantErr {
 					t.Errorf("Persistence RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 				}
-				if err := inMemoryRepo.RemoveReconciliations(&filter); (err != nil) != testCase.wantErr {
+				if err := inMemoryRepo.RemoveReconciliationsBeforeDeadline(runtimeID, "nonExistentToMockDeletion", timeTo); (err != nil) != testCase.wantErr {
 					t.Errorf("InMemory RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 				}
 			}

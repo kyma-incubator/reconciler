@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -23,9 +24,10 @@ type Repository interface {
 	RemoveReconciliationByRuntimeID(runtimeID string) error
 	RemoveReconciliationBySchedulingID(schedulingID string) error
 	RemoveReconciliationsBySchedulingID(schedulingIDs []string) error
-	RemoveReconciliations(filter Filter) error
+	RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
+	GetRuntimeIDs() ([]string, error)
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error
 	GetOperations(filter operation.Filter) ([]*model.OperationEntity, error)
 	GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error)

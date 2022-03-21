@@ -5,6 +5,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
+	"time"
 )
 
 type MockRepository struct {
@@ -51,13 +52,25 @@ func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []st
 	return mr.RemoveReconciliationResult
 }
 
-func (mr *MockRepository) RemoveReconciliations(filter Filter) error {
+func (mr *MockRepository) RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error {
 	for _, recon := range mr.GetReconciliationsResult {
-		if filter.FilterByInstance(recon) != nil {
+		if recon.RuntimeID == runtimeID && recon.SchedulingID != latestSchedulingID && recon.Created.Before(deadline) {
 			mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, recon.SchedulingID)
 		}
 	}
 	return nil
+}
+
+func (mr *MockRepository) GetRuntimeIDs() ([]string, error) {
+	runtimeIDsCollector := map[string]interface{}{}
+	var runtimeIDs []string
+	for _, recon := range mr.GetReconciliationsResult {
+		runtimeIDsCollector[recon.RuntimeID] = true
+	}
+	for key := range runtimeIDsCollector {
+		runtimeIDs = append(runtimeIDs, key)
+	}
+	return runtimeIDs, nil
 }
 
 func (mr *MockRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
