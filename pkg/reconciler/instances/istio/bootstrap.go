@@ -112,9 +112,18 @@ func validatePath(path string, logger *zap.SugaredLogger) error {
 		return errors.New(fmt.Sprintf("\"%s\" is not a regular file", path))
 	}
 	if uint32(mode&0111) == 0 {
+		logger.Debugf("%s is not executable, will chmod +x", path)
 		var fileMode os.FileMode = 0777
 		if err := os.Chmod(path, fileMode); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("%s is not executable - Failed to change file mode of istioctl binary to: %s", path, fileMode))
+		}
+		stat, err := os.Stat(path)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Error getting file data, after changing file mode of %s to %s", path, fileMode))
+		}
+		mode := stat.Mode()
+		if uint32(mode&0111) == 0 {
+			return errors.Wrap(err, fmt.Sprintf("%s is not executable - 'chmod +x' of istioctl binary was not persisted; File mode: %s", path, fileMode))
 		}
 		logger.Debugf("%s chmod to: %s", path, fileMode)
 	}
