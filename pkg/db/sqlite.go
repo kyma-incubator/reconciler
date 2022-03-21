@@ -145,6 +145,10 @@ func (scf *sqliteConnectionFactory) Init(_ bool) error {
 	return nil
 }
 
+func (scf *sqliteConnectionFactory) Reset() error {
+	return scf.resetFile()
+}
+
 func (scf *sqliteConnectionFactory) NewConnection() (Connection, error) {
 	db, err := sql.Open("sqlite3", scf.file) //establish connection
 	if err != nil {
