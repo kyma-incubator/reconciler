@@ -32,7 +32,7 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 
 		resolver, err := newDefaultCommanderResolver(istioctlPaths, logger)
 		if err != nil {
-			logger.Errorf("Could not create '%s' component reconciler: Error parsing env variable '%s': %s", name, istioctlBinaryPathEnvKey, err.Error())
+			logger.Errorf("Could not create '%s' component reconciler: Error creating DefaultCOmmadnerResolver with istioctLPaths '%s': %s", name, istioctlPaths, err.Error())
 			return nil, err
 		}
 
@@ -75,7 +75,7 @@ func newDefaultCommanderResolver(paths []string, log *zap.SugaredLogger) (action
 	}, nil
 }
 
-// parsePaths func parses and validates executable paths. The input must contain a list of full/absolute filesystem paths of binaries, separated by a colon character ':'
+// parsePaths func parses and validates executable paths. The input must contain a list of full/absolute filesystem paths of binaries, separated by a semicolon character ';'
 // isValid function is used to validate every single binary path in the input.
 func parsePaths(input string, isValid func(string) error) ([]string, error) {
 	trimmed := strings.TrimSpace(input)
@@ -85,7 +85,7 @@ func parsePaths(input string, isValid func(string) error) ([]string, error) {
 	if len(trimmed) > istioctlBinaryPathMaxLen {
 		return nil, errors.New(fmt.Sprintf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen))
 	}
-	pathDefs := strings.Split(trimmed, ":")
+	pathDefs := strings.Split(trimmed, ";")
 	var res []string
 	for _, path := range pathDefs {
 		val := strings.TrimSpace(path)
