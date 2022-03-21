@@ -68,56 +68,67 @@ func Test_cleaner_Run(t *testing.T) {
 
 		reconciliations := []*model.ReconciliationEntity{
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-0",
 				Created:      start,
 				Status:       model.ClusterStatusReady,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-1",
 				Created:      start.Add((-1 * 24) * time.Hour),
 				Status:       model.ClusterStatusReconcileErrorRetryable,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-2",
 				Created:      start.Add((-2 * 24) * time.Hour),
 				Status:       model.ClusterStatusReady,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-3",
 				Created:      start.Add((-3 * 24) * time.Hour),
 				Status:       model.ClusterStatusReconcileErrorRetryable,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-4",
 				Created:      start.Add((-4 * 24) * time.Hour),
 				Status:       model.ClusterStatusReady,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-5",
 				Created:      start.Add((-5 * 24) * time.Hour),
 				Status:       model.ClusterStatusReconcileErrorRetryable,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-6",
 				Created:      start.Add((-6 * 24) * time.Hour),
 				Status:       model.ClusterStatusReady,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-7",
 				Created:      start.Add((-7 * 24) * time.Hour),
 				Status:       model.ClusterStatusReconcileErrorRetryable,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-8",
 				Created:      start.Add((-8 * 24) * time.Hour),
 				Status:       model.ClusterStatusReady,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-9",
 				Created:      start.Add((-9 * 24) * time.Hour),
 				Status:       model.ClusterStatusReconcileErrorRetryable,
 			},
 			{
+				RuntimeID:    "test-cluster",
 				SchedulingID: "test-id-10",
 				Created:      start.Add((-10 * 24) * time.Hour),
 				Status:       model.ClusterStatusReady,
@@ -125,14 +136,11 @@ func Test_cleaner_Run(t *testing.T) {
 		}
 
 		updateModel := func(repo *reconciliation.MockRepository) {
-			if (repo.GetReconciliationsCount) == 1 {
-				repo.GetReconciliationsResult = []*model.ReconciliationEntity{reconciliations[7], reconciliations[8], reconciliations[9], reconciliations[10]} //setup data for the second call for reconciliations older that 6 days (from now)
+			if repo.GetReconciliationsCount == 1 {
+				repo.GetReconciliationsResult = reconciliations
+			} else if repo.GetReconciliationsCount == 2 {
+				repo.GetReconciliationsResult = reconciliations[0:6]
 			}
-
-			if (repo.GetReconciliationsCount) == 2 {
-				repo.GetReconciliationsResult = []*model.ReconciliationEntity{reconciliations[0], reconciliations[1], reconciliations[2], reconciliations[3], reconciliations[4], reconciliations[5], reconciliations[6]} //setup data for the third call for remaining reconciliations (between now and 6 days ago)
-			}
-
 		}
 
 		reconRepo := reconciliation.MockRepository{
@@ -153,7 +161,7 @@ func Test_cleaner_Run(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		require.Equal(t, 3, reconRepo.GetReconciliationsCount)
+		require.Equal(t, 2, reconRepo.GetReconciliationsCount)
 		recordedIDs := reconRepo.RemoveReconciliationRecording
 
 		//First batch of removals comes from "deleteRecordsByAge"
