@@ -1,6 +1,7 @@
 package istio
 
 import (
+	"go.uber.org/zap"
 	"strings"
 	"testing"
 
@@ -9,13 +10,13 @@ import (
 )
 
 func TestParsePaths(t *testing.T) {
-	alwaysValidFn := func(path string) error { return nil }
+	alwaysValidFn := func(path string, logger *zap.SugaredLogger) error { return nil }
 
 	t.Run("parsePaths should parse a single path", func(t *testing.T) {
 		//given
 		paths := "/a/b/c"
 		//when
-		res, err := parsePaths(paths, alwaysValidFn)
+		res, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
 		//then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(res))
@@ -23,9 +24,9 @@ func TestParsePaths(t *testing.T) {
 	})
 	t.Run("parsePaths should parse two paths", func(t *testing.T) {
 		//given
-		paths := "/a/b/c:/d/e/f"
+		paths := "/a/b/c;/d/e/f"
 		//when
-		res, err := parsePaths(paths, alwaysValidFn)
+		res, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
 		//then
 		require.NoError(t, err)
 		require.Equal(t, 2, len(res))
@@ -34,9 +35,9 @@ func TestParsePaths(t *testing.T) {
 	})
 	t.Run("parsePaths should parse three paths", func(t *testing.T) {
 		//given
-		paths := "/a/b/c:/d/e/f:/g/h/i"
+		paths := "/a/b/c;/d/e/f;/g/h/i"
 		//when
-		res, err := parsePaths(paths, alwaysValidFn)
+		res, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
 		//then
 		require.NoError(t, err)
 		require.Equal(t, 3, len(res))
@@ -48,7 +49,7 @@ func TestParsePaths(t *testing.T) {
 		//given
 		paths := ""
 		//when
-		_, err := parsePaths(paths, alwaysValidFn)
+		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ISTIOCTL_PATH env variable is undefined or empty")
@@ -57,49 +58,49 @@ func TestParsePaths(t *testing.T) {
 		//given
 		paths := "   "
 		//when
-		_, err := parsePaths(paths, alwaysValidFn)
+		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ISTIOCTL_PATH env variable is undefined or empty")
 	})
 	t.Run("parsePaths should return an error on paths containing just a colon", func(t *testing.T) {
 		//given
-		paths := ":"
+		paths := ";"
 		//when
-		_, err := parsePaths(paths, alwaysValidFn)
+		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Invalid (empty) path provided")
 	})
 	t.Run("parsePaths should return an error on paths starting with an empty element", func(t *testing.T) {
 		//given
-		paths := ":/a/b/c"
+		paths := ";/a/b/c"
 		//when
-		_, err := parsePaths(paths, alwaysValidFn)
+		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Invalid (empty) path provided")
 	})
 	t.Run("parsePaths should return an error on paths ending with an empty element", func(t *testing.T) {
 		//given
-		paths := "/a/b/c:"
+		paths := "/a/b/c;"
 		//when
-		_, err := parsePaths(paths, alwaysValidFn)
+		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Invalid (empty) path provided")
 	})
 	t.Run("parsePaths should return an error when validation function fails", func(t *testing.T) {
 		//given
-		paths := "/a/b/c:/d/e/f"
-		isValidFn := func(s string) error {
+		paths := "/a/b/c;/d/e/f"
+		isValidFn := func(s string, logger *zap.SugaredLogger) error {
 			if s == "/d/e/f" {
 				return errors.New("foo")
 			}
 			return nil
 		}
 		//when
-		_, err := parsePaths(paths, isValidFn)
+		_, err := parsePaths(paths, isValidFn, &zap.SugaredLogger{})
 		//then
 		require.Error(t, err)
 		require.Equal(t, "foo", err.Error())
@@ -113,7 +114,7 @@ func TestParsePaths(t *testing.T) {
 		}
 
 		//when
-		_, err := parsePaths(strings.Join(paths, ":"), alwaysValidFn)
+		_, err := parsePaths(strings.Join(paths, ";"), alwaysValidFn, &zap.SugaredLogger{})
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ISTIOCTL_PATH env variable exceeds the maximum istio path limit")
