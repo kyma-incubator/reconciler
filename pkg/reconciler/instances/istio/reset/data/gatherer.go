@@ -60,8 +60,9 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 			containsPrefix := strings.Contains(container.Image, image.Prefix)
 			hasSuffix := strings.HasSuffix(container.Image, image.Version)
 			isTerminating := pod.Status.Phase == "Terminating"
+			isPending := pod.Status.Phase == "Pending"
 
-			if containsPrefix && !hasSuffix && !isTerminating {
+			if containsPrefix && !hasSuffix && !isTerminating && !isPending {
 				outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 			}
 		}

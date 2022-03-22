@@ -50,8 +50,10 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 	}
 	podWithExpectedImage := fixPodWith("application", "kyma", "istio/proxyv2:1.10.1", "Running")
 	podWithExpectedImageTerminating := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Terminating")
+	podWithExpectedImagePending := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Pending")
 	podWithDifferentImageSuffix := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Running")
 	podWithDifferentImageSuffixTerminating := fixPodWith("application", "kyma", "istio/proxyv2:1.10.2", "Terminating")
+	podWithDifferentImageSuffixPending := fixPodWith("application", "kyma", "istio/proxyv2:1.10.2", "Pending")
 	podWithDifferentImagePrefix := fixPodWith("application", "kyma", "istio/weirdimage:1.10.2", "Running")
 
 	t.Run("should not get any pods from an empty list", func(t *testing.T) {
@@ -72,8 +74,10 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 		pods.Items = []v1.Pod{
 			*podWithExpectedImage,
 			*podWithExpectedImageTerminating,
+			*podWithExpectedImagePending,
 			*podWithDifferentImageSuffix,
 			*podWithDifferentImageSuffixTerminating,
+			*podWithDifferentImageSuffixPending,
 			*podWithDifferentImagePrefix,
 		}
 		gatherer := DefaultGatherer{}
