@@ -71,16 +71,15 @@ func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, conf
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
 func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, config *CleanerConfig) {
 
-	clusters, err := transition.inventory.GetAll()
+	runtimeIDs, err := transition.ReconciliationRepository().GetRuntimeIDs()
 	if err != nil {
-		c.logger.Errorf("%s Failed to get all clusters: %s", CleanerPrefix, err.Error())
+		c.logger.Errorf("%s Failed to get all runtimeIDs: %s", CleanerPrefix, err.Error())
 		return
 	}
 
-	for _, cluster := range clusters {
-		c.purgeReconciliationsForCluster(cluster.Cluster.RuntimeID, transition, config)
+	for _, runtimeID := range runtimeIDs {
+		c.purgeReconciliationsForCluster(runtimeID, transition, config)
 	}
-
 }
 
 func (c *cleaner) purgeReconciliationsForCluster(runtimeID string, transition *ClusterStatusTransition, config *CleanerConfig) {
@@ -116,21 +115,7 @@ func (c *cleaner) deleteRecordsByAge(runtimeID string, numberOfDays int, transit
 		return nil
 	}
 
-	timeFilter := reconciliation.WithCreationDateBefore{
-		Time: deadline,
-	}
-	runtimeFilter := reconciliation.WithRuntimeID{
-		RuntimeID: runtimeID,
-	}
-	schedulingIDFilter := reconciliation.WithNotSchedulingID{
-		SchedulingID: mostRecentReconciliation.SchedulingID,
-	}
-
-	filter := reconciliation.FilterMixer{
-		Filters: []reconciliation.Filter{&timeFilter, &runtimeFilter, &schedulingIDFilter},
-	}
-
-	return transition.ReconciliationRepository().RemoveReconciliations(&filter)
+	return transition.ReconciliationRepository().RemoveReconciliationsBeforeDeadline(runtimeID, mostRecentReconciliation.SchedulingID, deadline)
 }
 
 //deleteRecordsByCountAndStatus deletes record between some deadline in the past and now. It keeps the config.KeepLatestEntitiesCount() of the most recent records and the ones that are not successfully finished.

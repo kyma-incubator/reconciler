@@ -184,43 +184,70 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) RemoveReconciliations(filter Filter) error {
-
-	q, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
-	if err != nil {
-		return err
-	}
-
-	//query for a list of primary keys (SchedulingID)
-	selectQ, err := q.SelectColumn("SchedulingID")
-
-	if err != nil {
-		return err
-	}
-
-	if filter != nil {
-		if err := filter.FilterByQuery(selectQ); err != nil {
-			return errors.Wrap(err, "failed to apply sql filter")
-		}
-	}
-
-	//delete records using Select as a subquery
+func (r *PersistentReconciliationRepository) RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error {
 	dbOps := func(tx *db.TxConnection) error {
 		//delete reconciliation
 		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
 		if err != nil {
 			return err
 		}
+		columnHandler, err := db.NewColumnHandler(&model.ReconciliationEntity{}, qDelRecon.Conn, qDelRecon.Logger)
+		if err != nil {
+			return err
+		}
 
-		delCnt, err := qDelRecon.Delete().
-			WhereIn("SchedulingID", selectQ.String(), selectQ.GetArgs()...).
+		deleteStatement := qDelRecon.Delete()
+
+		schedulingIDColumnName, err := columnHandler.ColumnName("SchedulingID")
+		if err != nil {
+			return err
+		}
+		createdColumnName, err := columnHandler.ColumnName("Created")
+		if err != nil {
+			return err
+		}
+
+		//STEP 1: exclude latest schedulingID
+		//STEP 2: runtimeID
+		//STEP 3: deadline
+		deletedEntries, err := deleteStatement.
+			WhereRaw(fmt.Sprintf("%s<>$%d", schedulingIDColumnName, deleteStatement.NextPlaceholderCount()), latestSchedulingID).
+			Where(map[string]interface{}{"RuntimeID": runtimeID}).
+			WhereRaw(fmt.Sprintf("%s<$%d", createdColumnName, deleteStatement.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000")).
 			Exec()
 
-		r.Logger.Debugf("Deleted %d reconciliations by filter", delCnt)
-
+		r.Logger.Debugf("Deleted %d reconciliations by filter", deletedEntries)
 		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) GetRuntimeIDs() ([]string, error) {
+	runtimeIDsQuery, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
+	if err != nil {
+		return nil, err
+	}
+	runtimeIDsSelect, err := runtimeIDsQuery.SelectColumn("RuntimeID")
+	if err != nil {
+		return nil, err
+	}
+	runtimeIDsSelectString := runtimeIDsSelect.GroupBy([]string{"RuntimeID"}).String()
+	dataRows, err := r.Conn.Query(runtimeIDsSelectString)
+
+	if err != nil {
+		return nil, err
+	}
+	var runtimeIDs []string
+
+	for dataRows.Next() {
+		var runtimeID string
+		err := dataRows.Scan(&runtimeID)
+		if err == nil {
+			runtimeIDs = append(runtimeIDs, runtimeID)
+		}
+	}
+
+	return runtimeIDs, nil
 }
 
 func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
