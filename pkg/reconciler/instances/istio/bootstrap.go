@@ -32,7 +32,7 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 
 		resolver, err := newDefaultCommanderResolver(istioctlPaths, logger)
 		if err != nil {
-			logger.Errorf("Could not create '%s' component reconciler: Error creating DefaultCommadnerResolver with istioctLPaths '%s': %s", name, istioctlPaths, err.Error())
+			logger.Errorf("Could not create '%s' component reconciler: Error creating DefaultCommanderResolver with istioctlPaths '%s': %s", name, istioctlPaths, err.Error())
 			return nil, err
 		}
 
