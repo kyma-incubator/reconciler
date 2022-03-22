@@ -100,7 +100,6 @@ func parsePaths(input string, isValid func(string, *zap.SugaredLogger) error, lo
 	return res, nil
 }
 
-// TODO: test it
 func validatePath(path string, logger *zap.SugaredLogger) error {
 	stat, err := os.Stat(path)
 	if err != nil {
@@ -113,20 +112,26 @@ func validatePath(path string, logger *zap.SugaredLogger) error {
 	}
 	if uint32(mode&0111) == 0 {
 		logger.Debugf("%s is not executable, will chmod +x", path)
-		var fileMode os.FileMode = 0777
-		if err := os.Chmod(path, fileMode); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("%s is not executable - Failed to change file mode of istioctl binary to: %s", path, fileMode))
+		if err := chmodExecutbale(path, logger); err != nil {
+			return err
 		}
-		stat, err := os.Stat(path)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Error getting file data, after changing file mode of %s to %s", path, fileMode))
-		}
-		mode := stat.Mode()
-		if uint32(mode&0111) == 0 {
-			return errors.Wrap(err, fmt.Sprintf("%s is not executable - 'chmod +x' of istioctl binary was not persisted; File mode: %s", path, fileMode))
-		}
-		logger.Debugf("%s chmod to: %s", path, fileMode)
 	}
+	return nil
+}
 
+func chmodExecutbale(pathToFile string, logger *zap.SugaredLogger) error {
+	var fileMode os.FileMode = 0777
+	if err := os.Chmod(pathToFile, fileMode); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s is not executable or not existing - Failed to change file mode of istioctl binary to: %s", pathToFile, fileMode))
+	}
+	stat, err := os.Stat(pathToFile)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Error getting file data, after changing file mode of %s to %s", pathToFile, fileMode))
+	}
+	mode := stat.Mode()
+	if uint32(mode&0111) == 0 {
+		return errors.Wrap(err, fmt.Sprintf("%s is not executable - 'chmod +x' of istioctl binary was not persisted; File mode: %s", pathToFile, fileMode))
+	}
+	logger.Debugf("%s chmod to: %s", pathToFile, fileMode)
 	return nil
 }

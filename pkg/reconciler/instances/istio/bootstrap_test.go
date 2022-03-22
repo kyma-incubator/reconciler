@@ -2,6 +2,7 @@ package istio
 
 import (
 	"go.uber.org/zap"
+	"os"
 	"strings"
 	"testing"
 
@@ -118,5 +119,57 @@ func TestParsePaths(t *testing.T) {
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ISTIOCTL_PATH env variable exceeds the maximum istio path limit")
+	})
+}
+
+func TestChmodExecutbale(t *testing.T) {
+	t.Run("chmod to 0777", func(t *testing.T) {
+		pathToFile := "dat1"
+		d1 := []byte("hello\nworld\n")
+		err := os.WriteFile(pathToFile, d1, 0111)
+		require.NoError(t, err)
+		err = chmodExecutbale(pathToFile, zap.NewNop().Sugar())
+		require.NoError(t, err)
+		stat, err := os.Stat(pathToFile)
+		require.NoError(t, err)
+		require.Equal(t, os.FileMode(0777), stat.Mode())
+		err = os.RemoveAll(pathToFile)
+		require.NoError(t, err)
+	})
+	t.Run("chmodExecutable should return an error if file is not existing", func(t *testing.T) {
+		pathToFile := "not-existing"
+		err := chmodExecutbale(pathToFile, zap.NewNop().Sugar())
+		require.Error(t, err)
+	})
+	t.Run("chmodExecutable should return an error if pathToFile is empty", func(t *testing.T) {
+		pathToFile := ""
+		err := chmodExecutbale(pathToFile, zap.NewNop().Sugar())
+		require.Error(t, err)
+	})
+}
+
+func TestValidatePath(t *testing.T) {
+	t.Run("validatePath should return nil and change mode of file to 0777", func(t *testing.T) {
+		pathToFile := "dat1"
+		d1 := []byte("hello\nworld\n")
+		err := os.WriteFile(pathToFile, d1, 0111)
+		require.NoError(t, err)
+		err = validatePath(pathToFile, zap.NewNop().Sugar())
+		require.NoError(t, err)
+		stat, err := os.Stat(pathToFile)
+		require.NoError(t, err)
+		require.Equal(t, os.FileMode(0777), stat.Mode())
+		err = os.RemoveAll(pathToFile)
+		require.NoError(t, err)
+	})
+	t.Run("validatePath should return error if file is not existing", func(t *testing.T) {
+		pathToFile := "not-existing"
+		err := validatePath(pathToFile, zap.NewNop().Sugar())
+		require.Error(t, err)
+	})
+	t.Run("validatePath should return error if path is empty", func(t *testing.T) {
+		pathToFile := ""
+		err := validatePath(pathToFile, zap.NewNop().Sugar())
+		require.Error(t, err)
 	})
 }
