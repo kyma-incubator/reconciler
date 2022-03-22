@@ -152,6 +152,7 @@ func TestPersistentReconciliationRepository_GetRuntimeIDs(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			persistenceRepo, inMemoryRepo, _, _, runtimeIDs, teardownFn := prepareTest(t, testCase.reconciliations)
 			persistentRepoRuntimeIDs, err := persistenceRepo.GetRuntimeIDs()
+			require.NoError(t, err)
 			inmemoryRepoRuntimeIDs, err := inMemoryRepo.GetRuntimeIDs()
 			require.NoError(t, err)
 			sort.Strings(runtimeIDs)
