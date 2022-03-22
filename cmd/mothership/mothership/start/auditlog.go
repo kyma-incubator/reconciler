@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	XJWTHeaderName            = "X-Jwt"
+	XJWTHeaderName = "X-Jwt"
+	// ExternalAddressHeaderName https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#config-http-conn-man-headers-x-envoy-external-address
 	ExternalAddressHeaderName = "X-Envoy-External-Address"
 )
 
@@ -84,6 +85,12 @@ type data struct {
 }
 
 func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *Options) {
+
+	// Any Audit Log relevant entry will be a stateful change in POST/PUT/PATCH, GET can be ignored
+	if r.Method == http.MethodGet {
+		return
+	}
+
 	params := server.NewParams(r)
 	contractV, err := params.Int64(paramContractVersion)
 	if err != nil {
@@ -99,8 +106,9 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		URI:             r.RequestURI,
 		User:            "UNKNOWN_USER",
 		Tenant:          o.AuditLogTenantID,
-		IP:              "-",
+		IP:              "127.0.0.1", //this is a dummy externalHeaderIP, in kubernetes our pod IPs are meaningless
 	}
+
 	jwtPayload, err := getJWTPayload(r)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
@@ -116,6 +124,7 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		})
 		return
 	}
+
 	if user != "" {
 		logData.User = user
 	}
@@ -133,11 +142,12 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		logData.RequestBody = string(reqBody)
 	}
 
-	ip := r.Header.Get(ExternalAddressHeaderName)
-	if ip == "" {
+	externalHeaderIP := r.Header.Get(ExternalAddressHeaderName)
+	if externalHeaderIP == "" {
 		o.Logger().Debug(fmt.Sprintf("empty %s header", ExternalAddressHeaderName))
+	} else {
+		logData.IP = externalHeaderIP
 	}
-	logData.IP = ip
 
 	data, err := json.Marshal(logData)
 	if err != nil {

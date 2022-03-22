@@ -96,7 +96,7 @@ func Test_Auditlog(t *testing.T) {
 		},
 		{
 			name:       "invalid jwtHeader",
-			method:     http.MethodGet,
+			method:     http.MethodPost,
 			expectFail: true,
 			jwtHeader:  "eyJleHAiOjQ2ODU5ODk3MDAsImZvbyI6ImJhciIsImlhdCI6MTUzMjM4OTcwMCwiaXNzIjoidGVzdDJAdGVzdC5wbCIsInN1YiI6InRlc3QyQHRlc3QucGwifQ==",
 		},
@@ -139,6 +139,10 @@ func Test_Auditlog(t *testing.T) {
 				require.Equalf(t, http.StatusInternalServerError, w.Result().StatusCode,
 					"expected http status: %v, got: %v",
 					http.StatusInternalServerError, w.Result().StatusCode)
+			} else if tc.method == http.MethodGet {
+				require.Equalf(t, http.StatusOK, w.Result().StatusCode,
+					"expected http status: %v, got: %v",
+					http.StatusOK, w.Result().StatusCode)
 			} else {
 				t.Log(output.String())
 				validateLog(t, output.String(), tc.method, tc.jwtHeader != "")
