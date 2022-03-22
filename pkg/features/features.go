@@ -7,6 +7,7 @@ import (
 
 const processingDurationMetricEnvVar = "PROCESSING_DURATION_METRICS_ENABLED"
 const workerpoolOccupancyTrackingEnvVar = "WORKERPOOL_OCCUPANCY_TRACKING_ENABLED"
+const logIstioOperator = "LOG_ISTIO_OPERATOR"
 
 func ProcessingDurationMetricsEnabled() bool {
 	return checkEnvVar(processingDurationMetricEnvVar)
@@ -14,6 +15,10 @@ func ProcessingDurationMetricsEnabled() bool {
 
 func WorkerpoolOccupancyTrackingEnabled() bool {
 	return checkEnvVar(workerpoolOccupancyTrackingEnvVar)
+}
+
+func LogIstioOperator() bool {
+	return checkEnvVar(logIstioOperator)
 }
 
 func checkEnvVar(envVar string) bool {

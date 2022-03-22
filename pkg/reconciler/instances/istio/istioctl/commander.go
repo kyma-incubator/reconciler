@@ -2,6 +2,8 @@ package istioctl
 
 import (
 	"bufio"
+	"github.com/kyma-incubator/reconciler/pkg/features"
+	"github.com/pkg/errors"
 	"io"
 	"os/exec"
 	"sync"
@@ -85,7 +87,11 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 
 	cmd := execCommand(c.istioctl.path, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 
-	return c.execute(cmd, logger)
+	err = c.execute(cmd, logger)
+	if features.LogIstioOperator() {
+		return errors.Wrapf(err, "rendered IstioOperator yaml was: %s ", istioOperator)
+	}
+	return err
 }
 
 func (c *DefaultCommander) Upgrade(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
