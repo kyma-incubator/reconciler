@@ -80,11 +80,11 @@ type postgresEnvironment struct {
 }
 
 func getPostgresEnvironment() postgresEnvironment {
-	host := viper.GetString("db.postgres.host")
-	port := viper.GetInt("db.postgres.port")
-	database := viper.GetString("db.postgres.database")
-	user := viper.GetString("db.postgres.user")
-	password := viper.GetString("db.postgres.password")
+	host := viper.GetString("db.postgres.Host")
+	port := viper.GetInt("db.postgres.Port")
+	database := viper.GetString("db.postgres.Database")
+	user := viper.GetString("db.postgres.User")
+	password := viper.GetString("db.postgres.Password")
 	sslMode := viper.GetBool("db.postgres.sslMode")
 	migrationsDir := viper.GetString("db.postgres.migrationsDir")
 
@@ -125,7 +125,7 @@ func readEncryptionKey() (string, error) {
 	encKeyFile := viper.GetString("db.encryption.keyFile")
 	if encKeyFile != "" {
 		if !filepath.IsAbs(encKeyFile) {
-			//define absolute path relative to config-file directory
+			//define absolute path relative to Config-file directory
 			encKeyFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), encKeyFile)
 		}
 	}

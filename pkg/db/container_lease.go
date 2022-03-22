@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"github.com/google/uuid"
+	"hash/fnv"
 	"sync"
 	"testing"
 )
@@ -21,7 +22,7 @@ type containerTestSuiteLeaseHolder struct {
 
 type syncedLeasedSharedContainerTestSuiteInstanceHolder struct {
 	mu     sync.Mutex
-	suites map[ContainerSettings]*containerTestSuiteLeaseID
+	suites map[leaseHash]*containerTestSuiteLeaseID
 }
 
 var globalContainerTestSuiteLeases = &containerTestSuiteLeaseHolder{
@@ -30,7 +31,7 @@ var globalContainerTestSuiteLeases = &containerTestSuiteLeaseHolder{
 }
 var globalContainerTestSuiteLeaseHolder = &syncedLeasedSharedContainerTestSuiteInstanceHolder{
 	mu:     sync.Mutex{},
-	suites: make(map[ContainerSettings]*containerTestSuiteLeaseID),
+	suites: make(map[leaseHash]*containerTestSuiteLeaseID),
 }
 
 func (l *containerTestSuiteLeaseID) acquire() *ContainerTestSuite {
@@ -62,7 +63,7 @@ func (l *containerTestSuiteLeaseID) release() {
 	}
 }
 
-func newContainerTestSuiteLease(debug bool, commitAfterExecution bool) (*containerTestSuiteLeaseID, error) {
+func newContainerTestSuiteLease(debug bool, settings ContainerSettings, commitAfterExecution bool) (*containerTestSuiteLeaseID, error) {
 	lh := globalContainerTestSuiteLeases
 	lh.Lock()
 	defer lh.Unlock()
@@ -70,7 +71,7 @@ func newContainerTestSuiteLease(debug bool, commitAfterExecution bool) (*contain
 	id := containerTestSuiteLeaseID(uuid.NewString())
 	ctx := context.Background()
 
-	r, err := RunPostgresContainer(ctx, DefaultSharedContainerSettings, debug)
+	r, err := RunPostgresContainer(ctx, *settings.(*PostgresContainerSettings), debug)
 	if err != nil {
 		return nil, err
 	}
@@ -88,14 +89,23 @@ func LeaseSharedContainerTestSuite(t *testing.T, settings ContainerSettings, deb
 	h := globalContainerTestSuiteLeaseHolder
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.suites[settings] == nil {
-		lid, err := newContainerTestSuiteLease(debug, commitAfterExecution)
+	hash := getHash(settings)
+	if h.suites[hash] == nil {
+		lid, err := newContainerTestSuiteLease(debug, settings, commitAfterExecution)
 		if err != nil {
 			panic(err)
 		}
-		h.suites[settings] = lid
+		h.suites[hash] = lid
 	}
-	return h.suites[settings].acquire()
+	return h.suites[hash].acquire()
+}
+
+type leaseHash uint32
+
+func getHash(settings ContainerSettings) leaseHash {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(settings.containerName() + settings.containerImage() + string(settings.migrationConfig())))
+	return leaseHash(h.Sum32())
 }
 
 func ReturnLeasedSharedContainerTestSuite(t *testing.T, settings ContainerSettings) {
@@ -104,9 +114,10 @@ func ReturnLeasedSharedContainerTestSuite(t *testing.T, settings ContainerSettin
 		h := globalContainerTestSuiteLeaseHolder
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		if len(h.suites) == 0 || h.suites[settings] == nil {
+		hash := getHash(settings)
+		if len(h.suites) == 0 || h.suites[hash] == nil {
 			return
 		}
-		h.suites[settings].release()
+		h.suites[hash].release()
 	})
 }

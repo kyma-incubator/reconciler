@@ -20,17 +20,17 @@ func BootstrapNewPostgresContainer(ctx context.Context, settings PostgresContain
 
 func NewPostgresContainer(settings PostgresContainerSettings) PostgresContainer {
 	return PostgresContainer{
-		containerBaseName: settings.name,
-		image:             settings.image,
-		host:              settings.host,
-		port:              settings.port,
-		username:          settings.user,
-		password:          settings.password,
-		database:          settings.database,
+		containerBaseName: settings.Name,
+		image:             settings.Image,
+		host:              settings.Host,
+		port:              settings.Port,
+		username:          settings.User,
+		password:          settings.Password,
+		database:          settings.Database,
 	}
 }
 
-//PostgresContainer is a testcontainer that is able to provision a postgres database with given credentials
+//PostgresContainer is a testcontainer that is able to provision a postgres Database with given credentials
 type PostgresContainer struct {
 	testcontainers.Container
 
@@ -61,8 +61,6 @@ func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
 
 	execContainer := s.containerBaseName + "-" + s.executionID.String()
 
-	finalPortSpec := strconv.Itoa(s.port) + "/tcp"
-
 	dbURL := func(port nat.Port) string {
 		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			s.username, s.password, s.host, port.Port(), s.database,
@@ -72,10 +70,13 @@ func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
 	postgres, requestError := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        s.image,
-			ExposedPorts: []string{finalPortSpec},
-			WaitingFor:   wait.ForSQL(nat.Port(strconv.Itoa(s.port)), "postgres", dbURL),
-			Name:         execContainer,
-			Labels:       map[string]string{"name": execContainer},
+			ExposedPorts: []string{fmt.Sprintf("%v/tcp", s.port)},
+			WaitingFor: wait.ForAll(
+				wait.ForListeningPort(nat.Port(strconv.Itoa(s.port))),
+				wait.ForSQL(nat.Port(strconv.Itoa(s.port)), "postgres", dbURL),
+			),
+			Name:   execContainer,
+			Labels: map[string]string{"name": execContainer},
 			Env: map[string]string{
 				"POSTGRES_PASSWORD": s.password,
 				"POSTGRES_USER":     s.username,
