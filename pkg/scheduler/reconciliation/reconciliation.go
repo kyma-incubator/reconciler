@@ -25,6 +25,7 @@ type Repository interface {
 	RemoveReconciliationBySchedulingID(schedulingID string) error
 	RemoveReconciliationsBySchedulingID(schedulingIDs []string) error
 	RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error
+	RemoveReconciliationsForObsoleteStatus(deadline time.Time) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
 	GetRuntimeIDs() ([]string, error)

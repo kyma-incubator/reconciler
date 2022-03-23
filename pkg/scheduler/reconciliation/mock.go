@@ -61,6 +61,10 @@ func (mr *MockRepository) RemoveReconciliationsBeforeDeadline(runtimeID string, 
 	return nil
 }
 
+func (mr *MockRepository) RemoveReconciliationsForObsoleteStatus(deadline time.Time) error {
+	return nil
+}
+
 func (mr *MockRepository) GetRuntimeIDs() ([]string, error) {
 	runtimeIDsCollector := map[string]interface{}{}
 	var runtimeIDs []string

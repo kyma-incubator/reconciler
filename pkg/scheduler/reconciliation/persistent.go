@@ -222,9 +222,35 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsBeforeDeadline
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
-//func (r *PersistentReconciliationRepository) RemoveReconciliationsForClusterStatus() ([]string, error) {
-//
-//}
+func (r *PersistentReconciliationRepository) RemoveReconciliationsForObsoleteStatus(deadline time.Time) error {
+	dbOps := func(tx *db.TxConnection) error {
+		statusSelectQuery, err := db.NewQuery(r.Conn, &model.ClusterCleanupEntity{}, r.Logger)
+		if err != nil {
+			return err
+		}
+		statusSelect, err := statusSelectQuery.SelectColumn("StatusID")
+		if err != nil {
+			return err
+		}
+
+		columnHandler, err := db.NewColumnHandler(&model.ClusterCleanupEntity{}, r.Conn, r.Logger)
+		statusIDColumnName, err := columnHandler.ColumnName("Created")
+		if err != nil {
+			return err
+		}
+		statusSelect.WhereRaw(fmt.Sprintf("%s<$%d", statusIDColumnName, statusSelect.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
+
+		deleteQuery, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
+		if err != nil {
+			return err
+		}
+		delCnt, err := deleteQuery.Delete().WhereIn("ClusterConfigStatus", statusSelect.String(), statusSelect.GetArgs()...).
+			Exec()
+		r.Logger.Debugf("Deleted %d reconciliations with during cluster entities cleanup", delCnt)
+		return err
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
 
 func (r *PersistentReconciliationRepository) GetRuntimeIDs() ([]string, error) {
 	runtimeIDsQuery, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)

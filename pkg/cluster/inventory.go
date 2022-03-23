@@ -26,6 +26,8 @@ type Inventory interface {
 	ClustersNotReady() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 	WithTx(tx *db.TxConnection) (Inventory, error)
+	DeleteStatusesWithoutReconciliations() error
+	DeleteStatusesBeforeDeadline(deadline time.Time) error
 }
 
 type DefaultInventory struct {
@@ -723,4 +725,67 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	}
 
 	return statusChanges, nil
+}
+
+func (i *DefaultInventory) DeleteStatusesWithoutReconciliations() error {
+	dbOps := func(tx *db.TxConnection) error {
+		statusSelectQuery, err := db.NewQuery(i.Conn, &model.StatusCleanupEntity{}, i.Logger)
+		if err != nil {
+			return err
+		}
+		statusSelect, err := statusSelectQuery.SelectColumn("StatusID")
+		if err != nil {
+			return err
+		}
+
+		deleteQuery, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+		if err != nil {
+			return err
+		}
+		delCnt, err := deleteQuery.Delete().WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
+			Exec()
+		i.Logger.Debugf("Deleted %d config statuses during cluster entities cleanup", delCnt)
+		return err
+	}
+	err := db.Transaction(i.Conn, dbOps, i.Logger)
+	if err != nil {
+		i.Logger.Error("Deletion of config statuses with reconciliation failed during cluster entities cleanup", err)
+	}
+	return err
+}
+
+func (i *DefaultInventory) DeleteStatusesBeforeDeadline(deadline time.Time) error {
+	dbOps := func(tx *db.TxConnection) error {
+		statusSelectQuery, err := db.NewQuery(i.Conn, &model.ClusterCleanupEntity{}, i.Logger)
+		if err != nil {
+			return err
+		}
+		statusSelect, err := statusSelectQuery.SelectColumn("StatusID")
+		if err != nil {
+			return err
+		}
+
+		columnHandler, err := db.NewColumnHandler(&model.ClusterCleanupEntity{}, i.Conn, i.Logger)
+		statusIDColumnName, err := columnHandler.ColumnName("Created")
+		if err != nil {
+			return err
+		}
+		statusSelect.WhereRaw(fmt.Sprintf("%s<$%d", statusIDColumnName, statusSelect.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
+
+		deleteQuery, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+		if err != nil {
+			return err
+		}
+		delCnt, err := deleteQuery.
+			Delete().
+			WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
+			Exec()
+		i.Logger.Debugf("Deleted %d config statuses during cluster entities cleanup", delCnt)
+		return err
+	}
+	err := db.Transaction(i.Conn, dbOps, i.Logger)
+	if err != nil {
+		i.Logger.Error("Deletion of config statuses by deadline failed during cluster entities cleanup", err)
+	}
+	return err
 }

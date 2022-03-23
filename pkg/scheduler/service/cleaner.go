@@ -58,7 +58,7 @@ func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *Cle
 	c.logger.Infof("%s Process started", CleanerPrefix)
 
 	// delete reconciliations
-	if config.KeepLatestEntitiesCount > 0 {
+	if config.keepLatestEntitiesCount() > 0 {
 		c.logger.Infof("%s Cleaner will remove unnecessary reconciliations", CleanerPrefix)
 		c.purgeReconciliationsNew(transition, config)
 	} else {
@@ -67,33 +67,36 @@ func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *Cle
 	}
 
 	// delete cluster entities
-	// TODO: incorporate in view -> where deleted = true AND created < config.maxEntitiesAgeDays()
-	c.logger.Infof("%s Cleaner will remove cluster reconciliations", CleanerPrefix)
-	c.purgeClusterEntities(transition, config)
+	clusterInventoryCleanupDays := 20 // days default
+	if config.maxEntitiesAgeDays() > 0 {
+		clusterInventoryCleanupDays = config.maxEntitiesAgeDays()
+	}
+	c.logger.Infof("%s Cleaner will remove cluster statuses", CleanerPrefix)
+	if err := c.purgeClusterEntities(transition, clusterInventoryCleanupDays); err != nil {
+		c.logger.Errorf("%s Failed to remove cluster statuses %v", CleanerPrefix, err)
+	}
 
 	c.logger.Infof("%s Process finished", CleanerPrefix)
 }
 
-func (c *cleaner) purgeClusterEntities(transition *ClusterStatusTransition, config *CleanerConfig) {
-	// delete reconciliations
-	// delete statuses
-	// delete inventory clusters
-}
+func (c *cleaner) purgeClusterEntities(transition *ClusterStatusTransition, clusterInventoryCleanupDays int) error {
+	deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*clusterInventoryCleanupDays)
 
-func (c *cleaner) deleteReconciliationsForClusterEntities(transition *ClusterStatusTransition, config *CleanerConfig) {
-	//transition.ReconciliationRepository().RemoveReconciliationsForClusterStatus()
-}
+	// delete statuses without reconciliations
+	var err error
+	if err = transition.Inventory().DeleteStatusesWithoutReconciliations(); err == nil {
 
-func (c *cleaner) deleteStatusesWithoutReconciliations(transition *ClusterStatusTransition, config *CleanerConfig) {
-	//transition.Inventory()
-}
+		// remove reconciliations corresponding to deleted status before deadline
+		if err = transition.ReconciliationRepository().RemoveReconciliationsForObsoleteStatus(deadline); err == nil {
 
-func (c *cleaner) deleteStatusesBeforeDeadline(transition *ClusterStatusTransition, config *CleanerConfig) {
-	//transition.Inventory()
-}
+			// remove deleted statuses before deadline
+			err = transition.Inventory().DeleteStatusesBeforeDeadline(deadline)
 
-func (c *cleaner) deleteClusterEntitiesBeforeDeadline(transition *ClusterStatusTransition, config *CleanerConfig) {
-	//transition.Inventory()
+			// delete inventory clusters
+			//transition.Inventory()...
+		}
+	}
+	return err
 }
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668

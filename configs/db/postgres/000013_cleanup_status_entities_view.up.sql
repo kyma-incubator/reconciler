@@ -11,7 +11,7 @@ WITH t_active_status AS (
 )
 
 -- no longer referenced by a reconciliation entity
-SELECT status.id, status.runtime_id, status.cluster_version, status.config_version, status.status, status.created
+select status.id as status_id, status.runtime_id, status.cluster_version as cluster_id, status.config_version as config_id, status.status, status.created
 FROM inventory_cluster_config_statuses status
          LEFT OUTER JOIN scheduler_reconciliations sr ON status.id = sr.cluster_config_status
 WHERE sr.cluster_config_status IS NULL

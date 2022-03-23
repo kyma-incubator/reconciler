@@ -89,3 +89,10 @@ func (kp *MockKubeconfigProvider) Get() (string, error) {
 func (i *MockInventory) CountRetries(_ string, _ int64, _ int, _ ...model.Status) (int, error) {
 	return i.RetriesCount, nil
 }
+
+func (i *MockInventory) DeleteStatusesWithoutReconciliations() error {
+	return nil
+}
+func (i *MockInventory) DeleteStatusesBeforeDeadline(deadline time.Time) error {
+	return nil
+}
