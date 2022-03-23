@@ -122,7 +122,7 @@ func TestParsePaths(t *testing.T) {
 	})
 }
 
-func TestChmodExecutbale(t *testing.T) {
+func TestChmodExecutable(t *testing.T) {
 	t.Run("chmod to 0777", func(t *testing.T) {
 		pathToFile := "tmp/dat1"
 		t.Cleanup(func() {
@@ -139,12 +139,12 @@ func TestChmodExecutbale(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, os.FileMode(0777), stat.Mode())
 	})
-	t.Run("chmodExecutable should return an error if file is not existing", func(t *testing.T) {
+	t.Run("should return an error when file does not exist", func(t *testing.T) {
 		pathToFile := "not-existing"
 		err := chmodExecutbale(pathToFile, zap.NewNop().Sugar())
 		require.Error(t, err)
 	})
-	t.Run("chmodExecutable should return an error if pathToFile is empty", func(t *testing.T) {
+	t.Run("should return an error when path to file is empty", func(t *testing.T) {
 		pathToFile := ""
 		err := chmodExecutbale(pathToFile, zap.NewNop().Sugar())
 		require.Error(t, err)
@@ -152,7 +152,7 @@ func TestChmodExecutbale(t *testing.T) {
 }
 
 func TestValidatePath(t *testing.T) {
-	t.Run("validatePath should return nil and change mode of file to 0777", func(t *testing.T) {
+	t.Run("should return nil and change mode of file to 0777 when it had 0000", func(t *testing.T) {
 		pathToFile := "tmp/dat1"
 		t.Cleanup(func() {
 			err := os.RemoveAll("tmp")
@@ -169,12 +169,12 @@ func TestValidatePath(t *testing.T) {
 		require.Equal(t, os.FileMode(0777), stat.Mode())
 
 	})
-	t.Run("validatePath should return error if file is not existing", func(t *testing.T) {
+	t.Run("should return error when file does not exist", func(t *testing.T) {
 		pathToFile := "not-existing"
 		err := validatePath(pathToFile, zap.NewNop().Sugar())
 		require.Error(t, err)
 	})
-	t.Run("validatePath should return error if path is empty", func(t *testing.T) {
+	t.Run("should return error when path is empty", func(t *testing.T) {
 		pathToFile := ""
 		err := validatePath(pathToFile, zap.NewNop().Sugar())
 		require.Error(t, err)
