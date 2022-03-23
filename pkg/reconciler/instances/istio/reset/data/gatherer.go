@@ -59,9 +59,9 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 		for _, container := range pod.Spec.Containers {
 			containsPrefix := strings.Contains(container.Image, image.Prefix)
 			hasSuffix := strings.HasSuffix(container.Image, image.Version)
-			ready := isPodReady(pod)
+			readiness := isPodReady(pod)
 
-			if containsPrefix && !hasSuffix && ready {
+			if containsPrefix && !hasSuffix && readiness {
 				outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 			}
 		}
@@ -70,7 +70,9 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 	return
 }
 
+// isPodReady checks if the pod is Ready, returns true if the Pod is in the Running state and not Pending or Terminating.
 func isPodReady(pod v1.Pod) bool {
+
 	if pod.Status.Phase != v1.PodRunning {
 		return false
 	}
@@ -79,6 +81,6 @@ func isPodReady(pod v1.Pod) bool {
 			return false
 		}
 	}
-	//deletion timestamp determines whether pod is terminating or running (nil == running)
+
 	return pod.ObjectMeta.DeletionTimestamp == nil
 }

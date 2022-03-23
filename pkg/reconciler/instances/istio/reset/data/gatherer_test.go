@@ -71,6 +71,7 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 	t.Run("should get one pod from the list", func(t *testing.T) {
 		// given
 		var pods v1.PodList
+		var expected v1.PodList
 		pods.Items = []v1.Pod{
 			*podWithExpectedImage,
 			*podWithExpectedImageTerminating,
@@ -80,12 +81,16 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 			*podWithDifferentImageSuffixPending,
 			*podWithDifferentImagePrefix,
 		}
+		expected.Items = []v1.Pod{
+			*podWithDifferentImageSuffix,
+		}
 		gatherer := DefaultGatherer{}
 
 		// when
 		podsWithDifferentImage := gatherer.GetPodsWithDifferentImage(pods, image)
 
 		// then
+		require.Equal(t, podsWithDifferentImage.Items, expected.Items)
 		require.NotEmpty(t, podsWithDifferentImage.Items)
 		require.Len(t, podsWithDifferentImage.Items, 1)
 	})
