@@ -112,7 +112,8 @@ func validatePath(path string, logger *zap.SugaredLogger) error {
 	}
 	if uint32(mode&0111) == 0 {
 		logger.Debugf("%s is not executable, will chmod +x", path)
-		if err := chmodExecutbale(path, logger); err != nil {
+		err := chmodExecutbale(path, logger)
+		if err != nil {
 			return err
 		}
 	}

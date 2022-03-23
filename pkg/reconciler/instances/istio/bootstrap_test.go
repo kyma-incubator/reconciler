@@ -124,17 +124,20 @@ func TestParsePaths(t *testing.T) {
 
 func TestChmodExecutbale(t *testing.T) {
 	t.Run("chmod to 0777", func(t *testing.T) {
-		pathToFile := "dat1"
+		pathToFile := "tmp/dat1"
+		t.Cleanup(func() {
+			err := os.RemoveAll("tmp")
+			require.NoError(t, err)
+		})
+		require.NoError(t, os.MkdirAll("tmp", 0777))
 		d1 := []byte("hello\nworld\n")
-		err := os.WriteFile(pathToFile, d1, 0111)
+		err := os.WriteFile(pathToFile, d1, 0000)
 		require.NoError(t, err)
 		err = chmodExecutbale(pathToFile, zap.NewNop().Sugar())
 		require.NoError(t, err)
 		stat, err := os.Stat(pathToFile)
 		require.NoError(t, err)
 		require.Equal(t, os.FileMode(0777), stat.Mode())
-		err = os.RemoveAll(pathToFile)
-		require.NoError(t, err)
 	})
 	t.Run("chmodExecutable should return an error if file is not existing", func(t *testing.T) {
 		pathToFile := "not-existing"
@@ -150,17 +153,21 @@ func TestChmodExecutbale(t *testing.T) {
 
 func TestValidatePath(t *testing.T) {
 	t.Run("validatePath should return nil and change mode of file to 0777", func(t *testing.T) {
-		pathToFile := "dat1"
+		pathToFile := "tmp/dat1"
+		t.Cleanup(func() {
+			err := os.RemoveAll("tmp")
+			require.NoError(t, err)
+		})
+		require.NoError(t, os.MkdirAll("tmp", 0777))
 		d1 := []byte("hello\nworld\n")
-		err := os.WriteFile(pathToFile, d1, 0111)
+		err := os.WriteFile(pathToFile, d1, 0000)
 		require.NoError(t, err)
 		err = validatePath(pathToFile, zap.NewNop().Sugar())
 		require.NoError(t, err)
 		stat, err := os.Stat(pathToFile)
 		require.NoError(t, err)
 		require.Equal(t, os.FileMode(0777), stat.Mode())
-		err = os.RemoveAll(pathToFile)
-		require.NoError(t, err)
+
 	})
 	t.Run("validatePath should return error if file is not existing", func(t *testing.T) {
 		pathToFile := "not-existing"
