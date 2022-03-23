@@ -88,7 +88,7 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 	cmd := execCommand(c.istioctl.path, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 
 	err = c.execute(cmd, logger)
-	if features.LogIstioOperator() {
+	if err != nil && features.Enabled(features.LogIstioOperator) {
 		return errors.Wrapf(err, "rendered IstioOperator yaml was: %s ", istioOperator)
 	}
 	return err
