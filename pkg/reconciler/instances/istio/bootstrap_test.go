@@ -6,18 +6,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
 func TestParsePaths(t *testing.T) {
-	alwaysValidFn := func(path string, logger *zap.SugaredLogger) error { return nil }
 
 	t.Run("parsePaths should parse a single path", func(t *testing.T) {
 		//given
 		paths := "/a/b/c"
 		//when
-		res, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
+		res, err := parsePaths(paths)
 		//then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(res))
@@ -27,7 +25,7 @@ func TestParsePaths(t *testing.T) {
 		//given
 		paths := "/a/b/c;/d/e/f"
 		//when
-		res, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
+		res, err := parsePaths(paths)
 		//then
 		require.NoError(t, err)
 		require.Equal(t, 2, len(res))
@@ -38,7 +36,7 @@ func TestParsePaths(t *testing.T) {
 		//given
 		paths := "/a/b/c;/d/e/f;/g/h/i"
 		//when
-		res, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
+		res, err := parsePaths(paths)
 		//then
 		require.NoError(t, err)
 		require.Equal(t, 3, len(res))
@@ -50,7 +48,7 @@ func TestParsePaths(t *testing.T) {
 		//given
 		paths := ""
 		//when
-		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
+		_, err := parsePaths(paths)
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ISTIOCTL_PATH env variable is undefined or empty")
@@ -59,7 +57,7 @@ func TestParsePaths(t *testing.T) {
 		//given
 		paths := "   "
 		//when
-		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
+		_, err := parsePaths(paths)
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ISTIOCTL_PATH env variable is undefined or empty")
@@ -68,7 +66,7 @@ func TestParsePaths(t *testing.T) {
 		//given
 		paths := ";"
 		//when
-		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
+		_, err := parsePaths(paths)
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Invalid (empty) path provided")
@@ -77,7 +75,7 @@ func TestParsePaths(t *testing.T) {
 		//given
 		paths := ";/a/b/c"
 		//when
-		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
+		_, err := parsePaths(paths)
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Invalid (empty) path provided")
@@ -86,25 +84,10 @@ func TestParsePaths(t *testing.T) {
 		//given
 		paths := "/a/b/c;"
 		//when
-		_, err := parsePaths(paths, alwaysValidFn, &zap.SugaredLogger{})
+		_, err := parsePaths(paths)
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Invalid (empty) path provided")
-	})
-	t.Run("parsePaths should return an error when validation function fails", func(t *testing.T) {
-		//given
-		paths := "/a/b/c;/d/e/f"
-		isValidFn := func(s string, logger *zap.SugaredLogger) error {
-			if s == "/d/e/f" {
-				return errors.New("foo")
-			}
-			return nil
-		}
-		//when
-		_, err := parsePaths(paths, isValidFn, &zap.SugaredLogger{})
-		//then
-		require.Error(t, err)
-		require.Equal(t, "foo", err.Error())
 	})
 	t.Run("parsePaths should return an error when path is too long", func(t *testing.T) {
 		//given
@@ -115,7 +98,7 @@ func TestParsePaths(t *testing.T) {
 		}
 
 		//when
-		_, err := parsePaths(strings.Join(paths, ";"), alwaysValidFn, &zap.SugaredLogger{})
+		_, err := parsePaths(strings.Join(paths, ";"))
 		//then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ISTIOCTL_PATH env variable exceeds the maximum istio path limit")
@@ -163,37 +146,37 @@ func TestChmodExecutable(t *testing.T) {
 func TestEnsureFileExecutable(t *testing.T) {
 	t.Run("should return nil and change mode of file to 0777 when it had 0000", func(t *testing.T) {
 		//given
-		pathToFile := "tmp/dat1"
+		pathsToFile := []string{"tmp/dat1"}
 		t.Cleanup(func() {
 			err := os.RemoveAll("tmp")
 			require.NoError(t, err)
 		})
 		require.NoError(t, os.MkdirAll("tmp", 0777))
 		d1 := []byte("hello\nworld\n")
-		err := os.WriteFile(pathToFile, d1, 0000)
+		err := os.WriteFile(pathsToFile[0], d1, 0000)
 		require.NoError(t, err)
 		//when
-		err = ensureFileExecutable(pathToFile, zap.NewNop().Sugar())
+		err = ensureFilesExecutable(pathsToFile, zap.NewNop().Sugar())
 		require.NoError(t, err)
 		//then
-		stat, err := os.Stat(pathToFile)
+		stat, err := os.Stat(pathsToFile[0])
 		require.NoError(t, err)
 		require.Equal(t, os.FileMode(0777), stat.Mode())
 
 	})
 	t.Run("should return error when file does not exist", func(t *testing.T) {
 		//given
-		pathToFile := "not-existing"
+		pathsToFile := []string{"not-existing"}
 		//when
-		err := ensureFileExecutable(pathToFile, zap.NewNop().Sugar())
+		err := ensureFilesExecutable(pathsToFile, zap.NewNop().Sugar())
 		//then
 		require.Error(t, err)
 	})
 	t.Run("should return error when path is empty", func(t *testing.T) {
 		//given
-		pathToFile := ""
+		pathsToFile := []string{""}
 		//when
-		err := ensureFileExecutable(pathToFile, zap.NewNop().Sugar())
+		err := ensureFilesExecutable(pathsToFile, zap.NewNop().Sugar())
 		//then
 		require.Error(t, err)
 	})

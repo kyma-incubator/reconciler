@@ -24,9 +24,14 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
 		pathsConfig := os.Getenv(istioctlBinaryPathEnvKey)
-		istioctlPaths, err := parsePaths(pathsConfig, ensureFileExecutable, logger)
+		istioctlPaths, err := parsePaths(pathsConfig)
 		if err != nil {
 			logger.Errorf("Could not create '%s' component reconciler: Error parsing env variable '%s': %s", name, istioctlBinaryPathEnvKey, err.Error())
+			return nil, err
+		}
+		err = ensureFilesExecutable(istioctlPaths, logger)
+		if err != nil {
+			logger.Errorf("Could not create '%s' component reconciler: One or more istioctl binaries are not executable '%s': %s", name, istioctlBinaryPathEnvKey, err.Error())
 			return nil, err
 		}
 
@@ -76,8 +81,7 @@ func newDefaultCommanderResolver(paths []string, log *zap.SugaredLogger) (action
 }
 
 // parsePaths func parses and validates executable paths. The input must contain a list of full/absolute filesystem paths of binaries, separated by a semicolon character ';'
-// isValid function is used to validate every single binary path in the input.
-func parsePaths(input string, isValid func(string, *zap.SugaredLogger) error, logger *zap.SugaredLogger) ([]string, error) {
+func parsePaths(input string) ([]string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" {
 		return nil, errors.Errorf("%s env variable is undefined or empty", istioctlBinaryPathEnvKey)
@@ -92,31 +96,31 @@ func parsePaths(input string, isValid func(string, *zap.SugaredLogger) error, lo
 		if val == "" {
 			return nil, errors.New("Invalid (empty) path provided")
 		}
-		if err := isValid(val, logger); err != nil {
-			return nil, err
-		}
 		res = append(res, val)
 	}
 	return res, nil
 }
 
-func ensureFileExecutable(path string, logger *zap.SugaredLogger) error {
-	stat, err := os.Stat(path)
-	if err != nil {
-		return errors.Wrap(err, "Error getting file data")
-	}
-	mode := stat.Mode()
-	logger.Debugf("%s mode: %s", path, mode)
-	if (!mode.IsRegular()) || mode.IsDir() {
-		return errors.New(fmt.Sprintf("\"%s\" is not a regular file", path))
-	}
-	if uint32(mode&0111) == 0 {
-		logger.Debugf("%s is not executable, will chmod +x", path)
-		err := chmodExecutbale(path, logger)
+func ensureFilesExecutable(paths []string, logger *zap.SugaredLogger) error {
+	for _, path := range paths {
+		stat, err := os.Stat(path)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Error getting file data")
+		}
+		mode := stat.Mode()
+		logger.Debugf("%s mode: %s", path, mode)
+		if (!mode.IsRegular()) || mode.IsDir() {
+			return errors.New(fmt.Sprintf("\"%s\" is not a regular file", path))
+		}
+		if uint32(mode&0111) == 0 {
+			logger.Debugf("%s is not executable, will chmod +x", path)
+			err := chmodExecutbale(path, logger)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 

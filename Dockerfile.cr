@@ -39,7 +39,7 @@ COPY --from=build /configs/ /configs/
 # Add istioctl tools
 COPY --from=istio-1_11_4 /usr/local/bin/istioctl /bin/istioctl-1.11.4
 COPY --from=istio-1_12_3 /usr/local/bin/istioctl /bin/istioctl-1.12.3
-# For multiple istioctl binaries, provide their paths separated with a colon (:) like in the Linux PATH variable.
+# For multiple istioctl binaries, provide their paths separated with a semicolon (;) like in the Linux PATH variable.
 ENV ISTIOCTL_PATH=/bin/istioctl-1.12.3;/bin/istioctl-1.11.4
 
 USER appuser:appuser
