@@ -222,6 +222,10 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsBeforeDeadline
 	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
+//func (r *PersistentReconciliationRepository) RemoveReconciliationsForClusterStatus() ([]string, error) {
+//
+//}
+
 func (r *PersistentReconciliationRepository) GetRuntimeIDs() ([]string, error) {
 	runtimeIDsQuery, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
 	if err != nil {

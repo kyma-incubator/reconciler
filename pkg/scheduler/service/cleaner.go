@@ -40,11 +40,11 @@ func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, 
 	c.logger.Infof("%s Starting entities cleaner: interval for clearing old Reconciliation and Operation entities is %s", CleanerPrefix, config.CleanerInterval.String())
 
 	ticker := time.NewTicker(config.CleanerInterval)
-	c.purgeReconciliations(transition, config) //check for entities now, otherwise first check would be trigger by ticker
+	c.purgeEntities(transition, config) //check for entities now, otherwise first check would be trigger by ticker
 	for {
 		select {
 		case <-ticker.C:
-			c.purgeReconciliations(transition, config)
+			c.purgeEntities(transition, config)
 		case <-ctx.Done():
 			c.logger.Infof("%s Stopping because parent context got closed", CleanerPrefix)
 			ticker.Stop()
@@ -53,19 +53,47 @@ func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, 
 	}
 }
 
-func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, config *CleanerConfig) {
+func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *CleanerConfig) {
 
 	c.logger.Infof("%s Process started", CleanerPrefix)
 
+	// delete reconciliations
 	if config.KeepLatestEntitiesCount > 0 {
-		c.logger.Infof("%s Cleaner will remove unnecessary entities", CleanerPrefix)
+		c.logger.Infof("%s Cleaner will remove unnecessary reconciliations", CleanerPrefix)
 		c.purgeReconciliationsNew(transition, config)
 	} else {
-		c.logger.Infof("%s Cleaner will remove entities older than %s", CleanerPrefix, config.PurgeEntitiesOlderThan.String())
+		c.logger.Infof("%s Cleaner will remove reconciliations older than %s", CleanerPrefix, config.PurgeEntitiesOlderThan.String())
 		c.purgeReconciliationsOld(transition, config)
 	}
 
+	// delete cluster entities
+	// TODO: incorporate in view -> where deleted = true AND created < config.maxEntitiesAgeDays()
+	c.logger.Infof("%s Cleaner will remove cluster reconciliations", CleanerPrefix)
+	c.purgeClusterEntities(transition, config)
+
 	c.logger.Infof("%s Process finished", CleanerPrefix)
+}
+
+func (c *cleaner) purgeClusterEntities(transition *ClusterStatusTransition, config *CleanerConfig) {
+	// delete reconciliations
+	// delete statuses
+	// delete inventory clusters
+}
+
+func (c *cleaner) deleteReconciliationsForClusterEntities(transition *ClusterStatusTransition, config *CleanerConfig) {
+	//transition.ReconciliationRepository().RemoveReconciliationsForClusterStatus()
+}
+
+func (c *cleaner) deleteStatusesWithoutReconciliations(transition *ClusterStatusTransition, config *CleanerConfig) {
+	//transition.Inventory()
+}
+
+func (c *cleaner) deleteStatusesBeforeDeadline(transition *ClusterStatusTransition, config *CleanerConfig) {
+	//transition.Inventory()
+}
+
+func (c *cleaner) deleteClusterEntitiesBeforeDeadline(transition *ClusterStatusTransition, config *CleanerConfig) {
+	//transition.Inventory()
 }
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
