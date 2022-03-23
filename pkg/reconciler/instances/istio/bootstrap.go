@@ -24,7 +24,7 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
 		pathsConfig := os.Getenv(istioctlBinaryPathEnvKey)
-		istioctlPaths, err := parsePaths(pathsConfig, validatePath, logger)
+		istioctlPaths, err := parsePaths(pathsConfig, ensureFileExecutable, logger)
 		if err != nil {
 			logger.Errorf("Could not create '%s' component reconciler: Error parsing env variable '%s': %s", name, istioctlBinaryPathEnvKey, err.Error())
 			return nil, err
@@ -100,7 +100,7 @@ func parsePaths(input string, isValid func(string, *zap.SugaredLogger) error, lo
 	return res, nil
 }
 
-func validatePath(path string, logger *zap.SugaredLogger) error {
+func ensureFileExecutable(path string, logger *zap.SugaredLogger) error {
 	stat, err := os.Stat(path)
 	if err != nil {
 		return errors.Wrap(err, "Error getting file data")

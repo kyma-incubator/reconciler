@@ -123,7 +123,7 @@ func TestParsePaths(t *testing.T) {
 }
 
 func TestChmodExecutable(t *testing.T) {
-	t.Run("chmod to 0777", func(t *testing.T) {
+	t.Run("should return nil and change mode of file to 0777 when it had 0000", func(t *testing.T) {
 		pathToFile := "tmp/dat1"
 		t.Cleanup(func() {
 			err := os.RemoveAll("tmp")
@@ -151,7 +151,7 @@ func TestChmodExecutable(t *testing.T) {
 	})
 }
 
-func TestValidatePath(t *testing.T) {
+func TestEnsureFileExecutable(t *testing.T) {
 	t.Run("should return nil and change mode of file to 0777 when it had 0000", func(t *testing.T) {
 		pathToFile := "tmp/dat1"
 		t.Cleanup(func() {
@@ -162,7 +162,7 @@ func TestValidatePath(t *testing.T) {
 		d1 := []byte("hello\nworld\n")
 		err := os.WriteFile(pathToFile, d1, 0000)
 		require.NoError(t, err)
-		err = validatePath(pathToFile, zap.NewNop().Sugar())
+		err = ensureFileExecutable(pathToFile, zap.NewNop().Sugar())
 		require.NoError(t, err)
 		stat, err := os.Stat(pathToFile)
 		require.NoError(t, err)
@@ -171,12 +171,12 @@ func TestValidatePath(t *testing.T) {
 	})
 	t.Run("should return error when file does not exist", func(t *testing.T) {
 		pathToFile := "not-existing"
-		err := validatePath(pathToFile, zap.NewNop().Sugar())
+		err := ensureFileExecutable(pathToFile, zap.NewNop().Sugar())
 		require.Error(t, err)
 	})
 	t.Run("should return error when path is empty", func(t *testing.T) {
 		pathToFile := ""
-		err := validatePath(pathToFile, zap.NewNop().Sugar())
+		err := ensureFileExecutable(pathToFile, zap.NewNop().Sugar())
 		require.Error(t, err)
 	})
 }
