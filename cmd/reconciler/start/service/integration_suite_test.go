@@ -50,7 +50,6 @@ type reconcilerIntegrationTestSuite struct {
 
 	callbackOnNil    string
 	callbackMockPort int
-	urlCallbackMock  string
 
 	workerConfig *cliRecon.WorkerConfig
 
@@ -76,7 +75,6 @@ type reconcilerIntegrationTestCase struct {
 	name     string
 	settings *componentReconcilerIntegrationSettings
 
-	loadTestWorkers      bool
 	overrideWorkerConfig *cliRecon.WorkerConfig
 
 	model                *reconciler.Task
@@ -222,13 +220,13 @@ func (s *reconcilerIntegrationTestSuite) startAndWaitForComponentReconciler(sett
 }
 
 //goland:noinspection HttpUrlsUsage
-func (s *reconcilerIntegrationTestSuite) reconcilerUrl() string {
+func (s *reconcilerIntegrationTestSuite) reconcilerURL() string {
 	//nolint:gosec //in test cases is a dynamic URL acceptable
 	return fmt.Sprintf("http://%s:%v/v1/run", s.reconcilerHost, s.reconcilerPort)
 }
 
 //goland:noinspection HttpUrlsUsage
-func (s *reconcilerIntegrationTestSuite) callbackUrl() string {
+func (s *reconcilerIntegrationTestSuite) callbackURL() string {
 	//nolint:gosec //in test cases is a dynamic URL acceptable
 	return fmt.Sprintf("http://%s:%v/callback", s.reconcilerHost, s.callbackMockPort)
 }
@@ -240,10 +238,10 @@ func (s *reconcilerIntegrationTestSuite) post(testCase reconcilerIntegrationTest
 
 	jsonPayload, marshallErr := json.Marshal(testCase.model)
 	s.NoError(marshallErr)
-	url := s.reconcilerUrl()
+	url := s.reconcilerURL()
 	s.testLogger.Infof("Sending post request to component reconciler (%s)", url)
 	work := func(results chan<- interface{}) {
-		resp, postErr := http.Post(s.reconcilerUrl(), "application/json",
+		resp, postErr := http.Post(s.reconcilerURL(), "application/json",
 			bytes.NewBuffer(jsonPayload))
 		s.NoError(postErr)
 		results <- testCase.responseParser(resp)

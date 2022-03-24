@@ -382,7 +382,7 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 					testCase.model.CallbackURL = s.callbackOnNil
 				} else {
 					//goland:noinspection HttpUrlsUsage
-					testCase.model.CallbackURL = s.callbackUrl()
+					testCase.model.CallbackURL = s.callbackURL()
 
 					//start mock server to catch callback events
 					var server *http.Server

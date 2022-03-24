@@ -55,6 +55,9 @@ var NoOpMigrationConfig MigrationConfig = ""
 
 func RunPostgresContainer(ctx context.Context, settings PostgresContainerSettings, debug bool) (*PostgresContainerRuntime, error) {
 	_, filesErr := os.Stat(string(settings.Config))
+	if filesErr != nil {
+		return nil, filesErr
+	}
 	_, filesErr = os.Stat(settings.EncryptionKeyFile)
 	if filesErr != nil {
 		return nil, filesErr

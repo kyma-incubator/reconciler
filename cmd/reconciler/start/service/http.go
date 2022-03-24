@@ -133,20 +133,21 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 	// ErrPoolOverload. This can only be circumvented by a small read lock in the worker-pool submission for now.
 	reconcileSubmissionMutex.Lock()
 	defer reconcileSubmissionMutex.Unlock()
+
 	if workerPool.IsFull() {
 		server.SendHTTPError(w, http.StatusTooManyRequests, &reconciler.HTTPErrorResponse{
 			Error: errors.Errorf("worker pool for %s has reached it's capacity %v", model.Component, workerPool.Size()).Error(),
 		})
 		return
-	} else {
-		if err := workerPool.AssignWorker(ctx, model); err != nil {
-			server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
-				Error: err.Error(),
-			})
-			return
-		}
-		sendResponse(w)
 	}
+
+	if err := workerPool.AssignWorker(ctx, model); err != nil {
+		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	sendResponse(w)
 }
 
 func sendResponse(w http.ResponseWriter) {
