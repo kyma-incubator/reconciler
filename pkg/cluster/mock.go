@@ -14,18 +14,20 @@ import (
 const envVarKubeconfig = "KUBECONFIG"
 
 type MockInventory struct {
-	ClustersToReconcileResult     []*State
-	ClustersNotReadyResult        []*State
-	GetResult                     *State
-	GetLatestResult               *State
-	GetAllResult                  []*State
-	CreateOrUpdateResult          *State
-	MarkForDeletionResult         *State
-	DeleteResult                  error
-	UpdateStatusResult            *State
-	ChangesResult                 []*StatusChange
-	RetriesCount                  int
-	DeleteClustersOlderThanResult int
+	ClustersToReconcileResult             []*State
+	ClustersNotReadyResult                []*State
+	GetResult                             *State
+	GetLatestResult                       *State
+	GetAllResult                          []*State
+	CreateOrUpdateResult                  *State
+	MarkForDeletionResult                 *State
+	DeleteResult                          error
+	UpdateStatusResult                    *State
+	ChangesResult                         []*StatusChange
+	RetriesCount                          int
+	DeletedStatusesWoReconciliationResult int
+	DeletedStatusesOlderThanResult        int
+	DeletedClustersOlderThanResult        int
 }
 
 func (i *MockInventory) WithTx(_ *db.TxConnection) (Inventory, error) {
@@ -91,13 +93,13 @@ func (i *MockInventory) CountRetries(_ string, _ int64, _ int, _ ...model.Status
 	return i.RetriesCount, nil
 }
 
-func (i *MockInventory) DeleteStatusesWithoutReconciliations() error {
-	return nil
+func (i *MockInventory) RemoveStatusesWithoutReconciliations() (int, error) {
+	return i.DeletedStatusesWoReconciliationResult, nil
 }
-func (i *MockInventory) DeleteStatusesBeforeDeadline(deadline time.Time) error {
-	return nil
+func (i *MockInventory) RemoveStatusesOlderThan(deadline time.Time) (int, error) {
+	return i.DeletedStatusesOlderThanResult, nil
 }
 
-func (i *MockInventory) RemoveDeletedClustersOlderThan(dDay time.Time) (int, error) {
-	return i.DeleteClustersOlderThanResult, nil
+func (i *MockInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (int, error) {
+	return i.DeletedClustersOlderThanResult, nil
 }

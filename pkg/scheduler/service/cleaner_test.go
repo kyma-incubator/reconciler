@@ -36,7 +36,8 @@ func Test_cleaner_Run(t *testing.T) {
 					},
 				},
 			},
-			logger: logger.NewLogger(true),
+			inventory: &cluster.MockInventory{},
+			logger:    logger.NewLogger(true),
 		}, &CleanerConfig{
 			PurgeEntitiesOlderThan: 2 * time.Second,
 			CleanerInterval:        5 * time.Second,

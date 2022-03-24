@@ -26,9 +26,9 @@ type Inventory interface {
 	ClustersNotReady() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 	WithTx(tx *db.TxConnection) (Inventory, error)
-	DeleteStatusesWithoutReconciliations() error
-	DeleteStatusesBeforeDeadline(deadline time.Time) error
-	RemoveDeletedClustersOlderThan(dDay time.Time) (int, error)
+	RemoveStatusesWithoutReconciliations() (int, error)
+	RemoveStatusesOlderThan(deadline time.Time) (int, error)
+	RemoveDeletedClustersOlderThan(deadline time.Time) (int, error)
 }
 
 type DefaultInventory struct {
@@ -728,76 +728,72 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	return statusChanges, nil
 }
 
-func (i *DefaultInventory) DeleteStatusesWithoutReconciliations() error {
-	dbOps := func(tx *db.TxConnection) error {
+func (i *DefaultInventory) RemoveStatusesWithoutReconciliations() (int, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		statusSelectQuery, err := db.NewQuery(i.Conn, &model.StatusCleanupEntity{}, i.Logger)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		statusSelect, err := statusSelectQuery.SelectColumn("StatusID")
 		if err != nil {
-			return err
+			return 0, err
 		}
 
 		deleteQuery, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 		if err != nil {
-			return err
+			return 0, err
 		}
-		delCnt, err := deleteQuery.Delete().WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
+		return deleteQuery.
+			Delete().
+			WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
 			Exec()
-		i.Logger.Debugf("Deleted %d config statuses during cluster entities cleanup", delCnt)
-		return err
 	}
-	err := db.Transaction(i.Conn, dbOps, i.Logger)
+	delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
 	if err != nil {
-		i.Logger.Error("Deletion of config statuses with reconciliation failed during cluster entities cleanup", err)
+		i.Logger.Error("Removal of config statuses without reconciliation failed during cluster entities cleanup", err)
 	}
-	return err
+	return delCnt.(int), err
 }
 
-func (i *DefaultInventory) DeleteStatusesBeforeDeadline(deadline time.Time) error {
-	dbOps := func(tx *db.TxConnection) error {
+func (i *DefaultInventory) RemoveStatusesOlderThan(deadline time.Time) (int, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		statusSelectQuery, err := db.NewQuery(i.Conn, &model.ClusterCleanupEntity{}, i.Logger)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		statusSelect, err := statusSelectQuery.SelectColumn("StatusID")
 		if err != nil {
-			return err
+			return 0, err
 		}
 
 		columnHandler, err := db.NewColumnHandler(&model.ClusterCleanupEntity{}, i.Conn, i.Logger)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		statusIDColumnName, err := columnHandler.ColumnName("Created")
 		if err != nil {
-			return err
+			return 0, err
 		}
 		statusSelect.WhereRaw(fmt.Sprintf("%s<$%d", statusIDColumnName, statusSelect.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
 
 		deleteQuery, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 		if err != nil {
-			return err
+			return 0, err
 		}
-		delCnt, err := deleteQuery.
+		return deleteQuery.
 			Delete().
 			WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
 			Exec()
-		i.Logger.Debugf("Deleted %d config statuses during cluster entities cleanup", delCnt)
-		return err
 	}
-	err := db.Transaction(i.Conn, dbOps, i.Logger)
+	delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
 	if err != nil {
-		i.Logger.Error("Deletion of config statuses by deadline failed during cluster entities cleanup", err)
+		i.Logger.Error("Removal of older config statuses failed during cluster entities cleanup", err)
 	}
-	return err
+	return delCnt.(int), err
 }
 
-func (i *DefaultInventory) RemoveDeletedClustersOlderThan(dDay time.Time) (int, error) {
-
+func (i *DefaultInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (int, error) {
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
-
 		selectQuery, err := db.NewQuery(tx, &model.ClusterEntity{}, i.Logger)
 		if err != nil {
 			return 0, err
@@ -815,7 +811,7 @@ func (i *DefaultInventory) RemoveDeletedClustersOlderThan(dDay time.Time) (int, 
 			return 0, err
 		}
 		runtimeIDSelectQuery.Select().
-			WhereRaw(fmt.Sprintf("%s<$%d", createdColumn, runtimeIDSelectQuery.NextPlaceholderCount()), dDay.Format("2006-01-02 15:04:05.000"))
+			WhereRaw(fmt.Sprintf("%s<$%d", createdColumn, runtimeIDSelectQuery.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
 
 		deleteQuery, err := db.NewQuery(tx, &model.ClusterEntity{}, i.Logger)
 		if err != nil {
@@ -830,5 +826,8 @@ func (i *DefaultInventory) RemoveDeletedClustersOlderThan(dDay time.Time) (int, 
 			Exec()
 	}
 	result, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+	if err != nil {
+		i.Logger.Error("Removal of deleted clusters failed during cluster entities cleanup", err)
+	}
 	return result.(int), err
 }
