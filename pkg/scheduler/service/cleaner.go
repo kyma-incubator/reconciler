@@ -93,7 +93,11 @@ func (c *cleaner) purgeClusterEntities(transition *ClusterStatusTransition, clus
 			err = transition.Inventory().DeleteStatusesBeforeDeadline(deadline)
 
 			// delete inventory clusters
-			//transition.Inventory()...
+			removedClustersCnt, err := transition.Inventory().RemoveDeletedClustersOlderThan(deadline)
+			if err != nil {
+				return err
+			}
+			c.logger.Infof("%s Removed %d deleted clusters that are older than %d days", CleanerPrefix, removedClustersCnt, clusterInventoryCleanupDays)
 		}
 	}
 	return err

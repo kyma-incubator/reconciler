@@ -28,6 +28,7 @@ type Inventory interface {
 	WithTx(tx *db.TxConnection) (Inventory, error)
 	DeleteStatusesWithoutReconciliations() error
 	DeleteStatusesBeforeDeadline(deadline time.Time) error
+	RemoveDeletedClustersOlderThan(dDay time.Time) (int, error)
 }
 
 type DefaultInventory struct {
@@ -791,4 +792,43 @@ func (i *DefaultInventory) DeleteStatusesBeforeDeadline(deadline time.Time) erro
 		i.Logger.Error("Deletion of config statuses by deadline failed during cluster entities cleanup", err)
 	}
 	return err
+}
+
+func (i *DefaultInventory) RemoveDeletedClustersOlderThan(dDay time.Time) (int, error) {
+
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+
+		selectQuery, err := db.NewQuery(tx, &model.ClusterEntity{}, i.Logger)
+		if err != nil {
+			return 0, err
+		}
+		columnHandler, err := db.NewColumnHandler(&model.ClusterEntity{}, tx, i.Logger)
+		if err != nil {
+			return 0, err
+		}
+		createdColumn, err := columnHandler.ColumnName("Created")
+		if err != nil {
+			return 0, err
+		}
+		runtimeIDSelectQuery, err := selectQuery.SelectColumn("RuntimeID")
+		if err != nil {
+			return 0, err
+		}
+		runtimeIDSelectQuery.Select().
+			WhereRaw(fmt.Sprintf("%s<$%d", createdColumn, runtimeIDSelectQuery.NextPlaceholderCount()), dDay.Format("2006-01-02 15:04:05.000"))
+
+		deleteQuery, err := db.NewQuery(tx, &model.ClusterEntity{}, i.Logger)
+		if err != nil {
+			return 0, err
+		}
+		whereCond := map[string]interface{}{
+			"Deleted": true,
+		}
+		return deleteQuery.Delete().
+			Where(whereCond).
+			WhereIn("RuntimeID", runtimeIDSelectQuery.String(), runtimeIDSelectQuery.GetArgs()...).
+			Exec()
+	}
+	result, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+	return result.(int), err
 }
