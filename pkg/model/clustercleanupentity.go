@@ -18,7 +18,7 @@ type ClusterCleanupEntity struct {
 }
 
 func (cce *ClusterCleanupEntity) String() string {
-	return fmt.Sprintf("ClusterCleanupEntity [Status=%s,Created=%d,RuntimeID=%d]", cce.Status, cce.Created, cce.RuntimeID)
+	return fmt.Sprintf("ClusterCleanupEntity [Status=%s,Created=%d,RuntimeID=%s]", cce.Status, cce.Created.Second(), cce.RuntimeID)
 }
 
 func (cce *ClusterCleanupEntity) New() db.DatabaseEntity {
@@ -58,7 +58,7 @@ type StatusCleanupEntity struct {
 }
 
 func (sce *StatusCleanupEntity) String() string {
-	return fmt.Sprintf("StatusCleanupEntity [Status=%s,Created=%d,RuntimeID=%d]", sce.Status, sce.Created, sce.RuntimeID)
+	return fmt.Sprintf("StatusCleanupEntity [Status=%s,Created=%d,RuntimeID=%s]", sce.Status, sce.Created.Second(), sce.RuntimeID)
 }
 
 func (sce *StatusCleanupEntity) New() db.DatabaseEntity {

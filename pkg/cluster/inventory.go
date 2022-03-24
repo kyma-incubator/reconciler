@@ -766,6 +766,9 @@ func (i *DefaultInventory) DeleteStatusesBeforeDeadline(deadline time.Time) erro
 		}
 
 		columnHandler, err := db.NewColumnHandler(&model.ClusterCleanupEntity{}, i.Conn, i.Logger)
+		if err != nil {
+			return err
+		}
 		statusIDColumnName, err := columnHandler.ColumnName("Created")
 		if err != nil {
 			return err

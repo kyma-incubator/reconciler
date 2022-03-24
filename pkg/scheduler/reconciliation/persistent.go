@@ -234,6 +234,9 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsForObsoleteSta
 		}
 
 		columnHandler, err := db.NewColumnHandler(&model.ClusterCleanupEntity{}, r.Conn, r.Logger)
+		if err != nil {
+			return err
+		}
 		statusIDColumnName, err := columnHandler.ColumnName("Created")
 		if err != nil {
 			return err
