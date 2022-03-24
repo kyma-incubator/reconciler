@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/mux"
 	reconCli "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
@@ -98,6 +99,8 @@ func modelForVersion(contractVersion string) (*reconciler.Task, error) {
 	return &reconciler.Task{}, nil //change this function if multiple contract versions have to be supported
 }
 
+var reconcileSubmissionMutex = sync.Mutex{}
+
 func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o *reconCli.Options, workerPool *service.WorkerPool, tracker *service.OccupancyTracker) {
 	o.Logger().Debug("Start processing reconciliation request")
 
@@ -120,23 +123,30 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 		return
 	}
 
-	if workerPool.IsFull() {
-		server.SendHTTPError(w, http.StatusTooManyRequests, &reconciler.HTTPErrorResponse{
-			Error: errors.Errorf("worker pool for %s has reached it's capacity %v", model.Component, workerPool.Size()).Error(),
-		})
-	}
-
 	o.Logger().Debugf("Assigning reconciliation worker to model '%s'", model)
 	//setting callback URL for occupancy tracking
 
 	tracker.AssignCallbackURL(model.CallbackURL)
-	if err := workerPool.AssignWorker(ctx, model); err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
+
+	// this mutex is necessary because if we have heavy parallel submissions, it can happen that the worker pool was not
+	// full during the if statement execution, but got filled by another goroutine from the router and then leads to
+	// ErrPoolOverload. This can only be circumvented by a small read lock in the worker-pool submission for now.
+	reconcileSubmissionMutex.Lock()
+	defer reconcileSubmissionMutex.Unlock()
+	if workerPool.IsFull() {
+		server.SendHTTPError(w, http.StatusTooManyRequests, &reconciler.HTTPErrorResponse{
+			Error: errors.Errorf("worker pool for %s has reached it's capacity %v", model.Component, workerPool.Size()).Error(),
 		})
 		return
+	} else {
+		if err := workerPool.AssignWorker(ctx, model); err != nil {
+			server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
+				Error: err.Error(),
+			})
+			return
+		}
+		sendResponse(w)
 	}
-	sendResponse(w)
 }
 
 func sendResponse(w http.ResponseWriter) {

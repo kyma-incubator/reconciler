@@ -83,7 +83,7 @@ func (s *PostgresContainer) Bootstrap(ctx context.Context) error {
 				"POSTGRES_DB":       s.database,
 			},
 			AutoRemove: true,
-			SkipReaper: true,
+			SkipReaper: false, // this injects https://hub.docker.com/r/testcontainers/ryuk that autodeletes orphaned containers
 		},
 		Started: true,
 	})

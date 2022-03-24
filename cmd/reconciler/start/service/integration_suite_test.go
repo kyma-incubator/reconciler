@@ -21,7 +21,6 @@ import (
 	clientgo "k8s.io/client-go/kubernetes"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -33,7 +32,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-type ReconcilerIntegrationTestSuite struct {
+type reconcilerIntegrationTestSuite struct {
 	suite.Suite
 
 	containerSuite *db.ContainerTestSuite
@@ -45,25 +44,48 @@ type ReconcilerIntegrationTestSuite struct {
 	testDirectory string
 	testLogger    *zap.SugaredLogger
 
-	kubeClient k8s.Client
+	kubeClient       k8s.Client
+	kubeClientConfig *k8s.Config
+	chartFactory     chart.Factory
 
 	callbackOnNil    string
 	callbackMockPort int
 	urlCallbackMock  string
 
-	workerTimeout time.Duration
+	workerConfig *cliRecon.WorkerConfig
 
 	options *cliRecon.Options
 
 	serverStartMutex sync.Mutex
 }
 
-type ReconcilerIntegrationComponentSettings struct {
-	name       string
-	namespace  string
-	version    string
-	deployment string
-	url        string
+type componentReconcilerIntegrationSettings struct {
+	name            string
+	namespace       string
+	version         string
+	deployment      string
+	url             string
+	deleteAfterTest bool
+}
+
+type responseParser func(*http.Response) interface{}
+type testCasePostExecutionVerification func(interface{}, *reconcilerIntegrationTestCase)
+type callbackVerification func(callbacks []*reconciler.CallbackMessage)
+
+type reconcilerIntegrationTestCase struct {
+	name     string
+	settings *componentReconcilerIntegrationSettings
+
+	loadTestWorkers      bool
+	overrideWorkerConfig *cliRecon.WorkerConfig
+
+	model                *reconciler.Task
+	parallelRequests     int
+	responseParser       responseParser
+	callbackVerification callbackVerification
+	verification         testCasePostExecutionVerification
+
+	reconcileAction service.Action
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -85,7 +107,7 @@ func TestIntegrationSuite(t *testing.T) {
 		false,
 	)
 	cs.SetT(t)
-	suite.Run(t, &ReconcilerIntegrationTestSuite{
+	suite.Run(t, &reconcilerIntegrationTestSuite{
 		containerSuite: cs,
 		reconcilerHost: "localhost",
 		testContext:    context.Background(),
@@ -95,14 +117,24 @@ func TestIntegrationSuite(t *testing.T) {
 		callbackOnNil:    "https://httpbin.org/post",
 		callbackMockPort: 11111,
 
-		workerTimeout: 70 * time.Second,
+		workerConfig: &cliRecon.WorkerConfig{
+			Timeout: 35 * time.Second,
+			Workers: 2,
+		},
 
 		reconcilerPort: 9999,
+
+		kubeClientConfig: &k8s.Config{
+			MaxRetries:       3,
+			ProgressInterval: 5 * time.Second,
+			ProgressTimeout:  16 * time.Second,
+			RetryDelay:       2 * time.Second,
+		},
 	})
 	db.ReturnLeasedSharedContainerTestSuite(t, containerSettings)
 }
 
-func (s *ReconcilerIntegrationTestSuite) SetupSuite() {
+func (s *reconcilerIntegrationTestSuite) SetupSuite() {
 	s.containerSuite.SetupSuite()
 	s.serverStartMutex = sync.Mutex{}
 	s.testLogger = logger.NewLogger(true)
@@ -111,13 +143,14 @@ func (s *ReconcilerIntegrationTestSuite) SetupSuite() {
 	wsf, err := chart.NewFactory(nil, s.testDirectory, s.testLogger)
 	s.NoError(err)
 
-	//this currently blocks parallel execution TODO
+	// TODO this currently blocks parallel execution as tests share one execution directory
 	s.NoError(service.UseGlobalWorkspaceFactory(wsf))
+	s.chartFactory = wsf
 
 	kubeConfig := test.ReadKubeconfig(s.T())
 
 	//create kubeClient (e.g. needed to verify reconciliation results)
-	kubeClient, k8sErr := k8s.NewKubernetesClient(kubeConfig, s.testLogger, nil)
+	kubeClient, k8sErr := k8s.NewKubernetesClient(kubeConfig, s.testLogger, s.kubeClientConfig)
 	s.NoError(k8sErr)
 
 	s.kubeClient = kubeClient
@@ -127,29 +160,46 @@ func (s *ReconcilerIntegrationTestSuite) SetupSuite() {
 	s.NoError(err)
 	o := cliRecon.NewOptions(cliOptions)
 	o.ServerConfig.Port = s.reconcilerPort
-	o.WorkerConfig.Timeout = s.workerTimeout
-	o.HeartbeatSenderConfig.Interval = 1 * time.Second
-	o.ProgressTrackerConfig.Interval = 1 * time.Second
+	o.WorkerConfig = s.workerConfig
+	o.HeartbeatSenderConfig.Interval = 3 * time.Second
+	o.ProgressTrackerConfig.Interval = 3 * time.Second
 	o.RetryConfig.RetryDelay = 2 * time.Second
 	o.RetryConfig.MaxRetries = 3
 	s.options = o
 }
 
-func (s *ReconcilerIntegrationTestSuite) StartupConfiguredReconciler(settings *ReconcilerIntegrationComponentSettings) {
+func (s *reconcilerIntegrationTestSuite) TearDownSuite() {
+	s.containerSuite.TearDownSuite()
+}
+
+func (s *reconcilerIntegrationTestSuite) startAndWaitForComponentReconciler(settings *componentReconcilerIntegrationSettings) {
 	recon, reconErr := service.NewComponentReconciler(settings.name)
 	s.NoError(reconErr)
 	recon = recon.Debug()
 
 	s.T().Cleanup(func() {
-		//TODO Install external component from scratch still causes leftover and cannot be cleaned up, we will have to change the logic to either have correct external fetching into a "resources" folder or adjust test behavior
-		if settings.url == "" {
-			service.NewTestCleanup(recon, s.kubeClient).RemoveKymaComponent(
-				s.T(),
-				settings.version,
-				settings.name,
-				settings.namespace,
-			)
-			// THIS DOES NOT BLOCK UNTIL NAMESPACE IS TERMINATED
+		// this cleanup runs with Helm so it can happen that the cleanup unblocks while the finalizers are still not
+		// dropped for a namespace. This can cause test failures for successive tests using the same namespace as the
+		// API server will reject the request. You can circumvent this by using a different namespace.
+		cleanUp := service.NewTestCleanup(recon, s.kubeClient)
+
+		// this is needed to make sure the helm chart can be found under the right version
+		version := settings.version
+		if settings.url != "" {
+			version = chart.GetExternalArchiveComponentHashedVersion(settings.url, settings.name)
+		}
+
+		cleanUp.RemoveKymaComponent(
+			s.T(),
+			version,
+			settings.name,
+			settings.namespace,
+			settings.url,
+		)
+
+		// this is done as Cleanup of the externally downloaded component
+		if settings.deleteAfterTest {
+			s.NoError(s.chartFactory.Delete(version))
 		}
 	})
 
@@ -158,65 +208,64 @@ func (s *ReconcilerIntegrationTestSuite) StartupConfiguredReconciler(settings *R
 		cancel()
 		time.Sleep(1 * time.Second) //give component reconciler some time for graceful shutdown
 	})
+
 	workerPool, tracker, startErr := StartComponentReconciler(componentReconcilerServerContext, s.options, settings.name)
 	s.NoError(startErr)
+
 	go func() {
-		s.T().Cleanup(func() {
-			prometheus.Unregister(recon.Collector())
-		})
+		// This is necessary in case the next test starts faster than Prometheus can garbage collect the Registration
+		s.T().Cleanup(func() { prometheus.Unregister(recon.Collector()) })
 		s.NoError(StartWebserver(componentReconcilerServerContext, s.options, workerPool, tracker))
 	}()
-	cliTest.WaitForTCPSocket(s.T(), s.reconcilerHost, s.reconcilerPort, 15*time.Second)
-}
 
-type reconcilerIntegrationTestCase struct {
-	name     string
-	settings *ReconcilerIntegrationComponentSettings
-
-	loadTestWorkers      bool
-	overrideWorkerConfig *cliRecon.WorkerConfig
-
-	model              *reconciler.Task
-	expectedHTTPCode   int
-	expectedResponse   interface{}
-	verifyCallbacksFct func(callbacks []*reconciler.CallbackMessage)
-	verifyResponseFct  func(interface{}, *reconcilerIntegrationTestCase)
+	cliTest.WaitForTCPSocket(s.T(), s.reconcilerHost, s.reconcilerPort, 5*time.Second)
 }
 
 //goland:noinspection HttpUrlsUsage
-func (s *ReconcilerIntegrationTestSuite) reconcilerUrl() string {
+func (s *reconcilerIntegrationTestSuite) reconcilerUrl() string {
 	//nolint:gosec //in test cases is a dynamic URL acceptable
 	return fmt.Sprintf("http://%s:%v/v1/run", s.reconcilerHost, s.reconcilerPort)
 }
 
 //goland:noinspection HttpUrlsUsage
-func (s *ReconcilerIntegrationTestSuite) callbackUrl() string {
+func (s *reconcilerIntegrationTestSuite) callbackUrl() string {
 	//nolint:gosec //in test cases is a dynamic URL acceptable
 	return fmt.Sprintf("http://%s:%v/callback", s.reconcilerHost, s.callbackMockPort)
 }
 
-func (s *ReconcilerIntegrationTestSuite) post(testCase reconcilerIntegrationTestCase) interface{} {
+func (s *reconcilerIntegrationTestSuite) post(testCase reconcilerIntegrationTestCase) interface{} {
+	if testCase.parallelRequests == 0 {
+		testCase.parallelRequests++ // in case the test case does not define parallelrequests we want to request once.
+	}
+
 	jsonPayload, marshallErr := json.Marshal(testCase.model)
 	s.NoError(marshallErr)
 	url := s.reconcilerUrl()
 	s.testLogger.Infof("Sending post request to component reconciler (%s)", url)
-	resp, postErr := http.Post(s.reconcilerUrl(), "application/json",
-		bytes.NewBuffer(jsonPayload))
-	s.Equal(testCase.expectedHTTPCode, resp.StatusCode)
-	if testCase.expectedHTTPCode >= 200 && testCase.expectedHTTPCode < 400 {
+	work := func(results chan<- interface{}) {
+		resp, postErr := http.Post(s.reconcilerUrl(), "application/json",
+			bytes.NewBuffer(jsonPayload))
 		s.NoError(postErr)
+		results <- testCase.responseParser(resp)
 	}
-	body, ioReadErr := ioutil.ReadAll(resp.Body)
-	s.NoError(ioReadErr)
-	s.NoError(resp.Body.Close())
 
-	s.testLogger.Infof("Body received from component reconciler: %s", string(body))
+	resultChannel := make(chan interface{}, testCase.parallelRequests)
+	allResults := make([]interface{}, testCase.parallelRequests)
+	for range allResults {
+		go work(resultChannel)
+	}
+	for i := range allResults {
+		allResults[i] = <-resultChannel
+	}
+	close(resultChannel)
 
-	s.NoError(json.Unmarshal(body, testCase.expectedResponse))
-	return testCase.expectedResponse
+	if len(allResults) == 1 {
+		return allResults[0]
+	}
+	return allResults
 }
 
-func (s *ReconcilerIntegrationTestSuite) newCallbackMockServer() (*http.Server, chan *reconciler.CallbackMessage) {
+func (s *reconcilerIntegrationTestSuite) newCallbackMockServer() (*http.Server, chan *reconciler.CallbackMessage) {
 	callbackC := make(chan *reconciler.CallbackMessage, 100) //don't block
 
 	router := mux.NewRouter()
@@ -249,7 +298,7 @@ func (s *ReconcilerIntegrationTestSuite) newCallbackMockServer() (*http.Server, 
 	return srv, callbackC
 }
 
-func (s *ReconcilerIntegrationTestSuite) receiveCallbacks(callbackC chan *reconciler.CallbackMessage) []*reconciler.CallbackMessage {
+func (s *reconcilerIntegrationTestSuite) receiveCallbacks(callbackC chan *reconciler.CallbackMessage) []*reconciler.CallbackMessage {
 	var received []*reconciler.CallbackMessage
 Loop:
 	for {
@@ -259,7 +308,7 @@ Loop:
 			if callback.Status == reconciler.StatusError || callback.Status == reconciler.StatusSuccess {
 				break Loop
 			}
-		case <-time.NewTimer(s.workerTimeout).C:
+		case <-time.NewTimer(s.workerConfig.Timeout).C:
 			s.testLogger.Infof("Timeout reached for retrieving callbacks")
 			break Loop
 		}
@@ -267,53 +316,10 @@ Loop:
 	return received
 }
 
-func (s *ReconcilerIntegrationTestSuite) expectPodInState(namespace string, deployment string, state progress.State) {
-	clientSet, err := s.kubeClient.Clientset()
-	s.NoError(err)
-
-	watchable, err := progress.NewWatchableResource("deployment")
-	s.NoError(err)
-
-	s.testLogger.Infof("Waiting for deployment '%s' to reach %s state", deployment, strings.ToUpper(string(state)))
-	prog := s.newProgressTracker(clientSet)
-	prog.AddResource(watchable, namespace, deployment)
-	s.NoError(prog.Watch(s.testContext, state))
-	s.testLogger.Infof("Deployment '%s' reached %s state", deployment, strings.ToUpper(string(state)))
-}
-
-func (s *ReconcilerIntegrationTestSuite) newProgressTracker(clientSet clientgo.Interface) *progress.Tracker {
+func (s *reconcilerIntegrationTestSuite) newProgressTracker(clientSet clientgo.Interface) *progress.Tracker {
 	prog, err := progress.NewProgressTracker(clientSet, logger.NewLogger(true), progress.Config{
 		Interval: 1 * time.Second,
 	})
 	s.NoError(err)
 	return prog
-}
-
-func (s *ReconcilerIntegrationTestSuite) expectSuccessfulReconciliation(callbacks []*reconciler.CallbackMessage) {
-	for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
-		if idx < len(callbacks)-1 {
-			s.Equal(reconciler.StatusRunning, callback.Status)
-		} else {
-			s.Equal(reconciler.StatusSuccess, callback.Status)
-		}
-	}
-}
-
-func (s *ReconcilerIntegrationTestSuite) expectFailingReconciliation(callbacks []*reconciler.CallbackMessage) {
-	for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
-		switch idx {
-		case 0:
-			//first callback has to indicate a running reconciliation
-			s.Equal(reconciler.StatusRunning, callback.Status)
-		case len(callbacks) - 1:
-			//last callback has to indicate an error
-			s.Equal(reconciler.StatusError, callback.Status)
-		default:
-			//callbacks during the reconciliation is ongoing have to indicate a failure or running
-			s.Contains([]reconciler.Status{
-				reconciler.StatusFailed,
-				reconciler.StatusRunning,
-			}, callback.Status)
-		}
-	}
 }

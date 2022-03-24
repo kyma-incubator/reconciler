@@ -332,13 +332,17 @@ func (f *DefaultFactory) Delete(version string) error {
 }
 
 func (f *DefaultFactory) componentBaseDir(c *Component) string {
-	filename := fmt.Sprintf("%x-%s", sha1.Sum([]byte(c.url)), c.name) //nolint
+	filename := GetExternalArchiveComponentHashedVersion(c.url, c.name)
 
 	if c.isExternalGitComponent() {
 		return filepath.Join(f.storageDir, gitComponentsBaseDir, filename)
 	}
 
 	return filepath.Join(f.storageDir, filename)
+}
+
+func GetExternalArchiveComponentHashedVersion(url, name string) string {
+	return fmt.Sprintf("%x-%s", sha1.Sum([]byte(url)), name) //nolint
 }
 
 func (f *DefaultFactory) readyMarkerExists(baseDir string) bool {
