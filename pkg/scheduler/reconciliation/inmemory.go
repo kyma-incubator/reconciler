@@ -160,7 +160,7 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliationsForObsoleteStatu
 
 	var runtimeIDsToRemove []string
 	for _, recon := range r.reconciliations {
-		if r.status[recon.ClusterConfigStatus].Deleted == true && r.status[recon.ClusterConfigStatus].Created.Before(deadline) {
+		if r.status[recon.ClusterConfigStatus].Deleted && r.status[recon.ClusterConfigStatus].Created.Before(deadline) {
 			runtimeIDsToRemove = append(runtimeIDsToRemove, recon.RuntimeID)
 		}
 		delete(r.operations, recon.SchedulingID)
