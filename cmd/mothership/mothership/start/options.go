@@ -24,7 +24,7 @@ type Options struct {
 	PurgeEntitiesOlderThan         time.Duration
 	CleanerInterval                time.Duration
 	ReconciliationsKeepLatestCount int
-	ReconciliationsMaxAgeDays      int
+	EntitiesMaxAgeDays             int
 	CreateEncyptionKey             bool
 	MaxParallelOperations          int
 	AuditLog                       bool
@@ -46,7 +46,7 @@ func NewOptions(o *cli.Options) *Options {
 		0 * time.Minute,  //PurgeEntitiesOlderThan
 		0 * time.Minute,  //CleanerInterval
 		0,                //ReconciliationsKeepLatestCount
-		0,                //ReconciliationsMaxAgeDays
+		0,                //EntitiesMaxAgeDays
 		false,            //CreateEncyptionKey
 		0,                //MaxParallelOperations
 		false,            //AuditLog
@@ -76,7 +76,7 @@ func (o *Options) Validate() error {
 	if o.ReconciliationsKeepLatestCount < 0 {
 		return errors.New("cleaner count of latest entities to keep cannot be < 0")
 	}
-	if o.ReconciliationsMaxAgeDays < 0 {
+	if o.EntitiesMaxAgeDays < 0 {
 		return errors.New("cleaner count of days to keep unsuccessful entities cannot be < 0")
 	}
 	if o.MaxParallelOperations < 0 {
