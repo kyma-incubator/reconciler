@@ -247,9 +247,10 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsForObsoleteSta
 		if err != nil {
 			return 0, err
 		}
-		return deleteQuery.Delete().
+		deletedRows, err := deleteQuery.Delete().
 			WhereIn("ClusterConfigStatus", statusSelect.String(), statusSelect.GetArgs()...).
 			Exec()
+		return int(deletedRows), err
 	}
 	delCnt, err := db.TransactionResult(r.Conn, dbOps, r.Logger)
 	if err != nil {

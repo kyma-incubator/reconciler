@@ -743,10 +743,11 @@ func (i *DefaultInventory) RemoveStatusesWithoutReconciliations() (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		return deleteQuery.
+		deletedRows, err := deleteQuery.
 			Delete().
 			WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
 			Exec()
+		return int(deletedRows), err
 	}
 	delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
 	if err != nil {
@@ -780,10 +781,11 @@ func (i *DefaultInventory) RemoveStatusesOlderThan(deadline time.Time) (int, err
 		if err != nil {
 			return 0, err
 		}
-		return deleteQuery.
+		deletedRows, err := deleteQuery.
 			Delete().
 			WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
 			Exec()
+		return int(deletedRows), err
 	}
 	delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
 	if err != nil {
@@ -810,7 +812,7 @@ func (i *DefaultInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (i
 		if err != nil {
 			return 0, err
 		}
-		runtimeIDSelectQuery.Select().
+		runtimeIDSelectQuery.
 			WhereRaw(fmt.Sprintf("%s<$%d", createdColumn, runtimeIDSelectQuery.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
 
 		deleteQuery, err := db.NewQuery(tx, &model.ClusterEntity{}, i.Logger)
@@ -820,10 +822,12 @@ func (i *DefaultInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (i
 		whereCond := map[string]interface{}{
 			"Deleted": true,
 		}
-		return deleteQuery.Delete().
-			Where(whereCond).
+		deletedRows, err := deleteQuery.
+			Delete().
 			WhereIn("RuntimeID", runtimeIDSelectQuery.String(), runtimeIDSelectQuery.GetArgs()...).
+			Where(whereCond).
 			Exec()
+		return int(deletedRows), err
 	}
 	result, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
 	if err != nil {
