@@ -58,8 +58,8 @@ func TestOryIntegrationProduction(t *testing.T) {
 		name := "ory-hydra"
 		hpa, err := setup.getHorizontalPodAutoscaler(name)
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, int32(1), hpa.Status.CurrentReplicas)
-		require.Equal(t, int32(3), hpa.Spec.MaxReplicas)
+		require.GreaterOrEqual(t, int32(2), hpa.Status.CurrentReplicas)
+		require.Equal(t, int32(5), hpa.Spec.MaxReplicas)
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
 	})
 
