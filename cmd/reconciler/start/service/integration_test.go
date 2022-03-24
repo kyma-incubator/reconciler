@@ -16,15 +16,17 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
-type WorkerPoolOccupiedAction struct{}
+type NoOpReconcileAction struct {
+	waitTime time.Duration
+}
 
 // Run reconciler Action logic for Eventing. It executes the Action steps in order
 // and returns a non-nil error if any step was unsuccessful.
-func (a *WorkerPoolOccupiedAction) Run(context *service.ActionContext) (err error) {
+func (a *NoOpReconcileAction) Run(context *service.ActionContext) (err error) {
 	// prepare logger
-	logger := log.ContextLogger(context, log.WithAction("Worker Pool Overload Reconciliation"))
-	logger.Infof("Waiting to cause Workerpool overload")
-	time.Sleep(2 * time.Second)
+	logger := log.ContextLogger(context, log.WithAction("no-op-action"))
+	logger.Infof("Waiting to simulate Op...")
+	time.Sleep(a.waitTime)
 	return nil
 }
 
@@ -153,6 +155,27 @@ func (s *reconcilerIntegrationTestSuite) expectFailingReconciliation() callbackV
 func (s *reconcilerIntegrationTestSuite) TestRun() {
 	testCases := []reconcilerIntegrationTestCase{
 		{
+			name: "No-Op-Reconcile",
+			settings: &componentReconcilerIntegrationSettings{
+				name:            "component-1",
+				namespace:       "inttest-comprecon",
+				version:         "0.0.0",
+				deployment:      "dummy-deployment",
+				reconcileAction: &NoOpReconcileAction{waitTime: 2 * time.Second},
+			},
+			model: &reconciler.Task{
+				ComponentsReady:        []string{"abc", "xyz"},
+				Type:                   model.OperationTypeReconcile,
+				Profile:                "",
+				Configuration:          nil,
+				Kubeconfig:             s.kubeClient.Kubeconfig(),
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 5},
+			},
+			responseParser:       s.responseOkParser(),
+			callbackVerification: s.expectSuccessfulReconciliation(),
+		},
+		{
 			name: "Invalid request: mandatory fields missing",
 			settings: &componentReconcilerIntegrationSettings{
 				name:       "component-1",
@@ -161,17 +184,15 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 				deployment: "dummy-deployment",
 			},
 			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Version:         "1.2.3",
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      "",
-				CorrelationID:   "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
-				CallbackFunc: nil,
+				ComponentsReady:        []string{"abc", "xyz"},
+				Version:                "1.2.3",
+				Type:                   model.OperationTypeReconcile,
+				Profile:                "",
+				Configuration:          nil,
+				Kubeconfig:             "",
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 1},
+				CallbackFunc:           nil,
 			},
 			responseParser: s.responseBadRequestParser(),
 		},
@@ -184,15 +205,13 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 				deployment: "dummy-deployment",
 			},
 			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      s.kubeClient.Kubeconfig(),
-				CorrelationID:   "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 5,
-				},
+				ComponentsReady:        []string{"abc", "xyz"},
+				Type:                   model.OperationTypeReconcile,
+				Profile:                "",
+				Configuration:          nil,
+				Kubeconfig:             s.kubeClient.Kubeconfig(),
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 5},
 			},
 			responseParser:       s.responseOkParser(),
 			verification:         s.verifyPodReady(),
@@ -207,17 +226,14 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 				deployment: "dummy-deployment",
 			},
 			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      s.kubeClient.Kubeconfig(),
-				CorrelationID:   "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 5,
-				},
+				ComponentsReady:        []string{"abc", "xyz"},
+				Type:                   model.OperationTypeReconcile,
+				Profile:                "",
+				Configuration:          nil,
+				Kubeconfig:             s.kubeClient.Kubeconfig(),
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 5},
 			},
-			reconcileAction:  &WorkerPoolOccupiedAction{},
 			parallelRequests: 10,
 			responseParser:   s.tooManyRequestResponseParser(),
 			verification:     s.verifyTooManyRequests(),
@@ -233,15 +249,13 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 				deleteAfterTest: true,
 			},
 			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      s.kubeClient.Kubeconfig(),
-				CorrelationID:   "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 5,
-				},
+				ComponentsReady:        []string{"abc", "xyz"},
+				Type:                   model.OperationTypeReconcile,
+				Profile:                "",
+				Configuration:          nil,
+				Kubeconfig:             s.kubeClient.Kubeconfig(),
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 5},
 			},
 			responseParser:       s.responseOkParser(),
 			verification:         s.verifyPodReady(),
@@ -262,11 +276,9 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 				Configuration: map[string]interface{}{
 					"v1k": "true",
 				},
-				Kubeconfig:    s.kubeClient.Kubeconfig(),
-				CorrelationID: "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
+				Kubeconfig:             s.kubeClient.Kubeconfig(),
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 1},
 			},
 			responseParser:       s.responseOkParser(),
 			callbackVerification: s.expectFailingReconciliation(),
@@ -289,10 +301,8 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 					s.NoError(err)
 					return string(kc)
 				}(),
-				CorrelationID: "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 1},
 			},
 			responseParser:       s.responseOkParser(),
 			callbackVerification: s.expectFailingReconciliation(),
@@ -312,11 +322,9 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 				Configuration: map[string]interface{}{
 					"breakHelmChart": true,
 				},
-				Kubeconfig:    s.kubeClient.Kubeconfig(),
-				CorrelationID: "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
+				Kubeconfig:             s.kubeClient.Kubeconfig(),
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 1},
 			},
 			responseParser:       s.responseOkParser(),
 			callbackVerification: s.expectFailingReconciliation(),
@@ -330,16 +338,14 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 				deployment: "dummy-deployment",
 			},
 			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Type:            model.OperationTypeReconcile,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      s.kubeClient.Kubeconfig(),
-				CallbackURL:     "https://127.0.0.1:12345",
-				CorrelationID:   "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
+				ComponentsReady:        []string{"abc", "xyz"},
+				Type:                   model.OperationTypeReconcile,
+				Profile:                "",
+				Configuration:          nil,
+				Kubeconfig:             s.kubeClient.Kubeconfig(),
+				CallbackURL:            "https://127.0.0.1:12345",
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 1},
 			},
 			responseParser:       s.responseOkParser(),
 			callbackVerification: func(callbacks []*reconciler.CallbackMessage) { s.Empty(callbacks) },
@@ -353,15 +359,13 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 				deployment: "dummy-deployment",
 			},
 			model: &reconciler.Task{
-				ComponentsReady: []string{"abc", "xyz"},
-				Type:            model.OperationTypeDelete,
-				Profile:         "",
-				Configuration:   nil,
-				Kubeconfig:      s.kubeClient.Kubeconfig(),
-				CorrelationID:   "test-correlation-id",
-				ComponentConfiguration: reconciler.ComponentConfiguration{
-					MaxRetries: 1,
-				},
+				ComponentsReady:        []string{"abc", "xyz"},
+				Type:                   model.OperationTypeDelete,
+				Profile:                "",
+				Configuration:          nil,
+				Kubeconfig:             s.kubeClient.Kubeconfig(),
+				CorrelationID:          "test-correlation-id",
+				ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 1},
 			},
 			responseParser:       s.responseOkParser(),
 			verification:         s.verifyPodTerminated(),

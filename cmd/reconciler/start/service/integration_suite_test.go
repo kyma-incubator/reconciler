@@ -65,6 +65,7 @@ type componentReconcilerIntegrationSettings struct {
 	deployment      string
 	url             string
 	deleteAfterTest bool
+	reconcileAction service.Action
 }
 
 type responseParser func(*http.Response) interface{}
@@ -82,8 +83,6 @@ type reconcilerIntegrationTestCase struct {
 	responseParser       responseParser
 	callbackVerification callbackVerification
 	verification         testCasePostExecutionVerification
-
-	reconcileAction service.Action
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -174,6 +173,10 @@ func (s *reconcilerIntegrationTestSuite) startAndWaitForComponentReconciler(sett
 	recon, reconErr := service.NewComponentReconciler(settings.name)
 	s.NoError(reconErr)
 	recon = recon.Debug()
+
+	if settings.reconcileAction != nil {
+		recon = recon.WithReconcileAction(settings.reconcileAction)
+	}
 
 	s.T().Cleanup(func() {
 		// this cleanup runs with Helm so it can happen that the cleanup unblocks while the finalizers are still not
