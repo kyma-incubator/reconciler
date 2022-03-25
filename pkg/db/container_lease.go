@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"hash/fnv"
 	"sync"
 	"testing"
@@ -86,6 +87,8 @@ func newContainerTestSuiteLease(debug bool, settings ContainerSettings, commitAf
 
 func LeaseSharedContainerTestSuite(t *testing.T, settings ContainerSettings, debug bool, commitAfterExecution bool) *ContainerTestSuite {
 	t.Helper()
+	test.IntegrationTest(t)
+	registerCleanupForLeasedSharedContainerTestSuite(t, DefaultSharedContainerSettings)
 	h := globalContainerTestSuiteLeaseHolder
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -108,7 +111,7 @@ func getHash(settings ContainerSettings) leaseHash {
 	return leaseHash(h.Sum32())
 }
 
-func ReturnLeasedSharedContainerTestSuite(t *testing.T, settings ContainerSettings) {
+func registerCleanupForLeasedSharedContainerTestSuite(t *testing.T, settings ContainerSettings) {
 	t.Helper()
 	t.Cleanup(func() {
 		h := globalContainerTestSuiteLeaseHolder

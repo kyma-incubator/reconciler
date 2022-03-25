@@ -23,6 +23,7 @@ type Options struct {
 	ClusterReconcileInterval       time.Duration
 	PurgeEntitiesOlderThan         time.Duration
 	CleanerInterval                time.Duration
+	BookkeeperWatchInterval        time.Duration
 	ReconciliationsKeepLatestCount int
 	ReconciliationsMaxAgeDays      int
 	CreateEncyptionKey             bool
@@ -45,6 +46,7 @@ func NewOptions(o *cli.Options) *Options {
 		0 * time.Second,  //ClusterReconcileInterval
 		0 * time.Minute,  //PurgeEntitiesOlderThan
 		0 * time.Minute,  //CleanerInterval
+		45 * time.Second, //BookkeeperWatchInterval
 		0,                //ReconciliationsKeepLatestCount
 		0,                //ReconciliationsMaxAgeDays
 		false,            //CreateEncyptionKey

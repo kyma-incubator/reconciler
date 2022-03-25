@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	eventLog "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -11,22 +13,20 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
 type NoOpReconcileAction struct {
-	waitTime time.Duration
+	WaitTime time.Duration
 }
 
 // Run reconciler Action logic for Eventing. It executes the Action steps in order
 // and returns a non-nil error if any step was unsuccessful.
 func (a *NoOpReconcileAction) Run(context *service.ActionContext) (err error) {
 	// prepare logger
-	logger := log.ContextLogger(context, log.WithAction("no-op-action"))
-	logger.Infof("Waiting to simulate Op...")
-	time.Sleep(a.waitTime)
+	contextLogger := eventLog.ContextLogger(context, eventLog.WithAction("no-op-action"))
+	contextLogger.Infof("Waiting to simulate Op...")
+	time.Sleep(a.WaitTime)
 	return nil
 }
 
@@ -158,10 +158,10 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 			name: "No-Op-Reconcile",
 			settings: &componentReconcilerIntegrationSettings{
 				name:            "component-1",
-				namespace:       "inttest-comprecon",
+				namespace:       "inttest-comprecon-no-op",
 				version:         "0.0.0",
 				deployment:      "dummy-deployment",
-				reconcileAction: &NoOpReconcileAction{waitTime: 2 * time.Second},
+				reconcileAction: &NoOpReconcileAction{WaitTime: 2 * time.Second},
 			},
 			model: &reconciler.Task{
 				ComponentsReady:        []string{"abc", "xyz"},
@@ -179,7 +179,7 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 			name: "Invalid request: mandatory fields missing",
 			settings: &componentReconcilerIntegrationSettings{
 				name:       "component-1",
-				namespace:  "inttest-comprecon",
+				namespace:  "inttest-comprecon-inv-mand",
 				version:    "0.0.0",
 				deployment: "dummy-deployment",
 			},
@@ -221,7 +221,7 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 			name: "Install fails because of Worker Pool Overload",
 			settings: &componentReconcilerIntegrationSettings{
 				name:       "component-1",
-				namespace:  "inttest-comprecon",
+				namespace:  "inttest-comprecon-ovrld",
 				version:    "0.0.0",
 				deployment: "dummy-deployment",
 			},
@@ -265,7 +265,7 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 			name: "Try to apply impossible change: change api version",
 			settings: &componentReconcilerIntegrationSettings{
 				name:       "component-1",
-				namespace:  "inttest-comprecon",
+				namespace:  "inttest-comprecon-apiv",
 				version:    "0.0.0",
 				deployment: "dummy-deployment",
 			},
@@ -287,7 +287,7 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 			name: "Try to reconcile unreachable cluster",
 			settings: &componentReconcilerIntegrationSettings{
 				name:       "component-1",
-				namespace:  "inttest-comprecon",
+				namespace:  "inttest-comprecon-unreach",
 				version:    "0.0.0",
 				deployment: "dummy-deployment",
 			},
@@ -311,7 +311,7 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 			name: "Try to deploy defective HELM chart",
 			settings: &componentReconcilerIntegrationSettings{
 				name:       "component-1",
-				namespace:  "inttest-comprecon",
+				namespace:  "inttest-comprecon-defect",
 				version:    "0.0.0",
 				deployment: "dummy-deployment",
 			},
@@ -354,7 +354,7 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 			name: "Delete component",
 			settings: &componentReconcilerIntegrationSettings{
 				name:       "component-1",
-				namespace:  "inttest-comprecon",
+				namespace:  "inttest-comprecon-del",
 				version:    "0.0.0",
 				deployment: "dummy-deployment",
 			},

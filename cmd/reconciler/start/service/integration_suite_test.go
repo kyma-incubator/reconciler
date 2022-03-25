@@ -128,7 +128,6 @@ func TestIntegrationSuite(t *testing.T) {
 			RetryDelay:       2 * time.Second,
 		},
 	})
-	db.ReturnLeasedSharedContainerTestSuite(t, containerSettings)
 }
 
 func (s *reconcilerIntegrationTestSuite) SetupSuite() {
@@ -158,8 +157,8 @@ func (s *reconcilerIntegrationTestSuite) SetupSuite() {
 	o := cliRecon.NewOptions(cliOptions)
 	o.ServerConfig.Port = s.reconcilerPort
 	o.WorkerConfig = s.workerConfig
-	o.HeartbeatSenderConfig.Interval = 3 * time.Second
-	o.ProgressTrackerConfig.Interval = 3 * time.Second
+	o.HeartbeatSenderConfig.Interval = 2 * time.Second
+	o.ProgressTrackerConfig.Interval = 1 * time.Second
 	o.RetryConfig.RetryDelay = 2 * time.Second
 	o.RetryConfig.MaxRetries = 3
 	s.options = o
