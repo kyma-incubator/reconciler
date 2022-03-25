@@ -36,14 +36,14 @@ func NewRemoteReconcilerInvoker(reconRepo reconciliation.Repository, cfg *config
 	}
 }
 
-var InvokeRateLimitError = errors.New("component pool is overloaded")
+var ErrInvokeRateLimit = errors.New("component pool is overloaded")
 
 func (i *RemoteReconcilerInvoker) Invoke(ctx context.Context, params *Params) error {
 	return retry.Do(func() error {
 		return i.invokeRetryable(params)
 	}, retry.Context(ctx), retry.Attempts(3), retry.Delay(5*time.Second),
 		retry.RetryIf(func(err error) bool {
-			return err == InvokeRateLimitError
+			return err == ErrInvokeRateLimit
 		}),
 		retry.OnRetry(func(n uint, err error) {
 			i.logger.Warnf("invoker cannot reach component reconciler (%v), retry %v", err, n)
@@ -199,7 +199,7 @@ func (i *RemoteReconcilerInvoker) invokeRetryable(params *Params) error {
 
 	if resp.StatusCode == http.StatusTooManyRequests {
 		//component-reconciler worker-pool is overloaded and we should retry
-		return InvokeRateLimitError
+		return ErrInvokeRateLimit
 	} else if resp.StatusCode >= 400 && resp.StatusCode <= 499 {
 		//component-reconciler can not start because dependencies are missing
 		respModel := &reconciler.HTTPErrorResponse{}

@@ -152,7 +152,7 @@ func (s *mothershipIntegrationTestSuite) SetupSuite() {
 	s.kubeClient = kubeClient
 }
 
-func (s *mothershipIntegrationTestSuite) processAuditLog(testCase *mothershipIntegrationTestCase) {
+func (s *mothershipIntegrationTestSuite) processAuditLog() {
 	auditLogFilepath := s.auditLogFileName()
 	auditLog, auditErr := os.Open(auditLogFilepath)
 	defer s.NoError(auditLog.Close())
@@ -210,29 +210,6 @@ func (s *mothershipIntegrationTestSuite) testFilePayload(file string) string {
 	s.NoError(err)
 
 	return string(result)
-}
-
-func (s *mothershipIntegrationTestSuite) verifyResponse(
-	response *http.Response,
-	expectedHTTPStatusCode int,
-	expectedResponseModel interface{},
-) interface{} {
-	if expectedHTTPStatusCode > 0 {
-		if expectedHTTPStatusCode != response.StatusCode {
-			dump, err := httputil.DumpResponse(response, true)
-			s.NoError(err)
-			s.testLogger.Debugf(string(dump))
-		}
-		s.Equal(expectedHTTPStatusCode, response.StatusCode, "Returned HTTP response code was unexpected")
-	}
-	responseBody, err := ioutil.ReadAll(response.Body)
-	s.NoError(response.Body.Close())
-	s.NoError(err)
-	if expectedResponseModel == nil {
-		return nil
-	}
-	s.NoError(json.Unmarshal(responseBody, expectedResponseModel))
-	return responseBody
 }
 
 func (s *mothershipIntegrationTestSuite) sendRequest(destURL string, httpMethod httpMethod, payload string) (*http.Response, error) {
@@ -392,8 +369,9 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 		},
 	}
 	for _, testCase := range testCases {
+		testCase := testCase
+		testCase.schedulerConfig = s.emptySchedulerConfig()
 		s.Run(testCase.name, func() {
-			testCase.schedulerConfig = s.emptySchedulerConfig()
 
 			options := s.NewOptionsForTestCase(&testCase)
 
