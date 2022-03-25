@@ -113,7 +113,7 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 }
 
 func (or *Registry) initOccupancyRepository() (occupancy.Repository, error) {
-	if !features.WorkerpoolOccupancyTrackingEnabled() {
+	if !features.Enabled(features.WorkerpoolOccupancyTracking) {
 		return occupancy.CreateMockRepository(), nil
 	}
 	occupancyRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)

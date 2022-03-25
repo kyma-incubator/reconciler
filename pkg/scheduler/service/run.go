@@ -219,7 +219,7 @@ func (r *RunRemote) Run(ctx context.Context) error {
 		} else {
 			r.logger().Fatalf("Failed to create worker pool: %s", err)
 		}
-		if features.WorkerpoolOccupancyTrackingEnabled() {
+		if features.Enabled(features.WorkerpoolOccupancyTracking) {
 			//start occupancy tracker to track worker pool
 			err = NewOccupancyTracker(workerPool, r.occupancyRepo, r.config.Scheduler.Reconcilers, r.logger()).Run(ctx)
 			if err == nil {
