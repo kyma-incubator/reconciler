@@ -11,7 +11,7 @@ import (
 )
 
 func RegisterProcessingDuration(reconciliations reconciliation.Repository, logger *zap.SugaredLogger) {
-	if features.ProcessingDurationMetricsEnabled() {
+	if features.Enabled(features.ProcessingDurationMetric) {
 		processingDurationCollector := NewProcessingDurationCollector(reconciliations, logger)
 		prometheus.MustRegister(processingDurationCollector)
 	}
@@ -24,7 +24,7 @@ func RegisterWaitingAndNotReadyReconciliations(inventory cluster.Inventory, logg
 }
 
 func RegisterOccupancy(occupancyRepo occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) {
-	if features.WorkerpoolOccupancyTrackingEnabled() {
+	if features.Enabled(features.WorkerpoolOccupancyTracking) {
 		prometheus.MustRegister(NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilers, logger))
 	}
 }

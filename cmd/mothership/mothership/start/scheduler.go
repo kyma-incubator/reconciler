@@ -47,7 +47,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 			PurgeEntitiesOlderThan:  o.PurgeEntitiesOlderThan,
 			CleanerInterval:         o.CleanerInterval,
 			KeepLatestEntitiesCount: uintOrDie(o.ReconciliationsKeepLatestCount),
-			MaxEntitiesAgeDays:      uintOrDie(o.ReconciliationsMaxAgeDays),
+			MaxEntitiesAgeDays:      uintOrDie(o.EntitiesMaxAgeDays),
 		}).
 		Run(ctx)
 }
