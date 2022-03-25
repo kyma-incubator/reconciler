@@ -336,8 +336,10 @@ type Delete struct {
 	err  error
 }
 
-func (d *Delete) Where(args map[string]interface{}) *Delete {
-	d.args, d.err = d.addWhereCondition(args, 0)
+func (d *Delete) Where(conditions map[string]interface{}) *Delete {
+	args, err := d.addWhereCondition(conditions, len(d.args))
+	d.args = append(d.args, args...)
+	d.err = err
 	return d
 }
 
@@ -357,6 +359,17 @@ func (d *Delete) WhereIn(field, subQuery string, args ...interface{}) *Delete {
 	d.err = d.addWhereInCondition(field, subQuery)
 	d.args = args
 	return d
+}
+
+func (d *Delete) WhereRaw(stmt string, args ...interface{}) *Delete {
+	d.addWhere()
+	d.buffer.WriteString(fmt.Sprintf(" (%s)", stmt))
+	d.args = append(d.args, args...)
+	return d
+}
+
+func (d *Delete) NextPlaceholderCount() int {
+	return len(d.args) + 1
 }
 
 // UPDATE:
