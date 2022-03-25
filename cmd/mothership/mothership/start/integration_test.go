@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -150,19 +149,6 @@ func (s *mothershipIntegrationTestSuite) SetupSuite() {
 	kubeClient, k8sErr := k8s.NewKubernetesClient(s.kubeConfig, s.testLogger, s.kubeClientConfig)
 	s.NoError(k8sErr)
 	s.kubeClient = kubeClient
-}
-
-func (s *mothershipIntegrationTestSuite) processAuditLog() {
-	auditLogFilepath := s.auditLogFileName()
-	auditLog, auditErr := os.Open(auditLogFilepath)
-	defer s.NoError(auditLog.Close())
-	s.NoError(auditErr)
-	scanner, bufferSize := bufio.NewScanner(auditLog), 1_000
-	scanner.Buffer(make([]byte, bufferSize), bufferSize)
-	for scanner.Scan() {
-		s.T().Log(scanner.Text())
-	}
-	s.NoError(os.Remove(auditLogFilepath))
 }
 
 func (s *mothershipIntegrationTestSuite) NewOptionsForTestCase(testCase *mothershipIntegrationTestCase) *Options {
@@ -369,8 +355,8 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 		},
 	}
 	for _, testCase := range testCases {
+		testCase := testCase
 		s.Run(testCase.name, func() {
-			testCase := testCase
 			testCase.schedulerConfig = s.emptySchedulerConfig()
 
 			options := s.NewOptionsForTestCase(&testCase)
