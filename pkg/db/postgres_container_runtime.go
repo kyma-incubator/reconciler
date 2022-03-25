@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"github.com/docker/go-connections/nat"
+	"os"
 	"strconv"
 )
 
@@ -22,28 +23,28 @@ type ContainerSettings interface {
 }
 
 type PostgresContainerSettings struct {
-	name              string
-	image             string
-	config            MigrationConfig
-	host              string
-	database          string
-	port              int
-	user              string
-	password          string
-	useSsl            bool
-	encryptionKeyFile string
+	Name              string
+	Image             string
+	Config            MigrationConfig
+	Host              string
+	Database          string
+	Port              int
+	User              string
+	Password          string
+	UseSsl            bool
+	EncryptionKeyFile string
 }
 
 func (p PostgresContainerSettings) containerName() string {
-	return p.name
+	return p.Name
 }
 
 func (p PostgresContainerSettings) containerImage() string {
-	return p.image
+	return p.Image
 }
 
 func (p PostgresContainerSettings) migrationConfig() MigrationConfig {
-	return p.config
+	return p.Config
 }
 
 //MigrationConfig is currently just a migrationConfig directory but could be extended at will for further configuration
@@ -53,9 +54,18 @@ type MigrationConfig string
 var NoOpMigrationConfig MigrationConfig = ""
 
 func RunPostgresContainer(ctx context.Context, settings PostgresContainerSettings, debug bool) (*PostgresContainerRuntime, error) {
+	_, filesErr := os.Stat(string(settings.Config))
+	if filesErr != nil {
+		return nil, filesErr
+	}
+	_, filesErr = os.Stat(settings.EncryptionKeyFile)
+	if filesErr != nil {
+		return nil, filesErr
+	}
+
 	cont, bootstrapError := BootstrapNewPostgresContainer(ctx, settings)
 
-	encKey, encryptError := readKeyFile(settings.encryptionKeyFile)
+	encKey, encryptError := readKeyFile(settings.EncryptionKeyFile)
 	if encryptError != nil {
 		return nil, encryptError
 	}
@@ -64,19 +74,19 @@ func RunPostgresContainer(ctx context.Context, settings PostgresContainerSetting
 		return nil, bootstrapError
 	}
 
-	externalPort, portFetchError := cont.MappedPort(ctx, nat.Port(strconv.Itoa(settings.port)))
+	externalPort, portFetchError := cont.MappedPort(ctx, nat.Port(strconv.Itoa(settings.Port)))
 
 	if portFetchError != nil {
 		panic(portFetchError)
 	}
 
 	connectionFactory := postgresConnectionFactory{
-		host:          settings.host,
+		host:          settings.Host,
 		port:          externalPort.Int(),
-		database:      settings.database,
-		user:          settings.user,
-		password:      settings.password,
-		sslMode:       settings.useSsl,
+		database:      settings.Database,
+		user:          settings.User,
+		password:      settings.Password,
+		sslMode:       settings.UseSsl,
 		encryptionKey: encKey,
 		migrationsDir: string(settings.migrationConfig()),
 		blockQueries:  true,
