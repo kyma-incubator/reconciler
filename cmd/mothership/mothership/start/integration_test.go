@@ -369,9 +369,9 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase := testCase
-		testCase.schedulerConfig = s.emptySchedulerConfig()
 		s.Run(testCase.name, func() {
+			testCase := testCase
+			testCase.schedulerConfig = s.emptySchedulerConfig()
 
 			options := s.NewOptionsForTestCase(&testCase)
 
