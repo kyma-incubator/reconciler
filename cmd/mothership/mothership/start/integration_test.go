@@ -306,7 +306,7 @@ func (s *mothershipIntegrationTestSuite) emptySchedulerConfig() config.Scheduler
 	}
 }
 
-func (s *mothershipIntegrationTestSuite) checkForSuccessfulReconciliation(creationRequestFile string, retries uint, retryDelay time.Duration) verificationStrategy {
+func (s *mothershipIntegrationTestSuite) checkForSuccessfulReconciliation(creationRequestFile string, opts ...retry.Option) verificationStrategy {
 	return func(testCase *mothershipIntegrationTestCase) {
 		payload := s.testFilePayload(creationRequestFile)
 		s.NoError(json.Unmarshal([]byte(payload), &keb.Cluster{}))
@@ -323,14 +323,7 @@ func (s *mothershipIntegrationTestSuite) checkForSuccessfulReconciliation(creati
 				return errors.Errorf("reconciliation for %s is not finished yet", testCase.name)
 			}
 			return nil
-		},
-			retry.Attempts(retries),
-			retry.Context(s.testContext),
-			retry.Delay(retryDelay),
-			retry.OnRetry(func(n uint, err error) {
-				s.testLogger.Debugf("%s, retrying (retry no. %d)",
-					err.Error(), n)
-			})))
+		}, opts...))
 	}
 }
 
@@ -347,10 +340,14 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 				},
 			},
 			appendDummyFallbackBaseReconciler: true,
-			verificationStrategy: s.checkForSuccessfulReconciliation(
-				"create_cluster.json",
-				10,
-				5*time.Second,
+			verificationStrategy: s.checkForSuccessfulReconciliation("create_cluster.json",
+				retry.Attempts(10),
+				retry.Context(s.testContext),
+				retry.Delay(5*time.Second),
+				retry.OnRetry(func(n uint, err error) {
+					s.testLogger.Debugf("%s, retrying (retry no. %d)",
+						err.Error(), n)
+				}),
 			),
 		},
 	}
