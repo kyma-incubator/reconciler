@@ -61,7 +61,7 @@ func (s *TransactionAwareDatabaseContainerTestSuite) TearDownSuite() {
 	if s.activeConnection != nil {
 		s.activeConnectionMu.Lock()
 		defer s.activeConnectionMu.Unlock()
-		s.tearDownConnection()
+		s.TearDownConnection()
 	}
 
 	if s.LogConsumer != nil {
@@ -105,7 +105,7 @@ func (s *TransactionAwareDatabaseContainerTestSuite) initializeConnection() {
 	}, s.connectionResilienceSpecification...))
 }
 
-func (s *TransactionAwareDatabaseContainerTestSuite) tearDownConnection() {
+func (s *TransactionAwareDatabaseContainerTestSuite) TearDownConnection() {
 	if s.activeConnection != nil {
 
 		if !s.activeConnection.committedOrRolledBack {
