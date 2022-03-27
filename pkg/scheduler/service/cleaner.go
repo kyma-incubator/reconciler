@@ -38,7 +38,7 @@ func newCleaner(logger *zap.SugaredLogger) *cleaner {
 }
 
 func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, config *CleanerConfig) error {
-	c.logger.Infof("%s Starting entities cleaner: interval for clearing old Reconciliation and Operation entities is %s", CleanerPrefix, config.CleanerInterval.String())
+	c.logger.Infof("%s Starting entities cleaner: interval for clearing old cluster inventory and reconciliation entities is %s", CleanerPrefix, config.CleanerInterval.String())
 
 	ticker := time.NewTicker(config.CleanerInterval)
 	c.purgeEntities(transition, config) //check for entities now, otherwise first check would be trigger by ticker
