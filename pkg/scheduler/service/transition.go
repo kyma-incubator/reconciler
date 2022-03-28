@@ -198,34 +198,44 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 	return db.Transaction(t.conn, dbOp, t.logger)
 }
 
-func (t *ClusterStatusTransition) CleanDeletedClusters(deadline time.Time) (int, error) {
-	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+func (t *ClusterStatusTransition) CleanDeletedClusters(deadline time.Time) error {
+
+	dbOps := func(tx *db.TxConnection) error {
 
 		transactionalInventory, err := t.inventory.WithTx(tx)
 		if err != nil {
-			return 0, err
+			return err
 		}
 		transactionalReconRepo, err := t.reconRepo.WithTx(tx)
 		if err != nil {
-			return 0, err
+			return err
 		}
-		// remove reconciliations corresponding to the to-be-deleted clusters before deadline
-		_, err = transactionalReconRepo.RemoveReconciliationsForObsoleteStatus(deadline)
+
+		// delete statuses without reconciliations
+		deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations()
 		if err != nil {
-			return 0, err
+			return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
+		}
+		// remove deleted statuses before deadline: do we need this step?
+		/*deleteCount, err := t.Inventory().RemoveStatusesOlderThan(deadline)
+		if err != nil {
+			return fmt.Errorf("failed to remove statuses older than %v: %w", deadline, err)
+		}
+		deletedStatusesCount += deleteCount*/
+		// remove reconciliations corresponding to the to-be-deleted clusters before deadline
+		deletedReconsCount, err := transactionalReconRepo.RemoveReconciliationsForObsoleteStatus(deadline)
+		if err != nil {
+			return fmt.Errorf("failed to remove reconciliations for obselete status older than %v: %w", deadline, err)
 		}
 		// delete inventory clusters - only if reconciliations are removed successfully - foreign key constraint
-		deleteCount, err := transactionalInventory.RemoveDeletedClustersOlderThan(deadline)
+		deletedClustersCount, err := transactionalInventory.RemoveDeletedClustersOlderThan(deadline)
 		if err != nil {
-			return 0, err
+			return fmt.Errorf("failed to remove deleted clusters older than %v: %w", deadline, err)
 		}
-		return deleteCount, nil
+
+		t.logger.Infof("Cleaned %d clusters, %d reconciliations and %d statuses successfully", deletedClustersCount, deletedReconsCount, deletedStatusesCount)
+		return nil
 	}
 
-	result, err := db.TransactionResult(t.conn, dbOps, t.logger)
-	if err != nil {
-		t.logger.Error("Failed to remove deleted clusters", err)
-	}
-
-	return result.(int), err
+	return db.Transaction(t.conn, dbOps, t.logger)
 }
