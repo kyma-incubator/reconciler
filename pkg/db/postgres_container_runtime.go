@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"github.com/docker/go-connections/nat"
+	"github.com/pkg/errors"
 	"os"
 	"strconv"
 )
@@ -54,13 +55,16 @@ type MigrationConfig string
 var NoOpMigrationConfig MigrationConfig = ""
 
 func RunPostgresContainer(ctx context.Context, settings PostgresContainerSettings, debug bool) (*PostgresContainerRuntime, error) {
-	_, filesErr := os.Stat(string(settings.Config))
-	if filesErr != nil {
-		return nil, filesErr
+	var filesErr error
+	if settings.migrationConfig() != NoOpMigrationConfig {
+		_, filesErr = os.Stat(string(settings.Config))
+		if filesErr != nil {
+			return nil, errors.Wrap(filesErr, "config file cannot be used to start postgres container")
+		}
 	}
 	_, filesErr = os.Stat(settings.EncryptionKeyFile)
 	if filesErr != nil {
-		return nil, filesErr
+		return nil, errors.Wrap(filesErr, "encryption key file cannot be used to start postgres container")
 	}
 
 	cont, bootstrapError := BootstrapNewPostgresContainer(ctx, settings)
