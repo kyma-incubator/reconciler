@@ -96,9 +96,6 @@ func (i *MockInventory) CountRetries(_ string, _ int64, _ int, _ ...model.Status
 func (i *MockInventory) RemoveStatusesWithoutReconciliations() (int, error) {
 	return i.DeletedStatusesWoReconciliationResult, nil
 }
-func (i *MockInventory) RemoveStatusesOlderThan(deadline time.Time) (int, error) {
-	return i.DeletedStatusesOlderThanResult, nil
-}
 
 func (i *MockInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (int, error) {
 	return i.DeletedClustersOlderThanResult, nil

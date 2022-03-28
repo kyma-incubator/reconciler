@@ -82,20 +82,13 @@ func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *Cle
 func (c *cleaner) purgeClusterEntities(transition *ClusterStatusTransition, clusterInventoryCleanupDays int) error {
 	deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*clusterInventoryCleanupDays)
 
-	// delete statuses without reconciliations
+	// delete statuses without reconciliations - except active status for cluster configs
 	var err error
 	deleteCount, err := transition.Inventory().RemoveStatusesWithoutReconciliations()
 	if err != nil {
 		return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
 	}
 	c.logger.Infof("%s removed %d statuses without reconciliation entities", CleanerPrefix, deleteCount)
-
-	// remove deleted statuses before deadline
-	deleteCount, err = transition.Inventory().RemoveStatusesOlderThan(deadline)
-	if err != nil {
-		return fmt.Errorf("failed to remove statuses older than %d days %w", clusterInventoryCleanupDays, err)
-	}
-	c.logger.Infof("%s removed %d statuses older than %d days ", CleanerPrefix, deleteCount, clusterInventoryCleanupDays)
 
 	// remove reconciliations corresponding to deleted status before deadline
 	deleteCount, err = transition.ReconciliationRepository().RemoveReconciliationsForObsoleteStatus(deadline)
@@ -105,6 +98,7 @@ func (c *cleaner) purgeClusterEntities(transition *ClusterStatusTransition, clus
 	c.logger.Infof("%s removed %d reconciliations for obselete status older than %d days ", CleanerPrefix, deleteCount, clusterInventoryCleanupDays)
 
 	// delete inventory clusters - only if reconciliations are removed successfully - foreign key constraint
+	// cascading delete on cluster config + cluster status
 	deleteCount, err = transition.Inventory().RemoveDeletedClustersOlderThan(deadline)
 	if err != nil {
 		return fmt.Errorf("failed to remove deleted clusters older than %d days %w", clusterInventoryCleanupDays, err)
