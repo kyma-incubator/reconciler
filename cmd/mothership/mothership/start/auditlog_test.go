@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -70,11 +71,12 @@ type log struct {
 
 func Test_Auditlog(t *testing.T) {
 	testCases := []struct {
-		name       string
-		method     string
-		body       string
-		jwtHeader  string
-		expectFail bool
+		name          string
+		method        string
+		body          string
+		jwtHeader     string
+		expectFail    bool
+		addExternalIP bool
 	}{
 		{
 			name:   "get request",
@@ -89,6 +91,12 @@ func Test_Auditlog(t *testing.T) {
 			name:   "post request",
 			method: http.MethodPost,
 			body:   fmt.Sprintf(`{"%s":"%s"}`, postKey, postValue),
+		},
+		{
+			name:          "post request",
+			method:        http.MethodPost,
+			body:          fmt.Sprintf(`{"%s":"%s"}`, postKey, postValue),
+			addExternalIP: true,
 		},
 		{
 			name:   "delete request",
@@ -124,7 +132,9 @@ func Test_Auditlog(t *testing.T) {
 				req.Body = io.NopCloser(bytes.NewBuffer([]byte(tc.body)))
 			}
 
-			req.Header.Add(ExternalAddressHeaderName, clientIP)
+			if tc.addExternalIP {
+				req.Header.Add(ExternalAddressHeaderName, clientIP)
+			}
 			if tc.jwtHeader != "" {
 				req.Header.Add(XJWTHeaderName, tc.jwtHeader)
 			}
@@ -168,7 +178,9 @@ func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 
 	require.Equalf(t, tenantID, l.Tenant, "invalid log tenantID: expected: %s, got: %s", tenantID, l.Tenant)
 
-	require.Equalf(t, clientIP, l.IP, "invalid log IP: expected: %s, got: %s", clientIP, l.IP)
+	require.NotNil(t, net.ParseIP(l.IP), "invalid log IP: expected valid IP, got: %s", clientIP, l.IP)
+	require.NotEmpty(t, l.IP, "invalid log IP: expected non-empty IP, got: %s", clientIP, l.IP)
+	require.NotEqual(t, "127.0.0.1", l.IP, "invalid log IP: cannot use localhost-equivalent, got: %s", l.IP)
 
 	if useJWT {
 		require.Equalf(t, jwtPayloadSub, l.User, "invalid user: expected: %s, got: %s", jwtPayloadSub, l.User)
@@ -179,4 +191,11 @@ func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 		require.NoError(t, err)
 		require.NotEmptyf(t, d.RequestBody, "empty request body in log message data field: %#v", l.Data)
 	}
+}
+
+func TestRandomIPv4(t *testing.T) {
+	first, second := net.ParseIP(randomIPv4()), net.ParseIP(randomIPv4())
+	require.NotNil(t, first, "generated IP should not be nil after parsing")
+	require.NotNil(t, second, "generated IP should not be nil after parsing")
+	require.NotEqual(t, first, second)
 }

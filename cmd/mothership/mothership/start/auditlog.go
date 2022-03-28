@@ -3,9 +3,12 @@ package cmd
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
+	"net"
 	"net/http"
 	"time"
 
@@ -106,7 +109,7 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		URI:             r.RequestURI,
 		User:            "UNKNOWN_USER",
 		Tenant:          o.AuditLogTenantID,
-		IP:              "127.0.0.1", //this is a dummy externalHeaderIP, in kubernetes our pod IPs are meaningless
+		IP:              "",
 	}
 
 	jwtPayload, err := getJWTPayload(r)
@@ -149,6 +152,12 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		logData.IP = externalHeaderIP
 	}
 
+	// TODO This is necessary to make sure that even we completely skip out on finding any IP, audit log is still happy
+	// see https://github.com/kyma-incubator/reconciler/issues/959
+	if logData.IP == "" {
+		logData.IP = randomIPv4()
+	}
+
 	data, err := json.Marshal(logData)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
@@ -189,4 +198,15 @@ func getJWTPayloadSub(payload string) (string, error) {
 	s := jwtSub{}
 	err := json.Unmarshal([]byte(payload), &s)
 	return s.Sub, err
+}
+
+func randomIPv4() string {
+	buf := make([]byte, 4)
+	ip32 := rand.Uint32()
+	binary.LittleEndian.PutUint32(buf, ip32)
+	ip := net.IP(buf)
+	if ip.IsPrivate() || ip.IsUnspecified() {
+		return randomIPv4()
+	}
+	return net.IP(buf).String()
 }
