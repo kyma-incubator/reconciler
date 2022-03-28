@@ -63,7 +63,6 @@ func Test_TriggerSynchronization(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.NoError(t, err)
 		kubeclient.AssertNotCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -82,7 +81,6 @@ func Test_TriggerSynchronization(t *testing.T) {
 		err := NewDefaultHydraSyncer(handler.NewDefaultRolloutHandler()).TriggerSynchronization(context.TODO(), kubeclient, logger, testNamespace, false)
 
 		// then
-		require.NoError(t, err)
 		require.NoError(t, err)
 		kubeclient.AssertNotCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
@@ -104,7 +102,6 @@ func Test_TriggerSynchronization(t *testing.T) {
 		err := NewDefaultHydraSyncer(handler.NewDefaultRolloutHandler()).TriggerSynchronization(context.TODO(), kubeclient, logger, testNamespace, true)
 
 		// then
-		require.NoError(t, err)
 		require.NoError(t, err)
 		kubeclient.AssertCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
@@ -251,5 +248,4 @@ func createDeployment(client *k8smocks.Client, startTime time.Time, t *testing.T
 
 	_, err = replicaMock.Create(context.TODO(), replicaSets, metav1.CreateOptions{})
 	require.NoError(t, err)
-
 }
