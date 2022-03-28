@@ -224,7 +224,7 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsBeforeDeadline
 
 func (r *PersistentReconciliationRepository) RemoveReconciliationsForObsoleteStatus(deadline time.Time) (int, error) {
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
-		statusSelectQuery, err := db.NewQuery(r.Conn, &model.ClusterCleanupEntity{}, r.Logger)
+		statusSelectQuery, err := db.NewQuery(tx, &model.ClusterCleanupEntity{}, r.Logger)
 		if err != nil {
 			return 0, err
 		}
@@ -243,7 +243,7 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsForObsoleteSta
 		}
 		statusSelect.WhereRaw(fmt.Sprintf("%s<$%d", statusIDColumnName, statusSelect.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
 
-		deleteQuery, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
+		deleteQuery, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
 		if err != nil {
 			return 0, err
 		}

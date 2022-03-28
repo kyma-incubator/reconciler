@@ -730,7 +730,7 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 
 func (i *DefaultInventory) RemoveStatusesWithoutReconciliations() (int, error) {
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
-		statusSelectQuery, err := db.NewQuery(i.Conn, &model.StatusCleanupEntity{}, i.Logger)
+		statusSelectQuery, err := db.NewQuery(tx, &model.StatusCleanupEntity{}, i.Logger)
 		if err != nil {
 			return 0, err
 		}
@@ -739,7 +739,7 @@ func (i *DefaultInventory) RemoveStatusesWithoutReconciliations() (int, error) {
 			return 0, err
 		}
 
-		deleteQuery, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+		deleteQuery, err := db.NewQuery(tx, &model.ClusterStatusEntity{}, i.Logger)
 		if err != nil {
 			return 0, err
 		}
@@ -758,7 +758,7 @@ func (i *DefaultInventory) RemoveStatusesWithoutReconciliations() (int, error) {
 
 func (i *DefaultInventory) RemoveStatusesOlderThan(deadline time.Time) (int, error) {
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
-		statusSelectQuery, err := db.NewQuery(i.Conn, &model.ClusterCleanupEntity{}, i.Logger)
+		statusSelectQuery, err := db.NewQuery(tx, &model.ClusterCleanupEntity{}, i.Logger)
 		if err != nil {
 			return 0, err
 		}
@@ -777,7 +777,7 @@ func (i *DefaultInventory) RemoveStatusesOlderThan(deadline time.Time) (int, err
 		}
 		statusSelect.WhereRaw(fmt.Sprintf("%s<$%d", statusIDColumnName, statusSelect.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
 
-		deleteQuery, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+		deleteQuery, err := db.NewQuery(tx, &model.ClusterStatusEntity{}, i.Logger)
 		if err != nil {
 			return 0, err
 		}
