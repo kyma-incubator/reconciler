@@ -5,19 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/avast/retry-go"
-	"io/ioutil"
-	"net/http"
-	"net/http/httputil"
-	"strings"
-	"time"
-
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"net/http"
+	"net/http/httputil"
+	"strings"
 )
 
 const callbackURLTemplate = "%s://%s:%d/v1/operations/%s/callback/%s"
@@ -36,19 +33,56 @@ func NewRemoteReconcilerInvoker(reconRepo reconciliation.Repository, cfg *config
 	}
 }
 
-var ErrInvokeRateLimit = errors.New("component pool is overloaded")
+func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) error {
+	if err := i.ensureOperationNotInProgress(params); err != nil {
+		return err
+	}
 
-func (i *RemoteReconcilerInvoker) Invoke(ctx context.Context, params *Params) error {
-	return retry.Do(func() error {
-		return i.invokeRetryable(params)
-	}, retry.Context(ctx), retry.Attempts(3), retry.Delay(5*time.Second),
-		retry.RetryIf(func(err error) bool {
-			return err == ErrInvokeRateLimit
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			i.logger.Warnf("invoker cannot reach component reconciler (%v), retry %v", err, n)
-		}),
-	)
+	//mark the operation to be in progress (required to avoid that other invokers will also pick it up)
+	if err := i.updateOperationState(params, model.OperationStateInProgress); err != nil {
+		return err
+	}
+
+	resp, err := i.sendHTTPRequest(params)
+	if err != nil {
+		return i.fireError("send HTTP request", params, err)
+	}
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			i.logger.Errorf("Error while closing HTTP response body: %s", err)
+		}
+	}()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return i.fireError("read HTTP body", params, err)
+	}
+
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
+		//component-reconciler started reconciliation
+		respModel := &reconciler.HTTPReconciliationResponse{}
+		err := i.unmarshalHTTPResponse(body, respModel, params)
+		if err == nil {
+			return nil //request successfully fired
+		}
+		i.reportUnmarshalError(resp.StatusCode, body, err)
+	}
+
+	//component-reconciler responded an error: try to handle it as an error response
+	respModel := &reconciler.HTTPErrorResponse{}
+	var errorReason string
+
+	err = i.unmarshalHTTPResponse(body, respModel, params)
+	if err == nil {
+		errorReason = respModel.Error
+	} else {
+		i.reportUnmarshalError(resp.StatusCode, body, err)
+		errorReason = fmt.Sprintf("received unsupported reconciler response (HTTP code: %d): %s",
+			resp.StatusCode, string(body))
+	}
+
+	return i.updateOperationState(params, model.OperationStateClientError, errorReason)
 }
 
 func (i *RemoteReconcilerInvoker) ensureOperationNotInProgress(params *Params) error {
@@ -159,69 +193,4 @@ func (i *RemoteReconcilerInvoker) fireError(subject string, params *Params, err 
 		err = errors.Wrap(updateErr, err.Error())
 	}
 	return err
-}
-
-func (i *RemoteReconcilerInvoker) invokeRetryable(params *Params) error {
-	if err := i.ensureOperationNotInProgress(params); err != nil {
-		return err
-	}
-
-	//mark the operation to be in progress (required to avoid that other invokers will also pick it up)
-	if err := i.updateOperationState(params, model.OperationStateInProgress); err != nil {
-		return err
-	}
-
-	resp, err := i.sendHTTPRequest(params)
-	if err != nil {
-		return i.fireError("send HTTP request", params, err)
-	}
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			i.logger.Errorf("Error while closing HTTP response body: %s", err)
-		}
-	}()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return i.fireError("read HTTP body", params, err)
-	}
-
-	if resp.StatusCode >= http.StatusOK && resp.StatusCode <= 299 {
-		//component-reconciler started reconciliation
-		respModel := &reconciler.HTTPReconciliationResponse{}
-		err := i.unmarshalHTTPResponse(body, respModel, params)
-		if err == nil {
-			return nil //request successfully fired
-		}
-		i.reportUnmarshalError(resp.StatusCode, body, err)
-	}
-
-	if resp.StatusCode == http.StatusTooManyRequests {
-		//component-reconciler worker-pool is overloaded and we should retry
-		return ErrInvokeRateLimit
-	} else if resp.StatusCode >= 400 && resp.StatusCode <= 499 {
-		//component-reconciler can not start because dependencies are missing
-		respModel := &reconciler.HTTPErrorResponse{}
-		err := i.unmarshalHTTPResponse(body, respModel, params)
-		if err == nil {
-			return i.updateOperationState(params, model.OperationStateFailed, respModel.Error)
-		}
-		i.reportUnmarshalError(resp.StatusCode, body, err)
-	}
-
-	//component-reconciler responded an error: try to handle it as an error response
-	respModel := &reconciler.HTTPErrorResponse{}
-	var errorReason string
-
-	err = i.unmarshalHTTPResponse(body, respModel, params)
-	if err == nil {
-		errorReason = respModel.Error
-	} else {
-		i.reportUnmarshalError(resp.StatusCode, body, err)
-		errorReason = fmt.Sprintf("received unsupported reconciler response (HTTP code: %d): %s",
-			resp.StatusCode, string(body))
-	}
-
-	return i.updateOperationState(params, model.OperationStateClientError, errorReason)
 }

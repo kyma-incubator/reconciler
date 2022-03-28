@@ -2,16 +2,23 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/gorilla/mux"
 	cmd "github.com/kyma-incubator/reconciler/cmd/reconciler/start/service"
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/kyma-incubator/reconciler/internal/persistency"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	eventLog "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
+	"net/http"
 	"testing"
 	"time"
 )
@@ -95,6 +102,11 @@ func StartComponentReconciler(ctx context.Context, t *testing.T, b *ComponentRec
 	s.NoError(startErr)
 
 	go func() {
+		defer func() {
+			if recon.Collector() != nil {
+				prometheus.Unregister(recon.Collector())
+			}
+		}()
 		s.NoError(cmd.StartWebserver(componentReconcilerServerContext, options, workerPool, tracker))
 	}()
 
@@ -113,4 +125,46 @@ func (a *NoOpReconcileAction) Run(context *service.ActionContext) (err error) {
 	contextLogger.Infof("Waiting to simulate Op...")
 	time.Sleep(a.WaitTime)
 	return nil
+}
+
+type MockComponentReconcilerHandler interface {
+	Handle(ctx context.Context, t *testing.T, params *server.Params, writer http.ResponseWriter, model *reconciler.Task)
+}
+type MockComponentReconcilerRouter struct {
+	ctx context.Context
+	t   *testing.T
+	*mux.Router
+	runHandler []MockComponentReconcilerHandler
+}
+
+func StartMockComponentReconciler(ctx context.Context, t *testing.T, options *cliRecon.Options, handlers ...MockComponentReconcilerHandler) {
+	a := require.New(t)
+	r := &MockComponentReconcilerRouter{ctx, t, mux.NewRouter(), handlers}
+	r.Router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			next.ServeHTTP(writer, request.WithContext(ctx))
+		})
+	})
+	r.Router.HandleFunc(fmt.Sprintf("/v{%s}/run", "version"), func(writer http.ResponseWriter, request *http.Request) {
+		params := server.NewParams(request)
+		model := &reconciler.Task{}
+		b, err := ioutil.ReadAll(request.Body)
+		a.NoError(err)
+		a.NoError(json.Unmarshal(b, model))
+		writer.Header().Set("content-type", "application/json")
+		for _, handler := range r.runHandler {
+			handler.Handle(ctx, t, params, writer, model)
+		}
+	}).Methods("PUT", "POST")
+
+	s := &server.Webserver{
+		Logger:     options.Logger(),
+		Port:       options.ServerConfig.Port,
+		SSLCrtFile: options.ServerConfig.SSLCrtFile,
+		SSLKeyFile: options.ServerConfig.SSLKeyFile,
+		Router:     r.Router,
+	}
+	go func() {
+		require.NoError(t, s.Start(ctx))
+	}()
 }

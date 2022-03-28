@@ -10,21 +10,46 @@ import (
 	"go.uber.org/zap"
 )
 
-func RegisterProcessingDuration(reconciliations reconciliation.Repository, logger *zap.SugaredLogger) {
+func RegisterProcessingDuration(reconciliations reconciliation.Repository, logger *zap.SugaredLogger) error {
 	if features.Enabled(features.ProcessingDurationMetric) {
 		processingDurationCollector := NewProcessingDurationCollector(reconciliations, logger)
-		prometheus.MustRegister(processingDurationCollector)
+		err := prometheus.Register(processingDurationCollector)
+		switch err.(type) {
+		case prometheus.AlreadyRegisteredError:
+			logger.Warnf("skipping registration of processing duration metrics as they were already registered, existing: %v",
+				err.(prometheus.AlreadyRegisteredError).ExistingCollector)
+			return nil
+		}
 	}
+	return nil
 }
 
-func RegisterWaitingAndNotReadyReconciliations(inventory cluster.Inventory, logger *zap.SugaredLogger) {
+func RegisterWaitingAndNotReadyReconciliations(inventory cluster.Inventory, logger *zap.SugaredLogger) error {
 	reconciliationWaitingCollector := NewReconciliationWaitingCollector(inventory, logger)
 	reconciliationNotReadyCollector := NewReconciliationNotReadyCollector(inventory, logger)
-	prometheus.MustRegister(reconciliationWaitingCollector, reconciliationNotReadyCollector)
+	err := prometheus.Register(reconciliationWaitingCollector)
+	err = prometheus.Register(reconciliationNotReadyCollector)
+	switch err.(type) {
+	case prometheus.AlreadyRegisteredError:
+		logger.Warnf("skipping registration of waiting/ready metrics as they were already registered, existing: %v",
+			err.(prometheus.AlreadyRegisteredError).ExistingCollector)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func RegisterOccupancy(occupancyRepo occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) {
+func RegisterOccupancy(occupancyRepo occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) error {
 	if features.Enabled(features.WorkerpoolOccupancyTracking) {
-		prometheus.MustRegister(NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilers, logger))
+		err := prometheus.Register(NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilers, logger))
+		switch err.(type) {
+		case prometheus.AlreadyRegisteredError:
+			logger.Warnf("skipping registration of occupancy metrics as they were already registered, existing: %v",
+				err.(prometheus.AlreadyRegisteredError).ExistingCollector)
+			return nil
+		}
 	}
+	return nil
 }

@@ -13,12 +13,16 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/callback"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
+	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -27,7 +31,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -50,6 +56,7 @@ type mothershipIntegrationTestSuite struct {
 	mothershipPort         int
 	mothershipStartTimeout time.Duration
 
+	httpClient       *http.Client
 	kubeConfig       string
 	kubeClient       k8s.Client
 	kubeClientConfig *k8s.Config
@@ -66,6 +73,7 @@ type mothershipIntegrationTestSuite struct {
 type clusterRequest func(testCase *mothershipIntegrationTestCase) interface{}
 type responseCheck func(testCase *mothershipIntegrationTestCase, response interface{}) bool
 type verificationStrategy func(testCase *mothershipIntegrationTestCase)
+type componentReconcilerStartStrategy func(o *cliRecon.Options, bootstrap *ComponentReconcilerBootstrap)
 
 type mothershipIntegrationTestCase struct {
 	name                              string
@@ -73,6 +81,7 @@ type mothershipIntegrationTestCase struct {
 	schedulerConfig                   config.SchedulerConfig
 	componentReconcilerConfigs        []*ComponentReconcilerBootstrap
 	appendDummyFallbackBaseReconciler bool
+	componentReconcilerStartStrategy  componentReconcilerStartStrategy
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -111,7 +120,17 @@ func TestIntegrationSuite(t *testing.T) {
 			ProgressTimeout:  16 * time.Second,
 			RetryDelay:       2 * time.Second,
 		},
+
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	})
+}
+
+func (s *mothershipIntegrationTestSuite) SetupTest() {
+	var err error
+	s.registry, err = persistency.NewRegistry(s.containerSuite, s.debugRegistry)
+	s.NoError(err)
 }
 
 func (s *mothershipIntegrationTestSuite) TearDownTest() {
@@ -122,6 +141,8 @@ func (s *mothershipIntegrationTestSuite) TearDownTest() {
 		schedulingIds[i] = recon.SchedulingID
 	}
 	s.NoError(s.registry.ReconciliationRepository().RemoveReconciliationsBySchedulingID(schedulingIds))
+	s.NoError(s.registry.Close())
+	s.NoError(os.Remove(s.auditLogFileName()))
 }
 
 func (s *mothershipIntegrationTestSuite) TearDownSuite() {
@@ -132,8 +153,6 @@ func (s *mothershipIntegrationTestSuite) SetupSuite() {
 
 	s.containerSuite.SetupSuite()
 	var err error
-	s.registry, err = persistency.NewRegistry(s.containerSuite, s.debugRegistry)
-	s.NoError(err)
 
 	//use ./test folder as workspace
 	wsf, err := chart.NewFactory(nil, s.testDirectory, s.testLogger)
@@ -151,7 +170,7 @@ func (s *mothershipIntegrationTestSuite) SetupSuite() {
 	s.kubeClient = kubeClient
 }
 
-func (s *mothershipIntegrationTestSuite) NewOptionsForTestCase(testCase *mothershipIntegrationTestCase) *Options {
+func (s *mothershipIntegrationTestSuite) newMothershipOptionsForTestCase(testCase *mothershipIntegrationTestCase) *Options {
 	cliOpts := &cli.Options{
 		Verbose: false,
 	}
@@ -164,6 +183,8 @@ func (s *mothershipIntegrationTestSuite) NewOptionsForTestCase(testCase *mothers
 	o.PurgeEntitiesOlderThan = 5 * time.Minute
 	o.CleanerInterval = 5 * time.Minute
 	o.Port = s.mothershipPort
+
+	o.Workers = 5
 
 	o.AuditLog = true
 	o.AuditLogFile = s.auditLogFileName()
@@ -199,9 +220,7 @@ func (s *mothershipIntegrationTestSuite) testFilePayload(file string) string {
 }
 
 func (s *mothershipIntegrationTestSuite) sendRequest(destURL string, httpMethod httpMethod, payload string) (*http.Response, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
+	client := s.httpClient
 	s.testLogger.Debugf("Sending %s HTTP request to: %s", httpMethod, destURL)
 
 	var response *http.Response
@@ -296,16 +315,6 @@ func (s *mothershipIntegrationTestSuite) isReconciliationFinished() responseChec
 	}
 }
 
-func (s *mothershipIntegrationTestSuite) emptySchedulerConfig() config.SchedulerConfig {
-	return config.SchedulerConfig{
-		PreComponents: [][]string{
-			{"placeholder-pre"},
-		},
-		Reconcilers:    map[string]config.ComponentReconciler{},
-		DeleteStrategy: "system",
-	}
-}
-
 func (s *mothershipIntegrationTestSuite) checkForSuccessfulReconciliation(creationRequestFile string, opts ...retry.Option) verificationStrategy {
 	return func(testCase *mothershipIntegrationTestCase) {
 		payload := s.testFilePayload(creationRequestFile)
@@ -325,6 +334,87 @@ func (s *mothershipIntegrationTestSuite) checkForSuccessfulReconciliation(creati
 			return nil
 		}, opts...))
 	}
+}
+
+func (s *mothershipIntegrationTestSuite) hadRateLimitingIssue() responseCheck {
+	return func(testCase *mothershipIntegrationTestCase, schedulingRequestResponse interface{}) bool {
+		respModel := schedulingRequestResponse.(*keb.HTTPClusterResponse)
+		statusRes := s.requestToMothership(
+			respModel.StatusURL,
+			httpGet,
+			"",
+			200,
+			&keb.HTTPClusterResponse{},
+		)(testCase).(*keb.HTTPClusterResponse)
+
+		s.testLogger.Infof("checking for rate-limit errors in %v", statusRes)
+		if statusRes.Failures != nil && len(*statusRes.Failures) > 0 {
+			for _, failure := range *statusRes.Failures {
+				isRateLimitErr, err := regexp.MatchString(`(worker pool for) .* (has reached it's capacity) [0-9]*`, failure.Reason)
+				s.NoError(err)
+				if isRateLimitErr {
+					return true
+				}
+			}
+		}
+
+		return false
+	}
+}
+
+func (s *mothershipIntegrationTestSuite) emptySchedulerConfig() config.SchedulerConfig {
+	return config.SchedulerConfig{
+		PreComponents: [][]string{
+			{"placeholder-pre"},
+		},
+		Reconcilers:    map[string]config.ComponentReconciler{},
+		DeleteStrategy: "system",
+	}
+}
+
+func (s *mothershipIntegrationTestSuite) rateLimitMockServer(o *cliRecon.Options, bootstrap *ComponentReconcilerBootstrap) {
+	StartMockComponentReconciler(s.testContext, s.T(), o, &rateLimitHandler{
+		logger:         s.testLogger,
+		rateLimitAfter: bootstrap.WorkerConfig.Workers,
+		mu:             sync.Mutex{},
+	})
+}
+
+type rateLimitHandler struct {
+	logger         *zap.SugaredLogger
+	rateLimitAfter int
+	mu             sync.Mutex
+}
+
+func (r *rateLimitHandler) Handle(_ context.Context, t *testing.T, _ *server.Params, writer http.ResponseWriter, model *reconciler.Task) {
+	a := require.New(t)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.rateLimitAfter > 0 {
+		r.rateLimitAfter--
+		a.NoError(json.NewEncoder(writer).Encode(&reconciler.HTTPReconciliationResponse{}))
+		go func() {
+			time.Sleep(time.Second)
+			h, hErr := callback.NewRemoteCallbackHandler(model.CallbackURL, r.logger)
+			a.NoError(hErr)
+			a.NoError(h.Callback(&reconciler.CallbackMessage{
+				Error:              "",
+				Manifest:           nil,
+				ProcessingDuration: int(time.Second.Milliseconds()),
+				RetryID:            uuid.NewString(),
+				Status:             reconciler.StatusSuccess,
+			}))
+		}()
+	} else {
+		r.rateLimitAfter++
+		server.SendHTTPError(writer, http.StatusTooManyRequests, &reconciler.HTTPErrorResponse{
+			Error: errors.Errorf("worker pool for %s has reached it's capacity (mocked)", model.Component).Error(),
+		})
+	}
+}
+
+func (s *mothershipIntegrationTestSuite) realReconciler(o *cliRecon.Options, bootstrap *ComponentReconcilerBootstrap) {
+	StartComponentReconciler(s.testContext, s.T(), bootstrap, s.kubeClient, s.chartFactory, o)
 }
 
 func (s *mothershipIntegrationTestSuite) TestRun() {
@@ -349,6 +439,21 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 						err.Error(), n)
 				}),
 			),
+			componentReconcilerStartStrategy: s.realReconciler,
+		},
+		{
+			name:                              "Create Cluster: Component Reconciler Overloaded",
+			appendDummyFallbackBaseReconciler: true,
+			verificationStrategy: s.checkForSuccessfulReconciliation("create_cluster.json",
+				retry.Attempts(10),
+				retry.Context(s.testContext),
+				retry.Delay(5*time.Second),
+				retry.OnRetry(func(n uint, err error) {
+					s.testLogger.Debugf("%s, retrying (retry no. %d)",
+						err.Error(), n)
+				}),
+			),
+			componentReconcilerStartStrategy: s.rateLimitMockServer,
 		},
 	}
 	for _, testCase := range testCases {
@@ -356,7 +461,7 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 		s.Run(testCase.name, func() {
 			testCase.schedulerConfig = s.emptySchedulerConfig()
 
-			options := s.NewOptionsForTestCase(&testCase)
+			options := s.newMothershipOptionsForTestCase(&testCase)
 
 			if testCase.appendDummyFallbackBaseReconciler {
 				testCase.componentReconcilerConfigs = append(testCase.componentReconcilerConfigs, &ComponentReconcilerBootstrap{
@@ -372,7 +477,7 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 				o := OptionsForComponentReconciler(s.T(), s.registry)
 				o.Workspace = s.testDirectory
 				o.ServerConfig.Port = s.mothershipPort + i + 1
-				StartComponentReconciler(s.testContext, s.T(), compReconConfig, s.kubeClient, s.chartFactory, o)
+				testCase.componentReconcilerStartStrategy(o, compReconConfig)
 				cliTest.WaitForTCPSocket(s.T(), s.mothershipHost, o.ServerConfig.Port, 10*time.Second)
 				testCase.schedulerConfig.Reconcilers[compReconConfig.Name] = config.ComponentReconciler{
 					URL: fmt.Sprintf("%s://%s:%d/v1/run", options.Config.Scheme, options.Config.Host, o.ServerConfig.Port),
@@ -396,10 +501,6 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 
 			cliTest.WaitForTCPSocket(s.T(), s.mothershipHost, s.mothershipPort, s.mothershipStartTimeout)
 			testCase.verificationStrategy(&testCase)
-
-			s.T().Cleanup(func() {
-				s.NoError(os.Remove(s.auditLogFileName()))
-			})
 		})
 	}
 }

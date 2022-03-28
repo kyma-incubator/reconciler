@@ -133,9 +133,13 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
-	metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config.Scheduler.Reconcilers, o.Logger())
-	metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
-	metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
+	metricErr := metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config.Scheduler.Reconcilers, o.Logger())
+	metricErr = metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
+	metricErr = metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
+
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks

@@ -11,6 +11,7 @@ const (
 )
 
 func IntegrationTest(t *testing.T) {
+	t.Helper()
 	if !isIntegrationTestEnabled() {
 		t.Skipf("Integration tests disabled: skipping parts of test case '%s'", t.Name())
 	}
