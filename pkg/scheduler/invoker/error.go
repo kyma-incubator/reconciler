@@ -16,8 +16,7 @@ func (err *NoFallbackReconcilerDefinedError) Error() string {
 
 func IsNoFallbackReconcilerDefinedError(err error) bool {
 	var ok bool
-	rErr, isRetryErr := err.(retry.Error)
-	if isRetryErr {
+	if rErr, isRetryErr := err.(retry.Error); isRetryErr {
 		for _, err := range rErr.WrappedErrors() {
 			_, ok = err.(*NoFallbackReconcilerDefinedError)
 			break
