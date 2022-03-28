@@ -1,7 +1,6 @@
 package reconciliation
 
 import (
-	"fmt"
 	"math"
 	"reflect"
 	"sort"
@@ -9,7 +8,6 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -293,75 +291,6 @@ func (s *reconciliationTestSuite) Test_splitStringSlice() {
 			if !reflect.DeepEqual(got, testCase.want) {
 				t.Errorf("splitStringSlice() got = %v, want %v", got, testCase.want)
 			}
-		})
-	}
-}
-
-func (s *reconciliationTestSuite) TestPersistentReconciliationRepository_RemoveReconciliationsForObsoleteStatus() {
-	tests := []struct {
-		name     string
-		count    int
-		want     int
-		wantErr  bool
-		obsolete bool
-		deleted  bool
-	}{
-		{
-			name:     "when reconciliations refer to obsolete cluster config statuses",
-			want:     5,
-			count:    5,
-			deleted:  true,
-			obsolete: true,
-		},
-		{
-			name:     "when reconciliations refer to older non-deleted cluster config statuses",
-			want:     0,
-			count:    5,
-			obsolete: true,
-			deleted:  false,
-		},
-		{
-			name:     "when reconciliations refer to current deleted cluster config statuses",
-			want:     0,
-			count:    5,
-			obsolete: false,
-			deleted:  true,
-		},
-		{
-			name:  "when no reconciliations are present",
-			want:  0,
-			count: 0,
-		},
-	}
-	for _, tt := range tests {
-		t := s.T()
-		testCase := tt
-		t.Run(tt.name, func(t *testing.T) {
-			testEntities := s.prepareTest(t, testCase.count)
-			statusEntity := &model.ClusterStatusEntity{}
-
-			// mock status to be set as deleted
-			if testCase.deleted {
-				for _, runtimeID := range testEntities.runtimeIDs {
-					updateSQLTemplate := "UPDATE %s SET %s=$1 WHERE %s=$2"
-					_, err := dbConn.Exec(fmt.Sprintf(updateSQLTemplate, statusEntity.Table(), "deleted", "runtime_id"), "TRUE", runtimeID)
-					require.NoError(t, err)
-				}
-			}
-
-			deadline := time.Now().UTC()
-			if !testCase.obsolete {
-				deadline = deadline.Add(-time.Hour)
-			}
-			got, err := testEntities.persistenceRepo.RemoveReconciliationsForObsoleteStatus(deadline)
-			if (err != nil) != testCase.wantErr {
-				t.Errorf("RemoveReconciliationsForObsoleteStatus() error = %v, wantErr %v", err, testCase.wantErr)
-				return
-			}
-			if got != testCase.want {
-				t.Errorf("RemoveReconciliationsForObsoleteStatus() got = %v, want %v", got, testCase.want)
-			}
-			cleanup(testEntities.teardownFn)
 		})
 	}
 }

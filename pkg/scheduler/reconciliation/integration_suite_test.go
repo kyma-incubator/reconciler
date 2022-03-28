@@ -74,8 +74,8 @@ func (s *reconciliationTestSuite) TxConnection() *db.TxConnection {
 	return s.containerSuite.TxConnection()
 }
 
-func (s *reconciliationTestSuite) TearDownConnection() {
-	s.containerSuite.TearDownConnection()
+func (s *reconciliationTestSuite) NewConnection() (db.Connection, error) {
+	return s.containerSuite.NewConnection()
 }
 
 func (s *reconciliationTestSuite) prepareTest(t *testing.T, count int) *testEntities {

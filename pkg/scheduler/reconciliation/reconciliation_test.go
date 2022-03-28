@@ -789,7 +789,6 @@ func verifyOperationState(t *testing.T, op *model.OperationEntity, expectedState
 }
 
 func (s *reconciliationTestSuite) newPersistentRepository(t *testing.T) Repository {
-	s.TearDownConnection()
 	reconRepo, err := NewPersistedReconciliationRepository(s.TxConnection(), true)
 	require.NoError(t, err)
 
@@ -810,7 +809,9 @@ func (s *reconciliationTestSuite) TestTransaction() {
 	t := s.T()
 	t.Run("Rollback nested transactions", func(t *testing.T) {
 		//new db connection
-		dbConn := s.TxConnection()
+		dbConn, err := s.NewConnection()
+		require.NoError(t, err)
+		defer require.NoError(t, dbConn.Close())
 
 		//create inventory
 		reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
@@ -849,8 +850,6 @@ func (s *reconciliationTestSuite) TestTransaction() {
 		require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
 
 		//check if reconciliations are rolled back - should throw an error
-		s.TearDownConnection()
-		dbConn = s.TxConnection()
 		reconRepo, err = NewPersistedReconciliationRepository(dbConn, true)
 		require.NoError(t, err)
 		recons, err := reconRepo.GetReconciliations(nil)
@@ -959,8 +958,9 @@ func (s *reconciliationTestSuite) TestReconciliationParallel() {
 			errChannel := make(chan error, threadCnt)
 
 			//create mock database connection
-			s.TearDownConnection()
-			dbConn := s.TxConnection()
+			dbConn, err := s.NewConnection()
+			require.NoError(t, err)
+			defer require.NoError(t, dbConn.Close())
 			//prepare inventory
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
