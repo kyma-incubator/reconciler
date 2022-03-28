@@ -4,5 +4,5 @@ CREATE OR replace VIEW v_inventory_cluster_cleanup AS
 select status.id as status_id, status.runtime_id, status.cluster_version as cluster_id, status.config_version as config_id, status.status, status.created
 FROM inventory_cluster_config_statuses AS status
     JOIN inventory_clusters ic ON status.runtime_id = ic.runtime_id AND status.cluster_version = ic.version
-WHERE ic.deleted = true;
+WHERE status.deleted = true AND ic.deleted = true;
 ---------------------------end view

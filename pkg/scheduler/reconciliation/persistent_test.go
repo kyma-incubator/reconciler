@@ -1,6 +1,7 @@
 package reconciliation
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"sort"
@@ -14,6 +15,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type testEntities struct {
+	persistenceRepo          Repository
+	inMemoryRepo             Repository
+	persistenceSchedulingIDs []string
+	inMemorySchedulingIDs    []string
+	runtimeIDs               []string
+	teardownFn               func()
+}
+
 func dbTestConnection(t *testing.T) db.Connection {
 	mu.Lock()
 	defer mu.Unlock()
@@ -23,7 +33,7 @@ func dbTestConnection(t *testing.T) db.Connection {
 	return dbConn
 }
 
-func prepareTest(t *testing.T, count int) (Repository, Repository, []string, []string, []string, func()) {
+func prepareTest(t *testing.T, count int) testEntities {
 	//create mock database connection
 	dbConn = dbTestConnection(t)
 
@@ -66,7 +76,7 @@ func prepareTest(t *testing.T, count int) (Repository, Repository, []string, []s
 		}
 	}
 
-	return persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs, runtimeIDs, teardownFn
+	return testEntities{persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs, runtimeIDs, teardownFn}
 }
 
 func cleanup(teardownFn func()) {
@@ -100,25 +110,25 @@ func TestPersistentReconciliationRepository_RemoveReconciliationsBeforeDeadline(
 	for _, tt := range tests {
 		testCase := tt
 		t.Run(testCase.name, func(t *testing.T) {
-			persistenceRepo, inMemoryRepo, _, _, runtimeIDs, teardownFn := prepareTest(t, testCase.reconciliations)
+			testEntities := prepareTest(t, testCase.reconciliations)
 			timeTo := time.Now().UTC()
-			for _, runtimeID := range runtimeIDs {
-				if err := persistenceRepo.RemoveReconciliationsBeforeDeadline(runtimeID, "nonExistentToMockDeletion", timeTo); (err != nil) != testCase.wantErr {
+			for _, runtimeID := range testEntities.runtimeIDs {
+				if err := testEntities.persistenceRepo.RemoveReconciliationsBeforeDeadline(runtimeID, "nonExistentToMockDeletion", timeTo); (err != nil) != testCase.wantErr {
 					t.Errorf("Persistence RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 				}
-				if err := inMemoryRepo.RemoveReconciliationsBeforeDeadline(runtimeID, "nonExistentToMockDeletion", timeTo); (err != nil) != testCase.wantErr {
+				if err := testEntities.inMemoryRepo.RemoveReconciliationsBeforeDeadline(runtimeID, "nonExistentToMockDeletion", timeTo); (err != nil) != testCase.wantErr {
 					t.Errorf("InMemory RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 				}
 			}
 
 			// check - also ensures clean up
-			persistenceReconciliations, err := persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			persistenceReconciliations, err := testEntities.persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(persistenceReconciliations))
-			inMemoryReconciliations, err := inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			inMemoryReconciliations, err := testEntities.inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(inMemoryReconciliations))
-			cleanup(teardownFn)
+			cleanup(testEntities.teardownFn)
 		})
 	}
 }
@@ -150,18 +160,18 @@ func TestPersistentReconciliationRepository_GetRuntimeIDs(t *testing.T) {
 	for _, tt := range tests {
 		testCase := tt
 		t.Run(testCase.name, func(t *testing.T) {
-			persistenceRepo, inMemoryRepo, _, _, runtimeIDs, teardownFn := prepareTest(t, testCase.reconciliations)
-			persistentRepoRuntimeIDs, err := persistenceRepo.GetRuntimeIDs()
+			testEntities := prepareTest(t, testCase.reconciliations)
+			persistentRepoRuntimeIDs, err := testEntities.persistenceRepo.GetRuntimeIDs()
 			require.NoError(t, err)
-			inmemoryRepoRuntimeIDs, err := inMemoryRepo.GetRuntimeIDs()
+			inmemoryRepoRuntimeIDs, err := testEntities.inMemoryRepo.GetRuntimeIDs()
 			require.NoError(t, err)
-			sort.Strings(runtimeIDs)
+			sort.Strings(testEntities.runtimeIDs)
 			sort.Strings(persistentRepoRuntimeIDs)
 			sort.Strings(inmemoryRepoRuntimeIDs)
-			require.True(t, reflect.DeepEqual(runtimeIDs, persistentRepoRuntimeIDs))
+			require.True(t, reflect.DeepEqual(testEntities.runtimeIDs, persistentRepoRuntimeIDs))
 			require.NoError(t, err)
-			require.True(t, reflect.DeepEqual(runtimeIDs, inmemoryRepoRuntimeIDs))
-			cleanup(teardownFn)
+			require.True(t, reflect.DeepEqual(testEntities.runtimeIDs, inmemoryRepoRuntimeIDs))
+			cleanup(testEntities.teardownFn)
 		})
 	}
 }
@@ -198,23 +208,23 @@ func TestPersistentReconciliationRepository_RemoveReconciliationsBySchedulingID(
 	for _, tt := range tests {
 		testCase := tt
 		t.Run(testCase.name, func(t *testing.T) {
-			persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs, _, teardownFn := prepareTest(t, testCase.reconciliations)
+			testEntities := prepareTest(t, testCase.reconciliations)
 
-			if err := persistenceRepo.RemoveReconciliationsBySchedulingID(persistenceSchedulingIDs); (err != nil) != testCase.wantErr {
+			if err := testEntities.persistenceRepo.RemoveReconciliationsBySchedulingID(testEntities.persistenceSchedulingIDs); (err != nil) != testCase.wantErr {
 				t.Errorf("Persistence RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 			}
-			if err := inMemoryRepo.RemoveReconciliationsBySchedulingID(inMemorySchedulingIDs); (err != nil) != testCase.wantErr {
+			if err := testEntities.inMemoryRepo.RemoveReconciliationsBySchedulingID(testEntities.inMemorySchedulingIDs); (err != nil) != testCase.wantErr {
 				t.Errorf("InMemory RemoveSchedulingIds() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 
 			// check - also ensures clean up
-			persistenceReconciliations, err := persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			persistenceReconciliations, err := testEntities.persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(persistenceReconciliations))
-			inMemoryReconciliations, err := inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			inMemoryReconciliations, err := testEntities.inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(inMemoryReconciliations))
-			cleanup(teardownFn)
+			cleanup(testEntities.teardownFn)
 		})
 	}
 }
@@ -241,26 +251,26 @@ func TestPersistentReconciliationRepository_RemoveReconciliationByRuntimeID(t *t
 	for _, tt := range tests {
 		testCase := tt
 		t.Run(testCase.name, func(t *testing.T) {
-			persistenceRepo, inMemoryRepo, _, _, runtimeIDs, teardownFn := prepareTest(t, testCase.reconciliations)
+			testEntities := prepareTest(t, testCase.reconciliations)
 			var runtimeID string
 			if testCase.reconciliations > 0 {
-				runtimeID = runtimeIDs[0]
+				runtimeID = testEntities.runtimeIDs[0]
 			}
-			if err := persistenceRepo.RemoveReconciliationByRuntimeID(runtimeID); (err != nil) != testCase.wantErr {
+			if err := testEntities.persistenceRepo.RemoveReconciliationByRuntimeID(runtimeID); (err != nil) != testCase.wantErr {
 				t.Errorf("Persistence RemoveReconciliationByRuntimeID() error = %v, wantErr %v", err, testCase.wantErr)
 			}
-			if err := inMemoryRepo.RemoveReconciliationByRuntimeID(runtimeID); (err != nil) != testCase.wantErr {
+			if err := testEntities.inMemoryRepo.RemoveReconciliationByRuntimeID(runtimeID); (err != nil) != testCase.wantErr {
 				t.Errorf("InMemory RemoveReconciliationByRuntimeID() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 
 			// check - also ensures clean up
-			persistenceReconciliations, err := persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			persistenceReconciliations, err := testEntities.persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(persistenceReconciliations))
-			inMemoryReconciliations, err := inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			inMemoryReconciliations, err := testEntities.inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(inMemoryReconciliations))
-			cleanup(teardownFn)
+			cleanup(testEntities.teardownFn)
 		})
 	}
 }
@@ -287,27 +297,27 @@ func TestPersistentReconciliationRepository_RemoveReconciliationBySchedulingID(t
 	for _, tt := range tests {
 		testCase := tt
 		t.Run(testCase.name, func(t *testing.T) {
-			persistenceRepo, inMemoryRepo, schedulingIDsPersistent, schedulingIDsInMemory, _, teardownFn := prepareTest(t, testCase.reconciliations)
+			testEntities := prepareTest(t, testCase.reconciliations)
 			var schedulingIDPersistent, schedulingIDInMemory string
 			if testCase.reconciliations > 0 {
-				schedulingIDPersistent = schedulingIDsPersistent[0]
-				schedulingIDInMemory = schedulingIDsInMemory[0]
+				schedulingIDPersistent = testEntities.persistenceSchedulingIDs[0]
+				schedulingIDInMemory = testEntities.inMemorySchedulingIDs[0]
 			}
-			if err := persistenceRepo.RemoveReconciliationBySchedulingID(schedulingIDPersistent); (err != nil) != testCase.wantErr {
+			if err := testEntities.persistenceRepo.RemoveReconciliationBySchedulingID(schedulingIDPersistent); (err != nil) != testCase.wantErr {
 				t.Errorf("Persistence RemoveReconciliationBySchedulingID() error = %v, wantErr %v", err, testCase.wantErr)
 			}
-			if err := inMemoryRepo.RemoveReconciliationBySchedulingID(schedulingIDInMemory); (err != nil) != testCase.wantErr {
+			if err := testEntities.inMemoryRepo.RemoveReconciliationBySchedulingID(schedulingIDInMemory); (err != nil) != testCase.wantErr {
 				t.Errorf("InMemory RemoveReconciliationBySchedulingID() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 
 			// check - also ensures clean up
-			persistenceReconciliations, err := persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			persistenceReconciliations, err := testEntities.persistenceRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(persistenceReconciliations))
-			inMemoryReconciliations, err := inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
+			inMemoryReconciliations, err := testEntities.inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(inMemoryReconciliations))
-			cleanup(teardownFn)
+			cleanup(testEntities.teardownFn)
 		})
 	}
 }
@@ -346,6 +356,76 @@ func Test_splitStringSlice(t *testing.T) {
 			if !reflect.DeepEqual(got, testCase.want) {
 				t.Errorf("splitStringSlice() got = %v, want %v", got, testCase.want)
 			}
+		})
+	}
+}
+
+func TestPersistentReconciliationRepository_RemoveReconciliationsForObsoleteStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		count    int
+		want     int
+		wantErr  bool
+		obsolete bool
+		deleted  bool
+	}{
+		{
+			name:     "when reconciliations refer to obsolete cluster config statuses",
+			want:     5,
+			count:    5,
+			deleted:  true,
+			obsolete: true,
+		},
+		{
+			name:     "when reconciliations refer to older non-deleted cluster config statuses",
+			want:     0,
+			count:    5,
+			obsolete: true,
+			deleted:  false,
+		},
+		{
+			name:     "when reconciliations refer to current deleted cluster config statuses",
+			want:     0,
+			count:    5,
+			obsolete: false,
+			deleted:  true,
+		},
+		{
+			name:  "when no reconciliations are present",
+			want:  0,
+			count: 0,
+		},
+	}
+	for _, tt := range tests {
+		testCase := tt
+		t.Run(tt.name, func(t *testing.T) {
+			testEntities := prepareTest(t, testCase.count)
+			statusEntity := &model.ClusterStatusEntity{}
+			clusterEntity := &model.ClusterEntity{}
+
+			if testCase.deleted {
+				for _, runtimeID := range testEntities.runtimeIDs {
+					updateSQLTemplate := "UPDATE %s SET %s=$1 WHERE %s=$2"
+					_, err := dbConn.Exec(fmt.Sprintf(updateSQLTemplate, statusEntity.Table(), "deleted", "runtime_id"), "TRUE", runtimeID)
+					require.NoError(t, err)
+					_, err = dbConn.Exec(fmt.Sprintf(updateSQLTemplate, clusterEntity.Table(), "deleted", "runtime_id"), "TRUE", runtimeID)
+					require.NoError(t, err)
+				}
+			}
+
+			deadline := time.Now().UTC()
+			if !testCase.obsolete {
+				deadline = deadline.Add(-time.Hour)
+			}
+			got, err := testEntities.persistenceRepo.RemoveReconciliationsForObsoleteStatus(deadline)
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("RemoveReconciliationsForObsoleteStatus() error = %v, wantErr %v", err, testCase.wantErr)
+				return
+			}
+			if got != testCase.want {
+				t.Errorf("RemoveReconciliationsForObsoleteStatus() got = %v, want %v", got, testCase.want)
+			}
+			cleanup(testEntities.teardownFn)
 		})
 	}
 }
