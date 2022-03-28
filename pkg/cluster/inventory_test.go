@@ -446,6 +446,38 @@ func TestTransaction(t *testing.T) {
 	})
 }
 
+func TestRemoveDeletedClustersOlderThan(t *testing.T) {
+
+	//create inventory
+	inventory := newInventory(t)
+
+	notToBeDeletedCluster := test.NewCluster(t, "active", 1, false, test.Production)
+	activeClusterState, err := inventory.CreateOrUpdate(1, notToBeDeletedCluster)
+	require.NoError(t, err)
+
+	toBeDeletedCluster := test.NewCluster(t, "deleted", 1, false, test.Production)
+	deletedClusterState, err := inventory.CreateOrUpdate(1, toBeDeletedCluster)
+	require.NoError(t, err)
+
+	err = inventory.Delete(deletedClusterState.Cluster.RuntimeID)
+	require.NoError(t, err)
+
+	newDeletedClusterState, err := inventory.Get(deletedClusterState.Cluster.RuntimeID, deletedClusterState.Configuration.Version)
+	require.NoError(t, err)
+	require.Equal(t, true, newDeletedClusterState.Cluster.Deleted)
+
+	deletedCnt, err := inventory.RemoveDeletedClustersOlderThan(time.Now())
+	require.NoError(t, err)
+	require.Equal(t, 1, deletedCnt)
+	newActiveClusterState, err := inventory.Get(activeClusterState.Cluster.RuntimeID, activeClusterState.Configuration.Version)
+	require.NoError(t, err)
+	require.Equal(t, false, newActiveClusterState.Cluster.Deleted)
+	_, err = inventory.Get(newDeletedClusterState.Cluster.RuntimeID, newDeletedClusterState.Configuration.Version)
+	require.Error(t, err)
+	require.True(t, repository.IsNotFoundError(err))
+
+}
+
 func listStatuses(states []*State) []model.Status {
 	var result []model.Status
 	for _, state := range states {
