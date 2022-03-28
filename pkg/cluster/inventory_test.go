@@ -462,20 +462,29 @@ func TestRemoveDeletedClustersOlderThan(t *testing.T) {
 	err = inventory.Delete(deletedClusterState.Cluster.RuntimeID)
 	require.NoError(t, err)
 
-	newDeletedClusterState, err := inventory.Get(deletedClusterState.Cluster.RuntimeID, deletedClusterState.Configuration.Version)
-	require.NoError(t, err)
-	require.Equal(t, true, newDeletedClusterState.Cluster.Deleted)
-
 	deletedCnt, err := inventory.RemoveDeletedClustersOlderThan(time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 1, deletedCnt)
 	newActiveClusterState, err := inventory.Get(activeClusterState.Cluster.RuntimeID, activeClusterState.Configuration.Version)
 	require.NoError(t, err)
 	require.Equal(t, false, newActiveClusterState.Cluster.Deleted)
-	_, err = inventory.Get(newDeletedClusterState.Cluster.RuntimeID, newDeletedClusterState.Configuration.Version)
-	require.Error(t, err)
-	require.True(t, repository.IsNotFoundError(err))
 
+	//get all clusters and filter for deleted
+	clusterStates, err := inventory.GetAll()
+	require.NoError(t, err)
+	deletedClustersStates := getDeletedClusters(clusterStates)
+	require.Zero(t, len(deletedClustersStates))
+
+}
+
+func getDeletedClusters(states []*State) []*State {
+	var result []*State
+	for _, state := range states {
+		if state.Cluster.Deleted {
+			result = append(result, state)
+		}
+	}
+	return result
 }
 
 func listStatuses(states []*State) []model.Status {
