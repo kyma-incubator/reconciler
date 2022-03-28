@@ -62,7 +62,7 @@ func (l *containerTestSuiteLeaseID) release() {
 	}
 }
 
-func newContainerTestSuiteLease(debug bool, settings PostgresContainerSettings, commitAfterExecution bool) (*containerTestSuiteLeaseID, error) {
+func newContainerTestSuiteLease(debug bool, commitAfterExecution bool) (*containerTestSuiteLeaseID, error) {
 	lh := globalContainerTestSuiteLeases
 	lh.Lock()
 	defer lh.Unlock()
@@ -70,7 +70,7 @@ func newContainerTestSuiteLease(debug bool, settings PostgresContainerSettings, 
 	id := containerTestSuiteLeaseID(uuid.NewString())
 	ctx := context.Background()
 
-	r, err := RunPostgresContainer(ctx, settings, debug)
+	r, err := RunPostgresContainer(ctx, DefaultSharedContainerSettings, debug)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func LeaseSharedContainerTestSuite(t *testing.T, settings ContainerSettings, deb
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.suites[settings] == nil {
-		lid, err := newContainerTestSuiteLease(debug, *settings.(*PostgresContainerSettings), commitAfterExecution)
+		lid, err := newContainerTestSuiteLease(debug, commitAfterExecution)
 		if err != nil {
 			panic(err)
 		}
