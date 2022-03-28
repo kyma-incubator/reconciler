@@ -89,6 +89,7 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 
 		err = performer.Install(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
+			_ = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
 			return errors.Wrap(err, "Could not install Istio")
 		}
 
@@ -97,6 +98,10 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 
 		err = performer.Update(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
+			errPatchMutatingWebhook := performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
+			if errPatchMutatingWebhook != nil {
+				context.Logger.Info("Could not patch MutatingWebhookConfiguration")
+			}
 			return errors.Wrap(err, "Could not update Istio")
 		}
 	} else {
