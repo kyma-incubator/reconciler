@@ -155,7 +155,7 @@ func Test_Auditlog(t *testing.T) {
 					http.StatusOK, w.Result().StatusCode)
 			} else {
 				t.Log(output.String())
-				validateLog(t, output.String(), tc.method, tc.jwtHeader != "")
+				validateLog(t, output.String(), tc.method, tc.jwtHeader != "", tc.addExternalIP)
 			}
 
 		})
@@ -163,7 +163,7 @@ func Test_Auditlog(t *testing.T) {
 }
 
 // validateLog ensures that all required fields in the log message are set and valid. If any of these is missing the audit log backend will not accept/process our logs
-func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
+func validateLog(t *testing.T, logMsg, method string, useJWT, checkForValidIP bool) {
 	l := &log{}
 	err := json.Unmarshal([]byte(logMsg), l)
 	require.NoError(t, err)
@@ -173,14 +173,15 @@ func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 		l.User == "" ||
 		l.Data == "" ||
 		l.Tenant == "" ||
-		l.IP == "" ||
 		l.Category == "", "empty log field: %#v", l)
 
 	require.Equalf(t, tenantID, l.Tenant, "invalid log tenantID: expected: %s, got: %s", tenantID, l.Tenant)
 
-	require.NotNil(t, net.ParseIP(l.IP), "invalid log IP: expected valid IP, got: %s", clientIP, l.IP)
-	require.NotEmpty(t, l.IP, "invalid log IP: expected non-empty IP, got: %s", clientIP, l.IP)
-	require.NotEqual(t, "127.0.0.1", l.IP, "invalid log IP: cannot use localhost-equivalent, got: %s", l.IP)
+	if checkForValidIP {
+		require.NotEmpty(t, l.IP, "invalid log IP: expected non-empty IP, got: %s", clientIP, l.IP)
+		require.NotNil(t, net.ParseIP(l.IP), "invalid log IP: expected valid IP, got: %s", clientIP, l.IP)
+		require.Falsef(t, net.ParseIP(l.IP).IsPrivate(), "invalid log IP: cannot use private ip, got: %s", l.IP)
+	}
 
 	if useJWT {
 		require.Equalf(t, jwtPayloadSub, l.User, "invalid user: expected: %s, got: %s", jwtPayloadSub, l.User)
@@ -191,11 +192,4 @@ func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 		require.NoError(t, err)
 		require.NotEmptyf(t, d.RequestBody, "empty request body in log message data field: %#v", l.Data)
 	}
-}
-
-func TestRandomIPv4(t *testing.T) {
-	first, second := net.ParseIP(randomIPv4()), net.ParseIP(randomIPv4())
-	require.NotNil(t, first, "generated IP should not be nil after parsing")
-	require.NotNil(t, second, "generated IP should not be nil after parsing")
-	require.NotEqual(t, first, second)
 }

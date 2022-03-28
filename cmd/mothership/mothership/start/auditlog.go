@@ -3,12 +3,9 @@ package cmd
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
-	"net"
 	"net/http"
 	"time"
 
@@ -152,12 +149,6 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		logData.IP = externalHeaderIP
 	}
 
-	// TODO This is necessary to make sure that even we completely skip out on finding any IP, audit log is still happy
-	// see https://github.com/kyma-incubator/reconciler/issues/959
-	if logData.IP == "" {
-		logData.IP = randomIPv4()
-	}
-
 	data, err := json.Marshal(logData)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
@@ -165,14 +156,19 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		})
 		return
 	}
-	l.With(zap.String("time", time.Now().Format(time.RFC3339))).
+
+	logger := l.With(zap.String("time", time.Now().Format(time.RFC3339))).
 		With(zap.String("uuid", uuid.New().String())).
 		With(zap.String("user", logData.User)).
 		With(zap.String("data", string(data))).
 		With(zap.String("tenant", o.AuditLogTenantID)).
-		With(zap.String("ip", logData.IP)).
-		With(zap.String("category", "audit.security-events")). // comply with required log backend format
-		Info("")
+		With(zap.String("category", "audit.security-events")) // comply with required log backend format
+
+	if logData.IP != "" {
+		logger = logger.With(zap.String("ip", logData.IP))
+	}
+
+	logger.Info("")
 }
 
 func getJWTPayload(r *http.Request) (string, error) {
@@ -198,15 +194,4 @@ func getJWTPayloadSub(payload string) (string, error) {
 	s := jwtSub{}
 	err := json.Unmarshal([]byte(payload), &s)
 	return s.Sub, err
-}
-
-func randomIPv4() string {
-	buf := make([]byte, 4)
-	ip32 := rand.Uint32()
-	binary.LittleEndian.PutUint32(buf, ip32)
-	ip := net.IP(buf)
-	if ip.IsPrivate() || ip.IsUnspecified() {
-		return randomIPv4()
-	}
-	return net.IP(buf).String()
 }
