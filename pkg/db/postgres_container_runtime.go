@@ -65,7 +65,7 @@ func (p PostgresContainerSettings) migrationConfig() MigrationConfig {
 type MigrationConfig string
 
 //NoOpMigrationConfig is a shortcut to not have any migrationConfig at all
-var NoOpMigrationConfig MigrationConfig = ""
+var NoOpMigrationConfig MigrationConfig
 
 func RunPostgresContainer(ctx context.Context, settings PostgresContainerSettings, debug bool) (*PostgresContainerRuntime, error) {
 	var filesErr error

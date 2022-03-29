@@ -87,7 +87,7 @@ func parsePaths(input string) ([]string, error) {
 		return nil, errors.Errorf("%s env variable is undefined or empty", istioctlBinaryPathEnvKey)
 	}
 	if len(trimmed) > istioctlBinaryPathMaxLen {
-		return nil, errors.New(fmt.Sprintf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen))
+		return nil, fmt.Errorf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen)
 	}
 	pathDefs := strings.Split(trimmed, ";")
 	var res []string
@@ -110,7 +110,7 @@ func ensureFilesExecutable(paths []string, logger *zap.SugaredLogger) error {
 		mode := stat.Mode()
 		logger.Debugf("%s mode: %s", path, mode)
 		if (!mode.IsRegular()) || mode.IsDir() {
-			return errors.New(fmt.Sprintf("\"%s\" is not a regular file", path))
+			return fmt.Errorf("\"%s\" is not a regular file", path)
 		}
 		if uint32(mode&0111) == 0 {
 			logger.Debugf("%s is not executable, will chmod +x", path)
