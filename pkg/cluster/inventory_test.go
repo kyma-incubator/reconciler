@@ -502,7 +502,7 @@ func TestDefaultInventory_RemoveStatusesWithoutReconciliations(t *testing.T) {
 			cluster := test.NewCluster(t, "someRuntimeID", 1, false, test.Production)
 			state, err := inventory.CreateOrUpdate(1, cluster)
 			require.NoError(t, err)
-			state, err = inventory.Get(state.Status.RuntimeID, state.Status.ClusterVersion)
+			state, err = inventory.Get(state.Configuration.RuntimeID, state.Configuration.Version)
 			require.NoError(t, err)
 			require.True(t, state != nil)
 
