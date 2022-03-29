@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"github.com/docker/go-connections/nat"
+	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/pkg/errors"
 	"os"
 	"strconv"
@@ -18,6 +19,7 @@ type PostgresContainerRuntime struct {
 }
 
 type ContainerSettings interface {
+	id() string
 	containerName() string
 	containerImage() string
 	migrationConfig() MigrationConfig
@@ -34,6 +36,17 @@ type PostgresContainerSettings struct {
 	Password          string
 	UseSsl            bool
 	EncryptionKeyFile string
+}
+
+//id calculates a hash for ContainerSettings based on the name and image of a directory as well as a cumulated hash
+//over all files relevant for a migration
+func (p PostgresContainerSettings) id() string {
+	configHash, _ := file.HashDir(
+		string(p.migrationConfig()),
+		p.containerName()+p.containerImage(),
+		file.HashFnv(".sql"),
+	)
+	return configHash
 }
 
 func (p PostgresContainerSettings) containerName() string {

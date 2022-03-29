@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/test"
-	"hash/fnv"
 	"sync"
 	"testing"
 )
@@ -23,7 +22,7 @@ type containerTestSuiteLeaseHolder struct {
 
 type syncedLeasedSharedContainerTestSuiteInstanceHolder struct {
 	mu     sync.Mutex
-	suites map[leaseHash]*containerTestSuiteLeaseID
+	suites map[string]*containerTestSuiteLeaseID
 }
 
 var globalContainerTestSuiteLeases = &containerTestSuiteLeaseHolder{
@@ -32,7 +31,7 @@ var globalContainerTestSuiteLeases = &containerTestSuiteLeaseHolder{
 }
 var globalContainerTestSuiteLeaseHolder = &syncedLeasedSharedContainerTestSuiteInstanceHolder{
 	mu:     sync.Mutex{},
-	suites: make(map[leaseHash]*containerTestSuiteLeaseID),
+	suites: make(map[string]*containerTestSuiteLeaseID),
 }
 
 func (l *containerTestSuiteLeaseID) acquire() *ContainerTestSuite {
@@ -72,14 +71,21 @@ func newContainerTestSuiteLease(debug bool, settings ContainerSettings, commitAf
 	id := containerTestSuiteLeaseID(uuid.NewString())
 	ctx := context.Background()
 
-	r, err := RunPostgresContainer(ctx, *settings.(*PostgresContainerSettings), debug)
-	if err != nil {
-		return nil, err
+	var containerRuntime ContainerRuntime
+	var containerErr error
+	switch settings.(type) {
+	case *PostgresContainerSettings:
+		containerRuntime, containerErr = RunPostgresContainer(ctx, *settings.(*PostgresContainerSettings), debug)
+	case PostgresContainerSettings:
+		containerRuntime, containerErr = RunPostgresContainer(ctx, settings.(PostgresContainerSettings), debug)
+	}
+	if containerErr != nil {
+		return nil, containerErr
 	}
 
 	lh.leases[id] = &leasedSuite{
 		0,
-		NewUnmanagedContainerTestSuite(ctx, r, commitAfterExecution, nil),
+		NewUnmanagedContainerTestSuite(ctx, containerRuntime, commitAfterExecution, nil),
 	}
 
 	return &id, nil
@@ -92,7 +98,7 @@ func LeaseSharedContainerTestSuite(t *testing.T, settings ContainerSettings, deb
 	h := globalContainerTestSuiteLeaseHolder
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	hash := getHash(settings)
+	hash := settings.id()
 	if h.suites[hash] == nil {
 		lid, err := newContainerTestSuiteLease(debug, settings, commitAfterExecution)
 		if err != nil {
@@ -103,21 +109,13 @@ func LeaseSharedContainerTestSuite(t *testing.T, settings ContainerSettings, deb
 	return h.suites[hash].acquire()
 }
 
-type leaseHash uint32
-
-func getHash(settings ContainerSettings) leaseHash {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(settings.containerName() + settings.containerImage() + string(settings.migrationConfig())))
-	return leaseHash(h.Sum32())
-}
-
 func registerCleanupForLeasedSharedContainerTestSuite(t *testing.T, settings ContainerSettings) {
 	t.Helper()
 	t.Cleanup(func() {
 		h := globalContainerTestSuiteLeaseHolder
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		hash := getHash(settings)
+		hash := settings.id()
 		if len(h.suites) == 0 || h.suites[hash] == nil {
 			return
 		}
