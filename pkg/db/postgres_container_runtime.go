@@ -35,7 +35,7 @@ type PostgresContainerSettings struct {
 	User              string
 	Password          string
 	UseSsl            bool
-	EncryptionKeyFile string
+	EncryptionKeyFile EncryptionKeyFileConfig
 }
 
 //id calculates a hash for ContainerSettings based on the name and image of a directory as well as a cumulated hash
@@ -61,12 +61,6 @@ func (p PostgresContainerSettings) migrationConfig() MigrationConfig {
 	return p.Config
 }
 
-//MigrationConfig is currently just a migrationConfig directory but could be extended at will for further configuration
-type MigrationConfig string
-
-//NoOpMigrationConfig is a shortcut to not have any migrationConfig at all
-var NoOpMigrationConfig MigrationConfig
-
 func RunPostgresContainer(ctx context.Context, settings PostgresContainerSettings, debug bool) (*PostgresContainerRuntime, error) {
 	var filesErr error
 	if settings.migrationConfig() != NoOpMigrationConfig {
@@ -75,14 +69,14 @@ func RunPostgresContainer(ctx context.Context, settings PostgresContainerSetting
 			return nil, errors.Wrap(filesErr, "config file cannot be used to start postgres container")
 		}
 	}
-	_, filesErr = os.Stat(settings.EncryptionKeyFile)
+	_, filesErr = os.Stat(string(settings.EncryptionKeyFile))
 	if filesErr != nil {
 		return nil, errors.Wrap(filesErr, "encryption key file cannot be used to start postgres container")
 	}
 
 	cont, bootstrapError := BootstrapNewPostgresContainer(ctx, settings)
 
-	encKey, encryptError := readKeyFile(settings.EncryptionKeyFile)
+	encKey, encryptError := readKeyFile(string(settings.EncryptionKeyFile))
 	if encryptError != nil {
 		return nil, encryptError
 	}

@@ -195,6 +195,6 @@ func testPosgresContainerSettings() PostgresContainerSettings {
 		"kyma",
 		"kyma",
 		false,
-		filepath.Join("..", "..", "configs", "encryption", "unittest.key"),
+		UnittestEncryptionKeyFileConfig,
 	}
 }
