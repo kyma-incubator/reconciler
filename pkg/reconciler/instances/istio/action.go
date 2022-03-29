@@ -89,8 +89,7 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 
 		err = performer.Install(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
-			_ = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
-			return errors.Wrap(err, "Could not install Istio")
+			err = errors.Wrap(err, "Could not install Istio")
 		}
 
 	} else if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult {
@@ -98,14 +97,27 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 
 		err = performer.Update(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
-			errPatchMutatingWebhook := performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
-			if errPatchMutatingWebhook != nil {
-				context.Logger.Info("Could not patch MutatingWebhookConfiguration")
-			}
-			return errors.Wrap(err, "Could not update Istio")
+			err = errors.Wrap(err, "Could not update Istio")
 		}
 	} else {
 		return err
+	}
+
+	errPatchMutatingWebhook := performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
+	if errPatchMutatingWebhook != nil {
+		errPatchMutatingWebhook = errors.Wrap(errPatchMutatingWebhook, "Could not patch MutatingWebhookConfiguration")
+	}
+
+	if err != nil {
+		if errPatchMutatingWebhook != nil {
+			return errors.Wrap(err, errPatchMutatingWebhook.Error())
+		}
+
+		return err
+	}
+
+	if errPatchMutatingWebhook != nil {
+		return errPatchMutatingWebhook
 	}
 
 	return nil
