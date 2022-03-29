@@ -99,7 +99,7 @@ func TestIntegrationSuite(t *testing.T) {
 		mothershipPort:         8081,
 
 		testContext:   context.Background(),
-		testLogger:    logger.NewLogger(false),
+		testLogger:    logger.NewTestLogger(t),
 		testDirectory: "test",
 
 		kubeClientConfig: &k8s.Config{

@@ -97,7 +97,7 @@ func TestIntegrationSuite(t *testing.T) {
 		reconcilerHost: "localhost",
 		testContext:    context.Background(),
 		testDirectory:  "test",
-		testLogger:     logger.NewLogger(true),
+		testLogger:     logger.NewTestLogger(t),
 
 		callbackOnNil:    "https://httpbin.org/post",
 		callbackMockPort: 11111,
