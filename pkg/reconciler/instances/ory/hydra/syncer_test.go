@@ -68,12 +68,12 @@ func Test_TriggerSynchronization(t *testing.T) {
 
 	t.Run("Should trigger synchronization when earliest start times of hydra is equal to hydra-maester", func(t *testing.T) {
 		// given
-		hydraStartTimePod := time.Date(2021, 10, 10, 10, 10, 7, 10, time.UTC)
-		hydraStartTimePod2 := time.Date(2500, 10, 10, 10, 10, 6, 10, time.UTC)
+		hydraStartTimePod := time.Date(2022, 10, 10, 10, 10, 7, 10, time.UTC)
+		hydraStartTimePod2 := time.Date(2022, 10, 10, 10, 10, 6, 10, time.UTC)
 		hydraMasesterPodStartTime := time.Date(2022, 10, 10, 10, 10, 6, 10, time.UTC)
 		kubeclient := fakeClient()
-		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod, t, v1.PodRunning)
-		addPod(kubeclient, "hydra3", "hydra", hydraStartTimePod2, t, v1.PodPending)
+		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod, t, v1.PodRunning)
+		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t, v1.PodRunning)
 		createDeployment(kubeclient, hydraMasesterPodStartTime, t)
 		addPod(kubeclient, "hydra-maester", "hydra-maester", hydraMasesterPodStartTime, t, v1.PodRunning)
 
@@ -82,7 +82,7 @@ func Test_TriggerSynchronization(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		kubeclient.AssertNotCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		kubeclient.AssertCalled(t, "PatchUsingStrategy", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	t.Run("Should  trigger synchronization when hydra is behind hydra-maester but sync forced", func(t *testing.T) {
