@@ -7,11 +7,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	file "github.com/kyma-incubator/reconciler/pkg/files"
-	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"strings"
+
+	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/pkg/errors"
 )
 
 const keyIDLength = 15
@@ -89,7 +90,7 @@ func (e *Encryptor) Decrypt(encData string) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("%s", data), nil
+	return string(data), nil
 }
 
 //Decryptable verifies whether the encrypted data can be decrypted by this Encryptor instance
