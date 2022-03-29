@@ -189,11 +189,8 @@ func (c *cleaner) purgeReconciliationsOld(transition *ClusterStatusTransition, c
 	}
 
 	for i := range reconciliations {
-		c.logger.Infof("%s Is triggered for the Reconciliation and dependent Operations with SchedulingID '%s' (created: %s)", CleanerPrefix, reconciliations[i].SchedulingID, reconciliations[i].Created)
-
 		id := reconciliations[i].SchedulingID
 		err := transition.ReconciliationRepository().RemoveReconciliationBySchedulingID(id)
-		c.logger.Debugf("%s transition.ReconciliationRepository().RemoveReconciliationBySchedulingID(%s)", CleanerPrefix, id)
 		if err != nil {
 			c.logger.Errorf("%s Failed to remove reconciliation with schedulingID '%s': %s", CleanerPrefix, id, err.Error())
 		}
