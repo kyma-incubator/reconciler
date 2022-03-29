@@ -87,7 +87,7 @@ func (c *MockConnection) Exec(query string, args ...interface{}) (sql.Result, er
 }
 
 func (c *MockConnection) Begin() (*TxConnection, error) {
-	return nil, nil
+	return &TxConnection{}, nil
 }
 
 func (c *MockConnection) Close() error {

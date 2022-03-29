@@ -72,6 +72,7 @@ func prepareTest(t *testing.T, count int) testEntities {
 	teardownFn := func() {
 		for _, runtimeID := range runtimeIDs {
 			require.NoError(t, persistenceRepo.RemoveReconciliationByRuntimeID(runtimeID))
+			require.NoError(t, inMemoryRepo.RemoveReconciliationByRuntimeID(runtimeID))
 			require.NoError(t, inventory.Delete(runtimeID))
 		}
 	}
