@@ -77,7 +77,6 @@ type mothershipIntegrationTestCase struct {
 }
 
 func TestIntegrationSuite(t *testing.T) {
-	test.EnableIntegrationTests()
 	cs := db.LeaseSharedContainerTestSuite(
 		t,
 		db.DefaultSharedContainerSettings,
