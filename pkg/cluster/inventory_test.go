@@ -504,7 +504,7 @@ func TestDefaultInventory_RemoveStatusesWithoutReconciliations(t *testing.T) {
 			require.NoError(t, err)
 			state, err = inventory.Get(state.Configuration.RuntimeID, state.Configuration.Version)
 			require.NoError(t, err)
-			require.True(t, state != nil)
+			require.NotNil(t, state)
 
 			if testCase.multipleUpdates {
 				// add 2 statuses

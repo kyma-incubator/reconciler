@@ -164,16 +164,15 @@ func TestTransition(t *testing.T) {
 		require.NotNil(t, toBeDeletedReconEntity)
 		require.False(t, toBeDeletedReconEntity.Finished)
 
+		// set cluster and related configs, statuses as deleted
 		err = inventory.Delete(toBeDeletedClusterState.Cluster.RuntimeID)
 		require.NoError(t, err)
 
 		err = transition.CleanStatusesAndDeletedClustersOlderThan(time.Now())
 		require.NoError(t, err)
 
-		clusterStates, err := inventory.GetAll()
-		require.NoError(t, err)
-		require.LessOrEqual(t, 1, len(clusterStates))
-
+		_, err = inventory.Get(toBeDeletedClusterState.Configuration.RuntimeID, toBeDeletedClusterState.Configuration.Version)
+		require.Error(t, err)
 	})
 
 }
