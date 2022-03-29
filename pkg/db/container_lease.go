@@ -73,11 +73,11 @@ func newContainerTestSuiteLease(debug bool, settings ContainerSettings, commitAf
 
 	var containerRuntime ContainerRuntime
 	var containerErr error
-	switch settings.(type) {
+	switch settings := settings.(type) {
 	case *PostgresContainerSettings:
-		containerRuntime, containerErr = RunPostgresContainer(ctx, *settings.(*PostgresContainerSettings), debug)
+		containerRuntime, containerErr = RunPostgresContainer(ctx, *settings, debug)
 	case PostgresContainerSettings:
-		containerRuntime, containerErr = RunPostgresContainer(ctx, settings.(PostgresContainerSettings), debug)
+		containerRuntime, containerErr = RunPostgresContainer(ctx, settings, debug)
 	}
 	if containerErr != nil {
 		return nil, containerErr

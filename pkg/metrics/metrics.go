@@ -14,10 +14,10 @@ func RegisterProcessingDuration(reconciliations reconciliation.Repository, logge
 	if features.Enabled(features.ProcessingDurationMetric) {
 		processingDurationCollector := NewProcessingDurationCollector(reconciliations, logger)
 		err := prometheus.Register(processingDurationCollector)
-		switch err.(type) {
+		switch err := err.(type) {
 		case prometheus.AlreadyRegisteredError:
 			logger.Warnf("skipping registration of processing duration metrics as they were already registered, existing: %v",
-				err.(prometheus.AlreadyRegisteredError).ExistingCollector)
+				err.ExistingCollector)
 			return nil
 		}
 	}
@@ -28,11 +28,13 @@ func RegisterWaitingAndNotReadyReconciliations(inventory cluster.Inventory, logg
 	reconciliationWaitingCollector := NewReconciliationWaitingCollector(inventory, logger)
 	reconciliationNotReadyCollector := NewReconciliationNotReadyCollector(inventory, logger)
 	err := prometheus.Register(reconciliationWaitingCollector)
-	err = prometheus.Register(reconciliationNotReadyCollector)
-	switch err.(type) {
+	if err == nil {
+		err = prometheus.Register(reconciliationNotReadyCollector)
+	}
+	switch err := err.(type) {
 	case prometheus.AlreadyRegisteredError:
 		logger.Warnf("skipping registration of waiting/ready metrics as they were already registered, existing: %v",
-			err.(prometheus.AlreadyRegisteredError).ExistingCollector)
+			err.ExistingCollector)
 		return nil
 	}
 	if err != nil {
@@ -44,10 +46,10 @@ func RegisterWaitingAndNotReadyReconciliations(inventory cluster.Inventory, logg
 func RegisterOccupancy(occupancyRepo occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) error {
 	if features.Enabled(features.WorkerpoolOccupancyTracking) {
 		err := prometheus.Register(NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilers, logger))
-		switch err.(type) {
+		switch err := err.(type) {
 		case prometheus.AlreadyRegisteredError:
 			logger.Warnf("skipping registration of occupancy metrics as they were already registered, existing: %v",
-				err.(prometheus.AlreadyRegisteredError).ExistingCollector)
+				err.ExistingCollector)
 			return nil
 		}
 	}

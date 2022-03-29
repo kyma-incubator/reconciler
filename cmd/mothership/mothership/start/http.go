@@ -134,7 +134,13 @@ func startWebserver(ctx context.Context, o *Options) error {
 
 	//metrics endpoint
 	metricErr := metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config.Scheduler.Reconcilers, o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
 	metricErr = metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
 	metricErr = metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
 	if metricErr != nil {
 		return metricErr

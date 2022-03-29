@@ -31,7 +31,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -333,32 +332,6 @@ func (s *mothershipIntegrationTestSuite) checkForSuccessfulReconciliation(creati
 			}
 			return nil
 		}, opts...))
-	}
-}
-
-func (s *mothershipIntegrationTestSuite) hadRateLimitingIssue() responseCheck {
-	return func(testCase *mothershipIntegrationTestCase, schedulingRequestResponse interface{}) bool {
-		respModel := schedulingRequestResponse.(*keb.HTTPClusterResponse)
-		statusRes := s.requestToMothership(
-			respModel.StatusURL,
-			httpGet,
-			"",
-			200,
-			&keb.HTTPClusterResponse{},
-		)(testCase).(*keb.HTTPClusterResponse)
-
-		s.testLogger.Infof("checking for rate-limit errors in %v", statusRes)
-		if statusRes.Failures != nil && len(*statusRes.Failures) > 0 {
-			for _, failure := range *statusRes.Failures {
-				isRateLimitErr, err := regexp.MatchString(`(worker pool for) .* (has reached it's capacity) [0-9]*`, failure.Reason)
-				s.NoError(err)
-				if isRateLimitErr {
-					return true
-				}
-			}
-		}
-
-		return false
 	}
 }
 

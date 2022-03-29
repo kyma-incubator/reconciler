@@ -57,10 +57,10 @@ func TestHashDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func(path string) { _ = os.RemoveAll(path) }(dir)
-	if err := ioutil.WriteFile(filepath.Join(dir, "xyz"), []byte("data for xyz"), 0666); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "xyz"), []byte("data for xyz"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "abc"), []byte("data for abc"), 0666); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "abc"), []byte("data for abc"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	want := htop(fmt.Sprintf("%s  %s\n%s  %s\n", h("data for abc", hasher), "prefix/abc", h("data for xyz", hasher), "prefix/xyz"), hasher)
@@ -81,16 +81,16 @@ func TestDirFiles(t *testing.T) {
 	defer func(path string) {
 		_ = os.RemoveAll(path)
 	}(dir)
-	if err := ioutil.WriteFile(filepath.Join(dir, "xyz"), []byte("data for xyz"), 0666); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "xyz"), []byte("data for xyz"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "abc"), []byte("data for abc"), 0666); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "abc"), []byte("data for abc"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Mkdir(filepath.Join(dir, "subdir"), 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "subdir", "xyz"), []byte("data for subdir xyz"), 0666); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "subdir", "xyz"), []byte("data for subdir xyz"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	prefix := "foo/bar@v2.3.4"
