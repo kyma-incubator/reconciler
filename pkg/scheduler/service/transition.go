@@ -198,7 +198,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 	return db.Transaction(t.conn, dbOp, t.logger)
 }
 
-func (t *ClusterStatusTransition) CleanDeletedClusters(deadline time.Time) error {
+func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadline time.Time) error {
 
 	dbOps := func(tx *db.TxConnection) error {
 
@@ -216,12 +216,6 @@ func (t *ClusterStatusTransition) CleanDeletedClusters(deadline time.Time) error
 		if err != nil {
 			return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
 		}
-		// remove deleted statuses before deadline: do we need this step?
-		/*deleteCount, err := t.Inventory().RemoveStatusesOlderThan(deadline)
-		if err != nil {
-			return fmt.Errorf("failed to remove statuses older than %v: %w", deadline, err)
-		}
-		deletedStatusesCount += deleteCount*/
 		// remove reconciliations corresponding to the to-be-deleted clusters before deadline
 		deletedReconsCount, err := transactionalReconRepo.RemoveReconciliationsForObsoleteStatus(deadline)
 		if err != nil {

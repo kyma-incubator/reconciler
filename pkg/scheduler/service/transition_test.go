@@ -167,7 +167,7 @@ func TestTransition(t *testing.T) {
 		err = inventory.Delete(toBeDeletedClusterState.Cluster.RuntimeID)
 		require.NoError(t, err)
 
-		err = transition.CleanDeletedClusters(time.Now())
+		err = transition.CleanStatusesAndDeletedClustersOlderThan(time.Now())
 		require.NoError(t, err)
 
 		clusterStates, err := inventory.GetAll()
