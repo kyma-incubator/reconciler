@@ -447,7 +447,6 @@ func TestTransaction(t *testing.T) {
 }
 
 func TestRemoveDeletedClustersOlderThan(t *testing.T) {
-
 	//create inventory
 	inventory := newInventory(t)
 
@@ -473,7 +472,6 @@ func TestRemoveDeletedClustersOlderThan(t *testing.T) {
 	clusterStates, err := inventory.GetAll()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(clusterStates))
-
 }
 
 func listStatuses(states []*State) []model.Status {

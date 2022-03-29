@@ -15,8 +15,7 @@ var (
 	interfaceSliceZeroValue = []interface{}{}
 )
 
-func (s *reconciliationTestSuite) Test_toInterfaceSlice() {
-	t := s.T()
+func Test_toInterfaceSlice(t *testing.T) {
 	type args struct {
 		args []string
 	}
@@ -55,8 +54,7 @@ func (s *reconciliationTestSuite) Test_toInterfaceSlice() {
 	}
 }
 
-func (s *reconciliationTestSuite) TestFilterMixer_FilterByQuery() {
-	t := s.T()
+func TestFilterMixer_FilterByQuery(t *testing.T) {
 	testLogger := zap.NewExample().Sugar()
 	defer func() {
 		if err := testLogger.Sync(); err != nil {
@@ -116,8 +114,7 @@ func (s *reconciliationTestSuite) TestFilterMixer_FilterByQuery() {
 	}
 }
 
-func (s *reconciliationTestSuite) TestFilterMixer_FilterByInstance() {
-	t := s.T()
+func TestFilterMixer_FilterByInstance(t *testing.T) {
 	tests := []struct {
 		name    string
 		filters []Filter
@@ -174,8 +171,7 @@ func (s *reconciliationTestSuite) TestFilterMixer_FilterByInstance() {
 	}
 }
 
-func (s *reconciliationTestSuite) Test_columnName() {
-	t := s.T()
+func Test_columnName(t *testing.T) {
 	testLogger := zap.NewExample().Sugar()
 	defer func() {
 		if err := testLogger.Sync(); err != nil {

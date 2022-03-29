@@ -19,7 +19,7 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 	noMigrationSettings := testPosgresContainerSettings()
 
 	migrationSettings := testPosgresContainerSettings()
-	migrationSettings.Config = MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres"))
+	migrationSettings.config = MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres"))
 
 	testCases := []struct {
 		testCaseName     string

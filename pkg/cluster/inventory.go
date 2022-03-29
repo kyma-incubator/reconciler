@@ -27,7 +27,6 @@ type Inventory interface {
 	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 	WithTx(tx *db.TxConnection) (Inventory, error)
 	RemoveStatusesWithoutReconciliations() (int, error)
-	RemoveStatusesOlderThan(deadline time.Time) (int, error)
 	RemoveDeletedClustersOlderThan(deadline time.Time) (int, error)
 }
 
@@ -752,44 +751,6 @@ func (i *DefaultInventory) RemoveStatusesWithoutReconciliations() (int, error) {
 	delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
 	if err != nil {
 		i.Logger.Error("Removal of config statuses without reconciliation failed during cluster entities cleanup", err)
-	}
-	return delCnt.(int), err
-}
-
-func (i *DefaultInventory) RemoveStatusesOlderThan(deadline time.Time) (int, error) {
-	dbOps := func(tx *db.TxConnection) (interface{}, error) {
-		statusSelectQuery, err := db.NewQuery(tx, &model.ClusterCleanupEntity{}, i.Logger)
-		if err != nil {
-			return 0, err
-		}
-		statusSelect, err := statusSelectQuery.SelectColumn("StatusID")
-		if err != nil {
-			return 0, err
-		}
-
-		columnHandler, err := db.NewColumnHandler(&model.ClusterCleanupEntity{}, i.Conn, i.Logger)
-		if err != nil {
-			return 0, err
-		}
-		statusIDColumnName, err := columnHandler.ColumnName("Created")
-		if err != nil {
-			return 0, err
-		}
-		statusSelect.WhereRaw(fmt.Sprintf("%s<$%d", statusIDColumnName, statusSelect.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
-
-		deleteQuery, err := db.NewQuery(tx, &model.ClusterStatusEntity{}, i.Logger)
-		if err != nil {
-			return 0, err
-		}
-		deletedRows, err := deleteQuery.
-			Delete().
-			WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
-			Exec()
-		return int(deletedRows), err
-	}
-	delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
-	if err != nil {
-		i.Logger.Error("Removal of older config statuses failed during cluster entities cleanup", err)
 	}
 	return delCnt.(int), err
 }
