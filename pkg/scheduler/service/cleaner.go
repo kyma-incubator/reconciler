@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -71,41 +70,14 @@ func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *Cle
 	if config.maxEntitiesAgeDays() > 0 {
 		clusterInventoryCleanupDays = config.maxEntitiesAgeDays()
 	}
-	c.logger.Infof("%s Cleaner will remove cluster statuses", CleanerPrefix)
-	if err := c.purgeClusterEntities(transition, clusterInventoryCleanupDays); err != nil {
-		c.logger.Errorf("%s Failed to remove cluster statuses %v", CleanerPrefix, err)
+	c.logger.Infof("%s Cleaner will remove inventory clusters and intermediary statuses", CleanerPrefix)
+	deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*clusterInventoryCleanupDays)
+	err := transition.CleanStatusesAndDeletedClustersOlderThan(deadline)
+	if err != nil {
+		c.logger.Errorf("%s Failed to remove inventory clusters and intermediary statuses %v", CleanerPrefix, err)
 	}
 
 	c.logger.Infof("%s Process finished", CleanerPrefix)
-}
-
-func (c *cleaner) purgeClusterEntities(transition *ClusterStatusTransition, clusterInventoryCleanupDays int) error {
-	deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*clusterInventoryCleanupDays)
-
-	// delete statuses without reconciliations - except active status for cluster configs
-	var err error
-	deleteCount, err := transition.Inventory().RemoveStatusesWithoutReconciliations()
-	if err != nil {
-		return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
-	}
-	c.logger.Infof("%s removed %d statuses without reconciliation entities", CleanerPrefix, deleteCount)
-
-	// remove reconciliations corresponding to deleted status before deadline
-	deleteCount, err = transition.ReconciliationRepository().RemoveReconciliationsForObsoleteStatus(deadline)
-	if err != nil {
-		return fmt.Errorf("failed to remove reconciliations for obselete status older than %d days %w", clusterInventoryCleanupDays, err)
-	}
-	c.logger.Infof("%s removed %d reconciliations for obselete status older than %d days ", CleanerPrefix, deleteCount, clusterInventoryCleanupDays)
-
-	// delete inventory clusters - only if reconciliations are removed successfully - foreign key constraint
-	// cascading delete on cluster config + cluster status
-	deleteCount, err = transition.Inventory().RemoveDeletedClustersOlderThan(deadline)
-	if err != nil {
-		return fmt.Errorf("failed to remove deleted clusters older than %d days %w", clusterInventoryCleanupDays, err)
-	}
-	c.logger.Infof("%s removed %d deleted clusters older than %d days ", CleanerPrefix, deleteCount, clusterInventoryCleanupDays)
-
-	return nil
 }
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
