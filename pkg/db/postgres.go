@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
+	"time"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
@@ -139,6 +140,11 @@ func (pc *postgresConnection) Type() Type {
 	return Postgres
 }
 
+func (pc *postgresConnection) DBStats() *sql.DBStats {
+	stats := pc.db.Stats()
+	return &stats
+}
+
 type postgresConnectionFactory struct {
 	host          string
 	port          int
@@ -151,6 +157,11 @@ type postgresConnectionFactory struct {
 	debug         bool
 	blockQueries  bool
 	logQueries    bool
+
+	maxOpenConns    int
+	maxIdleConns    int
+	connMaxLifetime time.Duration
+	connMaxIdleTime time.Duration
 }
 
 func (pcf *postgresConnectionFactory) Init(migrate bool) error {
@@ -185,6 +196,11 @@ func (pcf *postgresConnectionFactory) NewConnection() (Connection, error) {
 		"postgres",
 		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 			pcf.host, pcf.port, pcf.user, pcf.password, pcf.database, sslMode))
+
+	db.SetMaxOpenConns(pcf.maxOpenConns)
+	db.SetMaxIdleConns(pcf.maxIdleConns)
+	db.SetConnMaxLifetime(pcf.connMaxLifetime)
+	db.SetConnMaxIdleTime(pcf.connMaxIdleTime)
 
 	if err == nil {
 		err = db.Ping()
