@@ -38,9 +38,8 @@ func TestOryIntegration(t *testing.T) {
 
 	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
 		jwksName := "ory-oathkeeper-jwks-secret"
-		credsName := "ory-hydra-credentials"
 		setup.ensureSecretIsDeployed(t, jwksName)
-		setup.ensureSecretIsDeployed(t, credsName)
+		setup.ensureSecretIsDeployed(t, "ory-hydra-credentials")
 	})
 }
 

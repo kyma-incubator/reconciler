@@ -57,7 +57,7 @@ func (c *LazyClient) KubernetesClientSet() (kubernetes.Interface, error) {
 }
 
 func (c *LazyClient) HelmActionConfiguration(namespace string) (*action.Configuration, error) {
-	var err error = nil
+	var err error
 	if err := c.init(); err != nil {
 		return nil, err
 	}
