@@ -145,6 +145,10 @@ func startWebserver(ctx context.Context, o *Options) error {
 	if metricErr != nil {
 		return metricErr
 	}
+	metricErr = metrics.RegisterDbPool(o.Registry.Connection(), o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
 
 	metricsRouter.Handle("", promhttp.Handler())
 

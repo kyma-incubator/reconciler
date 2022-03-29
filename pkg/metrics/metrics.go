@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/features"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
@@ -19,6 +20,9 @@ func RegisterProcessingDuration(reconciliations reconciliation.Repository, logge
 			logger.Warnf("skipping registration of processing duration metrics as they were already registered, existing: %v",
 				err.ExistingCollector)
 			return nil
+		}
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -43,6 +47,21 @@ func RegisterWaitingAndNotReadyReconciliations(inventory cluster.Inventory, logg
 	return nil
 }
 
+func RegisterDbPool(connPool db.Connection, logger *zap.SugaredLogger) error {
+	dbPoolMetricsCollector := NewDbPoolCollector(connPool, logger)
+	err := prometheus.Register(dbPoolMetricsCollector)
+	switch err := err.(type) {
+	case prometheus.AlreadyRegisteredError:
+		logger.Warnf("skipping registration of occupancy metrics as they were already registered, existing: %v",
+			err.ExistingCollector)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func RegisterOccupancy(occupancyRepo occupancy.Repository, reconcilers map[string]config.ComponentReconciler, logger *zap.SugaredLogger) error {
 	if features.Enabled(features.WorkerpoolOccupancyTracking) {
 		err := prometheus.Register(NewWorkerPoolOccupancyCollector(occupancyRepo, reconcilers, logger))
@@ -51,6 +70,9 @@ func RegisterOccupancy(occupancyRepo occupancy.Repository, reconcilers map[strin
 			logger.Warnf("skipping registration of occupancy metrics as they were already registered, existing: %v",
 				err.ExistingCollector)
 			return nil
+		}
+		if err != nil {
+			return err
 		}
 	}
 	return nil
