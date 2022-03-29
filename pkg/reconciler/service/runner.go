@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"strings"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
@@ -184,7 +187,7 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 	} else {
 		if err := act.Run(actionHelper); err != nil {
 			r.logger.Debugf("Runner: %s action of '%s' with version '%s' failed: %s",
-				strings.Title(string(task.Type)), task.Component, task.Version, err)
+				cases.Title(language.English).String(string(task.Type)), task.Component, task.Version, err)
 			return err
 		}
 	}

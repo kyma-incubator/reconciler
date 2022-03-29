@@ -314,7 +314,7 @@ func setAuthCredentialOverrides(configuration map[string]interface{}, username, 
 
 func findLatestRevision(releases []*release.Release) *release.Release {
 	revision := -1
-	var release *release.Release = nil
+	var release *release.Release
 	for _, r := range releases {
 		if r.Version > revision {
 			release = r
