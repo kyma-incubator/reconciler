@@ -48,7 +48,7 @@ func (a *StatusPreAction) Run(context *service.ActionContext) error {
 	}
 
 	if !isClientCompatibleWithTargetVersion(istioStatus) {
-		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion))
+		return fmt.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion)
 	}
 
 	return nil
@@ -261,7 +261,7 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 	}
 
 	if !isClientCompatibleWithTargetVersion(istioStatus) {
-		return errors.New(fmt.Sprintf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion))
+		return fmt.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion)
 	}
 
 	if canInstall(istioStatus) {
@@ -404,8 +404,8 @@ func isComponentCompatible(componentVersion, targetVersion, componentName string
 
 	componentVsTargetComparison := targetHelperVersion.compare(componentHelperVersion)
 	if !amongOneMinor(componentHelperVersion, targetHelperVersion) {
-		return false, errors.New(fmt.Sprintf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
-			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion))
+		return false, fmt.Errorf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
+			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion)
 	}
 
 	return true, nil

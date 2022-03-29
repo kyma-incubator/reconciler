@@ -72,7 +72,7 @@ func (p *VirtSvcPreReconcilePatch) patchVirtSvc(ctx context.Context, kubeRestCli
 	}
 
 	if len(hosts) < 1 {
-		return errors.New(fmt.Sprintf("hosts is empty in virtual service: %s, in namespace: %s", name, namespace))
+		return fmt.Errorf("hosts is empty in virtual service: %s, in namespace: %s", name, namespace)
 	}
 
 	has, err := hasSuffix(hosts[0], p.suffix)
