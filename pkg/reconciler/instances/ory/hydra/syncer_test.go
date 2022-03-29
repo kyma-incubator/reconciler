@@ -47,14 +47,14 @@ func Test_TriggerSynchronization(t *testing.T) {
 
 	t.Run("Should not trigger synchronization when hydra is behind hydra-maester", func(t *testing.T) {
 		// given
-		hydraStartTimeEarlier := time.Date(2021, 10, 10, 10, 10, 7, 10, time.UTC)
-		hydraStartTimeLater := hydraStartTimeEarlier.Add(3 * time.Second)
-		hydraStartTimeFuture := time.Date(2500, 10, 10, 10, 10, 6, 10, time.UTC)
+		hydraStartTimePod1 := time.Date(2021, 10, 10, 10, 10, 7, 10, time.UTC)
+		hydraStartTimePod2 := time.Date(2021, 10, 10, 10, 10, 10, 10, time.UTC)
+		hydraStartTimePod3 := time.Date(2500, 10, 10, 10, 10, 6, 10, time.UTC)
 		hydraMaesterPodStartTime := time.Date(2022, 10, 10, 10, 10, 6, 10, time.UTC)
 		kubeclient := fakeClient()
-		addPod(kubeclient, "hydra1", "hydra", hydraStartTimeEarlier, t, v1.PodRunning)
-		addPod(kubeclient, "hydra2", "hydra", hydraStartTimeLater, t, v1.PodRunning)
-		addPod(kubeclient, "hydra3", "hydra", hydraStartTimeFuture, t, v1.PodPending)
+		addPod(kubeclient, "hydra1", "hydra", hydraStartTimePod1, t, v1.PodRunning)
+		addPod(kubeclient, "hydra2", "hydra", hydraStartTimePod2, t, v1.PodRunning)
+		addPod(kubeclient, "hydra3", "hydra", hydraStartTimePod3, t, v1.PodPending)
 		createDeployment(kubeclient, hydraMaesterPodStartTime, t)
 		addPod(kubeclient, "hydra-maester", "hydra-maester", hydraMaesterPodStartTime, t, v1.PodRunning)
 
@@ -70,7 +70,7 @@ func Test_TriggerSynchronization(t *testing.T) {
 		// given
 		hydraStartTimeEarlier := time.Date(2022, 10, 10, 10, 10, 6, 10, time.UTC)
 		hydraStartTimeLater := hydraStartTimeEarlier.Add(time.Second)
-		hydraMaesterPodStartTime := time.Date(2022, 10, 10, 10, 10, 6, 10, time.UTC)
+		hydraMaesterPodStartTime := hydraStartTimeEarlier
 		kubeclient := fakeClient()
 		addPod(kubeclient, "hydra1", "hydra", hydraStartTimeEarlier, t, v1.PodRunning)
 		addPod(kubeclient, "hydra2", "hydra", hydraStartTimeLater, t, v1.PodRunning)
