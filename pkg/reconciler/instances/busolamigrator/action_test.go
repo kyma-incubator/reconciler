@@ -110,7 +110,7 @@ func TestNewVirtualServicePreInstallPatch(t *testing.T) {
 					}
 				default:
 					{
-						return nil, errors.New(fmt.Sprintf("Not supported method: %s", request.Method))
+						return nil, fmt.Errorf("not supported method: %s", request.Method)
 					}
 				}
 			})

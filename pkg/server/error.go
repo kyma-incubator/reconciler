@@ -34,7 +34,7 @@ func SendHTTPError(w http.ResponseWriter, httpCode int, resp interface{}) {
 }
 
 func SendHTTPErrorMap(w http.ResponseWriter, err error) {
-	var statusCode int = http.StatusInternalServerError
+	statusCode := http.StatusInternalServerError
 	var resp interface{} = &keb.InternalError{Error: err.Error()}
 
 	if repository.IsNotFoundError(err) {
