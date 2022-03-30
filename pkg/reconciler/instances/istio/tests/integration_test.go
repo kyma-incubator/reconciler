@@ -84,7 +84,7 @@ func TestIstioIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		for i, pod := range podsList.Items {
-			setup.logger.Infof("Pod %v is deployed", pod.Name)
+			setup.logger.Debugf("Pod %v is deployed", pod.Name)
 			require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
 			require.Equal(t, true, podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now()))
 		}

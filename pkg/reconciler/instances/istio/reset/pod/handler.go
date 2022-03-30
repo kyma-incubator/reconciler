@@ -55,7 +55,7 @@ type NoActionHandler struct {
 
 func (i *NoActionHandler) ExecuteAndWaitFor(context context.Context, object CustomObject) error {
 	if i.debug {
-		i.log.Infof("Not doing any action for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
+		i.log.Debugf("Not doing any action for: %s/%s/%s", object.Kind, object.Namespace, object.Name)
 	}
 
 	return nil
@@ -66,7 +66,7 @@ type DeleteObjectHandler struct {
 }
 
 func (i *DeleteObjectHandler) ExecuteAndWaitFor(context context.Context, object CustomObject) error {
-	i.log.Infof("Deleting pod %s/%s", object.Namespace, object.Name)
+	i.log.Debugf("Deleting pod %s/%s", object.Namespace, object.Name)
 	if i.debug {
 		return nil
 	}
@@ -77,7 +77,7 @@ func (i *DeleteObjectHandler) ExecuteAndWaitFor(context context.Context, object 
 			return err
 		}
 
-		i.log.Infof("Deleted pod %s/%s", object.Namespace, object.Name)
+		i.log.Debugf("Deleted pod %s/%s", object.Namespace, object.Name)
 		return nil
 	}, i.retryOpts...)
 
@@ -85,7 +85,7 @@ func (i *DeleteObjectHandler) ExecuteAndWaitFor(context context.Context, object 
 		return err
 	}
 
-	i.log.Infof("Not waiting for: %s/%s", object.Namespace, object.Name)
+	i.log.Debugf("Not waiting for: %s/%s", object.Namespace, object.Name)
 
 	return nil
 }
@@ -96,7 +96,7 @@ type RolloutHandler struct {
 }
 
 func (i *RolloutHandler) ExecuteAndWaitFor(context context.Context, object CustomObject) error {
-	i.log.Infof("Doing rollout for %s/%s/%s", object.Kind, object.Namespace, object.Name)
+	i.log.Debugf("Doing rollout for %s/%s/%s", object.Kind, object.Namespace, object.Name)
 	if i.debug {
 		return nil
 	}
@@ -107,7 +107,7 @@ func (i *RolloutHandler) ExecuteAndWaitFor(context context.Context, object Custo
 			return err
 		}
 
-		i.log.Infof("Rolled out %s/%s/%s", object.Kind, object.Namespace, object.Name)
+		i.log.Debugf("Rolled out %s/%s/%s", object.Kind, object.Namespace, object.Name)
 		return nil
 	}, i.retryOpts...)
 
@@ -119,7 +119,7 @@ func (i *RolloutHandler) ExecuteAndWaitFor(context context.Context, object Custo
 }
 
 func (i *RolloutHandler) WaitForResources(context context.Context, object CustomObject) error {
-	i.log.Infof("Waiting for %s/%s/%s to be ready", object.Kind, object.Namespace, object.Name)
+	i.log.Debugf("Waiting for %s/%s/%s to be ready", object.Kind, object.Namespace, object.Name)
 	pt, err := tracker.NewProgressTracker(i.kubeClient, i.log, tracker.Config{Interval: i.waitOpts.Interval, Timeout: i.waitOpts.Timeout})
 	if err != nil {
 		return errors.Wrap(err, "Failed to setup the tracker")
@@ -127,7 +127,7 @@ func (i *RolloutHandler) WaitForResources(context context.Context, object Custom
 
 	watchable, err := tracker.NewWatchableResource(object.Kind)
 	if err == nil {
-		i.log.Infof("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
+		i.log.Debugf("Register watchable %s '%s' in namespace '%s'", object.Kind, object.Name, object.Namespace)
 		pt.AddResource(watchable, object.Namespace, object.Name)
 	} else {
 		return errors.Wrap(err, "Failed to register watchable resources")
@@ -137,7 +137,7 @@ func (i *RolloutHandler) WaitForResources(context context.Context, object Custom
 	if err != nil {
 		return errors.Wrapf(err, "Failed to wait for %s/%s/%s to be rolled out", object.Kind, object.Namespace, object.Name)
 	}
-	i.log.Infof("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
+	i.log.Debugf("%s/%s/%s is ready", object.Kind, object.Namespace, object.Name)
 
 	return nil
 }
