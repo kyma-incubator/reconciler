@@ -4,3 +4,7 @@ issues:
   exclude:
     # Check this issue for more info: https://github.com/kyoh86/scopelint/issues/4
     - Using the variable on range scope `tc` in function literal
+  exclude-rules:
+    - path: 'mothership_integration_test.go'
+      linters:
+        - unused
