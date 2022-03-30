@@ -21,7 +21,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
@@ -30,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -359,23 +359,25 @@ func (s *genericResponseHandler) Handle(_ context.Context, t *testing.T, _ *serv
 }
 
 func (s *mothershipIntegrationTestSuite) rateLimitMockServer(o *cliRecon.Options, bootstrap *ComponentReconcilerBootstrap) {
-	limit := atomic.Int32{}
-	limit.Store(int32(bootstrap.WorkerConfig.Workers))
 	StartMockComponentReconciler(s.testContext, s.T(), o, &rateLimitHandler{
 		logger:         s.testLogger,
-		rateLimitAfter: limit,
+		rateLimitAfter: bootstrap.WorkerConfig.Workers,
+		mu:             sync.Mutex{},
 	})
 }
 
 type rateLimitHandler struct {
 	logger         *zap.SugaredLogger
-	rateLimitAfter atomic.Int32
+	rateLimitAfter int
+	mu             sync.Mutex
 }
 
 func (r *rateLimitHandler) Handle(_ context.Context, t *testing.T, _ *server.Params, writer http.ResponseWriter, model *reconciler.Task) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	a := require.New(t)
-	if r.rateLimitAfter.Load() > 0 {
-		r.rateLimitAfter.Dec()
+	if r.rateLimitAfter > 0 {
+		r.rateLimitAfter--
 		a.NoError(json.NewEncoder(writer).Encode(&reconciler.HTTPReconciliationResponse{}))
 		go func() {
 			time.Sleep(time.Second)
@@ -390,7 +392,7 @@ func (r *rateLimitHandler) Handle(_ context.Context, t *testing.T, _ *server.Par
 			}))
 		}()
 	} else {
-		r.rateLimitAfter.Inc()
+		r.rateLimitAfter++
 		server.SendHTTPError(writer, http.StatusTooManyRequests, &reconciler.HTTPErrorResponse{
 			Error: errors.Errorf("worker pool for %s has reached it's capacity (mocked)", model.Component).Error(),
 		})
