@@ -311,17 +311,6 @@ func (s *mothershipIntegrationTestSuite) successMockServer(o *cliRecon.Options, 
 		},
 	})
 }
-func (s *mothershipIntegrationTestSuite) errorMockServer(o *cliRecon.Options, _ *ComponentReconcilerBootstrap) {
-	staticRetryId := uuid.NewString()
-	StartMockComponentReconciler(s.testContext, s.T(), o, &genericResponseHandler{
-		logger:          s.testLogger,
-		successAfter:    time.Second,
-		statusToRespond: reconciler.StatusError,
-		retryIDGen: func() string {
-			return staticRetryId
-		},
-	})
-}
 
 func (s *mothershipIntegrationTestSuite) failureMockServer(o *cliRecon.Options, _ *ComponentReconcilerBootstrap) {
 	StartMockComponentReconciler(s.testContext, s.T(), o, &genericResponseHandler{
