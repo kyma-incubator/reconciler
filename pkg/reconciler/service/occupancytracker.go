@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"sync"
 	"time"
 )
 
@@ -24,15 +23,13 @@ type OccupancyTracker struct {
 	logger               *zap.SugaredLogger
 	occupancyID          string
 	occupancyCallbackURL string
-	tickerMU             sync.RWMutex
 	ticker               *time.Ticker
 }
 
 func newOccupancyTracker(debug bool) *OccupancyTracker {
 	return &OccupancyTracker{
-		logger:   logger.NewLogger(debug),
-		ticker:   time.NewTicker(defaultInterval),
-		tickerMU: sync.RWMutex{},
+		logger: logger.NewLogger(debug),
+		ticker: time.NewTicker(defaultInterval),
 	}
 }
 
@@ -46,8 +43,6 @@ func (t *OccupancyTracker) Track(ctx context.Context, pool *WorkerPool, reconcil
 	//to clean up pods that have crashed w/o being able to delete their occupancy
 	t.occupancyID = podName
 	go func() {
-		t.tickerMU.RLock()
-		defer t.tickerMU.RUnlock()
 		for {
 			select {
 
@@ -59,7 +54,7 @@ func (t *OccupancyTracker) Track(ctx context.Context, pool *WorkerPool, reconcil
 			case <-ctx.Done():
 				if t.occupancyCallbackURL != "" {
 					t.logger.Info("occupancy tracker is stopping and deleting Worker Pool occupancy")
-					t.stopTicker()
+					t.ticker.Stop()
 					t.deleteWorkerPoolOccupancy()
 					return
 				}
@@ -96,7 +91,7 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
 		if resp.StatusCode == http.StatusNotFound {
 			t.logger.Debugf("occupancy tracker is setting update interval to its back off value: %v", defaultBackOffInterval)
-			t.resetTicker(defaultBackOffInterval)
+			t.ticker.Reset(defaultBackOffInterval)
 		}
 		t.logger.Warnf("mothership failed to update occupancy for '%s' service with status code: '%d'", t.occupancyID, resp.StatusCode)
 		return
@@ -137,9 +132,9 @@ func parseOccupancyCallbackURL(callbackURL, occupancyID string) (string, error) 
 }
 
 func (t *OccupancyTracker) AssignCallbackURL(callbackURL string) {
-	if t.occupancyCallbackURL != "" && t.tickerPresent() {
+	if t.occupancyCallbackURL != "" && t.ticker != nil {
 		t.logger.Debugf("occupancy tracker is resetting update interval to its original value: %d", defaultInterval)
-		t.resetTicker(defaultInterval)
+		t.ticker.Reset(defaultInterval)
 	} else if t.occupancyID != "" {
 		var err error
 		t.occupancyCallbackURL, err = parseOccupancyCallbackURL(callbackURL, t.occupancyID)
@@ -150,20 +145,4 @@ func (t *OccupancyTracker) AssignCallbackURL(callbackURL string) {
 		t.logger.Debugf("occupancy tracker assigned callback URL successfully: %s", t.occupancyCallbackURL)
 	}
 
-}
-
-func (t *OccupancyTracker) resetTicker(interval time.Duration) {
-	t.tickerMU.Lock()
-	defer t.tickerMU.Unlock()
-	t.ticker.Reset(interval)
-}
-func (t *OccupancyTracker) stopTicker() {
-	t.tickerMU.Lock()
-	defer t.tickerMU.Unlock()
-	t.ticker.Stop()
-}
-func (t *OccupancyTracker) tickerPresent() bool {
-	t.tickerMU.RLock()
-	defer t.tickerMU.RUnlock()
-	return t.ticker != nil
 }
