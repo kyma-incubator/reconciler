@@ -19,7 +19,7 @@ type markOrphanOperation struct {
 }
 
 func (oo markOrphanOperation) Apply(reconResult *ReconciliationResult, config *BookkeeperConfig) []error {
-	var result []error = nil
+	var result []error
 	orphans := reconResult.GetOrphans(config.OrphanOperationTimeout)
 	oo.logger.Debugf("BookkeeperTask markOrphanOperation: found operations which are orphan: %v", orphans)
 	for _, orphanOp := range orphans {

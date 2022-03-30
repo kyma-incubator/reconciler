@@ -43,7 +43,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		require.NoError(t, err)
 		gatherer.AssertNumberOfCalls(t, "GetAllPods", 1)
 		gatherer.AssertNumberOfCalls(t, "GetPodsWithDifferentImage", 1)
-		action.AssertNumberOfCalls(t, "Reset", 1)
+		action.AssertNumberOfCalls(t, "Reset", 0)
 	})
 
 	t.Run("should not return an error when pods are present on the cluster", func(t *testing.T) {

@@ -2,8 +2,9 @@ package db
 
 import (
 	"context"
-	"github.com/docker/go-connections/nat"
 	"strconv"
+
+	"github.com/docker/go-connections/nat"
 )
 
 type PostgresContainerRuntime struct {
@@ -50,7 +51,7 @@ func (p PostgresContainerSettings) migrationConfig() MigrationConfig {
 type MigrationConfig string
 
 //NoOpMigrationConfig is a shortcut to not have any migrationConfig at all
-var NoOpMigrationConfig MigrationConfig = ""
+var NoOpMigrationConfig MigrationConfig
 
 func RunPostgresContainer(ctx context.Context, settings PostgresContainerSettings, debug bool) (*PostgresContainerRuntime, error) {
 	cont, bootstrapError := BootstrapNewPostgresContainer(ctx, settings)

@@ -120,7 +120,7 @@ func NewDefaultIstioPerformer(resolver CommanderResolver, istioProxyReset proxy.
 }
 
 func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error {
-	logger.Info("Starting Istio uninstallation...")
+	logger.Debug("Starting Istio uninstallation...")
 
 	execVersion, err := istioctl.VersionFromString(version)
 	if err != nil {
@@ -136,7 +136,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
-	logger.Info("Istio uninstall triggered")
+	logger.Debug("Istio uninstall triggered")
 	kubeClient, err := kubeClientSet.Clientset()
 	if err != nil {
 		return err
@@ -149,12 +149,12 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 	if err != nil {
 		return err
 	}
-	logger.Info("Istio namespace deleted")
+	logger.Debug("Istio namespace deleted")
 	return nil
 }
 
 func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error {
-	logger.Info("Starting Istio installation...")
+	logger.Debug("Starting Istio installation...")
 
 	execVersion, err := istioctl.VersionFromString(version)
 	if err != nil {
@@ -175,7 +175,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
-
+	logger.Infof("Istio in version %s successfully installed", version)
 	return nil
 }
 
@@ -215,7 +215,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		return err
 	}
 
-	logger.Infof("Patch has been applied successfully")
+	logger.Debugf("Patch has been applied successfully")
 
 	return nil
 }
@@ -252,7 +252,7 @@ func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.
 }
 
 func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
-	logger.Info("Starting Istio update...")
+	logger.Debug("Starting Istio update...")
 
 	version, err := istioctl.VersionFromString(targetVersion)
 	if err != nil {
@@ -274,7 +274,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
-	logger.Info("Istio has been updated successfully")
+	logger.Infof("Istio has been updated successfully to version %s", targetVersion)
 
 	return nil
 }
@@ -339,24 +339,24 @@ func getTargetVersionFromIstioChart(workspace chart.Factory, branch string, isti
 		return "", err
 	}
 
-	helmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	istioHelmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
 	if err != nil {
 		return "", err
 	}
 
-	pilotVersion, err := getTargetVersionFromPilotInChartValues(helmChart)
+	pilotVersion, err := getTargetVersionFromPilotInChartValues(istioHelmChart)
 	if err != nil {
 		return "", err
 	}
 
 	if pilotVersion != "" {
-		logger.Infof("Resolved target Istio version: %s from values", pilotVersion)
+		logger.Debugf("Resolved target Istio version: %s from values", pilotVersion)
 		return pilotVersion, nil
 	}
 
-	appVersion := getTargetVersionFromAppVersionInChartDefinition(helmChart)
+	appVersion := getTargetVersionFromAppVersionInChartDefinition(istioHelmChart)
 	if appVersion != "" {
-		logger.Infof("Resolved target Istio version: %s from Chart definition", appVersion)
+		logger.Debugf("Resolved target Istio version: %s from Chart definition", appVersion)
 		return appVersion, nil
 	}
 
