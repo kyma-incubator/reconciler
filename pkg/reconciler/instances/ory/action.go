@@ -75,7 +75,7 @@ func (a *postReconcileAction) Run(context *service.ActionContext) error {
 		logger.Debug("Hydra is in persistence mode, no synchronization needed")
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
+	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
 	return nil
 }
@@ -121,14 +121,14 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 		}
 
 	} else {
-		logger.Info("Ory DB secret exists, looking for differences")
+		logger.Debug("Ory DB secret exists, looking for differences")
 		newSecretData, err := db.Update(values, dbSecretObject, logger)
 		if err != nil {
 			return errors.Wrap(err, "failed to update db credentials data for Ory Hydra")
 		}
 
 		if !isUpdate(newSecretData) {
-			logger.Info("Ory DB secret is the same as values, no need to update")
+			logger.Debug("Ory DB secret is the same as values, no need to update")
 			rolloutHydra = false
 		} else {
 			logger.Info("Ory DB secret is different than values, updating it")
@@ -141,7 +141,7 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 		}
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
+	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
 	return nil
 }
@@ -179,7 +179,7 @@ func (a *postDeleteAction) Run(context *service.ActionContext) error {
 		logger.Infof("JWKS Secret %s does not exist", jwksNamespacedName.Name)
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
+	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 	return nil
 }
 
@@ -197,7 +197,7 @@ func (a *preReconcileAction) updateSecret(ctx context.Context, client kubernetes
 	if err != nil {
 		return errors.Wrap(err, "failed to update the secret")
 	}
-	logger.Infof("Secret %s updated", name.String())
+	logger.Debugf("Secret %s updated", name.String())
 
 	return err
 }
@@ -207,7 +207,7 @@ func (a *postReconcileAction) rolloutHydraDeployment(ctx context.Context, client
 	if err != nil {
 		return errors.Wrapf(err, "Failed to rollout %s deployment", deployment)
 	}
-	logger.Infof("Performed rollout restart of %s deployment", deployment)
+	logger.Debugf("Performed rollout restart of %s deployment", deployment)
 
 	return nil
 }
@@ -232,7 +232,7 @@ func (a *postDeleteAction) deleteSecret(ctx context.Context, client kubernetes.I
 		}
 		return errors.Wrap(err, "failed to delete the secret")
 	}
-	logger.Infof("Secret %s deleted", name.String())
+	logger.Debugf("Secret %s deleted", name.String())
 
 	return err
 }
@@ -242,7 +242,7 @@ func createSecret(ctx context.Context, client kubernetes.Interface, name types.N
 	if err != nil {
 		return errors.Wrap(err, "failed to create the secret")
 	}
-	logger.Infof("Secret %s created", name.String())
+	logger.Debugf("Secret %s created", name.String())
 
 	return err
 }
