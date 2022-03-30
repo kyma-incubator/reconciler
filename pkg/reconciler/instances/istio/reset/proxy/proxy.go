@@ -50,17 +50,15 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	if err != nil {
 		return err
 	}
-
-	cfg.Log.Infof("Retrieved %d pods total from the cluster", len(pods.Items))
-
+	cfg.Log.Debugf("Found %d pods in total", len(pods.Items))
 	podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*pods, image)
-
-	cfg.Log.Infof("Found %d matching pods", len(podsWithDifferentImage.Items))
-
-	err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithDifferentImage, cfg.Log, cfg.Debug, waitOpts)
-	if err != nil {
-		return err
+	cfg.Log.Infof("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
+	if len(podsWithDifferentImage.Items) >= 1 {
+		err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithDifferentImage, cfg.Log, cfg.Debug, waitOpts)
+		if err != nil {
+			return err
+		}
+		cfg.Log.Infof("Proxy reset for %d pods successfully done", len(podsWithDifferentImage.Items))
 	}
-
 	return nil
 }

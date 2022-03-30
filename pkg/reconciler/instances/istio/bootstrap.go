@@ -60,7 +60,7 @@ func (dcr *defaultCommanderResolver) GetCommander(version istioctl.Version) (ist
 		return nil, err
 	}
 
-	dcr.log.Infof("Resolved istioctl binary: Requested istio version: %s, Found: %s", version.String(), istioBinary.Version().String())
+	dcr.log.Debugf("Resolved istioctl binary: Requested istio version: %s, Found: %s", version.String(), istioBinary.Version().String())
 
 	res := istioctl.NewDefaultCommander(*istioBinary)
 	return &res, nil
