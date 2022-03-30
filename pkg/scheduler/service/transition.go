@@ -98,14 +98,14 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 			ReconciliationStatus: newClusterState.Status.Status,
 		})
 		if err == nil {
-			t.logger.Infof("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
+			t.logger.Debugf("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
 				"(scheudlingID: %s)", newClusterState.Cluster.RuntimeID, reconEntity.SchedulingID)
 			return nil
 		}
 
 		//sort ouf if issue is caused by a race condition (just for logging purpose)
 		if reconciliation.IsDuplicateClusterReconciliationError(err) {
-			t.logger.Infof("Cancelling reconciliation for cluster '%s': cluster is already enqueued (race condition)",
+			t.logger.Warnf("Cancelling reconciliation for cluster '%s': cluster is already enqueued (race condition)",
 				newClusterState.Cluster.RuntimeID)
 		} else {
 			t.logger.Errorf("Starting reconciliation for runtime '%s' failed: "+
@@ -177,7 +177,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 
 		err = reconRepo.FinishReconciliation(schedulingID, clusterState.Status)
 		if err == nil {
-			t.logger.Infof("Finishing reconciliation for cluster '%s' succeeded "+
+			t.logger.Debugf("Finishing reconciliation for cluster '%s' succeeded "+
 				"(schedulingID:%s/clusterVersion:%d/configVersion:%d): "+
 				"new cluster status is '%s'", clusterState.Cluster.RuntimeID, schedulingID,
 				clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status)
