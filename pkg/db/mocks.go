@@ -94,6 +94,10 @@ func (c *MockConnection) Close() error {
 	return nil
 }
 
+func (c *MockConnection) DBStats() *sql.DBStats {
+	return nil
+}
+
 func (c *MockConnection) Type() Type {
 	if c.dbType == "" {
 		return Mock

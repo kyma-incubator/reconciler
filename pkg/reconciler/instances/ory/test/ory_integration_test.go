@@ -38,9 +38,8 @@ func TestOryIntegration(t *testing.T) {
 
 	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
 		jwksName := "ory-oathkeeper-jwks-secret"
-		credsName := "ory-hydra-credentials"
 		setup.ensureSecretIsDeployed(t, jwksName)
-		setup.ensureSecretIsDeployed(t, credsName)
+		setup.ensureSecretIsDeployed(t, "ory-hydra-credentials")
 	})
 }
 
@@ -58,8 +57,8 @@ func TestOryIntegrationProduction(t *testing.T) {
 		name := "ory-hydra"
 		hpa, err := setup.getHorizontalPodAutoscaler(name)
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, int32(1), hpa.Status.CurrentReplicas)
-		require.Equal(t, int32(3), hpa.Spec.MaxReplicas)
+		require.GreaterOrEqual(t, int32(2), hpa.Status.CurrentReplicas)
+		require.Equal(t, int32(5), hpa.Spec.MaxReplicas)
 		setup.logger.Infof("HorizontalPodAutoscaler %v is deployed", hpa.Name)
 	})
 

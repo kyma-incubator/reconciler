@@ -109,7 +109,7 @@ func (s *scheduler) Run(ctx context.Context, transition *ClusterStatusTransition
 		select {
 		case clusterState := <-queue:
 			if err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, config); err == nil {
-				s.logger.Infof("Scheduler triggered reconciliation for cluster '%s' "+
+				s.logger.Debugf("Scheduler triggered reconciliation for cluster '%s' "+
 					"(clusterVersion:%d/configVersion:%d/status:%s/last status update:%.2f min)", clusterState.Cluster.RuntimeID,
 					clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status,
 					time.Since(clusterState.Status.Created).Minutes())

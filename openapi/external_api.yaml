@@ -77,6 +77,24 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /reconciliations/cluster/{runtimeID}:
+    delete:
+      description: "Purge reconciliations for specified cluster"
+      parameters:
+        - name: runtimeID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Purge Succeded"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+           $ref: "#/components/responses/InternalError"
+
   /reconciliations:
     get:
       description: "Get list of current working reconcilers"
@@ -329,7 +347,7 @@ components:
             $ref: "#/components/schemas/HTTPClusterResponse"
 
     configurationOkResponse:
-      description: OK
+      description: "OK"
       content:
         application/json:
           schema:

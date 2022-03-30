@@ -109,6 +109,11 @@ func (sc *sqliteConnection) Type() Type {
 	return SQLite
 }
 
+func (sc *sqliteConnection) DBStats() *sql.DBStats {
+	stats := sc.db.Stats()
+	return &stats
+}
+
 type sqliteConnectionFactory struct {
 	file          string
 	debug         bool
@@ -143,6 +148,10 @@ func (scf *sqliteConnectionFactory) Init(_ bool) error {
 		return errors.Wrap(err, "error populating DB schema")
 	}
 	return nil
+}
+
+func (scf *sqliteConnectionFactory) Reset() error {
+	return scf.resetFile()
 }
 
 func (scf *sqliteConnectionFactory) NewConnection() (Connection, error) {

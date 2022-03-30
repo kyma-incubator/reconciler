@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -119,7 +120,7 @@ func NewDefaultIstioPerformer(resolver CommanderResolver, istioProxyReset proxy.
 }
 
 func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error {
-	logger.Info("Starting Istio uninstallation...")
+	logger.Debug("Starting Istio uninstallation...")
 
 	execVersion, err := istioctl.VersionFromString(version)
 	if err != nil {
@@ -135,7 +136,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
-	logger.Info("Istio uninstall triggered")
+	logger.Debug("Istio uninstall triggered")
 	kubeClient, err := kubeClientSet.Clientset()
 	if err != nil {
 		return err
@@ -148,12 +149,12 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 	if err != nil {
 		return err
 	}
-	logger.Info("Istio namespace deleted")
+	logger.Debug("Istio namespace deleted")
 	return nil
 }
 
 func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error {
-	logger.Info("Starting Istio installation...")
+	logger.Debug("Starting Istio installation...")
 
 	execVersion, err := istioctl.VersionFromString(version)
 	if err != nil {
@@ -174,7 +175,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
-
+	logger.Infof("Istio in version %s successfully installed", version)
 	return nil
 }
 
@@ -201,7 +202,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		if err != nil {
 			return err
 		}
-		err = c.addLabelSelectorToWebhook(whConf, webhookNameToChange, requiredLabelSelector)
+		err = c.addNamespaceSelectorIfNotPresent(whConf, webhookNameToChange, requiredLabelSelector)
 		if err != nil {
 			return err
 		}
@@ -214,26 +215,29 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		return err
 	}
 
-	logger.Infof("Patch has been applied successfully")
+	logger.Debugf("Patch has been applied successfully")
 
 	return nil
 }
 
-func (c *DefaultIstioPerformer) addLabelSelectorToWebhook(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
-	var whFound bool
+func (c *DefaultIstioPerformer) addNamespaceSelectorIfNotPresent(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
 	for i := range whConf.Webhooks {
 		if whConf.Webhooks[i].Name == webhookNameToChange {
-			whFound = true
-			whConf.Webhooks[i].NamespaceSelector.MatchExpressions = append(
-				whConf.Webhooks[i].NamespaceSelector.MatchExpressions,
-				requiredLabelSelector,
-			)
+			matchExpressions := whConf.Webhooks[i].NamespaceSelector.MatchExpressions
+			var hasRequiredLabel bool
+			for j := range matchExpressions {
+				if hasRequiredLabel = reflect.DeepEqual(matchExpressions[j], requiredLabelSelector); hasRequiredLabel {
+					break
+				}
+			}
+			if !hasRequiredLabel {
+				matchExpressions = append(matchExpressions, requiredLabelSelector)
+				whConf.Webhooks[i].NamespaceSelector.MatchExpressions = matchExpressions
+			}
+			return nil
 		}
 	}
-	if !whFound {
-		return fmt.Errorf("could not find webhook %s in WebhookConfiguration %s", webhookNameToChange, whConf.Name)
-	}
-	return nil
+	return fmt.Errorf("could not find webhook %s in WebhookConfiguration %s", webhookNameToChange, whConf.Name)
 }
 
 func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (wh *v1.MutatingWebhookConfiguration, err error) {
@@ -248,7 +252,7 @@ func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.
 }
 
 func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
-	logger.Info("Starting Istio update...")
+	logger.Debug("Starting Istio update...")
 
 	version, err := istioctl.VersionFromString(targetVersion)
 	if err != nil {
@@ -270,7 +274,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
-	logger.Info("Istio has been updated successfully")
+	logger.Infof("Istio has been updated successfully to version %s", targetVersion)
 
 	return nil
 }
@@ -335,24 +339,24 @@ func getTargetVersionFromIstioChart(workspace chart.Factory, branch string, isti
 		return "", err
 	}
 
-	helmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	istioHelmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
 	if err != nil {
 		return "", err
 	}
 
-	pilotVersion, err := getTargetVersionFromPilotInChartValues(helmChart)
+	pilotVersion, err := getTargetVersionFromPilotInChartValues(istioHelmChart)
 	if err != nil {
 		return "", err
 	}
 
 	if pilotVersion != "" {
-		logger.Infof("Resolved target Istio version: %s from values", pilotVersion)
+		logger.Debugf("Resolved target Istio version: %s from values", pilotVersion)
 		return pilotVersion, nil
 	}
 
-	appVersion := getTargetVersionFromAppVersionInChartDefinition(helmChart)
+	appVersion := getTargetVersionFromAppVersionInChartDefinition(istioHelmChart)
 	if appVersion != "" {
-		logger.Infof("Resolved target Istio version: %s from Chart definition", appVersion)
+		logger.Debugf("Resolved target Istio version: %s from Chart definition", appVersion)
 		return appVersion, nil
 	}
 

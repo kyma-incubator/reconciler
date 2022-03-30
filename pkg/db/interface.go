@@ -23,11 +23,13 @@ type Connection interface {
 	Close() error
 	Type() Type
 	ID() string
+	DBStats() *sql.DBStats
 }
 
 type ConnectionFactory interface {
 	Init(migrate bool) error
 	NewConnection() (Connection, error)
+	Reset() error
 }
 
 type DatabaseEntity interface {

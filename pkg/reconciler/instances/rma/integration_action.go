@@ -37,7 +37,6 @@ type IntegrationAction struct {
 	client       IntegrationClient
 	mux          sync.Mutex
 	archives     map[string][]byte
-	pwds         map[string]string
 	chartVerExpr *regexp.Regexp
 }
 
@@ -49,7 +48,6 @@ func NewIntegrationAction(name string, client IntegrationClient) *IntegrationAct
 			Timeout: 20 * time.Second,
 		},
 		archives:     make(map[string][]byte),
-		pwds:         make(map[string]string),
 		chartVerExpr: regexp.MustCompile(fmt.Sprintf("%s-([a-zA-Z0-9-.]+)\\.tgz$", RmiChartName)),
 	}
 }
@@ -119,7 +117,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 		return a.upgrade(context, cfg, chartURL, releaseName, namespace, skipHelmUpgrade)
 	case model.OperationTypeDelete:
 		if err == nil {
-			return a.delete(context, cfg, releaseName)
+			return a.delete(cfg, releaseName)
 		}
 	}
 
@@ -150,13 +148,12 @@ func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.
 	}
 
 	setAuthCredentialOverrides(context.Task.Configuration, username, password)
-	a.setPassword(username, password)
 	return nil
 }
 
 func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace string, skipHelmUpgrade bool) error {
 	username := context.Task.Metadata.InstanceID
-	password, err := a.fetchPassword(context.Context, username, releaseName, namespace)
+	password, err := a.fetchPassword(context.Context, releaseName, namespace)
 	if err != nil {
 		return errors.WithMessage(err, "failed to fetch auth credentials from secret")
 	}
@@ -188,7 +185,7 @@ func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.
 	return nil
 }
 
-func (a *IntegrationAction) delete(context *service.ActionContext, cfg *action.Configuration, releaseName string) error {
+func (a *IntegrationAction) delete(cfg *action.Configuration, releaseName string) error {
 	uninstallAction := action.NewUninstall(cfg)
 	uninstallAction.Timeout = 5 * time.Minute
 
@@ -197,7 +194,6 @@ func (a *IntegrationAction) delete(context *service.ActionContext, cfg *action.C
 		return errors.WithMessagef(err, "helm delete %s-%s failed", RmiChartName, releaseName)
 	}
 
-	a.deletePassword(context.Task.Metadata.InstanceID)
 	return nil
 }
 
@@ -236,30 +232,23 @@ func (a *IntegrationAction) fetchChart(ctx context.Context, chartURL string) (*c
 	return chart, nil
 }
 
-func (a *IntegrationAction) fetchPassword(ctx context.Context, username, release, namespace string) (string, error) {
-	a.mux.Lock()
-	defer a.mux.Unlock()
-	password := a.pwds[username]
-
-	if password == "" {
-		client, err := a.client.KubernetesClientSet()
-		if err != nil {
-			return "", err
-		}
-		secret, err := client.CoreV1().Secrets(namespace).Get(ctx, fmt.Sprintf("vmuser-%s-%s", RmiChartName, release), metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		if secret.Data == nil {
-			return "", errors.New("secret data is empty")
-		}
-		passwordData := secret.Data["password"]
-		if len(passwordData) == 0 {
-			return "", errors.New("missing/empty auth credentials")
-		}
-		password = string(passwordData)
-		a.pwds[username] = password
+func (a *IntegrationAction) fetchPassword(ctx context.Context, release, namespace string) (string, error) {
+	client, err := a.client.KubernetesClientSet()
+	if err != nil {
+		return "", err
 	}
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, fmt.Sprintf("vmuser-%s-%s", RmiChartName, release), metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	if secret.Data == nil {
+		return "", errors.New("secret data is empty")
+	}
+	passwordData := secret.Data["password"]
+	if len(passwordData) == 0 {
+		return "", errors.New("missing/empty auth credentials")
+	}
+	password := string(passwordData)
 
 	return password, nil
 }
@@ -276,18 +265,6 @@ func generatePassword(n int) (string, error) {
 	}
 
 	return string(ret), nil
-}
-
-func (a *IntegrationAction) setPassword(username, password string) {
-	a.mux.Lock()
-	defer a.mux.Unlock()
-	a.pwds[username] = password
-}
-
-func (a *IntegrationAction) deletePassword(username string) {
-	a.mux.Lock()
-	defer a.mux.Unlock()
-	delete(a.pwds, username)
 }
 
 func (a *IntegrationAction) getChartVersionFromURL(chartURL string) string {
@@ -337,7 +314,7 @@ func setAuthCredentialOverrides(configuration map[string]interface{}, username, 
 
 func findLatestRevision(releases []*release.Release) *release.Release {
 	revision := -1
-	var release *release.Release = nil
+	var release *release.Release
 	for _, r := range releases {
 		if r.Version > revision {
 			release = r
