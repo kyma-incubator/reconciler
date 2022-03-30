@@ -130,7 +130,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			}
 		}
 
-		r.Logger.Infof("ReconRepo created reconciliation (schedulingID:%s) for cluster '%s' including following operations: %s",
+		r.Logger.Debugf("ReconRepo created reconciliation (schedulingID:%s) for cluster '%s' including following operations: %s",
 			reconEntity.SchedulingID, reconEntity.RuntimeID, opsList.String())
 
 		return reconEntity, err

@@ -54,7 +54,7 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 		}
 		if errCnt < config.MaxDeleteErrRetries {
 			newClusterStatus = model.ClusterStatusDeleteErrorRetryable
-			fo.logger.Infof("BookkeeperTask finishOperation: deletion for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
+			fo.logger.Debugf("BookkeeperTask finishOperation: deletion for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
 				"deletion will be retried (count of applied retries: %d)",
 				reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
 		}
@@ -65,7 +65,7 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 		}
 		if errCnt < config.MaxReconcileErrRetries {
 			newClusterStatus = model.ClusterStatusReconcileErrorRetryable
-			fo.logger.Infof("BookkeeperTask finishOperation: reconciliation for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
+			fo.logger.Debugf("BookkeeperTask finishOperation: reconciliation for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
 				"reconciliation will be retried (count of applied retries: %d)",
 				reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
 		}
@@ -77,7 +77,7 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 
 	err := fo.transition.FinishReconciliation(recon.SchedulingID, newClusterStatus)
 	if err == nil {
-		fo.logger.Infof("BookkeeperTask finishOperation: updated cluster '%s' to status '%s' (schedulingID:%s)",
+		fo.logger.Debugf("BookkeeperTask finishOperation: updated cluster '%s' to status '%s' (schedulingID:%s)",
 			recon.RuntimeID, newClusterStatus, recon.SchedulingID)
 		return nil
 	}
