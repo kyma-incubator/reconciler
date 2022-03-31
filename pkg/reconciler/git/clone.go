@@ -3,29 +3,25 @@ package git
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"strings"
-
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"go.uber.org/zap"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8s "k8s.io/client-go/kubernetes"
+	"os"
 
 	"github.com/go-git/go-git/v5"
 	gitp "github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
+
+const gitCloneTokenEnv = "GIT_CLONE_TOKEN" //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
 
 type Cloner struct {
 	repo         *reconciler.Repository
 	autoCheckout bool
 
-	repoClient         RepoClient
-	inClusterClientSet k8s.Interface
-	logger             *zap.SugaredLogger
+	repoClient RepoClient
+	logger     *zap.SugaredLogger
 }
 
 //go:generate mockery --name RepoClient --case=underscore
@@ -38,27 +34,22 @@ type RepoClient interface {
 	DefaultBranch() (*gitp.Reference, error)
 }
 
-func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, clientSet k8s.Interface, logger *zap.SugaredLogger) (*Cloner, error) {
+func NewCloner(repoClient RepoClient, repo *reconciler.Repository, autoCheckout bool, logger *zap.SugaredLogger) (*Cloner, error) {
 	return &Cloner{
-		repo:               repo,
-		autoCheckout:       autoCheckout,
-		repoClient:         repoClient,
-		inClusterClientSet: clientSet,
-		logger:             logger,
+		repo:         repo,
+		autoCheckout: autoCheckout,
+		repoClient:   repoClient,
+		logger:       logger,
 	}, nil
 }
 
 // Clone clones the repository from the given remote URL to the given `path` in the local filesystem.
 func (r *Cloner) Clone(path string) (*git.Repository, error) {
-	auth, err := r.buildAuth()
-	if err != nil {
-		return nil, err
-	}
 	return r.repoClient.Clone(context.Background(), path, false, &git.CloneOptions{
 		Depth:             0,
 		URL:               r.repo.URL,
 		NoCheckout:        !r.autoCheckout,
-		Auth:              auth,
+		Auth:              r.buildAuth(),
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	})
 
@@ -111,75 +102,26 @@ func (r *Cloner) CloneAndCheckout(dstPath, rev string) error {
 	return r.Checkout(rev, repo)
 }
 
-func (r *Cloner) buildAuth() (transport.AuthMethod, error) {
-	tokenNamespace := "default"
-	if r.repo.TokenNamespace != "" {
-		tokenNamespace = r.repo.TokenNamespace
+func (r *Cloner) buildAuth() transport.AuthMethod {
+	token := os.Getenv(gitCloneTokenEnv)
+	if token == "" {
+		r.logger.Warnf("Could not find the authorization token for %s repository, %s environment variable is not set", r.repo.URL, gitCloneTokenEnv)
+		return nil
 	}
 
-	if r.inClusterClientSet == nil {
-		return nil, nil
+	return &http.BasicAuth{
+		Username: "xxx", // anything but an empty string
+		Password: token,
 	}
-
-	secretKey, err := mapSecretKey(r.repo.URL)
-	if err != nil {
-		return nil, err
-	}
-
-	secret, err := r.inClusterClientSet.CoreV1().
-		Secrets(tokenNamespace).
-		Get(context.Background(), secretKey, v1.GetOptions{})
-
-	if err != nil && !apierrors.IsNotFound(err) && !apierrors.IsForbidden(err) {
-		return nil, err
-	}
-
-	if secret != nil && err == nil {
-		return &http.BasicAuth{
-			Username: "xxx", // anything but an empty string
-			Password: strings.Trim(string(secret.Data["token"]), "\n"),
-		}, nil
-	}
-
-	r.logger.Info("Token not found or forbidden")
-
-	return nil, nil
-}
-
-func mapSecretKey(URL string) (string, error) {
-	if !strings.HasPrefix(URL, "http") {
-		URL = "https://" + URL
-	}
-
-	URL = strings.ReplaceAll(URL, "www.", "")
-
-	parsed, err := url.Parse(URL)
-
-	if err != nil {
-		return "", err
-	}
-
-	if parsed.Scheme == "" {
-		return parsed.Path, nil
-	}
-
-	output := strings.ReplaceAll(parsed.Host, ":"+parsed.Port(), "")
-	output = strings.ReplaceAll(output, "www.", "")
-
-	return output, nil
 }
 
 func (r *Cloner) FetchAndCheckout(path, version string) error {
-	auth, err := r.buildAuth()
-	if err != nil {
-		return err
-	}
 	gitClient, err := NewClientWithPath(path)
 	if err != nil {
 		return err
 	}
 	err = gitClient.Fetch(&git.FetchOptions{
-		Auth:       auth,
+		Auth:       r.buildAuth(),
 		RemoteName: "origin",
 	})
 	if err != nil {

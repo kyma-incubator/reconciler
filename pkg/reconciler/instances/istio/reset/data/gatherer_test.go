@@ -50,8 +50,10 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 	}
 	podWithExpectedImage := fixPodWith("application", "kyma", "istio/proxyv2:1.10.1", "Running")
 	podWithExpectedImageTerminating := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Terminating")
+	podWithExpectedImagePending := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Pending")
 	podWithDifferentImageSuffix := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Running")
 	podWithDifferentImageSuffixTerminating := fixPodWith("application", "kyma", "istio/proxyv2:1.10.2", "Terminating")
+	podWithDifferentImageSuffixPending := fixPodWith("application", "kyma", "istio/proxyv2:1.10.2", "Pending")
 	podWithDifferentImagePrefix := fixPodWith("application", "kyma", "istio/weirdimage:1.10.2", "Running")
 
 	t.Run("should not get any pods from an empty list", func(t *testing.T) {
@@ -69,12 +71,18 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 	t.Run("should get one pod from the list", func(t *testing.T) {
 		// given
 		var pods v1.PodList
+		var expected v1.PodList
 		pods.Items = []v1.Pod{
 			*podWithExpectedImage,
 			*podWithExpectedImageTerminating,
+			*podWithExpectedImagePending,
 			*podWithDifferentImageSuffix,
 			*podWithDifferentImageSuffixTerminating,
+			*podWithDifferentImageSuffixPending,
 			*podWithDifferentImagePrefix,
+		}
+		expected.Items = []v1.Pod{
+			*podWithDifferentImageSuffix,
 		}
 		gatherer := DefaultGatherer{}
 
@@ -82,6 +90,7 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 		podsWithDifferentImage := gatherer.GetPodsWithDifferentImage(pods, image)
 
 		// then
+		require.Equal(t, podsWithDifferentImage.Items, expected.Items)
 		require.NotEmpty(t, podsWithDifferentImage.Items)
 		require.Len(t, podsWithDifferentImage.Items, 1)
 	})

@@ -15,8 +15,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -29,10 +31,16 @@ import (
 // https://github.com/SAP/sap-btp-service-operator-migration/blob/v0.1.2/migrate/migrator.go
 
 const (
-	migratedLabel    = "migrated"
-	serviceInstances = "serviceinstances"
-	serviceBindings  = "servicebindings"
+	migratedLabel         = "migrated"
+	serviceInstances      = "serviceinstances"
+	serviceBindings       = "servicebindings"
+	clusterserviceclasses = "clusterserviceclasses"
 )
+
+type classes struct {
+	byRef  map[string]v1beta1.ClusterServiceClass
+	byName map[string]v1beta1.ClusterServiceClass
+}
 
 type serviceInstancePair struct {
 	svcatInstance *v1beta1.ServiceInstance
@@ -154,20 +162,23 @@ func (m *migrator) migrateBTPOperator() error {
 	ctx := m.ac.Context
 	svcatInstances := v1beta1.ServiceInstanceList{}
 	err = m.SvcatRestClient.Get().Namespace("").Resource(serviceInstances).Do(ctx).Into(&svcatInstances)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !(errors.IsNotFound(err) || meta.IsNoMatchError(err)) {
 		return err
 	}
 	m.ac.Logger.Infof("Fetched %v svcat instances from cluster", len(svcatInstances.Items))
 
 	svcatBindings := v1beta1.ServiceBindingList{}
 	err = m.SvcatRestClient.Get().Namespace("").Resource(serviceBindings).Do(ctx).Into(&svcatBindings)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !(errors.IsNotFound(err) || meta.IsNoMatchError(err)) {
 		return err
 	}
 	m.ac.Logger.Infof("Fetched %v svcat bindings from cluster", len(svcatBindings.Items))
 
 	m.ac.Logger.Infof("Preparing resources")
-	instancesToMigrate := m.getInstancesToMigrate(smInstances, svcatInstances)
+	instancesToMigrate, err := m.getInstancesToMigrate(smInstances, svcatInstances)
+	if err != nil {
+		return err
+	}
 	bindingsToMigrate := m.getBindingsToMigrate(smBindings, svcatBindings)
 	if len(instancesToMigrate) == 0 && len(bindingsToMigrate) == 0 {
 		m.ac.Logger.Infof("no svcat instances or bindings found for migration")
@@ -201,8 +212,57 @@ func (m *migrator) migrateBTPOperator() error {
 	return nil
 }
 
-func (m *migrator) getInstancesToMigrate(smInstances *types.ServiceInstances, svcatInstances v1beta1.ServiceInstanceList) []serviceInstancePair {
+func (m *migrator) fetchClasses() (classes, error) {
+	ctx := m.ac.Context
+	list := v1beta1.ClusterServiceClassList{}
+	err := m.SvcatRestClient.Get().Namespace("").Resource(clusterserviceclasses).Do(ctx).Into(&list)
+	classes := classes{}
+	if meta.IsNoMatchError(err) || errors.IsNotFound(err) {
+		return classes, nil
+	}
+	if err != nil {
+		return classes, err
+	}
+	m.ac.Logger.Infof("Fetched %v svcat cluster classes from cluster", len(list.Items))
+	classes.byName = make(map[string]v1beta1.ClusterServiceClass)
+	classes.byRef = make(map[string]v1beta1.ClusterServiceClass)
+	for _, c := range list.Items {
+		classes.byRef[c.Name] = c
+		classes.byName[c.Spec.ExternalName] = c
+	}
+	return classes, nil
+}
+
+func (b classes) hasSMBroker(instance v1beta1.ServiceInstance) bool {
+	if ref := instance.Spec.ClusterServiceClassRef; ref != nil {
+		if csc, found := b.byRef[ref.Name]; found {
+			if strings.HasPrefix(csc.Spec.ClusterServiceBrokerName, "sm-") {
+				return true
+			}
+		}
+	}
+	if name := instance.Spec.ClusterServiceClassName; name != "" {
+		if csc, found := b.byName[name]; found {
+			if strings.HasPrefix(csc.Spec.ClusterServiceBrokerName, "sm-") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isReady(instance v1beta1.ServiceInstance) bool {
+	return v1beta1.ServiceInstanceConditionType(instance.Status.LastConditionState) == v1beta1.ServiceInstanceConditionReady
+}
+
+func (m *migrator) getInstancesToMigrate(smInstances *types.ServiceInstances, svcatInstances v1beta1.ServiceInstanceList) ([]serviceInstancePair, error) {
+	classes, err := m.fetchClasses()
+	if err != nil {
+		return nil, err
+	}
+
 	validInstances := make([]serviceInstancePair, 0)
+	var errs []error
 	for _, svcat := range svcatInstances.Items {
 		var smInstance *types.ServiceInstance
 		for i, instance := range smInstances.ServiceInstances {
@@ -212,8 +272,12 @@ func (m *migrator) getInstancesToMigrate(smInstances *types.ServiceInstances, sv
 			}
 		}
 		if smInstance == nil {
-			m.ac.Logger.Infof("svcat instance name '%s' id '%s' (%s) not found in SM, skipping it...", svcat.Name, svcat.Spec.ExternalID, svcat.Name)
-			continue
+			if isReady(svcat) && classes.hasSMBroker(svcat) {
+				err := fmt.Errorf("svcat instance name '%s/%s' id '%s' (%s) not found in SM but expected", svcat.Namespace, svcat.Name, svcat.Spec.ExternalID, svcat.Name)
+				errs = append(errs, err)
+			} else {
+				m.ac.Logger.Info("svcat instance name '%s/%s' id '%s' (%s) not found in SM, skipping", svcat.Namespace, svcat.Name, svcat.Spec.ExternalID, svcat.Name)
+			}
 		}
 		svcInstance := svcat
 		validInstances = append(validInstances, serviceInstancePair{
@@ -221,8 +285,7 @@ func (m *migrator) getInstancesToMigrate(smInstances *types.ServiceInstances, sv
 			smInstance:    smInstance,
 		})
 	}
-
-	return validInstances
+	return validInstances, kerrors.NewAggregate(errs)
 }
 
 func (m *migrator) getBindingsToMigrate(smBindings *types.ServiceBindings, svcatBindings v1beta1.ServiceBindingList) []serviceBindingPair {
@@ -277,6 +340,24 @@ func (m *migrator) migrateInstance(pair serviceInstancePair) error {
 		return fmt.Errorf("failed to create service instance: %v", err.Error())
 	}
 
+	if !pair.svcatInstance.DeletionTimestamp.IsZero() {
+		m.ac.Logger.Infof("svcat instance '%s' is marked for deletion, deleting it from operator", pair.svcatInstance.Name)
+		err = m.SapOperatorRestClient.Delete().Name(res.Name).Namespace(res.Namespace).Do(m.ac.Context).Error()
+		if err != nil {
+			m.ac.Logger.Errorf("failed to delete instance from operator: %v", err.Error())
+		}
+	}
+
+	pair.svcatInstance.Finalizers = []string{}
+	err = m.SvcatRestClient.Put().Name(pair.svcatInstance.Name).Namespace(pair.svcatInstance.Namespace).Resource(serviceInstances).Body(pair.svcatInstance).Do(m.ac.Context).Error()
+	if err != nil {
+		return fmt.Errorf("failed to delete finalizer from instance '%s'. Error: %v", pair.svcatInstance.Name, err.Error())
+	}
+
+	err = m.deleteSvcatResource(res.Name, res.Namespace, serviceInstances)
+	if err != nil {
+		m.ac.Logger.Infof("failed to delete svcat resource. Error: %v", err.Error())
+	}
 	m.ac.Logger.Infof("instance migrated successfully")
 	return nil
 }
@@ -347,6 +428,25 @@ func (m *migrator) migrateBinding(pair serviceBindingPair) error {
 		}
 	}
 
+	if !pair.svcatBinding.DeletionTimestamp.IsZero() {
+		m.ac.Logger.Infof("svcat binding '%s' is marked for deletion, deleting it from operator", pair.svcatBinding.Name)
+		err = m.SapOperatorRestClient.Delete().Name(res.Name).Namespace(res.Namespace).Do(m.ac.Context).Error()
+		if err != nil {
+			m.ac.Logger.Infof("failed to delete binding from operator. Error: %v", err.Error())
+		}
+	}
+
+	//remove finalizer from binding to avoid deletion of the secret
+	pair.svcatBinding.Finalizers = []string{}
+	err = m.SvcatRestClient.Put().Name(pair.svcatBinding.Name).Namespace(pair.svcatBinding.Namespace).Resource(serviceBindings).Body(pair.svcatBinding).Do(m.ac.Context).Error()
+	if err != nil {
+		return fmt.Errorf("failed to delete finalizer from binding '%s'. Error: %v", pair.svcatBinding.Name, err.Error())
+	}
+
+	err = m.deleteSvcatResource(res.Name, res.Namespace, serviceBindings)
+	if err != nil {
+		return fmt.Errorf("failed to delete svcat binding. Error: %v", err.Error())
+	}
 	m.ac.Logger.Infof("binding migrated successfully")
 	return nil
 }
@@ -369,6 +469,10 @@ func (m *migrator) getInstanceStruct(pair serviceInstancePair) *v1alpha1.Service
 	if err != nil {
 		m.ac.Logger.Infof("failed to parse user info for instance %s: %v", pair.svcatInstance.Name, err.Error())
 	}
+	svcatInstanceAnnotation, err := json.Marshal(pair.svcatInstance)
+	if err != nil {
+		m.ac.Logger.Infof("failed to marshal svcat instance %s: %v", pair.svcatInstance.Name, err.Error())
+	}
 
 	return &v1alpha1.ServiceInstance{
 		TypeMeta: metav1.TypeMeta{
@@ -383,7 +487,9 @@ func (m *migrator) getInstanceStruct(pair serviceInstancePair) *v1alpha1.Service
 			},
 			Annotations: map[string]string{
 				"original_creation_timestamp": pair.svcatInstance.CreationTimestamp.String(),
-				"original_user_info":          string(userInfo)},
+				"original_user_info":          string(userInfo),
+				"original_instance":           string(svcatInstanceAnnotation),
+			},
 		},
 		Spec: v1alpha1.ServiceInstanceSpec{
 			ServicePlanName:     plan.Name,
@@ -410,6 +516,10 @@ func (m *migrator) getBindingStruct(pair serviceBindingPair) *v1alpha1.ServiceBi
 	if err != nil {
 		m.ac.Logger.Infof("failed to parse user info for binding %s. Error: %v", pair.svcatBinding.Name, err.Error())
 	}
+	svcatBindingAnnotation, err := json.Marshal(pair.svcatBinding)
+	if err != nil {
+		m.ac.Logger.Infof("failed to marshal svcat binding %s: %v", pair.svcatBinding.Name, err.Error())
+	}
 
 	return &v1alpha1.ServiceBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -424,7 +534,9 @@ func (m *migrator) getBindingStruct(pair serviceBindingPair) *v1alpha1.ServiceBi
 			},
 			Annotations: map[string]string{
 				"original_creation_timestamp": pair.svcatBinding.CreationTimestamp.String(),
-				"original_user_info":          string(userInfo)},
+				"original_user_info":          string(userInfo),
+				"original_binding":            string(svcatBindingAnnotation),
+			},
 		},
 		Spec: v1alpha1.ServiceBindingSpec{
 			ServiceInstanceName: pair.svcatBinding.Spec.InstanceRef.Name,
@@ -451,6 +563,17 @@ func (m *migrator) ignoreAlreadyMigrated(obj, res object, err error) error {
 		return fmt.Errorf("resource already exists and is missing label %v", migratedLabel)
 	}
 	return nil
+}
+
+func (m *migrator) deleteSvcatResource(resourceName string, resourceNamespace string, resourceType string) error {
+	err := m.SapOperatorRestClient.Get().Name(resourceName).Namespace(resourceNamespace).Resource(resourceType).Do(m.ac.Context).Error()
+	if err != nil {
+		m.ac.Logger.Infof("failed to get the migrated service instance '%s' status, corresponding svcat resource will not be deleted. Error: %v", resourceName, err.Error())
+		return err
+	}
+
+	m.ac.Logger.Infof("deleting svcat resource type '%s' named '%s' in namespace '%s'", resourceType, resourceName, resourceNamespace)
+	return m.SvcatRestClient.Delete().Name(resourceName).Namespace(resourceNamespace).Resource(resourceType).Do(m.ac.Context).Error()
 }
 
 func (m *migrator) getMigrateBindingRequestBody(k8sName string, secret *corev1.Secret) (string, error) {

@@ -20,6 +20,7 @@ require (
 	github.com/docker/cli v20.10.12+incompatible // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/docker v20.10.12+incompatible // indirect
+	github.com/docker/go-connections v0.4.0
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
@@ -46,10 +47,12 @@ require (
 	github.com/spf13/viper v1.8.1
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.7.0
+	github.com/testcontainers/testcontainers-go v0.12.0
 	github.com/tidwall/gjson v1.13.0 // indirect
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.17.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/text v0.3.7
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
