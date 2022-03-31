@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"testing"
 	"time"
@@ -142,7 +143,7 @@ func (s *reconciliationTestSuite) runRemote(expectedClusterStatus model.Status, 
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	//cleanup
-	defer func() {
+	defer func(dbConn db.Connection) {
 		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
 		recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 		require.NoError(t, err)
@@ -151,7 +152,7 @@ func (s *reconciliationTestSuite) runRemote(expectedClusterStatus model.Status, 
 		}
 		require.NoError(t, dbConn.Close())
 		cancel()
-	}()
+	}(dbConn)
 	require.NoError(t, remoteRunner.Run(ctx))
 
 	setOperationState(t, reconRepo, expectedClusterStatus, clusterState.Cluster.RuntimeID)
@@ -273,11 +274,11 @@ func (s *reconciliationTestSuite) runLocal(timeout time.Duration) (*Reconciliati
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	//cleanup
-	defer func() {
+	defer func(dbConn db.Connection) {
 		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
 		cancel()
 		require.NoError(t, dbConn.Close())
-	}()
+	}(dbConn)
 
 	reconResult, err := localRunner.Run(ctx, clusterState)
 	require.NoError(t, err)

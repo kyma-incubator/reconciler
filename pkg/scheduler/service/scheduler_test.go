@@ -154,14 +154,14 @@ func (s *reconciliationTestSuite) TestMultipleSchedulerWatchingSameInventory() {
 	removeExistingReconciliations(t, reconRepo) //cleanup before test execution
 
 	ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
-	defer func() {
+	defer func(dbConn db.Connection) {
 		for _, runtimeID := range clusterRuntimeIDs {
 			require.NoError(t, inventory.Delete(runtimeID))
 		}
 		cancelFct()
 		removeExistingReconciliations(t, reconRepo)
 		require.NoError(t, dbConn.Close())
-	}()
+	}(dbConn)
 
 	require.Len(t, getReconciliations(t, clusterRuntimeIDs, reconRepo), 0) //ensure no reconciliation exist
 

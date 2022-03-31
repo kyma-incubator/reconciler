@@ -805,57 +805,57 @@ func findOperationsByPrio(ops []*model.OperationEntity, prio int) []*model.Opera
 	return result
 }
 
-func (s *reconciliationTestSuite) TestTransaction() {
+func (s *reconciliationTestSuite) TestRollbackNestedTransaction() {
 	t := s.T()
-	t.Run("Rollback nested transactions", func(t *testing.T) {
-		//new db connection
-		dbConn, err := s.NewConnection()
+	//new db connection
+	dbConn, err := s.NewConnection()
+	require.NoError(t, err)
+	defer func(dbConn db.Connection) {
+		require.NoError(t, dbConn.Close())
+	}(dbConn)
+
+	//create inventory
+	reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
+	require.NoError(t, err)
+
+	dbOp := func(tx *db.TxConnection) error {
+
+		//converts inventory with given tx
+		reconRepoTx, err := reconRepo.WithTx(tx)
 		require.NoError(t, err)
-		defer require.NoError(t, dbConn.Close())
 
-		//create inventory
-		reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
+		//prepare inventory
+		inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 		require.NoError(t, err)
 
-		dbOp := func(tx *db.TxConnection) error {
-
-			//converts inventory with given tx
-			reconRepoTx, err := reconRepo.WithTx(tx)
-			require.NoError(t, err)
-
-			//prepare inventory
-			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
-			require.NoError(t, err)
-
-			//add clusters to inventory
-			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
-			require.NoError(t, err)
-			clusterState2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.OneComponentDummy))
-			require.NoError(t, err)
-
-			//create two clusters
-			_, err = reconRepoTx.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
-			require.NoError(t, err)
-			_, err = reconRepoTx.CreateReconciliation(clusterState2, &model.ReconciliationSequenceConfig{})
-			require.NoError(t, err)
-
-			//check if reconciliations are created
-			recons, err := reconRepoTx.GetReconciliations(nil)
-			require.NoError(t, err)
-			require.Equal(t, 2, len(recons))
-
-			//rollback transactions
-			return errors.New("Fake error")
-		}
-		require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
-
-		//check if reconciliations are rolled back - should throw an error
-		reconRepo, err = NewPersistedReconciliationRepository(dbConn, true)
+		//add clusters to inventory
+		clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 		require.NoError(t, err)
-		recons, err := reconRepo.GetReconciliations(nil)
+		clusterState2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.OneComponentDummy))
 		require.NoError(t, err)
-		require.Equal(t, 0, len(recons))
-	})
+
+		//create two clusters
+		_, err = reconRepoTx.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
+		require.NoError(t, err)
+		_, err = reconRepoTx.CreateReconciliation(clusterState2, &model.ReconciliationSequenceConfig{})
+		require.NoError(t, err)
+
+		//check if reconciliations are created
+		recons, err := reconRepoTx.GetReconciliations(nil)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(recons))
+
+		//rollback transactions
+		return errors.New("Fake error")
+	}
+	require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
+
+	//check if reconciliations are rolled back - should throw an error
+	reconRepo, err = NewPersistedReconciliationRepository(dbConn, true)
+	require.NoError(t, err)
+	recons, err := reconRepo.GetReconciliations(nil)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(recons))
 }
 
 func (s *reconciliationTestSuite) TestReconciliationParallel() {
@@ -960,7 +960,9 @@ func (s *reconciliationTestSuite) TestReconciliationParallel() {
 			//create mock database connection
 			dbConn, err := s.NewConnection()
 			require.NoError(t, err)
-			defer require.NoError(t, dbConn.Close())
+			defer func(dbConn db.Connection) {
+				require.NoError(t, dbConn.Close())
+			}(dbConn)
 			//prepare inventory
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)

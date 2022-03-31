@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"sync"
 	"testing"
 	"time"
@@ -175,10 +176,10 @@ func (s *reconciliationTestSuite) TestBookkeepingTaskParallel() {
 			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "random", 1, false, test.OneComponentDummy))
 			require.NoError(t, err)
 			//cleanup cluster at the end
-			defer func() {
+			defer func(dbConn db.Connection) {
 				require.NoError(t, inventory.Delete(clusterState.Status.RuntimeID))
 				require.NoError(t, dbConn.Close())
-			}()
+			}(dbConn)
 
 			//trigger reconciliation for cluster
 			reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
