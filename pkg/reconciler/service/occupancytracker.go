@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -24,6 +25,7 @@ type OccupancyTracker struct {
 	occupancyID          string
 	occupancyCallbackURL string
 	ticker               *time.Ticker
+	sync.Mutex
 }
 
 func newOccupancyTracker(debug bool) *OccupancyTracker {
@@ -137,7 +139,9 @@ func (t *OccupancyTracker) AssignCallbackURL(callbackURL string) {
 		t.ticker.Reset(defaultInterval)
 	} else if t.occupancyID != "" {
 		var err error
+		t.Lock()
 		t.occupancyCallbackURL, err = parseOccupancyCallbackURL(callbackURL, t.occupancyID)
+		t.Unlock()
 		if err != nil {
 			t.logger.Errorf("occupancy tracker failed to assign callback URL: %s", err)
 			return
