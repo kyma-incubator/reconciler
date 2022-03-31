@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"testing"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -11,7 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInventoryWatch(t *testing.T) {
+func (s *reconciliationTestSuite) TestInventoryWatch() {
+	t := s.T()
 	clusterStateExpected := &cluster.State{
 		Cluster: &model.ClusterEntity{
 			Version:   1,
@@ -57,7 +57,8 @@ func TestInventoryWatch(t *testing.T) {
 	require.Equal(t, clusterStateExpected, clusterStateGot)
 }
 
-func TestInventoryWatch_ShouldStopOnCtxClose(t *testing.T) {
+func (s *reconciliationTestSuite) TestInventoryWatch_ShouldStopOnCtxClose() {
+	t := s.T()
 	inventory := &cluster.MockInventory{}
 	queue := make(chan *cluster.State, 1)
 	ctx, cancelFn := context.WithTimeout(context.TODO(), 1500*time.Millisecond)

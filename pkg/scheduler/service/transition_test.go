@@ -1,24 +1,21 @@
 package service
 
 import (
-	"testing"
-	"time"
-
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
+	"testing"
+	"time"
 )
 
-func TestTransition(t *testing.T) {
-	test.IntegrationTest(t)
-
-	dbConn := db.NewTestConnection(t)
+func (s *reconciliationTestSuite) prepareTransitionTest(t *testing.T) (*ClusterStatusTransition, *cluster.State, func()) {
+	dbConn, err := s.NewConnection()
+	require.NoError(t, err)
 
 	//create inventory and test cluster entry
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
@@ -45,134 +42,146 @@ func TestTransition(t *testing.T) {
 	//create transition which will change cluster states
 	transition := newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true))
 
-	testSchedulerConfig := &SchedulerConfig{
+	err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, &SchedulerConfig{
 		PreComponents:  nil,
 		DeleteStrategy: "",
-	}
+	})
+	require.NoError(t, err)
 
 	//cleanup at the end of the execution
-	defer func() {
+	cleanupFn := func() {
 		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
 		recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 		require.NoError(t, err)
 		for _, recon := range recons {
 			require.NoError(t, reconRepo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
 		}
-	}()
+		require.NoError(t, dbConn.Close())
+	}
+	return transition, clusterState, cleanupFn
+}
 
-	t.Run("Start Reconciliation", func(t *testing.T) {
-		oldClusterStateID := clusterState.Status.ID
-		err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, testSchedulerConfig)
-		require.NoError(t, err)
+func (s *reconciliationTestSuite) TestTransitionStartReconciliation() {
+	t := s.T()
+	transition, clusterState, cleanupFn := s.prepareTransitionTest(t)
+	defer cleanupFn()
 
-		//starting reconciliation twice is not allowed
-		err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, testSchedulerConfig)
-		require.Error(t, err)
+	oldClusterStateID := clusterState.Status.ID
 
-		//verify created reconciliation
-		reconEntities, err := reconRepo.GetReconciliations(
-			&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID},
-		)
-		require.NoError(t, err)
-		require.Len(t, reconEntities, 1)
-		require.Greater(t, reconEntities[0].ClusterConfigStatus, oldClusterStateID) //verify new cluster-status ID is used
-		require.False(t, reconEntities[0].Finished)
-
-		//verify cluster status
-		clusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
-		require.NoError(t, err)
-		require.Equal(t, clusterState.Status.Status, model.ClusterStatusReconciling)
+	//starting reconciliation twice is not allowed
+	err := transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, &SchedulerConfig{
+		PreComponents:  nil,
+		DeleteStrategy: "",
 	})
+	require.Error(t, err)
 
-	t.Run("Finish Reconciliation", func(t *testing.T) {
-		//get reconciliation entity
-		reconEntities, err := reconRepo.GetReconciliations(
-			&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID},
-		)
-		require.NoError(t, err)
-		require.Len(t, reconEntities, 1)
-		require.False(t, reconEntities[0].Finished)
+	//verify created reconciliation
+	reconEntities, err := transition.reconRepo.GetReconciliations(
+		&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID},
+	)
+	require.NoError(t, err)
+	require.Len(t, reconEntities, 1)
+	require.Greater(t, reconEntities[0].ClusterConfigStatus, oldClusterStateID) //verify new cluster-status ID is used
+	require.False(t, reconEntities[0].Finished)
 
-		//finish the reconciliation
-		err = transition.FinishReconciliation(reconEntities[0].SchedulingID, model.ClusterStatusReady)
-		require.NoError(t, err)
+	//verify cluster status
+	clusterState, err = transition.inventory.GetLatest(clusterState.Cluster.RuntimeID)
+	require.NoError(t, err)
+	require.Equal(t, clusterState.Status.Status, model.ClusterStatusReconciling)
+}
 
-		//finishing reconciliation twice is not allowed
-		err = transition.FinishReconciliation(reconEntities[0].SchedulingID, model.ClusterStatusReady)
-		require.Error(t, err)
+func (s *reconciliationTestSuite) TestTransitionFinishReconciliation() {
+	t := s.T()
+	transition, clusterState, cleanupFn := s.prepareTransitionTest(t)
+	defer cleanupFn()
 
-		//verify that reconciliation is finished
-		reconEntity, err := reconRepo.GetReconciliation(reconEntities[0].SchedulingID)
-		require.NoError(t, err)
-		require.True(t, reconEntity.Finished)
+	//get reconciliation entity
+	reconEntities, err := transition.reconRepo.GetReconciliations(
+		&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID},
+	)
+	require.NoError(t, err)
+	require.Len(t, reconEntities, 1)
+	require.False(t, reconEntities[0].Finished)
 
-		//verify cluster status
-		clusterState, err := inventory.GetLatest(clusterState.Cluster.RuntimeID)
-		require.NoError(t, err)
-		require.Equal(t, clusterState.Status.Status, model.ClusterStatusReady)
+	//finish the reconciliation
+	err = transition.FinishReconciliation(reconEntities[0].SchedulingID, model.ClusterStatusReady)
+	require.NoError(t, err)
+
+	//finishing reconciliation twice is not allowed
+	err = transition.FinishReconciliation(reconEntities[0].SchedulingID, model.ClusterStatusReady)
+	require.Error(t, err)
+
+	//verify that reconciliation is finished
+	reconEntity, err := transition.reconRepo.GetReconciliation(reconEntities[0].SchedulingID)
+	require.NoError(t, err)
+	require.True(t, reconEntity.Finished)
+
+	//verify cluster status
+	clusterState, err = transition.inventory.GetLatest(clusterState.Cluster.RuntimeID)
+	require.NoError(t, err)
+	require.Equal(t, clusterState.Status.Status, model.ClusterStatusReady)
+}
+
+func (s *reconciliationTestSuite) TestTransitionFinishWhenClusterNotInProgress() {
+	t := s.T()
+	transition, clusterState, cleanupFn := s.prepareTransitionTest(t)
+	defer cleanupFn()
+
+	//get reconciliation entity
+	reconEntities, err := transition.reconRepo.GetReconciliations(
+		&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID},
+	)
+	require.NoError(t, err)
+
+	err = transition.FinishReconciliation(reconEntities[0].SchedulingID, model.ClusterStatusReady)
+	require.NoError(t, err)
+
+	//get reconciliation entity
+	reconEntity, err := transition.ReconciliationRepository().CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{
+		PreComponents:  nil,
+		DeleteStrategy: "",
 	})
+	require.NoError(t, err)
+	require.NotNil(t, reconEntity)
+	require.False(t, reconEntity.Finished)
 
-	t.Run("Finish Reconciliation When Cluster is not in progress", func(t *testing.T) {
-		//get reconciliation entity
-		reconEntity, err := reconRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{
-			PreComponents:  nil,
+	//retrieving cluster state
+	currentClusterState, err := transition.inventory.GetLatest(clusterState.Cluster.RuntimeID)
+	require.NoError(t, err)
+
+	//setting cluster state manually
+	_, err = transition.inventory.UpdateStatus(currentClusterState, model.ClusterStatusDeletePending)
+	require.NoError(t, err)
+
+	//verify reconciliation success
+	err = transition.FinishReconciliation(reconEntity.SchedulingID, model.ClusterStatusReady)
+	require.NoError(t, err)
+
+	//verify cluster status
+	newClusterState, err := transition.inventory.GetLatest(clusterState.Cluster.RuntimeID)
+	require.NoError(t, err)
+	require.Equal(t, model.ClusterStatusDeletePending, newClusterState.Status.Status)
+}
+
+func (s *reconciliationTestSuite) TestDeletedClusters() {
+	t := s.T()
+	transition, clusterState, _ := s.prepareTransitionTest(t)
+	toBeDeletedReconEntity, err := transition.reconRepo.CreateReconciliation(clusterState,
+		&model.ReconciliationSequenceConfig{
+			PreComponents:  [][]string{{"comp3"}},
 			DeleteStrategy: "",
 		})
-		require.NoError(t, err)
-		require.NotNil(t, reconEntity)
-		require.False(t, reconEntity.Finished)
+	require.NoError(t, err)
+	require.NotNil(t, toBeDeletedReconEntity)
+	require.False(t, toBeDeletedReconEntity.Finished)
 
-		//retrieving cluster state
-		currentClusterState, err := transition.inventory.GetLatest(clusterState.Cluster.RuntimeID)
-		require.NoError(t, err)
+	// set cluster and related configs, statuses as deleted
+	err = transition.inventory.Delete(clusterState.Cluster.RuntimeID)
+	require.NoError(t, err)
 
-		//setting cluster state manually
-		_, err = transition.inventory.UpdateStatus(currentClusterState, model.ClusterStatusDeletePending)
-		require.NoError(t, err)
+	err = transition.CleanStatusesAndDeletedClustersOlderThan(time.Now())
+	require.NoError(t, err)
 
-		//verify reconciliation success
-		err = transition.FinishReconciliation(reconEntity.SchedulingID, model.ClusterStatusReady)
-		require.NoError(t, err)
-
-		//verify cluster status
-		newClusterState, err := transition.inventory.GetLatest(clusterState.Cluster.RuntimeID)
-		require.NoError(t, err)
-		require.Equal(t, model.ClusterStatusDeletePending, newClusterState.Status.Status)
-	})
-
-	t.Run("Clean Deleted Clusters", func(t *testing.T) {
-		toBeDeletedClusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
-			Kubeconfig: test.ReadKubeconfig(t),
-			KymaConfig: keb.KymaConfig{
-				Components: []keb.Component{
-					{
-						Component: "TestComp2",
-					},
-				},
-				Profile: "",
-				Version: "1.2.3",
-			},
-			RuntimeID: uuid.NewString(),
-		})
-		require.NoError(t, err)
-		toBeDeletedReconEntity, err := reconRepo.CreateReconciliation(toBeDeletedClusterState,
-			&model.ReconciliationSequenceConfig{
-				PreComponents:  [][]string{{"comp3"}},
-				DeleteStrategy: "",
-			})
-		require.NoError(t, err)
-		require.NotNil(t, toBeDeletedReconEntity)
-		require.False(t, toBeDeletedReconEntity.Finished)
-
-		// set cluster and related configs, statuses as deleted
-		err = inventory.Delete(toBeDeletedClusterState.Cluster.RuntimeID)
-		require.NoError(t, err)
-
-		err = transition.CleanStatusesAndDeletedClustersOlderThan(time.Now())
-		require.NoError(t, err)
-
-		_, err = inventory.Get(toBeDeletedClusterState.Configuration.RuntimeID, toBeDeletedClusterState.Configuration.Version)
-		require.Error(t, err)
-	})
-
+	_, err = transition.inventory.Get(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version)
+	require.Error(t, err)
 }

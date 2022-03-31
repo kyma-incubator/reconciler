@@ -19,65 +19,60 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
 
-var (
-	dbConn db.Connection
-	mu     sync.Mutex
-)
+func (s *reconciliationTestSuite) TestSchedulerRunOnce() {
+	t := s.T()
+	// run once will already expect the reconciliation to be in progress as there is no scheduling in place
+	clusterState := testClusterState("testCluster", 1, model.ClusterStatusReconciling)
+	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
+	scheduler := newScheduler(logger.NewLogger(true))
+	require.NoError(t, scheduler.RunOnce(clusterState, reconRepo, &SchedulerConfig{}))
+	requiredReconciliationEntity(t, reconRepo, clusterState)
+}
 
-func TestScheduler(t *testing.T) {
-	t.Run("Test run once", func(t *testing.T) {
-		// run once will already expect the reconciliation to be in progress as there is no scheduling in place
-		clusterState := testClusterState("testCluster", 1, model.ClusterStatusReconciling)
-		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-		scheduler := newScheduler(logger.NewLogger(true))
-		require.NoError(t, scheduler.RunOnce(clusterState, reconRepo, &SchedulerConfig{}))
-		requiredReconciliationEntity(t, reconRepo, clusterState)
-	})
+func (s *reconciliationTestSuite) TestSchedulerRun() {
+	t := s.T()
+	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
+	scheduler := newScheduler(logger.NewLogger(true))
 
-	t.Run("Test run", func(t *testing.T) {
-		reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-		scheduler := newScheduler(logger.NewLogger(true))
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
+	start := time.Now()
 
-		start := time.Now()
+	// for a regular run within the scheduling loop, the cluster to be processed must be in pending state first
+	clusterState := testClusterState("testCluster", 1, model.ClusterStatusReconcilePending)
 
-		// for a regular run within the scheduling loop, the cluster to be processed must be in pending state first
-		clusterState := testClusterState("testCluster", 1, model.ClusterStatusReconcilePending)
-
-		err := scheduler.Run(ctx, &ClusterStatusTransition{
-			conn: db.NewTestConnection(t),
-			inventory: &cluster.MockInventory{
-				//this will cause the creation of a reconciliation for the same cluster multiple times:
-				ClustersToReconcileResult: []*cluster.State{
-					clusterState,
-				},
-				//simulate an updated cluster status (required when transition updates the cluster status)
-				UpdateStatusResult: func() *cluster.State {
-					// here we expect that after updating the cluster, it will set it to reconciling as it is no longer
-					// waiting to be scheduled
-					updatedState := testClusterState("testCluster", 2, model.ClusterStatusReconciling)
-					return updatedState
-				}(),
-				GetResult: func() *cluster.State {
-					return clusterState
-				}(),
+	err := scheduler.Run(ctx, &ClusterStatusTransition{
+		conn: s.TxConnection(),
+		inventory: &cluster.MockInventory{
+			//this will cause the creation of a reconciliation for the same cluster multiple times:
+			ClustersToReconcileResult: []*cluster.State{
+				clusterState,
 			},
-			reconRepo: reconRepo,
-			logger:    logger.NewLogger(true),
-		}, &SchedulerConfig{
-			InventoryWatchInterval:   250 * time.Millisecond,
-			ClusterReconcileInterval: 100 * time.Second,
-			ClusterQueueSize:         5,
-		})
-		require.NoError(t, err)
-
-		time.Sleep(500 * time.Millisecond) //give it some time to shutdown
-
-		require.WithinDuration(t, start, time.Now(), 4*time.Second)
-		requiredReconciliationEntity(t, reconRepo, clusterState)
+			//simulate an updated cluster status (required when transition updates the cluster status)
+			UpdateStatusResult: func() *cluster.State {
+				// here we expect that after updating the cluster, it will set it to reconciling as it is no longer
+				// waiting to be scheduled
+				updatedState := testClusterState("testCluster", 2, model.ClusterStatusReconciling)
+				return updatedState
+			}(),
+			GetResult: func() *cluster.State {
+				return clusterState
+			}(),
+		},
+		reconRepo: reconRepo,
+		logger:    logger.NewLogger(true),
+	}, &SchedulerConfig{
+		InventoryWatchInterval:   250 * time.Millisecond,
+		ClusterReconcileInterval: 100 * time.Second,
+		ClusterQueueSize:         5,
 	})
+	require.NoError(t, err)
+
+	time.Sleep(500 * time.Millisecond) //give it some time to shutdown
+
+	require.WithinDuration(t, start, time.Now(), 4*time.Second)
+	requiredReconciliationEntity(t, reconRepo, clusterState)
 }
 
 func requiredReconciliationEntity(t *testing.T, reconRepo reconciliation.Repository, state *cluster.State) {
@@ -140,66 +135,58 @@ func createClusterStates(t *testing.T, inventory cluster.Inventory) []string {
 	return []string{s1.Cluster.RuntimeID, s2.Cluster.RuntimeID}
 }
 
-func dbConnection(t *testing.T) db.Connection {
-	mu.Lock()
-	defer mu.Unlock()
-	if dbConn == nil {
-		dbConn = db.NewTestConnection(t)
-	}
-	return dbConn
-}
+func (s *reconciliationTestSuite) TestMultipleSchedulerWatchingSameInventory() {
+	t := s.T()
+	dbConn, err := s.NewConnection()
+	require.NoError(t, err)
+	//initialize WaitGroup
+	var wg sync.WaitGroup
 
-func TestSchedulerParallel(t *testing.T) {
+	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
+	require.NoError(t, err)
 
-	t.Run("Multiple scheduler watching same inventory", func(t *testing.T) {
-		//initialize WaitGroup
-		var wg sync.WaitGroup
+	clusterRuntimeIDs := createClusterStates(t, inventory)
 
-		inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
-		require.NoError(t, err)
+	scheduler := newScheduler(logger.NewLogger(true))
+	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
+	require.NoError(t, err)
 
-		clusterRuntimeIDs := createClusterStates(t, inventory)
-		defer func() {
-			for _, runtimeID := range clusterRuntimeIDs {
-				require.NoError(t, inventory.Delete(runtimeID))
-			}
-		}()
+	removeExistingReconciliations(t, reconRepo) //cleanup before test execution
 
-		scheduler := newScheduler(logger.NewLogger(true))
-		reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConnection(t), true)
-		require.NoError(t, err)
-
-		removeExistingReconciliations(t, reconRepo)       //cleanup before test execution
-		defer removeExistingReconciliations(t, reconRepo) //cleanup after test execution
-
-		ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancelFct()
-
-		require.Len(t, getReconciliations(t, clusterRuntimeIDs, reconRepo), 0) //ensure no reconciliation exist
-
-		startAt := time.Now().Add(1 * time.Second)
-		for i := 0; i < 25; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				time.Sleep(time.Until(startAt))
-				err := scheduler.Run(ctx, &ClusterStatusTransition{
-					conn:      dbConnection(t),
-					inventory: inventory,
-					reconRepo: reconRepo,
-					logger:    logger.NewLogger(true),
-				}, &SchedulerConfig{
-					InventoryWatchInterval:   100 * time.Millisecond,
-					ClusterReconcileInterval: 100 * time.Second,
-					ClusterQueueSize:         10,
-				})
-				require.NoError(t, err)
-			}()
+	ctx, cancelFct := context.WithTimeout(context.Background(), 10*time.Second)
+	defer func() {
+		for _, runtimeID := range clusterRuntimeIDs {
+			require.NoError(t, inventory.Delete(runtimeID))
 		}
-		wg.Wait()
+		cancelFct()
+		removeExistingReconciliations(t, reconRepo)
+		require.NoError(t, dbConn.Close())
+	}()
 
-		require.Len(t, getReconciliations(t, clusterRuntimeIDs, reconRepo), 2) //ensure reconciliations were created
-	})
+	require.Len(t, getReconciliations(t, clusterRuntimeIDs, reconRepo), 0) //ensure no reconciliation exist
+
+	startAt := time.Now().Add(1 * time.Second)
+	for i := 0; i < 25; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			time.Sleep(time.Until(startAt))
+			err := scheduler.Run(ctx, &ClusterStatusTransition{
+				conn:      dbConn,
+				inventory: inventory,
+				reconRepo: reconRepo,
+				logger:    logger.NewLogger(true),
+			}, &SchedulerConfig{
+				InventoryWatchInterval:   100 * time.Millisecond,
+				ClusterReconcileInterval: 100 * time.Second,
+				ClusterQueueSize:         10,
+			})
+			require.NoError(t, err)
+		}()
+	}
+	wg.Wait()
+
+	require.Len(t, getReconciliations(t, clusterRuntimeIDs, reconRepo), 2) //ensure reconciliations were created
 }
 
 func getReconciliations(t *testing.T, clusterRuntimeIDs []string, reconRepo reconciliation.Repository) []*model.ReconciliationEntity {
@@ -209,8 +196,8 @@ func getReconciliations(t *testing.T, clusterRuntimeIDs []string, reconRepo reco
 	return recons
 }
 
-func TestDeleteStrategy(t *testing.T) {
-
+func (s *reconciliationTestSuite) TestDeleteStrategy() {
+	t := s.T()
 	// Happy paths
 	ds, err := NewDeleteStrategy("system")
 	require.NoError(t, err)

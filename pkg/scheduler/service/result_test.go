@@ -16,8 +16,9 @@ type testCase struct {
 	expectedOrphans         []string //contains correlation IDs
 }
 
-func TestReconciliationResult(t *testing.T) {
-	testCases := []*testCase{
+func (s *reconciliationTestSuite) TestReconciliationResult() {
+	t := s.T()
+	testCases := []testCase{
 		{
 			operations: []*model.OperationEntity{
 				{
@@ -259,41 +260,42 @@ func TestReconciliationResult(t *testing.T) {
 	}
 
 	//test reconcile result
-	for _, testCase := range testCases {
-		reconResult := newReconciliationResult(&model.ReconciliationEntity{
-			RuntimeID:    "runtimeID",
-			SchedulingID: "schedulingID",
-		}, logger.NewLogger(true))
+	for _, tt := range testCases {
+		testCase := tt
+		t.Run("testing reconciliation result", func(t *testing.T) {
+			reconResult := newReconciliationResult(&model.ReconciliationEntity{
+				RuntimeID:    "runtimeID",
+				SchedulingID: "schedulingID",
+			}, logger.NewLogger(true))
 
-		require.NoError(t, reconResult.AddOperations(testCase.operations))
-		require.Equal(t, testCase.expectedResultReconcile, reconResult.GetResult())
-		require.ElementsMatch(t, testCase.operations, reconResult.GetOperations())
+			require.NoError(t, reconResult.AddOperations(testCase.operations))
+			require.Equal(t, testCase.expectedResultReconcile, reconResult.GetResult())
+			require.ElementsMatch(t, testCase.operations, reconResult.GetOperations())
 
-		//check detected orphans
-		allDetectedOrphans := make(map[string]*model.OperationEntity)
-		detectedOrphans := reconResult.GetOrphans(1 * time.Second)
-		for _, detectedOrphan := range detectedOrphans {
-			allDetectedOrphans[detectedOrphan.CorrelationID] = detectedOrphan
-		}
-		for _, correlationID := range testCase.expectedOrphans {
-			_, ok := allDetectedOrphans[correlationID]
-			require.True(t, ok)
-		}
-	}
+			//check detected orphans
+			allDetectedOrphans := make(map[string]*model.OperationEntity)
+			detectedOrphans := reconResult.GetOrphans(1 * time.Second)
+			for _, detectedOrphan := range detectedOrphans {
+				allDetectedOrphans[detectedOrphan.CorrelationID] = detectedOrphan
+			}
+			for _, correlationID := range testCase.expectedOrphans {
+				_, ok := allDetectedOrphans[correlationID]
+				require.True(t, ok)
+			}
 
-	//test delete result
-	for _, testCase := range testCases {
-		reconResult := newReconciliationResult(&model.ReconciliationEntity{
-			RuntimeID:    "runtimeID",
-			SchedulingID: "schedulingID",
-		}, logger.NewLogger(true))
+			//test delete result
+			reconResult = newReconciliationResult(&model.ReconciliationEntity{
+				RuntimeID:    "runtimeID",
+				SchedulingID: "schedulingID",
+			}, logger.NewLogger(true))
 
-		//mark all operations as delete op
-		for _, op := range testCase.operations {
-			op.Type = model.OperationTypeDelete
-		}
+			//mark all operations as delete op
+			for _, op := range testCase.operations {
+				op.Type = model.OperationTypeDelete
+			}
 
-		require.NoError(t, reconResult.AddOperations(testCase.operations))
-		require.Equal(t, reconResult.GetResult(), testCase.expectedResultDelete)
+			require.NoError(t, reconResult.AddOperations(testCase.operations))
+			require.Equal(t, reconResult.GetResult(), testCase.expectedResultDelete)
+		})
 	}
 }

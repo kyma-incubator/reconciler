@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -15,7 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBookkeepingTask(t *testing.T) {
+func (s *reconciliationTestSuite) TestBookkeepingTask() {
+	t := s.T()
 	tests := []struct {
 		name           string
 		markOpsAs      model.OperationState
@@ -40,7 +40,7 @@ func TestBookkeepingTask(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			//create mock database connection
-			dbConn := db.NewTestConnection(t)
+			dbConn := s.TxConnection()
 			//prepare inventory
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
@@ -126,8 +126,8 @@ func newReconciliation(t *testing.T, reconRepo reconciliation.Repository, cluste
 	return reconEntity
 }
 
-func TestBookkeepingTaskParallel(t *testing.T) {
-
+func (s *reconciliationTestSuite) TestBookkeepingTaskParallel() {
+	t := s.T()
 	threadCount := 25
 	//errorCount should be equal to 48, since there are 2 operations scheduled,
 	//and 25 threads try to mark them as orphans at the same time
@@ -165,7 +165,8 @@ func TestBookkeepingTaskParallel(t *testing.T) {
 			var wg sync.WaitGroup
 
 			//create mock database connection
-			dbConn := db.NewTestConnection(t)
+			dbConn, err := s.NewConnection()
+			require.NoError(t, err)
 			//prepare inventory
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)
@@ -176,11 +177,7 @@ func TestBookkeepingTaskParallel(t *testing.T) {
 			//cleanup cluster at the end
 			defer func() {
 				require.NoError(t, inventory.Delete(clusterState.Status.RuntimeID))
-			}()
-
-			//cleanup cluster at the end
-			defer func() {
-				require.NoError(t, inventory.Delete(clusterState.Status.RuntimeID))
+				require.NoError(t, dbConn.Close())
 			}()
 
 			//trigger reconciliation for cluster
