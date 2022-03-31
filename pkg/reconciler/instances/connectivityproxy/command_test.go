@@ -392,6 +392,13 @@ func TestCommandRemove(t *testing.T) {
 		client := &mocks.Client{}
 		client.On("Delete", actionContext.Context, "test-manifest", task.Namespace).
 			Return(nil, nil)
+
+		client.On("DeleteResource", actionContext.Context, "secret", "cc-certs", "istio-namespace").
+			Return(nil, nil)
+
+		client.On("DeleteResource", actionContext.Context, "secret", "cc-certs-cacert", "istio-namespace").
+			Return(nil, nil)
+
 		actionContext.KubeClient = client
 
 		commands := CommandActions{
