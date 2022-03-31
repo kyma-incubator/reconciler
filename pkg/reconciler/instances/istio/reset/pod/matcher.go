@@ -15,7 +15,14 @@ import (
 // Matcher of Pod to the Handler.
 type Matcher interface {
 	// GetHandlersMap by given pods list.
-	GetHandlersMap(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts WaitOptions) map[Handler][]CustomObject
+	GetHandlersMap(
+		kubeClient kubernetes.Interface,
+		retryOpts []retry.Option,
+		podsList v1.PodList,
+		log *zap.SugaredLogger,
+		debug bool,
+		waitOpts WaitOptions,
+	) map[Handler][]CustomObject
 }
 
 // ParentKindMatcher matches Pod to the Handler by the parent kind.
