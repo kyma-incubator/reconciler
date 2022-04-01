@@ -33,6 +33,11 @@ type MockRepository struct {
 	GetAllComponentsResultError                         error
 }
 
+func (mr *MockRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	//TODO implement me
+	return nil
+}
+
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
 	return mr.CreateReconciliationResult, nil
 }

@@ -43,6 +43,7 @@ type Repository interface {
 	GetComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error)
 	GetMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error)
 	GetAllComponents() ([]string, error)
+	EnableDebugLogging(schedulingID string, correlationID ...string) error
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.

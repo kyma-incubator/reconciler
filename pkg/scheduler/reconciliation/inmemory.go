@@ -19,6 +19,11 @@ type InMemoryReconciliationRepository struct {
 	mu              sync.Mutex
 }
 
+func (r *InMemoryReconciliationRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	//TODO implement me
+	return nil
+}
+
 func NewInMemoryReconciliationRepository() Repository {
 	return &InMemoryReconciliationRepository{
 		reconciliations: make(map[string]*model.ReconciliationEntity),

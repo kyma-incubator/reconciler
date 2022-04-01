@@ -22,6 +22,45 @@ type PersistentReconciliationRepository struct {
 	*repository.Repository
 }
 
+func (r *PersistentReconciliationRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	reconciliationEntity, err := r.GetReconciliation(schedulingID)
+	if err != nil {
+		return err
+	}
+	if reconciliationEntity.Status.IsFinal() {
+		return fmt.Errorf("could not change debug log for reconciliation (schedulingID=%s): reconciliation state is final: %s", schedulingID, reconciliationEntity.Status)
+	}
+	dbOps := func(tx *db.TxConnection) error {
+		op := &model.OperationEntity{}
+		columnHandler, err := db.NewColumnHandler(op, tx, r.Logger)
+		if err != nil {
+			return err
+		}
+		debugColumn, err := columnHandler.ColumnName("Debug")
+		if err != nil {
+			return err
+		}
+		schedulingIDColumn, err := columnHandler.ColumnName("SchedulingID")
+		if err != nil {
+			return err
+		}
+		correlationIDColumn, err := columnHandler.ColumnName("CorrelationID")
+		if err != nil {
+			return err
+		}
+		updateQuery := fmt.Sprintf("UPDATE %s SET %s=TRUE", op.Table(), debugColumn)
+		whereClause := fmt.Sprintf(" WHERE %s=%s", schedulingIDColumn, schedulingID)
+		andClause := fmt.Sprintf(" AND %s IN (%s)", correlationIDColumn, strings.Join(correlationID, ","))
+		_, err = tx.Exec(fmt.Sprintf("%s%s%s", updateQuery, whereClause, andClause))
+		if err != nil {
+			return err
+		}
+		r.Logger.Infof("reconRepo successfully enabled debug log level for %d operations", len(correlationID))
+		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
 func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repository, error) {
 	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {
