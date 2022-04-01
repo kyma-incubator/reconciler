@@ -31,29 +31,53 @@ func (r *PersistentReconciliationRepository) EnableDebugLogging(schedulingID str
 		return fmt.Errorf("could not change debug log for reconciliation (schedulingID=%s): reconciliation state is final: %s", schedulingID, reconciliationEntity.Status)
 	}
 	dbOps := func(tx *db.TxConnection) error {
+		var updateArgs []interface{}
+
+		var correlationIDSQL string
+
+		updateSQLTpl := "UPDATE %s SET %s=$1 WHERE %s=$2 AND %s=$3"
+
 		op := &model.OperationEntity{}
 		columnHandler, err := db.NewColumnHandler(op, tx, r.Logger)
 		if err != nil {
 			return err
 		}
+
 		debugColumn, err := columnHandler.ColumnName("Debug")
 		if err != nil {
 			return err
 		}
+		updateArgs = append(updateArgs, true)
 		schedulingIDColumn, err := columnHandler.ColumnName("SchedulingID")
 		if err != nil {
 			return err
 		}
+		updateArgs = append(updateArgs, schedulingID)
+		opStateColumn, err := columnHandler.ColumnName("State")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, model.OperationStateNew)
 		correlationIDColumn, err := columnHandler.ColumnName("CorrelationID")
 		if err != nil {
 			return err
 		}
-		updateQuery := fmt.Sprintf("UPDATE %s SET %s=TRUE", op.Table(), debugColumn)
-		whereClause := fmt.Sprintf(" WHERE %s=%s", schedulingIDColumn, schedulingID)
-		andClause := fmt.Sprintf(" AND %s IN (%s)", correlationIDColumn, strings.Join(correlationID, ","))
-		_, err = tx.Exec(fmt.Sprintf("%s%s%s", updateQuery, whereClause, andClause))
+		if len(correlationID) == 1 {
+			correlationIDSQL = fmt.Sprintf(" AND %s=$4", correlationIDColumn)
+			updateArgs = append(updateArgs, correlationID[0])
+		}
+		updateSQL := fmt.Sprintf(updateSQLTpl, op.Table(), debugColumn, schedulingIDColumn, opStateColumn)
+
+		result, err := tx.Exec(fmt.Sprintf("%s%s", updateSQL, correlationIDSQL), updateArgs...)
 		if err != nil {
 			return err
+		}
+		rowsAffectedCnt, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffectedCnt == 0 {
+			return fmt.Errorf("reconRepo failed to enable debug log level for requested operations")
 		}
 		r.Logger.Infof("reconRepo successfully enabled debug log level for %d operations", len(correlationID))
 		return nil

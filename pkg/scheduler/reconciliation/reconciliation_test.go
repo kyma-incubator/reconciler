@@ -721,6 +721,47 @@ func TestReconciliationRepository(t *testing.T) {
 				require.GreaterOrEqual(t, meanDuration, int64(1000))
 			},
 		},
+		{
+			name: "Enable debug logging for a reconciliation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID)
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					require.Equal(t, true, op.Debug)
+				}
+			},
+		},
+		{
+			name: "Enable debug logging for a specific operation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				operationEntity := opsEntities[0]
+
+				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID, operationEntity.CorrelationID)
+				require.NoError(t, err)
+
+				updatedOperationEntity, err := reconRepo.GetOperation(operationEntity.SchedulingID, operationEntity.CorrelationID)
+				require.NoError(t, err)
+				require.Equal(t, true, updatedOperationEntity.Debug)
+
+			},
+		},
 	}
 
 	repos := map[string]Repository{

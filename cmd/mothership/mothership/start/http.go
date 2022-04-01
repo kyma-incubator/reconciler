@@ -193,30 +193,6 @@ func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http
 		server.SendHTTPErrorMap(w, err)
 		return
 	}
-
-	/*reconciliationEntity, err := o.Registry.ReconciliationRepository().GetReconciliation(schedulingID)
-	if err != nil {
-		server.SendHTTPErrorMap(w, err)
-		return
-	}
-	if reconciliationEntity.Status.IsFinal(){
-		err=fmt.Errorf("could not change debug log for reconciliation (schedulingID=%s): reconciliation state is final: %s", schedulingID, reconciliationEntity.Status)
-		server.SendHTTPErrorMap(w, err)
-		return
-	}
-
-	operations, err := o.Registry.ReconciliationRepository().GetOperations(&operation.WithSchedulingID{
-		SchedulingID: schedulingID,
-	})
-	if err != nil {
-		server.SendHTTPErrorMap(w, err)
-		return
-	}
-	if reconciliationEntity.Status.IsFinal(){
-		err=fmt.Errorf("could not change debug log for reconciliation (schedulingID=%s): reconciliation state is final: %s", schedulingID, reconciliationEntity.Status)
-		server.SendHTTPErrorMap(w, err)
-		return
-	}*/
 }
 
 func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
