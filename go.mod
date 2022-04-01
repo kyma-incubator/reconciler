@@ -29,6 +29,7 @@ require (
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-git/go-git/v5 v5.4.2
+	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0

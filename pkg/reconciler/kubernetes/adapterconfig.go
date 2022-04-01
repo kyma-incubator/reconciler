@@ -17,6 +17,7 @@ type Config struct {
 	ProgressTimeout  time.Duration
 	MaxRetries       int
 	RetryDelay       time.Duration
+	Verbose          bool
 }
 
 func (c *Config) validate() error {

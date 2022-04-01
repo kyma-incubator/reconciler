@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/avast/retry-go"
+	"github.com/go-logr/logr"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"helm.sh/helm/v3/pkg/kube"
 	batchv1 "k8s.io/api/batch/v1"
@@ -17,9 +21,8 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"strings"
-	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -78,6 +81,9 @@ func NewKubernetesClient(kubeconfig string, logger *zap.SugaredLogger, config *C
 	apixClient, err := apixV1ClientSet.NewForConfig(restConfig)
 	if err != nil {
 		return nil, err
+	}
+	if !config.Verbose {
+		klog.SetLogger(logr.Discard())
 	}
 	return adapt(kubeconfig, logger, config, restConfig, mapper, dynamicClient, apixClient), err
 }

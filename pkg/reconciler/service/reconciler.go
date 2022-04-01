@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"sync"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"

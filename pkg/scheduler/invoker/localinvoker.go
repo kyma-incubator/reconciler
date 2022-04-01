@@ -22,13 +22,15 @@ type LocalReconcilerInvoker struct {
 	reconRepo  reconciliation.Repository
 	logger     *zap.SugaredLogger
 	statusFunc ReconcilerStatusFunc
+	debug      bool
 }
 
-func NewLocalReconcilerInvoker(reconRepo reconciliation.Repository, statusFunc ReconcilerStatusFunc, logger *zap.SugaredLogger) *LocalReconcilerInvoker {
+func NewLocalReconcilerInvoker(reconRepo reconciliation.Repository, statusFunc ReconcilerStatusFunc, logger *zap.SugaredLogger, debug bool) *LocalReconcilerInvoker {
 	return &LocalReconcilerInvoker{
 		reconRepo:  reconRepo,
 		logger:     logger,
 		statusFunc: statusFunc,
+		debug:      debug,
 	}
 }
 
@@ -38,7 +40,9 @@ func (i *LocalReconcilerInvoker) Invoke(ctx context.Context, params *Params) err
 			"(schedulingID:%s/correlationID:%s)", params.SchedulingID, params.CorrelationID)
 	}
 	component := params.ComponentToReconcile.Component
-
+	if i.debug {
+		reconRegistry.EnableDebug()
+	}
 	//resolve component reconciler
 	compRecon, err := reconRegistry.GetReconciler(component)
 	if err == nil {

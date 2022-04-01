@@ -80,7 +80,7 @@ func runLocalReconciler(t *testing.T, simulateError bool) (reconciliation.Reposi
 
 	clusterStateMock.Cluster.Kubeconfig = test.ReadKubeconfig(t)
 
-	invoker := NewLocalReconcilerInvoker(reconRepo, callbackFct, logger.NewLogger(true))
+	invoker := NewLocalReconcilerInvoker(reconRepo, callbackFct, logger.NewLogger(true), true)
 	err = invoker.Invoke(ctx, &Params{
 		ComponentToReconcile: &keb.Component{
 			Component:     "unittest", //will trigger the 'unittest' component reconciler created above

@@ -114,7 +114,7 @@ func RunLocal(o *Options) error {
 	}
 	cluster.Configuration.Components = comps
 
-	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), l)
+	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), l, o.Verbose)
 	reconResult, err := runtimeBuilder.RunLocal(printStatus).
 		WithSchedulerConfig(
 			&scheduler.SchedulerConfig{

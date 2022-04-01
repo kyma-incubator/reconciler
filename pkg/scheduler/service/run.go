@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/features"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -22,13 +23,15 @@ type RuntimeBuilder struct {
 	reconRepo        reconciliation.Repository
 	logger           *zap.SugaredLogger
 	workerPoolConfig *worker.Config
+	debug            bool
 }
 
-func NewRuntimeBuilder(reconRepo reconciliation.Repository, logger *zap.SugaredLogger) *RuntimeBuilder {
+func NewRuntimeBuilder(reconRepo reconciliation.Repository, logger *zap.SugaredLogger, debug bool) *RuntimeBuilder {
 	return &RuntimeBuilder{
 		reconRepo:        reconRepo,
 		logger:           logger,
 		workerPoolConfig: &worker.Config{},
+		debug:            debug,
 	}
 }
 
@@ -37,7 +40,7 @@ func (rb *RuntimeBuilder) newWorkerPool(retriever worker.ClusterStateRetriever, 
 }
 
 func (rb *RuntimeBuilder) RunLocal(statusFunc invoker.ReconcilerStatusFunc) *RunLocal {
-	runL := &RunLocal{runtimeBuilder: rb, statusFunc: statusFunc}
+	runL := &RunLocal{runtimeBuilder: rb, statusFunc: statusFunc, debug: rb.debug}
 
 	//Make sure local runner will NOT retry if the local invoker returns an error!
 	//If retries are enabled, operations which are reaching a final state (e.g. 'error') would try to switch back
@@ -78,6 +81,7 @@ type RunLocal struct {
 	runtimeBuilder  *RuntimeBuilder
 	statusFunc      invoker.ReconcilerStatusFunc
 	schedulerConfig *SchedulerConfig
+	debug           bool
 }
 
 func (l *RunLocal) logger() *zap.SugaredLogger { //convenient function
@@ -118,7 +122,7 @@ func (l *RunLocal) Run(ctx context.Context, clusterState *cluster.State) (*Recon
 
 	//start worker pool
 	l.logger().Info("Starting worker pool")
-	localInvoker := invoker.NewLocalReconcilerInvoker(l.runtimeBuilder.reconRepo, l.statusFunc, l.logger())
+	localInvoker := invoker.NewLocalReconcilerInvoker(l.runtimeBuilder.reconRepo, l.statusFunc, l.logger(), l.debug)
 	workerPool, err := l.runtimeBuilder.newWorkerPool(&worker.PassThroughRetriever{State: clusterState}, localInvoker)
 	if err != nil {
 		l.logger().Errorf("Failed to create worker pool: %s", err)

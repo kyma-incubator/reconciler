@@ -14,7 +14,7 @@ import (
 
 func startScheduler(ctx context.Context, o *Options) error {
 
-	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose))
+	runtimeBuilder := service.NewRuntimeBuilder(o.Registry.ReconciliationRepository(), logger.NewLogger(o.Verbose), o.Verbose)
 	ds, err := service.NewDeleteStrategy(o.Config.Scheduler.DeleteStrategy)
 	if err != nil {
 		return err
