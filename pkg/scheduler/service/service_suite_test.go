@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-type reconciliationTestSuite struct {
+type serviceTestSuite struct {
 	suite.Suite
 	containerSuite   *db.ContainerTestSuite
 	testContext      context.Context
@@ -39,7 +39,7 @@ func TestIntegrationSuite(t *testing.T) {
 		false,
 	)
 	cs.SetT(t)
-	suite.Run(t, &reconciliationTestSuite{
+	suite.Run(t, &serviceTestSuite{
 		containerSuite: cs,
 		testContext:    context.Background(),
 		testLogger:     logger.NewLogger(true),
@@ -48,19 +48,19 @@ func TestIntegrationSuite(t *testing.T) {
 	db.ReturnLeasedSharedContainerTestSuite(t, containerSettings)
 }
 
-func (s *reconciliationTestSuite) SetupSuite() {
+func (s *serviceTestSuite) SetupSuite() {
 	s.containerSuite.SetupSuite()
 	s.serverStartMutex = sync.Mutex{}
 }
 
-func (s *reconciliationTestSuite) TearDownSuite() {
+func (s *serviceTestSuite) TearDownSuite() {
 	s.containerSuite.TearDownSuite()
 }
 
-func (s *reconciliationTestSuite) TxConnection() *db.TxConnection {
+func (s *serviceTestSuite) TxConnection() *db.TxConnection {
 	return s.containerSuite.TxConnection()
 }
 
-func (s *reconciliationTestSuite) NewConnection() (db.Connection, error) {
+func (s *serviceTestSuite) NewConnection() (db.Connection, error) {
 	return s.containerSuite.NewConnection()
 }

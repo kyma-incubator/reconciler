@@ -45,7 +45,7 @@ func registerBaseReconciler(t *testing.T) *service.ComponentReconciler {
 	return compRecon
 }
 
-func (s *reconciliationTestSuite) TestRunLocalWithSuccess() {
+func (s *serviceTestSuite) TestRunLocalWithSuccess() {
 	t := s.T()
 	compRecon := registerBaseReconciler(t)
 	compRecon.WithReconcileAction(&customAction{true})
@@ -54,7 +54,7 @@ func (s *reconciliationTestSuite) TestRunLocalWithSuccess() {
 	require.Equal(t, reconciler.StatusSuccess, receivedUpdates[len(receivedUpdates)-1].Status)
 }
 
-func (s *reconciliationTestSuite) TestRunLocalWithError() {
+func (s *serviceTestSuite) TestRunLocalWithError() {
 	t := s.T()
 	compRecon := registerBaseReconciler(t)
 	compRecon.WithReconcileAction(&customAction{false})
@@ -67,15 +67,15 @@ func (s *reconciliationTestSuite) TestRunLocalWithError() {
 	require.Equal(t, 1, countStatus(reconciler.StatusFailed, receivedUpdates))
 }
 
-func (s *reconciliationTestSuite) TestRunRemoteWithSuccess() {
+func (s *serviceTestSuite) TestRunRemoteWithSuccess() {
 	s.runRemote(model.ClusterStatusReady, 30*time.Second)
 }
 
-func (s *reconciliationTestSuite) TestRunRemoteWithError() {
+func (s *serviceTestSuite) TestRunRemoteWithError() {
 	s.runRemote(model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
 }
 
-func (s *reconciliationTestSuite) runRemote(expectedClusterStatus model.Status, timeout time.Duration) {
+func (s *serviceTestSuite) runRemote(expectedClusterStatus model.Status, timeout time.Duration) {
 	t := s.T()
 	dbConn, err := s.NewConnection()
 	require.NoError(t, err)
@@ -237,7 +237,7 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 	}
 }
 
-func (s *reconciliationTestSuite) runLocal(timeout time.Duration) (*ReconciliationResult, []*reconciler.CallbackMessage) {
+func (s *serviceTestSuite) runLocal(timeout time.Duration) (*ReconciliationResult, []*reconciler.CallbackMessage) {
 	t := s.T()
 	dbConn, err := s.NewConnection()
 	require.NoError(t, err)

@@ -19,7 +19,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 )
 
-func (s *reconciliationTestSuite) TestSchedulerRunOnce() {
+func (s *serviceTestSuite) TestSchedulerRunOnce() {
 	t := s.T()
 	// run once will already expect the reconciliation to be in progress as there is no scheduling in place
 	clusterState := testClusterState("testCluster", 1, model.ClusterStatusReconciling)
@@ -29,7 +29,7 @@ func (s *reconciliationTestSuite) TestSchedulerRunOnce() {
 	requiredReconciliationEntity(t, reconRepo, clusterState)
 }
 
-func (s *reconciliationTestSuite) TestSchedulerRun() {
+func (s *serviceTestSuite) TestSchedulerRun() {
 	t := s.T()
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 	scheduler := newScheduler(logger.NewLogger(true))
@@ -135,7 +135,7 @@ func createClusterStates(t *testing.T, inventory cluster.Inventory) []string {
 	return []string{s1.Cluster.RuntimeID, s2.Cluster.RuntimeID}
 }
 
-func (s *reconciliationTestSuite) TestMultipleSchedulerWatchingSameInventory() {
+func (s *serviceTestSuite) TestMultipleSchedulerWatchingSameInventory() {
 	t := s.T()
 	dbConn, err := s.NewConnection()
 	require.NoError(t, err)
@@ -196,7 +196,7 @@ func getReconciliations(t *testing.T, clusterRuntimeIDs []string, reconRepo reco
 	return recons
 }
 
-func (s *reconciliationTestSuite) TestDeleteStrategy() {
+func (s *serviceTestSuite) TestDeleteStrategy() {
 	t := s.T()
 	// Happy paths
 	ds, err := NewDeleteStrategy("system")

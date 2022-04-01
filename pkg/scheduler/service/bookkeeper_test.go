@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (s *reconciliationTestSuite) TestBookkeeper() {
+func (s *serviceTestSuite) TestBookkeeper() {
 	t := s.T()
 	dbConn := s.TxConnection() //share one db-connection between inventory and recon-repo (required for tx)
 

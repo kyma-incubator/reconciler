@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (s *reconciliationTestSuite) TestBookkeepingTask() {
+func (s *serviceTestSuite) TestBookkeepingTask() {
 	t := s.T()
 	tests := []struct {
 		name           string
@@ -127,7 +127,7 @@ func newReconciliation(t *testing.T, reconRepo reconciliation.Repository, cluste
 	return reconEntity
 }
 
-func (s *reconciliationTestSuite) TestBookkeepingTaskParallel() {
+func (s *serviceTestSuite) TestBookkeepingTaskParallel() {
 	t := s.T()
 	threadCount := 25
 	//errorCount should be equal to 48, since there are 2 operations scheduled,

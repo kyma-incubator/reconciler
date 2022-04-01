@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (s *reconciliationTestSuite) Test_cleaner_Run_old_logic() {
+func (s *serviceTestSuite) Test_cleaner_Run_old_logic() {
 	t := s.T()
 	cleaner := newCleaner(logger.NewLogger(true))
 
@@ -47,7 +47,7 @@ func (s *reconciliationTestSuite) Test_cleaner_Run_old_logic() {
 	require.WithinDuration(t, start, time.Now(), 2*time.Second)
 }
 
-func (s *reconciliationTestSuite) Test_cleaner_Run_new_logic() {
+func (s *serviceTestSuite) Test_cleaner_Run_new_logic() {
 	t := s.T()
 	cleaner := newCleaner(logger.NewLogger(true))
 
@@ -179,7 +179,7 @@ func (s *reconciliationTestSuite) Test_cleaner_Run_new_logic() {
 	require.WithinDuration(t, start, time.Now(), 2*time.Second)
 }
 
-func (s *reconciliationTestSuite) Test_beginningOfTheDay() {
+func (s *serviceTestSuite) Test_beginningOfTheDay() {
 	t := s.T()
 	type test struct {
 		time     string

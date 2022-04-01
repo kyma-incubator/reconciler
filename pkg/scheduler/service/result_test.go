@@ -16,7 +16,7 @@ type testCase struct {
 	expectedOrphans         []string //contains correlation IDs
 }
 
-func (s *reconciliationTestSuite) TestReconciliationResult() {
+func (s *serviceTestSuite) TestReconciliationResult() {
 	t := s.T()
 	testCases := []testCase{
 		{

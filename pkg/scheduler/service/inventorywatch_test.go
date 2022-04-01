@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (s *reconciliationTestSuite) TestInventoryWatch() {
+func (s *serviceTestSuite) TestInventoryWatch() {
 	t := s.T()
 	clusterStateExpected := &cluster.State{
 		Cluster: &model.ClusterEntity{
@@ -57,7 +57,7 @@ func (s *reconciliationTestSuite) TestInventoryWatch() {
 	require.Equal(t, clusterStateExpected, clusterStateGot)
 }
 
-func (s *reconciliationTestSuite) TestInventoryWatch_ShouldStopOnCtxClose() {
+func (s *serviceTestSuite) TestInventoryWatch_ShouldStopOnCtxClose() {
 	t := s.T()
 	inventory := &cluster.MockInventory{}
 	queue := make(chan *cluster.State, 1)

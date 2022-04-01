@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func (s *reconciliationTestSuite) prepareTransitionTest(t *testing.T) (*ClusterStatusTransition, *cluster.State, func()) {
+func (s *serviceTestSuite) prepareTransitionTest(t *testing.T) (*ClusterStatusTransition, *cluster.State, func()) {
 	dbConn, err := s.NewConnection()
 	require.NoError(t, err)
 
@@ -61,7 +61,7 @@ func (s *reconciliationTestSuite) prepareTransitionTest(t *testing.T) (*ClusterS
 	return transition, clusterState, cleanupFn
 }
 
-func (s *reconciliationTestSuite) TestTransitionStartReconciliation() {
+func (s *serviceTestSuite) TestTransitionStartReconciliation() {
 	t := s.T()
 	transition, clusterState, cleanupFn := s.prepareTransitionTest(t)
 	defer cleanupFn()
@@ -90,7 +90,7 @@ func (s *reconciliationTestSuite) TestTransitionStartReconciliation() {
 	require.Equal(t, clusterState.Status.Status, model.ClusterStatusReconciling)
 }
 
-func (s *reconciliationTestSuite) TestTransitionFinishReconciliation() {
+func (s *serviceTestSuite) TestTransitionFinishReconciliation() {
 	t := s.T()
 	transition, clusterState, cleanupFn := s.prepareTransitionTest(t)
 	defer cleanupFn()
@@ -122,7 +122,7 @@ func (s *reconciliationTestSuite) TestTransitionFinishReconciliation() {
 	require.Equal(t, clusterState.Status.Status, model.ClusterStatusReady)
 }
 
-func (s *reconciliationTestSuite) TestTransitionFinishWhenClusterNotInProgress() {
+func (s *serviceTestSuite) TestTransitionFinishWhenClusterNotInProgress() {
 	t := s.T()
 	transition, clusterState, cleanupFn := s.prepareTransitionTest(t)
 	defer cleanupFn()
