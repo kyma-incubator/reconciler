@@ -741,6 +741,34 @@ func TestReconciliationRepository(t *testing.T) {
 			},
 		},
 		{
+			name: "Enable debug logging for a non-final reconciliation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+				require.False(t, reconEntity.Status.IsFinal())
+
+				clusterStatus := stateMock1.Status
+				clusterStatus.Status = model.ClusterStatusReconcileErrorRetryable
+				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, clusterStatus)
+				require.NoError(t, err)
+				updatedReconEntity, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
+				require.NoError(t, err)
+				require.True(t, updatedReconEntity.Status.IsFinal())
+
+				err = reconRepo.EnableDebugLogging(updatedReconEntity.SchedulingID)
+				require.Error(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					require.Equal(t, false, op.Debug)
+				}
+			},
+		},
+		{
 			name: "Enable debug logging for a specific operation",
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
@@ -759,6 +787,32 @@ func TestReconciliationRepository(t *testing.T) {
 				updatedOperationEntity, err := reconRepo.GetOperation(operationEntity.SchedulingID, operationEntity.CorrelationID)
 				require.NoError(t, err)
 				require.Equal(t, true, updatedOperationEntity.Debug)
+
+			},
+		},
+		{
+			name: "Enable debug logging for a non-new operation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				operationEntity := opsEntities[0]
+				require.Equal(t, operationEntity.State, model.OperationStateNew)
+
+				err = reconRepo.UpdateOperationState(operationEntity.SchedulingID, operationEntity.CorrelationID, model.OperationStateOrphan, true)
+				require.NoError(t, err)
+
+				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID, operationEntity.CorrelationID)
+				require.Error(t, err)
+
+				updatedOperationEntity, err := reconRepo.GetOperation(operationEntity.SchedulingID, operationEntity.CorrelationID)
+				require.NoError(t, err)
+				require.Equal(t, false, updatedOperationEntity.Debug)
 
 			},
 		},
