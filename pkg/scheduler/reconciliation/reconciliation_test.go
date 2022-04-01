@@ -726,6 +726,7 @@ func TestReconciliationRepository(t *testing.T) {
 			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
 				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
 				require.NoError(t, err)
+				require.False(t, reconEntity.Status.IsFinal())
 
 				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID)
 				require.NoError(t, err)
@@ -736,7 +737,7 @@ func TestReconciliationRepository(t *testing.T) {
 				require.NoError(t, err)
 
 				for _, op := range opsEntities {
-					require.Equal(t, true, op.Debug)
+					require.True(t, op.Debug)
 				}
 			},
 		},
@@ -764,7 +765,7 @@ func TestReconciliationRepository(t *testing.T) {
 				require.NoError(t, err)
 
 				for _, op := range opsEntities {
-					require.Equal(t, false, op.Debug)
+					require.False(t, op.Debug)
 				}
 			},
 		},
@@ -784,9 +785,18 @@ func TestReconciliationRepository(t *testing.T) {
 				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID, operationEntity.CorrelationID)
 				require.NoError(t, err)
 
-				updatedOperationEntity, err := reconRepo.GetOperation(operationEntity.SchedulingID, operationEntity.CorrelationID)
+				updatedOpsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
 				require.NoError(t, err)
-				require.Equal(t, true, updatedOperationEntity.Debug)
+
+				for _, op := range updatedOpsEntities {
+					if op.CorrelationID == operationEntity.CorrelationID {
+						require.True(t, op.Debug)
+					} else {
+						require.False(t, op.Debug)
+					}
+				}
 
 			},
 		},
@@ -810,9 +820,14 @@ func TestReconciliationRepository(t *testing.T) {
 				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID, operationEntity.CorrelationID)
 				require.Error(t, err)
 
-				updatedOperationEntity, err := reconRepo.GetOperation(operationEntity.SchedulingID, operationEntity.CorrelationID)
+				updatedOpsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
 				require.NoError(t, err)
-				require.Equal(t, false, updatedOperationEntity.Debug)
+
+				for _, op := range updatedOpsEntities {
+					require.False(t, op.Debug)
+				}
 
 			},
 		},

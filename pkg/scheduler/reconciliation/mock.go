@@ -31,11 +31,11 @@ type MockRepository struct {
 	GetMothershipOperationProcessingDurationResultError error
 	GetAllComponentsResult                              []string
 	GetAllComponentsResultError                         error
+	EnableDebugLoggingResult                            error
 }
 
 func (mr *MockRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
-	//TODO implement me
-	return nil
+	return mr.EnableDebugLoggingResult
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
