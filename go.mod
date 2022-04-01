@@ -29,7 +29,7 @@ require (
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/go-logr/logr v0.4.0 // indirect
+	github.com/go-logr/logr v0.4.0
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0
@@ -81,7 +81,7 @@ require (
 	k8s.io/apimachinery v0.22.5
 	k8s.io/cli-runtime v0.22.5
 	k8s.io/client-go v0.22.5
-	k8s.io/klog/v2 v2.10.0 // indirect
+	k8s.io/klog/v2 v2.10.0
 	k8s.io/kubectl v0.22.5
 	sigs.k8s.io/controller-runtime v0.10.3
 	sigs.k8s.io/yaml v1.2.0
