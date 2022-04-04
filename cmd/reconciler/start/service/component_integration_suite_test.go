@@ -191,9 +191,10 @@ func (s *reconcilerIntegrationTestSuite) startAndWaitForComponentReconciler(sett
 		}
 	})
 
-	componentReconcilerServerContext, cancel := context.WithTimeout(s.testContext, 1*time.Second)
+	componentReconcilerServerContext, cancel := context.WithCancel(s.testContext)
 	s.T().Cleanup(func() {
 		cancel()
+		time.Sleep(1 * time.Second) //give component reconciler some time for graceful shutdown
 	})
 
 	workerPool, tracker, startErr := StartComponentReconciler(componentReconcilerServerContext, s.options, settings.name)

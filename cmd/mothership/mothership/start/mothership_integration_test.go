@@ -487,9 +487,10 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 				}
 			}
 
-			ctx, cancel := context.WithTimeout(s.testContext, 1*time.Second)
+			ctx, cancel := context.WithCancel(s.testContext)
 			s.T().Cleanup(func() {
 				cancel()
+				time.Sleep(1 * time.Second) //Allow graceful shutdown
 			})
 			go func() {
 				go func(ctx context.Context, o *Options) {
