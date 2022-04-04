@@ -9,6 +9,8 @@ replace (
 	github.com/satori/go.uuid => github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	//fix for CVE-2022-27191
 	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20220314234659-1baeb1ce4c0b
+	//fix for CVE-2021-44716
+	golang.org/x/net => golang.org/x/net v0.0.0-20220403103023-749bd193bc2b
 	//fix for WS-2021-0200
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.8
 )
@@ -66,10 +68,8 @@ require (
 	github.com/traefik/yaegi v0.9.17
 	go.uber.org/zap v1.19.0
 	golang.org/x/crypto v0.0.0-20220314234659-1baeb1ce4c0b // indirect
-	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.7
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	google.golang.org/grpc v1.43.0 // indirect
