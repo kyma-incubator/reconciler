@@ -93,7 +93,7 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 
 	if c.Global.Ory.Hydra.Persistence.DBType == "mysql" {
 		if c.prepareMySQLDSN() != dsn {
-			logger.Info("Enabling mysql persistence")
+			logger.Debug("Enabling mysql persistence")
 			return c.generateSecretDataMysql()
 		}
 		return data
@@ -101,14 +101,14 @@ func (c *Config) updateSecretData(secret *v1.Secret, logger *zap.SugaredLogger) 
 
 	if c.Global.Ory.Hydra.Persistence.Gcloud.Enabled {
 		if c.prepareGenericDSN() != dsn {
-			logger.Info("Enabling gcloud persistence")
+			logger.Debug("Enabling gcloud persistence")
 			return c.generateSecretDataGcloud()
 		}
 		return data
 	}
 
 	if c.prepareGenericDSN() != dsn {
-		logger.Info("Enabling custom db persistence")
+		logger.Debug("Enabling custom db persistence")
 		return c.generateSecretDataGeneric()
 	}
 
@@ -136,7 +136,7 @@ func (c *Config) updatePostgresqlConfig(secret *v1.Secret, logger *zap.SugaredLo
 	}
 
 	if c.preparePostgresDSN() != string(secret.Data["dsn"]) {
-		logger.Info("Enabling postgresql persistence")
+		logger.Debug("Enabling postgresql persistence")
 		return c.generateSecretDataPostgresql()
 	}
 

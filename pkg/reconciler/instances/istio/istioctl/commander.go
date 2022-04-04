@@ -158,6 +158,6 @@ func (c *DefaultCommander) execute(cmd *exec.Cmd, logger *zap.SugaredLogger) err
 func bufferAndLog(r io.Reader, logger *zap.SugaredLogger) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		logger.Info(scanner.Text())
+		logger.Debug(scanner.Text())
 	}
 }
