@@ -31,16 +31,16 @@ func (a *NoOpReconcileAction) Run(context *service.ActionContext) (err error) {
 }
 
 func (s *reconcilerIntegrationTestSuite) setDefaultValuesFromTestCase(testCase *reconcilerIntegrationTestCase) {
-	if testCase.model.Namespace == "" && testCase.settings.namespace != "" {
+	if testCase.settings.namespace != "" {
 		testCase.model.Namespace = testCase.settings.namespace
 	}
-	if testCase.model.Component == "" && testCase.settings.name != "" {
+	if testCase.settings.name != "" {
 		testCase.model.Component = testCase.settings.name
 	}
-	if testCase.model.Version == "" && testCase.settings.version != "" {
+	if testCase.settings.version != "" {
 		testCase.model.Version = testCase.settings.version
 	}
-	if testCase.model.URL == "" && testCase.settings.url != "" {
+	if testCase.settings.url != "" {
 		testCase.model.URL = testCase.settings.url
 	}
 	if testCase.overrideWorkerConfig != nil {

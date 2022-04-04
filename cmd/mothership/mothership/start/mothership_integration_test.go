@@ -78,7 +78,6 @@ type mothershipIntegrationTestCase struct {
 
 func TestIntegrationSuite(t *testing.T) {
 	//TODO Mothership E2E Integration Test is skipped currently to avoid too long pipeline durations
-	//TODO alos needs a changed .golanci.yml as unused warning was skipped for this test
 	t.Skip("Mothership E2E Integration Test is skipped currently to avoid too long pipeline durations")
 	cs := db.LeaseSharedContainerTestSuite(
 		t,
@@ -488,10 +487,9 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 				}
 			}
 
-			ctx, cancel := context.WithCancel(s.testContext)
+			ctx, cancel := context.WithTimeout(s.testContext, 1*time.Second)
 			s.T().Cleanup(func() {
 				cancel()
-				time.Sleep(1 * time.Second) //Allow graceful shutdown
 			})
 			go func() {
 				go func(ctx context.Context, o *Options) {
