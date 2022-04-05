@@ -2,6 +2,7 @@ package cleanup
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -12,10 +13,51 @@ import (
 	k8sRetry "k8s.io/client-go/util/retry"
 )
 
+func (cmd *CliCleaner) removeResourcesFinalizers() error {
+
+	if err := cmd.removeServerlessCredentialFinalizers(); err != nil {
+		return err
+	}
+
+	if err := cmd.removeCustomResourcesFinalizers(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cmd *CliCleaner) removeServerlessCredentialFinalizers() error {
+	secrets, err := cmd.k8s.Static().CoreV1().Secrets(v1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: "serverless.kyma-project.io/config=credentials"})
+	if err != nil && !apierr.IsNotFound(err) {
+		return err
+	}
+
+	if secrets == nil {
+		return nil
+	}
+
+	for i := range secrets.Items {
+		secret := secrets.Items[i]
+
+		if len(secret.GetFinalizers()) <= 0 {
+			continue
+		}
+
+		secret.SetFinalizers(nil)
+		if _, err := cmd.k8s.Static().CoreV1().Secrets(secret.GetNamespace()).Update(context.Background(), &secret, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+
+		cmd.logger.Info(fmt.Sprintf("Deleted finalizer from \"%s\" Secret", secret.GetName()))
+	}
+
+	return nil
+}
+
 func (cmd *CliCleaner) removeCustomResourcesFinalizers() error {
 	crds := map[string]schema.GroupVersionResource{}
 
-	if cmd.dropFinalizersOnlyForKymaCRs {
+	if cmd.dropKymaCRFinalizers {
 		cmd.logger.Info("Removing finalizers only for custom resources installed by Kyma")
 
 		kymaCRDs, err := cmd.kymaCRDsFinder()
@@ -23,19 +65,19 @@ func (cmd *CliCleaner) removeCustomResourcesFinalizers() error {
 			return err
 		}
 
-		crManagedByReconciler, err := cmd.findCRDsByLabel(crLabelReconciler)
+		crdsManagedByReconciler, err := cmd.findCRDsByLabel(crLabelReconciler)
 		if err != nil {
 			return err
 		}
 
-		crManagedByIstio, err := cmd.findCRDsByLabel(crLabelIstio)
+		crdsManagedByIstio, err := cmd.findCRDsByLabel(crLabelIstio)
 		if err != nil {
 			return err
 		}
 
 		appendCRDs(crds, kymaCRDs)
-		appendCRDs(crds, crManagedByReconciler) //In case current sources doesn't contain Kyma CRD that exist on the cluster (consider upgrades)
-		appendCRDs(crds, crManagedByIstio)      //Istio CRD is NOT in Kyma sources
+		appendCRDs(crds, crdsManagedByReconciler) //In case current sources doesn't contain Kyma CRD that exist on the cluster (consider upgrades)
+		appendCRDs(crds, crdsManagedByIstio)      //Istio CRD is NOT in Kyma sources
 	} else {
 		cmd.logger.Info("Removing existing finalizers for all custom resources in the cluster")
 
@@ -125,8 +167,7 @@ func (cmd *CliCleaner) removeCustomResourceFinalizers(crdef schema.GroupVersionR
 		cmd.logger.Infof("Found finalizers for \"%s\" %s, deleting", res.GetName(), instance.GetKind())
 
 		res.SetFinalizers(nil)
-		_, err := cmd.k8s.Dynamic().Resource(crdef).Namespace(res.GetNamespace()).Update(context.Background(), res, metav1.UpdateOptions{})
-		if err != nil {
+		if _, err := cmd.k8s.Dynamic().Resource(crdef).Namespace(res.GetNamespace()).Update(context.Background(), res, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
 
@@ -134,8 +175,7 @@ func (cmd *CliCleaner) removeCustomResourceFinalizers(crdef schema.GroupVersionR
 	}
 
 	if !cmd.keepCRDs {
-		err = cmd.k8s.Dynamic().Resource(crdef).Namespace(res.GetNamespace()).Delete(context.Background(), res.GetName(), metav1.DeleteOptions{})
-		if err != nil && !apierr.IsNotFound(err) {
+		if err = cmd.k8s.Dynamic().Resource(crdef).Namespace(res.GetNamespace()).Delete(context.Background(), res.GetName(), metav1.DeleteOptions{}); err != nil && !apierr.IsNotFound(err) {
 			return err
 		}
 	}

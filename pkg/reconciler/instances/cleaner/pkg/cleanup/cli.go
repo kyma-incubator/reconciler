@@ -1,18 +1,11 @@
 package cleanup
 
 import (
-	"context"
-	"fmt"
-	"sync"
+	"github.com/kyma-incubator/reconciler/pkg/model"
 	"time"
 
-	"github.com/avast/retry-go"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -33,17 +26,18 @@ type KymaCRDsFinder func() ([]schema.GroupVersionResource, error)
 
 //Implements cleanup logic
 type CliCleaner struct {
-	k8s                          KymaKube
-	apixClient                   apixv1beta1client.ApiextensionsV1beta1Interface
-	keepCRDs                     bool
-	dropFinalizersOnlyForKymaCRs bool
-	kymaCRDsFinder               KymaCRDsFinder
-	namespaces                   []string
-	namespaceTimeout             time.Duration
-	logger                       *zap.SugaredLogger
+	k8s                  KymaKube
+	apixClient           apixv1beta1client.ApiextensionsV1beta1Interface
+	keepCRDs             bool
+	dropKymaCRFinalizers bool
+	kymaCRDsFinder       KymaCRDsFinder
+	namespaces           []string
+	namespaceTimeout     time.Duration
+	logger               *zap.SugaredLogger
+	dropKymaNamespaces   bool
 }
 
-func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.SugaredLogger, dropFinalizersOnlyForKymaCRs bool, crdsFinder KymaCRDsFinder) (*CliCleaner, error) {
+func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.SugaredLogger, taskConfig map[string]interface{}, crdsFinder KymaCRDsFinder) (*CliCleaner, error) {
 
 	kymaKube, err := NewFromConfigWithTimeout(kubeconfigData, defaultHTTPTimeout)
 	if err != nil {
@@ -55,180 +49,32 @@ func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.Sugar
 		return nil, err
 	}
 
-	return &CliCleaner{kymaKube, apixClient, true, dropFinalizersOnlyForKymaCRs, crdsFinder, namespaces, namespaceTimeout, logger}, nil
+	// check if CRs should be dropped - should be the first step of cleanup
+	dropKymaCRFinalizers := readTaskConfigValue(taskConfig, model.DeleteStrategyKey) != "all"
+	if dropKymaCRFinalizers {
+		dropKymaCRFinalizers = readTaskConfigValue(taskConfig, model.CleanerTypeKey) == model.CleanerCr
+	}
+
+	// check if namespaces should be dropped - should be the last step of cleanup
+	dropKymaNamespaces := readTaskConfigValue(taskConfig, model.CleanerTypeKey) == model.CleanerNamespace
+	return &CliCleaner{kymaKube, apixClient, true, dropKymaCRFinalizers, crdsFinder, namespaces, namespaceTimeout, logger, dropKymaNamespaces}, nil
 }
 
 //Run runs the command
 func (cmd *CliCleaner) Run() error {
-
 	if err := cmd.deletePVCSAndWait(kymaNamespace); err != nil {
 		return err
 	}
-
 	if err := cmd.removeResourcesFinalizers(); err != nil {
 		return err
 	}
-
 	if err := cmd.deleteKymaNamespaces(); err != nil {
 		return err
 	}
 	if err := cmd.waitForNamespaces(); err != nil {
 		return err
 	}
-
 	return nil
-}
-
-func (cmd *CliCleaner) removeServerlessCredentialFinalizers() error {
-	secrets, err := cmd.k8s.Static().CoreV1().Secrets(v1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: "serverless.kyma-project.io/config=credentials"})
-	if err != nil && !apierr.IsNotFound(err) {
-		return err
-	}
-
-	if secrets == nil {
-		return nil
-	}
-
-	for i := range secrets.Items {
-		secret := secrets.Items[i]
-
-		if len(secret.GetFinalizers()) <= 0 {
-			continue
-		}
-
-		secret.SetFinalizers(nil)
-		if _, err := cmd.k8s.Static().CoreV1().Secrets(secret.GetNamespace()).Update(context.Background(), &secret, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-
-		cmd.logger.Info(fmt.Sprintf("Deleted finalizer from \"%s\" Secret", secret.GetName()))
-	}
-
-	return nil
-}
-
-func (cmd *CliCleaner) deleteKymaNamespaces() error {
-	cmd.logger.Info("Deleting Kyma Namespaces")
-
-	var wg sync.WaitGroup
-	wg.Add(len(cmd.namespaces))
-	finishedCh := make(chan bool)
-	errorCh := make(chan error)
-
-	for _, namespace := range cmd.namespaces {
-		go func(ns string) {
-			defer wg.Done()
-			err := retry.Do(func() error {
-				cmd.logger.Info(fmt.Sprintf("Deleting Namespace \"%s\"", ns))
-
-				if err := cmd.k8s.Static().CoreV1().Namespaces().Delete(context.Background(), ns, metav1.DeleteOptions{}); err != nil && !apierr.IsNotFound(err) {
-					errorCh <- err
-				}
-
-				nsT, err := cmd.k8s.Static().CoreV1().Namespaces().Get(context.Background(), ns, metav1.GetOptions{})
-				if err != nil && !apierr.IsNotFound(err) {
-					errorCh <- err
-				} else if apierr.IsNotFound(err) {
-					return nil
-				}
-
-				return errors.Wrapf(err, "\"%s\" Namespace still exists in \"%s\" Phase", nsT.Name, nsT.Status.Phase)
-			})
-			if err != nil {
-				errorCh <- err
-				return
-			}
-
-			cmd.logger.Info(fmt.Sprintf("\"%s\" Namespace is removed", ns))
-		}(namespace)
-	}
-
-	go func() {
-		wg.Wait()
-		close(errorCh)
-		close(finishedCh)
-	}()
-
-	// process deletion results
-	var errWrapped error
-	for {
-		select {
-		case <-finishedCh:
-			if errWrapped == nil {
-				cmd.logger.Info("All Kyma Namespaces marked for deletion")
-			}
-			return errWrapped
-		case err := <-errorCh:
-			if err != nil {
-				if errWrapped == nil {
-					errWrapped = err
-				} else {
-					errWrapped = errors.Wrap(err, errWrapped.Error())
-				}
-			}
-		}
-	}
-}
-
-func (cmd *CliCleaner) waitForNamespaces() error {
-
-	cmd.logger.Info("Waiting for Namespace deletion")
-
-	timeout := time.After(cmd.namespaceTimeout)
-	poll := time.NewTicker(6 * time.Second)
-	defer poll.Stop()
-	for {
-		select {
-		case <-timeout:
-			return errors.New("Timed out while waiting for Namespace deletion")
-		case <-poll.C:
-			if err := cmd.removeResourcesFinalizers(); err != nil {
-				return err
-			}
-			ok, err := cmd.checkKymaNamespaces()
-			if err != nil {
-				return err
-			} else if ok {
-				return nil
-			}
-		}
-	}
-}
-
-func (cmd *CliCleaner) removeResourcesFinalizers() error {
-
-	if err := cmd.removeServerlessCredentialFinalizers(); err != nil {
-		return err
-	}
-
-	if err := cmd.removeCustomResourcesFinalizers(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cmd *CliCleaner) checkKymaNamespaces() (bool, error) {
-	namespaceList, err := cmd.k8s.Static().CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return false, err
-	}
-
-	if namespaceList.Size() == 0 {
-		cmd.logger.Info("No remaining Kyma Namespaces found")
-		return true, nil
-	}
-
-	for i := range namespaceList.Items {
-		if contains(cmd.namespaces, namespaceList.Items[i].Name) {
-			cmd.logger.Info(fmt.Sprintf("Namespace %s still in state '%s'", namespaceList.Items[i].Name, namespaceList.Items[i].Status.Phase))
-			return false, nil
-		}
-	}
-
-	cmd.logger.Info("No remaining Kyma Namespaces found")
-
-	return true, nil
 }
 
 func contains(items []string, item string) bool {
@@ -270,11 +116,10 @@ func NewFromConfigWithTimeout(kubeconfigData string, t time.Duration) (KymaKube,
 	}
 
 	return &client{
-			static:  sClient,
-			dynamic: dClient,
-			restCfg: config,
-		},
-		nil
+		static:  sClient,
+		dynamic: dClient,
+		restCfg: config,
+	}, nil
 }
 
 //taken from github.com/kyma-project/cli/internal/kube/client.go
@@ -306,4 +151,18 @@ func restConfig(kubeconfigData string) (*rest.Config, error) {
 	}
 	cfg.WarningHandler = rest.NoWarnings{}
 	return cfg, nil
+}
+
+func readTaskConfigValue(config map[string]interface{}, key string) string {
+	v := config[key]
+	if v == nil {
+		return ""
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	return s
 }

@@ -15,11 +15,26 @@ const (
 	CleanupComponent         = "cleaner"
 	DeleteStrategyKey        = "delete_strategy"
 	tblConfiguration  string = "inventory_cluster_configs"
+	CleanerTypeKey           = "cleaner_type"
+	CleanerCr                = "cleaner_CR"
+	CleanerNamespace         = "cleaner_NS"
 )
 
 var (
-	crdComponent     = &keb.Component{Component: CRDComponent, Namespace: "default"}
-	cleanupComponent = &keb.Component{Component: CleanupComponent, Namespace: "default"}
+	crdComponent              = &keb.Component{Component: CRDComponent, Namespace: "default"}
+	cleanupComponent          = &keb.Component{Component: CleanupComponent, Namespace: "default"}
+	cleanupNamespaceComponent = &keb.Component{
+		Component: CleanupComponent,
+		Namespace: "default",
+		Configuration: []keb.Configuration{
+			{Key: CleanerTypeKey, Value: CleanerNamespace},
+		}}
+	cleanupCRComponent = &keb.Component{
+		Component: CleanupComponent,
+		Namespace: "default",
+		Configuration: []keb.Configuration{
+			{Key: CleanerTypeKey, Value: CleanerCr},
+		}}
 )
 
 type ClusterConfigurationEntity struct {
@@ -113,8 +128,8 @@ func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *Reconciliati
 }
 
 type ReconciliationSequence struct {
-	Queue         [][]*keb.Component
-	preComponents [][]string
+	Queue [][]*keb.Component
+	cfg   *ReconciliationSequenceConfig
 }
 
 type ReconciliationSequenceConfig struct {
@@ -125,20 +140,22 @@ type ReconciliationSequenceConfig struct {
 
 func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
 	reconSeq := &ReconciliationSequence{
-		preComponents: cfg.PreComponents,
+		cfg: cfg,
 	}
+
 	reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{ //CRDs are always processed at the very beginning (or at the very end in deletion)
 		crdComponent,
 	})
 
 	// if a cluster is pending deletion, we need to add the cleanup component into the reconciliation
 	if cfg.ReconciliationStatus.IsDeletionInProgress() {
-		cleanupComponent.Configuration = append(cleanupComponent.Configuration, keb.Configuration{
+		cleanupNamespaceComponent.Configuration = append(cleanupNamespaceComponent.Configuration, keb.Configuration{
 			Key: DeleteStrategyKey, Value: cfg.DeleteStrategy,
 		})
-		reconSeq.Queue = append(reconSeq.Queue, []*keb.Component{
-			cleanupComponent,
-		})
+		// add cleanup of namespaces to the first index
+		reconSeq.Queue = append([][]*keb.Component{
+			{cleanupNamespaceComponent},
+		}, reconSeq.Queue...)
 	}
 
 	return reconSeq
@@ -155,7 +172,7 @@ func (rs *ReconciliationSequence) addComponents(components []*keb.Component) {
 	}()
 
 	//add pre-components to queue
-	for _, preComponentGroup := range rs.preComponents {
+	for _, preComponentGroup := range rs.cfg.PreComponents {
 		var preComps []*keb.Component
 		for _, preComponentName := range preComponentGroup {
 			if preComp, ok := compsByNameCache[preComponentName]; ok {
@@ -176,5 +193,15 @@ func (rs *ReconciliationSequence) addComponents(components []*keb.Component) {
 	}
 	if len(noPreComps) > 0 {
 		rs.Queue = append(rs.Queue, noPreComps)
+	}
+
+	// add cleanup of CRs to the end, so that they are cleaned up first
+	if rs.cfg.ReconciliationStatus.IsDeletionInProgress() {
+		cleanupCRComponent.Configuration = append(cleanupCRComponent.Configuration, keb.Configuration{
+			Key: DeleteStrategyKey, Value: rs.cfg.DeleteStrategy,
+		})
+		rs.Queue = append(rs.Queue, []*keb.Component{
+			cleanupCRComponent,
+		})
 	}
 }

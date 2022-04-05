@@ -13,10 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const (
-	deleteStrategyConfigKey = "delete_strategy"
-)
-
 type CleanupAction struct {
 	name string
 }
@@ -33,7 +29,7 @@ func (a *CleanupAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	namespaces := []string{"kyma-system", "kyma-integration"}
+	kymaNamespaces := []string{"kyma-system", "kyma-integration"}
 
 	var kymaCRDsFinder cleanup.KymaCRDsFinder = func() ([]schema.GroupVersionResource, error) {
 		crdManifests, err := context.ChartProvider.RenderCRD(context.Task.Version)
@@ -43,8 +39,7 @@ func (a *CleanupAction) Run(context *service.ActionContext) error {
 		return findKymaCRDs(crdManifests, context.Logger)
 	}
 
-	dropFinalizersOnlyForKymaCRs := readDeleteStrategy(context.Task.Configuration) != "all"
-	cliCleaner, err := cleanup.NewCliCleaner(context.Task.Kubeconfig, namespaces, context.Logger, dropFinalizersOnlyForKymaCRs, kymaCRDsFinder)
+	cliCleaner, err := cleanup.NewCliCleaner(context.Task.Kubeconfig, kymaNamespaces, context.Logger, context.Task.Configuration, kymaCRDsFinder)
 	if err != nil {
 		return err
 	}
@@ -126,18 +121,4 @@ func toGRV(group, version, resource string) schema.GroupVersionResource {
 		Version:  version,
 		Resource: resource,
 	}
-}
-
-func readDeleteStrategy(config map[string]interface{}) string {
-	v := config[deleteStrategyConfigKey]
-	if v == nil {
-		return ""
-	}
-
-	s, ok := v.(string)
-	if !ok {
-		return ""
-	}
-
-	return s
 }
