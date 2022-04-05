@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -70,11 +71,12 @@ type log struct {
 
 func Test_Auditlog(t *testing.T) {
 	testCases := []struct {
-		name       string
-		method     string
-		body       string
-		jwtHeader  string
-		expectFail bool
+		name          string
+		method        string
+		body          string
+		jwtHeader     string
+		expectFail    bool
+		addExternalIP bool
 	}{
 		{
 			name:   "get request",
@@ -91,12 +93,18 @@ func Test_Auditlog(t *testing.T) {
 			body:   fmt.Sprintf(`{"%s":"%s"}`, postKey, postValue),
 		},
 		{
+			name:          "post request",
+			method:        http.MethodPost,
+			body:          fmt.Sprintf(`{"%s":"%s"}`, postKey, postValue),
+			addExternalIP: true,
+		},
+		{
 			name:   "delete request",
 			method: http.MethodDelete,
 		},
 		{
 			name:       "invalid jwtHeader",
-			method:     http.MethodGet,
+			method:     http.MethodPost,
 			expectFail: true,
 			jwtHeader:  "eyJleHAiOjQ2ODU5ODk3MDAsImZvbyI6ImJhciIsImlhdCI6MTUzMjM4OTcwMCwiaXNzIjoidGVzdDJAdGVzdC5wbCIsInN1YiI6InRlc3QyQHRlc3QucGwifQ==",
 		},
@@ -124,7 +132,9 @@ func Test_Auditlog(t *testing.T) {
 				req.Body = io.NopCloser(bytes.NewBuffer([]byte(tc.body)))
 			}
 
-			req.Header.Add(ExternalAddressHeaderName, clientIP)
+			if tc.addExternalIP {
+				req.Header.Add(ExternalAddressHeaderName, clientIP)
+			}
 			if tc.jwtHeader != "" {
 				req.Header.Add(XJWTHeaderName, tc.jwtHeader)
 			}
@@ -139,9 +149,13 @@ func Test_Auditlog(t *testing.T) {
 				require.Equalf(t, http.StatusInternalServerError, w.Result().StatusCode,
 					"expected http status: %v, got: %v",
 					http.StatusInternalServerError, w.Result().StatusCode)
+			} else if tc.method == http.MethodGet {
+				require.Equalf(t, http.StatusOK, w.Result().StatusCode,
+					"expected http status: %v, got: %v",
+					http.StatusOK, w.Result().StatusCode)
 			} else {
 				t.Log(output.String())
-				validateLog(t, output.String(), tc.method, tc.jwtHeader != "")
+				validateLog(t, output.String(), tc.method, tc.jwtHeader != "", tc.addExternalIP)
 			}
 
 		})
@@ -149,7 +163,7 @@ func Test_Auditlog(t *testing.T) {
 }
 
 // validateLog ensures that all required fields in the log message are set and valid. If any of these is missing the audit log backend will not accept/process our logs
-func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
+func validateLog(t *testing.T, logMsg, method string, useJWT, checkForValidIP bool) {
 	l := &log{}
 	err := json.Unmarshal([]byte(logMsg), l)
 	require.NoError(t, err)
@@ -159,12 +173,15 @@ func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 		l.User == "" ||
 		l.Data == "" ||
 		l.Tenant == "" ||
-		l.IP == "" ||
 		l.Category == "", "empty log field: %#v", l)
 
 	require.Equalf(t, tenantID, l.Tenant, "invalid log tenantID: expected: %s, got: %s", tenantID, l.Tenant)
 
-	require.Equalf(t, clientIP, l.IP, "invalid log IP: expected: %s, got: %s", clientIP, l.IP)
+	if checkForValidIP {
+		require.NotEmpty(t, l.IP, "invalid log IP: expected non-empty IP, got: %s", clientIP, l.IP)
+		require.NotNil(t, net.ParseIP(l.IP), "invalid log IP: expected valid IP, got: %s", clientIP, l.IP)
+		require.Falsef(t, net.ParseIP(l.IP).IsPrivate(), "invalid log IP: cannot use private ip, got: %s", l.IP)
+	}
 
 	if useJWT {
 		require.Equalf(t, jwtPayloadSub, l.User, "invalid user: expected: %s, got: %s", jwtPayloadSub, l.User)
