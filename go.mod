@@ -18,7 +18,7 @@ replace (
 	//fix for CVE-2021-44716
 	golang.org/x/net => golang.org/x/net v0.0.0-20220403103023-749bd193bc2b
 	//fix for WS-2021-0200
-	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
