@@ -442,7 +442,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("IstioVersion"), actionContext.Logger)
 	})
 
-	t.Run("should return error when istio was updated but proxies were not reset", func(t *testing.T) {
+	t.Run("should not return error when istio was updated but proxies were not reset", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{
@@ -468,8 +468,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Proxy reset error")
+		require.NoError(t, err)
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
 	})

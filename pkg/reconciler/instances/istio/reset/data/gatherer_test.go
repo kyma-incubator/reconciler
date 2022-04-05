@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/avast/retry-go"
-
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -125,6 +124,42 @@ func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 			},
 		},
 	}
+}
+
+func TestRemoveAnnotatedPods(t *testing.T) {
+
+	t.Run("should not filter not annotated pods", func(t *testing.T) {
+		in := v1.PodList{Items: []v1.Pod{{}, {}}}
+		got := RemoveAnnotatedPods(in, "foo")
+		require.Equal(t, len(in.Items), len(got.Items))
+	})
+
+	t.Run("should not filter pods that don't match annotation", func(t *testing.T) {
+		in := v1.PodList{Items: []v1.Pod{{
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}},
+		}, {}}}
+		got := RemoveAnnotatedPods(in, "baz")
+		require.Equal(t, len(in.Items), len(got.Items))
+	})
+
+	t.Run("should filter annotated pods", func(t *testing.T) {
+		in := v1.PodList{Items: []v1.Pod{{
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}},
+		}, {}}}
+		got := RemoveAnnotatedPods(in, "foo")
+		require.Equal(t, in.Items[1:], got.Items)
+	})
+
+	t.Run("should filter all pods if all are annotated", func(t *testing.T) {
+		in := v1.PodList{Items: []v1.Pod{{
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}},
+		}, {
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}},
+		}}}
+		got := RemoveAnnotatedPods(in, "foo")
+		require.Equal(t, 0, len(got.Items))
+	})
+
 }
 
 func getTestingRetryOptions() []retry.Option {
