@@ -9,6 +9,8 @@ replace (
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	// fix CVE-2021-41092
 	github.com/docker/cli => github.com/docker/cli v20.10.9+incompatible
+	//fix for CVE-2021-3121
+	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	//fix for CVE-2021-3538
 	github.com/satori/go.uuid => github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	//fix for CVE-2022-27191
