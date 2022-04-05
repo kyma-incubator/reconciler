@@ -4,7 +4,7 @@ go 1.16
 
 replace (
 	// fix CVE-2021-43816
-	github.com/containerd/containerd => github.com/containerd/containerd v1.5.9
+	github.com/containerd/containerd => github.com/containerd/containerd v1.5.11
 	//fix CVE-2020-26160
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	// fix CVE-2021-41092
