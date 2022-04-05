@@ -276,7 +276,7 @@ func (m *migrator) getInstancesToMigrate(smInstances *types.ServiceInstances, sv
 				err := fmt.Errorf("svcat instance name '%s/%s' id '%s' (%s) not found in SM but expected", svcat.Namespace, svcat.Name, svcat.Spec.ExternalID, svcat.Name)
 				errs = append(errs, err)
 			} else {
-				m.ac.Logger.Info("svcat instance name '%s/%s' id '%s' (%s) not found in SM, skipping", svcat.Namespace, svcat.Name, svcat.Spec.ExternalID, svcat.Name)
+				m.ac.Logger.Infof("svcat instance name '%s/%s' id '%s' (%s) not found in SM, skipping", svcat.Namespace, svcat.Name, svcat.Spec.ExternalID, svcat.Name)
 			}
 		}
 		svcInstance := svcat
