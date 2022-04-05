@@ -18,7 +18,7 @@ import (
 
 const (
 	AnnotationResetWarningKey               = "istio.reconciler.kyma-project.io/proxy-reset-warning"
-	AnnotationResetWarningNoOwnerVal        = "pod sidecar could not be updated because OwnerReferences was not found. Istio might not work. Recreate the pod manually to ensure full compatibility."
+	AnnotationResetWarningNoOwnerVal        = "pod sidecar could not be updated because OwnerReferences is Job or was not found . Istio might not work. Recreate the pod manually to ensure full compatibility."
 	AnnotationResetWarningRolloutTimeoutVal = "pod could not be rolled out by resource owner's controller. Check pod status and resolve the problem so the owner controller can reconcile successfully"
 )
 
