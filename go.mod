@@ -3,6 +3,10 @@ module github.com/kyma-incubator/reconciler
 go 1.16
 
 replace (
+	// fix CVE-2021-43816
+	github.com/containerd/containerd => github.com/containerd/containerd v1.5.9
+	// fix CVE-2021-41092
+	github.com/docker/cli => github.com/docker/cli v20.10.9+incompatible
 	//fix for CVE-2022-21698
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.11.1
 	//fix for CVE-2021-3538
@@ -22,6 +26,7 @@ require (
 	github.com/coreos/go-semver v0.3.0
 	github.com/docker/go-connections v0.4.0
 	github.com/fatih/structs v1.1.0
+	github.com/garyburd/redigo v1.6.3 // indirect
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/uuid v1.3.0
