@@ -54,7 +54,7 @@ func (m *ParentKindMatcher) GetHandlersMap(kubeClient kubernetes.Interface, retr
 		podObject := CustomObject{Name: pod.Name, Namespace: pod.Namespace, Kind: pod.Kind}
 
 		switch parentObject.Kind {
-		case "":
+		case "", "Job":
 			handlersMap[noActionHandler] = append(handlersMap[noActionHandler], podObject)
 		case "ReplicaSet":
 			// ReplicaSets require further processing

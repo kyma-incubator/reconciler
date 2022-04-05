@@ -135,6 +135,15 @@ func (i *RolloutHandler) ExecuteAndWaitFor(context context.Context, object Custo
 
 	if err != nil {
 		i.log.Warnf("unable to rollout %s/%s/%s: %v", object.Kind, object.Namespace, object.Name, err)
+		errAnnotate := k8sRetry.RetryOnConflict(k8sRetry.DefaultRetry, func() error {
+			client := i.kubeClient
+			err := annotateObject(context, client, object, AnnotationResetWarningKey, AnnotationResetWarningRolloutTimeoutVal)
+			return err
+		})
+
+		if errAnnotate != nil {
+			return errAnnotate
+		}
 		return err
 	}
 
@@ -175,6 +184,11 @@ func annotateObject(context context.Context, client kubernetes.Interface, object
 
 	case "StatefulSet":
 		err := annotatePodsFor(context, getStatefulSetLabelSelector, client, object, key, val)
+		if err != nil {
+			return err
+		}
+	case "Job":
+		err := annotatePodsFor(context, getJobLabelSelector, client, object, key, val)
 		if err != nil {
 			return err
 		}
@@ -223,6 +237,15 @@ func annotatePods(context context.Context, kubeClient kubernetes.Interface, podL
 		}
 	}
 	return nil
+}
+
+func getJobLabelSelector(context context.Context, client kubernetes.Interface, object CustomObject) (string, error) {
+	job, err := client.BatchV1().Jobs(object.Namespace).Get(context, object.Name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	labelSelector := buildLabelSelector(job.Spec.Selector.MatchLabels)
+	return labelSelector, nil
 }
 
 func getDeploymentLabelSelector(context context.Context, client kubernetes.Interface, object CustomObject) (string, error) {
