@@ -13,14 +13,15 @@ import (
 	"time"
 )
 
-func (s *serviceTestSuite) prepareTransitionTest(t *testing.T) (*ClusterStatusTransition, *cluster.State, func()) {
-	dbConn, err := s.NewConnection()
+func (s *serviceTestSuite) prepareTransitionTest(t *testing.T) (*ClusterStatusTransition, *cluster.State) {
+	var err error
+	s.dbConn, err = s.NewConnection()
 	require.NoError(t, err)
 
 	//create inventory and test cluster entry
-	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
+	s.inventory, err = cluster.NewInventory(s.dbConn, true, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
-	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
+	clusterState, err := s.inventory.CreateOrUpdate(1, &keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),
 		KymaConfig: keb.KymaConfig{
 			Components: []keb.Component{
@@ -36,11 +37,11 @@ func (s *serviceTestSuite) prepareTransitionTest(t *testing.T) (*ClusterStatusTr
 	require.NoError(t, err)
 
 	//create reconciliation entity for the cluster
-	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
+	s.reconRepo, err = reconciliation.NewPersistedReconciliationRepository(s.dbConn, true)
 	require.NoError(t, err)
 
 	//create transition which will change cluster states
-	transition := newClusterStatusTransition(dbConn, inventory, reconRepo, logger.NewLogger(true))
+	transition := newClusterStatusTransition(s.dbConn, s.inventory, s.reconRepo, logger.NewLogger(true))
 
 	err = transition.StartReconciliation(clusterState.Cluster.RuntimeID, clusterState.Configuration.Version, &SchedulerConfig{
 		PreComponents:  nil,
@@ -48,23 +49,13 @@ func (s *serviceTestSuite) prepareTransitionTest(t *testing.T) (*ClusterStatusTr
 	})
 	require.NoError(t, err)
 
-	//cleanup at the end of the execution
-	cleanupFn := func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
-		recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
-		require.NoError(t, err)
-		for _, recon := range recons {
-			require.NoError(t, reconRepo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
-		}
-		require.NoError(t, dbConn.Close())
-	}
-	return transition, clusterState, cleanupFn
+	s.runtimeIDsToClear = []string{clusterState.Cluster.RuntimeID}
+	return transition, clusterState
 }
 
 func (s *serviceTestSuite) TestTransitionStartReconciliation() {
 	t := s.T()
-	transition, clusterState, cleanupFn := s.prepareTransitionTest(t)
-	defer cleanupFn()
+	transition, clusterState := s.prepareTransitionTest(t)
 
 	oldClusterStateID := clusterState.Status.ID
 
@@ -92,8 +83,7 @@ func (s *serviceTestSuite) TestTransitionStartReconciliation() {
 
 func (s *serviceTestSuite) TestTransitionFinishReconciliation() {
 	t := s.T()
-	transition, clusterState, cleanupFn := s.prepareTransitionTest(t)
-	defer cleanupFn()
+	transition, clusterState := s.prepareTransitionTest(t)
 
 	//get reconciliation entity
 	reconEntities, err := transition.reconRepo.GetReconciliations(
@@ -124,8 +114,7 @@ func (s *serviceTestSuite) TestTransitionFinishReconciliation() {
 
 func (s *serviceTestSuite) TestTransitionFinishWhenClusterNotInProgress() {
 	t := s.T()
-	transition, clusterState, cleanupFn := s.prepareTransitionTest(t)
-	defer cleanupFn()
+	transition, clusterState := s.prepareTransitionTest(t)
 
 	//get reconciliation entity
 	reconEntities, err := transition.reconRepo.GetReconciliations(

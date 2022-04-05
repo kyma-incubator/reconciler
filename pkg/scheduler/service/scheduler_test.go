@@ -13,7 +13,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
@@ -24,7 +23,7 @@ func (s *serviceTestSuite) TestSchedulerRunOnce() {
 	// run once will already expect the reconciliation to be in progress as there is no scheduling in place
 	clusterState := testClusterState("testCluster", 1, model.ClusterStatusReconciling)
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-	scheduler := newScheduler(logger.NewLogger(true))
+	scheduler := newScheduler(s.testLogger)
 	require.NoError(t, scheduler.RunOnce(clusterState, reconRepo, &SchedulerConfig{}))
 	requiredReconciliationEntity(t, reconRepo, clusterState)
 }
@@ -32,7 +31,7 @@ func (s *serviceTestSuite) TestSchedulerRunOnce() {
 func (s *serviceTestSuite) TestSchedulerRun() {
 	t := s.T()
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
-	scheduler := newScheduler(logger.NewLogger(true))
+	scheduler := newScheduler(s.testLogger)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
@@ -61,7 +60,7 @@ func (s *serviceTestSuite) TestSchedulerRun() {
 			}(),
 		},
 		reconRepo: reconRepo,
-		logger:    logger.NewLogger(true),
+		logger:    s.testLogger,
 	}, &SchedulerConfig{
 		InventoryWatchInterval:   250 * time.Millisecond,
 		ClusterReconcileInterval: 100 * time.Second,
@@ -147,7 +146,7 @@ func (s *serviceTestSuite) TestMultipleSchedulerWatchingSameInventory() {
 
 	clusterRuntimeIDs := createClusterStates(t, inventory)
 
-	scheduler := newScheduler(logger.NewLogger(true))
+	scheduler := newScheduler(s.testLogger)
 	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, true)
 	require.NoError(t, err)
 
@@ -175,7 +174,7 @@ func (s *serviceTestSuite) TestMultipleSchedulerWatchingSameInventory() {
 				conn:      dbConn,
 				inventory: inventory,
 				reconRepo: reconRepo,
-				logger:    logger.NewLogger(true),
+				logger:    s.testLogger,
 			}, &SchedulerConfig{
 				InventoryWatchInterval:   100 * time.Millisecond,
 				ClusterReconcileInterval: 100 * time.Second,

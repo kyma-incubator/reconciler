@@ -5,11 +5,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.uber.org/zap"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -19,7 +17,6 @@ type reconciliationTestSuite struct {
 	suite.Suite
 	containerSuite   *db.ContainerTestSuite
 	testContext      context.Context
-	testLogger       *zap.SugaredLogger
 	serverStartMutex sync.Mutex
 	debugLogs        bool
 }
@@ -55,7 +52,6 @@ func TestIntegrationSuite(t *testing.T) {
 	suite.Run(t, &reconciliationTestSuite{
 		containerSuite: cs,
 		testContext:    context.Background(),
-		testLogger:     logger.NewLogger(true),
 		debugLogs:      true,
 	})
 	db.ReturnLeasedSharedContainerTestSuite(t, containerSettings)

@@ -38,10 +38,10 @@ func (s *clusterTestSuite) TestInventory() {
 	expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
 
 	removeAllClusters(t, inventory) //cleanup before the test runs
-	defer (func() {
+	defer func() {
 		removeAllClusters(t, inventory) //cleanup after test is finished
 		require.NoError(t, conn.Close())
-	})()
+	}()
 
 	t.Run("Create expectedCluster", func(t *testing.T) {
 		//create cluster1

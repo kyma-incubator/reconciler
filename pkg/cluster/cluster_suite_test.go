@@ -3,9 +3,7 @@ package cluster
 import (
 	"context"
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/stretchr/testify/suite"
-	"go.uber.org/zap"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -15,7 +13,6 @@ type clusterTestSuite struct {
 	suite.Suite
 	containerSuite   *db.ContainerTestSuite
 	testContext      context.Context
-	testLogger       *zap.SugaredLogger
 	serverStartMutex sync.Mutex
 	debugLogs        bool
 }
@@ -42,7 +39,6 @@ func TestIntegrationSuite(t *testing.T) {
 	suite.Run(t, &clusterTestSuite{
 		containerSuite: cs,
 		testContext:    context.Background(),
-		testLogger:     logger.NewLogger(true),
 		debugLogs:      true,
 	})
 	db.ReturnLeasedSharedContainerTestSuite(t, containerSettings)
