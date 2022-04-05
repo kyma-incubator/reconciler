@@ -24,7 +24,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		context.Logger.Errorf("Failed to retrieve native Kubernetes GO client")
 	}
 
-	logger.Infof("Action '%s' executed (passed version was '%s')", a.name, context.Task.Version)
+	logger.Debugf("Action '%s' executed (passed version was '%s')", a.name, context.Task.Version)
 
 	mutatingWebhookConfiguration, err := k8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Context, mutatingWebhookConfigName, metav1.GetOptions{})
 	if err != nil {
@@ -33,7 +33,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		webhooks := mutatingWebhookConfiguration.Webhooks
 		for _, w := range webhooks {
 			if w.Name == webhookname && w.ClientConfig.CABundle != nil {
-				logger.Infof("MutatingWebhookConfiguration [%s/%s] found. Attempting to reusing existing CA bundle", mutatingWebhookConfigName, webhookname)
+				logger.Debugf("MutatingWebhookConfiguration [%s/%s] found. Attempting to reusing existing CA bundle", mutatingWebhookConfigName, webhookname)
 				context.Task.Configuration["pod-preset.caCert"] = string(w.ClientConfig.CABundle)
 			}
 		}
