@@ -124,7 +124,7 @@ func reconcile(ctx context.Context, w http.ResponseWriter, req *http.Request, o 
 	}
 
 	// this mutex is necessary because if we have heavy parallel submissions, it can happen that the worker pool was not
-	// full during the if statement execution, but got filled by another goroutine from the router and then leads to
+	// full during the if statement execution, but was filled by another goroutine from the router, which then leads to
 	// ErrPoolOverload. This can only be circumvented by a small read lock in the worker-pool submission for now.
 	reconcileSubmissionMutex.Lock()
 	defer reconcileSubmissionMutex.Unlock()
