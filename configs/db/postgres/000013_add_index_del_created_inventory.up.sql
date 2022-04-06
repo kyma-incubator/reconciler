@@ -1,0 +1,1 @@
+CREATE INDEX inventory_cluster__idx_deleted_created ON "inventory_clusters" ("deleted", "created");

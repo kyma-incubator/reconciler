@@ -24,7 +24,7 @@ func Test_cleaner_Run(t *testing.T) {
 		start := time.Now()
 
 		err := cleaner.Run(ctx, &ClusterStatusTransition{
-			conn: db.NewTestConnection(t),
+			conn: &db.MockConnection{},
 			reconRepo: &reconciliation.MockRepository{
 				RemoveReconciliationResult: nil,
 				GetReconciliationsResult: []*model.ReconciliationEntity{
@@ -36,7 +36,8 @@ func Test_cleaner_Run(t *testing.T) {
 					},
 				},
 			},
-			logger: logger.NewLogger(true),
+			inventory: &cluster.MockInventory{},
+			logger:    logger.NewLogger(true),
 		}, &CleanerConfig{
 			PurgeEntitiesOlderThan: 2 * time.Second,
 			CleanerInterval:        5 * time.Second,
@@ -150,7 +151,7 @@ func Test_cleaner_Run(t *testing.T) {
 		}
 
 		err := cleaner.Run(ctx, &ClusterStatusTransition{
-			conn:      db.NewTestConnection(t),
+			conn:      &db.MockConnection{},
 			reconRepo: &reconRepo,
 			inventory: &mockInventory,
 			logger:    logger.NewLogger(true),

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -195,4 +196,40 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 		return nil
 	}
 	return db.Transaction(t.conn, dbOp, t.logger)
+}
+
+func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadline time.Time) error {
+
+	dbOps := func(tx *db.TxConnection) error {
+
+		transactionalInventory, err := t.inventory.WithTx(tx)
+		if err != nil {
+			return err
+		}
+		transactionalReconRepo, err := t.reconRepo.WithTx(tx)
+		if err != nil {
+			return err
+		}
+
+		// delete statuses without reconciliations
+		deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations()
+		if err != nil {
+			return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
+		}
+		// remove reconciliations corresponding to the to-be-deleted clusters before deadline
+		deletedReconsCount, err := transactionalReconRepo.RemoveReconciliationsForObsoleteStatus(deadline)
+		if err != nil {
+			return fmt.Errorf("failed to remove reconciliations for obselete status older than %v: %w", deadline, err)
+		}
+		// delete inventory clusters - only if reconciliations are removed successfully - foreign key constraint
+		deletedClustersCount, err := transactionalInventory.RemoveDeletedClustersOlderThan(deadline)
+		if err != nil {
+			return fmt.Errorf("failed to remove deleted clusters older than %v: %w", deadline, err)
+		}
+
+		t.logger.Infof("Cleaned %d clusters, %d reconciliations and %d statuses successfully", deletedClustersCount, deletedReconsCount, deletedStatusesCount)
+		return nil
+	}
+
+	return db.Transaction(t.conn, dbOps, t.logger)
 }
