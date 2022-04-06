@@ -15,7 +15,14 @@ import (
 // Matcher of Pod to the Handler.
 type Matcher interface {
 	// GetHandlersMap by given pods list.
-	GetHandlersMap(kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts WaitOptions) map[Handler][]CustomObject
+	GetHandlersMap(
+		kubeClient kubernetes.Interface,
+		retryOpts []retry.Option,
+		podsList v1.PodList,
+		log *zap.SugaredLogger,
+		debug bool,
+		waitOpts WaitOptions,
+	) map[Handler][]CustomObject
 }
 
 // ParentKindMatcher matches Pod to the Handler by the parent kind.
@@ -47,7 +54,7 @@ func (m *ParentKindMatcher) GetHandlersMap(kubeClient kubernetes.Interface, retr
 		podObject := CustomObject{Name: pod.Name, Namespace: pod.Namespace, Kind: pod.Kind}
 
 		switch parentObject.Kind {
-		case "":
+		case "", "Job":
 			handlersMap[noActionHandler] = append(handlersMap[noActionHandler], podObject)
 		case "ReplicaSet":
 			// ReplicaSets require further processing
