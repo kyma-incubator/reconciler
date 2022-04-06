@@ -321,6 +321,42 @@ func deployIstio(context *service.ActionContext, performer actions.IstioPerforme
 	return nil
 }
 
+func deployIstio(context *service.ActionContext, performer actions.IstioPerformer) error {
+	component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).
+		WithNamespace(istioNamespace).
+		WithProfile(context.Task.Profile).
+		WithConfiguration(context.Task.Configuration).Build()
+	istioManifest, err := context.ChartProvider.RenderManifest(component)
+	if err != nil {
+		return err
+	}
+
+	istioStatus, err := getInstalledVersion(context, performer)
+	if err != nil {
+		return err
+	}
+
+	if canInstall(istioStatus) {
+		context.Logger.Info("No Istio version was detected on the cluster, performing installation...")
+
+		err = performer.Install(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not install Istio")
+		}
+
+	} else if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult {
+		context.Logger.Debugf("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioStatus.PilotVersion, istioStatus.DataPlaneVersion, istioStatus.TargetVersion)
+
+		err = performer.Update(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
+		if err != nil {
+			return errors.Wrap(err, "Could not update Istio")
+		}
+	} else {
+		return err
+	}
+	return nil
+}
+
 func newHelperVersionFrom(versionInString string) (helperVersion, error) {
 	version, err := semver.NewVersion(versionInString)
 	if err != nil {
