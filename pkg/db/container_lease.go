@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"sync"
 	"testing"
 )
@@ -21,7 +22,7 @@ type containerTestSuiteLeaseHolder struct {
 
 type syncedLeasedSharedContainerTestSuiteInstanceHolder struct {
 	mu     sync.Mutex
-	suites map[ContainerSettings]*containerTestSuiteLeaseID
+	suites map[string]*containerTestSuiteLeaseID
 }
 
 var globalContainerTestSuiteLeases = &containerTestSuiteLeaseHolder{
@@ -30,7 +31,7 @@ var globalContainerTestSuiteLeases = &containerTestSuiteLeaseHolder{
 }
 var globalContainerTestSuiteLeaseHolder = &syncedLeasedSharedContainerTestSuiteInstanceHolder{
 	mu:     sync.Mutex{},
-	suites: make(map[ContainerSettings]*containerTestSuiteLeaseID),
+	suites: make(map[string]*containerTestSuiteLeaseID),
 }
 
 func (l *containerTestSuiteLeaseID) acquire() *ContainerTestSuite {
@@ -62,7 +63,7 @@ func (l *containerTestSuiteLeaseID) release() {
 	}
 }
 
-func newContainerTestSuiteLease(debug bool, commitAfterExecution bool) (*containerTestSuiteLeaseID, error) {
+func newContainerTestSuiteLease(debug bool, settings ContainerSettings, commitAfterExecution bool) (*containerTestSuiteLeaseID, error) {
 	lh := globalContainerTestSuiteLeases
 	lh.Lock()
 	defer lh.Unlock()
@@ -70,14 +71,21 @@ func newContainerTestSuiteLease(debug bool, commitAfterExecution bool) (*contain
 	id := containerTestSuiteLeaseID(uuid.NewString())
 	ctx := context.Background()
 
-	r, err := RunPostgresContainer(ctx, DefaultSharedContainerSettings, debug)
-	if err != nil {
-		return nil, err
+	var containerRuntime ContainerRuntime
+	var containerErr error
+	switch settings := settings.(type) {
+	case *PostgresContainerSettings:
+		containerRuntime, containerErr = RunPostgresContainer(ctx, *settings, debug)
+	case PostgresContainerSettings:
+		containerRuntime, containerErr = RunPostgresContainer(ctx, settings, debug)
+	}
+	if containerErr != nil {
+		return nil, containerErr
 	}
 
 	lh.leases[id] = &leasedSuite{
 		0,
-		NewUnmanagedContainerTestSuite(ctx, r, commitAfterExecution, nil),
+		NewUnmanagedContainerTestSuite(ctx, containerRuntime, commitAfterExecution, nil),
 	}
 
 	return &id, nil
@@ -85,28 +93,32 @@ func newContainerTestSuiteLease(debug bool, commitAfterExecution bool) (*contain
 
 func LeaseSharedContainerTestSuite(t *testing.T, settings ContainerSettings, debug bool, commitAfterExecution bool) *ContainerTestSuite {
 	t.Helper()
+	test.IntegrationTest(t)
+	registerCleanupForLeasedSharedContainerTestSuite(t, DefaultSharedContainerSettings)
 	h := globalContainerTestSuiteLeaseHolder
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.suites[settings] == nil {
-		lid, err := newContainerTestSuiteLease(debug, commitAfterExecution)
+	hash := settings.id()
+	if h.suites[hash] == nil {
+		lid, err := newContainerTestSuiteLease(debug, settings, commitAfterExecution)
 		if err != nil {
 			panic(err)
 		}
-		h.suites[settings] = lid
+		h.suites[hash] = lid
 	}
-	return h.suites[settings].acquire()
+	return h.suites[hash].acquire()
 }
 
-func ReturnLeasedSharedContainerTestSuite(t *testing.T, settings ContainerSettings) {
+func registerCleanupForLeasedSharedContainerTestSuite(t *testing.T, settings ContainerSettings) {
 	t.Helper()
 	t.Cleanup(func() {
 		h := globalContainerTestSuiteLeaseHolder
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		if len(h.suites) == 0 || h.suites[settings] == nil {
+		hash := settings.id()
+		if len(h.suites) == 0 || h.suites[hash] == nil {
 			return
 		}
-		h.suites[settings].release()
+		h.suites[hash].release()
 	})
 }
