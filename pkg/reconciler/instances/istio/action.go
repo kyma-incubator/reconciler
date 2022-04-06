@@ -71,6 +71,29 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
+	err = deployIstio(context, performer)
+
+	errPatchMutatingWebhook := performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
+	if errPatchMutatingWebhook != nil {
+		errPatchMutatingWebhook = errors.Wrap(errPatchMutatingWebhook, "Could not patch MutatingWebhookConfiguration")
+	}
+
+	if err != nil {
+		if errPatchMutatingWebhook != nil {
+			return errors.Wrap(err, errPatchMutatingWebhook.Error())
+		}
+
+		return err
+	}
+
+	if errPatchMutatingWebhook != nil {
+		return errPatchMutatingWebhook
+	}
+
+	return nil
+}
+
+func deployIstio(context *service.ActionContext, performer actions.IstioPerformer) error {
 	component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).
 		WithNamespace(istioNamespace).
 		WithProfile(context.Task.Profile).
@@ -94,8 +117,7 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 		}
 
 	} else if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult {
-		context.Logger.Debugf("Istio version was detected on the cluster, updating pilot from %s and data plane "+
-			"from %s to version %s...", istioStatus.PilotVersion, istioStatus.DataPlaneVersion, istioStatus.TargetVersion)
+		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioStatus.PilotVersion, istioStatus.DataPlaneVersion, istioStatus.TargetVersion)
 
 		err = performer.Update(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
@@ -104,7 +126,6 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 	} else {
 		return err
 	}
-
 	return nil
 }
 

@@ -188,6 +188,147 @@ func TestStatusPreAction_Run(t *testing.T) {
 		}
 	}
 
+	performerCreatorErrorFn := func(p actions.IstioPerformer) bootstrapIstioPerformer {
+		return func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
+			return p, errors.New("Performer error")
+		}
+	}
+
+	//## performer fails
+	t.Run("should not perform any istio action when performer returned error", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		action := MainReconcileAction{performerCreatorErrorFn(&performer)}
+
+		//when
+		err := action.Run(actionContext)
+
+		//then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Performer error")
+		provider.AssertNotCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertNotCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		performer.AssertNotCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("context.Context"), mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	//## Istio install success & Webhook success
+	t.Run("should fails if Istio install fails & Webhook fails", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioStatus{}, errors.New("Version error"))
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(errors.New("PatchMutatingWebhook error"))
+		action := MainReconcileAction{performerCreatorFn(&performer)}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Version error")
+		require.Contains(t, err.Error(), "PatchMutatingWebhook error")
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	//## Istio install fails & Webhook fails
+	t.Run("should fails if Istio install fails & Webhook fails", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(actions.IstioStatus{}, errors.New("Version error"))
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(errors.New("PatchMutatingWebhook error"))
+		action := MainReconcileAction{performerCreatorFn(&performer)}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Version error")
+		require.Contains(t, err.Error(), "PatchMutatingWebhook error")
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	//## Istio install fail & Webhook success
+	t.Run("should not return error when istio install and PatchMutatingWebhook was successful", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("deployIstio", actionContext.Context, &performer).Return(nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(actions.IstioStatus{}, nil)
+		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
+		action := MainReconcileAction{performerCreatorFn(&performer)}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		//performer.AssertCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("context.Context"), mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+	//## Istio install success & Webhook fail
+	t.Run("should fails if istio install was successful and PatchMutatingWebhook was not", func(t *testing.T) {
+		// given
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).Return(&chart.Manifest{}, nil)
+		kubeClient := newFakeKubeClient()
+		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
+		performer := actionsmocks.IstioPerformer{}
+		performer.On("deployIstio", actionContext.Context, &performer).Return(nil)
+		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(actions.IstioStatus{}, errors.New(""))
+		performer.On("Install", actionContext.KubeClient.Kubeconfig(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(errors.New("PatchMutatingWebhook error"))
+		action := MainReconcileAction{performerCreatorFn(&performer)}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "PatchMutatingWebhook error")
+		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
+		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Install", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		//performer.AssertCalled(t, "PatchMutatingWebhook", mock.AnythingOfType("context.Context"), mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+	//## Istio upgrade fail & Webhook fail
+	//## Istio upgrade fail & Webhook success
+	//## Istio upgrade success & Webhook fail
+	//## Istio upgrade success & Webhook success
+	//=========
+
 	t.Run("should not perform istio actions when istio was detected on the cluster and client version is lower than target version", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
