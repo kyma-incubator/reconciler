@@ -259,7 +259,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 	})
 
 	//## Istio install success & Webhook success
-	t.Run("should not return error when istio install and PatchMutatingWebhook was successful", func(t *testing.T) {
+	t.Run("should not return error when both istio install and webhook patch were successful", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -291,7 +291,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 	})
 
 	//## Istio install fails & Webhook fails
-	t.Run("should fails if Istio install fails & Webhook fails", func(t *testing.T) {
+	t.Run("should return an error when both istio installation and webhook patch failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -317,7 +317,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 	})
 
 	//## Istio install fail & Webhook success
-	t.Run("should fails if istio install fails and PatchMutatingWebhook was successful", func(t *testing.T) {
+	t.Run("should return an error when istio installation failed and webhook patch was successful", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -350,7 +350,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 	})
 
 	//## Istio install success & Webhook fail
-	t.Run("should fails if istio install was successful and PatchMutatingWebhook was not", func(t *testing.T) {
+	t.Run("should return an error when istio installation was successful and webhook patch failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -383,7 +383,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 	})
 
 	//## Istio upgrade success & Webhook success
-	t.Run("should not return error when istio update and PatchMutatingWebhook was successful", func(t *testing.T) {
+	t.Run("should not return an error when both istio update and webhook patch were successful", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -415,7 +415,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 	})
 
 	//## Istio upgrade fail & Webhook success
-	t.Run("should fails when istio update fails and PatchMutatingWebhook was successful", func(t *testing.T) {
+	t.Run("should return an error when istio update failed and webhook patch was successful", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -448,7 +448,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 	})
 
 	//## Istio upgrade success & Webhook fail
-	t.Run("should fails if istio install was successful and PatchMutatingWebhook was not", func(t *testing.T) {
+	t.Run("should return an error when istio installation was successful and webhook patch failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
@@ -481,7 +481,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 	})
 
 	//## Istio upgrade fail & Webhook fail
-	t.Run("should fails if istio install was successful and PatchMutatingWebhook was not", func(t *testing.T) {
+	t.Run("should return an error when istio installation was successful and webhook patch failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
