@@ -47,6 +47,17 @@ const (
 	paramPoolID     = "poolID"
 )
 
+var (
+	auditedPaths = []string{
+		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
+	}
+	auditedMethods = []string{
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodPatch,
+	}
+)
+
 func startWebserver(ctx context.Context, o *Options) error {
 	//routing
 	mainRouter := mux.NewRouter()
@@ -162,8 +173,10 @@ func startWebserver(ctx context.Context, o *Options) error {
 			return err
 		}
 		defer func() { _ = auditLogger.Sync() }() // make golint happy
-		auditLoggerMiddelware := newAuditLoggerMiddelware(auditLogger, o)
-		apiRouter.Use(auditLoggerMiddelware)
+		auditLoggerMiddleware := newAuditLoggerMiddleware(auditLogger, o)
+		for _, auditedPath := range auditedPaths {
+			apiRouter.PathPrefix(auditedPath).Methods(auditedMethods...).Subrouter().Use(auditLoggerMiddleware)
+		}
 	}
 	//start server process
 	srv := &server.Webserver{

@@ -1,14 +1,16 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -23,7 +25,6 @@ const (
 	postValue     = "bb7fb804-ade5-42bc-a740-3c2861d0391d"
 	tenantID      = "5f6b71a9-cd48-448d-9b58-9895f1639bc6"
 	jwtPayloadSub = "test2@test.pl"
-	clientIP      = "1.2.3.4"
 )
 
 type MemorySink struct {
@@ -69,14 +70,53 @@ type log struct {
 	Category string `json:"category"`
 }
 
+func Test_Auditlog_With_Middleware(t *testing.T) {
+	// build reconciler options
+	o := NewOptions(&cli.Options{})
+	o.AuditLogTenantID = tenantID
+	a := require.New(t)
+	auditLog := filepath.Join(t.TempDir(), "auditlog")
+	l, err := NewLoggerWithFile(auditLog)
+	a.NoError(err)
+	w := httptest.NewRecorder()
+	mw := newAuditLoggerMiddleware(l, o)
+
+	req, _ := http.NewRequest(http.MethodPost, "http://localhost/v1/clusters", nil)
+
+	req = mux.SetURLVars(req, map[string]string{
+		paramContractVersion: "1",
+	})
+
+	req.Body = io.NopCloser(bytes.NewBuffer([]byte(fmt.Sprintf(`{"%s":"%s"}`, postKey, postValue))))
+
+	mw(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {})).ServeHTTP(w, req)
+
+	auditLogFile, auditLogFileErr := os.Open(auditLog)
+	a.NoError(auditLogFileErr)
+	scanner := bufio.NewScanner(auditLogFile)
+
+	for scanner.Scan() {
+		logOutput := make(map[string]interface{})
+		a.NoError(json.Unmarshal(scanner.Bytes(), &logOutput))
+		a.NotNil(logOutput["time"])
+		a.NotNil(logOutput["level"])
+		a.NotNil(logOutput["uuid"])
+		a.NotNil(logOutput["user"])
+		a.NotNil(logOutput["data"])
+		a.NotNil(logOutput["tenant"])
+		a.NotNil(logOutput["category"])
+		a.NotNil(logOutput["time"])
+		a.Nil(logOutput["ip"])
+	}
+}
+
 func Test_Auditlog(t *testing.T) {
 	testCases := []struct {
-		name          string
-		method        string
-		body          string
-		jwtHeader     string
-		expectFail    bool
-		addExternalIP bool
+		name       string
+		method     string
+		body       string
+		jwtHeader  string
+		expectFail bool
 	}{
 		{
 			name:   "get request",
@@ -93,10 +133,9 @@ func Test_Auditlog(t *testing.T) {
 			body:   fmt.Sprintf(`{"%s":"%s"}`, postKey, postValue),
 		},
 		{
-			name:          "post request",
-			method:        http.MethodPost,
-			body:          fmt.Sprintf(`{"%s":"%s"}`, postKey, postValue),
-			addExternalIP: true,
+			name:   "post request",
+			method: http.MethodPost,
+			body:   fmt.Sprintf(`{"%s":"%s"}`, postKey, postValue),
 		},
 		{
 			name:   "delete request",
@@ -132,9 +171,6 @@ func Test_Auditlog(t *testing.T) {
 				req.Body = io.NopCloser(bytes.NewBuffer([]byte(tc.body)))
 			}
 
-			if tc.addExternalIP {
-				req.Header.Add(ExternalAddressHeaderName, clientIP)
-			}
 			if tc.jwtHeader != "" {
 				req.Header.Add(XJWTHeaderName, tc.jwtHeader)
 			}
@@ -155,7 +191,7 @@ func Test_Auditlog(t *testing.T) {
 					http.StatusOK, w.Result().StatusCode)
 			} else {
 				t.Log(output.String())
-				validateLog(t, output.String(), tc.method, tc.jwtHeader != "", tc.addExternalIP)
+				validateLog(t, output.String(), tc.method, tc.jwtHeader != "")
 			}
 
 		})
@@ -163,7 +199,7 @@ func Test_Auditlog(t *testing.T) {
 }
 
 // validateLog ensures that all required fields in the log message are set and valid. If any of these is missing the audit log backend will not accept/process our logs
-func validateLog(t *testing.T, logMsg, method string, useJWT, checkForValidIP bool) {
+func validateLog(t *testing.T, logMsg, method string, useJWT bool) {
 	l := &log{}
 	err := json.Unmarshal([]byte(logMsg), l)
 	require.NoError(t, err)
@@ -177,15 +213,10 @@ func validateLog(t *testing.T, logMsg, method string, useJWT, checkForValidIP bo
 
 	require.Equalf(t, tenantID, l.Tenant, "invalid log tenantID: expected: %s, got: %s", tenantID, l.Tenant)
 
-	if checkForValidIP {
-		require.NotEmpty(t, l.IP, "invalid log IP: expected non-empty IP, got: %s", clientIP, l.IP)
-		require.NotNil(t, net.ParseIP(l.IP), "invalid log IP: expected valid IP, got: %s", clientIP, l.IP)
-		require.Falsef(t, net.ParseIP(l.IP).IsPrivate(), "invalid log IP: cannot use private ip, got: %s", l.IP)
-	}
-
 	if useJWT {
 		require.Equalf(t, jwtPayloadSub, l.User, "invalid user: expected: %s, got: %s", jwtPayloadSub, l.User)
 	}
+
 	if method == http.MethodPost {
 		d := &data{}
 		err := json.Unmarshal([]byte(l.Data), d)

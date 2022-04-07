@@ -21,8 +21,6 @@ import (
 
 const (
 	XJWTHeaderName = "X-Jwt"
-	// ExternalAddressHeaderName https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#config-http-conn-man-headers-x-envoy-external-address
-	ExternalAddressHeaderName = "X-Envoy-External-Address"
 )
 
 func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
@@ -64,7 +62,7 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 	), err
 }
 
-func newAuditLoggerMiddelware(l *zap.Logger, o *Options) func(http.Handler) http.Handler {
+func newAuditLoggerMiddleware(l *zap.Logger, o *Options) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			auditLogRequest(w, r, l, o)
@@ -81,7 +79,6 @@ type data struct {
 	RequestBody     string `json:"requestBody"`
 	User            string `json:"user"`
 	Tenant          string `json:"tenant"`
-	IP              string `json:"ip"`
 }
 
 func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *Options) {
@@ -106,7 +103,6 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		URI:             r.RequestURI,
 		User:            "UNKNOWN_USER",
 		Tenant:          o.AuditLogTenantID,
-		IP:              "",
 	}
 
 	jwtPayload, err := getJWTPayload(r)
@@ -142,13 +138,6 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		logData.RequestBody = string(reqBody)
 	}
 
-	externalHeaderIP := r.Header.Get(ExternalAddressHeaderName)
-	if externalHeaderIP == "" {
-		o.Logger().Debug(fmt.Sprintf("empty %s header", ExternalAddressHeaderName))
-	} else {
-		logData.IP = externalHeaderIP
-	}
-
 	data, err := json.Marshal(logData)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
@@ -163,10 +152,6 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		With(zap.String("data", string(data))).
 		With(zap.String("tenant", o.AuditLogTenantID)).
 		With(zap.String("category", "audit.security-events")) // comply with required log backend format
-
-	if logData.IP != "" {
-		logger = logger.With(zap.String("ip", logData.IP))
-	}
 
 	logger.Info("")
 }
