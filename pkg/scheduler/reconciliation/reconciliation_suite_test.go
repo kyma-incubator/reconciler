@@ -8,7 +8,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"path/filepath"
 	"sync"
 	"testing"
 )
@@ -19,33 +18,22 @@ type reconciliationTestSuite struct {
 	testContext      context.Context
 	serverStartMutex sync.Mutex
 	debugLogs        bool
+	runtimeIDs       []string
+	inventory        cluster.Inventory
+	persistenceRepo  Repository
 }
 
 type testEntities struct {
-	persistenceRepo          Repository
 	inMemoryRepo             Repository
 	persistenceSchedulingIDs []string
 	inMemorySchedulingIDs    []string
-	runtimeIDs               []string
-	teardownFn               func()
 }
 
 func TestIntegrationSuite(t *testing.T) {
-	containerSettings := &db.PostgresContainerSettings{
-		Name:              "default-db-shared",
-		Image:             "postgres:11-alpine",
-		Config:            db.MigrationConfig(filepath.Join("..", "..", "..", "configs", "db", "postgres")),
-		Host:              "127.0.0.1",
-		Database:          "kyma",
-		Port:              5432,
-		User:              "kyma",
-		Password:          "kyma",
-		EncryptionKeyFile: filepath.Join("..", "..", "..", "configs", "encryption", "unittest.key"),
-	}
 	cs := db.IsolatedContainerTestSuite(
 		t,
 		true,
-		*containerSettings,
+		*db.DefaultSharedContainerSettings,
 		false,
 	)
 	cs.SetT(t)
@@ -54,7 +42,6 @@ func TestIntegrationSuite(t *testing.T) {
 		testContext:    context.Background(),
 		debugLogs:      true,
 	})
-	db.ReturnLeasedSharedContainerTestSuite(t, containerSettings)
 }
 
 func (s *reconciliationTestSuite) SetupSuite() {
@@ -75,31 +62,31 @@ func (s *reconciliationTestSuite) NewConnection() (db.Connection, error) {
 }
 
 func (s *reconciliationTestSuite) prepareTest(t *testing.T, count int) *testEntities {
+	var err error
 	//create mock database connection
-	dbConn = s.dbTestConnection()
+	dbConn = s.TxConnection()
 
 	persistenceSchedulingIDs := make([]string, 0, count)
 	inMemorySchedulingIDs := make([]string, 0, count)
 
-	persistenceRepo, err := NewPersistedReconciliationRepository(dbConn, true)
+	s.persistenceRepo, err = NewPersistedReconciliationRepository(dbConn, true)
 	require.NoError(t, err)
 	inMemoryRepo := NewInMemoryReconciliationRepository()
 
 	//prepare inventory
-	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
+	s.inventory, err = cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 
-	var runtimeIDs []string
 	for i := 0; i < count; i++ {
 		//add cluster(s) to inventory
-		clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+		clusterState, err := s.inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
 		require.NoError(t, err)
 
 		//collect runtimeIDs for cleanup
-		runtimeIDs = append(runtimeIDs, clusterState.Cluster.RuntimeID)
+		s.runtimeIDs = append(s.runtimeIDs, clusterState.Cluster.RuntimeID)
 
 		//trigger reconciliation for cluster
-		persistenceReconEntity, err := persistenceRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
+		persistenceReconEntity, err := s.persistenceRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 		require.NoError(t, err)
 		inMemoryReconEntity, err := inMemoryRepo.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
 		require.NoError(t, err)
@@ -109,13 +96,19 @@ func (s *reconciliationTestSuite) prepareTest(t *testing.T, count int) *testEnti
 		inMemorySchedulingIDs = append(inMemorySchedulingIDs, inMemoryReconEntity.SchedulingID)
 	}
 
-	// clean-up created cluster
-	teardownFn := func() {
-		for _, runtimeID := range runtimeIDs {
-			require.NoError(t, persistenceRepo.RemoveReconciliationByRuntimeID(runtimeID))
-			require.NoError(t, inventory.Delete(runtimeID))
-		}
-	}
+	return &testEntities{inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs}
+}
 
-	return &testEntities{persistenceRepo, inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs, runtimeIDs, teardownFn}
+func (s *reconciliationTestSuite) BeforeTest(suiteName, testName string) {
+	s.runtimeIDs = nil
+	s.inventory = nil
+	s.persistenceRepo = nil
+}
+
+func (s *reconciliationTestSuite) AfterTest(suiteName, testName string) {
+	t := s.T()
+	for _, runtimeID := range s.runtimeIDs {
+		require.NoError(t, s.persistenceRepo.RemoveReconciliationByRuntimeID(runtimeID))
+		require.NoError(t, s.inventory.Delete(runtimeID))
+	}
 }

@@ -152,17 +152,15 @@ func (s *serviceTestSuite) TestTransitionFinishWhenClusterNotInProgress() {
 	require.Equal(t, model.ClusterStatusDeletePending, newClusterState.Status.Status)
 }
 
-func (s *reconciliationTestSuite) TestDeletedClusters() {
+func (s *serviceTestSuite) TestCleanDeletedClusters() {
 	t := s.T()
-	transition, clusterState, _ := s.prepareTransitionTest(t)
-	toBeDeletedReconEntity, err := transition.reconRepo.CreateReconciliation(clusterState,
-		&model.ReconciliationSequenceConfig{
-			PreComponents:  [][]string{{"comp3"}},
-			DeleteStrategy: "",
-		})
+	transition, clusterState := s.prepareTransitionTest(t)
+
+	reconciliationEntities, err := transition.reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
+	require.Len(t, reconciliationEntities, 1)
 	require.NoError(t, err)
-	require.NotNil(t, toBeDeletedReconEntity)
-	require.False(t, toBeDeletedReconEntity.Finished)
+	require.NotNil(t, reconciliationEntities[0])
+	require.False(t, reconciliationEntities[0].Finished)
 
 	// set cluster and related configs, statuses as deleted
 	err = transition.inventory.Delete(clusterState.Cluster.RuntimeID)

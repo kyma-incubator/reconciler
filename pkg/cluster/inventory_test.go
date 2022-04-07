@@ -34,7 +34,7 @@ func (s *clusterTestSuite) TestInventory() {
 	t := s.T()
 	conn, err := s.NewConnection()
 	require.NoError(t, err)
-	inventory := s.newInventory(&conn)
+	inventory := s.newInventory(conn)
 	expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
 
 	removeAllClusters(t, inventory) //cleanup before the test runs
@@ -143,7 +143,7 @@ func (s *clusterTestSuite) Test_ClustersStatusCheck() {
 	t.Run("Get clusters with particular status", func(t *testing.T) {
 		conn, err := s.NewConnection()
 		require.NoError(t, err)
-		inventory := s.newInventory(&conn)
+		inventory := s.newInventory(conn)
 
 		var expectedClusters []*keb.Cluster
 
@@ -198,7 +198,7 @@ func (s *clusterTestSuite) Test_StatusChange() {
 	t.Run("Get status changes", func(t *testing.T) {
 		conn, err := s.NewConnection()
 		require.NoError(t, err)
-		inventory := s.newInventory(&conn)
+		inventory := s.newInventory(conn)
 		newCluster := test.NewCluster(t, "1", 1, false, test.Production)
 		defer func() {
 			//cleanup
@@ -231,7 +231,7 @@ func (s *clusterTestSuite) TestInventoryForReconcile() {
 	t.Run("Get clusters to reconcile", func(t *testing.T) {
 		conn, err := s.NewConnection()
 		require.NoError(t, err)
-		inventory := s.newInventory(&conn)
+		inventory := s.newInventory(conn)
 		//create cluster1, clusterVersion1, clusterConfigVersion1-1, status: Ready
 		cluster1v1v1 := test.NewCluster(t, "1", 1, false, test.Production)
 		clusterState1v1v1a, err := inventory.CreateOrUpdate(1, cluster1v1v1)
@@ -342,7 +342,7 @@ func (s *clusterTestSuite) TestCountRetries() {
 
 	conn, err := s.NewConnection()
 	require.NoError(t, err)
-	inventory := s.newInventory(&conn)
+	inventory := s.newInventory(conn)
 
 	defer func() {
 		for _, runtimeID := range []string{
@@ -475,9 +475,11 @@ func (s *clusterTestSuite) TestTransaction() {
 	})
 }
 
-func TestRemoveDeletedClustersOlderThan(t *testing.T) {
+func (s *clusterTestSuite) TestRemoveDeletedClustersOlderThan() {
+	t := s.T()
+
 	//create inventory
-	inventory := newInventory(t)
+	inventory := s.newInventory(s.TxConnection())
 
 	notToBeDeletedCluster := test.NewCluster(t, "active", 1, false, test.Production)
 	activeClusterState, err := inventory.CreateOrUpdate(1, notToBeDeletedCluster)
@@ -503,7 +505,7 @@ func TestRemoveDeletedClustersOlderThan(t *testing.T) {
 	require.Equal(t, 1, len(clusterStates))
 }
 
-func TestDefaultInventory_RemoveStatusesWithoutReconciliations(t *testing.T) {
+func (s *clusterTestSuite) TestDefaultInventory_RemoveStatusesWithoutReconciliations() {
 	tests := []struct {
 		name            string
 		want            int
@@ -519,9 +521,11 @@ func TestDefaultInventory_RemoveStatusesWithoutReconciliations(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		t := s.T()
 		testCase := tt
 		t.Run(testCase.name, func(t *testing.T) {
-			inventory := newInventory(t)
+			//create inventory
+			inventory := s.newInventory(s.TxConnection())
 
 			// cleanup
 			removeAllClusters(t, inventory)
@@ -581,9 +585,9 @@ func listStatusesForStatusChanges(states []*StatusChange) []model.Status {
 	return result
 }
 
-func (s *clusterTestSuite) newInventory(conn *db.Connection) Inventory {
+func (s *clusterTestSuite) newInventory(conn db.Connection) Inventory {
 	t := s.T()
-	inventory, err := NewInventory(*conn, true, MetricsCollectorMock{})
+	inventory, err := NewInventory(conn, true, MetricsCollectorMock{})
 	require.NoError(t, err)
 	return inventory
 }
