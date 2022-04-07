@@ -97,6 +97,7 @@ func (s *reconciliationTestSuite) TestPersistentReconciliationRepository_GetRunt
 			require.True(t, reflect.DeepEqual(s.runtimeIDs, persistentRepoRuntimeIDs))
 			require.NoError(t, err)
 			require.True(t, reflect.DeepEqual(s.runtimeIDs, inmemoryRepoRuntimeIDs))
+			s.AfterTest("", testCase.name)
 		})
 	}
 }
@@ -148,6 +149,7 @@ func (s *reconciliationTestSuite) TestPersistentReconciliationRepository_RemoveR
 			inMemoryReconciliations, err := testEntities.inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(inMemoryReconciliations))
+			s.AfterTest("", testCase.name)
 		})
 	}
 }
@@ -192,6 +194,7 @@ func (s *reconciliationTestSuite) TestPersistentReconciliationRepository_RemoveR
 			inMemoryReconciliations, err := testEntities.inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(inMemoryReconciliations))
+			s.AfterTest("", testCase.name)
 		})
 	}
 }
@@ -237,6 +240,7 @@ func (s *reconciliationTestSuite) TestPersistentReconciliationRepository_RemoveR
 			inMemoryReconciliations, err := testEntities.inMemoryRepo.GetReconciliations(&WithCreationDateBefore{Time: time.Now()})
 			require.NoError(t, err)
 			require.Equal(t, 0, len(inMemoryReconciliations))
+			s.AfterTest("", testCase.name)
 		})
 	}
 }
@@ -308,6 +312,7 @@ func (s *reconciliationTestSuite) TestPersistentReconciliationRepository_RemoveR
 			if got != testCase.want {
 				t.Errorf("RemoveReconciliationsForObsoleteStatus() got = %v, want %v", got, testCase.want)
 			}
+			s.AfterTest("", testCase.name)
 		})
 	}
 }

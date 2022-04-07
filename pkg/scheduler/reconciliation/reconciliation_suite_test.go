@@ -99,16 +99,13 @@ func (s *reconciliationTestSuite) prepareTest(t *testing.T, count int) *testEnti
 	return &testEntities{inMemoryRepo, persistenceSchedulingIDs, inMemorySchedulingIDs}
 }
 
-func (s *reconciliationTestSuite) BeforeTest(suiteName, testName string) {
-	s.runtimeIDs = nil
-	s.inventory = nil
-	s.persistenceRepo = nil
-}
-
 func (s *reconciliationTestSuite) AfterTest(suiteName, testName string) {
 	t := s.T()
 	for _, runtimeID := range s.runtimeIDs {
 		require.NoError(t, s.persistenceRepo.RemoveReconciliationByRuntimeID(runtimeID))
 		require.NoError(t, s.inventory.Delete(runtimeID))
 	}
+	s.runtimeIDs = nil
+	s.inventory = nil
+	s.persistenceRepo = nil
 }
