@@ -16,6 +16,7 @@ import (
 type InMemoryReconciliationRepository struct {
 	reconciliations map[string]*model.ReconciliationEntity       //key: clusterName
 	operations      map[string]map[string]*model.OperationEntity //key1:schedulingID, key2:correlationID
+	status          map[int64]*model.ClusterStatusEntity         //key1:schedulingID, key2:correlationID
 	mu              sync.Mutex
 }
 
@@ -80,6 +81,7 @@ func NewInMemoryReconciliationRepository() Repository {
 	return &InMemoryReconciliationRepository{
 		reconciliations: make(map[string]*model.ReconciliationEntity),
 		operations:      make(map[string]map[string]*model.OperationEntity),
+		status:          make(map[int64]*model.ClusterStatusEntity),
 	}
 }
 
@@ -146,6 +148,18 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 		}
 	}
 
+	// cluster statuses
+	statusEntity := &model.ClusterStatusEntity{
+		ID:             state.Status.ID,
+		ClusterVersion: state.Status.ClusterVersion,
+		ConfigVersion:  state.Status.ConfigVersion,
+		Status:         state.Status.Status,
+		Deleted:        state.Status.Deleted,
+		RuntimeID:      state.Status.RuntimeID,
+		Created:        state.Status.Created,
+	}
+	r.status[statusEntity.ID] = statusEntity
+
 	return reconEntity, nil
 }
 
@@ -195,6 +209,27 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliationsBeforeDeadline(r
 	}
 
 	return nil
+}
+
+func (r *InMemoryReconciliationRepository) RemoveReconciliationsForObsoleteStatus(deadline time.Time) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var runtimeIDsToRemove []string
+	for _, recon := range r.reconciliations {
+		if r.status[recon.ClusterConfigStatus].Deleted && r.status[recon.ClusterConfigStatus].Created.Before(deadline) {
+			runtimeIDsToRemove = append(runtimeIDsToRemove, recon.RuntimeID)
+		}
+		delete(r.operations, recon.SchedulingID)
+	}
+
+	delCnt := 0
+	for _, runtimeIDToRemove := range runtimeIDsToRemove {
+		delete(r.reconciliations, runtimeIDToRemove)
+		delCnt++
+	}
+
+	return delCnt, nil
 }
 
 func (r *InMemoryReconciliationRepository) GetRuntimeIDs() ([]string, error) {

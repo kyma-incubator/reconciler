@@ -285,13 +285,13 @@ func cleanup(t *testing.T) {
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 
 	cleanup := NewTestCleanup(recon, kubeClient)
-	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
+	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default", "")
 
 	wsf, err = chart.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 	cleanup = NewTestCleanup(recon, kubeClient)
-	cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default")
+	cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default", "")
 }
 
 func newModel(t *testing.T, kymaComponent, kymaVersion string) *reconciler.Task {

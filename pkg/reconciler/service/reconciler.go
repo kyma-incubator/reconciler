@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"sync"
 	"time"
 
@@ -280,4 +281,8 @@ func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconcil
 		defer cancel()
 		return (&runner{r, NewInstall(logger), logger}).Run(timeoutCtx, model, callback, r.reconcilerMetricsSet)
 	}
+}
+
+func (r *ComponentReconciler) Collector() prometheus.Collector {
+	return r.reconcilerMetricsSet.ComponentProcessingDurationCollector.Collector
 }

@@ -671,7 +671,7 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifestTarget, namespac
 		g.logger.Warnf("Watching progress of deleted resources failed: %s", err)
 	}
 
-	if err = g.DeleteNamespace(namespace); err != nil && !k8serr.IsNotFound(err) {
+	if err = g.DeleteNamespace(ctx, namespace); err != nil && !k8serr.IsNotFound(err) {
 		g.logger.Errorf("Failed to delete namespace name='%s': %s",
 			namespace, err)
 		return deletedResources, err
@@ -679,7 +679,7 @@ func (g *kubeClientAdapter) Delete(ctx context.Context, manifestTarget, namespac
 	return deletedResources, nil
 }
 
-func (g *kubeClientAdapter) DeleteNamespace(namespace string) error {
+func (g *kubeClientAdapter) DeleteNamespace(ctx context.Context, namespace string) error {
 	r := cmdutil.NewFactory(NewRESTClientGetter(g.restConfig)).NewBuilder().
 		Unstructured().
 		NamespaceParam(namespace).DefaultNamespace().
@@ -692,14 +692,18 @@ func (g *kubeClientAdapter) DeleteNamespace(namespace string) error {
 		Flatten().
 		Do()
 	infos, err := r.Infos()
-	if err != nil {
-		return err
-	}
+
 	if len(infos) == 0 {
 		namespaceRes := schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
+		propagation := metav1.DeletePropagationForeground
 		err = g.dynamicClient.
 			Resource(namespaceRes).
-			Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+			Delete(ctx, namespace, metav1.DeleteOptions{PropagationPolicy: &propagation})
+		g.logger.Debugf("kubeClient delete namespace: %s (propagation policy %s) successfully.",
+			namespace, string(propagation))
+	} else {
+		g.logger.Debugf("kubeClient delete namespace: %s (resources blocking deletion %s) skipped",
+			namespace, infos)
 	}
 	return err
 }

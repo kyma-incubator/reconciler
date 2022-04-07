@@ -26,6 +26,8 @@ type Inventory interface {
 	ClustersNotReady() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 	WithTx(tx *db.TxConnection) (Inventory, error)
+	RemoveStatusesWithoutReconciliations() (int, error)
+	RemoveDeletedClustersOlderThan(deadline time.Time) (int, error)
 }
 
 type DefaultInventory struct {
@@ -723,4 +725,74 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	}
 
 	return statusChanges, nil
+}
+
+func (i *DefaultInventory) RemoveStatusesWithoutReconciliations() (int, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+		statusSelectQuery, err := db.NewQuery(tx, &model.StatusCleanupEntity{}, i.Logger)
+		if err != nil {
+			return 0, err
+		}
+		statusSelect, err := statusSelectQuery.SelectColumn("StatusID")
+		if err != nil {
+			return 0, err
+		}
+
+		deleteQuery, err := db.NewQuery(tx, &model.ClusterStatusEntity{}, i.Logger)
+		if err != nil {
+			return 0, err
+		}
+		deletedRows, err := deleteQuery.
+			Delete().
+			WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
+			Exec()
+		return int(deletedRows), err
+	}
+	delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+	if err != nil {
+		i.Logger.Error("Removal of config statuses without reconciliation failed during cluster entities cleanup", err)
+	}
+	return delCnt.(int), err
+}
+
+func (i *DefaultInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (int, error) {
+	dbOps := func(tx *db.TxConnection) (interface{}, error) {
+		selectQuery, err := db.NewQuery(tx, &model.ClusterEntity{}, i.Logger)
+		if err != nil {
+			return 0, err
+		}
+		columnHandler, err := db.NewColumnHandler(&model.ClusterEntity{}, tx, i.Logger)
+		if err != nil {
+			return 0, err
+		}
+		createdColumn, err := columnHandler.ColumnName("Created")
+		if err != nil {
+			return 0, err
+		}
+		runtimeIDSelectQuery, err := selectQuery.SelectColumn("RuntimeID")
+		if err != nil {
+			return 0, err
+		}
+		runtimeIDSelectQuery.
+			WhereRaw(fmt.Sprintf("%s<$%d", createdColumn, runtimeIDSelectQuery.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
+
+		deleteQuery, err := db.NewQuery(tx, &model.ClusterEntity{}, i.Logger)
+		if err != nil {
+			return 0, err
+		}
+		whereCond := map[string]interface{}{
+			"Deleted": true,
+		}
+		deletedRows, err := deleteQuery.
+			Delete().
+			WhereIn("RuntimeID", runtimeIDSelectQuery.String(), runtimeIDSelectQuery.GetArgs()...).
+			Where(whereCond).
+			Exec()
+		return int(deletedRows), err
+	}
+	result, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+	if err != nil {
+		i.Logger.Error("Removal of deleted clusters failed during cluster entities cleanup", err)
+	}
+	return result.(int), err
 }

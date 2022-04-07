@@ -2,6 +2,7 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -137,6 +138,41 @@ func TestTransition(t *testing.T) {
 		newClusterState, err := transition.inventory.GetLatest(clusterState.Cluster.RuntimeID)
 		require.NoError(t, err)
 		require.Equal(t, model.ClusterStatusDeletePending, newClusterState.Status.Status)
+	})
+
+	t.Run("Clean Deleted Clusters", func(t *testing.T) {
+		toBeDeletedClusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
+			Kubeconfig: test.ReadKubeconfig(t),
+			KymaConfig: keb.KymaConfig{
+				Components: []keb.Component{
+					{
+						Component: "TestComp2",
+					},
+				},
+				Profile: "",
+				Version: "1.2.3",
+			},
+			RuntimeID: uuid.NewString(),
+		})
+		require.NoError(t, err)
+		toBeDeletedReconEntity, err := reconRepo.CreateReconciliation(toBeDeletedClusterState,
+			&model.ReconciliationSequenceConfig{
+				PreComponents:  [][]string{{"comp3"}},
+				DeleteStrategy: "",
+			})
+		require.NoError(t, err)
+		require.NotNil(t, toBeDeletedReconEntity)
+		require.False(t, toBeDeletedReconEntity.Finished)
+
+		// set cluster and related configs, statuses as deleted
+		err = inventory.Delete(toBeDeletedClusterState.Cluster.RuntimeID)
+		require.NoError(t, err)
+
+		err = transition.CleanStatusesAndDeletedClustersOlderThan(time.Now())
+		require.NoError(t, err)
+
+		_, err = inventory.Get(toBeDeletedClusterState.Configuration.RuntimeID, toBeDeletedClusterState.Configuration.Version)
+		require.Error(t, err)
 	})
 
 }
