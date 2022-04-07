@@ -117,7 +117,7 @@ func deployIstio(context *service.ActionContext, performer actions.IstioPerforme
 		}
 
 	} else if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult {
-		context.Logger.Infof("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioStatus.PilotVersion, istioStatus.DataPlaneVersion, istioStatus.TargetVersion)
+		context.Logger.Debugf("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioStatus.PilotVersion, istioStatus.DataPlaneVersion, istioStatus.TargetVersion)
 
 		err = performer.Update(context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
@@ -126,6 +126,7 @@ func deployIstio(context *service.ActionContext, performer actions.IstioPerforme
 	} else {
 		return err
 	}
+
 	return nil
 }
 
