@@ -188,8 +188,6 @@ func TestStatusPreAction_Run(t *testing.T) {
 		}
 	}
 
-	//=========
-
 	t.Run("should not perform istio actions when istio was detected on the cluster and client version is lower than target version", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
