@@ -234,7 +234,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 	}
 
-	//## performer fails
 	t.Run("should not perform any istio action when performer returned error", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -258,7 +257,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
-	//## Istio install success & Webhook success
 	t.Run("should not return error when both istio install and webhook patch were successful", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -290,7 +288,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger)
 	})
 
-	//## Istio install fails & Webhook fails
 	t.Run("should return an error when both istio installation and webhook patch failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -316,7 +313,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
-	//## Istio install fail & Webhook success
 	t.Run("should return an error when istio installation failed and webhook patch was successful", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -349,7 +345,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger)
 	})
 
-	//## Istio install success & Webhook fail
 	t.Run("should return an error when istio installation was successful and webhook patch failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -382,7 +377,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger)
 	})
 
-	//## Istio upgrade success & Webhook success
 	t.Run("should not return an error when both istio update and webhook patch were successful", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -414,7 +408,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger)
 	})
 
-	//## Istio upgrade fail & Webhook success
 	t.Run("should return an error when istio update failed and webhook patch was successful", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -447,7 +440,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger)
 	})
 
-	//## Istio upgrade success & Webhook fail
 	t.Run("should return an error when istio installation was successful and webhook patch failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
@@ -480,7 +472,6 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		performer.AssertCalled(t, "PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger)
 	})
 
-	//## Istio upgrade fail & Webhook fail
 	t.Run("should return an error when istio installation was successful and webhook patch failed", func(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
