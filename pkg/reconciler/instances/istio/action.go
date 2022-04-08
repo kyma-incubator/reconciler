@@ -134,11 +134,6 @@ type MutatingWebhookPostAction struct {
 	getIstioPerformer bootstrapIstioPerformer
 }
 
-// NewMutatingWebhookPostAction returns an instance of MutatingWebhookPostAction
-func NewMutatingWebhookPostAction(getIstioPerformer bootstrapIstioPerformer) *MutatingWebhookPostAction {
-	return &MutatingWebhookPostAction{getIstioPerformer}
-}
-
 func (a *MutatingWebhookPostAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Patch mutating webhook post action of istio triggered")
 
