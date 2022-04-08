@@ -66,9 +66,10 @@ type migrator struct {
 	Services              map[string]types.ServiceOffering
 	Plans                 map[string]types.ServicePlan
 	ac                    *service.ActionContext
+	skipSafeCheck         bool
 }
 
-func newMigrator(ac *service.ActionContext) (*migrator, error) {
+func newMigrator(ac *service.ActionContext, skipSafeCheck bool) (*migrator, error) {
 	ctx := ac.Context
 	namespace := ac.Task.Namespace
 	cfg, err := clientcmd.RESTConfigFromKubeConfig([]byte(ac.KubeClient.Kubeconfig()))
@@ -112,6 +113,7 @@ func newMigrator(ac *service.ActionContext) (*migrator, error) {
 		ClusterID:             configMap.Data["CLUSTER_ID"],
 		Services:              services,
 		Plans:                 plans,
+		skipSafeCheck:         skipSafeCheck,
 	}
 	return migrator, nil
 }
@@ -272,7 +274,7 @@ func (m *migrator) getInstancesToMigrate(smInstances *types.ServiceInstances, sv
 			}
 		}
 		if smInstance == nil {
-			if isReady(svcat) && classes.hasSMBroker(svcat) {
+			if (isReady(svcat) && classes.hasSMBroker(svcat)) && !m.skipSafeCheck {
 				err := fmt.Errorf("svcat instance name '%s/%s' id '%s' (%s) not found in SM but expected", svcat.Namespace, svcat.Name, svcat.Spec.ExternalID, svcat.Name)
 				errs = append(errs, err)
 			} else {
