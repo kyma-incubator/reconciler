@@ -129,38 +129,6 @@ func deployIstio(context *service.ActionContext, performer actions.IstioPerforme
 	return nil
 }
 
-type MutatingWebhookPostAction struct {
-	// Temporary solution to overcome Reconciler limitation: Unable to bootstrap IstioPerformer only once in the component reconciler lifetime
-	getIstioPerformer bootstrapIstioPerformer
-}
-
-func (a *MutatingWebhookPostAction) Run(context *service.ActionContext) error {
-	context.Logger.Debug("Patch mutating webhook post action of istio triggered")
-
-	performer, err := a.getIstioPerformer(context.Logger)
-	if err != nil {
-		return err
-	}
-
-	istioStatus, err := getInstalledVersion(context, performer)
-	if err != nil {
-		return err
-	}
-
-	if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult || canInstall(istioStatus) {
-		context.Logger.Debugf("Patching mutating webhook for Istio")
-
-		err = performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
-		if err != nil {
-			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
-		}
-	} else {
-		return err
-	}
-
-	return nil
-}
-
 type ProxyResetPostAction struct {
 	getIstioPerformer bootstrapIstioPerformer
 }
