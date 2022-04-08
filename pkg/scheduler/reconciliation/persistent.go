@@ -50,7 +50,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		}
 
 		//find existing reconciliation for this cluster
-		existingReconQ, err := db.NewQuery(tx, reconEntity, r.Logger)
+		existingReconQ, err := db.NewQueryOld(tx, reconEntity, r.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +73,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			return nil, err
 		}
 
-		createReconQ, err := db.NewQuery(tx, reconEntity, r.Logger)
+		createReconQ, err := db.NewQueryOld(tx, reconEntity, r.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 		for idx, components := range sequence.Queue {
 			priority := idx + 1
 			for _, component := range components {
-				createOpQ, err := db.NewQuery(tx, &model.OperationEntity{
+				createOpQ, err := db.NewQueryOld(tx, &model.OperationEntity{
 					Priority:      int64(priority),
 					SchedulingID:  reconEntity.SchedulingID,
 					CorrelationID: fmt.Sprintf("%s--%s", state.Cluster.RuntimeID, uuid.NewString()),
@@ -167,7 +167,7 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID
 			}
 
 			//delete reconciliations
-			deleteQuery, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
+			deleteQuery, err := db.NewQueryOld(tx, &model.ReconciliationEntity{}, r.Logger)
 			if err != nil {
 				return err
 			}
@@ -187,7 +187,7 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID
 func (r *PersistentReconciliationRepository) RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error {
 	dbOps := func(tx *db.TxConnection) error {
 		//delete reconciliation
-		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
+		qDelRecon, err := db.NewQueryOld(tx, &model.ReconciliationEntity{}, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -223,7 +223,7 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsBeforeDeadline
 }
 
 func (r *PersistentReconciliationRepository) GetRuntimeIDs() ([]string, error) {
-	runtimeIDsQuery, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
+	runtimeIDsQuery, err := db.NewQueryOld(r.Conn, &model.ReconciliationEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (r *PersistentReconciliationRepository) GetRuntimeIDs() ([]string, error) {
 }
 
 func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
-	q, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.ReconciliationEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +281,7 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 		reconEntity.ClusterConfigStatus = status.ID
 		reconEntity.Status = status.Status
 		reconEntity.Updated = time.Now().UTC()
-		updReconQ, err := db.NewQuery(tx, reconEntity, r.Logger)
+		updReconQ, err := db.NewQueryOld(tx, reconEntity, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -306,7 +306,7 @@ func (r *PersistentReconciliationRepository) FinishReconciliation(schedulingID s
 }
 
 func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error) {
-	q, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.ReconciliationEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +335,7 @@ func (r *PersistentReconciliationRepository) GetReconciliations(filter Filter) (
 }
 
 func (r *PersistentReconciliationRepository) GetOperations(filter operation.Filter) ([]*model.OperationEntity, error) {
-	q, err := db.NewQuery(r.Conn, &model.OperationEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.OperationEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +360,7 @@ func (r *PersistentReconciliationRepository) GetOperations(filter operation.Filt
 }
 
 func (r *PersistentReconciliationRepository) GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error) {
-	q, err := db.NewQuery(r.Conn, &model.OperationEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.OperationEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func (r *PersistentReconciliationRepository) GetReconcilingOperations() ([]*mode
 	if err != nil {
 		return nil, err
 	}
-	q, err := db.NewQuery(r.Conn, &model.OperationEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.OperationEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +455,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationState(schedulingID, 
 		op.Updated = time.Now().UTC()
 
 		//prepare update query
-		q, err := db.NewQuery(tx, op, r.Logger)
+		q, err := db.NewQueryOld(tx, op, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -507,7 +507,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationRetryID(schedulingID
 		op.Updated = time.Now().UTC()
 
 		//prepare update query
-		q, err := db.NewQuery(tx, op, r.Logger)
+		q, err := db.NewQueryOld(tx, op, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -551,7 +551,7 @@ func (r *PersistentReconciliationRepository) UpdateOperationPickedUp(schedulingI
 		op.PickedUp = time.Now().UTC()
 
 		//prepare update query
-		q, err := db.NewQuery(tx, op, r.Logger)
+		q, err := db.NewQueryOld(tx, op, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -594,7 +594,7 @@ func (r *PersistentReconciliationRepository) UpdateComponentOperationProcessingD
 		operations[0].ProcessingDuration = int64(processingDuration)
 
 		//prepare update query
-		q, err := db.NewQuery(tx, operations[0], r.Logger)
+		q, err := db.NewQueryOld(tx, operations[0], r.Logger)
 		if err != nil {
 			return err
 		}
@@ -673,7 +673,7 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 		return nil, err
 	}
 
-	q, err := db.NewQuery(r.Conn, opEntity, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, opEntity, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -723,7 +723,7 @@ func getRemoveReconciliationOpFn(field string, value string, logger *zap.Sugared
 		}
 
 		//delete reconciliation
-		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, logger)
+		qDelRecon, err := db.NewQueryOld(tx, &model.ReconciliationEntity{}, logger)
 		if err != nil {
 			return err
 		}

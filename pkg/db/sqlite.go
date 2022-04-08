@@ -68,13 +68,13 @@ func (sc *sqliteConnection) QueryRow(query string, args ...interface{}) (DataRow
 }
 
 func (sc *sqliteConnection) Query(query string, args ...interface{}) (DataRows, error) {
-	sc.logger.Debugf("Sqlite3 Query(): %s | %v", query, args)
+	sc.logger.Debugf("Sqlite3 QueryOld(): %s | %v", query, args)
 	if err := sc.validator.Validate(query); err != nil {
 		return nil, err
 	}
 	rows, err := sc.db.Query(query, args...)
 	if err != nil {
-		sc.logger.Errorf("Sqlite3 Query() error: %s", err)
+		sc.logger.Errorf("Sqlite3 QueryOld() error: %s", err)
 	}
 	return rows, err
 }

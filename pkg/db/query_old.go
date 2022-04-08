@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type Query struct {
+type QueryOld struct {
 	Conn          Connection
 	entity        DatabaseEntity
 	columnHandler *ColumnHandler
@@ -18,12 +18,12 @@ type Query struct {
 	Logger        *zap.SugaredLogger
 }
 
-func NewQuery(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger) (*Query, error) {
+func NewQueryOld(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger) (*QueryOld, error) {
 	columnHandler, err := NewColumnHandler(entity, conn, logger)
 	if err != nil {
 		return nil, err
 	}
-	return &Query{
+	return &QueryOld{
 		Conn:          conn,
 		entity:        entity,
 		columnHandler: columnHandler,
@@ -31,17 +31,17 @@ func NewQuery(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger)
 	}, nil
 }
 
-func (q Query) String() string {
+func (q QueryOld) String() string {
 	return q.buffer.String()
 }
 
-func (q *Query) Select() *Select {
+func (q *QueryOld) Select() *Select {
 	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
 
 	return &Select{q, []interface{}{}, nil}
 }
 
-func (q *Query) SelectColumn(fieldName string) (*Select, error) {
+func (q *QueryOld) SelectColumn(fieldName string) (*Select, error) {
 	columnName, err := q.columnHandler.ColumnName(fieldName)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (q *Query) SelectColumn(fieldName string) (*Select, error) {
 	return &Select{q, []interface{}{}, nil}, nil
 }
 
-func (q *Query) Insert() *Insert {
+func (q *QueryOld) Insert() *Insert {
 	colValPlcHdr, err := q.columnHandler.ColumnValuesPlaceholderCsv(true)
 
 	q.buffer.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING %s",
@@ -60,13 +60,13 @@ func (q *Query) Insert() *Insert {
 	return &Insert{q, err}
 }
 
-func (q *Query) Delete() *Delete {
+func (q *QueryOld) Delete() *Delete {
 	q.buffer.WriteString(fmt.Sprintf("DELETE FROM %s", q.entity.Table()))
 
 	return &Delete{q, []interface{}{}, nil}
 }
 
-func (q *Query) Update() *Update {
+func (q *QueryOld) Update() *Update {
 	colEntriesCsv, plcHdrCnt, err := q.columnHandler.columnEntriesCsvRenderer(true, true)
 
 	q.buffer.WriteString(fmt.Sprintf("UPDATE %s SET %s",
@@ -76,12 +76,12 @@ func (q *Query) Update() *Update {
 }
 
 // helper functions:
-func (q *Query) reset() {
+func (q *QueryOld) reset() {
 	q.buffer = bytes.Buffer{}
 	q.whereClause = false
 }
 
-func (q *Query) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset int) ([]interface{}, error) {
+func (q *QueryOld) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset int) ([]interface{}, error) {
 	var args []interface{}
 	var plcHdrIdx int
 
@@ -151,7 +151,7 @@ func (u *Update) addWhereCondition(whereCond map[string]interface{}, negate bool
 	return nil
 }
 
-func (q *Query) addWhereInCondition(field, subQuery string) error {
+func (q *QueryOld) addWhereInCondition(field, subQuery string) error {
 	colName, err := q.columnHandler.ColumnName(field)
 	if err != nil {
 		return err
@@ -161,7 +161,7 @@ func (q *Query) addWhereInCondition(field, subQuery string) error {
 	return nil
 }
 
-func (q *Query) addWhere() {
+func (q *QueryOld) addWhere() {
 	if q.whereClause {
 		q.buffer.WriteString(" AND")
 	} else {
@@ -172,7 +172,7 @@ func (q *Query) addWhere() {
 
 // SELECT:
 type Select struct {
-	*Query
+	*QueryOld
 	args []interface{}
 	err  error
 }
@@ -291,7 +291,7 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	var result []DatabaseEntity
 	for rows.Next() {
 		entity := s.entity.New()
-		colHdlr, err := NewColumnHandler(entity, s.Conn, s.Query.Logger)
+		colHdlr, err := NewColumnHandler(entity, s.Conn, s.QueryOld.Logger)
 		if err != nil {
 			return result, err
 		}
@@ -309,7 +309,7 @@ func (s *Select) NextPlaceholderCount() int {
 
 // INSERT:
 type Insert struct {
-	*Query
+	*QueryOld
 	err error
 }
 
@@ -322,7 +322,8 @@ func (i *Insert) Exec() error {
 	if err != nil {
 		return err
 	}
-	row, err := i.Conn.QueryRow(i.buffer.String(), colVals...)
+	str := i.buffer.String()
+	row, err := i.Conn.QueryRow(str, colVals...)
 	if err != nil {
 		return err
 	}
@@ -331,7 +332,7 @@ func (i *Insert) Exec() error {
 
 // DELETE:
 type Delete struct {
-	*Query
+	*QueryOld
 	args []interface{}
 	err  error
 }
@@ -374,7 +375,7 @@ func (d *Delete) NextPlaceholderCount() int {
 
 // UPDATE:
 type Update struct {
-	*Query
+	*QueryOld
 	args              []interface{}
 	placeholderOffset int
 	err               error

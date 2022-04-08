@@ -91,20 +91,20 @@ func (pc *postgresConnection) Ping() error {
 
 func (pc *postgresConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
 	pc.logger.Debugf("Postgres QueryRow(): %s | %v", query, args)
-	if err := pc.validator.Validate(query); err != nil {
+	/*if err := pc.validator.Validate(query); err != nil {
 		return nil, err
-	}
+	}*/
 	return pc.db.QueryRow(query, args...), nil
 }
 
 func (pc *postgresConnection) Query(query string, args ...interface{}) (DataRows, error) {
-	pc.logger.Debugf("Postgres Query(): %s | %v", query, args)
-	if err := pc.validator.Validate(query); err != nil {
+	pc.logger.Debugf("Postgres QueryOld(): %s | %v", query, args)
+	/*if err := pc.validator.Validate(query); err != nil {
 		return nil, err
-	}
+	}*/
 	rows, err := pc.db.Query(query, args...)
 	if err != nil {
-		pc.logger.Errorf("Postgres Query() error: %s", err)
+		pc.logger.Errorf("Postgres QueryOld() error: %s", err)
 	}
 	return rows, err
 }

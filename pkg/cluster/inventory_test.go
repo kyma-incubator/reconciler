@@ -41,6 +41,7 @@ func TestInventory(t *testing.T) {
 	t.Run("Create expectedCluster", func(t *testing.T) {
 		//create cluster1
 		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
+		// Error: no rows in result set, bitte debuggen
 		require.NoError(t, err)
 		compareState(t, clusterState, expectedCluster)
 

@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -54,28 +55,41 @@ func (i *DefaultInventory) WithTx(tx *db.TxConnection) (Inventory, error) {
 	return NewInventory(tx, i.Debug, i.metricsCollector)
 }
 
+type inventoryClusters struct{}
+type inventoryClusterConfigs struct{}
+type inventoryClusterConfigStatus struct{}
+
 func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error) {
 	if len(errorStatus) == 0 {
 		return 0, errors.New("errorStatus slice is empty")
 	}
 
 	var maxStatusHistoryLength = maxRetries * 5 //cluster can have three interims state between errors, thus 5 is more than enough
-	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+	q, err := db.NewQueryGorm(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+
 	if err != nil {
 		return 0, errors.Wrap(err, fmt.Sprintf("failed to initialize query for runtime %s", runtimeID))
 	}
-	clusterStatuses, err := q.Select().Where(map[string]interface{}{"RuntimeID": runtimeID, "ConfigVersion": configVersion}).OrderBy(map[string]string{"ID": "desc"}).Limit(maxStatusHistoryLength).GetMany()
+	clusterStatusesSQL := q.Query().Select("*").Where("runtime_id = @runtime AND config_version = @configversion", sql.Named("runtime", runtimeID), sql.Named("configversion", configVersion)).
+		Order("id desc").
+		Limit(maxStatusHistoryLength).
+		Find(inventoryClusterConfigStatus{})
 	if err != nil {
 		return 0, errors.Wrap(err, fmt.Sprintf("failed to count error for runtime %s", runtimeID))
 	}
+	dataRows, err := i.Conn.Query(db.GetString(clusterStatusesSQL), db.GetVars(clusterStatusesSQL)...)
+	fmt.Printf("\nDatarows: %#v", dataRows)
 
 	errCnt := 0
-	for _, clusterStatus := range clusterStatuses {
-		clStatusEntity := clusterStatus.(*model.ClusterStatusEntity)
-		if clStatusEntity.Status.IsFinal() {
-			if statusInSlice(clStatusEntity.Status, errorStatus) {
+	for dataRows.Next() {
+		var clusterStatusEntity model.ClusterStatusEntity
+		if err := dataRows.Scan(&clusterStatusEntity.ID, &clusterStatusEntity.RuntimeID, &clusterStatusEntity.ClusterVersion, &clusterStatusEntity.ConfigVersion, &clusterStatusEntity.Status, &clusterStatusEntity.Created, &clusterStatusEntity.Deleted); err != nil {
+			return 0, errors.Wrap(err, "failed to bind cluster-status-idents")
+		}
+		if clusterStatusEntity.Status.IsFinal() {
+			if statusInSlice(clusterStatusEntity.Status, errorStatus) {
 				errCnt++
-			} else if clStatusEntity.Status.IsFinalStable() {
+			} else if clusterStatusEntity.Status.IsFinalStable() {
 				break
 			}
 		}
@@ -120,6 +134,7 @@ func (i *DefaultInventory) CreateOrUpdate(contractVersion int64, cluster *keb.Cl
 			Configuration: clusterConfigurationEntity,
 			Status:        clusterStatusEntity,
 		}, nil
+
 	}
 
 	state, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
@@ -164,16 +179,15 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	}
 
 	//create new version
-	q, err := db.NewQuery(i.Conn, newClusterEntity, i.Logger)
+	q, err := db.NewQueryGorm(i.Conn, newClusterEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}
-	err = q.Insert().Exec()
+	newDbEntity, err := q.Insert(inventoryClusters{})
 	if err != nil {
 		return nil, err
 	}
-
-	return newClusterEntity, nil
+	return newDbEntity.(*model.ClusterEntity), nil
 }
 
 func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *keb.Cluster, clusterEntity *model.ClusterEntity) (*model.ClusterConfigurationEntity, error) {
@@ -206,16 +220,15 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	}
 
 	//create new version
-	q, err := db.NewQuery(i.Conn, newConfigEntity, i.Logger)
+	q, err := db.NewQueryGorm(i.Conn, newConfigEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}
-	err = q.Insert().Exec()
+	newDbEntity, err := q.Insert(inventoryClusterConfigs{})
 	if err != nil {
 		return nil, err
 	}
-
-	return newConfigEntity, nil
+	return newDbEntity.(*model.ClusterConfigurationEntity), nil
 }
 
 func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity, status model.Status) (*model.ClusterStatusEntity, error) {
@@ -239,16 +252,16 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 	}
 
 	//create new status
-	q, err := db.NewQuery(i.Conn, newStatusEntity, i.Logger)
+	q, err := db.NewQueryGorm(i.Conn, newStatusEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}
-	err = q.Insert().Exec()
+	newDbEntity, err := q.Insert(inventoryClusterConfigStatus{})
 	if err != nil {
 		return nil, err
 	}
 
-	return newStatusEntity, nil
+	return newDbEntity.(*model.ClusterStatusEntity), nil
 }
 
 func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*State, error) {
@@ -392,35 +405,30 @@ func (i *DefaultInventory) GetAll() ([]*State, error) {
 }
 
 func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStatusEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+	whereCond := map[string]interface{}{
+		"config_version": configVersion,
+	}
+	q, err := db.NewQueryGorm(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
-	whereCond := map[string]interface{}{
-		"ConfigVersion": configVersion,
-	}
-	statusEntity, err := q.Select().
-		Where(whereCond).
-		OrderBy(map[string]string{"ID": "desc"}).
-		GetOne()
+	latestStatus, err := q.GetOne(whereCond, "id desc", inventoryClusterConfigStatus{})
 	if err != nil {
-		return nil, i.MapError(err, statusEntity, whereCond)
+		return nil, i.MapError(err, latestStatus, whereCond)
 	}
-	return statusEntity.(*model.ClusterStatusEntity), nil
+	return q.DbEntity.(*model.ClusterStatusEntity), nil
 }
 
 func (i *DefaultInventory) config(runtimeID string, configVersion int64) (*model.ClusterConfigurationEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{}, i.Logger)
+	whereCond := map[string]interface{}{
+		"version":    configVersion,
+		"runtime_id": runtimeID,
+	}
+	q, err := db.NewQueryGorm(i.Conn, &model.ClusterConfigurationEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
-	whereCond := map[string]interface{}{
-		"Version":   configVersion,
-		"RuntimeID": runtimeID,
-	}
-	configEntity, err := q.Select().
-		Where(whereCond).
-		GetOne()
+	configEntity, err := q.GetOne(whereCond, "version desc", inventoryClusterConfigs{})
 	if err != nil {
 		return nil, i.MapError(err, configEntity, whereCond)
 	}
@@ -428,17 +436,14 @@ func (i *DefaultInventory) config(runtimeID string, configVersion int64) (*model
 }
 
 func (i *DefaultInventory) latestConfig(clusterVersion int64) (*model.ClusterConfigurationEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterConfigurationEntity{}, i.Logger)
+	whereCond := map[string]interface{}{
+		"cluster_version": clusterVersion,
+	}
+	q, err := db.NewQueryGorm(i.Conn, &model.ClusterConfigurationEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
-	whereCond := map[string]interface{}{
-		"ClusterVersion": clusterVersion,
-	}
-	configEntity, err := q.Select().
-		Where(whereCond).
-		OrderBy(map[string]string{"Version": "desc"}).
-		GetOne()
+	configEntity, err := q.GetOne(whereCond, "version desc", inventoryClusterConfigs{})
 	if err != nil {
 		return nil, i.MapError(err, configEntity, whereCond)
 	}
@@ -446,17 +451,15 @@ func (i *DefaultInventory) latestConfig(clusterVersion int64) (*model.ClusterCon
 }
 
 func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterEntity{}, i.Logger)
+	q, err := db.NewQueryGorm(i.Conn, &model.ClusterEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
 	whereCond := map[string]interface{}{
-		"Version": clusterVersion,
-		"Deleted": false,
+		"version": clusterVersion,
+		"deleted": false,
 	}
-	clusterEntity, err := q.Select().
-		Where(whereCond).
-		GetOne()
+	clusterEntity, err := q.GetOne(whereCond, "version desc", inventoryClusters{})
 	if err != nil {
 		return nil, i.MapError(err, clusterEntity, whereCond)
 	}
@@ -464,24 +467,26 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 }
 
 func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity, error) {
-	q, err := db.NewQuery(i.Conn, &model.ClusterEntity{}, i.Logger)
+	q, err := db.NewQueryGorm(i.Conn, &model.ClusterEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
 	}
 	whereCond := map[string]interface{}{
-		"RuntimeID": runtimeID,
-		"Deleted":   false,
+		"runtime_id": runtimeID,
+		"deleted":    false,
 	}
-	clusterEntity, err := q.Select().
+	q.GetOne(whereCond, "version desc", inventoryClusters{})
+	clusterEntitySQL := q.Query().Select("*").
 		Where(whereCond).
-		OrderBy(map[string]string{
-			"Version": "desc",
-		}).
-		GetOne()
+		Order("version desc").Find(inventoryClusters{})
+	clusterEntity, err := i.Conn.QueryRow(db.GetString(clusterEntitySQL), db.GetVars(clusterEntitySQL)...)
 	if err != nil {
-		return nil, i.MapError(err, clusterEntity, whereCond)
+		return nil, i.MapError(err, q.DbEntity, whereCond)
 	}
-	return clusterEntity.(*model.ClusterEntity), nil
+	if err := q.Unmarshal(clusterEntity); err != nil {
+		return nil, i.MapError(err, q.DbEntity, whereCond)
+	}
+	return q.DbEntity.(*model.ClusterEntity), nil
 }
 
 func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
@@ -506,7 +511,7 @@ func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	return i.filterClusters(statusFilter)
 }
 
-func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State, error) {
+func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State, error) { // TODO-TASK: QueryOld anpassen
 	//get DDL for sub-query
 	clusterStatusEntity := &model.ClusterStatusEntity{}
 
@@ -535,7 +540,8 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 		return nil, err
 	}
 
-	q, err := db.NewQuery(i.Conn, clusterStatusEntity, i.Logger)
+	//q, err := db.NewQueryOld(i.Conn, clusterStatusEntity, i.Logger)
+	q, err := db.NewQueryGorm(i.Conn, clusterStatusEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -583,7 +589,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	return result, nil
 }
 
-func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, clusterStatusEntity *model.ClusterStatusEntity) (string, []interface{}, error) {
+func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, clusterStatusEntity *model.ClusterStatusEntity) (string, []interface{}, error) { // TODO-Task: QueryOld anpassen
 	var args []interface{}
 
 	//SQL to retrieve the latest statuses => max(config_version) within max(cluster_version):
@@ -636,7 +642,7 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 	return subQuery.String(), args, nil
 }
 
-func (i *DefaultInventory) buildStatusFilterSQL(filters []statusSQLFilter, statusColHandler *db.ColumnHandler) (string, error) {
+func (i *DefaultInventory) buildStatusFilterSQL(filters []statusSQLFilter, statusColHandler *db.ColumnHandler) (string, error) { // TODO-TASK: QueryOld anpassen
 	var sqlFilterStmt bytes.Buffer
 	if len(filters) == 0 {
 		sqlFilterStmt.WriteString("1=1") //if no filters are provided, use 1=1 as placeholder to ensure valid SQL query
@@ -679,7 +685,7 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	}
 
 	//query status entities (using sub-query in WHERE condition)
-	q, err := db.NewQuery(i.Conn, clusterStatusEntity, i.Logger)
+	q, err := db.NewQueryOld(i.Conn, clusterStatusEntity, i.Logger)
 	if err != nil {
 		return nil, err
 	}

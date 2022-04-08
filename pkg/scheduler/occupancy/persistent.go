@@ -38,7 +38,7 @@ func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancies(poolIDs []st
 }
 
 func (r *PersistentOccupancyRepository) GetWorkerPoolIDs() ([]string, error) {
-	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (r *PersistentOccupancyRepository) CreateWorkerPoolOccupancy(poolID, compon
 			Created:            time.Now().UTC(),
 		}
 
-		createOccupancyQ, err := db.NewQuery(tx, occupancyEntity, r.Logger)
+		createOccupancyQ, err := db.NewQueryOld(tx, occupancyEntity, r.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +103,7 @@ func (r *PersistentOccupancyRepository) CreateWorkerPoolOccupancy(poolID, compon
 
 func (r *PersistentOccupancyRepository) GetComponentList() ([]string, error) {
 
-	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (r *PersistentOccupancyRepository) GetComponentList() ([]string, error) {
 
 func (r *PersistentOccupancyRepository) GetMeanWorkerPoolOccupancyByComponent(component string) (float64, error) {
 
-	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 	if err != nil {
 		return 0, err
 	}
@@ -154,7 +154,7 @@ func (r *PersistentOccupancyRepository) GetMeanWorkerPoolOccupancyByComponent(co
 
 func (r *PersistentOccupancyRepository) GetWorkerPoolOccupancies() ([]*model.WorkerPoolOccupancyEntity, error) {
 
-	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func (r *PersistentOccupancyRepository) GetWorkerPoolOccupancies() ([]*model.Wor
 
 func (r *PersistentOccupancyRepository) FindWorkerPoolOccupancyByID(poolID string) (*model.WorkerPoolOccupancyEntity, error) {
 
-	q, err := db.NewQuery(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+	q, err := db.NewQueryOld(r.Conn, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func (r *PersistentOccupancyRepository) UpdateWorkerPoolOccupancy(poolID string,
 				"(running: %d, capacity:%d)", runningWorkers, occupancyEntity.WorkerPoolCapacity)
 		}
 		occupancyEntity.RunningWorkers = int64(runningWorkers)
-		updateOccupancyQ, err := db.NewQuery(tx, occupancyEntity, r.Logger)
+		updateOccupancyQ, err := db.NewQueryOld(tx, occupancyEntity, r.Logger)
 		if err != nil {
 			return err
 		}
@@ -268,7 +268,7 @@ func (r *PersistentOccupancyRepository) RemoveWorkerPoolOccupancy(poolID string)
 
 	dbOps := func(tx *db.TxConnection) error {
 
-		deleteOccupancyQ, err := db.NewQuery(tx, &model.WorkerPoolOccupancyEntity{}, r.Logger)
+		deleteOccupancyQ, err := db.NewQueryOld(tx, &model.WorkerPoolOccupancyEntity{}, r.Logger)
 		if err != nil {
 			return err
 		}

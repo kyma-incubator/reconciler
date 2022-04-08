@@ -22,7 +22,7 @@ func NewRepository(conn db.Connection, debug bool) (*Repository, error) {
 
 func (cer *Repository) Keys() ([]*model.KeyEntity, error) {
 	entity := &model.KeyEntity{}
-	q, err := db.NewQuery(cer.Conn, entity, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, entity, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (cer *Repository) Keys() ([]*model.KeyEntity, error) {
 
 func (cer *Repository) KeyHistory(key string) ([]*model.KeyEntity, error) {
 	entity := &model.KeyEntity{}
-	q, err := db.NewQuery(cer.Conn, entity, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, entity, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (cer *Repository) KeyHistory(key string) ([]*model.KeyEntity, error) {
 }
 
 func (cer *Repository) LatestKey(key string) (*model.KeyEntity, error) {
-	q, err := db.NewQuery(cer.Conn, &model.KeyEntity{}, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, &model.KeyEntity{}, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (cer *Repository) LatestKey(key string) (*model.KeyEntity, error) {
 }
 
 func (cer *Repository) KeyByVersion(version int64) (*model.KeyEntity, error) {
-	q, err := db.NewQuery(cer.Conn, &model.KeyEntity{}, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, &model.KeyEntity{}, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (cer *Repository) KeyByVersion(version int64) (*model.KeyEntity, error) {
 }
 
 func (cer *Repository) Key(key string, version int64) (*model.KeyEntity, error) {
-	q, err := db.NewQuery(cer.Conn, &model.KeyEntity{}, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, &model.KeyEntity{}, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (cer *Repository) Key(key string, version int64) (*model.KeyEntity, error) 
 }
 
 func (cer *Repository) CreateKey(key *model.KeyEntity) (*model.KeyEntity, error) {
-	q, err := db.NewQuery(cer.Conn, key, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, key, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (cer *Repository) DeleteKey(key string) error {
 		}
 
 		//delete the values mapped to this key
-		q, err := db.NewQuery(tx, &model.ValueEntity{}, cer.Logger)
+		q, err := db.NewQueryOld(tx, &model.ValueEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func (cer *Repository) DeleteKey(key string) error {
 		}
 
 		//delete the key
-		qKey, err := db.NewQuery(tx, &model.KeyEntity{}, cer.Logger)
+		qKey, err := db.NewQueryOld(tx, &model.KeyEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}
@@ -179,7 +179,7 @@ func (cer *Repository) DeleteKey(key string) error {
 
 func (cer *Repository) ValuesByBucket(bucket string) ([]*model.ValueEntity, error) {
 	entity := &model.ValueEntity{}
-	q, err := db.NewQuery(cer.Conn, entity, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, entity, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func (cer *Repository) ValuesByBucket(bucket string) ([]*model.ValueEntity, erro
 
 func (cer *Repository) ValuesByKey(key *model.KeyEntity) ([]*model.ValueEntity, error) {
 	entity := &model.ValueEntity{}
-	q, err := db.NewQuery(cer.Conn, entity, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, entity, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +269,7 @@ func (cer *Repository) ValuesByKey(key *model.KeyEntity) ([]*model.ValueEntity, 
 
 func (cer *Repository) ValueHistory(bucket, key string) ([]*model.ValueEntity, error) {
 	entity := &model.ValueEntity{}
-	q, err := db.NewQuery(cer.Conn, entity, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, entity, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func (cer *Repository) ValueHistory(bucket, key string) ([]*model.ValueEntity, e
 }
 
 func (cer *Repository) LatestValue(bucket, key string) (*model.ValueEntity, error) {
-	q, err := db.NewQuery(cer.Conn, &model.ValueEntity{}, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, &model.ValueEntity{}, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +306,7 @@ func (cer *Repository) LatestValue(bucket, key string) (*model.ValueEntity, erro
 }
 
 func (cer *Repository) Value(bucket, key string, version int64) (*model.ValueEntity, error) {
-	q, err := db.NewQuery(cer.Conn, &model.ValueEntity{}, cer.Logger)
+	q, err := db.NewQueryOld(cer.Conn, &model.ValueEntity{}, cer.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +352,7 @@ func (cer *Repository) CreateValue(value *model.ValueEntity) (*model.ValueEntity
 	//insert operation
 	dbOps := func(tx *db.TxConnection) (interface{}, error) {
 		//add value entity
-		q, err := db.NewQuery(tx, value, cer.Logger)
+		q, err := db.NewQueryOld(tx, value, cer.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -388,7 +388,7 @@ func (cer *Repository) DeleteValue(key, bucket string) error {
 		}
 
 		//delete the values mapped to this key in this bucket
-		q, err := db.NewQuery(tx, &model.ValueEntity{}, cer.Logger)
+		q, err := db.NewQueryOld(tx, &model.ValueEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}
@@ -409,7 +409,7 @@ func (cer *Repository) Buckets() ([]*model.BucketEntity, error) {
 
 	var buckets []*model.BucketEntity
 	for _, bucketName := range bucketNames {
-		q, err := db.NewQuery(cer.Conn, &model.BucketEntity{}, cer.Logger)
+		q, err := db.NewQueryOld(cer.Conn, &model.BucketEntity{}, cer.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -468,7 +468,7 @@ func (cer *Repository) DeleteBucket(bucket string) error {
 		//as bucket dependencies are optional we cannot rely that the previous
 		//invalidation dropped the bucket entity: delete the bucket also explicitly
 		//deletion does not have to be rolled back in error case, thus tx is not used here
-		q, err := db.NewQuery(tx, &model.BucketEntity{}, cer.Logger)
+		q, err := db.NewQueryOld(tx, &model.BucketEntity{}, cer.Logger)
 		if err != nil {
 			return err
 		}
