@@ -78,19 +78,19 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 		errPatchMutatingWebhook = errors.Wrap(errPatchMutatingWebhook, "Could not patch MutatingWebhookConfiguration")
 	}
 
-	if err != nil {
-		if errPatchMutatingWebhook != nil {
-			return errors.Wrap(err, errPatchMutatingWebhook.Error())
-		}
+	switch {
+	case err != nil && errPatchMutatingWebhook != nil:
+		return errors.Wrap(err, errPatchMutatingWebhook.Error())
 
+	case err != nil && errPatchMutatingWebhook == nil:
 		return err
-	}
 
-	if errPatchMutatingWebhook != nil {
+	case err == nil && errPatchMutatingWebhook != nil:
 		return errPatchMutatingWebhook
-	}
 
-	return nil
+	default:
+		return nil
+	}
 }
 
 func deployIstio(context *service.ActionContext, performer actions.IstioPerformer) error {
