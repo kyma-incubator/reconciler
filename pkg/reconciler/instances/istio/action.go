@@ -74,19 +74,17 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 	err = deployIstio(context, performer)
 
 	errPatchMutatingWebhook := performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
-	if errPatchMutatingWebhook != nil {
-		errPatchMutatingWebhook = errors.Wrap(errPatchMutatingWebhook, "Could not patch MutatingWebhookConfiguration")
-	}
 
 	switch {
 	case err != nil && errPatchMutatingWebhook != nil:
+		errPatchMutatingWebhook = errors.Wrap(errPatchMutatingWebhook, "Could not patch MutatingWebhookConfiguration")
 		return errors.Wrap(err, errPatchMutatingWebhook.Error())
 
 	case err != nil && errPatchMutatingWebhook == nil:
 		return err
 
 	case err == nil && errPatchMutatingWebhook != nil:
-		return errPatchMutatingWebhook
+		return errors.Wrap(errPatchMutatingWebhook, "Could not patch MutatingWebhookConfiguration")
 
 	default:
 		return nil
