@@ -306,6 +306,14 @@ func newFakeKubeClient() *k8smocks.Client {
 	},
 		&v12.MutatingWebhookConfiguration{
 			ObjectMeta: metav1.ObjectMeta{Name: "istio-sidecar-injector"},
+			Webhooks: []v12.MutatingWebhook{
+				{
+					Name: "auto.sidecar-injector.istio.io",
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchExpressions: nil,
+					},
+				},
+			},
 		},
 	)
 	mockClient.On("Clientset").Return(fakeClient, nil)
