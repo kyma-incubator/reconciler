@@ -26,10 +26,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/spf13/viper"
-
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -135,10 +133,23 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
-	metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config.Scheduler.Reconcilers, o.Logger())
-	metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
-	metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
-	metrics.RegisterDbPool(o.Registry.Connection(), o.Logger())
+	metricErr := metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config.Scheduler.Reconcilers, o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
+	metricErr = metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
+	metricErr = metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
+	metricErr = metrics.RegisterDbPool(o.Registry.Connection(), o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
+
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
@@ -272,7 +283,7 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	//respond status URL
-	sendResponse(w, r, clusterStateNew, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, clusterStateNew, o)
 }
 
 func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -361,7 +372,7 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, clusterState, o)
 }
 
 func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -420,7 +431,7 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, clusterState, o)
 }
 
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -565,7 +576,7 @@ func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, clusterState, o)
 }
 
 func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -654,7 +665,7 @@ func deleteCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	sendResponse(w, r, state, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, state, o)
 }
 
 func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -952,8 +963,8 @@ func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.
 	return op, err
 }
 
-func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) {
-	respModel, err := newClusterResponse(r, clusterState, reconciliationRepository)
+func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State, o *Options) {
+	respModel, err := newClusterResponse(r, clusterState, o)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "failed to generate cluster response model").Error(),
@@ -986,7 +997,8 @@ func sendClusterStateResponse(w http.ResponseWriter, state *cluster.State) {
 	}
 }
 
-func newClusterResponse(r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) (*keb.HTTPClusterResponse, error) {
+func newClusterResponse(r *http.Request, clusterState *cluster.State, o *Options) (*keb.HTTPClusterResponse, error) {
+	reconciliationRepository := o.Registry.ReconciliationRepository()
 	kebStatus, err := clusterState.Status.GetKEBClusterStatus()
 	if err != nil {
 		return nil, err
@@ -1025,8 +1037,8 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 		Status:               kebStatus,
 		Failures:             &failures,
 		StatusURL: (&url.URL{
-			Scheme: viper.GetString("mothership.scheme"),
-			Host:   fmt.Sprintf("%s:%s", viper.GetString("mothership.host"), viper.GetString("mothership.port")),
+			Scheme: o.Config.Scheme,
+			Host:   fmt.Sprintf("%s:%d", o.Config.Host, o.Config.Port),
 			Path: func() string {
 				apiVersion := strings.Split(r.URL.RequestURI(), "/")[1]
 				return fmt.Sprintf("%s/clusters/%s/configs/%d/status", apiVersion,

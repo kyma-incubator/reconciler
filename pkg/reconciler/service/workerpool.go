@@ -104,3 +104,7 @@ func (wa *WorkerPool) RunningWorkers() int {
 func (wa *WorkerPool) Size() int {
 	return wa.antsPool.Cap()
 }
+
+func (wa *WorkerPool) IsFull() bool {
+	return wa.RunningWorkers() >= wa.Size()
+}

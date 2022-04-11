@@ -1,0 +1,1 @@
+DROP INDEX public.inventory_cluster__idx_deleted_created;

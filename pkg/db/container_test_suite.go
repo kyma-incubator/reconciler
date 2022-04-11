@@ -6,7 +6,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/pkg/errors"
 	"github.com/testcontainers/testcontainers-go"
-	"path/filepath"
 	"testing"
 )
 
@@ -20,17 +19,17 @@ func IsolatedContainerTestSuite(t *testing.T, debug bool, settings ContainerSett
 }
 
 var (
-	DefaultSharedContainerSettings = PostgresContainerSettings{
+	DefaultSharedContainerSettings = &PostgresContainerSettings{
 		"default-db-shared",
 		"postgres:11-alpine",
-		MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres")),
+		DefaultMigrationConfig,
 		"127.0.0.1",
 		"kyma",
 		5432,
 		"kyma",
 		"kyma",
 		false,
-		filepath.Join("..", "..", "configs", "encryption", "unittest.key"),
+		UnittestEncryptionKeyFileConfig,
 	}
 )
 

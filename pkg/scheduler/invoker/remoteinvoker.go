@@ -5,17 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/http/httputil"
-	"strings"
-
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"net/http"
+	"net/http/httputil"
+	"strings"
 )
 
 const callbackURLTemplate = "%s://%s:%d/v1/operations/%s/callback/%s"
@@ -66,16 +65,6 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		err := i.unmarshalHTTPResponse(body, respModel, params)
 		if err == nil {
 			return nil //request successfully fired
-		}
-		i.reportUnmarshalError(resp.StatusCode, body, err)
-	}
-
-	if resp.StatusCode >= 400 && resp.StatusCode <= 499 {
-		//component-reconciler can not start because dependencies are missing
-		respModel := &reconciler.HTTPErrorResponse{}
-		err := i.unmarshalHTTPResponse(body, respModel, params)
-		if err == nil {
-			return i.updateOperationState(params, model.OperationStateFailed, respModel.Error)
 		}
 		i.reportUnmarshalError(resp.StatusCode, body, err)
 	}

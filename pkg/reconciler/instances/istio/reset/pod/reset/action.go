@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/avast/retry-go"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +31,8 @@ func NewDefaultPodsResetAction(matcher pod.Matcher) *DefaultResetAction {
 }
 
 func (i *DefaultResetAction) Reset(context context.Context, kubeClient kubernetes.Interface, retryOpts []retry.Option, podsList v1.PodList, log *zap.SugaredLogger, debug bool, waitOpts pod.WaitOptions) error {
-	handlersMap := i.matcher.GetHandlersMap(kubeClient, retryOpts, podsList, log, debug, waitOpts)
+	pods := data.RemoveAnnotatedPods(podsList, pod.AnnotationResetWarningKey)
+	handlersMap := i.matcher.GetHandlersMap(kubeClient, retryOpts, pods, log, debug, waitOpts)
 	g, ctx := errgroup.WithContext(context)
 	for handler := range handlersMap {
 		for _, object := range handlersMap[handler] {
