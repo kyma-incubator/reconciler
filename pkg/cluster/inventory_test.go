@@ -506,67 +506,84 @@ func (s *clusterTestSuite) TestRemoveDeletedClustersOlderThan() {
 }
 
 func (s *clusterTestSuite) TestDefaultInventory_RemoveStatusesWithoutReconciliations() {
-	tests := []struct {
-		name            string
-		want            int
-		multipleUpdates bool
-	}{
-		{
-			name:            "when there exist multiple statuses",
-			multipleUpdates: true,
-		},
-		{
-			name:            "when there exist only one status",
-			multipleUpdates: false,
-		},
+	t := s.T()
+	//create inventory
+	inventory := s.newInventory(s.TxConnection())
+
+	// cleanup
+	removeAllClusters(t, inventory)
+	defer removeAllClusters(t, inventory)
+
+	// preparation
+	cluster := test.NewCluster(t, "someRuntimeID", 1, false, test.Production)
+	state, err := inventory.CreateOrUpdate(1, cluster)
+	require.NoError(t, err)
+	state, err = inventory.Get(state.Configuration.RuntimeID, state.Configuration.Version)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+
+	i := 0
+	for {
+		if i == 100 {
+			break
+		}
+		// add statuses
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusReconcilePending)
+		require.NoError(t, err)
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusReconciling)
+		require.NoError(t, err)
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusDeletePending)
+		require.NoError(t, err)
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusDeleteError)
+		require.NoError(t, err)
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusDeleting)
+		require.NoError(t, err)
+		i++
 	}
-	for _, tt := range tests {
-		t := s.T()
-		testCase := tt
-		t.Run(testCase.name, func(t *testing.T) {
-			//create inventory
-			inventory := s.newInventory(s.TxConnection())
 
-			// cleanup
-			removeAllClusters(t, inventory)
-			defer removeAllClusters(t, inventory)
+	// check multiple status updates
+	statuses := 500
+	deleteCount := 499
+	statusChanges, err := inventory.StatusChanges(state.Status.RuntimeID, time.Duration(5)*time.Minute)
+	require.NoError(t, err)
+	require.Equal(t, statuses, len(statusChanges))
 
-			// preparation
-			cluster := test.NewCluster(t, "someRuntimeID", 1, false, test.Production)
-			state, err := inventory.CreateOrUpdate(1, cluster)
-			require.NoError(t, err)
-			state, err = inventory.Get(state.Configuration.RuntimeID, state.Configuration.Version)
-			require.NoError(t, err)
-			require.NotNil(t, state)
-
-			if testCase.multipleUpdates {
-				// add 2 statuses
-				_, err = inventory.UpdateStatus(state, model.ClusterStatusReconciling)
-				require.NoError(t, err)
-				_, err = inventory.UpdateStatus(state, model.ClusterStatusDeleting)
-				require.NoError(t, err)
-			}
-
-			// check status updates
-			statusChanges, err := inventory.StatusChanges(state.Status.RuntimeID, time.Duration(5)*time.Minute)
-			require.NoError(t, err)
-
-			statuses := 1
-			if testCase.multipleUpdates {
-				statuses = 3
-			}
-			require.Equal(t, statuses, len(statusChanges))
-
-			// execute
-			_, err = inventory.RemoveStatusesWithoutReconciliations()
-			require.NoError(t, err)
-
-			// check status updates after execution - the latest status should not be removed!
-			statusChanges, err = inventory.StatusChanges(state.Status.RuntimeID, time.Duration(5)*time.Minute)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(statusChanges))
-		})
+	// execute
+	start := time.Now()
+	deletedCount, err := inventory.RemoveStatusesWithoutReconciliations(time.Second * 1)
+	require.NoError(t, err)
+	end := time.Now()
+	if end.Sub(start).Seconds() < 2 {
+		t.Errorf("Timeout input parameter not considered")
 	}
+	require.Equal(t, deletedCount, deleteCount)
+
+	// check status updates after execution - the latest status should not be removed!
+	statusChanges, err = inventory.StatusChanges(state.Status.RuntimeID, time.Duration(5)*time.Minute)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(statusChanges))
+	require.Equal(t, statusChanges[0].Status.ID, int64(500))
+
+	// test again with one active status
+	statuses = 1
+	deleteCount = 0
+
+	statusChanges, err = inventory.StatusChanges(state.Status.RuntimeID, time.Duration(5)*time.Minute)
+	require.NoError(t, err)
+	require.Equal(t, statuses, len(statusChanges))
+
+	deletedCount, err = inventory.RemoveStatusesWithoutReconciliations(time.Second * 1)
+	require.NoError(t, err)
+	require.Equal(t, deletedCount, deleteCount)
+
+	// mark active status as deleted
+	require.NoError(t, inventory.Delete(state.Status.RuntimeID))
+
+	// test again with one inactive status
+	deleteCount = 1
+	deletedCount, err = inventory.RemoveStatusesWithoutReconciliations(time.Second * 1)
+	require.NoError(t, err)
+	require.Equal(t, deletedCount, deleteCount)
 }
 
 func listStatuses(states []*State) []model.Status {

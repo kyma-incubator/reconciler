@@ -93,7 +93,7 @@ func (i *MockInventory) CountRetries(_ string, _ int64, _ int, _ ...model.Status
 	return i.RetriesCount, nil
 }
 
-func (i *MockInventory) RemoveStatusesWithoutReconciliations() (int, error) {
+func (i *MockInventory) RemoveStatusesWithoutReconciliations(timeout time.Duration) (int, error) {
 	return i.DeletedStatusesWoReconciliationResult, nil
 }
 

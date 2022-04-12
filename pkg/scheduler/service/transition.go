@@ -212,7 +212,7 @@ func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadl
 		}
 
 		// delete statuses without reconciliations
-		deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations()
+		deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations(time.Second * 10)
 		if err != nil {
 			return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
 		}
