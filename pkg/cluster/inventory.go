@@ -79,6 +79,9 @@ func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, m
 		return 0, errors.Wrap(err, fmt.Sprintf("failed to count error for runtime %s", runtimeID))
 	}
 	dataRows, err := i.Conn.Query(db.GetString(clusterStatusesSQL), db.GetVars(clusterStatusesSQL)...)
+	if err != nil {
+		return 0, err
+	}
 
 	errCnt := 0
 	for dataRows.Next() {
@@ -481,18 +484,12 @@ func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity
 		"runtime_id": runtimeID,
 		"deleted":    false,
 	}
-	q.GetOne(whereCond, "version desc", inventoryClusters{})
-	clusterEntitySQL := q.Query().Select("*").
-		Where(whereCond).
-		Order("version desc").Find(inventoryClusters{})
-	clusterEntity, err := i.Conn.QueryRow(db.GetString(clusterEntitySQL), db.GetVars(clusterEntitySQL)...)
+	clusterEntity, err := q.GetOne(whereCond, "version desc", inventoryClusters{})
 	if err != nil {
 		return nil, i.MapError(err, q.DbEntity, whereCond)
 	}
-	if err := q.Unmarshal(clusterEntity); err != nil {
-		return nil, i.MapError(err, q.DbEntity, whereCond)
-	}
-	return q.DbEntity.(*model.ClusterEntity), nil
+
+	return clusterEntity.(*model.ClusterEntity), nil
 }
 
 func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
@@ -636,6 +633,9 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 		 group by cluster_version
 	*/
 	q, err := db.NewQueryGorm(i.Conn, &model.ClusterStatusEntity{}, i.Logger)
+	if err != nil {
+		return &gorm.DB{}, err
+	}
 	subquery := q.Query().Select("MAX(id)")
 	whereClause := false
 	for dataRows.Next() {
@@ -643,7 +643,7 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 		if err := dataRows.Scan(&row.clusterVersion, &row.configVersion); err != nil {
 			return subquery, errors.Wrap(err, "failed to bind cluster-status-idents")
 		}
-		if whereClause { // lenght of gormDB Statement Vars cannot be used, because Vars slice is empty until Find() gets called
+		if whereClause { // length of gormDB Statement Vars cannot be used, because Vars slice is empty until Find() gets called
 			subquery = subquery.Or(fmt.Sprintf("(%s=@clusterversion AND %s=@configversion)", columnMap["ClusterVersion"], columnMap["ConfigVersion"]),
 				sql.Named("clusterversion", row.clusterVersion),
 				sql.Named("configversion", row.configVersion))
@@ -705,11 +705,11 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	subquery := q.Query().Select("id").
 		Where(sqlCond).
 		Find(inventoryClusterConfigStatus{})
-	statusEnitySql := q.Query().Select("*").
+	statusEnitySQL := q.Query().Select("*").
 		Where("id IN (?)", subquery).
 		Order("id desc").Find(inventoryClusterConfigStatus{})
 
-	dataRows, err := i.Conn.Query(db.GetString(statusEnitySql), db.GetVars(statusEnitySql)...)
+	dataRows, err := i.Conn.Query(db.GetString(statusEnitySQL), db.GetVars(statusEnitySQL)...)
 	if err != nil {
 		return nil, err
 	}
