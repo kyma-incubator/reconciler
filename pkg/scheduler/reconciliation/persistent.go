@@ -150,8 +150,8 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationByRuntimeID(run
 	return db.Transaction(r.Conn, getRemoveReconciliationOpFn("RuntimeID", runtimeID, r.Logger), r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
-	schedulingIDsBlocks := splitStringSlice(schedulingIDs, 200)
+func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error {
+	schedulingIDsBlocks := repository.SplitSliceByBlockSize(schedulingIDs, 200)
 
 	dbOps := func(tx *db.TxConnection) error {
 		for _, schedulingIDsBlock := range schedulingIDsBlocks {
@@ -732,6 +732,7 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 	return components, nil
 }
 
+// TODO: Cleanup
 func splitStringSlice(slice []string, blockSize int) [][]string {
 	sliceLength := len(slice)
 	if sliceLength == 0 {

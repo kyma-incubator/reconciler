@@ -113,11 +113,11 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliationBySchedulingID(sc
 	return nil
 }
 
-func (r *InMemoryReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
+func (r *InMemoryReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, schedulingID := range schedulingIDs {
-		removeSchedulingID(schedulingID, r.reconciliations, r.operations)
+		removeSchedulingID(schedulingID.(string), r.reconciliations, r.operations)
 	}
 	return nil
 }

@@ -23,7 +23,7 @@ type Repository interface {
 	CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error)
 	RemoveReconciliationByRuntimeID(runtimeID string) error
 	RemoveReconciliationBySchedulingID(schedulingID string) error
-	RemoveReconciliationsBySchedulingID(schedulingIDs []string) error
+	RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error
 	RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error
 	RemoveReconciliationsForObsoleteStatus(deadline time.Time) (int, error)
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)

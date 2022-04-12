@@ -148,7 +148,7 @@ func (c *cleaner) deleteRecordsByCountAndStatus(runtimeID string, transition *Cl
 		return nil
 	}
 
-	var schedulingIDsToDrop []string
+	var schedulingIDsToDrop []interface{}
 	for _, obsoleteReconciliation := range reconciliations[mostRecentEntitiesToKeep:] {
 		if obsoleteReconciliation.Status.IsFinalStable() {
 			schedulingIDsToDrop = append(schedulingIDsToDrop, obsoleteReconciliation.SchedulingID)
@@ -182,7 +182,7 @@ func (c *cleaner) getMostRecentReconciliation(runtimeID string, transition *Clus
 }
 
 //removeReconciliations drops all reconciliations provided in the list
-func (c *cleaner) removeReconciliations(schedulingIDs []string, transition *ClusterStatusTransition) error {
+func (c *cleaner) removeReconciliations(schedulingIDs []interface{}, transition *ClusterStatusTransition) error {
 	if err := transition.ReconciliationRepository().RemoveReconciliationsBySchedulingID(schedulingIDs); err != nil {
 		c.logger.Errorf("%s Failed to remove reconciliations: %v", CleanerPrefix, err.Error())
 		return err
