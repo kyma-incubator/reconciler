@@ -732,28 +732,6 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 	return components, nil
 }
 
-// TODO: Cleanup
-func splitStringSlice(slice []string, blockSize int) [][]string {
-	sliceLength := len(slice)
-	if sliceLength == 0 {
-		return nil
-	}
-
-	subSlicesCount := (sliceLength-1)/blockSize + 1
-	resultSlice := make([][]string, 0, subSlicesCount)
-
-	var high int
-	for low := 0; low < sliceLength; low += blockSize {
-		high += blockSize
-		if high > sliceLength {
-			high = sliceLength
-		}
-
-		resultSlice = append(resultSlice, slice[low:high])
-	}
-	return resultSlice
-}
-
 func getRemoveReconciliationOpFn(field string, value string, logger *zap.SugaredLogger) func(tx *db.TxConnection) error {
 	return func(tx *db.TxConnection) error {
 		whereCond := map[string]interface{}{

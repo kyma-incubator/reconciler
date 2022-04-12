@@ -3,7 +3,6 @@ package reconciliation
 import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/model"
-	"math"
 	"reflect"
 	"sort"
 	"testing"
@@ -313,45 +312,6 @@ func (s *reconciliationTestSuite) TestPersistentReconciliationRepository_RemoveR
 				t.Errorf("RemoveReconciliationsForObsoleteStatus() got = %v, want %v", got, testCase.want)
 			}
 			s.AfterTest("", testCase.name)
-		})
-	}
-}
-
-func (s *reconciliationTestSuite) Test_splitStringSlice() {
-	type args struct {
-		slice     []string
-		blockSize int
-	}
-	tests := []struct {
-		name string
-		args args
-		want [][]string
-	}{
-		{
-			name: "when block size is more than max int32",
-			args: args{
-				slice:     []string{"item1", "item2", "item3"},
-				blockSize: math.MaxInt32,
-			},
-			want: [][]string{{"item1", "item2", "item3"}},
-		},
-		{
-			name: "when a slice of 9 items should be split into blocks of 3",
-			args: args{
-				slice:     []string{"item1", "item2", "item3", "item4", "item5", "item6", "item7", "item8", "item9"},
-				blockSize: 3,
-			},
-			want: [][]string{{"item1", "item2", "item3"}, {"item4", "item5", "item6"}, {"item7", "item8", "item9"}},
-		},
-	}
-	for _, tt := range tests {
-		t := s.T()
-		testCase := tt
-		t.Run(testCase.name, func(t *testing.T) {
-			got := splitStringSlice(testCase.args.slice, testCase.args.blockSize)
-			if !reflect.DeepEqual(got, testCase.want) {
-				t.Errorf("splitStringSlice() got = %v, want %v", got, testCase.want)
-			}
 		})
 	}
 }
