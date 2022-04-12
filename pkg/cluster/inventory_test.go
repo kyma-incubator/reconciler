@@ -550,7 +550,7 @@ func (s *clusterTestSuite) TestDefaultInventory_RemoveStatusesWithoutReconciliat
 
 	// execute
 	start := time.Now()
-	deletedCount, err := inventory.RemoveStatusesWithoutReconciliations(time.Second * 1)
+	deletedCount, err := inventory.RemoveStatusesWithoutReconciliations(time.Second*1, 200)
 	require.NoError(t, err)
 	end := time.Now()
 	if end.Sub(start).Seconds() < 2 {
@@ -572,7 +572,7 @@ func (s *clusterTestSuite) TestDefaultInventory_RemoveStatusesWithoutReconciliat
 	require.NoError(t, err)
 	require.Equal(t, statuses, len(statusChanges))
 
-	deletedCount, err = inventory.RemoveStatusesWithoutReconciliations(time.Second * 1)
+	deletedCount, err = inventory.RemoveStatusesWithoutReconciliations(time.Second*1, 200)
 	require.NoError(t, err)
 	require.Equal(t, deletedCount, deleteCount)
 
@@ -581,7 +581,7 @@ func (s *clusterTestSuite) TestDefaultInventory_RemoveStatusesWithoutReconciliat
 
 	// test again with one inactive status
 	deleteCount = 1
-	deletedCount, err = inventory.RemoveStatusesWithoutReconciliations(time.Second * 1)
+	deletedCount, err = inventory.RemoveStatusesWithoutReconciliations(time.Second*1, 200)
 	require.NoError(t, err)
 	require.Equal(t, deletedCount, deleteCount)
 }
