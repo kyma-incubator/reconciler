@@ -16,6 +16,7 @@ type CleanerConfig struct {
 	CleanerInterval         time.Duration
 	KeepLatestEntitiesCount uint
 	MaxEntitiesAgeDays      uint
+	StatusCleanupBatchSize  uint
 }
 
 func (c *CleanerConfig) keepLatestEntitiesCount() int {
@@ -24,6 +25,10 @@ func (c *CleanerConfig) keepLatestEntitiesCount() int {
 
 func (c *CleanerConfig) maxEntitiesAgeDays() int {
 	return int(c.MaxEntitiesAgeDays)
+}
+
+func (c *CleanerConfig) statusCleanupBatchSize() int {
+	return int(c.StatusCleanupBatchSize)
 }
 
 type cleaner struct {
@@ -72,8 +77,7 @@ func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *Cle
 	}
 	c.logger.Infof("%s Cleaner will remove inventory clusters and intermediary statuses", CleanerPrefix)
 	deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*clusterInventoryCleanupDays)
-	err := transition.CleanStatusesAndDeletedClustersOlderThan(deadline)
-	if err != nil {
+	if err := transition.CleanStatusesAndDeletedClustersOlderThan(deadline, config.statusCleanupBatchSize()); err != nil {
 		c.logger.Errorf("%s Failed to remove inventory clusters and intermediary statuses %v", CleanerPrefix, err)
 	}
 

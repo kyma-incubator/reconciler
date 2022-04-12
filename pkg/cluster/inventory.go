@@ -26,7 +26,7 @@ type Inventory interface {
 	ClustersNotReady() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 	WithTx(tx *db.TxConnection) (Inventory, error)
-	RemoveStatusesWithoutReconciliations(timeout time.Duration) (int, error)
+	RemoveStatusesWithoutReconciliations(timeout time.Duration, statusCleanupBatchSize int) (int, error)
 	RemoveDeletedClustersOlderThan(deadline time.Time) (int, error)
 }
 
@@ -727,7 +727,7 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	return statusChanges, nil
 }
 
-func (i *DefaultInventory) GetStatusIDsBlocksToDelete() ([][]interface{}, error) {
+func (i *DefaultInventory) GetStatusIDsBlocksToDelete(statusCleanupBatchSize int) ([][]interface{}, error) {
 	statusSelectQuery, err := db.NewQuery(i.Conn, &model.StatusCleanupEntity{}, i.Logger)
 	if err != nil {
 		return nil, err
@@ -741,11 +741,11 @@ func (i *DefaultInventory) GetStatusIDsBlocksToDelete() ([][]interface{}, error)
 	for _, recon := range recons {
 		statusIDs = append(statusIDs, recon.(*model.StatusCleanupEntity).StatusID)
 	}
-	return repository.SplitSliceByBlockSize(statusIDs, 200), nil
+	return repository.SplitSliceByBlockSize(statusIDs, statusCleanupBatchSize), nil
 }
 
-func (i *DefaultInventory) RemoveStatusesWithoutReconciliations(timeout time.Duration) (int, error) {
-	statusIDsBlocks, err := i.GetStatusIDsBlocksToDelete()
+func (i *DefaultInventory) RemoveStatusesWithoutReconciliations(timeout time.Duration, statusCleanupBatchSize int) (int, error) {
+	statusIDsBlocks, err := i.GetStatusIDsBlocksToDelete(statusCleanupBatchSize)
 	if err != nil {
 		return 0, err
 	}
