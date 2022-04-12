@@ -49,7 +49,7 @@ func (mr *MockRepository) RemoveReconciliationByRuntimeID(runtimeID string) erro
 }
 
 func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error {
-	var schedulingIDsStrings []string
+	var schedulingIDsStrings = make([]string, len(schedulingIDs))
 	for i, schedulingID := range schedulingIDs {
 		schedulingIDsStrings[i] = schedulingID.(string)
 	}
