@@ -732,13 +732,13 @@ func (i *DefaultInventory) GetStatusIDsBlocksToDelete(statusCleanupBatchSize int
 	if err != nil {
 		return nil, err
 	}
-	recons, err := statusSelectQuery.Select().GetMany()
+	statuses, err := statusSelectQuery.Select().GetMany()
 	if err != nil {
 		return nil, err
 	}
 
 	var statusIDs []interface{}
-	for _, recon := range recons {
+	for _, recon := range statuses {
 		statusIDs = append(statusIDs, recon.(*model.StatusCleanupEntity).StatusID)
 	}
 	return repository.SplitSliceByBlockSize(statusIDs, statusCleanupBatchSize), nil
@@ -775,7 +775,7 @@ func (i *DefaultInventory) RemoveStatusesWithoutReconciliations(timeout time.Dur
 		}
 		delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
 		if err != nil {
-			i.Logger.Error("Removal of config statuses without reconciliation failed during cluster entities cleanup", err)
+			i.Logger.Error(fmt.Errorf("removal of config statuses without reconciliation failed during cluster entities cleanup, deleted count: %d %w", delCnt.(int), err))
 		}
 		totalDeleteCount += delCnt.(int)
 		time.Sleep(timeout)

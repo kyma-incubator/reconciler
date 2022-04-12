@@ -83,8 +83,8 @@ func (o *Options) Validate() error {
 	if o.EntitiesMaxAgeDays < 0 {
 		return errors.New("cleaner count of days to keep unsuccessful entities cannot be < 0")
 	}
-	if o.StatusCleanupBatchSize < 1 {
-		return errors.New("cluster status cleaner batch size cannot be < 1")
+	if o.StatusCleanupBatchSize < 100 {
+		return errors.New("cluster status cleaner batch size cannot be < 100")
 	}
 	if o.MaxParallelOperations < 0 {
 		return errors.New("maximal parallel reconciled components per cluster cannot be < 0")
