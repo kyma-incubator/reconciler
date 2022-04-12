@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"gorm.io/gorm"
 	"math/rand"
 	"strings"
 	"sync"
@@ -151,6 +152,13 @@ func (t *TxConnection) QueryRow(query string, args ...interface{}) (DataRow, err
 
 func (t *TxConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	return t.tx.Query(query, args...)
+}
+
+func (t *TxConnection) QueryRowGorm(gormDB *gorm.DB) (DataRow, error) {
+	return t.tx.QueryRow(GetString(gormDB), GetVars(gormDB)...), nil
+}
+func (t *TxConnection) QueryGorm(gormDB *gorm.DB) (DataRows, error) {
+	return t.tx.Query(GetString(gormDB), GetVars(gormDB)...)
 }
 
 func (t *TxConnection) Exec(query string, args ...interface{}) (sql.Result, error) {

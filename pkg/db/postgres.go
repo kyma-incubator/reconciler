@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
@@ -91,20 +92,34 @@ func (pc *postgresConnection) Ping() error {
 
 func (pc *postgresConnection) QueryRow(query string, args ...interface{}) (DataRow, error) {
 	pc.logger.Debugf("Postgres QueryRow(): %s | %v", query, args)
-	/*if err := pc.validator.Validate(query); err != nil {
+	if err := pc.validator.Validate(query); err != nil {
 		return nil, err
-	}*/
+	}
 	return pc.db.QueryRow(query, args...), nil
 }
 
 func (pc *postgresConnection) Query(query string, args ...interface{}) (DataRows, error) {
-	pc.logger.Debugf("Postgres QueryOld(): %s | %v", query, args)
-	/*if err := pc.validator.Validate(query); err != nil {
+	pc.logger.Debugf("Postgres Query(): %s | %v", query, args)
+	if err := pc.validator.Validate(query); err != nil {
 		return nil, err
-	}*/
+	}
 	rows, err := pc.db.Query(query, args...)
 	if err != nil {
-		pc.logger.Errorf("Postgres QueryOld() error: %s", err)
+		pc.logger.Errorf("Postgres Query() error: %s", err)
+	}
+	return rows, err
+}
+
+func (pc *postgresConnection) QueryRowGorm(gormDB *gorm.DB) (DataRow, error) {
+	pc.logger.Debugf("Postgres QueryRowGorm(): %s | %v", GetString(gormDB), GetVars(gormDB))
+	return pc.db.QueryRow(GetString(gormDB), GetVars(gormDB)...), nil
+}
+
+func (pc *postgresConnection) QueryGorm(gormDB *gorm.DB) (DataRows, error) {
+	pc.logger.Debugf("Postgres QueryGorm(): %s | %v", GetString(gormDB), GetVars(gormDB))
+	rows, err := pc.db.Query(GetString(gormDB), GetVars(gormDB)...)
+	if err != nil {
+		pc.logger.Errorf("Postgres QueryGorm() error: %s", err)
 	}
 	return rows, err
 }

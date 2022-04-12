@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"gorm.io/gorm"
 )
 
 const (
@@ -77,6 +78,17 @@ func (c *MockConnection) QueryRow(query string, args ...interface{}) (DataRow, e
 func (c *MockConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	c.query = query
 	c.args = args
+	return &MockDataRows{}, nil
+}
+
+func (c *MockConnection) QueryRowGorm(gormDB *gorm.DB) (DataRow, error) {
+	c.query = GetString(gormDB)
+	c.args = GetVars(gormDB)
+	return &MockDataRow{}, nil
+}
+func (c *MockConnection) QueryGorm(gormDB *gorm.DB) (DataRows, error) {
+	c.query = GetString(gormDB)
+	c.args = GetVars(gormDB)
 	return &MockDataRows{}, nil
 }
 

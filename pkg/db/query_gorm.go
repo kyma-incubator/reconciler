@@ -37,7 +37,7 @@ func (q *QueryGorm) Query() *gorm.DB {
 
 func (q *QueryGorm) Insert(dbTable interface{}) (DatabaseEntity, error) {
 	insertSQL := q.Query().Model(dbTable).Clauses(clause.Returning{Columns: q.ColumnNamesGormClause(false)}).Create(q.ColumnMap(true))
-	row, err := q.Conn.QueryRow(GetString(insertSQL), GetVars(insertSQL)...)
+	row, err := q.Conn.QueryRowGorm(insertSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (q *QueryGorm) GetOne(whereCond map[string]interface{}, order string, dest 
 	clusterStatusEntitySQL := q.Query().Select("*").
 		Where(whereCond).
 		Order(order).Find(dest)
-	clusterEntity, err := q.Conn.QueryRow(GetString(clusterStatusEntitySQL), GetVars(clusterStatusEntitySQL)...)
+	clusterEntity, err := q.Conn.QueryRowGorm(clusterStatusEntitySQL)
 	if err != nil {
 		return nil, err
 	}

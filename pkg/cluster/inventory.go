@@ -56,6 +56,7 @@ func (i *DefaultInventory) WithTx(tx *db.TxConnection) (Inventory, error) {
 	return NewInventory(tx, i.Debug, i.metricsCollector)
 }
 
+// Used as tables for GORM Query
 type inventoryClusters struct{}
 type inventoryClusterConfigs struct{}
 type inventoryClusterConfigStatus struct{}
@@ -71,14 +72,15 @@ func (i *DefaultInventory) CountRetries(runtimeID string, configVersion int64, m
 	if err != nil {
 		return 0, errors.Wrap(err, fmt.Sprintf("failed to initialize query for runtime %s", runtimeID))
 	}
-	clusterStatusesSQL := q.Query().Select("*").Where("runtime_id = @runtime AND config_version = @configversion", sql.Named("runtime", runtimeID), sql.Named("configversion", configVersion)).
+	clusterStatusesSQL := q.Query().Select("*").
+		Where("runtime_id = @runtime AND config_version = @configversion", sql.Named("runtime", runtimeID), sql.Named("configversion", configVersion)).
 		Order("id desc").
 		Limit(maxStatusHistoryLength).
 		Find(inventoryClusterConfigStatus{})
 	if err != nil {
 		return 0, errors.Wrap(err, fmt.Sprintf("failed to count error for runtime %s", runtimeID))
 	}
-	dataRows, err := i.Conn.Query(db.GetString(clusterStatusesSQL), db.GetVars(clusterStatusesSQL)...)
+	dataRows, err := i.Conn.QueryGorm(clusterStatusesSQL)
 	if err != nil {
 		return 0, err
 	}
@@ -296,8 +298,8 @@ func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
 
 func (i *DefaultInventory) Delete(runtimeID string) error {
 	dbOps := func(tx *db.TxConnection) error {
-		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID)
-		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
+		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID) //TODO: Fuur gorm anpassen aus convinience
+		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4"            //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
 
 		//update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
@@ -543,7 +545,6 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 		return nil, err
 	}
 
-	//q, err := db.NewQuery(i.Conn, clusterStatusEntity, i.Logger)
 	q, err := db.NewQueryGorm(i.Conn, clusterStatusEntity, i.Logger)
 	if err != nil {
 		return nil, err
@@ -569,13 +570,13 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 		return nil, err
 	}
 
-	sql := q.Query().Select("*").
+	filterSQL := q.Query().Select("*").
 		Where("id IN (?)", statusIdsSQL). //query latest cluster states (= max(configVersion) within max(clusterVersion))
 		Where(statusFilterSQL).           //filter these states also by provided criteria (by statuses, reconcile-interval etc.)
 		Where(map[string]interface{}{"deleted": false}).
 		Find(inventoryClusterConfigStatus{})
 
-	dataRows, err := i.Conn.Query(db.GetString(sql), db.GetVars(sql)...)
+	dataRows, err := i.Conn.QueryGorm(filterSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -709,7 +710,7 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 		Where("id IN (?)", subquery).
 		Order("id desc").Find(inventoryClusterConfigStatus{})
 
-	dataRows, err := i.Conn.Query(db.GetString(statusEnitySQL), db.GetVars(statusEnitySQL)...)
+	dataRows, err := i.Conn.QueryGorm(statusEnitySQL)
 	if err != nil {
 		return nil, err
 	}
