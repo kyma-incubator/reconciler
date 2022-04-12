@@ -223,8 +223,8 @@ func (s *reconciliationTestSuite) TestPersistentReconciliationRepository_RemoveR
 			testEntities := s.prepareTest(t, testCase.reconciliations)
 			var schedulingIDPersistent, schedulingIDInMemory string
 			if testCase.reconciliations > 0 {
-				schedulingIDPersistent = testEntities.persistenceSchedulingIDs[0]
-				schedulingIDInMemory = testEntities.inMemorySchedulingIDs[0]
+				schedulingIDPersistent = testEntities.persistenceSchedulingIDs[0].(string)
+				schedulingIDInMemory = testEntities.inMemorySchedulingIDs[0].(string)
 			}
 			if err := s.persistenceRepo.RemoveReconciliationBySchedulingID(schedulingIDPersistent); (err != nil) != testCase.wantErr {
 				t.Errorf("Persistence RemoveReconciliationBySchedulingID() error = %v, wantErr %v", err, testCase.wantErr)
