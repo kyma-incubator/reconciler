@@ -514,7 +514,7 @@ func (i *DefaultInventory) ClustersNotReady() ([]*State, error) {
 	return i.filterClusters(statusFilter)
 }
 
-func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State, error) { // TODO-TASK: QueryOld anpassen
+func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State, error) {
 	//get DDL for sub-query
 	clusterStatusEntity := &model.ClusterStatusEntity{}
 
@@ -556,7 +556,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 		"ConfigVersion":  configVersionColName,
 		"Deleted":        deletedColName,
 	}
-	statusIdsSQL, err := i.buildLatestStatusIdsSQL(columnMap, clusterStatusEntity) // umändern dass es die gorm query returned
+	statusIdsSQL, err := i.buildLatestStatusIdsSQL(columnMap, clusterStatusEntity)
 	if err != nil {
 		return nil, err
 	}
@@ -607,7 +607,7 @@ func (i *DefaultInventory) filterClusters(filters ...statusSQLFilter) ([]*State,
 	return result, nil
 }
 
-func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, clusterStatusEntity *model.ClusterStatusEntity) (*gorm.DB, error) { // TODO-Task: QueryOld anpassen
+func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, clusterStatusEntity *model.ClusterStatusEntity) (*gorm.DB, error) {
 	//SQL to retrieve the latest statuses => max(config_version) within max(cluster_version):
 	/*
 		select cluster_version, max(config_version) from inventory_cluster_config_statuses where cluster_version in (
@@ -615,7 +615,7 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 		) group by cluster_version
 	*/
 	dataRows, err := i.Conn.Query(
-		fmt.Sprintf( //TODO Noch umändern
+		fmt.Sprintf( // TODO: Rewrite with grom to stay consistend
 			"SELECT %s, MAX(%s) FROM %s WHERE %s IN (SELECT MAX(%s) FROM %s WHERE %s=$1 GROUP BY %s) GROUP BY %s ",
 			columnMap["ClusterVersion"], columnMap["ConfigVersion"], clusterStatusEntity.Table(), columnMap["ClusterVersion"],
 			columnMap["ClusterVersion"], clusterStatusEntity.Table(), columnMap["Deleted"], columnMap["RuntimeID"],
@@ -659,7 +659,7 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 	return subquery, nil
 }
 
-func (i *DefaultInventory) buildStatusFilterSQL(filters []statusSQLFilter, statusColHandler *db.ColumnHandler) (string, error) { // TODO-TASK: QueryOld anpassen
+func (i *DefaultInventory) buildStatusFilterSQL(filters []statusSQLFilter, statusColHandler *db.ColumnHandler) (string, error) {
 	var sqlFilterStmt bytes.Buffer
 	if len(filters) == 0 {
 		sqlFilterStmt.WriteString("1=1") //if no filters are provided, use 1=1 as placeholder to ensure valid SQL query

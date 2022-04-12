@@ -41,7 +41,6 @@ func TestInventory(t *testing.T) {
 	t.Run("Create expectedCluster", func(t *testing.T) {
 		//create cluster1
 		clusterState, err := inventory.CreateOrUpdate(1, expectedCluster)
-		// Error: no rows in result set, bitte debuggen
 		require.NoError(t, err)
 		compareState(t, clusterState, expectedCluster)
 
@@ -100,24 +99,23 @@ func TestInventory(t *testing.T) {
 	})
 
 	t.Run("Get all", func(t *testing.T) {
-		//_, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.Production))
 		//verify the expected cluster is returned
 		clustersOld, err := inventory.GetAll()
 		require.NoError(t, err)
 		require.Len(t, clustersOld, 1)
 
 		//add a new cluster
-		newCluster2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.Production))
+		newCluster, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.Production))
 		require.NoError(t, err)
 
 		//check that both clusters are now returned
 		clustersNew, err := inventory.GetAll()
 		require.NoError(t, err)
 		require.Len(t, clustersNew, 2)
-		require.Contains(t, clustersNew, newCluster2)
+		require.Contains(t, clustersNew, newCluster)
 
 		//verify that just the expected cluster is returned after removing the new created cluster
-		require.NoError(t, inventory.Delete(newCluster2.Cluster.RuntimeID))
+		require.NoError(t, inventory.Delete(newCluster.Cluster.RuntimeID))
 		clusterOldRefershed, err := inventory.GetAll()
 		require.NoError(t, err)
 		require.ElementsMatch(t, clustersOld, clusterOldRefershed)
