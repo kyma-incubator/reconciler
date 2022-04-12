@@ -125,7 +125,6 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		WithURL(context.Task.URL).
 		Build()
 
-	context.Logger.Info("Deleting chart resources")
 	manifest, err := context.ChartProvider.RenderManifest(component)
 	if err != nil {
 		return errors.Wrap(err, "Error during rendering manifest for removal")
@@ -135,8 +134,6 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 	if err != nil {
 		return errors.Wrap(err, "Error during removal")
 	}
-
-	context.Logger.Info("Deleting secrets")
 
 	_, err = context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs", "istio-namespace")
 	if err != nil {
