@@ -518,6 +518,11 @@ func (s *clusterTestSuite) TestDefaultInventory_RemoveStatusesWithoutReconciliat
 	cluster := test.NewCluster(t, "someRuntimeID", 1, false, test.Production)
 	state, err := inventory.CreateOrUpdate(1, cluster)
 	require.NoError(t, err)
+
+	// initial cleanup from other tests
+	_, err = inventory.RemoveStatusesWithoutReconciliations(time.Second*1, 200)
+	require.NoError(t, err)
+
 	state, err = inventory.Get(state.Configuration.RuntimeID, state.Configuration.Version)
 	require.NoError(t, err)
 	require.NotNil(t, state)
@@ -562,7 +567,6 @@ func (s *clusterTestSuite) TestDefaultInventory_RemoveStatusesWithoutReconciliat
 	statusChanges, err = inventory.StatusChanges(state.Status.RuntimeID, time.Duration(5)*time.Minute)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(statusChanges))
-	require.Equal(t, statusChanges[0].Status.ID, int64(500))
 
 	// test again with one active status
 	statuses = 1
