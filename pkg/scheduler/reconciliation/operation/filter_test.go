@@ -52,7 +52,7 @@ func TestFilterMixer_FilterByQuery(t *testing.T) {
 	for i := range tests {
 		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
-			q, err := db.NewQueryOld(&db.MockConnection{}, &model.OperationEntity{}, testLogger)
+			q, err := db.NewQuery(&db.MockConnection{}, &model.OperationEntity{}, testLogger)
 			require.NoError(t, err)
 			s := &db.Select{
 				QueryOld: q,

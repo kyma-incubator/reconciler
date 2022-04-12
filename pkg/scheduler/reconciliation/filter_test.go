@@ -97,7 +97,7 @@ func TestFilterMixer_FilterByQuery(t *testing.T) {
 	for i := range tests {
 		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
-			q, err := db.NewQueryOld(&db.MockConnection{}, &model.ReconciliationEntity{}, testLogger)
+			q, err := db.NewQuery(&db.MockConnection{}, &model.ReconciliationEntity{}, testLogger)
 			require.NoError(t, err)
 			s := &db.Select{
 				QueryOld: q,
@@ -180,7 +180,7 @@ func Test_columnName(t *testing.T) {
 	}()
 
 	t.Run("get name", func(t *testing.T) {
-		q, err := db.NewQueryOld(&db.MockConnection{}, &model.ReconciliationEntity{}, testLogger)
+		q, err := db.NewQuery(&db.MockConnection{}, &model.ReconciliationEntity{}, testLogger)
 		require.NoError(t, err)
 		s := &db.Select{
 			QueryOld: q,
@@ -191,7 +191,7 @@ func Test_columnName(t *testing.T) {
 	})
 
 	t.Run("error - column doesn't exist", func(t *testing.T) {
-		q, err := db.NewQueryOld(&db.MockConnection{}, &model.ReconciliationEntity{}, testLogger)
+		q, err := db.NewQuery(&db.MockConnection{}, &model.ReconciliationEntity{}, testLogger)
 		require.NoError(t, err)
 		s := &db.Select{
 			QueryOld: q,

@@ -51,7 +51,7 @@ func (r *record) Exec(conn db.Connection) error {
 	dbOps := func(tx *db.TxConnection) error {
 		//track deps in DB
 		for _, value := range r.cacheDeps {
-			q, err := db.NewQueryOld(tx, &model.CacheDependencyEntity{
+			q, err := db.NewQuery(tx, &model.CacheDependencyEntity{
 				Bucket:    value.Bucket,
 				Key:       value.Key,
 				Label:     r.cacheEntry.Label,
@@ -106,7 +106,7 @@ func (i *invalidate) with(colName string, colValue interface{}) *invalidate {
 func (i *invalidate) Exec(conn db.Connection) error {
 	dbOps := func(tx *db.TxConnection) error {
 		//get cache dependencies
-		depQuery, err := db.NewQueryOld(tx, &model.CacheDependencyEntity{}, i.logger)
+		depQuery, err := db.NewQuery(tx, &model.CacheDependencyEntity{}, i.logger)
 		if err != nil {
 			return err
 		}
@@ -130,7 +130,7 @@ func (i *invalidate) Exec(conn db.Connection) error {
 		i.logger.Debugf("Identified %d cache entities which match selector '%v': %s", cntUniqueIds, i.selector, cacheEntityIdsCSV)
 
 		//drop all cache entities
-		cacheQuery, err := db.NewQueryOld(tx, &model.CacheEntryEntity{}, i.logger)
+		cacheQuery, err := db.NewQuery(tx, &model.CacheEntryEntity{}, i.logger)
 		if err != nil {
 			return err
 		}
@@ -141,7 +141,7 @@ func (i *invalidate) Exec(conn db.Connection) error {
 		i.logger.Debugf("Deleted %d cache entries matching selector '%v'", deletedEntries, i.selector)
 
 		//drop all cache dependencies of the dropped cache entities
-		cacheDepQuery, err := db.NewQueryOld(tx, &model.CacheDependencyEntity{}, i.logger)
+		cacheDepQuery, err := db.NewQuery(tx, &model.CacheDependencyEntity{}, i.logger)
 		if err != nil {
 			return err
 		}
@@ -208,7 +208,7 @@ func (c *get) with(colName string, colValue interface{}) *get {
 }
 
 func (c *get) Exec(conn db.Connection) ([]*model.CacheDependencyEntity, error) {
-	cntQuery, err := db.NewQueryOld(conn, &model.CacheDependencyEntity{}, c.logger)
+	cntQuery, err := db.NewQuery(conn, &model.CacheDependencyEntity{}, c.logger)
 	if err != nil {
 		return nil, err
 	}

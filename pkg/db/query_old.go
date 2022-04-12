@@ -18,7 +18,7 @@ type QueryOld struct {
 	Logger        *zap.SugaredLogger
 }
 
-func NewQueryOld(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger) (*QueryOld, error) {
+func NewQuery(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger) (*QueryOld, error) {
 	columnHandler, err := NewColumnHandler(entity, conn, logger)
 	if err != nil {
 		return nil, err

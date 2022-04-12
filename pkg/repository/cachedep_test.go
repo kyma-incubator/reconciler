@@ -215,7 +215,7 @@ func importCacheEntry(t *testing.T, cacheEntry *model.CacheEntryEntity, cacheDep
 		}
 	}()
 
-	q, err := db.NewQueryOld(dbConn, cacheEntry, testLogger)
+	q, err := db.NewQuery(dbConn, cacheEntry, testLogger)
 	require.NoError(t, err)
 
 	//create new cache entry entity

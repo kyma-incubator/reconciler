@@ -17,7 +17,7 @@ func TestQuery(t *testing.T) {
 	}()
 
 	conn := &MockConnection{}
-	q, err := NewQueryOld(conn, &MockDbEntity{
+	q, err := NewQuery(conn, &MockDbEntity{
 		Col1: "dummy",
 	}, testLogger)
 	require.NoError(t, err)
