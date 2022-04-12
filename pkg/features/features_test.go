@@ -10,35 +10,34 @@ func TestFeatures(t *testing.T) {
 
 	type testCases struct {
 		description    string
-		funcToTest     func() bool
-		envVar         string
+		feature        Feature
 		envVarValue    string
 		expectedResult bool
 	}
 
 	for _, testCase := range []testCases{
-		{description: "Workerpool Occupancy set to 1", funcToTest: WorkerpoolOccupancyTrackingEnabled, envVar: workerpoolOccupancyTrackingEnvVar, envVarValue: "1", expectedResult: true},
-		{description: "Workerpool Occupancy set to lowercase true", funcToTest: WorkerpoolOccupancyTrackingEnabled, envVar: workerpoolOccupancyTrackingEnvVar, envVarValue: "true", expectedResult: true},
-		{description: "Workerpool Occupancy set to TrUe; not lowercase", funcToTest: WorkerpoolOccupancyTrackingEnabled, envVar: workerpoolOccupancyTrackingEnvVar, envVarValue: "TrUe", expectedResult: true},
-		{description: "Workerpool Occupancy set to 0", funcToTest: WorkerpoolOccupancyTrackingEnabled, envVar: workerpoolOccupancyTrackingEnvVar, envVarValue: "0", expectedResult: false},
-		{description: "Workerpool Occupancy not set", funcToTest: WorkerpoolOccupancyTrackingEnabled, envVar: workerpoolOccupancyTrackingEnvVar, envVarValue: "", expectedResult: false},
-		{description: "Processing Duration Metric set to 1", funcToTest: ProcessingDurationMetricsEnabled, envVar: processingDurationMetricEnvVar, envVarValue: "1", expectedResult: true},
-		{description: "Processing Duration Metric set to lowercase true", funcToTest: ProcessingDurationMetricsEnabled, envVar: processingDurationMetricEnvVar, envVarValue: "true", expectedResult: true},
-		{description: "Processing Duration Metric set to TrUe; not lowercase", funcToTest: ProcessingDurationMetricsEnabled, envVar: processingDurationMetricEnvVar, envVarValue: "TrUe", expectedResult: true},
-		{description: "Processing Duration Metric set to 0", funcToTest: ProcessingDurationMetricsEnabled, envVar: processingDurationMetricEnvVar, envVarValue: "0", expectedResult: false},
-		{description: "Processing Duration Metric not set", funcToTest: ProcessingDurationMetricsEnabled, envVar: processingDurationMetricEnvVar, envVarValue: "", expectedResult: false},
+		{description: "Workerpool Occupancy set to 1", feature: WorkerpoolOccupancyTracking, envVarValue: "1", expectedResult: true},
+		{description: "Workerpool Occupancy set to lowercase true", feature: WorkerpoolOccupancyTracking, envVarValue: "true", expectedResult: true},
+		{description: "Workerpool Occupancy set to TrUe; not lowercase", feature: WorkerpoolOccupancyTracking, envVarValue: "TrUe", expectedResult: true},
+		{description: "Workerpool Occupancy set to 0", feature: WorkerpoolOccupancyTracking, envVarValue: "0", expectedResult: false},
+		{description: "Workerpool Occupancy not set", feature: WorkerpoolOccupancyTracking, envVarValue: "", expectedResult: false},
+		{description: "Processing Duration Metric set to 1", feature: WorkerpoolOccupancyTracking, envVarValue: "1", expectedResult: true},
+		{description: "Processing Duration Metric set to lowercase true", feature: WorkerpoolOccupancyTracking, envVarValue: "true", expectedResult: true},
+		{description: "Processing Duration Metric set to TrUe; not lowercase", feature: WorkerpoolOccupancyTracking, envVarValue: "TrUe", expectedResult: true},
+		{description: "Processing Duration Metric set to 0", feature: WorkerpoolOccupancyTracking, envVarValue: "0", expectedResult: false},
+		{description: "Processing Duration Metric not set", feature: WorkerpoolOccupancyTracking, envVarValue: "", expectedResult: false},
 	} {
 		test := testCase
 		t.Run(test.description, func(t *testing.T) {
 			if test.envVarValue != "" {
-				err := os.Setenv(test.envVar, test.envVarValue)
+				err := os.Setenv(envVar(test.feature), test.envVarValue)
 				require.NoError(t, err)
 			}
 
-			actualResult := test.funcToTest()
+			actualResult := Enabled(test.feature)
 			require.Equal(t, test.expectedResult, actualResult)
 
-			err := os.Unsetenv(test.envVar)
+			err := os.Unsetenv(envVar(test.feature))
 			require.NoError(t, err)
 		})
 	}

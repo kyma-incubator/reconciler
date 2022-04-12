@@ -169,7 +169,7 @@ func (w *Pool) invokeProcessableOps() (int, error) {
 		}
 		op := ops[idx]
 		if err := w.antsPool.Invoke(op); err == nil {
-			w.logger.Infof("Worker pool assigned worker to reconcile component '%s' on cluster '%s' (%s)",
+			w.logger.Debugf("Worker pool assigned worker to reconcile component '%s' on cluster '%s' (%s)",
 				op.Component, op.RuntimeID, op)
 		} else {
 			w.logger.Warnf("Worker pool failed to assign worker to operation '%s': %s", op, err)

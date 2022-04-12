@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func NewConnectionFactory(configFile string, migrate bool, debug bool) (ConnectionFactory, error) {
@@ -70,23 +71,31 @@ func createSqliteConnectionFactory(encKey string, debug bool, blockQueries, logQ
 }
 
 type postgresEnvironment struct {
-	host          string
-	port          int
-	database      string
-	user          string
-	password      string
-	sslMode       bool
-	migrationsDir string
+	host            string
+	port            int
+	database        string
+	user            string
+	password        string
+	sslMode         bool
+	migrationsDir   string
+	maxOpenConns    int
+	maxIdleConns    int
+	connMaxIdleTime time.Duration
+	connMaxLifetime time.Duration
 }
 
 func getPostgresEnvironment() postgresEnvironment {
-	host := viper.GetString("db.postgres.host")
-	port := viper.GetInt("db.postgres.port")
-	database := viper.GetString("db.postgres.database")
-	user := viper.GetString("db.postgres.user")
-	password := viper.GetString("db.postgres.password")
+	host := viper.GetString("db.postgres.Host")
+	port := viper.GetInt("db.postgres.Port")
+	database := viper.GetString("db.postgres.Database")
+	user := viper.GetString("db.postgres.User")
+	password := viper.GetString("db.postgres.Password")
 	sslMode := viper.GetBool("db.postgres.sslMode")
 	migrationsDir := viper.GetString("db.postgres.migrationsDir")
+	maxOpenConns := viper.GetInt("db.postgres.maxOpenConns")
+	maxIdleConns := viper.GetInt("db.postgres.maxIdleConns")
+	connMaxLifetime := viper.GetDuration("db.postgres.connMaxLifetime")
+	connMaxIdleTime := viper.GetDuration("db.postgres.connMaxIdleTime")
 
 	if viper.IsSet("DATABASE_HOST") {
 		host = viper.GetString("DATABASE_HOST")
@@ -109,15 +118,31 @@ func getPostgresEnvironment() postgresEnvironment {
 	if viper.IsSet("DATABASE_MIGRATIONS_DIR") {
 		migrationsDir = viper.GetString("DATABASE_MIGRATIONS_DIR")
 	}
+	if viper.IsSet("DATABASE_MAX_OPEN_CONNS") {
+		maxOpenConns = viper.GetInt("DATABASE_MAX_OPEN_CONNS")
+	}
+	if viper.IsSet("DATABASE_MAX_IDLE_CONNS") {
+		maxIdleConns = viper.GetInt("DATABASE_MAX_IDLE_CONNS")
+	}
+	if viper.IsSet("DATABASE_CONN_MAX_LIFETIME") {
+		connMaxLifetime = viper.GetDuration("DATABASE_CONN_MAX_LIFETIME")
+	}
+	if viper.IsSet("DATABASE_CONN_MAX_IDLE_TIME") {
+		connMaxIdleTime = viper.GetDuration("DATABASE_CONN_MAX_IDLE_TIME")
+	}
 
 	return postgresEnvironment{
-		host:          host,
-		port:          port,
-		database:      database,
-		user:          user,
-		password:      password,
-		sslMode:       sslMode,
-		migrationsDir: migrationsDir,
+		host:            host,
+		port:            port,
+		database:        database,
+		user:            user,
+		password:        password,
+		sslMode:         sslMode,
+		migrationsDir:   migrationsDir,
+		maxOpenConns:    maxOpenConns,
+		maxIdleConns:    maxIdleConns,
+		connMaxIdleTime: connMaxIdleTime,
+		connMaxLifetime: connMaxLifetime,
 	}
 }
 
@@ -125,7 +150,7 @@ func readEncryptionKey() (string, error) {
 	encKeyFile := viper.GetString("db.encryption.keyFile")
 	if encKeyFile != "" {
 		if !filepath.IsAbs(encKeyFile) {
-			//define absolute path relative to config-file directory
+			//define absolute path relative to Config-file directory
 			encKeyFile = filepath.Join(filepath.Dir(viper.ConfigFileUsed()), encKeyFile)
 		}
 	}
@@ -143,16 +168,20 @@ func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, lo
 	env := getPostgresEnvironment()
 
 	return &postgresConnectionFactory{
-		host:          env.host,
-		port:          env.port,
-		database:      env.database,
-		user:          env.user,
-		password:      env.password,
-		sslMode:       env.sslMode,
-		encryptionKey: encKey,
-		migrationsDir: env.migrationsDir,
-		blockQueries:  blockQueries,
-		logQueries:    logQueries,
-		debug:         debug,
+		host:            env.host,
+		port:            env.port,
+		database:        env.database,
+		user:            env.user,
+		password:        env.password,
+		sslMode:         env.sslMode,
+		encryptionKey:   encKey,
+		migrationsDir:   env.migrationsDir,
+		blockQueries:    blockQueries,
+		logQueries:      logQueries,
+		debug:           debug,
+		maxOpenConns:    env.maxOpenConns,
+		maxIdleConns:    env.maxIdleConns,
+		connMaxIdleTime: env.connMaxIdleTime,
+		connMaxLifetime: env.connMaxLifetime,
 	}
 }

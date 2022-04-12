@@ -96,7 +96,7 @@ func (or *Registry) initRepository() (*kv.Repository, error) {
 }
 
 func (or *Registry) initInventory() (cluster.Inventory, error) {
-	collector := metrics.NewReconciliationStatusCollector()
+	collector := metrics.NewReconciliationStatusCollector(or.logger)
 	inventory, err := cluster.NewInventory(or.connection, or.debug, collector)
 	if err != nil {
 		or.logger.Errorf("Failed to create cluster inventory: %s", err)
@@ -113,7 +113,7 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 }
 
 func (or *Registry) initOccupancyRepository() (occupancy.Repository, error) {
-	if !features.WorkerpoolOccupancyTrackingEnabled() {
+	if !features.Enabled(features.WorkerpoolOccupancyTracking) {
 		return occupancy.CreateMockRepository(), nil
 	}
 	occupancyRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)

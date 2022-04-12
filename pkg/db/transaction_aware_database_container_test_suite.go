@@ -11,9 +11,9 @@ import (
 //TransactionAwareDatabaseContainerTestSuite manages a test suiteSpec that handles a transaction-enabled connection.
 // It can open a connection for you and will roll it back once the suiteSpec is finished.
 // You can enable non-isolated runs (not preferred, edge cases only) by enabling CommitAfterExecution. It is possible
-// to then also enable SchemaResetOnSetup to make sure that you are working from a clean database. You are able to
+// to then also enable SchemaResetOnSetup to make sure that you are working from a clean Database. You are able to
 // change the isolation level to per-method to ensure a rollback occurs after every method. The connections in this
-// test suiteSpec are created lazily, so using it's provided TxConnection will only cause a connection to the database if the test actually
+// test suiteSpec are created lazily, so using it's provided TxConnection will only cause a connection to the Database if the test actually
 // establishes the connection. In case this is important for benchmarks, retrieve the connection first to make it does not
 // influence your results. This suite is based on a container runtime which will take care of the provisioned data container
 type TransactionAwareDatabaseContainerTestSuite struct {

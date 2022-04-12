@@ -38,7 +38,6 @@ func init() {
 		WithPreReconcileAction(NewStatusPreAction(istioPerformerCreatorFn)).
 		WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).
 		WithPostReconcileAction(actions.NewActionAggregate(
-			NewMutatingWebhookPostAction(istioPerformerCreatorFn),
 			NewProxyResetPostAction(istioPerformerCreatorFn),
 		)).
 		WithDeleteAction(NewUninstallAction(istioPerformerCreatorFn))

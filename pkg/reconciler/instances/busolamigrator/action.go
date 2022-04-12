@@ -49,15 +49,15 @@ func (p *VirtSvcPreReconcilePatch) Run(helper *service.ActionContext) error {
 	}
 	restClient := clientSet.Discovery().RESTClient()
 
-	logger.Infof("Launching pre install busola migrator job, version: %s ", helper.Task.Version)
+	logger.Debugf("Launching pre install busola migrator job, version: %s ", helper.Task.Version)
 	for _, virtSvcToPatch := range p.virtSvcsToPatch {
-		logger.Infof("Patching virtual service: %s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
+		logger.Debugf("Patching virtual service: %s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		if err := p.patchVirtSvc(ctx, restClient, virtSvcToPatch.Name, virtSvcToPatch.Namespace, logger); err != nil {
 			return errors.Wrapf(err, "while patching virtual service: %s, in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 		}
-		logger.Infof("Finished patching of virtual service : %s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
+		logger.Debugf("Finished patching of virtual service : %s in namespace: %s", virtSvcToPatch.Name, virtSvcToPatch.Namespace)
 	}
-	logger.Info("Finished pre reconciler busola migrator job")
+	logger.Debugf("Finished pre reconciler busola migrator job")
 	return nil
 }
 
@@ -65,14 +65,14 @@ func (p *VirtSvcPreReconcilePatch) patchVirtSvc(ctx context.Context, kubeRestCli
 	hosts, err := p.virtSvcClient.GetVirtSvcHosts(ctx, kubeRestClient, name, namespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Infof("Given virtual service: %s in namespace: %s not found, which is okay", name, namespace)
+			logger.Debugf("Given virtual service: %s in namespace: %s not found, which is okay", name, namespace)
 			return nil
 		}
 		return errors.Wrapf(err, "while getting virtual service: %s, in namespace: %s", name, namespace)
 	}
 
 	if len(hosts) < 1 {
-		return errors.New(fmt.Sprintf("hosts is empty in virtual service: %s, in namespace: %s", name, namespace))
+		return fmt.Errorf("hosts is empty in virtual service: %s, in namespace: %s", name, namespace)
 	}
 
 	has, err := hasSuffix(hosts[0], p.suffix)
@@ -81,7 +81,7 @@ func (p *VirtSvcPreReconcilePatch) patchVirtSvc(ctx context.Context, kubeRestCli
 	}
 
 	if has {
-		logger.Infof("Virtual service already patched: %s, in namespace: %s", name, namespace)
+		logger.Debugf("Virtual service already patched: %s, in namespace: %s", name, namespace)
 		return nil
 	}
 

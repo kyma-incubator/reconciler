@@ -156,18 +156,33 @@ func (c *scremoval) prepareForRemoval(ac *service.ActionContext) error {
 	gvkList := []schema.GroupVersionKind{
 		{
 			Group:   "servicecatalog.k8s.io",
-			Kind:    "ServiceBrokerList",
+			Kind:    "ServiceBindingList",
 			Version: "v1beta1",
 		},
 		{
 			Group:   "servicecatalog.k8s.io",
-			Kind:    "ClusterServiceBrokerList",
+			Kind:    "ServiceInstanceList",
+			Version: "v1beta1",
+		},
+		{
+			Group:   "servicecatalog.k8s.io",
+			Kind:    "ServiceBrokerList",
 			Version: "v1beta1",
 		},
 		{
 			Kind:    "UsageKind",
 			Group:   "servicecatalog.kyma-project.io",
 			Version: "v1alpha1",
+		},
+		{
+			Group:   "servicecatalog.k8s.io",
+			Kind:    "ServiceClassList",
+			Version: "v1beta1",
+		},
+		{
+			Group:   "servicecatalog.k8s.io",
+			Kind:    "ServicePlanList",
+			Version: "v1beta1",
 		},
 	}
 
@@ -179,6 +194,31 @@ func (c *scremoval) prepareForRemoval(ac *service.ActionContext) error {
 			} else if err != nil {
 				return gerr.Wrap(err, fmt.Sprintf("removing finalizers for %v in %v", gvk, ns.Name))
 			}
+		}
+	}
+	clusterGVKList := []schema.GroupVersionKind{
+		{
+			Group:   "servicecatalog.k8s.io",
+			Kind:    "ClusterServiceBrokerList",
+			Version: "v1beta1",
+		},
+		{
+			Group:   "servicecatalog.k8s.io",
+			Kind:    "ClusterServiceClassList",
+			Version: "v1beta1",
+		},
+		{
+			Group:   "servicecatalog.k8s.io",
+			Kind:    "ClusterServicePlanList",
+			Version: "v1beta1",
+		},
+	}
+	for _, gvk := range clusterGVKList {
+		err := c.removeFinalizers(gvk, "", ac)
+		if meta.IsNoMatchError(err) {
+			ac.Logger.Infof("CRD for GVK %s not found, skipping finalizer removal", gvk)
+		} else if err != nil {
+			return gerr.Wrap(err, fmt.Sprintf("removing finalizers for %v", gvk))
 		}
 	}
 
@@ -260,7 +300,27 @@ func (c *scremoval) removeResources(ac *service.ActionContext) error {
 			Version: "v1alpha1",
 		},
 		{
+			Kind:    "ServiceBinding",
+			Group:   "servicecatalog.k8s.io",
+			Version: "v1beta1",
+		},
+		{
+			Kind:    "ServiceInstance",
+			Group:   "servicecatalog.k8s.io",
+			Version: "v1beta1",
+		},
+		{
 			Kind:    "ServiceBroker",
+			Group:   "servicecatalog.k8s.io",
+			Version: "v1beta1",
+		},
+		{
+			Kind:    "ServiceClass",
+			Group:   "servicecatalog.k8s.io",
+			Version: "v1beta1",
+		},
+		{
+			Kind:    "ServicePlan",
 			Group:   "servicecatalog.k8s.io",
 			Version: "v1beta1",
 		},
@@ -301,6 +361,16 @@ func (c *scremoval) removeResources(ac *service.ActionContext) error {
 		},
 		{
 			Kind:    "ClusterServiceBroker",
+			Group:   "servicecatalog.k8s.io",
+			Version: "v1beta1",
+		},
+		{
+			Kind:    "ClusterServiceClass",
+			Group:   "servicecatalog.k8s.io",
+			Version: "v1beta1",
+		},
+		{
+			Kind:    "ClusterServicePlan",
 			Group:   "servicecatalog.k8s.io",
 			Version: "v1beta1",
 		},

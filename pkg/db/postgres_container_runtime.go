@@ -3,6 +3,9 @@ package db
 import (
 	"context"
 	"github.com/docker/go-connections/nat"
+	file "github.com/kyma-incubator/reconciler/pkg/files"
+	"github.com/pkg/errors"
+	"os"
 	"strconv"
 )
 
@@ -16,46 +19,64 @@ type PostgresContainerRuntime struct {
 }
 
 type ContainerSettings interface {
+	id() string
 	containerName() string
 	containerImage() string
 	migrationConfig() MigrationConfig
 }
 
 type PostgresContainerSettings struct {
-	name              string
-	image             string
-	config            MigrationConfig
-	host              string
-	database          string
-	port              int
-	user              string
-	password          string
-	useSsl            bool
-	encryptionKeyFile string
+	Name              string
+	Image             string
+	Config            MigrationConfig
+	Host              string
+	Database          string
+	Port              int
+	User              string
+	Password          string
+	UseSsl            bool
+	EncryptionKeyFile EncryptionKeyFileConfig
+}
+
+//id calculates a hash for ContainerSettings based on the name and image of a directory as well as a cumulated hash
+//over all files relevant for a migration
+func (p PostgresContainerSettings) id() string {
+	configHash, _ := file.HashDir(
+		string(p.migrationConfig()),
+		p.containerName()+p.containerImage(),
+		file.HashFnv(".sql"),
+	)
+	return configHash
 }
 
 func (p PostgresContainerSettings) containerName() string {
-	return p.name
+	return p.Name
 }
 
 func (p PostgresContainerSettings) containerImage() string {
-	return p.image
+	return p.Image
 }
 
 func (p PostgresContainerSettings) migrationConfig() MigrationConfig {
-	return p.config
+	return p.Config
 }
 
-//MigrationConfig is currently just a migrationConfig directory but could be extended at will for further configuration
-type MigrationConfig string
-
-//NoOpMigrationConfig is a shortcut to not have any migrationConfig at all
-var NoOpMigrationConfig MigrationConfig = ""
-
 func RunPostgresContainer(ctx context.Context, settings PostgresContainerSettings, debug bool) (*PostgresContainerRuntime, error) {
+	var filesErr error
+	if settings.migrationConfig() != NoOpMigrationConfig {
+		_, filesErr = os.Stat(string(settings.Config))
+		if filesErr != nil {
+			return nil, errors.Wrap(filesErr, "config file cannot be used to start postgres container")
+		}
+	}
+	_, filesErr = os.Stat(string(settings.EncryptionKeyFile))
+	if filesErr != nil {
+		return nil, errors.Wrap(filesErr, "encryption key file cannot be used to start postgres container")
+	}
+
 	cont, bootstrapError := BootstrapNewPostgresContainer(ctx, settings)
 
-	encKey, encryptError := readKeyFile(settings.encryptionKeyFile)
+	encKey, encryptError := readKeyFile(string(settings.EncryptionKeyFile))
 	if encryptError != nil {
 		return nil, encryptError
 	}
@@ -64,19 +85,19 @@ func RunPostgresContainer(ctx context.Context, settings PostgresContainerSetting
 		return nil, bootstrapError
 	}
 
-	externalPort, portFetchError := cont.MappedPort(ctx, nat.Port(strconv.Itoa(settings.port)))
+	externalPort, portFetchError := cont.MappedPort(ctx, nat.Port(strconv.Itoa(settings.Port)))
 
 	if portFetchError != nil {
 		panic(portFetchError)
 	}
 
 	connectionFactory := postgresConnectionFactory{
-		host:          settings.host,
+		host:          settings.Host,
 		port:          externalPort.Int(),
-		database:      settings.database,
-		user:          settings.user,
-		password:      settings.password,
-		sslMode:       settings.useSsl,
+		database:      settings.Database,
+		user:          settings.User,
+		password:      settings.Password,
+		sslMode:       settings.UseSsl,
 		encryptionKey: encKey,
 		migrationsDir: string(settings.migrationConfig()),
 		blockQueries:  true,

@@ -5,7 +5,7 @@ import (
 )
 
 type reconcileAction struct {
-	// TODO add prometheus metrics
+	skipSafeCheck bool
 }
 
 func (a *reconcileAction) Run(ac *service.ActionContext) error {
@@ -22,7 +22,7 @@ func (a *reconcileAction) Run(ac *service.ActionContext) error {
 		return err
 	}
 	ac.Logger.Infof("Executing SVCAT => BTP Operator CRD migration")
-	m, err := newMigrator(ac)
+	m, err := newMigrator(ac, a.skipSafeCheck)
 	if err != nil {
 		return err
 	}

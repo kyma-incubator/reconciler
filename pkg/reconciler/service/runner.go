@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/metrics"
 	"strings"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 
@@ -98,7 +101,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 
 	processingDuration := time.Since(startTime)
 	if err == nil {
-		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' finished successfully",
+		r.logger.Debugf("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
 		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateDone, processingDuration)
 		if err := heartbeatSender.Success(retryID, processingDuration); err != nil {
@@ -106,7 +109,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		} // TODO: enrich heartbeat with processduration
 	} else if ctx.Err() != nil {
 		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateFailed, processingDuration)
-		r.logger.Infof("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
+		r.logger.Errorf("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
 			task.Component, task.Version)
 		return err
 	} else {
@@ -184,7 +187,7 @@ func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
 	} else {
 		if err := act.Run(actionHelper); err != nil {
 			r.logger.Debugf("Runner: %s action of '%s' with version '%s' failed: %s",
-				strings.Title(string(task.Type)), task.Component, task.Version, err)
+				cases.Title(language.English).String(string(task.Type)), task.Component, task.Version, err)
 			return err
 		}
 	}

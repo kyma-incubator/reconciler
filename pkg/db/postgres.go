@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
+	"time"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
@@ -139,6 +140,11 @@ func (pc *postgresConnection) Type() Type {
 	return Postgres
 }
 
+func (pc *postgresConnection) DBStats() *sql.DBStats {
+	stats := pc.db.Stats()
+	return &stats
+}
+
 type postgresConnectionFactory struct {
 	host          string
 	port          int
@@ -151,6 +157,11 @@ type postgresConnectionFactory struct {
 	debug         bool
 	blockQueries  bool
 	logQueries    bool
+
+	maxOpenConns    int
+	maxIdleConns    int
+	connMaxLifetime time.Duration
+	connMaxIdleTime time.Duration
 }
 
 func (pcf *postgresConnectionFactory) Init(migrate bool) error {
@@ -168,9 +179,9 @@ func (pcf *postgresConnectionFactory) Init(migrate bool) error {
 func (pcf *postgresConnectionFactory) Reset() error {
 	return pcf.runMigration(func(m *migrate.Migrate) error {
 		if err := m.Drop(); err != nil && err != migrate.ErrNoChange {
-			return errors.Wrapf(err, "not able to reset database: %s", err)
+			return errors.Wrapf(err, "not able to reset Database: %s", err)
 		}
-		m.Log.Printf("dropped database")
+		m.Log.Printf("dropped Database")
 		return nil
 	})
 }
@@ -185,6 +196,11 @@ func (pcf *postgresConnectionFactory) NewConnection() (Connection, error) {
 		"postgres",
 		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 			pcf.host, pcf.port, pcf.user, pcf.password, pcf.database, sslMode))
+
+	db.SetMaxOpenConns(pcf.maxOpenConns)
+	db.SetMaxIdleConns(pcf.maxIdleConns)
+	db.SetConnMaxLifetime(pcf.connMaxLifetime)
+	db.SetConnMaxIdleTime(pcf.connMaxIdleTime)
 
 	if err == nil {
 		err = db.Ping()
@@ -238,7 +254,7 @@ func (pcf *postgresConnectionFactory) checkPostgresIsolationLevel() error {
 func (pcf *postgresConnectionFactory) migrateDatabase() error {
 	return pcf.runMigration(func(m *migrate.Migrate) error {
 		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-			return errors.Wrapf(err, "not able to migrate database: %s", err)
+			return errors.Wrapf(err, "not able to migrate Database: %s", err)
 		}
 		m.Log.Printf("Database migration finished")
 		return nil
@@ -262,7 +278,7 @@ func (pcf *postgresConnectionFactory) runMigration(migrateFct func(m *migrate.Mi
 	}
 	m, err := migrate.NewWithDatabaseInstance("file://"+pcf.migrationsDir, "postgres", driver)
 	if err != nil {
-		return errors.Wrap(err, "not able to instantiate migrator with database instance")
+		return errors.Wrap(err, "not able to instantiate migrator with Database instance")
 	}
 	m.Log = migrateLogger
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {

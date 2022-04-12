@@ -116,7 +116,7 @@ func TestRemoteInvoker(t *testing.T) {
 		err := invokeRemoteInvoker(reconRepo, opEntities[3], cfg)
 		require.NoError(t, err)
 
-		requireOperationState(t, reconRepo, opEntities[3], model.OperationStateFailed)
+		requireOperationState(t, reconRepo, opEntities[3], model.OperationStateClientError)
 	})
 
 	t.Run("Invoke component-reconciler: return 500 error with error JSON response", func(t *testing.T) {

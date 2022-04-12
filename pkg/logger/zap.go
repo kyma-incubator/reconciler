@@ -3,7 +3,9 @@ package logger
 import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest"
 	"os"
+	"testing"
 )
 
 const (
@@ -21,6 +23,10 @@ func NewLogger(debug bool) *zap.SugaredLogger {
 		logLevel = zapcore.DebugLevel
 	}
 	return newLogger(logLevel).Sugar()
+}
+
+func NewTestLogger(t *testing.T) *zap.SugaredLogger {
+	return zaptest.NewLogger(t).Sugar()
 }
 
 func newLogger(logLevel zapcore.Level) *zap.Logger {
