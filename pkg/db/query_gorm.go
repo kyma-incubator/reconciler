@@ -11,7 +11,6 @@ type QueryGorm struct {
 	Conn          Connection
 	gormDB        *gorm.DB
 	columnHandler *ColumnHandler
-	DbEntity      DatabaseEntity
 }
 
 func NewQueryGorm(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger) (*QueryGorm, error) {
@@ -27,7 +26,6 @@ func NewQueryGorm(conn Connection, entity DatabaseEntity, logger *zap.SugaredLog
 		Conn:          conn,
 		gormDB:        gormDB,
 		columnHandler: columnHandler,
-		DbEntity:      entity,
 	}, nil
 }
 
@@ -35,19 +33,20 @@ func (q *QueryGorm) Query() *gorm.DB {
 	return q.gormDB.Session(&gorm.Session{DryRun: true})
 }
 
-func (q *QueryGorm) Insert(dbTable interface{}) (DatabaseEntity, error) {
+func (q *QueryGorm) Insert(dbTable interface{}) (*DatabaseEntity, error) {
 	insertSQL := q.Query().Model(dbTable).Clauses(clause.Returning{Columns: q.ColumnNamesGormClause(false)}).Create(q.ColumnMap(true))
 	row, err := q.Conn.QueryRowGorm(insertSQL)
 	if err != nil {
 		return nil, err
 	}
-	if err := q.Unmarshal(row); err != nil {
+	dbEntity, err := q.Unmarshal(row)
+	if err != nil {
 		return nil, err
 	}
-	return q.DbEntity, nil
+	return dbEntity, nil
 }
 
-func (q *QueryGorm) GetOne(whereCond map[string]interface{}, order string, dest interface{}) (DatabaseEntity, error) {
+func (q *QueryGorm) GetOne(whereCond map[string]interface{}, order string, dest interface{}) (*DatabaseEntity, error) {
 	clusterStatusEntitySQL := q.Query().Select("*").
 		Where(whereCond).
 		Order(order).Find(dest)
@@ -55,14 +54,17 @@ func (q *QueryGorm) GetOne(whereCond map[string]interface{}, order string, dest 
 	if err != nil {
 		return nil, err
 	}
-	if err := q.Unmarshal(clusterEntity); err != nil {
+	dbEntity, err := q.Unmarshal(clusterEntity)
+	if err != nil {
 		return nil, err
 	}
-	return q.DbEntity, nil
+	return dbEntity, nil
 }
 
-func (q *QueryGorm) Unmarshal(row DataRow) error {
-	return q.columnHandler.Unmarshal(row, q.DbEntity)
+func (q *QueryGorm) Unmarshal(row DataRow) (*DatabaseEntity, error) {
+	var dbEntity DatabaseEntity
+	err := q.columnHandler.Unmarshal(row, dbEntity)
+	return &dbEntity, err
 }
 
 func (q *QueryGorm) ColumnNamesCsv(onlyWriteable bool) string {

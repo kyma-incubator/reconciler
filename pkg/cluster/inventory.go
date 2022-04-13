@@ -200,7 +200,7 @@ func (i *DefaultInventory) createCluster(contractVersion int64, cluster *keb.Clu
 	if err != nil {
 		return nil, err
 	}
-	return newDbEntity.(*model.ClusterEntity), nil
+	return (*newDbEntity).(*model.ClusterEntity), nil
 }
 
 func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *keb.Cluster, clusterEntity *model.ClusterEntity) (*model.ClusterConfigurationEntity, error) {
@@ -241,7 +241,7 @@ func (i *DefaultInventory) createConfiguration(contractVersion int64, cluster *k
 	if err != nil {
 		return nil, err
 	}
-	return newDbEntity.(*model.ClusterConfigurationEntity), nil
+	return (*newDbEntity).(*model.ClusterConfigurationEntity), nil
 }
 
 func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfigurationEntity, status model.Status) (*model.ClusterStatusEntity, error) {
@@ -274,7 +274,7 @@ func (i *DefaultInventory) createStatus(configEntity *model.ClusterConfiguration
 		return nil, err
 	}
 
-	return newDbEntity.(*model.ClusterStatusEntity), nil
+	return (*newDbEntity).(*model.ClusterStatusEntity), nil
 }
 
 func (i *DefaultInventory) UpdateStatus(state *State, status model.Status) (*State, error) {
@@ -427,9 +427,9 @@ func (i *DefaultInventory) latestStatus(configVersion int64) (*model.ClusterStat
 	}
 	latestStatus, err := q.GetOne(whereCond, "id desc", inventoryClusterConfigStatus{})
 	if err != nil {
-		return nil, i.MapError(err, latestStatus, whereCond)
+		return nil, i.MapError(err, *latestStatus, whereCond)
 	}
-	return q.DbEntity.(*model.ClusterStatusEntity), nil
+	return (*latestStatus).(*model.ClusterStatusEntity), nil
 }
 
 func (i *DefaultInventory) config(runtimeID string, configVersion int64) (*model.ClusterConfigurationEntity, error) {
@@ -443,9 +443,9 @@ func (i *DefaultInventory) config(runtimeID string, configVersion int64) (*model
 	}
 	configEntity, err := q.GetOne(whereCond, "version desc", inventoryClusterConfigs{})
 	if err != nil {
-		return nil, i.MapError(err, configEntity, whereCond)
+		return nil, i.MapError(err, *configEntity, whereCond)
 	}
-	return configEntity.(*model.ClusterConfigurationEntity), nil
+	return (*configEntity).(*model.ClusterConfigurationEntity), nil
 }
 
 func (i *DefaultInventory) latestConfig(clusterVersion int64) (*model.ClusterConfigurationEntity, error) {
@@ -458,9 +458,9 @@ func (i *DefaultInventory) latestConfig(clusterVersion int64) (*model.ClusterCon
 	}
 	configEntity, err := q.GetOne(whereCond, "version desc", inventoryClusterConfigs{})
 	if err != nil {
-		return nil, i.MapError(err, configEntity, whereCond)
+		return nil, i.MapError(err, *configEntity, whereCond)
 	}
-	return configEntity.(*model.ClusterConfigurationEntity), nil
+	return (*configEntity).(*model.ClusterConfigurationEntity), nil
 }
 
 func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, error) {
@@ -474,9 +474,9 @@ func (i *DefaultInventory) cluster(clusterVersion int64) (*model.ClusterEntity, 
 	}
 	clusterEntity, err := q.GetOne(whereCond, "version desc", inventoryClusters{})
 	if err != nil {
-		return nil, i.MapError(err, clusterEntity, whereCond)
+		return nil, i.MapError(err, *clusterEntity, whereCond)
 	}
-	return clusterEntity.(*model.ClusterEntity), nil
+	return (*clusterEntity).(*model.ClusterEntity), nil
 }
 
 func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity, error) {
@@ -490,10 +490,10 @@ func (i *DefaultInventory) latestCluster(runtimeID string) (*model.ClusterEntity
 	}
 	clusterEntity, err := q.GetOne(whereCond, "version desc", inventoryClusters{})
 	if err != nil {
-		return nil, i.MapError(err, q.DbEntity, whereCond)
+		return nil, i.MapError(err, *clusterEntity, whereCond)
 	}
 
-	return clusterEntity.(*model.ClusterEntity), nil
+	return (*clusterEntity).(*model.ClusterEntity), nil
 }
 
 func (i *DefaultInventory) ClustersToReconcile(reconcileInterval time.Duration) ([]*State, error) {
