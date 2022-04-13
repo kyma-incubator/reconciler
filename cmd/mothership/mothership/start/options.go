@@ -26,6 +26,7 @@ type Options struct {
 	BookkeeperWatchInterval        time.Duration
 	ReconciliationsKeepLatestCount int
 	EntitiesMaxAgeDays             int
+	StatusCleanupBatchSize         int
 	CreateEncyptionKey             bool
 	MaxParallelOperations          int
 	AuditLog                       bool
@@ -49,6 +50,7 @@ func NewOptions(o *cli.Options) *Options {
 		45 * time.Second, //BookkeeperWatchInterval
 		0,                //ReconciliationsKeepLatestCount
 		0,                //EntitiesMaxAgeDays
+		0,                // StatusCleanupBatchSize
 		false,            //CreateEncyptionKey
 		0,                //MaxParallelOperations
 		false,            //AuditLog
@@ -80,6 +82,9 @@ func (o *Options) Validate() error {
 	}
 	if o.EntitiesMaxAgeDays < 0 {
 		return errors.New("cleaner count of days to keep unsuccessful entities cannot be < 0")
+	}
+	if o.StatusCleanupBatchSize < 100 {
+		return errors.New("cluster status cleaner batch size cannot be < 100")
 	}
 	if o.MaxParallelOperations < 0 {
 		return errors.New("maximal parallel reconciled components per cluster cannot be < 0")

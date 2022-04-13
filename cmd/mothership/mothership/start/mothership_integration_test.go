@@ -507,7 +507,7 @@ func (s *mothershipIntegrationTestSuite) TestRun() {
 
 			recons, err := registry.ReconciliationRepository().GetReconciliations(nil)
 			s.NoError(err)
-			schedulingIds := make([]string, len(recons))
+			schedulingIds := make([]interface{}, len(recons))
 			for i, recon := range recons {
 				schedulingIds[i] = recon.SchedulingID
 			}
