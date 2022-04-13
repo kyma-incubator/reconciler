@@ -135,6 +135,7 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error during removal")
 	}
 
+	context.Logger.Info("Removing cert secrets")
 	_, err = context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs", "istio-namespace")
 	if err != nil {
 		return errors.Wrap(err, "Error during removal of cc-certs in istio-namespace")
