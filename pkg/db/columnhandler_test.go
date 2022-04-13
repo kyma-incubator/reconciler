@@ -1,6 +1,7 @@
 package db
 
 import (
+	"gorm.io/gorm/clause"
 	"regexp"
 	"strings"
 	"testing"
@@ -98,6 +99,16 @@ func (s *DbTestSuite) TestColumnHandler() {
 	t.Run("Get column names as CSV", func(t *testing.T) {
 		require.ElementsMatch(t, []string{"col_1", "col_2", "col_3"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(false)))
 		require.ElementsMatch(t, []string{"col_1", "col_3"}, splitAndTrimCsv(colHdr.ColumnNamesCsv(true)))
+	})
+
+	t.Run("Get column names as slice", func(t *testing.T) {
+		require.Equal(t, []string{"col_1", "col_2", "col_3"}, colHdr.ColumnNamesSlice(false))
+		require.Equal(t, []string{"col_1", "col_3"}, colHdr.ColumnNamesSlice(true))
+	})
+
+	t.Run("Get column names as gorm clause", func(t *testing.T) {
+		require.Equal(t, []clause.Column{{Name: "col_1"}, {Name: "col_2"}, {Name: "col_3"}}, colHdr.ColumnNamesGormClause(false))
+		require.Equal(t, []clause.Column{{Name: "col_1"}, {Name: "col_3"}}, colHdr.ColumnNamesGormClause(true))
 	})
 
 	t.Run("Get column values as CSV", func(t *testing.T) {

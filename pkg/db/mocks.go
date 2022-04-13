@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"github.com/DATA-DOG/go-sqlmock"
 	"gorm.io/gorm"
 )
 
@@ -54,7 +55,11 @@ func (c *MockConnection) ID() string {
 }
 
 func (c *MockConnection) DB() *sql.DB {
-	return nil
+	db,_ , err := sqlmock.New()
+	if err != nil {
+		return nil
+	}
+	return db
 }
 
 func (c *MockConnection) Encryptor() *Encryptor {

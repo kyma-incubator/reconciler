@@ -79,6 +79,8 @@ require (
 	sigs.k8s.io/yaml v1.2.0
 )
 
+require github.com/DATA-DOG/go-sqlmock v1.5.0
+
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/BurntSushi/toml v0.3.1 // indirect
