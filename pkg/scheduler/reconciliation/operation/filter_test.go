@@ -55,7 +55,7 @@ func TestFilterMixer_FilterByQuery(t *testing.T) {
 			q, err := db.NewQuery(&db.MockConnection{}, &model.OperationEntity{}, testLogger)
 			require.NoError(t, err)
 			s := &db.Select{
-				QueryOld: q,
+				Query: q,
 			}
 			fm := &FilterMixer{
 				Filters: tt.filters,

@@ -100,7 +100,7 @@ func TestFilterMixer_FilterByQuery(t *testing.T) {
 			q, err := db.NewQuery(&db.MockConnection{}, &model.ReconciliationEntity{}, testLogger)
 			require.NoError(t, err)
 			s := &db.Select{
-				QueryOld: q,
+				Query: q,
 			}
 			fm := &FilterMixer{
 				Filters: tt.filters,
@@ -183,7 +183,7 @@ func Test_columnName(t *testing.T) {
 		q, err := db.NewQuery(&db.MockConnection{}, &model.ReconciliationEntity{}, testLogger)
 		require.NoError(t, err)
 		s := &db.Select{
-			QueryOld: q,
+			Query: q,
 		}
 		got, err := columnName(s, "RuntimeID")
 		require.NoError(t, err)
@@ -194,7 +194,7 @@ func Test_columnName(t *testing.T) {
 		q, err := db.NewQuery(&db.MockConnection{}, &model.ReconciliationEntity{}, testLogger)
 		require.NoError(t, err)
 		s := &db.Select{
-			QueryOld: q,
+			Query: q,
 		}
 		got, err := columnName(s, "RuntimeIDIDIDID")
 		require.Error(t, err)

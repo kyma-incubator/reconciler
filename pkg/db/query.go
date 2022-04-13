@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type QueryOld struct {
+type Query struct {
 	Conn          Connection
 	entity        DatabaseEntity
 	columnHandler *ColumnHandler
@@ -18,12 +18,12 @@ type QueryOld struct {
 	Logger        *zap.SugaredLogger
 }
 
-func NewQuery(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger) (*QueryOld, error) {
+func NewQuery(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger) (*Query, error) {
 	columnHandler, err := NewColumnHandler(entity, conn, logger)
 	if err != nil {
 		return nil, err
 	}
-	return &QueryOld{
+	return &Query{
 		Conn:          conn,
 		entity:        entity,
 		columnHandler: columnHandler,
@@ -31,17 +31,17 @@ func NewQuery(conn Connection, entity DatabaseEntity, logger *zap.SugaredLogger)
 	}, nil
 }
 
-func (q QueryOld) String() string {
+func (q Query) String() string {
 	return q.buffer.String()
 }
 
-func (q *QueryOld) Select() *Select {
+func (q *Query) Select() *Select {
 	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
 
 	return &Select{q, []interface{}{}, nil}
 }
 
-func (q *QueryOld) SelectColumn(fieldName string) (*Select, error) {
+func (q *Query) SelectColumn(fieldName string) (*Select, error) {
 	columnName, err := q.columnHandler.ColumnName(fieldName)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (q *QueryOld) SelectColumn(fieldName string) (*Select, error) {
 	return &Select{q, []interface{}{}, nil}, nil
 }
 
-func (q *QueryOld) Insert() *Insert {
+func (q *Query) Insert() *Insert {
 	colValPlcHdr, err := q.columnHandler.ColumnValuesPlaceholderCsv(true)
 
 	q.buffer.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING %s",
@@ -60,13 +60,13 @@ func (q *QueryOld) Insert() *Insert {
 	return &Insert{q, err}
 }
 
-func (q *QueryOld) Delete() *Delete {
+func (q *Query) Delete() *Delete {
 	q.buffer.WriteString(fmt.Sprintf("DELETE FROM %s", q.entity.Table()))
 
 	return &Delete{q, []interface{}{}, nil}
 }
 
-func (q *QueryOld) Update() *Update {
+func (q *Query) Update() *Update {
 	colEntriesCsv, plcHdrCnt, err := q.columnHandler.columnEntriesCsvRenderer(true, true)
 
 	q.buffer.WriteString(fmt.Sprintf("UPDATE %s SET %s",
@@ -76,12 +76,12 @@ func (q *QueryOld) Update() *Update {
 }
 
 // helper functions:
-func (q *QueryOld) reset() {
+func (q *Query) reset() {
 	q.buffer = bytes.Buffer{}
 	q.whereClause = false
 }
 
-func (q *QueryOld) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset int) ([]interface{}, error) {
+func (q *Query) addWhereCondition(whereCond map[string]interface{}, plcHdrOffset int) ([]interface{}, error) {
 	var args []interface{}
 	var plcHdrIdx int
 
@@ -151,7 +151,7 @@ func (u *Update) addWhereCondition(whereCond map[string]interface{}, negate bool
 	return nil
 }
 
-func (q *QueryOld) addWhereInCondition(field, subQuery string) error {
+func (q *Query) addWhereInCondition(field, subQuery string) error {
 	colName, err := q.columnHandler.ColumnName(field)
 	if err != nil {
 		return err
@@ -161,7 +161,7 @@ func (q *QueryOld) addWhereInCondition(field, subQuery string) error {
 	return nil
 }
 
-func (q *QueryOld) addWhere() {
+func (q *Query) addWhere() {
 	if q.whereClause {
 		q.buffer.WriteString(" AND")
 	} else {
@@ -172,7 +172,7 @@ func (q *QueryOld) addWhere() {
 
 // SELECT:
 type Select struct {
-	*QueryOld
+	*Query
 	args []interface{}
 	err  error
 }
@@ -291,7 +291,7 @@ func (s *Select) GetMany() ([]DatabaseEntity, error) {
 	var result []DatabaseEntity
 	for rows.Next() {
 		entity := s.entity.New()
-		colHdlr, err := NewColumnHandler(entity, s.Conn, s.QueryOld.Logger)
+		colHdlr, err := NewColumnHandler(entity, s.Conn, s.Query.Logger)
 		if err != nil {
 			return result, err
 		}
@@ -309,7 +309,7 @@ func (s *Select) NextPlaceholderCount() int {
 
 // INSERT:
 type Insert struct {
-	*QueryOld
+	*Query
 	err error
 }
 
@@ -332,7 +332,7 @@ func (i *Insert) Exec() error {
 
 // DELETE:
 type Delete struct {
-	*QueryOld
+	*Query
 	args []interface{}
 	err  error
 }
@@ -375,7 +375,7 @@ func (d *Delete) NextPlaceholderCount() int {
 
 // UPDATE:
 type Update struct {
-	*QueryOld
+	*Query
 	args              []interface{}
 	placeholderOffset int
 	err               error

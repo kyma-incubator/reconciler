@@ -298,9 +298,9 @@ func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
 
 func (i *DefaultInventory) Delete(runtimeID string) error {
 	dbOps := func(tx *db.TxConnection) error {
-		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID) //TODO: Fuur gorm anpassen aus convinience
-		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4"            //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
-
+		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID)
+		// TODO: Rewrite with grom to stay consistend
+		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
 		//update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
 		clusterColHandler, err := db.NewColumnHandler(clusterEntity, i.Conn, i.Logger)
