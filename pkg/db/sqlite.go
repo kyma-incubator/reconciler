@@ -119,6 +119,11 @@ func (sc *sqliteConnection) Type() Type {
 	return SQLite
 }
 
+func (sc *sqliteConnection) DBStats() *sql.DBStats {
+	stats := sc.db.Stats()
+	return &stats
+}
+
 type sqliteConnectionFactory struct {
 	file          string
 	debug         bool

@@ -84,3 +84,15 @@ func isPodReady(pod v1.Pod) bool {
 
 	return pod.ObjectMeta.DeletionTimestamp == nil
 }
+
+// RemoveAnnotatedPods removes pods with annotation annotationKey from in podList
+func RemoveAnnotatedPods(in v1.PodList, annotationKey string) (out v1.PodList) {
+	in.DeepCopyInto(&out)
+	out.Items = []v1.Pod{}
+	for i := 0; i < len(in.Items); i++ {
+		if _, ok := in.Items[i].Annotations[annotationKey]; !ok {
+			out.Items = append(out.Items, in.Items[i])
+		}
+	}
+	return
+}

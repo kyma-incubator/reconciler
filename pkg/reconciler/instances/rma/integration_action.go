@@ -130,7 +130,6 @@ func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.
 	installAction.Namespace = namespace
 	installAction.Timeout = 6 * time.Minute
 	installAction.Wait = true
-	installAction.Atomic = true
 	chart, err := a.fetchChart(context.Context, chartURL)
 	if err != nil {
 		return errors.Wrapf(err, "while fetching rmi chart from %s", chartURL)
@@ -168,7 +167,6 @@ func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.
 	upgradeAction.Namespace = namespace
 	upgradeAction.Timeout = 5 * time.Minute
 	upgradeAction.Wait = true
-	upgradeAction.Atomic = true
 	upgradeAction.MaxHistory = RmiHelmMaxHistory
 	chart, err := a.fetchChart(context.Context, chartURL)
 	if err != nil {
@@ -314,7 +312,7 @@ func setAuthCredentialOverrides(configuration map[string]interface{}, username, 
 
 func findLatestRevision(releases []*release.Release) *release.Release {
 	revision := -1
-	var release *release.Release = nil
+	var release *release.Release
 	for _, r := range releases {
 		if r.Version > revision {
 			release = r

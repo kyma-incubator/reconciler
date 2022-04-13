@@ -40,7 +40,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 				PreComponents:            o.Config.Scheduler.PreComponents,
 			}).
 		WithBookkeeperConfig(&service.BookkeeperConfig{
-			OperationsWatchInterval: 45 * time.Second,
+			OperationsWatchInterval: o.BookkeeperWatchInterval,
 			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		WithCleanerConfig(&service.CleanerConfig{

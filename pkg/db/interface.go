@@ -26,6 +26,7 @@ type Connection interface {
 	Close() error
 	Type() Type
 	ID() string
+	DBStats() *sql.DBStats
 }
 
 type ConnectionFactory interface {

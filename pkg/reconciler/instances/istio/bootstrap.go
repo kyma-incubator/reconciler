@@ -60,7 +60,7 @@ func (dcr *defaultCommanderResolver) GetCommander(version istioctl.Version) (ist
 		return nil, err
 	}
 
-	dcr.log.Infof("Resolved istioctl binary: Requested istio version: %s, Found: %s", version.String(), istioBinary.Version().String())
+	dcr.log.Debugf("Resolved istioctl binary: Requested istio version: %s, Found: %s", version.String(), istioBinary.Version().String())
 
 	res := istioctl.NewDefaultCommander(*istioBinary)
 	return &res, nil
@@ -87,7 +87,7 @@ func parsePaths(input string) ([]string, error) {
 		return nil, errors.Errorf("%s env variable is undefined or empty", istioctlBinaryPathEnvKey)
 	}
 	if len(trimmed) > istioctlBinaryPathMaxLen {
-		return nil, errors.New(fmt.Sprintf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen))
+		return nil, fmt.Errorf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen)
 	}
 	pathDefs := strings.Split(trimmed, ";")
 	var res []string
@@ -110,7 +110,7 @@ func ensureFilesExecutable(paths []string, logger *zap.SugaredLogger) error {
 		mode := stat.Mode()
 		logger.Debugf("%s mode: %s", path, mode)
 		if (!mode.IsRegular()) || mode.IsDir() {
-			return errors.New(fmt.Sprintf("\"%s\" is not a regular file", path))
+			return fmt.Errorf("\"%s\" is not a regular file", path)
 		}
 		if uint32(mode&0111) == 0 {
 			logger.Debugf("%s is not executable, will chmod +x", path)

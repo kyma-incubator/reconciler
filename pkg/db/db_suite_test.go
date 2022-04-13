@@ -12,5 +12,4 @@ func TestDbSuite(t *testing.T) {
 	suite.Run(t, &DbTestSuite{LeaseSharedContainerTestSuite(
 		t, DefaultSharedContainerSettings, true, false,
 	)})
-	ReturnLeasedSharedContainerTestSuite(t, DefaultSharedContainerSettings)
 }
