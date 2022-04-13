@@ -301,7 +301,7 @@ func (i *DefaultInventory) MarkForDeletion(runtimeID string) (*State, error) {
 func (i *DefaultInventory) Delete(runtimeID string) error {
 	dbOps := func(tx *db.TxConnection) error {
 		newClusterName := fmt.Sprintf("deleted_%d_%s", time.Now().Unix(), runtimeID)
-		// TODO: Rewrite with grom to stay consistend
+		// TODO: Rewrite with gorm to stay consistend
 		updateSQLTpl := "UPDATE %s SET %s=$1, %s=$2 WHERE %s=$3 OR %s=$4" //OR condition required for Postgres: new cluster-name is automatically cascaded to config-status table
 		//update name of all cluster entities
 		clusterEntity := &model.ClusterEntity{}
@@ -618,7 +618,7 @@ func (i *DefaultInventory) buildLatestStatusIdsSQL(columnMap map[string]string, 
 		) group by cluster_version
 	*/
 	dataRows, err := i.Conn.Query(
-		fmt.Sprintf( // TODO: Rewrite with grom to stay consistend
+		fmt.Sprintf( // TODO: Rewrite with gorm to stay consistend
 			"SELECT %s, MAX(%s) FROM %s WHERE %s IN (SELECT MAX(%s) FROM %s WHERE %s=$1 GROUP BY %s) GROUP BY %s ",
 			columnMap["ClusterVersion"], columnMap["ConfigVersion"], clusterStatusEntity.Table(), columnMap["ClusterVersion"],
 			columnMap["ClusterVersion"], clusterStatusEntity.Table(), columnMap["Deleted"], columnMap["RuntimeID"],

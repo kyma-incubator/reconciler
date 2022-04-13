@@ -23,6 +23,9 @@ replace (
 	golang.org/x/net => golang.org/x/net v0.0.0-20220403103023-749bd193bc2b
 	//fix for WS-2021-0200
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
+
+	gorm.io/driver/postgres => gorm.io/driver/postgres v1.3.3
+	gorm.io/gorm => gorm.io/gorm v1.23.4
 )
 
 require (
