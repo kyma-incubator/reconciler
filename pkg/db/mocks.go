@@ -55,7 +55,7 @@ func (c *MockConnection) ID() string {
 }
 
 func (c *MockConnection) DB() *sql.DB {
-	db,_ , err := sqlmock.New()
+	db, _, err := sqlmock.New()
 	if err != nil {
 		return nil
 	}
