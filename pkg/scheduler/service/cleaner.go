@@ -64,20 +64,22 @@ func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *Cle
 		c.logger.Infof("%s Cleaner will remove reconciliations older than %s", CleanerPrefix, config.PurgeEntitiesOlderThan.String())
 		c.purgeReconciliationsOld(transition, config)
 	}
-
-	// delete cluster entities
-	clusterInventoryCleanupDays := 20 // days default
-	if config.maxEntitiesAgeDays() > 0 {
-		clusterInventoryCleanupDays = config.maxEntitiesAgeDays()
-	}
-	c.logger.Infof("%s Cleaner will remove inventory clusters and intermediary statuses", CleanerPrefix)
-	deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*clusterInventoryCleanupDays)
-	err := transition.CleanStatusesAndDeletedClustersOlderThan(deadline)
-	if err != nil {
-		c.logger.Errorf("%s Failed to remove inventory clusters and intermediary statuses %v", CleanerPrefix, err)
-	}
-
+	c.clusterEntityCleanup(transition, config)
+	c.logger.Debugf("%s New cleaner: Max entities days - %d, Keep entities count - %d", CleanerPrefix, config.maxEntitiesAgeDays(), config.keepLatestEntitiesCount())
 	c.logger.Infof("%s Process finished", CleanerPrefix)
+}
+
+func (c *cleaner) clusterEntityCleanup(transition *ClusterStatusTransition, config *CleanerConfig) {
+	// TODO: settings limits out of limits to disable - remove to disable
+	if config.keepLatestEntitiesCount() > 500 && config.maxEntitiesAgeDays() > 50 {
+		// delete cluster entities
+		c.logger.Infof("%s Cleaner will remove inventory clusters and intermediary statuses", CleanerPrefix)
+		deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*config.maxEntitiesAgeDays())
+		err := transition.CleanStatusesAndDeletedClustersOlderThan(deadline)
+		if err != nil {
+			c.logger.Errorf("%s Failed to remove inventory clusters and intermediary statuses %v", CleanerPrefix, err)
+		}
+	}
 }
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
