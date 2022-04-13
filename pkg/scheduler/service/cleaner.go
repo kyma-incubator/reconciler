@@ -74,20 +74,27 @@ func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *Cle
 		c.purgeReconciliationsOld(transition, config)
 	}
 	c.logger.Infof("%s Process finished (%s): Reconcilations cleanup, took %.2f minutes", CleanerPrefix, cleanerProcessUUID, time.Since(startReconciliations).Minutes())
+	c.clusterEntityCleanup(transition, config, cleanerProcessUUID)
+	c.logger.Debugf("%s New cleaner: Max entities days - %d, Keep entities count - %d", CleanerPrefix, config.maxEntitiesAgeDays(), config.keepLatestEntitiesCount())
+}
 
-	// delete cluster entities
-	c.logger.Infof("%s Process started (%s): Cluster entities cleanup and intermediary statuses", CleanerPrefix, cleanerProcessUUID)
-	startClusterEntities := time.Now()
+func (c *cleaner) clusterEntityCleanup(transition *ClusterStatusTransition, config *CleanerConfig, cleanerProcessUUID string) {
+	// TODO: settings higher limits to disable - remove to enable
+	if config.keepLatestEntitiesCount() > 5000 && config.maxEntitiesAgeDays() > 500 {
+		// delete cluster entities
+		c.logger.Infof("%s Process started (%s): Cluster entities cleanup and intermediary statuses", CleanerPrefix, cleanerProcessUUID)
+		startClusterEntities := time.Now()
 
-	clusterInventoryCleanupDays := 20 // days default
-	if config.maxEntitiesAgeDays() > 0 {
-		clusterInventoryCleanupDays = config.maxEntitiesAgeDays()
+		clusterInventoryCleanupDays := 20 // days default
+		if config.maxEntitiesAgeDays() > 0 {
+			clusterInventoryCleanupDays = config.maxEntitiesAgeDays()
+		}
+		deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*clusterInventoryCleanupDays)
+		if err := transition.CleanStatusesAndDeletedClustersOlderThan(deadline, config.statusCleanupBatchSize()); err != nil {
+			c.logger.Errorf("%s Failed (%s): to remove inventory clusters and intermediary statuses %v", CleanerPrefix, cleanerProcessUUID, err)
+		}
+		c.logger.Infof("%s Process finished (%s): Cluster entities cleanup, took %.2f minutes", CleanerPrefix, cleanerProcessUUID, time.Since(startClusterEntities).Minutes())
 	}
-	deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*clusterInventoryCleanupDays)
-	if err := transition.CleanStatusesAndDeletedClustersOlderThan(deadline, config.statusCleanupBatchSize()); err != nil {
-		c.logger.Errorf("%s Failed (%s): to remove inventory clusters and intermediary statuses %v", CleanerPrefix, cleanerProcessUUID, err)
-	}
-	c.logger.Infof("%s Process finished (%s): Cluster entities cleanup, took %.2f minutes", CleanerPrefix, cleanerProcessUUID, time.Since(startClusterEntities).Minutes())
 }
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
