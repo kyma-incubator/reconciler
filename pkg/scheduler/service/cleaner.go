@@ -70,8 +70,8 @@ func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *Cle
 }
 
 func (c *cleaner) clusterEntityCleanup(transition *ClusterStatusTransition, config *CleanerConfig) {
-	// TODO: settings limits out of limits to disable - remove to disable
-	if config.keepLatestEntitiesCount() > 500 && config.maxEntitiesAgeDays() > 50 {
+	// TODO: settings higher limits to disable - remove to disable
+	if config.keepLatestEntitiesCount() > 5000 && config.maxEntitiesAgeDays() > 500 {
 		// delete cluster entities
 		c.logger.Infof("%s Cleaner will remove inventory clusters and intermediary statuses", CleanerPrefix)
 		deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*config.maxEntitiesAgeDays())
