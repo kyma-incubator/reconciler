@@ -47,14 +47,17 @@ const (
 	paramPoolID     = "poolID"
 )
 
+//AuditRegistry contains mappings from path-prefixes to array of methods that are registered with the AuditLogMiddleware
+type AuditRegistry map[string][]string
+
 var (
-	auditedPaths = []string{
-		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
-	}
-	auditedMethods = []string{
-		http.MethodPost,
-		http.MethodPut,
-		http.MethodPatch,
+	auditRegistry = AuditRegistry{
+		fmt.Sprintf("/v{%s}/clusters", paramContractVersion): {
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+		},
 	}
 )
 
@@ -174,7 +177,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		}
 		defer func() { _ = auditLogger.Sync() }() // make golint happy
 		auditLoggerMiddleware := newAuditLoggerMiddleware(auditLogger, o)
-		for _, auditedPath := range auditedPaths {
+		for auditedPath, auditedMethods := range auditRegistry {
 			apiRouter.PathPrefix(auditedPath).Methods(auditedMethods...).Subrouter().Use(auditLoggerMiddleware)
 		}
 	}
