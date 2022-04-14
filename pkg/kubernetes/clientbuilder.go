@@ -17,32 +17,32 @@ import (
 
 const EnvVarKubeconfig = "KUBECONFIG"
 
-type clientBuilder struct {
+type ClientBuilder struct {
 	logger     *zap.SugaredLogger
 	kubeconfig []byte
 	err        error
 }
 
-func NewClientBuilder() *clientBuilder {
-	return &clientBuilder{}
+func NewClientBuilder() *ClientBuilder {
+	return &ClientBuilder{}
 }
 
-func (cb *clientBuilder) WithLogger(logger *zap.SugaredLogger) *clientBuilder {
+func (cb *ClientBuilder) WithLogger(logger *zap.SugaredLogger) *ClientBuilder {
 	cb.logger = logger
 	return cb
 }
 
-func (cb *clientBuilder) WithFile(filePath string) *clientBuilder {
+func (cb *ClientBuilder) WithFile(filePath string) *ClientBuilder {
 	cb.kubeconfig, cb.err = cb.loadFile(filePath)
 	return cb
 }
 
-func (cb *clientBuilder) WithString(kubeconfig string) *clientBuilder {
+func (cb *ClientBuilder) WithString(kubeconfig string) *ClientBuilder {
 	cb.kubeconfig = []byte(kubeconfig)
 	return cb
 }
 
-func (cb *clientBuilder) Build(ctx context.Context, validate bool) (kubernetes.Interface, error) {
+func (cb *ClientBuilder) Build(ctx context.Context, validate bool) (kubernetes.Interface, error) {
 	if cb.err != nil {
 		return nil, cb.err
 	}
@@ -95,7 +95,7 @@ func (cb *clientBuilder) Build(ctx context.Context, validate bool) (kubernetes.I
 	return clientSet, err
 }
 
-func (cb *clientBuilder) loadFile(filePath string) ([]byte, error) {
+func (cb *ClientBuilder) loadFile(filePath string) ([]byte, error) {
 	if !file.Exists(filePath) {
 		return nil, fmt.Errorf("kubeconfig file not found at path '%s'", filePath)
 	}
