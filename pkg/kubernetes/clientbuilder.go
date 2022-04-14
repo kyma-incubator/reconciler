@@ -80,7 +80,7 @@ func (cb *ClientBuilder) Build(ctx context.Context, validate bool) (kubernetes.I
 		err = wait.ExponentialBackoffWithContext(ctx, backoff, func() (done bool, err error) {
 			_, err = clientSet.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 			if err != nil {
-				cb.logger.Info(errors.Wrapf(err, "validation of connection to Kubernetes cluster %s failed (%.0f seconds elapsed since start), retrying...", config.Host, time.Since(start).Seconds()))
+				cb.logger.Info(errors.Wrapf(err, "validation of connection to Kubernetes cluster %s failed (%.0f seconds elapsed since start), retrying", config.Host, time.Since(start).Seconds()))
 				return false, nil
 			}
 			cb.logger.Debugf("validation of connection to Kubernetes cluster %s succeeded after %.0f seconds", config.Host, time.Since(start).Seconds())
