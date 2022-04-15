@@ -289,7 +289,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 	cfg := istioConfig.IstioProxyConfig{
 		Context:             context,
 		ImagePrefix:         istioImagePrefix,
-		ImageVersion:        fmt.Sprintf("%s-distroless", proxyImageVersion),
+		ImageVersion:        proxyImageVersion,
 		RetriesCount:        retriesCount,
 		DelayBetweenRetries: delayBetweenRetries,
 		Timeout:             timeout,
