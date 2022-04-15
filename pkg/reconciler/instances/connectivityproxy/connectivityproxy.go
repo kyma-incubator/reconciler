@@ -19,7 +19,7 @@ type CopyFactory func(task *reconciler.Task, inClusterClientSet, targetClientSet
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
-	log := logger.NewLogger(false)
+	log := logger.NewLogger(true)
 
 	log.Debugf("Initializing component reconciler '%s'", ReconcilerName)
 	reconcilerInstance, err := service.NewComponentReconciler(ReconcilerName)
