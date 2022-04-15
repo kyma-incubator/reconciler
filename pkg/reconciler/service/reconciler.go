@@ -65,7 +65,7 @@ type progressTrackerConfig struct {
 func NewComponentReconciler(reconcilerName string) (*ComponentReconciler, error) {
 	recon := &ComponentReconciler{
 		workspace: defaultWorkspace,
-		logger:    logger.NewLogger(false),
+		logger:    logger.NewLogger(true),
 	}
 
 	RegisterReconciler(reconcilerName, recon) //add reconciler to registry
