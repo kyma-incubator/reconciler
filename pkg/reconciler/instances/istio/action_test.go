@@ -202,6 +202,7 @@ func TestStatusPreAction_Run(t *testing.T) {
 		tooLowClientVersion := actions.IstioStatus{
 			ClientVersion:    "1.0",
 			TargetVersion:    "1.2",
+			TargetPrefix:     "eu.gcr.io/kyma-project/external/istio",
 			PilotVersion:     "1.1",
 			DataPlaneVersion: "1.1",
 		}

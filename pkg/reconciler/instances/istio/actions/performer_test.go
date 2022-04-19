@@ -704,13 +704,14 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 
 func TestMapVersionToStruct(t *testing.T) {
 
-	t.Run("Empty byte array for version coomand returns an error", func(t *testing.T) {
+	t.Run("Empty byte array for version command returns an error", func(t *testing.T) {
 		// given
 		versionOutput := []byte("")
 		targetVersion := "targetVersion"
+		targetDirectory := "targetDirectory"
 
 		// when
-		_, err := mapVersionToStruct(versionOutput, targetVersion)
+		_, err := mapVersionToStruct(versionOutput, targetVersion, targetDirectory)
 
 		// then
 		require.Error(t, err)
@@ -721,6 +722,7 @@ func TestMapVersionToStruct(t *testing.T) {
 		// given
 		versionOutput := []byte(istioctlMockCompleteVersion)
 		targetVersion := "targetVersion"
+		targetDirectory := "targetDirectory"
 		expectedStruct := IstioStatus{
 			ClientVersion:    "1.11.1",
 			TargetVersion:    targetVersion,
@@ -729,7 +731,7 @@ func TestMapVersionToStruct(t *testing.T) {
 		}
 
 		// when
-		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion)
+		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion, targetDirectory)
 
 		// then
 		require.NoError(t, err)
