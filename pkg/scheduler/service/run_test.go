@@ -139,6 +139,7 @@ func (s *serviceTestSuite) runRemote(expectedClusterStatus model.Status, timeout
 	remoteRunner.WithCleanerConfig(&CleanerConfig{
 		PurgeEntitiesOlderThan: 15 * time.Second,
 		CleanerInterval:        4 * time.Second,
+		StatusCleanupBatchSize: 100,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)

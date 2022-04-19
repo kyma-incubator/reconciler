@@ -39,6 +39,7 @@ func (s *serviceTestSuite) Test_cleaner_Run_old_logic() {
 	}, &CleanerConfig{
 		PurgeEntitiesOlderThan: 2 * time.Second,
 		CleanerInterval:        5 * time.Second,
+		StatusCleanupBatchSize: 100,
 	})
 	require.NoError(t, err)
 
@@ -158,6 +159,7 @@ func (s *serviceTestSuite) Test_cleaner_Run_new_logic() {
 		KeepLatestEntitiesCount: 4,
 		MaxEntitiesAgeDays:      6,
 		CleanerInterval:         5 * time.Second,
+		StatusCleanupBatchSize:  100,
 	})
 
 	require.NoError(t, err)
