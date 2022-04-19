@@ -59,6 +59,9 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 		if _, ok := pod.Annotations["sidecar.istio.io/status"]; !ok {
 			continue
 		}
+		if !isPodReady(pod){
+			continue
+		}
 		for _, container := range pod.Spec.Containers {
 			containsIstioPrefix := strings.Contains(container.Image, image.Prefix)
 			hasSuffix := strings.HasSuffix(container.Image, image.Version)
