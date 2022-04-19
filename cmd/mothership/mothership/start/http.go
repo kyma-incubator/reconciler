@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/features"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -121,6 +122,16 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/debug", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		callHandler(o, enableOperationDebugLogging)).
+		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/reconciliations/{%s}/debug", paramContractVersion, paramSchedulingID),
+		callHandler(o, enableReconciliationDebugLogging)).
+		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
 
@@ -174,6 +185,54 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Router:     mainRouter,
 	}
 	return srv.Start(ctx) //blocking call
+}
+
+func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
+
+	if !features.Enabled(features.DebugLogForSpecificOperations) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().EnableDebugLogging(schedulingID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+}
+
+func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
+
+	if !features.Enabled(features.DebugLogForSpecificOperations) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	correlationID, err := params.String(paramCorrelationID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().EnableDebugLogging(schedulingID, correlationID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+
 }
 
 func live(w http.ResponseWriter, _ *http.Request) {

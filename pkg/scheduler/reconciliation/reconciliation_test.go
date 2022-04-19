@@ -721,6 +721,116 @@ func (s *reconciliationTestSuite) TestReconciliationRepository() {
 				require.GreaterOrEqual(t, meanDuration, int64(1000))
 			},
 		},
+		{
+			name: "Enable debug logging for a reconciliation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+				require.False(t, reconEntity.Status.IsFinal())
+
+				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID)
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					require.True(t, op.Debug)
+				}
+			},
+		},
+		{
+			name: "Enable debug logging for a non-final reconciliation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+				require.False(t, reconEntity.Status.IsFinal())
+
+				clusterStatus := stateMock1.Status
+				clusterStatus.Status = model.ClusterStatusReconcileErrorRetryable
+				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, clusterStatus)
+				require.NoError(t, err)
+				updatedReconEntity, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
+				require.NoError(t, err)
+				require.True(t, updatedReconEntity.Status.IsFinal())
+
+				err = reconRepo.EnableDebugLogging(updatedReconEntity.SchedulingID)
+				require.Error(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					require.False(t, op.Debug)
+				}
+			},
+		},
+		{
+			name: "Enable debug logging for a specific operation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				operationEntity := opsEntities[0]
+
+				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID, operationEntity.CorrelationID)
+				require.NoError(t, err)
+
+				updatedOpsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range updatedOpsEntities {
+					if op.CorrelationID == operationEntity.CorrelationID {
+						require.True(t, op.Debug)
+					} else {
+						require.False(t, op.Debug)
+					}
+				}
+
+			},
+		},
+		{
+			name: "Enable debug logging for a non-new operation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				operationEntity := opsEntities[0]
+				require.Equal(t, operationEntity.State, model.OperationStateNew)
+
+				err = reconRepo.UpdateOperationState(operationEntity.SchedulingID, operationEntity.CorrelationID, model.OperationStateOrphan, true)
+				require.NoError(t, err)
+
+				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID, operationEntity.CorrelationID)
+				require.Error(t, err)
+
+				updatedOpsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range updatedOpsEntities {
+					require.False(t, op.Debug)
+				}
+
+			},
+		},
 	}
 
 	repos := map[string]Repository{
