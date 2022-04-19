@@ -56,19 +56,13 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 	outputPodsList.Items = []v1.Pod{}
 
 	for _, pod := range inputPodsList.Items {
-		isIstioPod := false
-		if _, ok := pod.Annotations["sidecar.istio.io/status"]; ok {
-			isIstioPod = true
-		} else {
-			continue
-		}
-		if !isPodReady(pod) {
+		if _, ok := pod.Annotations["sidecar.istio.io/status"]; !ok {
 			continue
 		}
 		for _, container := range pod.Spec.Containers {
-			containsIstioPrefix := strings.Contains(container.Image, "istio") && strings.Contains(container.Image, "proxyv2")
+			containsIstioPrefix := strings.Contains(container.Image, image.Prefix)
 			hasSuffix := strings.HasSuffix(container.Image, image.Version)
-			if isIstioPod && !hasSuffix && containsIstioPrefix {
+			if !hasSuffix || !containsIstioPrefix {
 				outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 			}
 		}
