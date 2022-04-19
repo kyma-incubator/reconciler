@@ -465,7 +465,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "",log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "", log)
 
 		// then
 		require.Error(t, err)
@@ -484,9 +484,10 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
+		proxyImagePrefix := "anything"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "",log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log)
 
 		// then
 		require.Error(t, err)
@@ -507,7 +508,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "",log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "", log)
 
 		// then
 		require.NoError(t, err)

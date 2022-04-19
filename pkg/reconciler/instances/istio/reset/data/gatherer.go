@@ -56,10 +56,7 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 	outputPodsList.Items = []v1.Pod{}
 
 	for _, pod := range inputPodsList.Items {
-		if _, ok := pod.Annotations["sidecar.istio.io/status"]; !ok {
-			continue
-		}
-		if !isPodReady(pod){
+		if _, ok := pod.Annotations["sidecar.istio.io/status"]; !ok || !isPodReady(pod) {
 			continue
 		}
 		for _, container := range pod.Spec.Containers {

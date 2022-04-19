@@ -39,7 +39,7 @@ type VersionType string
 type IstioStatus struct {
 	ClientVersion    string
 	TargetVersion    string
-	TargetPrefix	 string
+	TargetPrefix     string
 	PilotVersion     string
 	DataPlaneVersion string
 }
@@ -71,15 +71,10 @@ type chartValues struct {
 	Global struct {
 		Images struct {
 			IstioPilot struct {
-				Name string `json:"name"`
 				Version string `json:"version"`
-				Directory string `json:"directory"`
-				ContainerRegistryPath string `json:"containerRegistryPath"`
-			} `json:"istio_pilot"`;
+			} `json:"istio_pilot"`
 			IstioProxyV2 struct {
-				Name string `json:"name"`
-				Version string `json:"version"`
-				Directory string `json:"directory"`
+				Directory             string `json:"directory"`
 				ContainerRegistryPath string `json:"containerRegistryPath"`
 			} `json:"istio_proxyv2"`
 		} `json:"images"`
@@ -99,7 +94,7 @@ type IstioPerformer interface {
 	// Update Istio on the cluster to the targetVersion using istioChart.
 	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
-	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version, it always adds "-distroless" suffix to the provided value.
+	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
 	ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error
 
 	// Version reports status of Istio installation on the cluster.
@@ -399,17 +394,19 @@ func getTargetProxyV2PrefixFromIstioChart(workspace chart.Factory, branch string
 		return "", err
 	}
 
-	if err!=nil{
-		return "", err
+	containerRegistryPath := chartValues.Global.Images.IstioProxyV2.ContainerRegistryPath
+	if containerRegistryPath == "" {
+		return "", errors.New("Target Istio container registry path could not be found in values.yaml")
 	}
 
-	prefix := chartValues.Global.Images.IstioProxyV2.ContainerRegistryPath + "/" + chartValues.Global.Images.IstioProxyV2.Directory
-
-	if prefix != "" {
-		logger.Debugf("Resolved target Istio prefix: %s from values", prefix)
-		return prefix, nil
+	directory := chartValues.Global.Images.IstioProxyV2.Directory
+	if directory == "" {
+		return "", errors.New("Target Istio directory could not be found in values.yaml")
 	}
-	return "", errors.New("Target Istio prefix could not be found in helm values")
+
+	prefix := fmt.Sprintf("%s/%s", containerRegistryPath, directory)
+	logger.Debugf("Resolved target Istio prefix: %s from values", prefix)
+	return prefix, nil
 }
 
 func getTargetVersionFromAppVersionInChartDefinition(helmChart *helmChart.Chart) string {
@@ -469,7 +466,7 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string, targetDirect
 	return IstioStatus{
 		ClientVersion:    getVersionFromJSON("client", version),
 		TargetVersion:    targetVersion,
-		TargetPrefix:  targetDirectory,
+		TargetPrefix:     targetDirectory,
 		PilotVersion:     getVersionFromJSON("pilot", version),
 		DataPlaneVersion: getVersionFromJSON("dataPlane", version),
 	}, nil
