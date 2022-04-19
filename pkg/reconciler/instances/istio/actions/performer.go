@@ -383,7 +383,7 @@ func getTargetProxyV2PrefixFromIstioChart(workspace chart.Factory, branch string
 		return "", err
 	}
 
-	mapAsJSON, err := json.Marshal(istioHelmChart)
+	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
 	if err != nil {
 		return "", err
 	}
