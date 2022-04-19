@@ -54,9 +54,7 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	}
 	cfg.Log.Debugf("Found %d pods in total", len(pods.Items))
 	podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*pods, image)
-	for _,el := range pods.Items{
-		log.Default().Printf("Pod image: %s pod namespace: %s\n", el.Name, el.Namespace)
-	}
+
 	cfg.Log.Infof("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
 	podsWithoutAnnotation := data.RemoveAnnotatedPods(podsWithDifferentImage, pod.AnnotationResetWarningKey)
 
