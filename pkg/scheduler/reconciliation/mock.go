@@ -32,7 +32,7 @@ type MockRepository struct {
 	GetAllComponentsResult                              []string
 	GetAllComponentsResultError                         error
 	EnableDebugLoggingResult                            error
-  	GetStatusIDsOlderThanDeadlineResult                 map[int64]bool
+	GetStatusIDsOlderThanDeadlineResult                 map[int64]bool
 }
 
 func (mr *MockRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
