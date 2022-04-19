@@ -724,17 +724,17 @@ func TestMapVersionToStruct(t *testing.T) {
 		// given
 		versionOutput := []byte(istioctlMockCompleteVersion)
 		targetVersion := "targetVersion"
-		targetDirectory := "targetDirectory"
+		targetPrefix := "anything/anything"
 		expectedStruct := IstioStatus{
 			ClientVersion:    "1.11.1",
 			TargetVersion:    targetVersion,
-			TargetPrefix:     "anything/anything",
+			TargetPrefix:     targetPrefix,
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.1",
 		}
 
 		// when
-		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion, targetDirectory)
+		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion, targetPrefix)
 
 		// then
 		require.NoError(t, err)
