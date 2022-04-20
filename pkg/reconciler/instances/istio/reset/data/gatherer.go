@@ -66,7 +66,10 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 			Containers []string `json:"containers"`
 		}
 		istioStatus := IstioStatusStruct{}
-		json.Unmarshal([]byte(fmt.Sprintf("{%s}", pod.Annotations["sidecar.istio.io/status"])), &istioStatus)
+		err := json.Unmarshal([]byte(fmt.Sprintf("{%s}", pod.Annotations["sidecar.istio.io/status"])), &istioStatus)
+		if err != nil {
+			continue
+		}
 
 		for _, container := range pod.Spec.Containers {
 			isIstioSidecar := false
