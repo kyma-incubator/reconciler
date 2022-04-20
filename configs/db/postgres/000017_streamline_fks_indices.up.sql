@@ -1,29 +1,18 @@
 ---- cluster status table
--- drop fk dependency
-ALTER TABLE scheduler_reconciliations
-    DROP CONSTRAINT scheduler_reconciliations_cluster_config_status_fkey;
-
--- drop "id" as key
-ALTER SEQUENCE inventory_cluster_config_statuses_id_seq AS INTEGER ;
-
+-- add "id" a primary key
 ALTER TABLE inventory_cluster_config_statuses
-    DROP CONSTRAINT inventory_cluster_config_statuses_id_key;
+    ADD PRIMARY KEY (id);
+
+-- add foreign key dependency back
+ALTER TABLE scheduler_reconciliations
+    ADD FOREIGN KEY (cluster_config_status)  references inventory_cluster_config_statuses (id);
 
 ---- scheduler_reconciliations table
--- drop cluster config fk
+-- create index for cluster status fk constraint
+CREATE INDEX ON scheduler_reconciliations
+    USING btree(cluster_config_status);
+
+-- add cascade delete / update from cluster status
 ALTER TABLE scheduler_reconciliations
-    DROP CONSTRAINT scheduler_reconciliations_cluster_config_fkey;
-
--- drop fk to cluster status
-ALTER TABLE scheduler_reconciliations
-    DROP CONSTRAINT scheduler_reconciliations_cluster_config_status_fkey;
-
----- scheduler_operations table
-ALTER TABLE scheduler_operations
-    DROP CONSTRAINT scheduler_operations_cluster_config_fkey;
-
-
-
-
-
-    
+    ADD FOREIGN KEY (cluster_config_status) references inventory_cluster_config_statuses (id)
+        ON UPDATE cascade ON DELETE cascade;
