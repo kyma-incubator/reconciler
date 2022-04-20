@@ -1,6 +1,8 @@
 package scmigration
 
 import (
+	"os"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
@@ -17,5 +19,6 @@ func init() {
 		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerName, err)
 	}
 
-	reconciler.WithReconcileAction(&reconcileAction{})
+	skipSafeCheck := os.Getenv("SKIP_SAFE_DELETION_BROKER_CHECK")
+	reconciler.WithReconcileAction(&reconcileAction{skipSafeCheck: skipSafeCheck == "true"})
 }

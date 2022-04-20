@@ -22,6 +22,7 @@ type Params struct {
 	CorrelationID        string
 	MaxOperationRetries  int
 	Type                 model.OperationType
+	Debug                bool
 }
 
 func (p *Params) newLocalTask(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Task {
@@ -63,6 +64,7 @@ func (p *Params) newTask() *reconciler.Task {
 		Type: p.Type,
 		ComponentConfiguration: reconciler.ComponentConfiguration{
 			MaxRetries: p.MaxOperationRetries,
+			Debug:      p.Debug,
 		},
 	}
 }
