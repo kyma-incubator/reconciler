@@ -40,9 +40,9 @@ func (gi *GolangInterpreter) WithBindings(bindings map[string]interface{}) *Gola
 
 func (gi *GolangInterpreter) Eval() (reflect.Value, error) {
 	interp := interp.New(interp.Options{})
-	
+
 	var lastResult reflect.Value
-	
+
 	err := interp.Use(stdlib.Symbols)
 	if err != nil {
 		return lastResult, err
@@ -65,7 +65,7 @@ func (gi *GolangInterpreter) Eval() (reflect.Value, error) {
 
 		lastResult, err = interp.Eval(line)
 		if err != nil {
-			return lastResult, fmt.Errorf("Go interpreter failed to execute line '%s':\n%s", line, err.Error())
+			return lastResult, fmt.Errorf("go interpreter failed to execute line '%s':\n%s", line, err.Error())
 		}
 	}
 
