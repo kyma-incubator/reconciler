@@ -1,6 +1,7 @@
 package data
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/avast/retry-go"
@@ -47,14 +48,14 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 		Prefix:  "istio/proxyv2",
 		Version: "1.10.1",
 	}
+
 	podWithExpectedImage := fixPodWith("application", "kyma", "istio/proxyv2:1.10.1", "Running")
 	podWithExpectedImageTerminating := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Terminating")
 	podWithExpectedImagePending := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Pending")
 	podWithDifferentImageSuffix := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Running")
 	podWithDifferentImageSuffixTerminating := fixPodWith("application", "kyma", "istio/proxyv2:1.10.2", "Terminating")
 	podWithDifferentImageSuffixPending := fixPodWith("application", "kyma", "istio/proxyv2:1.10.2", "Pending")
-	podWithDifferentImagePrefix := fixPodWith("application", "kyma", "istio/weirdimage:1.10.2", "Running")
-	podWithSoloImagePrefix := fixPodWith("istio", "custom", "istio-123456789/proxyv2:1.10.2", "Running")
+	podWithDifferentImagePrefix := fixPodWith("application", "kyma", "istio/someimage:1.10.2", "Running")
 
 	t.Run("should not get any pods from an empty list", func(t *testing.T) {
 		// given
@@ -80,11 +81,10 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 			*podWithDifferentImageSuffixTerminating,
 			*podWithDifferentImageSuffixPending,
 			*podWithDifferentImagePrefix,
-			*podWithSoloImagePrefix,
 		}
 		expected.Items = []v1.Pod{
 			*podWithDifferentImageSuffix,
-			*podWithSoloImagePrefix,
+			*podWithDifferentImagePrefix,
 		}
 		gatherer := DefaultGatherer{}
 
@@ -105,7 +105,7 @@ func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 			OwnerReferences: []metav1.OwnerReference{
 				{Kind: "ReplicaSet"},
 			},
-			Annotations: map[string]string{"sidecar.istio.io/status": "anything"},
+			Annotations: map[string]string{"sidecar.istio.io/status":fmt.Sprintf(`"containers":["%s"]`,name+"-containertwo")},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
