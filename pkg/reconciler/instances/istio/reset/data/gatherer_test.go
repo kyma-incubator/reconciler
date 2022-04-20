@@ -105,7 +105,7 @@ func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 			OwnerReferences: []metav1.OwnerReference{
 				{Kind: "ReplicaSet"},
 			},
-			Annotations: map[string]string{"sidecar.istio.io/status":fmt.Sprintf(`"containers":["%s"]`,name+"-containertwo")},
+			Annotations: map[string]string{"sidecar.istio.io/status": fmt.Sprintf(`"containers":["%s"]`, name+"-containertwo")},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",

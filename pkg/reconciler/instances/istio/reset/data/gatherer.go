@@ -62,23 +62,23 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 			continue
 		}
 
-		type IstioStatusStruct struct{
+		type IstioStatusStruct struct {
 			Containers []string `json:"containers"`
 		}
 		istioStatus := IstioStatusStruct{}
-		json.Unmarshal([]byte(fmt.Sprintf("{%s}", pod.Annotations["sidecar.istio.io/status"])),&istioStatus)
-		
+		json.Unmarshal([]byte(fmt.Sprintf("{%s}", pod.Annotations["sidecar.istio.io/status"])), &istioStatus)
+
 		for _, container := range pod.Spec.Containers {
 			isIstioSidecar := false
-			for _, c := range istioStatus.Containers{
-				if c==container.Name{
-					isIstioSidecar=true
+			for _, c := range istioStatus.Containers {
+				if c == container.Name {
+					isIstioSidecar = true
 					break
 				}
 			}
 			containsPrefix := strings.Contains(container.Image, image.Prefix)
 			hasSuffix := strings.HasSuffix(container.Image, image.Version)
-			if (!hasSuffix || !containsPrefix) && isIstioSidecar{
+			if (!hasSuffix || !containsPrefix) && isIstioSidecar {
 				outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 			}
 		}
