@@ -198,7 +198,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 	return db.Transaction(t.conn, dbOp, t.logger)
 }
 
-func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadline time.Time) error {
+func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadline time.Time, statusCleanupBatchSize int) error {
 
 	dbOps := func(tx *db.TxConnection) error {
 
@@ -212,7 +212,7 @@ func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadl
 		}
 
 		// delete statuses without reconciliations
-		deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations()
+		deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations(time.Second*10, statusCleanupBatchSize)
 		if err != nil {
 			return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
 		}

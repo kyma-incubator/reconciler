@@ -62,6 +62,7 @@ func (c *DefaultCommander) Uninstall(kubeconfig string, logger *zap.SugaredLogge
 func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
 
 	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
+	logger.Debugf("Created kubeconfig temp file on %s ", kubeconfigPath)
 	if err != nil {
 		return err
 	}
@@ -74,6 +75,7 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 	}()
 
 	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
+	logger.Debugf("Created IstioOperator temp file on %s ", istioOperatorPath)
 	if err != nil {
 		return err
 	}
@@ -85,10 +87,13 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 		}
 	}()
 
+	logger.Debugf("Creating executable istioctl apply command")
 	cmd := execCommand(c.istioctl.path, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+	logger.Debugf("Got executable cmd: %s", cmd.String())
 
 	err = c.execute(cmd, logger)
 	if err != nil && features.Enabled(features.LogIstioOperator) {
+		logger.Errorf("Got error from executing istioctl apply %v", err)
 		return errors.Wrapf(err, "rendered IstioOperator yaml was: %s ", istioOperator)
 	}
 	return err

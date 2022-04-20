@@ -166,7 +166,7 @@ func (s *serviceTestSuite) TestCleanDeletedClusters() {
 	err = transition.inventory.Delete(clusterState.Cluster.RuntimeID)
 	require.NoError(t, err)
 
-	err = transition.CleanStatusesAndDeletedClustersOlderThan(time.Now())
+	err = transition.CleanStatusesAndDeletedClustersOlderThan(time.Now(), 100)
 	require.NoError(t, err)
 
 	_, err = transition.inventory.Get(clusterState.Configuration.RuntimeID, clusterState.Configuration.Version)
