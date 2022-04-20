@@ -3,7 +3,6 @@ package data
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/avast/retry-go"
@@ -81,11 +80,11 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 
 // getIstioSidecarNamesFromAnnotations gets all container names in pod annoted with podAnnotations that are Istio sidecars
 func getIstioSidecarNamesFromAnnotations(podAnnotations map[string]string) []string {
-	type istioStatusStruct struct {
+	type IstioStatusStruct struct {
 		Containers []string `json:"containers"`
 	}
-	istioStatus := istioStatusStruct{}
-	err := json.Unmarshal([]byte(fmt.Sprintf("{%s}", podAnnotations["sidecar.istio.io/status"])), &istioStatus)
+	istioStatus := IstioStatusStruct{}
+	err := json.Unmarshal([]byte(podAnnotations["sidecar.istio.io/status"]), &istioStatus)
 	if err != nil {
 		return []string{}
 	}

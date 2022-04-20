@@ -56,6 +56,7 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 	podWithDifferentImageSuffixTerminating := fixPodWith("application", "kyma", "istio/proxyv2:1.10.2", "Terminating")
 	podWithDifferentImageSuffixPending := fixPodWith("application", "kyma", "istio/proxyv2:1.10.2", "Pending")
 	podWithDifferentImagePrefix := fixPodWith("application", "kyma", "istio/someimage:1.10.2", "Running")
+	podWithSoloImagePrefix := fixPodWith("application", "kyma", "istio/proxyv2-1124324:1.12.3-solo-fips", "Running")
 
 	t.Run("should not get any pods from an empty list", func(t *testing.T) {
 		// given
@@ -81,10 +82,12 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 			*podWithDifferentImageSuffixTerminating,
 			*podWithDifferentImageSuffixPending,
 			*podWithDifferentImagePrefix,
+			*podWithSoloImagePrefix,
 		}
 		expected.Items = []v1.Pod{
 			*podWithDifferentImageSuffix,
 			*podWithDifferentImagePrefix,
+			*podWithSoloImagePrefix,
 		}
 		gatherer := DefaultGatherer{}
 
@@ -105,7 +108,7 @@ func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 			OwnerReferences: []metav1.OwnerReference{
 				{Kind: "ReplicaSet"},
 			},
-			Annotations: map[string]string{"sidecar.istio.io/status": fmt.Sprintf(`"containers":["%s"]`, name+"-containertwo")},
+			Annotations: map[string]string{"sidecar.istio.io/status": fmt.Sprintf(`{"containers":["%s"]}`, name+"-containertwo")},
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
