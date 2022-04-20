@@ -80,10 +80,10 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 
 // getIstioSidecarNamesFromAnnotations gets all container names in pod annoted with podAnnotations that are Istio sidecars
 func getIstioSidecarNamesFromAnnotations(podAnnotations map[string]string) []string {
-	type IstioStatusStruct struct {
+	type istioStatusStruct struct {
 		Containers []string `json:"containers"`
 	}
-	istioStatus := IstioStatusStruct{}
+	istioStatus := istioStatusStruct{}
 	err := json.Unmarshal([]byte(podAnnotations["sidecar.istio.io/status"]), &istioStatus)
 	if err != nil {
 		return []string{}
