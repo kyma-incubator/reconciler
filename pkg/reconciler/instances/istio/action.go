@@ -156,7 +156,7 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 		return nil
 	}
 	if canUpdateResult {
-		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, context.Logger)
+		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, istioStatus.TargetPrefix, context.Logger)
 		if err != nil {
 			context.Logger.Warnf("could not perform ResetProxy action: %v", err)
 			return nil
@@ -283,7 +283,7 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 
-		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, context.Logger)
+		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, istioStatus.TargetPrefix, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not reset Istio proxy")
 		}
