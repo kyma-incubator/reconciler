@@ -58,36 +58,46 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 	outputPodsList.Items = []v1.Pod{}
 
 	for _, pod := range inputPodsList.Items {
-		if _, ok := pod.Annotations["sidecar.istio.io/status"]; !ok || !isPodReady(pod) {
+		if _, containsIstioSidecarAnnotation := pod.Annotations["sidecar.istio.io/status"]; !containsIstioSidecarAnnotation || !isPodReady(pod) {
 			continue
 		}
 
-		type IstioStatusStruct struct {
-			Containers []string `json:"containers"`
-		}
-		istioStatus := IstioStatusStruct{}
-		err := json.Unmarshal([]byte(fmt.Sprintf("{%s}", pod.Annotations["sidecar.istio.io/status"])), &istioStatus)
-		if err != nil {
-			continue
-		}
+		istioSidecarNames := getIstioSidecarNamesFromAnnotations(pod.Annotations)
 
 		for _, container := range pod.Spec.Containers {
-			isIstioSidecar := false
-			for _, c := range istioStatus.Containers {
-				if c == container.Name {
-					isIstioSidecar = true
-					break
-				}
+			if !isIstioSidecar(istioSidecarNames,container.Name){
+				continue
 			}
 			containsPrefix := strings.Contains(container.Image, image.Prefix)
 			hasSuffix := strings.HasSuffix(container.Image, image.Version)
-			if (!hasSuffix || !containsPrefix) && isIstioSidecar {
+			if !hasSuffix || !containsPrefix {
 				outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 			}
 		}
 	}
 
 	return
+}
+// getIstioSidecarNamesFromAnnotations gets all container names in pod annoted with podAnnotations that are Istio sidecars
+func getIstioSidecarNamesFromAnnotations(podAnnotations map[string]string) []string{
+	type istioStatusStruct struct {
+		Containers []string `json:"containers"`
+	}
+	istioStatus := istioStatusStruct{}
+	err := json.Unmarshal([]byte(fmt.Sprintf("{%s}", podAnnotations["sidecar.istio.io/status"])), &istioStatus)
+	if err != nil {
+		return []string{}
+	}
+	return istioStatus.Containers
+}
+// isIstioSidecar checks whether the pod with name=containerName is a Istio sidecar in pod with Istio sidecars with names=istioSidecarNames
+func isIstioSidecar(istioSidecarNames []string, containerName string) bool{
+	for _, c := range istioSidecarNames{
+		if c == containerName {
+			return true
+		}
+	}
+	return false
 }
 
 // isPodReady checks if the pod is Ready, returns true if the Pod is in the Running state and not Pending or Terminating.
