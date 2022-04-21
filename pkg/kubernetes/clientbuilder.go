@@ -112,8 +112,6 @@ func verifyPath(path string) (string, error) {
 	r, err := filepath.EvalSymlinks(c)
 	if err != nil {
 		return c, errors.Wrap(err, "Unsafe or invalid path specified")
-	} else {
-		return r, nil
 	}
-
+	return r, nil
 }
