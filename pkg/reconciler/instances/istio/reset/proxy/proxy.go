@@ -52,11 +52,13 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	}
 	cfg.Log.Debugf("Found %d pods in total", len(pods.Items))
 	podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*pods, image)
-	cfg.Log.Infof("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
+
+	cfg.Log.Debugf("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
 	podsWithoutAnnotation := data.RemoveAnnotatedPods(podsWithDifferentImage, pod.AnnotationResetWarningKey)
-	if len(podsWithoutAnnotation.Items) == 0 {
+	if len(podsWithDifferentImage.Items) >= 1 && len(podsWithoutAnnotation.Items) == 0 {
 		cfg.Log.Warnf(
-			"Found %d pods with different istio proxy image, but we cannot update sidecar proxy image for them. Look for pods with annotation %s, resolve the problem and remove the annotation",
+			"Found %d pods with different istio proxy image, but we cannot update sidecar proxy image for them. Look for pods with annotation %s,"+
+				" resolve the problem and remove the annotation",
 			len(podsWithDifferentImage.Items),
 			pod.AnnotationResetWarningKey,
 		)

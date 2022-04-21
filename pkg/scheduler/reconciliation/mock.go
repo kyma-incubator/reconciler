@@ -31,7 +31,12 @@ type MockRepository struct {
 	GetMothershipOperationProcessingDurationResultError error
 	GetAllComponentsResult                              []string
 	GetAllComponentsResultError                         error
+	EnableDebugLoggingResult                            error
 	GetStatusIDsOlderThanDeadlineResult                 map[int64]bool
+}
+
+func (mr *MockRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	return mr.EnableDebugLoggingResult
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
