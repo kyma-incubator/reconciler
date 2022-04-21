@@ -69,7 +69,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Error during copying resources")
 		}
 
-		context.Logger.Debug("Installing component")
+		context.Logger.Info("Installing component")
 		if err := a.Commands.InstallOnReleaseChange(context, app); err != nil {
 			return errors.Wrap(err, "Error during installation")
 		}
