@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/kyma-incubator/reconciler/pkg/db"
-	"github.com/kyma-incubator/reconciler/pkg/features"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -15,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/features"
 
 	"github.com/kyma-incubator/reconciler/internal/converters"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
