@@ -14,9 +14,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/features"
 
-	"github.com/google/uuid"
-	"github.com/kyma-incubator/reconciler/pkg/db"
-
 	"github.com/kyma-incubator/reconciler/internal/converters"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
