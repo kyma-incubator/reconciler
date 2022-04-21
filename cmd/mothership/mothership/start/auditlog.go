@@ -48,11 +48,13 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 		zap.WrapCore(func(zapcore.Core) zapcore.Core {
 			return zapcore.NewCore(
 				zapcore.NewJSONEncoder(zapcore.EncoderConfig{
-					MessageKey:   "",
-					LevelKey:     "level",
-					EncodeLevel:  zapcore.CapitalLevelEncoder,
-					TimeKey:      "time",
-					EncodeTime:   zapcore.ISO8601TimeEncoder,
+					MessageKey:  "data",
+					LevelKey:    "level",
+					EncodeLevel: zapcore.CapitalLevelEncoder,
+					TimeKey:     "time",
+					EncodeTime: func(t time.Time, pae zapcore.PrimitiveArrayEncoder) {
+						zapcore.RFC3339TimeEncoder(t.UTC(), pae)
+					},
 					EncodeCaller: zapcore.ShortCallerEncoder,
 				}),
 				ws,
@@ -82,12 +84,6 @@ type data struct {
 }
 
 func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *Options) {
-
-	// Any Audit Log relevant entry will be a stateful change in POST/PUT/PATCH/DELETE, GET can be ignored
-	if r.Method == http.MethodGet {
-		return
-	}
-
 	params := server.NewParams(r)
 	contractV, err := params.Int64(paramContractVersion)
 	if err != nil {
@@ -146,14 +142,13 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		return
 	}
 
-	logger := l.With(zap.String("time", time.Now().Format(time.RFC3339))).
+	logger := l.
 		With(zap.String("uuid", uuid.New().String())).
 		With(zap.String("user", logData.User)).
-		With(zap.String("data", string(data))).
 		With(zap.String("tenant", o.AuditLogTenantID)).
 		With(zap.String("category", "audit.security-events")) // comply with required log backend format
 
-	logger.Info("")
+	logger.Info(string(data))
 }
 
 func getJWTPayload(r *http.Request) (string, error) {
