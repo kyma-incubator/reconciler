@@ -15,7 +15,8 @@ import (
 
 const (
 	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
-	istioctlBinaryPathMaxLen = 12290 // 3 times 4096 (maxpath) + 2 colons (separators)
+	istioctlBinaryPathMaxLen = 4098  // 3 times 4096 (maxpath) + 2 colons (separators)
+	istioctlBinaryMaxLen     = 20490 // 5 times max path
 )
 
 // IstioPerformer instance should be created only once in the Istio Reconciler life.
@@ -24,6 +25,9 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
 		pathsConfig := os.Getenv(istioctlBinaryPathEnvKey)
+		if len(pathsConfig) > istioctlBinaryMaxLen {
+			return nil, fmt.Errorf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen)
+		}
 		istioctlPaths, err := parsePaths(pathsConfig)
 		if err != nil {
 			logger.Errorf("Could not create '%s' component reconciler: Error parsing env variable '%s': %s", name, istioctlBinaryPathEnvKey, err.Error())
