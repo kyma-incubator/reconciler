@@ -16,7 +16,7 @@ FLAGS = -ldflags '-s -w'
 
 .PHONY: resolve
 resolve:
-	go mod tidy
+	go mod tidy -compat=1.17
 
 .PHONY: lint
 lint:
