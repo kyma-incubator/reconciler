@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 
 	"github.com/kyma-incubator/reconciler/internal/converters"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -250,7 +251,7 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if _, err := (&kubernetes.ClientBuilder{}).WithString(clusterModel.Kubeconfig).Build(true); err != nil {
+	if _, err := kubernetes.NewClientBuilder().WithLogger(o.Logger()).WithString(clusterModel.Kubeconfig).Build(r.Context(), true); err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "kubeconfig not accepted").Error(),
 		})
