@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/features"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -49,6 +52,20 @@ const (
 
 	// Limit Request Bodies to 50KB
 	bodyRequestLimitBytes = 50000
+)
+
+//AuditRegistry contains mappings from path-prefixes to array of methods that are registered with the AuditLogMiddleware
+type AuditRegistry map[string][]string
+
+var (
+	auditRegistry = AuditRegistry{
+		fmt.Sprintf("/v{%s}/clusters", paramContractVersion): {
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+		},
+	}
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
@@ -125,6 +142,16 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/debug", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		callHandler(o, enableOperationDebugLogging)).
+		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/reconciliations/{%s}/debug", paramContractVersion, paramSchedulingID),
+		callHandler(o, enableReconciliationDebugLogging)).
+		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
 
@@ -166,8 +193,10 @@ func startWebserver(ctx context.Context, o *Options) error {
 			return err
 		}
 		defer func() { _ = auditLogger.Sync() }() // make golint happy
-		auditLoggerMiddelware := newAuditLoggerMiddelware(auditLogger, o)
-		apiRouter.Use(auditLoggerMiddelware)
+		auditLoggerMiddleware := newAuditLoggerMiddleware(auditLogger, o)
+		for auditedPath, auditedMethods := range auditRegistry {
+			apiRouter.PathPrefix(auditedPath).Methods(auditedMethods...).Subrouter().Use(auditLoggerMiddleware)
+		}
 	}
 	//start server process
 	srv := &server.Webserver{
@@ -178,6 +207,54 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Router:     mainRouter,
 	}
 	return srv.Start(ctx) //blocking call
+}
+
+func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
+
+	if !features.Enabled(features.DebugLogForSpecificOperations) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().EnableDebugLogging(schedulingID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+}
+
+func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
+
+	if !features.Enabled(features.DebugLogForSpecificOperations) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	correlationID, err := params.String(paramCorrelationID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().EnableDebugLogging(schedulingID, correlationID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+
 }
 
 func live(w http.ResponseWriter, _ *http.Request) {

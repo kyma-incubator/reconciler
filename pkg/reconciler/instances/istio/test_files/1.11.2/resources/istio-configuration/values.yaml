@@ -4,3 +4,8 @@ global:
   images:
     istio_pilot:
       version: "1.11.2-solo-fips-distroless"
+    istio_proxyv2:
+      name: "anything"
+      version: "1.11.2-solo-fips-distroless"
+      directory: "anything"
+      containerRegistryPath: "anything"

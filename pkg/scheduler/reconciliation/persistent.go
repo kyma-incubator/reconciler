@@ -22,6 +22,69 @@ type PersistentReconciliationRepository struct {
 	*repository.Repository
 }
 
+func (r *PersistentReconciliationRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	reconciliationEntity, err := r.GetReconciliation(schedulingID)
+	if err != nil {
+		return err
+	}
+	if reconciliationEntity.Status.IsFinal() {
+		return fmt.Errorf("could not change debug log for reconciliation (schedulingID=%s): reconciliation state is final: %s", schedulingID, reconciliationEntity.Status)
+	}
+	dbOps := func(tx *db.TxConnection) error {
+		var updateArgs []interface{}
+
+		var correlationIDSQL string
+
+		updateSQLTpl := "UPDATE %s SET %s=$1 WHERE %s=$2 AND %s=$3"
+
+		op := &model.OperationEntity{}
+		columnHandler, err := db.NewColumnHandler(op, tx, r.Logger)
+		if err != nil {
+			return err
+		}
+
+		debugColumn, err := columnHandler.ColumnName("Debug")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, true)
+		schedulingIDColumn, err := columnHandler.ColumnName("SchedulingID")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, schedulingID)
+		opStateColumn, err := columnHandler.ColumnName("State")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, model.OperationStateNew)
+		correlationIDColumn, err := columnHandler.ColumnName("CorrelationID")
+		if err != nil {
+			return err
+		}
+		if len(correlationID) == 1 {
+			correlationIDSQL = fmt.Sprintf(" AND %s=$4", correlationIDColumn)
+			updateArgs = append(updateArgs, correlationID[0])
+		}
+		updateSQL := fmt.Sprintf(updateSQLTpl, op.Table(), debugColumn, schedulingIDColumn, opStateColumn)
+
+		result, err := tx.Exec(fmt.Sprintf("%s%s", updateSQL, correlationIDSQL), updateArgs...)
+		if err != nil {
+			return err
+		}
+		rowsAffectedCnt, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffectedCnt == 0 {
+			return fmt.Errorf("reconRepo failed to enable debug log level for requested operations")
+		}
+		r.Logger.Infof("reconRepo successfully enabled debug log level for %d operations", len(correlationID))
+		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
 func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repository, error) {
 	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {
@@ -220,43 +283,6 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationsBeforeDeadline
 		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
-}
-
-func (r *PersistentReconciliationRepository) RemoveReconciliationsForObsoleteStatus(deadline time.Time) (int, error) {
-	dbOps := func(tx *db.TxConnection) (interface{}, error) {
-		statusSelectQuery, err := db.NewQuery(tx, &model.ClusterCleanupEntity{}, r.Logger)
-		if err != nil {
-			return 0, err
-		}
-		statusSelect, err := statusSelectQuery.SelectColumn("StatusID")
-		if err != nil {
-			return 0, err
-		}
-
-		columnHandler, err := db.NewColumnHandler(&model.ClusterCleanupEntity{}, r.Conn, r.Logger)
-		if err != nil {
-			return 0, err
-		}
-		statusIDColumnName, err := columnHandler.ColumnName("Created")
-		if err != nil {
-			return 0, err
-		}
-		statusSelect.WhereRaw(fmt.Sprintf("%s<$%d", statusIDColumnName, statusSelect.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000"))
-
-		deleteQuery, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
-		if err != nil {
-			return 0, err
-		}
-		deletedRows, err := deleteQuery.Delete().
-			WhereIn("ClusterConfigStatus", statusSelect.String(), statusSelect.GetArgs()...).
-			Exec()
-		return int(deletedRows), err
-	}
-	delCnt, err := db.TransactionResult(r.Conn, dbOps, r.Logger)
-	if err != nil {
-		r.Logger.Error("Failed to remove reconciliations for obsolete status", err)
-	}
-	return delCnt.(int), err
 }
 
 func (r *PersistentReconciliationRepository) GetRuntimeIDs() ([]string, error) {

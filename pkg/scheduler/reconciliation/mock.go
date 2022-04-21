@@ -31,7 +31,12 @@ type MockRepository struct {
 	GetMothershipOperationProcessingDurationResultError error
 	GetAllComponentsResult                              []string
 	GetAllComponentsResultError                         error
+	EnableDebugLoggingResult                            error
 	GetStatusIDsOlderThanDeadlineResult                 map[int64]bool
+}
+
+func (mr *MockRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	return mr.EnableDebugLoggingResult
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
@@ -64,17 +69,6 @@ func (mr *MockRepository) RemoveReconciliationsBeforeDeadline(runtimeID string, 
 		}
 	}
 	return nil
-}
-
-func (mr *MockRepository) RemoveReconciliationsForObsoleteStatus(deadline time.Time) (int, error) {
-	delCount := 0
-	for _, recon := range mr.GetReconciliationsResult {
-		if mr.GetStatusIDsOlderThanDeadlineResult[recon.ClusterConfigStatus] {
-			mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, recon.SchedulingID)
-			delCount++
-		}
-	}
-	return delCount, nil
 }
 
 func (mr *MockRepository) GetRuntimeIDs() ([]string, error) {

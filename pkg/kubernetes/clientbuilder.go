@@ -8,6 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"io/ioutil"
+	"os"
+	"time"
+
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"

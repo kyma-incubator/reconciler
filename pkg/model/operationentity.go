@@ -25,6 +25,7 @@ type OperationEntity struct {
 	ProcessingDuration int64          `db:""`
 	Retries            int64          `db:""`
 	RetryID            string         `db:"notNull"`
+	Debug              bool           `db:"notNull"`
 }
 
 func (o *OperationEntity) String() string {
