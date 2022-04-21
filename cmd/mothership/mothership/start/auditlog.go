@@ -82,12 +82,6 @@ type data struct {
 }
 
 func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *Options) {
-
-	// Any Audit Log relevant entry will be a stateful change in POST/PUT/PATCH/DELETE, GET can be ignored
-	if r.Method == http.MethodGet {
-		return
-	}
-
 	params := server.NewParams(r)
 	contractV, err := params.Int64(paramContractVersion)
 	if err != nil {

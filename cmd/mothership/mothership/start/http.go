@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 
 	"github.com/kyma-incubator/reconciler/internal/converters"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -61,10 +62,49 @@ var (
 	}
 )
 
+//mustAudit defines wether the given path and method have to be audited
+func (r AuditRegistry) mustAudit(path, method string) bool {
+	if auditRegistry[path] == nil {
+		return false
+	}
+	for _, registeredMethod := range r[path] {
+		if registeredMethod == method {
+			return true
+		}
+	}
+	return false
+}
+
 func startWebserver(ctx context.Context, o *Options) error {
 	//routing
 	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/").Subrouter()
+
+	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
+		for auditedPath, auditedMethods := range auditRegistry {
+			o.Logger().Infof("Auditing %s for methods [%s]", auditedPath, strings.Join(auditedMethods, ","))
+		}
+
+		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = auditLogger.Sync() }() // make golint happy
+		auditLoggerMiddleware := newAuditLoggerMiddleware(auditLogger, o)
+
+		apiRouter.Use(func(h http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				path, err := mux.CurrentRoute(r).GetPathTemplate()
+				// only audit the request if its contained in the auditRegistry and the method matches
+				if err == nil && auditRegistry.mustAudit(path, r.Method) {
+					auditLoggerMiddleware(h).ServeHTTP(w, r)
+				} else {
+					h.ServeHTTP(w, r)
+				}
+			})
+		})
+	}
+
 	metricsRouter := mainRouter.Path("/metrics").Subrouter()
 	healthRouter := mainRouter.PathPrefix("/health").Subrouter()
 	mainRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
@@ -170,17 +210,6 @@ func startWebserver(ctx context.Context, o *Options) error {
 	healthRouter.HandleFunc("/live", live)
 	healthRouter.HandleFunc("/ready", ready(o))
 
-	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
-		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = auditLogger.Sync() }() // make golint happy
-		auditLoggerMiddleware := newAuditLoggerMiddleware(auditLogger, o)
-		for auditedPath, auditedMethods := range auditRegistry {
-			apiRouter.PathPrefix(auditedPath).Methods(auditedMethods...).Subrouter().Use(auditLoggerMiddleware)
-		}
-	}
 	//start server process
 	srv := &server.Webserver{
 		Logger:     o.Logger(),
