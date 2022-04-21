@@ -11,13 +11,15 @@ const (
 	ProcessingDurationMetric Feature = iota + 1
 	WorkerpoolOccupancyTracking
 	LogIstioOperator
+	DebugLogForSpecificOperations
 )
 
 //define the mapping between feature name and env var name
 var featureEnVarMap = map[Feature]string{
-	ProcessingDurationMetric:    "PROCESSING_DURATION_METRICS_ENABLED",
-	WorkerpoolOccupancyTracking: "WORKERPOOL_OCCUPANCY_TRACKING_ENABLED",
-	LogIstioOperator:            "LOG_ISTIO_OPERATOR",
+	ProcessingDurationMetric:      "PROCESSING_DURATION_METRICS_ENABLED",
+	WorkerpoolOccupancyTracking:   "WORKERPOOL_OCCUPANCY_TRACKING_ENABLED",
+	LogIstioOperator:              "LOG_ISTIO_OPERATOR",
+	DebugLogForSpecificOperations: "DEBUG_LOGGING_FOR_SPECIFIC_OPERATIONS",
 }
 
 func Enabled(feature Feature) bool {
