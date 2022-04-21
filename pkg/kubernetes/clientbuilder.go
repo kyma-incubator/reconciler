@@ -108,7 +108,6 @@ func (cb *ClientBuilder) loadFile(filePath string) ([]byte, error) {
 
 func verifyPath(path string) (string, error) {
 	c := filepath.Clean(path)
-	fmt.Println("Cleaned path: " + c)
 	r, err := filepath.EvalSymlinks(c)
 	if err != nil {
 		return c, errors.Wrap(err, "Unsafe or invalid path specified")
