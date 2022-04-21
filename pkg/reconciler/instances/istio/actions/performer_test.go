@@ -465,7 +465,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "", log)
 
 		// then
 		require.Error(t, err)
@@ -484,9 +484,10 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
+		proxyImagePrefix := "anything"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log)
 
 		// then
 		require.Error(t, err)
@@ -505,9 +506,10 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
+		proxyImagePrefix := "anything"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log)
 
 		// then
 		require.NoError(t, err)
@@ -597,7 +599,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.2", TargetVersion: "1.2.3-solo-fips-distroless"}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.2", TargetVersion: "1.2.3-solo-fips-distroless", TargetPrefix: "anything/anything"}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -618,7 +620,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.1", TargetVersion: "1.2.3-solo-fips-distroless", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.1", TargetVersion: "1.2.3-solo-fips-distroless", TargetPrefix: "anything/anything", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -704,13 +706,14 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 
 func TestMapVersionToStruct(t *testing.T) {
 
-	t.Run("Empty byte array for version coomand returns an error", func(t *testing.T) {
+	t.Run("Empty byte array for version command returns an error", func(t *testing.T) {
 		// given
 		versionOutput := []byte("")
 		targetVersion := "targetVersion"
+		targetDirectory := "targetDirectory"
 
 		// when
-		_, err := mapVersionToStruct(versionOutput, targetVersion)
+		_, err := mapVersionToStruct(versionOutput, targetVersion, targetDirectory)
 
 		// then
 		require.Error(t, err)
@@ -721,15 +724,17 @@ func TestMapVersionToStruct(t *testing.T) {
 		// given
 		versionOutput := []byte(istioctlMockCompleteVersion)
 		targetVersion := "targetVersion"
+		targetPrefix := "anything/anything"
 		expectedStruct := IstioStatus{
 			ClientVersion:    "1.11.1",
 			TargetVersion:    targetVersion,
+			TargetPrefix:     targetPrefix,
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.1",
 		}
 
 		// when
-		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion)
+		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion, targetPrefix)
 
 		// then
 		require.NoError(t, err)

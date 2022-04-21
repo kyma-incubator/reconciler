@@ -28,7 +28,7 @@ type Inventory interface {
 	ClustersNotReady() ([]*State, error)
 	CountRetries(runtimeID string, configVersion int64, maxRetries int, errorStatus ...model.Status) (int, error)
 	WithTx(tx *db.TxConnection) (Inventory, error)
-	RemoveStatusesWithoutReconciliations() (int, error)
+	RemoveStatusesWithoutReconciliations(timeout time.Duration, statusCleanupBatchSize int) (int, error)
 	RemoveDeletedClustersOlderThan(deadline time.Time) (int, error)
 }
 
@@ -762,32 +762,60 @@ func (i *DefaultInventory) StatusChanges(runtimeID string, offset time.Duration)
 	return statusChanges, nil
 }
 
-func (i *DefaultInventory) RemoveStatusesWithoutReconciliations() (int, error) {
-	dbOps := func(tx *db.TxConnection) (interface{}, error) {
-		statusSelectQuery, err := db.NewQuery(tx, &model.StatusCleanupEntity{}, i.Logger)
-		if err != nil {
-			return 0, err
-		}
-		statusSelect, err := statusSelectQuery.SelectColumn("StatusID")
-		if err != nil {
-			return 0, err
-		}
-
-		deleteQuery, err := db.NewQuery(tx, &model.ClusterStatusEntity{}, i.Logger)
-		if err != nil {
-			return 0, err
-		}
-		deletedRows, err := deleteQuery.
-			Delete().
-			WhereIn("ID", statusSelect.String(), statusSelect.GetArgs()...).
-			Exec()
-		return int(deletedRows), err
-	}
-	delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+func (i *DefaultInventory) GetStatusIDsBlocksToDelete(statusCleanupBatchSize int) ([][]interface{}, error) {
+	statusSelectQuery, err := db.NewQuery(i.Conn, &model.StatusCleanupEntity{}, i.Logger)
 	if err != nil {
-		i.Logger.Error("Removal of config statuses without reconciliation failed during cluster entities cleanup", err)
+		return nil, err
 	}
-	return delCnt.(int), err
+	statuses, err := statusSelectQuery.Select().GetMany()
+	if err != nil {
+		return nil, err
+	}
+
+	var statusIDs []interface{}
+	for _, recon := range statuses {
+		statusIDs = append(statusIDs, recon.(*model.StatusCleanupEntity).StatusID)
+	}
+	return repository.SplitSliceByBlockSize(statusIDs, statusCleanupBatchSize), nil
+}
+
+func (i *DefaultInventory) RemoveStatusesWithoutReconciliations(timeout time.Duration, statusCleanupBatchSize int) (int, error) {
+	statusIDsBlocks, err := i.GetStatusIDsBlocksToDelete(statusCleanupBatchSize)
+	if err != nil {
+		return 0, err
+	}
+	totalDeleteCount := 0
+	for _, statusIDsBlock := range statusIDsBlocks {
+		dbOps := func(tx *db.TxConnection) (interface{}, error) {
+			var args []interface{}
+			var buffer bytes.Buffer
+
+			for i, statusID := range statusIDsBlock {
+				if buffer.Len() > 0 {
+					buffer.WriteRune(',')
+				}
+				buffer.WriteString(fmt.Sprintf("$%d", i+1))
+				args = append(args, statusID.(int64))
+			}
+
+			deleteQuery, err := db.NewQuery(tx, &model.ClusterStatusEntity{}, i.Logger)
+			if err != nil {
+				return 0, err
+			}
+			deletedRows, err := deleteQuery.
+				Delete().
+				WhereIn("ID", buffer.String(), args...).
+				Exec()
+			return int(deletedRows), err
+		}
+		delCnt, err := db.TransactionResult(i.Conn, dbOps, i.Logger)
+		if err != nil {
+			i.Logger.Error(fmt.Errorf("removal of config statuses without reconciliation failed during cluster entities cleanup, deleted count: %d %w", delCnt.(int), err))
+		}
+		totalDeleteCount += delCnt.(int)
+		time.Sleep(timeout)
+	}
+	return totalDeleteCount, err
 }
 
 func (i *DefaultInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (int, error) {

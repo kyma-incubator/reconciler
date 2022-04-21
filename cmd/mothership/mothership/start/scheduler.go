@@ -48,6 +48,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 			CleanerInterval:         o.CleanerInterval,
 			KeepLatestEntitiesCount: uintOrDie(o.ReconciliationsKeepLatestCount),
 			MaxEntitiesAgeDays:      uintOrDie(o.EntitiesMaxAgeDays),
+			StatusCleanupBatchSize:  uintOrDie(o.StatusCleanupBatchSize),
 		}).
 		Run(ctx)
 }

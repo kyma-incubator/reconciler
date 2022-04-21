@@ -52,6 +52,7 @@ func (w *worker) run(ctx context.Context, clusterState *cluster.State, op *model
 			ClusterState:         clusterState,
 			MaxOperationRetries:  maxOpRetries,
 			Type:                 op.Type,
+			Debug:                op.Debug,
 		})
 	}
 

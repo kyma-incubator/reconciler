@@ -198,7 +198,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 	return db.Transaction(t.conn, dbOp, t.logger)
 }
 
-func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadline time.Time) error {
+func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadline time.Time, statusCleanupBatchSize int) error {
 
 	dbOps := func(tx *db.TxConnection) error {
 
@@ -206,20 +206,11 @@ func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadl
 		if err != nil {
 			return err
 		}
-		transactionalReconRepo, err := t.reconRepo.WithTx(tx)
-		if err != nil {
-			return err
-		}
 
 		// delete statuses without reconciliations
-		deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations()
+		deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations(time.Second*10, statusCleanupBatchSize)
 		if err != nil {
 			return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
-		}
-		// remove reconciliations corresponding to the to-be-deleted clusters before deadline
-		deletedReconsCount, err := transactionalReconRepo.RemoveReconciliationsForObsoleteStatus(deadline)
-		if err != nil {
-			return fmt.Errorf("failed to remove reconciliations for obselete status older than %v: %w", deadline, err)
 		}
 		// delete inventory clusters - only if reconciliations are removed successfully - foreign key constraint
 		deletedClustersCount, err := transactionalInventory.RemoveDeletedClustersOlderThan(deadline)
@@ -227,7 +218,7 @@ func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadl
 			return fmt.Errorf("failed to remove deleted clusters older than %v: %w", deadline, err)
 		}
 
-		t.logger.Infof("Cleaned %d clusters, %d reconciliations and %d statuses successfully", deletedClustersCount, deletedReconsCount, deletedStatusesCount)
+		t.logger.Infof("Cleaned %d clusters and %d statuses successfully", deletedClustersCount, deletedStatusesCount)
 		return nil
 	}
 
