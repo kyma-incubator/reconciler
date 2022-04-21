@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	istioctlBinaryPathEnvKey = "ISTIOCTL_PATH"
-	istioctlBinaryPathMaxLen = 4098  // 3 times 4096 (maxpath) + 2 colons (separators)
-	istioctlBinaryMaxLen     = 20490 // 5 times max path
+	istioctlBinaryPathEnvKey       = "ISTIOCTL_PATH"
+	istioctlSingleBinaryPathMaxLen = 4098  // 3 times 4096 (maxpath) + 2 colons (separators)
+	istioctlBinaryPathMaxLen       = 20490 // 5 times max path
 )
 
 // IstioPerformer instance should be created only once in the Istio Reconciler life.
@@ -25,8 +25,8 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
 		pathsConfig := os.Getenv(istioctlBinaryPathEnvKey)
-		if len(pathsConfig) > istioctlBinaryMaxLen {
-			return nil, fmt.Errorf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen)
+		if len(pathsConfig) > istioctlBinaryPathMaxLen {
+			return nil, fmt.Errorf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlSingleBinaryPathMaxLen)
 		}
 		istioctlPaths, err := parsePaths(pathsConfig)
 		if err != nil {
@@ -90,8 +90,8 @@ func parsePaths(input string) ([]string, error) {
 	if trimmed == "" {
 		return nil, errors.Errorf("%s env variable is undefined or empty", istioctlBinaryPathEnvKey)
 	}
-	if len(trimmed) > istioctlBinaryPathMaxLen {
-		return nil, fmt.Errorf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlBinaryPathMaxLen)
+	if len(trimmed) > istioctlSingleBinaryPathMaxLen {
+		return nil, fmt.Errorf("%s env variable exceeds the maximum istio path limit of %d characters", istioctlBinaryPathEnvKey, istioctlSingleBinaryPathMaxLen)
 	}
 	pathDefs := strings.Split(trimmed, ";")
 	var res []string
