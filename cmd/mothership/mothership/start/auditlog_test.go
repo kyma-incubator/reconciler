@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/internal/cli"
@@ -46,11 +47,13 @@ func testLoggerWithOutput(t *testing.T) (*zap.Logger, *MemorySink) {
 		OutputPaths:      []string{"memory://"},
 		ErrorOutputPaths: []string{"memory://"},
 		EncoderConfig: zapcore.EncoderConfig{
-			MessageKey:   "",
-			LevelKey:     "level",
-			EncodeLevel:  zapcore.CapitalLevelEncoder,
-			TimeKey:      "time",
-			EncodeTime:   zapcore.ISO8601TimeEncoder,
+			MessageKey:  "data",
+			LevelKey:    "level",
+			EncodeLevel: zapcore.CapitalLevelEncoder,
+			TimeKey:     "time",
+			EncodeTime: func(t time.Time, pae zapcore.PrimitiveArrayEncoder) {
+				zapcore.RFC3339TimeEncoder(t.UTC(), pae)
+			},
 			EncodeCaller: zapcore.ShortCallerEncoder,
 		},
 	}
@@ -185,10 +188,6 @@ func Test_Auditlog(t *testing.T) {
 				require.Equalf(t, http.StatusInternalServerError, w.Result().StatusCode,
 					"expected http status: %v, got: %v",
 					http.StatusInternalServerError, w.Result().StatusCode)
-			} else if tc.method == http.MethodGet {
-				require.Equalf(t, http.StatusOK, w.Result().StatusCode,
-					"expected http status: %v, got: %v",
-					http.StatusOK, w.Result().StatusCode)
 			} else {
 				t.Log(output.String())
 				validateLog(t, output.String(), tc.method, tc.jwtHeader != "")
