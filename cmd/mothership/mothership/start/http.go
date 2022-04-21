@@ -46,6 +46,9 @@ const (
 	paramLast       = "last"
 	paramTimeFormat = time.RFC3339
 	paramPoolID     = "poolID"
+
+	// Limit Request Bodies to 50KB
+	bodyRequestLimitBytes = 50000
 )
 
 func startWebserver(ctx context.Context, o *Options) error {
@@ -237,14 +240,8 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
-			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
-		})
-		return
-	}
-	clusterModel, err := keb.NewModelFactory(contractV).Cluster(reqBody)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	clusterModel, err := keb.NewModelFactory(contractV).Cluster(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
@@ -392,15 +389,8 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
-			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
-		})
-		return
-	}
-
-	status, err := keb.NewModelFactory(contractV).Status(reqBody)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	status, err := keb.NewModelFactory(contractV).Status(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
@@ -687,7 +677,8 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var stopOperation keb.OperationStop
-	reqBody, err := ioutil.ReadAll(r.Body)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	reqBody, err := ioutil.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
@@ -754,7 +745,8 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body reconciler.CallbackMessage
-	reqBody, err := ioutil.ReadAll(r.Body)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	reqBody, err := ioutil.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
@@ -848,7 +840,8 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 	}
 
 	var body reconciler.HTTPOccupancyRequest
-	reqBody, err := ioutil.ReadAll(r.Body)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	reqBody, err := ioutil.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
