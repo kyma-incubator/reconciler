@@ -26,6 +26,7 @@ replace (
 	//fix for CVE-2021-42836
 	github.com/tidwall/gjson => github.com/tidwall/gjson v1.14.0
 	//fix for CVE-2022-27191
+	//fix for CVE-2020-29652
 	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
 	//fix for CVE-2021-44716
 	golang.org/x/net => golang.org/x/net v0.0.0-20220418201149-a630d4f3e7a2
