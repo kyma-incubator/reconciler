@@ -28,7 +28,7 @@ replace (
 	//fix for CVE-2021-3538
 	github.com/satori/go.uuid => github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	//fix for CVE-2021-42836
-	github.com/tidwall/gjson => github.com/tidwall/gjson v1.14.0
+	github.com/tidwall/gjson => github.com/tidwall/gjson v1.14.1
 	//fix for CVE-2022-27191
 	//fix for CVE-2020-29652
 	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
