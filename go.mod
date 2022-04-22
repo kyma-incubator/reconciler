@@ -18,6 +18,7 @@ replace (
 	//fix for CVE-2021-3121
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	//fix for CVE-2021-43784
+	//fix for CVE-2021-30465
 	github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.1
 	//fix for CVE-2022-21698
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.1
