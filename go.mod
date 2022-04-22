@@ -15,6 +15,7 @@ replace (
 	// fix CVE-2021-41092
 	github.com/docker/cli => github.com/docker/cli v20.10.14+incompatible
 	//fix CVE-2021-41190
+	//fix CVE-2018-20699
 	github.com/docker/distribution => github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker => github.com/docker/docker v20.10.14+incompatible
 	//fix for CVE-2021-3121
