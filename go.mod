@@ -4,6 +4,7 @@ go 1.17
 
 replace (
 	// fix CVE-2021-43816
+	// fix CVE-2021-41103
 	github.com/containerd/containerd => github.com/containerd/containerd v1.6.2
 	//fix for CVE-2022-24778
 	github.com/containerd/imgcrypt => github.com/containerd/imgcrypt v1.1.4
