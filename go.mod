@@ -32,6 +32,7 @@ replace (
 	//fix for CVE-2021-44716
 	golang.org/x/net => golang.org/x/net v0.0.0-20220418201149-a630d4f3e7a2
 	//fix for WS-2021-0200
+	//fix for CVE-2019-11254
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
 )
 
