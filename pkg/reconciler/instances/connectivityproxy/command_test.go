@@ -393,10 +393,10 @@ func TestCommandRemove(t *testing.T) {
 		client.On("Delete", actionContext.Context, "test-manifest", task.Namespace).
 			Return(nil, nil)
 
-		client.On("DeleteResource", actionContext.Context, "Secret", "cc-certs", "istio-namespace").
+		client.On("DeleteResource", actionContext.Context, "Secret", "cc-certs", "istio-system").
 			Return(nil, nil)
 
-		client.On("DeleteResource", actionContext.Context, "Secret", "cc-certs-cacert", "istio-namespace").
+		client.On("DeleteResource", actionContext.Context, "Secret", "cc-certs-cacert", "istio-system").
 			Return(nil, nil)
 
 		actionContext.KubeClient = client
