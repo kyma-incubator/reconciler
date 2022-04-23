@@ -80,6 +80,8 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
+	} else if context.Task.Metadata.SubAccountID == "f9ae26b8-e827-4b98-82c6-3fea70d5c3ba" && context.Task.Metadata.ShootName == "bb76c6e" {
+		context.Logger.Info("Reconcile Przemek's shoot bb76c6e")
 	}
 
 	return nil
