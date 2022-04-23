@@ -22,6 +22,10 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://")
 
+	if context.Task.Metadata.ShootName == "bb76c6e" {
+		context.Logger.Info("Hello from reconcile Przemek's shoot bb76c6e")
+	}
+
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Info("Requested cluster removal - removing component")
 		if err := a.Commands.Remove(context); err != nil {
@@ -80,8 +84,6 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
-	} else if context.Task.Metadata.SubAccountID == "f9ae26b8-e827-4b98-82c6-3fea70d5c3ba" && context.Task.Metadata.ShootName == "bb76c6e" {
-		context.Logger.Info("Reconcile Przemek's shoot bb76c6e")
 	}
 
 	return nil
