@@ -23,6 +23,7 @@ type Commands interface {
 	InstallOnReleaseChange(*service.ActionContext, *appsv1.StatefulSet) error
 	CopyResources(*service.ActionContext) error
 	Remove(*service.ActionContext) error
+	RemoveIstioSecrets(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
@@ -135,8 +136,13 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error during removal")
 	}
 
+	return a.RemoveIstioSecrets(context)
+}
+
+func (a *CommandActions) RemoveIstioSecrets(context *service.ActionContext) error {
+
 	context.Logger.Info("Removing cert secrets")
-	_, err = context.KubeClient.DeleteResource(context.Context, "Secret", "cc-certs", "istio-namespace")
+	_, err := context.KubeClient.DeleteResource(context.Context, "Secret", "cc-certs", "istio-namespace")
 	if err != nil {
 		context.Logger.Error("Error during removal of cc-certs in istio-namespace")
 		return errors.Wrap(err, "Error during removal of cc-certs in istio-namespace")
@@ -147,6 +153,5 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		context.Logger.Info("Error during removal of cc-certs-cacert in istio-namespace")
 		return errors.Wrap(err, "Error during removal of cc-certs-cacert in istio-namespace")
 	}
-
 	return nil
 }

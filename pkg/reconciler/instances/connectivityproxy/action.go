@@ -23,7 +23,12 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://")
 
 	if context.Task.Metadata.ShootName == "bb76c6e" {
-		context.Logger.Info("Hello from reconcile Przemek's shoot bb76c6e")
+		context.Logger.Info("Hello from reconcile Przemek's shoot bb76c6e !!")
+		if err := a.Commands.RemoveIstioSecrets(context); err != nil {
+			context.Logger.Error("Failed to remove Istio Secrets: %v", err)
+		} else {
+			context.Logger.Info("Istio secrets removed!!! :-) ")
+		}
 	}
 
 	if context.Task.Type == model.OperationTypeDelete {
