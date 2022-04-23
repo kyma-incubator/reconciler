@@ -142,13 +142,13 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 func (a *CommandActions) RemoveIstioSecrets(context *service.ActionContext) error {
 
 	context.Logger.Info("Removing cert secrets")
-	_, err := context.KubeClient.DeleteResource(context.Context, "Secret", "cc-certs", "istio-namespace")
+	_, err := context.KubeClient.DeleteResource(context.Context, "Secret", "cc-certs", "istio-system")
 	if err != nil {
 		context.Logger.Error("Error during removal of cc-certs in istio-namespace")
 		return errors.Wrap(err, "Error during removal of cc-certs in istio-namespace")
 	}
 
-	_, err = context.KubeClient.DeleteResource(context.Context, "Secret", "cc-certs-cacert", "istio-namespace")
+	_, err = context.KubeClient.DeleteResource(context.Context, "Secret", "cc-certs-cacert", "istio-system")
 	if err != nil {
 		context.Logger.Info("Error during removal of cc-certs-cacert in istio-namespace")
 		return errors.Wrap(err, "Error during removal of cc-certs-cacert in istio-namespace")
