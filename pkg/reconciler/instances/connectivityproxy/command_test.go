@@ -85,7 +85,7 @@ func TestCommand(t *testing.T) {
 			KubeClient:       &client,
 			WorkspaceFactory: nil,
 			Context:          nil,
-			Logger:           logger.NewLogger(true),
+			Logger:           nil,
 			ChartProvider:    nil,
 			Task:             &reconciler.Task{},
 		})
@@ -384,7 +384,7 @@ func TestCommandRemove(t *testing.T) {
 			KubeClient:       nil,
 			WorkspaceFactory: nil,
 			Context:          context.Background(),
-			Logger:           logger.NewLogger(true),
+			Logger:           nil,
 			ChartProvider:    provider,
 			Task:             task,
 		}
