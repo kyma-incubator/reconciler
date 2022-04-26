@@ -141,7 +141,6 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 
 func (a *CommandActions) RemoveIstioSecrets(context *service.ActionContext) error {
 
-	context.Logger.Info("Removing cert secrets")
 	_, err := context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs", "istio-system")
 	if err != nil {
 		context.Logger.Error("Error during removal of cc-certs in istio-system")
