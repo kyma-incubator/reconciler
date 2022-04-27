@@ -28,10 +28,6 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
-		if err := a.Commands.RemoveIstioSecrets(context); err != nil {
-			context.Logger.Error("Failed to remove Istio Secrets: %v", err)
-			return err
-		}
 		return nil
 	}
 
@@ -82,10 +78,6 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		context.Logger.Info("Removing component")
 		if err := a.Commands.Remove(context); err != nil {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
-			return err
-		}
-		if err := a.Commands.RemoveIstioSecrets(context); err != nil {
-			context.Logger.Error("Failed to remove Istio Secrets: %v", err)
 			return err
 		}
 	}

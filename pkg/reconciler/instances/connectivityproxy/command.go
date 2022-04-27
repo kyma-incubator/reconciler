@@ -23,7 +23,6 @@ type Commands interface {
 	InstallOnReleaseChange(*service.ActionContext, *appsv1.StatefulSet) error
 	CopyResources(*service.ActionContext) error
 	Remove(*service.ActionContext) error
-	RemoveIstioSecrets(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
@@ -136,10 +135,10 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error during removal")
 	}
 
-	return a.RemoveIstioSecrets(context)
+	return a.removeIstioSecrets(context)
 }
 
-func (a *CommandActions) RemoveIstioSecrets(context *service.ActionContext) error {
+func (a *CommandActions) removeIstioSecrets(context *service.ActionContext) error {
 
 	_, err := context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs", "istio-system")
 	if err != nil {
