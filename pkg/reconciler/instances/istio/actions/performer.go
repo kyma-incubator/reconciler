@@ -85,11 +85,11 @@ type chartValuesConfiguration struct {
 	Global struct {
 		Images struct {
 			Istio struct {
-				Version string `json:"version"`
-				Directory             string `json:"directory"`
+				Version   string `json:"version"`
+				Directory string `json:"directory"`
 			} `json:"istio"`
 		} `json:"images"`
-		ContainerRegistry struct{
+		ContainerRegistry struct {
 			Path string `json:"path"`
 		} `json:"containerRegistry"`
 	} `json:"global"`
@@ -398,24 +398,23 @@ func getTargetProxyV2PrefixFromIstioChart(workspace chart.Factory, branch string
 	}
 
 	istioValuesRegistryPath, istioValuesDirectory, err := getTargetProxyV2PrefixFromIstioValues(istioHelmChart)
-	if err!=nil{
+	if err != nil {
 		return "", err
 	}
 
-	if istioValuesDirectory!=""&&istioValuesRegistryPath!="" {
-		prefix := fmt.Sprintf("%s/%s",istioValuesDirectory,istioValuesRegistryPath)
+	if istioValuesDirectory != "" && istioValuesRegistryPath != "" {
+		prefix := fmt.Sprintf("%s/%s", istioValuesDirectory, istioValuesRegistryPath)
 		logger.Debugf("Resolved target Istio prefix: %s from istio values.yaml", prefix)
 		return prefix, nil
-	} 
-
+	}
 
 	istioConfigurationValuesRegistryPath, istioConfigurationValuesDirectory, err := getTargetProxyV2PrefixFromIstioConfigurationValues(istioHelmChart)
-	if err != nil{
+	if err != nil {
 		return "", err
 	}
 
-	if istioConfigurationValuesRegistryPath!=""&&istioConfigurationValuesDirectory!="" {
-		prefix := fmt.Sprintf("%s/%s",istioConfigurationValuesRegistryPath,istioConfigurationValuesDirectory)
+	if istioConfigurationValuesRegistryPath != "" && istioConfigurationValuesDirectory != "" {
+		prefix := fmt.Sprintf("%s/%s", istioConfigurationValuesRegistryPath, istioConfigurationValuesDirectory)
 		logger.Debugf("Resolved target Istio prefix: %s from istio-configuration values.yaml", prefix)
 		return prefix, nil
 	}
@@ -441,7 +440,7 @@ func getTargetVersionFromPilotInChartValues(helmChart *helmChart.Chart) (string,
 	return chartValues.Global.Images.IstioPilot.Version, nil
 }
 
-func getTargetProxyV2PrefixFromIstioValues(istioHelmChart *helmChart.Chart) (string, string, error){
+func getTargetProxyV2PrefixFromIstioValues(istioHelmChart *helmChart.Chart) (string, string, error) {
 	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
 	if err != nil {
 		return "", "", err
@@ -458,7 +457,7 @@ func getTargetProxyV2PrefixFromIstioValues(istioHelmChart *helmChart.Chart) (str
 	return containerRegistryPath, directory, nil
 }
 
-func getTargetProxyV2PrefixFromIstioConfigurationValues(istioHelmChart *helmChart.Chart) (string, string, error){
+func getTargetProxyV2PrefixFromIstioConfigurationValues(istioHelmChart *helmChart.Chart) (string, string, error) {
 	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
 	if err != nil {
 		return "", "", err
