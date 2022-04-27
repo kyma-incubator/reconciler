@@ -3,16 +3,18 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"time"
+
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"time"
 )
 
 const EnvVarKubeconfig = "KUBECONFIG"
@@ -51,6 +53,10 @@ func (cb *ClientBuilder) Build(ctx context.Context, validate bool) (kubernetes.I
 		if kubeconfigPath == "" {
 			return nil, fmt.Errorf("kubeconfig undefined: please provide it as file, string or set env-var %s",
 				EnvVarKubeconfig)
+		}
+		kubeconfigPath, verifyErr := verifyPath(kubeconfigPath)
+		if verifyErr != nil {
+			return nil, errors.Wrap(verifyErr, fmt.Sprintf("potential path traversal detected for path %s", kubeconfigPath))
 		}
 		cb.kubeconfig, cb.err = cb.loadFile(kubeconfigPath)
 	}
@@ -98,4 +104,13 @@ func (cb *ClientBuilder) loadFile(filePath string) ([]byte, error) {
 		return nil, fmt.Errorf("kubeconfig file not found at path '%s'", filePath)
 	}
 	return ioutil.ReadFile(filePath)
+}
+
+func verifyPath(path string) (string, error) {
+	c := filepath.Clean(path)
+	r, err := filepath.EvalSymlinks(c)
+	if err != nil {
+		return c, errors.Wrap(err, "Unsafe or invalid path specified")
+	}
+	return r, nil
 }

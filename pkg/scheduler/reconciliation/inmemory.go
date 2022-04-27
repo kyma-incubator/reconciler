@@ -211,27 +211,6 @@ func (r *InMemoryReconciliationRepository) RemoveReconciliationsBeforeDeadline(r
 	return nil
 }
 
-func (r *InMemoryReconciliationRepository) RemoveReconciliationsForObsoleteStatus(deadline time.Time) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	var runtimeIDsToRemove []string
-	for _, recon := range r.reconciliations {
-		if r.status[recon.ClusterConfigStatus].Deleted && r.status[recon.ClusterConfigStatus].Created.Before(deadline) {
-			runtimeIDsToRemove = append(runtimeIDsToRemove, recon.RuntimeID)
-		}
-		delete(r.operations, recon.SchedulingID)
-	}
-
-	delCnt := 0
-	for _, runtimeIDToRemove := range runtimeIDsToRemove {
-		delete(r.reconciliations, runtimeIDToRemove)
-		delCnt++
-	}
-
-	return delCnt, nil
-}
-
 func (r *InMemoryReconciliationRepository) GetRuntimeIDs() ([]string, error) {
 	var runtimeIDs []string
 	for key := range r.reconciliations {
