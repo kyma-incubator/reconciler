@@ -81,6 +81,20 @@ type chartValues struct {
 	} `json:"global"`
 }
 
+type chartValuesConfiguration struct {
+	Global struct {
+		Images struct {
+			Istio struct {
+				Version string `json:"version"`
+				Directory             string `json:"directory"`
+			} `json:"istio"`
+		} `json:"images"`
+		ContainerRegistry struct{
+			Path string `json:"path"`
+		} `json:"containerRegistry"`
+	} `json:"global"`
+}
+
 //go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
 type IstioPerformer interface {
@@ -383,30 +397,29 @@ func getTargetProxyV2PrefixFromIstioChart(workspace chart.Factory, branch string
 		return "", err
 	}
 
-	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
-	if err != nil {
+	istioValuesRegistryPath, istioValuesDirectory, err := getTargetProxyV2PrefixFromIstioValues(istioHelmChart)
+	if err!=nil{
 		return "", err
 	}
 
-	var chartValues chartValues
-	err = json.Unmarshal(mapAsJSON, &chartValues)
-	if err != nil {
+	if istioValuesDirectory!=""&&istioValuesRegistryPath!="" {
+		prefix := fmt.Sprintf("%s/%s",istioValuesDirectory,istioValuesRegistryPath)
+		logger.Debugf("Resolved target Istio prefix: %s from istio values.yaml", prefix)
+		return prefix, nil
+	} 
+
+
+	istioConfigurationValuesRegistryPath, istioConfigurationValuesDirectory, err := getTargetProxyV2PrefixFromIstioConfigurationValues(istioHelmChart)
+	if err != nil{
 		return "", err
 	}
 
-	containerRegistryPath := chartValues.Global.Images.IstioProxyV2.ContainerRegistryPath
-	if containerRegistryPath == "" {
-		return "", errors.New("Target Istio container registry path could not be found in values.yaml")
+	if istioConfigurationValuesRegistryPath!=""&&istioConfigurationValuesDirectory!="" {
+		prefix := fmt.Sprintf("%s/%s",istioConfigurationValuesRegistryPath,istioConfigurationValuesDirectory)
+		logger.Debugf("Resolved target Istio prefix: %s from istio-configuration values.yaml", prefix)
+		return prefix, nil
 	}
-
-	directory := chartValues.Global.Images.IstioProxyV2.Directory
-	if directory == "" {
-		return "", errors.New("Target Istio directory could not be found in values.yaml")
-	}
-
-	prefix := fmt.Sprintf("%s/%s", containerRegistryPath, directory)
-	logger.Debugf("Resolved target Istio prefix: %s from values", prefix)
-	return prefix, nil
+	return "", errors.New("Could not resolve target proxyV2 Istio prefix from values")
 }
 
 func getTargetVersionFromAppVersionInChartDefinition(helmChart *helmChart.Chart) string {
@@ -426,6 +439,41 @@ func getTargetVersionFromPilotInChartValues(helmChart *helmChart.Chart) (string,
 	}
 
 	return chartValues.Global.Images.IstioPilot.Version, nil
+}
+
+func getTargetProxyV2PrefixFromIstioValues(istioHelmChart *helmChart.Chart) (string, string, error){
+	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
+	if err != nil {
+		return "", "", err
+	}
+
+	var chartValues chartValues
+	err = json.Unmarshal(mapAsJSON, &chartValues)
+	if err != nil {
+		return "", "", err
+	}
+
+	containerRegistryPath := chartValues.Global.Images.IstioProxyV2.ContainerRegistryPath
+	directory := chartValues.Global.Images.IstioProxyV2.Directory
+	return containerRegistryPath, directory, nil
+}
+
+func getTargetProxyV2PrefixFromIstioConfigurationValues(istioHelmChart *helmChart.Chart) (string, string, error){
+	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
+	if err != nil {
+		return "", "", err
+	}
+
+	var chartValuesConfiguration chartValuesConfiguration
+	err = json.Unmarshal(mapAsJSON, &chartValuesConfiguration)
+	if err != nil {
+		return "", "", err
+	}
+
+	containerRegistryPath := chartValuesConfiguration.Global.ContainerRegistry.Path
+	directory := chartValuesConfiguration.Global.Images.Istio.Directory
+
+	return containerRegistryPath, directory, nil
 }
 
 func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string {
