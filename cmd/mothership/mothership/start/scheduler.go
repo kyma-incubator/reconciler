@@ -44,11 +44,12 @@ func startScheduler(ctx context.Context, o *Options) error {
 			OrphanOperationTimeout:  o.OrphanOperationTimeout,
 		}).
 		WithCleanerConfig(&service.CleanerConfig{
-			PurgeEntitiesOlderThan:  o.PurgeEntitiesOlderThan,
-			CleanerInterval:         o.CleanerInterval,
-			KeepLatestEntitiesCount: uintOrDie(o.ReconciliationsKeepLatestCount),
-			MaxEntitiesAgeDays:      uintOrDie(o.EntitiesMaxAgeDays),
-			StatusCleanupBatchSize:  uintOrDie(o.StatusCleanupBatchSize),
+			PurgeEntitiesOlderThan:     o.PurgeEntitiesOlderThan,
+			CleanerInterval:            o.CleanerInterval,
+			RetainReconciliationsCount: uintOrDie(o.ReconciliationsKeepLatestCount),
+			MaxReconciliationsAgeDays:  uintOrDie(o.ReconciliationsMaxAgeDays),
+			MaxInventoryAgeDays:        uintOrDie(o.InventoryMaxAgeDays),
+			StatusCleanupBatchSize:     uintOrDie(o.StatusCleanupBatchSize),
 		}).
 		Run(ctx)
 }

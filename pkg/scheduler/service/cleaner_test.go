@@ -156,10 +156,10 @@ func (s *serviceTestSuite) Test_cleaner_Run_new_logic() {
 		inventory: &mockInventory,
 		logger:    logger.NewLogger(true),
 	}, &CleanerConfig{
-		KeepLatestEntitiesCount: 4,
-		MaxEntitiesAgeDays:      6,
-		CleanerInterval:         5 * time.Second,
-		StatusCleanupBatchSize:  100,
+		RetainReconciliationsCount: 4,
+		MaxReconciliationsAgeDays:  6,
+		CleanerInterval:            5 * time.Second,
+		StatusCleanupBatchSize:     100,
 	})
 
 	require.NoError(t, err)
