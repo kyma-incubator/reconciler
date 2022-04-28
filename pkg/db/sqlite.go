@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
 	"io/ioutil"
 	"os"
 
@@ -77,6 +78,15 @@ func (sc *sqliteConnection) Query(query string, args ...interface{}) (DataRows, 
 		sc.logger.Errorf("Sqlite3 Query() error: %s", err)
 	}
 	return rows, err
+}
+
+func (sc *sqliteConnection) QueryRowGorm(gormDB *gorm.DB) (DataRow, error) {
+	sc.logger.Debugf("Sqlite3 QueryRowGorm(): %s | %v", GetString(gormDB), GetVars(gormDB))
+	return sc.db.QueryRow(GetString(gormDB), GetVars(gormDB)...), nil
+}
+func (sc *sqliteConnection) QueryGorm(gormDB *gorm.DB) (DataRows, error) {
+	sc.logger.Debugf("Sqlite3 QueryGorm(): %s | %v", GetString(gormDB), GetVars(gormDB))
+	return sc.db.Query(GetString(gormDB), GetVars(gormDB)...)
 }
 
 func (sc *sqliteConnection) Exec(query string, args ...interface{}) (sql.Result, error) {

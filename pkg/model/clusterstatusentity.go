@@ -16,8 +16,8 @@ type ClusterStatusEntity struct {
 	ClusterVersion int64     `db:"notNull"` // Cluster entity primary key
 	ConfigVersion  int64     `db:"notNull"` // Cluster config entity primary key
 	Status         Status    `db:"notNull"`
-	Deleted        bool      `db:"notNull"`
 	Created        time.Time `db:"readOnly"`
+	Deleted        bool      `db:"notNull"`
 }
 
 func (c *ClusterStatusEntity) String() string {
