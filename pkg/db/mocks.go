@@ -2,8 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"github.com/DATA-DOG/go-sqlmock"
-	"gorm.io/gorm"
 )
 
 const (
@@ -55,11 +53,7 @@ func (c *MockConnection) ID() string {
 }
 
 func (c *MockConnection) DB() *sql.DB {
-	db, _, err := sqlmock.New()
-	if err != nil {
-		return nil
-	}
-	return db
+	return nil
 }
 
 func (c *MockConnection) Encryptor() *Encryptor {
@@ -83,17 +77,6 @@ func (c *MockConnection) QueryRow(query string, args ...interface{}) (DataRow, e
 func (c *MockConnection) Query(query string, args ...interface{}) (DataRows, error) {
 	c.query = query
 	c.args = args
-	return &MockDataRows{}, nil
-}
-
-func (c *MockConnection) QueryRowGorm(gormDB *gorm.DB) (DataRow, error) {
-	c.query = GetString(gormDB)
-	c.args = GetVars(gormDB)
-	return &MockDataRow{}, nil
-}
-func (c *MockConnection) QueryGorm(gormDB *gorm.DB) (DataRows, error) {
-	c.query = GetString(gormDB)
-	c.args = GetVars(gormDB)
 	return &MockDataRows{}, nil
 }
 

@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"gorm.io/gorm"
 )
 
 type Type string
@@ -19,8 +18,6 @@ type Connection interface {
 	Ping() error
 	QueryRow(query string, args ...interface{}) (DataRow, error)
 	Query(query string, args ...interface{}) (DataRows, error)
-	QueryRowGorm(gormDB *gorm.DB) (DataRow, error)
-	QueryGorm(gormDB *gorm.DB) (DataRows, error)
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Begin() (*TxConnection, error)
 	Close() error
