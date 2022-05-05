@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 	"time"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
@@ -107,20 +106,6 @@ func (pc *postgresConnection) Query(query string, args ...interface{}) (DataRows
 	rows, err := pc.db.Query(query, args...)
 	if err != nil {
 		pc.logger.Errorf("Postgres Query() error: %s", err)
-	}
-	return rows, err
-}
-
-func (pc *postgresConnection) QueryRowGorm(gormDB *gorm.DB) (DataRow, error) {
-	pc.logger.Debugf("Postgres QueryRowGorm(): %s | %v", GetString(gormDB), GetVars(gormDB))
-	return pc.db.QueryRow(GetString(gormDB), GetVars(gormDB)...), nil
-}
-
-func (pc *postgresConnection) QueryGorm(gormDB *gorm.DB) (DataRows, error) {
-	pc.logger.Debugf("Postgres QueryGorm(): %s | %v", GetString(gormDB), GetVars(gormDB))
-	rows, err := pc.db.Query(GetString(gormDB), GetVars(gormDB)...)
-	if err != nil {
-		pc.logger.Errorf("Postgres QueryGorm() error: %s", err)
 	}
 	return rows, err
 }

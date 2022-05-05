@@ -3,7 +3,6 @@ package db
 import (
 	"bytes"
 	"fmt"
-	"gorm.io/gorm/clause"
 	"reflect"
 	"strings"
 
@@ -20,6 +19,25 @@ const (
 	dbTagNotNull  string = "notNull"
 	dbTagEncrypt  string = "encrypt"
 )
+
+type InvalidEntityError struct {
+	errorMsg string
+}
+
+func (e *InvalidEntityError) Error() string {
+	return e.errorMsg
+}
+
+func newInvalidEntityError(err string, args ...interface{}) *InvalidEntityError {
+	return &InvalidEntityError{
+		errorMsg: fmt.Sprintf(err, args...),
+	}
+}
+
+func IsInvalidEntityError(err error) bool {
+	_, ok := err.(*InvalidEntityError)
+	return ok
+}
 
 type column struct {
 	name     string
@@ -51,7 +69,7 @@ func NewColumnHandler(entity DatabaseEntity, conn Connection, logger *zap.Sugare
 	//get marshalled values of entity fields
 	marshalledValues, err := entity.Marshaller().Marshal()
 	if err != nil {
-		return colHdlr, NewInvalidEntityError(fmt.Sprintf("failed to marshal values of entity '%s': %s", entity, err.Error()))
+		return colHdlr, newInvalidEntityError(fmt.Sprintf("failed to marshal values of entity '%s': %s", entity, err.Error()))
 	}
 
 	//add columns to column handler instance
@@ -123,7 +141,7 @@ func (ch *ColumnHandler) Validate() error {
 		}
 	}
 	if len(invalidFields) > 0 {
-		return NewInvalidEntityError("the fields '%s' of entity '%s' are tagged with '%s' and cannot be undefined",
+		return newInvalidEntityError("the fields '%s' of entity '%s' are tagged with '%s' and cannot be undefined",
 			strings.Join(invalidFields, "', '"), ch.entity, dbTagNotNull)
 	}
 	return nil
@@ -149,30 +167,6 @@ func (ch *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 		buffer.WriteString(col.name)
 	}
 	return buffer.String()
-}
-
-//ColumnNamesSlice returns a slice of the column names
-func (ch *ColumnHandler) ColumnNamesSlice(onlyWriteable bool) []string {
-	var buffer []string
-	for _, col := range ch.columns {
-		if onlyWriteable && col.readOnly {
-			continue
-		}
-		buffer = append(buffer, col.name)
-	}
-	return buffer
-}
-
-//ColumnNamesSlice returns a slice of the column names in Gorm Clause format
-func (ch *ColumnHandler) ColumnNamesGormClause(onlyWriteable bool) []clause.Column {
-	var buffer []clause.Column
-	for _, col := range ch.columns {
-		if onlyWriteable && col.readOnly {
-			continue
-		}
-		buffer = append(buffer, clause.Column{Name: col.name})
-	}
-	return buffer
 }
 
 func (ch *ColumnHandler) ColumnValues(onlyWriteable bool) ([]interface{}, error) {
@@ -308,5 +302,6 @@ func (ch *ColumnHandler) Unmarshal(row DataRow, entity DatabaseEntity) error {
 		}
 		entityData[col.field.Name()] = col.value
 	}
+
 	return entity.Marshaller().Unmarshal(entityData)
 }

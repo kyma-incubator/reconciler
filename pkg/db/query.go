@@ -322,8 +322,7 @@ func (i *Insert) Exec() error {
 	if err != nil {
 		return err
 	}
-	str := i.buffer.String()
-	row, err := i.Conn.QueryRow(str, colVals...)
+	row, err := i.Conn.QueryRow(i.buffer.String(), colVals...)
 	if err != nil {
 		return err
 	}
