@@ -104,6 +104,8 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.13.0
 )
 
+require sigs.k8s.io/kustomize/kyaml v0.13.0
+
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/BurntSushi/toml v0.4.1 // indirect
