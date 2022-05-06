@@ -2,12 +2,13 @@ package istioctl
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/executor/mocks"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"os"
 	"os/exec"
 	"testing"
-
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -39,58 +40,72 @@ func fakeExecCommand(command string, args ...string) *exec.Cmd {
 }
 
 func Test_DefaultCommander_Install(t *testing.T) {
-	execCommand = fakeExecCommand
-	istioOperator := "istioOperator"
+	mockCommandExecutor := mocks.CmdExecutor{}
+	mockCommandExecutor.On("RuntWithRetry", mock.Anything, mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+
+	var commander = DefaultCommander{
+		istioctl:        Executable{path: "/bin/istio/istioctl"},
+		commandExecutor: &mockCommandExecutor,
+	}
 	log := logger.NewLogger(false)
-	commander := DefaultCommander{}
-	t.Run("should run the install command", func(t *testing.T) {
+
+	t.Run("should run the apply command", func(t *testing.T) {
 		// when
-		errors := commander.Install(istioOperator, kubeconfig, log)
+		errors := commander.Upgrade("istioOperator", kubeconfig, log)
 
 		// then
 		require.NoError(t, errors)
-		require.EqualValues(t, testArgs[0], "apply")
-		require.EqualValues(t, testArgs[1], "-f")
-		require.EqualValues(t, testArgs[3], "--kubeconfig")
-		require.EqualValues(t, testArgs[5], "--skip-confirmation")
+		mockCommandExecutor.AssertCalled(t, "RuntWithRetry", log, "/bin/istio/istioctl", "apply", "-f",
+			mock.AnythingOfType("string"), "--kubeconfig", mock.AnythingOfType("string"), "--skip-confirmation")
 	})
 }
 
 func Test_DefaultCommander_Uninstall(t *testing.T) {
-	execCommand = fakeExecCommand
-	var commander Commander = &DefaultCommander{}
-	kubeconfig := "kubeconfig"
+
+	mockCommandExecutor := mocks.CmdExecutor{}
+	mockCommandExecutor.On("RuntWithRetry", mock.Anything, mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+
+	var commander = DefaultCommander{
+		istioctl:        Executable{path: "/bin/istio/istioctl"},
+		commandExecutor: &mockCommandExecutor,
+	}
 	log := logger.NewLogger(false)
 
-	t.Run("should run the install command", func(t *testing.T) {
+	t.Run("should run the uninstall command", func(t *testing.T) {
 		//when
 		err := commander.Uninstall(kubeconfig, log)
 
 		// then
+
 		require.NoError(t, err)
-		require.EqualValues(t, testArgs[0], "x")
-		require.EqualValues(t, testArgs[1], "uninstall")
-		require.EqualValues(t, testArgs[2], "--purge")
-		require.EqualValues(t, testArgs[5], "--skip-confirmation")
+		mockCommandExecutor.AssertCalled(t, "RuntWithRetry", log, "/bin/istio/istioctl", "x", "uninstall", "--purge", "--kubeconfig", mock.AnythingOfType("string"), "--skip-confirmation")
 	})
 }
 
 func Test_DefaultCommander_Upgrade(t *testing.T) {
-	execCommand = fakeExecCommand
-	istioOperator := "istioOperator"
+	mockCommandExecutor := mocks.CmdExecutor{}
+	mockCommandExecutor.On("RuntWithRetry", mock.Anything, mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+
+	var commander = DefaultCommander{
+		istioctl:        Executable{path: "/bin/istio/istioctl"},
+		commandExecutor: &mockCommandExecutor,
+	}
 	log := logger.NewLogger(false)
-	commander := DefaultCommander{}
 
 	t.Run("should run the apply command", func(t *testing.T) {
 		// when
-		errors := commander.Upgrade(istioOperator, kubeconfig, log)
+		errors := commander.Upgrade("istioOperator", kubeconfig, log)
 
 		// then
 		require.NoError(t, errors)
-		require.EqualValues(t, testArgs[0], "apply")
-		require.EqualValues(t, testArgs[1], "-f")
-		require.EqualValues(t, testArgs[3], "--kubeconfig")
-		require.EqualValues(t, testArgs[5], "--skip-confirmation")
+		mockCommandExecutor.AssertCalled(t, "RuntWithRetry", log, "/bin/istio/istioctl", "apply", "-f",
+			mock.AnythingOfType("string"), "--kubeconfig", mock.AnythingOfType("string"), "--skip-confirmation")
 	})
 }
 

@@ -73,6 +73,7 @@ require (
 	github.com/coreos/go-semver v0.3.0
 	github.com/docker/go-connections v0.4.0
 	github.com/fatih/structs v1.1.0
+	github.com/go-cmd/cmd v1.4.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/uuid v1.3.0
