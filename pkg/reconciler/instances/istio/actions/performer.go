@@ -403,7 +403,7 @@ func getTargetProxyV2PrefixFromIstioChart(workspace chart.Factory, branch string
 	}
 
 	if istioValuesDirectory != "" && istioValuesRegistryPath != "" {
-		prefix := fmt.Sprintf("%s/%s", istioValuesDirectory, istioValuesRegistryPath)
+		prefix := fmt.Sprintf("%s/%s", istioValuesRegistryPath, istioValuesDirectory)
 		logger.Debugf("Resolved target Istio prefix: %s from istio values.yaml", prefix)
 		return prefix, nil
 	}
