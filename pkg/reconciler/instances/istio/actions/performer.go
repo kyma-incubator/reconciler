@@ -377,10 +377,10 @@ func getTargetVersionFromIstioChart(workspace chart.Factory, branch string, isti
 		return pilotVersion, nil
 	}
 
-	appVersion := getTargetVersionFromAppVersionInChartDefinition(istioHelmChart)
-	if appVersion != "" {
-		logger.Debugf("Resolved target Istio version: %s from Chart definition", appVersion)
-		return appVersion, nil
+	chartVersion := getTargetVersionFromVersionInChartDefinition(istioHelmChart)
+	if chartVersion != "" {
+		logger.Debugf("Resolved target Istio version: %s from Chart definition", chartVersion)
+		return chartVersion, nil
 	}
 
 	return "", errors.New("Target Istio version could not be found neither in Chart.yaml nor in helm values")
@@ -403,7 +403,7 @@ func getTargetProxyV2PrefixFromIstioChart(workspace chart.Factory, branch string
 	}
 
 	if istioValuesDirectory != "" && istioValuesRegistryPath != "" {
-		prefix := fmt.Sprintf("%s/%s", istioValuesDirectory, istioValuesRegistryPath)
+		prefix := fmt.Sprintf("%s/%s", istioValuesRegistryPath, istioValuesDirectory)
 		logger.Debugf("Resolved target Istio prefix: %s from istio values.yaml", prefix)
 		return prefix, nil
 	}
@@ -421,8 +421,8 @@ func getTargetProxyV2PrefixFromIstioChart(workspace chart.Factory, branch string
 	return "", errors.New("Could not resolve target proxyV2 Istio prefix from values")
 }
 
-func getTargetVersionFromAppVersionInChartDefinition(helmChart *helmChart.Chart) string {
-	return helmChart.Metadata.AppVersion
+func getTargetVersionFromVersionInChartDefinition(helmChart *helmChart.Chart) string {
+	return helmChart.Metadata.Version
 }
 
 func getTargetVersionFromPilotInChartValues(helmChart *helmChart.Chart) (string, error) {
