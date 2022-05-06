@@ -53,7 +53,7 @@ func Test_DefaultCommander_Install(t *testing.T) {
 
 	t.Run("should run the apply command", func(t *testing.T) {
 		// when
-		errors := commander.Upgrade("istioOperator", kubeconfig, log)
+		errors := commander.Install("istioOperator", kubeconfig, log)
 
 		// then
 		require.NoError(t, errors)

@@ -52,9 +52,7 @@ func (c *DefaultCommander) Uninstall(kubeconfig string, logger *zap.SugaredLogge
 		}
 	}()
 
-	return c.commandExecutor.RuntWithRetry(logger, c.istioctl.path, "x", "uninstall",
-		"--purge", "--kubeconfig",
-		kubeconfigPath, "--skip-confirmation")
+	return c.commandExecutor.RuntWithRetry(logger, c.istioctl.path, "x", "uninstall", "--purge", "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 }
 
 func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
