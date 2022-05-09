@@ -627,6 +627,40 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 	})
 }
 
+func Test_getTargetProxyV2PrefixFromIstioChart(t *testing.T) {
+	branch := "branch"
+	log := logger.NewLogger(false)
+
+	t.Run("should correctly parse the prefix from istio-configuration helm chart", func(t *testing.T) {
+		// given
+		istioChart := "istio-configuration"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files/path-tests"}, nil)
+
+		// when
+		targetPrefix, err := getTargetProxyV2PrefixFromIstioChart(factory, branch, istioChart, log)
+
+		// then
+		expectedPrefix := "istio-configuration-path/istio-configuration-dir"
+		require.NoError(t, err)
+		require.EqualValues(t, expectedPrefix, targetPrefix)
+	})
+	t.Run("should correctly parse the prefix from istio helm chart", func(t *testing.T) {
+		// given
+		istioChart := "istio"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files/path-tests"}, nil)
+
+		// when
+		targetPrefix, err := getTargetProxyV2PrefixFromIstioChart(factory, branch, istioChart, log)
+
+		// then
+		expectedPrefix := "istio-proxy-path/istio-proxy-dir"
+		require.NoError(t, err)
+		require.EqualValues(t, expectedPrefix, targetPrefix)
+	})
+}
+
 func Test_getTargetVersionFromIstioChart(t *testing.T) {
 	branch := "branch"
 	log := logger.NewLogger(false)
