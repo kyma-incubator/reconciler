@@ -252,6 +252,7 @@ func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http
 		server.SendHTTPErrorMap(w, err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -281,6 +282,7 @@ func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Requ
 		server.SendHTTPErrorMap(w, err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 
 }
 
