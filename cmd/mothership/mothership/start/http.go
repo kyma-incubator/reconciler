@@ -237,7 +237,8 @@ func startWebserver(ctx context.Context, o *Options) error {
 func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	if !features.Enabled(features.DebugLogForSpecificOperations) {
-		w.WriteHeader(http.StatusNotFound)
+		err := fmt.Errorf("enabling debug logs for a reconciliation is disabled")
+		server.SendHTTPErrorMap(w, err)
 		return
 	}
 	params := server.NewParams(r)
@@ -256,7 +257,8 @@ func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http
 func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	if !features.Enabled(features.DebugLogForSpecificOperations) {
-		w.WriteHeader(http.StatusNotFound)
+		err := fmt.Errorf("enabling debug logs for an operation is disabled")
+		server.SendHTTPErrorMap(w, err)
 		return
 	}
 	params := server.NewParams(r)
