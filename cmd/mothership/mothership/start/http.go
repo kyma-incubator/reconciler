@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/features"
 
@@ -976,13 +975,6 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 func deleteComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	poolID, err := params.String(paramPoolID)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
-	_, err = uuid.Parse(poolID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
 			Error: err.Error(),
