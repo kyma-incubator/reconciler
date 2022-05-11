@@ -181,12 +181,12 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/debug", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, enableOperationDebugLogging)).
-		Methods(http.MethodPost)
+		Methods(http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations/{%s}/debug", paramContractVersion, paramSchedulingID),
 		callHandler(o, enableReconciliationDebugLogging)).
-		Methods(http.MethodPost)
+		Methods(http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
