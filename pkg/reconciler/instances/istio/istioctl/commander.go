@@ -1,18 +1,15 @@
 package istioctl
 
 import (
-	"bufio"
 	"github.com/kyma-incubator/reconciler/pkg/features"
-	"github.com/pkg/errors"
-	"io"
-	"os/exec"
-	"sync"
-
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/executor"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"os/exec"
 )
 
-//go:generate mockery --name=Commander --outpkg=mocks --case=underscore
+//go:generate mockery --name=Commander --output=mocks --case=underscore
 // Commander for istioctl binary.
 type Commander interface {
 
@@ -33,11 +30,12 @@ var execCommand = exec.Command
 
 // DefaultCommander provides a default implementation of Commander.
 type DefaultCommander struct {
-	istioctl Executable
+	istioctl        Executable
+	commandExecutor executor.CmdExecutor
 }
 
 func NewDefaultCommander(istioctl Executable) DefaultCommander {
-	return DefaultCommander{istioctl}
+	return DefaultCommander{istioctl, &executor.DefaultCmdExecutor{}}
 }
 
 func (c *DefaultCommander) Uninstall(kubeconfig string, logger *zap.SugaredLogger) error {
@@ -54,14 +52,13 @@ func (c *DefaultCommander) Uninstall(kubeconfig string, logger *zap.SugaredLogge
 		}
 	}()
 
-	cmd := execCommand(c.istioctl.path, "x", "uninstall", "--purge", "--kubeconfig", kubeconfigPath, "--skip-confirmation")
-
-	return c.execute(cmd, logger)
+	return c.commandExecutor.RuntWithRetry(logger, c.istioctl.path, "x", "uninstall", "--purge", "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 }
 
 func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap.SugaredLogger) error {
 
 	kubeconfigPath, kubeconfigCf, err := file.CreateTempFileWith(kubeconfig)
+	logger.Debugf("Created kubeconfig temp file on %s ", kubeconfigPath)
 	if err != nil {
 		return err
 	}
@@ -74,6 +71,7 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 	}()
 
 	istioOperatorPath, istioOperatorCf, err := file.CreateTempFileWith(istioOperator)
+	logger.Debugf("Created IstioOperator temp file on %s ", istioOperatorPath)
 	if err != nil {
 		return err
 	}
@@ -85,10 +83,11 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 		}
 	}()
 
-	cmd := execCommand(c.istioctl.path, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+	logger.Debugf("Creating executable istioctl apply command")
+	err = c.commandExecutor.RuntWithRetry(logger, c.istioctl.path, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 
-	err = c.execute(cmd, logger)
 	if err != nil && features.Enabled(features.LogIstioOperator) {
+		logger.Errorf("Got error from executing istioctl apply %v", err)
 		return errors.Wrapf(err, "rendered IstioOperator yaml was: %s ", istioOperator)
 	}
 	return err
@@ -119,45 +118,4 @@ func (c *DefaultCommander) Version(kubeconfig string, logger *zap.SugaredLogger)
 	}
 
 	return out, nil
-}
-
-func (c *DefaultCommander) execute(cmd *exec.Cmd, logger *zap.SugaredLogger) error {
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	// cmd.Wait() should be called only after we finish reading from stdout and stderr
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		bufferAndLog(stdout, logger)
-	}()
-	go func() {
-		defer wg.Done()
-		bufferAndLog(stderr, logger)
-	}()
-
-	wg.Wait()
-
-	if err := cmd.Wait(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func bufferAndLog(r io.Reader, logger *zap.SugaredLogger) {
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		logger.Debug(scanner.Text())
-	}
 }

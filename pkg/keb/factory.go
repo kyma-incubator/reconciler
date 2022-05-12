@@ -3,6 +3,7 @@ package keb
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -15,17 +16,18 @@ func NewModelFactory(contractV int64) *ModelFactory {
 	return &ModelFactory{contractV}
 }
 
-func (mf *ModelFactory) load(model interface{}, data []byte) (interface{}, error) {
+func (mf *ModelFactory) load(model interface{}, data io.Reader) (interface{}, error) {
+	decoder := json.NewDecoder(data)
 	switch mf.version { //add here further case statement if multiple contract versions have to be supported
 	case 1:
-		err := json.Unmarshal(data, &model)
+		err := decoder.Decode(&model)
 		return model, err
 	default:
 		return nil, fmt.Errorf("contract version '%d' not supported", mf.version)
 	}
 }
 
-func (mf *ModelFactory) Status(data []byte) (*StatusUpdate, error) {
+func (mf *ModelFactory) Status(data io.Reader) (*StatusUpdate, error) {
 	model, err := mf.load(&StatusUpdate{}, data)
 	if err != nil {
 		return nil, err
@@ -33,7 +35,7 @@ func (mf *ModelFactory) Status(data []byte) (*StatusUpdate, error) {
 	return model.(*StatusUpdate), err
 }
 
-func (mf *ModelFactory) Metadata(data []byte) (*Metadata, error) {
+func (mf *ModelFactory) Metadata(data io.Reader) (*Metadata, error) {
 	model, err := mf.load(&Metadata{}, data)
 	if err != nil {
 		return nil, err
@@ -41,7 +43,7 @@ func (mf *ModelFactory) Metadata(data []byte) (*Metadata, error) {
 	return model.(*Metadata), err
 }
 
-func (mf *ModelFactory) Runtime(data []byte) (*RuntimeInput, error) {
+func (mf *ModelFactory) Runtime(data io.Reader) (*RuntimeInput, error) {
 	model, err := mf.load(&RuntimeInput{}, data)
 	if err != nil {
 		return nil, err
@@ -49,7 +51,7 @@ func (mf *ModelFactory) Runtime(data []byte) (*RuntimeInput, error) {
 	return model.(*RuntimeInput), err
 }
 
-func (mf *ModelFactory) Cluster(data []byte) (*Cluster, error) {
+func (mf *ModelFactory) Cluster(data io.Reader) (*Cluster, error) {
 	model, err := mf.load(&Cluster{}, data)
 	if err != nil {
 		return nil, err
@@ -57,7 +59,7 @@ func (mf *ModelFactory) Cluster(data []byte) (*Cluster, error) {
 	return model.(*Cluster), err
 }
 
-func (mf *ModelFactory) Components(data []byte) ([]*Component, error) {
+func (mf *ModelFactory) Components(data io.Reader) ([]*Component, error) {
 	untypedModels, err := mf.load([]interface{}{}, data)
 	if err != nil {
 		return nil, err
@@ -77,7 +79,7 @@ func (mf *ModelFactory) Components(data []byte) ([]*Component, error) {
 	return result, err
 }
 
-func (mf *ModelFactory) Administrators(data []byte) ([]string, error) {
+func (mf *ModelFactory) Administrators(data io.Reader) ([]string, error) {
 	untypedModels, err := mf.load([]interface{}{}, data)
 	if err != nil {
 		return nil, err

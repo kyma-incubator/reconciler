@@ -802,7 +802,7 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Proxy reset error"))
+		performer.On("ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Proxy reset error"))
 
 		action := ReconcileIstioConfigurationAction{performerCreatorFn(&performer)}
 
@@ -817,7 +817,7 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
+		performer.AssertCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
 		kubeClient.AssertNotCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -842,7 +842,7 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("PatchMutatingWebhook", actionContext.Context, actionContext.KubeClient, actionContext.Logger).Return(nil)
 		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
-		performer.On("ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 
 		action := ReconcileIstioConfigurationAction{performerCreatorFn(&performer)}
 
@@ -856,7 +856,7 @@ func Test_ReconcileIstioConfigurationAction_Run(t *testing.T) {
 		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "PatchMutatingWebhook", mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
+		performer.AssertCalled(t, "ResetProxy", actionContext.Context, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger)
 		kubeClient.AssertCalled(t, "Deploy", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 }
@@ -1224,51 +1224,21 @@ func Test_canUpdate(t *testing.T) {
 		// then
 		require.True(t, result)
 	})
-}
 
-func Test_isMismatchPresent(t *testing.T) {
-	t.Run("should return false if version string is semver incompatible", func(t *testing.T) {
+	t.Run("should allow update when control plane is consistent and not in the same version as data plane", func(t *testing.T) {
 		// given
-		differentVersions := actions.IstioStatus{
-			ClientVersion:    "version1",
-			PilotVersion:     "version2",
-			DataPlaneVersion: "version3",
+		version := actions.IstioStatus{
+			ClientVersion:    "1.2.1",
+			TargetVersion:    "1.2.1",
+			PilotVersion:     "1.2.1",
+			DataPlaneVersion: "1.2.0",
 		}
 
 		// when
-		got := isMismatchPresent(differentVersions)
+		result, _ := canUpdate(version)
 
 		// then
-		require.False(t, got)
-	})
-	t.Run("Different Pilot and DataPlane versions is a mismatch", func(t *testing.T) {
-		// given
-		differentVersions := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			PilotVersion:     "1.11.1",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		// when
-		got := isMismatchPresent(differentVersions)
-
-		// then
-		require.True(t, got)
-	})
-
-	t.Run("Same Pilot and DataPlane versions is not a mismatch", func(t *testing.T) {
-		// given
-		sameVersions := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			PilotVersion:     "1.11.2",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		// when
-		got := isMismatchPresent(sameVersions)
-
-		// then
-		require.False(t, got)
+		require.True(t, result)
 	})
 }
 

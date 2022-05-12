@@ -93,7 +93,7 @@ func TestParsePaths(t *testing.T) {
 		//given
 		pathPart9 := "/abcdefgh"
 		paths := []string{}
-		for i := 0; i < istioctlBinaryPathMaxLen/10+1; i++ {
+		for i := 0; i < istioctlSingleBinaryPathMaxLen/10+1; i++ {
 			paths = append(paths, pathPart9)
 		}
 

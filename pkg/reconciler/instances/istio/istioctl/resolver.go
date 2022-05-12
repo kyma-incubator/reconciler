@@ -103,7 +103,7 @@ func (d *DefaultIstioctlResolver) findMatchingBinary(version Version) (*Executab
 	return &matching[len(matching)-1], nil
 }
 
-//go:generate mockery --name=VersionChecker --outpkg=istioctl --case=underscore
+//go:generate mockery --name=VersionChecker --output=istioctl --case=underscore
 // VersionChecker implementations are able to return istioctl executable version
 type VersionChecker interface {
 	// GetIstioVersion return istioctl binary version given it's path

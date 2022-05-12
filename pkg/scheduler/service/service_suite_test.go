@@ -24,6 +24,7 @@ type serviceTestSuite struct {
 	runtimeIDsToClear []string
 	reconRepo         reconciliation.Repository
 	dbConn            db.Connection
+	transition        *ClusterStatusTransition
 }
 
 func TestIntegrationSuite(t *testing.T) {

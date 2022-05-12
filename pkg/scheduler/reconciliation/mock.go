@@ -31,7 +31,12 @@ type MockRepository struct {
 	GetMothershipOperationProcessingDurationResultError error
 	GetAllComponentsResult                              []string
 	GetAllComponentsResultError                         error
+	EnableDebugLoggingResult                            error
 	GetStatusIDsOlderThanDeadlineResult                 map[int64]bool
+}
+
+func (mr *MockRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	return mr.EnableDebugLoggingResult
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
@@ -48,8 +53,12 @@ func (mr *MockRepository) RemoveReconciliationByRuntimeID(runtimeID string) erro
 	return mr.RemoveReconciliationResult
 }
 
-func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
-	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, schedulingIDs...)
+func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error {
+	var schedulingIDsStrings = make([]string, len(schedulingIDs))
+	for i, schedulingID := range schedulingIDs {
+		schedulingIDsStrings[i] = schedulingID.(string)
+	}
+	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, schedulingIDsStrings...)
 	return mr.RemoveReconciliationResult
 }
 
@@ -60,17 +69,6 @@ func (mr *MockRepository) RemoveReconciliationsBeforeDeadline(runtimeID string, 
 		}
 	}
 	return nil
-}
-
-func (mr *MockRepository) RemoveReconciliationsForObsoleteStatus(deadline time.Time) (int, error) {
-	delCount := 0
-	for _, recon := range mr.GetReconciliationsResult {
-		if mr.GetStatusIDsOlderThanDeadlineResult[recon.ClusterConfigStatus] {
-			mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, recon.SchedulingID)
-			delCount++
-		}
-	}
-	return delCount, nil
 }
 
 func (mr *MockRepository) GetRuntimeIDs() ([]string, error) {

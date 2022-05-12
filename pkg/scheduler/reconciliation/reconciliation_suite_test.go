@@ -25,8 +25,8 @@ type reconciliationTestSuite struct {
 
 type testEntities struct {
 	inMemoryRepo             Repository
-	persistenceSchedulingIDs []string
-	inMemorySchedulingIDs    []string
+	persistenceSchedulingIDs []interface{}
+	inMemorySchedulingIDs    []interface{}
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -66,8 +66,8 @@ func (s *reconciliationTestSuite) prepareTest(t *testing.T, count int) *testEnti
 	//create mock database connection
 	dbConn = s.TxConnection()
 
-	persistenceSchedulingIDs := make([]string, 0, count)
-	inMemorySchedulingIDs := make([]string, 0, count)
+	persistenceSchedulingIDs := make([]interface{}, 0, count)
+	inMemorySchedulingIDs := make([]interface{}, 0, count)
 
 	s.persistenceRepo, err = NewPersistedReconciliationRepository(dbConn, true)
 	require.NoError(t, err)

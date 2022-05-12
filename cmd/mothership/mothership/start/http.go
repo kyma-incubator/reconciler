@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/features"
 
 	"github.com/kyma-incubator/reconciler/internal/converters"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -45,12 +47,68 @@ const (
 	paramLast       = "last"
 	paramTimeFormat = time.RFC3339
 	paramPoolID     = "poolID"
+
+	// Limit Request Bodies to 50KB
+	bodyRequestLimitBytes = 50000
 )
+
+//AuditRegistry contains mappings from path-prefixes to array of methods that are registered with the AuditLogMiddleware
+type AuditRegistry map[string][]string
+
+var (
+	auditRegistry = AuditRegistry{
+		fmt.Sprintf("/v{%s}/clusters", paramContractVersion): {
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+		},
+	}
+)
+
+//mustAudit defines wether the given path and method have to be audited
+func (r AuditRegistry) mustAudit(path, method string) bool {
+	if auditRegistry[path] == nil {
+		return false
+	}
+	for _, registeredMethod := range r[path] {
+		if registeredMethod == method {
+			return true
+		}
+	}
+	return false
+}
 
 func startWebserver(ctx context.Context, o *Options) error {
 	//routing
 	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/").Subrouter()
+
+	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
+		for auditedPath, auditedMethods := range auditRegistry {
+			o.Logger().Infof("Auditing %s for methods [%s]", auditedPath, strings.Join(auditedMethods, ","))
+		}
+
+		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = auditLogger.Sync() }() // make golint happy
+		auditLoggerMiddleware := newAuditLoggerMiddleware(auditLogger, o)
+
+		apiRouter.Use(func(h http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				path, err := mux.CurrentRoute(r).GetPathTemplate()
+				// only audit the request if its contained in the auditRegistry and the method matches
+				if err == nil && auditRegistry.mustAudit(path, r.Method) {
+					auditLoggerMiddleware(h).ServeHTTP(w, r)
+				} else {
+					h.ServeHTTP(w, r)
+				}
+			})
+		})
+	}
+
 	metricsRouter := mainRouter.Path("/metrics").Subrouter()
 	healthRouter := mainRouter.PathPrefix("/health").Subrouter()
 	mainRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
@@ -121,6 +179,16 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/debug", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		callHandler(o, enableOperationDebugLogging)).
+		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/reconciliations/{%s}/debug", paramContractVersion, paramSchedulingID),
+		callHandler(o, enableReconciliationDebugLogging)).
+		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
 
@@ -156,15 +224,6 @@ func startWebserver(ctx context.Context, o *Options) error {
 	healthRouter.HandleFunc("/live", live)
 	healthRouter.HandleFunc("/ready", ready(o))
 
-	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
-		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = auditLogger.Sync() }() // make golint happy
-		auditLoggerMiddelware := newAuditLoggerMiddelware(auditLogger, o)
-		apiRouter.Use(auditLoggerMiddelware)
-	}
 	//start server process
 	srv := &server.Webserver{
 		Logger:     o.Logger(),
@@ -174,6 +233,54 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Router:     mainRouter,
 	}
 	return srv.Start(ctx) //blocking call
+}
+
+func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
+
+	if !features.Enabled(features.DebugLogForSpecificOperations) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().EnableDebugLogging(schedulingID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+}
+
+func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
+
+	if !features.Enabled(features.DebugLogForSpecificOperations) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	correlationID, err := params.String(paramCorrelationID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().EnableDebugLogging(schedulingID, correlationID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+
 }
 
 func live(w http.ResponseWriter, _ *http.Request) {
@@ -236,21 +343,15 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
-			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
-		})
-		return
-	}
-	clusterModel, err := keb.NewModelFactory(contractV).Cluster(reqBody)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	clusterModel, err := keb.NewModelFactory(contractV).Cluster(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
 		})
 		return
 	}
-	if _, err := (&kubernetes.ClientBuilder{}).WithString(clusterModel.Kubeconfig).Build(true); err != nil {
+	if _, err := kubernetes.NewClientBuilder().WithLogger(o.Logger()).WithString(clusterModel.Kubeconfig).Build(r.Context(), true); err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "kubeconfig not accepted").Error(),
 		})
@@ -391,15 +492,8 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
-			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
-		})
-		return
-	}
-
-	status, err := keb.NewModelFactory(contractV).Status(reqBody)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	status, err := keb.NewModelFactory(contractV).Status(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
@@ -686,7 +780,8 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var stopOperation keb.OperationStop
-	reqBody, err := ioutil.ReadAll(r.Body)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	reqBody, err := ioutil.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
@@ -753,7 +848,8 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body reconciler.CallbackMessage
-	reqBody, err := ioutil.ReadAll(r.Body)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	reqBody, err := ioutil.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
@@ -847,7 +943,8 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 	}
 
 	var body reconciler.HTTPOccupancyRequest
-	reqBody, err := ioutil.ReadAll(r.Body)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	reqBody, err := ioutil.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),

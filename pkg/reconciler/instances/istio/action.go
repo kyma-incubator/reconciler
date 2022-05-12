@@ -42,11 +42,6 @@ func (a *StatusPreAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	if isMismatchPresent(istioStatus) {
-		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", istioStatus.PilotVersion, istioStatus.DataPlaneVersion)
-		return errors.New(errorMessage)
-	}
-
 	if !isClientCompatibleWithTargetVersion(istioStatus) {
 		return fmt.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion)
 	}
@@ -156,7 +151,7 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 		return nil
 	}
 	if canUpdateResult {
-		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, context.Logger)
+		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, istioStatus.TargetPrefix, context.Logger)
 		if err != nil {
 			context.Logger.Warnf("could not perform ResetProxy action: %v", err)
 			return nil
@@ -243,11 +238,6 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 		return err
 	}
 
-	if isMismatchPresent(istioStatus) {
-		errorMessage := fmt.Sprintf("Istio components version mismatch detected: pilot version: %s, data plane version: %s", istioStatus.PilotVersion, istioStatus.DataPlaneVersion)
-		return errors.New(errorMessage)
-	}
-
 	if !isClientCompatibleWithTargetVersion(istioStatus) {
 		return fmt.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion)
 	}
@@ -283,7 +273,7 @@ func (a *ReconcileIstioConfigurationAction) Run(context *service.ActionContext) 
 			return errors.Wrap(err, "Could not patch MutatingWebhookConfiguration")
 		}
 
-		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, context.Logger)
+		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, istioStatus.TargetPrefix, context.Logger)
 		if err != nil {
 			return errors.Wrap(err, "Could not reset Istio proxy")
 		}
@@ -414,18 +404,6 @@ func getActionTypeFrom(comparison int) string {
 
 func amongOneMinor(first, second helperVersion) bool {
 	return first.ver.Major == second.ver.Major && (first.ver.Minor == second.ver.Minor || first.ver.Minor-second.ver.Minor == -1 || first.ver.Minor-second.ver.Minor == 1)
-}
-
-func isMismatchPresent(istioStatus actions.IstioStatus) bool {
-	pilot, err := newHelperVersionFrom(istioStatus.PilotVersion)
-	if err != nil {
-		return false
-	}
-	dataPlane, err := newHelperVersionFrom(istioStatus.DataPlaneVersion)
-	if err != nil {
-		return false
-	}
-	return pilot.compare(dataPlane) != 0
 }
 
 func deployIstioResources(context context.Context, chartManifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {
