@@ -38,5 +38,7 @@ mothership:
     reconcilers:
       base:
         url: "http://localhost:8081/v1/run"
+      istio:
+        url: "http://localhost:8082/v1/run"
     preComponents:
       - [cluster-essentials, istio-configuration, istio, certificates]

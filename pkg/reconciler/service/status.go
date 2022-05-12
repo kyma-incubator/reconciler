@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"time"
 
@@ -12,23 +13,34 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func createOrUpdateStatusCm(ctx context.Context, componentName string, status reconciler.Status, version string, kubeclient k8s.Client) error {
-	configMapName := fmt.Sprintf("%s-status", componentName)
-	namespace := "kyma-system"
+func createOrUpdateStatusCm(ctx context.Context, task *reconciler.Task, status reconciler.Status, kubeclient k8s.Client, logger *zap.SugaredLogger) error {
+
+	configMapName := fmt.Sprintf("%s-status", task.Component)
 	clientset, err := kubeclient.Clientset()
 	if err != nil {
 		return err
 	}
 
+	_, err = clientset.CoreV1().Namespaces().Get(ctx, task.Namespace, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		logger.Debugf("Namespace %s not found, status ConfigMap will only be created if namespace exists", task.Namespace)
+		return nil
+	}
+
 	// Get ConfigMap
-	configMap, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, configMapName, metav1.GetOptions{})
+	configMap, err := clientset.CoreV1().ConfigMaps(task.Namespace).Get(ctx, configMapName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// ConfigMap does not exist, create new one
+		logger.Debugf("ConfigMap '%s' not found, creating new one", configMapName)
+		lastReconciliation := ""
+		if status == reconciler.StatusSuccess {
+			lastReconciliation = time.Now().String()
+		}
 		configFile := map[string]string{
-			"name":                componentName,
-			"version":             version,
+			"name":                task.Component,
+			"version":             task.Version,
 			"status":              string(status),
-			"last-reconciliation": "",
+			"last-reconciliation": lastReconciliation,
 		}
 		cm := corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
@@ -37,28 +49,32 @@ func createOrUpdateStatusCm(ctx context.Context, componentName string, status re
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      configMapName,
-				Namespace: namespace,
+				Namespace: task.Namespace,
 				Labels:    map[string]string{}, // TODO fill in correct labels
 			},
 			Data: configFile,
 		}
-		_, err := clientset.CoreV1().ConfigMaps("my-namespace").Create(ctx, &cm, metav1.CreateOptions{})
+		_, err := clientset.CoreV1().ConfigMaps(task.Namespace).Create(ctx, &cm, metav1.CreateOptions{})
 		if err != nil {
+			logger.Errorf("Error after creating ConfigMap '%s': %s", configMapName, err)
 			return err
 		}
 
 	} else if err != nil {
 		// Error while fetching ConfigMap
-		return err // TODO better logging
+		logger.Errorf("Error getting ConfigMap '%s': %s", configMapName, err)
+		return err
 	} else {
 		// Update existing ConfigMap
-		configMap.Data["version"] = version
+		logger.Debugf("ConfigMap '%s' found, updating status", configMapName)
+		configMap.Data["version"] = task.Version
 		configMap.Data["status"] = string(status)
 		if status == reconciler.StatusSuccess {
 			configMap.Data["last-reconciliation"] = time.Now().String()
 		}
-		_, err := clientset.CoreV1().ConfigMaps(namespace).Update(ctx, configMap, metav1.UpdateOptions{})
+		_, err := clientset.CoreV1().ConfigMaps(task.Namespace).Update(ctx, configMap, metav1.UpdateOptions{})
 		if err != nil {
+			logger.Errorf("Error updating ConfigMap '%s': %s", configMapName, err)
 			return err
 		}
 	}
