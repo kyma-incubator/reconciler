@@ -44,6 +44,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		} else {
 			manifest, err = r.install.renderManifest(chartProvider, task)
 		}
+
 		if err != nil {
 			if !strings.Contains(err.Error(), "no such file or directory") {
 				err = callback.Callback(&reconciler.CallbackMessage{
@@ -64,6 +65,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 
 		return err
 	}
+
 	heartbeatSender, err := heartbeat.NewHeartbeatSender(ctx, callback, r.logger, heartbeat.Config{
 		Interval: r.heartbeatSenderConfig.interval,
 		Timeout:  r.heartbeatSenderConfig.timeout,

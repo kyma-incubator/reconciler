@@ -25,6 +25,7 @@ const (
 	fakeComponent         = "component-1"
 	workspaceInHomeDir    = "reconciliation-test" //TODO: use workspace in $HOME/.kyma - fix in WS factory!
 	workspaceInProjectDir = "test"
+	modelNamespace        = "model-ns"
 )
 
 type TestAction struct {
@@ -299,6 +300,7 @@ func newModel(t *testing.T, kymaComponent, kymaVersion string) *reconciler.Task 
 		Component:  kymaComponent,
 		Version:    kymaVersion,
 		Kubeconfig: test.ReadKubeconfig(t),
+		Namespace:  modelNamespace,
 		//global parameters - required by some Kyma components
 		Configuration:          reconTest.NewGlobalComponentConfiguration(),
 		ComponentConfiguration: reconciler.ComponentConfiguration{MaxRetries: 1},
