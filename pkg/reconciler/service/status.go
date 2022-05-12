@@ -16,6 +16,9 @@ import (
 
 func createOrUpdateStatusCm(ctx context.Context, task *reconciler.Task, status reconciler.Status, kubeclient k8s.Client, logger *zap.SugaredLogger) error {
 	configMapName := fmt.Sprintf("%s-status", strings.ToLower(task.Component))
+	if task.Namespace == "" {
+		task.Namespace = "default"
+	}
 	clientset, err := kubeclient.Clientset()
 	if err != nil {
 		logger.Errorf("Error getting clientset: %s", err)
