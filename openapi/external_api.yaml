@@ -58,6 +58,7 @@ paths:
                 $ref: '#/components/schemas/HTTPErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
+
   /operations/{schedulingID}/{correlationID}/debug:
     put:
       description: "Enable debug logs for an operation"
@@ -79,13 +80,14 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
-          description: "Given operation not found"
+          description: "Given operation is not found"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HTTPErrorResponse"
         "500":
           $ref: "#/components/responses/InternalError"
+
   /reconciliations/{schedulingID}/info:
     get:
       description: "Get details of a reconciliation with operations"
