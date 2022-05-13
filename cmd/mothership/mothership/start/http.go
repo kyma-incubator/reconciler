@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/features"
 
@@ -181,12 +180,12 @@ func startWebserver(ctx context.Context, o *Options) error {
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/debug", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, enableOperationDebugLogging)).
-		Methods(http.MethodPost)
+		Methods(http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/reconciliations/{%s}/debug", paramContractVersion, paramSchedulingID),
 		callHandler(o, enableReconciliationDebugLogging)).
-		Methods(http.MethodPost)
+		Methods(http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
@@ -238,7 +237,8 @@ func startWebserver(ctx context.Context, o *Options) error {
 func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	if !features.Enabled(features.DebugLogForSpecificOperations) {
-		w.WriteHeader(http.StatusNotFound)
+		err := errors.New("enabling debug logs for a reconciliation is disabled")
+		server.SendHTTPErrorMap(w, err)
 		return
 	}
 	params := server.NewParams(r)
@@ -252,12 +252,14 @@ func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http
 		server.SendHTTPErrorMap(w, err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	if !features.Enabled(features.DebugLogForSpecificOperations) {
-		w.WriteHeader(http.StatusNotFound)
+		err := errors.New("enabling debug logs for an operation is disabled")
+		server.SendHTTPErrorMap(w, err)
 		return
 	}
 	params := server.NewParams(r)
@@ -280,6 +282,7 @@ func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Requ
 		server.SendHTTPErrorMap(w, err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 
 }
 
@@ -976,13 +979,6 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 func deleteComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	poolID, err := params.String(paramPoolID)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
-	_, err = uuid.Parse(poolID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
 			Error: err.Error(),
