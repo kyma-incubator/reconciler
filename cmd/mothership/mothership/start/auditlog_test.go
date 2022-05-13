@@ -22,10 +22,12 @@ import (
 )
 
 const (
-	postKey       = "runtimeID"
-	postValue     = "bb7fb804-ade5-42bc-a740-3c2861d0391d"
-	tenantID      = "5f6b71a9-cd48-448d-9b58-9895f1639bc6"
-	jwtPayloadSub = "test2@test.pl"
+	postKey            = "runtimeID"
+	postValue          = "bb7fb804-ade5-42bc-a740-3c2861d0391d"
+	postSanitizedKey   = "kubeconfig"
+	postSanitizedValue = "SOME DATA TO REDACT"
+	tenantID           = "5f6b71a9-cd48-448d-9b58-9895f1639bc6"
+	jwtPayloadSub      = "test2@test.pl"
 )
 
 type MemorySink struct {
@@ -90,7 +92,7 @@ func Test_Auditlog_With_Middleware(t *testing.T) {
 		paramContractVersion: "1",
 	})
 
-	req.Body = io.NopCloser(bytes.NewBuffer([]byte(fmt.Sprintf(`{"%s":"%s"}`, postKey, postValue))))
+	req.Body = io.NopCloser(bytes.NewBuffer([]byte(fmt.Sprintf(`{"%s":"%s", "%s":"%s"}`, postKey, postValue, postSanitizedKey, postSanitizedValue))))
 
 	mw(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {})).ServeHTTP(w, req)
 
@@ -105,11 +107,16 @@ func Test_Auditlog_With_Middleware(t *testing.T) {
 		a.NotNil(logOutput["level"])
 		a.NotNil(logOutput["uuid"])
 		a.NotNil(logOutput["user"])
-		a.NotNil(logOutput["data"])
 		a.NotNil(logOutput["tenant"])
 		a.NotNil(logOutput["category"])
 		a.NotNil(logOutput["time"])
 		a.Nil(logOutput["ip"])
+
+		a.NotNil(logOutput[DataMessageKey])
+		data, requestBody := data{}, make(map[string]interface{})
+		a.NoError(json.Unmarshal([]byte(logOutput[DataMessageKey].(string)), &data))
+		a.NoError(json.Unmarshal([]byte(data.RequestBody), &requestBody))
+		a.Equal(redacted, requestBody[postSanitizedKey])
 	}
 }
 

@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -21,6 +19,14 @@ import (
 
 const (
 	XJWTHeaderName = "X-Jwt"
+	redacted       = "REDACTED"
+	DataMessageKey = "data"
+)
+
+var (
+	sanitizedFields = []string{
+		"kubeconfig",
+	}
 )
 
 func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
@@ -48,7 +54,7 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 		zap.WrapCore(func(zapcore.Core) zapcore.Core {
 			return zapcore.NewCore(
 				zapcore.NewJSONEncoder(zapcore.EncoderConfig{
-					MessageKey:  "data",
+					MessageKey:  DataMessageKey,
 					LevelKey:    "level",
 					EncodeLevel: zapcore.CapitalLevelEncoder,
 					TimeKey:     "time",
@@ -123,15 +129,32 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 
 	// log request body if needed.
 	if r.Method == "POST" || r.Method == "PUT" {
-		reqBody, err := ioutil.ReadAll(r.Body)
+		reqBody := make(map[string]interface{})
+		decoder := json.NewDecoder(r.Body)
+
+		err := decoder.Decode(&reqBody)
 		if err != nil {
 			server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 				Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
 			})
 			return
 		}
-		r.Body = ioutil.NopCloser(bytes.NewBuffer(reqBody))
-		logData.RequestBody = string(reqBody)
+
+		for _, sanitizedField := range sanitizedFields {
+			if reqBody[sanitizedField] != "" {
+				reqBody[sanitizedField] = redacted
+			}
+		}
+
+		reqBodyMarshalled, err := json.Marshal(reqBody)
+		if err != nil {
+			server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+				Error: errors.Wrap(err, "Failed to write received JSON payload after audit log sanitization").Error(),
+			})
+			return
+		}
+
+		logData.RequestBody = string(reqBodyMarshalled)
 	}
 
 	data, err := json.Marshal(logData)
