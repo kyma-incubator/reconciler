@@ -47,8 +47,8 @@ const (
 	paramTimeFormat = time.RFC3339
 	paramPoolID     = "poolID"
 
-	// Limit Request Bodies to 50KB
-	bodyRequestLimitBytes = 50000
+	// Limit Request Bodies to 100KB
+	bodyRequestLimitBytes = 100000
 )
 
 //AuditRegistry contains mappings from path-prefixes to array of methods that are registered with the AuditLogMiddleware
@@ -121,11 +121,6 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/reconciliations/cluster/{%s}", paramContractVersion, paramRuntimeID),
 		callHandler(o, deleteReconciliationsByCluster)).
 		Methods(http.MethodDelete)
-
-	apiRouter.HandleFunc(
-		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
-		callHandler(o, createOrUpdateCluster)).
-		Methods(http.MethodPost, http.MethodPut)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
