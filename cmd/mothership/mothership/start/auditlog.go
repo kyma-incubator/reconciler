@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -129,8 +131,10 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 
 	// log request body if needed.
 	if r.Method == "POST" || r.Method == "PUT" {
+		// this is a preliminary buffer that gets the request body copied over for use after the middleware
+		var buf bytes.Buffer
 		reqBody := make(map[string]interface{})
-		decoder := json.NewDecoder(r.Body)
+		decoder := json.NewDecoder(io.TeeReader(r.Body, &buf))
 
 		err := decoder.Decode(&reqBody)
 		if err != nil {
@@ -139,6 +143,8 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 			})
 			return
 		}
+		// this resets the body to a new unread copy of the request so that the reader is reset
+		r.Body = io.NopCloser(&buf)
 
 		for _, sanitizedField := range sanitizedFields {
 			if reqBody[sanitizedField] != "" {
