@@ -19,7 +19,7 @@ func TestDatabaseContainerTestSuite(t *testing.T) {
 	noMigrationSettings := testPosgresContainerSettings()
 
 	migrationSettings := testPosgresContainerSettings()
-	migrationSettings.config = MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres"))
+	migrationSettings.Config = MigrationConfig(filepath.Join("..", "..", "configs", "db", "postgres"))
 
 	testCases := []struct {
 		testCaseName     string
@@ -195,6 +195,6 @@ func testPosgresContainerSettings() PostgresContainerSettings {
 		"kyma",
 		"kyma",
 		false,
-		filepath.Join("..", "..", "configs", "encryption", "unittest.key"),
+		UnittestEncryptionKeyFileConfig,
 	}
 }

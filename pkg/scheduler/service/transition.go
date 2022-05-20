@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -195,4 +196,22 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 		return nil
 	}
 	return db.Transaction(t.conn, dbOp, t.logger)
+}
+
+func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadline time.Time, statusCleanupBatchSize int, timeout time.Duration) error {
+	// delete statuses without reconciliations
+	deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations(timeout, statusCleanupBatchSize)
+	if err != nil {
+		return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
+	}
+	t.logger.Infof("%s Cleaned %d statuses successfully", CleanerPrefix, deletedStatusesCount)
+
+	// delete inventory clusters - only if reconciliations are removed successfully - foreign key constraint
+	deletedClustersCount, err := t.Inventory().RemoveDeletedClustersOlderThan(deadline)
+	if err != nil {
+		return fmt.Errorf("failed to remove deleted clusters older than %v: %w", deadline, err)
+	}
+
+	t.logger.Infof("%s Cleaned %d clusters successfully", CleanerPrefix, deletedClustersCount)
+	return nil
 }

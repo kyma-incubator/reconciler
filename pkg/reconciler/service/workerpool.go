@@ -65,8 +65,9 @@ func (pb *workPoolBuilder) Build(ctx context.Context) (*WorkerPool, error) {
 
 func (wa *WorkerPool) AssignWorker(ctx context.Context, model *reconciler.Task) error {
 
+	taskDebugFlag := model.ComponentConfiguration.Debug
 	//enrich logger with correlation ID and component name
-	loggerNew := logger.NewLogger(wa.debug).With(
+	loggerNew := logger.NewLogger(taskDebugFlag).With(
 		zap.Field{Key: "correlation-id", Type: zapcore.StringType, String: model.CorrelationID},
 		zap.Field{Key: "component-name", Type: zapcore.StringType, String: model.Component})
 
@@ -103,4 +104,8 @@ func (wa *WorkerPool) RunningWorkers() int {
 
 func (wa *WorkerPool) Size() int {
 	return wa.antsPool.Cap()
+}
+
+func (wa *WorkerPool) IsFull() bool {
+	return wa.RunningWorkers() >= wa.Size()
 }

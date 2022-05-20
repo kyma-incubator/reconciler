@@ -2,26 +2,24 @@ package reconciliation
 
 import (
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/pkg/errors"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/kyma-incubator/reconciler/pkg/repository"
-	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/repository"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
 	"github.com/stretchr/testify/require"
 )
 
 var (
 	dbConn db.Connection
-	mu     sync.Mutex
 )
 
 type testCase struct {
@@ -29,7 +27,8 @@ type testCase struct {
 	testFct func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State)
 }
 
-func TestReconciliationFindProcessableOps(t *testing.T) {
+func (s *reconciliationTestSuite) TestReconciliationFindProcessableOps() {
+	t := s.T()
 	ops := []*model.OperationEntity{
 		{
 			Priority:      1,
@@ -257,7 +256,8 @@ func resetOperationState(ops []*model.OperationEntity) {
 	}
 }
 
-func TestReconciliationRepository(t *testing.T) {
+func (s *reconciliationTestSuite) TestReconciliationRepository() {
+	t := s.T()
 	var testCases = []testCase{
 		{
 			name: "Create reconciliation",
@@ -721,23 +721,135 @@ func TestReconciliationRepository(t *testing.T) {
 				require.GreaterOrEqual(t, meanDuration, int64(1000))
 			},
 		},
+		{
+			name: "Enable debug logging for a reconciliation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+				require.False(t, reconEntity.Status.IsFinal())
+
+				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID)
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					require.True(t, op.Debug)
+				}
+			},
+		},
+		{
+			name: "Enable debug logging for a non-final reconciliation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+				require.False(t, reconEntity.Status.IsFinal())
+
+				clusterStatus := stateMock1.Status
+				clusterStatus.Status = model.ClusterStatusReconcileErrorRetryable
+				err = reconRepo.FinishReconciliation(reconEntity.SchedulingID, clusterStatus)
+				require.NoError(t, err)
+				updatedReconEntity, err := reconRepo.GetReconciliation(reconEntity.SchedulingID)
+				require.NoError(t, err)
+				require.True(t, updatedReconEntity.Status.IsFinal())
+
+				err = reconRepo.EnableDebugLogging(updatedReconEntity.SchedulingID)
+				require.Error(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range opsEntities {
+					require.False(t, op.Debug)
+				}
+			},
+		},
+		{
+			name: "Enable debug logging for a specific operation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				operationEntity := opsEntities[0]
+
+				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID, operationEntity.CorrelationID)
+				require.NoError(t, err)
+
+				updatedOpsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range updatedOpsEntities {
+					if op.CorrelationID == operationEntity.CorrelationID {
+						require.True(t, op.Debug)
+					} else {
+						require.False(t, op.Debug)
+					}
+				}
+
+			},
+		},
+		{
+			name: "Enable debug logging for a non-new operation",
+			testFct: func(t *testing.T, reconRepo Repository, stateMock1, stateMock2 *cluster.State) {
+				reconEntity, err := reconRepo.CreateReconciliation(stateMock1, &model.ReconciliationSequenceConfig{})
+				require.NoError(t, err)
+
+				opsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				operationEntity := opsEntities[0]
+				require.Equal(t, operationEntity.State, model.OperationStateNew)
+
+				err = reconRepo.UpdateOperationState(operationEntity.SchedulingID, operationEntity.CorrelationID, model.OperationStateOrphan, true)
+				require.NoError(t, err)
+
+				err = reconRepo.EnableDebugLogging(reconEntity.SchedulingID, operationEntity.CorrelationID)
+				require.Error(t, err)
+
+				updatedOpsEntities, err := reconRepo.GetOperations(&operation.WithSchedulingID{
+					SchedulingID: reconEntity.SchedulingID,
+				})
+				require.NoError(t, err)
+
+				for _, op := range updatedOpsEntities {
+					require.False(t, op.Debug)
+				}
+
+			},
+		},
 	}
 
 	repos := map[string]Repository{
-		"persistent": newPersistentRepository(t),
+		"persistent": s.newPersistentRepository(t),
 		"in-memory":  NewInMemoryReconciliationRepository(),
 	}
 
-	inventory, err := cluster.NewInventory(dbConnection(t), true, cluster.MetricsCollectorMock{})
+	inventory, err := cluster.NewInventory(s.TxConnection(), true, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 
 	for _, testCase := range testCases {
 		for repoName, repo := range repos {
-			//prepare test context
-			t.Log("Preparing test context: deleting all reconciliations")
-			removeExistingReconciliations(t, repos) //cleanup before
-			t.Run(fmt.Sprintf("%s: %s", repoName, testCase.name), newTestFct(testCase, inventory, repo))
-			removeExistingReconciliations(t, repos) //cleanup after
+			t.Run(fmt.Sprintf("%s: %s", repoName, testCase.name), func(t *testing.T) {
+				//prepare test context
+				t.Log("Preparing test context: deleting all reconciliations")
+				removeExistingReconciliations(t, repos) //cleanup before
+				newTestFct(testCase, inventory, repo)
+				removeExistingReconciliations(t, repos) //cleanup after
+			})
 		}
 	}
 
@@ -786,8 +898,8 @@ func verifyOperationState(t *testing.T, op *model.OperationEntity, expectedState
 	require.Equal(t, reason, op.Reason)
 }
 
-func newPersistentRepository(t *testing.T) Repository {
-	reconRepo, err := NewPersistedReconciliationRepository(dbConnection(t), true)
+func (s *reconciliationTestSuite) newPersistentRepository(t *testing.T) Repository {
+	reconRepo, err := NewPersistedReconciliationRepository(s.TxConnection(), true)
 	require.NoError(t, err)
 
 	return reconRepo
@@ -803,64 +915,61 @@ func findOperationsByPrio(ops []*model.OperationEntity, prio int) []*model.Opera
 	return result
 }
 
-func dbConnection(t *testing.T) db.Connection {
-	mu.Lock()
-	defer mu.Unlock()
-	if dbConn == nil {
-		dbConn = db.NewTestConnection(t)
+func (s *reconciliationTestSuite) TestRollbackNestedTransaction() {
+	t := s.T()
+	//new db connection
+	dbConn, err := s.NewConnection()
+	require.NoError(t, err)
+	defer func(dbConn db.Connection) {
+		require.NoError(t, dbConn.Close())
+	}(dbConn)
+
+	//create inventory
+	reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
+	require.NoError(t, err)
+
+	dbOp := func(tx *db.TxConnection) error {
+
+		//converts inventory with given tx
+		reconRepoTx, err := reconRepo.WithTx(tx)
+		require.NoError(t, err)
+
+		//prepare inventory
+		inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
+		require.NoError(t, err)
+
+		//add clusters to inventory
+		clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
+		require.NoError(t, err)
+		clusterState2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.OneComponentDummy))
+		require.NoError(t, err)
+
+		//create two clusters
+		_, err = reconRepoTx.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
+		require.NoError(t, err)
+		_, err = reconRepoTx.CreateReconciliation(clusterState2, &model.ReconciliationSequenceConfig{})
+		require.NoError(t, err)
+
+		//check if reconciliations are created
+		recons, err := reconRepoTx.GetReconciliations(nil)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(recons))
+
+		//rollback transactions
+		return errors.New("Fake error")
 	}
-	return dbConn
+	require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
+
+	//check if reconciliations are rolled back - should throw an error
+	reconRepo, err = NewPersistedReconciliationRepository(dbConn, true)
+	require.NoError(t, err)
+	recons, err := reconRepo.GetReconciliations(nil)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(recons))
 }
 
-func TestTransaction(t *testing.T) {
-	t.Run("Rollback nested transactions", func(t *testing.T) {
-		//new db connection
-		dbConn := db.NewTestConnection(t)
-
-		//create inventory
-		reconRepo, err := NewPersistedReconciliationRepository(dbConn, true)
-		require.NoError(t, err)
-
-		dbOp := func(tx *db.TxConnection) error {
-
-			//converts inventory with given tx
-			reconRepoTx, err := reconRepo.WithTx(tx)
-			require.NoError(t, err)
-
-			//prepare inventory
-			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
-			require.NoError(t, err)
-
-			//add clusters to inventory
-			clusterState, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "1", 1, false, test.OneComponentDummy))
-			require.NoError(t, err)
-			clusterState2, err := inventory.CreateOrUpdate(1, test.NewCluster(t, "2", 1, false, test.OneComponentDummy))
-			require.NoError(t, err)
-
-			//create two clusters
-			_, err = reconRepoTx.CreateReconciliation(clusterState, &model.ReconciliationSequenceConfig{})
-			require.NoError(t, err)
-			_, err = reconRepoTx.CreateReconciliation(clusterState2, &model.ReconciliationSequenceConfig{})
-			require.NoError(t, err)
-
-			//check if reconciliations are created
-			recons, err := reconRepoTx.GetReconciliations(nil)
-			require.NoError(t, err)
-			require.Equal(t, 2, len(recons))
-
-			//rollback transactions
-			return errors.New("Fake error")
-		}
-		require.Error(t, db.Transaction(dbConn, dbOp, logger.NewLogger(true)))
-
-		//check if reconciliations are rolled back
-		recons, err := reconRepo.GetReconciliations(nil)
-		require.NoError(t, err)
-		require.Equal(t, 0, len(recons))
-	})
-}
-
-func TestReconciliationParallel(t *testing.T) {
+func (s *reconciliationTestSuite) TestReconciliationParallel() {
+	t := s.T()
 	t.Skip("redesign the parallel test")
 	//nolint:unused
 	type testCase struct {
@@ -959,7 +1068,11 @@ func TestReconciliationParallel(t *testing.T) {
 			errChannel := make(chan error, threadCnt)
 
 			//create mock database connection
-			dbConn := db.NewTestConnection(t)
+			dbConn, err := s.NewConnection()
+			require.NoError(t, err)
+			defer func(dbConn db.Connection) {
+				require.NoError(t, dbConn.Close())
+			}(dbConn)
 			//prepare inventory
 			inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
 			require.NoError(t, err)

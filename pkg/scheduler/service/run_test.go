@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/occupancy"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -30,51 +30,55 @@ type customAction struct {
 	success bool
 }
 
-func (a *customAction) Run(_ *service.ActionContext) error {
+func (a *customAction) Run(*service.ActionContext) error {
 	if a.success {
 		return nil
 	}
 	return fmt.Errorf("action failed")
 }
 
-func TestRuntimeBuilder(t *testing.T) {
-	test.IntegrationTest(t)
-
+func registerBaseReconciler(t *testing.T) *service.ComponentReconciler {
 	//register custom 'base' component reconciler for this unittest
 	compRecon, err := service.NewComponentReconciler("base")
 	require.NoError(t, err)
 	compRecon.WithRetryDelay(1 * time.Second)
-
-	t.Run("Run local with success (waiting for CRDs)", func(t *testing.T) {
-		compRecon.WithReconcileAction(&customAction{true})
-		reconResult, receivedUpdates := runLocal(t, 30*time.Second)
-		require.Equal(t, model.ClusterStatusReady, reconResult.GetResult())
-		require.Equal(t, reconciler.StatusSuccess, receivedUpdates[len(receivedUpdates)-1].Status)
-	})
-
-	t.Run("Run local with error", func(t *testing.T) {
-		compRecon.WithReconcileAction(&customAction{false})
-		reconResult, receivedUpdates := runLocal(t, 5*time.Second)
-		require.Equal(t, model.ClusterStatusReconcileError, reconResult.GetResult())
-
-		//Because of parallel processing the message order is not guaranteed. Check the count of different statuses instead
-		require.Equal(t, 1, countStatus(reconciler.StatusRunning, receivedUpdates))
-		require.Equal(t, 1, countStatus(reconciler.StatusError, receivedUpdates))
-		require.Equal(t, 1, countStatus(reconciler.StatusFailed, receivedUpdates))
-	})
-
-	t.Run("Run remote with success", func(t *testing.T) {
-		runRemote(t, model.ClusterStatusReady, 30*time.Second)
-	})
-
-	t.Run("Run remote with error", func(t *testing.T) {
-		runRemote(t, model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
-	})
+	return compRecon
 }
 
-func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Duration) {
-	dbConn := db.NewTestConnection(t)
+func (s *serviceTestSuite) TestRunLocalWithSuccess() {
+	t := s.T()
+	compRecon := registerBaseReconciler(t)
+	compRecon.WithReconcileAction(&customAction{true})
+	reconResult, receivedUpdates := s.runLocal(30 * time.Second)
+	require.Equal(t, model.ClusterStatusReady, reconResult.GetResult())
+	require.Equal(t, reconciler.StatusSuccess, receivedUpdates[len(receivedUpdates)-1].Status)
+}
 
+func (s *serviceTestSuite) TestRunLocalWithError() {
+	t := s.T()
+	compRecon := registerBaseReconciler(t)
+	compRecon.WithReconcileAction(&customAction{false})
+	reconResult, receivedUpdates := s.runLocal(5 * time.Second)
+	require.Equal(t, model.ClusterStatusReconcileError, reconResult.GetResult())
+
+	//Because of parallel processing the message order is not guaranteed. Check the count of different statuses instead
+	require.Equal(t, 1, countStatus(reconciler.StatusRunning, receivedUpdates))
+	require.Equal(t, 1, countStatus(reconciler.StatusError, receivedUpdates))
+	require.Equal(t, 1, countStatus(reconciler.StatusFailed, receivedUpdates))
+}
+
+func (s *serviceTestSuite) TestRunRemoteWithSuccess() {
+	s.runRemote(model.ClusterStatusReady, 30*time.Second)
+}
+
+func (s *serviceTestSuite) TestRunRemoteWithError() {
+	s.runRemote(model.ClusterStatusReconcileErrorRetryable, 20*time.Second)
+}
+
+func (s *serviceTestSuite) runRemote(expectedClusterStatus model.Status, timeout time.Duration) {
+	t := s.T()
+	dbConn, err := s.NewConnection()
+	require.NoError(t, err)
 	//create cluster entity
 	inventory, err := cluster.NewInventory(dbConn, debugLogging, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
@@ -100,16 +104,6 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	//create reconciliation repository
 	reconRepo, err := reconciliation.NewPersistedReconciliationRepository(dbConn, debugLogging)
 	require.NoError(t, err)
-
-	//cleanup
-	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
-		recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
-		require.NoError(t, err)
-		for _, recon := range recons {
-			require.NoError(t, reconRepo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
-		}
-	}()
 
 	//configure remote runner
 	runtimeBuilder := NewRuntimeBuilder(reconRepo, logger.NewLogger(debugLogging))
@@ -145,10 +139,21 @@ func runRemote(t *testing.T, expectedClusterStatus model.Status, timeout time.Du
 	remoteRunner.WithCleanerConfig(&CleanerConfig{
 		PurgeEntitiesOlderThan: 15 * time.Second,
 		CleanerInterval:        4 * time.Second,
+		StatusCleanupBatchSize: 100,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	//cleanup
+	defer func(dbConn db.Connection) {
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+		recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
+		require.NoError(t, err)
+		for _, recon := range recons {
+			require.NoError(t, reconRepo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
+		}
+		require.NoError(t, dbConn.Close())
+		cancel()
+	}(dbConn)
 	require.NoError(t, remoteRunner.Run(ctx))
 
 	setOperationState(t, reconRepo, expectedClusterStatus, clusterState.Cluster.RuntimeID)
@@ -233,9 +238,12 @@ func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expect
 	}
 }
 
-func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*reconciler.CallbackMessage) {
+func (s *serviceTestSuite) runLocal(timeout time.Duration) (*ReconciliationResult, []*reconciler.CallbackMessage) {
+	t := s.T()
+	dbConn, err := s.NewConnection()
+	require.NoError(t, err)
 	//create cluster entity
-	inventory, err := cluster.NewInventory(db.NewTestConnection(t), debugLogging, cluster.MetricsCollectorMock{})
+	inventory, err := cluster.NewInventory(dbConn, debugLogging, cluster.MetricsCollectorMock{})
 	require.NoError(t, err)
 	clusterState, err := inventory.CreateOrUpdate(1, &keb.Cluster{
 		Kubeconfig: test.ReadKubeconfig(t),
@@ -253,11 +261,6 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	})
 	require.NoError(t, err)
 
-	//cleanup
-	defer func() {
-		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
-	}()
-
 	//create reconciliation repository
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 
@@ -271,7 +274,12 @@ func runLocal(t *testing.T, timeout time.Duration) (*ReconciliationResult, []*re
 	}).WithWorkerPoolMaxRetries(1).WithSchedulerConfig(&SchedulerConfig{})
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	//cleanup
+	defer func(dbConn db.Connection) {
+		require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
+		cancel()
+		require.NoError(t, dbConn.Close())
+	}(dbConn)
 
 	reconResult, err := localRunner.Run(ctx, clusterState)
 	require.NoError(t, err)

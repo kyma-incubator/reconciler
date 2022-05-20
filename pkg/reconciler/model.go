@@ -31,7 +31,8 @@ func NewStatus(status string) (Status, error) {
 }
 
 type ComponentConfiguration struct {
-	MaxRetries int `json:"maxRetries"`
+	MaxRetries int  `json:"maxRetries"`
+	Debug      bool `json:"debug"`
 }
 
 //Task the reconciler has to complete when called

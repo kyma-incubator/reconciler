@@ -179,9 +179,9 @@ func (pcf *postgresConnectionFactory) Init(migrate bool) error {
 func (pcf *postgresConnectionFactory) Reset() error {
 	return pcf.runMigration(func(m *migrate.Migrate) error {
 		if err := m.Drop(); err != nil && err != migrate.ErrNoChange {
-			return errors.Wrapf(err, "not able to reset database: %s", err)
+			return errors.Wrapf(err, "not able to reset Database: %s", err)
 		}
-		m.Log.Printf("dropped database")
+		m.Log.Printf("dropped Database")
 		return nil
 	})
 }
@@ -254,7 +254,7 @@ func (pcf *postgresConnectionFactory) checkPostgresIsolationLevel() error {
 func (pcf *postgresConnectionFactory) migrateDatabase() error {
 	return pcf.runMigration(func(m *migrate.Migrate) error {
 		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-			return errors.Wrapf(err, "not able to migrate database: %s", err)
+			return errors.Wrapf(err, "not able to migrate Database: %s", err)
 		}
 		m.Log.Printf("Database migration finished")
 		return nil
@@ -278,7 +278,7 @@ func (pcf *postgresConnectionFactory) runMigration(migrateFct func(m *migrate.Mi
 	}
 	m, err := migrate.NewWithDatabaseInstance("file://"+pcf.migrationsDir, "postgres", driver)
 	if err != nil {
-		return errors.Wrap(err, "not able to instantiate migrator with database instance")
+		return errors.Wrap(err, "not able to instantiate migrator with Database instance")
 	}
 	m.Log = migrateLogger
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {

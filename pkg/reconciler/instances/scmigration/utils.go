@@ -19,10 +19,14 @@ const operatorGroupVersion = "v1alpha1"
 
 func getSMClient(ctx context.Context, secret *v1.Secret) (sm.Client, error) {
 	secretData := secret.Data
+	url := string(secretData["url"])
+	if url == "" {
+		url = string(secretData["sm_url"])
+	}
 	return sm.NewClient(ctx, &sm.ClientConfig{
 		ClientID:       string(secretData["clientid"]),
 		ClientSecret:   string(secretData["clientsecret"]),
-		URL:            string(secretData["url"]),
+		URL:            url,
 		TokenURL:       string(secretData["tokenurl"]),
 		TokenURLSuffix: "/oauth/token",
 		SSLDisabled:    false,

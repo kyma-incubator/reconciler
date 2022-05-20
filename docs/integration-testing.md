@@ -34,8 +34,6 @@ The test suite takes care of using a shared container that is reused between tes
 
 The reuse can be achieved by "leasing" a container suite from a globally managed map.
 
-> **IMPORTANT**: You must always return the lease of the container suite so that the container is cleaned up correctly with `ReturnLeasedSharedContainerTestSuite(*testing.T, settings ContainerSettings)`.
-
 ```go
 package random
 
@@ -52,7 +50,6 @@ func TestDbSuite(t *testing.T) {
 	suite.Run(t, &DbTestSuite{db.LeaseSharedContainerTestSuite(
 		t, db.DefaultSharedContainerSettings, true, false
 	)})
-	db.ReturnLeasedSharedContainerTestSuite(t, db.DefaultSharedContainerSettings)
 }
 ```
 

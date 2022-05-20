@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -21,8 +21,14 @@ import (
 
 const (
 	XJWTHeaderName = "X-Jwt"
-	// ExternalAddressHeaderName https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#config-http-conn-man-headers-x-envoy-external-address
-	ExternalAddressHeaderName = "X-Envoy-External-Address"
+	redacted       = "REDACTED"
+	DataMessageKey = "data"
+)
+
+var (
+	sanitizedFields = []string{
+		"kubeconfig",
+	}
 )
 
 func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
@@ -50,11 +56,13 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 		zap.WrapCore(func(zapcore.Core) zapcore.Core {
 			return zapcore.NewCore(
 				zapcore.NewJSONEncoder(zapcore.EncoderConfig{
-					MessageKey:   "",
-					LevelKey:     "level",
-					EncodeLevel:  zapcore.CapitalLevelEncoder,
-					TimeKey:      "time",
-					EncodeTime:   zapcore.ISO8601TimeEncoder,
+					MessageKey:  DataMessageKey,
+					LevelKey:    "level",
+					EncodeLevel: zapcore.CapitalLevelEncoder,
+					TimeKey:     "time",
+					EncodeTime: func(t time.Time, pae zapcore.PrimitiveArrayEncoder) {
+						zapcore.RFC3339TimeEncoder(t.UTC(), pae)
+					},
 					EncodeCaller: zapcore.ShortCallerEncoder,
 				}),
 				ws,
@@ -64,7 +72,7 @@ func NewLoggerWithFile(logFile string) (*zap.Logger, error) {
 	), err
 }
 
-func newAuditLoggerMiddelware(l *zap.Logger, o *Options) func(http.Handler) http.Handler {
+func newAuditLoggerMiddleware(l *zap.Logger, o *Options) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			auditLogRequest(w, r, l, o)
@@ -81,16 +89,9 @@ type data struct {
 	RequestBody     string `json:"requestBody"`
 	User            string `json:"user"`
 	Tenant          string `json:"tenant"`
-	IP              string `json:"ip"`
 }
 
 func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *Options) {
-
-	// Any Audit Log relevant entry will be a stateful change in POST/PUT/PATCH, GET can be ignored
-	if r.Method == http.MethodGet {
-		return
-	}
-
 	params := server.NewParams(r)
 	contractV, err := params.Int64(paramContractVersion)
 	if err != nil {
@@ -106,7 +107,6 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		URI:             r.RequestURI,
 		User:            "UNKNOWN_USER",
 		Tenant:          o.AuditLogTenantID,
-		IP:              "",
 	}
 
 	jwtPayload, err := getJWTPayload(r)
@@ -131,22 +131,36 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 
 	// log request body if needed.
 	if r.Method == "POST" || r.Method == "PUT" {
-		reqBody, err := ioutil.ReadAll(r.Body)
+		// this is a preliminary buffer that gets the request body copied over for use after the middleware
+		var buf bytes.Buffer
+		reqBody := make(map[string]interface{})
+		decoder := json.NewDecoder(io.TeeReader(r.Body, &buf))
+
+		err := decoder.Decode(&reqBody)
 		if err != nil {
 			server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
 				Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
 			})
 			return
 		}
-		r.Body = ioutil.NopCloser(bytes.NewBuffer(reqBody))
-		logData.RequestBody = string(reqBody)
-	}
+		// this resets the body to a new unread copy of the request so that the reader is reset
+		r.Body = io.NopCloser(&buf)
 
-	externalHeaderIP := r.Header.Get(ExternalAddressHeaderName)
-	if externalHeaderIP == "" {
-		o.Logger().Debug(fmt.Sprintf("empty %s header", ExternalAddressHeaderName))
-	} else {
-		logData.IP = externalHeaderIP
+		for _, sanitizedField := range sanitizedFields {
+			if reqBody[sanitizedField] != "" {
+				reqBody[sanitizedField] = redacted
+			}
+		}
+
+		reqBodyMarshalled, err := json.Marshal(reqBody)
+		if err != nil {
+			server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
+				Error: errors.Wrap(err, "Failed to write received JSON payload after audit log sanitization").Error(),
+			})
+			return
+		}
+
+		logData.RequestBody = string(reqBodyMarshalled)
 	}
 
 	data, err := json.Marshal(logData)
@@ -157,18 +171,13 @@ func auditLogRequest(w http.ResponseWriter, r *http.Request, l *zap.Logger, o *O
 		return
 	}
 
-	logger := l.With(zap.String("time", time.Now().Format(time.RFC3339))).
+	logger := l.
 		With(zap.String("uuid", uuid.New().String())).
 		With(zap.String("user", logData.User)).
-		With(zap.String("data", string(data))).
 		With(zap.String("tenant", o.AuditLogTenantID)).
 		With(zap.String("category", "audit.security-events")) // comply with required log backend format
 
-	if logData.IP != "" {
-		logger = logger.With(zap.String("ip", logData.IP))
-	}
-
-	logger.Info("")
+	logger.Info(string(data))
 }
 
 func getJWTPayload(r *http.Request) (string, error) {

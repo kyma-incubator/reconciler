@@ -22,6 +22,69 @@ type PersistentReconciliationRepository struct {
 	*repository.Repository
 }
 
+func (r *PersistentReconciliationRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	reconciliationEntity, err := r.GetReconciliation(schedulingID)
+	if err != nil {
+		return err
+	}
+	if reconciliationEntity.Status.IsFinal() {
+		return fmt.Errorf("could not change debug log for reconciliation (schedulingID=%s): reconciliation state is final: %s", schedulingID, reconciliationEntity.Status)
+	}
+	dbOps := func(tx *db.TxConnection) error {
+		var updateArgs []interface{}
+
+		var correlationIDSQL string
+
+		updateSQLTpl := "UPDATE %s SET %s=$1 WHERE %s=$2 AND %s=$3"
+
+		op := &model.OperationEntity{}
+		columnHandler, err := db.NewColumnHandler(op, tx, r.Logger)
+		if err != nil {
+			return err
+		}
+
+		debugColumn, err := columnHandler.ColumnName("Debug")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, true)
+		schedulingIDColumn, err := columnHandler.ColumnName("SchedulingID")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, schedulingID)
+		opStateColumn, err := columnHandler.ColumnName("State")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, model.OperationStateNew)
+		correlationIDColumn, err := columnHandler.ColumnName("CorrelationID")
+		if err != nil {
+			return err
+		}
+		if len(correlationID) == 1 {
+			correlationIDSQL = fmt.Sprintf(" AND %s=$4", correlationIDColumn)
+			updateArgs = append(updateArgs, correlationID[0])
+		}
+		updateSQL := fmt.Sprintf(updateSQLTpl, op.Table(), debugColumn, schedulingIDColumn, opStateColumn)
+
+		result, err := tx.Exec(fmt.Sprintf("%s%s", updateSQL, correlationIDSQL), updateArgs...)
+		if err != nil {
+			return err
+		}
+		rowsAffectedCnt, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffectedCnt == 0 {
+			return fmt.Errorf("reconRepo failed to enable debug log level for requested operations")
+		}
+		r.Logger.Infof("reconRepo successfully enabled debug log level for %d operations", len(correlationID))
+		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
 func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repository, error) {
 	repo, err := repository.NewRepository(conn, debug)
 	if err != nil {
@@ -150,8 +213,8 @@ func (r *PersistentReconciliationRepository) RemoveReconciliationByRuntimeID(run
 	return db.Transaction(r.Conn, getRemoveReconciliationOpFn("RuntimeID", runtimeID, r.Logger), r.Logger)
 }
 
-func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []string) error {
-	schedulingIDsBlocks := splitStringSlice(schedulingIDs, 200)
+func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error {
+	schedulingIDsBlocks := repository.SplitSliceByBlockSize(schedulingIDs, 200)
 
 	dbOps := func(tx *db.TxConnection) error {
 		for _, schedulingIDsBlock := range schedulingIDsBlocks {
@@ -693,27 +756,6 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 	}
 
 	return components, nil
-}
-
-func splitStringSlice(slice []string, blockSize int) [][]string {
-	sliceLength := len(slice)
-	if sliceLength == 0 {
-		return nil
-	}
-
-	subSlicesCount := (sliceLength-1)/blockSize + 1
-	resultSlice := make([][]string, 0, subSlicesCount)
-
-	var high int
-	for low := 0; low < sliceLength; low += blockSize {
-		high += blockSize
-		if high > sliceLength {
-			high = sliceLength
-		}
-
-		resultSlice = append(resultSlice, slice[low:high])
-	}
-	return resultSlice
 }
 
 func getRemoveReconciliationOpFn(field string, value string, logger *zap.SugaredLogger) func(tx *db.TxConnection) error {

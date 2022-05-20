@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"github.com/google/uuid"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -12,18 +14,28 @@ import (
 var CleanerPrefix = "[CLEANER]"
 
 type CleanerConfig struct {
-	PurgeEntitiesOlderThan  time.Duration
-	CleanerInterval         time.Duration
-	KeepLatestEntitiesCount uint
-	MaxEntitiesAgeDays      uint
+	PurgeEntitiesOlderThan     time.Duration
+	CleanerInterval            time.Duration
+	RetainReconciliationsCount uint
+	MaxReconciliationsAgeDays  uint
+	MaxInventoryAgeDays        uint
+	StatusCleanupBatchSize     uint
 }
 
-func (c *CleanerConfig) keepLatestEntitiesCount() int {
-	return int(c.KeepLatestEntitiesCount)
+func (c *CleanerConfig) retainReconciliationsCount() int {
+	return int(c.RetainReconciliationsCount)
 }
 
-func (c *CleanerConfig) maxEntitiesAgeDays() int {
-	return int(c.MaxEntitiesAgeDays)
+func (c *CleanerConfig) maxReconciliationsAgeDays() int {
+	return int(c.MaxReconciliationsAgeDays)
+}
+
+func (c *CleanerConfig) maxInventoryAgeDays() int {
+	return int(c.MaxInventoryAgeDays)
+}
+
+func (c *CleanerConfig) statusCleanupBatchSize() int {
+	return int(c.StatusCleanupBatchSize)
 }
 
 type cleaner struct {
@@ -37,14 +49,14 @@ func newCleaner(logger *zap.SugaredLogger) *cleaner {
 }
 
 func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, config *CleanerConfig) error {
-	c.logger.Infof("%s Starting entities cleaner: interval for clearing old Reconciliation and Operation entities is %s", CleanerPrefix, config.CleanerInterval.String())
+	c.logger.Infof("%s Starting entities cleaner: interval for clearing old cluster inventory and reconciliation entities is %s", CleanerPrefix, config.CleanerInterval.String())
 
 	ticker := time.NewTicker(config.CleanerInterval)
-	c.purgeReconciliations(transition, config) //check for entities now, otherwise first check would be trigger by ticker
+	c.purgeEntities(transition, config) //check for entities now, otherwise first check would be trigger by ticker
 	for {
 		select {
 		case <-ticker.C:
-			c.purgeReconciliations(transition, config)
+			c.purgeEntities(transition, config)
 		case <-ctx.Done():
 			c.logger.Infof("%s Stopping because parent context got closed", CleanerPrefix)
 			ticker.Stop()
@@ -53,50 +65,71 @@ func (c *cleaner) Run(ctx context.Context, transition *ClusterStatusTransition, 
 	}
 }
 
-func (c *cleaner) purgeReconciliations(transition *ClusterStatusTransition, config *CleanerConfig) {
+func (c *cleaner) purgeEntities(transition *ClusterStatusTransition, config *CleanerConfig) {
+	// delete reconciliations
+	cleanerProcessUUID := uuid.NewString()
+	c.logger.Infof("%s Process started (%s): Reconcilations cleanup", CleanerPrefix, cleanerProcessUUID)
+	startReconciliations := time.Now()
 
-	c.logger.Infof("%s Process started", CleanerPrefix)
-
-	if config.KeepLatestEntitiesCount > 0 {
-		c.logger.Infof("%s Cleaner will remove unnecessary entities", CleanerPrefix)
-		c.purgeReconciliationsNew(transition, config)
+	if config.retainReconciliationsCount() > 0 {
+		c.logger.Infof("%s Cleaner will remove unnecessary reconciliations", CleanerPrefix)
+		c.purgeReconciliationsNew(transition, config, cleanerProcessUUID)
+		c.logger.Debugf("%s New cleaner script info: Max reconciliations days - %d, Keep entities count - %d", CleanerPrefix, config.maxInventoryAgeDays(), config.retainReconciliationsCount())
 	} else {
-		c.logger.Infof("%s Cleaner will remove entities older than %s", CleanerPrefix, config.PurgeEntitiesOlderThan.String())
+		c.logger.Infof("%s Cleaner will remove reconciliations older than %s", CleanerPrefix, config.PurgeEntitiesOlderThan.String())
 		c.purgeReconciliationsOld(transition, config)
 	}
+	c.logger.Infof("%s Process finished (%s): Reconcilations cleanup, took %.2f minutes", CleanerPrefix, cleanerProcessUUID, time.Since(startReconciliations).Minutes())
+	c.clusterEntityCleanup(transition, config, cleanerProcessUUID)
 
-	c.logger.Infof("%s Process finished", CleanerPrefix)
+}
+
+func (c *cleaner) clusterEntityCleanup(transition *ClusterStatusTransition, config *CleanerConfig, cleanerProcessUUID string) {
+	clusterInventoryCleanupDays := config.maxInventoryAgeDays()
+	if clusterInventoryCleanupDays > 0 {
+		// delete cluster entities
+		c.logger.Infof("%s Process started (%s): Cluster entities cleanup and intermediary statuses", CleanerPrefix, cleanerProcessUUID)
+		startClusterEntities := time.Now()
+
+		deadline := beginningOfTheDay(time.Now().UTC()).AddDate(0, 0, -1*clusterInventoryCleanupDays)
+		if err := transition.CleanStatusesAndDeletedClustersOlderThan(deadline, config.statusCleanupBatchSize(), time.Second*5); err != nil {
+			c.logger.Errorf("%s Failed (%s): to remove inventory clusters and intermediary statuses %v", CleanerPrefix, cleanerProcessUUID, err)
+		}
+		c.logger.Infof("%s Process finished (%s): Cluster entities cleanup, took %.2f minutes", CleanerPrefix, cleanerProcessUUID, time.Since(startClusterEntities).Minutes())
+		c.logger.Debugf("%s New cleaner script info: Max inventory days - %d", CleanerPrefix, config.maxInventoryAgeDays())
+	}
 }
 
 //Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
-func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, config *CleanerConfig) {
+func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, config *CleanerConfig, cleanerProcessUUID string) {
 
 	runtimeIDs, err := transition.ReconciliationRepository().GetRuntimeIDs()
 	if err != nil {
-		c.logger.Errorf("%s Failed to get all runtimeIDs: %s", CleanerPrefix, err.Error())
+		c.logger.Errorf("%s Failed (%s): to get all runtimeIDs: %s", CleanerPrefix, cleanerProcessUUID, err.Error())
 		return
 	}
 
 	for _, runtimeID := range runtimeIDs {
-		c.purgeReconciliationsForCluster(runtimeID, transition, config)
+		if err := c.purgeReconciliationsForCluster(runtimeID, transition, config); err != nil {
+			c.logger.Errorf("%s (%s): %v", CleanerPrefix, cleanerProcessUUID, err)
+		}
 	}
 }
 
-func (c *cleaner) purgeReconciliationsForCluster(runtimeID string, transition *ClusterStatusTransition, config *CleanerConfig) {
-	c.logger.Infof("%s Cleaning reconciliation entries for cluster with RuntimeID: %s", CleanerPrefix, runtimeID)
+func (c *cleaner) purgeReconciliationsForCluster(runtimeID string, transition *ClusterStatusTransition, config *CleanerConfig) error {
+	c.logger.Debugf("%s Cleaning reconciliation entries for cluster with RuntimeID: %s", CleanerPrefix, runtimeID)
 
 	//1. Bulk delete old records, keeping the most recent one (should never be deleted)
-	if err := c.deleteRecordsByAge(runtimeID, config.maxEntitiesAgeDays(), transition); err != nil {
-		c.logger.Errorf("%s Failed to delete reconciliations older than %d days: %s", CleanerPrefix, config.maxEntitiesAgeDays(), err.Error())
-		return
+	if err := c.deleteRecordsByAge(runtimeID, config.maxReconciliationsAgeDays(), transition); err != nil {
+		return fmt.Errorf("failed to delete reconciliations older than %d days: %w", config.maxReconciliationsAgeDays(), err)
 	}
 
 	//2. Delete remaining records according to "count" and "status" criteria.
 	if err := c.deleteRecordsByCountAndStatus(runtimeID, transition, config); err != nil {
-		c.logger.Errorf("%s Failed to delete reconciliations more than %d: %s", CleanerPrefix, config.keepLatestEntitiesCount(), err.Error())
-		return
+		return fmt.Errorf("failed to delete reconciliations more than %d: %w", config.retainReconciliationsCount(), err)
 	}
-	c.logger.Infof("%s Done cleaning reconciliation entries for cluster with RuntimeID: %s", CleanerPrefix, runtimeID)
+	c.logger.Debugf("%s Done cleaning reconciliation entries for cluster with RuntimeID: %s", CleanerPrefix, runtimeID)
+	return nil
 }
 
 //deleteRecordsByAge deletes all reconciliations for a given cluster that's older than configured number of days except the single most recent record - that one is never deleted
@@ -104,25 +137,24 @@ func (c *cleaner) deleteRecordsByAge(runtimeID string, numberOfDays int, transit
 	now := time.Now()
 	deadline := beginningOfTheDay(now.UTC()).AddDate(0, 0, -1*numberOfDays)
 
-	c.logger.Infof("%s Removing reconciliations older than: %s except the most recent one for the cluster %s", CleanerPrefix, deadline.UTC().String(), runtimeID)
+	c.logger.Debugf("%s Removing reconciliations older than: %s except the most recent one for the cluster %s", CleanerPrefix, deadline.UTC().String(), runtimeID)
 
 	mostRecentReconciliation, err := c.getMostRecentReconciliation(runtimeID, transition)
 	if err != nil {
 		return err
 	}
 	if mostRecentReconciliation == nil {
-		c.logger.Infof("%s No reconciliations found for the cluster: %s", CleanerPrefix, runtimeID)
+		c.logger.Debugf("%s No reconciliations found for the cluster: %s", CleanerPrefix, runtimeID)
 		return nil
 	}
 
 	return transition.ReconciliationRepository().RemoveReconciliationsBeforeDeadline(runtimeID, mostRecentReconciliation.SchedulingID, deadline)
 }
 
-//deleteRecordsByCountAndStatus deletes record between some deadline in the past and now. It keeps the config.KeepLatestEntitiesCount() of the most recent records and the ones that are not successfully finished.
+//deleteRecordsByCountAndStatus deletes record between some deadline in the past and now. It keeps the config.RetainReconciliationsCount() of the most recent records and the ones that are not successfully finished.
 func (c *cleaner) deleteRecordsByCountAndStatus(runtimeID string, transition *ClusterStatusTransition, config *CleanerConfig) error {
 	//Note: This functions assumes that deleteRecordsByAge() has already deleted records older than the "deadline"!
-
-	mostRecentEntitiesToKeep := config.keepLatestEntitiesCount()
+	mostRecentEntitiesToKeep := config.retainReconciliationsCount()
 	if mostRecentEntitiesToKeep == 0 {
 		return nil
 	}
@@ -136,7 +168,7 @@ func (c *cleaner) deleteRecordsByCountAndStatus(runtimeID string, transition *Cl
 		return nil
 	}
 
-	var schedulingIDsToDrop []string
+	var schedulingIDsToDrop []interface{}
 	for _, obsoleteReconciliation := range reconciliations[mostRecentEntitiesToKeep:] {
 		if obsoleteReconciliation.Status.IsFinalStable() {
 			schedulingIDsToDrop = append(schedulingIDsToDrop, obsoleteReconciliation.SchedulingID)
@@ -170,12 +202,12 @@ func (c *cleaner) getMostRecentReconciliation(runtimeID string, transition *Clus
 }
 
 //removeReconciliations drops all reconciliations provided in the list
-func (c *cleaner) removeReconciliations(schedulingIDs []string, transition *ClusterStatusTransition) error {
+func (c *cleaner) removeReconciliations(schedulingIDs []interface{}, transition *ClusterStatusTransition) error {
 	if err := transition.ReconciliationRepository().RemoveReconciliationsBySchedulingID(schedulingIDs); err != nil {
 		c.logger.Errorf("%s Failed to remove reconciliations: %v", CleanerPrefix, err.Error())
 		return err
 	}
-	c.logger.Infof("%s Removed %d reconciliation (finished)", CleanerPrefix, len(schedulingIDs))
+	c.logger.Debugf("%s Removed %d reconciliation (finished)", CleanerPrefix, len(schedulingIDs))
 	return nil
 }
 

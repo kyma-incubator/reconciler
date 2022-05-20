@@ -1,0 +1,15 @@
+---
+global:
+  containerRegistry:
+    path: "istio-path"
+  images:
+    istio_proxyv2:
+      name: "proxyname"
+      version: "1.13.2-distroless"
+      directory: "istio-proxy-dir"
+      containerRegistryPath: "istio-proxy-path"
+    istio_pilot:
+      name: "pilotname"
+      version: "1.13.2-distroless"
+      directory: "istio-pilot-dir"
+      containerRegistryPath: "istio-pilot-path"

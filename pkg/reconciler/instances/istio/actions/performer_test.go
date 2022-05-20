@@ -465,7 +465,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "", log)
 
 		// then
 		require.Error(t, err)
@@ -484,9 +484,10 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
+		proxyImagePrefix := "anything"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log)
 
 		// then
 		require.Error(t, err)
@@ -505,9 +506,10 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
+		proxyImagePrefix := "anything"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log)
 
 		// then
 		require.NoError(t, err)
@@ -597,7 +599,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.2", TargetVersion: "1.2.3-solo-fips-distroless"}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.2", TargetVersion: "1.2.3-solo-fips-distroless", TargetPrefix: "anything/anything"}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -618,10 +620,44 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.1", TargetVersion: "1.2.3-solo-fips-distroless", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.1", TargetVersion: "1.2.3-solo-fips-distroless", TargetPrefix: "anything/anything", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
+	})
+}
+
+func Test_getTargetProxyV2PrefixFromIstioChart(t *testing.T) {
+	branch := "branch"
+	log := logger.NewLogger(false)
+
+	t.Run("should correctly parse the prefix from istio-configuration helm chart", func(t *testing.T) {
+		// given
+		istioChart := "istio-configuration"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files/path-tests"}, nil)
+
+		// when
+		targetPrefix, err := getTargetProxyV2PrefixFromIstioChart(factory, branch, istioChart, log)
+
+		// then
+		expectedPrefix := "istio-configuration-path/istio-configuration-dir"
+		require.NoError(t, err)
+		require.EqualValues(t, expectedPrefix, targetPrefix)
+	})
+	t.Run("should correctly parse the prefix from istio helm chart", func(t *testing.T) {
+		// given
+		istioChart := "istio"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files/path-tests"}, nil)
+
+		// when
+		targetPrefix, err := getTargetProxyV2PrefixFromIstioChart(factory, branch, istioChart, log)
+
+		// then
+		expectedPrefix := "istio-proxy-path/istio-proxy-dir"
+		require.NoError(t, err)
+		require.EqualValues(t, expectedPrefix, targetPrefix)
 	})
 }
 
@@ -642,21 +678,6 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 		require.Empty(t, targetVersion)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no such file or directory")
-	})
-
-	t.Run("should not get target version when the istio Chart does not contain definition and values", func(t *testing.T) {
-		// given
-		istioChart := "istio-no-values-no-appversion"
-		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
-
-		// when
-		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart, log)
-
-		// then
-		require.Empty(t, targetVersion)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Target Istio version could not be found neither in Chart.yaml nor in helm values")
 	})
 
 	t.Run("should return pilot version from values when version was found in values", func(t *testing.T) {
@@ -684,7 +705,7 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.EqualValues(t, "1.2.3", targetVersion)
+		require.EqualValues(t, "1.2.3-distroless", targetVersion)
 	})
 
 	t.Run("should fallback to chart appVersion when values.yaml is not present in the chart", func(t *testing.T) {
@@ -698,19 +719,20 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.EqualValues(t, "1.2.3", targetVersion)
+		require.EqualValues(t, "1.2.3-distroless", targetVersion)
 	})
 }
 
 func TestMapVersionToStruct(t *testing.T) {
 
-	t.Run("Empty byte array for version coomand returns an error", func(t *testing.T) {
+	t.Run("Empty byte array for version command returns an error", func(t *testing.T) {
 		// given
 		versionOutput := []byte("")
 		targetVersion := "targetVersion"
+		targetDirectory := "targetDirectory"
 
 		// when
-		_, err := mapVersionToStruct(versionOutput, targetVersion)
+		_, err := mapVersionToStruct(versionOutput, targetVersion, targetDirectory)
 
 		// then
 		require.Error(t, err)
@@ -721,15 +743,17 @@ func TestMapVersionToStruct(t *testing.T) {
 		// given
 		versionOutput := []byte(istioctlMockCompleteVersion)
 		targetVersion := "targetVersion"
+		targetPrefix := "anything/anything"
 		expectedStruct := IstioStatus{
 			ClientVersion:    "1.11.1",
 			TargetVersion:    targetVersion,
+			TargetPrefix:     targetPrefix,
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.1",
 		}
 
 		// when
-		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion)
+		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion, targetPrefix)
 
 		// then
 		require.NoError(t, err)
