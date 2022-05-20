@@ -3,6 +3,9 @@ package cleanup
 import (
 	"context"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
+	client2 "sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"time"
 
@@ -90,7 +93,8 @@ func (cmd *CliCleaner) waitForNamespaces() error {
 	for {
 		select {
 		case <-timeout:
-			return errors.New("Timed out while waiting for Namespace deletion")
+			cmd.logger.Info("Timeout while removing namespaced, trying to remove finalizers..")
+			return cmd.removeAllNsFinalizers()
 		case <-poll.C:
 			if err := cmd.removeResourcesFinalizers(); err != nil {
 				return err
@@ -126,4 +130,60 @@ func (cmd *CliCleaner) checkKymaNamespaces() (bool, error) {
 	cmd.logger.Info("No remaining Kyma Namespaces found")
 
 	return true, nil
+}
+
+func (cmd *CliCleaner) removeAllNsFinalizers() error {
+	namespaceList, err := cmd.k8s.Static().CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, namespace := range namespaceList.Items {
+		if err = cmd.removeKymaNsFinalizers(&namespace); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (cmd *CliCleaner) removeKymaNsFinalizers(namespace *v1.Namespace) error {
+	// set terminating status
+	updatedNamespace := &v1.Namespace{
+		ObjectMeta: namespace.ObjectMeta,
+		Spec:       namespace.Spec,
+		Status: v1.NamespaceStatus{
+			Phase: v1.NamespaceTerminating,
+		},
+	}
+	if namespace.Status.Phase != v1.NamespaceTerminating {
+		_, err := cmd.k8s.Static().CoreV1().Namespaces().Update(context.TODO(), updatedNamespace, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to update namespace %s: %w", updatedNamespace.Name, err)
+		}
+	}
+
+	// Remove FinalizerKubernetes
+	if len(updatedNamespace.Spec.Finalizers) != 0 {
+		finalizerSet := sets.NewString()
+		for i := range namespace.Spec.Finalizers {
+			if namespace.Spec.Finalizers[i] != v1.FinalizerKubernetes {
+				finalizerSet.Insert(string(namespace.Spec.Finalizers[i]))
+			}
+		}
+		updatedNamespace.Spec.Finalizers = make([]v1.FinalizerName, 0, len(finalizerSet))
+		for _, value := range finalizerSet.List() {
+			updatedNamespace.Spec.Finalizers = append(updatedNamespace.Spec.Finalizers, v1.FinalizerName(value))
+		}
+		_, err := cmd.k8s.Static().CoreV1().Namespaces().Finalize(context.TODO(), updatedNamespace, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to update namespace %s: %w", updatedNamespace.Name, err)
+		}
+	}
+
+	err := cmd.k8s.Static().CoreV1().Namespaces().Delete(context.TODO(), updatedNamespace.Name, metav1.DeleteOptions{})
+	if client2.IgnoreNotFound(err) != nil {
+		return fmt.Errorf("failed to delete namespace %s: %w", updatedNamespace.Name, err)
+	}
+	cmd.logger.Infof("namespace deleted %s", updatedNamespace.Name)
+	return nil
 }

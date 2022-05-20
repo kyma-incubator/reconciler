@@ -52,27 +52,31 @@ func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.Sugar
 	// check if CRs should be dropped - should be the first step of cleanup
 	dropKymaCRFinalizers := readTaskConfigValue(taskConfig, model.DeleteStrategyKey) != "all"
 	if dropKymaCRFinalizers {
-		dropKymaCRFinalizers = readTaskConfigValue(taskConfig, model.CleanerTypeKey) == model.CleanerCr
+		dropKymaCRFinalizers = readTaskConfigValue(taskConfig, model.CleanerTypeKey) == model.CleanupCrType
 	}
 
 	// check if namespaces should be dropped - should be the last step of cleanup
-	dropKymaNamespaces := readTaskConfigValue(taskConfig, model.CleanerTypeKey) == model.CleanerNamespace
+	dropKymaNamespaces := readTaskConfigValue(taskConfig, model.CleanerTypeKey) == model.CleanupNsType
 	return &CliCleaner{kymaKube, apixClient, true, dropKymaCRFinalizers, crdsFinder, namespaces, namespaceTimeout, logger, dropKymaNamespaces}, nil
 }
 
 //Run runs the command
 func (cmd *CliCleaner) Run() error {
-	if err := cmd.deletePVCSAndWait(kymaNamespace); err != nil {
-		return err
-	}
-	if err := cmd.removeResourcesFinalizers(); err != nil {
-		return err
-	}
-	if err := cmd.deleteKymaNamespaces(); err != nil {
-		return err
-	}
-	if err := cmd.waitForNamespaces(); err != nil {
-		return err
+	if !cmd.dropKymaNamespaces {
+		// cannot! rely on 'dropKymaCRFinalizers' since delete strategy could be for all CRs
+		if err := cmd.deletePVCSAndWait(kymaNamespace); err != nil {
+			return err
+		}
+		if err := cmd.removeResourcesFinalizers(); err != nil {
+			return err
+		}
+	} else {
+		if err := cmd.deleteKymaNamespaces(); err != nil {
+			return err
+		}
+		if err := cmd.waitForNamespaces(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -11,29 +11,35 @@ import (
 )
 
 const (
-	CRDComponent             = "CRDs"
-	CleanupComponent         = "cleaner"
-	DeleteStrategyKey        = "delete_strategy"
-	tblConfiguration  string = "inventory_cluster_configs"
-	CleanerTypeKey           = "cleaner_type"
-	CleanerCr                = "cleaner_CR"
-	CleanerNamespace         = "cleaner_NS"
+	CRDComponent      = "CRDs"
+	CleanupComponent  = "cleaner"
+	DeleteStrategyKey = "delete_strategy"
+	tblConfiguration  = "inventory_cluster_configs"
+	CleanerTypeKey    = "cleaner_type"
+	CleanupCrType     = "cleaner_cr"
+	CleanupNsType     = "cleaner_ns"
 )
 
 var (
-	crdComponent              = &keb.Component{Component: CRDComponent, Namespace: "default"}
-	cleanupComponent          = &keb.Component{Component: CleanupComponent, Namespace: "default"}
-	cleanupNamespaceComponent = &keb.Component{
+	crdComponent     = &keb.Component{Component: CRDComponent, Namespace: "default"}
+	cleanupComponent = &keb.Component{Component: CleanupComponent, Namespace: "default"}
+
+	// placeholder for operation entity
+	cleanupCrComponentForOp = &keb.Component{Component: CleanupCrType, Namespace: "default"}
+	cleanupNsComponentForOp = &keb.Component{Component: CleanupNsType, Namespace: "default"}
+
+	// for cleaner component
+	cleanupNsComponent = &keb.Component{
 		Component: CleanupComponent,
 		Namespace: "default",
 		Configuration: []keb.Configuration{
-			{Key: CleanerTypeKey, Value: CleanerNamespace},
+			{Key: CleanerTypeKey, Value: CleanupNsType},
 		}}
-	cleanupCRComponent = &keb.Component{
+	cleanupCrComponent = &keb.Component{
 		Component: CleanupComponent,
 		Namespace: "default",
 		Configuration: []keb.Configuration{
-			{Key: CleanerTypeKey, Value: CleanerCr},
+			{Key: CleanerTypeKey, Value: CleanupCrType},
 		}}
 )
 
@@ -107,18 +113,24 @@ func (c *ClusterConfigurationEntity) Equal(other db.DatabaseEntity) bool {
 }
 
 func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Component {
-	if component == CRDComponent { //CRD is an artificial component which doesn't exist in the component list of any cluster
+	switch component {
+	case CRDComponent:
 		return crdComponent
-	}
-	if component == CleanupComponent { //Cleanup is an artificial component which doesn't exist in the component list of any cluster
+	case CleanupNsType:
+		return cleanupNsComponent
+	case CleanupCrType:
+		return cleanupCrComponent
+	case CleanupComponent:
+		// backward compatibility?
 		return cleanupComponent
-	}
-	for _, comp := range c.Components {
-		if comp.Component == component {
-			return comp
+	default:
+		for _, comp := range c.Components {
+			if comp.Component == component {
+				return comp
+			}
 		}
+		return nil
 	}
-	return nil
 }
 
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
@@ -149,13 +161,13 @@ func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *Reconciliatio
 
 	// if a cluster is pending deletion, we need to add the cleanup component into the reconciliation
 	if cfg.ReconciliationStatus.IsDeletionInProgress() {
-		cleanupNamespaceComponent.Configuration = append(cleanupNamespaceComponent.Configuration, keb.Configuration{
+		// append delete strategy to configuration
+		cleanupNsComponentForOp.Configuration = append(cleanupNsComponent.Configuration, keb.Configuration{
 			Key: DeleteStrategyKey, Value: cfg.DeleteStrategy,
 		})
+
 		// add cleanup of namespaces to the first index
-		reconSeq.Queue = append([][]*keb.Component{
-			{cleanupNamespaceComponent},
-		}, reconSeq.Queue...)
+		reconSeq.Queue = append([][]*keb.Component{{cleanupNsComponentForOp}}, reconSeq.Queue...)
 	}
 
 	return reconSeq
@@ -197,11 +209,12 @@ func (rs *ReconciliationSequence) addComponents(components []*keb.Component) {
 
 	// add cleanup of CRs to the end, so that they are cleaned up first
 	if rs.cfg.ReconciliationStatus.IsDeletionInProgress() {
-		cleanupCRComponent.Configuration = append(cleanupCRComponent.Configuration, keb.Configuration{
+		// append delete strategy to configuration
+		cleanupCrComponentForOp.Configuration = append(cleanupCrComponentForOp.Configuration, keb.Configuration{
 			Key: DeleteStrategyKey, Value: rs.cfg.DeleteStrategy,
 		})
-		rs.Queue = append(rs.Queue, []*keb.Component{
-			cleanupCRComponent,
-		})
+
+		// add cleanup of CRs to the last index - so that it's processed first
+		rs.Queue = append(rs.Queue, []*keb.Component{cleanupCrComponentForOp})
 	}
 }
