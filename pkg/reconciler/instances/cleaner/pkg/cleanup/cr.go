@@ -57,7 +57,7 @@ func (cmd *CliCleaner) removeServerlessCredentialFinalizers() error {
 func (cmd *CliCleaner) removeCustomResourcesFinalizers() error {
 	crds := map[string]schema.GroupVersionResource{}
 
-	if cmd.dropKymaCRFinalizers {
+	if cmd.dropKymaCRFinalizers || cmd.dropKymaNamespaces {
 		cmd.logger.Info("Removing finalizers only for custom resources installed by Kyma")
 
 		kymaCRDs, err := cmd.kymaCRDsFinder()
