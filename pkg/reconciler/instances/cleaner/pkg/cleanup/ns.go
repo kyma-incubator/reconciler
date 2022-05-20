@@ -139,14 +139,14 @@ func (cmd *CliCleaner) removeAllNsFinalizers() error {
 	}
 
 	for _, namespace := range namespaceList.Items {
-		if err = cmd.removeKymaNsFinalizers(&namespace); err != nil {
+		if err = cmd.removeKymaNsFinalizers(namespace); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (cmd *CliCleaner) removeKymaNsFinalizers(namespace *v1.Namespace) error {
+func (cmd *CliCleaner) removeKymaNsFinalizers(namespace v1.Namespace) error {
 	// set terminating status
 	updatedNamespace := &v1.Namespace{
 		ObjectMeta: namespace.ObjectMeta,
