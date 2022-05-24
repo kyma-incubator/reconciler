@@ -223,7 +223,18 @@ Component reconcilers are taking the workload of a reconciliation and
 
 # 6. Runtime View
 
+The runtime view shows the most important regularly executed tasks the mothership reconciler performs and how the involved software elements are interacting.
+
 ![Runtime View](docs/assets/reconciler-runtime.png)
+
+|Scenario|Description|
+|---|---|
+|Receive KEB updates|The KEB service is sending cluster updates (e.g. create, update or delete) of SKR clusters to the mothership reconciler and pulls the status of the applied change.|
+|Report cluster states to SRE|The reconciler exposes a bunch of internal metrics (load, processing times etc.) and gets scraped by the SRE's managed monitoring system.|
+|Enqueue reconciliation|The scheduler regularly checks for clusters which require a reconciliation (e.g. because they were updated by KEB or their cluster status wasn't synchronized for a while) and adds them to the reconciliation queue.|
+|Process operations|Operations which are ready for processing are picked up by the Worker pool. It communicates them to the particular component reconciler.|
+|Reconcile a component|The component reconciler generates the Kubernetes manifest of the component (e.g. by rendering a Helm chart) and applies it on a Kubernetes cluster. It regularly checks the progress of the deployed resources (e.g. whether they reached the ready state) and reports via heartbeat messages the progress to the mothership reconciler.|
+|Bookkeeping|The bookkeeper checks whether a running reconciliation is in a final state (e.g. finished successfully or ended with an error state) and updates the cluster status accordingly. Beside that, it checks if any operation hasn't received a heartbeat message for a longer time (e.g. because the assigned component reconciler was restarted or gave up) and marks them as orphan operation. Orphan operations will be picked up by the worker pool again.|
 
 # 7. Deployment view
 
@@ -233,17 +244,29 @@ Component reconcilers are taking the workload of a reconciliation and
 
 ## 8.1 Logging
 
+## 8.2 Security
+
+## 8.3 Monitoring
+
 # 9. Architecture Decisions
 
-# 10. Quality Requirements
+## 9.1 Relational database as central storage
 
-## 10.1 Quality Tree
+## 9.2 Tasks triggered in intervals
 
-## 10.2 Quality Scenarios
+## 9.3 Pre-requisite components
 
-# 11. Risks and Technical Debt
+## 9.4 Software layers
 
-# 12. Glossary
+# 10. Risks and Technical Debt
+
+## 10.1 Database
+
+### 10.1.1 Custom ORM
+
+### 10.1.2 Database as performance bottleneck
+
+# 11. Glossary
 
 |Acronym|Full name|Description|
 |---|---|---|
