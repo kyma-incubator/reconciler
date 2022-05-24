@@ -2,7 +2,7 @@
 
 # 1. Introduction and Goals
 
-With the Kyma 2.0 release, the lifecycle management of a Kyma installation is  centralised in a dedicated reconciler component.
+With the Kyma 2.0 release, the lifecycle management of a Kyma installation is centralised in a dedicated reconciler component.
 
 Goal of the reconciler is to install, update, and delete Kyma installations.
 
@@ -137,12 +137,12 @@ No reconciler initiates a communication to an external system. Outgoing communic
 Following the [single responsibility principle (SRP)](https://en.wikipedia.org/wiki/Single-responsibility_principle), the decomposition of the reconciler happend based on two major concerns:
 
 - A data-leading unit that administrates reconciliation processes
+
 2. An executing unit that assembles and applies Kyma component charts
 
 ### 4.2.1 Mothership reconciler
 
-The *mothership reconciler* controls the management of the Kyma clusters, and when and how they must be reconciled. 
-Depending on the configuration of a Kyma cluster, the reconciliation of a Kyma installation consists of multiple Kyma components (normally packaged as [Helm chart](https://helm.sh/docs/topics/charts/)).
+The *mothership reconciler* controls the management of the Kyma clusters, and when and how they must be reconciled. Depending on the configuration of a Kyma cluster, the reconciliation of a Kyma installation consists of multiple Kyma components (normally packaged as [Helm chart](https://helm.sh/docs/topics/charts/)).
 
 The mothership reconciler is responsible for managing all reconciliation-related data and coordinating that Kyma clusters are reconciled either because their configuration was changed, or the last reconciliation was too long ago.
 
@@ -239,11 +239,31 @@ The runtime view shows the most important regularly executed tasks the mothershi
 
 ![Runtime View](docs/assets/reconciler-deployment.png)
 
+|Service|Description|
+|---|---|
+|KEB|Microservice coordinating business processes to manage SKR offerings.|
+|Postgres DB|Relational database (managed offering from GCP) used by the mothership reconciler and other KCP components like provisioner and KEB.|
+|Mothership Reconciler|Microservice coordinating the reconciliation of SKR clusters|
+|Component Reconciler|Several microservices reconciling one or more Kyma components.|
+|HELM Charts|Source of HELM charts (e.g. Cloud storages or Git repositories).|
+|Kubernetes Cluster|Manage Kubernetes cluster.|
+|KCP CLI|Command line tool used to interact with KCP microservices.|
+|SRE / On-Call Engineer|Developer or SRE engineer who administrates the KCP microservices.|
+
 # 8. Crosscutting Concepts
 
 ## 8.1 Logging
 
 ## 8.2 Security
+
+The interaction between microservices in KCP is only allowed over secured channels (TLS encrypted connections).
+
+Authentication is also mandatory for any communication and ensure either by
+
+* mTLS (primarily used for Kubernetes internal communication between services via the Istio service mesh)
+* SSL Key authentication (used when communicating to the Kubernetes cluster)
+* protocol specific authentication used by the Postgres DB
+* OAuth2 (used by the KCP CLI to authenticate developers or SRE engineers)
 
 ## 8.3 Monitoring
 
