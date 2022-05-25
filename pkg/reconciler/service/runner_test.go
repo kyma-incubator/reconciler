@@ -91,7 +91,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, nil)
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -118,7 +118,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, nil)
 		require.NoError(t, err)
 
 		//all actions have to be executed
@@ -140,7 +140,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//successful run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, nil)
 		require.NoError(t, err)
 
 		//reconcile action has to be executed
@@ -163,7 +163,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//failing run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, nil)
 		require.Error(t, err)
 
 		//pre action has to be executed
@@ -186,7 +186,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//failing run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, nil)
 		require.Error(t, err)
 
 		//reconcile action has to be executed
@@ -213,7 +213,7 @@ func TestRunner(t *testing.T) {
 		cbh := newCallbackHandler(t)
 
 		//failing run
-		err := runner.Run(context.Background(), model, cbh)
+		err := runner.Run(context.Background(), model, cbh, nil)
 		require.Error(t, err)
 
 		//reconcile and post action have to be executed
@@ -234,7 +234,7 @@ func TestRunner(t *testing.T) {
 		start := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
-		err = runner.Run(ctx, model, cbh)
+		err = runner.Run(ctx, model, cbh, nil)
 		require.Error(t, err)
 		require.WithinDuration(t, time.Now(), start, 2*time.Second)
 	})
@@ -285,13 +285,13 @@ func cleanup(t *testing.T) {
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 
 	cleanup := NewTestCleanup(recon, kubeClient)
-	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default")
+	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default", "")
 
 	wsf, err = chart.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 	cleanup = NewTestCleanup(recon, kubeClient)
-	cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default")
+	cleanup.RemoveKymaComponent(t, fakeKymaVersion, fakeComponent, "default", "")
 }
 
 func newModel(t *testing.T, kymaComponent, kymaVersion string) *reconciler.Task {

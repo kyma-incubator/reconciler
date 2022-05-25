@@ -3,6 +3,7 @@ package metrics
 import (
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/zap"
 )
 
 const (
@@ -26,15 +27,24 @@ type ReconciliationStatusCollector struct {
 	reconciliationStatusGauge *prometheus.GaugeVec
 }
 
-func NewReconciliationStatusCollector() *ReconciliationStatusCollector {
+func NewReconciliationStatusCollector(logger *zap.SugaredLogger) *ReconciliationStatusCollector {
 	collector := &ReconciliationStatusCollector{
 		reconciliationStatusGauge: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: prometheusSubsystem,
 			Name:      "reconciliation_status",
 			Help:      "Status of the reconciliation",
-		}, []string{"runtime_id", "runtime_name"}),
+		}, []string{"runtime_id", "runtime_name", "global_accountid", "plan_name"}),
 	}
-	prometheus.MustRegister(collector)
+	err := prometheus.Register(collector)
+	switch err := err.(type) {
+	case prometheus.AlreadyRegisteredError:
+		logger.Warnf("skipping registration of waiting/ready metrics as they were already registered, existing: %v",
+			err.ExistingCollector)
+		return collector
+	}
+	if err != nil {
+		panic(err)
+	}
 	return collector
 }
 
@@ -53,7 +63,7 @@ func (c *ReconciliationStatusCollector) OnClusterStateUpdate(state *cluster.Stat
 	}
 
 	c.reconciliationStatusGauge.
-		WithLabelValues(state.Cluster.RuntimeID, state.Cluster.Runtime.Name).
+		WithLabelValues(state.Cluster.RuntimeID, state.Cluster.Runtime.Name, state.Cluster.Metadata.GlobalAccountID, state.Cluster.Metadata.ServicePlanName).
 		Set(status.ID)
 
 	return nil

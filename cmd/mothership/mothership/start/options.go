@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
+
 	"github.com/pkg/errors"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"
@@ -12,46 +14,52 @@ import (
 
 type Options struct {
 	*cli.Options
-	Port                         int
-	SSLCrt                       string
-	SSLKey                       string
-	Workers                      int
-	WatchInterval                time.Duration
-	OrphanOperationTimeout       time.Duration
-	ClusterReconcileInterval     time.Duration
-	PurgeEntitiesOlderThan       time.Duration
-	CleanerInterval              time.Duration
-	KeepLatestEntitiesCount      int
-	KeepUnsuccessfulEntitiesDays int
-	CreateEncyptionKey           bool
-	MaxParallelOperations        int
-	AuditLog                     bool
-	AuditLogFile                 string
-	AuditLogTenantID             string
-	StopAfterMigration           bool
-	ReconcilerList               []string
+	Port                           int
+	SSLCrt                         string
+	SSLKey                         string
+	Workers                        int
+	WatchInterval                  time.Duration
+	OrphanOperationTimeout         time.Duration
+	ClusterReconcileInterval       time.Duration
+	PurgeEntitiesOlderThan         time.Duration
+	CleanerInterval                time.Duration
+	BookkeeperWatchInterval        time.Duration
+	ReconciliationsKeepLatestCount int
+	ReconciliationsMaxAgeDays      int
+	InventoryMaxAgeDays            int
+	StatusCleanupBatchSize         int
+	CreateEncyptionKey             bool
+	MaxParallelOperations          int
+	AuditLog                       bool
+	AuditLogFile                   string
+	AuditLogTenantID               string
+	StopAfterMigration             bool
+	Config                         *config.Config
 }
 
 func NewOptions(o *cli.Options) *Options {
 	return &Options{o,
-		0,                      //Port
-		"",                     //SSLCrt
-		"",                     //SSLKey
-		0,                      //Workers
-		0 * time.Second,        //WatchInterval
-		0 * time.Minute,        //Orphan timeout
-		0 * time.Second,        //ClusterReconcileInterval
-		0 * time.Minute,        //PurgeEntitiesOlderThan
-		0 * time.Minute,        //CleanerInterval
-		0,                      //KeepLatestEntitiesCount
-		0,                      //KeepUnsuccessfulEntitiesDays
-		false,                  //CreateEncyptionKey
-		0,                      //MaxParallelOperations
-		false,                  //AuditLog
-		"",                     //AuditLogFile
-		"",                     //AuditLogTenant
-		false,                  //StopAfterMigration
-		[]string{"mothership"}, //ReconcilerList
+		0,                //Port
+		"",               //SSLCrt
+		"",               //SSLKey
+		0,                //Workers
+		0 * time.Second,  //WatchInterval
+		0 * time.Minute,  //Orphan timeout
+		0 * time.Second,  //ClusterReconcileInterval
+		0 * time.Minute,  //PurgeEntitiesOlderThan
+		0 * time.Minute,  //CleanerInterval
+		45 * time.Second, //BookkeeperWatchInterval
+		0,                //ReconciliationsKeepLatestCount
+		0,                //ReconciliationsMaxAgeDays
+		0,                //InventoryMaxAgeDays
+		0,                // StatusCleanupBatchSize
+		false,            //CreateEncyptionKey
+		0,                //MaxParallelOperations
+		false,            //AuditLog
+		"",               //AuditLogFile
+		"",               //AuditLogTenant
+		false,            //StopAfterMigration
+		&config.Config{}, //Config
 	}
 }
 
@@ -71,11 +79,17 @@ func (o *Options) Validate() error {
 	if o.ClusterReconcileInterval <= 0 {
 		return errors.New("cluster reconciliation interval cannot be <= 0")
 	}
-	if o.KeepLatestEntitiesCount < 0 {
+	if o.ReconciliationsKeepLatestCount < 0 {
 		return errors.New("cleaner count of latest entities to keep cannot be < 0")
 	}
-	if o.KeepUnsuccessfulEntitiesDays < 0 {
-		return errors.New("cleaner count of days to keep unsuccessful entities cannot be < 0")
+	if o.ReconciliationsMaxAgeDays < 0 {
+		return errors.New("cleaner count of days to keep unsuccessful reconciliations cannot be < 0")
+	}
+	if o.InventoryMaxAgeDays < 0 {
+		return errors.New("cleaner count of days to keep unsuccessful inventory records cannot be < 0")
+	}
+	if o.StatusCleanupBatchSize < 100 {
+		return errors.New("cluster status cleaner batch size cannot be < 100")
 	}
 	if o.MaxParallelOperations < 0 {
 		return errors.New("maximal parallel reconciled components per cluster cannot be < 0")

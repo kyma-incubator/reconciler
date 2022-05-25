@@ -14,17 +14,20 @@ import (
 const envVarKubeconfig = "KUBECONFIG"
 
 type MockInventory struct {
-	ClustersToReconcileResult []*State
-	ClustersNotReadyResult    []*State
-	GetResult                 *State
-	GetLatestResult           *State
-	GetAllResult              []*State
-	CreateOrUpdateResult      *State
-	MarkForDeletionResult     *State
-	DeleteResult              error
-	UpdateStatusResult        *State
-	ChangesResult             []*StatusChange
-	RetriesCount              int
+	ClustersToReconcileResult             []*State
+	ClustersNotReadyResult                []*State
+	GetResult                             *State
+	GetLatestResult                       *State
+	GetAllResult                          []*State
+	CreateOrUpdateResult                  *State
+	MarkForDeletionResult                 *State
+	DeleteResult                          error
+	UpdateStatusResult                    *State
+	ChangesResult                         []*StatusChange
+	RetriesCount                          int
+	DeletedStatusesWoReconciliationResult int
+	DeletedStatusesOlderThanResult        int
+	DeletedClustersOlderThanResult        int
 }
 
 func (i *MockInventory) WithTx(_ *db.TxConnection) (Inventory, error) {
@@ -88,4 +91,12 @@ func (kp *MockKubeconfigProvider) Get() (string, error) {
 
 func (i *MockInventory) CountRetries(_ string, _ int64, _ int, _ ...model.Status) (int, error) {
 	return i.RetriesCount, nil
+}
+
+func (i *MockInventory) RemoveStatusesWithoutReconciliations(timeout time.Duration, statusCleanupBatchSize int) (int, error) {
+	return i.DeletedStatusesWoReconciliationResult, nil
+}
+
+func (i *MockInventory) RemoveDeletedClustersOlderThan(deadline time.Time) (int, error) {
+	return i.DeletedClustersOlderThanResult, nil
 }

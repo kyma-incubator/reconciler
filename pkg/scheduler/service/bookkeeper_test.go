@@ -2,11 +2,9 @@ package service
 
 import (
 	"context"
-	"testing"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/keb/test"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -15,8 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBookkeeper(t *testing.T) {
-	dbConn := db.NewTestConnection(t) //share one db-connection between inventory and recon-repo (required for tx)
+func (s *serviceTestSuite) TestBookkeeper() {
+	t := s.T()
+	dbConn := s.TxConnection() //share one db-connection between inventory and recon-repo (required for tx)
 
 	//prepare inventory
 	inventory, err := cluster.NewInventory(dbConn, true, cluster.MetricsCollectorMock{})
@@ -74,6 +73,6 @@ func TestBookkeeper(t *testing.T) {
 	recons, err := reconRepo.GetReconciliations(&reconciliation.WithRuntimeID{RuntimeID: clusterState.Cluster.RuntimeID})
 	require.NoError(t, err)
 	for _, recon := range recons {
-		require.NoError(t, reconRepo.RemoveReconciliation(recon.SchedulingID))
+		require.NoError(t, reconRepo.RemoveReconciliationBySchedulingID(recon.SchedulingID))
 	}
 }

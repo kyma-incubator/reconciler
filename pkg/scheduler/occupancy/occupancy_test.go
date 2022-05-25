@@ -22,7 +22,7 @@ type Occupancy struct {
 
 type testCase struct {
 	name    string
-	testFct func(t *testing.T, occupRepo Repository)
+	testFct func(t *testing.T, occupancyRepo Repository)
 }
 
 func TestOccupancyRepository(t *testing.T) {
@@ -143,6 +143,15 @@ func TestOccupancyRepository(t *testing.T) {
 			},
 		},
 		{
+			"get worker pool IDs for components that registered their occupancy",
+			func(t *testing.T, occupancyRepo Repository) {
+				componentIDs, err := occupancyRepo.GetWorkerPoolIDs()
+				require.NoError(t, err)
+				expectedComponentIDs := []string{"1", "2", "3"}
+				require.ElementsMatch(t, expectedComponentIDs, componentIDs)
+			},
+		},
+		{
 			"get mean occupancy that is running many worker pools",
 			func(t *testing.T, occupancyRepo Repository) {
 
@@ -161,14 +170,12 @@ func TestOccupancyRepository(t *testing.T) {
 			},
 		},
 	}
-	occupancyRepos := newPersistentAndInmemoryRepositories(t)
-	for _, occupancyRepo := range occupancyRepos {
-		for _, testCase := range testCases {
-			unitTestSetup(t, occupancyRepo, occupancies)
-			t.Run(testCase.name, newTestFct(testCase, occupancyRepo))
-			testCleanUp(t, occupancyRepo)
-		}
 
+	occupancyRepo := newPersistentRepository(t)
+	for _, tc := range testCases {
+		unitTestSetup(t, occupancyRepo, occupancies)
+		t.Run(tc.name, newTestFct(tc, occupancyRepo))
+		testCleanUp(t, occupancyRepo)
 	}
 
 }
@@ -188,12 +195,10 @@ func newTestFct(testCase testCase, repo Repository) func(t *testing.T) {
 }
 
 func testCleanUp(t *testing.T, occupRepo Repository) {
-	occupancies, err := occupRepo.GetWorkerPoolOccupancies()
+	componentIDs, err := occupRepo.GetWorkerPoolIDs()
 	require.NoError(t, err)
-	for _, occupancy := range occupancies {
-		err := occupRepo.RemoveWorkerPoolOccupancy(occupancy.WorkerPoolID)
-		require.NoError(t, err)
-	}
+	_, err = occupRepo.RemoveWorkerPoolOccupancies(componentIDs)
+	require.NoError(t, err)
 }
 
 func dbConnection(t *testing.T) db.Connection {
@@ -205,9 +210,8 @@ func dbConnection(t *testing.T) db.Connection {
 	return dbConn
 }
 
-func newPersistentAndInmemoryRepositories(t *testing.T) []Repository {
+func newPersistentRepository(t *testing.T) Repository {
 	persistentOccupancyRepository, err := NewPersistentOccupancyRepository(dbConnection(t), true)
 	require.NoError(t, err)
-	inmemoryOccupancyRepository := NewInMemoryOccupancyRepository()
-	return []Repository{persistentOccupancyRepository, inmemoryOccupancyRepository}
+	return persistentOccupancyRepository
 }

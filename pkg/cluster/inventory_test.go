@@ -30,13 +30,18 @@ var clusterStatuses = []model.Status{
 	model.ClusterStatusDeleteErrorRetryable,
 	model.ClusterStatusDeleted}
 
-func TestInventory(t *testing.T) {
-	inventory := newInventory(t)
-
+func (s *clusterTestSuite) TestInventory() {
+	t := s.T()
+	conn, err := s.NewConnection()
+	require.NoError(t, err)
+	inventory := s.newInventory(conn)
 	expectedCluster := test.NewCluster(t, "1", 1, false, test.Production)
 
-	removeAllClusters(t, inventory)       //cleanup before the test runs
-	defer removeAllClusters(t, inventory) //cleanup after test is finished
+	removeAllClusters(t, inventory) //cleanup before the test runs
+	defer func() {
+		removeAllClusters(t, inventory) //cleanup after test is finished
+		require.NoError(t, conn.Close())
+	}()
 
 	t.Run("Create expectedCluster", func(t *testing.T) {
 		//create cluster1
@@ -133,13 +138,16 @@ func TestInventory(t *testing.T) {
 	})
 
 }
-func TestInventoryForClusterStatues(t *testing.T) {
-	inventory := newInventory(t)
-
+func (s *clusterTestSuite) Test_ClustersStatusCheck() {
+	t := s.T()
 	t.Run("Get clusters with particular status", func(t *testing.T) {
+		conn, err := s.NewConnection()
+		require.NoError(t, err)
+		inventory := s.newInventory(conn)
+
 		var expectedClusters []*keb.Cluster
 
-		// //create for each cluster-status a new cluster
+		//create for each cluster-status a new cluster
 		for idx, clusterStatus := range clusterStatuses {
 			newCluster := test.NewCluster(t, strconv.Itoa(idx+1), 1, false, test.Production)
 			clusterState, err := inventory.CreateOrUpdate(1, newCluster)
@@ -158,6 +166,7 @@ func TestInventoryForClusterStatues(t *testing.T) {
 			for _, cluster := range expectedClusters {
 				require.NoError(t, inventory.Delete(cluster.RuntimeID))
 			}
+			require.NoError(t, conn.Close())
 		}()
 
 		//check clusters to reconcile
@@ -182,8 +191,20 @@ func TestInventoryForClusterStatues(t *testing.T) {
 				model.ClusterStatusDeleteErrorRetryable},
 		)
 	})
+}
+
+func (s *clusterTestSuite) Test_StatusChange() {
+	t := s.T()
 	t.Run("Get status changes", func(t *testing.T) {
+		conn, err := s.NewConnection()
+		require.NoError(t, err)
+		inventory := s.newInventory(conn)
 		newCluster := test.NewCluster(t, "1", 1, false, test.Production)
+		defer func() {
+			//cleanup
+			require.NoError(t, inventory.Delete(newCluster.RuntimeID))
+			require.NoError(t, conn.Close())
+		}()
 		clusterState, err := inventory.CreateOrUpdate(1, newCluster)
 		require.NoError(t, err)
 		// //create for each cluster-status a new cluster
@@ -193,10 +214,6 @@ func TestInventoryForClusterStatues(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		defer func() {
-			//cleanup
-			require.NoError(t, inventory.Delete(newCluster.RuntimeID))
-		}()
 		duration, err := time.ParseDuration("10h")
 		require.NoError(t, err)
 		changes, err := inventory.StatusChanges(newCluster.RuntimeID, duration)
@@ -207,11 +224,14 @@ func TestInventoryForClusterStatues(t *testing.T) {
 			listStatusesForStatusChanges(changes),
 			clusterStatuses)
 	})
-
 }
-func TestInventoryForReconcile(t *testing.T) {
-	inventory := newInventory(t)
+
+func (s *clusterTestSuite) TestInventoryForReconcile() {
+	t := s.T()
 	t.Run("Get clusters to reconcile", func(t *testing.T) {
+		conn, err := s.NewConnection()
+		require.NoError(t, err)
+		inventory := s.newInventory(conn)
 		//create cluster1, clusterVersion1, clusterConfigVersion1-1, status: Ready
 		cluster1v1v1 := test.NewCluster(t, "1", 1, false, test.Production)
 		clusterState1v1v1a, err := inventory.CreateOrUpdate(1, cluster1v1v1)
@@ -294,6 +314,7 @@ func TestInventoryForReconcile(t *testing.T) {
 			for _, cluster := range []string{cluster1v2v2.RuntimeID, cluster2v1v2.RuntimeID, cluster3v1v1.RuntimeID, cluster4v2v2.RuntimeID} {
 				require.NoError(t, inventory.Delete(cluster))
 			}
+			require.NoError(t, conn.Close())
 		}()
 
 		time.Sleep(2 * time.Second) //wait 2 sec to ensure cluster 4 exceeds the reconciliation timeout
@@ -313,12 +334,16 @@ func TestInventoryForReconcile(t *testing.T) {
 	})
 }
 
-func TestCountRetries(t *testing.T) {
+func (s *clusterTestSuite) TestCountRetries() {
+	t := s.T()
 	expectedCluster1 := test.NewCluster(t, "1", 1, false, test.Production)
 	expectedCluster2 := test.NewCluster(t, "2", 2, false, test.Production)
 	expectedCluster3 := test.NewCluster(t, "3", 3, false, test.Production)
 
-	inventory := newInventory(t)
+	conn, err := s.NewConnection()
+	require.NoError(t, err)
+	inventory := s.newInventory(conn)
+
 	defer func() {
 		for _, runtimeID := range []string{
 			expectedCluster1.RuntimeID,
@@ -327,6 +352,7 @@ func TestCountRetries(t *testing.T) {
 		} {
 			require.NoError(t, inventory.Delete(runtimeID))
 		}
+		require.NoError(t, conn.Close())
 	}()
 
 	t.Run("When there are retry before status ready, expect to be skipped and not take into count.", func(t *testing.T) {
@@ -392,11 +418,13 @@ func TestCountRetries(t *testing.T) {
 	})
 }
 
-func TestTransaction(t *testing.T) {
+func (s *clusterTestSuite) TestTransaction() {
+	t := s.T()
 	t.Run("Rollback nested transactions", func(t *testing.T) {
 
 		//new db connection
-		dbConn := db.NewTestConnection(t)
+		dbConn, err := s.NewConnection()
+		require.NoError(t, err)
 
 		//create inventory
 		inventory, err := NewInventory(dbConn, true, MetricsCollectorMock{})
@@ -408,6 +436,7 @@ func TestTransaction(t *testing.T) {
 			//cleanup
 			require.NoError(t, inventory.Delete(clusterState.Cluster.RuntimeID))
 			require.NoError(t, inventory.Delete(clusterState2.Cluster.RuntimeID))
+			require.NoError(t, dbConn.Close())
 		}()
 		dbOp := func(tx *db.TxConnection) error {
 
@@ -446,6 +475,121 @@ func TestTransaction(t *testing.T) {
 	})
 }
 
+func (s *clusterTestSuite) TestRemoveDeletedClustersOlderThan() {
+	t := s.T()
+
+	//create inventory
+	inventory := s.newInventory(s.TxConnection())
+
+	notToBeDeletedCluster := test.NewCluster(t, "active", 1, false, test.Production)
+	activeClusterState, err := inventory.CreateOrUpdate(1, notToBeDeletedCluster)
+	require.NoError(t, err)
+
+	toBeDeletedCluster := test.NewCluster(t, "to-be-deleted", 1, false, test.Production)
+	deletedClusterState, err := inventory.CreateOrUpdate(1, toBeDeletedCluster)
+	require.NoError(t, err)
+
+	err = inventory.Delete(deletedClusterState.Cluster.RuntimeID)
+	require.NoError(t, err)
+
+	removedCnt, err := inventory.RemoveDeletedClustersOlderThan(time.Now())
+	require.NoError(t, err)
+	//at lease one record was removed
+	require.LessOrEqual(t, 1, removedCnt)
+	newActiveClusterState, err := inventory.Get(activeClusterState.Cluster.RuntimeID, activeClusterState.Configuration.Version)
+	require.NoError(t, err)
+	require.Equal(t, false, newActiveClusterState.Cluster.Deleted)
+
+	clusterStates, err := inventory.GetAll()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(clusterStates))
+}
+
+func (s *clusterTestSuite) TestDefaultInventory_RemoveStatusesWithoutReconciliations() {
+	t := s.T()
+	//create inventory
+	inventory := s.newInventory(s.TxConnection())
+
+	// cleanup
+	removeAllClusters(t, inventory)
+	defer removeAllClusters(t, inventory)
+
+	// preparation
+	cluster := test.NewCluster(t, "someRuntimeID", 1, false, test.Production)
+	state, err := inventory.CreateOrUpdate(1, cluster)
+	require.NoError(t, err)
+
+	// initial cleanup from other tests
+	_, err = inventory.RemoveStatusesWithoutReconciliations(time.Second*1, 200)
+	require.NoError(t, err)
+
+	state, err = inventory.Get(state.Configuration.RuntimeID, state.Configuration.Version)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+
+	i := 0
+	for {
+		if i == 100 {
+			break
+		}
+		// add statuses
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusReconcilePending)
+		require.NoError(t, err)
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusReconciling)
+		require.NoError(t, err)
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusDeletePending)
+		require.NoError(t, err)
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusDeleteError)
+		require.NoError(t, err)
+		_, err = inventory.UpdateStatus(state, model.ClusterStatusDeleting)
+		require.NoError(t, err)
+		i++
+	}
+
+	// check multiple status updates
+	statuses := 500
+	deleteCount := 499
+	statusChanges, err := inventory.StatusChanges(state.Status.RuntimeID, time.Duration(5)*time.Minute)
+	require.NoError(t, err)
+	require.Equal(t, statuses, len(statusChanges))
+
+	// execute
+	start := time.Now()
+	deletedCount, err := inventory.RemoveStatusesWithoutReconciliations(time.Second*1, 200)
+	require.NoError(t, err)
+	end := time.Now()
+	if end.Sub(start).Seconds() < 2 {
+		t.Errorf("Timeout input parameter not considered")
+	}
+	require.Equal(t, deletedCount, deleteCount)
+
+	// check status updates after execution - the latest status should not be removed!
+	statusChanges, err = inventory.StatusChanges(state.Status.RuntimeID, time.Duration(5)*time.Minute)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(statusChanges))
+
+	// test again with one active status
+	statuses = 1
+	deleteCount = 0
+
+	statusChanges, err = inventory.StatusChanges(state.Status.RuntimeID, time.Duration(5)*time.Minute)
+	require.NoError(t, err)
+	require.Equal(t, statuses, len(statusChanges))
+
+	deletedCount, err = inventory.RemoveStatusesWithoutReconciliations(time.Second*1, 200)
+	require.NoError(t, err)
+	require.Equal(t, deletedCount, deleteCount)
+
+	// mark active status as deleted
+	require.NoError(t, inventory.Delete(state.Status.RuntimeID))
+
+	// test again with one inactive status
+	deleteCount = 1
+	deletedCount, err = inventory.RemoveStatusesWithoutReconciliations(time.Second*1, 200)
+	require.NoError(t, err)
+	require.Equal(t, deletedCount, deleteCount)
+}
+
 func listStatuses(states []*State) []model.Status {
 	var result []model.Status
 	for _, state := range states {
@@ -462,8 +606,9 @@ func listStatusesForStatusChanges(states []*StatusChange) []model.Status {
 	return result
 }
 
-func newInventory(t *testing.T) Inventory {
-	inventory, err := NewInventory(db.NewTestConnection(t), true, MetricsCollectorMock{})
+func (s *clusterTestSuite) newInventory(conn db.Connection) Inventory {
+	t := s.T()
+	inventory, err := NewInventory(conn, true, MetricsCollectorMock{})
 	require.NoError(t, err)
 	return inventory
 }

@@ -1,0 +1,3 @@
+name: istio-configuration
+version: 1.11.2-distroless
+appVersion: 1.11.2

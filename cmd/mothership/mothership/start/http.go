@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/kyma-incubator/reconciler/pkg/db"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/db"
+	"github.com/kyma-incubator/reconciler/pkg/features"
 
 	"github.com/kyma-incubator/reconciler/internal/converters"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -26,10 +27,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/spf13/viper"
-
 	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -47,12 +46,68 @@ const (
 	paramLast       = "last"
 	paramTimeFormat = time.RFC3339
 	paramPoolID     = "poolID"
+
+	// Limit Request Bodies to 100KB
+	bodyRequestLimitBytes = 100000
 )
+
+//AuditRegistry contains mappings from path-prefixes to array of methods that are registered with the AuditLogMiddleware
+type AuditRegistry map[string][]string
+
+var (
+	auditRegistry = AuditRegistry{
+		fmt.Sprintf("/v{%s}/clusters", paramContractVersion): {
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+		},
+	}
+)
+
+//mustAudit defines wether the given path and method have to be audited
+func (r AuditRegistry) mustAudit(path, method string) bool {
+	if auditRegistry[path] == nil {
+		return false
+	}
+	for _, registeredMethod := range r[path] {
+		if registeredMethod == method {
+			return true
+		}
+	}
+	return false
+}
 
 func startWebserver(ctx context.Context, o *Options) error {
 	//routing
 	mainRouter := mux.NewRouter()
 	apiRouter := mainRouter.PathPrefix("/").Subrouter()
+
+	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
+		for auditedPath, auditedMethods := range auditRegistry {
+			o.Logger().Infof("Auditing %s for methods [%s]", auditedPath, strings.Join(auditedMethods, ","))
+		}
+
+		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = auditLogger.Sync() }() // make golint happy
+		auditLoggerMiddleware := newAuditLoggerMiddleware(auditLogger, o)
+
+		apiRouter.Use(func(h http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				path, err := mux.CurrentRoute(r).GetPathTemplate()
+				// only audit the request if its contained in the auditRegistry and the method matches
+				if err == nil && auditRegistry.mustAudit(path, r.Method) {
+					auditLoggerMiddleware(h).ServeHTTP(w, r)
+				} else {
+					h.ServeHTTP(w, r)
+				}
+			})
+		})
+	}
+
 	metricsRouter := mainRouter.Path("/metrics").Subrouter()
 	healthRouter := mainRouter.PathPrefix("/health").Subrouter()
 	mainRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
@@ -61,6 +116,11 @@ func startWebserver(ctx context.Context, o *Options) error {
 		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/stop", paramContractVersion, paramSchedulingID, paramCorrelationID),
 		callHandler(o, updateOperationStatus)).
 		Methods(http.MethodPost)
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/reconciliations/cluster/{%s}", paramContractVersion, paramRuntimeID),
+		callHandler(o, deleteReconciliationsByCluster)).
+		Methods(http.MethodDelete)
 
 	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters", paramContractVersion),
@@ -113,6 +173,16 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Methods(http.MethodGet)
 
 	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/operations/{%s}/{%s}/debug", paramContractVersion, paramSchedulingID, paramCorrelationID),
+		callHandler(o, enableOperationDebugLogging)).
+		Methods(http.MethodPut)
+
+	apiRouter.HandleFunc(
+		fmt.Sprintf("/v{%s}/reconciliations/{%s}/debug", paramContractVersion, paramSchedulingID),
+		callHandler(o, enableReconciliationDebugLogging)).
+		Methods(http.MethodPut)
+
+	apiRouter.HandleFunc(
 		fmt.Sprintf("/v{%s}/clusters/{%s}/config/{%s}", paramContractVersion, paramRuntimeID, paramConfigVersion),
 		callHandler(o, getKymaConfig)).Methods(http.MethodGet)
 
@@ -125,22 +195,29 @@ func startWebserver(ctx context.Context, o *Options) error {
 		callHandler(o, createOrUpdateComponentWorkerPoolOccupancy)).Methods(http.MethodPost)
 
 	//metrics endpoint
-	metrics.RegisterAll(o.Registry.Inventory(), o.Registry.ReconciliationRepository(), o.Registry.OccupancyRepository(), o.ReconcilerList, o.Logger())
+	metricErr := metrics.RegisterOccupancy(o.Registry.OccupancyRepository(), o.Config.Scheduler.Reconcilers, o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
+	metricErr = metrics.RegisterProcessingDuration(o.Registry.ReconciliationRepository(), o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
+	metricErr = metrics.RegisterWaitingAndNotReadyReconciliations(o.Registry.Inventory(), o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
+	metricErr = metrics.RegisterDbPool(o.Registry.Connection(), o.Logger())
+	if metricErr != nil {
+		return metricErr
+	}
+
 	metricsRouter.Handle("", promhttp.Handler())
 
 	//liveness and readiness checks
 	healthRouter.HandleFunc("/live", live)
 	healthRouter.HandleFunc("/ready", ready(o))
 
-	if o.AuditLog && o.AuditLogFile != "" && o.AuditLogTenantID != "" {
-		auditLogger, err := NewLoggerWithFile(o.AuditLogFile)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = auditLogger.Sync() }() // make golint happy
-		auditLoggerMiddelware := newAuditLoggerMiddelware(auditLogger, o)
-		apiRouter.Use(auditLoggerMiddelware)
-	}
 	//start server process
 	srv := &server.Webserver{
 		Logger:     o.Logger(),
@@ -150,6 +227,58 @@ func startWebserver(ctx context.Context, o *Options) error {
 		Router:     mainRouter,
 	}
 	return srv.Start(ctx) //blocking call
+}
+
+func enableReconciliationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
+
+	if !features.Enabled(features.DebugLogForSpecificOperations) {
+		err := errors.New("enabling debug logs for a reconciliation is disabled")
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.BadRequest{Error: err.Error()})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().EnableDebugLogging(schedulingID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func enableOperationDebugLogging(o *Options, w http.ResponseWriter, r *http.Request) {
+
+	if !features.Enabled(features.DebugLogForSpecificOperations) {
+		err := errors.New("enabling debug logs for an operation is disabled")
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+	params := server.NewParams(r)
+	schedulingID, err := params.String(paramSchedulingID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	correlationID, err := params.String(paramCorrelationID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().EnableDebugLogging(schedulingID, correlationID)
+	if err != nil {
+		server.SendHTTPErrorMap(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+
 }
 
 func live(w http.ResponseWriter, _ *http.Request) {
@@ -172,6 +301,37 @@ func callHandler(o *Options, handler func(o *Options, w http.ResponseWriter, r *
 	}
 }
 
+func deleteReconciliationsByCluster(o *Options, w http.ResponseWriter, r *http.Request) {
+	params := server.NewParams(r)
+	if _, err := params.Int64(paramContractVersion); err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: errors.Wrap(err, "Contract version undefined").Error(),
+		})
+		return
+	}
+	runtimeID, err := params.String(paramRuntimeID)
+	if err != nil {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	err = o.Registry.ReconciliationRepository().RemoveReconciliationByRuntimeID(runtimeID)
+	if err == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if repository.IsNotFoundError(err) {
+		server.SendHTTPError(w, http.StatusNotFound, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+	} else {
+		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
+			Error: err.Error(),
+		})
+	}
+}
+
 func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	contractV, err := params.Int64(paramContractVersion)
@@ -181,21 +341,15 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
-			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
-		})
-		return
-	}
-	clusterModel, err := keb.NewModelFactory(contractV).Cluster(reqBody)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	clusterModel, err := keb.NewModelFactory(contractV).Cluster(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
 		})
 		return
 	}
-	if _, err := (&kubernetes.ClientBuilder{}).WithString(clusterModel.Kubeconfig).Build(true); err != nil {
+	if _, err := kubernetes.NewClientBuilder().WithLogger(o.Logger()).WithString(clusterModel.Kubeconfig).Build(r.Context(), true); err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "kubeconfig not accepted").Error(),
 		})
@@ -228,7 +382,7 @@ func createOrUpdateCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	//respond status URL
-	sendResponse(w, r, clusterStateNew, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, clusterStateNew, o)
 }
 
 func getClustersState(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -317,7 +471,7 @@ func getCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, clusterState, o)
 }
 
 func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -336,15 +490,8 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusInternalServerError, &keb.HTTPErrorResponse{
-			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
-		})
-		return
-	}
-
-	status, err := keb.NewModelFactory(contractV).Status(reqBody)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	status, err := keb.NewModelFactory(contractV).Status(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &keb.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to unmarshal JSON payload").Error(),
@@ -376,7 +523,7 @@ func updateLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, clusterState, o)
 }
 
 func getReconciliations(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -521,7 +668,7 @@ func getLatestCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	sendResponse(w, r, clusterState, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, clusterState, o)
 }
 
 func statusChanges(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -610,7 +757,7 @@ func deleteCluster(o *Options, w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	sendResponse(w, r, state, o.Registry.ReconciliationRepository())
+	sendResponse(w, r, state, o)
 }
 
 func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
@@ -631,7 +778,8 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var stopOperation keb.OperationStop
-	reqBody, err := ioutil.ReadAll(r.Body)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	reqBody, err := ioutil.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
@@ -698,7 +846,8 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body reconciler.CallbackMessage
-	reqBody, err := ioutil.ReadAll(r.Body)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	reqBody, err := ioutil.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
@@ -792,7 +941,8 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 	}
 
 	var body reconciler.HTTPOccupancyRequest
-	reqBody, err := ioutil.ReadAll(r.Body)
+	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
+	reqBody, err := ioutil.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
@@ -824,13 +974,6 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 func deleteComponentWorkerPoolOccupancy(o *Options, w http.ResponseWriter, r *http.Request) {
 	params := server.NewParams(r)
 	poolID, err := params.String(paramPoolID)
-	if err != nil {
-		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
-	_, err = uuid.Parse(poolID)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusBadRequest, &reconciler.HTTPErrorResponse{
 			Error: err.Error(),
@@ -908,8 +1051,8 @@ func getOperationStatus(o *Options, schedulingID, correlationID string) (*model.
 	return op, err
 }
 
-func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) {
-	respModel, err := newClusterResponse(r, clusterState, reconciliationRepository)
+func sendResponse(w http.ResponseWriter, r *http.Request, clusterState *cluster.State, o *Options) {
+	respModel, err := newClusterResponse(r, clusterState, o)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "failed to generate cluster response model").Error(),
@@ -942,7 +1085,8 @@ func sendClusterStateResponse(w http.ResponseWriter, state *cluster.State) {
 	}
 }
 
-func newClusterResponse(r *http.Request, clusterState *cluster.State, reconciliationRepository reconciliation.Repository) (*keb.HTTPClusterResponse, error) {
+func newClusterResponse(r *http.Request, clusterState *cluster.State, o *Options) (*keb.HTTPClusterResponse, error) {
+	reconciliationRepository := o.Registry.ReconciliationRepository()
 	kebStatus, err := clusterState.Status.GetKEBClusterStatus()
 	if err != nil {
 		return nil, err
@@ -981,8 +1125,8 @@ func newClusterResponse(r *http.Request, clusterState *cluster.State, reconcilia
 		Status:               kebStatus,
 		Failures:             &failures,
 		StatusURL: (&url.URL{
-			Scheme: viper.GetString("mothership.scheme"),
-			Host:   fmt.Sprintf("%s:%s", viper.GetString("mothership.host"), viper.GetString("mothership.port")),
+			Scheme: o.Config.Scheme,
+			Host:   fmt.Sprintf("%s:%d", o.Config.Host, o.Config.Port),
 			Path: func() string {
 				apiVersion := strings.Split(r.URL.RequestURI(), "/")[1]
 				return fmt.Sprintf("%s/clusters/%s/configs/%d/status", apiVersion,

@@ -2,6 +2,8 @@ package hydra
 
 import (
 	"context"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s"
 	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
@@ -9,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"time"
 )
 
 //go:generate mockery --name=Syncer --outpkg=mock --case=underscore
@@ -75,7 +76,7 @@ func restartHydraMaesterDeploymentNeeded(context context.Context, client kuberne
 	}
 	logger.Debugf("Earliest hydra-maester restart time: %s ", earliestHydraMaesterPodStartTime.String())
 
-	return earliestHydraPodStartTime.After(earliestHydraMaesterPodStartTime), nil
+	return earliestHydraPodStartTime.After(earliestHydraMaesterPodStartTime) || earliestHydraPodStartTime.Equal(earliestHydraMaesterPodStartTime), nil
 }
 
 func getEarliestPodStartTime(context context.Context, label string, client kubernetes.Interface, logger *zap.SugaredLogger, namespace string) (time.Time, error) {
@@ -93,7 +94,7 @@ func getEarliestPodStartTime(context context.Context, label string, client kuber
 
 	for i := range podList.Items {
 		pod := podList.Items[i]
-		if pod.Status.Phase == corev1.PodRunning {
+		if pod.Status.Phase == corev1.PodRunning && pod.ObjectMeta.DeletionTimestamp == nil {
 			logger.Debugf("Retrieved pod with name: %s, creationTime: %s ", podList.Items[i].Name,
 				podList.Items[i].CreationTimestamp.String())
 			if podList.Items[i].CreationTimestamp.Time.Before(earliestPodStartTime) {

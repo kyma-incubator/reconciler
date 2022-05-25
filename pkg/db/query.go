@@ -3,9 +3,10 @@ package db
 import (
 	"bytes"
 	"fmt"
-	"go.uber.org/zap"
 	"sort"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type Query struct {
@@ -38,6 +39,16 @@ func (q *Query) Select() *Select {
 	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", q.columnHandler.ColumnNamesCsv(false), q.entity.Table()))
 
 	return &Select{q, []interface{}{}, nil}
+}
+
+func (q *Query) SelectColumn(fieldName string) (*Select, error) {
+	columnName, err := q.columnHandler.ColumnName(fieldName)
+	if err != nil {
+		return nil, err
+	}
+	q.buffer.WriteString(fmt.Sprintf("SELECT %s FROM %s", columnName, q.entity.Table()))
+
+	return &Select{q, []interface{}{}, nil}, nil
 }
 
 func (q *Query) Insert() *Insert {
@@ -164,6 +175,13 @@ type Select struct {
 	*Query
 	args []interface{}
 	err  error
+}
+
+//GetArgs returns a copy of current Select arguments
+func (s *Select) GetArgs() []interface{} {
+	dst := make([]interface{}, len(s.args))
+	copy(dst, s.args)
+	return dst
 }
 
 func (s *Select) WhereRaw(stmt string, args ...interface{}) *Select {
@@ -318,8 +336,10 @@ type Delete struct {
 	err  error
 }
 
-func (d *Delete) Where(args map[string]interface{}) *Delete {
-	d.args, d.err = d.addWhereCondition(args, 0)
+func (d *Delete) Where(conditions map[string]interface{}) *Delete {
+	args, err := d.addWhereCondition(conditions, len(d.args))
+	d.args = append(d.args, args...)
+	d.err = err
 	return d
 }
 
@@ -339,6 +359,17 @@ func (d *Delete) WhereIn(field, subQuery string, args ...interface{}) *Delete {
 	d.err = d.addWhereInCondition(field, subQuery)
 	d.args = args
 	return d
+}
+
+func (d *Delete) WhereRaw(stmt string, args ...interface{}) *Delete {
+	d.addWhere()
+	d.buffer.WriteString(fmt.Sprintf(" (%s)", stmt))
+	d.args = append(d.args, args...)
+	return d
+}
+
+func (d *Delete) NextPlaceholderCount() int {
+	return len(d.args) + 1
 }
 
 // UPDATE:

@@ -16,13 +16,72 @@ import (
 type InMemoryReconciliationRepository struct {
 	reconciliations map[string]*model.ReconciliationEntity       //key: clusterName
 	operations      map[string]map[string]*model.OperationEntity //key1:schedulingID, key2:correlationID
+	status          map[int64]*model.ClusterStatusEntity         //key1:schedulingID, key2:correlationID
 	mu              sync.Mutex
+}
+
+func (r *InMemoryReconciliationRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+
+	recon, err := r.GetReconciliation(schedulingID)
+	if err != nil {
+		return err
+	}
+	if recon.Status.IsFinal() {
+		return fmt.Errorf("could not change debug log for reconciliation (schedulingID=%s): reconciliation state is final: %s", schedulingID, recon.Status)
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	_, ok := r.operations[schedulingID]
+	if !ok {
+		return &repository.EntityNotFoundError{}
+	}
+
+	if len(correlationID) == 1 {
+
+		op, ok := r.operations[schedulingID][correlationID[0]]
+		if !ok {
+			return &repository.EntityNotFoundError{}
+		}
+
+		// copy the operation to avoid having data races while writing
+		opCopy := *op
+
+		if opCopy.State != model.OperationStateNew {
+			return fmt.Errorf("reconRepo failed to enable debug log level for requested operations")
+		}
+		opCopy.Debug = true
+
+		opCopy.Updated = time.Now().UTC()
+
+		r.operations[schedulingID][correlationID[0]] = &opCopy
+
+		return nil
+	}
+
+	for corrID, op := range r.operations[schedulingID] {
+
+		// copy the operation to avoid having data races while writing
+		opCopy := *op
+		if opCopy.State != model.OperationStateNew {
+			continue
+		}
+		opCopy.Debug = true
+
+		opCopy.Updated = time.Now().UTC()
+
+		r.operations[schedulingID][corrID] = &opCopy
+	}
+
+	return nil
 }
 
 func NewInMemoryReconciliationRepository() Repository {
 	return &InMemoryReconciliationRepository{
 		reconciliations: make(map[string]*model.ReconciliationEntity),
 		operations:      make(map[string]map[string]*model.OperationEntity),
+		status:          make(map[int64]*model.ClusterStatusEntity),
 	}
 }
 
@@ -89,21 +148,75 @@ func (r *InMemoryReconciliationRepository) CreateReconciliation(state *cluster.S
 		}
 	}
 
+	// cluster statuses
+	statusEntity := &model.ClusterStatusEntity{
+		ID:             state.Status.ID,
+		ClusterVersion: state.Status.ClusterVersion,
+		ConfigVersion:  state.Status.ConfigVersion,
+		Status:         state.Status.Status,
+		Deleted:        state.Status.Deleted,
+		RuntimeID:      state.Status.RuntimeID,
+		Created:        state.Status.Created,
+	}
+	r.status[statusEntity.ID] = statusEntity
+
 	return reconEntity, nil
 }
 
-func (r *InMemoryReconciliationRepository) RemoveReconciliation(schedulingID string) error {
+func (r *InMemoryReconciliationRepository) RemoveReconciliationBySchedulingID(schedulingID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	removeSchedulingID(schedulingID, r.reconciliations, r.operations)
+	return nil
+}
+
+func (r *InMemoryReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, schedulingID := range schedulingIDs {
+		removeSchedulingID(schedulingID.(string), r.reconciliations, r.operations)
+	}
+	return nil
+}
+
+func (r *InMemoryReconciliationRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for _, recon := range r.reconciliations {
-		if recon.SchedulingID == schedulingID {
-			delete(r.reconciliations, recon.RuntimeID)
-			break
+	var schedulingID string
+	if r.reconciliations[runtimeID] != nil {
+		schedulingID = r.reconciliations[runtimeID].SchedulingID
+	}
+	delete(r.reconciliations, runtimeID)
+	delete(r.operations, schedulingID)
+
+	return nil
+}
+
+func (r *InMemoryReconciliationRepository) RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for schedulingID, recon := range r.operations {
+		for correlationID, op := range recon {
+			if op.RuntimeID == runtimeID && op.SchedulingID != latestSchedulingID && op.Created.Before(deadline) {
+				delete(r.operations[schedulingID], correlationID)
+			}
+		}
+		if len(recon) == 0 {
+			delete(r.operations, schedulingID)
+			delete(r.reconciliations, runtimeID)
 		}
 	}
-	delete(r.operations, schedulingID)
+
 	return nil
+}
+
+func (r *InMemoryReconciliationRepository) GetRuntimeIDs() ([]string, error) {
+	var runtimeIDs []string
+	for key := range r.reconciliations {
+		runtimeIDs = append(runtimeIDs, key)
+	}
+	return runtimeIDs, nil
 }
 
 func (r *InMemoryReconciliationRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
@@ -130,6 +243,7 @@ func (r *InMemoryReconciliationRepository) FinishReconciliation(schedulingID str
 			recon.Lock = ""
 			recon.Finished = true
 			recon.ClusterConfigStatus = status.ID
+			recon.Status = status.Status
 			recon.Updated = time.Now().UTC()
 			return nil
 		}
@@ -143,6 +257,10 @@ func (r *InMemoryReconciliationRepository) GetReconciliations(filter Filter) ([]
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	return r.getReconciliations(filter)
+}
+
+func (r *InMemoryReconciliationRepository) getReconciliations(filter Filter) ([]*model.ReconciliationEntity, error) {
 	var result []*model.ReconciliationEntity
 	for _, reconciliation := range r.reconciliations {
 		if filter != nil && filter.FilterByInstance(reconciliation) == nil {
@@ -396,4 +514,15 @@ func unique(slice []string) []string {
 		}
 	}
 	return list
+}
+
+func removeSchedulingID(schedulingID string, reconciliations map[string]*model.ReconciliationEntity, operations map[string]map[string]*model.OperationEntity) {
+	for _, recon := range reconciliations {
+		if recon.SchedulingID == schedulingID {
+			delete(reconciliations, recon.RuntimeID)
+			break
+		}
+	}
+
+	delete(operations, schedulingID)
 }

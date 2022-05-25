@@ -2,7 +2,6 @@ package invoker
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
@@ -23,6 +22,7 @@ type Params struct {
 	CorrelationID        string
 	MaxOperationRetries  int
 	Type                 model.OperationType
+	Debug                bool
 }
 
 func (p *Params) newLocalTask(callbackFunc func(msg *reconciler.CallbackMessage) error) *reconciler.Task {
@@ -47,12 +47,6 @@ func (p *Params) newTask() *reconciler.Task {
 		version = p.ComponentToReconcile.Version
 	}
 
-	configuration := p.ComponentToReconcile.ConfigurationAsMap()
-	tokenNamespace := configuration["repo.token.namespace"]
-	if tokenNamespace == nil {
-		tokenNamespace = ""
-	}
-
 	return &reconciler.Task{
 		ComponentsReady: p.ComponentsReady,
 		Component:       p.ComponentToReconcile.Component,
@@ -60,17 +54,17 @@ func (p *Params) newTask() *reconciler.Task {
 		Version:         version,
 		URL:             url,
 		Profile:         p.ClusterState.Configuration.KymaProfile,
-		Configuration:   configuration,
+		Configuration:   p.ComponentToReconcile.ConfigurationAsMap(),
 		Kubeconfig:      p.ClusterState.Cluster.Kubeconfig,
 		Metadata:        *p.ClusterState.Cluster.Metadata,
 		CorrelationID:   p.CorrelationID,
 		Repository: &reconciler.Repository{
-			URL:            url,
-			TokenNamespace: fmt.Sprint(tokenNamespace),
+			URL: url,
 		},
 		Type: p.Type,
 		ComponentConfiguration: reconciler.ComponentConfiguration{
 			MaxRetries: p.MaxOperationRetries,
+			Debug:      p.Debug,
 		},
 	}
 }

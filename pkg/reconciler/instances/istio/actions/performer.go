@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -27,7 +28,6 @@ import (
 )
 
 const (
-	istioImagePrefix    = "istio/proxyv2"
 	retriesCount        = 5
 	delayBetweenRetries = 5 * time.Second
 	timeout             = 5 * time.Minute
@@ -39,6 +39,7 @@ type VersionType string
 type IstioStatus struct {
 	ClientVersion    string
 	TargetVersion    string
+	TargetPrefix     string
 	PilotVersion     string
 	DataPlaneVersion string
 }
@@ -72,7 +73,25 @@ type chartValues struct {
 			IstioPilot struct {
 				Version string `json:"version"`
 			} `json:"istio_pilot"`
+			IstioProxyV2 struct {
+				Directory             string `json:"directory"`
+				ContainerRegistryPath string `json:"containerRegistryPath"`
+			} `json:"istio_proxyv2"`
 		} `json:"images"`
+	} `json:"global"`
+}
+
+type chartValuesConfiguration struct {
+	Global struct {
+		Images struct {
+			Istio struct {
+				Version   string `json:"version"`
+				Directory string `json:"directory"`
+			} `json:"istio"`
+		} `json:"images"`
+		ContainerRegistry struct {
+			Path string `json:"path"`
+		} `json:"containerRegistry"`
 	} `json:"global"`
 }
 
@@ -89,8 +108,8 @@ type IstioPerformer interface {
 	// Update Istio on the cluster to the targetVersion using istioChart.
 	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
-	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version, it always adds "-distroless" suffix to the provided value.
-	ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, logger *zap.SugaredLogger) error
+	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
+	ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error
 
 	// Version reports status of Istio installation on the cluster.
 	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error)
@@ -119,7 +138,7 @@ func NewDefaultIstioPerformer(resolver CommanderResolver, istioProxyReset proxy.
 }
 
 func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error {
-	logger.Info("Starting Istio uninstallation...")
+	logger.Debug("Starting Istio uninstallation...")
 
 	execVersion, err := istioctl.VersionFromString(version)
 	if err != nil {
@@ -135,7 +154,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
-	logger.Info("Istio uninstall triggered")
+	logger.Debug("Istio uninstall triggered")
 	kubeClient, err := kubeClientSet.Clientset()
 	if err != nil {
 		return err
@@ -148,12 +167,12 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 	if err != nil {
 		return err
 	}
-	logger.Info("Istio namespace deleted")
+	logger.Debug("Istio namespace deleted")
 	return nil
 }
 
 func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error {
-	logger.Info("Starting Istio installation...")
+	logger.Debug("Starting Istio installation...")
 
 	execVersion, err := istioctl.VersionFromString(version)
 	if err != nil {
@@ -174,7 +193,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
-
+	logger.Infof("Istio in version %s successfully installed", version)
 	return nil
 }
 
@@ -201,7 +220,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		if err != nil {
 			return err
 		}
-		err = c.addLabelSelectorToWebhook(whConf, webhookNameToChange, requiredLabelSelector)
+		err = c.addNamespaceSelectorIfNotPresent(whConf, webhookNameToChange, requiredLabelSelector)
 		if err != nil {
 			return err
 		}
@@ -214,26 +233,29 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		return err
 	}
 
-	logger.Infof("Patch has been applied successfully")
+	logger.Debugf("Patch has been applied successfully")
 
 	return nil
 }
 
-func (c *DefaultIstioPerformer) addLabelSelectorToWebhook(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
-	var whFound bool
+func (c *DefaultIstioPerformer) addNamespaceSelectorIfNotPresent(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
 	for i := range whConf.Webhooks {
 		if whConf.Webhooks[i].Name == webhookNameToChange {
-			whFound = true
-			whConf.Webhooks[i].NamespaceSelector.MatchExpressions = append(
-				whConf.Webhooks[i].NamespaceSelector.MatchExpressions,
-				requiredLabelSelector,
-			)
+			matchExpressions := whConf.Webhooks[i].NamespaceSelector.MatchExpressions
+			var hasRequiredLabel bool
+			for j := range matchExpressions {
+				if hasRequiredLabel = reflect.DeepEqual(matchExpressions[j], requiredLabelSelector); hasRequiredLabel {
+					break
+				}
+			}
+			if !hasRequiredLabel {
+				matchExpressions = append(matchExpressions, requiredLabelSelector)
+				whConf.Webhooks[i].NamespaceSelector.MatchExpressions = matchExpressions
+			}
+			return nil
 		}
 	}
-	if !whFound {
-		return fmt.Errorf("could not find webhook %s in WebhookConfiguration %s", webhookNameToChange, whConf.Name)
-	}
-	return nil
+	return fmt.Errorf("could not find webhook %s in WebhookConfiguration %s", webhookNameToChange, whConf.Name)
 }
 
 func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (wh *v1.MutatingWebhookConfiguration, err error) {
@@ -248,7 +270,7 @@ func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.
 }
 
 func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
-	logger.Info("Starting Istio update...")
+	logger.Debug("Starting Istio update...")
 
 	version, err := istioctl.VersionFromString(targetVersion)
 	if err != nil {
@@ -270,12 +292,12 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
-	logger.Info("Istio has been updated successfully")
+	logger.Infof("Istio has been updated successfully to version %s", targetVersion)
 
 	return nil
 }
 
-func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
@@ -284,8 +306,8 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 
 	cfg := istioConfig.IstioProxyConfig{
 		Context:             context,
-		ImagePrefix:         istioImagePrefix,
-		ImageVersion:        fmt.Sprintf("%s-distroless", proxyImageVersion),
+		ImagePrefix:         proxyImagePrefix,
+		ImageVersion:        proxyImageVersion,
 		RetriesCount:        retriesCount,
 		DelayBetweenRetries: delayBetweenRetries,
 		Timeout:             timeout,
@@ -309,6 +331,11 @@ func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion s
 		return IstioStatus{}, errors.Wrap(err, "Target Version could not be found")
 	}
 
+	targetPrefix, err := getTargetProxyV2PrefixFromIstioChart(workspace, branchVersion, istioChart, logger)
+	if err != nil {
+		return IstioStatus{}, errors.Wrap(err, "Target Prefix could not be found")
+	}
+
 	version, err := istioctl.VersionFromString(targetVersion)
 	if err != nil {
 		return IstioStatus{}, errors.Wrap(err, "Error parsing version")
@@ -324,7 +351,7 @@ func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion s
 		return IstioStatus{}, err
 	}
 
-	mappedIstioVersion, err := mapVersionToStruct(versionOutput, targetVersion)
+	mappedIstioVersion, err := mapVersionToStruct(versionOutput, targetVersion, targetPrefix)
 
 	return mappedIstioVersion, err
 }
@@ -335,32 +362,53 @@ func getTargetVersionFromIstioChart(workspace chart.Factory, branch string, isti
 		return "", err
 	}
 
-	helmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	istioHelmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
 	if err != nil {
 		return "", err
 	}
 
-	pilotVersion, err := getTargetVersionFromPilotInChartValues(helmChart)
+	pilotVersion, err := getTargetVersionFromPilotInChartValues(istioHelmChart)
 	if err != nil {
 		return "", err
 	}
 
 	if pilotVersion != "" {
-		logger.Infof("Resolved target Istio version: %s from values", pilotVersion)
+		logger.Debugf("Resolved target Istio version: %s from values", pilotVersion)
 		return pilotVersion, nil
 	}
 
-	appVersion := getTargetVersionFromAppVersionInChartDefinition(helmChart)
-	if appVersion != "" {
-		logger.Infof("Resolved target Istio version: %s from Chart definition", appVersion)
-		return appVersion, nil
+	chartVersion := getTargetVersionFromVersionInChartDefinition(istioHelmChart)
+	if chartVersion != "" {
+		logger.Debugf("Resolved target Istio version: %s from Chart definition", chartVersion)
+		return chartVersion, nil
 	}
 
 	return "", errors.New("Target Istio version could not be found neither in Chart.yaml nor in helm values")
 }
 
-func getTargetVersionFromAppVersionInChartDefinition(helmChart *helmChart.Chart) string {
-	return helmChart.Metadata.AppVersion
+func getTargetProxyV2PrefixFromIstioChart(workspace chart.Factory, branch string, istioChart string, logger *zap.SugaredLogger) (string, error) {
+	ws, err := workspace.Get(branch)
+	if err != nil {
+		return "", err
+	}
+
+	istioHelmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	if err != nil {
+		return "", err
+	}
+
+	istioValuesRegistryPath, istioValuesDirectory, err := getTargetProxyV2PrefixFromIstioValues(istioHelmChart)
+	if err != nil {
+		return "", errors.New("Could not resolve target proxyV2 Istio prefix from values")
+	}
+
+	prefix := fmt.Sprintf("%s/%s", istioValuesRegistryPath, istioValuesDirectory)
+	logger.Debugf("Resolved target Istio prefix: %s from istio values.yaml", prefix)
+	return prefix, nil
+}
+
+func getTargetVersionFromVersionInChartDefinition(helmChart *helmChart.Chart) string {
+	return helmChart.Metadata.Version
 }
 
 func getTargetVersionFromPilotInChartValues(helmChart *helmChart.Chart) (string, error) {
@@ -376,6 +424,37 @@ func getTargetVersionFromPilotInChartValues(helmChart *helmChart.Chart) (string,
 	}
 
 	return chartValues.Global.Images.IstioPilot.Version, nil
+}
+
+func getTargetProxyV2PrefixFromIstioValues(istioHelmChart *helmChart.Chart) (string, string, error) {
+	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
+	if err != nil {
+		return "", "", err
+	}
+
+	if istioHelmChart.Metadata.Name == "istio-configuration" {
+		var chartValuesConfiguration chartValuesConfiguration
+
+		err = json.Unmarshal(mapAsJSON, &chartValuesConfiguration)
+		if err != nil {
+			return "", "", err
+		}
+		containerRegistryPath := chartValuesConfiguration.Global.ContainerRegistry.Path
+		directory := chartValuesConfiguration.Global.Images.Istio.Directory
+
+		return containerRegistryPath, directory, nil
+	}
+
+	var chartValues chartValues
+
+	err = json.Unmarshal(mapAsJSON, &chartValues)
+	if err != nil {
+		return "", "", err
+	}
+	containerRegistryPath := chartValues.Global.Images.IstioProxyV2.ContainerRegistryPath
+	directory := chartValues.Global.Images.IstioProxyV2.Directory
+
+	return containerRegistryPath, directory, nil
 }
 
 func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string {
@@ -397,7 +476,7 @@ func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string
 	}
 }
 
-func mapVersionToStruct(versionOutput []byte, targetVersion string) (IstioStatus, error) {
+func mapVersionToStruct(versionOutput []byte, targetVersion string, targetDirectory string) (IstioStatus, error) {
 	if len(versionOutput) == 0 {
 		return IstioStatus{}, errors.New("the result of the version command is empty")
 	}
@@ -416,6 +495,7 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string) (IstioStatus
 	return IstioStatus{
 		ClientVersion:    getVersionFromJSON("client", version),
 		TargetVersion:    targetVersion,
+		TargetPrefix:     targetDirectory,
 		PilotVersion:     getVersionFromJSON("pilot", version),
 		DataPlaneVersion: getVersionFromJSON("dataPlane", version),
 	}, nil

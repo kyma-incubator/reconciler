@@ -103,7 +103,7 @@ func (cmd *CliCleaner) removeFinalizersFromAllInstancesOf(crdef schema.GroupVers
 		instance := customResourceList.Items[i]
 		retryErr := k8sRetry.RetryOnConflict(k8sRetry.DefaultRetry, func() error { return cmd.removeCustomResourceFinalizers(crdef, instance) })
 		if retryErr != nil {
-			return errors.Wrapf(retryErr, "deleting finalizer for %s.%s/%s \"%s\" failed:", crdef.Resource, crdef.Group, crdef.Version, instance.GetName())
+			return errors.Wrapf(retryErr, "deleting finalizer for %s.%s/%s \"%s\" failed", crdef.Resource, crdef.Group, crdef.Version, instance.GetName())
 		}
 	}
 

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -39,7 +40,7 @@ func (t *ClusterStatusTransition) ReconciliationRepository() reconciliation.Repo
 	return t.reconRepo
 }
 
-func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVersion int64, cfg *model.ReconciliationSequenceConfig) error {
+func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVersion int64, cfg *SchedulerConfig) error {
 	var oldClusterState *cluster.State
 	var newClusterState *cluster.State
 	dbOp := func(tx *db.TxConnection) error {
@@ -89,19 +90,23 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 			return err
 		}
 		t.logger.Debugf("Starting reconciliation for cluster '%s': set cluster status to '%s'",
-			newClusterState.Cluster.RuntimeID, model.ClusterStatusReconciling)
+			newClusterState.Cluster.RuntimeID, newClusterState.Status.Status)
 
 		//create reconciliation entity
-		reconEntity, err := reconRepoTx.CreateReconciliation(newClusterState, cfg)
+		reconEntity, err := reconRepoTx.CreateReconciliation(newClusterState, &model.ReconciliationSequenceConfig{
+			PreComponents:        cfg.PreComponents,
+			DeleteStrategy:       string(cfg.DeleteStrategy),
+			ReconciliationStatus: newClusterState.Status.Status,
+		})
 		if err == nil {
-			t.logger.Infof("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
+			t.logger.Debugf("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+
 				"(scheudlingID: %s)", newClusterState.Cluster.RuntimeID, reconEntity.SchedulingID)
 			return nil
 		}
 
 		//sort ouf if issue is caused by a race condition (just for logging purpose)
 		if reconciliation.IsDuplicateClusterReconciliationError(err) {
-			t.logger.Infof("Cancelling reconciliation for cluster '%s': cluster is already enqueued (race condition)",
+			t.logger.Warnf("Cancelling reconciliation for cluster '%s': cluster is already enqueued (race condition)",
 				newClusterState.Cluster.RuntimeID)
 		} else {
 			t.logger.Errorf("Starting reconciliation for runtime '%s' failed: "+
@@ -173,7 +178,7 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 
 		err = reconRepo.FinishReconciliation(schedulingID, clusterState.Status)
 		if err == nil {
-			t.logger.Infof("Finishing reconciliation for cluster '%s' succeeded "+
+			t.logger.Debugf("Finishing reconciliation for cluster '%s' succeeded "+
 				"(schedulingID:%s/clusterVersion:%d/configVersion:%d): "+
 				"new cluster status is '%s'", clusterState.Cluster.RuntimeID, schedulingID,
 				clusterState.Cluster.Version, clusterState.Configuration.Version, clusterState.Status.Status)
@@ -191,4 +196,22 @@ func (t *ClusterStatusTransition) FinishReconciliation(schedulingID string, stat
 		return nil
 	}
 	return db.Transaction(t.conn, dbOp, t.logger)
+}
+
+func (t *ClusterStatusTransition) CleanStatusesAndDeletedClustersOlderThan(deadline time.Time, statusCleanupBatchSize int, timeout time.Duration) error {
+	// delete statuses without reconciliations
+	deletedStatusesCount, err := t.Inventory().RemoveStatusesWithoutReconciliations(timeout, statusCleanupBatchSize)
+	if err != nil {
+		return fmt.Errorf("failed to remove statuses without reconciliation entities %w", err)
+	}
+	t.logger.Infof("%s Cleaned %d statuses successfully", CleanerPrefix, deletedStatusesCount)
+
+	// delete inventory clusters - only if reconciliations are removed successfully - foreign key constraint
+	deletedClustersCount, err := t.Inventory().RemoveDeletedClustersOlderThan(deadline)
+	if err != nil {
+		return fmt.Errorf("failed to remove deleted clusters older than %v: %w", deadline, err)
+	}
+
+	t.logger.Infof("%s Cleaned %d clusters successfully", CleanerPrefix, deletedClustersCount)
+	return nil
 }

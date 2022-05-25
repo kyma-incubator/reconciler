@@ -2,12 +2,14 @@ package reconciliation
 
 import (
 	"fmt"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
-	"sort"
-	"strings"
 )
 
 type metricStartTime int
@@ -19,9 +21,13 @@ const (
 
 type Repository interface {
 	CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error)
-	RemoveReconciliation(schedulingID string) error
+	RemoveReconciliationByRuntimeID(runtimeID string) error
+	RemoveReconciliationBySchedulingID(schedulingID string) error
+	RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error
+	RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error
 	GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error)
 	GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error)
+	GetRuntimeIDs() ([]string, error)
 	FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error
 	GetOperations(filter operation.Filter) ([]*model.OperationEntity, error)
 	GetOperation(schedulingID, correlationID string) (*model.OperationEntity, error)
@@ -37,6 +43,7 @@ type Repository interface {
 	GetComponentOperationProcessingDuration(component string, state model.OperationState) (int64, error)
 	GetMothershipOperationProcessingDuration(component string, state model.OperationState, startTime metricStartTime) (int64, error)
 	GetAllComponents() ([]string, error)
+	EnableDebugLogging(schedulingID string, correlationID ...string) error
 }
 
 //findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.

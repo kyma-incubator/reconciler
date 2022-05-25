@@ -1,0 +1,9 @@
+---
+global:
+  containerRegistry:
+    path: istio-configuration-path
+  images:
+    istio:
+      name: "istio-configuration-name"
+      version: "1.11.4-distroless"
+      directory: "istio-configuration-dir"

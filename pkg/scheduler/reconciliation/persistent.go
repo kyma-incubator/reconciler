@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/cluster"
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -18,6 +20,69 @@ import (
 
 type PersistentReconciliationRepository struct {
 	*repository.Repository
+}
+
+func (r *PersistentReconciliationRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	reconciliationEntity, err := r.GetReconciliation(schedulingID)
+	if err != nil {
+		return err
+	}
+	if reconciliationEntity.Status.IsFinal() {
+		return fmt.Errorf("could not change debug log for reconciliation (schedulingID=%s): reconciliation state is final: %s", schedulingID, reconciliationEntity.Status)
+	}
+	dbOps := func(tx *db.TxConnection) error {
+		var updateArgs []interface{}
+
+		var correlationIDSQL string
+
+		updateSQLTpl := "UPDATE %s SET %s=$1 WHERE %s=$2 AND %s=$3"
+
+		op := &model.OperationEntity{}
+		columnHandler, err := db.NewColumnHandler(op, tx, r.Logger)
+		if err != nil {
+			return err
+		}
+
+		debugColumn, err := columnHandler.ColumnName("Debug")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, true)
+		schedulingIDColumn, err := columnHandler.ColumnName("SchedulingID")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, schedulingID)
+		opStateColumn, err := columnHandler.ColumnName("State")
+		if err != nil {
+			return err
+		}
+		updateArgs = append(updateArgs, model.OperationStateNew)
+		correlationIDColumn, err := columnHandler.ColumnName("CorrelationID")
+		if err != nil {
+			return err
+		}
+		if len(correlationID) == 1 {
+			correlationIDSQL = fmt.Sprintf(" AND %s=$4", correlationIDColumn)
+			updateArgs = append(updateArgs, correlationID[0])
+		}
+		updateSQL := fmt.Sprintf(updateSQLTpl, op.Table(), debugColumn, schedulingIDColumn, opStateColumn)
+
+		result, err := tx.Exec(fmt.Sprintf("%s%s", updateSQL, correlationIDSQL), updateArgs...)
+		if err != nil {
+			return err
+		}
+		rowsAffectedCnt, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffectedCnt == 0 {
+			return fmt.Errorf("reconRepo failed to enable debug log level for requested operations")
+		}
+		r.Logger.Infof("reconRepo successfully enabled debug log level for %d operations", len(correlationID))
+		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
 }
 
 func NewPersistedReconciliationRepository(conn db.Connection, debug bool) (Repository, error) {
@@ -128,7 +193,7 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 			}
 		}
 
-		r.Logger.Infof("ReconRepo created reconciliation (schedulingID:%s) for cluster '%s' including following operations: %s",
+		r.Logger.Debugf("ReconRepo created reconciliation (schedulingID:%s) for cluster '%s' including following operations: %s",
 			reconEntity.SchedulingID, reconEntity.RuntimeID, opsList.String())
 
 		return reconEntity, err
@@ -140,38 +205,112 @@ func (r *PersistentReconciliationRepository) CreateReconciliation(state *cluster
 	return result.(*model.ReconciliationEntity), nil
 }
 
-func (r *PersistentReconciliationRepository) RemoveReconciliation(schedulingID string) error {
+func (r *PersistentReconciliationRepository) RemoveReconciliationBySchedulingID(schedulingID string) error {
+	return db.Transaction(r.Conn, getRemoveReconciliationOpFn("SchedulingID", schedulingID, r.Logger), r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
+	return db.Transaction(r.Conn, getRemoveReconciliationOpFn("RuntimeID", runtimeID, r.Logger), r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error {
+	schedulingIDsBlocks := repository.SplitSliceByBlockSize(schedulingIDs, 200)
+
 	dbOps := func(tx *db.TxConnection) error {
-		whereCond := map[string]interface{}{
-			"SchedulingID": schedulingID,
-		}
+		for _, schedulingIDsBlock := range schedulingIDsBlocks {
+			var args []interface{}
+			var buffer bytes.Buffer
 
-		//delete operations
-		qDelOps, err := db.NewQuery(tx, &model.OperationEntity{}, r.Logger)
-		if err != nil {
-			return err
-		}
-		delOpsCnt, err := qDelOps.Delete().
-			Where(whereCond).
-			Exec()
-		if err != nil {
-			return err
-		}
-		r.Logger.Debugf("ReconRepo deleted %d operations which were assigned to reconciliation with schedulingID '%s'",
-			delOpsCnt, schedulingID)
+			for i, schedulingID := range schedulingIDsBlock {
+				if buffer.Len() > 0 {
+					buffer.WriteRune(',')
+				}
+				buffer.WriteString(fmt.Sprintf("$%d", i+1))
+				args = append(args, schedulingID)
+			}
 
+			//delete reconciliations
+			deleteQuery, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
+			if err != nil {
+				return err
+			}
+
+			deleteQueryCount, err := deleteQuery.Delete().WhereIn("SchedulingID", buffer.String(), args...).Exec()
+			if err != nil {
+				return err
+			}
+			r.Logger.Debugf("ReconRepo deleted %d reconciliations which were assigned to reconciliation with schedulingIDs '%s'", deleteQueryCount, args)
+			buffer.Reset()
+		}
+		return nil
+	}
+	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error {
+	dbOps := func(tx *db.TxConnection) error {
 		//delete reconciliation
 		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, r.Logger)
 		if err != nil {
 			return err
 		}
-		delCnt, err := qDelRecon.Delete().
-			Where(whereCond).
+		columnHandler, err := db.NewColumnHandler(&model.ReconciliationEntity{}, qDelRecon.Conn, qDelRecon.Logger)
+		if err != nil {
+			return err
+		}
+
+		deleteStatement := qDelRecon.Delete()
+
+		schedulingIDColumnName, err := columnHandler.ColumnName("SchedulingID")
+		if err != nil {
+			return err
+		}
+		createdColumnName, err := columnHandler.ColumnName("Created")
+		if err != nil {
+			return err
+		}
+
+		//STEP 1: exclude latest schedulingID
+		//STEP 2: runtimeID
+		//STEP 3: deadline
+		deletedEntries, err := deleteStatement.
+			WhereRaw(fmt.Sprintf("%s<>$%d", schedulingIDColumnName, deleteStatement.NextPlaceholderCount()), latestSchedulingID).
+			Where(map[string]interface{}{"RuntimeID": runtimeID}).
+			WhereRaw(fmt.Sprintf("%s<$%d", createdColumnName, deleteStatement.NextPlaceholderCount()), deadline.Format("2006-01-02 15:04:05.000")).
 			Exec()
-		r.Logger.Debugf("Deleted %d reconciliation with schedulingID '%s'", delCnt, schedulingID)
+
+		r.Logger.Debugf("Deleted %d reconciliations by filter", deletedEntries)
 		return err
 	}
 	return db.Transaction(r.Conn, dbOps, r.Logger)
+}
+
+func (r *PersistentReconciliationRepository) GetRuntimeIDs() ([]string, error) {
+	runtimeIDsQuery, err := db.NewQuery(r.Conn, &model.ReconciliationEntity{}, r.Logger)
+	if err != nil {
+		return nil, err
+	}
+	runtimeIDsSelect, err := runtimeIDsQuery.SelectColumn("RuntimeID")
+	if err != nil {
+		return nil, err
+	}
+	runtimeIDsSelectString := runtimeIDsSelect.GroupBy([]string{"RuntimeID"}).String()
+	dataRows, err := r.Conn.Query(runtimeIDsSelectString)
+
+	if err != nil {
+		return nil, err
+	}
+	var runtimeIDs []string
+
+	for dataRows.Next() {
+		var runtimeID string
+		err := dataRows.Scan(&runtimeID)
+		if err == nil {
+			runtimeIDs = append(runtimeIDs, runtimeID)
+		}
+	}
+
+	return runtimeIDs, nil
 }
 
 func (r *PersistentReconciliationRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
@@ -617,4 +756,23 @@ func (r *PersistentReconciliationRepository) GetAllComponents() ([]string, error
 	}
 
 	return components, nil
+}
+
+func getRemoveReconciliationOpFn(field string, value string, logger *zap.SugaredLogger) func(tx *db.TxConnection) error {
+	return func(tx *db.TxConnection) error {
+		whereCond := map[string]interface{}{
+			field: value,
+		}
+
+		//delete reconciliation
+		qDelRecon, err := db.NewQuery(tx, &model.ReconciliationEntity{}, logger)
+		if err != nil {
+			return err
+		}
+		delCnt, err := qDelRecon.Delete().
+			Where(whereCond).
+			Exec()
+		logger.Debugf("Deleted %d reconciliation with %s '%s'", delCnt, field, value)
+		return err
+	}
 }

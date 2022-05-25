@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"sync"
 	"time"
 
@@ -42,11 +44,12 @@ type ComponentReconciler struct {
 	//retry:
 	retryDelay time.Duration
 	//worker pool:
-	timeout time.Duration
-	workers int
-	logger  *zap.SugaredLogger
-	debug   bool
-	mu      sync.Mutex
+	timeout              time.Duration
+	workers              int
+	logger               *zap.SugaredLogger
+	debug                bool
+	mu                   sync.Mutex
+	reconcilerMetricsSet *metrics.ReconcilerMetricsSet
 }
 
 type heartbeatSenderConfig struct {
@@ -174,6 +177,11 @@ func (r *ComponentReconciler) Debug() *ComponentReconciler {
 	return r
 }
 
+func (r *ComponentReconciler) WithReconcilerMetricsSet(reconcilerMetricsSet *metrics.ReconcilerMetricsSet) *ComponentReconciler {
+	r.reconcilerMetricsSet = reconcilerMetricsSet
+	return r
+}
+
 func (r *ComponentReconciler) WithWorkspace(workspace string) *ComponentReconciler {
 	r.workspace = workspace
 	return r
@@ -271,6 +279,10 @@ func (r *ComponentReconciler) newRunnerFunc(ctx context.Context, model *reconcil
 	return func() error {
 		timeoutCtx, cancel := context.WithTimeout(ctx, r.timeout)
 		defer cancel()
-		return (&runner{r, NewInstall(logger), logger}).Run(timeoutCtx, model, callback)
+		return (&runner{r, NewInstall(logger), logger}).Run(timeoutCtx, model, callback, r.reconcilerMetricsSet)
 	}
+}
+
+func (r *ComponentReconciler) Collector() prometheus.Collector {
+	return r.reconcilerMetricsSet.ComponentProcessingDurationCollector.Collector
 }

@@ -58,6 +58,36 @@ paths:
                 $ref: '#/components/schemas/HTTPErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  /operations/{schedulingID}/{correlationID}/debug:
+    put:
+      description: "Enable debug logs for an operation"
+      parameters:
+        - name: schedulingID
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: correlationID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          description: "Given operation is not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /reconciliations/{schedulingID}/info:
     get:
       description: "Get details of a reconciliation with operations"
@@ -76,6 +106,47 @@ paths:
           $ref: "#/components/responses/NotFoundResponse"
         "500":
           $ref: "#/components/responses/InternalError"
+
+  /reconciliations/{schedulingID}/debug:
+    put:
+      description: "Enable debug logs for all operations that belong to a reconciliation"
+      parameters:
+        - name: schedulingID
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          description: "Given reconciliation is not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /reconciliations/cluster/{runtimeID}:
+    delete:
+      description: "Purge reconciliations for specified cluster"
+      parameters:
+        - name: runtimeID
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Purge Succeded"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+           $ref: "#/components/responses/InternalError"
 
   /reconciliations:
     get:
@@ -329,7 +400,7 @@ components:
             $ref: "#/components/schemas/HTTPClusterResponse"
 
     configurationOkResponse:
-      description: OK
+      description: "OK"
       content:
         application/json:
           schema:

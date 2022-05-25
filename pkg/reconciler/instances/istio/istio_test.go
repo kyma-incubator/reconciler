@@ -139,6 +139,7 @@ const (
 	  }`
 )
 
+// TODO(piotrkpc): here we are testing particular action's behaviour not Istio reconciler. Consider moving those to action_test.go
 func Test_RunUpdateAction(t *testing.T) {
 
 	performerCreatorFn := func(p *actions.DefaultIstioPerformer) func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
@@ -198,7 +199,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
 	})
 
-	t.Run("Istio update should return an error when there is data plane and pilot version mismatch", func(t *testing.T) {
+	t.Run("Istio update should be allowed when there is data plane and pilot version mismatch if the data plane is consistent", func(t *testing.T) {
 		// given
 		provider := clientset.DefaultProvider{}
 		commanderMock := commandermocks.Commander{}
@@ -211,28 +212,10 @@ func Test_RunUpdateAction(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.Error(t, err)
-		require.EqualError(t, err, "Istio components version mismatch detected: pilot version: 1.13.4, data plane version: 1.13.5")
+		require.NoError(t, err)
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
 	})
 
-	t.Run("Istio update should return an error when there is data plane and pilot version mismatch", func(t *testing.T) {
-		// given
-		provider := clientset.DefaultProvider{}
-		commanderMock := commandermocks.Commander{}
-		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockDataPlanePilotMismatchVersion), nil)
-		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
-		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
-		action := istio.NewStatusPreAction(performerCreatorFn(performer))
-
-		// when
-		err := action.Run(actionContext)
-
-		// then
-		require.Error(t, err)
-		require.EqualError(t, err, "Istio components version mismatch detected: pilot version: 1.13.4, data plane version: 1.13.5")
-		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
-	})
 }
 
 func Test_RunUninstallAction(t *testing.T) {
@@ -305,6 +288,14 @@ func newFakeKubeClient() *k8smocks.Client {
 	},
 		&v12.MutatingWebhookConfiguration{
 			ObjectMeta: metav1.ObjectMeta{Name: "istio-sidecar-injector"},
+			Webhooks: []v12.MutatingWebhook{
+				{
+					Name: "auto.sidecar-injector.istio.io",
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchExpressions: nil,
+					},
+				},
+			},
 		},
 	)
 	mockClient.On("Clientset").Return(fakeClient, nil)
@@ -328,4 +319,13 @@ func (tcr TestCommanderResolver) GetCommander(version istioctl.Version) (istioct
 	}
 
 	return tcr.cmder, nil
+}
+
+func TestIstioReconciler(t *testing.T) {
+	istioReconciler, err := service.GetReconciler(istio.ReconcilerNameIstio)
+
+	t.Run("should register Istio reconciler", func(t *testing.T) {
+		require.NoError(t, err)
+		require.NotNil(t, istioReconciler)
+	})
 }

@@ -5,13 +5,17 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation/operation"
+	"time"
 )
 
 type MockRepository struct {
 	CreateReconciliationResult                          *model.ReconciliationEntity
 	RemoveReconciliationResult                          error
+	RemoveReconciliationRecording                       []string
 	GetReconciliationResult                             *model.ReconciliationEntity
 	GetReconciliationsResult                            []*model.ReconciliationEntity
+	GetReconciliationsCount                             int
+	OnGetReconciliations                                func(*MockRepository)
 	FinishReconciliationResult                          error
 	GetOperationsResult                                 []*model.OperationEntity
 	GetOperationResult                                  *model.OperationEntity
@@ -27,14 +31,58 @@ type MockRepository struct {
 	GetMothershipOperationProcessingDurationResultError error
 	GetAllComponentsResult                              []string
 	GetAllComponentsResultError                         error
+	EnableDebugLoggingResult                            error
+	GetStatusIDsOlderThanDeadlineResult                 map[int64]bool
+}
+
+func (mr *MockRepository) EnableDebugLogging(schedulingID string, correlationID ...string) error {
+	return mr.EnableDebugLoggingResult
 }
 
 func (mr *MockRepository) CreateReconciliation(state *cluster.State, cfg *model.ReconciliationSequenceConfig) (*model.ReconciliationEntity, error) {
 	return mr.CreateReconciliationResult, nil
 }
 
-func (mr *MockRepository) RemoveReconciliation(schedulingID string) error {
+func (mr *MockRepository) RemoveReconciliationBySchedulingID(schedulingID string) error {
+	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, schedulingID)
 	return mr.RemoveReconciliationResult
+}
+
+func (mr *MockRepository) RemoveReconciliationByRuntimeID(runtimeID string) error {
+	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, runtimeID)
+	return mr.RemoveReconciliationResult
+}
+
+func (mr *MockRepository) RemoveReconciliationsBySchedulingID(schedulingIDs []interface{}) error {
+	var schedulingIDsStrings = make([]string, len(schedulingIDs))
+	for i, schedulingID := range schedulingIDs {
+		schedulingIDsStrings[i] = schedulingID.(string)
+	}
+	mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, schedulingIDsStrings...)
+	return mr.RemoveReconciliationResult
+}
+
+func (mr *MockRepository) RemoveReconciliationsBeforeDeadline(runtimeID string, latestSchedulingID string, deadline time.Time) error {
+	for _, recon := range mr.GetReconciliationsResult {
+		if recon.RuntimeID == runtimeID && recon.SchedulingID != latestSchedulingID && recon.Created.Before(deadline) {
+			mr.RemoveReconciliationRecording = append(mr.RemoveReconciliationRecording, recon.SchedulingID)
+		}
+	}
+	return nil
+}
+
+func (mr *MockRepository) GetRuntimeIDs() ([]string, error) {
+	runtimeIDsCollector := map[string]interface{}{}
+	var runtimeIDs []string
+	for _, recon := range mr.GetReconciliationsResult {
+		if _, ok := runtimeIDsCollector[recon.RuntimeID]; !ok {
+			runtimeIDsCollector[recon.RuntimeID] = true
+		}
+	}
+	for key := range runtimeIDsCollector {
+		runtimeIDs = append(runtimeIDs, key)
+	}
+	return runtimeIDs, nil
 }
 
 func (mr *MockRepository) GetReconciliation(schedulingID string) (*model.ReconciliationEntity, error) {
@@ -42,7 +90,12 @@ func (mr *MockRepository) GetReconciliation(schedulingID string) (*model.Reconci
 }
 
 func (mr *MockRepository) GetReconciliations(filter Filter) ([]*model.ReconciliationEntity, error) {
-	return mr.GetReconciliationsResult, nil
+	res := mr.GetReconciliationsResult
+	mr.GetReconciliationsCount++
+	if mr.OnGetReconciliations != nil {
+		mr.OnGetReconciliations(mr) //update state
+	}
+	return res, nil
 }
 
 func (mr *MockRepository) FinishReconciliation(schedulingID string, status *model.ClusterStatusEntity) error {

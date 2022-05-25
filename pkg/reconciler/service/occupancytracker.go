@@ -11,47 +11,56 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 )
 
-const occupancyURLTemplate = "%s://%s:%s/v1/occupancy/%s"
+const (
+	occupancyURLTemplate   = "%s://%s:%s/v1/occupancy/%s"
+	defaultBackOffInterval = 2 * time.Minute
+)
 
 type OccupancyTracker struct {
 	logger               *zap.SugaredLogger
 	occupancyID          string
 	occupancyCallbackURL string
+	ticker               *time.Ticker
+	sync.Mutex
 }
 
 func newOccupancyTracker(debug bool) *OccupancyTracker {
 	return &OccupancyTracker{
 		logger: logger.NewLogger(debug),
+		ticker: time.NewTicker(defaultInterval),
 	}
 }
 
 func (t *OccupancyTracker) Track(ctx context.Context, pool *WorkerPool, reconcilerName string) {
 	podName, err := os.Hostname()
 	if err != nil {
-		t.logger.Errorf("occupancy tracker could not retrieve pod name: %s", err)
+		t.logger.Errorf("occupancy tracker is failing: could not retrieve pod name: %s", err)
 		return
 	}
 	//using hostname (= pod name) as the id to be able
 	//to clean up pods that have crashed w/o being able to delete their occupancy
 	t.occupancyID = podName
 	go func() {
-		ticker := time.NewTicker(defaultInterval)
 		for {
 			select {
-			case <-ctx.Done():
+
+			case <-t.ticker.C:
 				if t.occupancyCallbackURL != "" && !pool.IsClosed() {
-					t.logger.Info("occupancy tracker is deleting Worker Pool occupancy")
+					t.createOrUpdateComponentReconcilerOccupancy(reconcilerName, pool.RunningWorkers(), pool.Size())
+				}
+
+			case <-ctx.Done():
+				if t.occupancyCallbackURL != "" {
+					t.logger.Info("occupancy tracker is stopping and deleting worker pool occupancy")
+					t.ticker.Stop()
 					t.deleteWorkerPoolOccupancy()
 					return
 				}
 
-			case <-ticker.C:
-				if t.occupancyCallbackURL != "" && !pool.IsClosed() {
-					t.createOrUpdateComponentReconcilerOccupancy(reconcilerName, pool.RunningWorkers(), pool.Size())
-				}
 			}
 		}
 
@@ -74,14 +83,26 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 		t.logger.Error(err.Error())
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			t.logger.Infof("occupancy tracker failed to close HTTP response body: %s", err)
+		}
+	}()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
-		t.logger.Errorf("mothership failed to update occupancy for '%s' service with status code: '%d'", t.occupancyID, resp.StatusCode)
+		if resp.StatusCode == http.StatusNotFound {
+			t.logger.Debugf("occupancy tracker is setting update interval to its back off value: %v", defaultBackOffInterval)
+			t.ticker.Reset(defaultBackOffInterval)
+		}
+		t.logger.Warnf("occupancy tracker received error (status code: '%d') from mothership when updating occupancy for '%s' service", resp.StatusCode, t.occupancyID)
 		return
 	}
-
-	t.logger.Infof("occupancy tracker updated occupancy successfully for %s service", t.occupancyID)
+	trackerAction := "updated"
+	if resp.StatusCode == http.StatusCreated {
+		trackerAction = "created"
+	}
+	t.logger.Debugf("occupancy tracker %s occupancy successfully for %s service", trackerAction, t.occupancyID)
 }
 
 func (t *OccupancyTracker) deleteWorkerPoolOccupancy() {
@@ -98,7 +119,7 @@ func (t *OccupancyTracker) deleteWorkerPoolOccupancy() {
 		t.logger.Error(err.Error())
 		return
 	}
-	t.logger.Infof("occupancy tracker deleted occupancy successfully for %s service", t.occupancyID)
+	t.logger.Debugf("occupancy tracker deleted occupancy successfully for %s service", t.occupancyID)
 }
 
 func parseOccupancyCallbackURL(callbackURL, occupancyID string) (string, error) {
@@ -113,14 +134,19 @@ func parseOccupancyCallbackURL(callbackURL, occupancyID string) (string, error) 
 }
 
 func (t *OccupancyTracker) AssignCallbackURL(callbackURL string) {
-	if t.occupancyID != "" {
+	if t.occupancyCallbackURL != "" && t.ticker != nil {
+		t.logger.Debugf("occupancy tracker is resetting update interval to its original value: %d", defaultInterval)
+		t.ticker.Reset(defaultInterval)
+	} else if t.occupancyID != "" {
 		var err error
+		t.Lock()
 		t.occupancyCallbackURL, err = parseOccupancyCallbackURL(callbackURL, t.occupancyID)
+		t.Unlock()
 		if err != nil {
 			t.logger.Errorf("occupancy tracker failed to assign callback URL: %s", err)
 			return
 		}
-		t.logger.Debugf("occupancy tracker assigned callback URL successfully")
+		t.logger.Debugf("occupancy tracker assigned callback URL successfully: %s", t.occupancyCallbackURL)
 	}
 
 }

@@ -31,7 +31,8 @@ func NewStatus(status string) (Status, error) {
 }
 
 type ComponentConfiguration struct {
-	MaxRetries int `json:"maxRetries"`
+	MaxRetries int  `json:"maxRetries"`
+	Debug      bool `json:"debug"`
 }
 
 //Task the reconciler has to complete when called
@@ -95,8 +96,7 @@ func (r *Task) Validate() error {
 }
 
 type Repository struct {
-	URL            string `json:"url"`
-	TokenNamespace string `json:"tokenNamespace"`
+	URL string `json:"url"`
 }
 
 func (r *Repository) String() string {

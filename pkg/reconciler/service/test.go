@@ -23,7 +23,7 @@ func NewTestCleanup(reconciler *ComponentReconciler, kubeClient kubernetes.Clien
 	}
 }
 
-func (c *TestCleanup) RemoveKymaComponent(t *testing.T, version, component, namespace string) {
+func (c *TestCleanup) RemoveKymaComponent(t *testing.T, version, component, namespace, url string) {
 	t.Logf("Cleanup of component '%s' (version: %s, namespace: %s) started", component, version, namespace)
 
 	//render manifest
@@ -32,6 +32,7 @@ func (c *TestCleanup) RemoveKymaComponent(t *testing.T, version, component, name
 
 	comp := chart.NewComponentBuilder(version, component).
 		WithNamespace(namespace).
+		WithURL(url).
 		WithConfiguration(test.NewGlobalComponentConfiguration()).
 		Build()
 
@@ -41,7 +42,7 @@ func (c *TestCleanup) RemoveKymaComponent(t *testing.T, version, component, name
 	//delete resources in manifest
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute) //deletion has to happen within 1 min
 	defer cancel()
-	_, err = c.kubeClient.Delete(ctx, manifest.Manifest, namespace) //blocking call until all watchable resources were removed
+	_, err = c.kubeClient.Delete(ctx, manifest.Manifest, namespace)
 	require.NoError(t, err)
 
 	t.Logf("Cleanup of component '%s' finished", component)

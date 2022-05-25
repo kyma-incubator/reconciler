@@ -13,15 +13,14 @@ import (
 )
 
 type Registry struct {
-	debug             bool
-	logger            *zap.SugaredLogger
-	connection        db.Connection
-	inventory         cluster.Inventory
-	kvRepository      *kv.Repository
-	reconRepository   reconciliation.Repository
-	occupancyRepo     occupancy.Repository
-	occupancyTracking bool
-	initialized       bool
+	debug           bool
+	logger          *zap.SugaredLogger
+	connection      db.Connection
+	inventory       cluster.Inventory
+	kvRepository    *kv.Repository
+	reconRepository reconciliation.Repository
+	occupancyRepo   occupancy.Repository
+	initialized     bool
 }
 
 func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
@@ -30,10 +29,9 @@ func NewRegistry(cf db.ConnectionFactory, debug bool) (*Registry, error) {
 		return nil, err
 	}
 	registry := &Registry{
-		debug:             debug,
-		connection:        conn,
-		logger:            logger.NewLogger(debug),
-		occupancyTracking: features.WorkerpoolOccupancyTrackingEnabled(),
+		debug:      debug,
+		connection: conn,
+		logger:     logger.NewLogger(debug),
 	}
 	return registry, registry.init()
 }
@@ -98,7 +96,7 @@ func (or *Registry) initRepository() (*kv.Repository, error) {
 }
 
 func (or *Registry) initInventory() (cluster.Inventory, error) {
-	collector := metrics.NewReconciliationStatusCollector()
+	collector := metrics.NewReconciliationStatusCollector(or.logger)
 	inventory, err := cluster.NewInventory(or.connection, or.debug, collector)
 	if err != nil {
 		or.logger.Errorf("Failed to create cluster inventory: %s", err)
@@ -115,7 +113,7 @@ func (or *Registry) initReconciliationRepository() (reconciliation.Repository, e
 }
 
 func (or *Registry) initOccupancyRepository() (occupancy.Repository, error) {
-	if !or.occupancyTracking {
+	if !features.Enabled(features.WorkerpoolOccupancyTracking) {
 		return occupancy.CreateMockRepository(), nil
 	}
 	occupancyRepo, err := occupancy.NewPersistentOccupancyRepository(or.connection, or.debug)

@@ -2,6 +2,7 @@ package invoker
 
 import (
 	"fmt"
+	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 )
 
@@ -14,6 +15,14 @@ func (err *NoFallbackReconcilerDefinedError) Error() string {
 }
 
 func IsNoFallbackReconcilerDefinedError(err error) bool {
-	_, ok := err.(*NoFallbackReconcilerDefinedError)
+	var ok bool
+	if rErr, isRetryErr := err.(retry.Error); isRetryErr {
+		for _, err := range rErr.WrappedErrors() {
+			_, ok = err.(*NoFallbackReconcilerDefinedError)
+			break
+		}
+	} else {
+		_, ok = err.(*NoFallbackReconcilerDefinedError)
+	}
 	return ok
 }

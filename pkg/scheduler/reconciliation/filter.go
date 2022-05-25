@@ -157,6 +157,27 @@ func (ws *WithSchedulingID) FilterByInstance(i *model.ReconciliationEntity) *mod
 	return nil
 }
 
+type WithNotSchedulingID struct {
+	SchedulingID string
+}
+
+func (wns *WithNotSchedulingID) FilterByQuery(q *db.Select) error {
+	column, err := columnName(q, "SchedulingID")
+	if err != nil {
+		return err
+	}
+
+	q.WhereRaw(fmt.Sprintf("%s<>$%d", column, q.NextPlaceholderCount()), wns.SchedulingID)
+	return nil
+}
+
+func (wns *WithNotSchedulingID) FilterByInstance(i *model.ReconciliationEntity) *model.ReconciliationEntity {
+	if i.SchedulingID != wns.SchedulingID {
+		return i
+	}
+	return nil
+}
+
 type WithRuntimeIDs struct {
 	RuntimeIDs []string
 }
