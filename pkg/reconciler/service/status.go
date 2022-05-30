@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func createOrUpdateStatusCm(ctx context.Context, task *reconciler.Task, status reconciler.Status, kubeclient k8s.Client, logger *zap.SugaredLogger) error {
+func createOrUpdateStatusCm(ctx context.Context, task *reconciler.Task, status reconciler.Status, kubeclient k8s.Client, logger *zap.SugaredLogger) {
 	configMapName := fmt.Sprintf("%s-status", strings.ToLower(task.Component))
 	if task.Namespace == "" {
 		task.Namespace = "default"
@@ -22,12 +22,12 @@ func createOrUpdateStatusCm(ctx context.Context, task *reconciler.Task, status r
 	clientset, err := kubeclient.Clientset()
 	if err != nil {
 		logger.Errorf("Error getting clientset: %s", err)
-		return err
+		return
 	}
 	_, err = clientset.CoreV1().Namespaces().Get(ctx, task.Namespace, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		logger.Debugf("Namespace %s not found, status ConfigMap will only be created if namespace exists", task.Namespace)
-		return nil
+		return
 	}
 	// Get ConfigMap
 	configMap, err := clientset.CoreV1().ConfigMaps(task.Namespace).Get(ctx, configMapName, metav1.GetOptions{})
@@ -63,13 +63,12 @@ func createOrUpdateStatusCm(ctx context.Context, task *reconciler.Task, status r
 		_, err := clientset.CoreV1().ConfigMaps(task.Namespace).Create(ctx, &cm, metav1.CreateOptions{})
 		if err != nil {
 			logger.Debugf("Error after creating ConfigMap '%s': %s", configMapName, err)
-			return err
+			return
 		}
 
 	} else if err != nil {
 		// Error while fetching ConfigMap
-		logger.Errorf("Error getting ConfigMap '%s': %s", configMapName, err)
-		return err
+		logger.Warnf("Error getting ConfigMap '%s': %s", configMapName, err)
 	} else {
 		// Update existing ConfigMap
 		logger.Debugf("ConfigMap '%s' found, updating status", configMapName)
@@ -81,9 +80,8 @@ func createOrUpdateStatusCm(ctx context.Context, task *reconciler.Task, status r
 		_, err := clientset.CoreV1().ConfigMaps(task.Namespace).Update(ctx, configMap, metav1.UpdateOptions{})
 		if err != nil {
 			logger.Debugf("Error updating ConfigMap '%s': %s", configMapName, err)
-			return err
+			return
 		}
 		logger.Debugf("ConfigMap '%s' successfully updated", configMapName)
 	}
-	return nil
 }

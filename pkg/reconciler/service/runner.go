@@ -84,9 +84,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 
 	retryable := func() error {
 		retryID = uuid.NewString()
-		if err := createOrUpdateStatusCm(ctx, task, reconciler.StatusRunning, kubeClient, r.logger); err != nil {
-			return err
-		}
+		createOrUpdateStatusCm(ctx, task, reconciler.StatusRunning, kubeClient, r.logger)
 		if err := heartbeatSender.Running(retryID); err != nil {
 			r.logger.Warnf("Runner: failed to start status updater: %s", err)
 			return err
@@ -95,9 +93,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		if err != nil {
 			r.logger.Warnf("Runner: failing reconciliation of '%s' in version '%s' with profile '%s': %s",
 				task.Component, task.Version, task.Profile, err)
-			if err := createOrUpdateStatusCm(ctx, task, reconciler.StatusFailed, kubeClient, r.logger); err != nil {
-				return err
-			}
+			createOrUpdateStatusCm(ctx, task, reconciler.StatusFailed, kubeClient, r.logger)
 			if heartbeatErr := heartbeatSender.Failed(err, retryID); heartbeatErr != nil {
 				err = errors.Wrap(err, heartbeatErr.Error())
 			}
@@ -118,9 +114,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		r.logger.Debugf("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
 		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateDone, processingDuration)
-		if err := createOrUpdateStatusCm(ctx, task, reconciler.StatusSuccess, kubeClient, r.logger); err != nil {
-			return err
-		}
+		createOrUpdateStatusCm(ctx, task, reconciler.StatusSuccess, kubeClient, r.logger)
 		if err := heartbeatSender.Success(retryID, processingDuration); err != nil {
 			return err
 		}
@@ -133,9 +127,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateFailed, processingDuration)
 		r.logger.Errorf("Runner: retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			task.Component, task.Version)
-		if err := createOrUpdateStatusCm(ctx, task, reconciler.StatusError, kubeClient, r.logger); err != nil {
-			return err
-		}
+		createOrUpdateStatusCm(ctx, task, reconciler.StatusError, kubeClient, r.logger)
 		if heartbeatErr := heartbeatSender.Error(err, retryID, processingDuration); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
 		}
