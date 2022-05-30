@@ -62,7 +62,7 @@ func createOrUpdateStatusCm(ctx context.Context, task *reconciler.Task, status r
 		}
 		_, err := clientset.CoreV1().ConfigMaps(task.Namespace).Create(ctx, &cm, metav1.CreateOptions{})
 		if err != nil {
-			logger.Debugf("Error after creating ConfigMap '%s': %s", configMapName, err)
+			logger.Warnf("Error after creating ConfigMap '%s': %s", configMapName, err)
 			return
 		}
 
