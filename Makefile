@@ -18,6 +18,7 @@ GO_COMPAT = 1.17
 .PHONY: resolve
 resolve:
 	go mod tidy -compat=$(GO_COMPAT)
+	pip install semver==2.10
 	python2 ./scripts/replace-cleanup.py
 	go mod tidy -compat=$(GO_COMPAT)
 

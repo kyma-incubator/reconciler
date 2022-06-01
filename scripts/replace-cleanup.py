@@ -7,7 +7,7 @@ import semver  # pip install semver==2.10
 print("Initializing script...")
 
 # Paths
-os.chdir("../")
+# os.chdir("../")
 ROOT_DIR = os.getcwd()
 GO_MOD = "{0}/go.mod".format(ROOT_DIR)
 GO_SUM = "{0}/go.sum".format(ROOT_DIR)
