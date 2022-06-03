@@ -18,9 +18,6 @@ GO_COMPAT = 1.17
 .PHONY: resolve
 resolve:
 	go mod tidy -compat=$(GO_COMPAT)
-	pip install semver==2.10
-	python2 ./scripts/replace-cleanup.py
-	go mod tidy -compat=$(GO_COMPAT)
 
 .PHONY: lint
 lint:
@@ -110,6 +107,16 @@ generate-helpers:
 .PHONY: oapi
 oapi: validate-oapi-spec generate-oapi-models generate-helpers
 	@./scripts/git-check.sh
+
+.PHONY: validate-go-mod
+validate-go-mod:
+	python2 ./scripts/validate-go-mod.py
+
+.PHONY: validate-go-mod-auto
+validate-go-mod-auto:
+	go mod tidy -compat=$(GO_COMPAT)
+	python2 ./scripts/validate-go-mod.py --auto
+	go mod tidy -compat=$(GO_COMPAT)
 
 .PHONY: all
 all: resolve oapi lint build test docker-build docker-push
