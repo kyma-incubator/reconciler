@@ -1,7 +1,7 @@
 # Istioctl source images
 FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.12.3 AS istio-1_12_3
 FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.13.2 AS istio-1_13_2
-FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.14.4 AS istio-1_14_0
+FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.14.0 AS istio-1_14_0
 
 # Build image
 FROM golang:1.18.1-alpine3.15 AS build
