@@ -22,7 +22,8 @@ replace (
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	//fix for CVE-2021-43784
 	//fix for CVE-2021-30465
-	github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.1
+	//fix for CVE-2022-29162
+	github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.2
 	//fix for CVE-2022-21698
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.1
 	//fix for CVE-2021-3538
@@ -207,7 +208,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
-	github.com/opencontainers/runc v1.1.1 // indirect
+	github.com/opencontainers/runc v1.1.2 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.0-beta.8 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
