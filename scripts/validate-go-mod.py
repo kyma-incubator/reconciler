@@ -386,6 +386,13 @@ def main(auto_rewrite):
 
     print("Script executed successfully")
 
+    # Signal go.mod validity to the Makefile
+    # (EXIT CODE 3) If auto-rewrite is disabled and found obs./unref. statements
+    if not auto_rewrite and (obsolete_no != 0 or unreferenced_no != 0):
+        sys.exit(3)  # INVALID
+    else:
+        sys.exit(0)  # VALID
+
 
 if __name__ == "__main__":
     auto_rewrite = parse_input()

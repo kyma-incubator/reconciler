@@ -110,7 +110,9 @@ oapi: validate-oapi-spec generate-oapi-models generate-helpers
 
 .PHONY: validate-go-mod
 validate-go-mod:
-	python2 ./scripts/validate-go-mod.py
+	python2 ./scripts/validate-go-mod.py && \
+	([ $$? -eq 0 ] && echo "Result: go.mod is VALID") \
+	|| (echo "Result: go.mod is INVALID (see log above)"; exit 1)
 
 .PHONY: validate-go-mod-auto
 validate-go-mod-auto:
