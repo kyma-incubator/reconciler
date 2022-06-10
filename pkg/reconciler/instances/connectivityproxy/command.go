@@ -134,5 +134,22 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 	if err != nil {
 		return errors.Wrap(err, "Error during removal")
 	}
+
+	return a.removeIstioSecrets(context)
+}
+
+func (a *CommandActions) removeIstioSecrets(context *service.ActionContext) error {
+
+	_, err := context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs", "istio-system")
+	if err != nil {
+		context.Logger.Error("Error during removal of cc-certs in istio-system")
+		return errors.Wrap(err, "Error during removal of cc-certs in istio-system")
+	}
+
+	_, err = context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs-cacert", "istio-system")
+	if err != nil {
+		context.Logger.Info("Error during removal of cc-certs-cacert in istio-system")
+		return errors.Wrap(err, "Error during removal of cc-certs-cacert in istio-system")
+	}
 	return nil
 }

@@ -81,6 +81,20 @@ type chartValues struct {
 	} `json:"global"`
 }
 
+type chartValuesConfiguration struct {
+	Global struct {
+		Images struct {
+			Istio struct {
+				Version   string `json:"version"`
+				Directory string `json:"directory"`
+			} `json:"istio"`
+		} `json:"images"`
+		ContainerRegistry struct {
+			Path string `json:"path"`
+		} `json:"containerRegistry"`
+	} `json:"global"`
+}
+
 //go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
 type IstioPerformer interface {
@@ -363,10 +377,10 @@ func getTargetVersionFromIstioChart(workspace chart.Factory, branch string, isti
 		return pilotVersion, nil
 	}
 
-	appVersion := getTargetVersionFromAppVersionInChartDefinition(istioHelmChart)
-	if appVersion != "" {
-		logger.Debugf("Resolved target Istio version: %s from Chart definition", appVersion)
-		return appVersion, nil
+	chartVersion := getTargetVersionFromVersionInChartDefinition(istioHelmChart)
+	if chartVersion != "" {
+		logger.Debugf("Resolved target Istio version: %s from Chart definition", chartVersion)
+		return chartVersion, nil
 	}
 
 	return "", errors.New("Target Istio version could not be found neither in Chart.yaml nor in helm values")
@@ -383,34 +397,18 @@ func getTargetProxyV2PrefixFromIstioChart(workspace chart.Factory, branch string
 		return "", err
 	}
 
-	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
+	istioValuesRegistryPath, istioValuesDirectory, err := getTargetProxyV2PrefixFromIstioValues(istioHelmChart)
 	if err != nil {
-		return "", err
+		return "", errors.New("Could not resolve target proxyV2 Istio prefix from values")
 	}
 
-	var chartValues chartValues
-	err = json.Unmarshal(mapAsJSON, &chartValues)
-	if err != nil {
-		return "", err
-	}
-
-	containerRegistryPath := chartValues.Global.Images.IstioProxyV2.ContainerRegistryPath
-	if containerRegistryPath == "" {
-		return "", errors.New("Target Istio container registry path could not be found in values.yaml")
-	}
-
-	directory := chartValues.Global.Images.IstioProxyV2.Directory
-	if directory == "" {
-		return "", errors.New("Target Istio directory could not be found in values.yaml")
-	}
-
-	prefix := fmt.Sprintf("%s/%s", containerRegistryPath, directory)
-	logger.Debugf("Resolved target Istio prefix: %s from values", prefix)
+	prefix := fmt.Sprintf("%s/%s", istioValuesRegistryPath, istioValuesDirectory)
+	logger.Debugf("Resolved target Istio prefix: %s from istio values.yaml", prefix)
 	return prefix, nil
 }
 
-func getTargetVersionFromAppVersionInChartDefinition(helmChart *helmChart.Chart) string {
-	return helmChart.Metadata.AppVersion
+func getTargetVersionFromVersionInChartDefinition(helmChart *helmChart.Chart) string {
+	return helmChart.Metadata.Version
 }
 
 func getTargetVersionFromPilotInChartValues(helmChart *helmChart.Chart) (string, error) {
@@ -426,6 +424,37 @@ func getTargetVersionFromPilotInChartValues(helmChart *helmChart.Chart) (string,
 	}
 
 	return chartValues.Global.Images.IstioPilot.Version, nil
+}
+
+func getTargetProxyV2PrefixFromIstioValues(istioHelmChart *helmChart.Chart) (string, string, error) {
+	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
+	if err != nil {
+		return "", "", err
+	}
+
+	if istioHelmChart.Metadata.Name == "istio-configuration" {
+		var chartValuesConfiguration chartValuesConfiguration
+
+		err = json.Unmarshal(mapAsJSON, &chartValuesConfiguration)
+		if err != nil {
+			return "", "", err
+		}
+		containerRegistryPath := chartValuesConfiguration.Global.ContainerRegistry.Path
+		directory := chartValuesConfiguration.Global.Images.Istio.Directory
+
+		return containerRegistryPath, directory, nil
+	}
+
+	var chartValues chartValues
+
+	err = json.Unmarshal(mapAsJSON, &chartValues)
+	if err != nil {
+		return "", "", err
+	}
+	containerRegistryPath := chartValues.Global.Images.IstioProxyV2.ContainerRegistryPath
+	directory := chartValues.Global.Images.IstioProxyV2.Directory
+
+	return containerRegistryPath, directory, nil
 }
 
 func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string {

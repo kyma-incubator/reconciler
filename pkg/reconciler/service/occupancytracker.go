@@ -55,7 +55,7 @@ func (t *OccupancyTracker) Track(ctx context.Context, pool *WorkerPool, reconcil
 
 			case <-ctx.Done():
 				if t.occupancyCallbackURL != "" {
-					t.logger.Info("occupancy tracker is stopping and deleting Worker Pool occupancy")
+					t.logger.Info("occupancy tracker is stopping and deleting worker pool occupancy")
 					t.ticker.Stop()
 					t.deleteWorkerPoolOccupancy()
 					return
@@ -86,7 +86,7 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			t.logger.Debugf("occupancy tracker failed to close HTTP response body: %s", err)
+			t.logger.Infof("occupancy tracker failed to close HTTP response body: %s", err)
 		}
 	}()
 
@@ -95,14 +95,14 @@ func (t *OccupancyTracker) createOrUpdateComponentReconcilerOccupancy(reconciler
 			t.logger.Debugf("occupancy tracker is setting update interval to its back off value: %v", defaultBackOffInterval)
 			t.ticker.Reset(defaultBackOffInterval)
 		}
-		t.logger.Warnf("mothership failed to update occupancy for '%s' service with status code: '%d'", t.occupancyID, resp.StatusCode)
+		t.logger.Warnf("occupancy tracker received error (status code: '%d') from mothership when updating occupancy for '%s' service", resp.StatusCode, t.occupancyID)
 		return
 	}
 	trackerAction := "updated"
 	if resp.StatusCode == http.StatusCreated {
 		trackerAction = "created"
 	}
-	t.logger.Infof("occupancy tracker %s occupancy successfully for %s service", trackerAction, t.occupancyID)
+	t.logger.Debugf("occupancy tracker %s occupancy successfully for %s service", trackerAction, t.occupancyID)
 }
 
 func (t *OccupancyTracker) deleteWorkerPoolOccupancy() {
@@ -119,7 +119,7 @@ func (t *OccupancyTracker) deleteWorkerPoolOccupancy() {
 		t.logger.Error(err.Error())
 		return
 	}
-	t.logger.Infof("occupancy tracker deleted occupancy successfully for %s service", t.occupancyID)
+	t.logger.Debugf("occupancy tracker deleted occupancy successfully for %s service", t.occupancyID)
 }
 
 func parseOccupancyCallbackURL(callbackURL, occupancyID string) (string, error) {

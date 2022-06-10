@@ -627,6 +627,40 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 	})
 }
 
+func Test_getTargetProxyV2PrefixFromIstioChart(t *testing.T) {
+	branch := "branch"
+	log := logger.NewLogger(false)
+
+	t.Run("should correctly parse the prefix from istio-configuration helm chart", func(t *testing.T) {
+		// given
+		istioChart := "istio-configuration"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files/path-tests"}, nil)
+
+		// when
+		targetPrefix, err := getTargetProxyV2PrefixFromIstioChart(factory, branch, istioChart, log)
+
+		// then
+		expectedPrefix := "istio-configuration-path/istio-configuration-dir"
+		require.NoError(t, err)
+		require.EqualValues(t, expectedPrefix, targetPrefix)
+	})
+	t.Run("should correctly parse the prefix from istio helm chart", func(t *testing.T) {
+		// given
+		istioChart := "istio"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files/path-tests"}, nil)
+
+		// when
+		targetPrefix, err := getTargetProxyV2PrefixFromIstioChart(factory, branch, istioChart, log)
+
+		// then
+		expectedPrefix := "istio-proxy-path/istio-proxy-dir"
+		require.NoError(t, err)
+		require.EqualValues(t, expectedPrefix, targetPrefix)
+	})
+}
+
 func Test_getTargetVersionFromIstioChart(t *testing.T) {
 	branch := "branch"
 	log := logger.NewLogger(false)
@@ -644,21 +678,6 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 		require.Empty(t, targetVersion)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no such file or directory")
-	})
-
-	t.Run("should not get target version when the istio Chart does not contain definition and values", func(t *testing.T) {
-		// given
-		istioChart := "istio-no-values-no-appversion"
-		factory := &workspacemocks.Factory{}
-		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
-
-		// when
-		targetVersion, err := getTargetVersionFromIstioChart(factory, branch, istioChart, log)
-
-		// then
-		require.Empty(t, targetVersion)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Target Istio version could not be found neither in Chart.yaml nor in helm values")
 	})
 
 	t.Run("should return pilot version from values when version was found in values", func(t *testing.T) {
@@ -686,7 +705,7 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.EqualValues(t, "1.2.3", targetVersion)
+		require.EqualValues(t, "1.2.3-distroless", targetVersion)
 	})
 
 	t.Run("should fallback to chart appVersion when values.yaml is not present in the chart", func(t *testing.T) {
@@ -700,7 +719,7 @@ func Test_getTargetVersionFromIstioChart(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.EqualValues(t, "1.2.3", targetVersion)
+		require.EqualValues(t, "1.2.3-distroless", targetVersion)
 	})
 }
 

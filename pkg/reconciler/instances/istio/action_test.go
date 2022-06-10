@@ -1224,51 +1224,21 @@ func Test_canUpdate(t *testing.T) {
 		// then
 		require.True(t, result)
 	})
-}
 
-func Test_isMismatchPresent(t *testing.T) {
-	t.Run("should return false if version string is semver incompatible", func(t *testing.T) {
+	t.Run("should allow update when control plane is consistent and not in the same version as data plane", func(t *testing.T) {
 		// given
-		differentVersions := actions.IstioStatus{
-			ClientVersion:    "version1",
-			PilotVersion:     "version2",
-			DataPlaneVersion: "version3",
+		version := actions.IstioStatus{
+			ClientVersion:    "1.2.1",
+			TargetVersion:    "1.2.1",
+			PilotVersion:     "1.2.1",
+			DataPlaneVersion: "1.2.0",
 		}
 
 		// when
-		got := isMismatchPresent(differentVersions)
+		result, _ := canUpdate(version)
 
 		// then
-		require.False(t, got)
-	})
-	t.Run("Different Pilot and DataPlane versions is a mismatch", func(t *testing.T) {
-		// given
-		differentVersions := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			PilotVersion:     "1.11.1",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		// when
-		got := isMismatchPresent(differentVersions)
-
-		// then
-		require.True(t, got)
-	})
-
-	t.Run("Same Pilot and DataPlane versions is not a mismatch", func(t *testing.T) {
-		// given
-		sameVersions := actions.IstioStatus{
-			ClientVersion:    "1.11.2",
-			PilotVersion:     "1.11.2",
-			DataPlaneVersion: "1.11.2",
-		}
-
-		// when
-		got := isMismatchPresent(sameVersions)
-
-		// then
-		require.False(t, got)
+		require.True(t, result)
 	})
 }
 

@@ -73,17 +73,27 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	if err != nil {
 		return err
 	}
+	kubeClient, err := k8s.NewKubernetesClient(task.Kubeconfig, r.logger, &k8s.Config{
+		ProgressInterval: r.progressTrackerConfig.interval,
+		ProgressTimeout:  r.progressTrackerConfig.timeout,
+	})
+	if err != nil {
+		return err
+	}
 	var retryID string
+
 	retryable := func() error {
 		retryID = uuid.NewString()
+		createOrUpdateStatusCm(ctx, task, reconciler.StatusRunning, kubeClient, r.logger)
 		if err := heartbeatSender.Running(retryID); err != nil {
 			r.logger.Warnf("Runner: failed to start status updater: %s", err)
 			return err
 		}
-		err := r.reconcile(ctx, task)
+		err := r.reconcile(ctx, kubeClient, task)
 		if err != nil {
 			r.logger.Warnf("Runner: failing reconciliation of '%s' in version '%s' with profile '%s': %s",
 				task.Component, task.Version, task.Profile, err)
+			createOrUpdateStatusCm(ctx, task, reconciler.StatusFailed, kubeClient, r.logger)
 			if heartbeatErr := heartbeatSender.Failed(err, retryID); heartbeatErr != nil {
 				err = errors.Wrap(err, heartbeatErr.Error())
 			}
@@ -104,9 +114,10 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		r.logger.Debugf("Runner: reconciliation of component '%s' for version '%s' finished successfully",
 			task.Component, task.Version)
 		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateDone, processingDuration)
+		createOrUpdateStatusCm(ctx, task, reconciler.StatusSuccess, kubeClient, r.logger)
 		if err := heartbeatSender.Success(retryID, processingDuration); err != nil {
 			return err
-		} // TODO: enrich heartbeat with processduration
+		}
 	} else if ctx.Err() != nil {
 		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateFailed, processingDuration)
 		r.logger.Errorf("Runner: reconciliation of component '%s' for version '%s' terminated because context was closed",
@@ -116,6 +127,7 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		r.exposeProcessingDuration(reconcilerMetricsSet, task, model.OperationStateFailed, processingDuration)
 		r.logger.Errorf("Runner: retryable reconciliation of component '%s' for version '%s' failed consistently: giving up",
 			task.Component, task.Version)
+		createOrUpdateStatusCm(ctx, task, reconciler.StatusError, kubeClient, r.logger)
 		if heartbeatErr := heartbeatSender.Error(err, retryID, processingDuration); heartbeatErr != nil {
 			return errors.Wrap(err, heartbeatErr.Error())
 		}
@@ -136,15 +148,7 @@ func (r *runner) exposeProcessingDuration(reconcilerMetricsSet *metrics.Reconcil
 	reconcilerMetricsSet.ComponentProcessingDurationCollector.ExposeProcessingDuration(task.Component, state, processingDuration)
 }
 
-func (r *runner) reconcile(ctx context.Context, task *reconciler.Task) error {
-	kubeClient, err := k8s.NewKubernetesClient(task.Kubeconfig, r.logger, &k8s.Config{
-		ProgressInterval: r.progressTrackerConfig.interval,
-		ProgressTimeout:  r.progressTrackerConfig.timeout,
-	})
-	if err != nil {
-		return err
-	}
-
+func (r *runner) reconcile(ctx context.Context, kubeClient k8s.Client, task *reconciler.Task) error {
 	chartProvider, err := r.newChartProvider(task.Repository)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create chart provider instance")

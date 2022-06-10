@@ -25,6 +25,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Debug("Requested cluster removal - removing component")
 		if err := a.Commands.Remove(context); err != nil {
+			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
 		return nil
@@ -76,6 +77,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	} else if binding == nil && app != nil {
 		context.Logger.Debug("Removing component")
 		if err := a.Commands.Remove(context); err != nil {
+			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
 	}
