@@ -72,11 +72,8 @@ func (cmd *CliCleaner) Run() error {
 	if err := cmd.deleteKymaNamespaces(); err != nil {
 		return err
 	}
-	if err := cmd.waitForNamespaces(); err != nil {
-		return err
-	}
 
-	return nil
+	return cmd.waitForNamespaces()
 }
 
 func (cmd *CliCleaner) removeServerlessCredentialFinalizers() error {
@@ -201,11 +198,7 @@ func (cmd *CliCleaner) removeResourcesFinalizers() error {
 		return err
 	}
 
-	if err := cmd.removeCustomResourcesFinalizers(); err != nil {
-		return err
-	}
-
-	return nil
+	return cmd.removeCustomResourcesFinalizers()
 }
 
 func (cmd *CliCleaner) checkKymaNamespaces() (bool, error) {

@@ -177,8 +177,5 @@ func (scf *sqliteConnectionFactory) resetFile() error {
 	if err != nil {
 		return err
 	}
-	if err := file.Close(); err != nil {
-		return err
-	}
-	return nil
+	return file.Close()
 }
