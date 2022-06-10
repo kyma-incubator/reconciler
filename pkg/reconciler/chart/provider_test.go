@@ -27,7 +27,7 @@ func TestProvider(t *testing.T) {
 
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-	wsFactory, err := NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), log)
+	wsFactory, err := NewFactory(filepath.Join(dirname, workspaceInHomeDir), log)
 	require.NoError(t, err)
 
 	prov, err := NewDefaultProvider(wsFactory, log)

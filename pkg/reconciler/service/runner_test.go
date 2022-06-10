@@ -222,7 +222,7 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("Run with exceeded timeout", func(t *testing.T) {
-		wsf, err := chart.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
+		wsf, err := chart.NewFactory(workspaceInProjectDir, logger.NewLogger(true))
 		require.NoError(t, err)
 		require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 
@@ -244,7 +244,7 @@ func TestRunner(t *testing.T) {
 func SetWorkspaceFactoryForHomeDir(t *testing.T) {
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-	wsf, err := chart.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
+	wsf, err := chart.NewFactory(filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 }
@@ -280,14 +280,14 @@ func cleanup(t *testing.T) {
 
 	dirname, err := os.UserHomeDir()
 	require.NoError(t, err)
-	wsf, err := chart.NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
+	wsf, err := chart.NewFactory(filepath.Join(dirname, workspaceInHomeDir), logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 
 	cleanup := NewTestCleanup(recon, kubeClient)
 	cleanup.RemoveKymaComponent(t, kymaVersion, clusterUsersComponent, "default", "")
 
-	wsf, err = chart.NewFactory(nil, workspaceInProjectDir, logger.NewLogger(true))
+	wsf, err = chart.NewFactory(workspaceInProjectDir, logger.NewLogger(true))
 	require.NoError(t, err)
 	require.NoError(t, RefreshGlobalWorkspaceFactory(wsf))
 	cleanup = NewTestCleanup(recon, kubeClient)

@@ -77,7 +77,7 @@ func RunLocal(o *Options) error {
 
 	l.Infof("Local installation started with kubeconfig %s", o.kubeconfigFile)
 
-	cluster, err := prepareClusterState(o)
+	clState, err := prepareClusterState(o)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func RunLocal(o *Options) error {
 	//use a global workspace factory to ensure all component-reconcilers are using the same workspace-directory
 	//(otherwise each component-reconciler would handle the download of Kyma resources individually which will cause
 	//collisions when sharing the same directory)
-	wsFact, err := chart.NewFactory(nil, workspaceDir, l)
+	wsFact, err := chart.NewFactory(workspaceDir, l)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func RunLocal(o *Options) error {
 		return err
 	}
 
-	ws, err := wsFact.Get(cluster.Configuration.KymaVersion)
+	ws, err := wsFact.Get(clState.Configuration.KymaVersion)
 	if err != nil {
 		return err
 	}
@@ -108,11 +108,11 @@ func RunLocal(o *Options) error {
 		l.Infof("Component '%s' has status '%s'%s", component, msg.Status, errMsg)
 	}
 
-	preComps, comps, err := o.Components(defaultComponentsYaml, *cluster)
+	preComps, comps, err := o.Components(defaultComponentsYaml, *clState)
 	if err != nil {
 		return err
 	}
-	cluster.Configuration.Components = comps
+	clState.Configuration.Components = comps
 
 	runtimeBuilder := schedulerSvc.NewRuntimeBuilder(reconciliation.NewInMemoryReconciliationRepository(), l)
 	reconResult, err := runtimeBuilder.RunLocal(printStatus).
@@ -124,7 +124,7 @@ func RunLocal(o *Options) error {
 				ClusterQueueSize:         10,
 				DeleteStrategy:           scheduler.DeleteStrategySystem, // local runners always use default (will change with unification of remote/local cases)
 			}).
-		Run(cli.NewContext(), cluster)
+		Run(cli.NewContext(), clState)
 	if err != nil {
 		return err //general issue occurred
 	}

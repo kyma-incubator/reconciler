@@ -187,7 +187,7 @@ func newFakeServiceContext(t *testing.T, version string) *service.ActionContext 
 	// WorkspaceFactory into thinking that we don't need to
 	// clone the kyma repo. This is a temporary workaround
 	// since we can't currently mock WorkspaceFactory.
-	fakeFactory, err := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
+	fakeFactory, err := chart.NewFactory("./test_files", log.NewLogger(true))
 
 	require.NoError(t, err)
 

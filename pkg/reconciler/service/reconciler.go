@@ -97,22 +97,22 @@ func (r *ComponentReconciler) EnableDryRun(dryRun bool) {
 	r.dryRun = dryRun
 }
 
-func (r *ComponentReconciler) newChartProvider(repo *reconciler.Repository) (*chart.DefaultProvider, error) {
-	wsFact, err := r.workspaceFactory(repo)
+func (r *ComponentReconciler) newChartProvider() (*chart.DefaultProvider, error) {
+	wsFact, err := r.workspaceFactory()
 	if err != nil {
 		return nil, err
 	}
 	return chart.NewDefaultProvider(*wsFact, r.logger)
 }
 
-func (r *ComponentReconciler) workspaceFactory(repo *reconciler.Repository) (*chart.Factory, error) {
+func (r *ComponentReconciler) workspaceFactory() (*chart.Factory, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	var err error
 	if wsFactory == nil {
 		r.logger.Debugf("Creating new workspace factory using storage directory '%s'", r.workspace)
-		wsFactory, err = chart.NewFactory(repo, r.workspace, r.logger)
+		wsFactory, err = chart.NewFactory(r.workspace, r.logger)
 	}
 
 	return &wsFactory, err

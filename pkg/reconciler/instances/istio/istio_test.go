@@ -148,7 +148,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		}
 	}
 
-	wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
+	wsf, _ := chart.NewFactory("./test_files", log.NewLogger(true))
 	model := reconciler.Task{
 		Component: "istio-configuration",
 		Namespace: "istio-system",
@@ -228,7 +228,7 @@ func Test_RunUninstallAction(t *testing.T) {
 
 	t.Run("Istio uninstall should also delete namespace", func(t *testing.T) {
 		// given
-		wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
+		wsf, _ := chart.NewFactory("./test_files", log.NewLogger(true))
 		model := reconciler.Task{
 			Component: "istio-configuration",
 			Namespace: "istio-system",
@@ -313,7 +313,7 @@ type TestCommanderResolver struct {
 	cmder istioctl.Commander
 }
 
-func (tcr TestCommanderResolver) GetCommander(version istioctl.Version) (istioctl.Commander, error) {
+func (tcr TestCommanderResolver) GetCommander(_ istioctl.Version) (istioctl.Commander, error) {
 	if tcr.err != nil {
 		return nil, tcr.err
 	}

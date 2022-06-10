@@ -53,11 +53,13 @@ type DefaultFactory struct {
 	kymaRepository    *reconciler.Repository
 }
 
-func NewFactory(repo *reconciler.Repository, storageDir string, logger *zap.SugaredLogger) (*DefaultFactory, error) {
+func NewFactory(storageDir string, logger *zap.SugaredLogger) (*DefaultFactory, error) {
 	factory := &DefaultFactory{
-		storageDir:     storageDir,
-		logger:         logger,
-		kymaRepository: repo,
+		storageDir: storageDir,
+		logger:     logger,
+		kymaRepository: &reconciler.Repository{
+			URL: defaultRepositoryURL,
+		},
 	}
 	return factory, factory.validate()
 }
@@ -241,7 +243,11 @@ func (f *DefaultFactory) downloadArchive(URL, dstDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			f.logger.Warnf("Failed to close response body of URL '%s': %s", URL, err)
+		}
+	}()
 	if resp.StatusCode == 404 {
 		return "", fmt.Errorf("not found: %q", URL)
 	}

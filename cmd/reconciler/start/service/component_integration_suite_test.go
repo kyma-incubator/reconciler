@@ -124,7 +124,7 @@ func (s *reconcilerIntegrationTestSuite) SetupSuite() {
 	s.testLogger = logger.NewLogger(true)
 
 	//use ./test folder as workspace
-	wsf, err := chart.NewFactory(nil, s.testDirectory, s.testLogger)
+	wsf, err := chart.NewFactory(s.testDirectory, s.testLogger)
 	s.NoError(err)
 
 	// TODO this currently blocks parallel execution as tests share one execution directory

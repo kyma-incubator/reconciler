@@ -19,7 +19,6 @@ import (
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
 )
@@ -87,7 +86,7 @@ func TestWorkspaceFactory(t *testing.T) {
 		require.NoError(t, err)
 
 		workspaceDir := filepath.Join(dirname, workspaceInHomeDir, version)
-		wsf, err := NewFactory(nil, filepath.Join(dirname, workspaceInHomeDir), log.NewLogger(true))
+		wsf, err := NewFactory(filepath.Join(dirname, workspaceInHomeDir), log.NewLogger(true))
 		require.NoError(t, err)
 
 		//cleanup at the beginning (if test was interrupted before)
@@ -121,7 +120,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 	t.Run("Use local workspace", func(t *testing.T) {
 		workspaceDir := filepath.Join(".", "test", "local")
-		wsf, err := NewFactory(&reconciler.Repository{}, workspaceDir, log.NewLogger(true))
+		wsf, err := NewFactory(workspaceDir, log.NewLogger(true))
 		require.NoError(t, err)
 		localWs, err := wsf.Get(VersionLocal)
 		require.NoError(t, err)
@@ -347,10 +346,10 @@ func Test_ExternalGitComponent(t *testing.T) {
 func validateWorkspace(fileName, componentName, serverURL string) error {
 	fileURL := fmt.Sprintf("%s/%s", serverURL, fileName)
 	dirname := fmt.Sprintf("%x-%s", sha1.Sum([]byte(fileURL)), componentName) //nolint
-	filepath := path.Join(storageDir, dirname, componentName)
+	filePath := path.Join(storageDir, dirname, componentName)
 
-	if _, err := os.Stat(filepath); err != nil {
-		return fmt.Errorf("invalid workspace structure %q: %s", filepath, err)
+	if _, err := os.Stat(filePath); err != nil {
+		return fmt.Errorf("invalid workspace structure %q: %s", filePath, err)
 	}
 
 	return nil
