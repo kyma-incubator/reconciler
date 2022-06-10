@@ -97,7 +97,7 @@ func (r *ComponentReconciler) EnableDryRun(dryRun bool) {
 	r.dryRun = dryRun
 }
 
-func (r *ComponentReconciler) newChartProvider() (*chart.DefaultProvider, error) {
+func (r *ComponentReconciler) newChartProvider(_ *reconciler.Repository) (*chart.DefaultProvider, error) {
 	wsFact, err := r.workspaceFactory()
 	if err != nil {
 		return nil, err

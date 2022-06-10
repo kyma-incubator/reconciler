@@ -33,7 +33,7 @@ type runner struct {
 func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler, reconcilerMetricsSet *metrics.ReconcilerMetricsSet) error {
 	if r.dryRun {
 		var err error
-		chartProvider, err := r.newChartProvider()
+		chartProvider, err := r.newChartProvider(nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create chart provider instance")
 		}
@@ -149,7 +149,7 @@ func (r *runner) exposeProcessingDuration(reconcilerMetricsSet *metrics.Reconcil
 }
 
 func (r *runner) reconcile(ctx context.Context, kubeClient k8s.Client, task *reconciler.Task) error {
-	chartProvider, err := r.newChartProvider()
+	chartProvider, err := r.newChartProvider(nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create chart provider instance")
 	}
