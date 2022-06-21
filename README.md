@@ -324,3 +324,8 @@ The list of pre-components is defined in the [reconciler configuration](https://
 |KEB|Kyma Environment Broker|Service Broker implementation within BPT, which manages business process related to SKRs.|
 |BTP|Business Technology Platform|SAP Cloud offering|
 
+# 12. Appendix
+
+## 12.1 High level overview
+
+![Runtime View](docs/assets/reconciler-highlevel-overview.png)
