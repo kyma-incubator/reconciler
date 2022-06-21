@@ -222,18 +222,18 @@ Component reconcilers take the workload of a reconciliation and have the followi
 
 # 6. Runtime View
 
-The runtime view shows the most important regularly executed tasks the mothership reconciler performs and how the involved software elements are interacting.
+The runtime view shows the most important regularly executed tasks that the mothership reconciler performs, and how the involved software elements are interacting.
 
 ![Runtime View](docs/assets/reconciler-runtime.png)
 
 |Scenario|Description|
 |---|---|
-|Receive KEB updates|The KEB service is sending cluster updates (e.g. create, update or delete) of SKR clusters to the mothership reconciler and pulls the status of the applied change.|
-|Report cluster states to SRE|The reconciler exposes a bunch of internal metrics (load, processing times etc.) and gets scraped by the SRE's managed monitoring system.|
-|Enqueue reconciliation|The scheduler regularly checks for clusters which require a reconciliation (e.g. because they were updated by KEB or their cluster status wasn't synchronized for a while) and adds them to the reconciliation queue.|
-|Process operations|Operations which are ready for processing are picked up by the Worker pool. It communicates them to the particular component reconciler.|
-|Reconcile a component|The component reconciler generates the Kubernetes manifest of the component (e.g. by rendering a Helm chart) and applies it on a Kubernetes cluster. It regularly checks the progress of the deployed resources (e.g. whether they reached the ready state) and reports via heartbeat messages the progress to the mothership reconciler.|
-|Bookkeeping|The bookkeeper checks whether a running reconciliation is in a final state (e.g. finished successfully or ended with an error state) and updates the cluster status accordingly. Beside that, it checks if any operation hasn't received a heartbeat message for a longer time (e.g. because the assigned component reconciler was restarted or gave up) and marks them as orphan operation. Orphan operations will be picked up by the worker pool again.|
+|Receive KEB updates|The KEB service sends cluster updates (such as create, update, or delete) of SKR clusters to the mothership reconciler and pulls the status of the applied change.|
+|Report cluster states to SRE|The reconciler exposes several internal metrics (load, processing times etc.) and is scraped by the SRE's managed monitoring system.|
+|Enqueue reconciliation|The scheduler regularly checks for clusters that need a reconciliation (for example, because they were updated by KEB or their cluster status wasn't synchronized for a while) and adds them to the reconciliation queue.|
+|Process operations|Operations that are ready for processing are picked up by the Worker pool. It communicates them to the particular component reconciler.|
+|Reconcile a component|The component reconciler generates the Kubernetes manifest of the component (for example, by rendering a Helm chart) and applies it on a Kubernetes cluster. It regularly checks the progress of the deployed resources (for example, whether they reached the ready state) and reports the progress with heartbeat messages to the mothership reconciler.|
+|Bookkeeping|The bookkeeper checks whether a running reconciliation is in a final state (such as finished successfully, or ended with an error state) and updates the cluster status accordingly. Beside that, it checks if any operation hasn't received a heartbeat message for a longer time (for example, because the assigned component reconciler was restarted or gave up) and marks them as orphan operation. Orphan operations will be picked up by the worker pool again.|
 
 # 7. Deployment view
 
@@ -245,7 +245,7 @@ The runtime view shows the most important regularly executed tasks the mothershi
 |Postgres DB|Relational database (managed offering from GCP) used by the mothership reconciler and other KCP components like provisioner and KEB.|
 |Mothership Reconciler|Microservice coordinating the reconciliation of SKR clusters|
 |Component Reconciler|Several microservices reconciling one or more Kyma components.|
-|HELM Charts|Source of HELM charts (e.g. Cloud storages or Git repositories).|
+|HELM Charts|Source of HELM charts (for example, cloud storages or Git repositories).|
 |Kubernetes Cluster|Manage Kubernetes cluster.|
 |KCP CLI|Command line tool used to interact with KCP microservices.|
 |SRE / On-Call Engineer|Developer or SRE engineer who administrates the KCP microservices.|
@@ -264,9 +264,9 @@ The interaction between microservices in KCP is only allowed over secured channe
 
 Authentication is also mandatory for any communication and ensure either by
 
-* mTLS (primarily used for Kubernetes internal communication between services via the Istio service mesh)
+* mTLS (primarily used for Kubernetes-internal communication between services via the Istio service mesh)
 * SSL Key authentication (used when communicating to the Kubernetes cluster)
-* protocol specific authentication used by the Postgres DB
+* Protocol-specific authentication used by the Postgres DB
 * OAuth2 (used by the KCP CLI to authenticate developers or SRE engineers)
 
 ## 8.3 Monitoring
@@ -321,6 +321,6 @@ The list of pre-components is defined in the [reconciler configuration](https://
 |---|---|---|
 |SKR|SAP Kyma Runtime|Managed Kyma cluster offering by SAP|
 |KCP|Kymca Control Plane|Managing the lifecycle of SKRs|
-|KEB|Kyma Environment Broker|Service Broker implementation within BPT which manages business process related to SKRs.|
+|KEB|Kyma Environment Broker|Service Broker implementation within BPT, which manages business process related to SKRs.|
 |BTP|Business Technology Platform|SAP Cloud offering|
 
