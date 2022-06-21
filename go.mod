@@ -23,7 +23,7 @@ replace (
 	//fix for CVE-2021-43784
 	//fix for CVE-2021-30465
 	//fix for CVE-2022-29162
-	github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.2
+	github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.3
 	//fix for CVE-2022-21698
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.1
 	//fix for CVE-2021-3538
