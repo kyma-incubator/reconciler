@@ -254,6 +254,10 @@ The runtime view shows the most important regularly executed tasks the mothershi
 
 ## 8.1 Logging
 
+The reconciler is following the recommended approach for [consistent logging in Kyma](https://github.com/kyma-project/community/tree/main/concepts/observability-consistent-logging).
+
+[ZAP library](https://github.com/uber-go/zap) is used and generating log messages. Default output channel is `STDERR`.
+
 ## 8.2 Security
 
 The interaction between microservices in KCP is only allowed over secured channels (TLS encrypted connections).
@@ -267,13 +271,39 @@ Authentication is also mandatory for any communication and ensure either by
 
 ## 8.3 Monitoring
 
+Monitoring is only required when running in Microservice mode. As the reconciler is deployed in KCP landscapes, the available Kyma observability stack in KCP will be used.
+
+[Custom metrics](https://github.com/kyma-project/community/tree/main/concepts/observability-custom-metrics) will be exposed to the central Prometheus monitoring system.
+
 # 9. Architecture Decisions
 
 ## 9.1 Relational database as central storage
 
+[Postgres](https://www.postgresql.org/) is already used in KCP by other services (KEB and provisioner).
+
+To avoid adding another storage system, the storage layer of the reconciler will also use Postgres as RDBMS.
+
 ## 9.2 Tasks triggered in intervals
 
+Modules in the reconicler architecture are decoupled units with particular responsibilities respectively task(s).
+
+Each module has to perform its task regularly and will, for the beginning, be triggered in intervals (using [Go Tickers](https://gobyexample.com/tickers)).
+
+In a later evolution stage, these time based triggers will be replaced by an event-driven approach: a module will be called just in time when it has to perform its task.
+
 ## 9.3 Pre-requisite components
+
+In Kyma 1 was agreed that particular components will be installed first (so called `pre-requisites`). A common Kyma component can expect that these pre-requisites are available when it gets deployed. To avoid bigger refactorings of existing Kyma components, the reconciler takes care that these pre-requisites are still supported in Kyma 2. The reconciler installs pre-requisites before common Kyma
+components will be deployed.
+
+Pre-requisites are:
+
+* CRDs
+* Cluster essential component
+* Istio component
+* Certificates
+
+The list of pre-components is defined in the [reconciler configuration](https://github.com/kyma-incubator/reconciler/blob/main/configs/reconciler.yaml#L41-L42).
 
 ## 9.4 Software layers
 
