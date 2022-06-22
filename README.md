@@ -254,7 +254,7 @@ The runtime view shows the most important regularly executed tasks that the moth
 
 ## 8.1 Logging
 
-The reconciler is following the recommended approach for [consistent logging in Kyma](https://github.com/kyma-project/community/tree/main/concepts/observability-consistent-logging).
+The reconciler follows the recommended approach for [consistent logging in Kyma](https://github.com/kyma-project/community/tree/main/concepts/observability-consistent-logging).
 
 [ZAP library](https://github.com/uber-go/zap) is used and generating log messages. Default output channel is `STDERR`.
 
