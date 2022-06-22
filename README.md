@@ -273,7 +273,7 @@ Authentication is also mandatory for any communication; it's ensured by one of t
 
 Monitoring is only required when running in Microservice mode. As the reconciler is deployed in KCP landscapes, the available Kyma observability stack in KCP will be used.
 
-[Custom metrics](https://github.com/kyma-project/community/tree/main/concepts/observability-custom-metrics) will be exposed to the central Prometheus monitoring system.
+[Custom metrics](https://github.com/kyma-project/community/tree/main/concepts/observability-custom-metrics) are exposed to the central Prometheus monitoring system.
 
 # 9. Architecture Decisions
 
