@@ -307,13 +307,55 @@ The list of pre-components is defined in the [reconciler configuration](https://
 
 ## 9.4 Software layers
 
+The code structure of the different reconciler module is following a layered model:
+
+![reconciler configuration](docs/assets/reconciler-swlayers.png).
+
+Each software layer is allowed to access layers on lower levels. But it is not allowed to access functionalities which are part of a higher layer.
+
+1. Storages
+
+   Persistent data sinks (e.g. Github, PostgresDB, Cloud storages)
+
+2. Persistency
+
+   Abstraction layer to access underneath data storages.
+
+3. Business model
+
+   Including business models.
+
+4. Repository
+
+   Manages business model entities.
+
+5. Business Components
+
+   Business entities offering enhanced business functions and processes.
+
+6. Endpoints
+
+   Exposed API interfaces (e.g. HTTP endpoints).
+
+7. Client
+
+   Clients (e.g. a microservice) accessing exposed API interfades.
+
 # 10. Risks and Technical Debt
 
 ## 10.1 Database
 
+The reconciler is using Postgres to persist business model entities.
+
 ### 10.1.1 Custom ORM
 
-### 10.1.2 Database as performance bottleneck
+Access to the database happens by a custom ORM implementation. This decision was taken to offer optimized access and functionalities to the underneath data structure. This database layer is still in an early state and lacks many features of the common mainstream ORMs (e.g. [GORM](https://gorm.io/index.html)).
+
+This increases maintenance efforts, introduces potential security risks caused by a lower maturity level and can reduce the flexibility of the developers caused by missing or incomplete functionalities.
+
+### 10.1.2 Potential performance bottleneck
+
+Any access to data models has to through the ORM and be processed by the RDBMs system. This makes the system to a potential bottleneck which scales proportional and an increasing amount of data can lead to longer query times. Query optimization is, caused by non-optimized data schema structures, challenging and sometimes not possible.
 
 # 11. Glossary
 
