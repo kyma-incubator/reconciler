@@ -36,7 +36,8 @@ Be aware that the integration test suite installs and deletes Kubernetes resourc
 
 To execute the integration tests, execute the `make test-all` target:
 
-     make test-all
+   ```bash
+   make test-all
 
 # Adding a new component reconciler
 
