@@ -303,7 +303,7 @@ Pre-requisites are:
 * The Istio component
 * Certificates
 
-The list of pre-components is defined in the [reconciler configuration](https://github.com/kyma-incubator/reconciler/blob/main/configs/reconciler.yaml#L41-L42).
+The list of prerequisite components is defined in the [reconciler configuration](https://github.com/kyma-incubator/reconciler/blob/main/configs/reconciler.yaml#L41-L42).
 
 ## 9.4 Software layers
 
