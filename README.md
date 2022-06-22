@@ -281,7 +281,7 @@ Monitoring is only needed when the reconciler runs in microservice mode. Because
 
 [Postgres](https://www.postgresql.org/) is already used in KCP by other services (KEB and provisioner).
 
-To avoid adding another storage system, the storage layer of the reconciler will also use Postgres as RDBMS.
+To avoid adding another storage system, the storage layer of the reconciler also uses Postgres as RDBMS.
 
 ## 9.2 Tasks triggered in intervals
 
