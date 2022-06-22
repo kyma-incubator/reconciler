@@ -295,7 +295,6 @@ In a later evolution stage, these time based triggers will be replaced by an eve
 
 In Kyma release 1.x, particular components (called "prerequisites") were installed first. Any common Kyma component can expect that these prerequisites are available when it is deployed. 
 To avoid major refactoring for Kyma 2.x, the reconciler takes care of this task and installs the prerequisites before common Kyma components are deployed.
-components will be deployed.
 
 Pre-requisites are:
 
