@@ -262,7 +262,7 @@ The reconciler is following the recommended approach for [consistent logging in 
 
 The interaction between microservices in KCP is only allowed over secured channels (TLS encrypted connections).
 
-Authentication is also mandatory for any communication and ensure either by
+Authentication is also mandatory for any communication; it's ensured by one of the following options:
 
 * mTLS (primarily used for Kubernetes-internal communication between services via the Istio service mesh)
 * SSL Key authentication (used when communicating to the Kubernetes cluster)
