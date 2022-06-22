@@ -285,7 +285,7 @@ To avoid adding another storage system, the storage layer of the reconciler also
 
 ## 9.2 Tasks triggered in intervals
 
-Modules in the reconicler architecture are decoupled units with particular responsibilities respectively task(s).
+Modules in the reconciler architecture are decoupled units with particular responsibilities or tasks, respectively.
 
 Each module has to perform its task regularly and will, for the beginning, be triggered in intervals (using [Go Tickers](https://gobyexample.com/tickers)).
 
