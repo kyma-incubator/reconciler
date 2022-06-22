@@ -25,7 +25,8 @@ Follow these steps to run Reconciler locally:
 
 To execute unit tests, use the `make test` target:
 
-      make test
+   ```bash
+   make test
 
 ## Integration test
 
