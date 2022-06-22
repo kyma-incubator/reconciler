@@ -50,7 +50,8 @@ To add another component reconciler, execute the following steps:
 
    Provide the name of the component as parameter, for example:
 
-       pkg/reconciler/instances/reconcilerctl.sh add istio
+   ```bash
+   pkg/reconciler/instances/reconcilerctl.sh add istio
 
    The script creates a new package including the boilerplate code required to initialize a new component reconciler instance during runtime.
 
