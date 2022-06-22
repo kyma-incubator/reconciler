@@ -301,7 +301,7 @@ Pre-requisites are:
 
 * CRDs
 * Component: `cluster essential`
-* Istio component
+* The Istio component
 * Certificates
 
 The list of pre-components is defined in the [reconciler configuration](https://github.com/kyma-incubator/reconciler/blob/main/configs/reconciler.yaml#L41-L42).
