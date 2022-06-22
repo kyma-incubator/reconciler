@@ -300,7 +300,7 @@ components will be deployed.
 Pre-requisites are:
 
 * CRDs
-* Cluster essential component
+* Component: `cluster essential`
 * Istio component
 * Certificates
 
