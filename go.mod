@@ -3,11 +3,6 @@ module github.com/kyma-incubator/reconciler
 go 1.17
 
 replace (
-	// fix CVE-2021-43816
-	// fix CVE-2021-41103
-	// fix CVE-2021-32760
-	// fix CVE-2020-15257
-	github.com/containerd/containerd => github.com/containerd/containerd v1.6.6
 	//fix for CVE-2022-24778
 	github.com/containerd/imgcrypt => github.com/containerd/imgcrypt v1.1.4
 	//fix CVE-2020-26160
