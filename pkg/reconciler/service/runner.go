@@ -107,6 +107,13 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		retry.Attempts(uint(task.ComponentConfiguration.MaxRetries)),
 		retry.Delay(r.retryDelay),
 		retry.LastErrorOnly(false),
+		retry.RetryIf(func(err error) bool {
+			if strings.Contains(err.Error(), "no such host") {
+				r.logger.Warnf("stop retry with err: %s", err)
+				return false
+			}
+			return true
+		}),
 		retry.Context(ctx))
 
 	processingDuration := time.Since(startTime)
