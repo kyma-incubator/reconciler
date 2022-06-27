@@ -291,7 +291,7 @@ Each module has to perform its task regularly and will, for the beginning, be tr
 
 In a later evolution stage, these time based triggers will be replaced by an event-driven approach: a module will be called just in time when it has to perform its task.
 
-## 9.3 Pre-requisite components
+## 9.3 Prerequisite components
 
 In Kyma release 1.x, particular components (called "prerequisites") were installed first. Any common Kyma component can expect that these prerequisites are available when it is deployed. 
 To avoid major refactoring for Kyma 2.x, the reconciler takes care of this task and installs the prerequisites before common Kyma components are deployed.
@@ -307,19 +307,19 @@ The list of prerequisite components is defined in the [reconciler configuration]
 
 ## 9.4 Software layers
 
-The code structure of the different reconciler module is following a layered model:
+The code structure of the different reconciler modules follows a layered model:
 
 ![reconciler configuration](docs/assets/reconciler-swlayers.png).
 
-Each software layer is allowed to access layers on lower levels. But it is not allowed to access functionalities which are part of a higher layer.
+Each software layer is allowed to access layers on lower levels, but it is not allowed to access functionalities that are part of a higher layer.
 
 1. Storages
 
-   Persistent data sinks (e.g. Github, PostgresDB, Cloud storages)
+   Persistent data sinks (such as Github, PostgresDB, cloud storages).
 
 2. Persistency
 
-   Abstraction layer to access underneath data storages.
+   Abstraction layer to access lower-level data storages.
 
 3. Business model
 
@@ -335,23 +335,23 @@ Each software layer is allowed to access layers on lower levels. But it is not a
 
 6. Endpoints
 
-   Exposed API interfaces (e.g. HTTP endpoints).
+   Exposed API interfaces (such as HTTP endpoints).
 
 7. Client
 
-   Clients (e.g. a microservice) accessing exposed API interfades.
+   Clients (such as a microservice) accessing exposed API interfaces.
 
 # 10. Risks and Technical Debt
 
 ## 10.1 Database
 
-The reconciler is using Postgres to persist business model entities.
+The reconciler uses Postgres to persist business model entities.
 
 ### 10.1.1 Custom ORM
 
-Access to the database happens by a custom ORM implementation. This decision was taken to offer optimized access and functionalities to the underneath data structure. This database layer is still in an early state and lacks many features of the common mainstream ORMs (e.g. [GORM](https://gorm.io/index.html)).
+Access to the database happens by a custom ORM implementation. This decision was taken to offer optimized access and functionalities to the data structure underneath. This database layer is still in an early state and lacks many features of the common mainstream ORMs (such as [GORM](https://gorm.io/index.html)).
 
-This increases maintenance efforts, introduces potential security risks caused by a lower maturity level and can reduce the flexibility of the developers caused by missing or incomplete functionalities.
+This increases maintenance efforts, introduces potential security risks caused by a lower maturity level, and can reduce the flexibility of the developers caused by missing or incomplete functionalities.
 
 ### 10.1.2 Potential performance bottleneck
 
