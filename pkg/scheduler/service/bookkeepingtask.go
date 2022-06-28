@@ -55,7 +55,7 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 		}
 		if errCnt < config.MaxDeleteErrRetries {
 			if errCnt >= 1 && operationErrorContainsNoSuchHost(reconResult.error) {
-				fo.logger.Debugf("BookkeeperTask finishOperation: deletion for cluster with runtimeID '%s' and clusterConfig '%d' failed due to no such host",
+				fo.logger.Debugf("BookkeeperTask finishOperation: deletion for cluster with runtimeID '%s' and clusterConfig '%d' failed due to no such host, mark cluster as deleted",
 					reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig)
 				newClusterStatus = model.ClusterStatusDeleted
 			} else {
