@@ -108,18 +108,6 @@ generate-helpers:
 oapi: validate-oapi-spec generate-oapi-models generate-helpers
 	@./scripts/git-check.sh
 
-.PHONY: validate-go-mod
-validate-go-mod:
-	python2 ./scripts/validate-go-mod.py && \
-	([ $$? -eq 0 ] && echo "Result: go.mod is VALID") \
-	|| (echo "Result: go.mod is INVALID (see log above)"; exit 1)
-
-.PHONY: validate-go-mod-auto
-validate-go-mod-auto:
-	go mod tidy -compat=$(GO_COMPAT)
-	python2 ./scripts/validate-go-mod.py --auto
-	go mod tidy -compat=$(GO_COMPAT)
-
 .PHONY: all
 all: resolve oapi lint build test docker-build docker-push
 
