@@ -33,7 +33,7 @@ type runner struct {
 func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callback.Handler, reconcilerMetricsSet *metrics.ReconcilerMetricsSet) error {
 	if r.dryRun {
 		var err error
-		chartProvider, err := r.newChartProvider(task.Repository)
+		chartProvider, err := r.newChartProvider(nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create chart provider instance")
 		}
@@ -107,6 +107,13 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		retry.Attempts(uint(task.ComponentConfiguration.MaxRetries)),
 		retry.Delay(r.retryDelay),
 		retry.LastErrorOnly(false),
+		retry.RetryIf(func(err error) bool {
+			if strings.Contains(err.Error(), "no such host") {
+				r.logger.Warnf("stop retry with err: %s", err)
+				return false
+			}
+			return true
+		}),
 		retry.Context(ctx))
 
 	processingDuration := time.Since(startTime)
@@ -149,12 +156,12 @@ func (r *runner) exposeProcessingDuration(reconcilerMetricsSet *metrics.Reconcil
 }
 
 func (r *runner) reconcile(ctx context.Context, kubeClient k8s.Client, task *reconciler.Task) error {
-	chartProvider, err := r.newChartProvider(task.Repository)
+	chartProvider, err := r.newChartProvider(nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create chart provider instance")
 	}
 
-	wsFactory, err := r.workspaceFactory(task.Repository)
+	wsFactory, err := r.workspaceFactory()
 	if err != nil {
 		return err
 	}

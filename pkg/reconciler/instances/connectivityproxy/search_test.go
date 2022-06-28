@@ -2,16 +2,17 @@ package connectivityproxy
 
 import (
 	"context"
-	k8serr "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"testing"
 
 	mockKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	mock2 "github.com/stretchr/testify/mock"
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
+	meta "k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"testing"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestServiceInstancesFilter(t *testing.T) {
@@ -80,6 +81,15 @@ func TestServiceInstancesFilter(t *testing.T) {
 			Items: bindings,
 		}, nil)
 
+	client.On("ListResource", context.TODO(), "test-no-match", v1.ListOptions{}).
+		Return(nil, &meta.NoResourceMatchError{
+			PartialResource: schema.GroupVersionResource{
+				Group:    "serviceinstance",
+				Version:  "v1",
+				Resource: "test",
+			},
+		})
+
 	client.On("ListResource", context.TODO(), "test-invalid", v1.ListOptions{}).
 		Return(nil, errors.New("Test error"))
 
@@ -116,6 +126,18 @@ func TestServiceInstancesFilter(t *testing.T) {
 	t.Run("Should return nil when non existing instance", func(t *testing.T) {
 		locator := Locator{
 			resource:       "ServiceInstanceNonExisting",
+			field:          "spec.clusterServiceClassExternalName",
+			client:         client,
+			referenceValue: "connectivity",
+		}
+		_, err := locator.find(context.TODO())
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("Should return nil when no match for resource was found", func(t *testing.T) {
+		locator := Locator{
+			resource:       "test-no-match",
 			field:          "spec.clusterServiceClassExternalName",
 			client:         client,
 			referenceValue: "connectivity",
