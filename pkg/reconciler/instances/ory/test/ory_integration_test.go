@@ -25,13 +25,15 @@ func TestOryIntegration(t *testing.T) {
 		}
 		err := wait.Poll(1*time.Second, 1*time.Minute, func() (done bool, err error) {
 			podsList, err := setup.getPods(options)
-			require.NoError(t, err)
-			for _, pod := range podsList.Items {
-				setup.logger.Infof("Pod %v is deployed", pod.Name)
-				ready := podutils.IsPodAvailable(&pod, 0, metav1.Now())
-				return ready, nil
+			if err != nil {
+				return false, err
 			}
-			return false, err
+			ready := false
+			for i := range podsList.Items {
+				setup.logger.Infof("Pod %v is deployed", podsList.Items[i].Name)
+				ready = podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
+			}
+			return ready, err
 		})
 		require.NoError(t, err)
 	})
