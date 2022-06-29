@@ -25,11 +25,10 @@ func TestOryIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		for i, pod := range podsList.Items {
-
 			require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
 			if pod.ObjectMeta.DeletionTimestamp == nil {
 				setup.logger.Infof("Pod %v is deployed", pod.Name)
-				ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
+				ready := podutils.IsPodReady(&podsList.Items[i])
 				require.Equal(t, true, ready)
 			}
 			require.NoError(t, err)
