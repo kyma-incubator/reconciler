@@ -28,14 +28,17 @@ func TestOryIntegration(t *testing.T) {
 			if err != nil {
 				return false, err
 			}
-			ready := false
 			for i := range podsList.Items {
 				setup.logger.Infof("Pod %v is deployed", podsList.Items[i].Name)
-				ready = podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
+				if !podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now()) {
+					setup.logger.Infof("Pod %v is not ready", podsList.Items[i].Name)
+					return false, err
+				}
 			}
-			return ready, err
+			return true, nil
 		})
 		require.NoError(t, err)
+		setup.logger.Info("All Ory pods are deployed and ready")
 	})
 
 	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {
