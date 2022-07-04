@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -53,10 +54,16 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 			fo.logger.Error(err)
 		}
 		if errCnt < config.MaxDeleteErrRetries {
-			newClusterStatus = model.ClusterStatusDeleteErrorRetryable
-			fo.logger.Debugf("BookkeeperTask finishOperation: deletion for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
-				"deletion will be retried (count of applied retries: %d)",
-				reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
+			if errCnt >= 1 && operationErrorContainsNoSuchHost(reconResult.error) {
+				fo.logger.Debugf("BookkeeperTask finishOperation: deletion for cluster with runtimeID '%s' and clusterConfig '%d' failed due to no such host, mark cluster as deleted",
+					reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig)
+				newClusterStatus = model.ClusterStatusDeleted
+			} else {
+				newClusterStatus = model.ClusterStatusDeleteErrorRetryable
+				fo.logger.Debugf("BookkeeperTask finishOperation: deletion for cluster with runtimeID '%s' and clusterConfig '%d' failed but "+
+					"deletion will be retried (count of applied retries: %d)",
+					reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, errCnt)
+			}
 		}
 	} else if newClusterStatus == model.ClusterStatusReconcileError {
 		errCnt, err := fo.transition.inventory.CountRetries(reconResult.reconEntity.RuntimeID, reconResult.reconEntity.ClusterConfig, config.MaxReconcileErrRetries, model.ClusterStatusReconcileError, model.ClusterStatusReconcileErrorRetryable)
@@ -84,4 +91,13 @@ func (fo finishOperation) Apply(reconResult *ReconciliationResult, config *Bookk
 
 	return []error{errors.Errorf("BookkeeperTask finishOperation: failed to update cluster '%s' to status '%s' "+
 		"(schedulingID:%s): %s", recon.RuntimeID, newClusterStatus, recon.SchedulingID, err)}
+}
+
+func operationErrorContainsNoSuchHost(ops []*model.OperationEntity) bool {
+	for _, op := range ops {
+		if strings.Contains(op.Reason, "no such host") {
+			return true
+		}
+	}
+	return false
 }
