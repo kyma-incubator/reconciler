@@ -42,6 +42,11 @@ type postReconcileAction struct {
 	rolloutHandler k8s.RolloutHandler
 }
 
+type preDeleteAction struct {
+	*oryAction
+	finderHandler k8s.OryCRDsHandler
+}
+
 type postDeleteAction struct {
 	*oryAction
 }
@@ -143,6 +148,19 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 
 	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
+	return nil
+}
+
+func (a *preDeleteAction) Run(context *service.ActionContext) error {
+	logger := context.Logger
+	kubeconfig := context.KubeClient.Kubeconfig()
+
+	oryCRDs, err := a.finderHandler.FindAndDeleteOryFinalizers(kubeconfig, logger)
+	if err != nil {
+		logger.Errorf("failed to get ory CRDs")
+	}
+
+	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 	return nil
 }
 
