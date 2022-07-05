@@ -13,10 +13,10 @@ Besides managing the lifecycle, the reconciler is also responsible for reverting
 Non-functional requirements are:
 
 * Reconciliation must be lightweight, fast, and easy scalable.
-* Focus of the reconciler is on the lifecycle management of Kyma related components (it is not required to support everything)
-* Product has to expose monitoring metrics and log data and be integrated into the existing observability stack.
-* Administration interface (e.g. console) exists abd can be used by / embedded in existing administrative tools.
-* Log messages have to be expressive and reconciliation related logs have to allow a correlation to the cluster they belong to.
+* Focus of the reconciler is on the lifecycle management of Kyma-related components. It does not need to support everything.
+* The reconciler must expose monitoring metrics and log data, and be integrated into the existing observability stack.
+* There is an administration interface (for example, a console) and it can be used by, or embedded in, existing administrative tools.
+* Log messages must be expressive and reconciliation-related logs must indicate to which cluster they belong.
 
 ## 1.2 Quality goals
 
@@ -24,10 +24,10 @@ Top five main quality goals are:
 
 |Priority|Goal|Scenario|
 |---|---|---|
-|1|Reliability|95% of all reconciliations are successful (excluded are infrastructure or Kyma component specific issues).|
+|1|Reliability|95% of all reconciliations are successful (excluded are infrastructure and Kyma component-specific issues).|
 |2|Performance efficient|A component reconciliation does not take longer than a common HELM deployment. The overall system performance is regularly measured by load tests.|
 |3|Operability|System operability is verified by operational test cases. Continuous improvement cycles are established and operational quality gaps are addressed in reoccurring retrospectives.|
-|4|Security|The software is continuously verified for potential vulnerabilities and compliant with SAP security standards|
+|4|Security|The software is continuously checked for potential vulnerabilities and compliant with SAP security standards.|
 |5|Maintainability|CI/CD pipelines are established and the code quality is regularly measured. Code smells are tracked and refactorings happen regularly|
 
 ## 1.3 Stakeholder
@@ -44,15 +44,15 @@ Top five main quality goals are:
 
 This section summarizes requirements that constrain software architects in their freedom of design and implementation decisions or decision about the development process.
 
-* Postgres has to be used as RDBMS system as it is already used in KCP (by KEB)
-* The software has to run in K8s clusters (KCP) as pod but also as standalone process (main program).
-* It has to be able to use the reconciliation logic within the Kyma CLI.
-* Support for introducing component specific reconciliation logic is required.
-* Any reconciliation has to behave idempotent.
-* Scalability is required and parallel accesses on data (race conditions) is expected.
-* Integration into existing observability and security scanner stack in SAP is needed.
-* Usage of Kyma CI/CD system (Prow) and reuse/adaption of existing pipelines (if possible).
-* Use HELM templating and installation logic as it's a mainstream library but don't use hooks. Also be aware about [its drawbacks](https://banzaicloud.com/blog/helm3-the-good-the-bad-and-the-ugly/).
+* Postgres must be used as RDBMS system because it is already used by KEB (Kyma Environment Broker) in KCP (Kyma Control Plane).
+* The software must run as Pod in Kubernetes clusters (KCP), but also as standalone process (main program).
+* It must be possible to use the reconciliation logic within the Kyma CLI.
+* Introducing component-specific reconciliation logic must be supported.
+* Any reconciliation must be idempotent.
+* Reconciliation must be scalable. Parallel accesses on data (race conditions) is expected.
+* Integration into the existing observability and security scanner stack in SAP must be possible.
+* It must be possible to use the Kyma CI/CD system (Prow), and, wherever possible, to reuse or adapt of existing pipelines.
+* It must use the HELM templating and installation logic, because it's a mainstream library that doesn't use hooks. Be aware about [HELM's drawbacks](https://banzaicloud.com/blog/helm3-the-good-the-bad-and-the-ugly/).
 
 ## 3. Context and Scope
 
@@ -83,18 +83,18 @@ Surrounding services are:
 |---|---|---|---|
 |KEB|Notifies the reconciler about new Kyma clusters, clusters that need an update of their Kyma installation, or must be deleted. KEB is the leading system for cluster data.|Cluster data|Reconciliation status|
 |KCP CLI|Command line tool used by SRE and on-call engineers to retrieve reconciliation data and trigger administrative actions (for example, disabling the reconciliation for a cluster).|Administrative calls to reconciler API|Reconciliation data and results|
-|SRE observability stack|Track monitoring metrics and log data and expose enhanced analysis and debugging possibilities of administrative engineers via dashboards.|-|Monitoring metrics and log-data|
+|SRE observability stack|Tracks monitoring metrics and log data, and provides dashboards that expose enhanced analysis and debugging possibilities for administrative engineers.|-|Monitoring metrics and log-data|
 |SAP Audit log|Store critical events triggered on the reconciler by humans or a 3rd party system for analysis and traceability reasons.|-|Critical system events|
 
 ### 3.1.2 Embedded
 
 {diagram}
 
-Other applications can reuse the reconciler logic to offer also lifecycle management capabilities for Kyma.
+Other applications can reuse the reconciler logic to offer lifecycle management capabilities for Kyma as well.
 
-The Kyma CLI is one of the most important consumer of the reconciler and includes its library.
+The Kyma CLI is one of the most important consumers of the reconciler. It includes the reconciler library.
 
-Main difference of the embedded setup compared to micoservices is the missing REST API and a cluster reconciliation happens just once instead in a interval loop.
+The main difference of the embedded setup compared to micoservices is the missing REST API, and that a cluster reconciliation happens just once instead in an interval loop.
 
 In the embedded setup, the mothership and component reconcilers interact over Go function calls with each other instead of HTTP REST calls.
 
@@ -129,7 +129,7 @@ No reconciler initiates a communication to an external system. Outgoing communic
 |---|---|---|
 |System design of the mothership reconciler is based on a [data-centered architecture](https://www.tutorialspoint.com/software_architecture_design/data_centered_architecture.htm).|A repository system architecture is an established pattern in Cloud applications because Kubernetes is based on it (ETCD is the data storage and operators are listeners reaching on data changes).|Reuse simple and well-known design principals.|
 |Use [event-sourcing pattern](https://martinfowler.com/eaaDev/EventSourcing.html) for storing cluster data|Cluster data must be auditable (all changes must be tracked), and also save against race conditions. For example, an update of the cluster data during an ongoing reconciliation process should still allow us to reproduce the cluster state that was used at the beginning of the reconciliation.|Establish immutable and auditable data records for cluster data.|
-|Use [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping) layer for data access|Using ORM libraries for converting the object oriented model to relational managed datasets in a RDBMS is best practise. ORM frameworks in Golang with support for SQLIte and Postgres were quite heavyweight and complex, therefore a custom lightweight ORM optimised for the reconciler use-case is used.|Standardised access to manage object oriented data models in relations data structures.|
+|Use [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping) layer for data access|Using ORM libraries for converting the object-oriented model to relational managed datasets in a RDBMS is best practice. ORM frameworks in Golang with support for SQLIte and Postgres were quite heavyweight and complex, therefore we prefer a custom lightweight ORM optimised for the reconciler use case.|Standardised access to manage object-oriented data models in relations data structures.|
 |Support multi-instance setup|To scale proportionally, each reconciler must support the execution of multiple instances in parallel. Race conditions must be expected, addressed, and handled by the reconciler accordingly.|Proportional scaling.|
 
 ## 4.2. System Decomposition
@@ -150,7 +150,7 @@ It is a pure management unit, which doesn't interact with any managed Kyma clust
 
 ### 4.2.2 Component reconciler
 
-Any actions required to apply Kubernetes resources, respectively resources defined within a Kyma component, is handled by so called *component reconcilers*.
+*Component reconcilers* handle any actions that are needed to apply Kubernetes resources, respectively resources defined within a Kyma component.
 
 The mothership delegates the reconciliation of a particular Kyma component to a component reconciler, which can be either a generalist capable to handle multiple different Kyma components or specialised for reconciling just a particular component.
 
@@ -164,18 +164,18 @@ Component reconcilers take the workload of a reconciliation and have the followi
 
 |Quality goal|Decision|
 |---|---|
-|Reliability|Daily review of CI/CD pipelines which apply full install and upgrade procedures for Kyma clusters. Issue for re-occuring failures, which seem not to be related to temporary infrastructure issues, have to be raised.|
-|Reliability|Also ensure proper reporting of success- and failure-rates via monitoring metrics.|
-|Performance efficient|Establish automated load and performance test and execute it regularly in the CI/CD system.|
-|Performance efficient| Team receives automatically the test reports and reacts on negative tendencies or unexpected results.|
+|Reliability|Daily review of CI/CD pipelines that apply full install and upgrade procedures for Kyma clusters. Raise issue tickets for reoccurring failures that seem unrelated to temporary infrastructure issues.|
+|Reliability|Use monitoring metrics to ensure proper reporting of success- and failure rates.|
+|Performance efficiency|Establish an automated load- and performance test, and execute it regularly in the CI/CD system.|
+|Performance efficiency| The team receives the test reports automatically, and reacts on negative tendencies or unexpected results.|
 |Operability|Operational readiness is challenged during retrospectives of incidents.|
 |Operability|The operational toolings (for example, KCP CLI or Kitbag) must be enhanced if any required analysis features are missing.|
 |Security|Security review for the reconciler product must be passed and regularly repeated.|
-|Security|Mandatory security scanner are executed as required quality gate for any reconciler code change. Findings are reviewed during daily team meeting.|
+|Security|Mandatory security scanners are executed as required quality gate for any reconciler code change. Findings are reviewed during daily team meeting.|
 |Security|Any user action must be authenticated and authorized with the company SSO.|
 |Security|Critical system actions must be reported to a auditlog system, and must include a reference to the user who applied them.|
 |Maintainability|Any potential code smells must be reported by the team members in the daily meeting.|
-|Maintainability|Code-smells / code quality gaps have to be tracked in issue tickets, become part of the backlog and the team defines their priority.|
+|Maintainability|Code smells and code quality gaps must be tracked in issue tickets and become part of the backlog. The team defines their priority.|
 
 # 5. Building Block View
 
@@ -185,10 +185,10 @@ Component reconcilers take the workload of a reconciliation and have the followi
 
 |Component|Description|
 |---|---|
-|KEB|Kyma environment broker coordinates business processes exposed to the BTP cockpit which enables customers to create an SAP managed Kyma runtimes (SKR).|
+|KEB|Coordinates business processes exposed to the BTP cockpit, where customers can create an SAP Kyma Runtime (SKR).|
 |Mothership reconciler|Coordinates the lifecycle of Kyma installations on managed Kyma clusters.|
 |Component reconciler|Renders and applies Kyma component charts on managed Kyma clusters.|
-|KEDA Pod Autoscaler|Horizontal pod autoscaler project which allows a flexible configuration for automated pod scaling.|
+|KEDA Pod Autoscaler|A horizontal Pod autoscaler project that supports flexible configuration for automated Pod scaling.|
 
 ## 5.2 Level 1
 
@@ -213,7 +213,7 @@ Component reconcilers take the workload of a reconciliation and have the followi
 |Component|Description|
 |---|---|
 |Worker Pool|Processes a reconciliation operation.|
-|Runner|Executes the reconciliation of an operation|
+|Runner|Executes the reconciliation of a reconciliation operation.|
 |Chart Provider|Renders the HELM chart of a component.|
 |Workspace Factory|Makes HELM charts locally available by downloading them for remote locations (for example, cloud storages, Git repositories etc.)|
 |Heartbeat|Triggers the callback to send a reconciliation status of an operation to the mothership reconciler.|
@@ -237,7 +237,7 @@ The runtime view shows the most important regularly executed tasks that the moth
 
 # 7. Deployment view
 
-![Runtime View](docs/assets/reconciler-deployment.png)
+![Deployment View](docs/assets/reconciler-deployment.png)
 
 |Service|Description|
 |---|---|
@@ -287,9 +287,9 @@ To avoid adding another storage system, the storage layer of the reconciler also
 
 Modules in the reconciler architecture are decoupled units with particular responsibilities or tasks, respectively.
 
-Each module has to perform its task regularly and will, for the beginning, be triggered in intervals (using [Go Tickers](https://gobyexample.com/tickers)).
+Each module must perform its task regularly. In the initial setup, each module is triggered in intervals (using [Go Tickers](https://gobyexample.com/tickers)).
 
-In a later evolution stage, these time based triggers will be replaced by an event-driven approach: a module will be called just in time when it has to perform its task.
+Later, these time-based triggers will be replaced by an event-driven approach: A module will be called just in time when it must perform its task.
 
 ## 9.3 Prerequisite components
 
@@ -355,7 +355,7 @@ This increases maintenance efforts, introduces potential security risks caused b
 
 ### 10.1.2 Potential performance bottleneck
 
-Any access to data models has to through the ORM and be processed by the RDBMs system. This makes the system to a potential bottleneck which scales proportional and an increasing amount of data can lead to longer query times. Query optimization is, caused by non-optimized data schema structures, challenging and sometimes not possible.
+Any access to data models must go through the ORM and be processed by the RDBMs system. This makes the system a potential bottleneck that scales proportionally; and an increasing amount of data can lead to longer query times. Query optimization is challenging because of non-optimized data schema structures; and sometimes not possible at all.
 
 # 11. Glossary
 
