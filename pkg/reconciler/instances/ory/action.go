@@ -155,9 +155,9 @@ func (a *preDeleteAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
 	kubeconfig := context.KubeClient.Kubeconfig()
 
-	oryCRDs, err := a.finderHandler.FindAndDeleteOryFinalizers(kubeconfig, logger)
+	err := a.finderHandler.FindAndDeleteOryFinalizers(kubeconfig, logger)
 	if err != nil {
-		logger.Errorf("failed to get ory CRDs")
+		logger.Errorf("failed to delete ory CRDs")
 	}
 
 	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
