@@ -32,7 +32,6 @@ func NewDefaultOryFinalizersHandler() *DefaultOryFinalizersHandler {
 
 func (h *DefaultOryFinalizersHandler) FindAndDeleteOryFinalizers(kubeconfigData string, logger *zap.SugaredLogger) error {
 	h.logger = logger
-	var res []schema.GroupVersionResource
 
 	config, err := restConfig(kubeconfigData)
 	if err != nil {
@@ -47,36 +46,29 @@ func (h *DefaultOryFinalizersHandler) FindAndDeleteOryFinalizers(kubeconfigData 
 		return err
 	}
 
-	crds, err := h.apixClient.CustomResourceDefinitions().List(context.Background(), metav1.ListOptions{})
+	crd, err := h.apixClient.CustomResourceDefinitions().Get(context.Background(), "oauth2clients.hydra.ory.sh", metav1.GetOptions{})
 	if err != nil && !apierr.IsNotFound(err) {
 		return err
 	}
 
-	if crds == nil {
+	if crd == nil {
+		h.logger.Debugf("Couldn't find oauth2client crd to remove finalizers from")
 		return nil
 	}
 
-	for _, crd := range crds.Items {
-		crdef := schema.GroupVersionResource{
-			Group:    crd.Spec.Group,
-			Version:  crd.Spec.Version,
-			Resource: crd.Spec.Names.Plural,
-		}
-		if crd.Kind == "OAuth2Client" {
-			res = append(res, crdef)
-		}
+	crdef := schema.GroupVersionResource{
+		Group:    crd.Spec.Group,
+		Version:  crd.Spec.Version,
+		Resource: crd.Spec.Names.Plural,
 	}
 
-	var lastErr error
-	for _, crdef := range res {
-		err := h.removeFinalizersFromAllInstancesOf(crdef) //Continue in case of an error
-		if err != nil {
-			lastErr = err
-			h.logger.Errorf("Error while dropping finalizers for CustomResourceDefinition \"%s\": %s", crdef.String(), err.Error())
-		}
+	err = h.removeFinalizersFromAllInstancesOf(crdef)
+	if err != nil {
+		h.logger.Errorf("Error while dropping finalizers for oauth2client \"%s\": %s", crdef.String(), err.Error())
+		return err
 	}
 
-	return lastErr //return last error (if any)
+	return nil
 }
 
 func (h *DefaultOryFinalizersHandler) removeFinalizersFromAllInstancesOf(crdef schema.GroupVersionResource) error {
@@ -115,7 +107,7 @@ func (h *DefaultOryFinalizersHandler) removeCustomResourceFinalizers(crdef schem
 	}
 
 	if len(res.GetFinalizers()) > 0 {
-		h.logger.Debugf("Found finalizers for \"%s\" %s, deleting", res.GetName(), instance.GetKind())
+		h.logger.Debugf("Found ory finalizers for \"%s\" %s, deleting", res.GetName(), instance.GetKind())
 
 		res.SetFinalizers(nil)
 		_, err := h.dynamic.Resource(crdef).Namespace(res.GetNamespace()).Update(context.Background(), res, metav1.UpdateOptions{})
@@ -123,7 +115,7 @@ func (h *DefaultOryFinalizersHandler) removeCustomResourceFinalizers(crdef schem
 			return err
 		}
 
-		h.logger.Debugf("Deleted finalizer for \"%s\" %s", res.GetName(), instance.GetKind())
+		h.logger.Debugf("Deleted ory finalizer for \"%s\" %s", res.GetName(), instance.GetKind())
 	}
 
 	return nil
