@@ -14,7 +14,7 @@ import (
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
 	hydramocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra/mocks"
-	rolloutmock "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s/mocks"
+	oryk8smock "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -66,7 +66,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient := hydramocks.Syncer{}
 		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(nil)
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		values, err := unmarshalTestValues(memoryYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -89,7 +89,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		hydraClient := hydramocks.Syncer{}
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		values, err := unmarshalTestValues(postgresqlYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -114,7 +114,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient := hydramocks.Syncer{}
 		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(errors.New("Failed to trigger hydra Synchronization"))
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		values, err := unmarshalTestValues(memoryYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -138,7 +138,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient := hydramocks.Syncer{}
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil,
 			errors.New("Failed to read configuration"))
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
@@ -306,7 +306,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		rolloutMock.On("RolloutAndWaitForDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		values, err := unmarshalTestValues(postgresqlYaml)
 		require.NoError(t, err)
@@ -331,6 +331,30 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		require.Equal(t, dbNamespacedName.Namespace, secret.Namespace)
 		require.Contains(t, secret.StringData["dsn"], "postgres")
 		require.NotContains(t, secret.StringData["dsn"], inMemoryURL)
+	})
+}
+
+func Test_PreDeleteAction_Run(t *testing.T) {
+	t.Run("should not return an error when FindAndDeleteOryFinalizers returns an error", func(t *testing.T) {
+		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
+		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
+			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("FindAndDeleteOryFinalizers error"))
+
+		factory := chartmocks.Factory{}
+		provider := chartmocks.Provider{}
+		kubeClient := k8smocks.Client{}
+		kubeClient.On("Kubeconfig").Return("kubeconfig")
+		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
+		action := preDeleteAction{&oryAction{step: "pre-delete"}, &oryFinalizersMock}
+
+		// when
+		err := action.Run(actionContext)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertCalled(t, "Kubeconfig")
 	})
 }
 

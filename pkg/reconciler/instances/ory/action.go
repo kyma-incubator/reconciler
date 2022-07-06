@@ -42,6 +42,11 @@ type postReconcileAction struct {
 	rolloutHandler k8s.RolloutHandler
 }
 
+type preDeleteAction struct {
+	*oryAction
+	oryFinalizersHandler k8s.OryFinalizersHandler
+}
+
 type postDeleteAction struct {
 	*oryAction
 }
@@ -143,6 +148,19 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 
 	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 
+	return nil
+}
+
+func (a *preDeleteAction) Run(context *service.ActionContext) error {
+	logger := context.Logger
+	kubeconfig := context.KubeClient.Kubeconfig()
+
+	err := a.oryFinalizersHandler.FindAndDeleteOryFinalizers(kubeconfig, logger)
+	if err != nil {
+		logger.Errorf("failed to delete finalizers from ory CRDs, %s", err.Error())
+	}
+
+	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
 	return nil
 }
 
