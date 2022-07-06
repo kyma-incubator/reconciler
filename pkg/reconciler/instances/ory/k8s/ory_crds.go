@@ -16,6 +16,8 @@ import (
 	k8sRetry "k8s.io/client-go/util/retry"
 )
 
+//go:generate mockery --name=OryFinalizersHandler --outpkg=mock --case=underscore
+//OryFinalizersHandler exposes functionality to find and delete ory custom resource finalizers
 type OryFinalizersHandler interface {
 	FindAndDeleteOryFinalizers(kubeconfigData string, logger *zap.SugaredLogger) error
 }
