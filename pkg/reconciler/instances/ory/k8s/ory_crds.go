@@ -81,6 +81,7 @@ func (h *DefaultOryFinalizersHandler) removeFinalizersFromAllInstancesOf(crdef s
 	}
 
 	if customResourceList == nil {
+		h.logger.Debugf("Couldn't find any oauth2client custom resources.")
 		return nil
 	}
 
