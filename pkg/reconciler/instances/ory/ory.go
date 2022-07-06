@@ -24,7 +24,7 @@ func init() {
 			&oryAction{step: "pre-reconcile"},
 		}).
 		WithPreDeleteAction(&preDeleteAction{
-			&oryAction{step: "pre-delete"}, k8s.NewDefaultOryCRDsHandler(),
+			&oryAction{step: "pre-delete"}, k8s.NewDefaultOryFinalizersHandler(),
 		}).
 		WithPostDeleteAction(&postDeleteAction{
 			&oryAction{step: "post-delete"},
