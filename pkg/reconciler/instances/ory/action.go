@@ -42,13 +42,9 @@ type postReconcileAction struct {
 	rolloutHandler k8s.RolloutHandler
 }
 
-type preDeleteAction struct {
-	*oryAction
-	oryFinalizersHandler k8s.OryFinalizersHandler
-}
-
 type postDeleteAction struct {
 	*oryAction
+	oryFinalizersHandler k8s.OryFinalizersHandler
 }
 
 var (
@@ -151,24 +147,17 @@ func (a *preReconcileAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *preDeleteAction) Run(context *service.ActionContext) error {
-	logger := context.Logger
-	kubeconfig := context.KubeClient.Kubeconfig()
-
-	err := a.oryFinalizersHandler.FindAndDeleteOryFinalizers(kubeconfig, logger)
-	if err != nil {
-		logger.Errorf("failed to delete finalizers from ory CRDs, %s", err.Error())
-	}
-
-	logger.Debugf("Action '%s' executed (passed version was '%s')", a.step, context.Task.Version)
-	return nil
-}
-
 func (a *postDeleteAction) Run(context *service.ActionContext) error {
 	logger := context.Logger
 	client, err := context.KubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve native Kubernetes GO client")
+	}
+
+	kubeconfig := context.KubeClient.Kubeconfig()
+	err = a.oryFinalizersHandler.FindAndDeleteOryFinalizers(kubeconfig, logger)
+	if err != nil {
+		logger.Errorf("failed to delete finalizers from ory CRDs, %s", err.Error())
 	}
 
 	secretExists, err := a.secretExists(context.Context, client, dbNamespacedName)

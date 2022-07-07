@@ -334,39 +334,16 @@ func Test_PreInstallAction_Run(t *testing.T) {
 	})
 }
 
-func Test_PreDeleteAction_Run(t *testing.T) {
-	t.Run("should not return an error when FindAndDeleteOryFinalizers returns an error", func(t *testing.T) {
-		// given
-		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
-		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
-			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
-			Return(errors.New("FindAndDeleteOryFinalizers error"))
-
-		factory := chartmocks.Factory{}
-		provider := chartmocks.Provider{}
-		kubeClient := k8smocks.Client{}
-		kubeClient.On("Kubeconfig").Return("kubeconfig")
-		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := preDeleteAction{&oryAction{step: "pre-delete"}, &oryFinalizersMock}
-
-		// when
-		err := action.Run(actionContext)
-
-		// then
-		require.NoError(t, err)
-		kubeClient.AssertCalled(t, "Kubeconfig")
-	})
-}
-
 func Test_PostDeleteAction_Run(t *testing.T) {
 	t.Run("should not perform any action when kubernetes clientset returned an error", func(t *testing.T) {
 		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("failed to retrieve native Kubernetes GO client"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -375,34 +352,21 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to retrieve native Kubernetes GO client")
 		kubeClient.AssertCalled(t, "Clientset")
-	})
-
-	t.Run("should not perform any action when getting secret returns an error", func(t *testing.T) {
-		// given
-		factory := chartmocks.Factory{}
-		provider := chartmocks.Provider{}
-		kubeClient := k8smocks.Client{}
-		kubeClient.On("Clientset").Return(nil, errors.New("Could not get DB secret"))
-		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
-
-		// when
-		err := action.Run(actionContext)
-
-		// then
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Could not get DB secret")
-		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertNotCalled(t, "Kubeconfig")
 	})
 
 	t.Run("should not perform any action when DB secret does not exist", func(t *testing.T) {
 		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
+		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
+			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("FindAndDeleteOryFinalizers error"))
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -410,10 +374,15 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertCalled(t, "Kubeconfig")
 	})
 
 	t.Run("should delete ory JWKS secret when secret exists", func(t *testing.T) {
 		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
+		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
+			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("FindAndDeleteOryFinalizers error"))
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		existingSecret := fixSecretJwks()
@@ -422,7 +391,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		_, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -430,12 +399,17 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertCalled(t, "Kubeconfig")
 		_, err = clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
 		require.True(t, kerrors.IsNotFound(err))
 	})
 
 	t.Run("should delete ory DB secret when secret exists", func(t *testing.T) {
 		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
+		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
+			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("FindAndDeleteOryFinalizers error"))
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		existingSecret := fixSecretMemory()
@@ -444,7 +418,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		_, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -452,6 +426,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertCalled(t, "Kubeconfig")
 		_, err = clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
 		require.True(t, kerrors.IsNotFound(err))
 	})
