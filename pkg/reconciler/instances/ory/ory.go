@@ -23,11 +23,8 @@ func init() {
 		WithPreReconcileAction(&preReconcileAction{
 			&oryAction{step: "pre-reconcile"},
 		}).
-		WithPreDeleteAction(&preDeleteAction{
-			&oryAction{step: "pre-delete"}, k8s.NewDefaultOryFinalizersHandler(),
-		}).
 		WithPostDeleteAction(&postDeleteAction{
-			&oryAction{step: "post-delete"},
+			&oryAction{step: "post-delete"}, k8s.NewDefaultOryFinalizersHandler(),
 		}).
 		WithPostReconcileAction(&postReconcileAction{
 			&oryAction{step: "post-reconcile"}, hydra.NewDefaultHydraSyncer(k8s.NewDefaultRolloutHandler()),
