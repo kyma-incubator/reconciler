@@ -27,6 +27,7 @@ To execute unit tests, use the `make test` target:
 
    ```bash
    make test
+   ```
 
 ## Integration test
 
@@ -38,6 +39,7 @@ To execute the integration tests, execute the `make test-all` target:
 
    ```bash
    make test-all
+   ```
 
 # Adding a new component reconciler
 
@@ -53,6 +55,7 @@ To add another component reconciler, execute the following steps:
 
    ```bash
    pkg/reconciler/instances/reconcilerctl.sh add istio
+   ```
 
    The script creates a new package including the boilerplate code required to initialize a new component reconciler instance during runtime.
 
