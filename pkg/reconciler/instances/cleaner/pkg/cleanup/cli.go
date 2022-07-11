@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
+	apixV1ClientSet "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,7 +34,7 @@ type KymaCRDsFinder func() ([]schema.GroupVersionResource, error)
 //Implements cleanup logic
 type CliCleaner struct {
 	k8s                          KymaKube
-	apixClient                   apixv1beta1client.ApiextensionsV1beta1Interface
+	apixClient                   apixV1ClientSet.ApiextensionsV1Interface
 	keepCRDs                     bool
 	dropFinalizersOnlyForKymaCRs bool
 	kymaCRDsFinder               KymaCRDsFinder
@@ -50,8 +50,8 @@ func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.Sugar
 		return nil, err
 	}
 
-	var apixClient *apixv1beta1client.ApiextensionsV1beta1Client
-	if apixClient, err = apixv1beta1client.NewForConfig(kymaKube.RestConfig()); err != nil {
+	var apixClient *apixV1ClientSet.ApiextensionsV1Client
+	if apixClient, err = apixV1ClientSet.NewForConfig(kymaKube.RestConfig()); err != nil {
 		return nil, err
 	}
 
