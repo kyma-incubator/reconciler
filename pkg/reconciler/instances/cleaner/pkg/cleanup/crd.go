@@ -77,7 +77,7 @@ func (cmd *CliCleaner) findCRDsByLabel(label string) ([]schema.GroupVersionResou
 	for _, crd := range crds.Items {
 		crdef := schema.GroupVersionResource{
 			Group:    crd.Spec.Group,
-			Version:  crd.Spec.Version,
+			Version:  crd.Spec.Versions[0].Name,
 			Resource: crd.Spec.Names.Plural,
 		}
 		res = append(res, crdef)
