@@ -2,10 +2,10 @@
 * @khlifi411 @jeremyharisch @ruanxin @tobiscr @pbochynski @varbanv @m00g3n @dbadura @pPrecel @kwiatekus @moelsayed @clebs @Tomasz-Smelcerz-SAP @jakobmoellersap @adityabhatia
 
 # Ory reconciler
-/pkg/reconciler/instances/ory/ @strekm @werdes72 @Tomasz-Smelcerz-SAP @mjakobczyk @dariusztutaj @cnvergence @veichtj @piotrkpc
+/pkg/reconciler/instances/ory/ @strekm @werdes72 @dariusztutaj @cnvergence @veichtj @piotrkpc
 
 # Istio reconciler
-/pkg/reconciler/instances/istio/ @strekm @werdes72 @Tomasz-Smelcerz-SAP @mjakobczyk @dariusztutaj @cnvergence @veichtj @piotrkpc
+/pkg/reconciler/instances/istio/ @strekm @werdes72 @dariusztutaj @cnvergence @veichtj @piotrkpc
 
 # Eventing reconciler
 /pkg/reconciler/instances/eventing/ @k15r @nachtmaar @marcobebway @pxsalehi @mfaizanse @friedrichwilken @vladislavpaskar @raypinto @lilitgh
