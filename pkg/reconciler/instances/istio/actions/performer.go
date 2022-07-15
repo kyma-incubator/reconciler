@@ -81,20 +81,6 @@ type chartValues struct {
 	} `json:"global"`
 }
 
-type chartValuesConfiguration struct {
-	Global struct {
-		Images struct {
-			Istio struct {
-				Version   string `json:"version"`
-				Directory string `json:"directory"`
-			} `json:"istio"`
-		} `json:"images"`
-		ContainerRegistry struct {
-			Path string `json:"path"`
-		} `json:"containerRegistry"`
-	} `json:"global"`
-}
-
 //go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
 type IstioPerformer interface {
@@ -431,20 +417,6 @@ func getTargetProxyV2PrefixFromIstioValues(istioHelmChart *helmChart.Chart) (str
 	if err != nil {
 		return "", "", err
 	}
-
-	if istioHelmChart.Metadata.Name == "istio-configuration" {
-		var chartValuesConfiguration chartValuesConfiguration
-
-		err = json.Unmarshal(mapAsJSON, &chartValuesConfiguration)
-		if err != nil {
-			return "", "", err
-		}
-		containerRegistryPath := chartValuesConfiguration.Global.ContainerRegistry.Path
-		directory := chartValuesConfiguration.Global.Images.Istio.Directory
-
-		return containerRegistryPath, directory, nil
-	}
-
 	var chartValues chartValues
 
 	err = json.Unmarshal(mapAsJSON, &chartValues)

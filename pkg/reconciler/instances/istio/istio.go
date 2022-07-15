@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	ReconcilerNameIstio              = "istio"
-	ReconcilerNameIstioConfiguration = "istio-configuration"
+	ReconcilerNameIstio = "istio"
 )
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
@@ -37,19 +36,7 @@ func init() {
 	reconcilerIstio.
 		WithPreReconcileAction(NewStatusPreAction(istioPerformerCreatorFn)).
 		WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).
-		WithPostReconcileAction(actions.NewActionAggregate(
-			NewProxyResetPostAction(istioPerformerCreatorFn),
-		)).
+		WithPostReconcileAction(actions.NewActionAggregate(NewProxyResetPostAction(istioPerformerCreatorFn))).
 		WithDeleteAction(NewUninstallAction(istioPerformerCreatorFn))
-
-	log.Debugf("Initializing component reconciler '%s'", ReconcilerNameIstioConfiguration)
-	reconcilerIstioConfiguration, err := service.NewComponentReconciler(ReconcilerNameIstioConfiguration)
-	if err != nil {
-		log.Fatalf("Could not create '%s' component reconciler: %s", ReconcilerNameIstioConfiguration, err)
-	}
-
-	istioConfigurationPerformerCreatorFn := istioPerformerCreator(istioProxyReset, &provider, ReconcilerNameIstioConfiguration)
-	reconcilerIstioConfiguration.WithReconcileAction(NewReconcileIstioConfigurationAction(istioConfigurationPerformerCreatorFn)).
-		WithDeleteAction(NewUninstallAction(istioConfigurationPerformerCreatorFn))
 
 }
