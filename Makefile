@@ -13,10 +13,11 @@ endif
 
 .DEFAULT_GOAL=all
 FLAGS = -ldflags '-s -w'
+GO_COMPAT = 1.17
 
 .PHONY: resolve
 resolve:
-	go mod tidy -compat=1.17
+	go mod tidy -compat=$(GO_COMPAT)
 
 .PHONY: lint
 lint:
@@ -62,6 +63,7 @@ endif
 .PHONY: bump-primage
 bump-primage:
 	./scripts/bumpimage.sh
+
 .PHONY: test
 test:
 	go test -race -v -timeout 22m -coverprofile=cover.out ./...
