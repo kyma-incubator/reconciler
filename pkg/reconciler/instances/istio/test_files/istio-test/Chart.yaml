@@ -1,3 +1,4 @@
-name: istio-configuration-test
+apiVersion: v1
+name: istio-test
 version: 1.2.3-distroless
 appVersion: 1.2.3

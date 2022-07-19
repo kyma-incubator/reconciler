@@ -7,7 +7,7 @@ type TestCommanderResolver struct {
 	cmder istioctl.Commander
 }
 
-func (tcr TestCommanderResolver) GetCommander(version istioctl.Version) (istioctl.Commander, error) {
+func (tcr TestCommanderResolver) GetCommander(_ istioctl.Version) (istioctl.Commander, error) {
 	if tcr.err != nil {
 		return nil, tcr.err
 	}

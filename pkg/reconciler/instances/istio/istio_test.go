@@ -150,7 +150,7 @@ func Test_RunUpdateAction(t *testing.T) {
 
 	wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
 	model := reconciler.Task{
-		Component: "istio-configuration",
+		Component: "istio",
 		Namespace: "istio-system",
 		Version:   "1.11.2",
 		Profile:   "production",
@@ -230,7 +230,7 @@ func Test_RunUninstallAction(t *testing.T) {
 		// given
 		wsf, _ := chart.NewFactory(nil, "./test_files", log.NewLogger(true))
 		model := reconciler.Task{
-			Component: "istio-configuration",
+			Component: "istio",
 			Namespace: "istio-system",
 			Version:   "0.0.0",
 			Profile:   "production",
@@ -313,7 +313,7 @@ type TestCommanderResolver struct {
 	cmder istioctl.Commander
 }
 
-func (tcr TestCommanderResolver) GetCommander(version istioctl.Version) (istioctl.Commander, error) {
+func (tcr TestCommanderResolver) GetCommander(_ istioctl.Version) (istioctl.Commander, error) {
 	if tcr.err != nil {
 		return nil, tcr.err
 	}
