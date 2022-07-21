@@ -203,6 +203,9 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	}
 
 	sidecarInjectionEnabled, err := isSidecarMigrationDisabled(workspace, branchVersion, istioChart)
+	if err != nil {
+		return err
+	}
 	if sidecarInjectionEnabled {
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			whConf, err := c.selectWebhookConfFormCandidates(context, candidatesNames, clientSet)
