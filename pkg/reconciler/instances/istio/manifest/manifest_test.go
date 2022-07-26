@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
 )
 
 const (
