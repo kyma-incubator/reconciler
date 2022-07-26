@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -33,6 +34,10 @@ func Test_extractIstioOperatorContextFrom(t *testing.T) {
 	t.Run("should not extract istio operator from manifest that does not contain istio operator", func(t *testing.T) {
 		// when
 		result, err := ExtractIstioOperatorContextFrom("")
+
+		operator := istioOperator.IstioOperator{}
+
+		json.Unmarshal([]byte(result), &operator)
 
 		// then
 		require.Empty(t, result)
