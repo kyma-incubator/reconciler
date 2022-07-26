@@ -195,6 +195,12 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	}
 
 	const istioWebHookConfName = "istio-revision-tag-default"
+	webhookNameToChange := "auto.sidecar-injector.istio.io"
+	requiredLabelSelector := metav1.LabelSelectorRequirement{
+		Key:      "gardener.cloud/purpose",
+		Operator: "NotIn",
+		Values:   []string{"kube-system"},
+	}
 
 	sidecarInjectionEnabled, sidecarIncjetionIsSet, err := isSidecarMigrationDisabled(workspace, branchVersion, istioChart)
 	if err != nil {
@@ -202,7 +208,17 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	}
 	if sidecarInjectionEnabled || !sidecarIncjetionIsSet {
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			_, err := c.selectWebhookConf(context, istioWebHookConfName, clientSet)
+			whConf, err := c.selectWebhookConf(context, istioWebHookConfName, clientSet)
+			if err != nil {
+				return err
+			}
+			err = c.addNamespaceSelectorIfNotPresent(whConf, webhookNameToChange, requiredLabelSelector)
+			if err != nil {
+				return err
+			}
+			_, err = clientSet.AdmissionregistrationV1().
+				MutatingWebhookConfigurations().
+				Update(context, whConf, metav1.UpdateOptions{})
 			return err
 		})
 		if err != nil {
@@ -210,6 +226,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		}
 
 		logger.Debugf("Patch has been applied successfully")
+		return nil
 	} else {
 		logger.Debugf("Sidecar injection is disabled, skipping mutating webhook patch")
 	}
