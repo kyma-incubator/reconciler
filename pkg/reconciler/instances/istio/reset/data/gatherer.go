@@ -3,11 +3,15 @@ package data
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/avast/retry-go"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -19,6 +23,8 @@ type Gatherer interface {
 
 	// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
 	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
+
+	GetIstioOperator(dynamicClient dynamic.Interface) (*unstructured.Unstructured, bool, error)
 }
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
@@ -89,6 +95,19 @@ func getIstioSidecarNamesFromAnnotations(podAnnotations map[string]string) []str
 		return []string{}
 	}
 	return istioStatus.Containers
+}
+
+func (d *DefaultGatherer) GetIstioOperator(dynamicClient dynamic.Interface) (*unstructured.Unstructured, error) {
+	item, err := dynamicClient.Resource(schema.GroupVersionResource{Group: "install.istio.io", Version: "v1alpha1", Resource: "istiooperators"}).Get(context.Background(), "installed-state-default-operator", metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	if item == nil {
+		return nil, errors.New("default Kyma IstioOperator CRD wasn't found")
+	}
+
+	return item, nil
 }
 
 // isIstioSidecar checks whether the pod with name=containerName is a Istio sidecar in pod with Istio sidecars with names=istioSidecarNames
