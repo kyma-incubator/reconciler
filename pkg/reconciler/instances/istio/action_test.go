@@ -10,6 +10,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	actionsmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
@@ -64,7 +65,7 @@ func Test_newVersionHelperFrom(t *testing.T) {
 
 	t.Run("should return an error when input string contains less than three numbers", func(t *testing.T) {
 		// when
-		_, err := newHelperVersionFrom("1.2.")
+		_, err := helpers.NewHelperVersionFrom("1.2.")
 
 		// then
 		require.Error(t, err)
@@ -72,7 +73,7 @@ func Test_newVersionHelperFrom(t *testing.T) {
 
 	t.Run("should return an error when input string contains less than two dots", func(t *testing.T) {
 		// when
-		_, err := newHelperVersionFrom("1.23")
+		_, err := helpers.NewHelperVersionFrom("1.23")
 
 		// then
 		require.Error(t, err)
@@ -80,7 +81,7 @@ func Test_newVersionHelperFrom(t *testing.T) {
 
 	t.Run("should return an error when input string contains three numbers, two dots and prefix", func(t *testing.T) {
 		// when
-		_, err := newHelperVersionFrom("prefix-1.2.3")
+		_, err := helpers.NewHelperVersionFrom("prefix-1.2.3")
 
 		// then
 		require.Error(t, err)
@@ -88,7 +89,7 @@ func Test_newVersionHelperFrom(t *testing.T) {
 
 	t.Run("should return no error when input string contains three numbers, two dots, prefix and suffix", func(t *testing.T) {
 		// when
-		_, err := newHelperVersionFrom("prefix-1.2.3-suffix")
+		_, err := helpers.NewHelperVersionFrom("prefix-1.2.3-suffix")
 
 		// then
 		require.Error(t, err)
@@ -96,7 +97,7 @@ func Test_newVersionHelperFrom(t *testing.T) {
 
 	t.Run("should return an error when input string contains three numbers, two dots and text in between", func(t *testing.T) {
 		// when
-		_, err := newHelperVersionFrom("1.text2.3")
+		_, err := helpers.NewHelperVersionFrom("1.text2.3")
 
 		// then
 		require.Error(t, err)
@@ -104,7 +105,7 @@ func Test_newVersionHelperFrom(t *testing.T) {
 
 	t.Run("should return no error when input string contains three numbers and two dots", func(t *testing.T) {
 		// when
-		_, err := newHelperVersionFrom("1.2.3")
+		_, err := helpers.NewHelperVersionFrom("1.2.3")
 
 		// then
 		require.NoError(t, err)
@@ -112,7 +113,7 @@ func Test_newVersionHelperFrom(t *testing.T) {
 
 	t.Run("should return no error when input string contains three numbers, two dots and suffix", func(t *testing.T) {
 		// when
-		_, err := newHelperVersionFrom("1.2.3-suffix")
+		_, err := helpers.NewHelperVersionFrom("1.2.3-suffix")
 
 		// then
 		require.NoError(t, err)
@@ -124,9 +125,9 @@ func Test_helperVersion_compare(t *testing.T) {
 
 	t.Run("should return true when helper versions are of different numbers", func(t *testing.T) {
 		// given
-		v1, err := newHelperVersionFrom("1.2.3")
+		v1, err := helpers.NewHelperVersionFrom("1.2.3")
 		require.NoError(t, err)
-		v2, err := newHelperVersionFrom("4.5.6")
+		v2, err := helpers.NewHelperVersionFrom("4.5.6")
 		require.NoError(t, err)
 
 		// when
@@ -138,9 +139,9 @@ func Test_helperVersion_compare(t *testing.T) {
 
 	t.Run("should return true when helper versions are of equal numbers", func(t *testing.T) {
 		// given
-		v1, err := newHelperVersionFrom("1.2.3")
+		v1, err := helpers.NewHelperVersionFrom("1.2.3")
 		require.NoError(t, err)
-		v2, err := newHelperVersionFrom("1.2.3")
+		v2, err := helpers.NewHelperVersionFrom("1.2.3")
 		require.NoError(t, err)
 
 		// when
@@ -152,9 +153,9 @@ func Test_helperVersion_compare(t *testing.T) {
 
 	t.Run("should return true when helper versions are of equal numbers and one has suffix", func(t *testing.T) {
 		// given
-		v1, err := newHelperVersionFrom("1.2.3-suffix")
+		v1, err := helpers.NewHelperVersionFrom("1.2.3-suffix")
 		require.NoError(t, err)
-		v2, err := newHelperVersionFrom("1.2.3")
+		v2, err := helpers.NewHelperVersionFrom("1.2.3")
 		require.NoError(t, err)
 
 		// when
@@ -166,9 +167,9 @@ func Test_helperVersion_compare(t *testing.T) {
 
 	t.Run("should return true when helper versions are of equal numbers and both have different suffixes", func(t *testing.T) {
 		// given
-		v1, err := newHelperVersionFrom("1.2.3-suffix1")
+		v1, err := helpers.NewHelperVersionFrom("1.2.3-suffix1")
 		require.NoError(t, err)
-		v2, err := newHelperVersionFrom("1.2.3-suffix2")
+		v2, err := helpers.NewHelperVersionFrom("1.2.3-suffix2")
 		require.NoError(t, err)
 
 		// when
@@ -1148,9 +1149,9 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.11.6",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion, err := newHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
+		pilotHelperVersion, err := helpers.NewHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
 		require.NoError(t, err)
-		targetHelperVersion, err := newHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
+		targetHelperVersion, err := helpers.NewHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
 		require.NoError(t, err)
 
 		// when
@@ -1168,9 +1169,9 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.11.1",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion, err := newHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
+		pilotHelperVersion, err := helpers.NewHelperVersionFrom(sameMinorPilotVersion.PilotVersion)
 		require.NoError(t, err)
-		targetHelperVersion, err := newHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
+		targetHelperVersion, err := helpers.NewHelperVersionFrom(sameMinorPilotVersion.TargetVersion)
 		require.NoError(t, err)
 
 		// when
@@ -1188,9 +1189,9 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.12.6",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion, err := newHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
+		pilotHelperVersion, err := helpers.NewHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
 		require.NoError(t, err)
-		targetHelperVersion, err := newHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
+		targetHelperVersion, err := helpers.NewHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
 		require.NoError(t, err)
 
 		// when
@@ -1208,9 +1209,9 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.10.1",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion, err := newHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
+		pilotHelperVersion, err := helpers.NewHelperVersionFrom(oneMinorPilotVersion.PilotVersion)
 		require.NoError(t, err)
-		targetHelperVersion, err := newHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
+		targetHelperVersion, err := helpers.NewHelperVersionFrom(oneMinorPilotVersion.TargetVersion)
 		require.NoError(t, err)
 
 		// when
@@ -1228,9 +1229,9 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.13.6",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion, err := newHelperVersionFrom(greaterThanOneMinorPilotVersion.PilotVersion)
+		pilotHelperVersion, err := helpers.NewHelperVersionFrom(greaterThanOneMinorPilotVersion.PilotVersion)
 		require.NoError(t, err)
-		targetHelperVersion, err := newHelperVersionFrom(greaterThanOneMinorPilotVersion.TargetVersion)
+		targetHelperVersion, err := helpers.NewHelperVersionFrom(greaterThanOneMinorPilotVersion.TargetVersion)
 		require.NoError(t, err)
 
 		// when
@@ -1248,9 +1249,9 @@ func Test_amongOneMinor(t *testing.T) {
 			PilotVersion:     "1.9.1",
 			DataPlaneVersion: "1.11.2",
 		}
-		pilotHelperVersion, err := newHelperVersionFrom(lesserThanOneMinorPilotVersion.PilotVersion)
+		pilotHelperVersion, err := helpers.NewHelperVersionFrom(lesserThanOneMinorPilotVersion.PilotVersion)
 		require.NoError(t, err)
-		targetHelperVersion, err := newHelperVersionFrom(lesserThanOneMinorPilotVersion.TargetVersion)
+		targetHelperVersion, err := helpers.NewHelperVersionFrom(lesserThanOneMinorPilotVersion.TargetVersion)
 		require.NoError(t, err)
 
 		// when

@@ -7,6 +7,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/pkg/errors"
@@ -58,7 +59,7 @@ type defaultCommanderResolver struct {
 	istioBinaryResolver istioctl.ExecutableResolver
 }
 
-func (dcr *defaultCommanderResolver) GetCommander(version istioctl.Version) (istioctl.Commander, error) {
+func (dcr *defaultCommanderResolver) GetCommander(version helpers.HelperVersion) (istioctl.Commander, error) {
 	istioBinary, err := dcr.istioBinaryResolver.FindIstioctl(version)
 	if err != nil {
 		return nil, err

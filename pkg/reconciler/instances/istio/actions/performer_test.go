@@ -638,7 +638,7 @@ func Test_getTargetProxyV2PrefixFromIstioChart(t *testing.T) {
 		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files/path-tests"}, nil)
 
 		// when
-		targetPrefix, err := getTargetProxyV2PrefixFromIstioChart(factory, branch, istioChart, log)
+		targetPrefix, err := getTargetProxyV2LibraryFromIstioChart(factory, branch, istioChart, log)
 
 		// then
 		expectedPrefix := "istio-proxy-path/istio-proxy-dir"

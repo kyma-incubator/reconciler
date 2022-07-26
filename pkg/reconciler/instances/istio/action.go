@@ -3,13 +3,14 @@ package istio
 import (
 	"context"
 	"fmt"
+	"math"
 
-	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 )
@@ -150,7 +151,7 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 		return nil
 	}
 	if canUpdateResult {
-		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, istioStatus.TargetPrefix, context.Logger)
+		err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, context.Logger)
 		if err != nil {
 			context.Logger.Warnf("could not perform ResetProxy action: %v", err)
 			return nil
@@ -206,50 +207,16 @@ func (a *UninstallAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-type helperVersion struct {
-	ver semver.Version
-}
-
-func (h helperVersion) compare(second helperVersion) int {
-	if h.ver.Major > second.ver.Major {
-		return 1
-	} else if h.ver.Major == second.ver.Major {
-		if h.ver.Minor > second.ver.Minor {
-			return 1
-		} else if h.ver.Minor == second.ver.Minor {
-			if h.ver.Patch > second.ver.Patch {
-				return 1
-			} else if h.ver.Patch == second.ver.Patch {
-				return 0
-			} else {
-				return -1
-			}
-		} else {
-			return -1
-		}
-	} else {
-		return -1
-	}
-}
-
-func newHelperVersionFrom(versionInString string) (helperVersion, error) {
-	version, err := semver.NewVersion(versionInString)
-	if err != nil {
-		return helperVersion{}, err
-	}
-	return helperVersion{ver: *version}, err
-}
-
 func canInstall(istioStatus actions.IstioStatus) bool {
 	return !isInstalled(istioStatus)
 }
 
 func isInstalled(istioStatus actions.IstioStatus) bool {
-	return !(istioStatus.DataPlaneVersion == "" && istioStatus.PilotVersion == "")
+	return !(istioStatus.DataPlaneVersion.Library == "" && istioStatus.PilotVersion.Library == "")
 }
 
 func canUninstall(istioStatus actions.IstioStatus) bool {
-	return isInstalled(istioStatus) && istioStatus.ClientVersion != ""
+	return isInstalled(istioStatus) && istioStatus.ClientVersion.Library != ""
 }
 
 func getInstalledVersion(context *service.ActionContext, performer actions.IstioPerformer) (actions.IstioStatus, error) {
@@ -262,17 +229,7 @@ func getInstalledVersion(context *service.ActionContext, performer actions.Istio
 }
 
 func isClientCompatibleWithTargetVersion(istioStatus actions.IstioStatus) bool {
-
-	clientHelperVersion, err := newHelperVersionFrom(istioStatus.ClientVersion)
-	if err != nil {
-		return false
-	}
-	targetHelperVersion, err := newHelperVersionFrom(istioStatus.TargetVersion)
-	if err != nil {
-		return false
-	}
-
-	return amongOneMinor(clientHelperVersion, targetHelperVersion)
+	return amongOneMinor(istioStatus.ClientVersion, istioStatus.TargetVersion)
 }
 
 func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
@@ -287,18 +244,10 @@ func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
 	return true, nil
 }
 
-func isComponentCompatible(componentVersion, targetVersion, componentName string) (bool, error) {
-	componentHelperVersion, err := newHelperVersionFrom(componentVersion)
-	if err != nil {
-		return false, err
-	}
-	targetHelperVersion, err := newHelperVersionFrom(targetVersion)
-	if err != nil {
-		return false, err
-	}
+func isComponentCompatible(componentVersion, targetVersion helpers.HelperVersion, componentName string) (bool, error) {
 
-	componentVsTargetComparison := targetHelperVersion.compare(componentHelperVersion)
-	if !amongOneMinor(componentHelperVersion, targetHelperVersion) {
+	componentVsTargetComparison := targetVersion.Compare(componentVersion)
+	if !amongOneMinor(componentVersion, targetVersion) {
 		return false, fmt.Errorf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
 			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion)
 	}
@@ -319,8 +268,8 @@ func getActionTypeFrom(comparison int) string {
 	}
 }
 
-func amongOneMinor(first, second helperVersion) bool {
-	return first.ver.Major == second.ver.Major && (first.ver.Minor == second.ver.Minor || first.ver.Minor-second.ver.Minor == -1 || first.ver.Minor-second.ver.Minor == 1)
+func amongOneMinor(first, second helpers.HelperVersion) bool {
+	return first.Tag.Major == second.Tag.Major && int(math.Abs(float64(first.Tag.Minor)-float64(second.Tag.Major))) == 0
 }
 
 func unDeployIstioRelatedResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {

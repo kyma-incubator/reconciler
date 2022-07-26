@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
 )
@@ -13,11 +14,8 @@ type IstioProxyConfig struct {
 	// Reconcile action context
 	Context context.Context
 
-	// ImagePrefix of Istio
-	ImagePrefix string
-
 	// ImageVersion of Istio
-	ImageVersion string
+	ImageVersion helpers.HelperVersion
 
 	// RetriesCount after an unsuccessful attempt
 	RetriesCount int
