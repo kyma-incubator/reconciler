@@ -56,3 +56,15 @@ func (h HelperVersion) String() string {
 func AreEqual(first, second HelperVersion) bool {
 	return first.Library == second.Library && first.Tag.Equal(second.Tag)
 }
+
+func (h HelperVersion) EqualTo(second HelperVersion) bool {
+	return AreEqual(h, second)
+}
+
+func (h HelperVersion) SmallerThan(second HelperVersion) bool {
+	return h.Compare(second) < 0
+}
+
+func (h HelperVersion) BiggerThan(second HelperVersion) bool {
+	return h.Compare(second) > 0
+}

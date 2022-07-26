@@ -79,7 +79,7 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 		}
 	}
 
-	return v1.PodList{}, nil
+	return outputPodsList, nil
 }
 
 // getIstioSidecarNamesFromAnnotations gets all container names in pod annoted with podAnnotations that are Istio sidecars
