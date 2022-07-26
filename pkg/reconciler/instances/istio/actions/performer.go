@@ -189,9 +189,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		return err
 	}
 
-	const primary = "istio-revision-tag-default"
-	const secondary = "istio-sidecar-injector"
-	candidatesNames := []string{primary, secondary}
+	const istioWebHookConfName = "istio-revision-tag-default"
 
 	webhookNameToChange := "auto.sidecar-injector.istio.io"
 
@@ -202,7 +200,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 	}
 
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		whConf, err := c.selectWebhookConfFormCandidates(context, candidatesNames, clientSet)
+		whConf, err := c.selectWebhookConf(context, istioWebHookConfName, clientSet)
 		if err != nil {
 			return err
 		}
@@ -244,15 +242,13 @@ func (c *DefaultIstioPerformer) addNamespaceSelectorIfNotPresent(whConf *v1.Muta
 	return fmt.Errorf("could not find webhook %s in WebhookConfiguration %s", webhookNameToChange, whConf.Name)
 }
 
-func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (wh *v1.MutatingWebhookConfiguration, err error) {
-	for _, webhookName := range candidatesNames {
-		wh, err = clientSet.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context, webhookName, metav1.GetOptions{})
-		if err != nil {
-			continue
-		}
-		return
+func (c *DefaultIstioPerformer) selectWebhookConf(context context.Context, webhookConfName string, clientSet clientgo.Interface) (wh *v1.MutatingWebhookConfiguration, err error) {
+
+	wh, err = clientSet.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context, webhookConfName, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "MutatingWebhookConfigurations could not be selected from candidates")
 	}
-	return nil, errors.Wrap(err, "MutatingWebhookConfigurations could not be selected from candidates")
+	return
 }
 
 func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {

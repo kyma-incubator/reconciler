@@ -245,7 +245,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 
 	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error", func(t *testing.T) {
 		// given
-		whConfName := "istio-sidecar-injector"
+		whConfName := "istio-revision-tag-default"
 		kubeClient := mocks.Client{}
 		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(whConfName))
 		kubeClient.On("Clientset").Return(clientset, nil)
