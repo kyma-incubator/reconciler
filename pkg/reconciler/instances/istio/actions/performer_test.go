@@ -416,6 +416,75 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 	})
 }
 
+func Test_DefaultIstioPerformer_LabelNamespaces(t *testing.T) {
+
+	log := logger.NewLogger(false)
+
+	t.Run("should not label namespaces when sidecar injection value doesn't exist", func(t *testing.T) {
+		// given
+		namespace := "test"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespace(namespace))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-empty"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotContains(t, got.Labels, "istio-injection")
+	})
+
+	t.Run("should not label namespaces when sidecar injection is disabled", func(t *testing.T) {
+		// given
+		namespace := "test"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespace(namespace))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-disabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotContains(t, got.Labels, "istio-injection")
+	})
+
+	t.Run("should label namespaces when sidecar injection is enabled", func(t *testing.T) {
+		// given
+		namespace := "test"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespace(namespace))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-enabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Contains(t, got.Labels, "istio-injection")
+		require.Equal(t, "enabled", got.Labels["istio-injection"])
+	})
+}
+
 func createIstioAutoMutatingWebhookConfWithSelector(whConfName string, selector ...metav1.LabelSelectorRequirement) *v1.MutatingWebhookConfiguration {
 	return &v1.MutatingWebhookConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: whConfName},
@@ -432,6 +501,12 @@ func createIstioAutoMutatingWebhookConfWithSelector(whConfName string, selector 
 
 func createIstioAutoMutatingWebhookConf(whConfName string) *v1.MutatingWebhookConfiguration {
 	return createIstioAutoMutatingWebhookConfWithSelector(whConfName, metav1.LabelSelectorRequirement{})
+}
+
+func createNamespace(namespace string) *corev1.Namespace {
+	return &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: namespace},
+	}
 }
 
 func Test_DefaultIstioPerformer_Update(t *testing.T) {

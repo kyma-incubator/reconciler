@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"path/filepath"
 	"reflect"
 	"time"
@@ -91,6 +92,9 @@ type IstioPerformer interface {
 
 	// PatchMutatingWebhook patches Istio's webhook configuration.
 	PatchMutatingWebhook(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error
+
+	// LabelNamespaces labels all namespaces with enabled istio sidecar injection.
+	LabelNamespaces(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster to the targetVersion using istioChart.
 	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
@@ -202,11 +206,11 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		Values:   []string{"kube-system"},
 	}
 
-	sidecarInjectionEnabled, err := isSidecarMigrationDisabled(workspace, branchVersion, istioChart)
+	sidecarInjectionEnabled, sidecarIncjetionIsSet, err := isSidecarMigrationDisabled(workspace, branchVersion, istioChart)
 	if err != nil {
 		return err
 	}
-	if sidecarInjectionEnabled {
+	if sidecarInjectionEnabled || !sidecarIncjetionIsSet {
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			whConf, err := c.selectWebhookConfFormCandidates(context, candidatesNames, clientSet)
 			if err != nil {
@@ -228,6 +232,41 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		logger.Debugf("Patch has been applied successfully")
 	} else {
 		logger.Debugf("Sidecar injection is disabled, skipping mutating webhook patch")
+	}
+
+	return nil
+}
+
+func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error {
+	clientSet, err := kubeClient.Clientset()
+	if err != nil {
+		return err
+	}
+
+	labelPatch := `{"metadata": {"labels": {"istio-injection": "enabled"}}}`
+
+	sidecarInjectionEnabled, sidecarIncjetionIsSet, err := isSidecarMigrationDisabled(workspace, branchVersion, istioChart)
+	if err != nil {
+		return err
+	}
+	if sidecarInjectionEnabled && sidecarIncjetionIsSet {
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			namespaces, err := clientSet.CoreV1().Namespaces().List(context, metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+			for _, namespace := range namespaces.Items {
+				_, err = clientSet.CoreV1().Namespaces().Patch(context, namespace.ObjectMeta.Name, types.MergePatchType, []byte(labelPatch), metav1.PatchOptions{})
+			}
+			return err
+		})
+		if err != nil {
+			return err
+		}
+
+		logger.Debugf("Namespaces have been labeled successfully")
+	} else {
+		logger.Debugf("Sidecar injection is disabled or it is not set, skipping labeling namespaces")
 	}
 
 	return nil
@@ -482,28 +521,40 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string, targetDirect
 	}, nil
 }
 
-func isSidecarMigrationDisabled(workspace chart.Factory, branch string, istioChart string) (bool, error) {
+func isSidecarMigrationDisabled(workspace chart.Factory, branch string, istioChart string) (option bool, isSet bool, err error) {
 	ws, err := workspace.Get(branch)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	istioHelmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	var chartValues chartValues
 
 	err = json.Unmarshal(mapAsJSON, &chartValues)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
-	sidecarMigration := chartValues.Global.SidecarMigration
+	option = chartValues.Global.SidecarMigration
 
-	return sidecarMigration, nil
+	isSet = false
+	var rawValues map[string]map[string]interface{}
+	err = json.Unmarshal(mapAsJSON, &rawValues)
+	if err != nil {
+		return false, false, err
+	}
+	if global, isGlobalSet := rawValues["global"]; isGlobalSet {
+		if _, isSidecarMigrationSet := global["sidecarMigration"]; isSidecarMigrationSet {
+			isSet = true
+		}
+	}
+
+	return option, isSet, nil
 }
