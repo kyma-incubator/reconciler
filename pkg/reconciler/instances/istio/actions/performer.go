@@ -227,10 +227,9 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 
 		logger.Debugf("Patch has been applied successfully")
 		return nil
-	} else {
-		logger.Debugf("Sidecar injection is disabled, skipping mutating webhook patch")
 	}
 
+	logger.Debugf("Sidecar injection is disabled or not set, skipping mutating webhook patch")
 	return nil
 }
 
