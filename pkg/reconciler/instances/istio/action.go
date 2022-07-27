@@ -66,24 +66,29 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	err = deployIstio(context, performer)
-
-	errPatchMutatingWebhook := performer.PatchMutatingWebhook(context.Context, context.KubeClient, context.Logger)
+	errPatchMutatingWebhook := performer.PatchMutatingWebhook(context.Context, context.KubeClient,
+		context.WorkspaceFactory, context.Task.Version, context.Task.Component, context.Logger)
 	if errPatchMutatingWebhook != nil {
 		errPatchMutatingWebhook = errors.Wrap(errPatchMutatingWebhook, "Could not patch MutatingWebhookConfiguration")
+		if err != nil {
+			err = errors.Wrap(err, errPatchMutatingWebhook.Error())
+		} else {
+			err = errPatchMutatingWebhook
+		}
 	}
 
-	switch {
-	case err != nil && errPatchMutatingWebhook != nil:
-		return errors.Wrap(err, errPatchMutatingWebhook.Error())
-
-	case err != nil && errPatchMutatingWebhook == nil:
-		return err
-
-	case err == nil && errPatchMutatingWebhook != nil:
-		return errPatchMutatingWebhook
-	default:
-		return nil
+	errLabelNamespaces := performer.LabelNamespaces(context.Context, context.KubeClient,
+		context.WorkspaceFactory, context.Task.Version, context.Task.Component, context.Logger)
+	if errLabelNamespaces != nil {
+		errLabelNamespaces = errors.Wrap(errLabelNamespaces, "Could not label namespaces")
+		if err != nil {
+			err = errors.Wrap(err, errLabelNamespaces.Error())
+		} else {
+			err = errLabelNamespaces
+		}
 	}
+
+	return err
 }
 
 func deployIstio(context *service.ActionContext, performer actions.IstioPerformer) error {
