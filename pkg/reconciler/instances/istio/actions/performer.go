@@ -254,7 +254,11 @@ func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeCli
 				return err
 			}
 			for _, namespace := range namespaces.Items {
-				_, err = clientSet.CoreV1().Namespaces().Patch(context, namespace.ObjectMeta.Name, types.MergePatchType, []byte(labelPatch), metav1.PatchOptions{})
+				_, isIstioIncjetionSet := namespace.Labels["istio-injection"]
+				if !isIstioIncjetionSet && namespace.ObjectMeta.Name != "kube-system" {
+					logger.Debugf("Patching namespace %s with label istio-injection: enabled", namespace.ObjectMeta.Name)
+					_, err = clientSet.CoreV1().Namespaces().Patch(context, namespace.ObjectMeta.Name, types.MergePatchType, []byte(labelPatch), metav1.PatchOptions{})
+				}
 			}
 			return err
 		})
