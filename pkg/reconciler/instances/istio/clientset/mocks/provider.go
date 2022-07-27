@@ -17,11 +17,11 @@ type Provider struct {
 }
 
 // GetIstioOperator provides a mock function with given fields: kubeConfig
-func (_m *Provider) GetIstioOperator(kubeConfig *string) (*v1alpha1.IstioOperator, error) {
+func (_m *Provider) GetIstioOperator(kubeConfig string) (*v1alpha1.IstioOperator, error) {
 	ret := _m.Called(kubeConfig)
 
 	var r0 *v1alpha1.IstioOperator
-	if rf, ok := ret.Get(0).(func(*string) *v1alpha1.IstioOperator); ok {
+	if rf, ok := ret.Get(0).(func(string) *v1alpha1.IstioOperator); ok {
 		r0 = rf(kubeConfig)
 	} else {
 		if ret.Get(0) != nil {
@@ -30,7 +30,7 @@ func (_m *Provider) GetIstioOperator(kubeConfig *string) (*v1alpha1.IstioOperato
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*string) error); ok {
+	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(kubeConfig)
 	} else {
 		r1 = ret.Error(1)

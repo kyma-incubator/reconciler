@@ -265,7 +265,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 		return err
 	}
 	if compareIstioOperators {
-		needed, err := upgradeNeeded(c.provider, istioOperatorManifest, &kubeConfig, logger)
+		needed, err := upgradeNeeded(c.provider, istioOperatorManifest, kubeConfig, logger)
 		if err != nil {
 			return err
 		}
@@ -478,7 +478,7 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string, targetDirect
 	}, nil
 }
 
-func upgradeNeeded(provider clientset.Provider, operatorManifest string, kubeConfig *string, logger *zap.SugaredLogger) (bool, error) {
+func upgradeNeeded(provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (bool, error) {
 	installedIop, err := provider.GetIstioOperator(kubeConfig)
 	if err != nil {
 		logger.Warnf("Could not fetch Istio Operator from the cluster %v", err)

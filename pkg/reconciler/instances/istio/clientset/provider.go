@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"go.uber.org/zap"
@@ -25,7 +24,7 @@ type Provider interface {
 
 	// GetIstioOperator fetches IstioOperator from the cluster with kubeconfig passed as kubeConfig parameter
 	// If kubeConfig is set to nil, the kubeconfig is fetched from KUBECONFIG env or if it's not set than from default kubeconfig dir
-	GetIstioOperator(kubeConfig *string) (*istioOperator.IstioOperator, error)
+	GetIstioOperator(kubeConfig string) (*istioOperator.IstioOperator, error)
 }
 
 // DefaultProvider provides a default implementation of Provider.
@@ -57,7 +56,7 @@ func (c *DefaultProvider) RetrieveFrom(kubeConfig string, log *zap.SugaredLogger
 	return kubeClient, nil
 }
 
-func (d *DefaultProvider) GetIstioOperator(kubeConfig *string) (*istioOperator.IstioOperator, error) {
+func (d *DefaultProvider) GetIstioOperator(kubeConfig string) (*istioOperator.IstioOperator, error) {
 	dynamicClient, err := getDynamicClient(kubeConfig)
 	if err != nil {
 		return nil, err
@@ -77,47 +76,25 @@ func (d *DefaultProvider) GetIstioOperator(kubeConfig *string) (*istioOperator.I
 	return &operator, nil
 }
 
-func loadKubeConfigOrDie(kubeConfig *string) (*rest.Config, error) {
-	if kubeConfig == nil {
-		if kubeconfig, ok := os.LookupEnv("KUBECONFIG"); ok {
-			cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-			if err != nil {
-				return nil, err
-			}
-			return cfg, nil
-		}
-	} else {
-		cfg, err := clientcmd.BuildConfigFromFlags("", *kubeConfig)
-		if err != nil {
-			return nil, err
-		}
-		return cfg, nil
-	}
-
-	if _, err := os.Stat(clientcmd.RecommendedHomeFile); os.IsNotExist(err) {
-		cfg, err := rest.InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
-		return cfg, nil
-	}
-
-	cfg, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
+func getDynamicClient(kubeConfig string) (dynamic.Interface, error) {
+	config, err := restConfig(kubeConfig)
 	if err != nil {
 		return nil, err
 	}
-	return cfg, nil
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return dynamicClient, nil
 }
 
-func getDynamicClient(kubeConfig *string) (dynamic.Interface, error) {
-	config, err := loadKubeConfigOrDie(kubeConfig)
+// restConfig loads the rest configuration needed by k8s clients to interact with clusters based on the kubeconfig.
+// Loading rules are based on standard defined kubernetes config loading.
+func restConfig(kubeconfigData string) (*rest.Config, error) {
+	cfg, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfigData))
 	if err != nil {
 		return nil, err
 	}
-
-	client, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
+	cfg.WarningHandler = rest.NoWarnings{}
+	return cfg, nil
 }
