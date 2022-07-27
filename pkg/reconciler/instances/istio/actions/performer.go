@@ -15,6 +15,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
 	v1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientgo "k8s.io/client-go/kubernetes"
@@ -92,7 +93,7 @@ type IstioPerformer interface {
 	PatchMutatingWebhook(ctx context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster to the targetVersion using istioChart.
-	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
+	Update(kubeConfig, istioChart, targetVersion string, compareIstioOperators bool, logger *zap.SugaredLogger) error
 
 	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
 	ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error
@@ -251,7 +252,7 @@ func (c *DefaultIstioPerformer) selectWebhookConf(context context.Context, webho
 	return
 }
 
-func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, compareIstioOperators bool, logger *zap.SugaredLogger) error {
 	logger.Debug("Starting Istio update...")
 
 	version, err := istioctl.VersionFromString(targetVersion)
@@ -263,7 +264,15 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 	if err != nil {
 		return err
 	}
-
+	if compareIstioOperators {
+		needed, err := upgradeNeeded(c.provider, istioOperatorManifest, &kubeConfig, logger)
+		if err != nil {
+			return err
+		}
+		if !needed {
+			return nil
+		}
+	}
 	commander, err := c.resolver.GetCommander(version)
 	if err != nil {
 		return err
@@ -467,4 +476,21 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string, targetDirect
 		PilotVersion:     getVersionFromJSON("pilot", version),
 		DataPlaneVersion: getVersionFromJSON("dataPlane", version),
 	}, nil
+}
+
+func upgradeNeeded(provider clientset.Provider, operatorManifest string, kubeConfig *string, logger *zap.SugaredLogger) (bool, error) {
+	installedIop, err := provider.GetIstioOperator(kubeConfig)
+	if err != nil {
+		logger.Warnf("Could not fetch Istio Operator from the cluster %v", err)
+		return true, err
+	}
+
+	toBeInstalledIop := istioOperator.IstioOperator{}
+	json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
+
+	equals := reflect.DeepEqual(installedIop.Spec, toBeInstalledIop.Spec)
+	if equals {
+		logger.Infof("Istio Operator on the cluster and in the chart are different, upgrade needed")
+	}
+	return !equals, nil
 }

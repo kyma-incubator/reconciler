@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
 	v12 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -169,6 +170,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		proxy := proxymocks.IstioProxyReset{}
 		proxy.On("Run", mock.Anything).Return(nil)
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, &proxy, &providerMock)
+		providerMock.On("GetIstioOperator", mock.AnythingOfType("*string")).Return(&istioOperator.IstioOperator{}, nil)
 
 		action := istio.NewIstioMainReconcileAction(performerCreatorFn(performer))
 
