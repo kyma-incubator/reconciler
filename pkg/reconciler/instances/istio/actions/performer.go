@@ -93,7 +93,7 @@ type IstioPerformer interface {
 	// PatchMutatingWebhook patches Istio's webhook configuration.
 	PatchMutatingWebhook(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error
 
-	// LabelNamespaces labels all namespaces with enabled istio sidecar injection.
+	// LabelNamespaces labels all namespaces with enabled istio sidecar migration.
 	LabelNamespaces(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster to the targetVersion using istioChart.
@@ -189,6 +189,7 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 }
 
 func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error {
+	logger.Debugf("Patching mutating webhook")
 	clientSet, err := kubeClient.Clientset()
 	if err != nil {
 		return err
@@ -229,11 +230,12 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		return nil
 	}
 
-	logger.Debugf("Sidecar injection is disabled or not set, skipping mutating webhook patch")
+	logger.Debugf("Sidecar migration is disabled or not set, skipping mutating webhook patch")
 	return nil
 }
 
 func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error {
+	logger.Debugf("Labeling namespaces with istio-injection: enabled")
 	clientSet, err := kubeClient.Clientset()
 	if err != nil {
 		return err
@@ -262,7 +264,7 @@ func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeCli
 
 		logger.Debugf("Namespaces have been labeled successfully")
 	} else {
-		logger.Debugf("Sidecar injection is disabled or it is not set, skipping labeling namespaces")
+		logger.Debugf("Sidecar migration is disabled or it is not set, skipping labeling namespaces")
 	}
 
 	return nil

@@ -246,7 +246,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		require.Contains(t, err.Error(), "kubeclient error")
 	})
 
-	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error and sidecar injection value doesn't exist", func(t *testing.T) {
+	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error and sidecar migration value doesn't exist", func(t *testing.T) {
 		// given
 		whConfName := "istio-revision-tag-default"
 		kubeClient := mocks.Client{}
@@ -272,7 +272,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		require.Contains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
 	})
 
-	t.Run("should patch MutatingWebhookConfiguration when sidecar injection is enabled", func(t *testing.T) {
+	t.Run("should patch MutatingWebhookConfiguration when sidecar migration is enabled", func(t *testing.T) {
 		// given
 		whConfName := "istio-revision-tag-default"
 		kubeClient := mocks.Client{}
@@ -298,7 +298,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		require.Contains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
 	})
 
-	t.Run("should not patch MutatingWebhookConfiguration when sidecar injection is disabled", func(t *testing.T) {
+	t.Run("should not patch MutatingWebhookConfiguration when sidecar migration is disabled", func(t *testing.T) {
 		// given
 		whConfName := "istio-sidecar-injector"
 		kubeClient := mocks.Client{}
@@ -420,7 +420,7 @@ func Test_DefaultIstioPerformer_LabelNamespaces(t *testing.T) {
 
 	log := logger.NewLogger(false)
 
-	t.Run("should not label namespaces when sidecar injection value doesn't exist", func(t *testing.T) {
+	t.Run("should not label namespaces when sidecar migration value doesn't exist", func(t *testing.T) {
 		// given
 		namespace := "test"
 		kubeClient := mocks.Client{}
@@ -441,7 +441,7 @@ func Test_DefaultIstioPerformer_LabelNamespaces(t *testing.T) {
 		require.NotContains(t, got.Labels, "istio-injection")
 	})
 
-	t.Run("should not label namespaces when sidecar injection is disabled", func(t *testing.T) {
+	t.Run("should not label namespaces when sidecar migration is disabled", func(t *testing.T) {
 		// given
 		namespace := "test"
 		kubeClient := mocks.Client{}
@@ -462,7 +462,7 @@ func Test_DefaultIstioPerformer_LabelNamespaces(t *testing.T) {
 		require.NotContains(t, got.Labels, "istio-injection")
 	})
 
-	t.Run("should label namespaces when sidecar injection is enabled", func(t *testing.T) {
+	t.Run("should label namespaces when sidecar migration is enabled", func(t *testing.T) {
 		// given
 		namespace := "test"
 		kubeClient := mocks.Client{}
