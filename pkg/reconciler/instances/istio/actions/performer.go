@@ -265,13 +265,11 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 		return err
 	}
 	if compareIstioOperators {
-		needed, err := upgradeNeeded(c.provider, istioOperatorManifest, kubeConfig, logger)
-		if err != nil {
-			return err
-		}
+		needed := upgradeNeeded(c.provider, istioOperatorManifest, kubeConfig, logger)
 		if !needed {
 			return nil
 		}
+		logger.Info("Found different version of IstioOperator CR on cluster, proceeding with upgrade")
 	}
 	commander, err := c.resolver.GetCommander(version)
 	if err != nil {
@@ -478,19 +476,19 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string, targetDirect
 	}, nil
 }
 
-func upgradeNeeded(provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (bool, error) {
+func upgradeNeeded(provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) bool {
 	installedIop, err := provider.GetIstioOperator(kubeConfig)
 	if err != nil {
 		logger.Warnf("Could not fetch Istio Operator from the cluster %v", err)
-		return true, err
+		return true
 	}
 
 	toBeInstalledIop := istioOperator.IstioOperator{}
 	json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
 
-	equals := reflect.DeepEqual(installedIop.Spec, toBeInstalledIop.Spec)
+	equals := reflect.DeepEqual(toBeInstalledIop.Spec, installedIop.Spec)
 	if equals {
 		logger.Infof("Istio Operator on the cluster and in the chart are different, upgrade needed")
 	}
-	return !equals, nil
+	return !equals
 }
