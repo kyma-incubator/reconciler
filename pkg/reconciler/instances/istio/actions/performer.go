@@ -203,11 +203,11 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		Values:   []string{"kube-system"},
 	}
 
-	sidecarInjectionEnabled, sidecarIncjetionIsSet, err := isSidecarMigrationEnabled(workspace, branchVersion, istioChart)
+	sidecarMigrationEnabled, sidecarMigrationIsSet, err := isSidecarMigrationEnabled(workspace, branchVersion, istioChart)
 	if err != nil {
 		return err
 	}
-	if sidecarInjectionEnabled || !sidecarIncjetionIsSet {
+	if sidecarMigrationEnabled || !sidecarMigrationIsSet {
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			whConf, err := c.selectWebhookConf(context, istioWebHookConfName, clientSet)
 			if err != nil {
@@ -243,11 +243,11 @@ func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeCli
 
 	labelPatch := `{"metadata": {"labels": {"istio-injection": "enabled"}}}`
 
-	sidecarInjectionEnabled, sidecarInjectionIsSet, err := isSidecarMigrationEnabled(workspace, branchVersion, istioChart)
+	sidecarMigrationEnabled, sidecarMigrationIsSet, err := isSidecarMigrationEnabled(workspace, branchVersion, istioChart)
 	if err != nil {
 		return err
 	}
-	if sidecarInjectionEnabled && sidecarInjectionIsSet {
+	if sidecarMigrationEnabled && sidecarMigrationIsSet {
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			namespaces, err := clientSet.CoreV1().Namespaces().List(context, metav1.ListOptions{})
 			if err != nil {
