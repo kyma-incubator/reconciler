@@ -203,7 +203,7 @@ func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, ku
 		Values:   []string{"kube-system"},
 	}
 
-	sidecarInjectionEnabled, sidecarIncjetionIsSet, err := isSidecarMigrationDisabled(workspace, branchVersion, istioChart)
+	sidecarInjectionEnabled, sidecarIncjetionIsSet, err := isSidecarMigrationEnabled(workspace, branchVersion, istioChart)
 	if err != nil {
 		return err
 	}
@@ -243,19 +243,19 @@ func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeCli
 
 	labelPatch := `{"metadata": {"labels": {"istio-injection": "enabled"}}}`
 
-	sidecarInjectionEnabled, sidecarIncjetionIsSet, err := isSidecarMigrationDisabled(workspace, branchVersion, istioChart)
+	sidecarInjectionEnabled, sidecarInjectionIsSet, err := isSidecarMigrationEnabled(workspace, branchVersion, istioChart)
 	if err != nil {
 		return err
 	}
-	if sidecarInjectionEnabled && sidecarIncjetionIsSet {
+	if sidecarInjectionEnabled && sidecarInjectionIsSet {
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			namespaces, err := clientSet.CoreV1().Namespaces().List(context, metav1.ListOptions{})
 			if err != nil {
 				return err
 			}
 			for _, namespace := range namespaces.Items {
-				_, isIstioIncjetionSet := namespace.Labels["istio-injection"]
-				if !isIstioIncjetionSet && namespace.ObjectMeta.Name != "kube-system" {
+				_, isIstioInjectionSet := namespace.Labels["istio-injection"]
+				if !isIstioInjectionSet && namespace.ObjectMeta.Name != "kube-system" {
 					logger.Debugf("Patching namespace %s with label istio-injection: enabled", namespace.ObjectMeta.Name)
 					_, err = clientSet.CoreV1().Namespaces().Patch(context, namespace.ObjectMeta.Name, types.MergePatchType, []byte(labelPatch), metav1.PatchOptions{})
 				}
@@ -521,7 +521,7 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string, targetDirect
 	}, nil
 }
 
-func isSidecarMigrationDisabled(workspace chart.Factory, branch string, istioChart string) (option bool, isSet bool, err error) {
+func isSidecarMigrationEnabled(workspace chart.Factory, branch string, istioChart string) (option bool, isSet bool, err error) {
 	ws, err := workspace.Get(branch)
 	if err != nil {
 		return false, false, err

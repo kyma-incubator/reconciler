@@ -483,6 +483,49 @@ func Test_DefaultIstioPerformer_LabelNamespaces(t *testing.T) {
 		require.Contains(t, got.Labels, "istio-injection")
 		require.Equal(t, "enabled", got.Labels["istio-injection"])
 	})
+
+	t.Run("should not label kube-system namespace when sidecar migration is enabled", func(t *testing.T) {
+		// given
+		namespace := "kube-system"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespace(namespace))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-enabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotContains(t, got.Labels, "istio-injection")
+	})
+
+	t.Run("should not label namespace with user created label when sidecar migration is enabled", func(t *testing.T) {
+		// given
+		namespace := "user-ns"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespaceWithLabel(namespace, map[string]string{"istio-injection": "disabled"}))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-enabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Contains(t, got.Labels, "istio-injection")
+		require.Equal(t, "disabled", got.Labels["istio-injection"])
+	})
 }
 
 func createIstioAutoMutatingWebhookConfWithSelector(whConfName string, selector ...metav1.LabelSelectorRequirement) *v1.MutatingWebhookConfiguration {
@@ -506,6 +549,12 @@ func createIstioAutoMutatingWebhookConf(whConfName string) *v1.MutatingWebhookCo
 func createNamespace(namespace string) *corev1.Namespace {
 	return &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{Name: namespace},
+	}
+}
+
+func createNamespaceWithLabel(name string, labels map[string]string) *corev1.Namespace {
+	return &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels},
 	}
 }
 
