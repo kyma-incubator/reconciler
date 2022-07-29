@@ -435,7 +435,7 @@ func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) (*help
 		}
 		return nil, nil
 	default:
-		return nil, errors.New("no version typed specified")
+		return nil, errors.New("no version type specified")
 	}
 }
 
