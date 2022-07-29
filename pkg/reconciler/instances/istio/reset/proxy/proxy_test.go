@@ -4,9 +4,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/coreos/go-semver/semver"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	datamocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data/mocks"
 	podresetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset/mocks"
@@ -17,8 +19,7 @@ import (
 
 func Test_IstioProxyReset_Run(t *testing.T) {
 	cfg := config.IstioProxyConfig{
-		ImagePrefix:  "istio/proxyv2",
-		ImageVersion: "1.10.2",
+		ImageVersion: helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 10, Patch: 2}},
 		RetriesCount: 5,
 		Kubeclient:   fake.NewSimpleClientset(),
 		Log:          log.NewLogger(true),

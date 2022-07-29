@@ -212,7 +212,7 @@ func canInstall(istioStatus actions.IstioStatus) bool {
 }
 
 func isInstalled(istioStatus actions.IstioStatus) bool {
-	return !(istioStatus.DataPlaneVersion.Library == "" && istioStatus.PilotVersion.Library == "")
+	return !(istioStatus.DataPlaneVersion == nil && istioStatus.PilotVersion == nil)
 }
 
 func canUninstall(istioStatus actions.IstioStatus) bool {
@@ -233,11 +233,11 @@ func isClientCompatibleWithTargetVersion(istioStatus actions.IstioStatus) bool {
 }
 
 func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
-	if isPilotCompatible, err := isComponentCompatible(istioStatus.PilotVersion, istioStatus.TargetVersion, "Pilot"); !isPilotCompatible {
+	if isPilotCompatible, err := isComponentCompatible(*istioStatus.PilotVersion, istioStatus.TargetVersion, "Pilot"); !isPilotCompatible {
 		return false, err
 	}
 
-	if isDataplaneCompatible, err := isComponentCompatible(istioStatus.DataPlaneVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
+	if isDataplaneCompatible, err := isComponentCompatible(*istioStatus.DataPlaneVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
 		return false, err
 	}
 
@@ -269,7 +269,7 @@ func getActionTypeFrom(comparison int) string {
 }
 
 func amongOneMinor(first, second helpers.HelperVersion) bool {
-	return first.Tag.Major == second.Tag.Major && int(math.Abs(float64(first.Tag.Minor)-float64(second.Tag.Major))) == 0
+	return first.Tag.Major == second.Tag.Major && int(math.Abs(float64(first.Tag.Minor)-float64(second.Tag.Minor))) < 2
 }
 
 func unDeployIstioRelatedResources(context context.Context, manifest string, client kubernetes.Client, logger *zap.SugaredLogger) error {

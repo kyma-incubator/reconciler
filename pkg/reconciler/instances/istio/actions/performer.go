@@ -41,8 +41,8 @@ type VersionType string
 type IstioStatus struct {
 	ClientVersion    helpers.HelperVersion
 	TargetVersion    helpers.HelperVersion
-	PilotVersion     helpers.HelperVersion
-	DataPlaneVersion helpers.HelperVersion
+	PilotVersion     *helpers.HelperVersion
+	DataPlaneVersion *helpers.HelperVersion
 }
 
 type IstioVersionOutput struct {
@@ -416,22 +416,26 @@ func getTargetProxyV2PrefixFromIstioValues(istioHelmChart *helmChart.Chart) (str
 	return containerRegistryPath, directory, nil
 }
 
-func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) (helpers.HelperVersion, error) {
+func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) (*helpers.HelperVersion, error) {
 	switch versionType {
 	case "client":
-		return helpers.NewHelperVersionFrom(json.ClientVersion.Version)
+		version, err := semver.NewVersion(json.ClientVersion.Version)
+		if err != nil {
+			return nil, err
+		}
+		return &helpers.HelperVersion{Library: "istioctl", Tag: *version}, nil
 	case "pilot":
 		if len(json.MeshVersion) > 0 {
 			return helpers.NewHelperVersionFrom(json.MeshVersion[0].Info.Version)
 		}
-		return helpers.HelperVersion{}, nil
+		return nil, nil
 	case "dataPlane":
 		if len(json.DataPlaneVersion) > 0 {
 			return helpers.NewHelperVersionFrom(json.DataPlaneVersion[0].IstioVersion)
 		}
-		return helpers.HelperVersion{}, nil
+		return nil, nil
 	default:
-		return helpers.HelperVersion{}, nil
+		return nil, errors.New("no version typed specified")
 	}
 }
 
@@ -466,7 +470,7 @@ func mapVersionToStruct(versionOutput []byte, targetTag string, targetLibrary st
 	dataPlaneVersion, _ := getVersionFromJSON("dataPlane", version)
 
 	return IstioStatus{
-		ClientVersion:    clientVersion,
+		ClientVersion:    *clientVersion,
 		TargetVersion:    targetVersion,
 		PilotVersion:     pilotVersion,
 		DataPlaneVersion: dataPlaneVersion}, nil

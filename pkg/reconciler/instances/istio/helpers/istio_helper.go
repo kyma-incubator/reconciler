@@ -13,18 +13,21 @@ type HelperVersion struct {
 	Tag     semver.Version
 }
 
-func NewHelperVersionFrom(image string) (HelperVersion, error) {
+func NewHelperVersionFrom(image string) (*HelperVersion, error) {
 	splitted := strings.Split(image, ":")
 	if len(splitted) != 2 {
-		return HelperVersion{}, errors.New("image doesn't contain repository and tag")
+		return nil, errors.New("image doesn't contain repository and tag")
 	}
 	library := splitted[0]
+	if(len(splitted[1])==0){
+		return nil, errors.New("image tag was not found")
+	}
 
 	tag, err := semver.NewVersion(splitted[1])
 	if err != nil {
-		return HelperVersion{}, err
+		return nil, err
 	}
-	return HelperVersion{Library: library, Tag: *tag}, err
+	return &HelperVersion{Library: library, Tag: *tag}, err
 }
 
 func (h HelperVersion) Compare(second HelperVersion) int {
@@ -62,9 +65,9 @@ func (h HelperVersion) EqualTo(second HelperVersion) bool {
 }
 
 func (h HelperVersion) SmallerThan(second HelperVersion) bool {
-	return h.Compare(second) < 0
+	return h.Tag.LessThan(second.Tag)
 }
 
 func (h HelperVersion) BiggerThan(second HelperVersion) bool {
-	return h.Compare(second) > 0
+	return second.Tag.LessThan(h.Tag)
 }

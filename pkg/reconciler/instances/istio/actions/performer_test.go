@@ -14,6 +14,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
@@ -66,7 +67,7 @@ metadata:
 		  {
 			"Component": "pilot",
 			"Info": {
-			  "version": "1.11.1",
+			  "version": "istiod:1.11.1",
 			  "revision": "revision",
 			  "golang_version": "",
 			  "status": "Clean",
@@ -77,11 +78,19 @@ metadata:
 		"dataPlaneVersion": [
 		  {
 			"ID": "id",
-			"IstioVersion": "1.11.1"
+			"IstioVersion": "istio/proxyv2:1.11.1"
 		  }
 		]
 	  }`
 )
+
+func first(first *helpers.HelperVersion, _ error) helpers.HelperVersion {
+	return *first
+}
+
+func firstPtr(first *helpers.HelperVersion, _ error) *helpers.HelperVersion {
+	return first
+}
 
 func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
@@ -97,7 +106,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Install(kubeConfig, "", "1.2.3", log)
+		err := wrapper.Install(kubeConfig, "", first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.Error(t, err)
@@ -115,7 +124,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Install(kubeConfig, "", "1.2.3", log)
+		err := wrapper.Install(kubeConfig, "", first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.Error(t, err)
@@ -134,7 +143,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Install(kubeConfig, istioManifest, "1.2.3", log)
+		err := wrapper.Install(kubeConfig, istioManifest, first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.Error(t, err)
@@ -153,7 +162,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Install(kubeConfig, istioManifest, "1.2.3", log)
+		err := wrapper.Install(kubeConfig, istioManifest, first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.NoError(t, err)
@@ -179,7 +188,7 @@ func Test_DefaultIstioPerformer_Uninstall(t *testing.T) {
 		var wrapper IstioPerformer = NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Uninstall(kc, "1.2.3", log)
+		err := wrapper.Uninstall(kc, first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.Error(t, err)
@@ -197,7 +206,7 @@ func Test_DefaultIstioPerformer_Uninstall(t *testing.T) {
 		var wrapper IstioPerformer = NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Uninstall(kc, "1.2.3", log)
+		err := wrapper.Uninstall(kc, first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.Error(t, err)
@@ -216,7 +225,7 @@ func Test_DefaultIstioPerformer_Uninstall(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Uninstall(kc, "1.2.3", log)
+		err := wrapper.Uninstall(kc, first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.NoError(t, err)
@@ -381,7 +390,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(kubeConfig, "", "1.2.3", log)
+		err := wrapper.Update(kubeConfig, "", first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.Error(t, err)
@@ -399,7 +408,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(kubeConfig, "", "1.2.3", log)
+		err := wrapper.Update(kubeConfig, "", first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.Error(t, err)
@@ -418,7 +427,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(kubeConfig, istioManifest, "1.2.3", log)
+		err := wrapper.Update(kubeConfig, istioManifest, first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.Error(t, err)
@@ -437,7 +446,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(kubeConfig, istioManifest, "1.2.3", log)
+		err := wrapper.Update(kubeConfig, istioManifest, first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")), log)
 
 		// then
 		require.NoError(t, err)
@@ -462,10 +471,10 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil, errors.New("Kubeclient error"))
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
-		proxyImageVersion := "1.2.0"
+		proxyImageVersion := first(helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3"))
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "", log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
 
 		// then
 		require.Error(t, err)
@@ -483,11 +492,10 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
-		proxyImageVersion := "1.2.0"
-		proxyImagePrefix := "anything"
+		proxyImageVersion := first(helpers.NewHelperVersionFrom("anything:1.2.3"))
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
 
 		// then
 		require.Error(t, err)
@@ -505,11 +513,10 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
-		proxyImageVersion := "1.2.0"
-		proxyImagePrefix := "anything"
+		proxyImageVersion := first(helpers.NewHelperVersionFrom("anything:1.2.3"))
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, log)
 
 		// then
 		require.NoError(t, err)
@@ -599,7 +606,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.2", TargetVersion: "1.2.3-solo-fips-distroless", TargetPrefix: "anything/anything"}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: first(helpers.NewHelperVersionFrom("istioctl:1.11.2")), TargetVersion: first(helpers.NewHelperVersionFrom("anything/anything:1.2.3-solo-fips-distroless")), DataPlaneVersion: nil, PilotVersion: nil}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -620,7 +627,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: "1.11.1", TargetVersion: "1.2.3-solo-fips-distroless", TargetPrefix: "anything/anything", PilotVersion: "1.11.1", DataPlaneVersion: "1.11.1"}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: first(helpers.NewHelperVersionFrom("istioctl:1.11.1")), TargetVersion: first(helpers.NewHelperVersionFrom("anything/anything:1.2.3-solo-fips-distroless")), PilotVersion: firstPtr(helpers.NewHelperVersionFrom("istiod:1.11.1")), DataPlaneVersion: firstPtr(helpers.NewHelperVersionFrom("istio/proxyv2:1.11.1"))}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -728,18 +735,16 @@ func TestMapVersionToStruct(t *testing.T) {
 	t.Run("If unmarshalled properly, the byte array must be converted to struct", func(t *testing.T) {
 		// given
 		versionOutput := []byte(istioctlMockCompleteVersion)
-		targetVersion := "targetVersion"
-		targetPrefix := "anything/anything"
+
 		expectedStruct := IstioStatus{
-			ClientVersion:    "1.11.1",
-			TargetVersion:    targetVersion,
-			TargetPrefix:     targetPrefix,
-			PilotVersion:     "1.11.1",
-			DataPlaneVersion: "1.11.1",
+			ClientVersion:    first(helpers.NewHelperVersionFrom("istioctl:1.11.1")),
+			TargetVersion:    first(helpers.NewHelperVersionFrom("anything/anything:1.11.1")),
+			PilotVersion:     firstPtr(helpers.NewHelperVersionFrom("istiod:1.11.1")),
+			DataPlaneVersion: firstPtr(helpers.NewHelperVersionFrom("istio/proxyv2:1.11.1")),
 		}
 
 		// when
-		gotStruct, err := mapVersionToStruct(versionOutput, targetVersion, targetPrefix)
+		gotStruct, err := mapVersionToStruct(versionOutput, expectedStruct.TargetVersion.Tag.String(), expectedStruct.TargetVersion.Library)
 
 		// then
 		require.NoError(t, err)
@@ -753,19 +758,22 @@ func TestGetVersionFromJSON(t *testing.T) {
 		// given
 		var version IstioVersionOutput
 		err := json.Unmarshal([]byte(istioctlMockCompleteVersion), &version)
+		require.NoError(t, err)
 
 		// when
-		gotClient := getVersionFromJSON("client", version)
-		gotPilot := getVersionFromJSON("pilot", version)
-		gotDataPlane := getVersionFromJSON("dataPlane", version)
-		gotNothing := getVersionFromJSON("", version)
+		gotClient, err := getVersionFromJSON("client", version)
+		require.NoError(t, err)
+		gotPilot, err := getVersionFromJSON("pilot", version)
+		require.NoError(t, err)
+		gotDataPlane, err := getVersionFromJSON("dataPlane", version)
+		require.NoError(t, err)
+		_, err = getVersionFromJSON("", version)
+		require.Error(t, err)
 
 		// then
-		require.NoError(t, err)
-		require.Equal(t, "1.11.1", gotClient)
-		require.Equal(t, "1.11.1", gotPilot)
-		require.Equal(t, "1.11.1", gotDataPlane)
-		require.Equal(t, "", gotNothing)
+		require.Equal(t, "istioctl:1.11.1", gotClient.String())
+		require.Equal(t, "istiod:1.11.1", gotPilot.String())
+		require.Equal(t, "istio/proxyv2:1.11.1", gotDataPlane.String())
 
 	})
 }
@@ -775,7 +783,7 @@ type TestCommanderResolver struct {
 	cmder istioctl.Commander
 }
 
-func (tcr TestCommanderResolver) GetCommander(_ istioctl.Version) (istioctl.Commander, error) {
+func (tcr TestCommanderResolver) GetCommander(_ helpers.HelperVersion) (istioctl.Commander, error) {
 	if tcr.err != nil {
 		return nil, tcr.err
 	}

@@ -30,7 +30,7 @@ func Test_DefaultIstioctlResolver(t *testing.T) {
 		actualVersion, err := helpers.NewHelperVersionFrom("istioctl:1.2.4")
 		require.NoError(t, err)
 
-		binary, err := resolver.FindIstioctl(actualVersion)
+		binary, err := resolver.FindIstioctl(*actualVersion)
 		require.NoError(t, err)
 		require.Equal(t, "/c", binary.Path())
 		require.Equal(t, "1.2.4", binary.Version().Tag.String())
@@ -38,7 +38,7 @@ func Test_DefaultIstioctlResolver(t *testing.T) {
 		actualVersion, err = helpers.NewHelperVersionFrom("istioctl:1.11.2")
 		require.NoError(t, err)
 
-		binary, err = resolver.FindIstioctl(actualVersion)
+		binary, err = resolver.FindIstioctl(*actualVersion)
 		require.NoError(t, err)
 		require.Equal(t, "/a", binary.Path())
 		require.Equal(t, "1.11.2", binary.Version().Tag.String())
@@ -59,7 +59,7 @@ func Test_DefaultIstioctlResolver(t *testing.T) {
 		actualVersion, err := helpers.NewHelperVersionFrom("istioctl:1.2.3")
 		require.NoError(t, err)
 
-		binary, err := resolver.FindIstioctl(actualVersion)
+		binary, err := resolver.FindIstioctl(*actualVersion)
 		require.NoError(t, err)
 		require.Equal(t, "/b", binary.Path())
 	})
@@ -79,7 +79,7 @@ func Test_DefaultIstioctlResolver(t *testing.T) {
 		actualVersion, err := helpers.NewHelperVersionFrom("istioctl:1.3.0")
 		require.NoError(t, err)
 
-		_, err = resolver.FindIstioctl(actualVersion)
+		_, err = resolver.FindIstioctl(*actualVersion)
 		require.Error(t, err)
 		require.Equal(t, "No matching 'istioctl' binary found for version: istioctl:1.3.0. Available binaries: istioctl:1.2.1, istioctl:1.2.4, istioctl:1.2.7, istioctl:1.11.2", err.Error())
 	})

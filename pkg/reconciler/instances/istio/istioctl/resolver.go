@@ -85,7 +85,12 @@ func (dvc DefaultVersionChecker) GetIstioVersion(pathToBinary string) (helpers.H
 		return helpers.HelperVersion{}, err
 	}
 
-	return helpers.NewHelperVersionFrom(string(out))
+	ver, err := helpers.NewHelperVersionFrom(string(out))
+	if err != nil {
+		return helpers.HelperVersion{}, err
+	}
+
+	return *ver, nil
 }
 
 // Executable represents an istioctl executable in a specific version existing in a local filesystem
