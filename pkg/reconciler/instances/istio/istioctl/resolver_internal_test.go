@@ -10,10 +10,10 @@ import (
 
 func TestVersion(t *testing.T) {
 	t.Run("should parse release version", func(t *testing.T) {
-		given, err := helpers.NewHelperVersionFrom("istio/proxyv2:1.11.3")
+		given, err := helpers.NewHelperVersionFrom("1.14.2")
 		require.NoError(t, err)
 		output := fmt.Sprint(given.Tag)
-		require.Equal(t, "1.11.3", output)
+		require.Equal(t, "1.14.2", output)
 	})
 
 	t.Run("should detect it's equal to another instance", func(t *testing.T) {

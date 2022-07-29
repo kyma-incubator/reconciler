@@ -89,7 +89,6 @@ func (dvc DefaultVersionChecker) GetIstioVersion(pathToBinary string) (helpers.H
 	if err != nil {
 		return helpers.HelperVersion{}, err
 	}
-
 	return *ver, nil
 }
 
