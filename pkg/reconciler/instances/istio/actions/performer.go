@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/types"
 	"path/filepath"
 	"reflect"
 	"time"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -518,13 +519,14 @@ func mapVersionToStruct(versionOutput []byte, targetTag string, targetLibrary st
 	if err != nil {
 		logger.Infof("Pilot Istio version wasn't found on cluster, %s", err)
 	}
-	if pilotVersion!=nil {
+	if pilotVersion != nil {
 		logger.Infof("Istio pilot was found on cluster in version %s", pilotVersion.String())
 	}
 	dataPlaneVersion, err := getVersionFromJSON("dataPlane", version)
 	if err != nil {
 		logger.Infof("Data plane Istio version wasn't found on cluster, %s", err)
-	if dataPlaneVersion!=nil{
+	}
+	if dataPlaneVersion != nil {
 		logger.Infof("Data plane Istio version was found on cluster in version %s", dataPlaneVersion.String())
 	}
 
