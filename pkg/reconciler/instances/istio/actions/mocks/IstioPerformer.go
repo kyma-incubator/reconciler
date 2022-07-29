@@ -36,13 +36,27 @@ func (_m *IstioPerformer) Install(kubeConfig string, istioChart string, version 
 	return r0
 }
 
-// PatchMutatingWebhook provides a mock function with given fields: ctx, kubeClient, logger
-func (_m *IstioPerformer) PatchMutatingWebhook(ctx context.Context, kubeClient kubernetes.Client, logger *zap.SugaredLogger) error {
-	ret := _m.Called(ctx, kubeClient, logger)
+// LabelNamespaces provides a mock function with given fields: _a0, kubeClient, workspace, branchVersion, istioChart, logger
+func (_m *IstioPerformer) LabelNamespaces(_a0 context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error {
+	ret := _m.Called(_a0, kubeClient, workspace, branchVersion, istioChart, logger)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, kubernetes.Client, *zap.SugaredLogger) error); ok {
-		r0 = rf(ctx, kubeClient, logger)
+	if rf, ok := ret.Get(0).(func(context.Context, kubernetes.Client, chart.Factory, string, string, *zap.SugaredLogger) error); ok {
+		r0 = rf(_a0, kubeClient, workspace, branchVersion, istioChart, logger)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// PatchMutatingWebhook provides a mock function with given fields: _a0, kubeClient, workspace, branchVersion, istioChart, logger
+func (_m *IstioPerformer) PatchMutatingWebhook(_a0 context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error {
+	ret := _m.Called(_a0, kubeClient, workspace, branchVersion, istioChart, logger)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, kubernetes.Client, chart.Factory, string, string, *zap.SugaredLogger) error); ok {
+		r0 = rf(_a0, kubeClient, workspace, branchVersion, istioChart, logger)
 	} else {
 		r0 = ret.Error(0)
 	}

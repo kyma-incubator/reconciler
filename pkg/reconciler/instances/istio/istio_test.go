@@ -290,7 +290,7 @@ func newFakeKubeClient() *k8smocks.Client {
 		},
 	},
 		&v12.MutatingWebhookConfiguration{
-			ObjectMeta: metav1.ObjectMeta{Name: "istio-sidecar-injector"},
+			ObjectMeta: metav1.ObjectMeta{Name: "istio-revision-tag-default"},
 			Webhooks: []v12.MutatingWebhook{
 				{
 					Name: "auto.sidecar-injector.istio.io",

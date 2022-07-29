@@ -243,25 +243,31 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		kubeClient := mocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("kubeclient error"))
 		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-empty"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
 
 		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "kubeclient error")
 	})
 
-	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error", func(t *testing.T) {
+	t.Run("should patch MutatingWebhookConfiguration when kubeclient had not returned an error and sidecar migration value doesn't exist", func(t *testing.T) {
 		// given
-		whConfName := "istio-sidecar-injector"
+		whConfName := "istio-revision-tag-default"
 		kubeClient := mocks.Client{}
 		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(whConfName))
 		kubeClient.On("Clientset").Return(clientset, nil)
 		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-empty"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
 		require.NoError(t, err)
 
 		// then
@@ -275,6 +281,58 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		require.Contains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
 	})
 
+	t.Run("should patch MutatingWebhookConfiguration when sidecar migration is enabled", func(t *testing.T) {
+		// given
+		whConfName := "istio-revision-tag-default"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(whConfName))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-enabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		want := metav1.LabelSelectorRequirement{
+			Key:      "gardener.cloud/purpose",
+			Operator: "NotIn",
+			Values:   []string{"kube-system"},
+		}
+		require.Contains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
+	})
+
+	t.Run("should not patch MutatingWebhookConfiguration when sidecar migration is disabled", func(t *testing.T) {
+		// given
+		whConfName := "istio-sidecar-injector"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(whConfName))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-disabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		want := metav1.LabelSelectorRequirement{
+			Key:      "gardener.cloud/purpose",
+			Operator: "NotIn",
+			Values:   []string{"kube-system"},
+		}
+		require.NotContains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
+	})
+
 	t.Run("should patch new `istio-revision-tag-default` MutatingWebhookConfiguration instead of old", func(t *testing.T) {
 		// given
 		oldWhConfName := "istio-sidecar-injector"
@@ -283,9 +341,12 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(newWhConfName), createIstioAutoMutatingWebhookConf(oldWhConfName))
 		kubeClient.On("Clientset").Return(clientset, nil)
 		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-empty"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
 		require.NoError(t, err)
 
 		// then
@@ -322,9 +383,12 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		clientset := fake.NewSimpleClientset(mutatingWebhookConf)
 		kubeClient.On("Clientset").Return(clientset, nil)
 		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-empty"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
 		require.NoError(t, err)
 
 		// then
@@ -341,20 +405,135 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		clientset := fake.NewSimpleClientset(mutatingWebhookConf)
 		kubeClient.On("Clientset").Return(clientset, nil)
 		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-empty"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
 		require.NoError(t, err)
 		// saving intermediate result after first iteration
 		intermediateWhConf, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
 		require.NoError(t, err)
-		err = wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, log)
+		err = wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
 		require.NoError(t, err)
 
 		// then
 		finalWhConf, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
 		require.NoError(t, err)
 		require.Equal(t, intermediateWhConf, finalWhConf)
+	})
+}
+
+func Test_DefaultIstioPerformer_LabelNamespaces(t *testing.T) {
+
+	log := logger.NewLogger(false)
+
+	t.Run("should not label namespaces when sidecar migration value doesn't exist", func(t *testing.T) {
+		// given
+		namespace := "test"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespace(namespace))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-empty"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotContains(t, got.Labels, "istio-injection")
+	})
+
+	t.Run("should not label namespaces when sidecar migration is disabled", func(t *testing.T) {
+		// given
+		namespace := "test"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespace(namespace))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-disabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotContains(t, got.Labels, "istio-injection")
+	})
+
+	t.Run("should label namespaces when sidecar migration is enabled", func(t *testing.T) {
+		// given
+		namespace := "test"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespace(namespace))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-enabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Contains(t, got.Labels, "istio-injection")
+		require.Equal(t, "enabled", got.Labels["istio-injection"])
+	})
+
+	t.Run("should not label kube-system namespace when sidecar migration is enabled", func(t *testing.T) {
+		// given
+		namespace := "kube-system"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespace(namespace))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-enabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotContains(t, got.Labels, "istio-injection")
+	})
+
+	t.Run("should not label namespace with user created label when sidecar migration is enabled", func(t *testing.T) {
+		// given
+		namespace := "user-ns"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createNamespaceWithLabel(namespace, map[string]string{"istio-injection": "disabled"}))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-enabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.LabelNamespaces(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Contains(t, got.Labels, "istio-injection")
+		require.Equal(t, "disabled", got.Labels["istio-injection"])
 	})
 }
 
@@ -374,6 +553,18 @@ func createIstioAutoMutatingWebhookConfWithSelector(whConfName string, selector 
 
 func createIstioAutoMutatingWebhookConf(whConfName string) *v1.MutatingWebhookConfiguration {
 	return createIstioAutoMutatingWebhookConfWithSelector(whConfName, metav1.LabelSelectorRequirement{})
+}
+
+func createNamespace(namespace string) *corev1.Namespace {
+	return &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: namespace},
+	}
+}
+
+func createNamespaceWithLabel(name string, labels map[string]string) *corev1.Namespace {
+	return &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels},
+	}
 }
 
 func Test_DefaultIstioPerformer_Update(t *testing.T) {
