@@ -114,7 +114,7 @@ func Test_newVersionHelperFrom(t *testing.T) {
 
 	t.Run("should return no error when input string contains three numbers, two dots and suffix", func(t *testing.T) {
 		// when
-		_, err := helpers.NewHelperVersionFrom("istioctl:1.2.3-suffix")
+		_, err := helpers.NewHelperVersionFrom("1.2.3-suffix")
 
 		// then
 		require.NoError(t, err)
@@ -126,9 +126,9 @@ func Test_helperVersion_compare(t *testing.T) {
 
 	t.Run("should return true when helper versions are of different numbers", func(t *testing.T) {
 		// given
-		v1, err := helpers.NewHelperVersionFrom("istioctl:1.2.3")
+		v1, err := helpers.NewHelperVersionFrom("1.2.3")
 		require.NoError(t, err)
-		v2, err := helpers.NewHelperVersionFrom("istioctl:4.5.6")
+		v2, err := helpers.NewHelperVersionFrom("4.5.6")
 		require.NoError(t, err)
 
 		// when
@@ -140,9 +140,9 @@ func Test_helperVersion_compare(t *testing.T) {
 
 	t.Run("should return true when helper versions are of equal numbers", func(t *testing.T) {
 		// given
-		v1, err := helpers.NewHelperVersionFrom("istioctl:1.2.3")
+		v1, err := helpers.NewHelperVersionFrom("1.2.3")
 		require.NoError(t, err)
-		v2, err := helpers.NewHelperVersionFrom("istioctl:1.2.3")
+		v2, err := helpers.NewHelperVersionFrom("1.2.3")
 		require.NoError(t, err)
 
 		// when
@@ -154,9 +154,9 @@ func Test_helperVersion_compare(t *testing.T) {
 
 	t.Run("should return true when helper versions are of equal numbers and one has suffix", func(t *testing.T) {
 		// given
-		v1, err := helpers.NewHelperVersionFrom("istioctl:1.2.3-suffix")
+		v1, err := helpers.NewHelperVersionFrom("1.2.3-suffix")
 		require.NoError(t, err)
-		v2, err := helpers.NewHelperVersionFrom("istioctl:1.2.3")
+		v2, err := helpers.NewHelperVersionFrom("1.2.3")
 		require.NoError(t, err)
 
 		// when
@@ -168,9 +168,9 @@ func Test_helperVersion_compare(t *testing.T) {
 
 	t.Run("should return true when helper versions are of equal numbers and both have different suffixes", func(t *testing.T) {
 		// given
-		v1, err := helpers.NewHelperVersionFrom("istioctl:1.2.3-suffix1")
+		v1, err := helpers.NewHelperVersionFrom("1.2.3-suffix1")
 		require.NoError(t, err)
-		v2, err := helpers.NewHelperVersionFrom("istioctl:1.2.3-suffix2")
+		v2, err := helpers.NewHelperVersionFrom("1.2.3-suffix2")
 		require.NoError(t, err)
 
 		// when
@@ -202,10 +202,10 @@ func TestStatusPreAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		tooLowClientVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
-			TargetVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
-			PilotVersion:     &helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
-			DataPlaneVersion: &helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
+			TargetVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			PilotVersion:     &helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			DataPlaneVersion: &helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
 		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
@@ -267,7 +267,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		noIstioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			PilotVersion:     nil,
 			DataPlaneVersion: nil,
@@ -324,7 +324,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			PilotVersion:     nil,
 			DataPlaneVersion: nil,
@@ -356,7 +356,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		noIstioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			PilotVersion:     nil,
 			DataPlaneVersion: nil,
@@ -387,7 +387,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		istioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
@@ -418,7 +418,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		kubeClient := newFakeKubeClient()
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		istioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
@@ -451,7 +451,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		istioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
@@ -483,7 +483,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		performer := actionsmocks.IstioPerformer{}
 		istioOnTheCluster := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
@@ -545,14 +545,14 @@ func Test_UninstallAction(t *testing.T) {
 	}
 
 	noIstioOnTheCluster := actions.IstioStatus{
-		ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+		ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 		TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 		PilotVersion:     nil,
 		DataPlaneVersion: nil,
 	}
 
 	istioAvailable := actions.IstioStatus{
-		ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+		ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 		TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 		PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 		DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
@@ -635,7 +635,7 @@ func Test_canUnInstall(t *testing.T) {
 	t.Run("should uninstall when istio is installed", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
@@ -651,7 +651,7 @@ func Test_canUnInstall(t *testing.T) {
 	t.Run("should not uninstall when istio is not installed", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     nil,
 			DataPlaneVersion: nil,
@@ -682,7 +682,7 @@ func Test_canUnInstall(t *testing.T) {
 	t.Run("should not matter to uninstall if client version and data plane diverge", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 21, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 0}},
@@ -700,7 +700,7 @@ func Test_canInstall(t *testing.T) {
 	t.Run("should install when client and pilot versions are empty", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     nil,
 			DataPlaneVersion: nil,
@@ -716,7 +716,7 @@ func Test_canInstall(t *testing.T) {
 	t.Run("should update when client and pilot versions values are not empty", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
@@ -734,7 +734,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should not allow update when client version is more than one minor behind the target version", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
@@ -750,7 +750,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should allow update when permissible downgrade scenario is detected for pilot", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -766,7 +766,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should not allow update when downgrade scenario is detected for pilot", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 3, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -782,7 +782,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should allow update when permissible downgrade scenario is detected for data plane", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 5}},
@@ -798,7 +798,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should not allow update when downgrade scenario is detected for data plane", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 3, Patch: 0}},
@@ -814,7 +814,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should not allow update when more than one minor upgrade is detected for pilot", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -830,7 +830,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should not allow update when more than one minor upgrade is detected for data plane", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
@@ -846,7 +846,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should allow update when less than one minor upgrade is detected for pilot and data plane ", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -862,7 +862,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should allow update when all versions match", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -878,7 +878,7 @@ func Test_canUpdate(t *testing.T) {
 	t.Run("should allow update when control plane is consistent and not in the same version as data plane", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 1}},
@@ -896,7 +896,7 @@ func Test_isClientCompatible(t *testing.T) {
 	t.Run("should return true when client and target versions are the same", func(t *testing.T) {
 		// given
 		exactSameClientVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -912,7 +912,7 @@ func Test_isClientCompatible(t *testing.T) {
 	t.Run("should return true when client and target versions are of the same minor and different patch and client version is higher than target", func(t *testing.T) {
 		// given
 		sameMinorClientVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 1}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 1}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -927,7 +927,7 @@ func Test_isClientCompatible(t *testing.T) {
 	t.Run("should return true when client and target versions are of the same minor and different patch and target version is higher than client", func(t *testing.T) {
 		// given
 		sameMinorClientVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 1}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -943,7 +943,7 @@ func Test_isClientCompatible(t *testing.T) {
 	t.Run("should return true when client and target versions are among one minor and of the same patch and client version is higher than target", func(t *testing.T) {
 		// given
 		oneHigherMinorClientVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -959,7 +959,7 @@ func Test_isClientCompatible(t *testing.T) {
 	t.Run("should return true when client and target versions are among one minor and of the same patch and target version is higher than client", func(t *testing.T) {
 		// given
 		oneLowerMinorClientVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -975,7 +975,7 @@ func Test_isClientCompatible(t *testing.T) {
 	t.Run("should return false when client and target versions are not among one minor and target version is higher than client", func(t *testing.T) {
 		// given
 		twoLowerMinorClientVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -991,7 +991,7 @@ func Test_isClientCompatible(t *testing.T) {
 	t.Run("should return false when client and target versions are not among one minor and client version is higher than target", func(t *testing.T) {
 		// given
 		greaterThanOneMinorClientVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
@@ -1011,7 +1011,7 @@ func Test_isComponentCompatible(t *testing.T) {
 	t.Run("should return true when pilot and target versions are equal", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
@@ -1028,7 +1028,7 @@ func Test_isComponentCompatible(t *testing.T) {
 	t.Run("should return true when pilot and targets version are vary only in patch", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 3}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 3}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 3}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 3}},
@@ -1045,7 +1045,7 @@ func Test_isComponentCompatible(t *testing.T) {
 	t.Run("should return true when pilot version is one minor lower than target", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 1, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
@@ -1062,7 +1062,7 @@ func Test_isComponentCompatible(t *testing.T) {
 	t.Run("should return true when pilot version is one minor higher than target", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 3, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
@@ -1079,7 +1079,7 @@ func Test_isComponentCompatible(t *testing.T) {
 	t.Run("should return false when pilot version is more than one minor lower than target", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 0, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
@@ -1096,7 +1096,7 @@ func Test_isComponentCompatible(t *testing.T) {
 	t.Run("should return false when pilot version is more than one minor higher than target", func(t *testing.T) {
 		// given
 		istioVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 4, Patch: 0}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
@@ -1115,7 +1115,7 @@ func Test_amongOneMinor(t *testing.T) {
 	t.Run("Downgrade of PilotVersion with same minor version is permitted", func(t *testing.T) {
 		// given
 		sameMinorPilotVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 1}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 2, Patch: 0}},
@@ -1131,7 +1131,7 @@ func Test_amongOneMinor(t *testing.T) {
 	t.Run("Upgrade of PilotVersion with same minor version is permitted", func(t *testing.T) {
 		// given
 		sameMinorPilotVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 1}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
@@ -1147,7 +1147,7 @@ func Test_amongOneMinor(t *testing.T) {
 	t.Run("Downgrade of PilotVersion with one minor version is permitted", func(t *testing.T) {
 		// given
 		oneMinorPilotVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 12, Patch: 6}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
@@ -1163,7 +1163,7 @@ func Test_amongOneMinor(t *testing.T) {
 	t.Run("Upgrade of PilotVersion with one minor version is permitted", func(t *testing.T) {
 		// given
 		oneMinorPilotVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 6}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
@@ -1179,7 +1179,7 @@ func Test_amongOneMinor(t *testing.T) {
 	t.Run("Downgrade of PilotVersion with more than one minor version is NOT permitted", func(t *testing.T) {
 		// given
 		greaterThanOneMinorPilotVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 13, Patch: 6}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
@@ -1195,7 +1195,7 @@ func Test_amongOneMinor(t *testing.T) {
 	t.Run("Upgrade of PilotVersion with more than one minor version is NOT permitted", func(t *testing.T) {
 		// given
 		lesserThanOneMinorPilotVersion := actions.IstioStatus{
-			ClientVersion:    helpers.HelperVersion{Library: "istioctl", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
+			ClientVersion:    helpers.HelperVersion{Library: "", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			TargetVersion:    helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},
 			PilotVersion:     &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 9, Patch: 6}},
 			DataPlaneVersion: &helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 11, Patch: 2}},

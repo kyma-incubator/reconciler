@@ -67,7 +67,7 @@ metadata:
 		  {
 			"Component": "pilot",
 			"Info": {
-			  "version": "istiod:1.11.1",
+			  "version": "1.11.1",
 			  "revision": "revision",
 			  "golang_version": "",
 			  "status": "Clean",
@@ -78,7 +78,7 @@ metadata:
 		"dataPlaneVersion": [
 		  {
 			"ID": "id",
-			"IstioVersion": "istio/proxyv2:1.11.1"
+			"IstioVersion": "1.11.1"
 		  }
 		]
 	  }`
@@ -606,7 +606,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: first(helpers.NewHelperVersionFrom("istioctl:1.11.2")), TargetVersion: first(helpers.NewHelperVersionFrom("anything/anything:1.2.3-solo-fips-distroless")), DataPlaneVersion: nil, PilotVersion: nil}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: first(helpers.NewHelperVersionFrom("1.11.2")), TargetVersion: first(helpers.NewHelperVersionFrom("anything/anything:1.2.3-solo-fips-distroless")), DataPlaneVersion: nil, PilotVersion: nil}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -627,7 +627,7 @@ func Test_DefaultIstioPerformer_Version(t *testing.T) {
 		ver, err := wrapper.Version(factory, "version", "istio-test", kubeConfig, log)
 
 		// then
-		require.EqualValues(t, IstioStatus{ClientVersion: first(helpers.NewHelperVersionFrom("istioctl:1.11.1")), TargetVersion: first(helpers.NewHelperVersionFrom("anything/anything:1.2.3-solo-fips-distroless")), PilotVersion: firstPtr(helpers.NewHelperVersionFrom("istiod:1.11.1")), DataPlaneVersion: firstPtr(helpers.NewHelperVersionFrom("istio/proxyv2:1.11.1"))}, ver)
+		require.EqualValues(t, IstioStatus{ClientVersion: first(helpers.NewHelperVersionFrom("1.11.1")), TargetVersion: first(helpers.NewHelperVersionFrom("anything/anything:1.2.3-solo-fips-distroless")), PilotVersion: firstPtr(helpers.NewHelperVersionFrom("1.11.1")), DataPlaneVersion: firstPtr(helpers.NewHelperVersionFrom("1.11.1"))}, ver)
 		require.NoError(t, err)
 		cmder.AssertCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		cmder.AssertNumberOfCalls(t, "Version", 1)
@@ -737,10 +737,10 @@ func TestMapVersionToStruct(t *testing.T) {
 		versionOutput := []byte(istioctlMockCompleteVersion)
 
 		expectedStruct := IstioStatus{
-			ClientVersion:    first(helpers.NewHelperVersionFrom("istioctl:1.11.1")),
+			ClientVersion:    first(helpers.NewHelperVersionFrom("1.11.1")),
 			TargetVersion:    first(helpers.NewHelperVersionFrom("anything/anything:1.11.1")),
-			PilotVersion:     firstPtr(helpers.NewHelperVersionFrom("istiod:1.11.1")),
-			DataPlaneVersion: firstPtr(helpers.NewHelperVersionFrom("istio/proxyv2:1.11.1")),
+			PilotVersion:     firstPtr(helpers.NewHelperVersionFrom("1.11.1")),
+			DataPlaneVersion: firstPtr(helpers.NewHelperVersionFrom("1.11.1")),
 		}
 
 		// when
@@ -772,8 +772,8 @@ func TestGetVersionFromJSON(t *testing.T) {
 
 		// then
 		require.Equal(t, "1.11.1", gotClient.String())
-		require.Equal(t, "istiod:1.11.1", gotPilot.String())
-		require.Equal(t, "istio/proxyv2:1.11.1", gotDataPlane.String())
+		require.Equal(t, "1.11.1", gotPilot.String())
+		require.Equal(t, "1.11.1", gotDataPlane.String())
 
 	})
 }

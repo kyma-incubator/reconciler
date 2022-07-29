@@ -309,7 +309,7 @@ func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion s
 
 	version, err := semver.NewVersion(targetVersion)
 	if err != nil {
-		return IstioStatus{}, err
+		return IstioStatus{}, errors.Wrap(err, "Error parsing version")
 	}
 
 	helperVersion := helpers.HelperVersion{Library: targetLibrary, Tag: *version}
