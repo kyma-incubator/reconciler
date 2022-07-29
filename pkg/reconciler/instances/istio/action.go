@@ -233,12 +233,16 @@ func isClientCompatibleWithTargetVersion(istioStatus actions.IstioStatus) bool {
 }
 
 func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
-	if isPilotCompatible, err := isComponentCompatible(*istioStatus.PilotVersion, istioStatus.TargetVersion, "Pilot"); !isPilotCompatible {
-		return false, err
+	if istioStatus.PilotVersion != nil {
+		if isPilotCompatible, err := isComponentCompatible(*istioStatus.PilotVersion, istioStatus.TargetVersion, "Pilot"); !isPilotCompatible {
+			return false, err
+		}
 	}
 
-	if isDataplaneCompatible, err := isComponentCompatible(*istioStatus.DataPlaneVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
-		return false, err
+	if istioStatus.DataPlaneVersion != nil {
+		if isDataplaneCompatible, err := isComponentCompatible(*istioStatus.DataPlaneVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
+			return false, err
+		}
 	}
 
 	return true, nil
@@ -248,7 +252,7 @@ func isComponentCompatible(componentVersion, targetVersion helpers.HelperVersion
 
 	componentVsTargetComparison := targetVersion.Compare(componentVersion)
 	if !amongOneMinor(componentVersion, targetVersion) {
-		return false, fmt.Errorf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
+		return false, fmt.Errorf("could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
 			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion)
 	}
 

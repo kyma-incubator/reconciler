@@ -14,7 +14,7 @@ type HelperVersion struct {
 }
 
 func NewHelperVersionFrom(image string) (*HelperVersion, error) {
-	image = strings.TrimSuffix(image, "\n")
+	image = strings.TrimSpace(image)
 	splitted := strings.Split(image, ":")
 	if len(splitted) != 2 {
 		version, err := semver.NewVersion(image)

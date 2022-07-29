@@ -771,7 +771,7 @@ func TestGetVersionFromJSON(t *testing.T) {
 		require.Error(t, err)
 
 		// then
-		require.Equal(t, "istioctl:1.11.1", gotClient.String())
+		require.Equal(t, "1.11.1", gotClient.String())
 		require.Equal(t, "istiod:1.11.1", gotPilot.String())
 		require.Equal(t, "istio/proxyv2:1.11.1", gotDataPlane.String())
 
