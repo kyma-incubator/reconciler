@@ -18,10 +18,10 @@ func first(first *semver.Version, _ error) semver.Version {
 func Test_DefaultIstioctlResolver(t *testing.T) {
 	t.Run("should match exact version if it exists", func(t *testing.T) {
 		vc := mocks.VersionChecker{}
-		vc.On("GetIstioVersion", "/d").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.1"))},nil)
-		vc.On("GetIstioVersion", "/c").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.4"))},nil)
-		vc.On("GetIstioVersion", "/b").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.7"))},nil)
-		vc.On("GetIstioVersion", "/a").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.11.2"))},nil)
+		vc.On("GetIstioVersion", "/d").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.1"))}, nil)
+		vc.On("GetIstioVersion", "/c").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.4"))}, nil)
+		vc.On("GetIstioVersion", "/b").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.7"))}, nil)
+		vc.On("GetIstioVersion", "/a").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.11.2"))}, nil)
 
 		paths := []string{"/a", "/b", "/c", "/d"}
 		resolver, err := istioctl.NewDefaultIstioctlResolver(paths, &vc)
@@ -47,10 +47,10 @@ func Test_DefaultIstioctlResolver(t *testing.T) {
 	t.Run("should match a biggest patch version if no exact match exists", func(t *testing.T) {
 		vc := mocks.VersionChecker{}
 
-		vc.On("GetIstioVersion", "/d").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.1"))},nil)
-		vc.On("GetIstioVersion", "/c").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.4"))},nil)
-		vc.On("GetIstioVersion", "/b").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.7"))},nil)
-		vc.On("GetIstioVersion", "/a").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.11.2"))},nil)
+		vc.On("GetIstioVersion", "/d").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.1"))}, nil)
+		vc.On("GetIstioVersion", "/c").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.4"))}, nil)
+		vc.On("GetIstioVersion", "/b").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.7"))}, nil)
+		vc.On("GetIstioVersion", "/a").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.11.2"))}, nil)
 
 		paths := []string{"/a", "/b", "/c", "/d"}
 		resolver, err := istioctl.NewDefaultIstioctlResolver(paths, &vc)
@@ -67,10 +67,10 @@ func Test_DefaultIstioctlResolver(t *testing.T) {
 	t.Run("should return an error when no match exists", func(t *testing.T) {
 		vc := mocks.VersionChecker{}
 
-		vc.On("GetIstioVersion", "/d").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.1"))},nil)
-		vc.On("GetIstioVersion", "/c").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.4"))},nil)
-		vc.On("GetIstioVersion", "/b").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.7"))},nil)
-		vc.On("GetIstioVersion", "/a").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.11.2"))},nil)
+		vc.On("GetIstioVersion", "/d").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.1"))}, nil)
+		vc.On("GetIstioVersion", "/c").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.4"))}, nil)
+		vc.On("GetIstioVersion", "/b").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.2.7"))}, nil)
+		vc.On("GetIstioVersion", "/a").Return(helpers.HelperVersion{Library: "", Tag: first(semver.NewVersion("1.11.2"))}, nil)
 
 		paths := []string{"/a", "/b", "/c", "/d"}
 		resolver, err := istioctl.NewDefaultIstioctlResolver(paths, &vc)
