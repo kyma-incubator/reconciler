@@ -517,13 +517,13 @@ func mapVersionToStruct(versionOutput []byte, targetTag string, targetLibrary st
 	pilotVersion, err := getVersionFromJSON("pilot", version)
 	if err != nil {
 		logger.Infof("Pilot Istio version wasn't found on cluster, %s", err)
-	} else {
+	if pilotVersion!=nil {
 		logger.Infof("Istio pilot was found on cluster in version %s", pilotVersion.String())
 	}
 	dataPlaneVersion, err := getVersionFromJSON("dataPlane", version)
 	if err != nil {
 		logger.Infof("Data plane Istio version wasn't found on cluster, %s", err)
-	} else {
+	if dataPlaneVersion!=nil{
 		logger.Infof("Data plane Istio version was found on cluster in version %s", dataPlaneVersion.String())
 	}
 
