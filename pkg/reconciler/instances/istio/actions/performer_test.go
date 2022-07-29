@@ -725,7 +725,7 @@ func TestMapVersionToStruct(t *testing.T) {
 		targetDirectory := "targetDirectory"
 
 		// when
-		_, err := mapVersionToStruct(versionOutput, targetVersion, targetDirectory)
+		_, err := mapVersionToStruct(versionOutput, targetVersion, targetDirectory, logger.NewLogger(true))
 
 		// then
 		require.Error(t, err)
@@ -744,7 +744,7 @@ func TestMapVersionToStruct(t *testing.T) {
 		}
 
 		// when
-		gotStruct, err := mapVersionToStruct(versionOutput, expectedStruct.TargetVersion.Tag.String(), expectedStruct.TargetVersion.Library)
+		gotStruct, err := mapVersionToStruct(versionOutput, expectedStruct.TargetVersion.Tag.String(), expectedStruct.TargetVersion.Library, logger.NewLogger(true))
 
 		// then
 		require.NoError(t, err)

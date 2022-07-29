@@ -104,12 +104,12 @@ func Test_newVersionHelperFrom(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("should return an error when input doesn't contain library", func(t *testing.T) {
+	t.Run("should not return an error when input doesn't contain library", func(t *testing.T) {
 		// when
 		_, err := helpers.NewHelperVersionFrom("1.2.3")
 
 		// then
-		require.Error(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("should return no error when input string contains three numbers, two dots and suffix", func(t *testing.T) {

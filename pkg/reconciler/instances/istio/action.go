@@ -43,7 +43,7 @@ func (a *StatusPreAction) Run(context *service.ActionContext) error {
 	}
 
 	if !isClientCompatibleWithTargetVersion(istioStatus) {
-		return fmt.Errorf("Istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion)
+		return fmt.Errorf("istio could not be updated since the binary version: %s is not compatible with the target version: %s - the difference between versions exceeds one minor version", istioStatus.ClientVersion, istioStatus.TargetVersion)
 	}
 	context.Logger.Debug("Pre version check successful")
 

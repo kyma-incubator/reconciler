@@ -324,7 +324,7 @@ func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion s
 		return IstioStatus{}, err
 	}
 
-	mappedIstioVersion, err := mapVersionToStruct(versionOutput, targetVersion, targetLibrary)
+	mappedIstioVersion, err := mapVersionToStruct(versionOutput, targetVersion, targetLibrary, logger)
 
 	return mappedIstioVersion, err
 }
@@ -439,7 +439,7 @@ func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) (*help
 	}
 }
 
-func mapVersionToStruct(versionOutput []byte, targetTag string, targetLibrary string) (IstioStatus, error) {
+func mapVersionToStruct(versionOutput []byte, targetTag string, targetLibrary string, logger *zap.SugaredLogger) (IstioStatus, error) {
 	if len(versionOutput) == 0 {
 		return IstioStatus{}, errors.New("the result of the version command is empty")
 	}
@@ -466,8 +466,14 @@ func mapVersionToStruct(versionOutput []byte, targetTag string, targetLibrary st
 	}
 	targetVersion := helpers.HelperVersion{Library: targetLibrary, Tag: *tag}
 
-	pilotVersion, _ := getVersionFromJSON("pilot", version)
-	dataPlaneVersion, _ := getVersionFromJSON("dataPlane", version)
+	pilotVersion, err := getVersionFromJSON("pilot", version)
+	if err != nil {
+		logger.Infof("Pilot Istio version wasn't found on cluster, %s", err)
+	}
+	dataPlaneVersion, err := getVersionFromJSON("dataPlane", version)
+	if err != nil {
+		logger.Infof("Data plane Istio version wasn't found on cluster, %s", err)
+	}
 
 	return IstioStatus{
 		ClientVersion:    *clientVersion,

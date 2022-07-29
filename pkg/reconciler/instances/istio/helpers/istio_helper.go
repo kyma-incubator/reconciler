@@ -16,10 +16,14 @@ type HelperVersion struct {
 func NewHelperVersionFrom(image string) (*HelperVersion, error) {
 	splitted := strings.Split(image, ":")
 	if len(splitted) != 2 {
-		return nil, errors.New("image doesn't contain repository and tag")
+		version, err := semver.NewVersion(image)
+		if err != nil {
+			return nil, err
+		}
+		return &HelperVersion{Library: "NotResolved", Tag: *version}, nil
 	}
 	library := splitted[0]
-	if(len(splitted[1])==0){
+	if len(splitted[1]) == 0 {
 		return nil, errors.New("image tag was not found")
 	}
 
