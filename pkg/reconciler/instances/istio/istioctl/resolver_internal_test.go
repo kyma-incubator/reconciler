@@ -17,7 +17,7 @@ func TestVersion(t *testing.T) {
 	})
 
 	t.Run("should detect it's equal to another instance", func(t *testing.T) {
-		given, _ := helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")
+		given, _ := helpers.NewHelperVersionFrom("1.2.3")
 		another, _ := helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")
 		require.True(t, given.EqualTo(*another))
 	})
@@ -31,7 +31,7 @@ func TestVersion(t *testing.T) {
 	t.Run("should detect it is smaller than another instance", func(t *testing.T) {
 
 		given, _ := helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")
-		another, _ := helpers.NewHelperVersionFrom("istio/proxyv2:2.2.3")
+		another, _ := helpers.NewHelperVersionFrom("2.2.3")
 		require.True(t, given.SmallerThan(*another))
 
 		given, _ = helpers.NewHelperVersionFrom("istio/proxyv2:1.2.3")

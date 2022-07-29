@@ -423,7 +423,7 @@ func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) (*help
 		if err != nil {
 			return nil, err
 		}
-		return &helpers.HelperVersion{Library: "istioctl", Tag: *version}, nil
+		return &helpers.HelperVersion{Library: "", Tag: *version}, nil
 	case "pilot":
 		if len(json.MeshVersion) > 0 {
 			return helpers.NewHelperVersionFrom(json.MeshVersion[0].Info.Version)

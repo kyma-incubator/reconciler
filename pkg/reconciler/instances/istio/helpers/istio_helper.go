@@ -20,7 +20,7 @@ func NewHelperVersionFrom(image string) (*HelperVersion, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &HelperVersion{Library: "NotResolved", Tag: *version}, nil
+		return &HelperVersion{Library: "", Tag: *version}, nil
 	}
 	library := splitted[0]
 	if len(splitted[1]) == 0 {
@@ -57,11 +57,14 @@ func (h HelperVersion) Compare(second HelperVersion) int {
 }
 
 func (h HelperVersion) String() string {
+	if h.Library == "" {
+		return h.Tag.String()
+	}
 	return fmt.Sprintf("%s:%s", h.Library, h.Tag.String())
 }
 
 func AreEqual(first, second HelperVersion) bool {
-	return first.Library == second.Library && first.Tag.Equal(second.Tag)
+	return first.Tag.Equal(second.Tag)
 }
 
 func (h HelperVersion) EqualTo(second HelperVersion) bool {
