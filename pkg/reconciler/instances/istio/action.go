@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
 
@@ -216,7 +217,7 @@ func isInstalled(istioStatus actions.IstioStatus) bool {
 }
 
 func canUninstall(istioStatus actions.IstioStatus) bool {
-	return isInstalled(istioStatus) && istioStatus.ClientVersion.Library != ""
+	return isInstalled(istioStatus) && !istioStatus.ClientVersion.Tag.Equal(semver.Version{Major: 0, Minor: 0, Patch: 0})
 }
 
 func getInstalledVersion(context *service.ActionContext, performer actions.IstioPerformer) (actions.IstioStatus, error) {
