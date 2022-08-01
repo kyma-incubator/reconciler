@@ -256,12 +256,11 @@ func Test_RunUninstallAction(t *testing.T) {
 
 		// istio-system namespace should be deleted
 		fakeClient, _ := actionContext.KubeClient.Clientset()
-		ns, nserror := fakeClient.CoreV1().Namespaces().Get(context.TODO(), "istio-system", metav1.GetOptions{
+		_, nserror := fakeClient.CoreV1().Namespaces().Get(context.TODO(), "istio-system", metav1.GetOptions{
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
 
-		t.Log(ns)
 		require.Error(t, nserror)
 	})
 
