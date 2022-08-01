@@ -89,7 +89,7 @@ func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface,
 
 	// filter pods
 	podsList = getPodsWithAnnotation(allPodsWithNamespaceAnnotations)
-
+	podsList = getPodsWithoutSidecar(podsList)
 	return
 }
 
