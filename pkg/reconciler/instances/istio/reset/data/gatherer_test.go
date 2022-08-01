@@ -100,6 +100,29 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 	})
 }
 
+func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
+	retryOpts := getTestingRetryOptions()
+
+	podWithExpectedImage := fixPodWith("application", "kyma", "istio/proxyv2:1.10.1", "Running")
+	podWithExpectedImageTerminating := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Terminating")
+	kymaNs := fixNamespaceWith("kyma", map[string]string{"istio-injection": "enabled"})
+	customNs := fixNamespaceWith("custom", map[string]string{"istio-injection": "disabled"})
+
+	t.Run("should get pod with proper namespace label", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(podWithExpectedImage, podWithExpectedImageTerminating, kymaNs, customNs)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 2, len(podsWithoutSidecar.Items))
+		require.NotEmpty(t, podsWithoutSidecar.Items)
+	})
+}
+
 func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -128,6 +151,15 @@ func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 					Image: image,
 				},
 			},
+		},
+	}
+}
+
+func fixNamespaceWith(name string, labels map[string]string) *v1.Namespace {
+	return &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: labels,
 		},
 	}
 }

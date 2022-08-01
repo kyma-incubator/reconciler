@@ -17,11 +17,11 @@ type Gatherer interface {
 	// GetAllPods from the cluster and return them as a v1.PodList.
 	GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
 
-	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
-	GetPodsWithoutSidecar(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
-
 	// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
 	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
+
+	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
+	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
 }
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
@@ -55,35 +55,6 @@ func (i *DefaultGatherer) GetAllPods(kubeClient kubernetes.Interface, retryOpts 
 	return
 }
 
-func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
-	err = retry.Do(func() error {
-		namespaces, err := kubeClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{LabelSelector: "istio-injection=enabled"})
-		if err != nil {
-			return err
-		}
-
-		var allNamespacePods v1.PodList
-		for _, namespace := range namespaces.Items {
-			pods, err := kubeClient.CoreV1().Pods(namespace.Name).List(context.Background(), metav1.ListOptions{})
-			if err != nil {
-				return err
-			}
-
-			for _, pod := range pods.Items {
-				allNamespacePods.Items = append(allNamespacePods.Items, pod)
-			}
-		}
-
-		return nil
-	}, retryOpts...)
-
-	if err != nil {
-		return podsList, err
-	}
-
-	return
-}
-
 func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList) {
 	inputPodsList.DeepCopyInto(&outputPodsList)
 	outputPodsList.Items = []v1.Pod{}
@@ -105,6 +76,100 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 				outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 			}
 		}
+	}
+
+	return
+}
+
+func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
+	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
+	if err != nil {
+		return
+	}
+
+	// filter pods
+	podsList = getPodsWithAnnotation(allPodsWithNamespaceAnnotations)
+
+	return
+}
+
+func getPodsWithAnnotation(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
+	inputPodsList.DeepCopyInto(&outputPodsList)
+	outputPodsList.Items = []v1.Pod{}
+
+	for _, pod := range inputPodsList.Items {
+		if pod.Annotations["sidecar.istio.io/inject"] == "disabled" && pod.Labels["namespace-istio-injection"] == "disabled" {
+			continue
+		} else {
+			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
+		}
+	}
+
+	return
+}
+
+func getPodsWithoutSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
+	inputPodsList.DeepCopyInto(&outputPodsList)
+	outputPodsList.Items = []v1.Pod{}
+
+	for _, pod := range inputPodsList.Items {
+		if !isPodReady(pod) {
+			continue
+		}
+		if !hasIstioProxy(pod.Spec.Containers, "istio-proxy") {
+			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
+		}
+
+	}
+
+	return
+}
+
+func hasIstioProxy(containers []v1.Container, proxyName string) bool {
+	proxyImage := ""
+	for _, container := range containers {
+		if container.Name == proxyName {
+			proxyImage = container.Image
+		}
+	}
+	return proxyImage != ""
+}
+
+func getAllPodsWithNamespaceAnnotations(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
+	var namespaces *v1.NamespaceList
+	err = retry.Do(func() error {
+		namespaces, err = kubeClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		return nil
+	}, retryOpts...)
+	if err != nil {
+		return podsList, err
+	}
+
+	err = retry.Do(func() error {
+		for _, namespace := range namespaces.Items {
+			if namespace.ObjectMeta.Name == "kube-system" {
+				continue
+			}
+
+			pods, err := kubeClient.CoreV1().Pods(namespace.Name).List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+
+			for _, pod := range pods.Items {
+				if _, isPodAnnotated := pod.Annotations["sidecar.istio.io/inject"]; !isPodAnnotated {
+					pod.Annotations["namespace-istio-injection"] = namespace.Labels["istio-injection"]
+					podsList.Items = append(podsList.Items, pod)
+				}
+			}
+		}
+		return nil
+	}, retryOpts...)
+	if err != nil {
+		return podsList, err
 	}
 
 	return
