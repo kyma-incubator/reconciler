@@ -539,6 +539,7 @@ func isSidecarMigrationEnabled(workspace chart.Factory, branch string, istioChar
 	var chartValues chartValues
 
 	err = json.Unmarshal(mapAsJSON, &chartValues)
+	
 	if err != nil {
 		return false, false, err
 	}
