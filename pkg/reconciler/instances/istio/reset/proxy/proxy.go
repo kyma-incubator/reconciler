@@ -77,6 +77,8 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	if err != nil {
 		return err
 	}
+	cfg.Log.Debugf("Found %d pods without sidecar", len(podsWithoutSidecar.Items))
+
 	if len(podsWithoutSidecar.Items) >= 1 {
 		err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithoutSidecar, cfg.Log, cfg.Debug, waitOpts)
 		if err != nil {

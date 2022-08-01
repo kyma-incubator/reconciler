@@ -118,7 +118,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 2, len(podsWithoutSidecar.Items))
+		require.Equal(t, 1, len(podsWithoutSidecar.Items))
 		require.NotEmpty(t, podsWithoutSidecar.Items)
 	})
 }
