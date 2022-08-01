@@ -17,6 +17,9 @@ type Gatherer interface {
 	// GetAllPods from the cluster and return them as a v1.PodList.
 	GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
 
+	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
+	GetPodsWithoutSidecar(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
+
 	// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
 	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
 }
@@ -47,6 +50,35 @@ func (i *DefaultGatherer) GetAllPods(kubeClient kubernetes.Interface, retryOpts 
 
 	if err != nil {
 		return nil, err
+	}
+
+	return
+}
+
+func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
+	err = retry.Do(func() error {
+		namespaces, err := kubeClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{LabelSelector: "istio-injection=enabled"})
+		if err != nil {
+			return err
+		}
+
+		var allNamespacePods v1.PodList
+		for _, namespace := range namespaces.Items {
+			pods, err := kubeClient.CoreV1().Pods(namespace.Name).List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+
+			for _, pod := range pods.Items {
+				allNamespacePods.Items = append(allNamespacePods.Items, pod)
+			}
+		}
+
+		return nil
+	}, retryOpts...)
+
+	if err != nil {
+		return podsList, err
 	}
 
 	return
