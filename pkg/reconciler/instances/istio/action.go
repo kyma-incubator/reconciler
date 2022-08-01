@@ -149,7 +149,13 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, istioStatus.TargetPrefix, context.Logger)
+	canUpdateResult, err := canUpdate(istioStatus)
+	if err != nil {
+		context.Logger.Warnf("could not perform ResetProxy action: %v", err)
+		return nil
+	}
+
+	err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), istioStatus.TargetVersion, istioStatus.TargetPrefix, context.Logger, canUpdateResult)
 	if err != nil {
 		context.Logger.Warnf("could not perform ResetProxy action: %v", err)
 		return nil
