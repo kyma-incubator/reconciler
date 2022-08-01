@@ -98,7 +98,7 @@ func getPodsWithAnnotation(inputPodsList v1.PodList) (outputPodsList v1.PodList)
 	outputPodsList.Items = []v1.Pod{}
 
 	for _, pod := range inputPodsList.Items {
-		if pod.Annotations["sidecar.istio.io/inject"] == "false" || pod.Labels["reconciler/namespace-istio-injection"] == "disabled" {
+		if pod.Annotations["sidecar.istio.io/inject"] == "false" || pod.Annotations["reconciler/namespace-istio-injection"] == "disabled" {
 			continue
 		} else {
 			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
@@ -165,12 +165,13 @@ func getAllPodsWithNamespaceAnnotations(kubeClient kubernetes.Interface, retryOp
 			}
 
 			for _, pod := range pods.Items {
-				if _, isPodAnnotated := pod.Annotations["sidecar.istio.io/inject"]; !isPodAnnotated {
+				if _, isNamespaceLabeled := namespace.Labels["istio-injection"]; isNamespaceLabeled {
 					pod.Annotations["reconciler/namespace-istio-injection"] = namespace.Labels["istio-injection"]
-					podsList.Items = append(podsList.Items, pod)
 				}
+				podsList.Items = append(podsList.Items, pod)
 			}
 		}
+
 		return nil
 	}, retryOpts...)
 	if err != nil {

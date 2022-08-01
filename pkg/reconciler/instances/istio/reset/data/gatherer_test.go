@@ -103,14 +103,18 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 	retryOpts := getTestingRetryOptions()
 
-	podWithExpectedImage := fixPodWith("application", "kyma", "istio/proxyv2:1.10.1", "Running")
-	podWithExpectedImageTerminating := fixPodWith("istio", "custom", "istio/proxyv2:1.10.2", "Terminating")
+	podWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "kyma", "Running")
+	podWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "custom", "Running")
+	podWithSidecarTerminating := fixPodWithSidecar("application", "custom", "Terminating")
+	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "kyma", "Running")
+	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "custom", "Running")
 	kymaNs := fixNamespaceWith("kyma", map[string]string{"istio-injection": "enabled"})
 	customNs := fixNamespaceWith("custom", map[string]string{"istio-injection": "disabled"})
+	noLabelNs := fixNamespaceWith("nolabel", map[string]string{"testns": "true"})
 
 	t.Run("should get pod with proper namespace label", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(podWithExpectedImage, podWithExpectedImageTerminating, kymaNs, customNs)
+		kubeClient := fake.NewSimpleClientset(podWithoutSidecarEnabledNS, podWithSidecarTerminating, kymaNs, customNs)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -120,6 +124,42 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsWithoutSidecar.Items))
 		require.NotEmpty(t, podsWithoutSidecar.Items)
+	})
+	t.Run("should not get pod with Istio sidecar", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(podWithIstioSidecarDisabledNS, noLabelNs)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should get pod without Istio sidecar in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(podWithoutSidecarEnabledNS, podWithIstioSidecarEnabledNS, kymaNs)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should not get pod without Istio sidecar in namespace labeled istio-injection=disabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(podWithoutSidecarDisabledNS, podWithIstioSidecarDisabledNS, customNs)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsWithoutSidecar.Items))
 	})
 }
 
@@ -149,6 +189,66 @@ func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 				{
 					Name:  name + "-containertwo",
 					Image: image,
+				},
+			},
+		},
+	}
+}
+
+func fixPodWithSidecar(name, namespace, phase string) *v1.Pod {
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{Kind: "ReplicaSet"},
+			},
+			Annotations: map[string]string{},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "v1",
+		},
+		Status: v1.PodStatus{
+			Phase: v1.PodPhase(phase),
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:  name + "-container",
+					Image: "image:6.9",
+				},
+				{
+					Name:  "istio-proxy",
+					Image: "istio-proxy",
+				},
+			},
+		},
+	}
+}
+
+func fixPodWithoutSidecar(name, namespace, phase string) *v1.Pod {
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{Kind: "ReplicaSet"},
+			},
+			Annotations: map[string]string{},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "v1",
+		},
+		Status: v1.PodStatus{
+			Phase: v1.PodPhase(phase),
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:  name + "-container",
+					Image: "image:6.9",
 				},
 			},
 		},
