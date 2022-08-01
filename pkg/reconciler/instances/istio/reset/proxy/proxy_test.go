@@ -22,6 +22,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		RetriesCount: 5,
 		Kubeclient:   fake.NewSimpleClientset(),
 		Log:          log.NewLogger(true),
+		IsUpdate:     true,
 	}
 
 	t.Run("should not return an error when no pods are present on the cluster", func(t *testing.T) {
@@ -30,6 +31,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		gatherer.On("GetAllPods", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(&v1.PodList{}, nil)
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{})
+		gatherer.On("GetPodsWithoutSidecar", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(v1.PodList{}, nil)
 
 		action := podresetmocks.Action{}
 		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
@@ -52,6 +54,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		gatherer.On("GetAllPods", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(&v1.PodList{Items: []v1.Pod{{}}}, nil)
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{Items: []v1.Pod{{}}})
+		gatherer.On("GetPodsWithoutSidecar", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(v1.PodList{Items: []v1.Pod{{}}}, nil)
 
 		action := podresetmocks.Action{}
 		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
@@ -65,7 +68,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		require.NoError(t, err)
 		gatherer.AssertNumberOfCalls(t, "GetAllPods", 1)
 		gatherer.AssertNumberOfCalls(t, "GetPodsWithDifferentImage", 1)
-		action.AssertNumberOfCalls(t, "Reset", 1)
+		action.AssertNumberOfCalls(t, "Reset", 2)
 	})
 
 	t.Run("should return an error when GetAllPods returns an error", func(t *testing.T) {
@@ -75,6 +78,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		gatherer.On("GetAllPods", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(nil, expectedError)
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{})
+		gatherer.On("GetPodsWithoutSidecar", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(v1.PodList{}, nil)
 
 		action := podresetmocks.Action{}
 		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
