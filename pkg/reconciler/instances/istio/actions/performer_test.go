@@ -647,6 +647,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
+		canUpdate := true
 
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
@@ -656,7 +657,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImageVersion := "1.2.0"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "", log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "", log, canUpdate)
 
 		// then
 		require.Error(t, err)
@@ -667,6 +668,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
+		canUpdate := true
 
 		proxy := proxymocks.IstioProxyReset{}
 		proxy.On("Run", mock.Anything).Return(errors.New("Proxy reset error"))
@@ -678,7 +680,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImagePrefix := "anything"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log, canUpdate)
 
 		// then
 		require.Error(t, err)
@@ -689,6 +691,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		// given
 		cmder := istioctlmocks.Commander{}
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
+		canUpdate := true
 
 		proxy := proxymocks.IstioProxyReset{}
 		proxy.On("Run", mock.Anything).Return(nil)
@@ -700,7 +703,7 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxyImagePrefix := "anything"
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log)
+		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log, canUpdate)
 
 		// then
 		require.NoError(t, err)

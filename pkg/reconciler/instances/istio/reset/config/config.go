@@ -13,6 +13,9 @@ type IstioProxyConfig struct {
 	// Reconcile action context
 	Context context.Context
 
+	//Check if version updated
+	IsUpdate bool
+
 	// ImagePrefix of Istio
 	ImagePrefix string
 
