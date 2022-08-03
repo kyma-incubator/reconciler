@@ -102,7 +102,7 @@ type IstioPerformer interface {
 	Update(kubeConfig, istioChart string, targetVersion helpers.HelperVersion, logger *zap.SugaredLogger) error
 
 	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
-	ResetProxy(context context.Context, kubeConfig string, proxyImageVersion helpers.HelperVersion, logger *zap.SugaredLogger) error
+	ResetProxy(context context.Context, kubeConfig string, proxyImageVersion helpers.HelperVersion, logger *zap.SugaredLogger, canUpdate bool) error
 
 	// Version reports status of Istio installation on the cluster.
 	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error)
@@ -318,7 +318,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart string, targetVers
 	return nil
 }
 
-func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, proxyImageVersion helpers.HelperVersion, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, proxyImageVersion helpers.HelperVersion, logger *zap.SugaredLogger, canUpdate bool) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
@@ -326,6 +326,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 	}
 
 	cfg := istioConfig.IstioProxyConfig{
+		IsUpdate:            canUpdate,
 		Context:             context,
 		ImageVersion:        proxyImageVersion,
 		RetriesCount:        retriesCount,

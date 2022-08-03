@@ -62,6 +62,27 @@ func (_m *Gatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, image da
 	return r0, r1
 }
 
+// GetPodsWithoutSidecar provides a mock function with given fields: kubeClient, retryOpts
+func (_m *Gatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (v1.PodList, error) {
+	ret := _m.Called(kubeClient, retryOpts)
+
+	var r0 v1.PodList
+	if rf, ok := ret.Get(0).(func(kubernetes.Interface, []retry.Option) v1.PodList); ok {
+		r0 = rf(kubeClient, retryOpts)
+	} else {
+		r0 = ret.Get(0).(v1.PodList)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(kubernetes.Interface, []retry.Option) error); ok {
+		r1 = rf(kubeClient, retryOpts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 type mockConstructorTestingTNewGatherer interface {
 	mock.TestingT
 	Cleanup(func())

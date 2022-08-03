@@ -45,32 +45,49 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		retry.DelayType(retry.FixedDelay),
 	}
 
-	pods, err := i.gatherer.GetAllPods(cfg.Kubeclient, retryOpts)
-	if err != nil {
-		return err
-	}
-	cfg.Log.Debugf("Found %d pods in total", len(pods.Items))
-	podsWithDifferentImage, err := i.gatherer.GetPodsWithDifferentImage(*pods, image)
-	if err != nil {
-		return err
-	}
-
-	cfg.Log.Debugf("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
-	podsWithoutAnnotation := data.RemoveAnnotatedPods(podsWithDifferentImage, pod.AnnotationResetWarningKey)
-	if len(podsWithDifferentImage.Items) >= 1 && len(podsWithoutAnnotation.Items) == 0 {
-		cfg.Log.Warnf(
-			"Found %d pods with different istio proxy image, but we cannot update sidecar proxy image for them. Look for pods with annotation %s,"+
-				" resolve the problem and remove the annotation",
-			len(podsWithDifferentImage.Items),
-			pod.AnnotationResetWarningKey,
-		)
-	}
-	if len(podsWithoutAnnotation.Items) >= 1 {
-		err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithoutAnnotation, cfg.Log, cfg.Debug, waitOpts)
+	if cfg.IsUpdate {
+		pods, err := i.gatherer.GetAllPods(cfg.Kubeclient, retryOpts)
 		if err != nil {
 			return err
 		}
-		cfg.Log.Infof("Proxy reset for %d pods successfully done", len(podsWithoutAnnotation.Items))
+		cfg.Log.Debugf("Found %d pods in total", len(pods.Items))
+		podsWithDifferentImage, err := i.gatherer.GetPodsWithDifferentImage(*pods, image)
+		if err != nil {
+			return err
+		}
+
+		cfg.Log.Debugf("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
+		podsWithoutAnnotation := data.RemoveAnnotatedPods(podsWithDifferentImage, pod.AnnotationResetWarningKey)
+		if len(podsWithDifferentImage.Items) >= 1 && len(podsWithoutAnnotation.Items) == 0 {
+			cfg.Log.Warnf(
+				"Found %d pods with different istio proxy image, but we cannot update sidecar proxy image for them. Look for pods with annotation %s,"+
+					" resolve the problem and remove the annotation",
+				len(podsWithDifferentImage.Items),
+				pod.AnnotationResetWarningKey,
+			)
+		}
+		if len(podsWithoutAnnotation.Items) >= 1 {
+			err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithoutAnnotation, cfg.Log, cfg.Debug, waitOpts)
+			if err != nil {
+				return err
+			}
+			cfg.Log.Infof("Proxy reset for %d pods successfully done", len(podsWithoutAnnotation.Items))
+		}
 	}
+
+	podsWithoutSidecar, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts)
+	if err != nil {
+		return err
+	}
+	cfg.Log.Debugf("Found %d pods without sidecar", len(podsWithoutSidecar.Items))
+
+	if len(podsWithoutSidecar.Items) >= 1 {
+		err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithoutSidecar, cfg.Log, cfg.Debug, waitOpts)
+		if err != nil {
+			return err
+		}
+		cfg.Log.Infof("Proxy reset for %d pods without sidecar successfully done", len(podsWithoutSidecar.Items))
+	}
+
 	return nil
 }

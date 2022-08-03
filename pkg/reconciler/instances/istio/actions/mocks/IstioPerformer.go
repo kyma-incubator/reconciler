@@ -64,13 +64,13 @@ func (_m *IstioPerformer) PatchMutatingWebhook(_a0 context.Context, kubeClient k
 	return r0
 }
 
-// ResetProxy provides a mock function with given fields: _a0, kubeConfig, proxyImageVersion, logger
-func (_m *IstioPerformer) ResetProxy(_a0 context.Context, kubeConfig string, proxyImageVersion helpers.HelperVersion, logger *zap.SugaredLogger) error {
-	ret := _m.Called(_a0, kubeConfig, proxyImageVersion, logger)
+// ResetProxy provides a mock function with given fields: _a0, kubeConfig, proxyImageVersion, logger, canUpdate
+func (_m *IstioPerformer) ResetProxy(_a0 context.Context, kubeConfig string, proxyImageVersion helpers.HelperVersion, logger *zap.SugaredLogger, canUpdate bool) error {
+	ret := _m.Called(_a0, kubeConfig, proxyImageVersion, logger, canUpdate)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, helpers.HelperVersion, *zap.SugaredLogger) error); ok {
-		r0 = rf(_a0, kubeConfig, proxyImageVersion, logger)
+	if rf, ok := ret.Get(0).(func(context.Context, string, helpers.HelperVersion, *zap.SugaredLogger, bool) error); ok {
+		r0 = rf(_a0, kubeConfig, proxyImageVersion, logger, canUpdate)
 	} else {
 		r0 = ret.Error(0)
 	}

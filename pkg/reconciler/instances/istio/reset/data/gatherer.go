@@ -19,6 +19,9 @@ type Gatherer interface {
 
 	// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
 	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList, err error)
+
+	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
+	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
 }
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
@@ -80,6 +83,106 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 	}
 
 	return outputPodsList, nil
+}
+
+func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
+	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
+	if err != nil {
+		return
+	}
+
+	// filter pods
+	podsList = getPodsWithAnnotation(allPodsWithNamespaceAnnotations)
+	podsList = getPodsWithoutSidecar(podsList)
+	return
+}
+
+func getPodsWithAnnotation(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
+	inputPodsList.DeepCopyInto(&outputPodsList)
+	outputPodsList.Items = []v1.Pod{}
+
+	for _, pod := range inputPodsList.Items {
+		if pod.Annotations["sidecar.istio.io/inject"] == "false" || pod.Annotations["reconciler/namespace-istio-injection"] == "disabled" {
+			continue
+		} else {
+			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
+		}
+	}
+
+	return
+}
+
+func getPodsWithoutSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
+	inputPodsList.DeepCopyInto(&outputPodsList)
+	outputPodsList.Items = []v1.Pod{}
+
+	for _, pod := range inputPodsList.Items {
+		if !isPodReady(pod) {
+			continue
+		}
+		//Automatic sidecar injection is ignored for pods on the host network
+		if pod.Spec.HostNetwork {
+			continue
+		}
+
+		if !hasIstioProxy(pod.Spec.Containers, "istio-proxy") {
+			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
+		}
+
+	}
+
+	return
+}
+
+func hasIstioProxy(containers []v1.Container, proxyName string) bool {
+	proxyImage := ""
+	for _, container := range containers {
+		if container.Name == proxyName {
+			proxyImage = container.Image
+		}
+	}
+	return proxyImage != ""
+}
+
+func getAllPodsWithNamespaceAnnotations(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
+	var namespaces *v1.NamespaceList
+	err = retry.Do(func() error {
+		namespaces, err = kubeClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		return nil
+	}, retryOpts...)
+	if err != nil {
+		return podsList, err
+	}
+
+	err = retry.Do(func() error {
+		for _, namespace := range namespaces.Items {
+			if namespace.ObjectMeta.Name == "kube-system" {
+				continue
+			}
+
+			pods, err := kubeClient.CoreV1().Pods(namespace.Name).List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+
+			for _, pod := range pods.Items {
+				if _, isNamespaceLabeled := namespace.Labels["istio-injection"]; isNamespaceLabeled {
+					pod.Annotations["reconciler/namespace-istio-injection"] = namespace.Labels["istio-injection"]
+				}
+				podsList.Items = append(podsList.Items, pod)
+			}
+		}
+
+		return nil
+	}, retryOpts...)
+	if err != nil {
+		return podsList, err
+	}
+
+	return
 }
 
 // getIstioSidecarNamesFromAnnotations gets all container names in pod annoted with podAnnotations that are Istio sidecars
