@@ -4,11 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/coreos/go-semver/semver"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	datamocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data/mocks"
 	podresetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset/mocks"
@@ -19,7 +17,8 @@ import (
 
 func Test_IstioProxyReset_Run(t *testing.T) {
 	cfg := config.IstioProxyConfig{
-		ImageVersion: helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 10, Patch: 2}},
+		ImagePrefix:  "istio/proxyv2",
+		ImageVersion: "1.10.2",
 		RetriesCount: 5,
 		Kubeclient:   fake.NewSimpleClientset(),
 		Log:          log.NewLogger(true),
@@ -31,7 +30,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		gatherer := datamocks.Gatherer{}
 		gatherer.On("GetAllPods", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(&v1.PodList{}, nil)
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
-			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{}, nil)
+			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{})
 		gatherer.On("GetPodsWithoutSidecar", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(v1.PodList{}, nil)
 
 		action := podresetmocks.Action{}
@@ -54,7 +53,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		gatherer := datamocks.Gatherer{}
 		gatherer.On("GetAllPods", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(&v1.PodList{Items: []v1.Pod{{}}}, nil)
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
-			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{Items: []v1.Pod{{}}}, nil)
+			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{Items: []v1.Pod{{}}})
 		gatherer.On("GetPodsWithoutSidecar", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(v1.PodList{Items: []v1.Pod{{}}}, nil)
 
 		action := podresetmocks.Action{}

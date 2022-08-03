@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
+	istioctl "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -13,14 +13,14 @@ type VersionChecker struct {
 }
 
 // GetIstioVersion provides a mock function with given fields: pathToBinary
-func (_m *VersionChecker) GetIstioVersion(pathToBinary string) (helpers.HelperVersion, error) {
+func (_m *VersionChecker) GetIstioVersion(pathToBinary string) (istioctl.Version, error) {
 	ret := _m.Called(pathToBinary)
 
-	var r0 helpers.HelperVersion
-	if rf, ok := ret.Get(0).(func(string) helpers.HelperVersion); ok {
+	var r0 istioctl.Version
+	if rf, ok := ret.Get(0).(func(string) istioctl.Version); ok {
 		r0 = rf(pathToBinary)
 	} else {
-		r0 = ret.Get(0).(helpers.HelperVersion)
+		r0 = ret.Get(0).(istioctl.Version)
 	}
 
 	var r1 error

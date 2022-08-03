@@ -7,7 +7,6 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/pkg/errors"
@@ -21,7 +20,7 @@ const (
 )
 
 // IstioPerformer instance should be created only once in the Istio Reconciler life.
-// Due to current Reconciler limitations - lack of well-defined reconciler instances lifetime - we have to initialize it once per reconcile/delete action.
+// Due to current Reconciler limitations - lack of well defined reconciler instances lifetime - we have to initialize it once per reconcile/delete action.
 func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clientset.Provider, name string) bootstrapIstioPerformer {
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
@@ -59,7 +58,7 @@ type defaultCommanderResolver struct {
 	istioBinaryResolver istioctl.ExecutableResolver
 }
 
-func (dcr *defaultCommanderResolver) GetCommander(version helpers.HelperVersion) (istioctl.Commander, error) {
+func (dcr *defaultCommanderResolver) GetCommander(version istioctl.Version) (istioctl.Commander, error) {
 	istioBinary, err := dcr.istioBinaryResolver.FindIstioctl(version)
 	if err != nil {
 		return nil, err
