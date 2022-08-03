@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/avast/retry-go"
+	"github.com/coreos/go-semver/semver"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,8 +47,7 @@ func Test_Gatherer_GetAllPods(t *testing.T) {
 
 func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 	image := ExpectedImage{
-		Prefix:  "istio/proxyv2",
-		Version: "1.10.1",
+		Version: helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 10, Patch: 1}},
 	}
 
 	podWithExpectedImage := fixPodWith("application", "kyma", "istio/proxyv2:1.10.1", "Running")
@@ -64,9 +65,10 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithDifferentImage := gatherer.GetPodsWithDifferentImage(pods, image)
+		podsWithDifferentImage, err := gatherer.GetPodsWithDifferentImage(pods, image)
 
 		// then
+		require.NoError(t, err)
 		require.Empty(t, podsWithDifferentImage.Items)
 	})
 
@@ -92,9 +94,10 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithDifferentImage := gatherer.GetPodsWithDifferentImage(pods, image)
+		podsWithDifferentImage, err := gatherer.GetPodsWithDifferentImage(pods, image)
 
 		// then
+		require.NoError(t, err)
 		require.Equal(t, podsWithDifferentImage.Items, expected.Items)
 		require.NotEmpty(t, podsWithDifferentImage.Items)
 	})

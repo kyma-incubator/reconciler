@@ -3,9 +3,9 @@ package data
 import (
 	"context"
 	"encoding/json"
-	"strings"
 
 	"github.com/avast/retry-go"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -18,7 +18,7 @@ type Gatherer interface {
 	GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
 
 	// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
-	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
+	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList, err error)
 
 	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
 	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
@@ -29,8 +29,7 @@ type DefaultGatherer struct{}
 
 // ExpectedImage to be verified by the proxy.
 type ExpectedImage struct {
-	Prefix  string
-	Version string
+	Version helpers.HelperVersion
 }
 
 // NewDefaultGatherer creates a new instance of DefaultGatherer.
@@ -55,7 +54,7 @@ func (i *DefaultGatherer) GetAllPods(kubeClient kubernetes.Interface, retryOpts 
 	return
 }
 
-func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList) {
+func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList, err error) {
 	inputPodsList.DeepCopyInto(&outputPodsList)
 	outputPodsList.Items = []v1.Pod{}
 
@@ -70,15 +69,20 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 			if !isIstioSidecar(istioSidecarNames, container.Name) {
 				continue
 			}
-			containsPrefix := strings.Contains(container.Image, image.Prefix)
-			hasSuffix := strings.HasSuffix(container.Image, image.Version)
-			if !hasSuffix || !containsPrefix {
+			containerVersion, err := helpers.NewHelperVersionFrom(container.Image)
+			if err != nil {
+				return v1.PodList{}, err
+			}
+
+			sameLibrary := containerVersion.Library == image.Version.Library
+			sameTag := containerVersion.Tag.Equal(image.Version.Tag)
+			if !sameTag || !sameLibrary {
 				outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 			}
 		}
 	}
 
-	return
+	return outputPodsList, nil
 }
 
 func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
@@ -194,7 +198,7 @@ func getIstioSidecarNamesFromAnnotations(podAnnotations map[string]string) []str
 	return istioStatus.Containers
 }
 
-// isIstioSidecar checks whether the pod with name=containerName is a Istio sidecar in pod with Istio sidecars with names=istioSidecarNames
+// isIstioSidecar checks whether the container with name=containerName is the Istio sidecar in pod with Istio sidecars with names=istioSidecarNames
 func isIstioSidecar(istioSidecarNames []string, containerName string) bool {
 	for _, c := range istioSidecarNames {
 		if c == containerName {

@@ -11,6 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	commandermocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
@@ -195,7 +196,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		err := action.Run(actionContext)
 
 		// then
-		require.EqualError(t, err, "Istio could not be updated since the binary version: 1.09.2 is not compatible with the target version: 1.11.2-solo-fips-distroless - the difference between versions exceeds one minor version")
+		require.Contains(t, err.Error(), "difference between versions exceeds one minor version")
 		commanderMock.AssertCalled(t, "Version", mock.Anything, mock.Anything)
 	})
 
@@ -259,6 +260,7 @@ func Test_RunUninstallAction(t *testing.T) {
 			TypeMeta:        metav1.TypeMeta{},
 			ResourceVersion: "",
 		})
+
 		require.Error(t, nserror)
 	})
 
@@ -313,7 +315,7 @@ type TestCommanderResolver struct {
 	cmder istioctl.Commander
 }
 
-func (tcr TestCommanderResolver) GetCommander(_ istioctl.Version) (istioctl.Commander, error) {
+func (tcr TestCommanderResolver) GetCommander(_ helpers.HelperVersion) (istioctl.Commander, error) {
 	if tcr.err != nil {
 		return nil, tcr.err
 	}

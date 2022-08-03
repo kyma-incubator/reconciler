@@ -31,7 +31,6 @@ func NewDefaultIstioProxyReset(gatherer data.Gatherer, action reset.Action) *Def
 
 func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	image := data.ExpectedImage{
-		Prefix:  cfg.ImagePrefix,
 		Version: cfg.ImageVersion,
 	}
 
@@ -52,7 +51,10 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 			return err
 		}
 		cfg.Log.Debugf("Found %d pods in total", len(pods.Items))
-		podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*pods, image)
+		podsWithDifferentImage, err := i.gatherer.GetPodsWithDifferentImage(*pods, image)
+		if err != nil {
+			return err
+		}
 
 		cfg.Log.Debugf("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
 		podsWithoutAnnotation := data.RemoveAnnotatedPods(podsWithDifferentImage, pod.AnnotationResetWarningKey)
