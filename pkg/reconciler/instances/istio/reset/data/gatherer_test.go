@@ -47,7 +47,7 @@ func Test_Gatherer_GetAllPods(t *testing.T) {
 
 func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 	image := ExpectedImage{
-		Version: helpers.HelperVersion{Library: "istio/proxyv2", Tag: semver.Version{Major: 1, Minor: 10, Patch: 1}},
+		Version: helpers.HelperVersion{Library: "istio", Tag: semver.Version{Major: 1, Minor: 10, Patch: 1}},
 	}
 
 	podWithExpectedImage := fixPodWith("application", "kyma", "istio/proxyv2:1.10.1", "Running")
