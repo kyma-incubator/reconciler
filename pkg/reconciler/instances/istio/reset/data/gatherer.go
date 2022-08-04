@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/helpers"
@@ -70,6 +71,8 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 				continue
 			}
 			containerVersion, err := helpers.NewHelperVersionFrom(container.Image)
+
+			containerVersion.Library = strings.TrimSuffix(containerVersion.Library, "/proxyv2")
 			if err != nil {
 				return v1.PodList{}, err
 			}

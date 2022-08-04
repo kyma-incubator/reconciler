@@ -38,8 +38,8 @@ build-linux-arm:
 
 .PHONY: build-darwin
 build-darwin:
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/reconciler-darwin $(FLAGS) ./cmd/reconciler
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/mothership-darwin $(FLAGS) ./cmd/mothership
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/reconciler-darwin  ./cmd/reconciler
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ./bin/mothership-darwin  ./cmd/mothership
 
 .PHONY: build-windows
 build-windows:
