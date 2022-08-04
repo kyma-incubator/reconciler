@@ -21,7 +21,7 @@ const (
 )
 
 // IstioPerformer instance should be created only once in the Istio Reconciler life.
-// Due to current Reconciler limitations - lack of well defined reconciler instances lifetime - we have to initialize it once per reconcile/delete action.
+// Due to current Reconciler limitations - lack of well-defined reconciler instances lifetime - we have to initialize it once per reconcile/delete action.
 func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clientset.Provider, name string) bootstrapIstioPerformer {
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {

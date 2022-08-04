@@ -118,7 +118,7 @@ type CommanderResolver interface {
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
-// It uses istioctl binary to do it's job. It delegates the job of finding proper istioctl binary for given operation to the configured CommandResolver.
+// It uses istioctl binary to do its job. It delegates the job of finding proper istioctl binary for given operation to the configured CommandResolver.
 type DefaultIstioPerformer struct {
 	resolver        CommanderResolver
 	istioProxyReset proxy.IstioProxyReset

@@ -10,7 +10,7 @@ import (
 )
 
 //go:generate mockery --name=IstioctlResolver --outpkg=mock --case=underscore
-// Finds an Executable for given Version
+// ExecutableResolver finds an Executable for given Version
 type ExecutableResolver interface {
 	FindIstioctl(version helpers.HelperVersion) (*Executable, error)
 }
@@ -24,7 +24,7 @@ func (d *DefaultIstioctlResolver) FindIstioctl(version helpers.HelperVersion) (*
 }
 
 func NewDefaultIstioctlResolver(paths []string, vc VersionChecker) (*DefaultIstioctlResolver, error) {
-	binariesList := []Executable{}
+	var binariesList []Executable
 	for _, path := range paths {
 		version, err := vc.GetIstioVersion(path)
 		if err != nil {
@@ -41,7 +41,7 @@ func NewDefaultIstioctlResolver(paths []string, vc VersionChecker) (*DefaultIsti
 }
 
 func (d *DefaultIstioctlResolver) findMatchingBinary(version helpers.HelperVersion) (*Executable, error) {
-	matching := []Executable{}
+	var matching []Executable
 
 	for _, binary := range d.sortedBinaries {
 		if helpers.AreEqual(binary.version, version) {
@@ -54,7 +54,7 @@ func (d *DefaultIstioctlResolver) findMatchingBinary(version helpers.HelperVersi
 	}
 
 	if len(matching) == 0 {
-		availableBinaries := []string{}
+		var availableBinaries []string
 		for _, binary := range d.sortedBinaries {
 			availableBinaries = append(availableBinaries, binary.Version().String())
 		}
@@ -73,7 +73,7 @@ type VersionChecker interface {
 	GetIstioVersion(pathToBinary string) (helpers.HelperVersion, error)
 }
 
-// Default implementation that executes istioctl to find out it's version
+// DefaultVersionChecker is the default implementation that executes istioctl to find out it's version
 type DefaultVersionChecker struct {
 }
 
