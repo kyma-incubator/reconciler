@@ -11,18 +11,23 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//go:generate mockery --name=Gatherer --outpkg=mocks --case=underscore
-// Gatherer gathers data from the Kubernetes cluster.
-type Gatherer interface {
-	// GetAllPods from the cluster and return them as a v1.PodList.
-	GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
+type (
+	//go:generate mockery --name=Gatherer --outpkg=mocks --case=underscore
+	// Gatherer gathers data from the Kubernetes cluster.
+	Gatherer interface {
+		// GetAllPods from the cluster and return them as a v1.PodList.
+		GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
 
-	// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
-	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
+		// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
+		GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
 
-	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
-	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
-}
+		// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
+		GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
+
+		// GetPodsInIstioMesh return list of pods which belongs to Istio Mesh
+		GetPodsInIstioMesh(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList *v1.PodList, err error)
+	}
+)
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
 type DefaultGatherer struct{}
@@ -76,6 +81,77 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 				outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 			}
 		}
+	}
+
+	return
+}
+
+func (i *DefaultGatherer) GetPodsInIstioMesh(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList *v1.PodList, err error) {
+	var namespaces *v1.NamespaceList
+	err = retry.Do(func() error {
+		namespaces, err = kubeClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		return nil
+	}, retryOpts...)
+	if err != nil {
+		return podsList, err
+	}
+
+	err = retry.Do(func() error {
+		for _, namespace := range namespaces.Items {
+			if namespace.ObjectMeta.Name == "kube-system" {
+				continue
+			}
+			if namespace.ObjectMeta.Name == "kube-public" {
+				continue
+			}
+
+			pods, err := kubeClient.CoreV1().Pods(namespace.Name).List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+
+			for _, pod := range pods.Items {
+				if !isPodReady(pod) {
+					continue
+				}
+				//Automatic sidecar injection is ignored for pods on the host network
+				if pod.Spec.HostNetwork {
+					continue
+				}
+
+				podIstioAnnotation, podIstioAnnotationValue := pod.Annotations["sidecar.istio.io/inject"]
+
+				if (podIstioAnnotation != "") && (!podIstioAnnotationValue) {
+					continue
+				}
+
+				namespaceIstioInjection, namespaceIstioInjectionValue := namespace.Labels["istio-injection"]
+				if sidecarInjectionEnabledbyDefault {
+					// namespace label exists, and set to false
+					if (namespaceIstioInjection != "") && (!namespaceIstioInjectionValue) {
+						continue
+					}
+				} else {
+					// namespace label exists and set to false
+					if (namespaceIstioInjection != "") && (!namespaceIstioInjectionValue) {
+						continue
+					}
+					// namespace label and pod annotation do not exist
+					if (namespaceIstioInjection == "") && (podIstioAnnotation == "") {
+						continue
+					}
+				}
+				podsList.Items = append(podsList.Items, pod)
+			}
+		}
+
+		return nil
+	}, retryOpts...)
+	if err != nil {
+		return podsList, err
 	}
 
 	return

@@ -52,7 +52,9 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 			return err
 		}
 		cfg.Log.Debugf("Found %d pods in total", len(pods.Items))
-		podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*pods, image)
+		podsInMesh, err := i.gatherer.GetPodsInIstioMesh(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
+
+		podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*podsInMesh, image)
 
 		cfg.Log.Debugf("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
 		podsWithoutAnnotation := data.RemoveAnnotatedPods(podsWithDifferentImage, pod.AnnotationResetWarningKey)

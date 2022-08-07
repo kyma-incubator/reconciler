@@ -42,4 +42,7 @@ type IstioProxyConfig struct {
 
 	// Logger to be used
 	Log *zap.SugaredLogger
+
+	// Is Sidecar Injection enabled by default
+	SidecarInjectionByDefaultEnabled bool
 }
