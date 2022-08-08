@@ -53,7 +53,9 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		}
 		cfg.Log.Debugf("Found %d pods in total", len(pods.Items))
 		podsInMesh, err := i.gatherer.GetPodsInIstioMesh(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
-
+		if err != nil {
+			return err
+		}
 		//podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*podsInMesh, image)
 
 		//cfg.Log.Debugf("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
