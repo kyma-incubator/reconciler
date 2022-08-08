@@ -108,6 +108,8 @@ func (i *DefaultGatherer) GetPodsInIstioMesh(kubeClient kubernetes.Interface, re
 				continue
 			}
 
+			namespaceIstioInjectionValue, namespaceIstioInjection := namespace.Labels["istio-injection"]
+
 			pods, err := kubeClient.CoreV1().Pods(namespace.Name).List(context.Background(), metav1.ListOptions{})
 			if err != nil {
 				return err
@@ -122,25 +124,18 @@ func (i *DefaultGatherer) GetPodsInIstioMesh(kubeClient kubernetes.Interface, re
 					continue
 				}
 
-				podIstioAnnotation, podIstioAnnotationValue := pod.Annotations["sidecar.istio.io/inject"]
+				podIstioAnnotationValue, podIstioAnnotation := pod.Annotations["sidecar.istio.io/inject"]
 
-				if (podIstioAnnotation != "") && (!podIstioAnnotationValue) {
+				if (podIstioAnnotation) && (podIstioAnnotationValue == "false") {
 					continue
 				}
 
-				namespaceIstioInjection, namespaceIstioInjectionValue := namespace.Labels["istio-injection"]
-				if sidecarInjectionEnabledbyDefault {
-					// namespace label exists, and set to false
-					if (namespaceIstioInjection != "") && (!namespaceIstioInjectionValue) {
-						continue
-					}
-				} else {
-					// namespace label exists and set to false
-					if (namespaceIstioInjection != "") && (!namespaceIstioInjectionValue) {
-						continue
-					}
+				if (namespaceIstioInjection) && (namespaceIstioInjectionValue == "disabled") && (!podIstioAnnotation) {
+					continue
+				}
+				if !sidecarInjectionEnabledbyDefault { // sidecarInjectionEnabledbyDefault false
 					// namespace label and pod annotation do not exist
-					if (namespaceIstioInjection == "") && (podIstioAnnotation == "") {
+					if (!namespaceIstioInjection) && (!podIstioAnnotation) {
 						continue
 					}
 				}
