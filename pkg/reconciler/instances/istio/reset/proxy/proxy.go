@@ -56,6 +56,10 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		if err != nil {
 			return err
 		}
+		if podsInMesh == nil {
+			cfg.Log.Warn("No pods to restart")
+			return nil
+		}
 		//podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*podsInMesh, image)
 
 		//cfg.Log.Debugf("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
