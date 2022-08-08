@@ -138,6 +138,9 @@ func (i *DefaultGatherer) GetPodsInIstioMesh(kubeClient kubernetes.Interface, re
 					if (!namespaceIstioInjection) && (!podIstioAnnotation) {
 						continue
 					}
+					if (namespaceIstioInjection) && (namespaceIstioInjectionValue == "disabled") && (!podIstioAnnotation) {
+						continue
+					}
 				}
 				podsList.Items = append(podsList.Items, pod)
 			}
