@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	handleJsUpdateName = "handleToggleJSFileStorage"
+	handleJsUpdateName = "handleNatsHelmChartsUpdate"
 	serverNameEnv      = "SERVER_NAME"
 )
 
@@ -20,7 +20,7 @@ type handleJsUpdate struct {
 	kubeClientProvider
 }
 
-// newHandleEnableJSFileStorage
+// handleJsUpdate
 func newHandleJsUpdate() *handleJsUpdate {
 	return &handleJsUpdate{
 		kubeClientProvider: defaultKubeClientProvider,
