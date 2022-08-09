@@ -131,7 +131,7 @@ func TestToggleJsFileStoragePreAction(t *testing.T) {
 		}
 
 		chartProvider := &chartmocks.Provider{}
-		chartValuesYAML := getJestreamValuesYAML(jsEnabled, storageType)
+		chartValuesYAML := getJetstreamValuesYAML(jsEnabled, storageType)
 		chartValues, err := unmarshalTestValues(chartValuesYAML)
 		require.NoError(t, err)
 
@@ -221,6 +221,16 @@ func withReplicas(replicas int) statefulSetOpt {
 	}
 }
 
+func withEnvVar(envVar v1.EnvVar) statefulSetOpt {
+	return func(statefulSet *appsv1.StatefulSet) {
+		statefulSet.Spec.Template.Spec.Containers = []v1.Container{
+			{
+				Env: []v1.EnvVar{envVar},
+			},
+		}
+	}
+}
+
 func withVolumeClaimTemplates() statefulSetOpt {
 	return func(statefulSet *appsv1.StatefulSet) {
 		var persistentVolumeClaims []v1.PersistentVolumeClaim
@@ -235,7 +245,7 @@ func withVolumeClaimTemplates() statefulSetOpt {
 	}
 }
 
-func getJestreamValuesYAML(jsEnabled bool, fileStorage string) string {
+func getJetstreamValuesYAML(jsEnabled bool, fileStorage string) string {
 	return fmt.Sprintf(`
     global:
       jetstream:

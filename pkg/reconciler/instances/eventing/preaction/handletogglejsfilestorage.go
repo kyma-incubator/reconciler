@@ -151,7 +151,7 @@ func deleteNatsStatefulSet(context *service.ActionContext, clientSet k8s.Interfa
 	if err := addToProgressTracker(tracker, logger, statefulSetType, statefulSetName); err != nil {
 		return err
 	}
-	logger.Info("Deleting nats StatefulSet in order to perform the PVC migration")
+	logger.Info("Deleting nats StatefulSet in order to perform the migration")
 	if err := clientSet.AppsV1().StatefulSets(namespace).Delete(context.Context, statefulSetName, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
