@@ -30,10 +30,10 @@ func NewDefaultIstioProxyReset(gatherer data.Gatherer, action reset.Action) *Def
 }
 
 func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
-	//image := data.ExpectedImage{
-	//	Prefix:  cfg.ImagePrefix,
-	//	Version: cfg.ImageVersion,
-	//}
+	image := data.ExpectedImage{
+		Prefix:  cfg.ImagePrefix,
+		Version: cfg.ImageVersion,
+	}
 
 	waitOpts := pod.WaitOptions{
 		Interval: cfg.Interval,
@@ -52,23 +52,15 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 			return err
 		}
 		cfg.Log.Debugf("Found %d pods in total", len(pods.Items))
-		podsInMesh, err := i.gatherer.GetPodsInIstioMesh(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
-		if err != nil {
-			return err
-		}
-		if podsInMesh == nil {
-			cfg.Log.Warn("No pods to restart")
-			return nil
-		}
-		//podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*podsInMesh, image)
+		podsWithDifferentImage := i.gatherer.GetPodsWithDifferentImage(*pods, image)
 
-		//cfg.Log.Debugf("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
-		podsWithoutAnnotation := data.RemoveAnnotatedPods(*podsInMesh, pod.AnnotationResetWarningKey)
-		if len(podsInMesh.Items) >= 1 && len(podsWithoutAnnotation.Items) == 0 {
+		cfg.Log.Debugf("Found %d pods with different istio proxy image (%s)", len(podsWithDifferentImage.Items), image)
+		podsWithoutAnnotation := data.RemoveAnnotatedPods(podsWithDifferentImage, pod.AnnotationResetWarningKey)
+		if len(podsWithDifferentImage.Items) >= 1 && len(podsWithoutAnnotation.Items) == 0 {
 			cfg.Log.Warnf(
-				"Found %d pods belong to istio mesh, but we cannot update sidecar proxy image for them. Look for pods with annotation %s,"+
+				"Found %d pods with different istio proxy image, but we cannot update sidecar proxy image for them. Look for pods with annotation %s,"+
 					" resolve the problem and remove the annotation",
-				len(podsInMesh.Items),
+				len(podsWithDifferentImage.Items),
 				pod.AnnotationResetWarningKey,
 			)
 		}
@@ -81,19 +73,19 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		}
 	}
 
-	//podsWithoutSidecar, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts)
-	//if err != nil {
-	//	return err
-	//}
-	//cfg.Log.Debugf("Found %d pods without sidecar", len(podsWithoutSidecar.Items))
-	//
-	//if len(podsWithoutSidecar.Items) >= 1 {
-	//	err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithoutSidecar, cfg.Log, cfg.Debug, waitOpts)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	cfg.Log.Infof("Proxy reset for %d pods without sidecar successfully done", len(podsWithoutSidecar.Items))
-	//}
+	podsWithoutSidecar, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
+	if err != nil {
+		return err
+	}
+	cfg.Log.Debugf("Found %d pods without sidecar", len(podsWithoutSidecar.Items))
+
+	if len(podsWithoutSidecar.Items) >= 1 {
+		err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithoutSidecar, cfg.Log, cfg.Debug, waitOpts)
+		if err != nil {
+			return err
+		}
+		cfg.Log.Infof("Proxy reset for %d pods without sidecar successfully done", len(podsWithoutSidecar.Items))
+	}
 
 	return nil
 }
