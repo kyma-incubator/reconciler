@@ -116,6 +116,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
 	disabledNS := fixNamespaceWith("disabled", map[string]string{"istio-injection": "disabled"})
 	noLabelNS := fixNamespaceWith("nolabel", map[string]string{"testns": "true"})
+	sidecarInjectionEnabledbyDefault := false
 
 	t.Run("should get pod with proper namespace label", func(t *testing.T) {
 		// given
@@ -123,7 +124,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 		// then
 		require.NoError(t, err)
@@ -136,7 +137,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 		// then
 		require.NoError(t, err)
@@ -148,7 +149,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 		// then
 		require.NoError(t, err)
@@ -160,7 +161,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 		// then
 		require.NoError(t, err)
@@ -172,7 +173,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 		// then
 		require.NoError(t, err)
@@ -184,7 +185,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 		// then
 		require.NoError(t, err)
@@ -196,7 +197,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 		// then
 		require.NoError(t, err)
@@ -208,7 +209,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 		// then
 		require.NoError(t, err)
@@ -220,7 +221,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts)
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 		// then
 		require.NoError(t, err)
