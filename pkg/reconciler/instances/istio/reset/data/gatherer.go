@@ -100,20 +100,28 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 	outputPodsList.Items = []v1.Pod{}
 
 	for _, pod := range inputPodsList.Items {
-		if pod.Annotations["sidecar.istio.io/inject"] == "false" || pod.Annotations["reconciler/namespace-istio-injection"] == "disabled" {
-			continue
-		} else {
-			if !sidecarInjectionEnabledbyDefault {
-				_, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
-				_, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
-				if !namespaceLabeled && !podAnnotated {
-					continue
-				}
-			}
-			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
-		}
-	}
+		namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
+		podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
 
+		if (podAnnotated) && (podAnnotationValue == "false") {
+			continue
+		}
+
+		if (namespaceLabeled) && (namespaceLabelValue == "disabled") && (!podAnnotated) {
+			continue
+		}
+
+		if !sidecarInjectionEnabledbyDefault {
+			if !namespaceLabeled && !podAnnotated {
+				continue
+			}
+			if (namespaceLabeled) && (namespaceLabelValue == "disabled") && (!podAnnotated) {
+				continue
+			}
+		}
+
+		outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
+	}
 	return
 }
 
