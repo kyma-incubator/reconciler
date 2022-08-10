@@ -272,7 +272,7 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		require.Contains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
 	})
 
-	t.Run("should patch MutatingWebhookConfiguration when sidecar migration is enabled", func(t *testing.T) {
+	t.Run("should patch new MutatingWebhookConfiguration when sidecar migration is enabled", func(t *testing.T) {
 		// given
 		whConfName := "istio-revision-tag-default"
 		kubeClient := mocks.Client{}
@@ -298,7 +298,85 @@ func Test_DefaultIstioPerformer_PatchMutatingWebhook(t *testing.T) {
 		require.Contains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
 	})
 
-	t.Run("should not patch MutatingWebhookConfiguration when sidecar migration is disabled", func(t *testing.T) {
+	t.Run("should patch old MutatingWebhookConfiguration when sidecar migration is enabled", func(t *testing.T) {
+		// given
+		whConfName := "istio-sidecar-injector"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(whConfName))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-enabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		want := metav1.LabelSelectorRequirement{
+			Key:      "gardener.cloud/purpose",
+			Operator: "NotIn",
+			Values:   []string{"kube-system"},
+		}
+		require.Contains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
+	})
+
+	t.Run("should patch old MutatingWebhookConfiguration when sidecar migration is not set", func(t *testing.T) {
+		// given
+		whConfName := "istio-sidecar-injector"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(whConfName))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-empty"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		want := metav1.LabelSelectorRequirement{
+			Key:      "gardener.cloud/purpose",
+			Operator: "NotIn",
+			Values:   []string{"kube-system"},
+		}
+		require.Contains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
+	})
+
+	t.Run("should not patch new MutatingWebhookConfiguration when sidecar migration is disabled", func(t *testing.T) {
+		// given
+		whConfName := "istio-revision-tag-default"
+		kubeClient := mocks.Client{}
+		clientset := fake.NewSimpleClientset(createIstioAutoMutatingWebhookConf(whConfName))
+		kubeClient.On("Clientset").Return(clientset, nil)
+		wrapper := NewDefaultIstioPerformer(nil, nil, nil)
+		istioChart := "istio-sidecar-disabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err := wrapper.PatchMutatingWebhook(context.TODO(), &kubeClient, factory, "", istioChart, log)
+		require.NoError(t, err)
+
+		// then
+		got, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), whConfName, metav1.GetOptions{})
+		require.NoError(t, err)
+		want := metav1.LabelSelectorRequirement{
+			Key:      "gardener.cloud/purpose",
+			Operator: "NotIn",
+			Values:   []string{"kube-system"},
+		}
+		require.NotContains(t, got.Webhooks[0].NamespaceSelector.MatchExpressions, want)
+	})
+
+	t.Run("should not patch old MutatingWebhookConfiguration when sidecar migration is disabled", func(t *testing.T) {
 		// given
 		whConfName := "istio-sidecar-injector"
 		kubeClient := mocks.Client{}
