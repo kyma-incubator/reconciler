@@ -55,10 +55,7 @@ func (r *handleJsUpdate) Execute(context *service.ActionContext, logger *zap.Sug
 		return err
 	}
 
-	serverNameExists, err := envVarExist(statefulSet, serverNameEnv)
-	if err != nil {
-		return err
-	}
+	serverNameExists := envVarExist(statefulSet, serverNameEnv)
 
 	// Updating the NATS Helm charts to the version 0.17.3 requires some changes in the StatefulSet's Spec.
 	// This requires a deletion of the StatefulSet.
@@ -75,13 +72,13 @@ func (r *handleJsUpdate) Execute(context *service.ActionContext, logger *zap.Sug
 }
 
 // envVarExist checks whether a StatefulSet contains an env variable or not.
-func envVarExist(statefulSet *appsv1.StatefulSet, envName string) (bool, error) {
+func envVarExist(statefulSet *appsv1.StatefulSet, envName string) bool {
 	for _, container := range statefulSet.Spec.Template.Spec.Containers {
 		for _, env := range container.Env {
 			if strings.EqualFold(env.Name, envName) {
-				return true, nil
+				return true
 			}
 		}
 	}
-	return false, nil
+	return false
 }
