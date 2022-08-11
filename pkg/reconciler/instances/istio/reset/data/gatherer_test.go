@@ -203,7 +203,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
 	})
-	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
+	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
 		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecarDisabledNS, disabledNS)
 		gatherer := DefaultGatherer{}
@@ -213,7 +213,7 @@ func Test_Gatherer_GetPodsWithoutSidecar(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Equal(t, 1, len(podsWithoutSidecar.Items))
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
