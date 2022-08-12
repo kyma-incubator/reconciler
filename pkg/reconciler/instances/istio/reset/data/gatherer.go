@@ -103,14 +103,14 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 		namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
 		podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
 
-		if (namespaceLabeled) && (namespaceLabelValue == "disabled") {
+		if namespaceLabeled && namespaceLabelValue == "disabled" {
 			continue
 		}
-		if (podAnnotated) && (podAnnotationValue == "false") {
+		if podAnnotated && podAnnotationValue == "false" {
 			continue
 		}
 
-		if (!sidecarInjectionEnabledbyDefault) && (!namespaceLabeled) && (!podAnnotated) {
+		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated {
 			continue
 		}
 
