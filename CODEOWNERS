@@ -25,8 +25,5 @@
 # Runtime Monitoring Agent (rma) reconciler
 /pkg/reconciler/instances/rma/ @ebensom @AdrianPei @fhivemind @lauraanddola @life0215 @lumi017 @Balazs23 @tobiscr @varbanv
 
-# SC Migration
-/pkg/reconciler/instances/scmigration @PK85 @piotrmiskiewicz @szwedm @voigt @wozniakjan @hanngos @tillknuesting @ralikio
-
 # All .md files
 *.md @klaudiagrz @mmitoraj @majakurcius @alexandra-simeonova @nhingerl @grego952
