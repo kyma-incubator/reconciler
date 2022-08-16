@@ -2,12 +2,14 @@ package test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	v1apps "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubectl/pkg/util/podutils"
 )
 
@@ -21,19 +23,22 @@ func TestOryIntegration(t *testing.T) {
 		options := metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/instance=ory",
 		}
-		podsList, err := setup.getPods(options)
-		require.NoError(t, err)
-
-		for i, pod := range podsList.Items {
-
-			require.Equal(t, v1.PodPhase("Running"), pod.Status.Phase)
-			if pod.ObjectMeta.DeletionTimestamp == nil {
-				setup.logger.Infof("Pod %v is deployed", pod.Name)
-				ready := podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now())
-				require.Equal(t, true, ready)
+		err := wait.Poll(1*time.Second, 1*time.Minute, func() (done bool, err error) {
+			podsList, err := setup.getPods(options)
+			if err != nil {
+				return false, err
 			}
-			require.NoError(t, err)
-		}
+			for i := range podsList.Items {
+				setup.logger.Infof("Pod %v is deployed", podsList.Items[i].Name)
+				if !podutils.IsPodAvailable(&podsList.Items[i], 0, metav1.Now()) {
+					setup.logger.Infof("Pod %v is not ready", podsList.Items[i].Name)
+					return false, err
+				}
+			}
+			return true, nil
+		})
+		require.NoError(t, err)
+		setup.logger.Info("All Ory pods are deployed and ready")
 	})
 
 	t.Run("ensure that ory secrets are deployed", func(t *testing.T) {

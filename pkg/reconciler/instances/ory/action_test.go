@@ -14,7 +14,7 @@ import (
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/db"
 	hydramocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/hydra/mocks"
-	rolloutmock "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s/mocks"
+	oryk8smock "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/ory/k8s/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
@@ -66,7 +66,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient := hydramocks.Syncer{}
 		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(nil)
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		values, err := unmarshalTestValues(memoryYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -89,7 +89,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		hydraClient := hydramocks.Syncer{}
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		values, err := unmarshalTestValues(postgresqlYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -114,7 +114,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient := hydramocks.Syncer{}
 		hydraClient.On("TriggerSynchronization", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(errors.New("Failed to trigger hydra Synchronization"))
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		values, err := unmarshalTestValues(memoryYaml)
 		require.NoError(t, err)
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(values, nil)
@@ -138,7 +138,7 @@ func Test_PostReconcile_Run(t *testing.T) {
 		hydraClient := hydramocks.Syncer{}
 		provider.On("Configuration", mock.AnythingOfType("*chart.Component")).Return(nil,
 			errors.New("Failed to read configuration"))
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
@@ -306,7 +306,7 @@ func Test_PreInstallAction_Run(t *testing.T) {
 		// given
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
-		rolloutMock := rolloutmock.RolloutHandler{}
+		rolloutMock := oryk8smock.RolloutHandler{}
 		rolloutMock.On("RolloutAndWaitForDeployment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		values, err := unmarshalTestValues(postgresqlYaml)
 		require.NoError(t, err)
@@ -337,12 +337,13 @@ func Test_PreInstallAction_Run(t *testing.T) {
 func Test_PostDeleteAction_Run(t *testing.T) {
 	t.Run("should not perform any action when kubernetes clientset returned an error", func(t *testing.T) {
 		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		kubeClient := k8smocks.Client{}
 		kubeClient.On("Clientset").Return(nil, errors.New("failed to retrieve native Kubernetes GO client"))
 		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -351,34 +352,21 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to retrieve native Kubernetes GO client")
 		kubeClient.AssertCalled(t, "Clientset")
-	})
-
-	t.Run("should not perform any action when getting secret returns an error", func(t *testing.T) {
-		// given
-		factory := chartmocks.Factory{}
-		provider := chartmocks.Provider{}
-		kubeClient := k8smocks.Client{}
-		kubeClient.On("Clientset").Return(nil, errors.New("Could not get DB secret"))
-		actionContext := newFakeServiceContext(&factory, &provider, &kubeClient)
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
-
-		// when
-		err := action.Run(actionContext)
-
-		// then
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Could not get DB secret")
-		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertNotCalled(t, "Kubeconfig")
 	})
 
 	t.Run("should not perform any action when DB secret does not exist", func(t *testing.T) {
 		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
+		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
+			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("FindAndDeleteOryFinalizers error"))
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		clientSet := fake.NewSimpleClientset()
 		kubeClient := newFakeKubeClient(clientSet)
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
 		// when
 		err := action.Run(actionContext)
@@ -386,10 +374,15 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertCalled(t, "Kubeconfig")
 	})
 
 	t.Run("should delete ory JWKS secret when secret exists", func(t *testing.T) {
 		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
+		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
+			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("FindAndDeleteOryFinalizers error"))
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		existingSecret := fixSecretJwks()
@@ -398,7 +391,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		_, err := clientSet.CoreV1().Secrets(jwksNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -406,12 +399,17 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertCalled(t, "Kubeconfig")
 		_, err = clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, jwksNamespacedName.Name, metav1.GetOptions{})
 		require.True(t, kerrors.IsNotFound(err))
 	})
 
 	t.Run("should delete ory DB secret when secret exists", func(t *testing.T) {
 		// given
+		oryFinalizersMock := oryk8smock.OryFinalizersHandler{}
+		oryFinalizersMock.On("FindAndDeleteOryFinalizers",
+			mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).
+			Return(errors.New("FindAndDeleteOryFinalizers error"))
 		factory := chartmocks.Factory{}
 		provider := chartmocks.Provider{}
 		existingSecret := fixSecretMemory()
@@ -420,7 +418,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		actionContext := newFakeServiceContext(&factory, &provider, kubeClient)
 		_, err := clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
 		require.False(t, kerrors.IsNotFound(err))
-		action := postDeleteAction{&oryAction{step: "post-delete"}}
+		action := postDeleteAction{&oryAction{step: "post-delete"}, &oryFinalizersMock}
 
 		// when
 		err = action.Run(actionContext)
@@ -428,6 +426,7 @@ func Test_PostDeleteAction_Run(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		kubeClient.AssertCalled(t, "Clientset")
+		kubeClient.AssertCalled(t, "Kubeconfig")
 		_, err = clientSet.CoreV1().Secrets(dbNamespacedName.Namespace).Get(actionContext.Context, dbNamespacedName.Name, metav1.GetOptions{})
 		require.True(t, kerrors.IsNotFound(err))
 	})

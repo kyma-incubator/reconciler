@@ -2,13 +2,15 @@ package connectivityproxy
 
 import (
 	"context"
+	"reflect"
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"reflect"
-	"strings"
 )
 
 const sep = "."
@@ -54,6 +56,8 @@ func (c *Locator) find(context context.Context) (*unstructured.Unstructured, err
 	resources, err := c.client.ListResource(context, strings.ToLower(c.resource), metav1.ListOptions{})
 
 	if err != nil && k8serr.IsNotFound(err) {
+		return nil, nil
+	} else if err != nil && meta.IsNoMatchError(err) {
 		return nil, nil
 	} else if err != nil {
 		return nil, errors.Wrap(err, "Error while listing resources")
