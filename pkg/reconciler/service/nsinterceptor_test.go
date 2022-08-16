@@ -29,8 +29,9 @@ func TestNamespaceInterceptor(t *testing.T) {
 				},
 			},
 			expectedLabels: map[string]string{
-				"some-label": "some-value",
-				NameLabel:    "namespace1",
+				SidecarInjectionLabel: "enabled",
+				"some-label":          "some-value",
+				NameLabel:             "namespace1",
 			},
 		},
 		{
@@ -45,7 +46,8 @@ func TestNamespaceInterceptor(t *testing.T) {
 				},
 			},
 			expectedLabels: map[string]string{
-				NameLabel: "namespace2",
+				SidecarInjectionLabel: "enabled",
+				NameLabel:             "namespace2",
 			},
 		},
 	}

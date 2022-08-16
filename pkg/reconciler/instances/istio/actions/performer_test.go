@@ -733,9 +733,13 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
+		istioChart := "istio-sidecar-disabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, "", log, canUpdate)
+		err := wrapper.ResetProxy(ctx, kubeConfig, factory, "", istioChart, proxyImageVersion, "", log, canUpdate)
+		// ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error {
 
 		// then
 		require.Error(t, err)
@@ -756,9 +760,12 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
 		proxyImagePrefix := "anything"
+		istioChart := "istio-sidecar-disabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log, canUpdate)
+		err := wrapper.ResetProxy(ctx, kubeConfig, factory, "", istioChart, proxyImageVersion, proxyImagePrefix, log, canUpdate)
 
 		// then
 		require.Error(t, err)
@@ -779,9 +786,12 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
 		proxyImagePrefix := "anything"
+		istioChart := "istio-sidecar-disabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
 
 		// when
-		err := wrapper.ResetProxy(ctx, kubeConfig, proxyImageVersion, proxyImagePrefix, log, canUpdate)
+		err := wrapper.ResetProxy(ctx, kubeConfig, factory, "", istioChart, proxyImageVersion, proxyImagePrefix, log, canUpdate)
 
 		// then
 		require.NoError(t, err)
