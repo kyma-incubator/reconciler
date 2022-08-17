@@ -1,6 +1,6 @@
 module github.com/kyma-incubator/reconciler
 
-go 1.17
+go 1.19
 
 replace (
 	//fix for CVE-2022-24778
