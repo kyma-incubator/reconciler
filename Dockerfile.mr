@@ -1,5 +1,5 @@
 # Build image
-FROM golang:1.18.1-alpine3.15 AS build
+FROM golang:1.18.5-alpine3.16 AS build
 
 ENV SRC_DIR=/go/src/github.com/kyma-incubator/reconciler
 COPY . $SRC_DIR
