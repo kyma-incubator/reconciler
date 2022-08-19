@@ -123,7 +123,8 @@ func TestCommands(t *testing.T) {
 			mock.AnythingOfType("*service.AnnotationsInterceptor"),
 			mock.AnythingOfType("*service.ServicesInterceptor"),
 			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
-			mock.AnythingOfType("*service.NamespaceInterceptor")).
+			mock.AnythingOfType("*service.NamespaceInterceptor"),
+			mock.AnythingOfType("*service.FinalizerInterceptor")).
 			Return(nil, nil).Once()
 
 		actionContext := &service.ActionContext{
@@ -173,7 +174,8 @@ func TestCommands(t *testing.T) {
 			mock.AnythingOfType("*service.AnnotationsInterceptor"),
 			mock.AnythingOfType("*service.ServicesInterceptor"),
 			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
-			mock.AnythingOfType("*service.NamespaceInterceptor")).
+			mock.AnythingOfType("*service.NamespaceInterceptor"),
+			mock.AnythingOfType("*service.FinalizerInterceptor")).
 			Return(nil, nil).Once()
 
 		actionContext := &service.ActionContext{
@@ -219,7 +221,8 @@ func TestCommands(t *testing.T) {
 			mock.AnythingOfType("*service.AnnotationsInterceptor"),
 			mock.AnythingOfType("*service.ServicesInterceptor"),
 			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
-			mock.AnythingOfType("*service.NamespaceInterceptor")).
+			mock.AnythingOfType("*service.NamespaceInterceptor"),
+			mock.AnythingOfType("*service.FinalizerInterceptor")).
 			Return(nil, nil).Once()
 		actionContext := &service.ActionContext{
 			Context:       ctx,
@@ -262,7 +265,8 @@ func TestCommands(t *testing.T) {
 			mock.AnythingOfType("*service.AnnotationsInterceptor"),
 			mock.AnythingOfType("*service.ServicesInterceptor"),
 			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
-			mock.AnythingOfType("*service.NamespaceInterceptor")).
+			mock.AnythingOfType("*service.NamespaceInterceptor"),
+			mock.AnythingOfType("*service.FinalizerInterceptor")).
 			Return(nil, nil).Once()
 		actionContext := &service.ActionContext{
 			Context:       ctx,
