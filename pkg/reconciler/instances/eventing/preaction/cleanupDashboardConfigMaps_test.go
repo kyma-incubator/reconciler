@@ -52,7 +52,8 @@ func TestCleanupDashboardConfigMapsPreAction(t *testing.T) {
 		chartProvider := &chartmocks.Provider{}
 		ctx := context.TODO()
 		for _, configMapName := range configMaps {
-			createConfigMap(ctx, k8sClient, configMapName)
+			err := createConfigMap(ctx, k8sClient, configMapName)
+			require.NoError(t, err)
 		}
 
 		actionContext := &service.ActionContext{
