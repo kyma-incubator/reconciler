@@ -40,9 +40,9 @@ func (r *handleCleanupDashboardConfigMaps) Execute(context *service.ActionContex
 	for _, configMapName := range configMapNames {
 		if err := clientSet.CoreV1().ConfigMaps(namespace).Delete(context.Context, configMapName, metav1.DeleteOptions{}); err != nil {
 			if k8serrors.IsNotFound(err) {
-				logger.Infof("ConfigMap %s not found", configMapName)
+				logger.Debugf("ConfigMap %s not found", configMapName)
 			} else {
-				logger.Infof("Failed to delete ConfigMap %s due to error: %s", configMapName, err.Error())
+				logger.Warnf("Failed to delete ConfigMap %s due to error: %s", configMapName, err.Error())
 			}
 		} else {
 			logger.Infof("ConfigMap %s deleted", configMapName)
