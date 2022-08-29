@@ -73,7 +73,7 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		}
 	}
 
-	podsWithoutSidecar, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
+	podsWithoutSidecar, podsToLabelWithWarning, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
 	if err != nil {
 		return err
 	}
@@ -85,6 +85,13 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 			return err
 		}
 		cfg.Log.Infof("Proxy reset for %d pods without sidecar successfully done", len(podsWithoutSidecar.Items))
+	}
+
+	if len(podsToLabelWithWarning.Items) >= 1 {
+		err = i.action.LabelWithWarning(cfg.Context, cfg.Kubeclient, retryOpts, podsToLabelWithWarning, cfg.Log, cfg.Debug, waitOpts)
+		if err != nil {
+			cfg.Log.Infof("%d pods outside of istio mesh labeled with warning", len(podsWithoutSidecar.Items))
+		}
 	}
 
 	return nil

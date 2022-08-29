@@ -56,7 +56,7 @@ func (_m *Gatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, image da
 }
 
 // GetPodsWithoutSidecar provides a mock function with given fields: kubeClient, retryOpts, sidecarInjectionEnabledbyDefault
-func (_m *Gatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (v1.PodList, error) {
+func (_m *Gatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (v1.PodList, v1.PodList, error) {
 	ret := _m.Called(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 
 	var r0 v1.PodList
@@ -66,14 +66,21 @@ func (_m *Gatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retry
 		r0 = ret.Get(0).(v1.PodList)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(kubernetes.Interface, []retry.Option, bool) error); ok {
+	var r1 v1.PodList
+	if rf, ok := ret.Get(1).(func(kubernetes.Interface, []retry.Option, bool) v1.PodList); ok {
 		r1 = rf(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(v1.PodList)
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func(kubernetes.Interface, []retry.Option, bool) error); ok {
+		r2 = rf(kubeClient, retryOpts, sidecarInjectionEnabledbyDefault)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 type mockConstructorTestingTNewGatherer interface {

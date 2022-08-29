@@ -11,20 +11,18 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type (
-	//go:generate mockery --name=Gatherer --outpkg=mocks --case=underscore
-	// Gatherer gathers data from the Kubernetes cluster.
-	Gatherer interface {
-		// GetAllPods from the cluster and return them as a v1.PodList.
-		GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
+//go:generate mockery --name=Gatherer --outpkg=mocks --case=underscore
+// Gatherer gathers data from the Kubernetes cluster.
+type Gatherer interface {
+	// GetAllPods from the cluster and return them as a v1.PodList.
+	GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
 
-		// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
-		GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
+	// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
+	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
 
-		// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
-		GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error)
-	}
-)
+	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
+	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, labelWithWarningPodsList v1.PodList, err error)
+}
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
 type DefaultGatherer struct{}
@@ -83,34 +81,47 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 	return
 }
 
-func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error) {
+func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, labelWithWarningPodsList v1.PodList, err error) {
 	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
 	if err != nil {
 		return
 	}
 
 	// filter pods
-	podsList = getPodsWithAnnotation(allPodsWithNamespaceAnnotations, sidecarInjectionEnabledbyDefault)
+	podsList, labelWithWarningPodsList = getPodsWithAnnotation(allPodsWithNamespaceAnnotations, sidecarInjectionEnabledbyDefault)
 	podsList = getPodsWithoutSidecar(podsList)
 	return
 }
 
-func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDefault bool) (outputPodsList v1.PodList) {
+func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDefault bool) (outputPodsList v1.PodList, labelWithWarningPodsList v1.PodList) {
 	inputPodsList.DeepCopyInto(&outputPodsList)
 	outputPodsList.Items = []v1.Pod{}
+
+	inputPodsList.DeepCopyInto(&labelWithWarningPodsList)
+	labelWithWarningPodsList.Items = []v1.Pod{}
 
 	for _, pod := range inputPodsList.Items {
 		namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
 		podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
+		podWarningLabelValue, podWarned := pod.Labels["kyma-warning"]
 
 		if namespaceLabeled && namespaceLabelValue == "disabled" {
+			if !sidecarInjectionEnabledbyDefault && !podWarned {
+				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
+			}
 			continue
 		}
 		if podAnnotated && podAnnotationValue == "false" {
+			if !sidecarInjectionEnabledbyDefault && !podWarned {
+				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
+			}
 			continue
 		}
 
 		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated {
+			if !podWarned && podWarningLabelValue != "pod not in istio mesh" {
+				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
+			}
 			continue
 		}
 

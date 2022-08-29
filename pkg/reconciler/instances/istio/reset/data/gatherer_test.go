@@ -125,12 +125,13 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsWithoutSidecar.Items))
 		require.NotEmpty(t, podsWithoutSidecar.Items)
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod with Istio sidecar", func(t *testing.T) {
 		// given
@@ -138,11 +139,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should get pod without Istio sidecar in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
@@ -150,11 +152,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod without Istio sidecar in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
@@ -162,11 +165,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod with Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
@@ -174,11 +178,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
@@ -186,11 +191,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
@@ -198,11 +204,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
@@ -210,11 +217,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
@@ -222,11 +230,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Equal(t, 0, len(podsToLabelWithWarning.Items))
 	})
 	t.Run("should get pod without Istio sidecar when not annotated in namespace without label", func(t *testing.T) {
 		// given
@@ -234,11 +243,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 }
 
@@ -268,12 +278,13 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsWithoutSidecar.Items))
 		require.NotEmpty(t, podsWithoutSidecar.Items)
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod with Istio sidecar", func(t *testing.T) {
 		// given
@@ -281,11 +292,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should get pod without Istio sidecar in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
@@ -293,11 +305,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod without Istio sidecar in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
@@ -305,11 +318,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Equal(t, 2, len(podsToLabelWithWarning.Items))
 	})
 	t.Run("should not get pod with Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
@@ -317,11 +331,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
@@ -329,11 +344,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod with Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
@@ -341,11 +357,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Empty(t, podsToLabelWithWarning.Items)
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
@@ -353,11 +370,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Equal(t, 1, len(podsToLabelWithWarning.Items))
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
@@ -365,11 +383,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Equal(t, 1, len(podsToLabelWithWarning.Items))
 	})
 	t.Run("should not get pod without Istio sidecar when not annotated in namespace without label", func(t *testing.T) {
 		// given
@@ -377,11 +396,12 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		gatherer := DefaultGatherer{}
 
 		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+		podsWithoutSidecar, podsToLabelWithWarning, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+		require.Equal(t, 1, len(podsToLabelWithWarning.Items))
 	})
 }
 
