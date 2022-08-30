@@ -183,6 +183,9 @@ func getAllPodsWithNamespaceAnnotations(kubeClient kubernetes.Interface, retryOp
 
 			for _, pod := range pods.Items {
 				if _, isNamespaceLabeled := namespace.Labels["istio-injection"]; isNamespaceLabeled {
+					if pod.Annotations == nil {
+						pod.Annotations =  make(map[string]string)
+					}
 					pod.Annotations["reconciler/namespace-istio-injection"] = namespace.Labels["istio-injection"]
 				}
 				podsList.Items = append(podsList.Items, pod)
