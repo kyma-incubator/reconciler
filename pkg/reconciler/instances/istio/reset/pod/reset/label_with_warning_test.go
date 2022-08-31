@@ -78,7 +78,7 @@ func Test_Label_With_Warning(t *testing.T) {
 		require.NoError(t, err)
 		select {
 		case pod := <-pods:
-			require.Equal(t, pod.Labels[config.KymaWarning], config.LabelWarning)
+			require.Equal(t, pod.Labels[config.KymaWarning], config.NotInIstioMeshLabel)
 		default:
 			require.Fail(t, "didn't get pod update")
 		}

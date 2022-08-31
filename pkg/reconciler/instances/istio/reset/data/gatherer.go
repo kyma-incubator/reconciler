@@ -121,7 +121,7 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 		}
 
 		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated {
-			if !podWarned && podWarningLabelValue != config.LabelWarning {
+			if !podWarned && podWarningLabelValue != config.NotInIstioMeshLabel {
 				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
 			}
 			continue

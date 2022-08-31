@@ -66,9 +66,9 @@ func (i *DefaultResetAction) Reset(context context.Context, kubeClient kubernete
 
 func (i *DefaultResetAction) LabelWithWarning(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error {
 	for _, podToLabel := range podsList.Items {
-		labelPatch := fmt.Sprintf(config.LabelFormat, config.LabelWarning)
+		labelPatch := fmt.Sprintf(config.LabelFormat, config.NotInIstioMeshLabel)
 		err := k8sRetry.RetryOnConflict(retryOpts, func() error {
-			log.Debugf("Patching pod %s in %s namespace with label kyma-warning: %s", podToLabel.Name, podToLabel.Namespace, config.LabelWarning)
+			log.Debugf("Patching pod %s in %s namespace with label kyma-warning: %s", podToLabel.Name, podToLabel.Namespace, config.NotInIstioMeshLabel)
 			_, err := kubeClient.CoreV1().Pods(podToLabel.Namespace).Patch(context, podToLabel.Name, types.MergePatchType, []byte(labelPatch), metav1.PatchOptions{})
 			if err != nil {
 				return errors.Wrap(err, config.ErrorCouldNotLabelWithWarning)
