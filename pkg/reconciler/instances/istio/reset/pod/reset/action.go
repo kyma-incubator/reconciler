@@ -71,7 +71,7 @@ func (i *DefaultResetAction) LabelWithWarning(context context.Context, kubeClien
 			log.Debugf("Patching pod %s in %s namespace with label kyma-warning: %s", podToLabel.Name, podToLabel.Namespace, config.LabelWarning)
 			_, err := kubeClient.CoreV1().Pods(podToLabel.Namespace).Patch(context, podToLabel.Name, types.MergePatchType, []byte(labelPatch), metav1.PatchOptions{})
 			if err != nil {
-				return errors.Wrap(err, config.Error_CouldNotLabelWithWarning)
+				return errors.Wrap(err, config.ErrorCouldNotLabelWithWarning)
 			}
 			return nil
 
