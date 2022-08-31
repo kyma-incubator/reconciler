@@ -3,6 +3,7 @@ package reset
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/mocks"
@@ -55,6 +56,8 @@ func Test_Label_With_Warning(t *testing.T) {
 	informers.Start(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), podInformer.HasSynced)
 
+	<-watcherStarted
+
 	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}, metav1.CreateOptions{})
 	require.NoError(t, err)
 
@@ -79,7 +82,7 @@ func Test_Label_With_Warning(t *testing.T) {
 		select {
 		case pod := <-pods:
 			require.Equal(t, pod.Labels[config.KymaWarning], config.NotInIstioMeshLabel)
-		default:
+		case <-time.After(wait.ForeverTestTimeout):
 			require.Fail(t, "didn't get pod update")
 		}
 	})
