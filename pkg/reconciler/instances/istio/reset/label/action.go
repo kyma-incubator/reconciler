@@ -23,7 +23,7 @@ import (
 )
 
 //go:generate mockery --name=Action --outpkg=mocks --case=underscore
-type Action interface {
+type LabelAction interface {
 	Run(cfg *config.IstioProxyConfig) error
 	LabelWithWarning(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error
 }
@@ -32,12 +32,12 @@ type Action interface {
 type DefaultLabelAction struct {
 	gatherer data.Gatherer
 	matcher  pod.Matcher
-	action   Action
 }
 
-func NewDefaultPodsLabelAction(matcher pod.Matcher) *DefaultLabelAction {
+func NewDefaultPodsLabelAction(gatherer data.Gatherer, matcher pod.Matcher) *DefaultLabelAction {
 	return &DefaultLabelAction{
-		matcher: matcher,
+		gatherer: gatherer,
+		matcher:  matcher,
 	}
 }
 
@@ -75,7 +75,7 @@ func (i *DefaultLabelAction) Run(cfg *config.IstioProxyConfig) error {
 	}
 
 	if len(podsToLabelWithWarning.Items) >= 1 {
-		err = i.action.LabelWithWarning(cfg.Context, cfg.Kubeclient, k8sRetry.DefaultRetry, podsToLabelWithWarning, cfg.Log)
+		err = i.LabelWithWarning(cfg.Context, cfg.Kubeclient, k8sRetry.DefaultRetry, podsToLabelWithWarning, cfg.Log)
 		if err != nil {
 			return errors.Wrap(err, "could not label pods with warning")
 		}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/label"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/mocks"
 	"github.com/stretchr/testify/require"
@@ -62,8 +63,10 @@ func Test_Label_With_Warning(t *testing.T) {
 	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}, metav1.CreateOptions{})
 	require.NoError(t, err)
 
+	gatherer := data.NewDefaultGatherer()
+
 	matcher := mocks.Matcher{}
-	labelAction := label.NewDefaultPodsLabelAction(&matcher)
+	labelAction := label.NewDefaultPodsLabelAction(gatherer, &matcher)
 	log := log.NewLogger(false)
 	defer ctx.Done()
 

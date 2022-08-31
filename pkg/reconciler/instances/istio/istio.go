@@ -37,7 +37,7 @@ func init() {
 	reconcilerIstio.
 		WithPreReconcileAction(NewStatusPreAction(istioPerformerCreatorFn)).
 		WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).
-		WithPostReconcileAction(actions.NewActionAggregate(NewProxyResetPostAction(istioPerformerCreatorFn), NewLabelWarningsPostAction(label.NewDefaultPodsLabelAction(matcher)))).
+		WithPostReconcileAction(actions.NewActionAggregate(NewProxyResetPostAction(istioPerformerCreatorFn), NewLabelWarningsPostAction(label.NewDefaultPodsLabelAction(gatherer, matcher)))).
 		WithDeleteAction(NewUninstallAction(istioPerformerCreatorFn))
 
 }
