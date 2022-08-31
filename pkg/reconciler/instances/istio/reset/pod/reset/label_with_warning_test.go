@@ -55,8 +55,9 @@ func Test_Label_With_Warning(t *testing.T) {
 	informers.Start(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), podInformer.HasSynced)
 
-	client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}, metav1.CreateOptions{})
-
+	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}, metav1.CreateOptions{})
+	require.NoError(t,err)
+	
 	matcher := mocks.Matcher{}
 	resetAction := NewDefaultPodsResetAction(&matcher)
 	log := log.NewLogger(false)
@@ -66,11 +67,12 @@ func Test_Label_With_Warning(t *testing.T) {
 		// Given
 		simplePod := v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs, Name: testPodName}}
 
-		client.CoreV1().Pods(testNs).Create(context.TODO(), &simplePod, metav1.CreateOptions{})
+		_, err := client.CoreV1().Pods(testNs).Create(context.TODO(), &simplePod, metav1.CreateOptions{})
+		require.NoError(t, err)
 		podList := v1.PodList{Items: []v1.Pod{simplePod}}
 
 		// When
-		err := resetAction.LabelWithWarning(ctx, client, wait.Backoff{Steps: 1}, podList, log)
+		err = resetAction.LabelWithWarning(ctx, client, wait.Backoff{Steps: 1}, podList, log)
 
 		// Then
 		require.NoError(t, err)
