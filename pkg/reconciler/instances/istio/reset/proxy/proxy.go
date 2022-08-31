@@ -6,8 +6,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
-	"github.com/pkg/errors"
-	k8sRetry "k8s.io/client-go/util/retry"
 )
 
 // IstioProxyReset performs istio proxy containers reset on objects in the k8s cluster.
@@ -76,7 +74,7 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		}
 	}
 
-	podsWithoutSidecar, podsToLabelWithWarning, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
+	podsWithoutSidecar, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
 	if err != nil {
 		return err
 	}
@@ -88,14 +86,6 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 			return err
 		}
 		cfg.Log.Infof("Proxy reset for %d pods without sidecar successfully done", len(podsWithoutSidecar.Items))
-	}
-
-	if len(podsToLabelWithWarning.Items) >= 1 {
-		err = i.action.LabelWithWarning(cfg.Context, cfg.Kubeclient, k8sRetry.DefaultRetry, podsToLabelWithWarning, cfg.Log)
-		if err != nil {
-			return errors.Wrap(err, "could not label pods with warning")
-		}
-		cfg.Log.Infof("%d pods outside of istio mesh labeled with warning", len(podsWithoutSidecar.Items))
 	}
 
 	return nil

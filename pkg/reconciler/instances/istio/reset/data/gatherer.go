@@ -23,7 +23,10 @@ type Gatherer interface {
 	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
 
 	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
-	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, labelWithWarningPodsList v1.PodList, err error)
+	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error)
+
+	// GetPodsOutOfIstioMesh return a list of pods which are out of istio mesh
+	GetPodsOutOfIstioMesh(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (labelWithWarningPodsList v1.PodList, err error)
 }
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
@@ -83,14 +86,25 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 	return
 }
 
-func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, labelWithWarningPodsList v1.PodList, err error) {
+func (i *DefaultGatherer) GetPodsOutOfIstioMesh(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error) {
 	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
 	if err != nil {
 		return
 	}
 
 	// filter pods
-	podsList, labelWithWarningPodsList = getPodsWithAnnotation(allPodsWithNamespaceAnnotations, sidecarInjectionEnabledbyDefault)
+	_, podsList = getPodsWithAnnotation(allPodsWithNamespaceAnnotations, sidecarInjectionEnabledbyDefault)
+	return
+}
+
+func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error) {
+	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
+	if err != nil {
+		return
+	}
+
+	// filter pods
+	podsList, _ = getPodsWithAnnotation(allPodsWithNamespaceAnnotations, sidecarInjectionEnabledbyDefault)
 	podsList = getPodsWithoutSidecar(podsList)
 	return
 }

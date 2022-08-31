@@ -350,7 +350,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		return err
 	}
 
-	sidecarInjectionEnabledByDefault, err := isSidecarInjectionNamespacesByDefaultEnabled(workspace, branchVersion, istioChart)
+	sidecarInjectionEnabledByDefault, err := IsSidecarInjectionNamespacesByDefaultEnabled(workspace, branchVersion, istioChart)
 	if err != nil {
 		logger.Error("Could not retrieve default istio sidecar injection!")
 		return err
@@ -578,7 +578,7 @@ func isSidecarMigrationEnabled(workspace chart.Factory, branch string, istioChar
 	return option, isSet, nil
 }
 
-func isSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branch string, istioChart string) (enableNamespacesByDefault bool, err error) {
+func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branch string, istioChart string) (enableNamespacesByDefault bool, err error) {
 	ws, err := workspace.Get(branch)
 	if err != nil {
 		return false, err

@@ -1,4 +1,4 @@
-package reset
+package label_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/label"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/mocks"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -62,7 +63,7 @@ func Test_Label_With_Warning(t *testing.T) {
 	require.NoError(t, err)
 
 	matcher := mocks.Matcher{}
-	resetAction := NewDefaultPodsResetAction(&matcher)
+	labelAction := label.NewDefaultPodsLabelAction(&matcher)
 	log := log.NewLogger(false)
 	defer ctx.Done()
 
@@ -75,7 +76,7 @@ func Test_Label_With_Warning(t *testing.T) {
 		podList := v1.PodList{Items: []v1.Pod{simplePod}}
 
 		// When
-		err = resetAction.LabelWithWarning(ctx, client, wait.Backoff{Steps: 1}, podList, log)
+		err = labelAction.LabelWithWarning(ctx, client, wait.Backoff{Steps: 1}, podList, log)
 
 		// Then
 		require.NoError(t, err)
@@ -94,7 +95,7 @@ func Test_Label_With_Warning(t *testing.T) {
 		podList := v1.PodList{Items: []v1.Pod{simplePod}}
 
 		// When
-		err := resetAction.LabelWithWarning(ctx, client, wait.Backoff{Steps: 1}, podList, log)
+		err := labelAction.LabelWithWarning(ctx, client, wait.Backoff{Steps: 1}, podList, log)
 		// Error: pod not found
 
 		// Then
