@@ -12,8 +12,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//go:generate mockery --name=Gatherer --outpkg=mocks --case=underscore
 // Gatherer gathers data from the Kubernetes cluster.
+//
+//go:generate mockery --name=Gatherer --outpkg=mocks --case=underscore
 type Gatherer interface {
 	// GetAllPods from the cluster and return them as a v1.PodList.
 	GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
