@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	testNs string = "test-ns"
+	testNs      string = "test-ns"
 	testPodName string = "test-pod"
 )
 
@@ -30,7 +30,7 @@ func Test_Label_With_Warning(t *testing.T) {
 
 	watcherStarted := make(chan struct{})
 	client := fake.NewSimpleClientset()
-	
+
 	client.PrependWatchReactor("*", func(action clienttesting.Action) (handled bool, ret watch.Interface, err error) {
 		gvr := action.GetResource()
 		ns := action.GetNamespace()
@@ -56,8 +56,8 @@ func Test_Label_With_Warning(t *testing.T) {
 	cache.WaitForCacheSync(ctx.Done(), podInformer.HasSynced)
 
 	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}, metav1.CreateOptions{})
-	require.NoError(t,err)
-	
+	require.NoError(t, err)
+
 	matcher := mocks.Matcher{}
 	resetAction := NewDefaultPodsResetAction(&matcher)
 	log := log.NewLogger(false)
@@ -89,7 +89,7 @@ func Test_Label_With_Warning(t *testing.T) {
 		simplePod := v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs, Name: "non existing pod"}}
 
 		podList := v1.PodList{Items: []v1.Pod{simplePod}}
-	
+
 		// When
 		err := resetAction.LabelWithWarning(ctx, client, wait.Backoff{Steps: 1}, podList, log)
 		// Error: pod not found
