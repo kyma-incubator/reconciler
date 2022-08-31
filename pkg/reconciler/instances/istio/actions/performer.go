@@ -89,8 +89,9 @@ type chartValues struct {
 	} `json:"helmValues"`
 }
 
-//go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
+//
+//go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 type IstioPerformer interface {
 
 	// Install Istio in given version on the cluster using istioChart.
