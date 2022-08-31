@@ -37,7 +37,7 @@ type DefaultLabelAction struct {
 func NewDefaultPodsLabelAction(gatherer data.Gatherer, matcher pod.Matcher) *DefaultLabelAction {
 	return &DefaultLabelAction{
 		gatherer: gatherer,
-		matcher: matcher,
+		matcher:  matcher,
 	}
 }
 
