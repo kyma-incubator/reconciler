@@ -6,10 +6,13 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
+	"github.com/pkg/errors"
+	k8sRetry "k8s.io/client-go/util/retry"
 )
 
-//go:generate mockery --name=IstioProxyReset --outpkg=mocks --case=underscore
 // IstioProxyReset performs istio proxy containers reset on objects in the k8s cluster.
+//
+//go:generate mockery --name=IstioProxyReset --outpkg=mocks --case=underscore
 type IstioProxyReset interface {
 	// Run istio proxy containers reset using the config.
 	Run(cfg config.IstioProxyConfig) error
@@ -88,10 +91,11 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	}
 
 	if len(podsToLabelWithWarning.Items) >= 1 {
-		err = i.action.LabelWithWarning(cfg.Context, cfg.Kubeclient, retryOpts, podsToLabelWithWarning, cfg.Log, cfg.Debug, waitOpts)
+		err = i.action.LabelWithWarning(cfg.Context, cfg.Kubeclient, k8sRetry.DefaultRetry, podsToLabelWithWarning, cfg.Log)
 		if err != nil {
-			cfg.Log.Infof("%d pods outside of istio mesh labeled with warning", len(podsWithoutSidecar.Items))
+			return errors.Wrap(err, "could not label pods with warning")
 		}
+		cfg.Log.Infof("%d pods outside of istio mesh labeled with warning", len(podsWithoutSidecar.Items))
 	}
 
 	return nil

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/avast/retry-go"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -103,7 +104,7 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 	for _, pod := range inputPodsList.Items {
 		namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
 		podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
-		podWarningLabelValue, podWarned := pod.Labels["kyma-warning"]
+		podWarningLabelValue, podWarned := pod.Labels[config.KymaWarning]
 
 		if namespaceLabeled && namespaceLabelValue == "disabled" {
 			if !sidecarInjectionEnabledbyDefault && !podWarned {
@@ -119,7 +120,7 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 		}
 
 		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated {
-			if !podWarned && podWarningLabelValue != "pod not in istio mesh" {
+			if !podWarned && podWarningLabelValue != config.LabelWarning {
 				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
 			}
 			continue
