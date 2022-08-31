@@ -23,7 +23,7 @@ import (
 )
 
 //go:generate mockery --name=Action --outpkg=mocks --case=underscore
-type LabelAction interface {
+type Action interface {
 	Run(cfg *config.IstioProxyConfig) error
 	LabelWithWarning(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error
 }
@@ -37,7 +37,7 @@ type DefaultLabelAction struct {
 func NewDefaultPodsLabelAction(gatherer data.Gatherer, matcher pod.Matcher) *DefaultLabelAction {
 	return &DefaultLabelAction{
 		gatherer: gatherer,
-		matcher:  matcher,
+		matcher: matcher,
 	}
 }
 

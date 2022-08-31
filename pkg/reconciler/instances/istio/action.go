@@ -169,10 +169,10 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 }
 
 type LabelWarningsPostAction struct {
-	action label.LabelAction
+	action label.Action
 }
 
-func NewLabelWarningsPostAction(action label.LabelAction) *LabelWarningsPostAction {
+func NewLabelWarningsPostAction(action label.Action) *LabelWarningsPostAction {
 	return &LabelWarningsPostAction{action: action}
 }
 
