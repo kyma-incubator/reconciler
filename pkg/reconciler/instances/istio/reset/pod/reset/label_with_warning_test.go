@@ -74,8 +74,12 @@ func Test_Label_With_Warning(t *testing.T) {
 
 		// Then
 		require.NoError(t, err)
-		pod := <-pods
-		require.Equal(t, pod.Labels[config.KymaWarning], config.LabelWarning)
+		select {
+		case pod := <-pods:
+			require.Equal(t, pod.Labels[config.KymaWarning], config.LabelWarning)
+		default:
+			require.Fail(t, "didn't get pod update")
+		}
 	})
 
 	t.Run("should return an error if patch returns an error", func(t *testing.T) {
