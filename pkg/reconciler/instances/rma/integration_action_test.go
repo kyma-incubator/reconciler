@@ -63,6 +63,20 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("should pass when rmi.vmalertGroupsNum config is missing", func(t *testing.T) {
+		// given
+		action := NewIntegrationAction("test", testClient)
+		server := fixChartHTTPServer(t, testChart)
+		context := fixActionContext(fixChartURL(server.URL))
+		delete(context.Task.Configuration, RmiVmalertGroupsNum)
+
+		// when
+		err := action.Run(context)
+
+		// then
+		require.NoError(t, err)
+	})
+
 	t.Run("should install rmi when release not found", func(t *testing.T) {
 		// given
 		action := NewIntegrationAction("test", testClient)
@@ -171,8 +185,9 @@ func fixActionContext(chartURL string) *service.ActionContext {
 		Version:   "2.0.0",
 		Profile:   "production",
 		Configuration: map[string]interface{}{
-			RmiNamespaceConfig: "monitoring-system",
-			RmiChartURLConfig:  chartURL,
+			RmiNamespaceConfig:  "monitoring-system",
+			RmiChartURLConfig:   chartURL,
+			RmiVmalertGroupsNum: "6",
 		},
 		Metadata: keb.Metadata{
 			GlobalAccountID: "testGA",
@@ -202,7 +217,6 @@ func fixChartArchive(t *testing.T) []byte {
 	buf := bytes.Buffer{}
 	err := compress("./testdata", &buf)
 	require.NoError(t, err)
-
 	return buf.Bytes()
 }
 
