@@ -33,6 +33,11 @@ type ExpectedImage struct {
 	Version string
 }
 
+const (
+	ISTIOMESHWARNINGLABELKEY   = "kyma-warning"
+	ISTIOMESHWARNINGLABELVALUE = "pod not in istio mesh"
+)
+
 // NewDefaultGatherer creates a new instance of DefaultGatherer.
 func NewDefaultGatherer() *DefaultGatherer {
 	return &DefaultGatherer{}
@@ -103,7 +108,7 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 	for _, pod := range inputPodsList.Items {
 		namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
 		podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
-		podWarningLabelValue, podWarned := pod.Labels["kyma-warning"]
+		podWarningLabelValue, podWarned := pod.Labels[ISTIOMESHWARNINGLABELKEY]
 
 		if namespaceLabeled && namespaceLabelValue == "disabled" {
 			if !sidecarInjectionEnabledbyDefault && !podWarned {
@@ -119,7 +124,7 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 		}
 
 		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated {
-			if !podWarned && podWarningLabelValue != "pod not in istio mesh" {
+			if !podWarned && podWarningLabelValue != ISTIOMESHWARNINGLABELVALUE {
 				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
 			}
 			continue
