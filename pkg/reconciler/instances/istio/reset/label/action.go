@@ -9,9 +9,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/avast/retry-go"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/pkg/errors"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/consts"
 
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
@@ -40,18 +41,18 @@ func NewDefaultPodsLabelAction(gatherer data.Gatherer, matcher pod.Matcher) *Def
 	}
 }
 
-var labelWithWarning = func(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error {
+func labelWithWarning(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error {
 	for _, podToLabel := range podsList.Items {
-		if podToLabel.Namespace == "kyma-system" || podToLabel.Namespace == "kube-system" || podToLabel.Namespace == "kyma-integration" {
+		if podToLabel.Namespace == consts.KubeSystem || podToLabel.Namespace == consts.KymaIntegration || podToLabel.Namespace == consts.KymaSystem {
 			continue
 		}
 
-		labelPatch := fmt.Sprintf(config.LabelFormat, config.KymaWarning, config.NotInIstioMeshLabel)
+		labelPatch := fmt.Sprintf(consts.LabelFormat, consts.KymaWarning, consts.NotInIstioMeshLabel)
 		err := k8sRetry.RetryOnConflict(retryOpts, func() error {
-			log.Debugf("Patching pod %s in %s namespace with label kyma-warning: %s", podToLabel.Name, podToLabel.Namespace, config.NotInIstioMeshLabel)
+			log.Debugf("Patching pod %s in %s namespace with label kyma-warning: %s", podToLabel.Name, podToLabel.Namespace, consts.NotInIstioMeshLabel)
 			_, err := kubeClient.CoreV1().Pods(podToLabel.Namespace).Patch(context, podToLabel.Name, types.MergePatchType, []byte(labelPatch), metav1.PatchOptions{})
 			if err != nil {
-				return errors.Wrap(err, config.ErrorCouldNotLabelWithWarning)
+				return errors.Wrap(err, consts.ErrorCouldNotLabelWithWarning)
 			}
 			return nil
 		})
@@ -75,7 +76,6 @@ func (i *DefaultLabelAction) Run(ctx context.Context, logger *zap.SugaredLogger,
 		if err != nil {
 			return errors.Wrap(err, "could not label pods with warning")
 		}
-		logger.Infof("%d pods outside of istio mesh labeled with warning", len(podsToLabelWithWarning.Items))
 	}
 
 	return nil

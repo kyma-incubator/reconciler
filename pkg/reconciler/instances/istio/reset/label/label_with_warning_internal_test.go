@@ -2,24 +2,18 @@ package label
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
-	"github.com/avast/retry-go"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/consts"
+
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
-	gathererMocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/mocks"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -84,7 +78,7 @@ func Test_Label_With_Warning(t *testing.T) {
 		require.NoError(t, err)
 		select {
 		case pod := <-pods:
-			require.Equal(t, pod.Labels[config.KymaWarning], config.NotInIstioMeshLabel)
+			require.Equal(t, pod.Labels[consts.KymaWarning], consts.NotInIstioMeshLabel)
 		case <-time.After(time.Second):
 			require.Fail(t, "Pod wasn't labeled")
 		}
@@ -103,19 +97,4 @@ func Test_Label_With_Warning(t *testing.T) {
 		// Then
 		require.Error(t, err)
 	})
-}
-
-func Test_RunReturnErrorOnlabelWithWarningError(t *testing.T) {
-	// Given
-	gatherer := gathererMocks.NewGatherer(t)
-	gatherer.On("GetPodsOutOfIstioMesh", mock.Anything, mock.Anything, mock.Anything).Return(v1.PodList{Items: []v1.Pod{{}}}, nil)
-	labelAction := NewDefaultPodsLabelAction(gatherer, &mocks.Matcher{})
-	labelWithWarning = func(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error {
-		return errors.New("some error")
-	}
-
-	// When
-	err := labelAction.Run(context.TODO(), &zap.SugaredLogger{}, fake.NewSimpleClientset(), []retry.Option{}, false)
-	// Then
-	require.Error(t, err)
 }
