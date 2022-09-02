@@ -192,11 +192,11 @@ func Test_Run(t *testing.T) {
 		kubeSystemPod := v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: consts.KubeSystem, Name: testPodName, Annotations: map[string]string{"sidecar.istio.io/inject": "false"}}}
 		kymaIntegrationPod := v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: consts.KymaIntegration, Name: testPodName, Annotations: map[string]string{"sidecar.istio.io/inject": "false"}}}
 		defer func() {
-			err = client.CoreV1().Namespaces().Delete(context.TODO(),consts.KubeSystem, metav1.DeleteOptions{})
+			err = client.CoreV1().Namespaces().Delete(context.TODO(), consts.KubeSystem, metav1.DeleteOptions{})
 			require.NoError(t, err)
-			err = client.CoreV1().Namespaces().Delete(context.TODO(),consts.KymaSystem, metav1.DeleteOptions{})
+			err = client.CoreV1().Namespaces().Delete(context.TODO(), consts.KymaSystem, metav1.DeleteOptions{})
 			require.NoError(t, err)
-			err = client.CoreV1().Namespaces().Delete(context.TODO(),consts.KymaIntegration, metav1.DeleteOptions{})
+			err = client.CoreV1().Namespaces().Delete(context.TODO(), consts.KymaIntegration, metav1.DeleteOptions{})
 			require.NoError(t, err)
 		}()
 

@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	testNs                         string = "test-ns"
-	testPodName                    string = "test-pod"
+	testNs      string = "test-ns"
+	testPodName string = "test-pod"
 )
 
 func Test_Label_With_Warning(t *testing.T) {
