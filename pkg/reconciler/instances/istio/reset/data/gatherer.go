@@ -109,9 +109,9 @@ func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface,
 	return
 }
 
-func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDefault bool) (outputPodsList v1.PodList, labelWithWarningPodsList v1.PodList) {
-	inputPodsList.DeepCopyInto(&outputPodsList)
-	outputPodsList.Items = []v1.Pod{}
+func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDefault bool) (podsWithSidecarRequired v1.PodList, labelWithWarningPodsList v1.PodList) {
+	inputPodsList.DeepCopyInto(&podsWithSidecarRequired)
+	podsWithSidecarRequired.Items = []v1.Pod{}
 
 	inputPodsList.DeepCopyInto(&labelWithWarningPodsList)
 	labelWithWarningPodsList.Items = []v1.Pod{}
@@ -127,8 +127,9 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 			}
 			continue
 		}
+
 		if podAnnotated && podAnnotationValue == "false" {
-			if !sidecarInjectionEnabledbyDefault && !podWarned {
+			if !podWarned {
 				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
 			}
 			continue
@@ -141,7 +142,7 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 			continue
 		}
 
-		outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
+		podsWithSidecarRequired.Items = append(podsWithSidecarRequired.Items, *pod.DeepCopy())
 	}
 	return
 }

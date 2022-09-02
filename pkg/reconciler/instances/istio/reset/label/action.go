@@ -24,8 +24,7 @@ import (
 
 //go:generate mockery --name=Action --outpkg=mocks --case=underscore
 type Action interface {
-	Run(cfg *config.IstioProxyConfig) error
-	LabelWithWarning(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error
+	Run(ctx context.Context, logger *zap.SugaredLogger, client kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionByDefaultEnabled bool) error
 }
 
 // DefaultResetAction assigns pods to handlers and executes them
@@ -41,8 +40,12 @@ func NewDefaultPodsLabelAction(gatherer data.Gatherer, matcher pod.Matcher) *Def
 	}
 }
 
-func (i *DefaultLabelAction) LabelWithWarning(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error {
+var labelWithWarning = func(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error {
 	for _, podToLabel := range podsList.Items {
+		if podToLabel.Namespace == "kyma-system" || podToLabel.Namespace == "kube-system" || podToLabel.Namespace == "kyma-integration" {
+			continue
+		}
+
 		labelPatch := fmt.Sprintf(config.LabelFormat, config.KymaWarning, config.NotInIstioMeshLabel)
 		err := k8sRetry.RetryOnConflict(retryOpts, func() error {
 			log.Debugf("Patching pod %s in %s namespace with label kyma-warning: %s", podToLabel.Name, podToLabel.Namespace, config.NotInIstioMeshLabel)
@@ -51,7 +54,6 @@ func (i *DefaultLabelAction) LabelWithWarning(context context.Context, kubeClien
 				return errors.Wrap(err, config.ErrorCouldNotLabelWithWarning)
 			}
 			return nil
-
 		})
 		if err != nil {
 			return err
@@ -61,25 +63,19 @@ func (i *DefaultLabelAction) LabelWithWarning(context context.Context, kubeClien
 	return nil
 }
 
-func (i *DefaultLabelAction) Run(cfg *config.IstioProxyConfig) error {
-	retryOpts := []retry.Option{
-		retry.Delay(cfg.DelayBetweenRetries),
-		retry.Attempts(uint(cfg.RetriesCount)),
-		retry.DelayType(retry.FixedDelay),
-	}
-
-	podsToLabelWithWarning, err := i.gatherer.GetPodsOutOfIstioMesh(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
+func (i *DefaultLabelAction) Run(ctx context.Context, logger *zap.SugaredLogger, client kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionByDefaultEnabled bool) error {
+	podsToLabelWithWarning, err := i.gatherer.GetPodsOutOfIstioMesh(client, retryOpts, sidecarInjectionByDefaultEnabled)
 
 	if err != nil {
 		return err
 	}
 
 	if len(podsToLabelWithWarning.Items) >= 1 {
-		err = i.LabelWithWarning(cfg.Context, cfg.Kubeclient, k8sRetry.DefaultRetry, podsToLabelWithWarning, cfg.Log)
+		err = labelWithWarning(ctx, client, k8sRetry.DefaultRetry, podsToLabelWithWarning, logger)
 		if err != nil {
 			return errors.Wrap(err, "could not label pods with warning")
 		}
-		cfg.Log.Infof("%d pods outside of istio mesh labeled with warning", len(podsToLabelWithWarning.Items))
+		logger.Infof("%d pods outside of istio mesh labeled with warning", len(podsToLabelWithWarning.Items))
 	}
 
 	return nil

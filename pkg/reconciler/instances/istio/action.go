@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
-
-	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
@@ -199,19 +198,13 @@ func (a *LabelWarningsPostAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	cfg := istioConfig.IstioProxyConfig{
-		Context:                          context.Context,
-		Kubeclient:                       client,
-		RetriesCount:                     retriesCount,
-		DelayBetweenRetries:              delayBetweenRetries,
-		Timeout:                          timeout,
-		Interval:                         interval,
-		Debug:                            false,
-		Log:                              logger,
-		SidecarInjectionByDefaultEnabled: sidecarInjectionEnabledByDefault,
+	retryOpts := []retry.Option{
+		retry.Delay(delayBetweenRetries),
+		retry.Attempts(uint(retriesCount)),
+		retry.DelayType(retry.FixedDelay),
 	}
 
-	err = a.action.Run(&cfg)
+	err = a.action.Run(context.Context, logger, client, retryOpts, sidecarInjectionEnabledByDefault)
 	if err != nil {
 		return err
 	}
