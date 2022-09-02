@@ -21,7 +21,6 @@ import (
 
 const (
 	testNs                         string = "test-ns"
-	testNsSidecarInjectionDisabled string = "test-ns-disabled"
 	testPodName                    string = "test-pod"
 )
 
