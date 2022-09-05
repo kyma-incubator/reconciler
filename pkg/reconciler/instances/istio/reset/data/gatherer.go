@@ -121,7 +121,11 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 		namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
 		podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
 		podWarningLabelValue, podWarned := pod.Labels[consts.KymaWarning]
-
+		//Automatic sidecar injection is ignored for pods on the host network
+		if pod.Spec.HostNetwork {
+		        labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
+			continue
+		}
 		if namespaceLabeled && namespaceLabelValue == "disabled" {
 			if !sidecarInjectionEnabledbyDefault && !podWarned {
 				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
