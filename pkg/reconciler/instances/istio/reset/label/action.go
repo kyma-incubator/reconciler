@@ -43,7 +43,7 @@ func NewDefaultPodsLabelAction(gatherer data.Gatherer, matcher pod.Matcher) *Def
 
 func labelWithWarning(context context.Context, kubeClient kubernetes.Interface, retryOpts wait.Backoff, podsList v1.PodList, log *zap.SugaredLogger) error {
 	for _, podToLabel := range podsList.Items {
-		if podToLabel.Namespace == consts.KubeSystem || podToLabel.Namespace == consts.KymaIntegration || podToLabel.Namespace == consts.KymaSystem {
+		if podToLabel.Namespace == consts.KymaIntegration || podToLabel.Namespace == consts.KymaSystem {
 			continue
 		}
 
