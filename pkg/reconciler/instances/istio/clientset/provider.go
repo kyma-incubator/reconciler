@@ -7,8 +7,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-//go:generate mockery --name=Provider --outpkg=mock --case=underscore
 // Provider offers k8s ClientSet.
+//
+//go:generate mockery --name=Provider --outpkg=mock --case=underscore
 type Provider interface {
 	// RetrieveFrom kubeconfig and return new k8s ClientSet instance.
 	RetrieveFrom(kubeConfig string, log *zap.SugaredLogger) (kubernetes.Interface, error)

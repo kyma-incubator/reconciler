@@ -9,12 +9,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-//Version Represents a specific istioctl executable version (e.g. 1.11.4)
+// Version Represents a specific istioctl executable version (e.g. 1.11.4)
 type Version struct {
 	value semver.Version
 }
 
-//VersionFromString returns a Version from passed semantic version in the format: "major.minor.patch", where all components must be positive integers
+// VersionFromString returns a Version from passed semantic version in the format: "major.minor.patch", where all components must be positive integers
 func VersionFromString(version string) (Version, error) {
 	trimmed := strings.TrimSpace(version)
 	if trimmed == "" {
@@ -46,8 +46,9 @@ func (v Version) BiggerThan(other Version) bool {
 	return !(v.EqualTo(other) || v.SmallerThan(other))
 }
 
-//go:generate mockery --name=IstioctlResolver --outpkg=mock --case=underscore
 // Finds an Executable for given Version
+//
+//go:generate mockery --name=IstioctlResolver --outpkg=mock --case=underscore
 type ExecutableResolver interface {
 	FindIstioctl(version Version) (*Executable, error)
 }
@@ -103,8 +104,9 @@ func (d *DefaultIstioctlResolver) findMatchingBinary(version Version) (*Executab
 	return &matching[len(matching)-1], nil
 }
 
-//go:generate mockery --name=VersionChecker --output=istioctl --case=underscore
 // VersionChecker implementations are able to return istioctl executable version
+//
+//go:generate mockery --name=VersionChecker --output=istioctl --case=underscore
 type VersionChecker interface {
 	// GetIstioVersion return istioctl binary version given it's path
 	GetIstioVersion(pathToBinary string) (Version, error)

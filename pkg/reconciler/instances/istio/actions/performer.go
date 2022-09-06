@@ -89,8 +89,9 @@ type chartValues struct {
 	} `json:"helmValues"`
 }
 
-//go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
+//
+//go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 type IstioPerformer interface {
 
 	// Install Istio in given version on the cluster using istioChart.
@@ -122,7 +123,7 @@ type CommanderResolver interface {
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
-// It uses istioctl binary to do it's job. It delegates the job of finding proper istioctl binary for given operation to the configured CommandResolver.
+// It uses istioctl binary to do its job. It delegates the job of finding proper istioctl binary for given operation to the configured CommandResolver.
 type DefaultIstioPerformer struct {
 	resolver        CommanderResolver
 	istioProxyReset proxy.IstioProxyReset
@@ -349,7 +350,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		return err
 	}
 
-	sidecarInjectionEnabledByDefault, err := isSidecarInjectionNamespacesByDefaultEnabled(workspace, branchVersion, istioChart)
+	sidecarInjectionEnabledByDefault, err := IsSidecarInjectionNamespacesByDefaultEnabled(workspace, branchVersion, istioChart)
 	if err != nil {
 		logger.Error("Could not retrieve default istio sidecar injection!")
 		return err
@@ -577,7 +578,7 @@ func isSidecarMigrationEnabled(workspace chart.Factory, branch string, istioChar
 	return option, isSet, nil
 }
 
-func isSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branch string, istioChart string) (enableNamespacesByDefault bool, err error) {
+func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branch string, istioChart string) (enableNamespacesByDefault bool, err error) {
 	ws, err := workspace.Get(branch)
 	if err != nil {
 		return false, err
