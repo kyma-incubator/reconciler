@@ -118,55 +118,15 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 	labelWithWarningPodsList.Items = []v1.Pod{}
 
 	for _, pod := range inputPodsList.Items {
-		namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
-		podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
-		podLabelValue, podLabeled := pod.Labels["sidecar.istio.io/inject"]
+		requireWarning, requireSidecar := checkPodSidecarInjectionLogic(pod, sidecarInjectionEnabledbyDefault)
 		_, podWarned := pod.Labels[consts.KymaWarning]
 
-		//Automatic sidecar injection is ignored for pods on the host network
-		if pod.Spec.HostNetwork {
-			if !podWarned {
-				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
-			}
-			continue
+		if !podWarned && requireWarning {
+			labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
 		}
-
-		if namespaceLabeled && namespaceLabelValue == "disabled" {
-			if !podWarned {
-				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
-			}
-			continue
+		if requireSidecar {
+			podsWithSidecarRequired.Items = append(podsWithSidecarRequired.Items, *pod.DeepCopy())
 		}
-
-		if podLabeled && podLabelValue == "false" {
-			if !podWarned {
-				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
-			}
-			continue
-		}
-
-		if !podLabeled && podAnnotated && podAnnotationValue == "false" {
-			if !podWarned {
-				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
-			}
-			continue
-		}
-
-		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && podAnnotated && podAnnotationValue == "true" {
-			if !podWarned {
-				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
-			}
-			continue
-		}
-
-		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated && !podLabeled {
-			if !podWarned {
-				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
-			}
-			continue
-		}
-
-		podsWithSidecarRequired.Items = append(podsWithSidecarRequired.Items, *pod.DeepCopy())
 	}
 	return
 }
@@ -196,6 +156,39 @@ func hasIstioProxy(containers []v1.Container, proxyName string) bool {
 		}
 	}
 	return proxyImage != ""
+}
+
+func checkPodSidecarInjectionLogic(pod v1.Pod, sidecarInjectionEnabledbyDefault bool) (requireWarning bool, requireSidecar bool) {
+	namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
+	podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
+	podLabelValue, podLabeled := pod.Labels["sidecar.istio.io/inject"]
+
+	//Automatic sidecar injection is ignored for pods on the host network
+	if pod.Spec.HostNetwork {
+		return true, false
+	}
+
+	if namespaceLabeled && namespaceLabelValue == "disabled" {
+		return true, false
+	}
+
+	if podLabeled && podLabelValue == "false" {
+		return true, false
+	}
+
+	if !podLabeled && podAnnotated && podAnnotationValue == "false" {
+		return true, false
+	}
+
+	if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && podAnnotated && podAnnotationValue == "true" {
+		return true, false
+	}
+
+	if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated && !podLabeled {
+		return true, false
+	}
+
+	return false, true
 }
 
 func getAllPodsWithNamespaceAnnotations(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
