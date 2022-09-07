@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math/big"
+	mrand "math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -336,16 +339,15 @@ func findLatestRevision(releases []*release.Release) *release.Release {
 }
 
 func generateVmalertGroup(context *service.ActionContext, id, num string) int {
-	div := DefaultVMAlertGroupsNum
-
-	if num != "" && id != "" {
-		var err error
-		div, err = strconv.Atoi(num)
-		if err != nil {
-			context.Logger.Debugf("got error %s when converting string to int for configuration: %s, use its default value: %d", err, RmiVmalertGroupsNum, DefaultVMAlertGroupsNum)
-			div = DefaultVMAlertGroupsNum
-		}
+	groups, err := strconv.Atoi(num)
+	if err != nil {
+		context.Logger.Debugf("got error %s when converting string to int for configuration: %s, use its default value: %d", err, RmiVmalertGroupsNum, DefaultVMAlertGroupsNum)
+		groups = DefaultVMAlertGroupsNum
 	}
 
-	return int(id[0]) % div
+	csum := sha256.Sum256([]byte(id))
+	mrand.Seed(int64(binary.LittleEndian.Uint64(csum[0:8])))
+	group := mrand.Intn(groups)
+
+	return group
 }
