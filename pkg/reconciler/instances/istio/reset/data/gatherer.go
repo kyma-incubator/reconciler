@@ -145,7 +145,7 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 			continue
 		}
 
-		if podAnnotated && podAnnotationValue == "false" {
+		if !podLabeled && podAnnotated && podAnnotationValue == "false" {
 			if !podWarned {
 				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
 			}

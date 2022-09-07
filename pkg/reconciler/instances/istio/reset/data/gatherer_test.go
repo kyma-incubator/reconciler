@@ -109,10 +109,14 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{}, map[string]string{})
 	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
 	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{}, map[string]string{})
-	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	annotatedTrueLabeledFalsePodWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{"sidecar.istio.io/inject": "false"})
+	annotatedFalseLabeledTruePodWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{"sidecar.istio.io/inject": "true"})
+	annotatedTruePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedTruePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedTruePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedFalsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	annotatedTruePodWithoutSidecarNoLabelNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	labeledTruePodWithoutSidecarNoLabelNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
 
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
 	disabledNS := fixNamespaceWith("disabled", map[string]string{"istio-injection": "disabled"})
@@ -121,8 +125,8 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 
 	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
 	hostNetworkPod.Spec.HostNetwork = true
-	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	hostNetworkPodLabeled.Spec.HostNetwork = true
+	hostNetworkPodAnnotated := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	hostNetworkPodAnnotated.Spec.HostNetwork = true
 
 	t.Run("should get pod with proper namespace label", func(t *testing.T) {
 		// given
@@ -175,7 +179,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should not get pod with Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -187,7 +191,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -199,7 +203,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecarDisabledNS, disabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecarDisabledNS, disabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -211,7 +215,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(falsePodWithoutSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedFalsePodWithoutSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -235,7 +239,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should not get pod in HostNetwork", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(hostNetworkPod, hostNetworkPodLabeled, noLabelNS)
+		kubeClient := fake.NewSimpleClientset(hostNetworkPod, hostNetworkPodAnnotated, noLabelNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -244,6 +248,54 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true in namespace without label", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecarNoLabelNS, noLabelNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should get pod without Istio sidecar and labeled sidecar.istio.io/inject=true in namespace without label", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(labeledTruePodWithoutSidecarNoLabelNS, noLabelNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true and labeled sidecar.istio.io/inject=false in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedTrueLabeledFalsePodWithoutSidecarEnabledNS, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=false and labeled sidecar.istio.io/inject=true in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedFalseLabeledTruePodWithoutSidecarEnabledNS, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsWithoutSidecar.Items))
 	})
 }
 
@@ -257,15 +309,19 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
 	podWithIstioSidecarEnabledNSTerminating := fixPodWithSidecar("application3", "enabled", "Terminating", map[string]string{}, map[string]string{})
 	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{}, map[string]string{})
-	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	annotatedTrueLabeledFalsePodWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{"sidecar.istio.io/inject": "false"})
+	annotatedFalseLabeledTruePodWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{"sidecar.istio.io/inject": "true"})
+	annotatedTruePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedTruePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedTruePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedFalsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	annotatedTruePodWithoutSidecarNoLabelNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	labeledTruePodWithoutSidecarNoLabelNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
 
 	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
 	hostNetworkPod.Spec.HostNetwork = true
-	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	hostNetworkPodLabeled.Spec.HostNetwork = true
+	hostNetworkPodAnnotated := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	hostNetworkPodAnnotated.Spec.HostNetwork = true
 
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
 	disabledNS := fixNamespaceWith("disabled", map[string]string{"istio-injection": "disabled"})
@@ -323,7 +379,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should not get pod with Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -335,7 +391,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -347,7 +403,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should not get pod with Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -359,7 +415,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecarDisabledNS, disabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecarDisabledNS, disabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -371,7 +427,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(falsePodWithoutSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedFalsePodWithoutSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -395,7 +451,7 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should not get pod in HostNetwork", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(hostNetworkPodLabeled, hostNetworkPod, noLabelNS)
+		kubeClient := fake.NewSimpleClientset(hostNetworkPodAnnotated, hostNetworkPod, noLabelNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -404,6 +460,54 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true in namespace without label", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecarNoLabelNS, noLabelNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should get pod without Istio sidecar and labeled sidecar.istio.io/inject=true in namespace without label", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(labeledTruePodWithoutSidecarNoLabelNS, noLabelNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true and labeled sidecar.istio.io/inject=false in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedTrueLabeledFalsePodWithoutSidecarEnabledNS, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsWithoutSidecar.Items))
+	})
+	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=false and labeled sidecar.istio.io/inject=true in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedFalseLabeledTruePodWithoutSidecarEnabledNS, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsWithoutSidecar.Items))
 	})
 }
 
@@ -416,15 +520,21 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{}, map[string]string{})
 	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
 	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{}, map[string]string{})
-	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	annotatedTrueLabeledFalsePodWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{"sidecar.istio.io/inject": "false"})
+	annotatedFalseLabeledTruePodWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{"sidecar.istio.io/inject": "true"})
+	annotatedTruePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedTruePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedTruePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedFalsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	annotatedTruePodWithoutSidecarNoLabelNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	labeledTruePodWithoutSidecarNoLabelNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
+	labeledTruePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
+	labeledTruePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
 
 	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
 	hostNetworkPod.Spec.HostNetwork = true
-	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
-	hostNetworkPodLabeled.Spec.HostNetwork = true
+	hostNetworkPodAnnotated := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	hostNetworkPodAnnotated.Spec.HostNetwork = true
 
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
 	disabledNS := fixNamespaceWith("disabled", map[string]string{"istio-injection": "disabled"})
@@ -481,7 +591,19 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should not get pod with Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithSidecar, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should not get pod with Istio sidecar and labeled sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(labeledTruePodWithoutSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -493,7 +615,7 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -505,7 +627,19 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecarDisabledNS, disabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecarDisabledNS, disabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should get pod without Istio sidecar and labeled sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(labeledTruePodWithoutSidecarDisabledNS, disabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -517,7 +651,7 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(falsePodWithoutSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedFalsePodWithoutSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -526,18 +660,6 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
-	})
-	t.Run("should not get pod without Istio sidecar when not annotated in namespace without label", func(t *testing.T) {
-		// given
-		kubeClient := fake.NewSimpleClientset(podWithoutSidecarNoLabeledNS, noLabelNS)
-		gatherer := DefaultGatherer{}
-
-		// when
-		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
-
-		// then
-		require.NoError(t, err)
-		require.Equal(t, 0, len(podsOutOfIstioMesh.Items))
 	})
 	t.Run("should not get pod without Istio sidecar when not annotated in namespace without label", func(t *testing.T) {
 		// given
@@ -553,7 +675,7 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 	})
 	t.Run("should get all pods in HostNetwork", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(hostNetworkPod, hostNetworkPodLabeled, noLabelNS)
+		kubeClient := fake.NewSimpleClientset(hostNetworkPod, hostNetworkPodAnnotated, noLabelNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -562,6 +684,54 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 2, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true in namespace without label", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecarNoLabelNS, noLabelNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should not get pod without Istio sidecar and labeled sidecar.istio.io/inject=true in namespace without label", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(labeledTruePodWithoutSidecarNoLabelNS, noLabelNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true and labeled sidecar.istio.io/inject=false in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedTrueLabeledFalsePodWithoutSidecarEnabledNS, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=false and labeled sidecar.istio.io/inject=true in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedFalseLabeledTruePodWithoutSidecarEnabledNS, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsOutOfIstioMesh.Items))
 	})
 }
 
@@ -575,16 +745,21 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
 	podWithIstioSidecarEnabledNSTerminating := fixPodWithSidecar("application3", "enabled", "Terminating", map[string]string{}, map[string]string{})
 	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{}, map[string]string{})
-	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	labeledPodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
-	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
-	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	annotatedTrueLabeledFalsePodWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{"sidecar.istio.io/inject": "false"})
+	annotatedFalseLabeledTruePodWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{"sidecar.istio.io/inject": "true"})
+	annotatedTruePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedTruePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedTruePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	annotatedFalsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	annotatedTruePodWithoutSidecarNoLabelNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	labeledTruePodWithoutSidecarNoLabelNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
+	labeledTruePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
+	labeledTruePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
 
 	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
 	hostNetworkPod.Spec.HostNetwork = true
-	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
-	hostNetworkPodLabeled.Spec.HostNetwork = true
+	hostNetworkPodAnnotated := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
+	hostNetworkPodAnnotated.Spec.HostNetwork = true
 
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
 	disabledNS := fixNamespaceWith("disabled", map[string]string{"istio-injection": "disabled"})
@@ -641,7 +816,7 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should not get pod with Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -653,7 +828,7 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -665,7 +840,19 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should not get pod with Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(labeledTruePodWithoutSidecar, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should not get pod with Istio sidecar and labeled sidecar.istio.io/inject=true with in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -677,7 +864,7 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecarDisabledNS, disabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecarDisabledNS, disabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -689,7 +876,7 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should get pod without Istio sidecar and labeled sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(labeledPodWithoutSidecarDisabledNS, disabledNS)
+		kubeClient := fake.NewSimpleClientset(labeledTruePodWithoutSidecarDisabledNS, disabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -701,7 +888,7 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(falsePodWithoutSidecar, enabledNS)
+		kubeClient := fake.NewSimpleClientset(annotatedFalsePodWithoutSidecar, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -723,9 +910,33 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
 	})
+	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true in namespace without label", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedTruePodWithoutSidecarNoLabelNS, noLabelNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should not get pod without Istio sidecar and labeled sidecar.istio.io/inject=true in namespace without label", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(labeledTruePodWithoutSidecarNoLabelNS, noLabelNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsOutOfIstioMesh.Items))
+	})
 	t.Run("should get all pods in HostNetwork", func(t *testing.T) {
 		// given
-		kubeClient := fake.NewSimpleClientset(hostNetworkPod, hostNetworkPodLabeled, noLabelNS)
+		kubeClient := fake.NewSimpleClientset(hostNetworkPod, hostNetworkPodAnnotated, noLabelNS)
 		gatherer := DefaultGatherer{}
 
 		// when
@@ -734,6 +945,30 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 2, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true and labeled sidecar.istio.io/inject=false in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedTrueLabeledFalsePodWithoutSidecarEnabledNS, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
+	})
+	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=false and labeled sidecar.istio.io/inject=true in namespace labeled istio-injection=enabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(annotatedFalseLabeledTruePodWithoutSidecarEnabledNS, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(podsOutOfIstioMesh.Items))
 	})
 }
 
