@@ -103,25 +103,25 @@ func Test_Gatherer_GetPodsWithDifferentImage(t *testing.T) {
 func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *testing.T) {
 	retryOpts := getTestingRetryOptions()
 
-	podWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{})
-	podWithoutSidecarNoLabeledNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{})
-	podWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{})
-	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{})
-	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{})
-	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{})
-	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"})
+	podWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarNoLabeledNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{}, map[string]string{})
+	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
+	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{}, map[string]string{})
+	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
 
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
 	disabledNS := fixNamespaceWith("disabled", map[string]string{"istio-injection": "disabled"})
 	noLabelNS := fixNamespaceWith("nolabel", map[string]string{"testns": "true"})
 	sidecarInjectionEnabledByDefault := true
 
-	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{})
+	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
 	hostNetworkPod.Spec.HostNetwork = true
-	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
+	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
 	hostNetworkPodLabeled.Spec.HostNetwork = true
 
 	t.Run("should get pod with proper namespace label", func(t *testing.T) {
@@ -209,18 +209,6 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 		require.NoError(t, err)
 		require.Equal(t, 0, len(podsWithoutSidecar.Items))
 	})
-	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
-		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecarDisabledNS, disabledNS)
-		gatherer := DefaultGatherer{}
-
-		// when
-		podsWithoutSidecar, err := gatherer.GetPodsWithoutSidecar(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
-
-		// then
-		require.NoError(t, err)
-		require.Equal(t, 0, len(podsWithoutSidecar.Items))
-	})
 	t.Run("should not get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
 		kubeClient := fake.NewSimpleClientset(falsePodWithoutSidecar, enabledNS)
@@ -262,21 +250,21 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionEnabledByDefault(t *tes
 func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *testing.T) {
 	retryOpts := getTestingRetryOptions()
 
-	podWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{})
-	podWithoutSidecarNoLabeledNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{})
-	podWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{})
-	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{})
-	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{})
-	podWithIstioSidecarEnabledNSTerminating := fixPodWithSidecar("application3", "enabled", "Terminating", map[string]string{})
-	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{})
-	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"})
+	podWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarNoLabeledNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{}, map[string]string{})
+	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
+	podWithIstioSidecarEnabledNSTerminating := fixPodWithSidecar("application3", "enabled", "Terminating", map[string]string{}, map[string]string{})
+	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{}, map[string]string{})
+	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
 
-	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{})
+	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
 	hostNetworkPod.Spec.HostNetwork = true
-	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
+	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
 	hostNetworkPodLabeled.Spec.HostNetwork = true
 
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
@@ -422,20 +410,20 @@ func Test_Gatherer_GetPodsWithoutSidecar_sidecarInjectionDisabledByDefault(t *te
 func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *testing.T) {
 	retryOpts := getTestingRetryOptions()
 
-	podWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{})
-	podWithoutSidecarNoLabeledNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{})
-	podWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{})
-	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{})
-	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{})
-	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{})
-	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"})
+	podWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarNoLabeledNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{}, map[string]string{})
+	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
+	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{}, map[string]string{})
+	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
 
-	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{})
+	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
 	hostNetworkPod.Spec.HostNetwork = true
-	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "false"})
+	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
 	hostNetworkPodLabeled.Spec.HostNetwork = true
 
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
@@ -527,18 +515,6 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
 	})
-	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
-		// given
-		kubeClient := fake.NewSimpleClientset(truePodWithoutSidecarDisabledNS, disabledNS)
-		gatherer := DefaultGatherer{}
-
-		// when
-		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
-
-		// then
-		require.NoError(t, err)
-		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
-	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
 		kubeClient := fake.NewSimpleClientset(falsePodWithoutSidecar, enabledNS)
@@ -592,21 +568,22 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionEnabledByDefault(t *tes
 func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *testing.T) {
 	retryOpts := getTestingRetryOptions()
 
-	podWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{})
-	podWithoutSidecarNoLabeledNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{})
-	podWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{})
-	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{})
-	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{})
-	podWithIstioSidecarEnabledNSTerminating := fixPodWithSidecar("application3", "enabled", "Terminating", map[string]string{})
-	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{})
-	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"})
-	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"})
+	podWithoutSidecarEnabledNS := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarNoLabeledNS := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{}, map[string]string{})
+	podWithoutSidecarTerminating := fixPodWithoutSidecar("application2", "enabled", "Terminating", map[string]string{}, map[string]string{})
+	podWithIstioSidecarEnabledNS := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
+	podWithIstioSidecarEnabledNSTerminating := fixPodWithSidecar("application3", "enabled", "Terminating", map[string]string{}, map[string]string{})
+	podWithIstioSidecarDisabledNS := fixPodWithSidecar("application2", "disabled", "Running", map[string]string{}, map[string]string{})
+	truePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	truePodWithSidecar := fixPodWithSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	labeledPodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{}, map[string]string{"sidecar.istio.io/inject": "true"})
+	truePodWithoutSidecarDisabledNS := fixPodWithoutSidecar("application", "disabled", "Running", map[string]string{"sidecar.istio.io/inject": "true"}, map[string]string{})
+	falsePodWithoutSidecar := fixPodWithoutSidecar("application", "enabled", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
 
-	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{})
+	hostNetworkPod := fixPodWithoutSidecar("application", "nolabel", "Running", map[string]string{}, map[string]string{})
 	hostNetworkPod.Spec.HostNetwork = true
-	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "false"})
+	hostNetworkPodLabeled := fixPodWithoutSidecar("application1", "nolabel", "Running", map[string]string{"sidecar.istio.io/inject": "false"}, map[string]string{})
 	hostNetworkPodLabeled.Spec.HostNetwork = true
 
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
@@ -710,6 +687,18 @@ func Test_Gatherer_GetPodsOutOfIstioMesh_sidecarInjectionDisabledByDefault(t *te
 		require.NoError(t, err)
 		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
 	})
+	t.Run("should get pod without Istio sidecar and labeled sidecar.istio.io/inject=true with in namespace labeled istio-injection=disabled", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(labeledPodWithoutSidecarDisabledNS, disabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		podsOutOfIstioMesh, err := gatherer.GetPodsOutOfIstioMesh(kubeClient, retryOpts, sidecarInjectionEnabledByDefault)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(podsOutOfIstioMesh.Items))
+	})
 	t.Run("should get pod without Istio sidecar and annotated sidecar.istio.io/inject=false with in namespace labeled istio-injection=enabled", func(t *testing.T) {
 		// given
 		kubeClient := fake.NewSimpleClientset(falsePodWithoutSidecar, enabledNS)
@@ -780,7 +769,7 @@ func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 	}
 }
 
-func fixPodWithSidecar(name, namespace, phase string, annotations map[string]string) *v1.Pod {
+func fixPodWithSidecar(name, namespace, phase string, annotations map[string]string, labels map[string]string) *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -788,6 +777,7 @@ func fixPodWithSidecar(name, namespace, phase string, annotations map[string]str
 			OwnerReferences: []metav1.OwnerReference{
 				{Kind: "ReplicaSet"},
 			},
+			Labels:      labels,
 			Annotations: annotations,
 		},
 		TypeMeta: metav1.TypeMeta{
@@ -812,7 +802,7 @@ func fixPodWithSidecar(name, namespace, phase string, annotations map[string]str
 	}
 }
 
-func fixPodWithoutSidecar(name, namespace, phase string, annotations map[string]string) *v1.Pod {
+func fixPodWithoutSidecar(name, namespace, phase string, annotations map[string]string, labels map[string]string) *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -820,6 +810,7 @@ func fixPodWithoutSidecar(name, namespace, phase string, annotations map[string]
 			OwnerReferences: []metav1.OwnerReference{
 				{Kind: "ReplicaSet"},
 			},
+			Labels:      labels,
 			Annotations: annotations,
 		},
 		TypeMeta: metav1.TypeMeta{

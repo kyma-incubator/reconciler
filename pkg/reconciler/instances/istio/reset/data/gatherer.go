@@ -120,6 +120,7 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 	for _, pod := range inputPodsList.Items {
 		namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
 		podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
+		podLabelValue, podLabeled := pod.Labels["sidecar.istio.io/inject"]
 		_, podWarned := pod.Labels[consts.KymaWarning]
 
 		//Automatic sidecar injection is ignored for pods on the host network
@@ -137,6 +138,13 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 			continue
 		}
 
+		if podLabeled && podLabelValue == "false" {
+			if !podWarned {
+				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
+			}
+			continue
+		}
+
 		if podAnnotated && podAnnotationValue == "false" {
 			if !podWarned {
 				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
@@ -144,7 +152,14 @@ func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDe
 			continue
 		}
 
-		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated {
+		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && podAnnotated && podAnnotationValue == "true" {
+			if !podWarned {
+				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
+			}
+			continue
+		}
+
+		if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated && !podLabeled {
 			if !podWarned {
 				labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
 			}
@@ -164,15 +179,10 @@ func getPodsWithoutSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList)
 		if !isPodReady(pod) {
 			continue
 		}
-		//Automatic sidecar injection is ignored for pods on the host network
-		if pod.Spec.HostNetwork {
-			continue
-		}
 
 		if !hasIstioProxy(pod.Spec.Containers, "istio-proxy") {
 			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 		}
-
 	}
 
 	return
