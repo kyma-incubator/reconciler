@@ -9,8 +9,9 @@ import (
 	"os/exec"
 )
 
-//go:generate mockery --name=Commander --output=mocks --case=underscore
 // Commander for istioctl binary.
+//
+//go:generate mockery --name=Commander --output=mocks --case=underscore
 type Commander interface {
 
 	// Install wraps `istioctl installation` command.

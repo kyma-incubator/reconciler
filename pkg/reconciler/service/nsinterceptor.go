@@ -6,7 +6,8 @@ import (
 )
 
 const (
-	NameLabel = "name"
+	NameLabel             = "name"
+	SidecarInjectionLabel = "istio-injection"
 )
 
 type NamespaceInterceptor struct {
@@ -20,6 +21,7 @@ func (l *NamespaceInterceptor) Intercept(resources *kubernetes.ResourceCacheList
 			labels = make(map[string]string)
 		}
 		labels[NameLabel] = u.GetName()
+		labels[SidecarInjectionLabel] = "enabled"
 		u.SetLabels(labels)
 		return nil
 	}

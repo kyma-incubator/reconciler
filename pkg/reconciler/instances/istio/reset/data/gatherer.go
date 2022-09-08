@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/consts"
+
 	"github.com/avast/retry-go"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-//go:generate mockery --name=Gatherer --outpkg=mocks --case=underscore
 // Gatherer gathers data from the Kubernetes cluster.
+//
+//go:generate mockery --name=Gatherer --outpkg=mocks --case=underscore
 type Gatherer interface {
 	// GetAllPods from the cluster and return them as a v1.PodList.
 	GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
@@ -21,7 +24,10 @@ type Gatherer interface {
 	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
 
 	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
-	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
+	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error)
+
+	// GetPodsOutOfIstioMesh return a list of pods which are out of istio mesh
+	GetPodsOutOfIstioMesh(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (labelWithWarningPodsList v1.PodList, err error)
 }
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
@@ -81,30 +87,47 @@ func (i *DefaultGatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, im
 	return
 }
 
-func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
+func (i *DefaultGatherer) GetPodsOutOfIstioMesh(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error) {
 	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
 	if err != nil {
 		return
 	}
 
 	// filter pods
-	podsList = getPodsWithAnnotation(allPodsWithNamespaceAnnotations)
+	_, podsList = getPodsWithAnnotation(allPodsWithNamespaceAnnotations, sidecarInjectionEnabledbyDefault)
+	return
+}
+
+func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error) {
+	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
+	if err != nil {
+		return
+	}
+
+	// filter pods
+	podsList, _ = getPodsWithAnnotation(allPodsWithNamespaceAnnotations, sidecarInjectionEnabledbyDefault)
 	podsList = getPodsWithoutSidecar(podsList)
 	return
 }
 
-func getPodsWithAnnotation(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
-	inputPodsList.DeepCopyInto(&outputPodsList)
-	outputPodsList.Items = []v1.Pod{}
+func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDefault bool) (podsWithSidecarRequired v1.PodList, labelWithWarningPodsList v1.PodList) {
+	inputPodsList.DeepCopyInto(&podsWithSidecarRequired)
+	podsWithSidecarRequired.Items = []v1.Pod{}
+
+	inputPodsList.DeepCopyInto(&labelWithWarningPodsList)
+	labelWithWarningPodsList.Items = []v1.Pod{}
 
 	for _, pod := range inputPodsList.Items {
-		if pod.Annotations["sidecar.istio.io/inject"] == "false" || pod.Annotations["reconciler/namespace-istio-injection"] == "disabled" {
-			continue
-		} else {
-			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
+		requireWarning, requireSidecar := checkPodSidecarInjectionLogic(pod, sidecarInjectionEnabledbyDefault)
+		_, podWarned := pod.Labels[consts.KymaWarning]
+
+		if !podWarned && requireWarning {
+			labelWithWarningPodsList.Items = append(labelWithWarningPodsList.Items, *pod.DeepCopy())
+		}
+		if requireSidecar {
+			podsWithSidecarRequired.Items = append(podsWithSidecarRequired.Items, *pod.DeepCopy())
 		}
 	}
-
 	return
 }
 
@@ -116,15 +139,10 @@ func getPodsWithoutSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList)
 		if !isPodReady(pod) {
 			continue
 		}
-		//Automatic sidecar injection is ignored for pods on the host network
-		if pod.Spec.HostNetwork {
-			continue
-		}
 
 		if !hasIstioProxy(pod.Spec.Containers, "istio-proxy") {
 			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 		}
-
 	}
 
 	return
@@ -138,6 +156,39 @@ func hasIstioProxy(containers []v1.Container, proxyName string) bool {
 		}
 	}
 	return proxyImage != ""
+}
+
+func checkPodSidecarInjectionLogic(pod v1.Pod, sidecarInjectionEnabledbyDefault bool) (requireWarning bool, requireSidecar bool) {
+	namespaceLabelValue, namespaceLabeled := pod.Annotations["reconciler/namespace-istio-injection"]
+	podAnnotationValue, podAnnotated := pod.Annotations["sidecar.istio.io/inject"]
+	podLabelValue, podLabeled := pod.Labels["sidecar.istio.io/inject"]
+
+	//Automatic sidecar injection is ignored for pods on the host network
+	if pod.Spec.HostNetwork {
+		return true, false
+	}
+
+	if namespaceLabeled && namespaceLabelValue == "disabled" {
+		return true, false
+	}
+
+	if podLabeled && podLabelValue == "false" {
+		return true, false
+	}
+
+	if !podLabeled && podAnnotated && podAnnotationValue == "false" {
+		return true, false
+	}
+
+	if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && podAnnotated && podAnnotationValue == "true" {
+		return true, false
+	}
+
+	if !sidecarInjectionEnabledbyDefault && !namespaceLabeled && !podAnnotated && !podLabeled {
+		return true, false
+	}
+
+	return false, true
 }
 
 func getAllPodsWithNamespaceAnnotations(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
@@ -158,6 +209,12 @@ func getAllPodsWithNamespaceAnnotations(kubeClient kubernetes.Interface, retryOp
 			if namespace.ObjectMeta.Name == "kube-system" {
 				continue
 			}
+			if namespace.ObjectMeta.Name == "kube-public" {
+				continue
+			}
+			if namespace.ObjectMeta.Name == "istio-system" {
+				continue
+			}
 
 			pods, err := kubeClient.CoreV1().Pods(namespace.Name).List(context.Background(), metav1.ListOptions{})
 			if err != nil {
@@ -166,6 +223,9 @@ func getAllPodsWithNamespaceAnnotations(kubeClient kubernetes.Interface, retryOp
 
 			for _, pod := range pods.Items {
 				if _, isNamespaceLabeled := namespace.Labels["istio-injection"]; isNamespaceLabeled {
+					if pod.Annotations == nil {
+						pod.Annotations = make(map[string]string)
+					}
 					pod.Annotations["reconciler/namespace-istio-injection"] = namespace.Labels["istio-injection"]
 				}
 				podsList.Items = append(podsList.Items, pod)

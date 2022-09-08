@@ -11,8 +11,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//go:generate mockery --name=Matcher --outpkg=mocks --case=underscore
 // Matcher of Pod to the Handler.
+//
+//go:generate mockery --name=Matcher --outpkg=mocks --case=underscore
 type Matcher interface {
 	// GetHandlersMap by given pods list.
 	GetHandlersMap(

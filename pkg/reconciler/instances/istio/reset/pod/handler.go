@@ -22,8 +22,9 @@ const (
 	AnnotationResetWarningRolloutTimeoutVal = "pod could not be rolled out by resource owner's controller. Check pod status and resolve the problem so the owner controller can reconcile successfully"
 )
 
-//go:generate mockery --name=Handler --outpkg=mocks --case=underscore
 // Handler executes actions on the Kubernetes objects.
+//
+//go:generate mockery --name=Handler --outpkg=mocks --case=underscore
 type Handler interface {
 	// Execute action on the Kubernetes object with regards of the type of handler.
 	// Returns error if action was unsuccessful or wait timeout was reached.

@@ -82,10 +82,16 @@ type chartValues struct {
 			} `json:"istio_proxyv2"`
 		} `json:"images"`
 	} `json:"global"`
+	HelmValues struct {
+		SidecarInjectorWebhook struct {
+			EnableNamespacesByDefault bool `json:"enableNamespacesByDefault"`
+		} `json:"sidecarInjectorWebhook"`
+	} `json:"helmValues"`
 }
 
-//go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 // IstioPerformer performs actions on Istio component on the cluster.
+//
+//go:generate mockery --name=IstioPerformer --outpkg=mock --case=underscore
 type IstioPerformer interface {
 
 	// Install Istio in given version on the cluster using istioChart.
@@ -101,7 +107,7 @@ type IstioPerformer interface {
 	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
 	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
-	ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error
+	ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error
 
 	// Version reports status of Istio installation on the cluster.
 	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error)
@@ -117,7 +123,7 @@ type CommanderResolver interface {
 }
 
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
-// It uses istioctl binary to do it's job. It delegates the job of finding proper istioctl binary for given operation to the configured CommandResolver.
+// It uses istioctl binary to do its job. It delegates the job of finding proper istioctl binary for given operation to the configured CommandResolver.
 type DefaultIstioPerformer struct {
 	resolver        CommanderResolver
 	istioProxyReset proxy.IstioProxyReset
@@ -336,25 +342,32 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 	return nil
 }
 
-func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error {
+func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
+
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
 		return err
 	}
 
+	sidecarInjectionEnabledByDefault, err := IsSidecarInjectionNamespacesByDefaultEnabled(workspace, branchVersion, istioChart)
+	if err != nil {
+		logger.Error("Could not retrieve default istio sidecar injection!")
+		return err
+	}
 	cfg := istioConfig.IstioProxyConfig{
-		IsUpdate:            canUpdate,
-		Context:             context,
-		ImagePrefix:         proxyImagePrefix,
-		ImageVersion:        proxyImageVersion,
-		RetriesCount:        retriesCount,
-		DelayBetweenRetries: delayBetweenRetries,
-		Timeout:             timeout,
-		Interval:            interval,
-		Kubeclient:          kubeClient,
-		Debug:               false,
-		Log:                 logger,
+		IsUpdate:                         canUpdate,
+		Context:                          context,
+		ImagePrefix:                      proxyImagePrefix,
+		ImageVersion:                     proxyImageVersion,
+		RetriesCount:                     retriesCount,
+		DelayBetweenRetries:              delayBetweenRetries,
+		Timeout:                          timeout,
+		Interval:                         interval,
+		Kubeclient:                       kubeClient,
+		Debug:                            false,
+		Log:                              logger,
+		SidecarInjectionByDefaultEnabled: sidecarInjectionEnabledByDefault,
 	}
 
 	err = c.istioProxyReset.Run(cfg)
@@ -563,4 +576,30 @@ func isSidecarMigrationEnabled(workspace chart.Factory, branch string, istioChar
 	}
 
 	return option, isSet, nil
+}
+
+func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branch string, istioChart string) (enableNamespacesByDefault bool, err error) {
+	ws, err := workspace.Get(branch)
+	if err != nil {
+		return false, err
+	}
+
+	istioHelmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	if err != nil {
+		return false, err
+	}
+
+	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
+	if err != nil {
+		return false, err
+	}
+	var chartValues chartValues
+
+	err = json.Unmarshal(mapAsJSON, &chartValues)
+	if err != nil {
+		return false, err
+	}
+	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespacesByDefault
+
+	return enableNamespacesByDefault, nil
 }

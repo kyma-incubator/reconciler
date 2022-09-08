@@ -2,10 +2,10 @@
 * @khlifi411 @jeremyharisch @ruanxin @tobiscr @pbochynski @varbanv @m00g3n @dbadura @pPrecel @kwiatekus @moelsayed @clebs @Tomasz-Smelcerz-SAP @jakobmoellersap @adityabhatia
 
 # Ory reconciler
-/pkg/reconciler/instances/ory/ @strekm @werdes72 @dariusztutaj @cnvergence @veichtj @piotrkpc
+/pkg/reconciler/instances/ory/ @strekm @werdes72 @dariusztutaj @cnvergence @barchw
 
 # Istio reconciler
-/pkg/reconciler/instances/istio/ @strekm @werdes72 @dariusztutaj @cnvergence @veichtj @piotrkpc
+/pkg/reconciler/instances/istio/ @strekm @werdes72 @dariusztutaj @cnvergence @barchw
 
 # Eventing reconciler
 /pkg/reconciler/instances/eventing/ @k15r @nachtmaar @marcobebway @pxsalehi @mfaizanse @friedrichwilken @vladislavpaskar @raypinto @lilitgh
@@ -15,9 +15,6 @@
 
 # Busola migrator reconciler
 /pkg/reconciler/instances/busolamigrator/ @m00g3n @pPrecel @dbadura @tgorgol @rJankowski93
-
-# Rafter reconciler
-/pkg/reconciler/instances/rafter/ @m00g3n @pPrecel @dbadura @rJankowski93
 
 # Connectivity Proxy reconciler
 /pkg/reconciler/instances/connectivityproxy/ @akgalwas @janmedrek @franpog859 @Maladie @rafalpotempa @koala7659 @ralikio

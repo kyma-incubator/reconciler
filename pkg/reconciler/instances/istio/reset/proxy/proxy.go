@@ -8,8 +8,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
 )
 
-//go:generate mockery --name=IstioProxyReset --outpkg=mocks --case=underscore
 // IstioProxyReset performs istio proxy containers reset on objects in the k8s cluster.
+//
+//go:generate mockery --name=IstioProxyReset --outpkg=mocks --case=underscore
 type IstioProxyReset interface {
 	// Run istio proxy containers reset using the config.
 	Run(cfg config.IstioProxyConfig) error
@@ -73,7 +74,7 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		}
 	}
 
-	podsWithoutSidecar, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts)
+	podsWithoutSidecar, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
 	if err != nil {
 		return err
 	}
