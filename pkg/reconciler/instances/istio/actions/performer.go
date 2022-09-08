@@ -84,7 +84,7 @@ type chartValues struct {
 	} `json:"global"`
 	HelmValues struct {
 		SidecarInjectorWebhook struct {
-			EnableNamespaceByDefault bool `json:"enableNamespaceByDefault"`
+			EnableNamespacesByDefault bool `json:"enableNamespacesByDefault"`
 		} `json:"sidecarInjectorWebhook"`
 	} `json:"helmValues"`
 }
@@ -599,7 +599,7 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	if err != nil {
 		return false, err
 	}
-	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespaceByDefault
+	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespacesByDefault
 
 	return enableNamespacesByDefault, nil
 }
