@@ -9,3 +9,6 @@ issues:
     - path: 'mothership_integration_test.go'
       linters:
         - unused
+    - text: "G404:" # Ignore weak random number generator lint. We do not need strong randomness here.
+      linters:
+        - gosec

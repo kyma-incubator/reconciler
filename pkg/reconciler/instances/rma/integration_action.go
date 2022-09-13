@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math/big"
+	mrand "math/rand"
 	"net/http"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -24,12 +28,15 @@ import (
 )
 
 const (
-	RmiHelmDriver      = "secret"
-	RmiHelmMaxHistory  = 1
-	RmiChartName       = "rmi"
-	RmiChartURLConfig  = "rmi.chartUrl"
-	RmiNamespaceConfig = "rmi.namespace"
+	RmiHelmDriver       = "secret"
+	RmiHelmMaxHistory   = 1
+	RmiChartName        = "rmi"
+	RmiChartURLConfig   = "rmi.chartUrl"
+	RmiNamespaceConfig  = "rmi.namespace"
+	RmiVmalertGroupsNum = "rmi.vmalertGroupsNum"
 )
+
+const DefaultVMAlertGroupsNum = 1
 
 type IntegrationAction struct {
 	name         string
@@ -67,6 +74,11 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 		context.Logger.Error(err)
 		return err
 	}
+	groupsNum := getConfigString(context.Task.Configuration, RmiVmalertGroupsNum)
+	if groupsNum == "" {
+		context.Logger.Debugf("missing configuration: %s, will use its default value: %d", RmiVmalertGroupsNum, DefaultVMAlertGroupsNum)
+	}
+
 	releaseName := context.Task.Metadata.ShootName
 
 	cfg, err := a.client.HelmActionConfiguration(namespace)
@@ -92,7 +104,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 
 		// If a release does not exist, run helm install
 		if err == driver.ErrReleaseNotFound {
-			return a.install(context, cfg, chartURL, releaseName, namespace)
+			return a.install(context, cfg, chartURL, releaseName, namespace, groupsNum)
 		}
 
 		// If the release exists, only run helm upgrade if the integration chart version is different.
@@ -114,7 +126,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 			context.Logger.Infof("%s-%s target version: %s release version/status: %s/%s, starting upgrade.", RmiChartName, releaseName, upgradeVersion, releaseVersion, helmRelease.Info.Status)
 		}
 
-		return a.upgrade(context, cfg, chartURL, releaseName, namespace, skipHelmUpgrade)
+		return a.upgrade(context, cfg, chartURL, releaseName, namespace, groupsNum, skipHelmUpgrade)
 	case model.OperationTypeDelete:
 		if err == nil {
 			return a.delete(cfg, releaseName)
@@ -124,7 +136,7 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 	return nil
 }
 
-func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace string) error {
+func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace, groupsNum string) error {
 	installAction := action.NewInstall(cfg)
 	installAction.ReleaseName = releaseName
 	installAction.Namespace = namespace
@@ -139,7 +151,7 @@ func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.
 	if err != nil {
 		return errors.Wrap(err, "while generating new auth password")
 	}
-	overrides := generateOverrideMap(context, username, password)
+	overrides := generateOverrideMap(context, username, password, groupsNum)
 
 	_, err = installAction.Run(chart, overrides)
 	if err != nil {
@@ -150,7 +162,7 @@ func (a *IntegrationAction) install(context *service.ActionContext, cfg *action.
 	return nil
 }
 
-func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace string, skipHelmUpgrade bool) error {
+func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.Configuration, chartURL, releaseName, namespace, groupsNum string, skipHelmUpgrade bool) error {
 	username := context.Task.Metadata.InstanceID
 	password, err := a.fetchPassword(context.Context, releaseName, namespace)
 	if err != nil {
@@ -173,7 +185,7 @@ func (a *IntegrationAction) upgrade(context *service.ActionContext, cfg *action.
 		return errors.Wrapf(err, "while fetching rmi chart from %s", chartURL)
 	}
 
-	overrides := generateOverrideMap(context, username, password)
+	overrides := generateOverrideMap(context, username, password, groupsNum)
 
 	_, err = upgradeAction.Run(releaseName, chart, overrides)
 	if err != nil {
@@ -273,7 +285,7 @@ func (a *IntegrationAction) getChartVersionFromURL(chartURL string) string {
 	return match[1]
 }
 
-func generateOverrideMap(context *service.ActionContext, username, password string) map[string]interface{} {
+func generateOverrideMap(context *service.ActionContext, username, password, groupsNum string) map[string]interface{} {
 	overrideMap := make(map[string]interface{})
 	metadata := context.Task.Metadata
 	overrideMap["runtime"] = map[string]string{
@@ -287,6 +299,9 @@ func generateOverrideMap(context *service.ActionContext, username, password stri
 	overrideMap["auth"] = map[string]string{
 		"username": username,
 		"password": password,
+	}
+	overrideMap["vmalert"] = map[string]int{
+		"group": generateVmalertGroup(context, metadata.InstanceID, groupsNum),
 	}
 
 	return overrideMap
@@ -321,4 +336,18 @@ func findLatestRevision(releases []*release.Release) *release.Release {
 	}
 
 	return release
+}
+
+func generateVmalertGroup(context *service.ActionContext, id, num string) int {
+	groups, err := strconv.Atoi(num)
+	if err != nil {
+		context.Logger.Debugf("got error %s when converting string to int for configuration: %s, use its default value: %d", err, RmiVmalertGroupsNum, DefaultVMAlertGroupsNum)
+		groups = DefaultVMAlertGroupsNum
+	}
+
+	csum := sha256.Sum256([]byte(id))
+	mrand.Seed(int64(binary.LittleEndian.Uint64(csum[0:8])))
+	group := mrand.Intn(groups)
+
+	return group
 }
