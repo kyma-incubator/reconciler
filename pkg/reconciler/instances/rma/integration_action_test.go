@@ -63,25 +63,13 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("should pass when rmi.vmalertGroupsNum config is missing", func(t *testing.T) {
-		// given
-		action := NewIntegrationAction("test", testClient)
-		server := fixChartHTTPServer(t, testChart)
-		context := fixActionContext(fixChartURL(server.URL))
-		delete(context.Task.Configuration, RmiVmalertGroupsNum)
-
-		// when
-		err := action.Run(context)
-
-		// then
-		require.NoError(t, err)
-	})
-
 	t.Run("should install rmi when release not found", func(t *testing.T) {
 		// given
 		action := NewIntegrationAction("test", testClient)
 		server := fixChartHTTPServer(t, testChart)
 		context := fixActionContext(fixChartURL(server.URL))
+		// should continue without rmi.vmalertGroupsNum
+		delete(context.Task.Configuration, RmiVmalertGroupsNum)
 
 		// when
 		err := action.Run(context)
@@ -92,7 +80,7 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, release.StatusDeployed, rel.Info.Status)
 		assert.Equal(t, 1, rel.Version)
-		assertRMIConfig(t, context, rel.Config)
+		assertRMIConfig(t, context, 0, rel.Config)
 		assertAuthCredentialOverrides(t, context)
 	})
 
@@ -140,7 +128,7 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, release.StatusDeployed, rel.Info.Status)
 		assert.Equal(t, 2, rel.Version)
-		assertRMIConfig(t, context, rel.Config)
+		assertRMIConfig(t, context, 2, rel.Config)
 		assertAuthCredentialOverrides(t, context)
 	})
 
@@ -232,9 +220,10 @@ func fixChartHTTPServer(t *testing.T, chart []byte) *httptest.Server {
 	}))
 }
 
-func assertRMIConfig(t *testing.T, context *service.ActionContext, config map[string]interface{}) {
+func assertRMIConfig(t *testing.T, context *service.ActionContext, group int, config map[string]interface{}) {
 	runtime := config["runtime"].(map[string]string)
 	auth := config["auth"].(map[string]string)
+	vmalert := config["vmalert"].(map[string]int)
 	assert.Equal(t, context.Task.Metadata.InstanceID, runtime["instanceID"])
 	assert.Equal(t, context.Task.Metadata.GlobalAccountID, runtime["globalAccountID"])
 	assert.Equal(t, context.Task.Metadata.SubAccountID, runtime["subaccountID"])
@@ -243,6 +232,7 @@ func assertRMIConfig(t *testing.T, context *service.ActionContext, config map[st
 	assert.Equal(t, context.Task.Metadata.Region, runtime["region"])
 	assert.Equal(t, context.Task.Metadata.InstanceID, auth["username"])
 	assert.NotEmpty(t, auth["password"])
+	assert.Equal(t, group, vmalert["group"])
 }
 
 func assertAuthCredentialOverrides(t *testing.T, context *service.ActionContext) {
