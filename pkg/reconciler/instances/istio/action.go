@@ -3,16 +3,13 @@ package istio
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"go.uber.org/zap"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/label"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 )
@@ -162,51 +159,6 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 	if err != nil {
 		context.Logger.Warnf("could not perform ResetProxy action: %v", err)
 		return nil
-	}
-
-	return nil
-}
-
-type LabelWarningsPostAction struct {
-	action label.Action
-}
-
-func NewLabelWarningsPostAction(action label.Action) *LabelWarningsPostAction {
-	return &LabelWarningsPostAction{action: action}
-}
-
-func (a *LabelWarningsPostAction) Run(context *service.ActionContext) error {
-	const (
-		retriesCount        = 5
-		delayBetweenRetries = 5 * time.Second
-		timeout             = 5 * time.Minute
-		interval            = 12 * time.Second
-	)
-
-	context.Logger.Debug("Label pods out Istio mesh action triggered")
-
-	logger := context.Logger.With("istio-label")
-
-	sidecarInjectionEnabledByDefault, err := actions.IsSidecarInjectionNamespacesByDefaultEnabled(context.WorkspaceFactory, context.Task.Version, context.Task.Component)
-	if err != nil {
-		logger.Error("Could not retrieve default istio sidecar injection!")
-		return err
-	}
-
-	client, err := context.KubeClient.Clientset()
-	if err != nil {
-		return err
-	}
-
-	retryOpts := []retry.Option{
-		retry.Delay(delayBetweenRetries),
-		retry.Attempts(uint(retriesCount)),
-		retry.DelayType(retry.FixedDelay),
-	}
-
-	err = a.action.Run(context.Context, logger, client, retryOpts, sidecarInjectionEnabledByDefault)
-	if err != nil {
-		return err
 	}
 
 	return nil
