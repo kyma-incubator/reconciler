@@ -340,6 +340,9 @@ func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
 }
 
 func isComponentCompatible(componentVersion, targetVersion, componentName string) (bool, error) {
+	if componentVersion == "" {
+		return true, nil
+	}
 	componentHelperVersion, err := newHelperVersionFrom(componentVersion)
 	if err != nil {
 		return false, err
