@@ -85,9 +85,9 @@ func readYaml(data []byte, async bool) (<-chan []byte, <-chan error) {
 	return chanBytes, chanErr
 }
 
-//newUnstructured converts a map[string]interface{} to a kubernetes unstructured.Unstructured
-//object.
-//From https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/unstructured.go
+// newUnstructured converts a map[string]interface{} to a kubernetes unstructured.Unstructured
+// object.
+// From https://github.com/billiford/go-clouddriver/blob/master/pkg/kubernetes/unstructured.go
 func newUnstructured(b []byte) (*unstructured.Unstructured, error) {
 	obj, _, err := unstructured.UnstructuredJSONScheme.Decode(b, nil, nil)
 	if err != nil {

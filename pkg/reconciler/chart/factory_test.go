@@ -3,7 +3,6 @@ package chart
 import (
 	"crypto/sha1" //nolint
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -144,7 +143,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		factory := &DefaultFactory{logger: logger, storageDir: storageDir}
 
-		_, err := ioutil.TempDir(factory.storageDir, "test_*")
+		_, err := os.MkdirTemp(factory.storageDir, "test_*")
 		if err != nil {
 			t.Error(err)
 			return

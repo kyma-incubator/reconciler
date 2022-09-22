@@ -7,8 +7,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
@@ -102,7 +102,7 @@ func readKeyFile(encKeyFile string) (string, error) {
 	if !file.Exists(encKeyFile) {
 		return "", fmt.Errorf("encryption key file '%s' not found", encKeyFile)
 	}
-	encKeyBytes, err := ioutil.ReadFile(encKeyFile)
+	encKeyBytes, err := os.ReadFile(encKeyFile)
 	if err != nil {
 		return "", errors.Wrap(err, fmt.Sprintf("failed to read encryption key file '%s'", encKeyFile))
 	}
