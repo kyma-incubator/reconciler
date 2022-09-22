@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -99,7 +98,7 @@ func readKubeconfigAsJSON() (string, error) {
 		return "", fmt.Errorf("set env-var 'KUBECONFIG' before executing the test command")
 	}
 
-	kubeConfig, err := ioutil.ReadFile(kubeConfigFile)
+	kubeConfig, err := os.ReadFile(kubeConfigFile)
 	if err != nil {
 		return "", errors.Wrap(err, fmt.Sprintf("failed to read kubeconfig file '%s'", kubeConfigFile))
 	}
