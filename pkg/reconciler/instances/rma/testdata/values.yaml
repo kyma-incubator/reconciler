@@ -8,3 +8,5 @@ runtime:
 auth:
   username: ""
   password: ""
+vmalert:
+  group: 0

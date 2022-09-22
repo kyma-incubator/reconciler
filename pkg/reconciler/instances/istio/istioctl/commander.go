@@ -1,12 +1,13 @@
 package istioctl
 
 import (
+	"os/exec"
+
 	"github.com/kyma-incubator/reconciler/pkg/features"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/file"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/executor"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"os/exec"
 )
 
 // Commander for istioctl binary.
@@ -28,6 +29,8 @@ type Commander interface {
 }
 
 var execCommand = exec.Command
+
+const logVerbosity = "8"
 
 // DefaultCommander provides a default implementation of Commander.
 type DefaultCommander struct {
@@ -85,12 +88,19 @@ func (c *DefaultCommander) Install(istioOperator, kubeconfig string, logger *zap
 	}()
 
 	logger.Debugf("Creating executable istioctl apply command")
-	err = c.commandExecutor.RuntWithRetry(logger, c.istioctl.path, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
 
-	if err != nil && features.Enabled(features.LogIstioOperator) {
+	if features.Enabled(features.LogIstioOperator) {
+		logger.Debugf("Rendered IstioOperator yaml was: %s ", istioOperator)
+		err = c.commandExecutor.RuntWithRetry(logger, c.istioctl.path, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation", "--vklog", logVerbosity)
+	} else {
+		err = c.commandExecutor.RuntWithRetry(logger, c.istioctl.path, "apply", "-f", istioOperatorPath, "--kubeconfig", kubeconfigPath, "--skip-confirmation")
+	}
+
+	if err != nil {
 		logger.Errorf("Got error from executing istioctl apply %v", err)
 		return errors.Wrapf(err, "rendered IstioOperator yaml was: %s ", istioOperator)
 	}
+
 	return err
 }
 

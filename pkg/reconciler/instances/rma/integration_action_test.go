@@ -68,6 +68,8 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		action := NewIntegrationAction("test", testClient)
 		server := fixChartHTTPServer(t, testChart)
 		context := fixActionContext(fixChartURL(server.URL))
+		// should continue without rmi.vmalertGroupsNum
+		delete(context.Task.Configuration, RmiVmalertGroupsNum)
 
 		// when
 		err := action.Run(context)
@@ -78,7 +80,7 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, release.StatusDeployed, rel.Info.Status)
 		assert.Equal(t, 1, rel.Version)
-		assertRMIConfig(t, context, rel.Config)
+		assertRMIConfig(t, context, 0, rel.Config)
 		assertAuthCredentialOverrides(t, context)
 	})
 
@@ -126,7 +128,7 @@ func Test_IntegrationAction_Run(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, release.StatusDeployed, rel.Info.Status)
 		assert.Equal(t, 2, rel.Version)
-		assertRMIConfig(t, context, rel.Config)
+		assertRMIConfig(t, context, 2, rel.Config)
 		assertAuthCredentialOverrides(t, context)
 	})
 
@@ -171,8 +173,9 @@ func fixActionContext(chartURL string) *service.ActionContext {
 		Version:   "2.0.0",
 		Profile:   "production",
 		Configuration: map[string]interface{}{
-			RmiNamespaceConfig: "monitoring-system",
-			RmiChartURLConfig:  chartURL,
+			RmiNamespaceConfig:  "monitoring-system",
+			RmiChartURLConfig:   chartURL,
+			RmiVmalertGroupsNum: "6",
 		},
 		Metadata: keb.Metadata{
 			GlobalAccountID: "testGA",
@@ -202,7 +205,6 @@ func fixChartArchive(t *testing.T) []byte {
 	buf := bytes.Buffer{}
 	err := compress("./testdata", &buf)
 	require.NoError(t, err)
-
 	return buf.Bytes()
 }
 
@@ -218,9 +220,10 @@ func fixChartHTTPServer(t *testing.T, chart []byte) *httptest.Server {
 	}))
 }
 
-func assertRMIConfig(t *testing.T, context *service.ActionContext, config map[string]interface{}) {
+func assertRMIConfig(t *testing.T, context *service.ActionContext, group int, config map[string]interface{}) {
 	runtime := config["runtime"].(map[string]string)
 	auth := config["auth"].(map[string]string)
+	vmalert := config["vmalert"].(map[string]int)
 	assert.Equal(t, context.Task.Metadata.InstanceID, runtime["instanceID"])
 	assert.Equal(t, context.Task.Metadata.GlobalAccountID, runtime["globalAccountID"])
 	assert.Equal(t, context.Task.Metadata.SubAccountID, runtime["subaccountID"])
@@ -229,6 +232,7 @@ func assertRMIConfig(t *testing.T, context *service.ActionContext, config map[st
 	assert.Equal(t, context.Task.Metadata.Region, runtime["region"])
 	assert.Equal(t, context.Task.Metadata.InstanceID, auth["username"])
 	assert.NotEmpty(t, auth["password"])
+	assert.Equal(t, group, vmalert["group"])
 }
 
 func assertAuthCredentialOverrides(t *testing.T, context *service.ActionContext) {
