@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	eventLog "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"os"
+	"io"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
@@ -68,7 +69,7 @@ func (s *reconcilerIntegrationTestSuite) responseBadRequestParser() responsePars
 
 func (s *reconcilerIntegrationTestSuite) responseCheck(expectedStatus int, expectedResponse interface{}, resp *http.Response) interface{} {
 	s.Equal(expectedStatus, resp.StatusCode)
-	body, ioReadErr := ioutil.ReadAll(resp.Body)
+	body, ioReadErr := io.ReadAll(resp.Body)
 	s.NoError(ioReadErr)
 	s.NoError(resp.Body.Close())
 	s.testLogger.Infof("Body received from component reconciler: %s", string(body))
@@ -297,7 +298,7 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 				Profile:         "",
 				Configuration:   nil,
 				Kubeconfig: func() string {
-					kc, err := ioutil.ReadFile(filepath.Join("test", "kubeconfig-unreachable.yaml"))
+					kc, err := os.ReadFile(filepath.Join("test", "kubeconfig-unreachable.yaml"))
 					s.NoError(err)
 					return string(kc)
 				}(),

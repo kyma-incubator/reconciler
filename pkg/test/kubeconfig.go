@@ -1,7 +1,6 @@
 package test
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -23,7 +22,7 @@ func ReadKubeconfig(t *testing.T) string {
 	if !file.Exists(kubecfgFile) {
 		require.Fail(t, "Please set your default kubeconfig or set the KUBECONFIG env var before executing this test case")
 	}
-	kubecfg, err := ioutil.ReadFile(kubecfgFile)
+	kubecfg, err := os.ReadFile(kubecfgFile)
 	require.NoError(t, err)
 	return string(kubecfg)
 }

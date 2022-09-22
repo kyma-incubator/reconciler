@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/kyma-incubator/reconciler/internal/cli"
@@ -17,7 +18,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
-	"io/ioutil"
 	clientgo "k8s.io/client-go/kubernetes"
 	"net/http"
 	"sync"
@@ -258,7 +258,7 @@ func (s *reconcilerIntegrationTestSuite) newCallbackMockServer() (*http.Server, 
 
 	router := mux.NewRouter()
 	router.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		defer s.NoError(r.Body.Close())
 		s.NoError(err, "Failed to read HTTP callback message")
 

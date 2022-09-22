@@ -13,8 +13,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//go:generate mockery --name=Syncer --outpkg=mock --case=underscore
-//Syncer exposes functionality to trigger hydra specific operations
+// go:generate mockery --name=Syncer --outpkg=mock --case=underscore
+// Syncer exposes functionality to trigger hydra specific operations
 type Syncer interface {
 	// TriggerSynchronization triggers the synchronization of OAuth clients between hydra maester and hydra if needed,
 	//that is basically the case when hydra pods started earlier than hydra maester pods, then hydra might be out of sync

@@ -13,10 +13,10 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
 	"net/http"
 	"testing"
 	"time"
+	"io"
 )
 
 type ComponentReconcilerBootstrap struct {
@@ -84,7 +84,7 @@ func StartMockComponentReconciler(ctx context.Context, t *testing.T, options *cl
 	r.Router.HandleFunc(fmt.Sprintf("/v{%s}/run", "version"), func(writer http.ResponseWriter, request *http.Request) {
 		params := server.NewParams(request)
 		model := &reconciler.Task{}
-		b, err := ioutil.ReadAll(request.Body)
+		b, err := io.ReadAll(request.Body)
 		a.NoError(err)
 		a.NoError(json.Unmarshal(b, model))
 		writer.Header().Set("content-type", "application/json")

@@ -3,9 +3,9 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"io/ioutil"
 	"net/http"
 	"sync"
 
@@ -71,7 +71,7 @@ func newModel(req *http.Request) (*reconciler.Task, error) {
 		return nil, err
 	}
 
-	b, err := ioutil.ReadAll(req.Body)
+	b, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, err
 	}

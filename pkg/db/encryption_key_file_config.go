@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 )
 
-//EncryptionKeyFileConfig is currently just an encryption key file but could be extended at will for further configuration
+// EncryptionKeyFileConfig is currently just an encryption key file but could be extended at will for further configuration
 type EncryptionKeyFileConfig string
 
-//UnittestEncryptionKeyFileConfig is a shortcut to the default unit test key
+// UnittestEncryptionKeyFileConfig is a shortcut to the default unit test key
 var UnittestEncryptionKeyFileConfig = EncryptionKeyFileConfig(UnittestEncryptionKeyFile())
 
 func UnittestEncryptionKeyFile() string {

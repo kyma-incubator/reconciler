@@ -58,7 +58,7 @@ func newAEAD(key string) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-//KeyID returns the first characters of the MD5 keys checksum as HEX string
+// KeyID returns the first characters of the MD5 keys checksum as HEX string
 func (e *Encryptor) KeyID() string {
 	return fmt.Sprintf("%x", e.keyID)[:keyIDLength]
 }
@@ -93,7 +93,7 @@ func (e *Encryptor) Decrypt(encData string) (string, error) {
 	return string(data), nil
 }
 
-//Decryptable verifies whether the encrypted data can be decrypted by this Encryptor instance
+// Decryptable verifies whether the encrypted data can be decrypted by this Encryptor instance
 func (e *Encryptor) Decryptable(encData string) bool {
 	return strings.HasPrefix(encData, e.KeyID()) //KeyID prefix of encrypted data has to match with current KeyID
 }
