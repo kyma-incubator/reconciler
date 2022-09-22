@@ -14,7 +14,7 @@ const (
 	DebugLogForSpecificOperations
 )
 
-//define the mapping between feature name and env var name
+// define the mapping between feature name and env var name
 var featureEnVarMap = map[Feature]string{
 	ProcessingDurationMetric:      "PROCESSING_DURATION_METRICS_ENABLED",
 	WorkerpoolOccupancyTracking:   "WORKERPOOL_OCCUPANCY_TRACKING_ENABLED",

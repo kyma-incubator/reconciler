@@ -36,7 +36,7 @@ func (s *Webserver) Start(ctx context.Context) error {
 
 func (s *Webserver) startServer(router *mux.Router) {
 	//start server
-	s.server = &http.Server{Addr: fmt.Sprintf(":%d", s.Port), Handler: router}
+	s.server = &http.Server{Addr: fmt.Sprintf(":%d", s.Port), Handler: router, ReadHeaderTimeout: 5 * time.Second}
 	go func() {
 		var err error
 		if s.SSLCrtFile != "" && s.SSLKeyFile != "" {

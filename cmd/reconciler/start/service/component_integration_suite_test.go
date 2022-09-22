@@ -271,8 +271,9 @@ func (s *reconcilerIntegrationTestSuite) newCallbackMockServer() (*http.Server, 
 	})
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", s.callbackMockPort),
-		Handler: router,
+		Addr:              fmt.Sprintf(":%d", s.callbackMockPort),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
 		s.testLogger.Infof("Starting callback mock server on port %d", s.callbackMockPort)
