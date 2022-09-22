@@ -3,9 +3,9 @@ package cli
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"path"
 	"testing"
+	"os"
 
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +14,7 @@ func TestFormatter(t *testing.T) {
 	for _, format := range SupportedOutputFormats {
 		of, err := NewOutputFormatter(format)
 		require.NoError(t, err)
-		expected, err := ioutil.ReadFile(path.Join("test", "formatter", fmt.Sprintf("%s.txt", format)))
+		expected, err := os.ReadFile(path.Join("test", "formatter", fmt.Sprintf("%s.txt", format)))
 		require.NoError(t, err)
 		require.Equal(t, string(expected), render(t, of))
 	}

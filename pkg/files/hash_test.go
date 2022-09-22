@@ -51,15 +51,15 @@ func TestHashFnv(t *testing.T) {
 
 func TestHashDir(t *testing.T) {
 	hasher := func() hash.Hash { return fnv.New128a() }
-	dir, err := io.TempDir("", "dirhash-test-")
+	dir, err := os.MkdirTemp("", "dirhash-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func(path string) { _ = os.RemoveAll(path) }(dir)
-	if err := io.WriteFile(filepath.Join(dir, "xyz"), []byte("data for xyz"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "xyz"), []byte("data for xyz"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := io.WriteFile(filepath.Join(dir, "abc"), []byte("data for abc"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "abc"), []byte("data for abc"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	want := htop(fmt.Sprintf("%s  %s\n%s  %s\n", h("data for abc", hasher), "prefix/abc", h("data for xyz", hasher), "prefix/xyz"), hasher)
@@ -73,23 +73,23 @@ func TestHashDir(t *testing.T) {
 }
 
 func TestDirFiles(t *testing.T) {
-	dir, err := io.TempDir("", "dirfiles-test-")
+	dir, err := os.MkdirTemp("", "dirfiles-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func(path string) {
 		_ = os.RemoveAll(path)
 	}(dir)
-	if err := io.WriteFile(filepath.Join(dir, "xyz"), []byte("data for xyz"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "xyz"), []byte("data for xyz"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := io.WriteFile(filepath.Join(dir, "abc"), []byte("data for abc"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "abc"), []byte("data for abc"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Mkdir(filepath.Join(dir, "subdir"), 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := io.WriteFile(filepath.Join(dir, "subdir", "xyz"), []byte("data for subdir xyz"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "subdir", "xyz"), []byte("data for subdir xyz"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	prefix := "foo/bar@v2.3.4"
