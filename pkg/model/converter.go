@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//convertTimestampToTime is converting the value of timestamp db-column to a Time instance
+// convertTimestampToTime is converting the value of timestamp db-column to a Time instance
 func convertTimestampToTime(value interface{}) (interface{}, error) {
 	if reflect.TypeOf(value).Kind() == reflect.String {
 		layout := "2006-01-02 15:04:05" //see https://golang.org/src/time/format.go
@@ -24,7 +24,7 @@ func convertTimestampToTime(value interface{}) (interface{}, error) {
 		value, reflect.TypeOf(value).Kind())
 }
 
-//convertInterfaceToJSONString is converting the value of interface instance to text db-column
+// convertInterfaceToJSONString is converting the value of interface instance to text db-column
 func convertInterfaceToJSONString(value interface{}) (interface{}, error) {
 	encodingJSON, err := json.Marshal(value)
 	if err != nil {

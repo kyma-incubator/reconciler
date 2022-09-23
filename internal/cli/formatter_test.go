@@ -3,9 +3,9 @@ package cli
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path"
 	"testing"
-	"os"
 
 	"github.com/stretchr/testify/require"
 )

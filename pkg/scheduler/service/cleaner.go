@@ -100,7 +100,7 @@ func (c *cleaner) clusterEntityCleanup(transition *ClusterStatusTransition, conf
 	}
 }
 
-//Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
+// Purges reconciliations using rules from: https://github.com/kyma-incubator/reconciler/issues/668
 func (c *cleaner) purgeReconciliationsNew(transition *ClusterStatusTransition, config *CleanerConfig, cleanerProcessUUID string) {
 
 	runtimeIDs, err := transition.ReconciliationRepository().GetRuntimeIDs()
@@ -132,7 +132,7 @@ func (c *cleaner) purgeReconciliationsForCluster(runtimeID string, transition *C
 	return nil
 }
 
-//deleteRecordsByAge deletes all reconciliations for a given cluster that's older than configured number of days except the single most recent record - that one is never deleted
+// deleteRecordsByAge deletes all reconciliations for a given cluster that's older than configured number of days except the single most recent record - that one is never deleted
 func (c *cleaner) deleteRecordsByAge(runtimeID string, numberOfDays int, transition *ClusterStatusTransition) error {
 	now := time.Now()
 	deadline := beginningOfTheDay(now.UTC()).AddDate(0, 0, -1*numberOfDays)
@@ -151,7 +151,7 @@ func (c *cleaner) deleteRecordsByAge(runtimeID string, numberOfDays int, transit
 	return transition.ReconciliationRepository().RemoveReconciliationsBeforeDeadline(runtimeID, mostRecentReconciliation.SchedulingID, deadline)
 }
 
-//deleteRecordsByCountAndStatus deletes record between some deadline in the past and now. It keeps the config.RetainReconciliationsCount() of the most recent records and the ones that are not successfully finished.
+// deleteRecordsByCountAndStatus deletes record between some deadline in the past and now. It keeps the config.RetainReconciliationsCount() of the most recent records and the ones that are not successfully finished.
 func (c *cleaner) deleteRecordsByCountAndStatus(runtimeID string, transition *ClusterStatusTransition, config *CleanerConfig) error {
 	//Note: This functions assumes that deleteRecordsByAge() has already deleted records older than the "deadline"!
 	mostRecentEntitiesToKeep := config.retainReconciliationsCount()
@@ -201,7 +201,7 @@ func (c *cleaner) getMostRecentReconciliation(runtimeID string, transition *Clus
 	return res[0], nil
 }
 
-//removeReconciliations drops all reconciliations provided in the list
+// removeReconciliations drops all reconciliations provided in the list
 func (c *cleaner) removeReconciliations(schedulingIDs []interface{}, transition *ClusterStatusTransition) error {
 	if err := transition.ReconciliationRepository().RemoveReconciliationsBySchedulingID(schedulingIDs); err != nil {
 		c.logger.Errorf("%s Failed to remove reconciliations: %v", CleanerPrefix, err.Error())
@@ -229,7 +229,7 @@ func (c *cleaner) purgeReconciliationsOld(transition *ClusterStatusTransition, c
 	}
 }
 
-//beginningOfTheDay returns t truncated to the very beginning of the day
+// beginningOfTheDay returns t truncated to the very beginning of the day
 func beginningOfTheDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }

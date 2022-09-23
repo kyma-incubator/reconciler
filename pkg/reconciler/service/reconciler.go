@@ -84,7 +84,7 @@ func UseGlobalWorkspaceFactory(workspaceFactory chart.Factory) error {
 	return nil
 }
 
-//Deprecated: do not switch global workspace at any time!
+// Deprecated: do not switch global workspace at any time!
 func RefreshGlobalWorkspaceFactory(workspaceFactory chart.Factory) error {
 	m.Lock()
 	defer m.Unlock()

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	eventLog "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
-	"os"
-	"io"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/model"

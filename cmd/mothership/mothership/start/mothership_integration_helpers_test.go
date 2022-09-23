@@ -13,10 +13,10 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/server"
 	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"testing"
 	"time"
-	"io"
 )
 
 type ComponentReconcilerBootstrap struct {

@@ -46,10 +46,10 @@ type Repository interface {
 	EnableDebugLogging(schedulingID string, correlationID ...string) error
 }
 
-//findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.
-//The priority of an operation is considered (1=highest priority, 2-x=lower priorities).
-//An operation with a high priority has first to be finished before operations with a lower priority
-//are considered as processable.
+// findProcessableOperations returns all operations in all running reconciliations which are ready to be processed.
+// The priority of an operation is considered (1=highest priority, 2-x=lower priorities).
+// An operation with a high priority has first to be finished before operations with a lower priority
+// are considered as processable.
 // For deletion operations, the priority is reversed, as deletion has to be done backwards.
 func findProcessableOperations(ops []*model.OperationEntity, maxParallelOpsPerRecon int) []*model.OperationEntity {
 	//group ops per reconciliation and their prio
@@ -103,7 +103,7 @@ func prios(opsByPrio map[int64][]*model.OperationEntity, reverse bool) []int64 {
 	return prios
 }
 
-//opGroupType finds out the operation type on a group of operations with the same scheduling ID.
+// opGroupType finds out the operation type on a group of operations with the same scheduling ID.
 // Since priorities can be arbitrary keys, a key can't be hardcoded and the map needs to be iterated and immediately return after the first iteration.
 func opGroupType(opsByPrio map[int64][]*model.OperationEntity) model.OperationType {
 	for _, ops := range opsByPrio {
@@ -114,11 +114,11 @@ func opGroupType(opsByPrio map[int64][]*model.OperationEntity) model.OperationTy
 	return model.OperationTypeReconcile
 }
 
-//findProcessableOperationsInGroup returns all operations in the group which are processable.
-//The second return value indicates whether the next processing group should be evaluated:
-// * true: all operations of the current group were successfully completed and next group shoud be evaluated.
-// * false: next group should not be evaluated. This is the case when either the current group
-//          is still in progress or >= 1 operations of the current group are in error state.
+// findProcessableOperationsInGroup returns all operations in the group which are processable.
+// The second return value indicates whether the next processing group should be evaluated:
+//   - true: all operations of the current group were successfully completed and next group shoud be evaluated.
+//   - false: next group should not be evaluated. This is the case when either the current group
+//     is still in progress or >= 1 operations of the current group are in error state.
 func findProcessableOperationsInGroup(ops []*model.OperationEntity, maxParallelOpsPerRecon int) ([]*model.OperationEntity, bool) {
 	var opsInProgress int
 	var processables []*model.OperationEntity

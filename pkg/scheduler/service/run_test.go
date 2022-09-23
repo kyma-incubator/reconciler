@@ -188,7 +188,7 @@ func countOperations(t *testing.T, reconRepo reconciliation.Repository, scheduli
 	return len(ops)
 }
 
-//setOperationState will update all operation status accordingly to expected cluster state
+// setOperationState will update all operation status accordingly to expected cluster state
 func setOperationState(t *testing.T, reconRepo reconciliation.Repository, expectedClusterStatus model.Status, runtimeID string) {
 	var opState model.OperationState
 	switch expectedClusterStatus {

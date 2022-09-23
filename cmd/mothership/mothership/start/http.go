@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
-	"io"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	"github.com/kyma-incubator/reconciler/pkg/features"
@@ -51,7 +51,7 @@ const (
 	bodyRequestLimitBytes = 100000
 )
 
-//AuditRegistry contains mappings from path-prefixes to array of methods that are registered with the AuditLogMiddleware
+// AuditRegistry contains mappings from path-prefixes to array of methods that are registered with the AuditLogMiddleware
 type AuditRegistry map[string][]string
 
 var (
@@ -65,7 +65,7 @@ var (
 	}
 )
 
-//mustAudit defines wether the given path and method have to be audited
+// mustAudit defines wether the given path and method have to be audited
 func (r AuditRegistry) mustAudit(path, method string) bool {
 	if auditRegistry[path] == nil {
 		return false

@@ -3,9 +3,9 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"io"
 	"net/http"
 	"sync"
 

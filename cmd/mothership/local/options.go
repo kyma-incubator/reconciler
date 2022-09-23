@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/kyma-incubator/reconciler/internal/cli"

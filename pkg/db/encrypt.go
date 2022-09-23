@@ -7,8 +7,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"os"
 	"io"
+	"os"
 	"strings"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
