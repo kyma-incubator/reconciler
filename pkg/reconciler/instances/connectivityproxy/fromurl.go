@@ -1,7 +1,7 @@
 package connectivityproxy
 
 import (
-	"io/ioutil"
+	"io"
 	coreV1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -40,7 +40,7 @@ func (fu *FromURL) query() (data []byte, err error) {
 		return nil, err
 	}
 
-	bytes, err := ioutil.ReadAll(resp.Body)
+	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

@@ -1,8 +1,6 @@
 package rma
 
 import (
-	"io/ioutil"
-
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/action"
@@ -10,6 +8,7 @@ import (
 	helmfake "helm.sh/helm/v3/pkg/kube/fake"
 	"helm.sh/helm/v3/pkg/storage"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	"io"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -36,7 +35,7 @@ func (c *FakeClient) KubernetesClientSet() (kubernetes.Interface, error) {
 func (c *FakeClient) HelmActionConfiguration(namespace string) (*action.Configuration, error) {
 	return &action.Configuration{
 		Releases:     c.helmStorage,
-		KubeClient:   &helmfake.FailingKubeClient{PrintingKubeClient: helmfake.PrintingKubeClient{Out: ioutil.Discard}},
+		KubeClient:   &helmfake.FailingKubeClient{PrintingKubeClient: helmfake.PrintingKubeClient{Out: io.Discard}},
 		Capabilities: chartutil.DefaultCapabilities,
 		Log:          c.log.Debugf,
 	}, nil

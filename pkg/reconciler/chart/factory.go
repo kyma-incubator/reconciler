@@ -34,8 +34,9 @@ const (
 	gitComponentsBaseDir = "base"
 )
 
-//go:generate mockery --name=Factory --outpkg=mocks --case=underscore
 // Factory of workspace.
+//
+//go:generate mockery --name=Factory --outpkg=mocks --case=underscore
 type Factory interface {
 	// Get workspace of the given Kyma version.
 	Get(version string) (*KymaWorkspace, error)

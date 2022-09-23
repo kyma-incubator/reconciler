@@ -11,7 +11,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/reconciliation"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -54,7 +54,7 @@ func (i *RemoteReconcilerInvoker) Invoke(_ context.Context, params *Params) erro
 		}
 	}()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return i.fireError("read HTTP body", params, err)
 	}
