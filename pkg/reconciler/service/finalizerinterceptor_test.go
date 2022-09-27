@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,7 +27,7 @@ func TestFinalizerInterceptor(t *testing.T) {
 
 	//cleanup
 	cleanupFct := func() {
-		data := fmt.Sprintf(`{"metadata":{"finalizers":[]}}`)
+		data := `{"metadata":{"finalizers":[]}}`
 		_ = kubeClient.PatchUsingStrategy(context.Background(), "Namespace", "finalizer-test", "", []byte(data), types.StrategicMergePatchType)
 		_, err := kubeClient.Delete(context.Background(), string(manifest), "")
 		require.NoError(t, err)

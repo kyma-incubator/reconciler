@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -51,7 +51,7 @@ const (
 	bodyRequestLimitBytes = 100000
 )
 
-//AuditRegistry contains mappings from path-prefixes to array of methods that are registered with the AuditLogMiddleware
+// AuditRegistry contains mappings from path-prefixes to array of methods that are registered with the AuditLogMiddleware
 type AuditRegistry map[string][]string
 
 var (
@@ -65,7 +65,7 @@ var (
 	}
 )
 
-//mustAudit defines wether the given path and method have to be audited
+// mustAudit defines wether the given path and method have to be audited
 func (r AuditRegistry) mustAudit(path, method string) bool {
 	if auditRegistry[path] == nil {
 		return false
@@ -779,7 +779,7 @@ func updateOperationStatus(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	var stopOperation keb.OperationStop
 	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
-	reqBody, err := ioutil.ReadAll(bodyLimited)
+	reqBody, err := io.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
@@ -847,7 +847,7 @@ func operationCallback(o *Options, w http.ResponseWriter, r *http.Request) {
 
 	var body reconciler.CallbackMessage
 	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
-	reqBody, err := ioutil.ReadAll(bodyLimited)
+	reqBody, err := io.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),
@@ -942,7 +942,7 @@ func createOrUpdateComponentWorkerPoolOccupancy(o *Options, w http.ResponseWrite
 
 	var body reconciler.HTTPOccupancyRequest
 	bodyLimited := http.MaxBytesReader(w, r.Body, bodyRequestLimitBytes)
-	reqBody, err := ioutil.ReadAll(bodyLimited)
+	reqBody, err := io.ReadAll(bodyLimited)
 	if err != nil {
 		server.SendHTTPError(w, http.StatusInternalServerError, &reconciler.HTTPErrorResponse{
 			Error: errors.Wrap(err, "Failed to read received JSON payload").Error(),

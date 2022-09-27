@@ -1,6 +1,6 @@
 package reconciler
 
-//HTTPErrorResponse is the model used for general error responses
+// HTTPErrorResponse is the model used for general error responses
 type HTTPErrorResponse struct {
 	Error string `json:"error"`
 }

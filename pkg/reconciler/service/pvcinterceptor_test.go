@@ -6,7 +6,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -24,7 +24,7 @@ func TestPVCInterceptor(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Test PersistentVolumeClaim interception", func(t *testing.T) {
-		manifest, err := ioutil.ReadFile(filepath.Join("test", "pvcinterceptor-pvc.yaml"))
+		manifest, err := os.ReadFile(filepath.Join("test", "pvcinterceptor-pvc.yaml"))
 		require.NoError(t, err)
 
 		//cleanup
@@ -47,7 +47,7 @@ func TestPVCInterceptor(t *testing.T) {
 	})
 
 	t.Run("Test StatefulSet interception", func(t *testing.T) {
-		manifest, err := ioutil.ReadFile(filepath.Join("test", "pvcinterceptor-sfs.yaml"))
+		manifest, err := os.ReadFile(filepath.Join("test", "pvcinterceptor-sfs.yaml"))
 		require.NoError(t, err)
 
 		kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)

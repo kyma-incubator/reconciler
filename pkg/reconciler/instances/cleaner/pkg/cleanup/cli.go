@@ -28,10 +28,10 @@ const (
 	kymaNamespace      = "kyma-system"
 )
 
-//KymaCRDsFinder returns a list of all CRDs defined explicitly in Kyma sources/charts.
+// KymaCRDsFinder returns a list of all CRDs defined explicitly in Kyma sources/charts.
 type KymaCRDsFinder func() ([]schema.GroupVersionResource, error)
 
-//Implements cleanup logic
+// Implements cleanup logic
 type CliCleaner struct {
 	k8s                          KymaKube
 	apixClient                   apixV1ClientSet.ApiextensionsV1Interface
@@ -58,7 +58,7 @@ func NewCliCleaner(kubeconfigData string, namespaces []string, logger *zap.Sugar
 	return &CliCleaner{kymaKube, apixClient, true, dropFinalizersOnlyForKymaCRs, crdsFinder, namespaces, namespaceTimeout, logger}, nil
 }
 
-//Run runs the command
+// Run runs the command
 func (cmd *CliCleaner) Run() error {
 
 	if err := cmd.deletePVCSAndWait(kymaNamespace); err != nil {
@@ -240,7 +240,7 @@ func contains(items []string, item string) bool {
 	return false
 }
 
-//taken from github.com/kyma-project/cli/internal/kube/kube.go
+// taken from github.com/kyma-project/cli/internal/kube/kube.go
 type KymaKube interface {
 	Static() kubernetes.Interface
 	Dynamic() dynamic.Interface
@@ -277,8 +277,8 @@ func NewFromConfigWithTimeout(kubeconfigData string, t time.Duration) (KymaKube,
 		nil
 }
 
-//taken from github.com/kyma-project/cli/internal/kube/client.go
-//client is the default KymaKube implementation
+// taken from github.com/kyma-project/cli/internal/kube/client.go
+// client is the default KymaKube implementation
 type client struct {
 	static  kubernetes.Interface
 	dynamic dynamic.Interface

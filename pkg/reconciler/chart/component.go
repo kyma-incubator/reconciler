@@ -33,7 +33,7 @@ func (c *Component) Configuration() (map[string]interface{}, error) {
 	return result, nil
 }
 
-//convertToNestedMap converts a key with dot-notation into a nested map (e.g. a.b.c=value become [a:[b:[c:value]]])
+// convertToNestedMap converts a key with dot-notation into a nested map (e.g. a.b.c=value become [a:[b:[c:value]]])
 func (c *Component) convertToNestedMap(key string, value interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	tokens := strings.Split(key, ".")

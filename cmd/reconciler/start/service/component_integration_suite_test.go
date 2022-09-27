@@ -17,7 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
-	"io/ioutil"
+	"io"
 	clientgo "k8s.io/client-go/kubernetes"
 	"net/http"
 	"sync"
@@ -258,7 +258,7 @@ func (s *reconcilerIntegrationTestSuite) newCallbackMockServer() (*http.Server, 
 
 	router := mux.NewRouter()
 	router.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		defer s.NoError(r.Body.Close())
 		s.NoError(err, "Failed to read HTTP callback message")
 
@@ -271,8 +271,9 @@ func (s *reconcilerIntegrationTestSuite) newCallbackMockServer() (*http.Server, 
 	})
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", s.callbackMockPort),
-		Handler: router,
+		Addr:              fmt.Sprintf(":%d", s.callbackMockPort),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
 		s.testLogger.Infof("Starting callback mock server on port %d", s.callbackMockPort)

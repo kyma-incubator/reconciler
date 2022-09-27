@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -148,7 +148,7 @@ func (s *mothershipIntegrationTestSuite) auditLogFileName() string {
 func (s *mothershipIntegrationTestSuite) testFilePayload(file string) string {
 	file = filepath.Join(s.testDirectory, "requests", file) //consider requests subfolder
 
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	s.NoError(err)
 	//inject kubeconfig into testFilePayload
 	newData := make(map[string]interface{})
@@ -213,7 +213,7 @@ func (s *mothershipIntegrationTestSuite) requestToMothership(
 			s.Equal(expectedHTTPCode, response.StatusCode, "Returned HTTP response code was unexpected")
 		}
 
-		responseBody, err := ioutil.ReadAll(response.Body)
+		responseBody, err := io.ReadAll(response.Body)
 		s.NoError(response.Body.Close())
 		s.NoError(err)
 

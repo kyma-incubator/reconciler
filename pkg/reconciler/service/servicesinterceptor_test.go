@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -23,7 +23,7 @@ const (
 func TestServicesInterceptor(t *testing.T) {
 	test.IntegrationTest(t)
 
-	manifest, err := ioutil.ReadFile(filepath.Join("test", "servicesinterceptor.yaml"))
+	manifest, err := os.ReadFile(filepath.Join("test", "servicesinterceptor.yaml"))
 	require.NoError(t, err)
 
 	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)

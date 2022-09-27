@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-//ReconcilerStatusFunc can be passed by caller to retrieve status updates
+// ReconcilerStatusFunc can be passed by caller to retrieve status updates
 type ReconcilerStatusFunc func(component string, msg *reconciler.CallbackMessage)
 
 type LocalReconcilerInvoker struct {

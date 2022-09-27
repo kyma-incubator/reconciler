@@ -435,7 +435,7 @@ func (g *kubeClientAdapter) deployResource(ctx context.Context, infoOriginal, in
 	return nil
 }
 
-//fetchExistingResourceAndConvertToInfo: skip non CR resources, get existing CR definitions from cluster, and convert as resource.Info
+// fetchExistingResourceAndConvertToInfo: skip non CR resources, get existing CR definitions from cluster, and convert as resource.Info
 func (g *kubeClientAdapter) fetchExistingResourceAndConvertToInfo(ctx context.Context, info *resource.Info, crdGroupKinds []schema.GroupKind) (*resource.Info, error) {
 
 	if !containsGroupKind(crdGroupKinds, info.Object.GetObjectKind().GroupVersionKind().GroupKind()) {

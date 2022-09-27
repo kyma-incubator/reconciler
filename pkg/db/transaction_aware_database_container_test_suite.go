@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-//TransactionAwareDatabaseContainerTestSuite manages a test suiteSpec that handles a transaction-enabled connection.
+// TransactionAwareDatabaseContainerTestSuite manages a test suiteSpec that handles a transaction-enabled connection.
 // It can open a connection for you and will roll it back once the suiteSpec is finished.
 // You can enable non-isolated runs (not preferred, edge cases only) by enabling CommitAfterExecution. It is possible
 // to then also enable SchemaResetOnSetup to make sure that you are working from a clean Database. You are able to

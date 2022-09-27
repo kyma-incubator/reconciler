@@ -2,7 +2,7 @@ package chart
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -172,7 +172,7 @@ func TestHelm(t *testing.T) {
 		gotAsMap := make(map[string]interface{})
 		require.NoError(t, yaml.Unmarshal([]byte(got), &gotAsMap)) //use for equality check (avoids whitespace diffs)
 
-		expected, err := ioutil.ReadFile(filepath.Join(chartDir, componentName, "configmap-expected.yaml"))
+		expected, err := os.ReadFile(filepath.Join(chartDir, componentName, "configmap-expected.yaml"))
 		require.NoError(t, err)
 		expectedAsMap := make(map[string]interface{})
 		require.NoError(t, yaml.Unmarshal(expected, &expectedAsMap)) //use for equality check (avoids whitespace diffs)

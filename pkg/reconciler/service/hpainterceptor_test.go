@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -24,7 +24,7 @@ const (
 func TestHPAInterceptor(t *testing.T) {
 	test.IntegrationTest(t)
 
-	manifest, err := ioutil.ReadFile(filepath.Join("test", "hpainterceptor.yaml"))
+	manifest, err := os.ReadFile(filepath.Join("test", "hpainterceptor.yaml"))
 	require.NoError(t, err)
 
 	kubeClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), logger.NewLogger(true), nil)

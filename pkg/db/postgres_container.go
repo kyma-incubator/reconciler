@@ -30,7 +30,7 @@ func NewPostgresContainer(settings PostgresContainerSettings) PostgresContainer 
 	}
 }
 
-//PostgresContainer is a testcontainer that is able to provision a postgres Database with given credentials
+// PostgresContainer is a testcontainer that is able to provision a postgres Database with given credentials
 type PostgresContainer struct {
 	testcontainers.Container
 

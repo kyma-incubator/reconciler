@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//testCallbackHandler is tracking fired status-updates in an env-var (allows a stateless callback implementation)
-//This implementation CAN NOT RUN IN PARALLEL!
+// testCallbackHandler is tracking fired status-updates in an env-var (allows a stateless callback implementation)
+// This implementation CAN NOT RUN IN PARALLEL!
 type testCallbackHandler struct {
 	t *testing.T
 }

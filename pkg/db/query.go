@@ -177,7 +177,7 @@ type Select struct {
 	err  error
 }
 
-//GetArgs returns a copy of current Select arguments
+// GetArgs returns a copy of current Select arguments
 func (s *Select) GetArgs() []interface{} {
 	dst := make([]interface{}, len(s.args))
 	copy(dst, s.args)

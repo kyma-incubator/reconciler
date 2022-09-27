@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -103,7 +102,7 @@ func (cb *ClientBuilder) loadFile(filePath string) ([]byte, error) {
 	if !file.Exists(filePath) {
 		return nil, fmt.Errorf("kubeconfig file not found at path '%s'", filePath)
 	}
-	return ioutil.ReadFile(filePath)
+	return os.ReadFile(filePath)
 }
 
 func verifyPath(path string) (string, error) {

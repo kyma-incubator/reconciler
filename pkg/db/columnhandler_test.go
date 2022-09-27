@@ -161,7 +161,7 @@ func splitAndTrimCsv(csv string) []string {
 	return result
 }
 
-//mock DB entity used to test the validation logic
+// mock DB entity used to test the validation logic
 type validateMe struct {
 	S   string   `db:"notNull"`
 	B   bool     `db:"notNull"`

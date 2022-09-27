@@ -14,8 +14,9 @@ import (
 
 const kindCRD = "CustomResourceDefinition"
 
-//go:generate mockery --name=Provider --outpkg=mocks --case=underscore
 // Provider of manifests.
+//
+//go:generate mockery --name=Provider --outpkg=mocks --case=underscore
 type Provider interface {
 	// WithFilter adds manifest filter to the Provider's filters
 	WithFilter(filter Filter) Provider

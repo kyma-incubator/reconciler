@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -80,7 +79,7 @@ type MockKubeconfigProvider struct {
 
 func (kp *MockKubeconfigProvider) Get() (string, error) {
 	if kp.KubeconfigResult == "" && file.Exists(os.Getenv(envVarKubeconfig)) {
-		kubeCfg, err := ioutil.ReadFile(os.Getenv(envVarKubeconfig))
+		kubeCfg, err := os.ReadFile(os.Getenv(envVarKubeconfig))
 		if err != nil {
 			return "", err
 		}

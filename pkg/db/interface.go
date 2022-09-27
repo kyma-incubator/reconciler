@@ -39,8 +39,8 @@ type DatabaseEntity interface {
 	Equal(other DatabaseEntity) bool
 }
 
-//DataRow introduces a interface which is implemented by sql.Row and sql.Rows
-//to make both usable for retrieving raw data
+// DataRow introduces a interface which is implemented by sql.Row and sql.Rows
+// to make both usable for retrieving raw data
 type DataRow interface {
 	Scan(dest ...interface{}) error
 }

@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
@@ -39,7 +39,7 @@ func NewEncryptor(key string) (*Encryptor, error) {
 	}, nil
 }
 
-//NewEncryptionKey generates a random 32 byte key for AES-256
+// NewEncryptionKey generates a random 32 byte key for AES-256
 func NewEncryptionKey() (string, error) {
 	bytes := make([]byte, KeyLength)
 	_, err := rand.Read(bytes)
@@ -58,7 +58,7 @@ func newAEAD(key string) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-//KeyID returns the first characters of the MD5 keys checksum as HEX string
+// KeyID returns the first characters of the MD5 keys checksum as HEX string
 func (e *Encryptor) KeyID() string {
 	return fmt.Sprintf("%x", e.keyID)[:keyIDLength]
 }
@@ -93,7 +93,7 @@ func (e *Encryptor) Decrypt(encData string) (string, error) {
 	return string(data), nil
 }
 
-//Decryptable verifies whether the encrypted data can be decrypted by this Encryptor instance
+// Decryptable verifies whether the encrypted data can be decrypted by this Encryptor instance
 func (e *Encryptor) Decryptable(encData string) bool {
 	return strings.HasPrefix(encData, e.KeyID()) //KeyID prefix of encrypted data has to match with current KeyID
 }
@@ -102,7 +102,7 @@ func readKeyFile(encKeyFile string) (string, error) {
 	if !file.Exists(encKeyFile) {
 		return "", fmt.Errorf("encryption key file '%s' not found", encKeyFile)
 	}
-	encKeyBytes, err := ioutil.ReadFile(encKeyFile)
+	encKeyBytes, err := os.ReadFile(encKeyFile)
 	if err != nil {
 		return "", errors.Wrap(err, fmt.Sprintf("failed to read encryption key file '%s'", encKeyFile))
 	}

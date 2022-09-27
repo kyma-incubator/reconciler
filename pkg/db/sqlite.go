@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"os"
 
 	//add SQlite driver:
@@ -132,7 +131,7 @@ func (scf *sqliteConnectionFactory) Init(_ bool) error {
 	}
 	if scf.schemaFile != "" {
 		//read DDL (test-table structure)
-		ddl, err := ioutil.ReadFile(scf.schemaFile)
+		ddl, err := os.ReadFile(scf.schemaFile)
 		if err != nil {
 			return errors.Wrapf(err, "error reading file DDL schema file '%s'", scf.schemaFile)
 		}

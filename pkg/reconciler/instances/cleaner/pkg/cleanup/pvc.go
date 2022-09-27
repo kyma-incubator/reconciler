@@ -16,8 +16,8 @@ const (
 	pvcsDeletionTimeout = 6 * time.Second
 )
 
-//deletePVCSAndWait marks PersistentVolumeClaims in a given namespace for deletion and then waits for a pre-defined time to ensure it's deleted.
-//If a PVC can't be timely deleted it's probably because a StatefulSet (or a standard Pod) is still using it.
+// deletePVCSAndWait marks PersistentVolumeClaims in a given namespace for deletion and then waits for a pre-defined time to ensure it's deleted.
+// If a PVC can't be timely deleted it's probably because a StatefulSet (or a standard Pod) is still using it.
 func (cmd *CliCleaner) deletePVCSAndWait(namespace string) error {
 
 	retryFunc := func() error {

@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
@@ -182,7 +182,7 @@ func (o *Options) Validate() error {
 	}
 
 	if isInputFromPipe() {
-		b, err := ioutil.ReadAll(os.Stdin)
+		b, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}
@@ -202,7 +202,7 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("reference kubeconfig file '%s' not found", o.kubeconfigFile)
 	}
 
-	content, err := ioutil.ReadFile(o.kubeconfigFile)
+	content, err := os.ReadFile(o.kubeconfigFile)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to read kubeconfig file '%s'", o.kubeconfigFile))
 	}

@@ -3,7 +3,7 @@ package chart
 import (
 	"crypto/sha1" //nolint
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -107,7 +107,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		//delete success file
 		t.Log("Deleting success file to simulate broken workspace")
-		err = os.Remove(filepath.Join(workspaceDir, wsReadyIndicatorFile))
+		err = os.RemoveAll(filepath.Join(workspaceDir, wsReadyIndicatorFile))
 		require.NoError(t, err)
 
 		//trigger re-cloning
@@ -144,7 +144,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		factory := &DefaultFactory{logger: logger, storageDir: storageDir}
 
-		_, err := ioutil.TempDir(factory.storageDir, "test_*")
+		_, err := os.MkdirTemp(factory.storageDir, "test_*")
 		if err != nil {
 			t.Error(err)
 			return
@@ -179,7 +179,7 @@ func TestWorkspaceFactory(t *testing.T) {
 
 		factory := &DefaultFactory{logger: logger, storageDir: storageDir}
 
-		_, err := ioutil.TempDir(factory.storageDir, "test_*")
+		_, err := os.MkdirTemp(factory.storageDir, "test_*")
 		if err != nil {
 			t.Error(err)
 			return
@@ -233,7 +233,7 @@ func TestWorkspaceFactory(t *testing.T) {
 	})
 }
 
-func doGetExternalComponent(factory Factory, fi os.FileInfo, version, url string) (*Workspace, string, error) {
+func doGetExternalComponent(factory Factory, fi os.DirEntry, version, url string) (*Workspace, string, error) {
 	index := strings.Index(fi.Name(), ".")
 
 	if index == -1 {
@@ -250,8 +250,8 @@ func doGetExternalComponent(factory Factory, fi os.FileInfo, version, url string
 	return ws, name, err
 }
 
-func assertFileInfos(t *testing.T, rscdir string) []os.FileInfo {
-	fis, err := ioutil.ReadDir(rscdir)
+func assertFileInfos(t *testing.T, rscdir string) []fs.DirEntry {
+	fis, err := os.ReadDir(rscdir)
 	if err != nil {
 		t.Fatalf("unable to read resurce dir: %s", err)
 	}
@@ -277,7 +277,7 @@ func Test_ExternalGitComponent(t *testing.T) {
 
 	logger := log.NewLogger(true)
 	factory := &DefaultFactory{logger: logger, storageDir: storageDir}
-	_, err := ioutil.TempDir(factory.storageDir, "test_*")
+	_, err := os.MkdirTemp(factory.storageDir, "test_*")
 	if err != nil {
 		t.Error(err)
 		return

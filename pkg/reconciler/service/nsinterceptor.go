@@ -13,7 +13,7 @@ const (
 type NamespaceInterceptor struct {
 }
 
-//Intercept adds the name of the namespace also as label to the namespace resource to be backward compatible with Kyma 1.x
+// Intercept adds the name of the namespace also as label to the namespace resource to be backward compatible with Kyma 1.x
 func (l *NamespaceInterceptor) Intercept(resources *kubernetes.ResourceCacheList, _ string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
 		labels := u.GetLabels()

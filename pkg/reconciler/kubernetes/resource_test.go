@@ -3,14 +3,14 @@ package kubernetes
 import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestResourceList(t *testing.T) {
-	data, err := ioutil.ReadFile(filepath.Join("test", "unittest-with-namespace.yaml"))
+	data, err := os.ReadFile(filepath.Join("test", "unittest-with-namespace.yaml"))
 	require.NoError(t, err)
 
 	unstructs, err := ToUnstructured(data, true)

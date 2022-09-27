@@ -5,7 +5,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/db"
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/spf13/viper"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -32,5 +31,5 @@ func NewEncryptionKey(backup bool) (string, error) {
 		}
 	}
 
-	return keyFile, ioutil.WriteFile(keyFile, []byte(encKey), 0600)
+	return keyFile, os.WriteFile(keyFile, []byte(encKey), 0600)
 }

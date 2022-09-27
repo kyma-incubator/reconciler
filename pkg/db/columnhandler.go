@@ -154,7 +154,7 @@ func (ch *ColumnHandler) ColumnName(field string) (string, error) {
 	return "", fmt.Errorf("entity '%s' has no field '%s': cannot resolve column name", ch.entity, field)
 }
 
-//ColumnNamesCsv returns the CSV string of the column names
+// ColumnNamesCsv returns the CSV string of the column names
 func (ch *ColumnHandler) ColumnNamesCsv(onlyWriteable bool) string {
 	var buffer bytes.Buffer
 	for _, col := range ch.columns {

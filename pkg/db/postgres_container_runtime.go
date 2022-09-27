@@ -38,8 +38,8 @@ type PostgresContainerSettings struct {
 	EncryptionKeyFile EncryptionKeyFileConfig
 }
 
-//id calculates a hash for ContainerSettings based on the name and image of a directory as well as a cumulated hash
-//over all files relevant for a migration
+// id calculates a hash for ContainerSettings based on the name and image of a directory as well as a cumulated hash
+// over all files relevant for a migration
 func (p PostgresContainerSettings) id() string {
 	configHash, _ := file.HashDir(
 		string(p.migrationConfig()),

@@ -3,7 +3,7 @@ package ssl
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	file "github.com/kyma-incubator/reconciler/pkg/files"
 	"github.com/pkg/errors"
@@ -14,11 +14,11 @@ func VerifyKeyPair(sslCrtFile, sslKeyFile string) error {
 		return nil
 	}
 	if file.Exists(sslCrtFile) && file.Exists(sslKeyFile) {
-		crt, err := ioutil.ReadFile(sslCrtFile)
+		crt, err := os.ReadFile(sslCrtFile)
 		if err != nil {
 			return err
 		}
-		key, err := ioutil.ReadFile(sslKeyFile)
+		key, err := os.ReadFile(sslKeyFile)
 		if err != nil {
 			return err
 		}

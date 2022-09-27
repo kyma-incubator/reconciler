@@ -16,8 +16,8 @@ const (
 	timeout  = 5 * time.Minute
 )
 
-//go:generate mockery --name=RolloutHandler --outpkg=mock --case=underscore
-//RolloutHandler exposes functionality to rollout k8s objects
+// go:generate mockery --name=RolloutHandler --outpkg=mock --case=underscore
+// RolloutHandler exposes functionality to rollout k8s objects
 type RolloutHandler interface {
 	//Rollout a given deployment and wait till it successfully up
 	RolloutAndWaitForDeployment(ctx context.Context, deployment, namespace string, client internalKubernetes.Client, logger *zap.SugaredLogger) error

@@ -1,7 +1,7 @@
 package components
 
 import (
-	"io/ioutil"
+	"os"
 
 	"gopkg.in/yaml.v3"
 )
@@ -25,7 +25,7 @@ type Component struct {
 }
 
 func NewComponentList(compListFile string) (*ComponentList, error) {
-	data, err := ioutil.ReadFile(compListFile)
+	data, err := os.ReadFile(compListFile)
 	if err != nil {
 		return nil, err
 	}
