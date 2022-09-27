@@ -5,7 +5,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/label"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod/reset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
@@ -37,7 +36,7 @@ func init() {
 	reconcilerIstio.
 		WithPreReconcileAction(NewStatusPreAction(istioPerformerCreatorFn)).
 		WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).
-		WithPostReconcileAction(actions.NewActionAggregate(NewProxyResetPostAction(istioPerformerCreatorFn), NewLabelWarningsPostAction(label.NewDefaultPodsLabelAction(gatherer, matcher)))).
+		WithPostReconcileAction(actions.NewActionAggregate(NewProxyResetPostAction(istioPerformerCreatorFn))).
 		WithDeleteAction(NewUninstallAction(istioPerformerCreatorFn))
 
 }
