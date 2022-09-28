@@ -104,7 +104,7 @@ func (cmd *CliCleaner) ensureNoConversionWebhooksFor(crdef schema.GroupVersionRe
 
 	if crd.Spec.Conversion.Strategy != apiExtTypes.NoneConverter {
 		cmd.logger.Infof("Ensuring 'None' conversion strategy for custom resources definition: %s.%s/%s", crdef.Resource, crdef.Group, crdef.Version)
-		data := `{"spec":{"conversion":{"strategy": "None"}}}`
+		data := `{"spec":{"conversion":{"strategy": "None", "webhook": null}}}`
 		_, err := cmd.apixClient.CustomResourceDefinitions().Patch(context.Background(), crdef.GroupResource().String(), types.MergePatchType, []byte(data), metav1.PatchOptions{})
 		return err
 	}
