@@ -90,13 +90,13 @@ func (_m *IstioPerformer) Uninstall(kubeClientSet kubernetes.Client, version str
 	return r0
 }
 
-// Update provides a mock function with given fields: kubeConfig, istioChart, targetVersion, logger
-func (_m *IstioPerformer) Update(kubeConfig string, istioChart string, targetVersion string, logger *zap.SugaredLogger) error {
-	ret := _m.Called(kubeConfig, istioChart, targetVersion, logger)
+// Update provides a mock function with given fields: kubeConfig, istioChart, targetVersion, compareIstioOperators, logger
+func (_m *IstioPerformer) Update(kubeConfig string, istioChart string, targetVersion string, compareIstioOperators bool, logger *zap.SugaredLogger) error {
+	ret := _m.Called(kubeConfig, istioChart, targetVersion, compareIstioOperators, logger)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, *zap.SugaredLogger) error); ok {
-		r0 = rf(kubeConfig, istioChart, targetVersion, logger)
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, *zap.SugaredLogger) error); ok {
+		r0 = rf(kubeConfig, istioChart, targetVersion, compareIstioOperators, logger)
 	} else {
 		r0 = ret.Error(0)
 	}

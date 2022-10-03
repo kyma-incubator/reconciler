@@ -9,8 +9,7 @@ import (
 	"reflect"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-
+	"github.com/go-test/deep"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
@@ -19,6 +18,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	v1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	clientgo "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 
@@ -104,7 +104,7 @@ type IstioPerformer interface {
 	LabelNamespaces(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster to the targetVersion using istioChart.
-	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
+	Update(kubeConfig, istioChart, targetVersion string, compareIstioOperators bool, logger *zap.SugaredLogger) error
 
 	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
 	ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error
@@ -314,7 +314,7 @@ func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.
 	return nil, errors.Wrap(err, "MutatingWebhookConfigurations could not be selected from candidates")
 }
 
-func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, compareIstioOperators bool, logger *zap.SugaredLogger) error {
 	logger.Debug("Starting Istio update...")
 
 	version, err := istioctl.VersionFromString(targetVersion)
@@ -325,6 +325,14 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 	istioOperatorManifest, err := manifest.ExtractIstioOperatorContextFrom(istioChart)
 	if err != nil {
 		return err
+	}
+
+	if compareIstioOperators {
+		needed := upgradeNeeded(c.provider, istioOperatorManifest, kubeConfig, logger)
+		if !needed {
+			return nil
+		}
+		logger.Info("Found different version of IstioOperator CR on cluster, proceeding with upgrade")
 	}
 
 	commander, err := c.resolver.GetCommander(version)
@@ -602,4 +610,26 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespacesByDefault
 
 	return enableNamespacesByDefault, nil
+}
+
+func upgradeNeeded(provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) bool {
+	installedIopJSON, err := provider.GetIstioOperator(kubeConfig)
+	if err != nil {
+		logger.Warnf("Could not fetch Istio Operator from the cluster %v", err)
+		return true
+	}
+	_, installedIop := clientset.GenerateIOPWithProfile(kubeConfig, installedIopJSON)
+	_, toBeInstalledIop := clientset.GenerateIOPWithProfile(kubeConfig, operatorManifest)
+
+	diff := deep.Equal(toBeInstalledIop.Spec, installedIop.Spec)
+	if diff != nil {
+		logger.Infof("Diff: %s", diff)
+	}
+
+	equals := reflect.DeepEqual(toBeInstalledIop.Spec, installedIop.Spec)
+	if !equals {
+		logger.Infof("Istio Operator on the cluster and in the chart are different, upgrade needed")
+		return true
+	}
+	return false
 }

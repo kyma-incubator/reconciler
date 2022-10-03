@@ -650,7 +650,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(kubeConfig, "", "1.2.3", log)
+		err := wrapper.Update(kubeConfig, "", "1.2.3", true, log)
 
 		// then
 		require.Error(t, err)
@@ -668,7 +668,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(kubeConfig, "", "1.2.3", log)
+		err := wrapper.Update(kubeConfig, "", "1.2.3", true, log)
 
 		// then
 		require.Error(t, err)
@@ -687,7 +687,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(kubeConfig, istioManifest, "1.2.3", log)
+		err := wrapper.Update(kubeConfig, istioManifest, "1.2.3", true, log)
 
 		// then
 		require.Error(t, err)
@@ -706,7 +706,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(kubeConfig, istioManifest, "1.2.3", log)
+		err := wrapper.Update(kubeConfig, istioManifest, "1.2.3", true, log)
 
 		// then
 		require.NoError(t, err)
