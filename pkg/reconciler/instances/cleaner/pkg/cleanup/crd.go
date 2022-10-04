@@ -5,10 +5,12 @@ import (
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	apiExtTypes "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	types "k8s.io/apimachinery/pkg/types"
 	k8sRetry "k8s.io/client-go/util/retry"
 )
 
@@ -48,7 +50,14 @@ func (cmd *CliCleaner) removeCustomResourcesFinalizers() error {
 
 	var lastErr error
 	for key, crdef := range crds {
-		err := cmd.removeFinalizersFromAllInstancesOf(crdef) //Continue in case of an error
+
+		err := cmd.ensureNoConversionWebhooksFor(crdef) //Continue in case of an error
+		if err != nil {
+			lastErr = err
+			cmd.logger.Infof("Error while ensuring 'None' conversion strategy for CustomResourceDefinition \"%s\": %s", key, err.Error())
+		}
+
+		err = cmd.removeFinalizersFromAllInstancesOf(crdef) //Continue in case of an error
 		if err != nil {
 			lastErr = err
 			cmd.logger.Infof("Error while dropping finalizers for CustomResourceDefinition \"%s\": %s", key, err.Error())
@@ -84,6 +93,23 @@ func (cmd *CliCleaner) findCRDsByLabel(label string) ([]schema.GroupVersionResou
 	}
 
 	return res, nil
+}
+
+func (cmd *CliCleaner) ensureNoConversionWebhooksFor(crdef schema.GroupVersionResource) error {
+
+	crd, err := cmd.apixClient.CustomResourceDefinitions().Get(context.Background(), crdef.GroupResource().String(), metav1.GetOptions{})
+	if err != nil && !apierr.IsNotFound(err) {
+		return err
+	}
+
+	if crd.Spec.Conversion.Strategy != apiExtTypes.NoneConverter {
+		cmd.logger.Infof("Ensuring 'None' conversion strategy for custom resources definition: %s.%s/%s", crdef.Resource, crdef.Group, crdef.Version)
+		data := `{"spec":{"conversion":{"strategy": "None", "webhook": null}}}`
+		_, err := cmd.apixClient.CustomResourceDefinitions().Patch(context.Background(), crdef.GroupResource().String(), types.MergePatchType, []byte(data), metav1.PatchOptions{})
+		return err
+	}
+
+	return nil
 }
 
 func (cmd *CliCleaner) removeFinalizersFromAllInstancesOf(crdef schema.GroupVersionResource) error {
