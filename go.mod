@@ -13,6 +13,8 @@ replace (
 	//fix CVE-2018-20699
 	github.com/docker/distribution => github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker => github.com/docker/docker v20.10.14+incompatible
+	//fix for CVE-2022-1996
+	github.com/emicklei/go-restful => github.com/emicklei/go-restful v2.16.0+incompatible
 	//fix for CVE-2021-3121
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	//fix for CVE-2021-43784
