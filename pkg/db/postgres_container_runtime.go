@@ -34,7 +34,8 @@ type PostgresContainerSettings struct {
 	Port              int
 	User              string
 	Password          string
-	UseSsl            bool
+	SslMode           string
+	SslRootCert       string
 	EncryptionKeyFile EncryptionKeyFileConfig
 }
 
@@ -97,7 +98,8 @@ func RunPostgresContainer(ctx context.Context, settings PostgresContainerSetting
 		database:      settings.Database,
 		user:          settings.User,
 		password:      settings.Password,
-		sslMode:       settings.UseSsl,
+		sslMode:       settings.SslMode,
+		sslRootCert:   settings.SslRootCert,
 		encryptionKey: encKey,
 		migrationsDir: string(settings.migrationConfig()),
 		blockQueries:  true,

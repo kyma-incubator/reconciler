@@ -28,7 +28,8 @@ var (
 		5432,
 		"kyma",
 		"kyma",
-		false,
+		"disable",
+		"",
 		UnittestEncryptionKeyFileConfig,
 	}
 )
