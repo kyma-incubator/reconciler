@@ -1,5 +1,5 @@
 # These are the default owners for the whole content of the repository. The default owners are automatically added as reviewers when you open a pull request, unless different owners are specified in the file.
-* @khlifi411 @jeremyharisch @ruanxin @tobiscr @varbanv @m00g3n @dbadura @pPrecel @kwiatekus @moelsayed @clebs @Tomasz-Smelcerz-SAP @jakobmoellersap @adityabhatia
+* @khlifi411 @jeremyharisch @ruanxin @tobiscr @varbanv @m00g3n @dbadura @pPrecel @moelsayed @clebs @Tomasz-Smelcerz-SAP @jakobmoellersap @adityabhatia
 
 # Ory reconciler
 /pkg/reconciler/instances/ory/ @strekm @werdes72 @dariusztutaj @cnvergence @barchw
@@ -11,7 +11,7 @@
 /pkg/reconciler/instances/eventing/ @k15r @nachtmaar @marcobebway @mfaizanse @friedrichwilken @vladislavpaskar @raypinto @lilitgh
 
 # Serverless reconciler
-/pkg/reconciler/instances/serverless/ @m00g3n @pPrecel @dbadura
+/pkg/reconciler/instances/serverless/ @m00g3n @pPrecel @dbadura @kwiatekus
 
 # Connectivity Proxy reconciler
 /pkg/reconciler/instances/connectivityproxy/ @akgalwas @franpog859 @koala7659 @ralikio
