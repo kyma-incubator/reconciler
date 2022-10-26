@@ -1,5 +1,5 @@
 # These are the default owners for the whole content of the repository. The default owners are automatically added as reviewers when you open a pull request, unless different owners are specified in the file.
-* @khlifi411 @jeremyharisch @ruanxin @tobiscr @varbanv @m00g3n @dbadura @pPrecel @moelsayed @clebs @Tomasz-Smelcerz-SAP @jakobmoellersap @adityabhatia
+* @khlifi411 @jeremyharisch @ruanxin @tobiscr @varbanv @m00g3n @pPrecel @moelsayed @clebs @Tomasz-Smelcerz-SAP @jakobmoellersap @adityabhatia
 
 # Ory reconciler
 /pkg/reconciler/instances/ory/ @strekm @werdes72 @dariusztutaj @cnvergence @barchw
