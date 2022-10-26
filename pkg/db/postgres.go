@@ -151,7 +151,8 @@ type postgresConnectionFactory struct {
 	database      string
 	user          string
 	password      string
-	sslMode       bool
+	sslMode       string
+	sslRootCert   string
 	encryptionKey string
 	migrationsDir string
 	debug         bool
@@ -187,15 +188,11 @@ func (pcf *postgresConnectionFactory) Reset() error {
 }
 
 func (pcf *postgresConnectionFactory) NewConnection() (Connection, error) {
-	sslMode := "disable"
-	if pcf.sslMode {
-		sslMode = "require"
-	}
 
 	db, err := sql.Open(
 		"postgres",
-		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-			pcf.host, pcf.port, pcf.user, pcf.password, pcf.database, sslMode))
+		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s sslrootcert=%s",
+			pcf.host, pcf.port, pcf.user, pcf.password, pcf.database, pcf.sslMode, pcf.sslRootCert))
 
 	db.SetMaxOpenConns(pcf.maxOpenConns)
 	db.SetMaxIdleConns(pcf.maxIdleConns)

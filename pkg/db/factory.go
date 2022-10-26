@@ -76,7 +76,8 @@ type postgresEnvironment struct {
 	database        string
 	user            string
 	password        string
-	sslMode         bool
+	sslMode         string
+	sslRootCert     string
 	migrationsDir   string
 	maxOpenConns    int
 	maxIdleConns    int
@@ -90,7 +91,8 @@ func getPostgresEnvironment() postgresEnvironment {
 	database := viper.GetString("db.postgres.Database")
 	user := viper.GetString("db.postgres.User")
 	password := viper.GetString("db.postgres.Password")
-	sslMode := viper.GetBool("db.postgres.sslMode")
+	sslMode := viper.GetString("db.postgres.sslMode")
+	sslRootCert := viper.GetString("db.postgres.sslRootCert")
 	migrationsDir := viper.GetString("db.postgres.migrationsDir")
 	maxOpenConns := viper.GetInt("db.postgres.maxOpenConns")
 	maxIdleConns := viper.GetInt("db.postgres.maxIdleConns")
@@ -113,7 +115,10 @@ func getPostgresEnvironment() postgresEnvironment {
 		password = viper.GetString("DATABASE_PASSWORD")
 	}
 	if viper.IsSet("DATABASE_SSL_MODE") {
-		sslMode = viper.GetBool("DATABASE_SSL_MODE")
+		sslMode = viper.GetString("DATABASE_SSL_MODE")
+	}
+	if viper.IsSet("DATABASE_SSLROOTCERT") {
+		sslRootCert = viper.GetString("DATABASE_SSLROOTCERT")
 	}
 	if viper.IsSet("DATABASE_MIGRATIONS_DIR") {
 		migrationsDir = viper.GetString("DATABASE_MIGRATIONS_DIR")
@@ -138,6 +143,7 @@ func getPostgresEnvironment() postgresEnvironment {
 		user:            user,
 		password:        password,
 		sslMode:         sslMode,
+		sslRootCert:     sslRootCert,
 		migrationsDir:   migrationsDir,
 		maxOpenConns:    maxOpenConns,
 		maxIdleConns:    maxIdleConns,
@@ -174,6 +180,7 @@ func createPostgresConnectionFactory(encKey string, debug bool, blockQueries, lo
 		user:            env.user,
 		password:        env.password,
 		sslMode:         env.sslMode,
+		sslRootCert:     env.sslRootCert,
 		encryptionKey:   encKey,
 		migrationsDir:   env.migrationsDir,
 		blockQueries:    blockQueries,

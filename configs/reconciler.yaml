@@ -12,7 +12,8 @@ db:
     port: 5432
     user: kyma
     password: kyma
-    useSsl: false
+    sslMode: "disable"
+    sslRootCert: ""
     migrationsDir: "./configs/db/postgres"
     # SetMaxOpenConns sets the maximum number of open connections to the database.
     maxOpenConns: 100 # if n <= 0, then there is no limit on the number of open connections. The default is 0 (unlimited).
