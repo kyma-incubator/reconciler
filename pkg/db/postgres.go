@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/pkg/errors"
@@ -188,11 +189,19 @@ func (pcf *postgresConnectionFactory) Reset() error {
 }
 
 func (pcf *postgresConnectionFactory) NewConnection() (Connection, error) {
+	sslMode := "disable"
+	if pcf.sslMode != "" {
+		sslMode = pcf.sslMode
+	}
 
-	db, err := sql.Open(
-		"postgres",
-		fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s sslrootcert=%s",
-			pcf.host, pcf.port, pcf.user, pcf.password, pcf.database, pcf.sslMode, pcf.sslRootCert))
+	connectionString := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		pcf.host, pcf.port, pcf.user, pcf.password, pcf.database, sslMode)
+
+	if pcf.sslRootCert != "" {
+		connectionString = fmt.Sprintf("%s sslrootcert=%s", connectionString, pcf.sslRootCert)
+	}
+
+	db, err := sql.Open("postgres", connectionString)
 
 	db.SetMaxOpenConns(pcf.maxOpenConns)
 	db.SetMaxIdleConns(pcf.maxIdleConns)
