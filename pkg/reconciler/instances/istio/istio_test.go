@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	v12 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -286,17 +285,6 @@ func newFakeKubeClient() *k8smocks.Client {
 			Name: "istio-system",
 		},
 	},
-		&v12.MutatingWebhookConfiguration{
-			ObjectMeta: metav1.ObjectMeta{Name: "istio-revision-tag-default"},
-			Webhooks: []v12.MutatingWebhook{
-				{
-					Name: "auto.sidecar-injector.istio.io",
-					NamespaceSelector: &metav1.LabelSelector{
-						MatchExpressions: nil,
-					},
-				},
-			},
-		},
 	)
 	mockClient.On("Clientset").Return(fakeClient, nil)
 	mockClient.On("Kubeconfig").Return("kubeconfig")

@@ -66,16 +66,6 @@ func (a *MainReconcileAction) Run(context *service.ActionContext) error {
 	}
 
 	err = deployIstio(context, performer)
-	errPatchMutatingWebhook := performer.PatchMutatingWebhook(context.Context, context.KubeClient,
-		context.WorkspaceFactory, context.Task.Version, context.Task.Component, context.Logger)
-	if errPatchMutatingWebhook != nil {
-		errPatchMutatingWebhook = errors.Wrap(errPatchMutatingWebhook, "Could not patch MutatingWebhookConfiguration")
-		if err != nil {
-			err = errors.Wrap(err, errPatchMutatingWebhook.Error())
-		} else {
-			err = errPatchMutatingWebhook
-		}
-	}
 
 	errLabelNamespaces := performer.LabelNamespaces(context.Context, context.KubeClient,
 		context.WorkspaceFactory, context.Task.Version, context.Task.Component, context.Logger)

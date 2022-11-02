@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"reflect"
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -17,9 +16,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	v1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clientgo "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
@@ -96,9 +93,6 @@ type IstioPerformer interface {
 
 	// Install Istio in given version on the cluster using istioChart.
 	Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error
-
-	// PatchMutatingWebhook patches Istio's webhook configuration.
-	PatchMutatingWebhook(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error
 
 	// LabelNamespaces labels all namespaces with enabled istio sidecar migration.
 	LabelNamespaces(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error
@@ -195,54 +189,6 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 	return nil
 }
 
-func (c *DefaultIstioPerformer) PatchMutatingWebhook(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error {
-	logger.Debugf("Patching mutating webhook")
-	clientSet, err := kubeClient.Clientset()
-	if err != nil {
-		return err
-	}
-
-	const primary = "istio-revision-tag-default"
-	const secondary = "istio-sidecar-injector"
-	candidatesNames := []string{primary, secondary}
-	webhookNameToChange := "auto.sidecar-injector.istio.io"
-	requiredLabelSelector := metav1.LabelSelectorRequirement{
-		Key:      "gardener.cloud/purpose",
-		Operator: "NotIn",
-		Values:   []string{"kube-system"},
-	}
-
-	sidecarMigrationEnabled, sidecarMigrationIsSet, err := isSidecarMigrationEnabled(workspace, branchVersion, istioChart)
-	if err != nil {
-		return err
-	}
-	if sidecarMigrationEnabled || !sidecarMigrationIsSet {
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			whConf, err := c.selectWebhookConfFormCandidates(context, candidatesNames, clientSet)
-			if err != nil {
-				return err
-			}
-			err = c.addNamespaceSelectorIfNotPresent(whConf, webhookNameToChange, requiredLabelSelector)
-			if err != nil {
-				return err
-			}
-			_, err = clientSet.AdmissionregistrationV1().
-				MutatingWebhookConfigurations().
-				Update(context, whConf, metav1.UpdateOptions{})
-			return err
-		})
-		if err != nil {
-			return err
-		}
-
-		logger.Debugf("Patch has been applied successfully")
-		return nil
-	}
-
-	logger.Debugf("Sidecar migration is disabled or not set, skipping mutating webhook patch")
-	return nil
-}
-
 func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error {
 	logger.Debugf("Labeling namespaces with istio-injection: enabled")
 	clientSet, err := kubeClient.Clientset()
@@ -281,37 +227,6 @@ func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeCli
 	}
 
 	return nil
-}
-
-func (c *DefaultIstioPerformer) addNamespaceSelectorIfNotPresent(whConf *v1.MutatingWebhookConfiguration, webhookNameToChange string, requiredLabelSelector metav1.LabelSelectorRequirement) error {
-	for i := range whConf.Webhooks {
-		if whConf.Webhooks[i].Name == webhookNameToChange {
-			matchExpressions := whConf.Webhooks[i].NamespaceSelector.MatchExpressions
-			var hasRequiredLabel bool
-			for j := range matchExpressions {
-				if hasRequiredLabel = reflect.DeepEqual(matchExpressions[j], requiredLabelSelector); hasRequiredLabel {
-					break
-				}
-			}
-			if !hasRequiredLabel {
-				matchExpressions = append(matchExpressions, requiredLabelSelector)
-				whConf.Webhooks[i].NamespaceSelector.MatchExpressions = matchExpressions
-			}
-			return nil
-		}
-	}
-	return fmt.Errorf("could not find webhook %s in WebhookConfiguration %s", webhookNameToChange, whConf.Name)
-}
-
-func (c *DefaultIstioPerformer) selectWebhookConfFormCandidates(context context.Context, candidatesNames []string, clientSet clientgo.Interface) (wh *v1.MutatingWebhookConfiguration, err error) {
-	for _, webhookName := range candidatesNames {
-		wh, err = clientSet.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context, webhookName, metav1.GetOptions{})
-		if err != nil {
-			continue
-		}
-		return
-	}
-	return nil, errors.Wrap(err, "MutatingWebhookConfigurations could not be selected from candidates")
 }
 
 func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
