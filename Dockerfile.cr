@@ -1,6 +1,6 @@
 # Istioctl source images
 FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.14.4 AS istio-1_14_4
-FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.15.0 AS istio-1_15_0
+FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.15.3 AS istio-1_15_3
 
 # Build image
 FROM golang:1.19.2-alpine3.16 AS build
@@ -38,9 +38,9 @@ COPY --from=build /configs/ /configs/
 
 # Add istioctl tools
 COPY --from=istio-1_14_4 /usr/local/bin/istioctl /bin/istioctl-1.14.4
-COPY --from=istio-1_15_0 /usr/local/bin/istioctl /bin/istioctl-1.15.0
+COPY --from=istio-1_15_3 /usr/local/bin/istioctl /bin/istioctl-1.15.3
 # For multiple istioctl binaries, provide their paths separated with a semicolon (;) like in the Linux PATH variable.
-ENV ISTIOCTL_PATH=/bin/istioctl-1.14.4;/bin/istioctl-1.15.0
+ENV ISTIOCTL_PATH=/bin/istioctl-1.14.4;/bin/istioctl-1.15.3
 
 USER appuser:appuser
 
