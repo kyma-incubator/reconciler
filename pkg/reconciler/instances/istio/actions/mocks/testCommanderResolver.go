@@ -1,4 +1,4 @@
-package mocks
+package mock
 
 import "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 

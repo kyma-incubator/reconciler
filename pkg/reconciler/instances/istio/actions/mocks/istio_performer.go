@@ -20,13 +20,13 @@ type IstioPerformer struct {
 	mock.Mock
 }
 
-// Install provides a mock function with given fields: kubeConfig, istioChart, version, logger
-func (_m *IstioPerformer) Install(kubeConfig string, istioChart string, version string, logger *zap.SugaredLogger) error {
-	ret := _m.Called(kubeConfig, istioChart, version, logger)
+// Install provides a mock function with given fields: _a0, kubeConfig, istioChart, version, logger
+func (_m *IstioPerformer) Install(_a0 context.Context, kubeConfig string, istioChart string, version string, logger *zap.SugaredLogger) error {
+	ret := _m.Called(_a0, kubeConfig, istioChart, version, logger)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, *zap.SugaredLogger) error); ok {
-		r0 = rf(kubeConfig, istioChart, version, logger)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, *zap.SugaredLogger) error); ok {
+		r0 = rf(_a0, kubeConfig, istioChart, version, logger)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -76,13 +76,13 @@ func (_m *IstioPerformer) Uninstall(kubeClientSet kubernetes.Client, version str
 	return r0
 }
 
-// Update provides a mock function with given fields: kubeConfig, istioChart, targetVersion, logger
-func (_m *IstioPerformer) Update(kubeConfig string, istioChart string, targetVersion string, logger *zap.SugaredLogger) error {
-	ret := _m.Called(kubeConfig, istioChart, targetVersion, logger)
+// Update provides a mock function with given fields: _a0, kubeConfig, istioChart, targetVersion, logger
+func (_m *IstioPerformer) Update(_a0 context.Context, kubeConfig string, istioChart string, targetVersion string, logger *zap.SugaredLogger) error {
+	ret := _m.Called(_a0, kubeConfig, istioChart, targetVersion, logger)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, *zap.SugaredLogger) error); ok {
-		r0 = rf(kubeConfig, istioChart, targetVersion, logger)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, *zap.SugaredLogger) error); ok {
+		r0 = rf(_a0, kubeConfig, istioChart, targetVersion, logger)
 	} else {
 		r0 = ret.Error(0)
 	}

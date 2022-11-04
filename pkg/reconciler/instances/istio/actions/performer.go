@@ -8,14 +8,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
+	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-project/istio/operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 
@@ -24,6 +24,10 @@ import (
 	"go.uber.org/zap"
 	helmChart "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -92,13 +96,13 @@ type chartValues struct {
 type IstioPerformer interface {
 
 	// Install Istio in given version on the cluster using istioChart.
-	Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error
+	Install(context context.Context, kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error
 
 	// LabelNamespaces labels all namespaces with enabled istio sidecar migration.
 	LabelNamespaces(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster to the targetVersion using istioChart.
-	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
+	Update(context context.Context, kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
 	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
 	ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error
@@ -163,7 +167,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error {
 	logger.Debug("Starting Istio installation...")
 
 	execVersion, err := istioctl.VersionFromString(version)
@@ -176,12 +180,17 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 		return err
 	}
 
+	mergedManifest, err := mergeIstioConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	if err != nil {
+		return err
+	}
+
 	commander, err := c.resolver.GetCommander(execVersion)
 	if err != nil {
 		return err
 	}
 
-	err = commander.Install(istioOperatorManifest, kubeConfig, logger)
+	err = commander.Install(mergedManifest, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -242,12 +251,17 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 		return err
 	}
 
+	mergedManifest, err := mergeIstioConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	if err != nil {
+		return err
+	}
+
 	commander, err := c.resolver.GetCommander(version)
 	if err != nil {
 		return err
 	}
 
-	err = commander.Upgrade(istioOperatorManifest, kubeConfig, logger)
+	err = commander.Upgrade(mergedManifest, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -517,4 +531,41 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespacesByDefault
 
 	return enableNamespacesByDefault, nil
+}
+
+func mergeIstioConfiguration(ctx context.Context, provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (string, error) {
+	istioCR, err := checkIstioCR(ctx, provider, kubeConfig)
+	if err != nil {
+		return "", err
+	}
+	var outputManifest []byte
+	if len(istioCR.Items) != 0 {
+		toBeInstalledIop := istioOperator.IstioOperator{}
+		json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
+		for _, cr := range istioCR.Items {
+			cr.MergeInto(toBeInstalledIop)
+		}
+
+		outputManifest, err = json.Marshal(toBeInstalledIop)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		return operatorManifest, nil
+	}
+
+	return string(outputManifest), err
+}
+
+func checkIstioCR(ctx context.Context, provider clientset.Provider, kubeConfig string) (*v1alpha1.IstioList, error) {
+	client, err := provider.GetControllerClient(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	istioCRList, err := kymaIstio.ListIstioCR(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return istioCRList, nil
 }
