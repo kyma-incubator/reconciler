@@ -63,36 +63,4 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, manifest, istioManifest)
 	})
-
-	/*
-		 	t.Run("should return merged configuration", func(t *testing.T) {
-				// given
-				numTrustedProxies := int(4)
-				kymaSystem := corev1.Namespace{
-					ObjectMeta: v1.ObjectMeta{
-						Name: "namespace",
-					},
-				}
-				istio_default := v1alpha1.Istio{ObjectMeta: v1.ObjectMeta{
-					Name:      "istio-test",
-					Namespace: "namespace",
-				},
-					Spec: v1alpha1.IstioSpec{
-						Config: v1alpha1.Config{
-							NumTrustedProxies: &numTrustedProxies,
-						},
-					},
-				}
-				client := createClient(t, &istio_default, &kymaSystem)
-				provider := &clientsetmocks.Provider{}
-				provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
-
-				// when
-				manifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
-
-				// then
-				require.NoError(t, err)
-				fmt.Println(manifest)
-			})
-	*/
 }

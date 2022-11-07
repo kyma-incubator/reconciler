@@ -3,7 +3,6 @@ package merge
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-project/istio/operator/api/v1alpha1"
@@ -29,7 +28,6 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 	var outputManifest []byte
 	toBeInstalledIop := istioOperator.IstioOperator{}
 	json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
-	fmt.Println(toBeInstalledIop)
 	for _, cr := range istioCRList.Items {
 		_, err := cr.MergeInto(toBeInstalledIop)
 		if err != nil {
