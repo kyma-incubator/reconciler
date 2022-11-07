@@ -59,4 +59,4 @@ The reconciliation is executed by the Istio Reconciler. First, using the rules e
 
 If a customer makes changes in the Istio configuration that are not compatible with the Kyma setup configured within `istio-operator.yaml`, the Istio Reconciler automatically overwrites them with the default values.
 
-After choosing the proper Istio version for installation and applying back the default values, the Istio Reconciler patches the Istio Webhook to base on Kyma and Gardener assumptions.
+After choosing the proper Istio version for installation and applying back the default values, the Istio Reconciler checks if all sidecars are properly injected in the workload.
