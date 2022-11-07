@@ -27,7 +27,11 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 
 	var outputManifest []byte
 	toBeInstalledIop := istioOperator.IstioOperator{}
-	json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
+	err = json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
+	if err != nil {
+		return "", err
+	}
+
 	for _, cr := range istioCRList.Items {
 		_, err := cr.MergeInto(toBeInstalledIop)
 		if err != nil {
