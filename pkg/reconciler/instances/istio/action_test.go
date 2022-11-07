@@ -206,7 +206,7 @@ func TestStatusPreAction_Run(t *testing.T) {
 			DataPlaneVersion: "1.1",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(tooLowClientVersion, nil)
-		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("Install", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 
 		action := StatusPreAction{performerCreatorFn(&performer)}
 
@@ -252,9 +252,9 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Contains(t, err.Error(), "Performer error")
 		provider.AssertNotCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertNotCalled(t, "Version", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
 		performer.AssertNotCalled(t, "LabelNamespaces", mock.AnythingOfType("context.Context"), mock.AnythingOfType("kubernetes.Client"), mock.AnythingOfType("chart.Factory"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
 	t.Run("should not return error when istio install and label namespaces were successful", func(t *testing.T) {
@@ -272,7 +272,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer := actionsmocks.IstioPerformer{}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(noIstioOnTheCluster, nil)
-		performer.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("Install", mock.AnythingOfType("context.Context"), mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger).Return(nil)
 		action := MainReconcileAction{performerCreatorFn(&performer)}
 
@@ -283,8 +283,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Install", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger)
 	})
 
@@ -309,8 +309,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Contains(t, err.Error(), "LabelNamespaces error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"))
-		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
 	t.Run("should return an error when istio installation failed but label namespaces were successful", func(t *testing.T) {
@@ -328,7 +328,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			DataPlaneVersion: "",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
-		performer.On("Install", actionContext.KubeClient.Kubeconfig(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Istio Install error"))
+		performer.On("Install", mock.AnythingOfType("context.Context"), actionContext.KubeClient.Kubeconfig(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Istio Install error"))
 		performer.On("LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger).Return(nil)
 		action := MainReconcileAction{performerCreatorFn(&performer)}
 
@@ -340,8 +340,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Contains(t, err.Error(), "Istio Install error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Install", mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Install", mock.AnythingOfType("context.Context"), mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger)
 	})
 
@@ -360,7 +360,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			DataPlaneVersion: "",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(noIstioOnTheCluster, nil)
-		performer.On("Install", actionContext.KubeClient.Kubeconfig(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("Install", mock.AnythingOfType("context.Context"), actionContext.KubeClient.Kubeconfig(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger).Return(errors.New("LabelNamespaces error"))
 		action := MainReconcileAction{performerCreatorFn(&performer)}
 
@@ -372,8 +372,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Contains(t, err.Error(), "LabelNamespaces error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Install", mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Install", mock.AnythingOfType("context.Context"), mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Update", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger)
 	})
 
@@ -392,7 +392,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer := actionsmocks.IstioPerformer{}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(istioOnTheCluster, nil)
-		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("Update", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger).Return(nil)
 		action := MainReconcileAction{performerCreatorFn(&performer)}
 
@@ -403,7 +403,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.NoError(t, err)
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger)
 	})
@@ -423,7 +423,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer := actionsmocks.IstioPerformer{}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(istioOnTheCluster, nil)
-		performer.On("Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Istio Update error"))
+		performer.On("Update", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Istio Update error"))
 		performer.On("LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger).Return(errors.New("LabelNamespaces error"))
 		action := MainReconcileAction{performerCreatorFn(&performer)}
 
@@ -436,8 +436,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Contains(t, err.Error(), "LabelNamespaces error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Update", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger)
 	})
 
@@ -456,7 +456,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		}
 		performer := actionsmocks.IstioPerformer{}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(istioOnTheCluster, nil)
-		performer.On("Update", actionContext.KubeClient.Kubeconfig(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Istio Update error"))
+		performer.On("Update", mock.AnythingOfType("context.Context"), actionContext.KubeClient.Kubeconfig(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(errors.New("Istio Update error"))
 		performer.On("LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger).Return(nil)
 		action := MainReconcileAction{performerCreatorFn(&performer)}
 
@@ -468,7 +468,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Contains(t, err.Error(), "Istio Update error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger)
 	})
 
@@ -487,7 +487,7 @@ func Test_ReconcileAction_Run(t *testing.T) {
 			DataPlaneVersion: "1.0.0",
 		}
 		performer.On("Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(istioOnTheCluster, nil)
-		performer.On("Update", actionContext.KubeClient.Kubeconfig(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
+		performer.On("Update", mock.AnythingOfType("context.Context"), actionContext.KubeClient.Kubeconfig(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), actionContext.Logger).Return(nil)
 		performer.On("LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger).Return(errors.New("LabelNamespaces error"))
 		action := MainReconcileAction{performerCreatorFn(&performer)}
 
@@ -499,8 +499,8 @@ func Test_ReconcileAction_Run(t *testing.T) {
 		require.Contains(t, err.Error(), "LabelNamespaces error")
 		provider.AssertCalled(t, "RenderManifest", mock.AnythingOfType("*chart.Component"))
 		performer.AssertCalled(t, "Version", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertNotCalled(t, "Install", mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
-		performer.AssertCalled(t, "Update", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertNotCalled(t, "Install", mock.AnythingOfType("context.Context"), mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*zap.SugaredLogger"))
+		performer.AssertCalled(t, "Update", mock.AnythingOfType("context.Context"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 		performer.AssertCalled(t, "LabelNamespaces", actionContext.Context, actionContext.KubeClient, actionContext.WorkspaceFactory, "version", "component", actionContext.Logger)
 	})
 }
