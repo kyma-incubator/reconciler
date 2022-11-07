@@ -67,10 +67,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/iancoleman/strcase v0.2.0
 	github.com/imdario/mergo v0.3.13
-<<<<<<< HEAD
-=======
-	github.com/kyma-project/istio/operator v0.0.0-20221102100325-5026644881d3
->>>>>>> f838a98 (Apply user configuration to Istio reconciler and add tests)
+	github.com/kyma-project/istio/operator v0.0.0-20221107094910-89bc304f6079
 	github.com/lib/pq v1.10.7
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/mholt/archiver/v3 v3.5.1
@@ -165,14 +162,16 @@ require (
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fatih/color v1.13.0 // indirect
 <<<<<<< HEAD
+<<<<<<< HEAD
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/garyburd/redigo v1.6.3 // indirect
 >>>>>>> 40a9a63 (Apply user configuration to Istio reconciler and add tests)
 	github.com/go-errors/errors v1.0.2 // indirect
 =======
+=======
+>>>>>>> 3b5b4fe (Go mod tidy)
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
->>>>>>> f838a98 (Apply user configuration to Istio reconciler and add tests)
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.2 // indirect
@@ -186,6 +185,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 <<<<<<< HEAD
+<<<<<<< HEAD
 	github.com/google/btree v1.0.1 // indirect
 <<<<<<< HEAD
 	github.com/google/gnostic v0.5.7-v3refs // indirect
@@ -195,10 +195,11 @@ require (
 =======
 	github.com/google/go-cmp v0.5.8 // indirect
 =======
+=======
+>>>>>>> 3b5b4fe (Go mod tidy)
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
->>>>>>> f838a98 (Apply user configuration to Istio reconciler and add tests)
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
@@ -265,6 +266,7 @@ require (
 >>>>>>> 40a9a63 (Apply user configuration to Istio reconciler and add tests)
 	github.com/sergi/go-diff v1.1.0 // indirect
 <<<<<<< HEAD
+<<<<<<< HEAD
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 <<<<<<< HEAD
@@ -277,6 +279,11 @@ require (
 	github.com/spf13/afero v1.9.2 // indirect
 >>>>>>> f838a98 (Apply user configuration to Istio reconciler and add tests)
 >>>>>>> 40a9a63 (Apply user configuration to Istio reconciler and add tests)
+=======
+	github.com/shopspring/decimal v1.3.1 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
+	github.com/spf13/afero v1.9.2 // indirect
+>>>>>>> 3b5b4fe (Go mod tidy)
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
@@ -288,6 +295,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
+<<<<<<< HEAD
 <<<<<<< HEAD
 	github.com/xlab/treeprint v1.1.0 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.5 // indirect
@@ -324,6 +332,8 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/gorp.v1 v1.7.2 // indirect
 =======
+=======
+>>>>>>> 3b5b4fe (Go mod tidy)
 	github.com/xlab/treeprint v1.1.0 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.4 // indirect
 	go.opencensus.io v0.23.1-0.20220331163232-052120675fac // indirect
@@ -341,7 +351,6 @@ require (
 	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c // indirect
 	google.golang.org/grpc v1.50.1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
->>>>>>> f838a98 (Apply user configuration to Istio reconciler and add tests)
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
