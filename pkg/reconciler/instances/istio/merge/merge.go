@@ -1,0 +1,58 @@
+package merge
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
+	"github.com/kyma-project/istio/operator/api/v1alpha1"
+	"github.com/kyma-project/istio/operator/pkg/lib/gatherer"
+	"go.uber.org/zap"
+	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
+	apiMeta "k8s.io/apimachinery/pkg/api/meta"
+)
+
+func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (string, error) {
+	istioCRList, err := checkIstioCR(ctx, provider, kubeConfig)
+	if err != nil {
+		return "", err
+	}
+
+	if istioCRList == nil {
+		logger.Debugf("No Istio CRs found on the cluster, applying default configuration")
+		return operatorManifest, nil
+	}
+
+	var outputManifest []byte
+	toBeInstalledIop := istioOperator.IstioOperator{}
+	json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
+	fmt.Println(toBeInstalledIop)
+	for _, cr := range istioCRList.Items {
+		_, err := cr.MergeInto(toBeInstalledIop)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	outputManifest, err = json.Marshal(toBeInstalledIop)
+	if err != nil {
+		return "", err
+	}
+	logger.Debugf("Istio CRs were applied to the Istio Operator configuration")
+
+	return string(outputManifest), err
+}
+
+func checkIstioCR(ctx context.Context, provider clientset.Provider, kubeConfig string) (*v1alpha1.IstioList, error) {
+	client, err := provider.GetIstioClient(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	istioCRList, err := gatherer.ListIstioCR(ctx, client)
+	if err != nil && !apiMeta.IsNoMatchError(err) {
+		return nil, err
+	}
+
+	return istioCRList, nil
+}

@@ -17,8 +17,8 @@ type Provider struct {
 	mock.Mock
 }
 
-// GetControllerClient provides a mock function with given fields: kubeConfig
-func (_m *Provider) GetControllerClient(kubeConfig string) (client.Client, error) {
+// GetIstioClient provides a mock function with given fields: kubeConfig
+func (_m *Provider) GetIstioClient(kubeConfig string) (client.Client, error) {
 	ret := _m.Called(kubeConfig)
 
 	var r0 client.Client

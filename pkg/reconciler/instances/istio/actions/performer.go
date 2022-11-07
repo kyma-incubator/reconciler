@@ -12,6 +12,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/merge"
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -180,7 +181,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return err
 	}
 
-	mergedManifest, err := mergeIstioConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -251,7 +252,7 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 		return err
 	}
 
-	mergedManifest, err := mergeIstioConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -531,41 +532,4 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespacesByDefault
 
 	return enableNamespacesByDefault, nil
-}
-
-func mergeIstioConfiguration(ctx context.Context, provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (string, error) {
-	istioCR, err := checkIstioCR(ctx, provider, kubeConfig)
-	if err != nil {
-		return "", err
-	}
-	var outputManifest []byte
-	if len(istioCR.Items) != 0 {
-		toBeInstalledIop := istioOperator.IstioOperator{}
-		json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
-		for _, cr := range istioCR.Items {
-			cr.MergeInto(toBeInstalledIop)
-		}
-
-		outputManifest, err = json.Marshal(toBeInstalledIop)
-		if err != nil {
-			return "", err
-		}
-	} else {
-		return operatorManifest, nil
-	}
-
-	return string(outputManifest), err
-}
-
-func checkIstioCR(ctx context.Context, provider clientset.Provider, kubeConfig string) (*v1alpha1.IstioList, error) {
-	client, err := provider.GetControllerClient(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	istioCRList, err := kymaIstio.ListIstioCR(ctx, client)
-	if err != nil {
-		return nil, err
-	}
-
-	return istioCRList, nil
 }
