@@ -15,19 +15,42 @@ import (
 // IstioOperatorConfiguration merges default Kyma Istio Operator file with user configuration in Istio CR.
 // If there is no IstioCRD or there are no Istio CR present on the cluster, it defaults to the operator file.
 func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (string, error) {
-	istioCRList, err := checkIstioCR(ctx, provider, kubeConfig)
+	istioCRList, err := getIstioCR(ctx, provider, kubeConfig)
 	if err != nil {
 		return "", err
 	}
 
-	if istioCRList == nil {
-		logger.Debugf("No Istio CRs found on the cluster, applying default configuration")
-		return operatorManifest, nil
+	if istioCRList != nil {
+		combinedManifest, err := applyIstioCR(istioCRList, operatorManifest)
+		if err != nil {
+			return "", err
+		}
+
+		logger.Debugf("Istio CRs were applied to the Istio Operator configuration")
+		return combinedManifest, nil
 	}
 
+	logger.Debugf("No Istio CRs found on the cluster, applying default configuration")
+	return operatorManifest, nil
+}
+
+func getIstioCR(ctx context.Context, provider clientset.Provider, kubeConfig string) (*v1alpha1.IstioList, error) {
+	client, err := provider.GetIstioClient(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	istioCRList, err := gatherer.ListIstioCR(ctx, client)
+	if err != nil && !apiMeta.IsNoMatchError(err) {
+		return nil, err
+	}
+
+	return istioCRList, nil
+}
+
+func applyIstioCR(istioCRList *v1alpha1.IstioList, operatorManifest string) (string, error) {
 	var outputManifest []byte
 	toBeInstalledIop := istioOperator.IstioOperator{}
-	err = json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
+	err := json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
 	if err != nil {
 		return "", err
 	}
@@ -43,20 +66,6 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 	if err != nil {
 		return "", err
 	}
-	logger.Debugf("Istio CRs were applied to the Istio Operator configuration")
 
-	return string(outputManifest), err
-}
-
-func checkIstioCR(ctx context.Context, provider clientset.Provider, kubeConfig string) (*v1alpha1.IstioList, error) {
-	client, err := provider.GetIstioClient(kubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	istioCRList, err := gatherer.ListIstioCR(ctx, client)
-	if err != nil && !apiMeta.IsNoMatchError(err) {
-		return nil, err
-	}
-
-	return istioCRList, nil
+	return string(outputManifest), nil
 }

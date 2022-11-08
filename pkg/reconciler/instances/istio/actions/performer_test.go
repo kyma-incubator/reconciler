@@ -17,9 +17,12 @@ import (
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
+	"github.com/kyma-project/istio/operator/api/v1alpha1"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
+	controllerfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 const (
@@ -86,6 +89,9 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
 	kubeConfig := "kubeConfig"
 	log := logger.NewLogger(false)
+	err := v1alpha1.AddToScheme(scheme.Scheme)
+	require.NoError(t, err)
+	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 
 	t.Run("should not install when istio version could not be resolved", func(t *testing.T) {
 		// given
@@ -130,6 +136,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
@@ -149,6 +156,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
@@ -352,6 +360,9 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 
 	kubeConfig := "kubeConfig"
 	log := logger.NewLogger(false)
+	err := v1alpha1.AddToScheme(scheme.Scheme)
+	require.NoError(t, err)
+	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 
 	t.Run("should not update when istio version could not be resolved", func(t *testing.T) {
 		// given
@@ -396,6 +407,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
@@ -415,6 +427,7 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
