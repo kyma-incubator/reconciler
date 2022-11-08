@@ -3,9 +3,9 @@ module github.com/kyma-incubator/reconciler
 go 1.18
 
 replace (
-	github.com/docker/cli => github.com/docker/cli v20.10.17+incompatible
+	github.com/docker/cli => github.com/docker/cli v20.10.18+incompatible
 	github.com/docker/distribution => github.com/docker/distribution v2.8.1+incompatible
-	github.com/docker/docker => github.com/docker/docker v20.10.17+incompatible
+	github.com/docker/docker => github.com/docker/docker v20.10.18+incompatible
 
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.3
@@ -104,9 +104,9 @@ require (
 	github.com/containerd/containerd v1.6.6 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/docker/cli v20.10.17+incompatible // indirect
+	github.com/docker/cli v20.10.18+incompatible // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
-	github.com/docker/docker v20.10.17+incompatible // indirect
+	github.com/docker/docker v20.10.18+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.6.4 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
