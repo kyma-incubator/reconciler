@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,8 +24,6 @@ const (
 
 func createClient(t *testing.T, objects ...client.Object) client.Client {
 	err := v1alpha1.AddToScheme(scheme.Scheme)
-	require.NoError(t, err)
-	err = corev1.AddToScheme(scheme.Scheme)
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(objects...).Build()
@@ -56,8 +53,9 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 
 	t.Run("should return default configuration, when there are no Istio CR", func(t *testing.T) {
 		// given
+		client := createClient(t)
 		provider := &clientsetmocks.Provider{}
-		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(createClient(t), nil)
+		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
 
 		// when
 		manifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
