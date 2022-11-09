@@ -18,7 +18,7 @@ type Provider interface {
 	// RetrieveFrom kubeconfig and return new k8s ClientSet instance.
 	RetrieveFrom(kubeConfig string, log *zap.SugaredLogger) (kubernetes.Interface, error)
 
-	// GetIstioClient returns a new controller-runtime Client using provided config and  Kyma Istio Operator scheme
+	// GetIstioClient returns a new controller-runtime Client using provided config and Kyma Istio Operator scheme
 	GetIstioClient(kubeConfig string) (client.Client, error)
 }
 
@@ -52,7 +52,7 @@ func (c *DefaultProvider) RetrieveFrom(kubeConfig string, log *zap.SugaredLogger
 }
 
 func (c *DefaultProvider) GetIstioClient(kubeConfig string) (client.Client, error) {
-	config, err := restConfig(kubeConfig)
+	config, err := loadRestConfig(kubeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +72,7 @@ func (c *DefaultProvider) GetIstioClient(kubeConfig string) (client.Client, erro
 	return client, nil
 }
 
-// restConfig loads the rest configuration needed by k8s clients to interact with clusters based on the kubeconfig.
-// Loading rules are based on standard defined kubernetes config loading.
-func restConfig(kubeconfigData string) (*rest.Config, error) {
+func loadRestConfig(kubeconfigData string) (*rest.Config, error) {
 	cfg, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfigData))
 	if err != nil {
 		return nil, err
