@@ -3,8 +3,8 @@ module github.com/kyma-incubator/reconciler
 go 1.18
 
 replace (
-	github.com/docker/cli => github.com/docker/cli v20.10.18+incompatible
 	github.com/docker/distribution => github.com/docker/distribution v2.8.1+incompatible
+<<<<<<< HEAD
 	github.com/docker/docker => github.com/docker/docker v20.10.18+incompatible
 
 	//fix for CVE-2022-24778
@@ -22,9 +22,10 @@ replace (
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.1
 	//fix for WS-2021-0200
 	//fix for CVE-2019-11254
+=======
+>>>>>>> 390ad0f (go.mod test fix)
 	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	github.com/opencontainers/runc => github.com/opencontainers/runc v1.1.3
-	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.1
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -47,16 +48,7 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-replace (
-	k8s.io/api => k8s.io/api v0.25.2
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.25.2
-	k8s.io/apimachinery => k8s.io/apimachinery v0.25.2
-	k8s.io/apiserver => k8s.io/apiserver v0.25.2
-	k8s.io/cli-runtime => k8s.io/cli-runtime v0.25.2
-	k8s.io/client-go => k8s.io/client-go v0.25.2
-	k8s.io/component-base => k8s.io/component-base v0.25.2
-	k8s.io/kubectl => k8s.io/kubectl v0.25.2
-)
+replace k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.25.2
 
 	k8s.io/api v0.25.3
 	k8s.io/apiextensions-apiserver v0.25.2
