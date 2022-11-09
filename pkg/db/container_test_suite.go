@@ -2,18 +2,21 @@ package db
 
 import (
 	"context"
+	"testing"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/test"
 	"github.com/pkg/errors"
 	"github.com/testcontainers/testcontainers-go"
-	"testing"
 )
 
 type ContainerTestSuite struct {
 	*TransactionAwareDatabaseContainerTestSuite
 }
 
-func IsolatedContainerTestSuite(t *testing.T, debug bool, settings ContainerSettings, commitAfterExecution bool) *ContainerTestSuite {
+func IsolatedContainerTestSuite(
+	t *testing.T, debug bool, settings ContainerSettings, commitAfterExecution bool,
+) *ContainerTestSuite {
 	test.IntegrationTest(t)
 	return NewManagedContainerTestSuite(debug, settings, commitAfterExecution, NewConsoleContainerLogListener(debug))
 }
@@ -63,7 +66,10 @@ func NewManagedContainerTestSuite(
 	return &ContainerTestSuite{&newSuite}
 }
 
-func NewUnmanagedContainerTestSuite(ctx context.Context, containerRuntime ContainerRuntime, commitAfterExecution bool, listener testcontainers.LogConsumer) *ContainerTestSuite {
+func NewUnmanagedContainerTestSuite(
+	ctx context.Context, containerRuntime ContainerRuntime, commitAfterExecution bool,
+	listener testcontainers.LogConsumer,
+) *ContainerTestSuite {
 	newSuite := TransactionAwareDatabaseContainerTestSuite{
 		Context:                           ctx,
 		terminateContainerAfterAll:        false,
