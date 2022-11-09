@@ -43,12 +43,12 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(nil, errors.New("Istio client error"))
 
 		// when
-		manifest, err := IstioOperatorConfiguration(ctx, &provider, istioManifest, kubeConfig, log)
+		outputManifest, err := IstioOperatorConfiguration(ctx, &provider, istioManifest, kubeConfig, log)
 
 		// then
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Istio client error")
-		require.Equal(t, manifest, "")
+		require.Equal(t, outputManifest, "")
 	})
 
 	t.Run("should return default configuration, when there are no Istio CR", func(t *testing.T) {
@@ -58,11 +58,11 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
 
 		// when
-		manifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
+		outputManifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, manifest, istioManifest)
+		require.Equal(t, outputManifest, istioManifest)
 	})
 
 	t.Run("should return merged configuration, when there is a Istio CR with valid configuration", func(t *testing.T) {
@@ -85,11 +85,12 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
 
 		// when
-		manifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
+		outputManifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
 
 		// then
 		require.NoError(t, err)
-		json.Unmarshal([]byte(manifest), &iop)
+		err = json.Unmarshal([]byte(outputManifest), &iop)
+		require.NoError(t, err)
 		require.Equal(t, float64(4), iop.Spec.MeshConfig.Fields["defaultConfig"].
 			GetStructValue().Fields["gatewayTopology"].GetStructValue().Fields["numTrustedProxies"].GetNumberValue())
 
