@@ -16,12 +16,15 @@ import (
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-project/istio/operator/api/v1alpha1"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	controllerfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 const (
@@ -158,8 +161,12 @@ func Test_RunUpdateAction(t *testing.T) {
 
 	t.Run("Istio update should permit one minor downgrade", func(t *testing.T) {
 		// given
+		err := v1alpha1.AddToScheme(scheme.Scheme)
+		require.NoError(t, err)
+		ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 		providerMock := clientsetmocks.Provider{}
 		providerMock.On("RetrieveFrom", mock.Anything, mock.Anything).Return(fake.NewSimpleClientset(), nil)
+		providerMock.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockLatestVersion), nil)
 		commanderMock.On("Upgrade", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -172,7 +179,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		action := istio.NewIstioMainReconcileAction(performerCreatorFn(performer))
 
 		// when
-		err := action.Run(actionContext)
+		err = action.Run(actionContext)
 
 		// then
 		require.NoError(t, err)

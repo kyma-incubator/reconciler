@@ -8,22 +8,21 @@ import (
 	"path/filepath"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/merge"
+	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
-
-	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	helmChart "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -92,13 +91,13 @@ type chartValues struct {
 type IstioPerformer interface {
 
 	// Install Istio in given version on the cluster using istioChart.
-	Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error
+	Install(context context.Context, kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error
 
 	// LabelNamespaces labels all namespaces with enabled istio sidecar migration.
 	LabelNamespaces(context context.Context, kubeClient kubernetes.Client, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) error
 
 	// Update Istio on the cluster to the targetVersion using istioChart.
-	Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
+	Update(context context.Context, kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
 	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
 	ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error
@@ -163,7 +162,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error {
 	logger.Debug("Starting Istio installation...")
 
 	execVersion, err := istioctl.VersionFromString(version)
@@ -176,12 +175,17 @@ func (c *DefaultIstioPerformer) Install(kubeConfig, istioChart, version string, 
 		return err
 	}
 
+	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	if err != nil {
+		return err
+	}
+
 	commander, err := c.resolver.GetCommander(execVersion)
 	if err != nil {
 		return err
 	}
 
-	err = commander.Install(istioOperatorManifest, kubeConfig, logger)
+	err = commander.Install(mergedManifest, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -229,7 +233,7 @@ func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeCli
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
 	logger.Debug("Starting Istio update...")
 
 	version, err := istioctl.VersionFromString(targetVersion)
@@ -242,12 +246,17 @@ func (c *DefaultIstioPerformer) Update(kubeConfig, istioChart, targetVersion str
 		return err
 	}
 
+	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	if err != nil {
+		return err
+	}
+
 	commander, err := c.resolver.GetCommander(version)
 	if err != nil {
 		return err
 	}
 
-	err = commander.Upgrade(istioOperatorManifest, kubeConfig, logger)
+	err = commander.Upgrade(mergedManifest, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
