@@ -51,7 +51,7 @@ require (
 	github.com/otiai10/copy v1.9.0
 	github.com/panjf2000/ants/v2 v2.6.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.13.0
+	github.com/prometheus/client_golang v1.14.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
