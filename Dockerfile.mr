@@ -11,6 +11,9 @@ RUN mkdir /user && \
 WORKDIR $SRC_DIR
 
 COPY configs /configs
+
+RUN go mod download
+
 RUN CGO_ENABLED=0 go build -o /bin/mothership -ldflags '-s -w' ./cmd/mothership/main.go
 
 # Get latest CA certs

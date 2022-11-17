@@ -14,6 +14,8 @@ RUN mkdir /user && \
 
 WORKDIR $SRC_DIR
 
+RUN go mod download
+
 COPY configs /configs
 RUN CGO_ENABLED=0 go build -o /bin/reconciler -ldflags '-s -w' ./cmd/reconciler/main.go
 
