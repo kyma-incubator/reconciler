@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -18,10 +19,14 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	helmChart "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	k8sClient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -30,6 +35,8 @@ const (
 	delayBetweenRetries = 5 * time.Second
 	timeout             = 5 * time.Minute
 	interval            = 12 * time.Second
+	kymaNamespace       = "kyma-system"
+	configMapCNI        = "kyma-istio-cni"
 )
 
 type VersionType string
@@ -83,6 +90,11 @@ type chartValues struct {
 			EnableNamespacesByDefault bool `json:"enableNamespacesByDefault"`
 		} `json:"sidecarInjectorWebhook"`
 	} `json:"helmValues"`
+	Components struct {
+		CNI struct {
+			Enabled bool `json:"enabled"`
+		} `json:"cni"`
+	} `json:"components"`
 }
 
 // IstioPerformer performs actions on Istio component on the cluster.
@@ -235,6 +247,12 @@ func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeCli
 
 func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
 	logger.Debug("Starting Istio update...")
+	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
+
+	if err != nil {
+		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
+		return err
+	}
 
 	version, err := istioctl.VersionFromString(targetVersion)
 	if err != nil {
@@ -250,13 +268,17 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 	if err != nil {
 		return err
 	}
+	manifest2, err := ApplyIstioCNI(context, kubeClient, mergedManifest)
+	if err != nil {
+		return err
+	}
 
 	commander, err := c.resolver.GetCommander(version)
 	if err != nil {
 		return err
 	}
 
-	err = commander.Upgrade(mergedManifest, kubeConfig, logger)
+	err = commander.Upgrade(manifest2, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -526,4 +548,79 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespacesByDefault
 
 	return enableNamespacesByDefault, nil
+}
+
+func IsCNIEnabled(workspace chart.Factory, branch string, istioChart string) (bool, error) {
+	ws, err := workspace.Get(branch)
+	if err != nil {
+		return false, err
+	}
+
+	istioHelmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	if err != nil {
+		return false, err
+	}
+
+	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
+	if err != nil {
+		return false, err
+	}
+	var chartValues chartValues
+
+	err = json.Unmarshal(mapAsJSON, &chartValues)
+	if err != nil {
+		return false, err
+	}
+
+	return chartValues.Components.CNI.Enabled, nil
+}
+
+func readCNIConfigMap(ctx context.Context, clientSet k8sClient.Interface) (string, error) {
+	cm, err := clientSet.CoreV1().ConfigMaps(kymaNamespace).Get(ctx, configMapCNI, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	cniEnabled, ok := cm.Data["enabled"]
+	if !ok {
+		return "", nil
+	}
+
+	return cniEnabled, nil
+}
+
+func ApplyIstioCNI(ctx context.Context, client k8sClient.Interface, operatorManifest string) (string, error) {
+	var outputManifest []byte
+	toBeInstalledIop := istioOperator.IstioOperator{}
+	err := json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
+	if err != nil {
+		return "", err
+	}
+	cmValue, err := readCNIConfigMap(ctx, client)
+	if err != nil {
+		return "", err
+	}
+
+	if cmValue != "" {
+		cniEnabled, err := strconv.ParseBool(cmValue)
+		if err != nil {
+			return "", err
+		}
+		toBeInstalledIop.Spec.Components.Cni.Enabled = wrapperspb.Bool(cniEnabled)
+
+		outputManifest, err = json.Marshal(toBeInstalledIop)
+		if err != nil {
+			return "", err
+		}
+		return string(outputManifest), nil
+	}
+
+	return operatorManifest, nil
+}
+
+func IsCNIRolloutRequired(cmValue bool, chartValue bool) bool {
+	return cmValue != chartValue
 }

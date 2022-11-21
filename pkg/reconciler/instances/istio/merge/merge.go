@@ -69,3 +69,19 @@ func applyIstioCR(istioCRList *v1alpha1.IstioList, operatorManifest string) (str
 
 	return string(outputManifest), nil
 }
+
+func unMarshalManifest(operatorManifest string, istioOperator istioOperator.IstioOperator) error {
+	err := json.Unmarshal([]byte(operatorManifest), &istioOperator)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func marshalManifest(operatorManifest string, istioOperator istioOperator.IstioOperator) (string, error) {
+	outputManifest, err := json.Marshal(istioOperator)
+	if err != nil {
+		return "", err
+	}
+	return string(outputManifest), nil
+}
