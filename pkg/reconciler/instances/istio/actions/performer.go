@@ -296,6 +296,25 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		return err
 	}
 
+	cniConfig, err := IsCNIEnabled(workspace, branchVersion, istioChart)
+	if err != nil {
+		logger.Error("Could not retrieve default Istio CNI plugin setting")
+		return err
+	}
+
+	cniCMValue, err := ReadCNIConfigMap(context, kubeClient)
+	if err != nil {
+		logger.Error("Could not retrieve CNI ConfigMap setting")
+		return err
+	}
+
+	cniEnabled, err := strconv.ParseBool(cniCMValue)
+	if err != nil {
+		return err
+	}
+
+	cniRollout := IsCNIRolloutRequired(cniEnabled, cniConfig)
+
 	sidecarInjectionEnabledByDefault, err := IsSidecarInjectionNamespacesByDefaultEnabled(workspace, branchVersion, istioChart)
 	if err != nil {
 		logger.Error("Could not retrieve default istio sidecar injection!")
@@ -314,6 +333,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		Debug:                            false,
 		Log:                              logger,
 		SidecarInjectionByDefaultEnabled: sidecarInjectionEnabledByDefault,
+		CNIRolloutRequired:               cniRollout,
 	}
 
 	err = c.istioProxyReset.Run(cfg)
@@ -575,7 +595,7 @@ func IsCNIEnabled(workspace chart.Factory, branch string, istioChart string) (bo
 	return chartValues.Components.CNI.Enabled, nil
 }
 
-func readCNIConfigMap(ctx context.Context, clientSet k8sClient.Interface) (string, error) {
+func ReadCNIConfigMap(ctx context.Context, clientSet k8sClient.Interface) (string, error) {
 	cm, err := clientSet.CoreV1().ConfigMaps(kymaNamespace).Get(ctx, configMapCNI, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -599,7 +619,7 @@ func ApplyIstioCNI(ctx context.Context, client k8sClient.Interface, operatorMani
 	if err != nil {
 		return "", err
 	}
-	cmValue, err := readCNIConfigMap(ctx, client)
+	cmValue, err := ReadCNIConfigMap(ctx, client)
 	if err != nil {
 		return "", err
 	}

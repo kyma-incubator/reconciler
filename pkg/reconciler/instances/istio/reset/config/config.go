@@ -45,4 +45,7 @@ type IstioProxyConfig struct {
 
 	// Is Sidecar Injection enabled by default
 	SidecarInjectionByDefaultEnabled bool
+
+	// Is rollout needed after CNI plugin change
+	CNIRolloutRequired bool
 }
