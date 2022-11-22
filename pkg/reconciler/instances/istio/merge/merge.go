@@ -22,8 +22,8 @@ const (
 	configMapCNI  = "kyma-istio-cni"
 )
 
-// IstioOperatorConfiguration merges default Kyma Istio Operator file with user configuration in Istio CR.
-// If there is no IstioCRD or there are no Istio CR present on the cluster, it defaults to the operator file.
+// IstioOperatorConfiguration merges default Kyma Istio Operator file with user configuration in Istio CR and in Istio ConfigMap.
+// If there is no IstioCRD or there are no Istio CR/ConfigMap present on the cluster, it defaults to the operator file.
 func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (string, error) {
 	istioCRList, err := getIstioCR(ctx, provider, kubeConfig)
 	if err != nil {
@@ -99,6 +99,7 @@ func applyIstioCR(istioCRList *v1alpha1.IstioList, operatorManifest string) (str
 	return string(outputManifest), nil
 }
 
+// GetCNIConfigMap fetches ConfigMap with Istio CNI overrides and returns a value from required key
 func GetCNIConfigMap(ctx context.Context, clientSet kubernetes.Interface) (string, error) {
 	cm, err := clientSet.CoreV1().ConfigMaps(kymaNamespace).Get(ctx, configMapCNI, metav1.GetOptions{})
 	if err != nil {

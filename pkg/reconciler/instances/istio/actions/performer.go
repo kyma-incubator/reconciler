@@ -181,7 +181,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 	if err != nil {
 		return err
 	}
-	fmt.Println(istioOperatorManifest)
+
 	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
@@ -280,7 +280,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		return err
 	}
 
-	cniRollout, err := IsCNIRolloutRequired(context, kubeClient, workspace, branchVersion, istioChart, logger)
+	cniRollout, err := isCNIRolloutRequired(context, kubeClient, workspace, branchVersion, istioChart, logger)
 	if err != nil {
 		return err
 	}
@@ -540,7 +540,7 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	return enableNamespacesByDefault, nil
 }
 
-func IsCNIEnabled(workspace chart.Factory, branch string, istioChart string) (bool, error) {
+func isCNIEnabled(workspace chart.Factory, branch string, istioChart string) (bool, error) {
 	ws, err := workspace.Get(branch)
 	if err != nil {
 		return false, err
@@ -565,8 +565,8 @@ func IsCNIEnabled(workspace chart.Factory, branch string, istioChart string) (bo
 	return chartValues.Components.CNI.Enabled, nil
 }
 
-func IsCNIRolloutRequired(context context.Context, kubeClient k8sClient.Interface, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) (bool, error) {
-	cniChartValue, err := IsCNIEnabled(workspace, branchVersion, istioChart)
+func isCNIRolloutRequired(context context.Context, kubeClient k8sClient.Interface, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) (bool, error) {
+	cniChartValue, err := isCNIEnabled(workspace, branchVersion, istioChart)
 	if err != nil {
 		logger.Error("Could not retrieve default Istio CNI plugin setting")
 		return false, err
