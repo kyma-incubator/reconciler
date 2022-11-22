@@ -3,19 +3,39 @@ package merge
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-project/istio/operator/api/v1alpha1"
 	"github.com/kyma-project/istio/operator/pkg/lib/gatherer"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	apiMeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+)
+
+const (
+	kymaNamespace = "kyma-system"
+	configMapCNI  = "kyma-istio-cni"
 )
 
 // IstioOperatorConfiguration merges default Kyma Istio Operator file with user configuration in Istio CR.
 // If there is no IstioCRD or there are no Istio CR present on the cluster, it defaults to the operator file.
 func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (string, error) {
 	istioCRList, err := getIstioCR(ctx, provider, kubeConfig)
+	if err != nil {
+		return "", err
+	}
+
+	kubeClient, err := provider.RetrieveFrom(kubeConfig, logger)
+	if err != nil {
+		return "", err
+	}
+
+	cniEnabled, err := GetCNIConfigMap(ctx, kubeClient)
 	if err != nil {
 		return "", err
 	}
@@ -27,6 +47,16 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 		}
 
 		logger.Debugf("Istio CRs were applied to the Istio Operator configuration")
+		return combinedManifest, nil
+	}
+
+	if cniEnabled != "" {
+		combinedManifest, err := applyIstioCNI(cniEnabled, operatorManifest)
+		if err != nil {
+			return "", err
+		}
+
+		logger.Debugf("Istio CNI ConfigMap was applied to the Istio Operator configuration")
 		return combinedManifest, nil
 	}
 
@@ -48,7 +78,6 @@ func getIstioCR(ctx context.Context, provider clientset.Provider, kubeConfig str
 }
 
 func applyIstioCR(istioCRList *v1alpha1.IstioList, operatorManifest string) (string, error) {
-	var outputManifest []byte
 	toBeInstalledIop := istioOperator.IstioOperator{}
 	err := json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
 	if err != nil {
@@ -62,7 +91,7 @@ func applyIstioCR(istioCRList *v1alpha1.IstioList, operatorManifest string) (str
 		}
 	}
 
-	outputManifest, err = json.Marshal(toBeInstalledIop)
+	outputManifest, err := json.Marshal(toBeInstalledIop)
 	if err != nil {
 		return "", err
 	}
@@ -70,16 +99,37 @@ func applyIstioCR(istioCRList *v1alpha1.IstioList, operatorManifest string) (str
 	return string(outputManifest), nil
 }
 
-func unMarshalManifest(operatorManifest string, istioOperator istioOperator.IstioOperator) error {
-	err := json.Unmarshal([]byte(operatorManifest), &istioOperator)
+func GetCNIConfigMap(ctx context.Context, clientSet kubernetes.Interface) (string, error) {
+	cm, err := clientSet.CoreV1().ConfigMaps(kymaNamespace).Get(ctx, configMapCNI, metav1.GetOptions{})
 	if err != nil {
-		return err
+		if kerrors.IsNotFound(err) {
+			return "", nil
+		}
+		return "", err
 	}
-	return nil
+
+	cniEnabled, ok := cm.Data["enabled"]
+	if !ok {
+		return "", nil
+	}
+
+	return cniEnabled, nil
 }
 
-func marshalManifest(operatorManifest string, istioOperator istioOperator.IstioOperator) (string, error) {
-	outputManifest, err := json.Marshal(istioOperator)
+func applyIstioCNI(cmValue string, operatorManifest string) (string, error) {
+	toBeInstalledIop := istioOperator.IstioOperator{}
+	err := json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
+	if err != nil {
+		return "", err
+	}
+
+	cniEnabled, err := strconv.ParseBool(cmValue)
+	if err != nil {
+		return "", err
+	}
+	toBeInstalledIop.Spec.Components.Cni.Enabled = wrapperspb.Bool(cniEnabled)
+
+	outputManifest, err := json.Marshal(toBeInstalledIop)
 	if err != nil {
 		return "", err
 	}

@@ -137,6 +137,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
 		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
@@ -157,6 +158,7 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
 		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
@@ -408,6 +410,8 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
 		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
@@ -428,6 +432,8 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 		proxy := proxymocks.IstioProxyReset{}
 		provider := clientsetmocks.Provider{}
 		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
