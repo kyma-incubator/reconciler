@@ -181,7 +181,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 	if err != nil {
 		return err
 	}
-
+	fmt.Println(istioOperatorManifest)
 	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err

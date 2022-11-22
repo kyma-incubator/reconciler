@@ -40,16 +40,6 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 		return "", err
 	}
 
-	if istioCRList != nil {
-		combinedManifest, err := applyIstioCR(istioCRList, operatorManifest)
-		if err != nil {
-			return "", err
-		}
-
-		logger.Debugf("Istio CRs were applied to the Istio Operator configuration")
-		return combinedManifest, nil
-	}
-
 	if cniEnabled != "" {
 		combinedManifest, err := applyIstioCNI(cniEnabled, operatorManifest)
 		if err != nil {
@@ -57,6 +47,16 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 		}
 
 		logger.Debugf("Istio CNI ConfigMap was applied to the Istio Operator configuration")
+		return combinedManifest, nil
+	}
+
+	if istioCRList != nil {
+		combinedManifest, err := applyIstioCR(istioCRList, operatorManifest)
+		if err != nil {
+			return "", err
+		}
+
+		logger.Debugf("Istio CRs were applied to the Istio Operator configuration")
 		return combinedManifest, nil
 	}
 
