@@ -23,6 +23,9 @@ type Gatherer interface {
 
 	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
 	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error)
+
+	// GetPodsWithSidecar return a list of pods which have a sidecar injected.
+	GetPodsWithSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
 }
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
@@ -94,6 +97,18 @@ func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface,
 	return
 }
 
+func (i *DefaultGatherer) GetPodsWithSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
+	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
+	if err != nil {
+		return
+	}
+
+	// filter pods
+	podsList = getPodsWithSidecar(allPodsWithNamespaceAnnotations)
+
+	return
+}
+
 func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDefault bool) (podsWithSidecarRequired v1.PodList, labelWithWarningPodsList v1.PodList) {
 	inputPodsList.DeepCopyInto(&podsWithSidecarRequired)
 	podsWithSidecarRequired.Items = []v1.Pod{}
@@ -121,6 +136,23 @@ func getPodsWithoutSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList)
 		}
 
 		if !hasIstioProxy(pod.Spec.Containers, "istio-proxy") {
+			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
+		}
+	}
+
+	return
+}
+
+func getPodsWithSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
+	inputPodsList.DeepCopyInto(&outputPodsList)
+	outputPodsList.Items = []v1.Pod{}
+
+	for _, pod := range inputPodsList.Items {
+		if !isPodReady(pod) {
+			continue
+		}
+
+		if hasIstioProxy(pod.Spec.Containers, "istio-proxy") {
 			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 		}
 	}

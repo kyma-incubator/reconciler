@@ -290,7 +290,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 
 func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
-
+	var cniRollout bool
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
 		return err
@@ -307,13 +307,16 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		logger.Error("Could not retrieve CNI ConfigMap setting")
 		return err
 	}
+	if cniCMValue != "" {
+		cniEnabled, err := strconv.ParseBool(cniCMValue)
+		if err != nil {
+			return err
+		}
+		cniRollout = IsCNIRolloutRequired(cniEnabled, cniConfig)
 
-	cniEnabled, err := strconv.ParseBool(cniCMValue)
-	if err != nil {
-		return err
+	} else {
+		cniRollout = cniConfig
 	}
-
-	cniRollout := IsCNIRolloutRequired(cniEnabled, cniConfig)
 
 	sidecarInjectionEnabledByDefault, err := IsSidecarInjectionNamespacesByDefaultEnabled(workspace, branchVersion, istioChart)
 	if err != nil {
