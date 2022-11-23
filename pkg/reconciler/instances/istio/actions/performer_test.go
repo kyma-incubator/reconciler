@@ -8,6 +8,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -15,6 +16,7 @@ import (
 	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/merge"
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-project/istio/operator/api/v1alpha1"
@@ -780,6 +782,68 @@ func TestGetVersionFromJSON(t *testing.T) {
 		require.Equal(t, "1.11.1", gotDataPlane)
 		require.Equal(t, "", gotNothing)
 
+	})
+}
+func Test_isCNIEnabled(t *testing.T) {
+	t.Run("should get the CNI enabled value from istio chart", func(t *testing.T) {
+		// given
+		branch := "branch"
+		istioChart := "istio-cni-enabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		cniEnabled, err := isCNIEnabled(factory, branch, istioChart)
+
+		// then
+		require.NoError(t, err)
+		require.EqualValues(t, true, cniEnabled)
+	})
+}
+
+func Test_isCNIRolloutRequired(t *testing.T) {
+	branch := "branch"
+	istioChart := "istio-cni-enabled"
+	log := logger.NewLogger(false)
+	t.Run("should start proxy reset if CNI config map change the default Helm chart value", func(t *testing.T) {
+		// given
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+		configMapValueString := "false"
+		istioCNIConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+			Name:      merge.ConfigMapCNI,
+			Namespace: merge.KymaNamespace,
+		},
+			Data: map[string]string{"enabled": configMapValueString},
+		}
+		client := fake.NewSimpleClientset(istioCNIConfigMap)
+
+		// when
+		proxyRolloutRequired, err := isCNIRolloutRequired(context.TODO(), client, factory, branch, istioChart, log)
+
+		// then
+		require.NoError(t, err)
+		require.EqualValues(t, true, proxyRolloutRequired)
+	})
+	t.Run("should not start proxy reset if CNI config map does not change the default Helm chart value", func(t *testing.T) {
+		// given
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+		configMapValueString := "true"
+		istioCNIConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+			Name:      merge.ConfigMapCNI,
+			Namespace: merge.KymaNamespace,
+		},
+			Data: map[string]string{"enabled": configMapValueString},
+		}
+		client := fake.NewSimpleClientset(istioCNIConfigMap)
+
+		// when
+		proxyRolloutRequired, err := isCNIRolloutRequired(context.TODO(), client, factory, branch, istioChart, log)
+
+		// then
+		require.NoError(t, err)
+		require.EqualValues(t, false, proxyRolloutRequired)
 	})
 }
 

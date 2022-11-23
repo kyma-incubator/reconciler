@@ -109,8 +109,8 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		iop := istioOperator.IstioOperator{}
 		istioCNIConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-			Name:      configMapCNI,
-			Namespace: kymaNamespace,
+			Name:      ConfigMapCNI,
+			Namespace: KymaNamespace,
 		},
 			Data: map[string]string{"enabled": configMapValueString},
 		}
@@ -134,8 +134,8 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		// given
 		configMapValueString := "false"
 		istioCNIConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-			Name:      configMapCNI,
-			Namespace: kymaNamespace,
+			Name:      ConfigMapCNI,
+			Namespace: KymaNamespace,
 		},
 			Data: map[string]string{"wrongKey": configMapValueString},
 		}
@@ -156,8 +156,8 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		// given
 		configMapValueString := "true"
 		istioCNIConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-			Name:      configMapCNI,
-			Namespace: kymaNamespace,
+			Name:      ConfigMapCNI,
+			Namespace: KymaNamespace,
 		},
 			Data: map[string]string{"enabled": configMapValueString},
 		}

@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	kymaNamespace = "kyma-system"
-	configMapCNI  = "kyma-istio-cni"
+	KymaNamespace = "kyma-system"
+	ConfigMapCNI  = "kyma-istio-cni"
 )
 
 // IstioOperatorConfiguration merges default Kyma Istio Operator file with user configuration in Istio CR and in Istio ConfigMap.
@@ -102,7 +102,7 @@ func applyIstioCR(istioCRList *v1alpha1.IstioList, operatorManifest string) (str
 
 // GetCNIConfigMap fetches ConfigMap with Istio CNI overrides and returns a value from required key
 func GetCNIConfigMap(ctx context.Context, clientSet kubernetes.Interface) (string, error) {
-	cm, err := clientSet.CoreV1().ConfigMaps(kymaNamespace).Get(ctx, configMapCNI, metav1.GetOptions{})
+	cm, err := clientSet.CoreV1().ConfigMaps(KymaNamespace).Get(ctx, ConfigMapCNI, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return "", nil
