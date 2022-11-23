@@ -43,6 +43,7 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 	if cniEnabled != "" {
 		combinedManifest, err := applyIstioCNI(cniEnabled, operatorManifest)
 		if err != nil {
+			logger.Error("Could not apply Istio CNI ConfigMap into Istio Operator")
 			return "", err
 		}
 

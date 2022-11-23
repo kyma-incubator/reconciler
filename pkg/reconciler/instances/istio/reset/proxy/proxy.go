@@ -72,9 +72,7 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 			}
 			cfg.Log.Infof("Proxy reset for %d pods successfully done", len(podsWithoutAnnotation.Items))
 		}
-	}
-
-	if cfg.CNIRolloutRequired && !cfg.IsUpdate {
+	} else if cfg.CNIRolloutRequired {
 		cfg.Log.Infof("CNI plugin configuration changed, requesting proxy rollout")
 		podsWithSidecar, err := i.gatherer.GetPodsWithSidecar(cfg.Kubeclient, retryOpts)
 		if err != nil {

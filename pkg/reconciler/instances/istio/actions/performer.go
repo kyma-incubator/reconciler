@@ -581,6 +581,7 @@ func isCNIRolloutRequired(context context.Context, kubeClient k8sClient.Interfac
 	if cniCMValue != "" {
 		cniCMEnabled, err := strconv.ParseBool(cniCMValue)
 		if err != nil {
+			logger.Error("Could not parse CNI ConfigMap bool value")
 			return false, err
 		}
 		return cniCMEnabled != cniChartValue, nil

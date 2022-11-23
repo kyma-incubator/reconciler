@@ -46,7 +46,7 @@ func Test_Gatherer_GetAllPods(t *testing.T) {
 func Test_Gatherer_GetPodsWithSidecar(t *testing.T) {
 	retryOpts := getTestingRetryOptions()
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
-	t.Run("should not get any pod from the cluster when there are no pods running", func(t *testing.T) {
+	t.Run("should not get any pod with Istio sidecar", func(t *testing.T) {
 		// given
 		kubeClient := fake.NewSimpleClientset()
 		gatherer := DefaultGatherer{}
@@ -59,7 +59,7 @@ func Test_Gatherer_GetPodsWithSidecar(t *testing.T) {
 		require.Empty(t, pods.Items)
 	})
 
-	t.Run("should get all pods from the cluster when there are pods running", func(t *testing.T) {
+	t.Run("should get 2 pods with sidecar when they are in Running state", func(t *testing.T) {
 		// given
 		firstPod := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
 		secondPod := fixPodWithSidecar("application1", "enabled", "Running", map[string]string{}, map[string]string{})
@@ -73,7 +73,7 @@ func Test_Gatherer_GetPodsWithSidecar(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, pods.Items, 2)
 	})
-	t.Run("should get 1 pod from the cluster when there 1 of 2 pod is terminating running", func(t *testing.T) {
+	t.Run("should not get pod with sidecar in Terminating state", func(t *testing.T) {
 		// given
 		firstPod := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
 		secondPod := fixPodWithSidecar("application1", "enabled", "Terminating", map[string]string{}, map[string]string{})
