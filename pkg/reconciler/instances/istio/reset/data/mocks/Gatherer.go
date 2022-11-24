@@ -55,8 +55,8 @@ func (_m *Gatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, image da
 	return r0
 }
 
-// GetPodsWithSidecar provides a mock function with given fields: kubeClient, retryOpts
-func (_m *Gatherer) GetPodsWithSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (v1.PodList, error) {
+// GetPodsWithIstioInitContainer provides a mock function with given fields: kubeClient, retryOpts
+func (_m *Gatherer) GetPodsWithIstioInitContainer(kubeClient kubernetes.Interface, retryOpts []retry.Option) (v1.PodList, error) {
 	ret := _m.Called(kubeClient, retryOpts)
 
 	var r0 v1.PodList

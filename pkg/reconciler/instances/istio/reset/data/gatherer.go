@@ -24,8 +24,8 @@ type Gatherer interface {
 	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
 	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error)
 
-	// GetPodsWithSidecar return a list of pods which have a sidecar injected.
-	GetPodsWithSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
+	// GetPodsWithIstioInitContainer return a list of pods which have a istio-init container.
+	GetPodsWithIstioInitContainer(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
 }
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
@@ -36,6 +36,11 @@ type ExpectedImage struct {
 	Prefix  string
 	Version string
 }
+
+const (
+	istioInitContainerName = "istio-init"
+	istioSidecarName       = "istio-proxy"
+)
 
 // NewDefaultGatherer creates a new instance of DefaultGatherer.
 func NewDefaultGatherer() *DefaultGatherer {
@@ -97,14 +102,14 @@ func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface,
 	return
 }
 
-func (i *DefaultGatherer) GetPodsWithSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
+func (i *DefaultGatherer) GetPodsWithIstioInitContainer(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
 	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
 	if err != nil {
 		return
 	}
 
 	// filter pods
-	podsList = getPodsWithSidecar(allPodsWithNamespaceAnnotations)
+	podsList = getPodsWithIstioInitContainer(allPodsWithNamespaceAnnotations)
 
 	return
 }
@@ -135,7 +140,7 @@ func getPodsWithoutSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList)
 			continue
 		}
 
-		if !hasIstioProxy(pod.Spec.Containers, "istio-proxy") {
+		if !hasIstioContainer(pod.Spec.Containers, istioSidecarName) {
 			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 		}
 	}
@@ -143,7 +148,7 @@ func getPodsWithoutSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList)
 	return
 }
 
-func getPodsWithSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
+func getPodsWithIstioInitContainer(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
 	inputPodsList.DeepCopyInto(&outputPodsList)
 	outputPodsList.Items = []v1.Pod{}
 
@@ -152,7 +157,7 @@ func getPodsWithSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
 			continue
 		}
 
-		if hasIstioProxy(pod.Spec.Containers, "istio-proxy") {
+		if hasIstioContainer(pod.Spec.InitContainers, istioInitContainerName) {
 			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 		}
 	}
@@ -160,10 +165,10 @@ func getPodsWithSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
 	return
 }
 
-func hasIstioProxy(containers []v1.Container, proxyName string) bool {
+func hasIstioContainer(containers []v1.Container, istioContainerName string) bool {
 	proxyImage := ""
 	for _, container := range containers {
-		if container.Name == proxyName {
+		if container.Name == istioContainerName {
 			proxyImage = container.Image
 		}
 	}

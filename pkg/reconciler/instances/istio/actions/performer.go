@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/cni"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/merge"
@@ -23,7 +23,6 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	k8sClient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -85,11 +84,6 @@ type chartValues struct {
 			EnableNamespacesByDefault bool `json:"enableNamespacesByDefault"`
 		} `json:"sidecarInjectorWebhook"`
 	} `json:"helmValues"`
-	Components struct {
-		CNI struct {
-			Enabled bool `json:"enabled"`
-		} `json:"cni"`
-	} `json:"components"`
 }
 
 // IstioPerformer performs actions on Istio component on the cluster.
@@ -182,7 +176,12 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return err
 	}
 
-	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedIstioConfig, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	if err != nil {
+		return err
+	}
+
+	mergedCNI, err := cni.ApplyCNIConfiguration(context, c.provider, mergedIstioConfig, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -192,7 +191,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return err
 	}
 
-	err = commander.Install(mergedManifest, kubeConfig, logger)
+	err = commander.Install(mergedCNI, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -253,17 +252,20 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return err
 	}
 
-	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedIstioConfig, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
-
+	mergedCNI, err := cni.ApplyCNIConfiguration(context, c.provider, mergedIstioConfig, kubeConfig, logger)
+	if err != nil {
+		return err
+	}
 	commander, err := c.resolver.GetCommander(version)
 	if err != nil {
 		return err
 	}
 
-	err = commander.Upgrade(mergedManifest, kubeConfig, logger)
+	err = commander.Upgrade(mergedCNI, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -279,8 +281,12 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
 		return err
 	}
-
-	cniRollout, err := isCNIRolloutRequired(context, kubeClient, workspace, branchVersion, istioChart, logger)
+	dynamicClient, err := c.provider.GetDynamicClient(kubeConfig)
+	if err != nil {
+		logger.Error("Could not retrieve Dynamic client from Kubeconfig!")
+		return err
+	}
+	cniRollout, err := cni.IsCNIRolloutRequired(context, kubeClient, dynamicClient, workspace, branchVersion, istioChart, logger)
 	if err != nil {
 		return err
 	}
@@ -538,54 +544,4 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespacesByDefault
 
 	return enableNamespacesByDefault, nil
-}
-
-func isCNIEnabled(workspace chart.Factory, branch string, istioChart string) (bool, error) {
-	ws, err := workspace.Get(branch)
-	if err != nil {
-		return false, err
-	}
-
-	istioHelmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
-	if err != nil {
-		return false, err
-	}
-
-	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
-	if err != nil {
-		return false, err
-	}
-	var chartValues chartValues
-
-	err = json.Unmarshal(mapAsJSON, &chartValues)
-	if err != nil {
-		return false, err
-	}
-
-	return chartValues.Components.CNI.Enabled, nil
-}
-
-func isCNIRolloutRequired(context context.Context, kubeClient k8sClient.Interface, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) (bool, error) {
-	cniChartValue, err := isCNIEnabled(workspace, branchVersion, istioChart)
-	if err != nil {
-		logger.Error("Could not retrieve default Istio CNI plugin setting")
-		return false, err
-	}
-
-	cniCMValue, err := merge.GetCNIConfigMap(context, kubeClient)
-	if err != nil {
-		logger.Error("Could not retrieve CNI ConfigMap setting")
-		return false, err
-	}
-
-	if cniCMValue != "" {
-		cniCMEnabled, err := strconv.ParseBool(cniCMValue)
-		if err != nil {
-			logger.Error("Could not parse CNI ConfigMap bool value")
-			return false, err
-		}
-		return cniCMEnabled != cniChartValue, nil
-	}
-
-	return false, nil
 }

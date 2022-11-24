@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -14,7 +12,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/kubectl/pkg/scheme"
@@ -101,77 +98,5 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		require.Equal(t, float64(4), iop.Spec.MeshConfig.Fields["defaultConfig"].
 			GetStructValue().Fields["gatewayTopology"].GetStructValue().Fields["numTrustedProxies"].GetNumberValue())
 
-	})
-	t.Run("should return merged configuration, when there is a Istio CM with different configuration", func(t *testing.T) {
-		// given
-		configMapValueString := "false"
-		configMapValueBool, err := strconv.ParseBool(configMapValueString)
-		require.NoError(t, err)
-		iop := istioOperator.IstioOperator{}
-		istioCNIConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-			Name:      ConfigMapCNI,
-			Namespace: KymaNamespace,
-		},
-			Data: map[string]string{"enabled": configMapValueString},
-		}
-		ctrlClient := createClient(t)
-		client := k8sClientFake.NewSimpleClientset(istioCNIConfigMap)
-		provider := &clientsetmocks.Provider{}
-		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(ctrlClient, nil)
-		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(client, nil)
-
-		// when
-		outputManifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
-		fmt.Println(outputManifest)
-		// then
-		require.NoError(t, err)
-		err = json.Unmarshal([]byte(outputManifest), &iop)
-		require.NoError(t, err)
-		require.Equal(t, configMapValueBool, iop.Spec.Components.Cni.Enabled.GetValue())
-
-	})
-	t.Run("should not return merged configuration, when there is a Istio CM with invalid configuration", func(t *testing.T) {
-		// given
-		configMapValueString := "false"
-		istioCNIConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-			Name:      ConfigMapCNI,
-			Namespace: KymaNamespace,
-		},
-			Data: map[string]string{"wrongKey": configMapValueString},
-		}
-		ctrlClient := createClient(t)
-		client := k8sClientFake.NewSimpleClientset(istioCNIConfigMap)
-		provider := &clientsetmocks.Provider{}
-		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(ctrlClient, nil)
-		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(client, nil)
-
-		// when
-		outputManifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
-		fmt.Println(outputManifest)
-		// then
-		require.NoError(t, err)
-		require.Equal(t, outputManifest, istioManifest)
-	})
-	t.Run("should not return merged configuration, when there is a Istio CM with the same configuration", func(t *testing.T) {
-		// given
-		configMapValueString := "true"
-		istioCNIConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-			Name:      ConfigMapCNI,
-			Namespace: KymaNamespace,
-		},
-			Data: map[string]string{"enabled": configMapValueString},
-		}
-		ctrlClient := createClient(t)
-		client := k8sClientFake.NewSimpleClientset(istioCNIConfigMap)
-		provider := &clientsetmocks.Provider{}
-		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(ctrlClient, nil)
-		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(client, nil)
-
-		// when
-		outputManifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
-		fmt.Println(outputManifest)
-		// then
-		require.NoError(t, err)
-		require.Equal(t, outputManifest, istioManifest)
 	})
 }
