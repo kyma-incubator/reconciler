@@ -3,12 +3,13 @@ package actions
 import (
 	"context"
 	"encoding/json"
+	"testing"
+
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	operatorv1alpha1 "istio.io/api/operator/v1alpha1"
 	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
@@ -592,8 +593,10 @@ func Test_DefaultIstioPerformer_CNI_Merge(t *testing.T) {
 				},
 			},
 		}
-		s := runtime.NewScheme()
-		dynamicClient := dynamicfake.NewSimpleDynamicClient(s, &iop)
+		scheme := runtime.NewScheme()
+		err := istioOperator.SchemeBuilder.AddToScheme(scheme)
+		require.NoError(t, err)
+		dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, &iop)
 		provider.On("GetDynamicClient", mock.AnythingOfType("string")).Return(dynamicClient, nil)
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)

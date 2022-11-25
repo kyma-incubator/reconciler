@@ -40,14 +40,14 @@ func ApplyCNIConfiguration(ctx context.Context, provider clientset.Provider, ope
 	if cniEnabled != "" {
 		combinedManifest, err := applyIstioCNI(cniEnabled, operatorManifest)
 		if err != nil {
-			logger.Error("Could not apply Istio CNI ConfigMap into Istio Operator")
+			logger.Error("could not apply Istio CNI ConfigMap into Istio Operator")
 			return "", err
 		}
 		logger.Debugf("Istio CNI ConfigMap was applied to the Istio Operator configuration")
 		return combinedManifest, nil
 	}
 
-	logger.Debugf("No Istio CNI found on the cluster, applying default configuration")
+	logger.Debugf("no Istio CNI found on the cluster, applying default configuration")
 
 	return operatorManifest, nil
 }
@@ -101,7 +101,8 @@ func applyIstioCNI(cmValue string, operatorManifest string) (string, error) {
 }
 
 func getIstioOperator(dynamicClient dynamic.Interface) (*istioOperator.IstioOperator, error) {
-	obj, err := dynamicClient.Resource(schema.GroupVersionResource{Group: "install.istio.io", Version: "v1alpha1", Resource: "istiooperators"}).Namespace(istioNamespace).Get(context.Background(), istioOperatorName, metav1.GetOptions{})
+	res := schema.GroupVersionResource{Group: "install.istio.io", Version: "v1alpha1", Resource: "istiooperators"}
+	obj, err := dynamicClient.Resource(res).Namespace(istioNamespace).Get(context.Background(), istioOperatorName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("default Kyma IstioOperator CR wasn't found err=%s", err)
 	}
@@ -112,6 +113,10 @@ func getIstioOperator(dynamicClient dynamic.Interface) (*istioOperator.IstioOper
 	}
 	operator := istioOperator.IstioOperator{}
 
-	json.Unmarshal(jsonSlice, &operator)
+	err = json.Unmarshal(jsonSlice, &operator)
+	if err != nil {
+		return nil, err
+	}
+
 	return &operator, nil
 }

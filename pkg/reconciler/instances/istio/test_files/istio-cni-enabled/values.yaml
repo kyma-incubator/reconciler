@@ -1,4 +1,0 @@
----
-components:
-  cni:
-    enabled: true
