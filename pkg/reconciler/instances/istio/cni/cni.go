@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+	"helm.sh/helm/v3/pkg/chart/loader"
 	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +26,14 @@ const (
 	istioOperatorName = "installed-state-default-operator"
 	istioNamespace    = "istio-system"
 )
+
+type cniValues struct {
+	Components struct {
+		CNI struct {
+			Enabled bool `json:"enabled"`
+		} `json:"cni"`
+	} `json:"components"`
+}
 
 // ApplyCNIConfiguration applies CNI configuration from kyma-istio-cni ConfigMap to the Istio Operator.
 // If there is no such ConfigMap, it defaults to the operator file.
@@ -52,14 +63,8 @@ func ApplyCNIConfiguration(ctx context.Context, provider clientset.Provider, ope
 	return operatorManifest, nil
 }
 
-// getCNIState checks if CNI is enabled on Istio Operator installed on the cluster and returns its value.
-func getCNIState(provider clientset.Provider, kubeConfig string, logger *zap.SugaredLogger) (bool, error) {
-	dynamicClient, err := provider.GetDynamicClient(kubeConfig)
-	if err != nil {
-		logger.Error("Could not retrieve Dynamic client from Kubeconfig!")
-		return false, err
-	}
-
+// GetCNIState checks if CNI is enabled on Istio Operator installed on the cluster and returns its value.
+func GetCNIState(dynamicClient dynamic.Interface) (bool, error) {
 	iop, err := getIstioOperator(dynamicClient)
 	if err != nil {
 		return false, nil
@@ -118,35 +123,45 @@ func getIstioOperator(dynamicClient dynamic.Interface) (*istioOperator.IstioOper
 	}
 	operator := istioOperator.IstioOperator{}
 
-	err = json.Unmarshal(jsonSlice, &operator)
-	if err != nil {
-		return nil, err
-	}
-
+	json.Unmarshal(jsonSlice, &operator)
 	return &operator, nil
 }
 
-func isCniEnabledInOperatorChart(istioChart string) (bool, error) {
-	toBeInstalledIop := istioOperator.IstioOperator{}
-	err := json.Unmarshal([]byte(istioChart), &toBeInstalledIop)
+func isCniEnabledInOperatorChart(workspace chart.Factory, branch string, istioChart string) (bool, error) {
+	ws, err := workspace.Get(branch)
 	if err != nil {
 		return false, err
 	}
 
-	return toBeInstalledIop.Spec.Components.Cni.Enabled.GetValue(), nil
+	istioHelmChart, err := loader.Load(filepath.Join(ws.ResourceDir, istioChart))
+	if err != nil {
+		return false, err
+	}
+
+	mapAsJSON, err := json.Marshal(istioHelmChart.Values)
+	if err != nil {
+		return false, err
+	}
+	var cniValues cniValues
+
+	err = json.Unmarshal(mapAsJSON, &cniValues)
+	if err != nil {
+		return false, err
+	}
+
+	return cniValues.Components.CNI.Enabled, nil
 }
 
-func IsCNIRolloutRequired(provider clientset.Provider, kubeConfig string, istioChart string, logger *zap.SugaredLogger) (bool, error) {
-
-	desiredCniState, err := isCniEnabledInOperatorChart(istioChart)
+func IsCNIRolloutRequired(context context.Context, kubeClient kubernetes.Interface, dynamicClient dynamic.Interface, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) (bool, error) {
+	desiredCniState, err := isCniEnabledInOperatorChart(workspace, branchVersion, istioChart)
 	if err != nil {
-		logger.Error("Could not retrieve chart Istio CNI plugin setting. Falling back to no CNI rollout required.")
+		logger.Error("Could not retrieve default Istio CNI plugin setting")
 		return false, err
 	}
 
-	actualCniState, err := getCNIState(provider, kubeConfig, logger)
+	actualCniState, err := GetCNIState(dynamicClient)
 	if err != nil {
-		logger.Error("Could not retrieve actual CNI state. Falling back to no CNI rollout required.")
+		logger.Error("Could not retrieve default Istio CNI plugin setting")
 		return false, err
 	}
 
