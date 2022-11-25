@@ -12,7 +12,7 @@ import (
 	apiMeta "k8s.io/apimachinery/pkg/api/meta"
 )
 
-// IstioOperatorConfiguration merges default Kyma Istio Operator file with user configuration in Istio CR and in Istio ConfigMap.
+// IstioOperatorConfiguration merges default Kyma Istio Operator file with user configuration in Istio CR.
 // If there is no IstioCRD or there are no Istio CR present on the cluster, it defaults to the operator file.
 func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (string, error) {
 	istioCRList, err := getIstioCR(ctx, provider, kubeConfig)

@@ -32,7 +32,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{})
 		gatherer.On("GetPodsWithoutSidecar", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.Anything).Return(v1.PodList{}, nil)
-		gatherer.On("GetPodsForCNIChange", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(v1.PodList{}, nil)
+		gatherer.On("GetPodsForCNIChange", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.Anything).Return(v1.PodList{}, nil)
 
 		action := podresetmocks.Action{}
 		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
@@ -56,7 +56,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{Items: []v1.Pod{{}}})
 		gatherer.On("GetPodsWithoutSidecar", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.Anything).Return(v1.PodList{Items: []v1.Pod{{}}}, nil)
-		gatherer.On("GetPodsForCNIChange", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(v1.PodList{}, nil)
+		gatherer.On("GetPodsForCNIChange", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.Anything).Return(v1.PodList{}, nil)
 
 		action := podresetmocks.Action{}
 		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
@@ -81,7 +81,7 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{})
 		gatherer.On("GetPodsWithoutSidecar", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.Anything).Return(v1.PodList{}, nil)
-		gatherer.On("GetPodsForCNIChange", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(v1.PodList{}, nil)
+		gatherer.On("GetPodsForCNIChange", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.Anything).Return(v1.PodList{}, nil)
 
 		action := podresetmocks.Action{}
 		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
@@ -100,14 +100,14 @@ func Test_IstioProxyReset_Run(t *testing.T) {
 
 	t.Run("should do CNI rollout when CNI Rollout is required", func(t *testing.T) {
 		// given
-		cfg.CNIRolloutRequired = true
+		cfg.CNIEnabled = true
 		cfg.IsUpdate = false
 		gatherer := datamocks.Gatherer{}
 		gatherer.On("GetAllPods", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(&v1.PodList{Items: []v1.Pod{{}}}, nil)
 		gatherer.On("GetPodsWithDifferentImage", mock.AnythingOfType("v1.PodList"),
 			mock.AnythingOfType("data.ExpectedImage")).Return(v1.PodList{})
 		gatherer.On("GetPodsWithoutSidecar", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.Anything).Return(v1.PodList{}, nil)
-		gatherer.On("GetPodsForCNIChange", mock.Anything, mock.AnythingOfType("[]retry.Option")).Return(v1.PodList{Items: []v1.Pod{{}}}, nil)
+		gatherer.On("GetPodsForCNIChange", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.Anything).Return(v1.PodList{Items: []v1.Pod{{}}}, nil)
 
 		action := podresetmocks.Action{}
 		action.On("Reset", mock.Anything, mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("v1.PodList"), mock.AnythingOfType("*zap.SugaredLogger"), mock.AnythingOfType("bool"), mock.AnythingOfType("pod.WaitOptions")).
