@@ -119,14 +119,15 @@ type CommanderResolver interface {
 // DefaultIstioPerformer provides a default implementation of IstioPerformer.
 // It uses istioctl binary to do its job. It delegates the job of finding proper istioctl binary for given operation to the configured CommandResolver.
 type DefaultIstioPerformer struct {
-	resolver        CommanderResolver
-	istioProxyReset proxy.IstioProxyReset
-	provider        clientset.Provider
+	resolver             CommanderResolver
+	istioProxyReset      proxy.IstioProxyReset
+	provider             clientset.Provider
+	isCniRolloutRequired bool
 }
 
 // NewDefaultIstioPerformer creates a new instance of the DefaultIstioPerformer.
 func NewDefaultIstioPerformer(resolver CommanderResolver, istioProxyReset proxy.IstioProxyReset, provider clientset.Provider) *DefaultIstioPerformer {
-	return &DefaultIstioPerformer{resolver, istioProxyReset, provider}
+	return &DefaultIstioPerformer{resolver, istioProxyReset, provider, false}
 }
 
 func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error {
@@ -163,7 +164,7 @@ func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, versi
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, istioChart, version string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig string, istioChart, version string, logger *zap.SugaredLogger) error {
 	logger.Debug("Starting Istio installation...")
 
 	execVersion, err := istioctl.VersionFromString(version)
@@ -239,7 +240,7 @@ func (c *DefaultIstioPerformer) LabelNamespaces(context context.Context, kubeCli
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
+func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig string, istioChart, targetVersion string, logger *zap.SugaredLogger) error {
 	logger.Debug("Starting Istio update...")
 
 	version, err := istioctl.VersionFromString(targetVersion)
@@ -252,20 +253,29 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return err
 	}
 
-	mergedIstioConfig, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	manifestMergedIstioConfig, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
-	mergedCNI, err := cni.ApplyCNIConfiguration(context, c.provider, mergedIstioConfig, kubeConfig, logger)
+	manifestMergedCNI, err := cni.ApplyCNIConfiguration(context, c.provider, manifestMergedIstioConfig, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
+
+	cniRollout, err := cni.IsCNIRolloutRequired(c.provider, kubeConfig, manifestMergedCNI, logger)
+	if err != nil {
+		return err
+	}
+
+	c.isCniRolloutRequired = cniRollout
+	logger.Infof("CNI Rollout is set to %t", cniRollout)
+
 	commander, err := c.resolver.GetCommander(version)
 	if err != nil {
 		return err
 	}
 
-	err = commander.Upgrade(mergedCNI, kubeConfig, logger)
+	err = commander.Upgrade(manifestMergedCNI, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -279,15 +289,6 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
-		return err
-	}
-	dynamicClient, err := c.provider.GetDynamicClient(kubeConfig)
-	if err != nil {
-		logger.Error("Could not retrieve Dynamic client from Kubeconfig!")
-		return err
-	}
-	cniRollout, err := cni.IsCNIRolloutRequired(context, kubeClient, dynamicClient, workspace, branchVersion, istioChart, logger)
-	if err != nil {
 		return err
 	}
 
@@ -309,7 +310,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		Debug:                            false,
 		Log:                              logger,
 		SidecarInjectionByDefaultEnabled: sidecarInjectionEnabledByDefault,
-		CNIRolloutRequired:               cniRollout,
+		CNIRolloutRequired:               c.isCniRolloutRequired,
 	}
 
 	err = c.istioProxyReset.Run(cfg)
