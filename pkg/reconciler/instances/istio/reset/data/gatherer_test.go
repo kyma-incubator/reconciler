@@ -50,7 +50,7 @@ func Test_Gatherer_GetPodsForCNIChange(t *testing.T) {
 	t.Run("should not get any pod without istio-init container when CNI is enabled", func(t *testing.T) {
 		// given
 		cniEnabled := true
-		firstPod := fixPodWithoutInitContainer("application2", "enabled", "Running", map[string]string{}, map[string]string{})
+		firstPod := fixPodWithoutInitContainer("application1", "enabled", "Running", map[string]string{}, map[string]string{})
 		secondPod := fixPodWithoutInitContainer("application2", "enabled", "Terminating", map[string]string{}, map[string]string{})
 
 		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
