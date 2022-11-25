@@ -43,18 +43,19 @@ func Test_Gatherer_GetAllPods(t *testing.T) {
 	})
 }
 
-func Test_Gatherer_GetPodsWithIstioInitContainer(t *testing.T) {
+func Test_Gatherer_GetPodsForCNIChange(t *testing.T) {
 	retryOpts := getTestingRetryOptions()
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
 	t.Run("should not get any pod without istio-init container", func(t *testing.T) {
 		// given
+		cniEnabled := true
 		firstPod := fixPodWithoutInitContainer("application2", "enabled", "Running", map[string]string{}, map[string]string{})
 		secondPod := fixPodWithoutInitContainer("application1", "enabled", "Running", map[string]string{}, map[string]string{})
 		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
-		pods, err := gatherer.GetPodsWithIstioInitContainer(kubeClient, retryOpts)
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
 
 		// then
 		require.NoError(t, err)
@@ -63,13 +64,14 @@ func Test_Gatherer_GetPodsWithIstioInitContainer(t *testing.T) {
 
 	t.Run("should get 2 pods with istio-init when they are in Running state", func(t *testing.T) {
 		// given
+		cniEnabled := true
 		firstPod := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
 		secondPod := fixPodWithSidecar("application1", "enabled", "Running", map[string]string{}, map[string]string{})
 		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
-		pods, err := gatherer.GetPodsWithIstioInitContainer(kubeClient, retryOpts)
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
 
 		// then
 		require.NoError(t, err)
@@ -77,13 +79,14 @@ func Test_Gatherer_GetPodsWithIstioInitContainer(t *testing.T) {
 	})
 	t.Run("should not get pod with istio-init in Terminating state", func(t *testing.T) {
 		// given
+		cniEnabled := true
 		firstPod := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
 		secondPod := fixPodWithSidecar("application1", "enabled", "Terminating", map[string]string{}, map[string]string{})
 		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
 		gatherer := DefaultGatherer{}
 
 		// when
-		pods, err := gatherer.GetPodsWithIstioInitContainer(kubeClient, retryOpts)
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
 
 		// then
 		require.NoError(t, err)

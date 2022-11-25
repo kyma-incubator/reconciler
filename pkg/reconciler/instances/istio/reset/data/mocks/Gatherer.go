@@ -41,6 +41,27 @@ func (_m *Gatherer) GetAllPods(kubeClient kubernetes.Interface, retryOpts []retr
 	return r0, r1
 }
 
+// GetPodsForCNIChange provides a mock function with given fields: kubeClient, retryOpts, cniEnabled
+func (_m *Gatherer) GetPodsForCNIChange(kubeClient kubernetes.Interface, retryOpts []retry.Option, cniEnabled bool) (v1.PodList, error) {
+	ret := _m.Called(kubeClient, retryOpts, cniEnabled)
+
+	var r0 v1.PodList
+	if rf, ok := ret.Get(0).(func(kubernetes.Interface, []retry.Option, bool) v1.PodList); ok {
+		r0 = rf(kubeClient, retryOpts, cniEnabled)
+	} else {
+		r0 = ret.Get(0).(v1.PodList)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(kubernetes.Interface, []retry.Option, bool) error); ok {
+		r1 = rf(kubeClient, retryOpts, cniEnabled)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPodsWithDifferentImage provides a mock function with given fields: inputPodsList, image
 func (_m *Gatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, image data.ExpectedImage) v1.PodList {
 	ret := _m.Called(inputPodsList, image)
@@ -53,27 +74,6 @@ func (_m *Gatherer) GetPodsWithDifferentImage(inputPodsList v1.PodList, image da
 	}
 
 	return r0
-}
-
-// GetPodsWithIstioInitContainer provides a mock function with given fields: kubeClient, retryOpts
-func (_m *Gatherer) GetPodsWithIstioInitContainer(kubeClient kubernetes.Interface, retryOpts []retry.Option) (v1.PodList, error) {
-	ret := _m.Called(kubeClient, retryOpts)
-
-	var r0 v1.PodList
-	if rf, ok := ret.Get(0).(func(kubernetes.Interface, []retry.Option) v1.PodList); ok {
-		r0 = rf(kubeClient, retryOpts)
-	} else {
-		r0 = ret.Get(0).(v1.PodList)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(kubernetes.Interface, []retry.Option) error); ok {
-		r1 = rf(kubeClient, retryOpts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }
 
 // GetPodsWithoutSidecar provides a mock function with given fields: kubeClient, retryOpts, sidecarInjectionEnabledbyDefault

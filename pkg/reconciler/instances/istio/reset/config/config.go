@@ -48,4 +48,7 @@ type IstioProxyConfig struct {
 
 	// Is rollout needed after CNI plugin change
 	CNIRolloutRequired bool
+
+	// Is CNI enabled on the cluster
+	CNIEnabled bool
 }

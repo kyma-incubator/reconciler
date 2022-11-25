@@ -74,20 +74,17 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		}
 	}
 
-	if cfg.CNIRolloutRequired {
-		cfg.Log.Infof("CNI plugin enabled, checking pod status")
-		podsWithIstioInitContainer, err := i.gatherer.GetPodsWithIstioInitContainer(cfg.Kubeclient, retryOpts)
+	podsWithCNIChange, err := i.gatherer.GetPodsForCNIChange(cfg.Kubeclient, retryOpts, cfg.CNIEnabled)
+	if err != nil {
+		return err
+	}
+	if len(podsWithCNIChange.Items) >= 1 {
+		cfg.Log.Debugf("Found %d pods that need CNI plugin rollout", len(podsWithCNIChange.Items))
+		err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithCNIChange, cfg.Log, cfg.Debug, waitOpts)
 		if err != nil {
 			return err
 		}
-		if len(podsWithIstioInitContainer.Items) >= 1 {
-			cfg.Log.Debugf("Found %d pods with istio-init container, proceeding with CNI plugin rollout", len(podsWithIstioInitContainer.Items))
-			err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithIstioInitContainer, cfg.Log, cfg.Debug, waitOpts)
-			if err != nil {
-				return err
-			}
-			cfg.Log.Infof("Proxy reset for %d pods with Istio successfully done", len(podsWithIstioInitContainer.Items))
-		}
+		cfg.Log.Infof("CNI plugin rollout for %d pods successfully done", len(podsWithCNIChange.Items))
 	}
 
 	podsWithoutSidecar, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)

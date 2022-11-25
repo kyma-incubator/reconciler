@@ -24,8 +24,8 @@ type Gatherer interface {
 	// GetPodsWithoutSidecar return a list of pods which should have a sidecar injected but do not have it.
 	GetPodsWithoutSidecar(kubeClient kubernetes.Interface, retryOpts []retry.Option, sidecarInjectionEnabledbyDefault bool) (podsList v1.PodList, err error)
 
-	// GetPodsWithIstioInitContainer return a list of pods which have a istio-init container.
-	GetPodsWithIstioInitContainer(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error)
+	// GetPodsForCNIChange return a list of pods which have a istio-init container.
+	GetPodsForCNIChange(kubeClient kubernetes.Interface, retryOpts []retry.Option, cniEnabled bool) (podsList v1.PodList, err error)
 }
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
@@ -38,8 +38,9 @@ type ExpectedImage struct {
 }
 
 const (
-	istioInitContainerName = "istio-init"
-	istioSidecarName       = "istio-proxy"
+	istioValidationContainerName = "istio-validation"
+	istioInitContainerName       = "istio-init"
+	istioSidecarName             = "istio-proxy"
 )
 
 // NewDefaultGatherer creates a new instance of DefaultGatherer.
@@ -102,14 +103,23 @@ func (i *DefaultGatherer) GetPodsWithoutSidecar(kubeClient kubernetes.Interface,
 	return
 }
 
-func (i *DefaultGatherer) GetPodsWithIstioInitContainer(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList v1.PodList, err error) {
+func (i *DefaultGatherer) GetPodsForCNIChange(kubeClient kubernetes.Interface, retryOpts []retry.Option, cniEnabled bool) (podsList v1.PodList, err error) {
 	allPodsWithNamespaceAnnotations, err := getAllPodsWithNamespaceAnnotations(kubeClient, retryOpts)
 	if err != nil {
 		return
 	}
 
+	// We depend on the cni state and init container name, because of the limitations of the applied state between main action and post action.
+	var containerName string
+	switch cniEnabled {
+	case true:
+		containerName = istioInitContainerName
+	default:
+		containerName = istioValidationContainerName
+	}
+
 	// filter pods
-	podsList = getPodsWithIstioInitContainer(allPodsWithNamespaceAnnotations)
+	podsList = getPodsForCNIChange(allPodsWithNamespaceAnnotations, containerName)
 
 	return
 }
@@ -140,7 +150,7 @@ func getPodsWithoutSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList)
 			continue
 		}
 
-		if !hasIstioContainer(pod.Spec.Containers, istioSidecarName) {
+		if !hasIstioSidecar(pod.Spec.Containers) {
 			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 		}
 	}
@@ -148,7 +158,7 @@ func getPodsWithoutSidecar(inputPodsList v1.PodList) (outputPodsList v1.PodList)
 	return
 }
 
-func getPodsWithIstioInitContainer(inputPodsList v1.PodList) (outputPodsList v1.PodList) {
+func getPodsForCNIChange(inputPodsList v1.PodList, containerName string) (outputPodsList v1.PodList) {
 	inputPodsList.DeepCopyInto(&outputPodsList)
 	outputPodsList.Items = []v1.Pod{}
 
@@ -157,7 +167,7 @@ func getPodsWithIstioInitContainer(inputPodsList v1.PodList) (outputPodsList v1.
 			continue
 		}
 
-		if hasIstioContainer(pod.Spec.InitContainers, istioInitContainerName) {
+		if hasIstioInitContainer(pod.Spec.InitContainers, containerName) {
 			outputPodsList.Items = append(outputPodsList.Items, *pod.DeepCopy())
 		}
 	}
@@ -165,10 +175,20 @@ func getPodsWithIstioInitContainer(inputPodsList v1.PodList) (outputPodsList v1.
 	return
 }
 
-func hasIstioContainer(containers []v1.Container, istioContainerName string) bool {
+func hasIstioSidecar(containers []v1.Container) bool {
 	proxyImage := ""
 	for _, container := range containers {
-		if container.Name == istioContainerName {
+		if container.Name == istioSidecarName {
+			proxyImage = container.Image
+		}
+	}
+	return proxyImage != ""
+}
+
+func hasIstioInitContainer(containers []v1.Container, initContainerName string) bool {
+	proxyImage := ""
+	for _, container := range containers {
+		if container.Name == initContainerName {
 			proxyImage = container.Image
 		}
 	}

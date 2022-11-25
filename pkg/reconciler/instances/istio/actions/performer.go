@@ -260,6 +260,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 	if err != nil {
 		return err
 	}
+
 	commander, err := c.resolver.GetCommander(version)
 	if err != nil {
 		return err
@@ -286,7 +287,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		logger.Error("Could not retrieve Dynamic client from Kubeconfig!")
 		return err
 	}
-	cniRollout, err := cni.IsCNIRolloutRequired(context, kubeClient, dynamicClient, workspace, branchVersion, istioChart, logger)
+	cniEnabled, err := cni.GetActualCNIState(dynamicClient)
 	if err != nil {
 		return err
 	}
@@ -296,6 +297,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		logger.Error("Could not retrieve default istio sidecar injection!")
 		return err
 	}
+
 	cfg := istioConfig.IstioProxyConfig{
 		IsUpdate:                         canUpdate,
 		Context:                          context,
@@ -309,7 +311,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		Debug:                            false,
 		Log:                              logger,
 		SidecarInjectionByDefaultEnabled: sidecarInjectionEnabledByDefault,
-		CNIRolloutRequired:               cniRollout,
+		CNIEnabled:                       cniEnabled,
 	}
 
 	err = c.istioProxyReset.Run(cfg)
