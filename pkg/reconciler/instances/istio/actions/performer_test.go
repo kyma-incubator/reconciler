@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"encoding/json"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -38,6 +39,29 @@ kind: IstioOperator
 metadata:
   namespace: namespace
   name: name
+---
+apiVersion: version/v2
+kind: Kind2
+metadata:
+  namespace: namespace
+  name: name
+`
+	istioManifestCniDisabled = `
+apiVersion: version/v1
+kind: Kind1
+metadata:
+  namespace: namespace
+  name: name
+---
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  namespace: namespace
+  name: name
+spec:
+  components:
+    cni:
+      enabled: false
 ---
 apiVersion: version/v2
 kind: Kind2
@@ -446,6 +470,105 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 
 }
 
+func Test_DefaultIstioPerformer_CNI_Merge(t *testing.T) {
+
+	kubeConfig := "kubeConfig"
+	log := logger.NewLogger(false)
+	err := v1alpha1.AddToScheme(scheme.Scheme)
+	require.NoError(t, err)
+	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+	ctx := context.Background()
+	defer ctx.Done()
+
+	t.Run("should apply CNI config enabled true during Install when kyma-istio-cni ConfigMap is set to true and operator manifest is set to false", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		cmdResolver := TestCommanderResolver{cmder: &cmder}
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kyma-istio-cni",
+				Namespace: "kyma-system",
+			},
+			Data: map[string]string{
+				"enabled": "true",
+			},
+		}
+		client := fake.NewSimpleClientset(cm)
+
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(client, nil)
+
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
+
+		// when
+		err := wrapper.Install(context.TODO(), kubeConfig, istioManifestCniDisabled, "1.2.3", log)
+
+		// then
+		require.NoError(t, err)
+		expectedManifest := "{\"kind\":\"IstioOperator\",\"apiVersion\":\"install.istio.io/v1alpha1\",\"metadata\":{\"name\":\"name\",\"namespace\":\"namespace\",\"creationTimestamp\":null},\"spec\":{\"components\":{\"cni\":{\"enabled\":true}}}}"
+		cmder.AssertCalled(t, "Install", expectedManifest, mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should apply CNI config enabled true during Update when kyma-istio-cni ConfigMap is set to true and operator manifest is set to false", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		cmdResolver := TestCommanderResolver{cmder: &cmder}
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kyma-istio-cni",
+				Namespace: "kyma-system",
+			},
+			Data: map[string]string{
+				"enabled": "true",
+			},
+		}
+		client := fake.NewSimpleClientset(cm)
+
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(client, nil)
+
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
+
+		// when
+		err := wrapper.Update(context.TODO(), kubeConfig, istioManifestCniDisabled, "1.2.3", log)
+
+		// then
+		require.NoError(t, err)
+		expectedManifest := "{\"kind\":\"IstioOperator\",\"apiVersion\":\"install.istio.io/v1alpha1\",\"metadata\":{\"name\":\"name\",\"namespace\":\"namespace\",\"creationTimestamp\":null},\"spec\":{\"components\":{\"cni\":{\"enabled\":true}}}}"
+		cmder.AssertCalled(t, "Upgrade", expectedManifest, mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should keep false value from manifest when kyma-istio-cni ConfigMap does not exist", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		cmdResolver := TestCommanderResolver{cmder: &cmder}
+
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
+
+		// when
+		err := wrapper.Update(context.TODO(), kubeConfig, istioManifestCniDisabled, "1.2.3", log)
+
+		// then
+		require.NoError(t, err)
+		expectedManifest := "{\"kind\":\"IstioOperator\",\"apiVersion\":\"install.istio.io/v1alpha1\",\"metadata\":{\"name\":\"name\",\"namespace\":\"namespace\",\"creationTimestamp\":null},\"spec\":{\"components\":{\"cni\":{\"enabled\":false}}}}"
+		cmder.AssertCalled(t, "Upgrade", expectedManifest, mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+}
+
 func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 
 	kubeConfig := "kubeconfig"
@@ -488,6 +611,9 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		provider := clientsetmocks.Provider{}
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
 
+		dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
+		provider.On("GetDynamicClient", mock.AnythingOfType("string")).Return(dynamicClient, nil)
+
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
 		proxyImagePrefix := "anything"
@@ -513,6 +639,9 @@ func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
 		proxy.On("Run", mock.Anything).Return(nil)
 		provider := clientsetmocks.Provider{}
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+
+		dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme.Scheme)
+		provider.On("GetDynamicClient", mock.AnythingOfType("string")).Return(dynamicClient, nil)
 
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 		proxyImageVersion := "1.2.0"
