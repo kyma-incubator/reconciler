@@ -3,6 +3,10 @@ package actions
 import (
 	"context"
 	"encoding/json"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+	operatorv1alpha1 "istio.io/api/operator/v1alpha1"
+	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
+	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"testing"
 
@@ -567,6 +571,46 @@ func Test_DefaultIstioPerformer_CNI_Merge(t *testing.T) {
 		expectedManifest := "{\"kind\":\"IstioOperator\",\"apiVersion\":\"install.istio.io/v1alpha1\",\"metadata\":{\"name\":\"name\",\"namespace\":\"namespace\",\"creationTimestamp\":null},\"spec\":{\"components\":{\"cni\":{\"enabled\":false}}}}"
 		cmder.AssertCalled(t, "Upgrade", expectedManifest, mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
+
+	t.Run("should pass CNI state to run", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmdResolver := TestCommanderResolver{cmder: &cmder}
+		canUpdate := true
+
+		proxy := proxymocks.IstioProxyReset{}
+		proxy.On("Run", mock.Anything).Return(errors.New("Proxy reset error"))
+		provider := clientsetmocks.Provider{}
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+
+		iop := istioOperator.IstioOperator{
+			Spec: &operatorv1alpha1.IstioOperatorSpec{
+				Components: &operatorv1alpha1.IstioComponentSetSpec{
+					Cni: &operatorv1alpha1.ComponentSpec{
+						Enabled: wrapperspb.Bool(true),
+					},
+				},
+			},
+		}
+		s := runtime.NewScheme()
+		dynamicClient := dynamicfake.NewSimpleDynamicClient(s, &iop)
+		provider.On("GetDynamicClient", mock.AnythingOfType("string")).Return(dynamicClient, nil)
+
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
+		proxyImageVersion := "1.2.0"
+		proxyImagePrefix := "anything"
+		istioChart := "istio-sidecar-disabled"
+		factory := &workspacemocks.Factory{}
+		factory.On("Get", mock.AnythingOfType("string")).Return(&chart.KymaWorkspace{ResourceDir: "../test_files"}, nil)
+
+		// when
+		err = wrapper.ResetProxy(ctx, kubeConfig, factory, "", istioChart, proxyImageVersion, proxyImagePrefix, log, canUpdate)
+
+		// then
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Proxy reset error")
+	})
+
 }
 
 func Test_DefaultIstioPerformer_ResetProxy(t *testing.T) {
