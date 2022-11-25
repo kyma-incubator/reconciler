@@ -55,6 +55,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.10.2
+	istio.io/api v0.0.0-20221108152712-3017a057f724
 	istio.io/istio v0.0.0-20221109080248-089f536c0f26
 	sigs.k8s.io/controller-runtime v0.13.1
 )
@@ -210,7 +211,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	istio.io/api v0.0.0-20221108152712-3017a057f724 // indirect
 	istio.io/pkg v0.0.0-20221031153201-960bb47e80ce // indirect
 	k8s.io/apiserver v0.25.4 // indirect
 	k8s.io/component-base v0.25.4 // indirect

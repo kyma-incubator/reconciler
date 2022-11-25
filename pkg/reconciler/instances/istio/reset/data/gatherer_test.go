@@ -46,11 +46,13 @@ func Test_Gatherer_GetAllPods(t *testing.T) {
 func Test_Gatherer_GetPodsForCNIChange(t *testing.T) {
 	retryOpts := getTestingRetryOptions()
 	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
-	t.Run("should not get any pod without istio-init container", func(t *testing.T) {
+	disabledNS := fixNamespaceWith("disabled", map[string]string{"istio-injection": "disabled"})
+	t.Run("should not get any pod without istio-init container when CNI is enabled", func(t *testing.T) {
 		// given
 		cniEnabled := true
 		firstPod := fixPodWithoutInitContainer("application2", "enabled", "Running", map[string]string{}, map[string]string{})
-		secondPod := fixPodWithoutInitContainer("application1", "enabled", "Running", map[string]string{}, map[string]string{})
+		secondPod := fixPodWithoutInitContainer("application2", "enabled", "Terminating", map[string]string{}, map[string]string{})
+
 		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
 		gatherer := DefaultGatherer{}
 
@@ -61,7 +63,6 @@ func Test_Gatherer_GetPodsForCNIChange(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, pods.Items)
 	})
-
 	t.Run("should get 2 pods with istio-init when they are in Running state when CNI is enabled", func(t *testing.T) {
 		// given
 		cniEnabled := true
@@ -121,6 +122,20 @@ func Test_Gatherer_GetPodsForCNIChange(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.Len(t, pods.Items, 2)
+	})
+	t.Run("should not get any pod with istio-validation container in disabled namespace when CNI is disabled", func(t *testing.T) {
+		// given
+		cniEnabled := true
+		pod := fixPodWithoutInitContainer("application1", "disabled", "Running", map[string]string{}, map[string]string{})
+		kubeClient := fake.NewSimpleClientset(pod, disabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
+
+		// then
+		require.NoError(t, err)
+		require.Empty(t, pods.Items)
 	})
 }
 
