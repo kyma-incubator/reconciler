@@ -10,6 +10,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/cni"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/merge"
@@ -175,7 +176,12 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return err
 	}
 
-	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedIstioConfig, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	if err != nil {
+		return err
+	}
+
+	mergedCNI, err := cni.ApplyCNIConfiguration(context, c.provider, mergedIstioConfig, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -185,7 +191,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return err
 	}
 
-	err = commander.Install(mergedManifest, kubeConfig, logger)
+	err = commander.Install(mergedCNI, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -246,7 +252,11 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return err
 	}
 
-	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedIstioConfig, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	if err != nil {
+		return err
+	}
+	mergedCNI, err := cni.ApplyCNIConfiguration(context, c.provider, mergedIstioConfig, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -256,7 +266,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return err
 	}
 
-	err = commander.Upgrade(mergedManifest, kubeConfig, logger)
+	err = commander.Upgrade(mergedCNI, kubeConfig, logger)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -268,9 +278,17 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 
 func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
-
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
+		return err
+	}
+	dynamicClient, err := c.provider.GetDynamicClient(kubeConfig)
+	if err != nil {
+		logger.Error("Could not retrieve Dynamic client from Kubeconfig!")
+		return err
+	}
+	cniEnabled, err := cni.GetActualCNIState(dynamicClient)
+	if err != nil {
 		return err
 	}
 
@@ -279,6 +297,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		logger.Error("Could not retrieve default istio sidecar injection!")
 		return err
 	}
+
 	cfg := istioConfig.IstioProxyConfig{
 		IsUpdate:                         canUpdate,
 		Context:                          context,
@@ -292,6 +311,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 		Debug:                            false,
 		Log:                              logger,
 		SidecarInjectionByDefaultEnabled: sidecarInjectionEnabledByDefault,
+		CNIEnabled:                       cniEnabled,
 	}
 
 	err = c.istioProxyReset.Run(cfg)

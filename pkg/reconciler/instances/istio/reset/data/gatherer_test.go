@@ -26,7 +26,7 @@ func Test_Gatherer_GetAllPods(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Empty(t, pods)
+		require.Empty(t, pods.Items)
 	})
 
 	t.Run("should get all pods from the cluster when there are pods running", func(t *testing.T) {
@@ -40,6 +40,102 @@ func Test_Gatherer_GetAllPods(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.Len(t, pods.Items, 2)
+	})
+}
+
+func Test_Gatherer_GetPodsForCNIChange(t *testing.T) {
+	retryOpts := getTestingRetryOptions()
+	enabledNS := fixNamespaceWith("enabled", map[string]string{"istio-injection": "enabled"})
+	disabledNS := fixNamespaceWith("disabled", map[string]string{"istio-injection": "disabled"})
+	t.Run("should not get any pod without istio-init container when CNI is enabled", func(t *testing.T) {
+		// given
+		cniEnabled := true
+		firstPod := fixPodWithoutInitContainer("application1", "enabled", "Running", map[string]string{}, map[string]string{})
+		secondPod := fixPodWithoutInitContainer("application2", "enabled", "Terminating", map[string]string{}, map[string]string{})
+
+		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
+
+		// then
+		require.NoError(t, err)
+		require.Empty(t, pods.Items)
+	})
+	t.Run("should get 2 pods with istio-init when they are in Running state when CNI is enabled", func(t *testing.T) {
+		// given
+		cniEnabled := true
+		firstPod := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
+		secondPod := fixPodWithSidecar("application1", "enabled", "Running", map[string]string{}, map[string]string{})
+		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, pods.Items, 2)
+	})
+	t.Run("should not get pod with istio-init in Terminating state", func(t *testing.T) {
+		// given
+		cniEnabled := true
+		firstPod := fixPodWithSidecar("application2", "enabled", "Running", map[string]string{}, map[string]string{})
+		secondPod := fixPodWithSidecar("application1", "enabled", "Terminating", map[string]string{}, map[string]string{})
+		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, pods.Items, 1)
+	})
+	t.Run("should not get any pod with istio-validation container when CNI is enabled", func(t *testing.T) {
+		// given
+		cniEnabled := true
+		firstPod := fixPodWithoutInitContainer("application2", "enabled", "Running", map[string]string{}, map[string]string{})
+		secondPod := fixPodWithoutInitContainer("application1", "enabled", "Running", map[string]string{}, map[string]string{})
+		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, pods.Items, 0)
+	})
+	t.Run("should get 2 pods with istio-validation container when CNI is disabled", func(t *testing.T) {
+		// given
+		cniEnabled := false
+		firstPod := fixPodWithoutInitContainer("application2", "enabled", "Running", map[string]string{}, map[string]string{})
+		secondPod := fixPodWithoutInitContainer("application1", "enabled", "Running", map[string]string{}, map[string]string{})
+		kubeClient := fake.NewSimpleClientset(firstPod, secondPod, enabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, pods.Items, 2)
+	})
+	t.Run("should not get any pod with istio-validation container in disabled namespace when CNI is disabled", func(t *testing.T) {
+		// given
+		cniEnabled := true
+		pod := fixPodWithoutInitContainer("application1", "disabled", "Running", map[string]string{}, map[string]string{})
+		kubeClient := fake.NewSimpleClientset(pod, disabledNS)
+		gatherer := DefaultGatherer{}
+
+		// when
+		pods, err := gatherer.GetPodsForCNIChange(kubeClient, retryOpts, cniEnabled)
+
+		// then
+		require.NoError(t, err)
+		require.Empty(t, pods.Items)
 	})
 }
 
@@ -543,6 +639,45 @@ func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 	}
 }
 
+func fixPodWithoutInitContainer(name, namespace, phase string, annotations map[string]string, labels map[string]string) *v1.Pod {
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{Kind: "ReplicaSet"},
+			},
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "v1",
+		},
+		Status: v1.PodStatus{
+			Phase: v1.PodPhase(phase),
+		},
+		Spec: v1.PodSpec{
+			InitContainers: []v1.Container{
+				{
+					Name:  "istio-validation",
+					Image: "istio-validation",
+				},
+			},
+			Containers: []v1.Container{
+				{
+					Name:  name + "-container",
+					Image: "image:6.9",
+				},
+				{
+					Name:  "istio-proxy",
+					Image: "istio-proxy",
+				},
+			},
+		},
+	}
+}
+
 func fixPodWithSidecar(name, namespace, phase string, annotations map[string]string, labels map[string]string) *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -562,6 +697,12 @@ func fixPodWithSidecar(name, namespace, phase string, annotations map[string]str
 			Phase: v1.PodPhase(phase),
 		},
 		Spec: v1.PodSpec{
+			InitContainers: []v1.Container{
+				{
+					Name:  "istio-init",
+					Image: "istio-init",
+				},
+			},
 			Containers: []v1.Container{
 				{
 					Name:  name + "-container",

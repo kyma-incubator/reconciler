@@ -5,6 +5,7 @@ import (
 	"github.com/kyma-project/istio/operator/api/v1alpha1"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -18,8 +19,11 @@ type Provider interface {
 	// RetrieveFrom kubeconfig and return new k8s ClientSet instance.
 	RetrieveFrom(kubeConfig string, log *zap.SugaredLogger) (kubernetes.Interface, error)
 
-	// GetIstioClient returns a new controller-runtime Client using provided config and Kyma Istio Operator scheme
+	// GetIstioClient returns a new controller-runtime Client using provided config and Kyma Istio Operator scheme.
 	GetIstioClient(kubeConfig string) (client.Client, error)
+
+	// GetDynamicClient returns a new dynamic Kubernetes Client using provided config.
+	GetDynamicClient(kubeConfig string) (dynamic.Interface, error)
 }
 
 // DefaultProvider provides a default implementation of Provider.
@@ -70,6 +74,18 @@ func (c *DefaultProvider) GetIstioClient(kubeConfig string) (client.Client, erro
 		return nil, err
 	}
 	return client, nil
+}
+
+func (c *DefaultProvider) GetDynamicClient(kubeConfig string) (dynamic.Interface, error) {
+	config, err := loadRestConfig(kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return dynamicClient, nil
 }
 
 func loadRestConfig(kubeconfigData string) (*rest.Config, error) {

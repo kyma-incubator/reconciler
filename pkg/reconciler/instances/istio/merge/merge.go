@@ -25,7 +25,6 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 		if err != nil {
 			return "", err
 		}
-
 		logger.Debugf("Istio CRs were applied to the Istio Operator configuration")
 		return combinedManifest, nil
 	}
@@ -48,7 +47,6 @@ func getIstioCR(ctx context.Context, provider clientset.Provider, kubeConfig str
 }
 
 func applyIstioCR(istioCRList *v1alpha1.IstioList, operatorManifest string) (string, error) {
-	var outputManifest []byte
 	toBeInstalledIop := istioOperator.IstioOperator{}
 	err := json.Unmarshal([]byte(operatorManifest), &toBeInstalledIop)
 	if err != nil {
@@ -62,7 +60,7 @@ func applyIstioCR(istioCRList *v1alpha1.IstioList, operatorManifest string) (str
 		}
 	}
 
-	outputManifest, err = json.Marshal(toBeInstalledIop)
+	outputManifest, err := json.Marshal(toBeInstalledIop)
 	if err != nil {
 		return "", err
 	}
