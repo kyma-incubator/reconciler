@@ -77,3 +77,16 @@ func TestRestartIngressGatewayDeployment(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, dep.Spec.Template.Annotations["reconciler.kyma-project.io/lastRestartDate"])
 }
+
+func TestIngressGatewayNeedsRestartNoCM(t *testing.T) {
+	client := GetClientSet(t)
+	newNumTrustedProxies := 2
+
+	istio := istioCR.Istio{}
+	istio.Spec.Config.NumTrustedProxies = &newNumTrustedProxies
+
+	does, err := ingressgateway.NeedsRestart(context.TODO(), client, &istioCR.IstioList{Items: []istioCR.Istio{istio}})
+
+	require.NoError(t, err)
+	require.True(t, does)
+}

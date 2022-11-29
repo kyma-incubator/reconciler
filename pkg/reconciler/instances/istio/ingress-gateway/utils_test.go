@@ -17,11 +17,8 @@ const (
 	depName      string = "istio-ingressgateway"
 )
 
-func GetClientSet(t *testing.T, configMap string) client.Client {
+func GetClientSet(t *testing.T, configMaps ...string) client.Client {
 	deployment := appsv1.Deployment{ObjectMeta: v1.ObjectMeta{Name: depName, Namespace: depNamespace}}
-
-	data := make(map[string]string)
-	data["mesh"] = configMap
 
 	err := corev1.AddToScheme(scheme.Scheme)
 	require.NoError(t, err)
@@ -29,5 +26,10 @@ func GetClientSet(t *testing.T, configMap string) client.Client {
 	err = appsv1.AddToScheme(scheme.Scheme)
 	require.NoError(t, err)
 
-	return fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(&corev1.ConfigMap{ObjectMeta: v1.ObjectMeta{Name: "istio", Namespace: "istio-system"}, Data: data}, &deployment).Build()
+	if len(configMaps) > 0 {
+		data := make(map[string]string)
+		data["mesh"] = configMaps[0]
+		return fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(&corev1.ConfigMap{ObjectMeta: v1.ObjectMeta{Name: "istio", Namespace: "istio-system"}, Data: data}, &deployment).Build()
+	}
+	return fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(&deployment).Build()
 }
