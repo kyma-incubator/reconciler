@@ -174,7 +174,7 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 
 		err := ctrlClientSameConfig.Create(context.TODO(), istioCR)
 		require.NoError(t, err)
-		
+
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
