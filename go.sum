@@ -925,6 +925,8 @@ github.com/ktrysmt/go-bitbucket v0.6.4/go.mod h1:9u0v3hsd2rqCHRIpbir1oP7F58uo5dq
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kyma-project/istio/operator v0.0.0-20221107094910-89bc304f6079 h1:87IWxLO7OkiFYNLFAiibJzwLHX1qiNv0MeUT9EnSrLQ=
 github.com/kyma-project/istio/operator v0.0.0-20221107094910-89bc304f6079/go.mod h1:wN4kayBpQtISs8LC4mFQjo4z5/unHzHb8XJHpwgnDFA=
+github.com/kyma-project/istio/operator v0.0.0-20221129102055-d37c5c8e6add h1:ohTtnIlNXSQPHB/nMZvBXs+uBnTqQ6HRSgAvptyWzlc=
+github.com/kyma-project/istio/operator v0.0.0-20221129102055-d37c5c8e6add/go.mod h1:K5jDoHdqW8EI2vXX+7J+RnEmk4YQRnd6fTmuuSyQ3Qg=
 github.com/kyma-project/module-manager/operator v0.0.0-20221020113457-620af4f4b365 h1:50FLPAynQ7++CJb2ZEdfnCRO68cDcJoa+eo3qUwElc4=
 github.com/kyma-project/module-manager/operator v0.0.0-20221020113457-620af4f4b365/go.mod h1:N0kmS8pTNXq+7/Bdr6vfogmw03H+uYMCauTQ6U6+kA0=
 github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 h1:SOEGU9fKiNWd/HOJuq6+3iTQz8KNCLtVX6idSoTLdUw=
