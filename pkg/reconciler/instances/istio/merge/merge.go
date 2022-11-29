@@ -35,7 +35,7 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 			return "", false, err
 		}
 
-		needsRestart, err := ingressgateway.IngressGatewayNeedsRestart(ctx, istioClient, istioCRList)
+		needsRestart, err := ingressgateway.NeedsRestart(ctx, istioClient, istioCRList)
 		if err != nil {
 			return "", false, err
 		}

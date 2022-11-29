@@ -17,7 +17,7 @@ const (
 	annotationName string = "reconciler.kyma-project.io/lastRestartDate"
 )
 
-func RestartIngressGatewayDeployment(ctx context.Context, k8sClient client.Client) error {
+func RestartDeployment(ctx context.Context, k8sClient client.Client) error {
 	deployment := appsv1.Deployment{}
 	err := k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &deployment)
 	if err != nil {
@@ -32,13 +32,13 @@ func RestartIngressGatewayDeployment(ctx context.Context, k8sClient client.Clien
 	return k8sClient.Update(ctx, &deployment)
 }
 
-func IngressGatewayNeedsRestart(ctx context.Context, client client.Client, istioCRList *istioCR.IstioList) (bool, error) {
+func NeedsRestart(ctx context.Context, client client.Client, istioCRList *istioCR.IstioList) (bool, error) {
 	numTrustedProxies, err := GetNumTrustedProxyFromIstioCM(ctx, client)
 	if err != nil {
 		return false, err
 	}
 
-	// Restart to deafult if no IstioCR is present
+	// Restart to default if no IstioCR is present
 	if numTrustedProxies != nil && len(istioCRList.Items) == 0 {
 		return true, nil
 	}

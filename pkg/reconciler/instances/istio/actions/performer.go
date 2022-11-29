@@ -10,8 +10,8 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
-	ingressgateway "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/ingress-gateway"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/cni"
+	ingressgateway "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/ingress-gateway"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/merge"
@@ -177,7 +177,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return err
 	}
 
-	mergedIstioConfig,ingressGatewayNeedsRestart, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedIstioConfig, ingressGatewayNeedsRestart, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		if err != nil {
 			return err
 		}
-		err = ingressgateway.RestartIngressGatewayDeployment(context, istioClient)
+		err = ingressgateway.RestartDeployment(context, istioClient)
 		if err != nil {
 			return err
 		}
@@ -266,7 +266,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return err
 	}
 
-	mergedIstioConfig,ingressGatewayNeedsRestart, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedIstioConfig, ingressGatewayNeedsRestart, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -293,7 +293,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		if err != nil {
 			return err
 		}
-		err = ingressgateway.RestartIngressGatewayDeployment(context, istioClient)
+		err = ingressgateway.RestartDeployment(context, istioClient)
 		if err != nil {
 			return err
 		}
