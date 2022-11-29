@@ -39,16 +39,20 @@ trustDomain: cluster.local
 `
 
 func TestGetNumTrustedProxyFromIstioCM(t *testing.T) {
-	client := GetClientSet(t, TestConfigMap)
-	numTrustedProxies, err := ingressgateway.GetNumTrustedProxyFromIstioCM(context.TODO(), client)
-	require.NoError(t, err)
-	require.NotNil(t, numTrustedProxies)
-	require.Equal(t, 3, *numTrustedProxies)
+	t.Run("should return 3 numTrustedProxies when CM has configure 3 numTrustedProxies", func(t *testing.T) {
+		client := GetClientSet(t, TestConfigMap)
+		numTrustedProxies, err := ingressgateway.GetNumTrustedProxyFromIstioCM(context.TODO(), client)
+		require.NoError(t, err)
+		require.NotNil(t, numTrustedProxies)
+		require.Equal(t, 3, *numTrustedProxies)
+	})
 }
 
 func TestDefaultNumTrustedProxyFromIstioCM(t *testing.T) {
-	client := GetClientSet(t, TestConfigMapEmpty)
-	numTrustedProxies, err := ingressgateway.GetNumTrustedProxyFromIstioCM(context.TODO(), client)
-	require.NoError(t, err)
-	require.Nil(t, numTrustedProxies)
+	t.Run("should return nil when CM has no configuration for numTrustedProxies", func(t *testing.T) {
+		client := GetClientSet(t, TestConfigMapEmpty)
+		numTrustedProxies, err := ingressgateway.GetNumTrustedProxyFromIstioCM(context.TODO(), client)
+		require.NoError(t, err)
+		require.Nil(t, numTrustedProxies)
+	})
 }
