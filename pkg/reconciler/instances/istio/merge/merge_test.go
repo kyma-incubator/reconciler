@@ -43,7 +43,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(nil, errors.New("Istio client error"))
 
 		// when
-		outputManifest, err := IstioOperatorConfiguration(ctx, &provider, istioManifest, kubeConfig, log)
+		outputManifest, _, err := IstioOperatorConfiguration(ctx, &provider, istioManifest, kubeConfig, log)
 
 		// then
 		require.Error(t, err)
@@ -58,7 +58,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
 
 		// when
-		outputManifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
+		outputManifest, _, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
 
 		// then
 		require.NoError(t, err)
@@ -85,7 +85,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
 
 		// when
-		outputManifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
+		outputManifest, _, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
 
 		// then
 		require.NoError(t, err)

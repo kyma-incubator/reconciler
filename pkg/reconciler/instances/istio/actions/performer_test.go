@@ -7,6 +7,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	workspacemocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -90,6 +91,10 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 	kubeConfig := "kubeConfig"
 	log := logger.NewLogger(false)
 	err := v1alpha1.AddToScheme(scheme.Scheme)
+	require.NoError(t, err)
+	err = appsv1.AddToScheme(scheme.Scheme)
+	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme.Scheme)
 	require.NoError(t, err)
 	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 
@@ -361,6 +366,10 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 	kubeConfig := "kubeConfig"
 	log := logger.NewLogger(false)
 	err := v1alpha1.AddToScheme(scheme.Scheme)
+	require.NoError(t, err)
+	err = appsv1.AddToScheme(scheme.Scheme)
+	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme.Scheme)
 	require.NoError(t, err)
 	ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
+	ingressgateway "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/ingress-gateway"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/merge"
@@ -175,7 +176,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return err
 	}
 
-	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedManifest, ingressGatewayNeedsRestart, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -190,6 +191,19 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 	logger.Infof("Istio in version %s successfully installed", version)
+
+	if ingressGatewayNeedsRestart {
+		logger.Infof("Restarting ingress-gateway")
+		istioClient, err := c.provider.GetIstioClient(kubeConfig)
+		if err != nil {
+			return err
+		}
+		err = ingressgateway.RestartIngressGatewayDeployment(context, istioClient)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -246,7 +260,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return err
 	}
 
-	mergedManifest, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedManifest, ingressGatewayNeedsRestart, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -262,6 +276,18 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 	}
 
 	logger.Infof("Istio has been updated successfully to version %s", targetVersion)
+
+	if ingressGatewayNeedsRestart {
+		logger.Infof("Restarting ingress-gateway")
+		istioClient, err := c.provider.GetIstioClient(kubeConfig)
+		if err != nil {
+			return err
+		}
+		err = ingressgateway.RestartIngressGatewayDeployment(context, istioClient)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
