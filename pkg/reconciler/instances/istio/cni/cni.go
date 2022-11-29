@@ -20,6 +20,7 @@ import (
 const (
 	kymaNamespace     = "kyma-system"
 	configMapCNI      = "kyma-istio-cni"
+	configMapCNIKey   = "cniEnabled"
 	istioOperatorName = "installed-state-default-operator"
 	istioNamespace    = "istio-system"
 )
@@ -71,7 +72,7 @@ func getCNIConfigMapValue(ctx context.Context, clientSet kubernetes.Interface) (
 		return "", err
 	}
 
-	cniEnabled, ok := cm.Data["enabled"]
+	cniEnabled, ok := cm.Data[configMapCNIKey]
 	if !ok {
 		return "", nil
 	}
