@@ -45,4 +45,7 @@ type IstioProxyConfig struct {
 
 	// Is Sidecar Injection enabled by default
 	SidecarInjectionByDefaultEnabled bool
+
+	// Is CNI enabled on the cluster
+	CNIEnabled bool
 }

@@ -12,14 +12,15 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	istioOperator "istio.io/istio/operator/pkg/apis/istio/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sClientFake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 const (
-	istioManifest = `{"kind":"IstioOperator","apiVersion":"install.istio.io/v1alpha1","metadata":{"name":"default-operator","namespace":"istio-system","creationTimestamp":null},"spec":{"meshConfig":{"accessLogEncoding":"JSON","defaultConfig":{"holdApplicationUntilProxyStarts":true}}}}`
+	istioManifest = `{"kind":"IstioOperator","apiVersion":"install.istio.io/v1alpha1","metadata":{"name":"default-operator","namespace":"istio-system","creationTimestamp":null},"spec":{"meshConfig":{"accessLogEncoding":"JSON","defaultConfig":{"holdApplicationUntilProxyStarts":true}},"components":{"cni":{"enabled":true}}}}`
 )
 
 func createClient(t *testing.T, objects ...client.Object) client.Client {
@@ -41,6 +42,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		// given
 		provider := clientsetmocks.Provider{}
 		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(nil, errors.New("Istio client error"))
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(k8sClientFake.NewSimpleClientset(), nil)
 
 		// when
 		outputManifest, _, err := IstioOperatorConfiguration(ctx, &provider, istioManifest, kubeConfig, log)
@@ -56,6 +58,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		client := createClient(t)
 		provider := &clientsetmocks.Provider{}
 		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(k8sClientFake.NewSimpleClientset(), nil)
 
 		// when
 		outputManifest, _, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
@@ -69,7 +72,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		// given
 		iop := istioOperator.IstioOperator{}
 		numTrustedProxies := 4
-		istioCR := &v1alpha1.Istio{ObjectMeta: v1.ObjectMeta{
+		istioCR := &v1alpha1.Istio{ObjectMeta: metav1.ObjectMeta{
 			Name:      "istio-test",
 			Namespace: "namespace",
 		},
@@ -83,6 +86,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		client := createClient(t, istioCR)
 		provider := &clientsetmocks.Provider{}
 		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(k8sClientFake.NewSimpleClientset(), nil)
 
 		// when
 		outputManifest, _, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)

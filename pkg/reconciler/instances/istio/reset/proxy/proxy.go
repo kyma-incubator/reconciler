@@ -74,6 +74,19 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 		}
 	}
 
+	podsWithCNIChange, err := i.gatherer.GetPodsForCNIChange(cfg.Kubeclient, retryOpts, cfg.CNIEnabled)
+	if err != nil {
+		return err
+	}
+	if len(podsWithCNIChange.Items) >= 1 {
+		cfg.Log.Debugf("Found %d pods that need CNI plugin rollout", len(podsWithCNIChange.Items))
+		err = i.action.Reset(cfg.Context, cfg.Kubeclient, retryOpts, podsWithCNIChange, cfg.Log, cfg.Debug, waitOpts)
+		if err != nil {
+			return err
+		}
+		cfg.Log.Infof("CNI plugin rollout for %d pods successfully done", len(podsWithCNIChange.Items))
+	}
+
 	podsWithoutSidecar, err := i.gatherer.GetPodsWithoutSidecar(cfg.Kubeclient, retryOpts, cfg.SidecarInjectionByDefaultEnabled)
 	if err != nil {
 		return err
