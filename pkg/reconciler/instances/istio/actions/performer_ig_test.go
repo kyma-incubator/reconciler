@@ -8,9 +8,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
@@ -83,7 +83,8 @@ func Test_DefaultIstioPerfomer_InstallIGRestart(t *testing.T) {
 			},
 		}
 
-		ctrlClientSameConfig.Create(context.TODO(), istioCR)
+		err := ctrlClientSameConfig.Create(context.TODO(), istioCR)
+		require.NoError(t, err)
 
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
@@ -124,7 +125,8 @@ func Test_DefaultIstioPerfomer_InstallIGRestart(t *testing.T) {
 			},
 		}
 
-		ctrlClientDiffConfig.Create(context.TODO(), istioCR)
+		err := ctrlClientDiffConfig.Create(context.TODO(), istioCR)
+		require.NoError(t, err)
 
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
@@ -137,7 +139,7 @@ func Test_DefaultIstioPerfomer_InstallIGRestart(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Install(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
+		err = wrapper.Install(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
 
 		// then
 		require.NoError(t, err)
@@ -170,8 +172,9 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 			},
 		}
 
-		ctrlClientSameConfig.Create(context.TODO(), istioCR)
-
+		err := ctrlClientSameConfig.Create(context.TODO(), istioCR)
+		require.NoError(t, err)
+		
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &cmder}
@@ -184,7 +187,7 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
+		err = wrapper.Update(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
 
 		// then
 		require.NoError(t, err)
@@ -211,7 +214,8 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 			},
 		}
 
-		ctrlClientDiffConfig.Create(context.TODO(), istioCR)
+		err := ctrlClientDiffConfig.Create(context.TODO(), istioCR)
+		require.NoError(t, err)
 
 		cmder := istioctlmocks.Commander{}
 		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
@@ -225,7 +229,7 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Update(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
+		err = wrapper.Update(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
 
 		// then
 		require.NoError(t, err)
