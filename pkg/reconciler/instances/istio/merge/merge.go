@@ -24,7 +24,7 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 		return "", false, err
 	}
 
-	istioCRList, err := getIstioCR(ctx, provider, istioClient)
+	istioCRList, err := getIstioCR(ctx, istioClient)
 	if err != nil {
 		return "", false, err
 	}
@@ -47,7 +47,7 @@ func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider
 	return operatorManifest, false, nil
 }
 
-func getIstioCR(ctx context.Context, provider clientset.Provider, client client.Client) (*v1alpha1.IstioList, error) {
+func getIstioCR(ctx context.Context, client client.Client) (*v1alpha1.IstioList, error) {
 	istioCRList, err := gatherer.ListIstioCR(ctx, client)
 	if err != nil && !apiMeta.IsNoMatchError(err) {
 		return nil, err
