@@ -97,7 +97,7 @@ func Test_DefaultIstioPerfomer_InstallIGRestart(t *testing.T) {
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
 
 		// when
-		err := wrapper.Install(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
+		err = wrapper.Install(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
 
 		// then
 		require.NoError(t, err)
