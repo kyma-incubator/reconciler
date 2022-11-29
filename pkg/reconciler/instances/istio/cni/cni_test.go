@@ -63,7 +63,7 @@ func Test_ApplyCNIConfiguration(t *testing.T) {
 			Name:      configMapCNI,
 			Namespace: kymaNamespace,
 		},
-			Data: map[string]string{"enabled": configMapValueString},
+			Data: map[string]string{configMapCNIKey: configMapValueString},
 		}
 		client := k8sClientFake.NewSimpleClientset(istioCNIConfigMap)
 		provider := &clientsetmocks.Provider{}
@@ -106,7 +106,7 @@ func Test_ApplyCNIConfiguration(t *testing.T) {
 			Name:      configMapCNI,
 			Namespace: kymaNamespace,
 		},
-			Data: map[string]string{"enabled": configMapValueString},
+			Data: map[string]string{configMapCNIKey: configMapValueString},
 		}
 		client := k8sClientFake.NewSimpleClientset(istioCNIConfigMap)
 		provider := &clientsetmocks.Provider{}

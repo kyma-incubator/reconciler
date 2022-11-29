@@ -497,7 +497,7 @@ func Test_DefaultIstioPerformer_CNI_Merge(t *testing.T) {
 				Namespace: "kyma-system",
 			},
 			Data: map[string]string{
-				"enabled": "true",
+				"cniEnabled": "true",
 			},
 		}
 		client := fake.NewSimpleClientset(cm)
@@ -530,7 +530,7 @@ func Test_DefaultIstioPerformer_CNI_Merge(t *testing.T) {
 				Namespace: "kyma-system",
 			},
 			Data: map[string]string{
-				"enabled": "true",
+				"cniEnabled": "true",
 			},
 		}
 		client := fake.NewSimpleClientset(cm)
