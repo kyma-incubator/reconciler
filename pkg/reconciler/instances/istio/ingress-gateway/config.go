@@ -20,6 +20,9 @@ const (
 
 // GetNumTrustedProxyFromIstioCM fetches current cluster configuration for "numTrustedProxies" from istio-system/istio ConfigMap.
 // Returns nil if no configuration is present (default configuration).
+// The desired way to get the configuration would be to fetch it from Istio Operator, but at this point in time
+// it doesn't reflect the actual state of the cluster. This should change when the functionality will be migrated
+// to Istio Manager, as reconciliation will run on every update of Istio Custom Resource
 func GetNumTrustedProxyFromIstioCM(ctx context.Context, client client.Client) (NumTrustedProxies, error) {
 	cm := corev1.ConfigMap{}
 	err := client.Get(ctx, types.NamespacedName{Namespace: CMNamespace, Name: CMName}, &cm)
