@@ -17,6 +17,8 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	ingressgatewayTestUtils "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/test-utils"
 )
 
 const (
@@ -45,7 +47,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(k8sClientFake.NewSimpleClientset(), nil)
 
 		// when
-		outputManifest, _, err := IstioOperatorConfiguration(ctx, &provider, istioManifest, kubeConfig, log)
+		outputManifest, err := IstioOperatorConfiguration(ctx, &provider, istioManifest, kubeConfig, log)
 
 		// then
 		require.Error(t, err)
@@ -61,7 +63,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(k8sClientFake.NewSimpleClientset(), nil)
 
 		// when
-		outputManifest, _, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
+		outputManifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
 
 		// then
 		require.NoError(t, err)
@@ -89,7 +91,7 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(k8sClientFake.NewSimpleClientset(), nil)
 
 		// when
-		outputManifest, _, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
+		outputManifest, err := IstioOperatorConfiguration(ctx, provider, istioManifest, kubeConfig, log)
 
 		// then
 		require.NoError(t, err)
@@ -98,5 +100,96 @@ func Test_IstioOperatorConfiguration(t *testing.T) {
 		require.Equal(t, float64(4), iop.Spec.MeshConfig.Fields["defaultConfig"].
 			GetStructValue().Fields["gatewayTopology"].GetStructValue().Fields["numTrustedProxies"].GetNumberValue())
 
+	})
+}
+
+const TestConfigMap string = `
+accessLogEncoding: JSON
+defaultConfig:
+  discoveryAddress: istiod.istio-system.svc:15012
+  gatewayTopology:
+    numTrustedProxies: 3
+  proxyMetadata: {}
+  tracing:
+    sampling: 100
+    zipkin:
+      address: zipkin.kyma-system:9411
+enableTracing: true
+rootNamespace: istio-system
+trustDomain: cluster.local
+`
+
+func Test_NeedsIngressGatewayRestart(t *testing.T) {
+	kubeConfig := "kubeconfig"
+	log := logger.NewLogger(false)
+	ctx := context.Background()
+	defer ctx.Done()
+
+	t.Run("should return true if CM configuration differs from Istio CR config", func(t *testing.T) {
+		//given
+		client := ingressgatewayTestUtils.GetIGClient(t, TestConfigMap)
+		iop := istioOperator.IstioOperator{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "istio-system"}}
+		numTrustedProxies := 4
+		istioCR := &v1alpha1.Istio{ObjectMeta: metav1.ObjectMeta{
+			Name:      "istio-test",
+			Namespace: "namespace",
+		},
+			Spec: v1alpha1.IstioSpec{
+				Config: v1alpha1.Config{
+					NumTrustedProxies: &numTrustedProxies,
+				},
+			},
+		}
+
+		err := client.Create(context.TODO(), &iop)
+		require.NoError(t, err)
+
+		err = client.Create(context.TODO(), istioCR)
+		require.NoError(t, err)
+
+		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(k8sClientFake.NewSimpleClientset(), nil)
+
+		//when
+		needs, err := NeedsIngressGatewayRestart(ctx, &provider, kubeConfig, log)
+
+		//then
+		require.NoError(t, err)
+		require.True(t, needs)
+	})
+
+	t.Run("should return false if CM configuration doesn't differ from Istio CR config", func(t *testing.T) {
+		//given
+		client := ingressgatewayTestUtils.GetIGClient(t, TestConfigMap)
+		iop := istioOperator.IstioOperator{ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "istio-system"}}
+		numTrustedProxies := 3
+		istioCR := &v1alpha1.Istio{ObjectMeta: metav1.ObjectMeta{
+			Name:      "istio-test",
+			Namespace: "namespace",
+		},
+			Spec: v1alpha1.IstioSpec{
+				Config: v1alpha1.Config{
+					NumTrustedProxies: &numTrustedProxies,
+				},
+			},
+		}
+
+		err := client.Create(context.TODO(), &iop)
+		require.NoError(t, err)
+
+		err = client.Create(context.TODO(), istioCR)
+		require.NoError(t, err)
+
+		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.AnythingOfType("string")).Return(client, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(k8sClientFake.NewSimpleClientset(), nil)
+
+		//when
+		needs, err := NeedsIngressGatewayRestart(ctx, &provider, kubeConfig, log)
+
+		//then
+		require.NoError(t, err)
+		require.False(t, needs)
 	})
 }

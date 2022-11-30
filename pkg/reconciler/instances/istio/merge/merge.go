@@ -15,36 +15,46 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// IstioOperatorConfiguration merges default Kyma Istio Operator file with user configuration in Istio CR.
-// If there is no IstioCRD or there are no Istio CR present on the cluster, it defaults to the operator file.
-// The returned bool informs of ingress-gateway restart requirement
-func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (string, bool, error) {
+// NeedsIngressGatewayRestart reports if applying IstioCR configuration present on cluster requires restart of Istio IngressGateway
+func NeedsIngressGatewayRestart(ctx context.Context, provider clientset.Provider, kubeConfig string, logger *zap.SugaredLogger) (bool, error) {
 	istioClient, err := provider.GetIstioClient(kubeConfig)
 	if err != nil {
-		return "", false, err
+		return false, err
 	}
 
 	istioCRList, err := getIstioCR(ctx, istioClient)
 	if err != nil {
-		return "", false, err
+		return false, err
+	}
+
+	return ingressgateway.NeedsRestart(ctx, istioClient, istioCRList)
+}
+
+// IstioOperatorConfiguration merges default Kyma Istio Operator file with user configuration in Istio CR.
+// If there is no IstioCRD or there are no Istio CR present on the cluster, it defaults to the operator file.
+func IstioOperatorConfiguration(ctx context.Context, provider clientset.Provider, operatorManifest string, kubeConfig string, logger *zap.SugaredLogger) (string, error) {
+	istioClient, err := provider.GetIstioClient(kubeConfig)
+	if err != nil {
+		return "", err
+	}
+
+	istioCRList, err := getIstioCR(ctx, istioClient)
+	if err != nil {
+		return "", err
 	}
 
 	if istioCRList != nil {
 		combinedManifest, err := applyIstioCR(istioCRList, operatorManifest)
 		if err != nil {
-			return "", false, err
+			return "", err
 		}
 
-		needsRestart, err := ingressgateway.NeedsRestart(ctx, istioClient, istioCRList)
-		if err != nil {
-			return "", false, err
-		}
 		logger.Debugf("Istio CRs were applied to the Istio Operator configuration")
-		return combinedManifest, needsRestart, nil
+		return combinedManifest, nil
 	}
 
 	logger.Debugf("No Istio CRs found on the cluster, applying default configuration")
-	return operatorManifest, false, nil
+	return operatorManifest, nil
 }
 
 func getIstioCR(ctx context.Context, client client.Client) (*v1alpha1.IstioList, error) {

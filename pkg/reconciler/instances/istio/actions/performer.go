@@ -177,7 +177,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return err
 	}
 
-	mergedIstioConfig, ingressGatewayNeedsRestart, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	mergedIstioConfig, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
@@ -197,18 +197,6 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 	logger.Infof("Istio in version %s successfully installed", version)
-
-	if ingressGatewayNeedsRestart {
-		logger.Infof("Restarting ingress-gateway")
-		istioClient, err := c.provider.GetIstioClient(kubeConfig)
-		if err != nil {
-			return err
-		}
-		err = ingressgateway.RestartDeployment(context, istioClient)
-		if err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
@@ -266,7 +254,12 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return err
 	}
 
-	mergedIstioConfig, ingressGatewayNeedsRestart, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
+	ingressGatewayNeedsRestart, err := merge.NeedsIngressGatewayRestart(context, c.provider, kubeConfig, logger)
+	if err != nil {
+		return err
+	}
+
+	mergedIstioConfig, err := merge.IstioOperatorConfiguration(context, c.provider, istioOperatorManifest, kubeConfig, logger)
 	if err != nil {
 		return err
 	}
