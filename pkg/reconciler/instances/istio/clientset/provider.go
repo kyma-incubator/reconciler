@@ -10,6 +10,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Provider offers k8s Clients.
@@ -63,6 +66,16 @@ func (c *DefaultProvider) GetIstioClient(kubeConfig string) (client.Client, erro
 
 	scheme := runtime.NewScheme()
 	err = v1alpha1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	err = corev1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	err = appsv1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}

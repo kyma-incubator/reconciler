@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -162,6 +163,10 @@ func Test_RunUpdateAction(t *testing.T) {
 	t.Run("Istio update should permit one minor downgrade", func(t *testing.T) {
 		// given
 		err := v1alpha1.AddToScheme(scheme.Scheme)
+		require.NoError(t, err)
+		err = appsv1.AddToScheme(scheme.Scheme)
+		require.NoError(t, err)
+		err = v1.AddToScheme(scheme.Scheme)
 		require.NoError(t, err)
 		ctrlClient := controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 		providerMock := clientsetmocks.Provider{}
