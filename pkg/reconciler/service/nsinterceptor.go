@@ -6,8 +6,9 @@ import (
 )
 
 const (
-	NameLabel             = "name"
-	SidecarInjectionLabel = "istio-injection"
+	NameLabel              = "name"
+	SidecarInjectionLabel  = "istio-injection"
+	SignifyValidationLabel = "namespaces.warden.kyma-project.io/validate"
 )
 
 type NamespaceInterceptor struct {
@@ -22,6 +23,12 @@ func (l *NamespaceInterceptor) Intercept(resources *kubernetes.ResourceCacheList
 		}
 		labels[NameLabel] = u.GetName()
 		labels[SidecarInjectionLabel] = "enabled"
+
+		//enable Signify signature validation for kyma-system namespace
+		if u.GetName() == "kyma-system" {
+			labels[SignifyValidationLabel] = "enabled"
+		}
+
 		u.SetLabels(labels)
 		return nil
 	}

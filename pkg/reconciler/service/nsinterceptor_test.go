@@ -50,6 +50,27 @@ func TestNamespaceInterceptor(t *testing.T) {
 				NameLabel:             "namespace2",
 			},
 		},
+		{
+			name: "Namespace kyma-system with labels",
+			resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Namespace",
+					"metadata": map[string]interface{}{
+						"name": "kyma-system",
+						"labels": map[string]interface{}{
+							"some-label": "some-value",
+						},
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				SidecarInjectionLabel:  "enabled",
+				"some-label":           "some-value",
+				NameLabel:              "kyma-system",
+				SignifyValidationLabel: "enabled",
+			},
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
