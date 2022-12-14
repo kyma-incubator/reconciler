@@ -78,9 +78,25 @@ func TestIngressGatewayNeedsRestartNoIstioCr(t *testing.T) {
 		require.False(t, does)
 	})
 
+	t.Run("should not restart when IstioCRList is nil, and CM has no configuration for numTrustedProxies", func(t *testing.T) {
+		client := GetClientSet(t, TestConfigMap)
+		does, err := ingressgateway.NeedsRestart(context.TODO(), client, nil)
+
+		require.NoError(t, err)
+		require.True(t, does)
+	})
+
 	t.Run("should restart when there's no Istio CR, and CM has configuration for numTrustedProxies", func(t *testing.T) {
 		client := GetClientSet(t, TestConfigMap)
 		does, err := ingressgateway.NeedsRestart(context.TODO(), client, &istioCR.IstioList{Items: []istioCR.Istio{}})
+
+		require.NoError(t, err)
+		require.True(t, does)
+	})
+
+	t.Run("should restart when IstioCRList is nil, and CM has configuration for numTrustedProxies", func(t *testing.T) {
+		client := GetClientSet(t, TestConfigMap)
+		does, err := ingressgateway.NeedsRestart(context.TODO(), client, nil)
 
 		require.NoError(t, err)
 		require.True(t, does)
