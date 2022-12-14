@@ -39,8 +39,12 @@ func NeedsRestart(ctx context.Context, client client.Client, istioCRList *istioC
 	}
 
 	// Restart to default if no IstioCR is present
-	if numTrustedProxies != nil && len(istioCRList.Items) == 0 {
+	if numTrustedProxies != nil && (istioCRList == nil || len(istioCRList.Items) == 0) {
 		return true, nil
+	}
+
+	if istioCRList == nil {
+		return false, nil
 	}
 
 	for _, cr := range istioCRList.Items {
