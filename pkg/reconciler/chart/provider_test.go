@@ -58,10 +58,11 @@ func TestProvider(t *testing.T) {
 		ws, err := wsFactory.Get(kymaVersion)
 		require.NoError(t, err)
 
-		provider, err := NewDefaultProvider(wsFactory, log)
+		var provider Provider
+		provider, err = NewDefaultProvider(wsFactory, log)
 		require.NoError(t, err)
 
-		provider.WithFilter(func(manifest string) (string, error) { return "", nil })
+		provider = provider.WithFilter(func(manifest string) (string, error) { return "", nil })
 
 		clist := componentList(t, filepath.Join(ws.InstallationResourceDir, "components.yaml"))
 
