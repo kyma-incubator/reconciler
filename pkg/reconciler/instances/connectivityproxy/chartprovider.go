@@ -44,6 +44,9 @@ func serialize(unstructs []*unstructured.Unstructured) (string, error) {
 			return "", errors.Wrapf(err, "failed to encode unstructured object as yaml")
 		}
 
+		if manifests != "" {
+			manifests += "\n"
+		}
 		manifests += string(bytes)
 		manifests += "---"
 	}
