@@ -1,4 +1,4 @@
-package connectivityproxy
+package rendering
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"

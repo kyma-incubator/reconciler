@@ -3,19 +3,17 @@ package connectivityproxy
 import (
 	"encoding/json"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/rendering"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	BindingKey            = "global.binding."
-	ReleaseLabelKey       = "release"
-	ConnectivityProxyKind = "StatefulSet"
+	BindingKey = "global.binding."
 )
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
@@ -37,69 +35,29 @@ type CommandActions struct {
 }
 
 func (a *CommandActions) InstallOnReleaseChange(context *service.ActionContext, app *appsv1.StatefulSet) error {
-	filterOutConfigMap := func(unstructs []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-		newUnstructs := make([]*unstructured.Unstructured, 0, 0)
+	chartProvider := a.getChartProvider(context, app)
 
-		for _, unstruct := range unstructs {
-			annotations := unstruct.GetAnnotations()
-			_, ok := annotations["skip"]
-			if !ok {
-				newUnstructs = append(newUnstructs, unstruct)
-			}
-		}
-
-		return newUnstructs, nil
-	}
-
-	if app == nil || (app != nil && app.GetLabels() == nil) {
-		context.Logger.Debug("There is no valid Connectivity Proxy installed, invoking the installation")
-		newChartProvider := NewProviderWithFilters(context.ChartProvider, filterOutConfigMap)
-
-		return a.installOnCondition(context, newChartProvider)
-	}
-
-	appName := app.Name
-	appRelease := app.GetLabels()[ReleaseLabelKey]
-
-	filterOutIfReleaseDiffers := func(unstructs []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-		var statefulSetManifest *unstructured.Unstructured
-		for _, unstruct := range unstructs {
-			if unstruct != nil && unstruct.GetName() == appName && unstruct.GetKind() == ConnectivityProxyKind {
-				statefulSetManifest = unstruct
-				break
-			}
-		}
-
-		if statefulSetManifest == nil {
-			context.Logger.Warn("Did not find the Connectivity Proxy stateful set, skipping")
-			return nil, errors.Errorf("Connectivity Proxy stateful set does not have any release labels")
-		}
-
-		if statefulSetManifest.GetLabels() == nil || statefulSetManifest.GetLabels()[ReleaseLabelKey] == "" {
-			return nil, errors.Errorf("Connectivity Proxy StatefulSet does not have any release labels")
-		}
-
-		if statefulSetManifest.GetLabels()[ReleaseLabelKey] != appRelease {
-			context.Logger.Debug("Connectivity Proxy release has changed, the component will be upgraded")
-			return unstructs, nil
-		}
-
-		context.Logger.Debug("Connectivity Proxy release did not change, skipping")
-		return nil, nil
-	}
-
-	newChartProvider := NewProviderWithFilters(context.ChartProvider, filterOutIfReleaseDiffers, filterOutConfigMap)
-
-	return a.installOnCondition(context, newChartProvider)
-}
-
-func (a *CommandActions) installOnCondition(context *service.ActionContext, chartProvider chart.Provider) error {
 	err := a.install.Invoke(context.Context, chartProvider, context.Task, context.KubeClient)
 	if err != nil {
-		return errors.Wrap(err, "failed to invoke conditional installation")
+		return errors.Wrap(err, "failed to invoke installation")
 	}
 
 	return nil
+}
+
+func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet) chart.Provider {
+	var filters []rendering.FilterFunc
+
+	upgrade := app != nil && app.GetLabels() != nil
+
+	if upgrade {
+		filterOutIfReleaseDiffers := rendering.NewFilterByRelease(context, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
+		filters = append(filters, filterOutIfReleaseDiffers)
+	}
+
+	filters = append(filters, rendering.NewFilterByAnnotation("skip"))
+
+	return rendering.NewProviderWithFilters(context.ChartProvider, filters...)
 }
 
 func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
