@@ -12,6 +12,10 @@ type FilterFunc func([]*unstructured.Unstructured) ([]*unstructured.Unstructured
 
 func NewProviderWithFilters(provider chart.Provider, filterFuncs ...FilterFunc) chart.Provider {
 	return provider.WithFilter(func(manifest string) (string, error) {
+		if len(filterFuncs) == 0 {
+			return manifest, nil
+		}
+
 		unstructs, err := internalKubernetes.ToUnstructured([]byte(manifest), true)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to convert manifest to unstructured object")
@@ -38,17 +42,21 @@ func NewProviderWithFilters(provider chart.Provider, filterFuncs ...FilterFunc) 
 func serialize(unstructs []*unstructured.Unstructured) (string, error) {
 	manifests := ""
 
-	for _, unstruct := range unstructs {
+	for index, unstruct := range unstructs {
 		bytes, err := runtime.Encode(unstructured.UnstructuredJSONScheme, unstruct)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to encode unstructured object as yaml")
 		}
 
-		if manifests != "" {
+		if index > 0 {
 			manifests += "\n"
 		}
+
 		manifests += string(bytes)
-		manifests += "---"
+
+		if index < len(unstructs)-1 {
+			manifests += "---"
+		}
 	}
 
 	return manifests, nil
