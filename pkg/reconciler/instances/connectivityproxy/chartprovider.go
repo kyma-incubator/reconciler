@@ -5,24 +5,48 @@ import (
 	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
-type FilterFunc func([]*unstructured.Unstructured) []*unstructured.Unstructured
+type FilterFunc func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error)
 
 func NewProviderWithFilters(provider chart.Provider, filterFuncs ...FilterFunc) chart.Provider {
 	return provider.WithFilter(func(manifest string) (string, error) {
 		unstructs, err := internalKubernetes.ToUnstructured([]byte(manifest), true)
 		if err != nil {
-			return "", errors.Wrapf(err, "while casting manifest to kubernetes unstructured")
+			return "", errors.Wrapf(err, "failed to convert manifest to unstructured object")
 		}
 
 		for _, filterFunc := range filterFuncs {
 			if filterFunc != nil {
-				unstructs = filterFunc(unstructs)
+				unstructs, err = filterFunc(unstructs)
+				if err != nil {
+					return "", err
+				}
 			}
 		}
 
-		// TODO: serialize unstructs to string
-		return manifest, nil
+		newManifest, err := serialize(unstructs)
+		if err != nil {
+			return "", err
+		}
+
+		return newManifest, nil
 	})
+}
+
+func serialize(unstructs []*unstructured.Unstructured) (string, error) {
+	manifests := ""
+
+	for _, unstruct := range unstructs {
+		bytes, err := runtime.Encode(unstructured.UnstructuredJSONScheme, unstruct)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to encode unstructured object as yaml")
+		}
+
+		manifests += string(bytes)
+		manifests += "---"
+	}
+
+	return manifests, nil
 }
