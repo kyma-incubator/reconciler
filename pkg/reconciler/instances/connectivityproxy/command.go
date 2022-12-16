@@ -51,7 +51,7 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, app *a
 	upgrade := app != nil && app.GetLabels() != nil
 
 	if upgrade {
-		filterOutIfReleaseDiffers := rendering.NewFilterByRelease(context, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
+		filterOutIfReleaseDiffers := rendering.NewFilterByRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
 		filters = append(filters, filterOutIfReleaseDiffers)
 	}
 
