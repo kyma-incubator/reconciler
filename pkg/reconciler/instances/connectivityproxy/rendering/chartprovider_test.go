@@ -2,6 +2,7 @@ package rendering
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,11 +75,39 @@ func TestChartProvider(t *testing.T) {
 	})
 
 	t.Run("should fail if manifest is not a correct yaml", func(t *testing.T) {
+		// given
+		manifest := "<data>aa</data>"
+		filterFunc := func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+			return []*unstructured.Unstructured{}, nil
+		}
+		// when
+		stub := NewChartProviderStub(manifest)
+		provider := NewProviderWithFilters(stub, filterFunc)
 
+		output, err := provider.RenderManifest(nil)
+
+		// then
+		// TODO: is it a bug in internalKubernetes.ToUnstructured?
+		require.NoError(t, err)
+		require.Equal(t, "", output.Manifest)
 	})
 
 	t.Run("should fail if filter function failed", func(t *testing.T) {
+		// given
+		typedTestManifest := typedTestManifest()
+		manifest, err := prepareTestManifest(&typedTestManifest)
+		filterFunc := func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+			return []*unstructured.Unstructured{}, errors.New("some error")
+		}
+		// when
+		stub := NewChartProviderStub(manifest)
+		provider := NewProviderWithFilters(stub, filterFunc)
 
+		output, err := provider.RenderManifest(nil)
+
+		// then
+		require.Error(t, err)
+		require.Nil(t, output)
 	})
 }
 
@@ -100,9 +129,9 @@ func typedTestManifest() corev1.ConfigMap {
 func prepareTestManifest(object runtime.Object) (string, error) {
 
 	serializer := jsonserializer.NewSerializerWithOptions(
-		jsonserializer.DefaultMetaFactory, // jsonserializer.MetaFactory
-		scheme.Scheme,                     // runtime.Scheme implements runtime.ObjectCreater
-		scheme.Scheme,                     // runtime.Scheme implements runtime.ObjectTyper
+		jsonserializer.DefaultMetaFactory,
+		scheme.Scheme,
+		scheme.Scheme,
 		jsonserializer.SerializerOptions{
 			Yaml:   true,
 			Pretty: false,
@@ -146,6 +175,7 @@ func NewChartProviderStub(manifest string) chart.Provider {
 type ChartProviderStub struct {
 	filters       []chart.Filter
 	inputManifest string
+	lastError     error
 }
 
 func (cp *ChartProviderStub) WithFilter(filter chart.Filter) chart.Provider {
@@ -166,6 +196,7 @@ func (cp *ChartProviderStub) RenderManifest(component *chart.Component) (*chart.
 	for _, filter := range cp.filters {
 		manifest, err = filter(manifest)
 		if err != nil {
+			cp.lastError = err
 			return nil, err
 		}
 	}
