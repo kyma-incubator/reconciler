@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestFilterByAnnotation(t *testing.T) {
+func TestFilterOutAnnotatedManifests(t *testing.T) {
 
 	configMap := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -56,7 +56,7 @@ func TestFilterByAnnotation(t *testing.T) {
 			}}
 
 		// when
-		filter := NewFilterByAnnotation("skip")
+		filter := NewFilterOutAnnotatedManifests("skip")
 		output, err := filter(input)
 
 		// then
@@ -66,7 +66,7 @@ func TestFilterByAnnotation(t *testing.T) {
 	})
 }
 
-func TestFilterByRelease(t *testing.T) {
+func TestSkipReinstallingCurrentRelease(t *testing.T) {
 	statefulSetName := "connectivity-proxy"
 	statefulSetWithVersion24 := &v1apps.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
@@ -88,7 +88,7 @@ func TestFilterByRelease(t *testing.T) {
 
 	t.Run("should not filter out manifests if release differs", func(t *testing.T) {
 		// when
-		filter := NewFilterByRelease(logger, statefulSetName, "2.8")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.8")
 		output, err := filter(input)
 
 		// then
@@ -98,7 +98,7 @@ func TestFilterByRelease(t *testing.T) {
 
 	t.Run("should filter out all manifests is release doesn't differ", func(t *testing.T) {
 		// when
-		filter := NewFilterByRelease(logger, statefulSetName, "2.4")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4")
 		output, err := filter(input)
 
 		// then
@@ -127,7 +127,7 @@ func TestFilterByRelease(t *testing.T) {
 		input := []*unstructured.Unstructured{{Object: cmUnstructured}}
 
 		// when
-		filter := NewFilterByRelease(logger, statefulSetName, "2.4")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4")
 		output, err := filter(input)
 
 		// then
@@ -153,7 +153,7 @@ func TestFilterByRelease(t *testing.T) {
 		input := []*unstructured.Unstructured{{Object: statefulSetUnstructured}}
 
 		// when
-		filter := NewFilterByRelease(logger, statefulSetName, "2.4")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4")
 		output, err := filter(input)
 
 		// then

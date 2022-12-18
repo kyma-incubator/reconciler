@@ -18,7 +18,7 @@ const (
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	InstallOnReleaseChange(*service.ActionContext, *appsv1.StatefulSet) error
+	InstallOrUpgrade(*service.ActionContext, *appsv1.StatefulSet) error
 	CopyResources(*service.ActionContext) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
@@ -34,7 +34,7 @@ type CommandActions struct {
 	copyFactory            []CopyFactory
 }
 
-func (a *CommandActions) InstallOnReleaseChange(context *service.ActionContext, app *appsv1.StatefulSet) error {
+func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet) error {
 	chartProvider := a.getChartProvider(context, app)
 
 	err := a.install.Invoke(context.Context, chartProvider, context.Task, context.KubeClient)
@@ -46,18 +46,17 @@ func (a *CommandActions) InstallOnReleaseChange(context *service.ActionContext, 
 }
 
 func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet) chart.Provider {
-	var filters []rendering.FilterFunc
-
 	upgrade := app != nil && app.GetLabels() != nil
 
 	if upgrade {
-		filterOutIfReleaseDiffers := rendering.NewFilterByRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
-		filters = append(filters, filterOutIfReleaseDiffers)
+		filterOutManifests := rendering.NewFilterOutAnnotatedManifests("skip")
+		skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
+		filters := []rendering.FilterFunc{skipInstallationIfReleaseNotChanged, filterOutManifests}
+
+		return rendering.NewProviderWithFilters(context.ChartProvider, filters...)
 	}
 
-	filters = append(filters, rendering.NewFilterByAnnotation("skip"))
-
-	return rendering.NewProviderWithFilters(context.ChartProvider, filters...)
+	return context.ChartProvider
 }
 
 func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {

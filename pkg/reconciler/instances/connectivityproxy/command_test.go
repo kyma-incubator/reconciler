@@ -141,7 +141,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOnReleaseChange(actionContext, component)
+		err := commands.InstallOrUpgrade(actionContext, component)
 
 		// then
 		require.NoError(t, err)
@@ -193,7 +193,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOnReleaseChange(actionContext, component)
+		err := commands.InstallOrUpgrade(actionContext, component)
 
 		// then
 		require.NoError(t, err)
@@ -236,7 +236,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOnReleaseChange(actionContext, nil)
+		err := commands.InstallOrUpgrade(actionContext, nil)
 
 		// then
 		require.NoError(t, err)
@@ -282,7 +282,7 @@ func TestCommands(t *testing.T) {
 		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: componentName}}
 
 		// when
-		err := commands.InstallOnReleaseChange(actionContext, component)
+		err := commands.InstallOrUpgrade(actionContext, component)
 
 		// then
 		require.NoError(t, err)

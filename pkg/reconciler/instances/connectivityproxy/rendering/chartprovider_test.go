@@ -153,12 +153,12 @@ func fromYamlToTypedObject(yamlManifest string) (corev1.ConfigMap, error) {
 	}
 
 	var tConfigMap corev1.ConfigMap
-	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&decoded)
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&decoded)
 	if err != nil {
 		return corev1.ConfigMap{}, err
 	}
 
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured, &tConfigMap)
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(u, &tConfigMap)
 	if err != nil {
 		return corev1.ConfigMap{}, err
 	}
@@ -185,11 +185,11 @@ func (cp *ChartProviderStub) WithFilter(filter chart.Filter) chart.Provider {
 	}
 }
 
-func (cp *ChartProviderStub) RenderCRD(version string) ([]*chart.Manifest, error) {
+func (cp *ChartProviderStub) RenderCRD(_ string) ([]*chart.Manifest, error) {
 	return nil, nil
 }
 
-func (cp *ChartProviderStub) RenderManifest(component *chart.Component) (*chart.Manifest, error) {
+func (cp *ChartProviderStub) RenderManifest(_ *chart.Component) (*chart.Manifest, error) {
 	var err error
 	manifest := cp.inputManifest
 
@@ -206,6 +206,6 @@ func (cp *ChartProviderStub) RenderManifest(component *chart.Component) (*chart.
 	}, nil
 }
 
-func (cp *ChartProviderStub) Configuration(component *chart.Component) (map[string]interface{}, error) {
+func (cp *ChartProviderStub) Configuration(_ *chart.Component) (map[string]interface{}, error) {
 	return nil, nil
 }

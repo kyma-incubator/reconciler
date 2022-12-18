@@ -71,7 +71,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 
 		context.Logger.Info("Installing component")
-		if err := a.Commands.InstallOnReleaseChange(context, app); err != nil {
+		if err := a.Commands.InstallOrUpgrade(context, app); err != nil {
 			return errors.Wrap(err, "Error during installation")
 		}
 	} else if binding == nil && app != nil {

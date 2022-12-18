@@ -11,7 +11,7 @@ const (
 	ConnectivityProxyKind = "StatefulSet"
 )
 
-func NewFilterByAnnotation(annotation string) FilterFunc {
+func NewFilterOutAnnotatedManifests(annotation string) FilterFunc {
 	return func(unstructs []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 		newUnstructs := make([]*unstructured.Unstructured, 0, 0)
 
@@ -27,7 +27,7 @@ func NewFilterByAnnotation(annotation string) FilterFunc {
 	}
 }
 
-func NewFilterByRelease(logger *zap.SugaredLogger, appName, appRelease string) FilterFunc {
+func NewSkipReinstallingCurrentRelease(logger *zap.SugaredLogger, appName, currentRelease string) FilterFunc {
 	return func(unstructs []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 		var statefulSetManifest *unstructured.Unstructured
 		for _, unstruct := range unstructs {
@@ -42,11 +42,16 @@ func NewFilterByRelease(logger *zap.SugaredLogger, appName, appRelease string) F
 			return []*unstructured.Unstructured{}, errors.Errorf("Connectivity Proxy stateful set does not have any release labels")
 		}
 
-		if statefulSetManifest.GetLabels() == nil || statefulSetManifest.GetLabels()[ReleaseLabelKey] == "" {
+		releaseToBeInstalled := ""
+		if statefulSetManifest.GetLabels() != nil {
+			releaseToBeInstalled = statefulSetManifest.GetLabels()[ReleaseLabelKey]
+		}
+
+		if releaseToBeInstalled == "" {
 			return []*unstructured.Unstructured{}, errors.Errorf("Connectivity Proxy StatefulSet does not have any release labels")
 		}
 
-		if statefulSetManifest.GetLabels()[ReleaseLabelKey] != appRelease {
+		if releaseToBeInstalled != currentRelease {
 			logger.Debug("Connectivity Proxy release has changed, the component will be upgraded")
 			return unstructs, nil
 		}
