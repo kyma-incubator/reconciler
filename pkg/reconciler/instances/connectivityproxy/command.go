@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	BindingKey = "global.binding."
+	BindingKey             = "global.binding."
+	SkipManifestAnnotation = "reconciler.kyma-project.io/skip-rendering-on-upgrade"
 )
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
@@ -49,7 +50,7 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, app *a
 	upgrade := app != nil && app.GetLabels() != nil
 
 	if upgrade {
-		filterOutManifests := rendering.NewFilterOutAnnotatedManifests("skip")
+		filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
 		skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
 		filters := []rendering.FilterFunc{skipInstallationIfReleaseNotChanged, filterOutManifests}
 

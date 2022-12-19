@@ -75,20 +75,16 @@ func TestSkipReinstallingCurrentRelease(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   statefulSetName,
-			Labels: map[string]string{"release": "2.4"},
+			Labels: map[string]string{"release": "2.4.0"},
 		},
 	}
 
 	logger := zaptest.NewLogger(t).Sugar()
+	input := getInput(t, &statefulSetWithVersion24)
 
-	statefulSetUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&statefulSetWithVersion24)
-	require.NoError(t, err)
-
-	input := []*unstructured.Unstructured{{Object: statefulSetUnstructured}}
-
-	t.Run("should not filter out manifests if release differs", func(t *testing.T) {
+	t.Run("should not filter out manifests if release to be installed in newer", func(t *testing.T) {
 		// when
-		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.8")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.3.0")
 		output, err := filter(input)
 
 		// then
@@ -96,15 +92,29 @@ func TestSkipReinstallingCurrentRelease(t *testing.T) {
 		require.Equal(t, input, output)
 	})
 
-	t.Run("should filter out all manifests is release doesn't differ", func(t *testing.T) {
+	t.Run("should filter out all manifests if release to be installed is not greater than current one", func(t *testing.T) {
 		// when
-		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4.0")
 		output, err := filter(input)
 
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 0, len(output))
+
+		// when
+		filter = NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.5.0")
+		output, err = filter(input)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 0, len(output))
 	})
+}
+
+func TestSkipReinstallingCurrentReleaseErrors(t *testing.T) {
+	logger := zaptest.NewLogger(t).Sugar()
+
+	statefulSetName := "connectivity-proxy"
 
 	t.Run("should fail if StatefulSet not found", func(t *testing.T) {
 		// given
@@ -121,13 +131,10 @@ func TestSkipReinstallingCurrentRelease(t *testing.T) {
 			Data: map[string]string{"foo": "bar"},
 		}
 
-		cmUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&configMap)
-		require.NoError(t, err)
-
-		input := []*unstructured.Unstructured{{Object: cmUnstructured}}
+		input := getInput(t, &configMap)
 
 		// when
-		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4.0")
 		output, err := filter(input)
 
 		// then
@@ -147,17 +154,59 @@ func TestSkipReinstallingCurrentRelease(t *testing.T) {
 			},
 		}
 
-		statefulSetUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&statefulSetWithoutReleaseLabel)
-		require.NoError(t, err)
-
-		input := []*unstructured.Unstructured{{Object: statefulSetUnstructured}}
+		input := getInput(t, &statefulSetWithoutReleaseLabel)
 
 		// when
-		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4.0")
 		output, err := filter(input)
 
 		// then
 		require.Error(t, err)
 		require.Equal(t, []*unstructured.Unstructured{}, output)
 	})
+
+	t.Run("should fail if the version has incorrect format", func(t *testing.T) {
+		// given
+		statefulSetWithIncorrectReleaseLabel := &v1apps.StatefulSet{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "StatefulSet",
+				APIVersion: "apps/v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   statefulSetName,
+				Labels: map[string]string{"release": "2.4"},
+			},
+		}
+
+		input := getInput(t, &statefulSetWithIncorrectReleaseLabel)
+
+		// when
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4.0")
+		output, err := filter(input)
+
+		// then
+		require.Error(t, err)
+		require.Equal(t, []*unstructured.Unstructured{}, output)
+
+		// when
+		filter = NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4")
+		output, err = filter(input)
+
+		// then
+		require.Error(t, err)
+		require.Equal(t, []*unstructured.Unstructured{}, output)
+	})
+}
+
+func getInput(t *testing.T, obj interface{}) []*unstructured.Unstructured {
+	t.Helper()
+
+	var uns []*unstructured.Unstructured
+
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	require.NoError(t, err)
+
+	uns = append(uns, &unstructured.Unstructured{Object: u})
+
+	return uns
 }

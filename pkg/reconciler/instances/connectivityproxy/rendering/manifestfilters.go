@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"github.com/coreos/go-semver/semver"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -38,7 +39,7 @@ func NewSkipReinstallingCurrentRelease(logger *zap.SugaredLogger, appName, curre
 		}
 
 		if statefulSetManifest == nil {
-			logger.Warn("Did not find the Connectivity Proxy StatefulSet, skipping")
+			logger.Warn("Connectivity Proxy StatefulSet is missing in the chart")
 			return []*unstructured.Unstructured{}, errors.Errorf("Connectivity Proxy stateful set does not have any release labels")
 		}
 
@@ -51,8 +52,18 @@ func NewSkipReinstallingCurrentRelease(logger *zap.SugaredLogger, appName, curre
 			return []*unstructured.Unstructured{}, errors.Errorf("Connectivity Proxy StatefulSet does not have any release labels")
 		}
 
-		if releaseToBeInstalled != currentRelease {
-			logger.Debug("Connectivity Proxy release has changed, the component will be upgraded")
+		currentVersion, err := semver.NewVersion(currentRelease)
+		if err != nil {
+			return []*unstructured.Unstructured{}, errors.Errorf("incorrect release version format: %s", currentRelease)
+		}
+
+		newVersion, err := semver.NewVersion(releaseToBeInstalled)
+		if err != nil {
+			return []*unstructured.Unstructured{}, errors.Errorf("incorrect release version format: %s", releaseToBeInstalled)
+		}
+
+		if currentVersion.LessThan(*newVersion) {
+			logger.Info("Connectivity Proxy release has changed, the component will be upgraded")
 			return unstructs, nil
 		}
 

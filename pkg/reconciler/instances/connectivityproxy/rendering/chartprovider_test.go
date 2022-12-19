@@ -31,7 +31,7 @@ func TestChartProvider(t *testing.T) {
 		require.Equal(t, manifest, output.Manifest)
 	})
 
-	t.Run("should render empty manifest if filter excluded every manifest", func(t *testing.T) {
+	t.Run("should render empty string if filter excluded every manifest", func(t *testing.T) {
 		// given
 		typedTestManifest := typedTestManifest()
 		manifest, err := prepareTestManifest(&typedTestManifest)
@@ -51,7 +51,7 @@ func TestChartProvider(t *testing.T) {
 		require.Equal(t, "", output.Manifest)
 	})
 
-	t.Run("should render manifest if filter included every manifest", func(t *testing.T) {
+	t.Run("should render manifests if filter included everything", func(t *testing.T) {
 		// given
 		typedTestManifest := typedTestManifest()
 		manifest, err := prepareTestManifest(&typedTestManifest)

@@ -99,7 +99,7 @@ func TestCommands(t *testing.T) {
 
 	componentName := "connectivity-proxy"
 
-	t.Run("Should invoke installation", func(t *testing.T) {
+	t.Run("Should upgrade existing installation", func(t *testing.T) {
 		// given
 		commands := CommandActions{
 			clientSetFactory:       nil,
