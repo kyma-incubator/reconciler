@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 	v1apps "k8s.io/api/apps/v1"
@@ -68,6 +69,9 @@ func TestFilterOutAnnotatedManifests(t *testing.T) {
 
 func TestSkipReinstallingCurrentRelease(t *testing.T) {
 	statefulSetName := "connectivity-proxy"
+	version240 := fmt.Sprintf("%s2.4.0", ReleasePrefix)
+	version250 := fmt.Sprintf("%s2.5.0", ReleasePrefix)
+
 	statefulSetWithVersion24 := &v1apps.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "StatefulSet",
@@ -75,16 +79,16 @@ func TestSkipReinstallingCurrentRelease(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   statefulSetName,
-			Labels: map[string]string{"release": "2.4.0"},
+			Labels: map[string]string{"release": version240},
 		},
 	}
 
 	logger := zaptest.NewLogger(t).Sugar()
 	input := getInput(t, &statefulSetWithVersion24)
 
-	t.Run("should not filter out manifests if release to be installed in newer", func(t *testing.T) {
+	t.Run("should not filter out manifests if release to be installed in different that currently installed one", func(t *testing.T) {
 		// when
-		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.3.0")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, version250)
 		output, err := filter(input)
 
 		// then
@@ -92,22 +96,14 @@ func TestSkipReinstallingCurrentRelease(t *testing.T) {
 		require.Equal(t, input, output)
 	})
 
-	t.Run("should filter out all manifests if release to be installed is not greater than current one", func(t *testing.T) {
+	t.Run("should filter out manifests if release didn't change", func(t *testing.T) {
 		// when
-		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4.0")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, version240)
 		output, err := filter(input)
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 0, len(output))
-
-		// when
-		filter = NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.5.0")
-		output, err = filter(input)
-
-		// then
-		require.NoError(t, err)
-		require.Equal(t, 0, len(output))
+		require.Equal(t, []*unstructured.Unstructured{}, output)
 	})
 }
 
@@ -115,6 +111,7 @@ func TestSkipReinstallingCurrentReleaseErrors(t *testing.T) {
 	logger := zaptest.NewLogger(t).Sugar()
 
 	statefulSetName := "connectivity-proxy"
+	version240 := fmt.Sprintf("%s2.4.0", ReleasePrefix)
 
 	t.Run("should fail if StatefulSet not found", func(t *testing.T) {
 		// given
@@ -134,7 +131,7 @@ func TestSkipReinstallingCurrentReleaseErrors(t *testing.T) {
 		input := getInput(t, &configMap)
 
 		// when
-		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4.0")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, version240)
 		output, err := filter(input)
 
 		// then
@@ -157,7 +154,7 @@ func TestSkipReinstallingCurrentReleaseErrors(t *testing.T) {
 		input := getInput(t, &statefulSetWithoutReleaseLabel)
 
 		// when
-		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4.0")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, version240)
 		output, err := filter(input)
 
 		// then
@@ -174,14 +171,14 @@ func TestSkipReinstallingCurrentReleaseErrors(t *testing.T) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   statefulSetName,
-				Labels: map[string]string{"release": "2.4"},
+				Labels: map[string]string{"release": "connectivity-proxy-2.4"},
 			},
 		}
 
 		input := getInput(t, &statefulSetWithIncorrectReleaseLabel)
 
 		// when
-		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4.0")
+		filter := NewSkipReinstallingCurrentRelease(logger, statefulSetName, version240)
 		output, err := filter(input)
 
 		// then
@@ -189,7 +186,7 @@ func TestSkipReinstallingCurrentReleaseErrors(t *testing.T) {
 		require.Equal(t, []*unstructured.Unstructured{}, output)
 
 		// when
-		filter = NewSkipReinstallingCurrentRelease(logger, statefulSetName, "2.4")
+		filter = NewSkipReinstallingCurrentRelease(logger, statefulSetName, fmt.Sprintf("%s2.4", ReleasePrefix))
 		output, err = filter(input)
 
 		// then

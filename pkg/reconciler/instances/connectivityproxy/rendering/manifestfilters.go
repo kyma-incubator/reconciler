@@ -5,11 +5,13 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"strings"
 )
 
 const (
 	ReleaseLabelKey       = "release"
 	ConnectivityProxyKind = "StatefulSet"
+	ReleasePrefix         = "connectivity-proxy-"
 )
 
 func NewFilterOutAnnotatedManifests(annotation string) FilterFunc {
@@ -40,7 +42,7 @@ func NewSkipReinstallingCurrentRelease(logger *zap.SugaredLogger, appName, curre
 
 		if statefulSetManifest == nil {
 			logger.Warn("Connectivity Proxy StatefulSet is missing in the chart")
-			return []*unstructured.Unstructured{}, errors.Errorf("Connectivity Proxy stateful set does not have any release labels")
+			return []*unstructured.Unstructured{}, errors.Errorf("Connectivity proxy statefulSet is missing in the chart")
 		}
 
 		releaseToBeInstalled := ""
@@ -52,17 +54,17 @@ func NewSkipReinstallingCurrentRelease(logger *zap.SugaredLogger, appName, curre
 			return []*unstructured.Unstructured{}, errors.Errorf("Connectivity Proxy StatefulSet does not have any release labels")
 		}
 
-		currentVersion, err := semver.NewVersion(currentRelease)
+		currentVersion, err := convertVersion(currentRelease)
 		if err != nil {
-			return []*unstructured.Unstructured{}, errors.Errorf("incorrect release version format: %s", currentRelease)
+			return []*unstructured.Unstructured{}, err
 		}
 
-		newVersion, err := semver.NewVersion(releaseToBeInstalled)
+		newVersion, err := convertVersion(releaseToBeInstalled)
 		if err != nil {
-			return []*unstructured.Unstructured{}, errors.Errorf("incorrect release version format: %s", releaseToBeInstalled)
+			return []*unstructured.Unstructured{}, err
 		}
 
-		if currentVersion.LessThan(*newVersion) {
+		if !currentVersion.Equal(*newVersion) {
 			logger.Info("Connectivity Proxy release has changed, the component will be upgraded")
 			return unstructs, nil
 		}
@@ -70,4 +72,13 @@ func NewSkipReinstallingCurrentRelease(logger *zap.SugaredLogger, appName, curre
 		logger.Debug("Connectivity Proxy release did not change, skipping")
 		return []*unstructured.Unstructured{}, nil
 	}
+}
+
+func convertVersion(connectivityProxyVersion string) (*semver.Version, error) {
+	version, err := semver.NewVersion(strings.Replace(connectivityProxyVersion, ReleasePrefix, "", 1))
+	if err != nil {
+		return nil, errors.Errorf("incorrect release version format: %s", connectivityProxyVersion)
+	}
+
+	return version, nil
 }

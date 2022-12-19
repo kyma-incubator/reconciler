@@ -148,7 +148,6 @@ func TestCommands(t *testing.T) {
 		kubeClient.AssertExpectations(t)
 	})
 
-	// TODO: Is this case valid? It tests what happens in manifest in empty, but it actually tests service.Operation.Invoke method..
 	t.Run("Should skip installation if chart provider returned empty manifest", func(t *testing.T) {
 		// given
 		emptyManifest := ""
