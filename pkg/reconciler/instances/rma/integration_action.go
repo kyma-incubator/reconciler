@@ -85,6 +85,9 @@ func (a *IntegrationAction) Run(context *service.ActionContext) error {
 	if err != nil {
 		return err
 	}
+	if cfg == nil {
+		return errors.New("Could not get helm action configuration")
+	}
 
 	histClient := action.NewHistory(cfg)
 	histClient.Max = 1
