@@ -34,6 +34,7 @@ func TestChartProvider(t *testing.T) {
 		// given
 		manifest, err := prepareTestManifest(typedTestManifest())
 		require.NoError(t, err)
+
 		filterFunc := func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 			return []*unstructured.Unstructured{}, nil
 		}
@@ -53,6 +54,7 @@ func TestChartProvider(t *testing.T) {
 		// given
 		manifest, err := prepareTestManifest(typedTestManifest())
 		require.NoError(t, err)
+
 		filterFunc := func(unstructured []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 			return unstructured, nil
 		}
@@ -92,6 +94,8 @@ func TestChartProvider(t *testing.T) {
 	t.Run("should fail if filter function failed", func(t *testing.T) {
 		// given
 		manifest, err := prepareTestManifest(typedTestManifest())
+		require.NoError(t, err)
+
 		filterFunc := func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 			return []*unstructured.Unstructured{}, errors.New("some error")
 		}
