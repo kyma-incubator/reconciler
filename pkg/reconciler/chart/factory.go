@@ -239,6 +239,10 @@ func (f *DefaultFactory) downloadArchive(URL, dstDir string, useToken bool) (str
 
 	req, err := http.NewRequest("GET", URL, nil)
 
+	if err != nil {
+		return "", errors.New("cannot create request")
+	}
+
 	if useToken {
 		f.logger.Infof("Downloading archive '%s' into workspace '%s' from private repo", URL, dstDir)
 
