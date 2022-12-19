@@ -52,7 +52,8 @@ func TestChartProvider(t *testing.T) {
 
 	t.Run("should render manifests if filter included everything", func(t *testing.T) {
 		// given
-		manifest, err := prepareTestManifest(typedTestManifest())
+		typedManifest := typedTestManifest()
+		manifest, err := prepareTestManifest(typedManifest)
 		require.NoError(t, err)
 
 		filterFunc := func(unstructured []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
@@ -70,25 +71,7 @@ func TestChartProvider(t *testing.T) {
 		outputTypedManifest, err := fromYamlToTypedObject(output.Manifest)
 		require.NoError(t, err)
 
-		require.Equal(t, typedTestManifest, outputTypedManifest)
-	})
-
-	t.Run("should fail if manifest is not a correct yaml", func(t *testing.T) {
-		// given
-		manifest := "<data>aa</data>"
-		filterFunc := func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{}, nil
-		}
-		// when
-		stub := NewChartProviderStub(manifest)
-		provider := NewProviderWithFilters(stub, filterFunc)
-
-		output, err := provider.RenderManifest(nil)
-
-		// then
-		// TODO: is it a bug in internalKubernetes.ToUnstructured?
-		require.NoError(t, err)
-		require.Equal(t, "", output.Manifest)
+		require.Equal(t, *typedManifest, outputTypedManifest)
 	})
 
 	t.Run("should fail if filter function failed", func(t *testing.T) {
