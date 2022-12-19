@@ -52,7 +52,8 @@ func TestChartProvider(t *testing.T) {
 
 	t.Run("should render manifests if filter included everything", func(t *testing.T) {
 		// given
-		manifest, err := prepareTestManifest(typedTestManifest())
+		typedManifest := typedTestManifest()
+		manifest, err := prepareTestManifest(typedManifest)
 		require.NoError(t, err)
 
 		filterFunc := func(unstructured []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
@@ -70,7 +71,7 @@ func TestChartProvider(t *testing.T) {
 		outputTypedManifest, err := fromYamlToTypedObject(output.Manifest)
 		require.NoError(t, err)
 
-		require.Equal(t, typedTestManifest, outputTypedManifest)
+		require.Equal(t, *typedManifest, outputTypedManifest)
 	})
 
 	t.Run("should fail if filter function failed", func(t *testing.T) {
