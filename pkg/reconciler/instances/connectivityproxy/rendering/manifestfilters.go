@@ -14,7 +14,7 @@ const (
 
 func NewFilterOutAnnotatedManifests(annotation string) FilterFunc {
 	return func(unstructs []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-		newUnstructs := make([]*unstructured.Unstructured, 0, 0)
+		newUnstructs := make([]*unstructured.Unstructured, 0)
 
 		for _, unstruct := range unstructs {
 			annotations := unstruct.GetAnnotations()

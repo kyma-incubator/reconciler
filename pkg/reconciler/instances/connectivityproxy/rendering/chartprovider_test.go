@@ -16,8 +16,7 @@ import (
 func TestChartProvider(t *testing.T) {
 	t.Run("should render manifests if filters not provided", func(t *testing.T) {
 		// given
-		typedTestManifest := typedTestManifest()
-		manifest, err := prepareTestManifest(&typedTestManifest)
+		manifest, err := prepareTestManifest(typedTestManifest())
 		require.NoError(t, err)
 
 		// when
@@ -33,8 +32,7 @@ func TestChartProvider(t *testing.T) {
 
 	t.Run("should render empty string if filter excluded every manifest", func(t *testing.T) {
 		// given
-		typedTestManifest := typedTestManifest()
-		manifest, err := prepareTestManifest(&typedTestManifest)
+		manifest, err := prepareTestManifest(typedTestManifest())
 		require.NoError(t, err)
 		filterFunc := func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 			return []*unstructured.Unstructured{}, nil
@@ -53,8 +51,7 @@ func TestChartProvider(t *testing.T) {
 
 	t.Run("should render manifests if filter included everything", func(t *testing.T) {
 		// given
-		typedTestManifest := typedTestManifest()
-		manifest, err := prepareTestManifest(&typedTestManifest)
+		manifest, err := prepareTestManifest(typedTestManifest())
 		require.NoError(t, err)
 		filterFunc := func(unstructured []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 			return unstructured, nil
@@ -94,8 +91,7 @@ func TestChartProvider(t *testing.T) {
 
 	t.Run("should fail if filter function failed", func(t *testing.T) {
 		// given
-		typedTestManifest := typedTestManifest()
-		manifest, err := prepareTestManifest(&typedTestManifest)
+		manifest, err := prepareTestManifest(typedTestManifest())
 		filterFunc := func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 			return []*unstructured.Unstructured{}, errors.New("some error")
 		}
@@ -111,8 +107,8 @@ func TestChartProvider(t *testing.T) {
 	})
 }
 
-func typedTestManifest() corev1.ConfigMap {
-	return corev1.ConfigMap{
+func typedTestManifest() *corev1.ConfigMap {
+	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
 			APIVersion: "v1",
