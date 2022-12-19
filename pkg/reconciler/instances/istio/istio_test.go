@@ -28,6 +28,7 @@ import (
 	controllerfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+
 const (
 	istioctlMockCompleteVersion = `{
 		"clientVersion": {
