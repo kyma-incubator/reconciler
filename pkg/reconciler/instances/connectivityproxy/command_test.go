@@ -359,6 +359,8 @@ func TestCommands(t *testing.T) {
 }
 
 func TestCommandRemove(t *testing.T) {
+	t.Setenv("GIT_CLONE_TOKEN", "token")
+
 	t.Run("Should remove correct component", func(t *testing.T) {
 
 		task := &reconciler.Task{
@@ -374,14 +376,9 @@ func TestCommandRemove(t *testing.T) {
 			Repository:      nil,
 			CallbackFunc:    nil,
 		}
-		component := chart.NewComponentBuilder(task.Version, task.Component).
-			WithNamespace(task.Namespace).
-			WithProfile(task.Profile).
-			WithConfiguration(task.Configuration).
-			Build()
 
 		provider := &chartmocks.Provider{}
-		provider.On("RenderManifest", component).
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
 			Return(&chart.Manifest{
 				Type:     chart.HelmChart,
 				Name:     task.Component,
