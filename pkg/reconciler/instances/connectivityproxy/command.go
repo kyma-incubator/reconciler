@@ -113,7 +113,14 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		WithURL(context.Task.URL).
 		Build()
 
-	manifest, err := context.ChartProvider.RenderManifest(component)
+	chartDownloadToken := os.Getenv("GIT_CLONE_TOKEN") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
+	if chartDownloadToken == "" {
+		return errors.New("failed to get chart download access token")
+	}
+
+	chartProvider := a.getChartProvider(context, nil, chartDownloadToken)
+
+	manifest, err := chartProvider.RenderManifest(component)
 	if err != nil {
 		return errors.Wrap(err, "Error during rendering manifest for removal")
 	}
