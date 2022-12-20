@@ -54,7 +54,7 @@ func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *a
 
 func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet, chartDownloadToken string) chart.Provider {
 	authenticator := rendering.NewExternalComponentAuthenticator(chartDownloadToken)
-	chartProviderWithAuthentication := rendering.NewProviderWithHttpAuthentication(context.ChartProvider, authenticator)
+	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(context.ChartProvider, authenticator)
 
 	upgrade := app != nil && app.GetLabels() != nil
 

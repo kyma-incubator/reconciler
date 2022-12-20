@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func NewProviderWithHttpAuthentication(provider chart.Provider, authenticator chart.ExternalComponentAuthenticator) chart.Provider {
+func NewProviderWithAuthentication(provider chart.Provider, authenticator chart.ExternalComponentAuthenticator) chart.Provider {
 	return ChartProviderWithAuthentication{
 		provider:      provider,
 		authenticator: authenticator,

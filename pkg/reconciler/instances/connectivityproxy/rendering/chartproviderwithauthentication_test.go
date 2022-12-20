@@ -22,7 +22,7 @@ func TestNewProviderWithAuthentication(t *testing.T) {
 		}
 		chartProviderMock.On("RenderManifest", mock.MatchedBy(matcher)).Return(nil, nil)
 
-		chartProvider := NewProviderWithHttpAuthentication(chartProviderMock, externalComponentAuthenticatorMock)
+		chartProvider := NewProviderWithAuthentication(chartProviderMock, externalComponentAuthenticatorMock)
 
 		// when
 		builder := chart.NewComponentBuilder("1.0.0", "test")
