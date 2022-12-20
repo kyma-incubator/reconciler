@@ -18,7 +18,10 @@ type ChartProviderWithAuthentication struct {
 }
 
 func (cp ChartProviderWithAuthentication) WithFilter(filter chart.Filter) chart.Provider {
-	return cp.provider.WithFilter(filter)
+	return &ChartProviderWithAuthentication{
+		provider:      cp.provider.WithFilter(filter),
+		authenticator: cp.authenticator,
+	}
 }
 
 func (cp ChartProviderWithAuthentication) RenderCRD(version string) ([]*chart.Manifest, error) {
