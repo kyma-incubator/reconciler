@@ -38,13 +38,13 @@ type CommandActions struct {
 
 func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet) error {
 
-	chartDownloadToken := os.Getenv("GIT_CLONE_TOKEN") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
-	if chartDownloadToken == "" {
-		return errors.New("failed to get chart download access token")
-	}
-	chartProvider := a.getChartProvider(context, app, chartDownloadToken)
+	chartProvider, err := a.getChartProvider(context, app)
 
-	err := a.install.Invoke(context.Context, chartProvider, context.Task, context.KubeClient)
+	if err != nil {
+		return errors.Wrap(err, "failed to create chart provider")
+	}
+
+	err = a.install.Invoke(context.Context, chartProvider, context.Task, context.KubeClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to invoke installation")
 	}
@@ -52,7 +52,13 @@ func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *a
 	return nil
 }
 
-func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet, chartDownloadToken string) chart.Provider {
+func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet) (chart.Provider, error) {
+
+	chartDownloadToken := os.Getenv("GIT_CLONE_TOKEN") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
+	if chartDownloadToken == "" {
+		return nil, errors.New("failed to get chart download access token")
+	}
+
 	authenticator := rendering.NewExternalComponentAuthenticator(chartDownloadToken)
 	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(context.ChartProvider, authenticator)
 
@@ -63,10 +69,10 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, app *a
 		skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
 		filters := []rendering.FilterFunc{skipInstallationIfReleaseNotChanged, filterOutManifests}
 
-		return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...)
+		return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
 	}
 
-	return chartProviderWithAuthentication
+	return chartProviderWithAuthentication, nil
 }
 
 func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
@@ -113,12 +119,11 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		WithURL(context.Task.URL).
 		Build()
 
-	chartDownloadToken := os.Getenv("GIT_CLONE_TOKEN") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
-	if chartDownloadToken == "" {
-		return errors.New("failed to get chart download access token")
-	}
+	chartProvider, err := a.getChartProvider(context, nil)
 
-	chartProvider := a.getChartProvider(context, nil, chartDownloadToken)
+	if err != nil {
+		return errors.Wrap(err, "failed to create chart provider")
+	}
 
 	manifest, err := chartProvider.RenderManifest(component)
 	if err != nil {
