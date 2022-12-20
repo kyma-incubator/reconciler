@@ -34,11 +34,11 @@ type CommandActions struct {
 	targetClientSetFactory NewTargetClientSet
 	install                service.Operation
 	copyFactory            []CopyFactory
-	chartDownloadToken     string
 }
 
 func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet) error {
-	chartDownloadToken := os.Getenv("GIT_CLONE_TOKEN")
+
+	chartDownloadToken := os.Getenv("GIT_CLONE_TOKEN") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
 	if chartDownloadToken == "" {
 		return errors.New("failed to get chart download access token")
 	}

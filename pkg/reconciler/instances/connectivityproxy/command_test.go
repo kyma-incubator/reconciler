@@ -25,7 +25,7 @@ import (
 )
 
 func TestCommand(t *testing.T) {
-	err := os.Setenv("GIT_CLONE_TOKEN", "token")
+	err := os.Setenv("GIT_CLONE_TOKEN", "token") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
 	require.NoError(t, err)
 
 	t.Run("Should copy required resources", func(t *testing.T) {
