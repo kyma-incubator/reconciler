@@ -13,8 +13,8 @@ type ExternalComponentAuthenticator struct {
 	mock.Mock
 }
 
-// DoHttp provides a mock function with given fields: r
-func (_m *ExternalComponentAuthenticator) DoHttp(r *http.Request) error {
+// Do provides a mock function with given fields: r
+func (_m *ExternalComponentAuthenticator) Do(r *http.Request) error {
 	ret := _m.Called(r)
 
 	var r0 error

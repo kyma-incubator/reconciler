@@ -45,7 +45,7 @@ func TestExternalComponentAuthenticator_DoHttp(t *testing.T) {
 		req, err := http.NewRequest("GET", "www.example.com", nil)
 		require.NoError(t, err)
 
-		err = authenticator.DoHttp(req)
+		err = authenticator.Do(req)
 
 		// then
 		require.NoError(t, err)
