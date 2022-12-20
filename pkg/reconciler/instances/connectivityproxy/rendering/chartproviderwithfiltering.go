@@ -6,6 +6,8 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 type FilterFunc func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error)
@@ -43,7 +45,17 @@ func serialize(unstructs []*unstructured.Unstructured) (string, error) {
 	manifests := ""
 
 	for index, unstruct := range unstructs {
-		bytes, err := runtime.Encode(unstructured.UnstructuredJSONScheme, unstruct)
+		serializer := jsonserializer.NewSerializerWithOptions(
+			jsonserializer.DefaultMetaFactory,
+			scheme.Scheme,
+			scheme.Scheme,
+			jsonserializer.SerializerOptions{
+				Yaml:   true,
+				Pretty: false,
+				Strict: false,
+			},
+		)
+		yaml, err := runtime.Encode(serializer, unstruct)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to encode unstructured object as yaml")
 		}
@@ -52,7 +64,7 @@ func serialize(unstructs []*unstructured.Unstructured) (string, error) {
 			manifests += "\n"
 		}
 
-		manifests += string(bytes)
+		manifests += string(yaml)
 
 		if index < len(unstructs)-1 {
 			manifests += "---"

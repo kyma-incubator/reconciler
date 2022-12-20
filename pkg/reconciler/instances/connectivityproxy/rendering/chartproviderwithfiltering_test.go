@@ -68,10 +68,7 @@ func TestChartProvider(t *testing.T) {
 		require.NoError(t, err)
 
 		// then
-		outputTypedManifest, err := fromJsonToTypedObject(output.Manifest)
-		require.NoError(t, err)
-
-		require.Equal(t, *typedManifest, outputTypedManifest)
+		require.Equal(t, manifest, output.Manifest)
 	})
 
 	t.Run("should fail if filter function failed", func(t *testing.T) {
@@ -127,26 +124,6 @@ func prepareTestManifest(object runtime.Object) (string, error) {
 	}
 
 	return string(yaml), nil
-}
-
-func fromJsonToTypedObject(jsonManifest string) (corev1.ConfigMap, error) {
-	decoded, err := runtime.Decode(unstructured.UnstructuredJSONScheme, []byte(jsonManifest))
-	if err != nil {
-		return corev1.ConfigMap{}, err
-	}
-
-	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&decoded)
-	if err != nil {
-		return corev1.ConfigMap{}, err
-	}
-
-	var tConfigMap corev1.ConfigMap
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(u, &tConfigMap)
-	if err != nil {
-		return corev1.ConfigMap{}, err
-	}
-
-	return tConfigMap, nil
 }
 
 func NewChartProviderStub(manifest string) chart.Provider {
