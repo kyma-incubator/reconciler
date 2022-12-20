@@ -3,6 +3,7 @@ package connectivityproxy
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -24,6 +25,9 @@ import (
 )
 
 func TestCommand(t *testing.T) {
+	err := os.Setenv("GIT_CLONE_TOKEN", "token")
+	require.NoError(t, err)
+
 	t.Run("Should copy required resources", func(t *testing.T) {
 		expected := v1.Secret{
 			TypeMeta: metav1.TypeMeta{},

@@ -10,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+	"os"
 )
 
 const (
@@ -33,10 +34,15 @@ type CommandActions struct {
 	targetClientSetFactory NewTargetClientSet
 	install                service.Operation
 	copyFactory            []CopyFactory
+	chartDownloadToken     string
 }
 
 func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet) error {
-	chartProvider := a.getChartProvider(context, app)
+	chartDownloadToken := os.Getenv("GIT_CLONE_TOKEN")
+	if chartDownloadToken == "" {
+		return errors.New("failed to get chart download access token")
+	}
+	chartProvider := a.getChartProvider(context, app, chartDownloadToken)
 
 	err := a.install.Invoke(context.Context, chartProvider, context.Task, context.KubeClient)
 	if err != nil {
@@ -46,7 +52,10 @@ func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *a
 	return nil
 }
 
-func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet) chart.Provider {
+func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet, chartDownloadToken string) chart.Provider {
+	authenticator := rendering.NewExternalComponentAuthenticator(chartDownloadToken)
+	chartProviderWithAuthentication := rendering.NewProviderWithHttpAuthentication(context.ChartProvider, authenticator)
+
 	upgrade := app != nil && app.GetLabels() != nil
 
 	if upgrade {
@@ -54,10 +63,10 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, app *a
 		skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
 		filters := []rendering.FilterFunc{skipInstallationIfReleaseNotChanged, filterOutManifests}
 
-		return rendering.NewProviderWithFilters(context.ChartProvider, filters...)
+		return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...)
 	}
 
-	return context.ChartProvider
+	return chartProviderWithAuthentication
 }
 
 func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {

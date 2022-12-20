@@ -211,7 +211,7 @@ func (f *DefaultFactory) downloadComponent(component *Component, dstDir string) 
 	}
 
 	// TODO consider extracting file to memory
-	tmpFile, err := f.downloadArchive(component.url, dstDir, component.isInternalGitComponent())
+	tmpFile, err := f.downloadArchive(component.url, dstDir, component.externalComponentAuthenticator)
 	if err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ func (f *DefaultFactory) downloadComponent(component *Component, dstDir string) 
 	return nil
 }
 
-func (f *DefaultFactory) downloadArchive(URL, dstDir string, useToken bool) (string, error) {
+func (f *DefaultFactory) downloadArchive(URL, dstDir string, authenticator ExternalComponentAuthenticator) (string, error) {
 
 	req, err := http.NewRequest("GET", URL, nil)
 
@@ -243,16 +243,13 @@ func (f *DefaultFactory) downloadArchive(URL, dstDir string, useToken bool) (str
 		return "", errors.New("cannot create request")
 	}
 
-	if useToken {
+	if authenticator != nil {
 		f.logger.Infof("Downloading archive '%s' into workspace '%s' from private repo", URL, dstDir)
 
-		token := os.Getenv("GIT_CLONE_TOKEN")
-		if token == "" {
-			return "", errors.New("token value not found")
+		err = authenticator.DoHttp(req)
+		if err != nil {
+			return "", err
 		}
-
-		var bearer = "Bearer " + token
-		req.Header.Add("Authorization", bearer)
 	} else {
 		f.logger.Infof("Downloading archive '%s' into workspace '%s' from public repo", URL, dstDir)
 	}
@@ -262,13 +259,6 @@ func (f *DefaultFactory) downloadArchive(URL, dstDir string, useToken bool) (str
 	if err != nil {
 		return "", err
 	}
-	//} else {
-	//
-	//	resp, err := http.Get(URL) // #nosec
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//}
 
 	defer resp.Body.Close()
 	if resp.StatusCode == 404 {
