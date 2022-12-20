@@ -14,17 +14,8 @@ type ExternalComponentAuthenticator struct {
 }
 
 // Do provides a mock function with given fields: r
-func (_m *ExternalComponentAuthenticator) Do(r *http.Request) error {
-	ret := _m.Called(r)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*http.Request) error); ok {
-		r0 = rf(r)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
+func (_m *ExternalComponentAuthenticator) Do(r *http.Request) {
+	_m.Called(r)
 }
 
 type mockConstructorTestingTNewExternalComponentAuthenticator interface {

@@ -3,7 +3,6 @@ package connectivityproxy
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -25,8 +24,7 @@ import (
 )
 
 func TestCommand(t *testing.T) {
-	err := os.Setenv("GIT_CLONE_TOKEN", "token") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
-	require.NoError(t, err)
+	t.Setenv("GIT_CLONE_TOKEN", "token") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
 
 	t.Run("Should copy required resources", func(t *testing.T) {
 		expected := v1.Secret{

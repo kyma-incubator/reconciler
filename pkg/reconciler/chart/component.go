@@ -9,7 +9,7 @@ import (
 
 //go:generate mockery --name=ExternalComponentAuthenticator --outpkg=mocks --case=underscore
 type ExternalComponentAuthenticator interface {
-	Do(r *http.Request) error
+	Do(r *http.Request)
 }
 
 type Component struct {

@@ -35,7 +35,7 @@ func TestNewProviderWithAuthentication(t *testing.T) {
 	})
 }
 
-func TestExternalComponentAuthenticator_DoHttp(t *testing.T) {
+func TestExternalComponentAuthenticator_Do(t *testing.T) {
 	t.Run("must add Authorization header", func(t *testing.T) {
 		// given
 		token := "token"
@@ -45,10 +45,9 @@ func TestExternalComponentAuthenticator_DoHttp(t *testing.T) {
 		req, err := http.NewRequest("GET", "www.example.com", nil)
 		require.NoError(t, err)
 
-		err = authenticator.Do(req)
+		authenticator.Do(req)
 
 		// then
-		require.NoError(t, err)
 		authorizationHeader, ok := req.Header["Authorization"]
 		require.True(t, ok)
 		require.Equal(t, 1, len(authorizationHeader))

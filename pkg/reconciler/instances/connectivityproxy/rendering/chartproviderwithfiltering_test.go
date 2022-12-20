@@ -68,7 +68,7 @@ func TestChartProvider(t *testing.T) {
 		require.NoError(t, err)
 
 		// then
-		outputTypedManifest, err := fromYamlToTypedObject(output.Manifest)
+		outputTypedManifest, err := fromJsonToTypedObject(output.Manifest)
 		require.NoError(t, err)
 
 		require.Equal(t, *typedManifest, outputTypedManifest)
@@ -129,18 +129,18 @@ func prepareTestManifest(object runtime.Object) (string, error) {
 	return string(yaml), nil
 }
 
-func fromYamlToTypedObject(yamlManifest string) (corev1.ConfigMap, error) {
-	decoded, err := runtime.Decode(unstructured.UnstructuredJSONScheme, []byte(yamlManifest))
+func fromJsonToTypedObject(jsonManifest string) (corev1.ConfigMap, error) {
+	decoded, err := runtime.Decode(unstructured.UnstructuredJSONScheme, []byte(jsonManifest))
 	if err != nil {
 		return corev1.ConfigMap{}, err
 	}
 
-	var tConfigMap corev1.ConfigMap
 	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&decoded)
 	if err != nil {
 		return corev1.ConfigMap{}, err
 	}
 
+	var tConfigMap corev1.ConfigMap
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(u, &tConfigMap)
 	if err != nil {
 		return corev1.ConfigMap{}, err

@@ -246,10 +246,7 @@ func (f *DefaultFactory) downloadArchive(URL, dstDir string, authenticator Exter
 	if authenticator != nil {
 		f.logger.Infof("Downloading archive '%s' into workspace '%s' from private repo", URL, dstDir)
 
-		err = authenticator.Do(req)
-		if err != nil {
-			return "", err
-		}
+		authenticator.Do(req)
 	} else {
 		f.logger.Infof("Downloading archive '%s' into workspace '%s' from public repo", URL, dstDir)
 	}

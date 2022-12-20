@@ -45,9 +45,7 @@ type ExternalComponentAuthenticator struct {
 	token string
 }
 
-func (e ExternalComponentAuthenticator) Do(r *http.Request) error {
+func (e ExternalComponentAuthenticator) Do(r *http.Request) {
 	var bearer = "Bearer " + e.token
 	r.Header.Add("Authorization", bearer)
-
-	return nil
 }
