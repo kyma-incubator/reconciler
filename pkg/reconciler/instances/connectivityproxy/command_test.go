@@ -98,7 +98,7 @@ func TestCommand(t *testing.T) {
 }
 
 func TestCommands(t *testing.T) {
-
+	t.Setenv("GIT_CLONE_TOKEN", "token")
 	componentName := "connectivity-proxy"
 
 	t.Run("Should upgrade existing installation", func(t *testing.T) {
