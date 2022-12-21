@@ -2,7 +2,14 @@ package rendering
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/pkg/errors"
 	"net/http"
+	"os"
+)
+
+const (
+	TokenEnvVariable    = "GIT_CLONE_TOKEN" //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
+	AuthorizationHeader = "Authorization"
 )
 
 func NewProviderWithAuthentication(provider chart.Provider, authenticator chart.ExternalComponentAuthenticator) chart.Provider {
@@ -38,10 +45,15 @@ func (cp ChartProviderWithAuthentication) Configuration(component *chart.Compone
 	return cp.provider.Configuration(component)
 }
 
-func NewExternalComponentAuthenticator(token string) chart.ExternalComponentAuthenticator {
+func NewExternalComponentAuthenticator() (chart.ExternalComponentAuthenticator, error) {
+	token := os.Getenv(TokenEnvVariable)
+	if token == "" {
+		return nil, errors.New("failed to get chart download access token")
+	}
+
 	return ExternalComponentAuthenticator{
 		token: token,
-	}
+	}, nil
 }
 
 type ExternalComponentAuthenticator struct {
@@ -50,5 +62,5 @@ type ExternalComponentAuthenticator struct {
 
 func (e ExternalComponentAuthenticator) Do(r *http.Request) {
 	var bearer = "Bearer " + e.token
-	r.Header.Add("Authorization", bearer)
+	r.Header.Add(AuthorizationHeader, bearer)
 }

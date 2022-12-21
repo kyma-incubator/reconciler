@@ -10,7 +10,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"os"
 )
 
 const (
@@ -53,13 +52,10 @@ func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *a
 }
 
 func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet) (chart.Provider, error) {
-
-	chartDownloadToken := os.Getenv("GIT_CLONE_TOKEN") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
-	if chartDownloadToken == "" {
-		return nil, errors.New("failed to get chart download access token")
+	authenticator, err := rendering.NewExternalComponentAuthenticator()
+	if err != nil {
+		return nil, err
 	}
-
-	authenticator := rendering.NewExternalComponentAuthenticator(chartDownloadToken)
 	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(context.ChartProvider, authenticator)
 
 	upgrade := app != nil && app.GetLabels() != nil
@@ -119,13 +115,13 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		WithURL(context.Task.URL).
 		Build()
 
-	chartProvider, err := a.getChartProvider(context, nil)
-
+	authenticator, err := rendering.NewExternalComponentAuthenticator()
 	if err != nil {
 		return errors.Wrap(err, "failed to create chart provider")
 	}
+	component.SetExternalComponentAuthentication(authenticator)
 
-	manifest, err := chartProvider.RenderManifest(component)
+	manifest, err := context.ChartProvider.RenderManifest(component)
 	if err != nil {
 		return errors.Wrap(err, "Error during rendering manifest for removal")
 	}
