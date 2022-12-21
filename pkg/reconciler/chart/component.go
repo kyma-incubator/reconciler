@@ -1,18 +1,25 @@
 package chart
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/imdario/mergo"
 )
 
+//go:generate mockery --name=ExternalComponentAuthenticator --outpkg=mocks --case=underscore
+type ExternalComponentAuthenticator interface {
+	Do(r *http.Request)
+}
+
 type Component struct {
-	url           string
-	version       string
-	name          string
-	profile       string
-	namespace     string
-	configuration map[string]interface{}
+	url                            string
+	version                        string
+	name                           string
+	profile                        string
+	namespace                      string
+	configuration                  map[string]interface{}
+	externalComponentAuthenticator ExternalComponentAuthenticator
 }
 
 func (c *Component) isExternalComponent() bool {
@@ -31,6 +38,14 @@ func (c *Component) Configuration() (map[string]interface{}, error) {
 		}
 	}
 	return result, nil
+}
+
+func (c *Component) SetExternalComponentAuthentication(authenticator ExternalComponentAuthenticator) {
+	c.externalComponentAuthenticator = authenticator
+}
+
+func (c *Component) ExternalComponentAuthentication() ExternalComponentAuthenticator {
+	return c.externalComponentAuthenticator
 }
 
 // convertToNestedMap converts a key with dot-notation into a nested map (e.g. a.b.c=value become [a:[b:[c:value]]])

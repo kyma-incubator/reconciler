@@ -52,8 +52,11 @@ func NewDefaultProvider(wsFactory Factory, logger *zap.SugaredLogger) (*DefaultP
 }
 
 func (p *DefaultProvider) WithFilter(f Filter) Provider {
-	p.filters = append(p.filters, f)
-	return p
+	return &DefaultProvider{
+		wsFactory: p.wsFactory,
+		logger:    p.logger,
+		filters:   append(p.filters, f),
+	}
 }
 
 func (p *DefaultProvider) RenderCRD(version string) ([]*Manifest, error) {

@@ -31,7 +31,7 @@ func (_m *Commands) CopyResources(_a0 *service.ActionContext) error {
 }
 
 // InstallOnReleaseChange provides a mock function with given fields: _a0, _a1
-func (_m *Commands) InstallOnReleaseChange(_a0 *service.ActionContext, _a1 *v1.StatefulSet) error {
+func (_m *Commands) InstallOrUpgrade(_a0 *service.ActionContext, _a1 *v1.StatefulSet) error {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 error

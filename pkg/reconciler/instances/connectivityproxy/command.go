@@ -3,7 +3,7 @@ package connectivityproxy
 import (
 	"encoding/json"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/rendering"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -13,14 +13,13 @@ import (
 )
 
 const (
-	BindingKey            = "global.binding."
-	ReleaseLabelKey       = "release"
-	ConnectivityProxyKind = "StatefulSet"
+	BindingKey             = "global.binding."
+	SkipManifestAnnotation = "reconciler.kyma-project.io/skip-rendering-on-upgrade"
 )
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	InstallOnReleaseChange(*service.ActionContext, *appsv1.StatefulSet) error
+	InstallOrUpgrade(*service.ActionContext, *appsv1.StatefulSet) error
 	CopyResources(*service.ActionContext) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
@@ -36,49 +35,40 @@ type CommandActions struct {
 	copyFactory            []CopyFactory
 }
 
-func (a *CommandActions) InstallOnReleaseChange(context *service.ActionContext, app *appsv1.StatefulSet) error {
-	if app == nil || (app != nil && app.GetLabels() == nil) {
-		context.Logger.Debug("There is no valid Connectivity Proxy installed, invoking the installation")
-		return a.installOnCondition(context)
+func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet) error {
+
+	chartProvider, err := a.getChartProvider(context, app)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to create chart provider")
 	}
 
-	appName := app.Name
-	appRelease := app.GetLabels()[ReleaseLabelKey]
-
-	context.ChartProvider.WithFilter(func(manifest string) (string, error) {
-		unstructs, err := internalKubernetes.ToUnstructured([]byte(manifest), true)
-		if err != nil {
-			return "", errors.Wrapf(err, "while casting manifest to kubernetes unstructured")
-		}
-
-		for _, unstruct := range unstructs {
-			if unstruct != nil && unstruct.GetName() == appName && unstruct.GetKind() == ConnectivityProxyKind {
-				if unstruct.GetLabels() == nil || unstruct.GetLabels()[ReleaseLabelKey] == "" {
-					return "", errors.Errorf("Connectivity Proxy stateful set does not have any release labels")
-				} else if unstruct.GetLabels()[ReleaseLabelKey] != appRelease {
-					context.Logger.Debug("Connectivity Proxy release has changed, the component will be upgraded")
-					return manifest, nil
-				} else {
-					context.Logger.Debug("Connectivity Proxy release did not change, skipping")
-					return "", nil
-				}
-			}
-		}
-
-		context.Logger.Warn("Did not find the Connectivity Proxy stateful set, skipping")
-		return "", nil
-	})
-
-	return a.installOnCondition(context)
-}
-
-func (a *CommandActions) installOnCondition(context *service.ActionContext) error {
-	err := a.install.Invoke(context.Context, context.ChartProvider, context.Task, context.KubeClient)
+	err = a.install.Invoke(context.Context, chartProvider, context.Task, context.KubeClient)
 	if err != nil {
-		return errors.Wrap(err, "failed to invoke conditional installation")
+		return errors.Wrap(err, "failed to invoke installation")
 	}
 
 	return nil
+}
+
+func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet) (chart.Provider, error) {
+	authenticator, err := rendering.NewExternalComponentAuthenticator()
+	if err != nil {
+		return nil, err
+	}
+	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(context.ChartProvider, authenticator)
+
+	upgrade := app != nil && app.GetLabels() != nil
+
+	if upgrade {
+		filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
+		skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
+		filters := []rendering.FilterFunc{skipInstallationIfReleaseNotChanged, filterOutManifests}
+
+		return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
+	}
+
+	return chartProviderWithAuthentication, nil
 }
 
 func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
@@ -124,6 +114,12 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 		WithConfiguration(context.Task.Configuration).
 		WithURL(context.Task.URL).
 		Build()
+
+	authenticator, err := rendering.NewExternalComponentAuthenticator()
+	if err != nil {
+		return errors.Wrap(err, "failed to create chart provider")
+	}
+	component.SetExternalComponentAuthentication(authenticator)
 
 	manifest, err := context.ChartProvider.RenderManifest(component)
 	if err != nil {

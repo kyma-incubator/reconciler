@@ -24,6 +24,8 @@ import (
 )
 
 func TestCommand(t *testing.T) {
+	t.Setenv("GIT_CLONE_TOKEN", "token") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
+
 	t.Run("Should copy required resources", func(t *testing.T) {
 		expected := v1.Secret{
 			TypeMeta: metav1.TypeMeta{},
@@ -96,10 +98,10 @@ func TestCommand(t *testing.T) {
 }
 
 func TestCommands(t *testing.T) {
-
+	t.Setenv("GIT_CLONE_TOKEN", "token")
 	componentName := "connectivity-proxy"
 
-	t.Run("Should invoke installation", func(t *testing.T) {
+	t.Run("Should upgrade existing installation", func(t *testing.T) {
 		// given
 		commands := CommandActions{
 			clientSetFactory:       nil,
@@ -141,7 +143,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOnReleaseChange(actionContext, component)
+		err := commands.InstallOrUpgrade(actionContext, component)
 
 		// then
 		require.NoError(t, err)
@@ -192,7 +194,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOnReleaseChange(actionContext, component)
+		err := commands.InstallOrUpgrade(actionContext, component)
 
 		// then
 		require.NoError(t, err)
@@ -213,6 +215,8 @@ func TestCommands(t *testing.T) {
 				Type:     chart.HelmChart,
 				Name:     componentName,
 				Manifest: cpManifest("1.2.3")}, nil)
+		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
+			Return(chartProvider)
 
 		ctx := context.Background()
 		kubeClient := &mocks.Client{}
@@ -233,7 +237,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOnReleaseChange(actionContext, nil)
+		err := commands.InstallOrUpgrade(actionContext, nil)
 
 		// then
 		require.NoError(t, err)
@@ -279,7 +283,7 @@ func TestCommands(t *testing.T) {
 		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: componentName}}
 
 		// when
-		err := commands.InstallOnReleaseChange(actionContext, component)
+		err := commands.InstallOrUpgrade(actionContext, component)
 
 		// then
 		require.NoError(t, err)
@@ -355,6 +359,8 @@ func TestCommands(t *testing.T) {
 }
 
 func TestCommandRemove(t *testing.T) {
+	t.Setenv("GIT_CLONE_TOKEN", "token")
+
 	t.Run("Should remove correct component", func(t *testing.T) {
 
 		task := &reconciler.Task{
@@ -370,14 +376,9 @@ func TestCommandRemove(t *testing.T) {
 			Repository:      nil,
 			CallbackFunc:    nil,
 		}
-		component := chart.NewComponentBuilder(task.Version, task.Component).
-			WithNamespace(task.Namespace).
-			WithProfile(task.Profile).
-			WithConfiguration(task.Configuration).
-			Build()
 
 		provider := &chartmocks.Provider{}
-		provider.On("RenderManifest", component).
+		provider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
 			Return(&chart.Manifest{
 				Type:     chart.HelmChart,
 				Name:     task.Component,
