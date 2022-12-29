@@ -64,6 +64,7 @@ func (r *Install) Invoke(ctx context.Context, chartProvider chart.Provider, task
 				interceptableKinds: []string{
 					"LogPipeline",
 					"LogParser",
+					"OAuth2Client",
 				},
 			},
 		)
