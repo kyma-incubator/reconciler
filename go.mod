@@ -1,4 +1,4 @@
-module github.com/kyma-incubator/reconciler
+module github.com/koala7659/reconciler
 
 go 1.18
 
