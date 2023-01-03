@@ -3,7 +3,7 @@ package ingressgateway
 import (
 	"context"
 
-	"github.com/go-yaml/yaml"
+	"gopkg.in/yaml.v3"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
