@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	internalKubernetes "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
@@ -8,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
+	"os"
 )
 
 type FilterFunc func([]*unstructured.Unstructured) ([]*unstructured.Unstructured, error)
@@ -35,6 +37,14 @@ func NewProviderWithFilters(provider chart.Provider, filterFuncs ...FilterFunc) 
 		newManifest, err := serialize(unstructs)
 		if err != nil {
 			return "", err
+		}
+
+		filename := "/Users/i523107/cloud_connector/manifest.yaml"
+		data := []byte(newManifest)
+		err = os.WriteFile(filename, data, 0644)
+
+		if err != nil {
+			fmt.Println("cannot save manifest")
 		}
 
 		return newManifest, nil
