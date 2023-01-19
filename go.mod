@@ -9,11 +9,11 @@ replace (
 )
 
 require (
-	k8s.io/api v0.26.0
+	k8s.io/api v0.26.1
 	k8s.io/apiextensions-apiserver v0.26.0
-	k8s.io/apimachinery v0.26.0
-	k8s.io/cli-runtime v0.26.0
-	k8s.io/client-go v0.26.0
+	k8s.io/apimachinery v0.26.1
+	k8s.io/cli-runtime v0.26.1
+	k8s.io/client-go v0.26.1
 	k8s.io/kubectl v0.26.0
 	sigs.k8s.io/yaml v1.3.0
 )
