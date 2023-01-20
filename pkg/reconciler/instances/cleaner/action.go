@@ -33,7 +33,7 @@ func (a *CleanupAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	namespaces := []string{"kyma-system", "kyma-integration"}
+	namespaces := []string{"kyma-system"}
 
 	var kymaCRDsFinder cleanup.KymaCRDsFinder = func() ([]schema.GroupVersionResource, error) {
 		crdManifests, err := context.ChartProvider.RenderCRD(context.Task.Version)
