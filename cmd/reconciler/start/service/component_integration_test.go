@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	eventLog "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"io"
 	"net/http"
 	"os"
@@ -13,15 +15,18 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
 
 type NoOpReconcileAction struct {
 	WaitTime time.Duration
 }
 
+// Run reconciler Action logic for Eventing. It executes the Action steps in order
+// and returns a non-nil error if any step was unsuccessful.
 func (a *NoOpReconcileAction) Run(context *service.ActionContext) (err error) {
-	context.Logger.Infof("Waiting to simulate Op...")
+	// prepare logger
+	contextLogger := eventLog.ContextLogger(context, eventLog.WithAction("no-op-action"))
+	contextLogger.Infof("Waiting to simulate Op...")
 	time.Sleep(a.WaitTime)
 	return nil
 }
@@ -92,12 +97,12 @@ func (s *reconcilerIntegrationTestSuite) verifyTooManyRequests() testCasePostExe
 }
 func (s *reconcilerIntegrationTestSuite) verifyPodReady() testCasePostExecutionVerification {
 	return func(_ interface{}, testCase *reconcilerIntegrationTestCase) {
-		s.expectPodInState(testCase.settings.namespace, testCase.settings.deployment, progress.ReadyState) // wait until pod is ready
+		s.expectPodInState(testCase.settings.namespace, testCase.settings.deployment, progress.ReadyState) //wait until pod is ready
 	}
 }
 func (s *reconcilerIntegrationTestSuite) verifyPodTerminated() testCasePostExecutionVerification {
 	return func(_ interface{}, testCase *reconcilerIntegrationTestCase) {
-		s.expectPodInState(testCase.settings.namespace, testCase.settings.deployment, progress.TerminatedState) // wait until pod is ready
+		s.expectPodInState(testCase.settings.namespace, testCase.settings.deployment, progress.TerminatedState) //wait until pod is ready
 	}
 }
 
@@ -117,7 +122,7 @@ func (s *reconcilerIntegrationTestSuite) expectPodInState(namespace string, depl
 
 func (s *reconcilerIntegrationTestSuite) expectSuccessfulReconciliation() callbackVerification {
 	return func(callbacks []*reconciler.CallbackMessage) {
-		for idx, callback := range callbacks { // callbacks are sorted in the sequence how they were retrieved
+		for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
 			if idx < len(callbacks)-1 {
 				s.Equal(reconciler.StatusRunning, callback.Status)
 			} else {
@@ -129,16 +134,16 @@ func (s *reconcilerIntegrationTestSuite) expectSuccessfulReconciliation() callba
 
 func (s *reconcilerIntegrationTestSuite) expectFailingReconciliation() callbackVerification {
 	return func(callbacks []*reconciler.CallbackMessage) {
-		for idx, callback := range callbacks { // callbacks are sorted in the sequence how they were retrieved
+		for idx, callback := range callbacks { //callbacks are sorted in the sequence how they were retrieved
 			switch idx {
 			case 0:
-				// first callback has to indicate a running reconciliation
+				//first callback has to indicate a running reconciliation
 				s.Equal(reconciler.StatusRunning, callback.Status)
 			case len(callbacks) - 1:
-				// last callback has to indicate an error
+				//last callback has to indicate an error
 				s.Equal(reconciler.StatusError, callback.Status)
 			default:
-				// callbacks during the reconciliation is ongoing have to indicate a failure or running
+				//callbacks during the reconciliation is ongoing have to indicate a failure or running
 				s.Contains([]reconciler.Status{
 					reconciler.StatusFailed,
 					reconciler.StatusRunning,
@@ -377,19 +382,19 @@ func (s *reconcilerIntegrationTestSuite) TestRun() {
 
 			var callbackC chan *reconciler.CallbackMessage
 
-			if testCase.model.CallbackURL == "" { // set fallback callback URL
-				if testCase.callbackVerification == nil { // check if validation of callback events has to happen
+			if testCase.model.CallbackURL == "" { //set fallback callback URL
+				if testCase.callbackVerification == nil { //check if validation of callback events has to happen
 					testCase.model.CallbackURL = s.callbackOnNil
 				} else {
 					//goland:noinspection HttpUrlsUsage
 					testCase.model.CallbackURL = s.callbackURL()
 
-					// start mock server to catch callback events
+					//start mock server to catch callback events
 					var server *http.Server
 					server, callbackC = s.newCallbackMockServer()
 					s.T().Cleanup(func() {
 						s.NoError(server.Shutdown(context.Background()))
-						time.Sleep(1 * time.Second) // give the server some time for graceful shutdown
+						time.Sleep(1 * time.Second) //give the server some time for graceful shutdown
 					})
 				}
 			}

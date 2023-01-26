@@ -7,6 +7,9 @@
 # Istio reconciler
 /pkg/reconciler/instances/istio/ @strekm @werdes72 @dariusztutaj @cnvergence @barchw @videlov @triffer
 
+# Eventing reconciler
+/pkg/reconciler/instances/eventing/ @k15r @nachtmaar @marcobebway @mfaizanse @friedrichwilken @vladislavpaskar @raypinto @lilitgh
+
 # Serverless reconciler
 /pkg/reconciler/instances/serverless/ @m00g3n @pPrecel @dbadura @kwiatekus
 
@@ -17,4 +20,4 @@
 /pkg/reconciler/instances/rma/ @ebensom @life0215 @lumi017 @tobiscr
 
 # All .md files
-*.md @mmitoraj @nhingerl @grego952 @IwonaLanger
+*.md @mmitoraj @nhingerl @grego952 @IwonaLanger  
