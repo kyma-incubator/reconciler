@@ -4,7 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"testing"
+	"time"
+
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/require"
+
 	"github.com/kyma-incubator/reconciler/internal/cli"
 	cliRecon "github.com/kyma-incubator/reconciler/internal/cli/reconciler"
 	"github.com/kyma-incubator/reconciler/internal/persistency"
@@ -12,11 +19,6 @@ import (
 	eventLog "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/kyma-incubator/reconciler/pkg/server"
-	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"testing"
-	"time"
 )
 
 type ComponentReconcilerBootstrap struct {
@@ -104,7 +106,7 @@ func StartMockComponentReconciler(ctx context.Context, t *testing.T, options *cl
 		ctx, cancel := context.WithCancel(ctx)
 		t.Cleanup(func() {
 			cancel()
-			time.Sleep(1 * time.Second) //Allow graceful shutdown
+			time.Sleep(1 * time.Second) // Allow graceful shutdown
 		})
 		require.NoError(t, s.Start(ctx))
 	}()

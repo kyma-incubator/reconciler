@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	natsComponentName             = "eventing-nats"
-	volumeClaimName               = natsComponentName + "-js-pvc"
-	pvcName = volumeClaimName + "-" + statefulSetName + "-"
+	natsComponentName = "eventing-nats"
+	volumeClaimName   = natsComponentName + "-js-pvc"
+	pvcName 		  = volumeClaimName + "-" + statefulSetName + "-"
 )
 
 func Test_getNATSChartPodManagementPolicy(t *testing.T) {
@@ -219,7 +219,7 @@ func TestHandleNATSPodManagementPolicy(t *testing.T) {
 				// statefulset should not exists
 				require.Nil(t, gotStatefulSet)
 			} else if tc.givenStatefulSet != nil {
-				// if statefulset exists then its pod management policy should be Parallel
+				// if statefulset exists then check its pod management policy
 				require.NotNil(t, gotStatefulSet)
 				require.Equal(t, tc.wantPodManagementPolicy, gotStatefulSet.Spec.PodManagementPolicy)
 			}
