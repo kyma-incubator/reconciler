@@ -58,6 +58,7 @@ require (
 	istio.io/api v0.0.0-20221108152712-3017a057f724
 	istio.io/istio v0.0.0-20221109080248-089f536c0f26
 	sigs.k8s.io/controller-runtime v0.13.1
+	sigs.k8s.io/kustomize/kyaml v0.13.9
 )
 
 require github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -223,6 +224,5 @@ require (
 	oras.land/oras-go v1.2.0 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/kustomize/api v0.12.1 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 )
