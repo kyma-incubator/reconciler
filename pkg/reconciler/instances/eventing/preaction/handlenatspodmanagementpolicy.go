@@ -8,6 +8,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
@@ -18,7 +19,6 @@ const (
 	statefulSetName               = "eventing-nats"
 	eventingComponentName         = "eventing"
 	statefulSetType               = "StatefulSet"
-	parallelPodManagementPolicy = "Parallel"
 )
 
 // Config holds the global configuration values.
@@ -75,16 +75,13 @@ func (r *handleNATSPodManagementPolicy) Execute(context *service.ActionContext, 
 	// decorate logger
 	logger = logger.With(log.KeyStep, handleNATSPodManagementPolicyName)
 
-
 	policyInChart, err := r.getNATSChartPodManagementPolicy(context)
 	if err != nil {
 		return err
 	}
 
-	logger.Infof("policyInChart: %s", policyInChart)
-
 	// if the Parallel pod management policy is not set in NATS helm chart then skip action.
-	if policyInChart != parallelPodManagementPolicy {
+	if policyInChart != string(appsv1.ParallelPodManagement) {
 		logger.With(log.KeyReason, "No actions needed as NATS chart policy != parallel").Info("Step skipped")
 		return nil
 	}
@@ -116,7 +113,7 @@ func (r *handleNATSPodManagementPolicy) Execute(context *service.ActionContext, 
 	}
 
 	// Updating the NATS PodManagementPolicy in the StatefulSet's Spec requires deletion of the StatefulSet.
-	if statefulSet.Spec.PodManagementPolicy != parallelPodManagementPolicy {
+	if statefulSet.Spec.PodManagementPolicy != appsv1.ParallelPodManagement {
 		logger.With(log.KeyReason, "NATS Statefulset's PodManagementPolicy != Parallel").Info("Deleting NATS Statefulset")
 		if err := deleteNatsStatefulSet(context, clientSet, tracker, logger); err != nil {
 			return err
