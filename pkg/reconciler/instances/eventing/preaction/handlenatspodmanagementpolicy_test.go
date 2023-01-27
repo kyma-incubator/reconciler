@@ -30,31 +30,31 @@ import (
 const (
 	natsComponentName = "eventing-nats"
 	volumeClaimName   = natsComponentName + "-js-pvc"
-	pvcName 		  = volumeClaimName + "-" + statefulSetName + "-"
+	pvcName           = volumeClaimName + "-" + statefulSetName + "-"
 )
 
 func Test_getNATSChartPodManagementPolicy(t *testing.T) {
 	testCases := []struct {
-		name             string
-		givenWithPolicy bool
+		name                     string
+		givenWithPolicy          bool
 		givenPodManagementPolicy string
-		wantPodManagementPolicy string
+		wantPodManagementPolicy  string
 	}{
 		{
-			name:             "Should return Parallel pod management policy",
-			givenWithPolicy: true,
-			givenPodManagementPolicy:   string(appsv1.ParallelPodManagement),
-			wantPodManagementPolicy: string(appsv1.ParallelPodManagement),
+			name:                     "Should return Parallel pod management policy",
+			givenWithPolicy:          true,
+			givenPodManagementPolicy: string(appsv1.ParallelPodManagement),
+			wantPodManagementPolicy:  string(appsv1.ParallelPodManagement),
 		},
 		{
-			name:             "Should return OrderedReady pod management policy",
-			givenWithPolicy: true,
-			givenPodManagementPolicy:   string(appsv1.OrderedReadyPodManagement),
-			wantPodManagementPolicy: string(appsv1.OrderedReadyPodManagement),
+			name:                     "Should return OrderedReady pod management policy",
+			givenWithPolicy:          true,
+			givenPodManagementPolicy: string(appsv1.OrderedReadyPodManagement),
+			wantPodManagementPolicy:  string(appsv1.OrderedReadyPodManagement),
 		},
 		{
-			name:             "Should return empty pod management policy",
-			givenWithPolicy: false,
+			name:                    "Should return empty pod management policy",
+			givenWithPolicy:         false,
 			wantPodManagementPolicy: "",
 		},
 	}
@@ -101,46 +101,46 @@ func Test_getNATSChartPodManagementPolicy(t *testing.T) {
 
 func TestHandleNATSPodManagementPolicy(t *testing.T) {
 	testCases := []struct {
-		name             string
-		givenStatefulSet *appsv1.StatefulSet
-		givenWithPolicy bool
+		name                     string
+		givenStatefulSet         *appsv1.StatefulSet
+		givenWithPolicy          bool
 		givenPodManagementPolicy string
-		wantPVCToExists bool
-		wantStatefulSetDeletion bool
-		wantPodManagementPolicy appsv1.PodManagementPolicyType
+		wantPVCToExists          bool
+		wantStatefulSetDeletion  bool
+		wantPodManagementPolicy  appsv1.PodManagementPolicyType
 	}{
 		{
-			name:             "Should do nothing if Nats StatefulSet is not found",
-			givenWithPolicy: false,
-			givenStatefulSet: nil,
+			name:                    "Should do nothing if Nats StatefulSet is not found",
+			givenWithPolicy:         false,
+			givenStatefulSet:        nil,
 			wantStatefulSetDeletion: false,
 			wantPVCToExists:         false,
 		},
 		{
-			name:             "Should not delete Nats StatefulSet if pod management policy is not set in helm chart",
-			givenWithPolicy: false,
-			givenStatefulSet: newStatefulSet(withPodManagementPolicy(appsv1.OrderedReadyPodManagement)),
+			name:                    "Should not delete Nats StatefulSet if pod management policy is not set in helm chart",
+			givenWithPolicy:         false,
+			givenStatefulSet:        newStatefulSet(withPodManagementPolicy(appsv1.OrderedReadyPodManagement)),
 			wantStatefulSetDeletion: false,
 			wantPVCToExists:         true,
 			wantPodManagementPolicy: appsv1.OrderedReadyPodManagement,
 		},
 		{
-			name:             "Should delete Nats StatefulSet if pod management policy is not Parallel",
-			givenPodManagementPolicy:   string(appsv1.ParallelPodManagement),
-			givenWithPolicy: true,
-			givenStatefulSet: newStatefulSet(withPodManagementPolicy(appsv1.OrderedReadyPodManagement)),
-			wantStatefulSetDeletion: true,
-			wantPVCToExists:         true,
-			wantPodManagementPolicy: appsv1.ParallelPodManagement,
+			name:                     "Should delete Nats StatefulSet if pod management policy is not Parallel",
+			givenPodManagementPolicy: string(appsv1.ParallelPodManagement),
+			givenWithPolicy:          true,
+			givenStatefulSet:         newStatefulSet(withPodManagementPolicy(appsv1.OrderedReadyPodManagement)),
+			wantStatefulSetDeletion:  true,
+			wantPVCToExists:          true,
+			wantPodManagementPolicy:  appsv1.ParallelPodManagement,
 		},
 		{
-			name:             "Should not delete Nats StatefulSet if pod management policy is Parallel",
-			givenPodManagementPolicy:   string(appsv1.ParallelPodManagement),
-			givenWithPolicy: true,
-			givenStatefulSet: newStatefulSet(withPodManagementPolicy(appsv1.ParallelPodManagement)),
-			wantStatefulSetDeletion: false,
-			wantPVCToExists:         true,
-			wantPodManagementPolicy: appsv1.ParallelPodManagement,
+			name:                     "Should not delete Nats StatefulSet if pod management policy is Parallel",
+			givenPodManagementPolicy: string(appsv1.ParallelPodManagement),
+			givenWithPolicy:          true,
+			givenStatefulSet:         newStatefulSet(withPodManagementPolicy(appsv1.ParallelPodManagement)),
+			wantStatefulSetDeletion:  false,
+			wantPVCToExists:          true,
+			wantPodManagementPolicy:  appsv1.ParallelPodManagement,
 		},
 	}
 
@@ -256,11 +256,10 @@ func withPodManagementPolicy(policy appsv1.PodManagementPolicyType) statefulSetO
 
 func getJetStreamValuesYAML(withPolicy bool, policy string) string {
 	if !withPolicy {
-		return fmt.Sprintf(`
+		return `
     global:
       jetstream:
-        enabled: true`,
-		)
+        enabled: true`
 	}
 
 	return fmt.Sprintf(`

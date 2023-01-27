@@ -16,9 +16,9 @@ import (
 
 const (
 	handleNATSPodManagementPolicyName = "handleNATSPodManagementPolicy"
-	statefulSetName               = "eventing-nats"
-	eventingComponentName         = "eventing"
-	statefulSetType               = "StatefulSet"
+	statefulSetName                   = "eventing-nats"
+	eventingComponentName             = "eventing"
+	statefulSetType                   = "StatefulSet"
 )
 
 // Config holds the global configuration values.
