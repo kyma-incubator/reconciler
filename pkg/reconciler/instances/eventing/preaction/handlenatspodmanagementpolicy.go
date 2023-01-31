@@ -115,7 +115,7 @@ func (r *handleNATSPodManagementPolicy) Execute(context *service.ActionContext, 
 	// Updating the NATS PodManagementPolicy in the StatefulSet's Spec requires deletion of the StatefulSet.
 	if statefulSet.Spec.PodManagementPolicy != appsv1.ParallelPodManagement {
 		logger.With(log.KeyReason, "NATS Statefulset's PodManagementPolicy != Parallel").Info("Deleting NATS Statefulset")
-		if err := deleteNatsStatefulSet(context, clientSet, tracker, logger); err != nil {
+		if err := deleteNATSStatefulSet(context, clientSet, tracker, logger); err != nil {
 			return err
 		}
 		return nil
