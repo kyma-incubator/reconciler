@@ -41,7 +41,7 @@ type handleNATSPodManagementPolicy struct {
 }
 
 // handleNATSPodManagementPolicy
-func newhandleNATSPodManagementPolicy() *handleNATSPodManagementPolicy {
+func newHandleNATSPodManagementPolicy() *handleNATSPodManagementPolicy {
 	return &handleNATSPodManagementPolicy{
 		kubeClientProvider: defaultKubeClientProvider,
 	}
@@ -126,7 +126,7 @@ func (r *handleNATSPodManagementPolicy) Execute(context *service.ActionContext, 
 }
 
 // deleteNatsStatefulSet delete the Nats StatefulSet and optionally its assigned PVC.
-func deleteNatsStatefulSet(context *service.ActionContext, clientSet k8s.Interface, tracker *progress.Tracker, logger *zap.SugaredLogger) error {
+func deleteNATSStatefulSet(context *service.ActionContext, clientSet k8s.Interface, tracker *progress.Tracker, logger *zap.SugaredLogger) error {
 	if err := addToProgressTracker(tracker, logger, statefulSetType, statefulSetName); err != nil {
 		return err
 	}
