@@ -11,6 +11,8 @@ import (
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/clusteressentials"
 	// import required to register component reconciler 'connectivityproxy' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy"
+	// import required to register component reconciler 'eventing' in reconciler registry
+	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing"
 	// import required to register component reconciler 'istio' in reconciler registry
 	_ "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio"
 	// import required to register component reconciler 'ory' in reconciler registry

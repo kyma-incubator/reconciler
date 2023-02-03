@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	eventLog "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
@@ -20,8 +22,12 @@ type NoOpReconcileAction struct {
 	WaitTime time.Duration
 }
 
+// Run reconciler Action logic for Eventing. It executes the Action steps in order
+// and returns a non-nil error if any step was unsuccessful.
 func (a *NoOpReconcileAction) Run(context *service.ActionContext) (err error) {
-	context.Logger.Infof("Waiting to simulate Op...")
+	// prepare logger
+	contextLogger := eventLog.ContextLogger(context, eventLog.WithAction("no-op-action"))
+	contextLogger.Infof("Waiting to simulate Op...")
 	time.Sleep(a.WaitTime)
 	return nil
 }
