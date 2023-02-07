@@ -298,6 +298,7 @@ func generateOverrideMap(context *service.ActionContext, username, password, gro
 		"shootName":       metadata.ShootName,
 		"planName":        metadata.ServicePlanName,
 		"region":          metadata.Region,
+		"dnsDomain":       context.KubeClient.GetDomain(),
 	}
 	overrideMap["auth"] = map[string]string{
 		"username": username,

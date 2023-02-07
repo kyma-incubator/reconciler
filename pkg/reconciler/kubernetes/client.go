@@ -38,4 +38,6 @@ type Client interface {
 	ListResource(ctx context.Context, resource string, lo metav1.ListOptions) (*unstructured.UnstructuredList, error)
 
 	GetHost() string
+
+	GetDomain() string
 }

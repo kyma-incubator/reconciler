@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"helm.sh/helm/v3/pkg/kube"
@@ -18,8 +22,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"strings"
-	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -933,6 +935,23 @@ func (g *kubeClientAdapter) GetHost() string {
 	if g.restConfig == nil {
 		return ""
 	}
+
+	return g.restConfig.Host
+}
+
+func (g *kubeClientAdapter) GetDomain() string {
+	if g.restConfig == nil {
+		return ""
+	}
+
+	url, err := url.Parse(g.restConfig.Host)
+	if err != nil {
+		return ""
+	}
+
+	domainname := strings.TrimPrefix(url.Hostname(), "api.")
+
+	g.restConfig.Host = strings.Replace(g.restConfig.Host, url.Hostname(), domainname, 1)
 
 	return g.restConfig.Host
 }
