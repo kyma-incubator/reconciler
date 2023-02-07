@@ -951,7 +951,5 @@ func (g *kubeClientAdapter) GetDomain() string {
 
 	domainname := strings.TrimPrefix(url.Hostname(), "api.")
 
-	g.restConfig.Host = strings.Replace(g.restConfig.Host, url.Hostname(), domainname, 1)
-
-	return g.restConfig.Host
+	return domainname
 }
