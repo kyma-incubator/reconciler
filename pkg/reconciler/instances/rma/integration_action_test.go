@@ -192,6 +192,7 @@ func fixActionContext(chartURL string) *service.ActionContext {
 
 	mockClient := &mocks.Client{}
 	mockClient.On("DeleteResource", mock.Anything, "deployment", "avs-bridge", "kyma-system").Return(nil, nil)
+	mockClient.On("GetDomain").Return("testDomain", nil)
 
 	return &service.ActionContext{
 		Context:    context.Background(),
