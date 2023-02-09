@@ -228,7 +228,6 @@ func assertRMIConfig(t *testing.T, context *service.ActionContext, group int, co
 	assert.Equal(t, context.Task.Metadata.GlobalAccountID, runtime["globalAccountID"])
 	assert.Equal(t, context.Task.Metadata.SubAccountID, runtime["subaccountID"])
 	assert.Equal(t, context.Task.Metadata.ShootName, runtime["shootName"])
-	assert.Equal(t, context.KubeClient.GetDomain(), runtime["dnsDomain"])
 	assert.Equal(t, context.Task.Metadata.ServicePlanName, runtime["planName"])
 	assert.Equal(t, context.Task.Metadata.Region, runtime["region"])
 	assert.Equal(t, context.Task.Metadata.InstanceID, auth["username"])

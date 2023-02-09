@@ -218,20 +218,6 @@ func (_m *Client) GetHost() string {
 	return r0
 }
 
-// GetHost provides a mock function with given fields:
-func (_m *Client) GetDomain() string {
-	ret := _m.Called()
-
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-
-	return r0
-}
-
 // GetJob provides a mock function with given fields: ctx, name, namespace
 func (_m *Client) GetJob(ctx context.Context, name string, namespace string) (*batchv1.Job, error) {
 	ret := _m.Called(ctx, name, namespace)
