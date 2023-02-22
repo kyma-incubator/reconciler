@@ -12,4 +12,4 @@ data:
   shootName: {{ .Values.runtime.shootName }}
   planName: {{ .Values.runtime.planName }}
   region: {{ .Values.runtime.region }}
-  dnsDomain: {{ .Values.runtime.dnsDomain }
+  dnsDomain: {{ .Values.runtime.dnsDomain }}
