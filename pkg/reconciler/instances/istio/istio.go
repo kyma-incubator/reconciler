@@ -2,7 +2,6 @@ package istio
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/pod"
@@ -35,8 +34,9 @@ func init() {
 	istioPerformerCreatorFn := istioPerformerCreator(istioProxyReset, &provider, ReconcilerNameIstio)
 	reconcilerIstio.
 		WithPreReconcileAction(NewStatusPreAction(istioPerformerCreatorFn)).
-		WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).
-		WithPostReconcileAction(actions.NewActionAggregate(NewProxyResetPostAction(istioPerformerCreatorFn))).
+		// TODO: temporarily disable Istio reconciliation
+		//WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).
+		//WithPostReconcileAction(actions.NewActionAggregate(NewProxyResetPostAction(istioPerformerCreatorFn))).
 		WithDeleteAction(NewUninstallAction(istioPerformerCreatorFn))
 
 }
