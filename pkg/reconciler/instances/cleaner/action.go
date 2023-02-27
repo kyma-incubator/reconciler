@@ -96,13 +96,24 @@ func findKymaCRDs(crdManifests []*chart.Manifest, logger *zap.SugaredLogger) ([]
 					if !ok {
 						return nil, fmt.Errorf("Error getting attribute \"spec.versions[%d].name\" for %s CRD", i, crdName)
 					}
-					grv := toGRV(group, versionName, namesPlural)
-					logger.Debugf("Found Kyma CRD: %s.%s/%s", grv.Resource, grv.Group, grv.Version)
-					res = append(res, grv)
+
+					storageVal, ok, err := unstructured.NestedBool(version, "storage")
+					if err != nil {
+						return nil, err
+					}
+					if !ok {
+						return nil, fmt.Errorf("Error getting attribute \"spec.versions[%d].storage\" for %s CRD", i, crdName)
+					}
+
+					if storageVal {
+						grv := toGRV(group, versionName, namesPlural)
+						logger.Debugf("Found Kyma CRD: %s.%s/%s", grv.Resource, grv.Group, grv.Version)
+						res = append(res, grv)
+					}
 				}
 			} else {
 				//No "spec.versions" attribute, look for "spec.version"
-				versionName, versionOK, err := unstructured.NestedString(crdObject, "spec", "version") //deprecated attribute existing in `apiextensions.k8s.io/v1beta1`
+				versionName, versionOK, err := unstructured.NestedString(crdObject, "spec", "version") //attribute existing in `apiextensions.k8s.io/v1beta1`, no longer served as of v1.22
 				if err != nil {
 					return nil, err
 				}
