@@ -34,8 +34,8 @@ func init() {
 	istioPerformerCreatorFn := istioPerformerCreator(istioProxyReset, &provider, ReconcilerNameIstio)
 	reconcilerIstio.
 		WithPreReconcileAction(NewStatusPreAction(istioPerformerCreatorFn)).
-		// TODO: temporarily disable Istio reconciliation
-		//WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).
+		WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).
+		// TODO: temporarily disable Istio proxy reset
 		//WithPostReconcileAction(actions.NewActionAggregate(NewProxyResetPostAction(istioPerformerCreatorFn))).
 		WithDeleteAction(NewUninstallAction(istioPerformerCreatorFn))
 
