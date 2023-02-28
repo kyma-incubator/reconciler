@@ -30,6 +30,22 @@ func NewFilterOutAnnotatedManifests(annotation string) FilterFunc {
 	}
 }
 
+func NewFilterOnlyAnnotatedManifests(annotation string) FilterFunc {
+	return func(unstructs []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+		newUnstructs := make([]*unstructured.Unstructured, 0)
+
+		for _, unstruct := range unstructs {
+			annotations := unstruct.GetAnnotations()
+			_, ok := annotations[annotation]
+			if ok {
+				newUnstructs = append(newUnstructs, unstruct)
+			}
+		}
+
+		return newUnstructs, nil
+	}
+}
+
 func NewSkipReinstallingCurrentRelease(logger *zap.SugaredLogger, appName, currentReleaseLabel string) FilterFunc {
 	return func(unstructs []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 		var statefulSetManifest *unstructured.Unstructured

@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	BindingKey             = "global.binding."
-	SkipManifestAnnotation = "reconciler.kyma-project.io/skip-rendering-on-upgrade"
+	BindingKey                = "global.binding."
+	SkipManifestAnnotation    = "reconciler.kyma-project.io/skip-rendering-on-upgrade"
+	RefreshManifestAnnotation = "reconciler.kyma-project.io/refresh-on-reconcile:"
 )
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
@@ -60,11 +61,16 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, app *a
 
 	upgrade := app != nil && app.GetLabels() != nil
 
+	justRefreshCredentials := false
+
 	if upgrade {
 		filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
 		skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
 		filters := []rendering.FilterFunc{skipInstallationIfReleaseNotChanged, filterOutManifests}
-
+		return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
+	} else if justRefreshCredentials {
+		filterOnlyManifests := rendering.NewFilterOnlyAnnotatedManifests(RefreshManifestAnnotation)
+		filters := []rendering.FilterFunc{filterOnlyManifests}
 		return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
 	}
 

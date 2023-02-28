@@ -44,13 +44,13 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error while retrieving binding from BTP Operator")
 	}
 
-	if binding == nil {
-		context.Logger.Debug("Checking Service Catalog binding")
-		binding, err = a.Loader.FindBindingCatalog(context)
-		if err != nil {
-			return errors.Wrap(err, "Error while retrieving binding from Service Catalog")
-		}
-	}
+	//if binding == nil {
+	//	context.Logger.Debug("Checking Service Catalog binding")
+	//	binding, err = a.Loader.FindBindingCatalog(context)
+	//	if err != nil {
+	//		return errors.Wrap(err, "Error while retrieving binding from Service Catalog")
+	//	}
+	//}
 
 	if binding != nil {
 		context.Logger.Debug("Reading ServiceBinding Secret")
