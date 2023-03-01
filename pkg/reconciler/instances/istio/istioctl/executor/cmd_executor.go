@@ -33,12 +33,13 @@ func (d *DefaultCmdExecutor) RuntWithRetry(logger *zap.SugaredLogger, cmdName st
 			stderr := strings.Join(status.Stderr, "\n")
 			errorMsg := fmt.Sprintf("got error executing command %s stderr: %s", executableCmd.Name, stderr)
 
-			// It's possible that there is no error returned, but the exit codes reflects the actual error state.
-			if status.Error != nil {
-				return errors.Wrap(status.Error, errorMsg)
-			} else {
+			// It's possible that there is no error returned, since the exit codes reflects the actual error state. To avoid
+			// returning nil as error we create a new error.
+			if status.Error == nil {
 				return errors.New(errorMsg)
 			}
+
+			return errors.Wrap(status.Error, errorMsg)
 		}
 		return nil
 	}
