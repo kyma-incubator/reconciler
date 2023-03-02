@@ -23,12 +23,22 @@ func (d *DefaultCmdExecutor) RuntWithRetry(logger *zap.SugaredLogger, cmdName st
 		executableCmd := gocmd.NewCmd(cmdName, arg...)
 		// Run and wait for Cmd to return Status
 		status := <-executableCmd.Start()
-		stdout := strings.Join(status.Stdout, " - ")
+		stdout := strings.Join(status.Stdout, "\n")
 		logger.Debugf("executed command %s, got output: %s", executableCmd.Name, stdout)
 
-		if status.Error != nil {
-			stderr := strings.Join(status.Stderr, " ")
+		// There are cases where the error in status is nil, but the exit code is not 0. We need to treat such cases as
+		// an error to increase the resilience of the command status handling.
+		if status.Error != nil || status.Exit > 0 {
+
+			stderr := strings.Join(status.Stderr, "\n")
 			errorMsg := fmt.Sprintf("got error executing command %s stderr: %s", executableCmd.Name, stderr)
+
+			// It's possible that there is no error returned, since the exit codes reflects the actual error state. To avoid
+			// returning nil as error we create a new error.
+			if status.Error == nil {
+				return errors.New(errorMsg)
+			}
+
 			return errors.Wrap(status.Error, errorMsg)
 		}
 		return nil
