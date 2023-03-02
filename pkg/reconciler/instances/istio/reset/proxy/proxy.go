@@ -14,6 +14,7 @@ import (
 type IstioProxyReset interface {
 	// Run istio proxy containers reset using the config.
 	Run(cfg config.IstioProxyConfig) error
+	GetGatherer() data.Gatherer
 }
 
 // DefaultIstioProxyReset provides a default implementation of the IstioProxyReset.
@@ -102,4 +103,8 @@ func (i *DefaultIstioProxyReset) Run(cfg config.IstioProxyConfig) error {
 	}
 
 	return nil
+}
+
+func (i *DefaultIstioProxyReset) GetGatherer() data.Gatherer {
+	return i.gatherer
 }

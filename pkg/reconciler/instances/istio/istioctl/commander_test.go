@@ -2,13 +2,14 @@ package istioctl
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/executor/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"os"
-	"os/exec"
-	"testing"
 )
 
 const (

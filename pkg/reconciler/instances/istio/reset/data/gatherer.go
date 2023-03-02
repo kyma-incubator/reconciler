@@ -18,6 +18,9 @@ type Gatherer interface {
 	// GetAllPods from the cluster and return them as a v1.PodList.
 	GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
 
+	// GetIstioCPPods from the cluster and return them as a v1.PodList.
+	GetIstioCPPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error)
+
 	// GetPodsWithDifferentImage than the passed expected image to filter them out from the pods list.
 	GetPodsWithDifferentImage(inputPodsList v1.PodList, image ExpectedImage) (outputPodsList v1.PodList)
 
@@ -51,6 +54,23 @@ func NewDefaultGatherer() *DefaultGatherer {
 func (i *DefaultGatherer) GetAllPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error) {
 	err = retry.Do(func() error {
 		podsList, err = kubeClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, retryOpts...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return
+}
+
+func (i *DefaultGatherer) GetIstioCPPods(kubeClient kubernetes.Interface, retryOpts []retry.Option) (podsList *v1.PodList, err error) {
+	err = retry.Do(func() error {
+		podsList, err = kubeClient.CoreV1().Pods("istio-system").List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			return err
 		}

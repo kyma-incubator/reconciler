@@ -6,8 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
+	avastretry "github.com/avast/retry-go"
+	"github.com/coreos/go-semver/semver"
+	"github.com/docker/distribution/reference"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/cni"
@@ -16,6 +20,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/merge"
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
@@ -25,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/strings/slices"
 )
 
 const (
@@ -34,14 +40,18 @@ const (
 	interval            = 12 * time.Second
 )
 
+type Version struct {
+	value *semver.Version
+}
+
 type VersionType string
 
 type IstioStatus struct {
-	ClientVersion    string
-	TargetVersion    string
-	TargetPrefix     string
-	PilotVersion     string
-	DataPlaneVersion string
+	ClientVersion     string
+	TargetVersion     string
+	TargetPrefix      string
+	PilotVersion      string
+	DataPlaneVersions map[string]bool
 }
 
 type IstioVersionOutput struct {
@@ -102,10 +112,10 @@ type IstioPerformer interface {
 	Update(context context.Context, kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
 	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
-	ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error
+	ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error
 
 	// Version reports status of Istio installation on the cluster.
-	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error)
+	Version(kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) (IstioStatus, error)
 
 	// Uninstall Istio from the cluster and its corresponding resources, using given Istio version.
 	Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error
@@ -295,7 +305,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 	return nil
 }
 
-func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error {
+func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
@@ -318,7 +328,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 	}
 
 	cfg := istioConfig.IstioProxyConfig{
-		IsUpdate:                         canUpdate,
+		IsUpdate:                         true,
 		Context:                          context,
 		ImagePrefix:                      proxyImagePrefix,
 		ImageVersion:                     proxyImageVersion,
@@ -341,7 +351,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error) {
+func (c *DefaultIstioPerformer) Version(kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) (IstioStatus, error) {
 	targetVersion, err := getTargetVersionFromIstioChart(workspace, branchVersion, istioChart, logger)
 	if err != nil {
 		return IstioStatus{}, errors.Wrap(err, "Target Version could not be found")
@@ -468,13 +478,26 @@ func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string
 			return json.MeshVersion[0].Info.Version
 		}
 		return ""
-	case "dataPlane":
-		if len(json.DataPlaneVersion) > 0 {
-			return json.DataPlaneVersion[0].IstioVersion
-		}
-		return ""
 	default:
 		return ""
+	}
+}
+
+func getUniqueVersionsFromJSON(versionType VersionType, json IstioVersionOutput) map[string]bool {
+	switch versionType {
+	case "dataPlane":
+		if len(json.DataPlaneVersion) > 0 {
+			versions := map[string]bool{}
+			for _, dpVersion := range json.DataPlaneVersion {
+				if _, ok := versions[dpVersion.IstioVersion]; !ok {
+					versions[dpVersion.IstioVersion] = true
+				}
+			}
+			return versions
+		}
+		return map[string]bool{}
+	default:
+		return map[string]bool{}
 	}
 }
 
@@ -495,11 +518,11 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string, targetDirect
 	}
 
 	return IstioStatus{
-		ClientVersion:    getVersionFromJSON("client", version),
-		TargetVersion:    targetVersion,
-		TargetPrefix:     targetDirectory,
-		PilotVersion:     getVersionFromJSON("pilot", version),
-		DataPlaneVersion: getVersionFromJSON("dataPlane", version),
+		ClientVersion:     getVersionFromJSON("client", version),
+		TargetVersion:     targetVersion,
+		TargetPrefix:      targetDirectory,
+		PilotVersion:      getVersionFromJSON("pilot", version),
+		DataPlaneVersions: getUniqueVersionsFromJSON("dataPlane", version),
 	}, nil
 }
 
@@ -565,4 +588,62 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespacesByDefault
 
 	return enableNamespacesByDefault, nil
+}
+
+func verifyInstalledIstioVersion(provider clientset.Provider, kubeConfig string, gatherer data.Gatherer, logger *zap.SugaredLogger) (string, error) {
+	kubeClient, err := provider.RetrieveFrom(kubeConfig, logger)
+	if err != nil {
+		logger.Error("Could not retrieve KubeClient from Kubeconfig")
+		return "", err
+	}
+	retryOpts := []avastretry.Option{
+		avastretry.Delay(delayBetweenRetries),
+		avastretry.Attempts(uint(retriesCount)),
+		avastretry.DelayType(avastretry.FixedDelay),
+	}
+	pods, err := gatherer.GetIstioCPPods(kubeClient, retryOpts)
+	if err != nil {
+		logger.Error("Could not list Istio CP pods")
+		return "", err
+	}
+	var currentVersion Version
+	containersToCheck := []string{"discovery", "istio-proxy", "install-cni"}
+	for _, pod := range pods.Items {
+		for _, container := range pod.Spec.Containers {
+			if !slices.Contains(containersToCheck, container.Name) {
+				continue
+			}
+			version, err := getImageVersion(container.Image)
+			if err != nil {
+				return "", err
+			}
+			if currentVersion.value == nil {
+				currentVersion.value = version
+				continue
+			} else if currentVersion.value.Compare(*version) != 0 {
+				return "", fmt.Errorf("Image version of pod %s: %s do not match version: %s", pod.Name, version.String(), currentVersion.value.String())
+			}
+		}
+	}
+	if currentVersion.value == nil {
+		return "", fmt.Errorf("Unable to obtain installed Istio image version")
+	}
+	return currentVersion.value.String(), nil
+}
+
+func getImageVersion(image string) (*semver.Version, error) {
+	initialVersion, _ := semver.NewVersion("1.0.0")
+	matches := reference.ReferenceRegexp.FindStringSubmatch(image)
+	if matches == nil || len(matches) < 3 {
+		return initialVersion, fmt.Errorf("Unable to parse container image reference: %s", image)
+	}
+	imageTag := matches[2]
+	if strings.Contains(imageTag, "-") {
+		imageTag = imageTag[:strings.IndexRune(imageTag, '-')]
+	}
+	version, err := semver.NewVersion(imageTag)
+	if err != nil {
+		return initialVersion, err
+	}
+	return version, nil
 }
