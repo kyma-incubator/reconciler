@@ -248,7 +248,7 @@ func canUninstall(istioStatus actions.IstioStatus) bool {
 }
 
 func getInstalledVersion(context *service.ActionContext, performer actions.IstioPerformer) (actions.IstioStatus, error) {
-	istioStatus, err := performer.Version(context.KubeClient.Kubeconfig(), context.WorkspaceFactory, context.Task.Version, context.Task.Component, context.Logger)
+	istioStatus, err := performer.Version(context.WorkspaceFactory, context.Task.Version, context.Task.Component, context.KubeClient.Kubeconfig(), context.Logger)
 	if err != nil {
 		return actions.IstioStatus{}, errors.Wrap(err, "Could not fetch Istio version")
 	}
@@ -320,10 +320,6 @@ func isComponentCompatible(componentVersion, targetVersion, componentName string
 	}
 
 	componentVsTargetComparison := targetHelperVersion.compare(componentHelperVersion)
-	if componentVsTargetComparison < 0 {
-		return false, fmt.Errorf("Downgrade is not supported, for %s from version: %s to version: %s",
-			componentName, componentVersion, targetVersion)
-	}
 	if !amongOneMinor(componentHelperVersion, targetHelperVersion) {
 		return false, fmt.Errorf("Could not perform %s for %s from version: %s to version: %s - the difference between versions exceed one minor version",
 			getActionTypeFrom(componentVsTargetComparison), componentName, componentVersion, targetVersion)

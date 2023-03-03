@@ -13,6 +13,7 @@ import (
 	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	commandermocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
+	datamocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data/mocks"
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	k8smocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
@@ -179,7 +180,8 @@ func Test_RunUpdateAction(t *testing.T) {
 
 		proxy := proxymocks.IstioProxyReset{}
 		proxy.On("Run", mock.Anything).Return(nil)
-		performer := actions.NewDefaultIstioPerformer(cmdResolver, &proxy, &providerMock)
+		gatherer := datamocks.Gatherer{}
+		performer := actions.NewDefaultIstioPerformer(cmdResolver, &proxy, &providerMock, &gatherer)
 
 		action := istio.NewIstioMainReconcileAction(performerCreatorFn(performer))
 
@@ -198,7 +200,8 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockTooNewVersion), nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
-		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
+		gatherer := datamocks.Gatherer{}
+		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider, &gatherer)
 
 		action := istio.NewStatusPreAction(performerCreatorFn(performer))
 
@@ -216,7 +219,8 @@ func Test_RunUpdateAction(t *testing.T) {
 		commanderMock := commandermocks.Commander{}
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockDataPlanePilotMismatchVersion), nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
-		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
+		gatherer := datamocks.Gatherer{}
+		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider, &gatherer)
 		action := istio.NewStatusPreAction(performerCreatorFn(performer))
 
 		// when
@@ -252,8 +256,8 @@ func Test_RunUninstallAction(t *testing.T) {
 		commanderMock.On("Version", mock.Anything, mock.Anything).Return([]byte(istioctlMockCompleteVersion), nil)
 		commanderMock.On("Uninstall", mock.Anything, mock.Anything).Return(nil)
 		cmdResolver := TestCommanderResolver{cmder: &commanderMock}
-
-		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider)
+		gatherer := datamocks.Gatherer{}
+		performer := actions.NewDefaultIstioPerformer(cmdResolver, nil, &provider, &gatherer)
 		action := istio.NewUninstallAction(performerCreatorFn(performer))
 
 		// when

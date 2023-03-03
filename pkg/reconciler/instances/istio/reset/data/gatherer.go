@@ -3,13 +3,22 @@ package data
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/avast/retry-go"
+	"github.com/coreos/go-semver/semver"
+	"github.com/docker/distribution/reference"
+	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+type Version struct {
+	value *semver.Version
+}
 
 // Gatherer gathers data from the Kubernetes cluster.
 //
@@ -29,6 +38,9 @@ type Gatherer interface {
 
 	// GetPodsForCNIChange return a list of pods which have a istio-init container.
 	GetPodsForCNIChange(kubeClient kubernetes.Interface, retryOpts []retry.Option, cniEnabled bool) (podsList v1.PodList, err error)
+
+	// GetInstalledIstioVersion verifies and returns installed Istio.
+	GetInstalledIstioVersion(kubeClient kubernetes.Interface, retryOpts []retry.Option, logger *zap.SugaredLogger) (string, error)
 }
 
 // DefaultGatherer that gets pods from the Kubernetes cluster
@@ -142,6 +154,37 @@ func (i *DefaultGatherer) GetPodsForCNIChange(kubeClient kubernetes.Interface, r
 	podsList = getPodsForCNIChange(allPodsWithNamespaceAnnotations, containerName)
 
 	return
+}
+
+func (i *DefaultGatherer) GetInstalledIstioVersion(kubeClient kubernetes.Interface, retryOpts []retry.Option, logger *zap.SugaredLogger) (string, error) {
+	pods, err := i.GetIstioCPPods(kubeClient, retryOpts)
+	if err != nil {
+		logger.Error("Could not list Istio CP pods")
+		return "", err
+	}
+	var currentVersion Version
+	containersToCheck := []string{"discovery", "istio-proxy", "install-cni"}
+	for _, pod := range pods.Items {
+		for _, container := range pod.Spec.Containers {
+			if !slices.Contains(containersToCheck, container.Name) {
+				continue
+			}
+			version, err := getImageVersion(container.Image)
+			if err != nil {
+				return "", err
+			}
+			if currentVersion.value == nil {
+				currentVersion.value = version
+				continue
+			} else if currentVersion.value.Compare(*version) != 0 {
+				return "", fmt.Errorf("Image version of pod %s: %s do not match version: %s", pod.Name, version.String(), currentVersion.value.String())
+			}
+		}
+	}
+	if currentVersion.value == nil {
+		return "", fmt.Errorf("Unable to obtain installed Istio image version")
+	}
+	return currentVersion.value.String(), nil
 }
 
 func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDefault bool) (podsWithSidecarRequired v1.PodList, labelWithWarningPodsList v1.PodList) {
@@ -346,4 +389,21 @@ func RemoveAnnotatedPods(in v1.PodList, annotationKey string) (out v1.PodList) {
 		}
 	}
 	return
+}
+
+func getImageVersion(image string) (*semver.Version, error) {
+	initialVersion, _ := semver.NewVersion("1.0.0")
+	matches := reference.ReferenceRegexp.FindStringSubmatch(image)
+	if matches == nil || len(matches) < 3 {
+		return initialVersion, fmt.Errorf("Unable to parse container image reference: %s", image)
+	}
+	imageTag := matches[2]
+	if strings.Contains(imageTag, "-") {
+		imageTag = imageTag[:strings.IndexRune(imageTag, '-')]
+	}
+	version, err := semver.NewVersion(imageTag)
+	if err != nil {
+		return initialVersion, err
+	}
+	return version, nil
 }

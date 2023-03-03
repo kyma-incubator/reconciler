@@ -6,12 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"time"
 
 	avastretry "github.com/avast/retry-go"
-	"github.com/coreos/go-semver/semver"
-	"github.com/docker/distribution/reference"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/cni"
@@ -30,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/utils/strings/slices"
 )
 
 const (
@@ -39,10 +35,6 @@ const (
 	timeout             = 5 * time.Minute
 	interval            = 12 * time.Second
 )
-
-type Version struct {
-	value *semver.Version
-}
 
 type VersionType string
 
@@ -115,7 +107,7 @@ type IstioPerformer interface {
 	ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error
 
 	// Version reports status of Istio installation on the cluster.
-	Version(kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) (IstioStatus, error)
+	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error)
 
 	// Uninstall Istio from the cluster and its corresponding resources, using given Istio version.
 	Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error
@@ -133,11 +125,12 @@ type DefaultIstioPerformer struct {
 	resolver        CommanderResolver
 	istioProxyReset proxy.IstioProxyReset
 	provider        clientset.Provider
+	gatherer        data.Gatherer
 }
 
 // NewDefaultIstioPerformer creates a new instance of the DefaultIstioPerformer.
-func NewDefaultIstioPerformer(resolver CommanderResolver, istioProxyReset proxy.IstioProxyReset, provider clientset.Provider) *DefaultIstioPerformer {
-	return &DefaultIstioPerformer{resolver, istioProxyReset, provider}
+func NewDefaultIstioPerformer(resolver CommanderResolver, istioProxyReset proxy.IstioProxyReset, provider clientset.Provider, gatherer data.Gatherer) *DefaultIstioPerformer {
+	return &DefaultIstioPerformer{resolver, istioProxyReset, provider, gatherer}
 }
 
 func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error {
@@ -206,6 +199,16 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
+
+	installedVersion, err := getInstalledIstioVersion(c.provider, kubeConfig, c.gatherer, logger)
+	if err != nil {
+		return err
+	}
+
+	if execVersion.MajorMinorPatch() != installedVersion {
+		return fmt.Errorf("Installed Istio version: %s do not match target version: %s", installedVersion, execVersion.MajorMinorPatch())
+	}
+
 	logger.Infof("Istio in version %s successfully installed", version)
 
 	return nil
@@ -351,7 +354,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 	return nil
 }
 
-func (c *DefaultIstioPerformer) Version(kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, logger *zap.SugaredLogger) (IstioStatus, error) {
+func (c *DefaultIstioPerformer) Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error) {
 	targetVersion, err := getTargetVersionFromIstioChart(workspace, branchVersion, istioChart, logger)
 	if err != nil {
 		return IstioStatus{}, errors.Wrap(err, "Target Version could not be found")
@@ -590,10 +593,10 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	return enableNamespacesByDefault, nil
 }
 
-func verifyInstalledIstioVersion(provider clientset.Provider, kubeConfig string, gatherer data.Gatherer, logger *zap.SugaredLogger) (string, error) {
+func getInstalledIstioVersion(provider clientset.Provider, kubeConfig string, gatherer data.Gatherer, logger *zap.SugaredLogger) (string, error) {
 	kubeClient, err := provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
-		logger.Error("Could not retrieve KubeClient from Kubeconfig")
+		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
 		return "", err
 	}
 	retryOpts := []avastretry.Option{
@@ -601,49 +604,11 @@ func verifyInstalledIstioVersion(provider clientset.Provider, kubeConfig string,
 		avastretry.Attempts(uint(retriesCount)),
 		avastretry.DelayType(avastretry.FixedDelay),
 	}
-	pods, err := gatherer.GetIstioCPPods(kubeClient, retryOpts)
+
+	version, err := gatherer.GetInstalledIstioVersion(kubeClient, retryOpts, logger)
 	if err != nil {
-		logger.Error("Could not list Istio CP pods")
 		return "", err
 	}
-	var currentVersion Version
-	containersToCheck := []string{"discovery", "istio-proxy", "install-cni"}
-	for _, pod := range pods.Items {
-		for _, container := range pod.Spec.Containers {
-			if !slices.Contains(containersToCheck, container.Name) {
-				continue
-			}
-			version, err := getImageVersion(container.Image)
-			if err != nil {
-				return "", err
-			}
-			if currentVersion.value == nil {
-				currentVersion.value = version
-				continue
-			} else if currentVersion.value.Compare(*version) != 0 {
-				return "", fmt.Errorf("Image version of pod %s: %s do not match version: %s", pod.Name, version.String(), currentVersion.value.String())
-			}
-		}
-	}
-	if currentVersion.value == nil {
-		return "", fmt.Errorf("Unable to obtain installed Istio image version")
-	}
-	return currentVersion.value.String(), nil
-}
 
-func getImageVersion(image string) (*semver.Version, error) {
-	initialVersion, _ := semver.NewVersion("1.0.0")
-	matches := reference.ReferenceRegexp.FindStringSubmatch(image)
-	if matches == nil || len(matches) < 3 {
-		return initialVersion, fmt.Errorf("Unable to parse container image reference: %s", image)
-	}
-	imageTag := matches[2]
-	if strings.Contains(imageTag, "-") {
-		imageTag = imageTag[:strings.IndexRune(imageTag, '-')]
-	}
-	version, err := semver.NewVersion(imageTag)
-	if err != nil {
-		return initialVersion, err
-	}
 	return version, nil
 }

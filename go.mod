@@ -43,6 +43,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.13.0
 	github.com/traefik/yaegi v0.14.3
 	go.uber.org/zap v1.24.0
+	golang.org/x/exp v0.0.0-20221031165847-c99f073a8326
 	golang.org/x/sync v0.1.0
 	golang.org/x/text v0.7.0
 	google.golang.org/protobuf v1.28.1
@@ -52,7 +53,6 @@ require (
 	helm.sh/helm/v3 v3.11.1
 	istio.io/api v0.0.0-20221108152712-3017a057f724
 	istio.io/istio v0.0.0-20221109080248-089f536c0f26
-	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d
 	sigs.k8s.io/controller-runtime v0.13.1
 	sigs.k8s.io/kustomize/kyaml v0.13.9
 )
@@ -213,6 +213,7 @@ require (
 	k8s.io/component-base v0.26.0 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221106113015-f73e7dbcfe29 // indirect
+	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d // indirect
 	oras.land/oras-go v1.2.2 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/kustomize/api v0.12.1 // indirect

@@ -181,7 +181,6 @@ func Test_helperVersion_compare(t *testing.T) {
 }
 
 func TestStatusPreAction_Run(t *testing.T) {
-
 	performerCreatorFn := func(p actions.IstioPerformer) bootstrapIstioPerformer {
 		return func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
 			return p, nil
@@ -880,6 +879,88 @@ func Test_canUpdate(t *testing.T) {
 
 		// when
 		result, _ := canUpdate(version)
+
+		// then
+		require.True(t, result)
+	})
+}
+
+func Test_canResetProxies(t *testing.T) {
+	t.Run("should not allow proxy reset when pilot version do not match the target version", func(t *testing.T) {
+		// given
+		version := actions.IstioStatus{
+			ClientVersion:     "1.0.0",
+			TargetVersion:     "1.2.0",
+			PilotVersion:      "1.0.0",
+			DataPlaneVersions: map[string]bool{"1.0.0": true},
+		}
+
+		// when
+		result, _ := canResetProxies(version)
+
+		// then
+		require.False(t, result)
+	})
+
+	t.Run("should not allow proxy reset when one of dataplane versions is more than one minor behind the target version", func(t *testing.T) {
+		// given
+		version := actions.IstioStatus{
+			ClientVersion:     "1.2.0",
+			TargetVersion:     "1.2.0",
+			PilotVersion:      "1.2.0",
+			DataPlaneVersions: map[string]bool{"1.2.0": true, "1.0.0": true},
+		}
+
+		// when
+		result, _ := canResetProxies(version)
+
+		// then
+		require.False(t, result)
+	})
+
+	t.Run("should allow proxy reset when all versions match", func(t *testing.T) {
+		// given
+		version := actions.IstioStatus{
+			ClientVersion:     "1.2.0",
+			TargetVersion:     "1.2.0",
+			PilotVersion:      "1.2.0",
+			DataPlaneVersions: map[string]bool{"1.2.0": true},
+		}
+
+		// when
+		result, _ := canResetProxies(version)
+
+		// then
+		require.True(t, result)
+	})
+
+	t.Run("should allow proxy reset when one of dataplane versions is one minor behind the target version", func(t *testing.T) {
+		// given
+		version := actions.IstioStatus{
+			ClientVersion:     "1.2.0",
+			TargetVersion:     "1.2.0",
+			PilotVersion:      "1.2.0",
+			DataPlaneVersions: map[string]bool{"1.2.0": true, "1.1.0": true},
+		}
+
+		// when
+		result, _ := canResetProxies(version)
+
+		// then
+		require.True(t, result)
+	})
+
+	t.Run("should allow proxy reset when no dataplane versions found", func(t *testing.T) {
+		// given
+		version := actions.IstioStatus{
+			ClientVersion:     "1.2.0",
+			TargetVersion:     "1.2.0",
+			PilotVersion:      "1.2.0",
+			DataPlaneVersions: map[string]bool{},
+		}
+
+		// when
+		result, _ := canResetProxies(version)
 
 		// then
 		require.True(t, result)
