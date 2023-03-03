@@ -392,10 +392,10 @@ func RemoveAnnotatedPods(in v1.PodList, annotationKey string) (out v1.PodList) {
 }
 
 func getImageVersion(image string) (*semver.Version, error) {
-	initialVersion, _ := semver.NewVersion("1.0.0")
+	noVersion := semver.Version{}
 	matches := reference.ReferenceRegexp.FindStringSubmatch(image)
 	if matches == nil || len(matches) < 3 {
-		return initialVersion, fmt.Errorf("Unable to parse container image reference: %s", image)
+		return &noVersion, fmt.Errorf("Unable to parse container image reference: %s", image)
 	}
 	imageTag := matches[2]
 	if strings.Contains(imageTag, "-") {
@@ -403,7 +403,7 @@ func getImageVersion(image string) (*semver.Version, error) {
 	}
 	version, err := semver.NewVersion(imageTag)
 	if err != nil {
-		return initialVersion, err
+		return &noVersion, err
 	}
 	return version, nil
 }
