@@ -1,6 +1,6 @@
 module github.com/kyma-incubator/reconciler
 
-go 1.18
+go 1.19
 
 require (
 	k8s.io/api v0.26.0
