@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+const (
+	CredentialServiceKeyName = "connectivity-proxy-service-key"
+)
+
 type CustomAction struct {
 	Name     string
 	Loader   Loader
@@ -44,21 +48,13 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error while retrieving binding from BTP Operator")
 	}
 
-	//if binding == nil {
-	//	context.Logger.Debug("Checking Service Catalog binding")
-	//	binding, err = a.Loader.FindBindingCatalog(context)
-	//	if err != nil {
-	//		return errors.Wrap(err, "Error while retrieving binding from Service Catalog")
-	//	}
-	//}
-
 	if binding != nil {
 		context.Logger.Debug("Reading ServiceBinding Secret")
 		bindingSecret, err := a.Loader.FindSecret(context, binding)
 
 		context.Logger.Debug("Service Binding Secret check")
 		if err != nil || bindingSecret == nil {
-			return errors.Wrap(err, "Error while retrieving secret")
+			return errors.Wrap(err, "Error while retrieving service binding secret")
 		}
 
 		context.Logger.Debug("Populating configs")
@@ -70,8 +66,15 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Error during copying resources")
 		}
 
+		context.Logger.Debug("Checking current credentials key")
+		credSecret, err := context.KubeClient.GetSecret(context.Context, CredentialServiceKeyName, context.Task.Namespace)
+
+		if err == nil {
+			return errors.Wrap(err, "Error during getting existing credentials")
+		}
+
 		context.Logger.Info("Installing component")
-		if err := a.Commands.InstallOrUpgrade(context, app); err != nil {
+		if err := a.Commands.InstallOrUpgrade(context, app, credSecret); err != nil {
 			return errors.Wrap(err, "Error during installation")
 		}
 	} else if binding == nil && app != nil {

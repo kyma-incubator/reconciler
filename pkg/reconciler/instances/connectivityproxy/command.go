@@ -16,11 +16,12 @@ const (
 	BindingKey                = "global.binding."
 	SkipManifestAnnotation    = "reconciler.kyma-project.io/skip-rendering-on-upgrade"
 	RefreshManifestAnnotation = "reconciler.kyma-project.io/refresh-on-reconcile:"
+	CredentialsKey            = "service_key"
 )
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	InstallOrUpgrade(*service.ActionContext, *appsv1.StatefulSet) error
+	InstallOrUpgrade(*service.ActionContext, *appsv1.StatefulSet, *apiCoreV1.Secret) error
 	CopyResources(*service.ActionContext) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
@@ -36,9 +37,9 @@ type CommandActions struct {
 	copyFactory            []CopyFactory
 }
 
-func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet) error {
+func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet, credSecret *apiCoreV1.Secret) error {
 
-	chartProvider, err := a.getChartProvider(context, app)
+	chartProvider, err := a.getChartProvider(context, app, credSecret)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create chart provider")
@@ -52,27 +53,27 @@ func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *a
 	return nil
 }
 
-func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet) (chart.Provider, error) {
+func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet, credSecret *apiCoreV1.Secret) (chart.Provider, error) {
 	authenticator, err := rendering.NewExternalComponentAuthenticator()
 	if err != nil {
 		return nil, err
 	}
 	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(context.ChartProvider, authenticator)
 
-	upgrade := app != nil && app.GetLabels() != nil
+	//upgrade := app != nil && app.GetLabels() != nil
 
-	justRefreshCredentials := false
+	//justRefreshCredentials := false
 
-	if upgrade {
-		filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
-		skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
-		filters := []rendering.FilterFunc{skipInstallationIfReleaseNotChanged, filterOutManifests}
-		return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
-	} else if justRefreshCredentials {
-		filterOnlyManifests := rendering.NewFilterOnlyAnnotatedManifests(RefreshManifestAnnotation)
-		filters := []rendering.FilterFunc{filterOnlyManifests}
-		return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
-	}
+	//if upgrade {
+	filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
+	//skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
+	filters := []rendering.FilterFunc{filterOutManifests}
+	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
+	//} else if justRefreshCredentials {
+	//	filterOnlyManifests := rendering.NewFilterOnlyAnnotatedManifests(RefreshManifestAnnotation)
+	//	filters := []rendering.FilterFunc{filterOnlyManifests}
+	//	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
+	//}
 
 	return chartProviderWithAuthentication, nil
 }
@@ -89,6 +90,45 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 			}
 		}
 	}
+}
+
+func (a *CommandActions) IsCredentailsRefreshRequired(context *service.ActionContext, credentialSecret *apiCoreV1.Secret) bool {
+	return true
+	// full string
+	//credentials := string(credentialSecret.Data[CredentialsKey])
+
+	/*
+	   	{
+	        "clientid": "{{ .Values.global.binding.clientid }}",
+	        "clientsecret": "{{ .Values.global.binding.clientsecret }}",
+	        "connectivity_service": {
+	          "CAs_path": "{{ .Values.global.binding.CAs_path }}",
+	          "CAs_signing_path": "{{ .Values.global.binding.CAs_signing_path }}",
+	          "api_path": "{{ .Values.global.binding.api_path }}",
+	          "tunnel_path": "{{ .Values.global.binding.tunnel_path }}",
+	          "url": "{{ .Values.global.binding.url }}"
+	        },
+	        "subaccount_id": "{{ .Values.global.binding.subaccount_id }}",
+	        "subaccount_subdomain": "{{ .Values.global.binding.subaccount_subdomain }}",
+	        "token_service_domain": "{{ .Values.global.binding.token_service_domain }}",
+	        "token_service_url": "{{  .Values.global.binding.token_service_url }}",
+	        "token_service_url_pattern": "{{ .Values.global.binding.token_service_url_pattern }}",
+	        "token_service_url_pattern_tenant_key": "{{ .Values.global.binding.token_service_url_pattern_tenant_key }}",
+	        "xsappname": "{{ .Values.global.binding.xsappname }}"
+	      }
+	*/
+	//
+	//for key, val := range bindingSecret.Data {
+	//	var unmarshalled map[string]interface{}
+	//
+	//	if err := json.Unmarshal(val, &unmarshalled); err != nil {
+	//		context.Task.Configuration[BindingKey+key] = string(val)
+	//	} else {
+	//		for uKey, uVal := range unmarshalled {
+	//			context.Task.Configuration[BindingKey+uKey] = uVal
+	//		}
+	//	}
+	//}
 }
 
 func (a *CommandActions) CopyResources(context *service.ActionContext) error {
