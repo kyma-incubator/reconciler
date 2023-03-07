@@ -965,6 +965,22 @@ func Test_canResetProxies(t *testing.T) {
 		// then
 		require.True(t, result)
 	})
+
+	t.Run("should allow proxy reset when target version has a pre-release specified", func(t *testing.T) {
+		// given
+		version := actions.IstioStatus{
+			ClientVersion:     "1.2.0",
+			TargetVersion:     "1.2.0-distroless",
+			PilotVersion:      "1.2.0",
+			DataPlaneVersions: map[string]bool{"1.2.0": true},
+		}
+
+		// when
+		result, _ := canResetProxies(version)
+
+		// then
+		require.True(t, result)
+	})
 }
 
 func Test_isClientCompatible(t *testing.T) {

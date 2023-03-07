@@ -152,7 +152,7 @@ func Test_GetInstalledIstioVersion(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "is not in dotted-tri format")
+		require.Contains(t, err.Error(), "invalid istioctl version format: empty input")
 		require.Equal(t, version, "")
 	})
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 )
@@ -285,7 +286,16 @@ func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
 }
 
 func canResetProxies(istioStatus actions.IstioStatus) (bool, error) {
-	if istioStatus.PilotVersion != istioStatus.TargetVersion {
+	pilotVersion, err := istioctl.VersionFromString(istioStatus.PilotVersion)
+	if err != nil {
+		return false, errors.Wrap(err, "Error parsing pilot version")
+	}
+	targetVersion, err := istioctl.VersionFromString(istioStatus.TargetVersion)
+	if err != nil {
+		return false, errors.Wrap(err, "Error parsing target version")
+	}
+
+	if pilotVersion.MajorMinorPatch() != targetVersion.MajorMinorPatch() {
 		return false, fmt.Errorf("Istio pilot version %s do not match target version %s", istioStatus.PilotVersion, istioStatus.TargetVersion)
 	}
 

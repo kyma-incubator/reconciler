@@ -3,22 +3,19 @@ package data
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/avast/retry-go"
-	"github.com/coreos/go-semver/semver"
 	"github.com/docker/distribution/reference"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
-
-type Version struct {
-	value *semver.Version
-}
 
 // Gatherer gathers data from the Kubernetes cluster.
 //
@@ -162,7 +159,7 @@ func (i *DefaultGatherer) GetInstalledIstioVersion(kubeClient kubernetes.Interfa
 		logger.Error("Could not list Istio CP pods")
 		return "", err
 	}
-	var currentVersion Version
+	var currentVersion istioctl.Version
 	containersToCheck := []string{"discovery", "istio-proxy", "install-cni"}
 	for _, pod := range pods.Items {
 		for _, container := range pod.Spec.Containers {
@@ -173,18 +170,18 @@ func (i *DefaultGatherer) GetInstalledIstioVersion(kubeClient kubernetes.Interfa
 			if err != nil {
 				return "", err
 			}
-			if currentVersion.value == nil {
-				currentVersion.value = version
+			if currentVersion.Empty() {
+				currentVersion = version
 				continue
-			} else if currentVersion.value.Compare(*version) != 0 {
-				return "", fmt.Errorf("Image version of pod %s: %s do not match version: %s", pod.Name, version.String(), currentVersion.value.String())
+			} else if currentVersion.Compare(version) != 0 {
+				return "", fmt.Errorf("Image version of pod %s: %s do not match version: %s", pod.Name, version.String(), currentVersion.String())
 			}
 		}
 	}
-	if currentVersion.value == nil {
-		return "", fmt.Errorf("Unable to obtain installed Istio image version")
+	if currentVersion.Empty() {
+		return "", errors.New("Unable to obtain installed Istio image version")
 	}
-	return currentVersion.value.String(), nil
+	return currentVersion.String(), nil
 }
 
 func getPodsWithAnnotation(inputPodsList v1.PodList, sidecarInjectionEnabledbyDefault bool) (podsWithSidecarRequired v1.PodList, labelWithWarningPodsList v1.PodList) {
@@ -391,19 +388,18 @@ func RemoveAnnotatedPods(in v1.PodList, annotationKey string) (out v1.PodList) {
 	return
 }
 
-func getImageVersion(image string) (*semver.Version, error) {
-	noVersion := semver.Version{}
+func getImageVersion(image string) (istioctl.Version, error) {
 	matches := reference.ReferenceRegexp.FindStringSubmatch(image)
 	if matches == nil || len(matches) < 3 {
-		return &noVersion, fmt.Errorf("Unable to parse container image reference: %s", image)
+		return istioctl.Version{}, fmt.Errorf("Unable to parse container image reference: %s", image)
 	}
 	imageTag := matches[2]
 	if strings.Contains(imageTag, "-") {
 		imageTag = imageTag[:strings.IndexRune(imageTag, '-')]
 	}
-	version, err := semver.NewVersion(imageTag)
+	version, err := istioctl.VersionFromString(imageTag)
 	if err != nil {
-		return &noVersion, err
+		return istioctl.Version{}, err
 	}
 	return version, nil
 }
