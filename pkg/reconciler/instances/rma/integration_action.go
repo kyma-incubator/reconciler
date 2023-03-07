@@ -319,7 +319,10 @@ func generateOverrideMap(context *service.ActionContext, username, password, gro
 }
 
 func getDomain(host string) string {
-	url, _ := url.Parse(host)
+	url, err := url.Parse(host)
+	if err != nil {
+		return ""
+	}
 	domain := strings.TrimPrefix(url.Hostname(), "api.")
 
 	return domain
