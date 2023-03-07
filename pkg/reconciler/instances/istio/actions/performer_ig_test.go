@@ -68,7 +68,7 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 		provider.On("GetIstioClient", mock.Anything).Return(ctrlClientSameConfig, nil)
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
 		gatherer := datamocks.Gatherer{}
-
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.3", nil)
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider, &gatherer)
 
 		// when
@@ -111,7 +111,7 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 		provider.On("GetIstioClient", mock.Anything).Return(ctrlClientDiffConfig, nil)
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
 		gatherer := datamocks.Gatherer{}
-
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.3", nil)
 		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider, &gatherer)
 
 		// when

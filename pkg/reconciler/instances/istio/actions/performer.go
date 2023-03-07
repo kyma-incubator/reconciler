@@ -291,6 +291,15 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
+	updatedVersion, err := getInstalledIstioVersion(c.provider, kubeConfig, c.gatherer, logger)
+	if err != nil {
+		return err
+	}
+
+	if version.MajorMinorPatch() != updatedVersion {
+		return fmt.Errorf("Updated Istio version: %s do not match target version: %s", updatedVersion, version.MajorMinorPatch())
+	}
+
 	logger.Infof("Istio has been updated successfully to version %s", targetVersion)
 
 	if ingressGatewayNeedsRestart {

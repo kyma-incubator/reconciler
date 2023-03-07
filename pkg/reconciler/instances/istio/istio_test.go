@@ -181,6 +181,7 @@ func Test_RunUpdateAction(t *testing.T) {
 		proxy := proxymocks.IstioProxyReset{}
 		proxy.On("Run", mock.Anything).Return(nil)
 		gatherer := datamocks.Gatherer{}
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return(model.Version, nil)
 		performer := actions.NewDefaultIstioPerformer(cmdResolver, &proxy, &providerMock, &gatherer)
 
 		action := istio.NewIstioMainReconcileAction(performerCreatorFn(performer))
