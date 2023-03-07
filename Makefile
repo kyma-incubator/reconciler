@@ -13,7 +13,7 @@ endif
 
 .DEFAULT_GOAL=all
 FLAGS = -ldflags '-s -w'
-GO_COMPAT = 1.19
+GO_COMPAT = 1.18
 
 .PHONY: resolve
 resolve:
