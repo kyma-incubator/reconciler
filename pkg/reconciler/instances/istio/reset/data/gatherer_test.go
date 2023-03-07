@@ -79,10 +79,11 @@ func Test_GetIstioCPPods(t *testing.T) {
 
 func Test_GetInstalledIstioVersion(t *testing.T) {
 	log := logger.NewLogger(false)
-	istiodPod := fixPodWithContainerName("istiod", "istio-system", "istio/pilot:1.1.0", "discovery")
-	istiogwPod := fixPodWithContainerName("istio-ingressgateway", "istio-system", "istio/proxyv2:1.1.0", "istio-proxy")
-	istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "istio/install-cni:1.1.0", "install-cni")
-	appPod := fixPodWithContainerName("httpbin", "kyma", "istio/proxyv2:1.0.1", "istio-proxy")
+	istiodPod := fixPodWithContainerName("istiod", "istio-system", "istio/pilot:1.1.0", "discovery", false)
+	istiogwPod := fixPodWithContainerName("istio-ingressgateway", "istio-system", "istio/proxyv2:1.1.0", "istio-proxy", false)
+	istiogwPodTerm := fixPodWithContainerName("istio-ingressgateway-old", "istio-system", "istio/proxyv2:1.0.0", "istio-proxy", true)
+	istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "istio/install-cni:1.1.0", "install-cni", false)
+	appPod := fixPodWithContainerName("httpbin", "kyma", "istio/proxyv2:1.0.1", "istio-proxy", false)
 	retryOpts := getTestingRetryOptions()
 
 	t.Run("should get Istio installed version based on pods in istio-system namespace", func(t *testing.T) {
@@ -98,9 +99,22 @@ func Test_GetInstalledIstioVersion(t *testing.T) {
 		require.Equal(t, version, "1.1.0")
 	})
 
+	t.Run("should get Istio installed version based on pods in istio-system namespace when some pods are terminating", func(t *testing.T) {
+		// given
+		kubeClient := fake.NewSimpleClientset(istiodPod, istiogwPodTerm, istiogwPod, istiocniPod, appPod)
+		gatherer := DefaultGatherer{}
+
+		// when
+		version, err := gatherer.GetInstalledIstioVersion(kubeClient, retryOpts, log)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, version, "1.1.0")
+	})
+
 	t.Run("should get Istio installed version when there is a pod with image prerelease version", func(t *testing.T) {
 		// given
-		istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "istio/install-cni:1.1.0-distorelss", "install-cni")
+		istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "istio/install-cni:1.1.0-distorelss", "install-cni", false)
 		kubeClient := fake.NewSimpleClientset(istiodPod, istiogwPod, istiocniPod, appPod)
 		gatherer := DefaultGatherer{}
 
@@ -128,7 +142,7 @@ func Test_GetInstalledIstioVersion(t *testing.T) {
 
 	t.Run("should return error when there is an inconsistent version state in istio-system namespace", func(t *testing.T) {
 		// given
-		istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "istio/install-cni:1.0.0", "install-cni")
+		istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "istio/install-cni:1.0.0", "install-cni", false)
 		kubeClient := fake.NewSimpleClientset(istiodPod, istiogwPod, istiocniPod, appPod)
 		gatherer := DefaultGatherer{}
 
@@ -143,7 +157,7 @@ func Test_GetInstalledIstioVersion(t *testing.T) {
 
 	t.Run("should return error when there is a pod with wrong image", func(t *testing.T) {
 		// given
-		istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "wrong", "install-cni")
+		istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "wrong", "install-cni", false)
 		kubeClient := fake.NewSimpleClientset(istiodPod, istiogwPod, istiocniPod, appPod)
 		gatherer := DefaultGatherer{}
 
@@ -158,7 +172,7 @@ func Test_GetInstalledIstioVersion(t *testing.T) {
 
 	t.Run("should return error when there is a pod with latest versioned image", func(t *testing.T) {
 		// given
-		istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "istio/install-cni:latest", "install-cni")
+		istiocniPod := fixPodWithContainerName("istio-cni-node", "istio-system", "istio/install-cni:latest", "install-cni", false)
 		kubeClient := fake.NewSimpleClientset(istiodPod, istiogwPod, istiocniPod, appPod)
 		gatherer := DefaultGatherer{}
 
@@ -768,8 +782,8 @@ func fixPodWith(name, namespace, image, phase string) *v1.Pod {
 	}
 }
 
-func fixPodWithContainerName(name, namespace, image, containerName string) *v1.Pod {
-	return &v1.Pod{
+func fixPodWithContainerName(name, namespace, image, containerName string, terminating bool) *v1.Pod {
+	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -797,6 +811,11 @@ func fixPodWithContainerName(name, namespace, image, containerName string) *v1.P
 			},
 		},
 	}
+	if terminating {
+		timestamp := metav1.Now()
+		pod.ObjectMeta.DeletionTimestamp = &timestamp
+	}
+	return &pod
 }
 
 func fixPodWithoutInitContainer(name, namespace, phase string, annotations map[string]string, labels map[string]string) *v1.Pod {

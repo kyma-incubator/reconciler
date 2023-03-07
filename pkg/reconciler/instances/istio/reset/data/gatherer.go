@@ -162,6 +162,9 @@ func (i *DefaultGatherer) GetInstalledIstioVersion(kubeClient kubernetes.Interfa
 	var currentVersion istioctl.Version
 	containersToCheck := []string{"discovery", "istio-proxy", "install-cni"}
 	for _, pod := range pods.Items {
+		if pod.ObjectMeta.DeletionTimestamp != nil {
+			continue
+		}
 		for _, container := range pod.Spec.Containers {
 			if !slices.Contains(containersToCheck, container.Name) {
 				continue
