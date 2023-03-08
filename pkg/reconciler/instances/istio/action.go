@@ -141,7 +141,7 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	_, err = canResetProxies(istioStatus)
+	err = ensureCanResetProxies(istioStatus)
 	if err != nil {
 		context.Logger.Warnf("Can not perform ResetProxy action: %v", err)
 		return nil
@@ -285,27 +285,27 @@ func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
 	return true, nil
 }
 
-func canResetProxies(istioStatus actions.IstioStatus) (bool, error) {
+func ensureCanResetProxies(istioStatus actions.IstioStatus) error {
 	pilotVersion, err := istioctl.VersionFromString(istioStatus.PilotVersion)
 	if err != nil {
-		return false, errors.Wrap(err, "Error parsing pilot version")
+		return errors.Wrap(err, "Error parsing pilot version")
 	}
+
 	targetVersion, err := istioctl.VersionFromString(istioStatus.TargetVersion)
 	if err != nil {
-		return false, errors.Wrap(err, "Error parsing target version")
+		return errors.Wrap(err, "Error parsing target version")
 	}
 
 	if pilotVersion.MajorMinorPatch() != targetVersion.MajorMinorPatch() {
-		return false, fmt.Errorf("Istio pilot version %s do not match target version %s", istioStatus.PilotVersion, istioStatus.TargetVersion)
+		return fmt.Errorf("Istio pilot version %s do not match target version %s", istioStatus.PilotVersion, istioStatus.TargetVersion)
 	}
 
 	for dpVersion := range istioStatus.DataPlaneVersions {
 		if isDataplaneCompatible, err := isComponentCompatible(dpVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
-			return false, err
+			return err
 		}
 	}
-
-	return true, nil
+	return nil
 }
 
 func dataPlaneVersionsString(istioStatus actions.IstioStatus, delimiter string) string {

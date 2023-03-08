@@ -885,7 +885,7 @@ func Test_canUpdate(t *testing.T) {
 	})
 }
 
-func Test_canResetProxies(t *testing.T) {
+func Test_ensureCanResetProxies(t *testing.T) {
 	t.Run("should not allow proxy reset when pilot version do not match the target version", func(t *testing.T) {
 		// given
 		version := actions.IstioStatus{
@@ -896,10 +896,11 @@ func Test_canResetProxies(t *testing.T) {
 		}
 
 		// when
-		result, _ := canResetProxies(version)
+		err := ensureCanResetProxies(version)
 
 		// then
-		require.False(t, result)
+		require.NotNil(t, err)
+		require.Equal(t, err.Error(), "Istio pilot version 1.0.0 do not match target version 1.2.0")
 	})
 
 	t.Run("should not allow proxy reset when one of dataplane versions is more than one minor behind the target version", func(t *testing.T) {
@@ -912,10 +913,11 @@ func Test_canResetProxies(t *testing.T) {
 		}
 
 		// when
-		result, _ := canResetProxies(version)
+		err := ensureCanResetProxies(version)
 
 		// then
-		require.False(t, result)
+		require.NotNil(t, err)
+		require.Equal(t, err.Error(), "Could not perform upgrade for Data plane from version: 1.0.0 to version: 1.2.0 - the difference between versions exceed one minor version")
 	})
 
 	t.Run("should allow proxy reset when all versions match", func(t *testing.T) {
@@ -928,10 +930,10 @@ func Test_canResetProxies(t *testing.T) {
 		}
 
 		// when
-		result, _ := canResetProxies(version)
+		err := ensureCanResetProxies(version)
 
 		// then
-		require.True(t, result)
+		require.Nil(t, err)
 	})
 
 	t.Run("should allow proxy reset when one of dataplane versions is one minor behind the target version", func(t *testing.T) {
@@ -944,10 +946,10 @@ func Test_canResetProxies(t *testing.T) {
 		}
 
 		// when
-		result, _ := canResetProxies(version)
+		err := ensureCanResetProxies(version)
 
 		// then
-		require.True(t, result)
+		require.Nil(t, err)
 	})
 
 	t.Run("should allow proxy reset when no dataplane versions found", func(t *testing.T) {
@@ -960,10 +962,10 @@ func Test_canResetProxies(t *testing.T) {
 		}
 
 		// when
-		result, _ := canResetProxies(version)
+		err := ensureCanResetProxies(version)
 
 		// then
-		require.True(t, result)
+		require.Nil(t, err)
 	})
 
 	t.Run("should allow proxy reset when target version has a pre-release specified", func(t *testing.T) {
@@ -976,10 +978,10 @@ func Test_canResetProxies(t *testing.T) {
 		}
 
 		// when
-		result, _ := canResetProxies(version)
+		err := ensureCanResetProxies(version)
 
 		// then
-		require.True(t, result)
+		require.Nil(t, err)
 	})
 }
 
