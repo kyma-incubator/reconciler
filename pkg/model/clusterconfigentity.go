@@ -1,10 +1,18 @@
 package model
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
+	"go.uber.org/zap"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/clientcmd"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -109,8 +117,66 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
 	reconSeq := newReconciliationSequence(cfg)
-	reconSeq.addComponents(c.Components)
+	reconSeq.addComponents(c.nonMigratedComponents(cfg))
 	return reconSeq
+}
+
+func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSequenceConfig) []*keb.Component {
+	logger := log.NewLogger(false)
+
+	restConfig, err := clientcmd.NewClientConfigFromBytes([]byte(cfg.Kubeconfig))
+	if err != nil {
+		return c.stopAndLogK8sError(logger, "restConfig", err)
+	}
+
+	clientConfig, err := restConfig.ClientConfig()
+	if err != nil {
+		return c.stopAndLogK8sError(logger, "clientConfig", err)
+	}
+
+	kubeClient, err := dynamic.NewForConfig(clientConfig)
+	if err != nil {
+		return c.stopAndLogK8sError(logger, "kubeClient", err)
+	}
+
+	//check which of the configured CRDs exist on the cluster
+	var migratedComponents = make(map[string]bool, len(cfg.ComponentCRDs))
+	for compName, compGV := range cfg.ComponentCRDs {
+		list, err := kubeClient.Resource(schema.GroupVersionResource{
+			Group:    compGV.Group,
+			Version:  compGV.Version,
+			Resource: "", //TODO: clarify resource type
+		}).List(context.Background(), v1.ListOptions{})
+		if err != nil {
+			logger.Errorf("Failed to retrieve CRD '%s:%s' from cluster '%s': %s",
+				compGV.Group, compGV.Version, c.RuntimeID, err)
+			logger.Warnf("It is assumed that component '%s' on cluster '%s' "+
+				"is already migrated and the old reconicler WILL NOT reconcile it now", compName, c.RuntimeID)
+		} else if len(list.Items) > 0 {
+			logger.Infof("Found CRD '%s:%s' on cluster '%s' which indicates that component '%s' "+
+				"is migrated to new reconicler system: skipping it from reconciliation",
+				compGV.Group, compGV.Version, c.RuntimeID, compName)
+			migratedComponents[strings.ToLower(compName)] = true
+		}
+	}
+
+	var result []*keb.Component
+	for _, comp := range c.Components {
+		if migratedComponents[strings.ToLower(comp.Component)] {
+			continue
+		}
+		result = append(result, comp)
+	}
+
+	return result
+}
+
+func (c *ClusterConfigurationEntity) stopAndLogK8sError(logger *zap.SugaredLogger, subject string, err error) []*keb.Component {
+	logger.Errorf("Failed to create %s and cannot verify which of the components of cluster '%s' "+
+		"are already managed by the operator-based reconciler: %s", subject, c.RuntimeID, err)
+	logger.Warnf("Caused by missig K8s client, old reconciler will not reconcile "+
+		"any component on cluster '%s'", c.RuntimeID)
+	return make([]*keb.Component, 0)
 }
 
 type ReconciliationSequence struct {
