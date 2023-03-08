@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ type SchedulerConfig struct {
 	ClusterReconcileInterval time.Duration
 	ClusterQueueSize         int
 	DeleteStrategy           DeleteStrategy
+	ComponentCRDs            map[string]config.ComponentCRD
 }
 
 func (wc *SchedulerConfig) validate() error {

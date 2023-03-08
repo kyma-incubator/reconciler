@@ -38,6 +38,7 @@ func startScheduler(ctx context.Context, o *Options) error {
 				ClusterQueueSize:         10,
 				DeleteStrategy:           ds,
 				PreComponents:            o.Config.Scheduler.PreComponents,
+				ComponentCRDs:            o.Config.Scheduler.ComponentCRDs,
 			}).
 		WithBookkeeperConfig(&service.BookkeeperConfig{
 			OperationsWatchInterval: o.BookkeeperWatchInterval,

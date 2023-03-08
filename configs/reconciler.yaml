@@ -42,4 +42,11 @@ mothership:
       eventing:
         url: "http://localhost:8082/v1/run"
     preComponents:
-      - [cluster-essentials, istio-configuration, istio, certificates]
+      - [ cluster-essentials, istio-configuration, istio, certificates ]
+    componentCRDs:
+      istio:
+        group: groupIstio
+        version: versionIstio
+      eventing:
+        group: groupEventing
+        version: versionEventing

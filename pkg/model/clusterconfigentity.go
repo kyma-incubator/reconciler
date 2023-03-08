@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"reflect"
 	"time"
 
@@ -120,7 +121,9 @@ type ReconciliationSequence struct {
 type ReconciliationSequenceConfig struct {
 	PreComponents        [][]string
 	DeleteStrategy       string
+	ComponentCRDs        map[string]config.ComponentCRD
 	ReconciliationStatus Status
+	Kubeconfig           string
 }
 
 func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
