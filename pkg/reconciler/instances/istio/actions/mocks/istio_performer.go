@@ -48,13 +48,13 @@ func (_m *IstioPerformer) LabelNamespaces(_a0 context.Context, kubeClient kubern
 	return r0
 }
 
-// ResetProxy provides a mock function with given fields: _a0, kubeConfig, workspace, branchVersion, istioChart, proxyImageVersion, proxyImagePrefix, logger, canUpdate
-func (_m *IstioPerformer) ResetProxy(_a0 context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error {
-	ret := _m.Called(_a0, kubeConfig, workspace, branchVersion, istioChart, proxyImageVersion, proxyImagePrefix, logger, canUpdate)
+// ResetProxy provides a mock function with given fields: _a0, kubeConfig, workspace, branchVersion, istioChart, proxyImageVersion, proxyImagePrefix, logger
+func (_m *IstioPerformer) ResetProxy(_a0 context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error {
+	ret := _m.Called(_a0, kubeConfig, workspace, branchVersion, istioChart, proxyImageVersion, proxyImagePrefix, logger)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, chart.Factory, string, string, string, string, *zap.SugaredLogger, bool) error); ok {
-		r0 = rf(_a0, kubeConfig, workspace, branchVersion, istioChart, proxyImageVersion, proxyImagePrefix, logger, canUpdate)
+	if rf, ok := ret.Get(0).(func(context.Context, string, chart.Factory, string, string, string, string, *zap.SugaredLogger) error); ok {
+		r0 = rf(_a0, kubeConfig, workspace, branchVersion, istioChart, proxyImageVersion, proxyImagePrefix, logger)
 	} else {
 		r0 = ret.Error(0)
 	}

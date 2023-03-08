@@ -32,7 +32,7 @@ func init() {
 	action := reset.NewDefaultPodsResetAction(matcher)
 	istioProxyReset := proxy.NewDefaultIstioProxyReset(gatherer, action)
 
-	istioPerformerCreatorFn := istioPerformerCreator(istioProxyReset, &provider, ReconcilerNameIstio)
+	istioPerformerCreatorFn := istioPerformerCreator(istioProxyReset, &provider, ReconcilerNameIstio, gatherer)
 	reconcilerIstio.
 		WithPreReconcileAction(NewStatusPreAction(istioPerformerCreatorFn)).
 		WithReconcileAction(NewIstioMainReconcileAction(istioPerformerCreatorFn)).

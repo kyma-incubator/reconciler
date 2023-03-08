@@ -14,6 +14,7 @@ import (
 	testutils "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions/test-utils"
 	clientsetmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset/mocks"
 	istioctlmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/mocks"
+	datamocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data/mocks"
 	proxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -66,8 +67,9 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 		provider := clientsetmocks.Provider{}
 		provider.On("GetIstioClient", mock.Anything).Return(ctrlClientSameConfig, nil)
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
-
-		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
+		gatherer := datamocks.Gatherer{}
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.3", nil)
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider, &gatherer)
 
 		// when
 		err = wrapper.Update(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
@@ -108,8 +110,9 @@ func Test_DefaultIstioPerfomer_UpdateIGRestart(t *testing.T) {
 		provider := clientsetmocks.Provider{}
 		provider.On("GetIstioClient", mock.Anything).Return(ctrlClientDiffConfig, nil)
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
-
-		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider)
+		gatherer := datamocks.Gatherer{}
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.3", nil)
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider, &gatherer)
 
 		// when
 		err = wrapper.Update(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)

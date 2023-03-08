@@ -8,6 +8,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -21,7 +22,7 @@ const (
 
 // IstioPerformer instance should be created only once in the Istio Reconciler life.
 // Due to current Reconciler limitations - lack of well defined reconciler instances lifetime - we have to initialize it once per reconcile/delete action.
-func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clientset.Provider, name string) bootstrapIstioPerformer {
+func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clientset.Provider, name string, gatherer data.Gatherer) bootstrapIstioPerformer {
 
 	res := func(logger *zap.SugaredLogger) (actions.IstioPerformer, error) {
 		pathsConfig := os.Getenv(istioctlBinaryPathEnvKey)
@@ -45,7 +46,7 @@ func istioPerformerCreator(istioProxyReset proxy.IstioProxyReset, provider clien
 			return nil, err
 		}
 
-		return actions.NewDefaultIstioPerformer(resolver, istioProxyReset, provider), nil
+		return actions.NewDefaultIstioPerformer(resolver, istioProxyReset, provider, gatherer), nil
 	}
 	return res
 }
