@@ -192,6 +192,8 @@ func fixActionContext(chartURL string) *service.ActionContext {
 
 	mockClient := &mocks.Client{}
 	mockClient.On("DeleteResource", mock.Anything, "deployment", "avs-bridge", "kyma-system").Return(nil, nil)
+	mockClient.On("getDomain").Return("testDomain", nil)
+	mockClient.On("GetHost").Return("tmphost")
 
 	return &service.ActionContext{
 		Context:    context.Background(),
@@ -228,6 +230,7 @@ func assertRMIConfig(t *testing.T, context *service.ActionContext, group int, co
 	assert.Equal(t, context.Task.Metadata.GlobalAccountID, runtime["globalAccountID"])
 	assert.Equal(t, context.Task.Metadata.SubAccountID, runtime["subaccountID"])
 	assert.Equal(t, context.Task.Metadata.ShootName, runtime["shootName"])
+	assert.Equal(t, getDomain(context.Task.Metadata.ShootName), runtime["dnsDomain"])
 	assert.Equal(t, context.Task.Metadata.ServicePlanName, runtime["planName"])
 	assert.Equal(t, context.Task.Metadata.Region, runtime["region"])
 	assert.Equal(t, context.Task.Metadata.InstanceID, auth["username"])
