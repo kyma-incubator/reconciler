@@ -9,6 +9,7 @@ import (
 	"time"
 
 	avastretry "github.com/avast/retry-go"
+	"github.com/hashicorp/go-multierror"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/cni"
@@ -34,6 +35,8 @@ const (
 	delayBetweenRetries = 5 * time.Second
 	timeout             = 5 * time.Minute
 	interval            = 12 * time.Second
+	DefaultRevisionName = "default"
+	IstioTagLabel       = "istio.io/tag"
 )
 
 type VersionType string
@@ -197,6 +200,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 
 	err = commander.Install(mergedCNI, kubeConfig, logger)
 	if err != nil {
+		_ = DeleteTagWebhooks(context, c.provider, kubeConfig, DefaultRevisionName, logger)
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
@@ -288,6 +292,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 
 	err = commander.Upgrade(mergedCNI, kubeConfig, logger)
 	if err != nil {
+		_ = DeleteTagWebhooks(context, c.provider, kubeConfig, DefaultRevisionName, logger)
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
@@ -620,4 +625,24 @@ func getInstalledIstioVersion(provider clientset.Provider, kubeConfig string, ga
 	}
 
 	return version, nil
+}
+
+func DeleteTagWebhooks(ctx context.Context, provider clientset.Provider, kubeConfig string, tag string, logger *zap.SugaredLogger) error {
+	kubeClient, err := provider.RetrieveFrom(kubeConfig, logger)
+	if err != nil {
+		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
+		return err
+	}
+	webhooks, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", IstioTagLabel, tag),
+	})
+	if err != nil {
+		return err
+	}
+
+	var result error
+	for _, wh := range webhooks.Items {
+		result = multierror.Append(kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(ctx, wh.Name, metav1.DeleteOptions{})).ErrorOrNil()
+	}
+	return result
 }
