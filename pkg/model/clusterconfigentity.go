@@ -7,6 +7,7 @@ import (
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"go.uber.org/zap"
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -141,22 +142,23 @@ func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSe
 
 	//check which of the configured CRDs exist on the cluster
 	var migratedComponents = make(map[string]bool, len(cfg.ComponentCRDs))
-	for compName, compGV := range cfg.ComponentCRDs {
-		list, err := kubeClient.Resource(schema.GroupVersionResource{
-			Group:    compGV.Group,
-			Version:  compGV.Version,
-			Resource: "", //TODO: clarify resource type
-		}).List(context.Background(), v1.ListOptions{})
-		if err != nil {
-			logger.Errorf("Failed to retrieve CRD '%s:%s' from cluster '%s': %s",
-				compGV.Group, compGV.Version, c.RuntimeID, err)
-			logger.Warnf("It is assumed that component '%s' on cluster '%s' "+
-				"is already migrated and the old reconicler WILL NOT reconcile it now", compName, c.RuntimeID)
-		} else if len(list.Items) > 0 {
-			logger.Infof("Found CRD '%s:%s' on cluster '%s' which indicates that component '%s' "+
+	for compName, compGVK := range cfg.ComponentCRDs {
+		gvr := schema.GroupVersionResource{
+			Group:    compGVK.Group,
+			Version:  compGVK.Version,
+			Resource: compGVK.Kind,
+		}
+		_, err := kubeClient.Resource(gvr).List(context.Background(), v1.ListOptions{})
+		if err == nil {
+			logger.Infof("Found CRD '%s' on cluster '%s' which indicates that component '%s' "+
 				"is migrated to new reconicler system: skipping it from reconciliation",
-				compGV.Group, compGV.Version, c.RuntimeID, compName)
+				gvr, c.RuntimeID, compName)
 			migratedComponents[strings.ToLower(compName)] = true
+		} else if !k8serr.IsNotFound(err) {
+			logger.Errorf("Failed to retrieve CRD '%s:%s' from cluster '%s': %s",
+				compGVK.Group, compGVK.Version, c.RuntimeID, err)
+			logger.Warnf("It is assumed that component '%s' on cluster '%s' "+
+				"is already migrated and the old reconicler will NOT reconcile it now", compName, c.RuntimeID)
 		}
 	}
 

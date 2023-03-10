@@ -11,6 +11,7 @@ const FallbackComponentReconciler = "base"
 type ComponentCRD struct {
 	Group   string
 	Version string
+	Kind    string
 }
 
 type ComponentReconciler struct {

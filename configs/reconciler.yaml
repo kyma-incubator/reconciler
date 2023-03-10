@@ -44,9 +44,7 @@ mothership:
     preComponents:
       - [ cluster-essentials, istio-configuration, istio, certificates ]
     componentCRDs:
-      istio:
-        group: groupIstio
-        version: versionIstio
-      eventing:
-        group: groupEventing
-        version: versionEventing
+      keda:
+        group: operator.kyma-project.io
+        version: v1alpha1
+        kind: kedas
