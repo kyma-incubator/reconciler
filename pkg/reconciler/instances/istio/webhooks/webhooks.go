@@ -2,10 +2,10 @@ package webhooks
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/avast/retry-go"
-	avastretry "github.com/avast/retry-go"
+	retry "github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"go.uber.org/zap"
 	"istio.io/istio/istioctl/pkg/tag"
@@ -18,23 +18,22 @@ const (
 	delayBetweenRetries = 5 * time.Second
 )
 
-var deactivatedSelector = &metav1.LabelSelector{
-	MatchLabels: map[string]string{
-		"istio.io/deactivated": "never-match",
-	},
+var deactivatedLabel = map[string]string{
+	"istio.io/deactivated": "never-match",
 }
 
-func DeleteConflictDefaultTag(ctx context.Context, provider clientset.Provider, kubeConfig string, logger *zap.SugaredLogger) error {
+// DeleteConflictedDefaultTag deletes conflicted tagged MutatingWebhookConfiguration, if it exists and if the default revision MutatingWebhookConfiguration is not deactivated by istioctl.
+func DeleteConflictedDefaultTag(ctx context.Context, provider clientset.Provider, kubeConfig string, logger *zap.SugaredLogger) error {
 	kubeClient, err := provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
 		return err
 	}
 
-	retryOpts := []avastretry.Option{
-		avastretry.Delay(delayBetweenRetries),
-		avastretry.Attempts(uint(retriesCount)),
-		avastretry.DelayType(avastretry.FixedDelay),
+	retryOpts := []retry.Option{
+		retry.Delay(delayBetweenRetries),
+		retry.Attempts(uint(retriesCount)),
+		retry.DelayType(retry.FixedDelay),
 	}
 
 	err = retry.Do(func() error {
@@ -74,7 +73,7 @@ func isDefaultRevisionDeactivated(ctx context.Context, client kubernetes.Interfa
 	webhook := webhooks[0]
 	for i := range webhook.Webhooks {
 		wh := webhook.Webhooks[i]
-		if wh.NamespaceSelector == deactivatedSelector || wh.ObjectSelector == deactivatedSelector {
+		if fmt.Sprint(wh.NamespaceSelector.MatchLabels) == fmt.Sprint(deactivatedLabel) || fmt.Sprint(wh.ObjectSelector) == fmt.Sprint(deactivatedLabel) {
 			return true
 		}
 	}

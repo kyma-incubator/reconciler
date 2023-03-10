@@ -198,7 +198,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 
 	err = commander.Install(mergedCNI, kubeConfig, logger)
 	if err != nil {
-		err = webhooks.DeleteConflictDefaultTag(context, c.provider, kubeConfig, logger)
+		err = webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
 		if err != nil {
 			return err
 		}
@@ -293,7 +293,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 
 	err = commander.Upgrade(mergedCNI, kubeConfig, logger)
 	if err != nil {
-		err = webhooks.DeleteConflictDefaultTag(context, c.provider, kubeConfig, logger)
+		err = webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
 		if err != nil {
 			return err
 		}
