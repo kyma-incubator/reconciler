@@ -25,7 +25,9 @@ func TestRemoteInvoker(t *testing.T) {
 	reconRepo := reconciliation.NewInMemoryReconciliationRepository()
 
 	//create reconciliation entity
-	reconEntity, err := reconRepo.CreateReconciliation(clusterStateMock, &model.ReconciliationSequenceConfig{})
+	reconEntity, err := reconRepo.CreateReconciliation(clusterStateMock, &model.ReconciliationSequenceConfig{
+		IgnoreMigratedComponents: true,
+	})
 	require.NoError(t, err)
 
 	//retrieve ops of reconciliation entity

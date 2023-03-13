@@ -118,7 +118,11 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
 	reconSeq := newReconciliationSequence(cfg)
-	reconSeq.addComponents(c.nonMigratedComponents(cfg))
+	if cfg.IgnoreMigratedComponents {
+		reconSeq.addComponents(c.Components)
+	} else {
+		reconSeq.addComponents(c.nonMigratedComponents(cfg))
+	}
 	return reconSeq
 }
 
@@ -150,7 +154,7 @@ func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSe
 		}
 		_, err := kubeClient.Resource(gvr).List(context.Background(), v1.ListOptions{})
 		if err == nil {
-			logger.Infof("Found CRD '%s' on cluster '%s' which indicates that component '%s' "+
+			logger.Debugf("Found CRD '%s' on cluster '%s' which indicates that component '%s' "+
 				"is migrated to new reconicler system: skipping it from reconciliation",
 				gvr, c.RuntimeID, compName)
 			migratedComponents[strings.ToLower(compName)] = true
@@ -187,11 +191,12 @@ type ReconciliationSequence struct {
 }
 
 type ReconciliationSequenceConfig struct {
-	PreComponents        [][]string
-	DeleteStrategy       string
-	ComponentCRDs        map[string]config.ComponentCRD
-	ReconciliationStatus Status
-	Kubeconfig           string
+	PreComponents            [][]string
+	DeleteStrategy           string
+	ComponentCRDs            map[string]config.ComponentCRD
+	ReconciliationStatus     Status
+	Kubeconfig               string
+	IgnoreMigratedComponents bool
 }
 
 func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
