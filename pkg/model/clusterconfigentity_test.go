@@ -143,6 +143,7 @@ func TestClusterConfigEntity(t *testing.T) {
 }
 
 func TestReconciliationSequence(t *testing.T) {
+	test.IntegrationTest(t)
 	t.Parallel()
 
 	tests := []struct {
