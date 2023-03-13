@@ -3,7 +3,6 @@ package webhooks
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -42,7 +41,7 @@ func createDefaultMutatingWebhookWithSelector(whConfName string, labelKey string
 	}
 }
 
-func Test_DeleteConflictDefaultTag(t *testing.T) {
+func Test_DeleteConflictedDefaultTag(t *testing.T) {
 	kubeConfig := "kubeconfig"
 	log := logger.NewLogger(false)
 	ctx := context.Background()
@@ -70,7 +69,6 @@ func Test_DeleteConflictDefaultTag(t *testing.T) {
 		client := fake.NewSimpleClientset(defaultWh, taggedWh)
 		provider := &clientsetmocks.Provider{}
 		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(client, nil)
-		fmt.Println(defaultWh)
 		// when
 		err := DeleteConflictedDefaultTag(ctx, provider, kubeConfig, log)
 
