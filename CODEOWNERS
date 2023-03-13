@@ -1,5 +1,5 @@
 # These are the default owners for the whole content of the repository. The default owners are automatically added as reviewers when you open a pull request, unless different owners are specified in the file.
-* @kyma-project/jellyfish
+* @kyma-incubator/jellyfish
 
 # Ory reconciler
 /pkg/reconciler/instances/ory/ @strekm @werdes72 @dariusztutaj @cnvergence @barchw @videlov @triffer
