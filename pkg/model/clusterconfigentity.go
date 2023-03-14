@@ -119,10 +119,10 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
 	reconSeq := newReconciliationSequence(cfg)
-	if test.IsIntegrationTestEnabled() && !cfg.ForceMigratedComponentsCheck {
-		reconSeq.addComponents(c.Components)
-	} else {
+	if test.IsIntegrationTestEnabled() {
 		reconSeq.addComponents(c.nonMigratedComponents(cfg))
+	} else {
+		reconSeq.addComponents(c.Components)
 	}
 	return reconSeq
 }
@@ -197,9 +197,6 @@ type ReconciliationSequenceConfig struct {
 	ComponentCRDs        map[string]config.ComponentCRD
 	ReconciliationStatus Status
 	Kubeconfig           string
-	//This flag enforces the check of migrated components on the target cluster side. In case of integration tests,
-	//the check is usually not happening. It can be enforced by setting this flag to true.
-	ForceMigratedComponentsCheck bool
 }
 
 func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {

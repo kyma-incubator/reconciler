@@ -464,12 +464,11 @@ func TestReconciliationSequenceWithMigratedComponents(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.entity.GetReconciliationSequence(&ReconciliationSequenceConfig{
-				PreComponents:                tc.preComps,
-				DeleteStrategy:               "system",
-				ReconciliationStatus:         tc.reconciliationStatus,
-				Kubeconfig:                   test.ReadKubeconfig(t),
-				ComponentCRDs:                tc.componentCRDs,
-				ForceMigratedComponentsCheck: true,
+				PreComponents:        tc.preComps,
+				DeleteStrategy:       "system",
+				ReconciliationStatus: tc.reconciliationStatus,
+				Kubeconfig:           test.ReadKubeconfig(t),
+				ComponentCRDs:        tc.componentCRDs,
 			})
 			for idx, expected := range tc.expected.Queue {
 				require.ElementsMatch(t, result.Queue[idx], expected)
