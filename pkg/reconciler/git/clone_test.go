@@ -105,8 +105,6 @@ func TestCloneRepo(t *testing.T) {
 }
 
 func TestTokenRead(t *testing.T) {
-	t.Parallel()
-
 	t.Run("Should read correct token", func(t *testing.T) {
 		t.Setenv(gitCloneTokenEnv, "tokenValue")
 
