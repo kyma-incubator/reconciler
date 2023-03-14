@@ -192,11 +192,13 @@ type ReconciliationSequence struct {
 }
 
 type ReconciliationSequenceConfig struct {
-	PreComponents                [][]string
-	DeleteStrategy               string
-	ComponentCRDs                map[string]config.ComponentCRD
-	ReconciliationStatus         Status
-	Kubeconfig                   string
+	PreComponents        [][]string
+	DeleteStrategy       string
+	ComponentCRDs        map[string]config.ComponentCRD
+	ReconciliationStatus Status
+	Kubeconfig           string
+	//This flag enforces the check of migrated components on the target cluster side. In case of integration tests,
+	//the check is usually not happening. It can be enforced by setting this flag to true.
 	ForceMigratedComponentsCheck bool
 }
 
