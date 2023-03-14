@@ -6,7 +6,6 @@ import (
 	"fmt"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
-	"github.com/kyma-incubator/reconciler/pkg/test"
 	"go.uber.org/zap"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -119,16 +118,18 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
 	reconSeq := newReconciliationSequence(cfg)
-	if test.IsIntegrationTestEnabled() {
-		reconSeq.addComponents(c.nonMigratedComponents(cfg))
-	} else {
-		reconSeq.addComponents(c.Components)
-	}
+	reconSeq.addComponents(c.nonMigratedComponents(cfg))
 	return reconSeq
 }
 
 func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSequenceConfig) []*keb.Component {
 	logger := log.NewLogger(false)
+
+	if cfg.Kubeconfig == "" {
+		logger.Warnf("Kubeconfig is missing for cluster '%s': not able to verify which components were already "+
+			"migrated. We assume this is a test case and consider all components for this reconciliation.", c.RuntimeID)
+		return c.Components
+	}
 
 	restConfig, err := clientcmd.NewClientConfigFromBytes([]byte(cfg.Kubeconfig))
 	if err != nil {
