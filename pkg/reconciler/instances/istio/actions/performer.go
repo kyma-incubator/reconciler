@@ -199,8 +199,8 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 	err = commander.Install(mergedCNI, kubeConfig, logger)
 	if err != nil {
 		// In case of error in the istioctl, old mutatingwebhook won't be deactivated, which will block later reconciliations.
-		err := webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
-		if err != nil {
+		err2 := webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
+		if err2 != nil {
 			return errors.Wrap(err, "Error occurred when tried to clean conflicted webhooks")
 		}
 		return errors.Wrap(err, "Error occurred when calling istioctl")
@@ -295,8 +295,8 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 	err = commander.Upgrade(mergedCNI, kubeConfig, logger)
 	if err != nil {
 		// In case of error in the istioctl, old mutatingwebhook won't be deactivated, which will block later reconciliations.
-		err := webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
-		if err != nil {
+		err2 := webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
+		if err2 != nil {
 			return errors.Wrap(err, "Error occurred when tried to clean conflicted webhooks")
 		}
 		return errors.Wrap(err, "Error occurred when calling istioctl")
