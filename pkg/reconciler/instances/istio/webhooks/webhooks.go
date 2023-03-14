@@ -41,7 +41,7 @@ func DeleteConflictedDefaultTag(ctx context.Context, provider clientset.Provider
 		if err != nil {
 			return err
 		}
-
+		// As the default revision is not deactivated and handles the injection, we are safe to delete all other webhook configurations that were created during the failed installation.
 		if !isDefaultRevisionDeactivated(ctx, kubeClient) && len(webhooks) > 0 {
 			for _, wh := range webhooks {
 				err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(ctx, wh.Name, metav1.DeleteOptions{})
@@ -62,19 +62,21 @@ func DeleteConflictedDefaultTag(ctx context.Context, provider clientset.Provider
 }
 
 func isDefaultRevisionDeactivated(ctx context.Context, client kubernetes.Interface) bool {
-	webhooks, err := tag.GetWebhooksWithRevision(ctx, client, tag.DefaultRevisionName)
+	// This will contain only webhook  with istio.io/rev=default and without istio.io/tag label - the default one, applied from Helm
+	mwcs, err := tag.GetWebhooksWithRevision(ctx, client, tag.DefaultRevisionName)
 	if err != nil {
 		return true
 	}
-	if len(webhooks) == 0 {
+
+	if len(mwcs) == 0 {
 		return true
 	}
 
-	webhook := webhooks[0]
-	for i := range webhook.Webhooks {
-		wh := webhook.Webhooks[i]
-		if fmt.Sprint(wh.NamespaceSelector.MatchLabels) == fmt.Sprint(deactivatedLabel) || fmt.Sprint(wh.ObjectSelector) == fmt.Sprint(deactivatedLabel) {
-			return true
+	for _, mwc := range mwcs {
+		for _, wh := range mwc.Webhooks {
+			if fmt.Sprint(wh.NamespaceSelector.MatchLabels) == fmt.Sprint(deactivatedLabel) && fmt.Sprint(wh.ObjectSelector.MatchLabels) == fmt.Sprint(deactivatedLabel) {
+				return true
+			}
 		}
 	}
 
