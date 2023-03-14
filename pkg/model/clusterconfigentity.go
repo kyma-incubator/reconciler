@@ -6,6 +6,7 @@ import (
 	"fmt"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"go.uber.org/zap"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,7 +119,7 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
 	reconSeq := newReconciliationSequence(cfg)
-	if cfg.IgnoreMigratedComponents {
+	if test.IsIntegrationTestEnabled() && !cfg.ForceMigratedComponentsCheck {
 		reconSeq.addComponents(c.Components)
 	} else {
 		reconSeq.addComponents(c.nonMigratedComponents(cfg))
@@ -191,12 +192,12 @@ type ReconciliationSequence struct {
 }
 
 type ReconciliationSequenceConfig struct {
-	PreComponents            [][]string
-	DeleteStrategy           string
-	ComponentCRDs            map[string]config.ComponentCRD
-	ReconciliationStatus     Status
-	Kubeconfig               string
-	IgnoreMigratedComponents bool
+	PreComponents                [][]string
+	DeleteStrategy               string
+	ComponentCRDs                map[string]config.ComponentCRD
+	ReconciliationStatus         Status
+	Kubeconfig                   string
+	ForceMigratedComponentsCheck bool
 }
 
 func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
