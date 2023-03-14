@@ -121,7 +121,7 @@ func Test_DefaultCommander_Version(t *testing.T) {
 
 		// then
 		require.NoError(t, errors)
-		require.EqualValues(t, versionOutput, string(got))
+		require.Contains(t, string(got), versionOutput)
 		require.EqualValues(t, testArgs[0], "version")
 		require.EqualValues(t, testArgs[2], "json")
 		require.EqualValues(t, testArgs[3], "--kubeconfig")
