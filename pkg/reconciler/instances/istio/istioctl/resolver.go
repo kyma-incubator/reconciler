@@ -1,6 +1,7 @@
 package istioctl
 
 import (
+	"fmt"
 	"os/exec"
 	"sort"
 	"strings"
@@ -30,6 +31,14 @@ func VersionFromString(version string) (Version, error) {
 	return Version{*val}, nil
 }
 
+func (v Version) Empty() bool {
+	return v.value.Compare(semver.Version{}) == 0
+}
+
+func (v Version) Compare(other Version) int {
+	return v.value.Compare(other.value)
+}
+
 func (v Version) String() string {
 	return v.value.String()
 }
@@ -44,6 +53,10 @@ func (v Version) EqualTo(other Version) bool {
 
 func (v Version) BiggerThan(other Version) bool {
 	return !(v.EqualTo(other) || v.SmallerThan(other))
+}
+
+func (v Version) MajorMinorPatch() string {
+	return fmt.Sprintf("%d.%d.%d", v.value.Major, v.value.Minor, v.value.Patch)
 }
 
 // Finds an Executable for given Version

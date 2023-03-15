@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/actions"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 )
@@ -105,7 +107,7 @@ func deployIstio(context *service.ActionContext, performer actions.IstioPerforme
 		}
 
 	} else if canUpdateResult, err := canUpdate(istioStatus); canUpdateResult {
-		context.Logger.Debugf("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioStatus.PilotVersion, istioStatus.DataPlaneVersion, istioStatus.TargetVersion)
+		context.Logger.Debugf("Istio version was detected on the cluster, updating pilot from %s and data plane from %s to version %s...", istioStatus.PilotVersion, dataPlaneVersionsString(istioStatus, ","), istioStatus.TargetVersion)
 
 		err = performer.Update(context.Context, context.KubeClient.Kubeconfig(), istioManifest.Manifest, istioStatus.TargetVersion, context.Logger)
 		if err != nil {
@@ -139,15 +141,15 @@ func (a *ProxyResetPostAction) Run(context *service.ActionContext) error {
 		return err
 	}
 
-	canUpdateResult, err := canUpdate(istioStatus)
+	err = ensureCanResetProxies(istioStatus)
 	if err != nil {
-		context.Logger.Warnf("could not perform ResetProxy action: %v", err)
+		context.Logger.Warnf("Can not perform ResetProxy action: %v", err)
 		return nil
 	}
 
-	err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), context.WorkspaceFactory, context.Task.Version, context.Task.Component, istioStatus.TargetVersion, istioStatus.TargetPrefix, context.Logger, canUpdateResult)
+	err = performer.ResetProxy(context.Context, context.KubeClient.Kubeconfig(), context.WorkspaceFactory, context.Task.Version, context.Task.Component, istioStatus.TargetVersion, istioStatus.TargetPrefix, context.Logger)
 	if err != nil {
-		context.Logger.Warnf("could not perform ResetProxy action: %v", err)
+		context.Logger.Warnf("ResetProxy action failed: %v", err)
 		return nil
 	}
 
@@ -239,7 +241,7 @@ func canInstall(istioStatus actions.IstioStatus) bool {
 }
 
 func isInstalled(istioStatus actions.IstioStatus) bool {
-	return !(istioStatus.DataPlaneVersion == "" && istioStatus.PilotVersion == "")
+	return !(len(istioStatus.DataPlaneVersions) == 0 && istioStatus.PilotVersion == "")
 }
 
 func canUninstall(istioStatus actions.IstioStatus) bool {
@@ -274,11 +276,44 @@ func canUpdate(istioStatus actions.IstioStatus) (bool, error) {
 		return false, err
 	}
 
-	if isDataplaneCompatible, err := isComponentCompatible(istioStatus.DataPlaneVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
-		return false, err
+	for dpVersion := range istioStatus.DataPlaneVersions {
+		if isDataplaneCompatible, err := isComponentCompatible(dpVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
+			return false, err
+		}
 	}
 
 	return true, nil
+}
+
+func ensureCanResetProxies(istioStatus actions.IstioStatus) error {
+	pilotVersion, err := istioctl.VersionFromString(istioStatus.PilotVersion)
+	if err != nil {
+		return errors.Wrap(err, "Error parsing pilot version")
+	}
+
+	targetVersion, err := istioctl.VersionFromString(istioStatus.TargetVersion)
+	if err != nil {
+		return errors.Wrap(err, "Error parsing target version")
+	}
+
+	if pilotVersion.MajorMinorPatch() != targetVersion.MajorMinorPatch() {
+		return fmt.Errorf("Istio pilot version %s do not match target version %s", istioStatus.PilotVersion, istioStatus.TargetVersion)
+	}
+
+	for dpVersion := range istioStatus.DataPlaneVersions {
+		if isDataplaneCompatible, err := isComponentCompatible(dpVersion, istioStatus.TargetVersion, "Data plane"); !isDataplaneCompatible {
+			return err
+		}
+	}
+	return nil
+}
+
+func dataPlaneVersionsString(istioStatus actions.IstioStatus, delimiter string) string {
+	dpVersions := []string{}
+	for version := range istioStatus.DataPlaneVersions {
+		dpVersions = append(dpVersions, version)
+	}
+	return strings.Join(dpVersions[:], delimiter)
 }
 
 func isComponentCompatible(componentVersion, targetVersion, componentName string) (bool, error) {

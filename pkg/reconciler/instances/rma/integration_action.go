@@ -11,8 +11,10 @@ import (
 	"math/big"
 	mrand "math/rand"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -291,6 +293,11 @@ func (a *IntegrationAction) getChartVersionFromURL(chartURL string) string {
 func generateOverrideMap(context *service.ActionContext, username, password, groupsNum string) map[string]interface{} {
 	overrideMap := make(map[string]interface{})
 	metadata := context.Task.Metadata
+
+	//Get domain via kubeclient because it is not available in metadata
+	host := context.KubeClient.GetHost()
+	domain := getDomain(host)
+
 	overrideMap["runtime"] = map[string]string{
 		"instanceID":      metadata.InstanceID,
 		"globalAccountID": metadata.GlobalAccountID,
@@ -298,6 +305,7 @@ func generateOverrideMap(context *service.ActionContext, username, password, gro
 		"shootName":       metadata.ShootName,
 		"planName":        metadata.ServicePlanName,
 		"region":          metadata.Region,
+		"dnsDomain":       domain,
 	}
 	overrideMap["auth"] = map[string]string{
 		"username": username,
@@ -308,6 +316,16 @@ func generateOverrideMap(context *service.ActionContext, username, password, gro
 	}
 
 	return overrideMap
+}
+
+func getDomain(host string) string {
+	url, err := url.Parse(host)
+	if err != nil {
+		return ""
+	}
+	domain := strings.TrimPrefix(url.Hostname(), "api.")
+
+	return domain
 }
 
 func getConfigString(config map[string]interface{}, key string) string {

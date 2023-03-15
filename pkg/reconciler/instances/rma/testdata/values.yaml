@@ -5,6 +5,7 @@ runtime:
   shootName: ""
   planName: ""
   region: ""
+  dnsDomain: ""
 auth:
   username: ""
   password: ""

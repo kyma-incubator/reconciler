@@ -2,13 +2,14 @@ package istioctl
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/istioctl/executor/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"os"
-	"os/exec"
-	"testing"
 )
 
 const (
@@ -120,7 +121,7 @@ func Test_DefaultCommander_Version(t *testing.T) {
 
 		// then
 		require.NoError(t, errors)
-		require.EqualValues(t, versionOutput, string(got))
+		require.Contains(t, string(got), versionOutput)
 		require.EqualValues(t, testArgs[0], "version")
 		require.EqualValues(t, testArgs[2], "json")
 		require.EqualValues(t, testArgs[3], "--kubeconfig")

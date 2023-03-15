@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	avastretry "github.com/avast/retry-go"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/clientset"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/cni"
@@ -16,6 +17,7 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/manifest"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/merge"
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
@@ -37,11 +39,11 @@ const (
 type VersionType string
 
 type IstioStatus struct {
-	ClientVersion    string
-	TargetVersion    string
-	TargetPrefix     string
-	PilotVersion     string
-	DataPlaneVersion string
+	ClientVersion     string
+	TargetVersion     string
+	TargetPrefix      string
+	PilotVersion      string
+	DataPlaneVersions map[string]bool
 }
 
 type IstioVersionOutput struct {
@@ -102,7 +104,7 @@ type IstioPerformer interface {
 	Update(context context.Context, kubeConfig, istioChart, targetVersion string, logger *zap.SugaredLogger) error
 
 	// ResetProxy resets Istio proxy of all Istio sidecars on the cluster. The proxyImageVersion parameter controls the Istio proxy version.
-	ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error
+	ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error
 
 	// Version reports status of Istio installation on the cluster.
 	Version(workspace chart.Factory, branchVersion string, istioChart string, kubeConfig string, logger *zap.SugaredLogger) (IstioStatus, error)
@@ -123,11 +125,12 @@ type DefaultIstioPerformer struct {
 	resolver        CommanderResolver
 	istioProxyReset proxy.IstioProxyReset
 	provider        clientset.Provider
+	gatherer        data.Gatherer
 }
 
 // NewDefaultIstioPerformer creates a new instance of the DefaultIstioPerformer.
-func NewDefaultIstioPerformer(resolver CommanderResolver, istioProxyReset proxy.IstioProxyReset, provider clientset.Provider) *DefaultIstioPerformer {
-	return &DefaultIstioPerformer{resolver, istioProxyReset, provider}
+func NewDefaultIstioPerformer(resolver CommanderResolver, istioProxyReset proxy.IstioProxyReset, provider clientset.Provider, gatherer data.Gatherer) *DefaultIstioPerformer {
+	return &DefaultIstioPerformer{resolver, istioProxyReset, provider, gatherer}
 }
 
 func (c *DefaultIstioPerformer) Uninstall(kubeClientSet kubernetes.Client, version string, logger *zap.SugaredLogger) error {
@@ -196,6 +199,16 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
+
+	installedVersion, err := getInstalledIstioVersion(c.provider, kubeConfig, c.gatherer, logger)
+	if err != nil {
+		return err
+	}
+
+	if execVersion.MajorMinorPatch() != installedVersion {
+		return fmt.Errorf("Installed Istio version: %s do not match target version: %s", installedVersion, execVersion.MajorMinorPatch())
+	}
+
 	logger.Infof("Istio in version %s successfully installed", version)
 
 	return nil
@@ -278,6 +291,15 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
+	updatedVersion, err := getInstalledIstioVersion(c.provider, kubeConfig, c.gatherer, logger)
+	if err != nil {
+		return err
+	}
+
+	if version.MajorMinorPatch() != updatedVersion {
+		return fmt.Errorf("Updated Istio version: %s do not match target version: %s", updatedVersion, version.MajorMinorPatch())
+	}
+
 	logger.Infof("Istio has been updated successfully to version %s", targetVersion)
 
 	if ingressGatewayNeedsRestart {
@@ -295,7 +317,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 	return nil
 }
 
-func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger, canUpdate bool) error {
+func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig string, workspace chart.Factory, branchVersion string, istioChart string, proxyImageVersion string, proxyImagePrefix string, logger *zap.SugaredLogger) error {
 	kubeClient, err := c.provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
@@ -318,7 +340,7 @@ func (c *DefaultIstioPerformer) ResetProxy(context context.Context, kubeConfig s
 	}
 
 	cfg := istioConfig.IstioProxyConfig{
-		IsUpdate:                         canUpdate,
+		IsUpdate:                         true,
 		Context:                          context,
 		ImagePrefix:                      proxyImagePrefix,
 		ImageVersion:                     proxyImageVersion,
@@ -468,13 +490,26 @@ func getVersionFromJSON(versionType VersionType, json IstioVersionOutput) string
 			return json.MeshVersion[0].Info.Version
 		}
 		return ""
-	case "dataPlane":
-		if len(json.DataPlaneVersion) > 0 {
-			return json.DataPlaneVersion[0].IstioVersion
-		}
-		return ""
 	default:
 		return ""
+	}
+}
+
+func getUniqueVersionsFromJSON(versionType VersionType, json IstioVersionOutput) map[string]bool {
+	switch versionType {
+	case "dataPlane":
+		if len(json.DataPlaneVersion) > 0 {
+			versions := map[string]bool{}
+			for _, dpVersion := range json.DataPlaneVersion {
+				if _, ok := versions[dpVersion.IstioVersion]; !ok {
+					versions[dpVersion.IstioVersion] = true
+				}
+			}
+			return versions
+		}
+		return map[string]bool{}
+	default:
+		return map[string]bool{}
 	}
 }
 
@@ -495,11 +530,11 @@ func mapVersionToStruct(versionOutput []byte, targetVersion string, targetDirect
 	}
 
 	return IstioStatus{
-		ClientVersion:    getVersionFromJSON("client", version),
-		TargetVersion:    targetVersion,
-		TargetPrefix:     targetDirectory,
-		PilotVersion:     getVersionFromJSON("pilot", version),
-		DataPlaneVersion: getVersionFromJSON("dataPlane", version),
+		ClientVersion:     getVersionFromJSON("client", version),
+		TargetVersion:     targetVersion,
+		TargetPrefix:      targetDirectory,
+		PilotVersion:      getVersionFromJSON("pilot", version),
+		DataPlaneVersions: getUniqueVersionsFromJSON("dataPlane", version),
 	}, nil
 }
 
@@ -565,4 +600,24 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	enableNamespacesByDefault = chartValues.HelmValues.SidecarInjectorWebhook.EnableNamespacesByDefault
 
 	return enableNamespacesByDefault, nil
+}
+
+func getInstalledIstioVersion(provider clientset.Provider, kubeConfig string, gatherer data.Gatherer, logger *zap.SugaredLogger) (string, error) {
+	kubeClient, err := provider.RetrieveFrom(kubeConfig, logger)
+	if err != nil {
+		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
+		return "", err
+	}
+	retryOpts := []avastretry.Option{
+		avastretry.Delay(delayBetweenRetries),
+		avastretry.Attempts(uint(retriesCount)),
+		avastretry.DelayType(avastretry.FixedDelay),
+	}
+
+	version, err := gatherer.GetInstalledIstioVersion(kubeClient, retryOpts, logger)
+	if err != nil {
+		return "", err
+	}
+
+	return version, nil
 }
