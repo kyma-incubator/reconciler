@@ -58,7 +58,7 @@ value
 		},
 	}
 	for _, tc := range testCases {
-		result := isYamlOrJson(tc.data)
+		result := isYamlOrJSON(tc.data)
 		if tc.expectedResult {
 			require.True(t, result)
 		} else {
