@@ -201,7 +201,7 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		// In case of error in the istioctl, old mutatingwebhook won't be deactivated, which will block later reconciliations.
 		err2 := webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
 		if err2 != nil {
-			logger.Error("Error occurred when tried to clean conflicted webhooks")
+			logger.Errorf("Error occurred when tried to clean conflicted webhooks: %s", err2)
 		}
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
@@ -297,7 +297,7 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		// In case of error in the istioctl, old mutatingwebhook won't be deactivated, which will block later reconciliations.
 		err2 := webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
 		if err2 != nil {
-			logger.Error("Error occurred when tried to clean conflicted webhooks")
+			logger.Errorf("Error occurred when tried to clean conflicted webhooks: %s", err2)
 		}
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
