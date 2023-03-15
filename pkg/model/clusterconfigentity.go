@@ -126,7 +126,7 @@ func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *Reconciliati
 func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSequenceConfig) []*keb.Component {
 	logger := log.NewLogger(false)
 
-	if isYamlOrJson(cfg.Kubeconfig) {
+	if !isYamlOrJson(cfg.Kubeconfig) {
 		logger.Warnf("Kubeconfig is missing or invalid for cluster '%s': not able to verify which components were "+
 			"already migrated. We assume this is a test case and consider all components for this reconciliation.",
 			c.RuntimeID)
