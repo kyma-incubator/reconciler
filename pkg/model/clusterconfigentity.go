@@ -7,12 +7,12 @@ import (
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 	"reflect"
 	"strings"
 	"time"
@@ -126,7 +126,7 @@ func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *Reconciliati
 func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSequenceConfig) []*keb.Component {
 	logger := log.NewLogger(false)
 
-	if !isYamlOrJSON(cfg.Kubeconfig) {
+	if !isKubeconfig(cfg.Kubeconfig) {
 		logger.Warnf("Kubeconfig is missing or invalid for cluster '%s': not able to verify which components were "+
 			"already migrated. We assume this is a test case and consider all components for this reconciliation.",
 			c.RuntimeID)
@@ -181,15 +181,10 @@ func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSe
 	return result
 }
 
-func isYamlOrJSON(kubeconfig string) bool {
+func isKubeconfig(kubeconfig string) bool {
 	byteKubecfg := []byte(kubeconfig)
-	if kubeconfig == "" {
-		return false
-	}
-	if yaml.Unmarshal(byteKubecfg, new(interface{})) != nil {
-		return json.Unmarshal(byteKubecfg, new(interface{})) == nil
-	}
-	return true
+	cfg, err := clientcmd.Load(byteKubecfg)
+	return err == nil && !api.IsConfigEmpty(cfg) && len(cfg.Clusters) > 0 && len(cfg.AuthInfos) > 0
 }
 
 func (c *ClusterConfigurationEntity) stopAndLogK8sError(logger *zap.SugaredLogger, subject string, err error) []*keb.Component {

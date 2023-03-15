@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"fmt"
 	log "github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
@@ -18,51 +19,48 @@ type testCase struct {
 	equal   bool
 }
 
-type yamlOrJSONTestCase struct {
-	data           string
+type isKubeconfigTestCase struct {
+	kubeconfig     string
 	expectedResult bool
 }
 
-func TestIsYamlOrJson(t *testing.T) {
-	testCases := []*yamlOrJSONTestCase{
+func TestIsKubeconfig(t *testing.T) {
+	testCases := []*isKubeconfigTestCase{
 		{
-			data:           "",
+			kubeconfig:     "",
 			expectedResult: false,
 		},
 		{
-			data:           "{}",
-			expectedResult: true,
-		},
-		{
-			data:           "{\"field1\": 111, \"field2\": \"value2\"}",
-			expectedResult: true,
-		},
-		{
-			data:           "{\"field1\": 111, \"field2\": \"value2}",
+			kubeconfig:     "abc",
 			expectedResult: false,
 		},
 		{
-			data: `---
-my:
-  yaml: value
-`,
+			kubeconfig:     "{}",
+			expectedResult: false,
+		},
+		{
+			kubeconfig:     "---",
+			expectedResult: false,
+		},
+		{
+			kubeconfig: func() string {
+				return string(test.ReadFile(t, "test/kubeconfig_valid.yaml"))
+			}(),
 			expectedResult: true,
 		},
 		{
-			data: `---
-my:
-   yaml: invalid
-value
-`,
+			kubeconfig: func() string {
+				return string(test.ReadFile(t, "test/kubeconfig_invalid.yaml"))
+			}(),
 			expectedResult: false,
 		},
 	}
 	for _, tc := range testCases {
-		result := isYamlOrJSON(tc.data)
+		result := isKubeconfig(tc.kubeconfig)
 		if tc.expectedResult {
-			require.True(t, result)
+			require.True(t, result, fmt.Sprintf("Expected valid kubeconfig  when parsing string '%s'", tc.kubeconfig))
 		} else {
-			require.False(t, result)
+			require.False(t, result, fmt.Sprintf("Expected invalid kubeconfig when parsing string '%s'", tc.kubeconfig))
 		}
 	}
 }
