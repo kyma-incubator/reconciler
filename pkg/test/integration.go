@@ -12,12 +12,12 @@ const (
 
 func IntegrationTest(t *testing.T) {
 	t.Helper()
-	if !isIntegrationTestEnabled() {
+	if !IsIntegrationTestEnabled() {
 		t.Skipf("Integration tests disabled: skipping parts of test case '%s'", t.Name())
 	}
 }
 
-func isIntegrationTestEnabled() bool {
+func IsIntegrationTestEnabled() bool {
 	expensiveTests, ok := os.LookupEnv(EnvIntegrationTests)
 	return ok && (expensiveTests == "1" || strings.ToLower(expensiveTests) == "true")
 }
