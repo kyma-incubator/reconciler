@@ -18,13 +18,13 @@ type testCase struct {
 	equal   bool
 }
 
-type yamlOrJsonTestCase struct {
+type yamlOrJSONTestCase struct {
 	data           string
 	expectedResult bool
 }
 
 func TestIsYamlOrJson(t *testing.T) {
-	testCases := []*yamlOrJsonTestCase{
+	testCases := []*yamlOrJSONTestCase{
 		{
 			data:           "",
 			expectedResult: false,
