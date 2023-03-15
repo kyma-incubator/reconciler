@@ -18,6 +18,55 @@ type testCase struct {
 	equal   bool
 }
 
+type yamlOrJsonTestCase struct {
+	data           string
+	expectedResult bool
+}
+
+func TestIsYamlOrJson(t *testing.T) {
+	testCases := []*yamlOrJsonTestCase{
+		{
+			data:           "",
+			expectedResult: false,
+		},
+		{
+			data:           "{}",
+			expectedResult: true,
+		},
+		{
+			data:           "{\"field1\": 111, \"field2\": \"value2\"}",
+			expectedResult: true,
+		},
+		{
+			data:           "{\"field1\": 111, \"field2\": \"value2}",
+			expectedResult: false,
+		},
+		{
+			data: `---
+my:
+  yaml: value
+`,
+			expectedResult: true,
+		},
+		{
+			data: `---
+my:
+   yaml: invalid
+value
+`,
+			expectedResult: false,
+		},
+	}
+	for _, tc := range testCases {
+		result := isYamlOrJson(tc.data)
+		if tc.expectedResult {
+			require.True(t, result)
+		} else {
+			require.False(t, result)
+		}
+	}
+}
+
 func TestClusterConfigEntity(t *testing.T) {
 	t.Parallel()
 
