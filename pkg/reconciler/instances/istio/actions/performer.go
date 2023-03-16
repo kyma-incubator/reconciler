@@ -19,6 +19,7 @@ import (
 	istioConfig "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/config"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/data"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/reset/proxy"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/istio/webhooks"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -197,6 +198,11 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 
 	err = commander.Install(mergedCNI, kubeConfig, logger)
 	if err != nil {
+		// In case of error in the istioctl, old mutatingwebhook won't be deactivated, which will block later reconciliations.
+		err2 := webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
+		if err2 != nil {
+			logger.Errorf("Error occurred when tried to clean conflicted webhooks: %s", err2)
+		}
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
@@ -288,6 +294,11 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 
 	err = commander.Upgrade(mergedCNI, kubeConfig, logger)
 	if err != nil {
+		// In case of error in the istioctl, old mutatingwebhook won't be deactivated, which will block later reconciliations.
+		err2 := webhooks.DeleteConflictedDefaultTag(context, c.provider, kubeConfig, logger)
+		if err2 != nil {
+			logger.Errorf("Error occurred when tried to clean conflicted webhooks: %s", err2)
+		}
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
