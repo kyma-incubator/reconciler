@@ -3,7 +3,6 @@ package connectivityproxy
 import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	reconcilerK8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
 	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/kyma-incubator/reconciler/pkg/logger"
@@ -15,7 +14,7 @@ const (
 	istioConfigPrefix = "istio"
 )
 
-type CopyFactory func(task *reconciler.Task, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy
+type CopyFactory func(task *reconciler.Task, targetClientSet k8s.Interface) *SecretCopy
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
@@ -31,14 +30,13 @@ func init() {
 		Name:   "action",
 		Loader: &K8sLoader{},
 		Commands: &CommandActions{
-			clientSetFactory: reconcilerK8s.NewInClusterClientSet,
 			targetClientSetFactory: func(context *service.ActionContext) (k8s.Interface, error) {
 				return context.KubeClient.Clientset()
 			},
 			install: service.NewInstall(log),
-			copyFactory: []CopyFactory{
+			/*copyFactory: []CopyFactory{
 				istioSecretCopy,
-			},
+			},*/
 		},
 	}
 	reconcilerInstance.
@@ -46,14 +44,17 @@ func init() {
 		WithReconcileAction(&action)
 }
 
-func istioSecretCopy(task *reconciler.Task, _, targetClientSet k8s.Interface) *SecretCopy {
+// // //
+// // //
+
+func istioSecretCopy(task *reconciler.Task, targetClientSet k8s.Interface) *SecretCopy {
 	configs := task.Configuration
 
-	istioNamespace := configs[istioConfigPrefix+".secret.namespace"]
+	istioNamespace := configs["istio.secret.namespace"]
 	if istioNamespace == nil || istioNamespace == "" {
 		istioNamespace = "istio-system"
 	}
-	istioSecretKey := configs[istioConfigPrefix+".secret.key"]
+	istioSecretKey := configs["istio.secret.key"]
 	if istioSecretKey == nil || istioSecretKey == "" {
 		istioSecretKey = "cacert"
 	}

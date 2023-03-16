@@ -57,9 +57,11 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Error while retrieving service binding secret")
 		}
 
+		// build overrides for credential secret by reading them from btp-operator secret
 		context.Logger.Debug("Populating configs")
 		a.Commands.PopulateConfigs(context, bindingSecret)
 
+		// copy O
 		context.Logger.Debug("Copying resources to target cluster")
 		err = a.Commands.CopyResources(context)
 		if err != nil {

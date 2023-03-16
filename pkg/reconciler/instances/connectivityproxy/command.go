@@ -6,17 +6,14 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/rendering"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	BindingKey                = "global.binding."
-	SkipManifestAnnotation    = "reconciler.kyma-project.io/skip-rendering-on-upgrade"
-	RefreshManifestAnnotation = "reconciler.kyma-project.io/refresh-on-reconcile:"
-	CredentialsKey            = "service_key"
+	BindingKey             = "global.binding."
+	SkipManifestAnnotation = "reconciler.kyma-project.io/skip-rendering-on-upgrade"
 )
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
@@ -27,11 +24,9 @@ type Commands interface {
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
-type NewInClusterClientSet func(logger *zap.SugaredLogger) (kubernetes.Interface, error)
 type NewTargetClientSet func(context *service.ActionContext) (kubernetes.Interface, error)
 
 type CommandActions struct {
-	clientSetFactory       NewInClusterClientSet
 	targetClientSetFactory NewTargetClientSet
 	install                service.Operation
 	copyFactory            []CopyFactory
@@ -60,20 +55,9 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, app *a
 	}
 	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(context.ChartProvider, authenticator)
 
-	//upgrade := app != nil && app.GetLabels() != nil
-
-	//justRefreshCredentials := false
-
-	//if upgrade {
 	filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
-	//skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
 	filters := []rendering.FilterFunc{filterOutManifests}
 	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
-	//} else if justRefreshCredentials {
-	//	filterOnlyManifests := rendering.NewFilterOnlyAnnotatedManifests(RefreshManifestAnnotation)
-	//	filters := []rendering.FilterFunc{filterOnlyManifests}
-	//	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
-	//}
 
 	return chartProviderWithAuthentication, nil
 }
@@ -92,50 +76,7 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 	}
 }
 
-func (a *CommandActions) IsCredentailsRefreshRequired(context *service.ActionContext, credentialSecret *apiCoreV1.Secret) bool {
-	return true
-	// full string
-	//credentials := string(credentialSecret.Data[CredentialsKey])
-
-	/*
-	   	{
-	        "clientid": "{{ .Values.global.binding.clientid }}",
-	        "clientsecret": "{{ .Values.global.binding.clientsecret }}",
-	        "connectivity_service": {
-	          "CAs_path": "{{ .Values.global.binding.CAs_path }}",
-	          "CAs_signing_path": "{{ .Values.global.binding.CAs_signing_path }}",
-	          "api_path": "{{ .Values.global.binding.api_path }}",
-	          "tunnel_path": "{{ .Values.global.binding.tunnel_path }}",
-	          "url": "{{ .Values.global.binding.url }}"
-	        },
-	        "subaccount_id": "{{ .Values.global.binding.subaccount_id }}",
-	        "subaccount_subdomain": "{{ .Values.global.binding.subaccount_subdomain }}",
-	        "token_service_domain": "{{ .Values.global.binding.token_service_domain }}",
-	        "token_service_url": "{{  .Values.global.binding.token_service_url }}",
-	        "token_service_url_pattern": "{{ .Values.global.binding.token_service_url_pattern }}",
-	        "token_service_url_pattern_tenant_key": "{{ .Values.global.binding.token_service_url_pattern_tenant_key }}",
-	        "xsappname": "{{ .Values.global.binding.xsappname }}"
-	      }
-	*/
-	//
-	//for key, val := range bindingSecret.Data {
-	//	var unmarshalled map[string]interface{}
-	//
-	//	if err := json.Unmarshal(val, &unmarshalled); err != nil {
-	//		context.Task.Configuration[BindingKey+key] = string(val)
-	//	} else {
-	//		for uKey, uVal := range unmarshalled {
-	//			context.Task.Configuration[BindingKey+uKey] = uVal
-	//		}
-	//	}
-	//}
-}
-
 func (a *CommandActions) CopyResources(context *service.ActionContext) error {
-	inCluster, err := a.clientSetFactory(context.Logger)
-	if err != nil {
-		return err
-	}
 
 	clientset, err := a.targetClientSetFactory(context)
 	if err != nil {
@@ -143,7 +84,7 @@ func (a *CommandActions) CopyResources(context *service.ActionContext) error {
 	}
 
 	for _, create := range a.copyFactory {
-		operation := create(context.Task, inCluster, clientset)
+		operation := create(context.Task, clientset)
 
 		if err := operation.Transfer(); err != nil {
 			return err
