@@ -40,5 +40,6 @@ func GetIGClient(t *testing.T, configMaps ...string) client.Client {
 		data["mesh"] = configMaps[0]
 		return controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "istio", Namespace: "istio-system"}, Data: data}, &deployment).Build()
 	}
+
 	return controllerfake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(&deployment).Build()
 }
