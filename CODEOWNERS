@@ -2,7 +2,7 @@
 * @kyma-incubator/jellyfish
 
 # Ory reconciler
-/pkg/reconciler/instances/ory/ @strekm @werdes72 @dariusztutaj @cnvergence @barchw @videlov @triffer
+/pkg/reconciler/instances/ory/ @strekm @werdes72 @dariusztutaj @barchw @videlov @triffer
 
 # Istio reconciler
 /pkg/reconciler/instances/istio/ @strekm @werdes72 @dariusztutaj @cnvergence @barchw @videlov @triffer
