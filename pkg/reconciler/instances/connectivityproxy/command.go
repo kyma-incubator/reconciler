@@ -83,12 +83,18 @@ func (a *CommandActions) CopyResources(context *service.ActionContext) error {
 		return errors.Wrap(err, "cannot create Connectivity CA client")
 	}
 
+	ca, err := caClient.GetCA()
+
+	if err != nil {
+		return err
+	}
+
 	clientset, err := context.KubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "cannot get a target cluster client set")
 	}
 
-	if err := makeIstioCASecret(context.Task, clientset, caClient); err != nil {
+	if err := makeIstioCASecret(context.Task, clientset, ca); err != nil {
 		return errors.Wrap(err, "cannot create Istio CA secret")
 	}
 
@@ -138,28 +144,22 @@ func (a *CommandActions) removeIstioSecrets(context *service.ActionContext) erro
 	return nil
 }
 
-func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, caClinet *ConnectivityCAClient) error {
+func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, ca []byte) error {
 	configs := task.Configuration
 
 	istioSecretName, ok := configs["istio.secret.name"]
 
-	if ok == false {
+	if !ok {
 		return errors.New("missing configuration value istio.secret.name")
 	}
 
 	istioNamespace, ok := configs["istio.secret.namespace"]
-	if ok == false || istioNamespace == nil || istioNamespace == "" {
+	if !ok || istioNamespace == nil || istioNamespace == "" {
 		istioNamespace = "istio-system"
 	}
 	istioSecretKey, ok := configs["istio.secret.key"]
-	if ok == false || istioSecretKey == nil || istioSecretKey == "" {
+	if !ok || istioSecretKey == nil || istioSecretKey == "" {
 		istioSecretKey = "cacert"
-	}
-
-	ca, err := caClinet.GetCA()
-
-	if err != nil {
-		return err
 	}
 
 	strNamespace := fmt.Sprintf("%v", istioNamespace)
