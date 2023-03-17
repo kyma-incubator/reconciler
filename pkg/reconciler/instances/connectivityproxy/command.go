@@ -2,13 +2,15 @@ package connectivityproxy
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/rendering"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
+	k8s "k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -24,12 +26,9 @@ type Commands interface {
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
-type NewTargetClientSet func(context *service.ActionContext) (kubernetes.Interface, error)
-
 type CommandActions struct {
-	targetClientSetFactory NewTargetClientSet
-	install                service.Operation
-	copyFactory            []CopyFactory
+	install     service.Operation
+	copyFactory []CopyFactory
 }
 
 func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet, credSecret *apiCoreV1.Secret) error {
@@ -78,17 +77,19 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 
 func (a *CommandActions) CopyResources(context *service.ActionContext) error {
 
-	clientset, err := a.targetClientSetFactory(context)
+	caClient, err := NewConnectivityCAClient(context.Task)
+
 	if err != nil {
-		return errors.Wrap(err, "Error while getting a client set")
+		return errors.Wrap(err, "cannot create Connectivity CA client")
 	}
 
-	for _, create := range a.copyFactory {
-		operation := create(context.Task, clientset)
+	clientset, err := context.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "cannot get a target cluster client set")
+	}
 
-		if err := operation.Transfer(); err != nil {
-			return err
-		}
+	if err := makeIstioCASecret(context.Task, clientset, caClient); err != nil {
+		return errors.Wrap(err, "cannot create Istio CA secret")
 	}
 
 	return nil
@@ -136,3 +137,61 @@ func (a *CommandActions) removeIstioSecrets(context *service.ActionContext) erro
 	}
 	return nil
 }
+
+func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, caClinet *ConnectivityCAClient) error {
+	configs := task.Configuration
+
+	istioSecretName, ok := configs["istio.secret.name"]
+
+	if ok == false {
+		return errors.New("missing configuration value istio.secret.name")
+	}
+
+	istioNamespace, ok := configs["istio.secret.namespace"]
+	if ok == false || istioNamespace == nil || istioNamespace == "" {
+		istioNamespace = "istio-system"
+	}
+	istioSecretKey, ok := configs["istio.secret.key"]
+	if ok == false || istioSecretKey == nil || istioSecretKey == "" {
+		istioSecretKey = "cacert"
+	}
+
+	ca, err := caClinet.GetCA()
+
+	if err != nil {
+		return err
+	}
+
+	strNamespace := fmt.Sprintf("%v", istioNamespace)
+	strSecretKey := fmt.Sprintf("%v", istioSecretKey)
+	strSecretName := fmt.Sprintf("%v", istioSecretName)
+
+	repo := NewSecretRepo(strNamespace, targetClientSet)
+
+	return repo.SaveIstioCASecret(strSecretName, strSecretKey, ca)
+}
+
+//func istioCASecretCreate(task *reconciler.Task, targetClientSet k8s.Interface) *SecretCopy {
+//	configs := task.Configuration
+//
+//	istioNamespace := configs["istio.secret.namespace"]
+//	if istioNamespace == nil || istioNamespace == "" {
+//		istioNamespace = "istio-system"
+//	}
+//	istioSecretKey := configs["istio.secret.key"]
+//	if istioSecretKey == nil || istioSecretKey == "" {
+//		istioSecretKey = "cacert"
+//	}
+//
+//	return &SecretCopy{
+//		Namespace:       fmt.Sprintf("%v", istioNamespace),
+//		Name:            fmt.Sprintf("%v", configs["istio.secret.name"]),
+//		targetClientSet: targetClientSet,
+//		from: &FromURL{
+//			URL: fmt.Sprintf("%v%v",
+//				configs["global.binding.url"],
+//				configs["global.binding.CAs_path"]),
+//			Key: fmt.Sprintf("%v", istioSecretKey),
+//		},
+//	}
+//}

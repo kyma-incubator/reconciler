@@ -61,7 +61,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		context.Logger.Debug("Populating configs")
 		a.Commands.PopulateConfigs(context, bindingSecret)
 
-		// copy O
+		// Make istio secret
 		context.Logger.Debug("Copying resources to target cluster")
 		err = a.Commands.CopyResources(context)
 		if err != nil {

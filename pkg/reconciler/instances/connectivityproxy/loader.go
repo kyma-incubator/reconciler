@@ -10,7 +10,6 @@ import (
 //go:generate mockery --name=Loader --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Loader interface {
 	FindBindingOperator(context *service.ActionContext) (*unstructured.Unstructured, error)
-	FindBindingCatalog(context *service.ActionContext) (*unstructured.Unstructured, error)
 	FindSecret(*service.ActionContext, *unstructured.Unstructured) (*apiCoreV1.Secret, error)
 }
 
@@ -31,25 +30,6 @@ func (a *K8sLoader) FindBindingOperator(context *service.ActionContext) (*unstru
 		{
 			resource:     "servicebinding",
 			field:        "spec.serviceInstanceName",
-			client:       context.KubeClient,
-			searchNextBy: "spec.secretName",
-		},
-	})
-}
-
-func (a *K8sLoader) FindBindingCatalog(context *service.ActionContext) (*unstructured.Unstructured, error) {
-	search := Search{}
-	return search.findByCriteria(context.Context, []Locator{
-		{
-			resource:       "serviceinstance",
-			field:          "spec.clusterServiceClassExternalName",
-			client:         context.KubeClient,
-			searchNextBy:   "metadata.name",
-			referenceValue: "connectivity",
-		},
-		{
-			resource:     "servicebinding",
-			field:        "spec.instanceRef.name",
 			client:       context.KubeClient,
 			searchNextBy: "spec.secretName",
 		},

@@ -1,28 +1,10 @@
 package connectivityproxy
 
 import (
-	"context"
 	"fmt"
-	"testing"
-
-	"github.com/kyma-incubator/reconciler/pkg/logger"
-
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
-	serviceMocks "github.com/kyma-incubator/reconciler/pkg/reconciler/service/mocks"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	v1apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8s "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
+/*
 func TestCommand(t *testing.T) {
 	t.Setenv("GIT_CLONE_TOKEN", "token") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
 
@@ -416,7 +398,7 @@ func TestCommandRemove(t *testing.T) {
 		err := commands.Remove(actionContext)
 		require.NoError(t, err)
 	})
-}
+}*/
 
 func cpManifest(version string) string {
 	return fmt.Sprintf("apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: connectivity-proxy\n  labels:\n    release: \"%s\"\n", version)

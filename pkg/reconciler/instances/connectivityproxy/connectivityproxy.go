@@ -1,7 +1,6 @@
 package connectivityproxy
 
 import (
-	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	k8s "k8s.io/client-go/kubernetes"
 
@@ -10,8 +9,7 @@ import (
 )
 
 const (
-	ReconcilerName    = "connectivity-proxy"
-	istioConfigPrefix = "istio"
+	ReconcilerName = "connectivity-proxy"
 )
 
 type CopyFactory func(task *reconciler.Task, targetClientSet k8s.Interface) *SecretCopy
@@ -30,44 +28,10 @@ func init() {
 		Name:   "action",
 		Loader: &K8sLoader{},
 		Commands: &CommandActions{
-			targetClientSetFactory: func(context *service.ActionContext) (k8s.Interface, error) {
-				return context.KubeClient.Clientset()
-			},
 			install: service.NewInstall(log),
-			/*copyFactory: []CopyFactory{
-				istioSecretCopy,
-			},*/
 		},
 	}
 	reconcilerInstance.
 		WithDeleteAction(&action).
 		WithReconcileAction(&action)
-}
-
-// // //
-// // //
-
-func istioSecretCopy(task *reconciler.Task, targetClientSet k8s.Interface) *SecretCopy {
-	configs := task.Configuration
-
-	istioNamespace := configs["istio.secret.namespace"]
-	if istioNamespace == nil || istioNamespace == "" {
-		istioNamespace = "istio-system"
-	}
-	istioSecretKey := configs["istio.secret.key"]
-	if istioSecretKey == nil || istioSecretKey == "" {
-		istioSecretKey = "cacert"
-	}
-
-	return &SecretCopy{
-		Namespace:       fmt.Sprintf("%v", istioNamespace),
-		Name:            fmt.Sprintf("%v", configs[istioConfigPrefix+".secret.name"]),
-		targetClientSet: targetClientSet,
-		from: &FromURL{
-			URL: fmt.Sprintf("%v%v",
-				configs[BindingKey+"url"],
-				configs[BindingKey+"CAs_path"]),
-			Key: fmt.Sprintf("%v", istioSecretKey),
-		},
-	}
 }
