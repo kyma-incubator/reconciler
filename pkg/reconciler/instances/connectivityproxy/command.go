@@ -83,6 +83,10 @@ func (a *CommandActions) CopyResources(context *service.ActionContext, caClient 
 		return err
 	}
 
+	if len(ca) == 0 {
+		return errors.New("empty CA root string read")
+	}
+
 	clientset, err := context.KubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "cannot get a target cluster client set")

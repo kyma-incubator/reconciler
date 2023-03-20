@@ -3,11 +3,11 @@ package connectivityproxy
 import (
 	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/mocks"
+	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes/fake"
 	"testing"
-
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -23,32 +23,19 @@ import (
 )
 
 func TestCommand(t *testing.T) {
-	t.Setenv("GIT_CLONE_TOKEN", "token") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
 
-	t.Run("Should create istio CA secret required resources", func(t *testing.T) {
-		//expected := v1.Secret{
-		//	TypeMeta: metav1.TypeMeta{},
-		//	ObjectMeta: metav1.ObjectMeta{
-		//		Name:      "test-name",
-		//		Namespace: "test-namespace",
-		//	},
-		//	Immutable: nil,
-		//	Data: map[string][]byte{
-		//		"token": []byte("tokenValue"),
-		//	},
-		//	StringData: nil,
-		//	Type:       "",
-		//}
-
+	t.Run("Should create CA secret with CA string in specified namespace using values from configuration", func(t *testing.T) {
 		commands := CommandActions{
 			install: nil,
 		}
 
-		connCAClient := connectivityproxymocks.NewConnectivityClient(t)
-		connCAClient.On("GetCA").Return([]byte("tokenValue"), nil)
+		connCAClient := &connectivityproxymocks.ConnectivityClient{}
+		connCAClient.On("GetCA").Return([]byte("cacert-value"), nil)
+
+		fakeClientSet := fake.NewSimpleClientset()
 
 		k8Sclient := mocks.Client{}
-		k8Sclient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+		k8Sclient.On("Clientset").Return(fakeClientSet, nil)
 
 		err := commands.CopyResources(&service.ActionContext{
 			KubeClient:       &k8Sclient,
@@ -60,13 +47,118 @@ func TestCommand(t *testing.T) {
 				Configuration: map[string]interface{}{
 					"istio.secret.name":      "test-name",
 					"istio.secret.namespace": "test-namespace",
-					"token":                  []byte("tokenValue"),
+					"istio.secret.key":       "ca-cert",
 				},
 			},
 		}, connCAClient)
 
 		require.NoError(t, err)
-		//require.Equal(t, 2, invoked)
+
+		secret, err := fakeClientSet.CoreV1().Secrets("test-namespace").Get(context.Background(), "test-name", metav1.GetOptions{})
+
+		require.NoError(t, err)
+
+		value, ok := secret.Data["ca-cert"]
+
+		require.NoError(t, err)
+		require.Equal(t, true, ok)
+		require.Equal(t, []byte("cacert-value"), value)
+		connCAClient.AssertExpectations(t)
+	})
+
+	t.Run("Should return error when empty CA string is read from ConnectivityClient", func(t *testing.T) {
+		commands := CommandActions{
+			install: nil,
+		}
+
+		connCAClient := &connectivityproxymocks.ConnectivityClient{}
+		connCAClient.On("GetCA").Return([]byte{}, nil)
+
+		fakeClientSet := fake.NewSimpleClientset()
+
+		k8Sclient := mocks.Client{}
+		k8Sclient.On("Clientset").Return(fakeClientSet, nil)
+
+		err := commands.CopyResources(&service.ActionContext{
+			KubeClient:       &k8Sclient,
+			WorkspaceFactory: nil,
+			Context:          nil,
+			Logger:           nil,
+			ChartProvider:    nil,
+			Task: &reconciler.Task{
+				Configuration: map[string]interface{}{
+					"istio.secret.name":      "test-name",
+					"istio.secret.namespace": "test-namespace",
+					"istio.secret.key":       "ca-cert",
+				},
+			},
+		}, connCAClient)
+
+		require.Error(t, err)
+		connCAClient.AssertExpectations(t)
+	})
+
+	t.Run("Should return error when failed to read CA data from ConnectivityClient", func(t *testing.T) {
+		commands := CommandActions{
+			install: nil,
+		}
+
+		connCAClient := &connectivityproxymocks.ConnectivityClient{}
+		connCAClient.On("GetCA").Return([]byte{}, errors.New("some error"))
+
+		fakeClientSet := fake.NewSimpleClientset()
+
+		k8Sclient := mocks.Client{}
+		k8Sclient.On("Clientset").Return(fakeClientSet, nil)
+
+		err := commands.CopyResources(&service.ActionContext{
+			KubeClient:       &k8Sclient,
+			WorkspaceFactory: nil,
+			Context:          nil,
+			Logger:           nil,
+			ChartProvider:    nil,
+			Task: &reconciler.Task{
+				Configuration: map[string]interface{}{
+					"istio.secret.name":      "test-name",
+					"istio.secret.namespace": "test-namespace",
+					"istio.secret.key":       "ca-cert",
+				},
+			},
+		}, connCAClient)
+
+		require.Error(t, err)
+		connCAClient.AssertExpectations(t)
+	})
+
+	t.Run("Should return error when CA secret name is missing in configuration", func(t *testing.T) {
+		commands := CommandActions{
+			install: nil,
+		}
+
+		connCAClient := &connectivityproxymocks.ConnectivityClient{}
+		connCAClient.On("GetCA").Return([]byte("cacert-value"), nil)
+
+		fakeClientSet := fake.NewSimpleClientset()
+
+		k8Sclient := mocks.Client{}
+		k8Sclient.On("Clientset").Return(fakeClientSet, nil)
+
+		err := commands.CopyResources(&service.ActionContext{
+			KubeClient:       &k8Sclient,
+			WorkspaceFactory: nil,
+			Context:          nil,
+			Logger:           nil,
+			ChartProvider:    nil,
+			Task: &reconciler.Task{
+				Configuration: map[string]interface{}{
+					"istio.secret.namespace": "test-namespace",
+					"istio.secret.key":       "ca-cert",
+				},
+			},
+		}, connCAClient)
+
+		require.Error(t, err)
+		connCAClient.AssertExpectations(t)
 	})
 }
 
@@ -111,6 +203,53 @@ func TestCommands(t *testing.T) {
 		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
 			Name:   componentName,
 			Labels: map[string]string{"release": "1.2.3"}},
+		}
+
+		// when
+		err := commands.InstallOrUpgrade(actionContext, component)
+
+		// then
+		require.NoError(t, err)
+		kubeClient.AssertExpectations(t)
+	})
+
+	t.Run("Should upgrade existing installation with same release", func(t *testing.T) {
+		// given
+		commands := CommandActions{
+			install:     service.NewInstall(logger.NewLogger(true)),
+			copyFactory: nil,
+		}
+
+		chartProvider := &chartmocks.Provider{}
+		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
+			Return(chartProvider)
+		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
+			Return(&chart.Manifest{
+				Type:     chart.HelmChart,
+				Name:     componentName,
+				Manifest: cpManifest("1.2.4")}, nil)
+		ctx := context.Background()
+		kubeClient := &mocks.Client{}
+		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+			mock.AnythingOfType("*service.LabelsInterceptor"),
+			mock.AnythingOfType("*service.AnnotationsInterceptor"),
+			mock.AnythingOfType("*service.ServicesInterceptor"),
+			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
+			mock.AnythingOfType("*service.NamespaceInterceptor"),
+			mock.AnythingOfType("*service.FinalizerInterceptor")).
+			Return(nil, nil).Once()
+
+		actionContext := &service.ActionContext{
+			Context:       ctx,
+			KubeClient:    kubeClient,
+			Task:          &reconciler.Task{Component: componentName},
+			ChartProvider: chartProvider,
+			Logger:        logger.NewLogger(true),
+		}
+
+		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
+			Name:   componentName,
+			Labels: map[string]string{"release": "1.2.4"}},
 		}
 
 		// when
@@ -205,50 +344,6 @@ func TestCommands(t *testing.T) {
 
 		// when
 		err := commands.InstallOrUpgrade(actionContext, nil)
-
-		// then
-		require.NoError(t, err)
-		kubeClient.AssertExpectations(t)
-	})
-
-	t.Run("Should invoke installation if given set does not have release label", func(t *testing.T) {
-		// given
-		commands := CommandActions{
-			install:     service.NewInstall(logger.NewLogger(true)),
-			copyFactory: nil,
-		}
-
-		chartProvider := &chartmocks.Provider{}
-		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
-			Return(chartProvider)
-		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
-			Return(&chart.Manifest{
-				Type:     chart.HelmChart,
-				Name:     componentName,
-				Manifest: cpManifest("1.2.3")}, nil)
-
-		ctx := context.Background()
-		kubeClient := &mocks.Client{}
-		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"),
-			mock.AnythingOfType("*service.LabelsInterceptor"),
-			mock.AnythingOfType("*service.AnnotationsInterceptor"),
-			mock.AnythingOfType("*service.ServicesInterceptor"),
-			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
-			mock.AnythingOfType("*service.NamespaceInterceptor"),
-			mock.AnythingOfType("*service.FinalizerInterceptor")).
-			Return(nil, nil).Once()
-		actionContext := &service.ActionContext{
-			Context:       ctx,
-			KubeClient:    kubeClient,
-			Task:          &reconciler.Task{Component: componentName},
-			ChartProvider: chartProvider,
-			Logger:        logger.NewLogger(true),
-		}
-
-		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: componentName}}
-
-		// when
-		err := commands.InstallOrUpgrade(actionContext, component)
 
 		// then
 		require.NoError(t, err)
@@ -374,6 +469,8 @@ func TestCommandRemove(t *testing.T) {
 
 		err := commands.Remove(actionContext)
 		require.NoError(t, err)
+		provider.AssertExpectations(t)
+		client.AssertExpectations(t)
 	})
 }
 
