@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/rendering"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/secrets"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,7 +23,7 @@ const (
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
 	InstallOrUpgrade(*service.ActionContext, *appsv1.StatefulSet) error
-	CopyResources(*service.ActionContext, ConnectivityClient) error
+	CopyResources(*service.ActionContext, connectivityclient.ConnectivityClient) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
@@ -75,16 +77,12 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 	}
 }
 
-func (a *CommandActions) CopyResources(context *service.ActionContext, caClient ConnectivityClient) error {
+func (a *CommandActions) CopyResources(context *service.ActionContext, caClient connectivityclient.ConnectivityClient) error {
 
 	ca, err := caClient.GetCA()
 
 	if err != nil {
 		return err
-	}
-
-	if len(ca) == 0 {
-		return errors.New("empty CA root string read")
 	}
 
 	clientset, err := context.KubeClient.Clientset()
@@ -164,32 +162,7 @@ func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, ca 
 	strSecretKey := fmt.Sprintf("%v", istioSecretKey)
 	strSecretName := fmt.Sprintf("%v", istioSecretName)
 
-	repo := NewSecretRepo(strNamespace, targetClientSet)
+	repo := secrets.NewSecretRepo(strNamespace, targetClientSet)
 
 	return repo.SaveIstioCASecret(strSecretName, strSecretKey, ca)
 }
-
-//func istioCASecretCreate(task *reconciler.Task, targetClientSet k8s.Interface) *SecretCopy {
-//	configs := task.Configuration
-//
-//	istioNamespace := configs["istio.secret.namespace"]
-//	if istioNamespace == nil || istioNamespace == "" {
-//		istioNamespace = "istio-system"
-//	}
-//	istioSecretKey := configs["istio.secret.key"]
-//	if istioSecretKey == nil || istioSecretKey == "" {
-//		istioSecretKey = "cacert"
-//	}
-//
-//	return &SecretCopy{
-//		Namespace:       fmt.Sprintf("%v", istioNamespace),
-//		Name:            fmt.Sprintf("%v", configs["istio.secret.name"]),
-//		targetClientSet: targetClientSet,
-//		from: &FromURL{
-//			URL: fmt.Sprintf("%v%v",
-//				configs["global.binding.url"],
-//				configs["global.binding.CAs_path"]),
-//			Key: fmt.Sprintf("%v", istioSecretKey),
-//		},
-//	}
-//}

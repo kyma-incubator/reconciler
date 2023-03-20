@@ -1,4 +1,4 @@
-package connectivityproxy
+package secrets
 
 import (
 	"context"

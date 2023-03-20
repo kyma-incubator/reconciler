@@ -1,4 +1,4 @@
-package connectivityproxy
+package connectivityclient
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-//go:generate mockery --name=ConnectivityClient --output=mocks --outpkg=connectivityproxymocks --case=underscore
+//go:generate mockery --name=ConnectivityClient --output=mocks --case=underscore
 type ConnectivityClient interface {
 	GetCA() ([]byte, error)
 }
@@ -68,5 +68,10 @@ func (clientCA *ConnectivityCAClient) GetCA() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if len(bytes) == 0 {
+		return nil, errors.New("empty CA root string read")
+	}
+
 	return bytes, err
 }

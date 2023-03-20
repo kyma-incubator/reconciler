@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kyma-incubator/reconciler/pkg/logger"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/mocks"
+	connectivityclient "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient/mocks"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes/fake"
 	"testing"
@@ -29,7 +29,7 @@ func TestCommand(t *testing.T) {
 			install: nil,
 		}
 
-		connCAClient := &connectivityproxymocks.ConnectivityClient{}
+		connCAClient := &connectivityclient.ConnectivityClient{}
 		connCAClient.On("GetCA").Return([]byte("cacert-value"), nil)
 
 		fakeClientSet := fake.NewSimpleClientset()
@@ -66,44 +66,12 @@ func TestCommand(t *testing.T) {
 		connCAClient.AssertExpectations(t)
 	})
 
-	t.Run("Should return error when empty CA string is read from ConnectivityClient", func(t *testing.T) {
-		commands := CommandActions{
-			install: nil,
-		}
-
-		connCAClient := &connectivityproxymocks.ConnectivityClient{}
-		connCAClient.On("GetCA").Return([]byte{}, nil)
-
-		fakeClientSet := fake.NewSimpleClientset()
-
-		k8Sclient := mocks.Client{}
-		k8Sclient.On("Clientset").Return(fakeClientSet, nil)
-
-		err := commands.CopyResources(&service.ActionContext{
-			KubeClient:       &k8Sclient,
-			WorkspaceFactory: nil,
-			Context:          nil,
-			Logger:           nil,
-			ChartProvider:    nil,
-			Task: &reconciler.Task{
-				Configuration: map[string]interface{}{
-					"istio.secret.name":      "test-name",
-					"istio.secret.namespace": "test-namespace",
-					"istio.secret.key":       "ca-cert",
-				},
-			},
-		}, connCAClient)
-
-		require.Error(t, err)
-		connCAClient.AssertExpectations(t)
-	})
-
 	t.Run("Should return error when failed to read CA data from ConnectivityClient", func(t *testing.T) {
 		commands := CommandActions{
 			install: nil,
 		}
 
-		connCAClient := &connectivityproxymocks.ConnectivityClient{}
+		connCAClient := &connectivityclient.ConnectivityClient{}
 		connCAClient.On("GetCA").Return([]byte{}, errors.New("some error"))
 
 		fakeClientSet := fake.NewSimpleClientset()
@@ -135,7 +103,7 @@ func TestCommand(t *testing.T) {
 			install: nil,
 		}
 
-		connCAClient := &connectivityproxymocks.ConnectivityClient{}
+		connCAClient := &connectivityclient.ConnectivityClient{}
 		connCAClient.On("GetCA").Return([]byte("cacert-value"), nil)
 
 		fakeClientSet := fake.NewSimpleClientset()

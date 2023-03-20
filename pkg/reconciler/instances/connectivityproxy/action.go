@@ -2,6 +2,7 @@ package connectivityproxy
 
 import (
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
 	"strings"
@@ -57,13 +58,12 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		context.Logger.Debug("Populating configs")
 		a.Commands.PopulateConfigs(context, bindingSecret)
 
-		caClient, err := NewConnectivityCAClient(context.Task)
+		// Make istio CA secret
+		caClient, err := connectivityclient.NewConnectivityCAClient(context.Task)
 
 		if err != nil {
 			return errors.Wrap(err, "Error - cannot create Connectivity CA client")
 		}
-
-		// Make istio secret
 		context.Logger.Debug("Copying resources to target cluster")
 		err = a.Commands.CopyResources(context, caClient)
 		if err != nil {

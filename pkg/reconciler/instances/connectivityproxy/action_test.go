@@ -1,6 +1,21 @@
 package connectivityproxy_test
 
-/*
+import (
+	"testing"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy"
+	connectivityproxymocks "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/mocks"
+	kubeMocks "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/stretchr/testify/require"
+	v1apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes/fake"
+)
+
 func TestAction(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 
@@ -110,4 +125,3 @@ func TestAction(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
-*/

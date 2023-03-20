@@ -3,6 +3,8 @@
 package connectivityproxymocks
 
 import (
+	connectivityclient "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
+
 	corev1 "k8s.io/api/core/v1"
 
 	mock "github.com/stretchr/testify/mock"
@@ -18,18 +20,18 @@ type Commands struct {
 }
 
 // CopyResources provides a mock function with given fields: _a0, _a1
-/*func (_m *Commands) CopyResources(_a0 *service.ActionContext, _a1 connectivityproxy.ConnectivityClient) error {
+func (_m *Commands) CopyResources(_a0 *service.ActionContext, _a1 connectivityclient.ConnectivityClient) error {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*service.ActionContext, connectivityproxy.ConnectivityClient) error); ok {
+	if rf, ok := ret.Get(0).(func(*service.ActionContext, connectivityclient.ConnectivityClient) error); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
-}*/
+}
 
 // InstallOrUpgrade provides a mock function with given fields: _a0, _a1
 func (_m *Commands) InstallOrUpgrade(_a0 *service.ActionContext, _a1 *v1.StatefulSet) error {
