@@ -20,8 +20,8 @@ const (
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	InstallOrUpgrade(*service.ActionContext, *appsv1.StatefulSet, *apiCoreV1.Secret) error
-	CopyResources(*service.ActionContext) error
+	InstallOrUpgrade(*service.ActionContext, *appsv1.StatefulSet) error
+	CopyResources(*service.ActionContext, ConnectivityClient) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
@@ -31,9 +31,9 @@ type CommandActions struct {
 	copyFactory []CopyFactory
 }
 
-func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet, credSecret *apiCoreV1.Secret) error {
+func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet) error {
 
-	chartProvider, err := a.getChartProvider(context, app, credSecret)
+	chartProvider, err := a.getChartProvider(context)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create chart provider")
@@ -47,7 +47,7 @@ func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *a
 	return nil
 }
 
-func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet, credSecret *apiCoreV1.Secret) (chart.Provider, error) {
+func (a *CommandActions) getChartProvider(context *service.ActionContext) (chart.Provider, error) {
 	authenticator, err := rendering.NewExternalComponentAuthenticator()
 	if err != nil {
 		return nil, err
@@ -75,13 +75,7 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 	}
 }
 
-func (a *CommandActions) CopyResources(context *service.ActionContext) error {
-
-	caClient, err := NewConnectivityCAClient(context.Task)
-
-	if err != nil {
-		return errors.Wrap(err, "cannot create Connectivity CA client")
-	}
+func (a *CommandActions) CopyResources(context *service.ActionContext, caClient ConnectivityClient) error {
 
 	ca, err := caClient.GetCA()
 

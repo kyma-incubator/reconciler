@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+//go:generate mockery --name=ConnectivityClient --output=mocks --outpkg=connectivityproxymocks --case=underscore
+type ConnectivityClient interface {
+	GetCA() ([]byte, error)
+}
+
 type ConnectivityCAClient struct {
 	url    string
 	client *http.Client
@@ -37,7 +42,7 @@ func NewConnectivityCAClient(task *reconciler.Task) (*ConnectivityCAClient, erro
 	}, nil
 }
 
-func (clientCA ConnectivityCAClient) GetCA() ([]byte, error) {
+func (clientCA *ConnectivityCAClient) GetCA() ([]byte, error) {
 
 	req, err := http.NewRequest("GET", clientCA.url, nil)
 

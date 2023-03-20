@@ -1,81 +1,72 @@
 package connectivityproxy
 
 import (
+	"context"
 	"fmt"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/mocks"
+	"k8s.io/client-go/kubernetes/fake"
+	"testing"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	serviceMocks "github.com/kyma-incubator/reconciler/pkg/reconciler/service/mocks"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	v1apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-/*
 func TestCommand(t *testing.T) {
 	t.Setenv("GIT_CLONE_TOKEN", "token") //#nosec [-- Ignore nosec false positive. It's not a credential, just an environment variable name]
 
-	t.Run("Should copy required resources", func(t *testing.T) {
-		expected := v1.Secret{
-			TypeMeta: metav1.TypeMeta{},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-name",
-				Namespace: "test-namespace",
-			},
-			Immutable: nil,
-			Data: map[string][]byte{
-				"token": []byte("tokenValue"),
-			},
-			StringData: nil,
-			Type:       "",
-		}
+	t.Run("Should create istio CA secret required resources", func(t *testing.T) {
+		//expected := v1.Secret{
+		//	TypeMeta: metav1.TypeMeta{},
+		//	ObjectMeta: metav1.ObjectMeta{
+		//		Name:      "test-name",
+		//		Namespace: "test-namespace",
+		//	},
+		//	Immutable: nil,
+		//	Data: map[string][]byte{
+		//		"token": []byte("tokenValue"),
+		//	},
+		//	StringData: nil,
+		//	Type:       "",
+		//}
 
-		invoked := 0
 		commands := CommandActions{
-			targetClientSetFactory: func(context *service.ActionContext) (k8s.Interface, error) {
-				return fake.NewSimpleClientset(), nil
-			},
-			clientSetFactory: func(logger *zap.SugaredLogger) (k8s.Interface, error) {
-				return fake.NewSimpleClientset(&expected), nil
-			},
 			install: nil,
-			copyFactory: []CopyFactory{
-				func(task *reconciler.Task, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
-					invoked++
-					return &SecretCopy{
-						Namespace:       "namespace",
-						Name:            "name",
-						targetClientSet: targetClientSet,
-						from: &FromSecret{
-							Namespace: "test-namespace",
-							Name:      "test-name",
-							inCluster: inClusterClientSet,
-						},
-					}
-				},
-				func(task *reconciler.Task, inClusterClientSet, targetClientSet k8s.Interface) *SecretCopy {
-					invoked++
-					return &SecretCopy{
-						Namespace:       "namespace",
-						Name:            "name",
-						targetClientSet: targetClientSet,
-						from: &FromSecret{
-							Namespace: "test-namespace",
-							Name:      "test-name",
-							inCluster: inClusterClientSet,
-						},
-					}
-				},
-			},
 		}
 
-		client := mocks.Client{}
-		client.On("Clientset").Return(fake.NewSimpleClientset(), nil)
+		connCAClient := connectivityproxymocks.NewConnectivityClient(t)
+		connCAClient.On("GetCA").Return([]byte("tokenValue"), nil)
+
+		k8Sclient := mocks.Client{}
+		k8Sclient.On("Clientset").Return(fake.NewSimpleClientset(), nil)
 
 		err := commands.CopyResources(&service.ActionContext{
-			KubeClient:       &client,
+			KubeClient:       &k8Sclient,
 			WorkspaceFactory: nil,
 			Context:          nil,
 			Logger:           nil,
 			ChartProvider:    nil,
-			Task:             &reconciler.Task{},
-		})
+			Task: &reconciler.Task{
+				Configuration: map[string]interface{}{
+					"istio.secret.name":      "test-name",
+					"istio.secret.namespace": "test-namespace",
+					"token":                  []byte("tokenValue"),
+				},
+			},
+		}, connCAClient)
 
 		require.NoError(t, err)
-		require.Equal(t, 2, invoked)
+		//require.Equal(t, 2, invoked)
 	})
 }
 
@@ -86,10 +77,8 @@ func TestCommands(t *testing.T) {
 	t.Run("Should upgrade existing installation", func(t *testing.T) {
 		// given
 		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                service.NewInstall(logger.NewLogger(true)),
-			copyFactory:            nil,
+			install:     service.NewInstall(logger.NewLogger(true)),
+			copyFactory: nil,
 		}
 
 		chartProvider := &chartmocks.Provider{}
@@ -137,10 +126,8 @@ func TestCommands(t *testing.T) {
 		emptyManifest := ""
 
 		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                service.NewInstall(logger.NewLogger(true)),
-			copyFactory:            nil,
+			install:     service.NewInstall(logger.NewLogger(true)),
+			copyFactory: nil,
 		}
 
 		chartProvider := &chartmocks.Provider{}
@@ -185,10 +172,8 @@ func TestCommands(t *testing.T) {
 	t.Run("Should invoke installation if no app is installed", func(t *testing.T) {
 		// given
 		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                service.NewInstall(logger.NewLogger(true)),
-			copyFactory:            nil,
+			install:     service.NewInstall(logger.NewLogger(true)),
+			copyFactory: nil,
 		}
 
 		chartProvider := &chartmocks.Provider{}
@@ -229,10 +214,8 @@ func TestCommands(t *testing.T) {
 	t.Run("Should invoke installation if given set does not have release label", func(t *testing.T) {
 		// given
 		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                service.NewInstall(logger.NewLogger(true)),
-			copyFactory:            nil,
+			install:     service.NewInstall(logger.NewLogger(true)),
+			copyFactory: nil,
 		}
 
 		chartProvider := &chartmocks.Provider{}
@@ -288,10 +271,8 @@ func TestCommands(t *testing.T) {
 			Return(nil)
 
 		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                delegateMock,
-			copyFactory:            nil,
+			install:     delegateMock,
+			copyFactory: nil,
 		}
 
 		secret := &v1.Secret{Data: map[string][]byte{
@@ -322,10 +303,8 @@ func TestCommands(t *testing.T) {
 			Return(nil)
 
 		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                delegateMock,
-			copyFactory:            nil,
+			install:     delegateMock,
+			copyFactory: nil,
 		}
 
 		secret := &v1.Secret{Data: map[string][]byte{
@@ -389,16 +368,14 @@ func TestCommandRemove(t *testing.T) {
 		actionContext.KubeClient = client
 
 		commands := CommandActions{
-			clientSetFactory:       nil,
-			targetClientSetFactory: nil,
-			install:                nil,
-			copyFactory:            nil,
+			install:     nil,
+			copyFactory: nil,
 		}
 
 		err := commands.Remove(actionContext)
 		require.NoError(t, err)
 	})
-}*/
+}
 
 func cpManifest(version string) string {
 	return fmt.Sprintf("apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: connectivity-proxy\n  labels:\n    release: \"%s\"\n", version)
