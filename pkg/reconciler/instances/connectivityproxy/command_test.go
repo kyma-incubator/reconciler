@@ -3,11 +3,12 @@ package connectivityproxy
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	connectivityclient "github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient/mocks"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
@@ -17,7 +18,6 @@ import (
 	serviceMocks "github.com/kyma-incubator/reconciler/pkg/reconciler/service/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	v1apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -137,8 +137,7 @@ func TestCommands(t *testing.T) {
 	t.Run("Should upgrade existing installation", func(t *testing.T) {
 		// given
 		commands := CommandActions{
-			install:     service.NewInstall(logger.NewLogger(true)),
-			copyFactory: nil,
+			install: service.NewInstall(logger.NewLogger(true)),
 		}
 
 		chartProvider := &chartmocks.Provider{}
@@ -168,13 +167,8 @@ func TestCommands(t *testing.T) {
 			Logger:        logger.NewLogger(true),
 		}
 
-		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
-			Name:   componentName,
-			Labels: map[string]string{"release": "1.2.3"}},
-		}
-
 		// when
-		err := commands.InstallOrUpgrade(actionContext, component)
+		err := commands.InstallOrUpgrade(actionContext)
 
 		// then
 		require.NoError(t, err)
@@ -184,8 +178,7 @@ func TestCommands(t *testing.T) {
 	t.Run("Should upgrade existing installation with same release", func(t *testing.T) {
 		// given
 		commands := CommandActions{
-			install:     service.NewInstall(logger.NewLogger(true)),
-			copyFactory: nil,
+			install: service.NewInstall(logger.NewLogger(true)),
 		}
 
 		chartProvider := &chartmocks.Provider{}
@@ -215,13 +208,8 @@ func TestCommands(t *testing.T) {
 			Logger:        logger.NewLogger(true),
 		}
 
-		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
-			Name:   componentName,
-			Labels: map[string]string{"release": "1.2.4"}},
-		}
-
 		// when
-		err := commands.InstallOrUpgrade(actionContext, component)
+		err := commands.InstallOrUpgrade(actionContext)
 
 		// then
 		require.NoError(t, err)
@@ -233,8 +221,7 @@ func TestCommands(t *testing.T) {
 		emptyManifest := ""
 
 		commands := CommandActions{
-			install:     service.NewInstall(logger.NewLogger(true)),
-			copyFactory: nil,
+			install: service.NewInstall(logger.NewLogger(true)),
 		}
 
 		chartProvider := &chartmocks.Provider{}
@@ -264,13 +251,8 @@ func TestCommands(t *testing.T) {
 			Logger:        logger.NewLogger(true),
 		}
 
-		component := &v1apps.StatefulSet{ObjectMeta: metav1.ObjectMeta{
-			Name:   componentName,
-			Labels: map[string]string{"release": "1.2.3"}},
-		}
-
 		// when
-		err := commands.InstallOrUpgrade(actionContext, component)
+		err := commands.InstallOrUpgrade(actionContext)
 
 		// then
 		require.NoError(t, err)
@@ -279,8 +261,7 @@ func TestCommands(t *testing.T) {
 	t.Run("Should invoke installation if no app is installed", func(t *testing.T) {
 		// given
 		commands := CommandActions{
-			install:     service.NewInstall(logger.NewLogger(true)),
-			copyFactory: nil,
+			install: service.NewInstall(logger.NewLogger(true)),
 		}
 
 		chartProvider := &chartmocks.Provider{}
@@ -311,7 +292,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOrUpgrade(actionContext, nil)
+		err := commands.InstallOrUpgrade(actionContext)
 
 		// then
 		require.NoError(t, err)
@@ -334,8 +315,7 @@ func TestCommands(t *testing.T) {
 			Return(nil)
 
 		commands := CommandActions{
-			install:     delegateMock,
-			copyFactory: nil,
+			install: delegateMock,
 		}
 
 		secret := &v1.Secret{Data: map[string][]byte{
@@ -366,8 +346,7 @@ func TestCommands(t *testing.T) {
 			Return(nil)
 
 		commands := CommandActions{
-			install:     delegateMock,
-			copyFactory: nil,
+			install: delegateMock,
 		}
 
 		secret := &v1.Secret{Data: map[string][]byte{
@@ -431,8 +410,7 @@ func TestCommandRemove(t *testing.T) {
 		actionContext.KubeClient = client
 
 		commands := CommandActions{
-			install:     nil,
-			copyFactory: nil,
+			install: nil,
 		}
 
 		err := commands.Remove(actionContext)

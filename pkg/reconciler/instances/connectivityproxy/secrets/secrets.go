@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"context"
+
 	coreV1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +15,11 @@ type SecretRepo struct {
 }
 
 func NewSecretRepo(namespace string, targetClientSet k8s.Interface) *SecretRepo {
+
+	if namespace == "" {
+		namespace = "default"
+	}
+
 	return &SecretRepo{
 		Namespace:       namespace,
 		TargetClientSet: targetClientSet,
@@ -21,10 +27,6 @@ func NewSecretRepo(namespace string, targetClientSet k8s.Interface) *SecretRepo 
 }
 
 func (r SecretRepo) SaveIstioCASecret(name string, key string, ca []byte) error {
-
-	if r.Namespace == "" {
-		r.Namespace = "default"
-	}
 
 	secret := &coreV1.Secret{
 		TypeMeta: v1.TypeMeta{Kind: "Secret"},
@@ -51,8 +53,6 @@ func (r SecretRepo) upsertK8SSecret(secret *coreV1.Secret) error {
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
-
-	secret.ResourceVersion = ""
 
 	_, err = r.TargetClientSet.CoreV1().
 		Secrets(r.Namespace).

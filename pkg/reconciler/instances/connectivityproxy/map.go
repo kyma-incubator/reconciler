@@ -1,8 +1,9 @@
 package connectivityproxy
 
 import (
-	"github.com/pkg/errors"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type Map map[string]interface{}

@@ -1,9 +1,10 @@
 package connectivityproxy
 
 import (
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestRunner(t *testing.T) {

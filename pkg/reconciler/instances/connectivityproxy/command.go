@@ -3,6 +3,7 @@ package connectivityproxy
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
@@ -10,7 +11,6 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/secrets"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
-	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
 	k8s "k8s.io/client-go/kubernetes"
 )
@@ -22,18 +22,17 @@ const (
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	InstallOrUpgrade(*service.ActionContext, *appsv1.StatefulSet) error
+	InstallOrUpgrade(*service.ActionContext) error
 	CopyResources(*service.ActionContext, connectivityclient.ConnectivityClient) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
 type CommandActions struct {
-	install     service.Operation
-	copyFactory []CopyFactory
+	install service.Operation
 }
 
-func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet) error {
+func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext) error {
 
 	chartProvider, err := a.getChartProvider(context)
 
@@ -141,19 +140,29 @@ func (a *CommandActions) removeIstioSecrets(context *service.ActionContext) erro
 }
 
 func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, ca []byte) error {
-	configs := task.Configuration
 
-	istioSecretName, ok := configs["istio.secret.name"]
+	namespace, secretKey, secretName, err := getIstioSecretCfg(task.Configuration)
 
-	if !ok {
-		return errors.New("missing configuration value istio.secret.name")
+	if err != nil {
+		return err
 	}
 
-	istioNamespace, ok := configs["istio.secret.namespace"]
+	repo := secrets.NewSecretRepo(namespace, targetClientSet)
+	return repo.SaveIstioCASecret(secretName, secretKey, ca)
+}
+
+func getIstioSecretCfg(config map[string]interface{}) (string, string, string, error) {
+	istioSecretName, ok := config["istio.secret.name"]
+
+	if !ok {
+		return "", "", "", errors.New("missing configuration value istio.secret.name")
+	}
+
+	istioNamespace, ok := config["istio.secret.namespace"]
 	if !ok || istioNamespace == nil || istioNamespace == "" {
 		istioNamespace = "istio-system"
 	}
-	istioSecretKey, ok := configs["istio.secret.key"]
+	istioSecretKey, ok := config["istio.secret.key"]
 	if !ok || istioSecretKey == nil || istioSecretKey == "" {
 		istioSecretKey = "cacert"
 	}
@@ -162,7 +171,5 @@ func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, ca 
 	strSecretKey := fmt.Sprintf("%v", istioSecretKey)
 	strSecretName := fmt.Sprintf("%v", istioSecretName)
 
-	repo := secrets.NewSecretRepo(strNamespace, targetClientSet)
-
-	return repo.SaveIstioCASecret(strSecretName, strSecretKey, ca)
+	return strNamespace, strSecretKey, strSecretName, errors.New("missing configuration value istio.secret.name")
 }

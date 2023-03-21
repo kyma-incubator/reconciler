@@ -1,11 +1,12 @@
 package connectivityproxy
 
 import (
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 type CustomAction struct {
@@ -33,8 +34,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 
 	context.Logger.Debug("Checking StatefulSet")
-	app, err := context.KubeClient.
-		GetStatefulSet(context.Context, context.Task.Component, context.Task.Namespace)
+	app, err := context.KubeClient.GetStatefulSet(context.Context, context.Task.Component, context.Task.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "Error while retrieving StatefulSet")
 	}
@@ -50,8 +50,13 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		bindingSecret, err := a.Loader.FindSecret(context, binding)
 
 		context.Logger.Debug("Service Binding Secret check")
-		if err != nil || bindingSecret == nil {
+		if err != nil {
 			return errors.Wrap(err, "Error while retrieving service binding secret")
+		}
+
+		// TODO rethink binding secret retrieval
+		if bindingSecret == nil {
+			return errors.New("Missing binding secret")
 		}
 
 		// build overrides for credential secret by reading them from btp-operator secret
@@ -71,7 +76,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 
 		context.Logger.Info("Installing component")
-		if err := a.Commands.InstallOrUpgrade(context, app); err != nil {
+		if err := a.Commands.InstallOrUpgrade(context); err != nil {
 			return errors.Wrap(err, "Error during installation")
 		}
 	} else if binding == nil && app != nil {

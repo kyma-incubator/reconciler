@@ -2,11 +2,12 @@ package connectivityclient
 
 import (
 	"fmt"
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	"github.com/pkg/errors"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
+	"github.com/pkg/errors"
 )
 
 //go:generate mockery --name=ConnectivityClient --output=mocks --case=underscore

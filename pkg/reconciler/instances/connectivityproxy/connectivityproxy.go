@@ -1,9 +1,6 @@
 package connectivityproxy
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
-	k8s "k8s.io/client-go/kubernetes"
-
 	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 )
@@ -11,8 +8,6 @@ import (
 const (
 	ReconcilerName = "connectivity-proxy"
 )
-
-type CopyFactory func(task *reconciler.Task, targetClientSet k8s.Interface) *SecretCopy
 
 //nolint:gochecknoinits //usage of init() is intended to register reconciler-instances in centralized registry
 func init() {
