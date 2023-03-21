@@ -63,7 +63,6 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		context.Logger.Debug("Populating configs")
 		a.Commands.PopulateConfigs(context, bindingSecret)
 
-		// Make istio CA secret
 		caClient, err := connectivityclient.NewConnectivityCAClient(context.Task)
 
 		if err != nil {
