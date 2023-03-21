@@ -58,8 +58,6 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext) (chart
 	filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
 	filters := []rendering.FilterFunc{filterOutManifests}
 	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
-
-	return chartProviderWithAuthentication, nil
 }
 
 func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
@@ -171,5 +169,5 @@ func getIstioSecretCfg(config map[string]interface{}) (string, string, string, e
 	strSecretKey := fmt.Sprintf("%v", istioSecretKey)
 	strSecretName := fmt.Sprintf("%v", istioSecretName)
 
-	return strNamespace, strSecretKey, strSecretName, errors.New("missing configuration value istio.secret.name")
+	return strNamespace, strSecretKey, strSecretName, nil
 }
