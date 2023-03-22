@@ -25,13 +25,13 @@ func NewConnectivityCAClient(task *reconciler.Task) (*ConnectivityCAClient, erro
 
 	url, ok := configs["global.binding.url"]
 
-	if ok == false {
+	if !ok {
 		return nil, fmt.Errorf("missing configuration value global.binding.url")
 	}
 
 	caPath, ok := configs["global.binding.CAs_path"]
 
-	if ok == false {
+	if !ok {
 		return nil, fmt.Errorf("missing configuration value global.binding.CAs_path")
 	}
 
