@@ -57,12 +57,13 @@ func TestSecretRepository(t *testing.T) {
 			Type:       coreV1.SecretTypeOpaque,
 		}
 
-		fakeClientSet.CoreV1().Secrets(namespace).Create(context.Background(), existingSecret, metav1.CreateOptions{})
+		_, err := fakeClientSet.CoreV1().Secrets(namespace).Create(context.Background(), existingSecret, metav1.CreateOptions{})
+		require.NoError(t, err)
 
 		repo := NewSecretRepo(namespace, fakeClientSet)
 
 		// when
-		err := repo.SaveIstioCASecret(secretName, secretKey, newCACert)
+		err = repo.SaveIstioCASecret(secretName, secretKey, newCACert)
 		require.NoError(t, err)
 
 		// then
