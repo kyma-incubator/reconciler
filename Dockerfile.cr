@@ -1,6 +1,6 @@
 # Istioctl source images
 FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.15.3 AS istio-1_15_3
-FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.16.2 AS istio-1_16_2
+FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.16.3 AS istio-1_16_3
 FROM eu.gcr.io/kyma-project/external/istio/istioctl:1.17.1 AS istio-1_17_1
 
 # Build image
@@ -41,10 +41,10 @@ COPY --from=build /configs/ /configs/
 
 # Add istioctl tools
 COPY --from=istio-1_15_3 /usr/local/bin/istioctl /bin/istioctl-1.15.3
-COPY --from=istio-1_16_2 /usr/local/bin/istioctl /bin/istioctl-1.16.2
+COPY --from=istio-1_16_3 /usr/local/bin/istioctl /bin/istioctl-1.16.3
 COPY --from=istio-1_17_1 /usr/local/bin/istioctl /bin/istioctl-1.17.1
 # For multiple istioctl binaries, provide their paths separated with a semicolon (;) like in the Linux PATH variable.
-ENV ISTIOCTL_PATH=/bin/istioctl-1.15.3;/bin/istioctl-1.16.2;/bin/istioctl-1.17.1
+ENV ISTIOCTL_PATH=/bin/istioctl-1.15.3;/bin/istioctl-1.16.3;/bin/istioctl-1.17.1
 
 USER appuser:appuser
 
