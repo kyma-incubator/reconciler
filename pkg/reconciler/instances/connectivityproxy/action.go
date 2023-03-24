@@ -74,9 +74,16 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Error during copying resources")
 		}
 
-		context.Logger.Info("Installing component")
-		if err := a.Commands.InstallOrUpgrade(context); err != nil {
-			return errors.Wrap(err, "Error during installation")
+		refresh := app != nil
+
+		if refresh {
+			context.Logger.Info("Reconciling component")
+		} else {
+			context.Logger.Info("Installing component")
+		}
+
+		if err := a.Commands.InstallOrRefresh(context, refresh); err != nil {
+			return errors.Wrap(err, "Error during reconcilation")
 		}
 	} else if binding == nil && app != nil {
 		context.Logger.Debug("Removing component")

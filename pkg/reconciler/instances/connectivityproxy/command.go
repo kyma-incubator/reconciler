@@ -22,7 +22,7 @@ const (
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	InstallOrUpgrade(*service.ActionContext) error
+	InstallOrRefresh(*service.ActionContext, bool) error
 	CopyResources(*service.ActionContext, connectivityclient.ConnectivityClient) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
@@ -32,9 +32,9 @@ type CommandActions struct {
 	install service.Operation
 }
 
-func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext) error {
+func (a *CommandActions) InstallOrRefresh(context *service.ActionContext, refresh bool) error {
 
-	chartProvider, err := a.getChartProvider(context)
+	chartProvider, err := a.getChartProvider(context, refresh)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create chart provider")
@@ -48,15 +48,20 @@ func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext) error 
 	return nil
 }
 
-func (a *CommandActions) getChartProvider(context *service.ActionContext) (chart.Provider, error) {
+func (a *CommandActions) getChartProvider(context *service.ActionContext, withFilter bool) (chart.Provider, error) {
 	authenticator, err := rendering.NewExternalComponentAuthenticator()
 	if err != nil {
 		return nil, err
 	}
 	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(context.ChartProvider, authenticator)
 
-	filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
-	filters := []rendering.FilterFunc{filterOutManifests}
+	var filters []rendering.FilterFunc
+
+	if withFilter {
+		filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
+		filters = append(filters, filterOutManifests)
+	}
+
 	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
 }
 

@@ -78,7 +78,7 @@ func TestAction(t *testing.T) {
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
 		commands.On("CopyResources", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
-		commands.On("InstallOrUpgrade", context).Return(nil)
+		commands.On("InstallOrRefresh", context, false).Return(nil)
 		commands.On("PopulateConfigs", context, secret).Return(nil)
 
 		err := action.Run(context)
@@ -117,7 +117,7 @@ func TestAction(t *testing.T) {
 
 		commands.On("PopulateConfigs", context, secret).Return(nil)
 		commands.On("CopyResources", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
-		commands.On("InstallOrUpgrade", context).Return(nil)
+		commands.On("InstallOrRefresh", context, true).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)

@@ -134,7 +134,7 @@ func TestCommands(t *testing.T) {
 	t.Setenv("GIT_CLONE_TOKEN", "token")
 	componentName := "connectivity-proxy"
 
-	t.Run("Should upgrade existing installation", func(t *testing.T) {
+	t.Run("Should refresh existing installation", func(t *testing.T) {
 		// given
 		commands := CommandActions{
 			install: service.NewInstall(logger.NewLogger(true)),
@@ -168,48 +168,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOrUpgrade(actionContext)
-
-		// then
-		require.NoError(t, err)
-		kubeClient.AssertExpectations(t)
-	})
-
-	t.Run("Should upgrade existing installation with same release", func(t *testing.T) {
-		// given
-		commands := CommandActions{
-			install: service.NewInstall(logger.NewLogger(true)),
-		}
-
-		chartProvider := &chartmocks.Provider{}
-		chartProvider.On("WithFilter", mock.AnythingOfType("chart.Filter")).
-			Return(chartProvider)
-		chartProvider.On("RenderManifest", mock.AnythingOfType("*chart.Component")).
-			Return(&chart.Manifest{
-				Type:     chart.HelmChart,
-				Name:     componentName,
-				Manifest: cpManifest("1.2.4")}, nil)
-		ctx := context.Background()
-		kubeClient := &mocks.Client{}
-		kubeClient.On("Deploy", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string"),
-			mock.AnythingOfType("*service.LabelsInterceptor"),
-			mock.AnythingOfType("*service.AnnotationsInterceptor"),
-			mock.AnythingOfType("*service.ServicesInterceptor"),
-			mock.AnythingOfType("*service.ClusterWideResourceInterceptor"),
-			mock.AnythingOfType("*service.NamespaceInterceptor"),
-			mock.AnythingOfType("*service.FinalizerInterceptor")).
-			Return(nil, nil).Once()
-
-		actionContext := &service.ActionContext{
-			Context:       ctx,
-			KubeClient:    kubeClient,
-			Task:          &reconciler.Task{Component: componentName},
-			ChartProvider: chartProvider,
-			Logger:        logger.NewLogger(true),
-		}
-
-		// when
-		err := commands.InstallOrUpgrade(actionContext)
+		err := commands.InstallOrRefresh(actionContext, true)
 
 		// then
 		require.NoError(t, err)
@@ -252,7 +211,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOrUpgrade(actionContext)
+		err := commands.InstallOrRefresh(actionContext, false)
 
 		// then
 		require.NoError(t, err)
@@ -292,7 +251,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOrUpgrade(actionContext)
+		err := commands.InstallOrRefresh(actionContext, false)
 
 		// then
 		require.NoError(t, err)
