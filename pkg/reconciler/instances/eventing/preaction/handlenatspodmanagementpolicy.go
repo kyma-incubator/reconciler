@@ -100,7 +100,7 @@ func (r *handleNATSPodManagementPolicy) Execute(context *service.ActionContext, 
 		return err
 	}
 
-	// fetch the NATS statefulset from k8s
+	// fetch the NATS StatefulSet from K8s.
 	statefulSet, err := clientSet.AppsV1().StatefulSets(namespace).Get(context.Context, statefulSetName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -139,6 +139,7 @@ func deleteNATSStatefulSet(ctx *service.ActionContext, clientSet k8s.Interface, 
 
 	// Watch all Pods.
 	for _, pod := range pods.Items {
+		logger.Info(fmt.Sprintf("Watching nats Pod %s to wait for deletion", pod.GetName()))
 		if err := addToProgressTracker(tracker, logger, podType, pod.GetName()); err != nil {
 			return err
 		}
