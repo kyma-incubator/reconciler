@@ -29,13 +29,13 @@ type Config struct {
 	Global Global
 }
 
-// Global configuration of Jetstream feature.
+// Global configuration of JetStream feature.
 type Global struct {
-	Jetstream Jetstream `yaml:"jetstream"`
+	Jetstream JetStream `yaml:"jetstream"`
 }
 
-// Jetstream specific values like podManagementPolicy.
-type Jetstream struct {
+// JetStream specific values like podManagementPolicy.
+type JetStream struct {
 	PodManagementPolicy string `yaml:"podManagementPolicy"`
 }
 
@@ -43,7 +43,7 @@ type handleNATSPodManagementPolicy struct {
 	kubeClientProvider
 }
 
-// handleNATSPodManagementPolicy
+// handleNATSPodManagementPolicy handles the Pod management policy for NATS.
 func newHandleNATSPodManagementPolicy() *handleNATSPodManagementPolicy {
 	return &handleNATSPodManagementPolicy{
 		kubeClientProvider: defaultKubeClientProvider,
@@ -75,7 +75,7 @@ func (r *handleNATSPodManagementPolicy) getNATSChartPodManagementPolicy(context 
 }
 
 func (r *handleNATSPodManagementPolicy) Execute(context *service.ActionContext, logger *zap.SugaredLogger) error {
-	// decorate logger
+	// Decorate the logger.
 	logger = logger.With(log.KeyStep, handleNATSPodManagementPolicyName)
 
 	policyInChart, err := r.getNATSChartPodManagementPolicy(context)
@@ -83,13 +83,13 @@ func (r *handleNATSPodManagementPolicy) Execute(context *service.ActionContext, 
 		return err
 	}
 
-	// if the Parallel pod management policy is not set in NATS helm chart then skip action.
+	// If the Parallel Pod management policy is not set in NATS helm chart then skip action.
 	if policyInChart != string(appsv1.ParallelPodManagement) {
 		logger.With(log.KeyReason, "No actions needed as NATS chart policy != parallel").Info("Step skipped")
 		return nil
 	}
 
-	// initialize k8s client
+	// Initialize K8s client.
 	kubeClient, err := r.kubeClientProvider(context, logger)
 	if err != nil {
 		return err
@@ -100,11 +100,11 @@ func (r *handleNATSPodManagementPolicy) Execute(context *service.ActionContext, 
 		return err
 	}
 
-	// fetch the NATS StatefulSet from K8s.
+	// Fetch the NATS StatefulSet from K8s.
 	statefulSet, err := clientSet.AppsV1().StatefulSets(namespace).Get(context.Context, statefulSetName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.With(log.KeyReason, "Nats StatefulSet not found").Info("Step skipped")
+			logger.With(log.KeyReason, "NATS StatefulSet not found").Info("Step skipped")
 			return nil
 		}
 		return err
@@ -117,7 +117,7 @@ func (r *handleNATSPodManagementPolicy) Execute(context *service.ActionContext, 
 
 	// Updating the NATS PodManagementPolicy in the StatefulSet's Spec requires deletion of the StatefulSet and its Pods.
 	if statefulSet.Spec.PodManagementPolicy != appsv1.ParallelPodManagement {
-		logger.With(log.KeyReason, "NATS Statefulset's PodManagementPolicy != Parallel").Info("Deleting NATS Statefulset")
+		logger.With(log.KeyReason, "NATS Statefulset's PodManagementPolicy != Parallel").Info("Deleting NATS StatefulSet")
 		if err := deleteNATSStatefulSet(context, clientSet, tracker, logger); err != nil {
 			return err
 		}
@@ -139,7 +139,7 @@ func deleteNATSStatefulSet(ctx *service.ActionContext, clientSet k8s.Interface, 
 
 	// Watch all Pods.
 	for _, pod := range pods.Items {
-		logger.Info(fmt.Sprintf("Watching nats Pod %s to wait for deletion", pod.GetName()))
+		logger.Info(fmt.Sprintf("Watching NATS-server Pod %s to wait for termination", pod.GetName()))
 		if err := addToProgressTracker(tracker, logger, podType, pod.GetName()); err != nil {
 			return err
 		}
@@ -151,7 +151,7 @@ func deleteNATSStatefulSet(ctx *service.ActionContext, clientSet k8s.Interface, 
 	}
 
 	// Delete the StatefulSet.
-	logger.Info("Deleting nats StatefulSet in order to perform the migration")
+	logger.Info("Deleting NATS StatefulSet in order to perform the migration")
 	if err := clientSet.AppsV1().StatefulSets(namespace).Delete(ctx.Context, statefulSetName, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
