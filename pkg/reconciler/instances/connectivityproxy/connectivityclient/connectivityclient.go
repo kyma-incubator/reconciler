@@ -23,20 +23,20 @@ type ConnectivityCAClient struct {
 func NewConnectivityCAClient(task *reconciler.Task) (*ConnectivityCAClient, error) {
 	configs := task.Configuration
 
-	url, ok := configs["global.binding.url"]
+	url, ok := configs["global.binding.url"].(string)
 
-	if !ok {
+	if !ok || url == "" {
 		return nil, fmt.Errorf("missing configuration value global.binding.url")
 	}
 
-	caPath, ok := configs["global.binding.CAs_path"]
+	caPath, ok := configs["global.binding.CAs_path"].(string)
 
-	if !ok {
+	if !ok || caPath == "" {
 		return nil, fmt.Errorf("missing configuration value global.binding.CAs_path")
 	}
 
 	return &ConnectivityCAClient{
-		url: fmt.Sprintf("%v%v", url, caPath),
+		url: url + caPath,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -57,9 +57,6 @@ func (clientCA *ConnectivityCAClient) GetCA() ([]byte, error) {
 	}
 
 	defer resp.Body.Close()
-	if resp.StatusCode == 404 {
-		return nil, fmt.Errorf("URL not found: %q", clientCA.url)
-	}
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("error response code %d from: %q", resp.StatusCode, clientCA.url)

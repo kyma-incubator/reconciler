@@ -63,10 +63,6 @@ func TestAction(t *testing.T) {
 		},
 	}
 
-	//shows error here
-	//test_str := fmt.Sprintf("test: %v", secret.ObjectMeta)
-	//fmt.Println(test_str)
-
 	t.Run("Should install app if binding exists and app is missing", func(t *testing.T) {
 
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
@@ -77,8 +73,8 @@ func TestAction(t *testing.T) {
 		loader.On("FindBindingOperator", context).Return(binding, nil)
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
-		commands.On("CopyResources", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
-		commands.On("InstallOrRefresh", context, false).Return(nil)
+		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
+		commands.On("Apply", context, false).Return(nil)
 		commands.On("PopulateConfigs", context, secret).Return(nil)
 
 		err := action.Run(context)
@@ -116,8 +112,8 @@ func TestAction(t *testing.T) {
 		loader.On("FindSecret", context, binding).Return(secret, nil)
 
 		commands.On("PopulateConfigs", context, secret).Return(nil)
-		commands.On("CopyResources", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
-		commands.On("InstallOrRefresh", context, true).Return(nil)
+		commands.On("CreateCARootSecret", context, mock.AnythingOfType("*connectivityclient.ConnectivityCAClient")).Return(nil)
+		commands.On("Apply", context, true).Return(nil)
 
 		err := action.Run(context)
 		require.NoError(t, err)

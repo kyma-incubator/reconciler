@@ -69,3 +69,9 @@ func TestConnectivityClient(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+//func TestNewConnectivityClient(t *testing.T) {
+//
+//	t.Run("Should return error when server returns empty CA value", func(t *testing.T) {
+//
+//}
