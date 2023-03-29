@@ -22,8 +22,8 @@ const (
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	InstallOrRefresh(*service.ActionContext, bool) error
-	CopyResources(*service.ActionContext, connectivityclient.ConnectivityClient) error
+	Apply(*service.ActionContext, bool) error
+	CreateCARootSecret(*service.ActionContext, connectivityclient.ConnectivityClient) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
@@ -32,7 +32,7 @@ type CommandActions struct {
 	install service.Operation
 }
 
-func (a *CommandActions) InstallOrRefresh(context *service.ActionContext, refresh bool) error {
+func (a *CommandActions) Apply(context *service.ActionContext, refresh bool) error {
 
 	chartProvider, err := a.getChartProvider(context, refresh)
 
@@ -79,7 +79,7 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 	}
 }
 
-func (a *CommandActions) CopyResources(context *service.ActionContext, caClient connectivityclient.ConnectivityClient) error {
+func (a *CommandActions) CreateCARootSecret(context *service.ActionContext, caClient connectivityclient.ConnectivityClient) error {
 
 	ca, err := caClient.GetCA()
 

@@ -69,7 +69,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Error - cannot create Connectivity CA client")
 		}
 		context.Logger.Debug("Copying resources to target cluster")
-		err = a.Commands.CopyResources(context, caClient)
+		err = a.Commands.CreateCARootSecret(context, caClient)
 		if err != nil {
 			return errors.Wrap(err, "Error during copying resources")
 		}
@@ -82,7 +82,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			context.Logger.Info("Installing component")
 		}
 
-		if err := a.Commands.InstallOrRefresh(context, refresh); err != nil {
+		if err := a.Commands.Apply(context, refresh); err != nil {
 			return errors.Wrap(err, "Error during reconcilation")
 		}
 	} else if binding == nil && app != nil {

@@ -37,7 +37,7 @@ func TestCommand(t *testing.T) {
 		k8Sclient := mocks.Client{}
 		k8Sclient.On("Clientset").Return(fakeClientSet, nil)
 
-		err := commands.CopyResources(&service.ActionContext{
+		err := commands.CreateCARootSecret(&service.ActionContext{
 			KubeClient:       &k8Sclient,
 			WorkspaceFactory: nil,
 			Context:          nil,
@@ -79,7 +79,7 @@ func TestCommand(t *testing.T) {
 		k8Sclient := mocks.Client{}
 		k8Sclient.On("Clientset").Return(fakeClientSet, nil)
 
-		err := commands.CopyResources(&service.ActionContext{
+		err := commands.CreateCARootSecret(&service.ActionContext{
 			KubeClient:       &k8Sclient,
 			WorkspaceFactory: nil,
 			Context:          nil,
@@ -111,7 +111,7 @@ func TestCommand(t *testing.T) {
 		k8Sclient := mocks.Client{}
 		k8Sclient.On("Clientset").Return(fakeClientSet, nil)
 
-		err := commands.CopyResources(&service.ActionContext{
+		err := commands.CreateCARootSecret(&service.ActionContext{
 			KubeClient:       &k8Sclient,
 			WorkspaceFactory: nil,
 			Context:          nil,
@@ -168,7 +168,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOrRefresh(actionContext, true)
+		err := commands.Apply(actionContext, true)
 
 		// then
 		require.NoError(t, err)
@@ -211,7 +211,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOrRefresh(actionContext, false)
+		err := commands.Apply(actionContext, false)
 
 		// then
 		require.NoError(t, err)
@@ -251,7 +251,7 @@ func TestCommands(t *testing.T) {
 		}
 
 		// when
-		err := commands.InstallOrRefresh(actionContext, false)
+		err := commands.Apply(actionContext, false)
 
 		// then
 		require.NoError(t, err)
