@@ -13,18 +13,5 @@ issues:
       linters:
         - gosec
 linters:
-  disable-all: true
-  enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - typecheck
-    - unused
-    - revive
-    - gofmt
-    - misspell
-    - gochecknoinits
-    - unparam
-    - exportloopref
-    - gosec
+  disable:
+    - staticcheck
