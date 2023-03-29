@@ -42,7 +42,7 @@ golangci::run_checks() {
   shout "Run golangci-lint checks"
 
   cd ${ROOT_PATH}
-  golangci-lint run -v --timeout=10m --config $CURRENT_DIR/.golangci.yml --skip-dirs-use-default --new-from-rev=$PULL_BASE_SHA --concurrency 4
+  golangci-lint run -v --timeout=10m --config $CURRENT_DIR/.golangci.yml --skip-dirs-use-default --new-from-rev=$PULL_BASE_SHA --concurrency 2
 
   echo -e "${GREEN}√ run golangci-lint${NC}"
 }
