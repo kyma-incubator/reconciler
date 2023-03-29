@@ -60,6 +60,7 @@ func (r *revisionResolver) resolveRevision(rev string) (*plumbing.Hash, error) {
 	return r.repository.ResolveRevision(plumbing.Revision(rev))
 }
 
+
 func (r *revisionResolver) fetch(name string, kind string) error {
 	switch kind {
 	case "pr":
