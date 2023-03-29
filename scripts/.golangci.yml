@@ -12,3 +12,19 @@ issues:
     - text: "G404:" # Ignore weak random number generator lint. We do not need strong randomness here.
       linters:
         - gosec
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - typecheck
+    - unused
+    - revive
+    - gofmt
+    - misspell
+    - gochecknoinits
+    - unparam
+    - exportloopref
+    - gosec
