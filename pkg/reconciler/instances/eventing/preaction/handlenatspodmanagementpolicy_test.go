@@ -3,18 +3,23 @@ package preaction
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/eventing/log"
 	k8s "github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/progress"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
-	"testing"
 
 	chartmocks "github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -227,6 +232,83 @@ func TestHandleNATSPodManagementPolicy(t *testing.T) {
 	}
 }
 
+// Test_deleteNATSStatefulSet_failIfPodIsNotTerminated makes sure that deleteNATSStatefulSet returns an err if the Pod
+// is never terminated.
+func Test_deleteNATSStatefulSet_failIfPodIsNotTerminated(t *testing.T) {
+	// Assert.
+	k8sClient := fake.NewSimpleClientset()
+	mockClient := mocks.Client{}
+	mockClient.On("Clientset").Return(k8sClient, nil)
+
+	chartProvider := &chartmocks.Provider{}
+	chartValuesYAML := getJetStreamValuesYAML(true, string(appsv1.ParallelPodManagement))
+	chartValues, err := unmarshalTestValues(chartValuesYAML)
+	require.NoError(t, err)
+
+	chartProvider.On("Configuration", mock.Anything).Return(chartValues, nil)
+
+	actionContext := &service.ActionContext{
+		KubeClient:    &mockClient,
+		Context:       context.TODO(),
+		Logger:        logger.NewLogger(false),
+		Task:          &reconciler.Task{Version: "test"},
+		ChartProvider: chartProvider,
+	}
+
+	// Create NATS StatefulSet.
+	sts := newStatefulSet(withPodManagementPolicy(appsv1.OrderedReadyPodManagement))
+	_, err = createStatefulSet(actionContext.Context, k8sClient, sts)
+	require.NoError(t, err)
+
+	// Create Pod. This Pod is not associated with the StatefulSet, so it will not be terminated if the sts gets removed.
+	pod := newPod(withLabels(map[string]string{"app.kubernetes.io/name": "nats"}))
+	err = createPod(actionContext.Context, k8sClient, pod)
+	require.NoError(t, err)
+
+	// Set tracker.
+	//todo logger
+	lgr := logger.NewTestLogger(t)
+	tracker, err := progress.NewProgressTracker(k8sClient, lgr,
+		progress.Config{
+			Interval: progressTrackerInterval,
+			Timeout:  10 * time.Second,
+		},
+	)
+	require.NoError(t, err)
+
+	// Act.
+	err = deleteNATSStatefulSet(actionContext, k8sClient, tracker, lgr)
+
+	// Asses.
+	require.Error(t, err)
+	expectedErr := "progress tracker reached timeout (10 secs): stop checking progress of resource transition to state 'terminated'"
+	require.Equal(t, expectedErr, err.Error())
+}
+
+type podOpt func(pod *corev1.Pod)
+
+func newPod(opts ...podOpt) *corev1.Pod {
+	pod := &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      uuid.NewString(),
+			Namespace: namespace,
+		},
+	}
+
+	for _, opt := range opts {
+		opt(pod)
+	}
+
+	return pod
+}
+
+func withLabels(labels map[string]string) podOpt {
+	return func(pod *corev1.Pod) {
+		pod.SetLabels(labels)
+	}
+}
+
 type statefulSetOpt func(set *appsv1.StatefulSet)
 
 func newStatefulSet(opts ...statefulSetOpt) *appsv1.StatefulSet {
@@ -283,6 +365,12 @@ func createStatefulSet(ctx context.Context, client kubernetes.Interface, statefu
 	return client.AppsV1().StatefulSets(statefulSet.Namespace).Create(ctx, statefulSet, metav1.CreateOptions{})
 }
 
+func createPod(ctx context.Context, client kubernetes.Interface, pod *corev1.Pod) error {
+	if _, err := client.CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
 func createPVC(ctx context.Context, client kubernetes.Interface, name string) error {
 	pvc := &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
