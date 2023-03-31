@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/pkg/errors"
 )
 
@@ -20,8 +19,11 @@ type ConnectivityCAClient struct {
 	client *http.Client
 }
 
-func NewConnectivityCAClient(task *reconciler.Task) (*ConnectivityCAClient, error) {
-	configs := task.Configuration
+func NewConnectivityCAClient(configs map[string]interface{}) (*ConnectivityCAClient, error) {
+
+	if configs == nil {
+		return nil, fmt.Errorf("missing configuration")
+	}
 
 	url, ok := configs["global.binding.url"].(string)
 

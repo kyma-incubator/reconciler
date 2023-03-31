@@ -63,15 +63,15 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		context.Logger.Debug("Populating configs")
 		a.Commands.PopulateConfigs(context, bindingSecret)
 
-		caClient, err := connectivityclient.NewConnectivityCAClient(context.Task)
+		caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
 
 		if err != nil {
 			return errors.Wrap(err, "Error - cannot create Connectivity CA client")
 		}
-		context.Logger.Debug("Copying resources to target cluster")
+		context.Logger.Debug("Creating Istio CA cacert secret for Connectivity Proxy")
 		err = a.Commands.CreateCARootSecret(context, caClient)
 		if err != nil {
-			return errors.Wrap(err, "Error during copying resources")
+			return errors.Wrap(err, "error during creatiion of Istio CA cacert secret for Connectivity Proxy")
 		}
 
 		refresh := app != nil
