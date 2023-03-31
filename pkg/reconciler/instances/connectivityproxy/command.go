@@ -161,12 +161,12 @@ func getIstioSecretCfg(config map[string]interface{}) (string, string, string, e
 		return "", "", "", errors.New("missing configuration value istio.secret.name")
 	}
 
-	istioNamespace, ok := config["istio.secret.namespace"]
-	if !ok || istioNamespace == nil || istioNamespace == "" {
+	istioNamespace := config["istio.secret.namespace"]
+	if istioNamespace == nil || istioNamespace == "" {
 		istioNamespace = "istio-system"
 	}
-	istioSecretKey, ok := config["istio.secret.key"]
-	if !ok || istioSecretKey == nil || istioSecretKey == "" {
+	istioSecretKey := config["istio.secret.key"]
+	if !ok || istioSecretKey == "" {
 		istioSecretKey = "cacert"
 	}
 

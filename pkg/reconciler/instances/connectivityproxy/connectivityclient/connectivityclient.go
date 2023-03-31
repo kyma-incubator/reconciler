@@ -25,20 +25,20 @@ func NewConnectivityCAClient(configs map[string]interface{}) (*ConnectivityCACli
 		return nil, fmt.Errorf("missing configuration")
 	}
 
-	url, ok := configs["global.binding.url"].(string)
+	url := configs["global.binding.url"]
 
-	if !ok || url == "" {
+	if url == nil || url == "" {
 		return nil, fmt.Errorf("missing configuration value global.binding.url")
 	}
 
-	caPath, ok := configs["global.binding.CAs_path"].(string)
+	caPath := configs["global.binding.CAs_path"]
 
-	if !ok || caPath == "" {
+	if caPath == nil || caPath == "" {
 		return nil, fmt.Errorf("missing configuration value global.binding.CAs_path")
 	}
 
 	return &ConnectivityCAClient{
-		url: url + caPath,
+		url: fmt.Sprintf("%v%v", url, caPath),
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
