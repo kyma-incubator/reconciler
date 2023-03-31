@@ -166,7 +166,7 @@ func getIstioSecretCfg(config map[string]interface{}) (string, string, string, e
 		istioNamespace = "istio-system"
 	}
 	istioSecretKey := config["istio.secret.key"]
-	if !ok || istioSecretKey == "" {
+	if istioSecretKey == nil || istioSecretKey == "" {
 		istioSecretKey = "cacert"
 	}
 
