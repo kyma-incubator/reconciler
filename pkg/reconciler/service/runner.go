@@ -108,8 +108,8 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 		retry.Delay(r.retryDelay),
 		retry.LastErrorOnly(false),
 		retry.RetryIf(func(err error) bool {
-			if strings.Contains(err.Error(), "no such host") {
-				r.logger.Warnf("stop retry with err: %s", err)
+			if isIgnorableError(err.Error()) {
+				r.logger.Warnf("stop retry with ignorable error: %s", err)
 				return false
 			}
 			return true
@@ -141,6 +141,15 @@ func (r *runner) Run(ctx context.Context, task *reconciler.Task, callback callba
 	}
 
 	return err
+}
+
+// This function let reconciler can fail-fast because of certain ignorable errors
+func isIgnorableError(err string) bool {
+	if strings.Contains(err, "no such host") ||
+		strings.Contains(err, "x509: certificate is valid") {
+		return true
+	}
+	return false
 }
 
 func (r *runner) exposeProcessingDuration(reconcilerMetricsSet *metrics.ReconcilerMetricsSet, task *reconciler.Task, state model.OperationState, processingDuration time.Duration) {
