@@ -97,6 +97,8 @@ func (t *ClusterStatusTransition) StartReconciliation(runtimeID string, configVe
 			PreComponents:        cfg.PreComponents,
 			DeleteStrategy:       string(cfg.DeleteStrategy),
 			ReconciliationStatus: newClusterState.Status.Status,
+			ComponentCRDs:        cfg.ComponentCRDs,
+			Kubeconfig:           newClusterState.Cluster.Kubeconfig,
 		})
 		if err == nil {
 			t.logger.Debugf("Starting reconciliation for cluster '%s' succeeded: reconciliation successfully enqueued "+

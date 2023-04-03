@@ -1,6 +1,12 @@
 package model
 
 import (
+	"context"
+	"fmt"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
+	"github.com/kyma-incubator/reconciler/pkg/test"
 	"testing"
 
 	"github.com/kyma-incubator/reconciler/pkg/keb"
@@ -11,6 +17,52 @@ type testCase struct {
 	entity1 *ClusterConfigurationEntity
 	entity2 *ClusterConfigurationEntity
 	equal   bool
+}
+
+type isKubeconfigTestCase struct {
+	kubeconfig     string
+	expectedResult bool
+}
+
+func TestIsKubeconfig(t *testing.T) {
+	testCases := []*isKubeconfigTestCase{
+		{
+			kubeconfig:     "",
+			expectedResult: false,
+		},
+		{
+			kubeconfig:     "abc",
+			expectedResult: false,
+		},
+		{
+			kubeconfig:     "{}",
+			expectedResult: false,
+		},
+		{
+			kubeconfig:     "---",
+			expectedResult: false,
+		},
+		{
+			kubeconfig: func() string {
+				return string(test.ReadFile(t, "test/kubeconfig_valid.yaml"))
+			}(),
+			expectedResult: true,
+		},
+		{
+			kubeconfig: func() string {
+				return string(test.ReadFile(t, "test/kubeconfig_invalid.yaml"))
+			}(),
+			expectedResult: false,
+		},
+	}
+	for _, tc := range testCases {
+		result := isKubeconfig(tc.kubeconfig)
+		if tc.expectedResult {
+			require.True(t, result, fmt.Sprintf("Expected valid kubeconfig  when parsing string '%s'", tc.kubeconfig))
+		} else {
+			require.False(t, result, fmt.Sprintf("Expected invalid kubeconfig when parsing string '%s'", tc.kubeconfig))
+		}
+	}
 }
 
 func TestClusterConfigEntity(t *testing.T) {
@@ -359,6 +411,111 @@ func TestReconciliationSequence(t *testing.T) {
 				PreComponents:        tc.preComps,
 				DeleteStrategy:       "system",
 				ReconciliationStatus: tc.reconciliationStatus,
+			})
+			for idx, expected := range tc.expected.Queue {
+				require.ElementsMatch(t, result.Queue[idx], expected)
+			}
+		})
+	}
+}
+
+func TestReconciliationSequenceWithMigratedComponents(t *testing.T) {
+	test.IntegrationTest(t)
+
+	k8sClient, err := kubernetes.NewKubernetesClient(test.ReadKubeconfig(t), log.NewLogger(true), nil)
+	require.NoError(t, err)
+	_, err = k8sClient.Deploy(context.Background(), test.ReadManifest(t, "crd_comp1.yaml"), "default")
+	require.NoError(t, err)
+	_, err = k8sClient.Deploy(context.Background(), test.ReadManifest(t, "crd_pre2.yaml"), "default")
+	require.NoError(t, err)
+
+	defer func() {
+		_, err = k8sClient.Delete(context.Background(), test.ReadManifest(t, "crd_comp1.yaml"), "default")
+		require.NoError(t, err)
+		_, err = k8sClient.Delete(context.Background(), test.ReadManifest(t, "crd_pre2.yaml"), "default")
+		require.NoError(t, err)
+	}()
+
+	tests := []struct {
+		name                 string
+		preComps             [][]string
+		componentCRDs        map[string]config.ComponentCRD
+		entity               *ClusterConfigurationEntity
+		reconciliationStatus Status
+		expected             *ReconciliationSequence
+		err                  error
+	}{
+		{
+			name:     "With migrated and non-migrated components",
+			preComps: [][]string{{"Pre1"}, {"Pre2"}},
+			componentCRDs: map[string]config.ComponentCRD{
+				"PreX": {
+					Group:   "reconciler.kyma-project.io",
+					Version: "v1beta1",
+					Kind:    "unknown1",
+				},
+				"Pre2": {
+					Group:   "reconciler.kyma-project.io",
+					Version: "v2",
+					Kind:    "pres2",
+				},
+				"Comp1": {
+					Group:   "reconciler.kyma-project.io",
+					Version: "v1",
+					Kind:    "comps1",
+				},
+				"Comp2": {
+					Group:   "reconciler.kyma-project.io",
+					Version: "v2beta2",
+					Kind:    "unknown2",
+				},
+			},
+			reconciliationStatus: ClusterStatusReconciling,
+			entity: &ClusterConfigurationEntity{
+				Components: []*keb.Component{
+					{
+						Component: "Pre1",
+					},
+					{
+						Component: "Pre2",
+					},
+					{
+						Component: "Comp1",
+					},
+					{
+						Component: "Comp2",
+					},
+				},
+			},
+			expected: &ReconciliationSequence{
+				Queue: [][]*keb.Component{
+					{
+						crdComponent,
+					},
+					{
+						{
+							Component: "Pre1",
+						},
+					},
+					{
+						{
+							Component: "Comp2",
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.entity.GetReconciliationSequence(&ReconciliationSequenceConfig{
+				PreComponents:        tc.preComps,
+				DeleteStrategy:       "system",
+				ReconciliationStatus: tc.reconciliationStatus,
+				Kubeconfig:           test.ReadKubeconfig(t),
+				ComponentCRDs:        tc.componentCRDs,
 			})
 			for idx, expected := range tc.expected.Queue {
 				require.ElementsMatch(t, result.Queue[idx], expected)

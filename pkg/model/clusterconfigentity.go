@@ -1,9 +1,20 @@
 package model
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	log "github.com/kyma-incubator/reconciler/pkg/logger"
+	"github.com/kyma-incubator/reconciler/pkg/scheduler/config"
+	"go.uber.org/zap"
+	k8serr "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/kyma-incubator/reconciler/pkg/db"
@@ -108,8 +119,80 @@ func (c *ClusterConfigurationEntity) GetComponent(component string) *keb.Compone
 
 func (c *ClusterConfigurationEntity) GetReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {
 	reconSeq := newReconciliationSequence(cfg)
-	reconSeq.addComponents(c.Components)
+	reconSeq.addComponents(c.nonMigratedComponents(cfg))
 	return reconSeq
+}
+
+func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSequenceConfig) []*keb.Component {
+	logger := log.NewLogger(false)
+
+	if !isKubeconfig(cfg.Kubeconfig) {
+		logger.Warnf("Kubeconfig is missing or invalid for cluster '%s': not able to verify which components were "+
+			"already migrated. We assume this is a test case and consider all components for this reconciliation.",
+			c.RuntimeID)
+		return c.Components
+	}
+
+	restConfig, err := clientcmd.NewClientConfigFromBytes([]byte(cfg.Kubeconfig))
+	if err != nil {
+		return c.stopAndLogK8sError(logger, "restConfig", err)
+	}
+
+	clientConfig, err := restConfig.ClientConfig()
+	if err != nil {
+		return c.stopAndLogK8sError(logger, "clientConfig", err)
+	}
+
+	kubeClient, err := dynamic.NewForConfig(clientConfig)
+	if err != nil {
+		return c.stopAndLogK8sError(logger, "kubeClient", err)
+	}
+
+	//check which of the configured CRDs exist on the cluster
+	var migratedComponents = make(map[string]bool, len(cfg.ComponentCRDs))
+	for compName, compGVK := range cfg.ComponentCRDs {
+		gvr := schema.GroupVersionResource{
+			Group:    compGVK.Group,
+			Version:  compGVK.Version,
+			Resource: compGVK.Kind,
+		}
+		_, err := kubeClient.Resource(gvr).List(context.Background(), v1.ListOptions{})
+		if err == nil {
+			logger.Debugf("Found CRD '%s' on cluster '%s' which indicates that component '%s' "+
+				"is migrated to new reconicler system: skipping it from reconciliation",
+				gvr, c.RuntimeID, compName)
+			migratedComponents[strings.ToLower(compName)] = true
+		} else if !k8serr.IsNotFound(err) {
+			logger.Errorf("Failed to retrieve CRD '%s:%s' from cluster '%s': %s",
+				compGVK.Group, compGVK.Version, c.RuntimeID, err)
+			logger.Warnf("It is assumed that component '%s' on cluster '%s' "+
+				"is already migrated and the old reconicler will NOT reconcile it now", compName, c.RuntimeID)
+		}
+	}
+
+	var result []*keb.Component
+	for _, comp := range c.Components {
+		if migratedComponents[strings.ToLower(comp.Component)] {
+			continue
+		}
+		result = append(result, comp)
+	}
+
+	return result
+}
+
+func isKubeconfig(kubeconfig string) bool {
+	byteKubecfg := []byte(kubeconfig)
+	cfg, err := clientcmd.Load(byteKubecfg)
+	return err == nil && !api.IsConfigEmpty(cfg) && len(cfg.Clusters) > 0 && len(cfg.AuthInfos) > 0
+}
+
+func (c *ClusterConfigurationEntity) stopAndLogK8sError(logger *zap.SugaredLogger, subject string, err error) []*keb.Component {
+	logger.Errorf("Failed to create %s and cannot verify which of the components of cluster '%s' "+
+		"are already managed by the operator-based reconciler: %s", subject, c.RuntimeID, err)
+	logger.Warnf("Caused by missig K8s client, old reconciler will not reconcile "+
+		"any component on cluster '%s'", c.RuntimeID)
+	return make([]*keb.Component, 0)
 }
 
 type ReconciliationSequence struct {
@@ -120,7 +203,9 @@ type ReconciliationSequence struct {
 type ReconciliationSequenceConfig struct {
 	PreComponents        [][]string
 	DeleteStrategy       string
+	ComponentCRDs        map[string]config.ComponentCRD
 	ReconciliationStatus Status
+	Kubeconfig           string
 }
 
 func newReconciliationSequence(cfg *ReconciliationSequenceConfig) *ReconciliationSequence {

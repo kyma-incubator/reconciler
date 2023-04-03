@@ -42,4 +42,10 @@ mothership:
       eventing:
         url: "http://localhost:8082/v1/run"
     preComponents:
-      - [cluster-essentials, istio-configuration, istio, certificates]
+      - [ cluster-essentials, istio-configuration, istio, certificates ]
+    componentCRDs: {}
+    # Example:
+    #  keda:
+    #    group: operator.kyma-project.io
+    #    version: v1alpha1
+    #    kind: kedas

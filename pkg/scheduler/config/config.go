@@ -8,6 +8,12 @@ import (
 
 const FallbackComponentReconciler = "base"
 
+type ComponentCRD struct {
+	Group   string
+	Version string
+	Kind    string
+}
+
 type ComponentReconciler struct {
 	URL string
 }
@@ -16,6 +22,7 @@ type SchedulerConfig struct {
 	PreComponents  [][]string
 	Reconcilers    map[string]ComponentReconciler
 	DeleteStrategy string
+	ComponentCRDs  map[string]ComponentCRD
 }
 
 type Config struct {
