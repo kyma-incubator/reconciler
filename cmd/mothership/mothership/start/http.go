@@ -92,7 +92,7 @@ func startWebserver(ctx context.Context, o *Options) error {
 		if err != nil {
 			return err
 		}
-		defer func() { _ = auditLogger.Sync() }() // make golint happy
+		defer func() { _ = auditLogger.Sync() }()
 		auditLoggerMiddleware := newAuditLoggerMiddleware(auditLogger, o)
 
 		apiRouter.Use(func(h http.Handler) http.Handler {

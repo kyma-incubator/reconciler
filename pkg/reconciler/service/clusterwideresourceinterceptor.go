@@ -14,7 +14,7 @@ type ClusterWideResourceInterceptor struct {
 	clusterWideResources []clusterWideResource
 }
 
-func (c *ClusterWideResourceInterceptor) Intercept(resources *kubernetes.ResourceCacheList, namespace string) error {
+func (c *ClusterWideResourceInterceptor) Intercept(resources *kubernetes.ResourceCacheList, _ string) error {
 	interceptorFunc := func(u *unstructured.Unstructured) error {
 		//clean namespace field from cluster-wide resource template
 		u.SetNamespace("")

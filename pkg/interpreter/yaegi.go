@@ -77,9 +77,9 @@ func (gi *GolangInterpreter) EvalBool() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	bool, err := strconv.ParseBool(strings.ToLower(value))
+	boolean, err := strconv.ParseBool(strings.ToLower(value))
 	if err == nil {
-		return bool, nil
+		return boolean, nil
 	}
 	return false, &NoBooleanResultError{Result: value}
 }

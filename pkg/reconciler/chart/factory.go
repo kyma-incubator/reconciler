@@ -228,11 +228,7 @@ func (f *DefaultFactory) downloadComponent(component *Component, dstDir string) 
 	}
 
 	//create a marker file to flag success
-	if err := f.createReadyMarker(dstDir); err != nil {
-		return err
-	}
-
-	return nil
+	return f.createReadyMarker(dstDir)
 }
 
 func (f *DefaultFactory) downloadArchive(URL, dstDir string, authenticator ExternalComponentAuthenticator) (string, error) {
@@ -328,10 +324,7 @@ func (f *DefaultFactory) clone(version string, dstDir string, markerDir string, 
 		return err
 	}
 	//create a marker file to flag success
-	if err := f.createReadyMarker(markerDir); err != nil {
-		return err
-	}
-	return nil
+	return f.createReadyMarker(markerDir)
 }
 
 func (f *DefaultFactory) Delete(version string) error {

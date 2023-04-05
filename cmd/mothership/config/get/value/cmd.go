@@ -30,7 +30,7 @@ func NewCmd(o *Options) *cobra.Command {
 	return cmd
 }
 
-func Run(o *Options, valueFilter []string) error {
+func Run(o *Options, _ []string) error {
 	key, err := getKey(o)
 	if err != nil {
 		return err
