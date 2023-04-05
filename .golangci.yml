@@ -1,18 +1,18 @@
 run:
   modules-download-mode: readonly
+  skip-dirs-use-default: true
+  skip-files:
+    - "mock.go|_test.go|fake_client.go"
 linters:
   disable-all: true
   enable:
-    - deadcode
     - errcheck
     - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - structcheck
     - typecheck
     - unused
-    - varcheck
     - revive
     - gofmt
     - misspell

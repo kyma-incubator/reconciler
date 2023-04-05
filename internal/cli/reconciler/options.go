@@ -44,8 +44,5 @@ func (o *Options) Validate() error {
 	if err := o.HeartbeatSenderConfig.validate(); err != nil {
 		return err
 	}
-	if err := o.ProgressTrackerConfig.validate(); err != nil {
-		return err
-	}
-	return nil
+	return o.ProgressTrackerConfig.validate()
 }

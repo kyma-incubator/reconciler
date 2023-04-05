@@ -47,9 +47,5 @@ func (i *DefaultResetAction) Reset(context context.Context, kubeClient kubernete
 			})
 		}
 	}
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return g.Wait()
 }

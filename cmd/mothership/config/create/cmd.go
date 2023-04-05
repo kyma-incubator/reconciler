@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmd(o *cli.Options) *cobra.Command {
+func NewCmd(_ *cli.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create configuration entries",

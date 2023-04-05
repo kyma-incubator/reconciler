@@ -85,7 +85,7 @@ func NewInMemoryReconciliationRepository() Repository {
 	}
 }
 
-func (r *InMemoryReconciliationRepository) WithTx(tx *db.TxConnection) (Repository, error) {
+func (r *InMemoryReconciliationRepository) WithTx(_ *db.TxConnection) (Repository, error) {
 	return r, nil
 }
 

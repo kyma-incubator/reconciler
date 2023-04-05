@@ -34,7 +34,7 @@ resolve:
 .PHONY: lint
 lint:
 	GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANG_CI_LINT_VERSION)
-	$(LOCALBIN)/golangci-lint run -v --timeout=20m
+	$(LOCALBIN)/golangci-lint run -v --timeout=20m ./...
 
 .PHONY: build
 build: build-linux build-darwin build-linux-arm build-windows

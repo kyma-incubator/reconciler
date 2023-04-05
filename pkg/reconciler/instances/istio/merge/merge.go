@@ -16,7 +16,7 @@ import (
 )
 
 // NeedsIngressGatewayRestart reports if applying IstioCR configuration present on cluster requires restart of Istio IngressGateway
-func NeedsIngressGatewayRestart(ctx context.Context, provider clientset.Provider, kubeConfig string, logger *zap.SugaredLogger) (bool, error) {
+func NeedsIngressGatewayRestart(ctx context.Context, provider clientset.Provider, kubeConfig string, _ *zap.SugaredLogger) (bool, error) {
 	istioClient, err := provider.GetIstioClient(kubeConfig)
 	if err != nil {
 		return false, err
