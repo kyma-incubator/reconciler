@@ -11,9 +11,21 @@ ifeq ($(VERSION),stable)
 	VERSION = stable-${shell git rev-parse --short HEAD}
 endif
 
+ifeq (,$(shell go env GOBIN))
+	GOBIN=$(shell go env GOPATH)/bin
+else
+	GOBIN=$(shell go env GOBIN)
+endif
+
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
 .DEFAULT_GOAL=all
 FLAGS = -ldflags '-s -w'
 GO_COMPAT = 1.18
+GOLANG_CI_LINT = $(LOCALBIN)/golangci-lint
+GOLANG_CI_LINT_VERSION ?= v1.52.2
 
 .PHONY: resolve
 resolve:
@@ -21,7 +33,8 @@ resolve:
 
 .PHONY: lint
 lint:
-	./scripts/lint.sh
+	GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANG_CI_LINT_VERSION)
+	$(LOCALBIN)/golangci-lint run -v --timeout=20m
 
 .PHONY: build
 build: build-linux build-darwin build-linux-arm build-windows
