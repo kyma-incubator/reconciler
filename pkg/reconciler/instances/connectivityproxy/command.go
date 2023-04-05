@@ -2,14 +2,17 @@ package connectivityproxy
 
 import (
 	"encoding/json"
+	"fmt"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/rendering"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/secrets"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
-	appsv1 "k8s.io/api/apps/v1"
 	apiCoreV1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
+	k8s "k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -19,25 +22,19 @@ const (
 
 //go:generate mockery --name=Commands --output=mocks --outpkg=connectivityproxymocks --case=underscore
 type Commands interface {
-	InstallOrUpgrade(*service.ActionContext, *appsv1.StatefulSet) error
-	CopyResources(*service.ActionContext) error
+	Apply(*service.ActionContext, bool) error
+	CreateCARootSecret(*service.ActionContext, connectivityclient.ConnectivityClient) error
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
 
-type NewInClusterClientSet func(logger *zap.SugaredLogger) (kubernetes.Interface, error)
-type NewTargetClientSet func(context *service.ActionContext) (kubernetes.Interface, error)
-
 type CommandActions struct {
-	clientSetFactory       NewInClusterClientSet
-	targetClientSetFactory NewTargetClientSet
-	install                service.Operation
-	copyFactory            []CopyFactory
+	install service.Operation
 }
 
-func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *appsv1.StatefulSet) error {
+func (a *CommandActions) Apply(context *service.ActionContext, refresh bool) error {
 
-	chartProvider, err := a.getChartProvider(context, app)
+	chartProvider, err := a.getChartProvider(context, refresh)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create chart provider")
@@ -51,24 +48,21 @@ func (a *CommandActions) InstallOrUpgrade(context *service.ActionContext, app *a
 	return nil
 }
 
-func (a *CommandActions) getChartProvider(context *service.ActionContext, app *appsv1.StatefulSet) (chart.Provider, error) {
+func (a *CommandActions) getChartProvider(context *service.ActionContext, withFilter bool) (chart.Provider, error) {
 	authenticator, err := rendering.NewExternalComponentAuthenticator()
 	if err != nil {
 		return nil, err
 	}
 	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(context.ChartProvider, authenticator)
 
-	upgrade := app != nil && app.GetLabels() != nil
+	var filters []rendering.FilterFunc
 
-	if upgrade {
+	if withFilter {
 		filterOutManifests := rendering.NewFilterOutAnnotatedManifests(SkipManifestAnnotation)
-		skipInstallationIfReleaseNotChanged := rendering.NewSkipReinstallingCurrentRelease(context.Logger, app.Name, app.GetLabels()[rendering.ReleaseLabelKey])
-		filters := []rendering.FilterFunc{skipInstallationIfReleaseNotChanged, filterOutManifests}
-
-		return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
+		filters = append(filters, filterOutManifests)
 	}
 
-	return chartProviderWithAuthentication, nil
+	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
 }
 
 func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
@@ -85,23 +79,21 @@ func (a *CommandActions) PopulateConfigs(context *service.ActionContext, binding
 	}
 }
 
-func (a *CommandActions) CopyResources(context *service.ActionContext) error {
-	inCluster, err := a.clientSetFactory(context.Logger)
+func (a *CommandActions) CreateCARootSecret(context *service.ActionContext, caClient connectivityclient.ConnectivityClient) error {
+
+	ca, err := caClient.GetCA()
+
 	if err != nil {
 		return err
 	}
 
-	clientset, err := a.targetClientSetFactory(context)
+	clientset, err := context.KubeClient.Clientset()
 	if err != nil {
-		return errors.Wrap(err, "Error while getting a client set")
+		return errors.Wrap(err, "cannot get a target cluster client set")
 	}
 
-	for _, create := range a.copyFactory {
-		operation := create(context.Task, inCluster, clientset)
-
-		if err := operation.Transfer(); err != nil {
-			return err
-		}
+	if err := makeIstioCASecret(context.Task, clientset, ca); err != nil {
+		return errors.Wrap(err, "cannot create Istio CA secret")
 	}
 
 	return nil
@@ -148,4 +140,39 @@ func (a *CommandActions) removeIstioSecrets(context *service.ActionContext) erro
 		return errors.Wrap(err, "Error during removal of cc-certs-cacert in istio-system")
 	}
 	return nil
+}
+
+func makeIstioCASecret(task *reconciler.Task, targetClientSet k8s.Interface, ca []byte) error {
+
+	namespace, secretKey, secretName, err := getIstioSecretCfg(task.Configuration)
+
+	if err != nil {
+		return err
+	}
+
+	repo := secrets.NewSecretRepo(namespace, targetClientSet)
+	return repo.SaveIstioCASecret(secretName, secretKey, ca)
+}
+
+func getIstioSecretCfg(config map[string]interface{}) (string, string, string, error) {
+	istioSecretName, ok := config["istio.secret.name"]
+
+	if !ok {
+		return "", "", "", errors.New("missing configuration value istio.secret.name")
+	}
+
+	istioNamespace := config["istio.secret.namespace"]
+	if istioNamespace == nil || istioNamespace == "" {
+		istioNamespace = "istio-system"
+	}
+	istioSecretKey := config["istio.secret.key"]
+	if istioSecretKey == nil || istioSecretKey == "" {
+		istioSecretKey = "cacert"
+	}
+
+	strNamespace := fmt.Sprintf("%v", istioNamespace)
+	strSecretKey := fmt.Sprintf("%v", istioSecretKey)
+	strSecretName := fmt.Sprintf("%v", istioSecretName)
+
+	return strNamespace, strSecretKey, strSecretName, nil
 }

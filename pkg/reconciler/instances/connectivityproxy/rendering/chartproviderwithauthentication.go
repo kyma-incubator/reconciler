@@ -1,10 +1,11 @@
 package rendering
 
 import (
-	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
-	"github.com/pkg/errors"
 	"net/http"
 	"os"
+
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
+	"github.com/pkg/errors"
 )
 
 const (

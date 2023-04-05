@@ -2,12 +2,13 @@ package rendering
 
 import (
 	"fmt"
+	"net/http"
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"testing"
 )
 
 func TestNewProviderWithAuthentication(t *testing.T) {

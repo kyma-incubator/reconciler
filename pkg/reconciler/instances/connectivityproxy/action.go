@@ -1,10 +1,12 @@
 package connectivityproxy
 
 import (
+	"strings"
+
 	"github.com/kyma-incubator/reconciler/pkg/model"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 type CustomAction struct {
@@ -32,8 +34,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	}
 
 	context.Logger.Debug("Checking StatefulSet")
-	app, err := context.KubeClient.
-		GetStatefulSet(context.Context, context.Task.Component, context.Task.Namespace)
+	app, err := context.KubeClient.GetStatefulSet(context.Context, context.Task.Component, context.Task.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "Error while retrieving StatefulSet")
 	}
@@ -44,38 +45,48 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		return errors.Wrap(err, "Error while retrieving binding from BTP Operator")
 	}
 
-	if binding == nil {
-		context.Logger.Debug("Checking Service Catalog binding")
-		binding, err = a.Loader.FindBindingCatalog(context)
-		if err != nil {
-			return errors.Wrap(err, "Error while retrieving binding from Service Catalog")
-		}
-	}
-
 	if binding != nil {
 		context.Logger.Debug("Reading ServiceBinding Secret")
 		bindingSecret, err := a.Loader.FindSecret(context, binding)
 
 		context.Logger.Debug("Service Binding Secret check")
-		if err != nil || bindingSecret == nil {
-			return errors.Wrap(err, "Error while retrieving secret")
+		if err != nil {
+			return errors.Wrap(err, "Error while retrieving service binding secret")
 		}
 
+		// TODO rethink binding secret retrieval
+		if bindingSecret == nil {
+			return errors.New("Missing binding secret")
+		}
+
+		// build overrides for credential secret by reading them from btp-operator secret
 		context.Logger.Debug("Populating configs")
 		a.Commands.PopulateConfigs(context, bindingSecret)
 
-		context.Logger.Debug("Copying resources to target cluster")
-		err = a.Commands.CopyResources(context)
+		caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
+
 		if err != nil {
-			return errors.Wrap(err, "Error during copying resources")
+			return errors.Wrap(err, "Error - cannot create Connectivity CA client")
+		}
+		context.Logger.Debug("Creating Istio CA cacert secret for Connectivity Proxy")
+		err = a.Commands.CreateCARootSecret(context, caClient)
+		if err != nil {
+			return errors.Wrap(err, "error during creatiion of Istio CA cacert secret for Connectivity Proxy")
 		}
 
-		context.Logger.Info("Installing component")
-		if err := a.Commands.InstallOrUpgrade(context, app); err != nil {
-			return errors.Wrap(err, "Error during installation")
+		refresh := app != nil
+
+		if refresh {
+			context.Logger.Info("Reconciling component")
+		} else {
+			context.Logger.Info("Installing component")
+		}
+
+		if err := a.Commands.Apply(context, refresh); err != nil {
+			return errors.Wrap(err, "Error during reconcilation")
 		}
 	} else if binding == nil && app != nil {
-		context.Logger.Debug("Removing component")
+		context.Logger.Info("Removing component")
 		if err := a.Commands.Remove(context); err != nil {
 			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err

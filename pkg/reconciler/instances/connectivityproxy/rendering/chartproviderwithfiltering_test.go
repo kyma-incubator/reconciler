@@ -1,6 +1,8 @@
 package rendering
 
 import (
+	"testing"
+
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/chart"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -10,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
-	"testing"
 )
 
 func TestChartProvider(t *testing.T) {

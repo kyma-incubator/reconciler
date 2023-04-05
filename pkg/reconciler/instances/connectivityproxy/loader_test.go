@@ -2,8 +2,9 @@ package connectivityproxy
 
 import (
 	"context"
-	"github.com/kyma-incubator/reconciler/pkg/logger"
 	"testing"
+
+	"github.com/kyma-incubator/reconciler/pkg/logger"
 
 	"github.com/kyma-incubator/reconciler/pkg/reconciler"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/kubernetes/mocks"
