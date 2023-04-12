@@ -1,6 +1,7 @@
 package connectivityproxy
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -10,7 +11,9 @@ import (
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/rendering"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/secrets"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
+	"github.com/kyma-incubator/reconciler/pkg/ssl"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 	apiCoreV1 "k8s.io/api/core/v1"
 	k8s "k8s.io/client-go/kubernetes"
 )
@@ -24,6 +27,7 @@ const (
 type Commands interface {
 	Apply(*service.ActionContext, bool) error
 	CreateCARootSecret(*service.ActionContext, connectivityclient.ConnectivityClient) error
+	CreateSecretTLS(ctx *service.ActionContext, ns, secretName string) (map[string][]byte, error)
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
 }
@@ -32,15 +36,15 @@ type CommandActions struct {
 	install service.Operation
 }
 
-func (a *CommandActions) Apply(context *service.ActionContext, refresh bool) error {
+func (a *CommandActions) Apply(ctx *service.ActionContext, refresh bool) error {
 
-	chartProvider, err := a.getChartProvider(context, refresh)
+	chartProvider, err := a.getChartProvider(ctx, refresh)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to create chart provider")
 	}
 
-	err = a.install.Invoke(context.Context, chartProvider, context.Task, context.KubeClient)
+	err = a.install.Invoke(ctx.Context, chartProvider, ctx.Task, ctx.KubeClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to invoke installation")
 	}
@@ -48,12 +52,12 @@ func (a *CommandActions) Apply(context *service.ActionContext, refresh bool) err
 	return nil
 }
 
-func (a *CommandActions) getChartProvider(context *service.ActionContext, withFilter bool) (chart.Provider, error) {
+func (a *CommandActions) getChartProvider(ctx *service.ActionContext, withFilter bool) (chart.Provider, error) {
 	authenticator, err := rendering.NewExternalComponentAuthenticator()
 	if err != nil {
 		return nil, err
 	}
-	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(context.ChartProvider, authenticator)
+	chartProviderWithAuthentication := rendering.NewProviderWithAuthentication(ctx.ChartProvider, authenticator)
 
 	var filters []rendering.FilterFunc
 
@@ -65,21 +69,44 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, withFi
 	return rendering.NewProviderWithFilters(chartProviderWithAuthentication, filters...), nil
 }
 
-func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
+func (a *CommandActions) PopulateConfigs(ctx *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
 	for key, val := range bindingSecret.Data {
 		var unmarshalled map[string]interface{}
 
 		if err := json.Unmarshal(val, &unmarshalled); err != nil {
-			context.Task.Configuration[BindingKey+key] = string(val)
+			ctx.Task.Configuration[BindingKey+key] = string(val)
 		} else {
 			for uKey, uVal := range unmarshalled {
-				context.Task.Configuration[BindingKey+uKey] = uVal
+				ctx.Task.Configuration[BindingKey+uKey] = uVal
 			}
 		}
 	}
 }
 
-func (a *CommandActions) CreateCARootSecret(context *service.ActionContext, caClient connectivityclient.ConnectivityClient) error {
+func (a *CommandActions) CreateSecretTLS(ctx *service.ActionContext, ns, secretName string) (map[string][]byte, error) {
+
+	clientset, err := ctx.KubeClient.Clientset()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get a target cluster client set")
+	}
+
+	var key bytes.Buffer
+	var crt bytes.Buffer
+
+	if err := ssl.GenerateCertificate(&key, &crt); err != nil {
+		return nil, err
+	}
+
+	repo := secrets.NewSecretRepo(ns, clientset)
+	return repo.SaveSecretTLS(
+		context.Background(),
+		secretName,
+		key.Bytes(),
+		crt.Bytes(),
+	)
+}
+
+func (a *CommandActions) CreateCARootSecret(ctx *service.ActionContext, caClient connectivityclient.ConnectivityClient) error {
 
 	ca, err := caClient.GetCA()
 
@@ -87,24 +114,24 @@ func (a *CommandActions) CreateCARootSecret(context *service.ActionContext, caCl
 		return err
 	}
 
-	clientset, err := context.KubeClient.Clientset()
+	clientset, err := ctx.KubeClient.Clientset()
 	if err != nil {
 		return errors.Wrap(err, "cannot get a target cluster client set")
 	}
 
-	if err := makeIstioCASecret(context.Task, clientset, ca); err != nil {
+	if err := makeIstioCASecret(ctx.Task, clientset, ca); err != nil {
 		return errors.Wrap(err, "cannot create Istio CA secret")
 	}
 
 	return nil
 }
 
-func (a *CommandActions) Remove(context *service.ActionContext) error {
-	component := chart.NewComponentBuilder(context.Task.Version, context.Task.Component).
-		WithNamespace(context.Task.Namespace).
-		WithProfile(context.Task.Profile).
-		WithConfiguration(context.Task.Configuration).
-		WithURL(context.Task.URL).
+func (a *CommandActions) Remove(ctx *service.ActionContext) error {
+	component := chart.NewComponentBuilder(ctx.Task.Version, ctx.Task.Component).
+		WithNamespace(ctx.Task.Namespace).
+		WithProfile(ctx.Task.Profile).
+		WithConfiguration(ctx.Task.Configuration).
+		WithURL(ctx.Task.URL).
 		Build()
 
 	authenticator, err := rendering.NewExternalComponentAuthenticator()
@@ -113,32 +140,34 @@ func (a *CommandActions) Remove(context *service.ActionContext) error {
 	}
 	component.SetExternalComponentAuthentication(authenticator)
 
-	manifest, err := context.ChartProvider.RenderManifest(component)
+	manifest, err := ctx.ChartProvider.RenderManifest(component)
 	if err != nil {
 		return errors.Wrap(err, "Error during rendering manifest for removal")
 	}
 
-	_, err = context.KubeClient.Delete(context.Context, manifest.Manifest, context.Task.Namespace)
+	_, err = ctx.KubeClient.Delete(ctx.Context, manifest.Manifest, ctx.Task.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "Error during removal")
 	}
 
-	return a.removeIstioSecrets(context)
+	return a.removeSecrets(ctx)
 }
 
-func (a *CommandActions) removeIstioSecrets(context *service.ActionContext) error {
+func (a *CommandActions) removeSecrets(ctx *service.ActionContext) error {
 
-	_, err := context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs", "istio-system")
-	if err != nil {
-		context.Logger.Error("Error during removal of cc-certs in istio-system")
-		return errors.Wrap(err, "Error during removal of cc-certs in istio-system")
+	for _, item := range [][2]string{
+		{"cc-certs", "istio-system"},
+		{"cc-certs-cacert", "istio-system"},
+		{smSecretName, kymaSystem},
+	} {
+		_, err := ctx.KubeClient.DeleteResource(ctx.Context, "secret", item[0], item[1])
+		if err != nil {
+			msg := fmt.Sprintf("Error during removal of %s in %s", item[0], item[1])
+			ctx.Logger.Error(msg)
+			return errors.Wrap(err, "Error during removal of cc-certs in istio-system")
+		}
 	}
 
-	_, err = context.KubeClient.DeleteResource(context.Context, "secret", "cc-certs-cacert", "istio-system")
-	if err != nil {
-		context.Logger.Info("Error during removal of cc-certs-cacert in istio-system")
-		return errors.Wrap(err, "Error during removal of cc-certs-cacert in istio-system")
-	}
 	return nil
 }
 

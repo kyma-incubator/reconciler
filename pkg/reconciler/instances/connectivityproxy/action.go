@@ -1,12 +1,16 @@
 package connectivityproxy
 
 import (
+	"fmt"
 	"strings"
 
+	"encoding/base64"
 	"github.com/kyma-incubator/reconciler/pkg/model"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/connectivityclient"
+	"github.com/kyma-incubator/reconciler/pkg/reconciler/instances/connectivityproxy/secrets"
 	"github.com/kyma-incubator/reconciler/pkg/reconciler/service"
 	"github.com/pkg/errors"
+	apiCoreV1 "k8s.io/api/core/v1"
 )
 
 type CustomAction struct {
@@ -15,6 +19,12 @@ type CustomAction struct {
 	Commands Commands
 }
 
+const (
+	tagHost      = "global.kubeHost"
+	smSecretName = "connectivity-sm-operator-secrets-tls"
+	kymaSystem   = "kyma-system"
+)
+
 func (a *CustomAction) Run(context *service.ActionContext) error {
 	context.Logger.Debug("Staring invocation of " + context.Task.Component + " reconciliation")
 
@@ -22,7 +32,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 	if host == "" {
 		return errors.Errorf("Host cannot be empty")
 	}
-	context.Task.Configuration["global.kubeHost"] = strings.TrimPrefix(host, "https://")
+	context.Task.Configuration[tagHost] = strings.TrimPrefix(host, "https://")
 
 	if context.Task.Type == model.OperationTypeDelete {
 		context.Logger.Debug("Requested cluster removal - removing component")
@@ -61,7 +71,23 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 
 		// build overrides for credential secret by reading them from btp-operator secret
 		context.Logger.Debug("Populating configs")
+
+		// TODO this is a workaround for 2.4.4, clean it up after upgrade to 2.8.0
 		a.Commands.PopulateConfigs(context, bindingSecret)
+
+		data, err := a.Commands.CreateSecretTLS(context, kymaSystem, smSecretName)
+		if err != nil {
+			return fmt.Errorf("unable to create '%s' secret: %w", smSecretName, err)
+		}
+
+		caData, found := data[secrets.TagTlsCa]
+		if !found {
+			return fmt.Errorf("not found: %s in %s/%s", secrets.TagTlsCa, kymaSystem, smSecretName)
+		}
+
+		if err := prepareOverridesFor280(context, bindingSecret, caData); err != nil {
+			return errors.Wrap(err, "Error - cannot prepare overrides")
+		}
 
 		caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
 
@@ -93,5 +119,29 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 	}
 
+	return nil
+}
+
+var (
+	ErrValueNotFound = errors.New("value not found")
+)
+
+func prepareOverridesFor280(context *service.ActionContext, secret *apiCoreV1.Secret, caData []byte) error {
+	for _, item := range [][2]string{
+		{"subaccount_id", "config.subaccountId"},
+		{"subaccount_subdomain", "config.subaccountSubdomain"},
+	} {
+		val, found := secret.Data[item[0]]
+		if !found {
+			return fmt.Errorf("%w: %s", ErrValueNotFound, val)
+		}
+		context.Task.Configuration[item[1]] = string(val)
+	}
+
+	context.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("conn.%s", context.Task.Configuration[tagHost])
+	context.Task.Configuration["secretConfig.integration.connectivityService.secretName"] = "connectivity-proxy-service-key"
+
+	encoded := base64.StdEncoding.EncodeToString([]byte(caData))
+	context.Task.Configuration["deployment.serviceMapping.caBundle"] = encoded
 	return nil
 }
