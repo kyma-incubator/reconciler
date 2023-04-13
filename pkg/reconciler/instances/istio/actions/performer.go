@@ -206,13 +206,9 @@ func (c *DefaultIstioPerformer) Install(context context.Context, kubeConfig, ist
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
-	installedVersion, err := getInstalledIstioVersion(c.provider, kubeConfig, c.gatherer, logger)
+	err = ensureInstalledVersionWithRetry(execVersion.MajorMinorPatch(), c.provider, kubeConfig, c.gatherer, logger)
 	if err != nil {
 		return err
-	}
-
-	if execVersion.MajorMinorPatch() != installedVersion {
-		return fmt.Errorf("Installed Istio version: %s do not match target version: %s", installedVersion, execVersion.MajorMinorPatch())
 	}
 
 	logger.Infof("Istio in version %s successfully installed", version)
@@ -302,13 +298,9 @@ func (c *DefaultIstioPerformer) Update(context context.Context, kubeConfig, isti
 		return errors.Wrap(err, "Error occurred when calling istioctl")
 	}
 
-	updatedVersion, err := getInstalledIstioVersion(c.provider, kubeConfig, c.gatherer, logger)
+	err = ensureInstalledVersionWithRetry(version.MajorMinorPatch(), c.provider, kubeConfig, c.gatherer, logger)
 	if err != nil {
 		return err
-	}
-
-	if version.MajorMinorPatch() != updatedVersion {
-		return fmt.Errorf("Updated Istio version: %s do not match target version: %s", updatedVersion, version.MajorMinorPatch())
 	}
 
 	logger.Infof("Istio has been updated successfully to version %s", targetVersion)
@@ -613,16 +605,11 @@ func IsSidecarInjectionNamespacesByDefaultEnabled(workspace chart.Factory, branc
 	return enableNamespacesByDefault, nil
 }
 
-func getInstalledIstioVersion(provider clientset.Provider, kubeConfig string, gatherer data.Gatherer, logger *zap.SugaredLogger) (string, error) {
+func getInstalledIstioVersion(provider clientset.Provider, kubeConfig string, gatherer data.Gatherer, retryOpts []avastretry.Option, logger *zap.SugaredLogger) (string, error) {
 	kubeClient, err := provider.RetrieveFrom(kubeConfig, logger)
 	if err != nil {
 		logger.Error("Could not retrieve KubeClient from Kubeconfig!")
 		return "", err
-	}
-	retryOpts := []avastretry.Option{
-		avastretry.Delay(delayBetweenRetries),
-		avastretry.Attempts(uint(retriesCount)),
-		avastretry.DelayType(avastretry.FixedDelay),
 	}
 
 	version, err := gatherer.GetInstalledIstioVersion(kubeClient, retryOpts, logger)
@@ -631,4 +618,30 @@ func getInstalledIstioVersion(provider clientset.Provider, kubeConfig string, ga
 	}
 
 	return version, nil
+}
+
+func ensureInstalledVersionWithRetry(versionToMatch string, provider clientset.Provider, kubeConfig string, gatherer data.Gatherer, logger *zap.SugaredLogger) error {
+	retryOpts := []avastretry.Option{
+		avastretry.Delay(delayBetweenRetries),
+		avastretry.Attempts(uint(retriesCount)),
+		avastretry.DelayType(avastretry.FixedDelay),
+	}
+
+	err := avastretry.Do(func() error {
+		installedVersion, err := getInstalledIstioVersion(provider, kubeConfig, gatherer, retryOpts, logger)
+		if err != nil {
+			return err
+		}
+		if versionToMatch != installedVersion {
+			return fmt.Errorf("Installed Istio version: %s do not match target version: %s", installedVersion, versionToMatch)
+		}
+		return nil
+	}, retryOpts...)
+
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Istio version matches target version: %s", versionToMatch)
+	return nil
 }
