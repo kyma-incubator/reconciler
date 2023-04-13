@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestCommand(t *testing.T) {
+func TestCommans_CreateCARootSecret(t *testing.T) {
 
 	t.Run("Should create CA secret with CA string in specified namespace using values from configuration", func(t *testing.T) {
 		commands := CommandActions{
@@ -130,7 +130,7 @@ func TestCommand(t *testing.T) {
 	})
 }
 
-func TestCommands(t *testing.T) {
+func TestCommands_Apply(t *testing.T) {
 	t.Setenv("GIT_CLONE_TOKEN", "token")
 	componentName := "connectivity-proxy"
 
@@ -257,6 +257,9 @@ func TestCommands(t *testing.T) {
 		require.NoError(t, err)
 		kubeClient.AssertExpectations(t)
 	})
+}
+
+func TestCommands_PopulateConfig(t *testing.T) {
 
 	t.Run("Should copy configuration from model", func(t *testing.T) {
 
@@ -316,6 +319,37 @@ func TestCommands(t *testing.T) {
 		require.Equal(t, map[string]interface{}{
 			"global.binding.key-1": "value-1",
 			"global.binding.key-2": "value-2",
+		}, actionContext.Task.Configuration)
+	})
+
+	t.Run("Should copy and flatten configuration with nested json inside one value", func(t *testing.T) {
+
+		actionContext := &service.ActionContext{
+			Context: context.Background(),
+			Task: &reconciler.Task{
+				Configuration: make(map[string]interface{}),
+			},
+		}
+
+		delegateMock := &serviceMocks.Operation{}
+		delegateMock.On("Invoke", actionContext.Context, nil,
+			mock.AnythingOfType(fmt.Sprintf("%T", &reconciler.Task{})), // print the type of the object (*reconciler.Task)
+			nil).
+			Return(nil)
+
+		commands := CommandActions{
+			install: delegateMock,
+		}
+
+		secret := &v1.Secret{Data: map[string][]byte{
+			"parentkey": []byte(`{"key-1": "value-1",  "key-2": "{\"key-3\":\"value-3\", \"key-4\":\"value-4\"}" }`),
+		}}
+
+		commands.PopulateConfigs(actionContext, secret)
+		require.Equal(t, map[string]interface{}{
+			"global.binding.key-1": "value-1",
+			"global.binding.key-3": "value-3",
+			"global.binding.key-4": "value-4",
 		}, actionContext.Task.Configuration)
 	})
 }

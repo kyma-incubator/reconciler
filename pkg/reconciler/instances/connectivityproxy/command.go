@@ -67,12 +67,23 @@ func (a *CommandActions) getChartProvider(context *service.ActionContext, withFi
 
 func (a *CommandActions) PopulateConfigs(context *service.ActionContext, bindingSecret *apiCoreV1.Secret) {
 	for key, val := range bindingSecret.Data {
-		var unmarshalled map[string]interface{}
+		a.flatValues(context, key, val)
+	}
+}
 
-		if err := json.Unmarshal(val, &unmarshalled); err != nil {
-			context.Task.Configuration[BindingKey+key] = string(val)
-		} else {
-			for uKey, uVal := range unmarshalled {
+func (a *CommandActions) flatValues(context *service.ActionContext, key string, value []byte) {
+
+	var unmarshalled map[string]interface{}
+
+	if err := json.Unmarshal(value, &unmarshalled); err != nil {
+		context.Task.Configuration[BindingKey+key] = string(value)
+	} else {
+		for uKey, uVal := range unmarshalled {
+
+			strVal, ok := uVal.(string)
+			if ok {
+				a.flatValues(context, uKey, []byte(strVal))
+			} else {
 				context.Task.Configuration[BindingKey+uKey] = uVal
 			}
 		}
