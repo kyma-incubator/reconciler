@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"io"
 	"math/big"
 	"time"
 )
@@ -16,22 +15,19 @@ const (
 )
 
 // generate self signed certificate with a key
-func GenerateCertificate(key, cert io.Writer) error {
+func GenerateCertificate() ([2][]byte, error) {
 	pk, err := rsa.GenerateKey(rand.Reader, pkBits)
 	if err != nil {
-		return err
+		return [2][]byte{}, err
 	}
 
 	now := time.Now()
 	certTpl := x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "connectivity-proxy-smv.kyma-system.svc"},
-		NotBefore:             now,
-		NotAfter:              now.AddDate(1, 0, 0),
-		BasicConstraintsValid: true,
-		DNSNames:              []string{"connectivity-proxy-smv.kyma-system.svc"},
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "connectivity-proxy-smv.kyma-system.svc"},
+		NotBefore:    now,
+		NotAfter:     now.AddDate(1, 0, 0),
+		DNSNames:     []string{"connectivity-proxy-smv.kyma-system.svc"},
 	}
 
 	// create private key
@@ -41,25 +37,21 @@ func GenerateCertificate(key, cert io.Writer) error {
 		Bytes: x509.MarshalPKCS1PrivateKey(pk),
 	}
 
-	if err := pem.Encode(key, &keyBlock); err != nil {
-		return err
-	}
+	key := pem.EncodeToMemory(&keyBlock)
 
 	// create certificate
 
 	certificateBytes, err := x509.CreateCertificate(rand.Reader, &certTpl, &certTpl, &pk.PublicKey, pk)
 	if err != nil {
-		return err
+		return [2][]byte{}, err
 	}
 
-	pem.Encode(cert, &pem.Block{
+	certBlock := pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certificateBytes,
-	})
-
-	if err := pem.Encode(key, &keyBlock); err != nil {
-		return err
 	}
 
-	return nil
+	cert := pem.EncodeToMemory(&certBlock)
+
+	return [2][]byte{key, cert}, nil
 }

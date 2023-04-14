@@ -1,7 +1,6 @@
 package connectivityproxy
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -90,10 +89,8 @@ func (a *CommandActions) CreateSecretTLS(ctx *service.ActionContext, ns, secretN
 		return nil, errors.Wrap(err, "cannot get a target cluster client set")
 	}
 
-	var key bytes.Buffer
-	var crt bytes.Buffer
-
-	if err := ssl.GenerateCertificate(&key, &crt); err != nil {
+	data, err := ssl.GenerateCertificate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -101,8 +98,8 @@ func (a *CommandActions) CreateSecretTLS(ctx *service.ActionContext, ns, secretN
 	return repo.SaveSecretTLS(
 		context.Background(),
 		secretName,
-		key.Bytes(),
-		crt.Bytes(),
+		data[0],
+		data[1],
 	)
 }
 

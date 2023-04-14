@@ -138,7 +138,12 @@ func prepareOverridesFor280(context *service.ActionContext, secret *apiCoreV1.Se
 		context.Task.Configuration[item[1]] = string(val)
 	}
 
-	context.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("conn.%s", context.Task.Configuration[tagHost])
+	xtHost := context.Task.Configuration[tagHost].(string)
+	if strings.HasPrefix(xtHost, "api.") {
+		xtHost = strings.Replace(xtHost, "api.", "",1)
+	}
+
+	context.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("conn.%s", xtHost)
 	context.Task.Configuration["secretConfig.integration.connectivityService.secretName"] = "connectivity-proxy-service-key"
 
 	encoded := base64.StdEncoding.EncodeToString([]byte(caData))

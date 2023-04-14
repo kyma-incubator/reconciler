@@ -56,8 +56,7 @@ func (r SecretRepo) SaveSecretTLS(ctx context.Context, name string, key, crt []b
 			TagTlsCa:  crt,
 			"tls.key": key,
 		},
-		StringData: nil,
-		Type:       coreV1.SecretTypeOpaque,
+		Type: coreV1.SecretTypeOpaque,
 	}
 
 	// TODO switch to upsertK8SSecret when cert rotation is implemented
