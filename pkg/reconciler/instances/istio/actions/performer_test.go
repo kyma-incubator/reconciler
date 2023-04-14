@@ -228,7 +228,30 @@ func Test_DefaultIstioPerformer_Install(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Installed Istio version: 1.2.2 do not match target version: 1.2.3")
+		require.Contains(t, err.Error(), "Istio version: 1.2.2 do not match target version: 1.2.3")
+		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
+
+	t.Run("should succeed when installed Istio version do not match target version on first attempt", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		cmdResolver := TestCommanderResolver{cmder: &cmder}
+
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+		gatherer := datamocks.Gatherer{}
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.2", nil).Once()
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.3", nil).Once()
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider, &gatherer)
+
+		// when
+		err := wrapper.Install(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
+
+		// then
+		require.NoError(t, err)
 		cmder.AssertCalled(t, "Install", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 }
@@ -535,10 +558,32 @@ func Test_DefaultIstioPerformer_Update(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Updated Istio version: 1.2.2 do not match target version: 1.2.3")
+		require.Contains(t, err.Error(), "Istio version: 1.2.2 do not match target version: 1.2.3")
 		cmder.AssertCalled(t, "Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
 	})
 
+	t.Run("should succeed when updated Istio version do not match target version on first attempt", func(t *testing.T) {
+		// given
+		cmder := istioctlmocks.Commander{}
+		cmder.On("Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(nil)
+		cmdResolver := TestCommanderResolver{cmder: &cmder}
+
+		proxy := proxymocks.IstioProxyReset{}
+		provider := clientsetmocks.Provider{}
+		provider.On("GetIstioClient", mock.Anything).Return(ctrlClient, nil)
+		provider.On("RetrieveFrom", mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger")).Return(fake.NewSimpleClientset(), nil)
+		gatherer := datamocks.Gatherer{}
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.2", nil).Once()
+		gatherer.On("GetInstalledIstioVersion", mock.Anything, mock.AnythingOfType("[]retry.Option"), mock.AnythingOfType("*zap.SugaredLogger")).Return("1.2.3", nil).Once()
+		wrapper := NewDefaultIstioPerformer(cmdResolver, &proxy, &provider, &gatherer)
+
+		// when
+		err := wrapper.Update(context.TODO(), kubeConfig, istioManifest, "1.2.3", log)
+
+		// then
+		require.NoError(t, err)
+		cmder.AssertCalled(t, "Upgrade", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("*zap.SugaredLogger"))
+	})
 }
 
 func Test_DefaultIstioPerformer_CNI_Merge(t *testing.T) {
