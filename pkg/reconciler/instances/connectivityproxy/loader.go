@@ -50,5 +50,11 @@ func (a *K8sLoader) FindSecret(context *service.ActionContext, binding *unstruct
 		namespace = "default"
 	}
 
-	return context.KubeClient.GetSecret(context.Context, name, namespace)
+	secret, err := context.KubeClient.GetSecret(context.Context, name, namespace)
+
+	if secret == nil {
+		return nil, errors.New("Missing binding secret")
+	}
+
+	return secret, err
 }
