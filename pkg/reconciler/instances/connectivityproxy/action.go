@@ -54,11 +54,6 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			return errors.Wrap(err, "Error while retrieving service binding secret")
 		}
 
-		// TODO rethink binding secret retrieval
-		if bindingSecret == nil {
-			return errors.New("Missing binding secret")
-		}
-
 		// build overrides for credential secret by reading them from btp-operator secret
 		context.Logger.Debug("Populating configs")
 		a.Commands.PopulateConfigs(context, bindingSecret)
@@ -70,6 +65,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 		context.Logger.Debug("Creating Istio CA cacert secret for Connectivity Proxy")
 		err = a.Commands.CreateCARootSecret(context, caClient)
+
 		if err != nil {
 			return errors.Wrap(err, "error during creatiion of Istio CA cacert secret for Connectivity Proxy")
 		}

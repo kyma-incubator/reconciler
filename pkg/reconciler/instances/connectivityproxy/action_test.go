@@ -137,23 +137,6 @@ func TestAction(t *testing.T) {
 		kubeClient.AssertExpectations(t)
 	})
 
-	t.Run("Should return error when binding exists, but secret is not found", func(t *testing.T) {
-		kubeClient, context, action, loader, commands := setupActionTestEnv()
-
-		kubeClient.On("GetHost").Return("test host")
-		kubeClient.On("GetStatefulSet", context.Context, "test-component", "").Return(nil, nil)
-
-		loader.On("FindBindingOperator", context).Return(binding, nil)
-		loader.On("FindSecret", context, binding).Return(nil, nil)
-
-		err := action.Run(context)
-		require.Error(t, err)
-
-		commands.AssertExpectations(t)
-		loader.AssertExpectations(t)
-		kubeClient.AssertExpectations(t)
-	})
-
 	t.Run("Should return error when binding exists, and FindSecret returns error", func(t *testing.T) {
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
