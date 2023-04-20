@@ -44,11 +44,9 @@ func TestServerlessReconciliation(t *testing.T) {
 	}
 
 	expectedOverridesForCorrectSecretData := map[string]interface{}{
-		"dockerRegistry.username":        existingUsername,
-		"dockerRegistry.password":        existingPassword,
-		"dockerRegistry.enableInternal":  false,
-		"dockerRegistry.registryAddress": existingRegistryAddress,
-		"dockerRegistry.serverAddress":   existingServerAddress,
+		"dockerRegistry.username":       existingUsername,
+		"dockerRegistry.password":       existingPassword,
+		"dockerRegistry.enableInternal": false,
 	}
 
 	correctAnnotations := map[string]string{"rollme": existingRollme}
@@ -107,8 +105,6 @@ func TestServerlessReconciliation(t *testing.T) {
 				"dockerRegistry.username":            existingUsername,
 				"dockerRegistry.password":            existingPassword,
 				"dockerRegistry.enableInternal":      false,
-				"dockerRegistry.registryAddress":     existingRegistryAddress,
-				"dockerRegistry.serverAddress":       existingServerAddress,
 				"docker-registry.registryHTTPSecret": existingHTTPSSecret,
 				"docker-registry.rollme":             existingRollme,
 			},
