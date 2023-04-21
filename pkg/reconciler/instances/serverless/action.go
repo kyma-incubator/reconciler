@@ -34,8 +34,6 @@ func (a *ReconcileCustomAction) Run(svcCtx *service.ActionContext) error {
 		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "username", "dockerRegistry.username")
 		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "password", "dockerRegistry.password")
 		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "isInternal", "dockerRegistry.enableInternal")
-		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "registryAddress", "dockerRegistry.registryAddress")
-		utils.SetOverrideFromSecret(logger, secret, svcCtx.Task.Configuration, "serverAddress", "dockerRegistry.serverAddress")
 
 		deployment, err := k8sClient.AppsV1().Deployments(serverlessNamespace).Get(svcCtx.Context, serverlessDockerRegistryDeploymentName, metav1.GetOptions{})
 		if err != nil {
