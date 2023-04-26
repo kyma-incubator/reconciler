@@ -26,6 +26,7 @@ const (
 type Commands interface {
 	Apply(*service.ActionContext, bool) error
 	CreateCARootSecret(*service.ActionContext, connectivityclient.ConnectivityClient) error
+	CreateSecretCpSvcKey(ctx *service.ActionContext, ns, secretName, cpSvcKey string) error
 	CreateSecretTLS(ctx *service.ActionContext, ns, secretName string) (map[string][]byte, error)
 	Remove(*service.ActionContext) error
 	PopulateConfigs(*service.ActionContext, *apiCoreV1.Secret)
@@ -80,6 +81,22 @@ func (a *CommandActions) PopulateConfigs(ctx *service.ActionContext, bindingSecr
 			}
 		}
 	}
+}
+
+func (a *CommandActions) CreateSecretCpSvcKey(ctx *service.ActionContext, ns, secretName, cpSvcKey string) error {
+
+	clientset, err := ctx.KubeClient.Clientset()
+	if err != nil {
+		return errors.Wrap(err, "cannot get a target cluster client set")
+	}
+
+	repo := secrets.NewSecretRepo(ns, clientset)
+	return repo.SecretCpSvcKey(
+		context.Background(),
+		secretName,
+		cpSvcKey,
+	)
+
 }
 
 func (a *CommandActions) CreateSecretTLS(ctx *service.ActionContext, ns, secretName string) (map[string][]byte, error) {

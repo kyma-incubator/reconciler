@@ -30,6 +30,23 @@ func NewSecretRepo(namespace string, targetClientSet k8s.Interface) *SecretRepo 
 	}
 }
 
+func (r SecretRepo) SecretCpSvcKey(ctx context.Context, name, key string) error {
+
+	secret := &coreV1.Secret{
+		TypeMeta: v1.TypeMeta{Kind: "Secret"},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      name,
+			Namespace: r.Namespace,
+		},
+		Data: map[string][]byte{
+			"connectivity-proxy-service-key": []byte(key),
+		},
+		Type: coreV1.SecretTypeOpaque,
+	}
+
+	return r.upsertK8SSecret(secret)
+}
+
 func (r SecretRepo) SaveSecretTLS(ctx context.Context, name string, key, crt []byte) (map[string][]byte, error) {
 	// TODO make sure to do a certificate expiration check
 	secret, err := r.TargetClientSet.

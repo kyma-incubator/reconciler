@@ -45,6 +45,20 @@ func (_m *Commands) CreateCARootSecret(_a0 *service.ActionContext, _a1 connectiv
 	return r0
 }
 
+// CreateSecretCpSvcKey provides a mock function with given fields: ctx, ns, secretName, cpSvcKey
+func (_m *Commands) CreateSecretCpSvcKey(ctx *service.ActionContext, ns string, secretName string, cpSvcKey []byte) error {
+	ret := _m.Called(ctx, ns, secretName, cpSvcKey)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*service.ActionContext, string, string, []byte) error); ok {
+		r0 = rf(ctx, ns, secretName, cpSvcKey)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CreateSecretTLS provides a mock function with given fields: ctx, ns, secretName
 func (_m *Commands) CreateSecretTLS(ctx *service.ActionContext, ns string, secretName string) (map[string][]byte, error) {
 	ret := _m.Called(ctx, ns, secretName)
