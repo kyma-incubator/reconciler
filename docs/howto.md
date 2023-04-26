@@ -16,7 +16,7 @@ Follow these steps to run Reconciler locally:
 
    We recommend specifying your own component list by using the `components` flag. By default, Reconciler installs all components listed in the [`components.yaml`](https://github.com/kyma-project/kyma/blob/main/installation/resources/components.yaml) file.
    ```bash
-    ./bin/mothership-darwin local --components tracing,monitoring
+    ./bin/mothership-darwin local --components monitoring
    ```
 
 # Testing
