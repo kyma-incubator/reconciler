@@ -158,7 +158,7 @@ func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSe
 		}
 		_, err := kubeClient.Resource(gvr).List(context.Background(), v1.ListOptions{})
 		if err == nil {
-			logger.Debugf("Found CRD '%s' on cluster '%s' which indicates that component '%s' "+
+			logger.Infof("Found CRD '%s' on cluster '%s' which indicates that component '%s' "+
 				"is migrated to new reconicler system: skipping it from reconciliation",
 				gvr, c.RuntimeID, compName)
 			migratedComponents[strings.ToLower(compName)] = true
@@ -167,6 +167,7 @@ func (c *ClusterConfigurationEntity) nonMigratedComponents(cfg *ReconciliationSe
 				compGVK.Group, compGVK.Version, c.RuntimeID, err)
 			logger.Warnf("It is assumed that component '%s' on cluster '%s' "+
 				"is already migrated and the old reconicler will NOT reconcile it now", compName, c.RuntimeID)
+			migratedComponents[strings.ToLower(compName)] = true
 		}
 	}
 
