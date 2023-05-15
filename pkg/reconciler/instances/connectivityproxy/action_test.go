@@ -137,7 +137,7 @@ func TestAction(t *testing.T) {
 		kubeClient.AssertExpectations(t)
 	})
 
-	t.Run("Should return error when binding exists, and FindSecret returns error", func(t *testing.T) {
+	t.Run("Should ignore error when binding exists, and FindSecret returns error", func(t *testing.T) {
 		kubeClient, context, action, loader, commands := setupActionTestEnv()
 
 		kubeClient.On("GetHost").Return("test host")
@@ -147,7 +147,7 @@ func TestAction(t *testing.T) {
 		loader.On("FindSecret", context, binding).Return(nil, errors.New("some error"))
 
 		err := action.Run(context)
-		require.Error(t, err)
+		require.NoError(t, err)
 
 		commands.AssertExpectations(t)
 		loader.AssertExpectations(t)
