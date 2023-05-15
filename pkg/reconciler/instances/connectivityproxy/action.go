@@ -50,8 +50,10 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		bindingSecret, err := a.Loader.FindSecret(context, binding)
 
 		context.Logger.Debug("Service Binding Secret check")
-		if err != nil {
-			return errors.Wrap(err, "Error while retrieving service binding secret")
+
+		if bindingSecret == nil {
+			context.Logger.Warnf("Skipping reconcilion, %s", err)
+			return nil
 		}
 
 		// build overrides for credential secret by reading them from btp-operator secret

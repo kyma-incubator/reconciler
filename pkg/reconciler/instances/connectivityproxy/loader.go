@@ -41,7 +41,7 @@ func (a *K8sLoader) FindSecret(context *service.ActionContext, binding *unstruct
 
 	name, err := bindingUns.getSecretName()
 	if err != nil {
-		return nil, errors.Wrap(err, "Error while extracting secret")
+		return nil, errors.Wrap(err, "Error while extracting binding secret name")
 	}
 
 	namespace := binding.GetNamespace()
