@@ -2,8 +2,10 @@ package connectivityproxy
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"encoding/base64"
 	"encoding/json"
@@ -30,41 +32,42 @@ const (
 	kymaSystem         = "kyma-system"
 )
 
-func (a *CustomAction) Run(context *service.ActionContext) error {
-	context.Logger.Debug("Staring invocation of " + context.Task.Component + " reconciliation")
+func (a *CustomAction) Run(actionCtx *service.ActionContext) error {
+	actionCtx.Logger.Debug("Staring invocation of " + actionCtx.Task.Component + " reconciliation")
 
-	host := context.KubeClient.GetHost()
+	host := actionCtx.KubeClient.GetHost()
 	if host == "" {
 		return errors.Errorf("Host cannot be empty")
 	}
-	context.Task.Configuration[tagHost] = strings.TrimPrefix(host, "https://")
+	actionCtx.Task.Configuration[tagHost] = strings.TrimPrefix(host, "https://")
 
-	if context.Task.Type == model.OperationTypeDelete {
-		context.Logger.Debug("Requested cluster removal - removing component")
-		if err := a.Commands.Remove(context); err != nil {
-			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
+	if actionCtx.Task.Type == model.OperationTypeDelete {
+		actionCtx.Logger.Debug("Requested cluster removal - removing component")
+		if err := a.Commands.Remove(actionCtx); err != nil {
+			actionCtx.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
 		return nil
 	}
 
-	context.Logger.Debug("Checking StatefulSet")
-	app, err := context.KubeClient.GetStatefulSet(context.Context, context.Task.Component, context.Task.Namespace)
+	actionCtx.Logger.Debug("Checking StatefulSet")
+	app, err := actionCtx.KubeClient.GetStatefulSet(actionCtx.Context, actionCtx.Task.Component, actionCtx.Task.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "Error while retrieving StatefulSet")
 	}
 
-	context.Logger.Debug("Checking BTP Operator binding")
-	binding, err := a.Loader.FindBindingOperator(context)
+	actionCtx.Logger.Debug("Checking BTP Operator binding")
+	binding, err := a.Loader.FindBindingOperator(actionCtx)
 	if err != nil {
 		return errors.Wrap(err, "Error while retrieving binding from BTP Operator")
 	}
 
 	if binding != nil {
-		context.Logger.Debug("Reading ServiceBinding Secret")
-		bindingSecret, err := a.Loader.FindSecret(context, binding)
 
-		context.Logger.Debug("Service Binding Secret check")
+		actionCtx.Logger.Debug("Reading ServiceBinding Secret")
+		bindingSecret, err := a.Loader.FindSecret(actionCtx, binding)
+
+		actionCtx.Logger.Debug("Service Binding Secret check")
 		if err != nil {
 			return errors.Wrap(err, "Error while retrieving service binding secret")
 		}
@@ -75,12 +78,12 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		}
 
 		// build overrides for credential secret by reading them from btp-operator secret
-		context.Logger.Debug("Populating configs")
+		actionCtx.Logger.Debug("Populating configs")
 
 		// TODO this is a workaround for 2.4.4, clean it up after upgrade to 2.8.0
-		a.Commands.PopulateConfigs(context, bindingSecret)
+		a.Commands.PopulateConfigs(actionCtx, bindingSecret)
 
-		data, err := a.Commands.CreateSecretTLS(context, kymaSystem, smSecretName)
+		data, err := a.Commands.CreateSecretTLS(actionCtx, kymaSystem, smSecretName)
 		if err != nil {
 			return fmt.Errorf("unable to create '%s' secret: %w", smSecretName, err)
 		}
@@ -91,7 +94,7 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 				bindingSecret.Namespace, bindingSecret.Name, err)
 		}
 
-		if err := a.Commands.CreateSecretCpSvcKey(context, kymaSystem, cpSvcKeySecretName, encodedSrk); err != nil {
+		if err := a.Commands.CreateSecretCpSvcKey(actionCtx, kymaSystem, cpSvcKeySecretName, encodedSrk); err != nil {
 			return fmt.Errorf("unable to create '%s' secret: %w", cpSvcKeySecretName, err)
 		}
 
@@ -100,17 +103,17 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 			return fmt.Errorf("not found: %s in %s/%s", secrets.TagTlsCa, kymaSystem, smSecretName)
 		}
 
-		if err := prepareOverridesFor280(context, bindingSecret, caData); err != nil {
+		if err := prepareOverridesFor280(actionCtx, bindingSecret, caData); err != nil {
 			return errors.Wrap(err, "Error - cannot prepare overrides")
 		}
 
-		caClient, err := connectivityclient.NewConnectivityCAClient(context.Task.Configuration)
+		caClient, err := connectivityclient.NewConnectivityCAClient(actionCtx.Task.Configuration)
 
 		if err != nil {
 			return errors.Wrap(err, "Error - cannot create Connectivity CA client")
 		}
-		context.Logger.Debug("Creating Istio CA cacert secret for Connectivity Proxy")
-		err = a.Commands.CreateCARootSecret(context, caClient)
+		actionCtx.Logger.Debug("Creating Istio CA cacert secret for Connectivity Proxy")
+		err = a.Commands.CreateCARootSecret(actionCtx, caClient)
 		if err != nil {
 			return errors.Wrap(err, "error during creatiion of Istio CA cacert secret for Connectivity Proxy")
 		}
@@ -118,18 +121,26 @@ func (a *CustomAction) Run(context *service.ActionContext) error {
 		refresh := app != nil
 
 		if refresh {
-			context.Logger.Info("Reconciling component")
+			actionCtx.Logger.Info("Deleting stateful set")
+			// workarounds 2.4.4 to 2.8.0 upgrade tunnel bug
+			ctx, cancel := context.WithTimeout(actionCtx.Context, time.Second*10)
+			defer cancel()
+
+			if _, err := actionCtx.KubeClient.DeleteResource(ctx, app.Kind, app.Name, app.Namespace); err != nil {
+				return errors.Wrap(err, "Error during stateful set deletion")
+			}
+
 		} else {
-			context.Logger.Info("Installing component")
+			actionCtx.Logger.Info("Installing component")
 		}
 
-		if err := a.Commands.Apply(context, refresh); err != nil {
+		if err := a.Commands.Apply(actionCtx, refresh); err != nil {
 			return errors.Wrap(err, "Error during reconcilation")
 		}
 	} else if binding == nil && app != nil {
-		context.Logger.Info("Removing component")
-		if err := a.Commands.Remove(context); err != nil {
-			context.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
+		actionCtx.Logger.Info("Removing component")
+		if err := a.Commands.Remove(actionCtx); err != nil {
+			actionCtx.Logger.Error("Failed to remove Connectivity Proxy: %v", err)
 			return err
 		}
 	}
@@ -141,7 +152,7 @@ var (
 	ErrValueNotFound = errors.New("value not found")
 )
 
-func prepareOverridesFor280(context *service.ActionContext, secret *apiCoreV1.Secret, caData []byte) error {
+func prepareOverridesFor280(actionCtx *service.ActionContext, secret *apiCoreV1.Secret, caData []byte) error {
 	for _, item := range [][2]string{
 		{"subaccount_id", "config.subaccountId"},
 		{"subaccount_subdomain", "config.subaccountSubdomain"},
@@ -150,20 +161,17 @@ func prepareOverridesFor280(context *service.ActionContext, secret *apiCoreV1.Se
 		if !found {
 			return fmt.Errorf("%w: %s", ErrValueNotFound, val)
 		}
-		context.Task.Configuration[item[1]] = string(val)
+		actionCtx.Task.Configuration[item[1]] = string(val)
 	}
 
-	xtHost := context.Task.Configuration[tagHost].(string)
-	if strings.HasPrefix(xtHost, "api.") {
-		xtHost = strings.Replace(xtHost, "api.", "", 1)
-	}
+	xtHost := actionCtx.Task.Configuration[tagHost].(string)
 
-	context.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("conn.%s", xtHost)
-	context.Task.Configuration["secretConfig.integration.connectivityService.secretName"] = "connectivity-proxy-service-key"
-	context.Task.Configuration["config.servers.businessDataTunnel.externalPort"] = "443"
+	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalHost"] = fmt.Sprintf("cc-proxy.%s", xtHost)
+	actionCtx.Task.Configuration["secretConfig.integration.connectivityService.secretName"] = "connectivity-proxy-service-key"
+	actionCtx.Task.Configuration["config.servers.businessDataTunnel.externalPort"] = "443"
 
 	encoded := base64.StdEncoding.EncodeToString([]byte(caData))
-	context.Task.Configuration["deployment.serviceMapping.caBundle"] = encoded
+	actionCtx.Task.Configuration["deployment.serviceMapping.caBundle"] = encoded
 	return nil
 }
 

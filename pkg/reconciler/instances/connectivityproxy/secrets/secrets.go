@@ -39,7 +39,7 @@ func (r SecretRepo) SecretCpSvcKey(ctx context.Context, name, key string) error 
 			Namespace: r.Namespace,
 		},
 		Data: map[string][]byte{
-			"connectivity-proxy-service-key": []byte(key),
+			"service_key": []byte(key),
 		},
 		Type: coreV1.SecretTypeOpaque,
 	}
