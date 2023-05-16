@@ -26,5 +26,9 @@ func init() {
 			&ResolveDockerRegistryNodePort{
 				name:           "resolve-docker-registry-node-port",
 				nodePortFinder: randomNodePort,
-			}))
+			})).
+		WithPostReconcileAction(&ResourceCleanupAction{
+			name:      "postserve-istio-cleanup",
+			resources: istioResources,
+		})
 }
